@@ -10,6 +10,10 @@ export const ID = "com.thebigpicture.initiative";
 /** Chiave metadata condivisa dai token (hp, initiative, attitude, ecc.) */
 const META_KEY = `${ID}/meta`;
 
+/** URL dei submenu (stesso host del manifest) */
+const ADD_MENU_URL  = new URL("/ctx-add.html",  window.location.href).toString();
+const MARK_MENU_URL = new URL("/ctx-mark.html", window.location.href).toString();
+
 /** Evita doppie registrazioni in dev/HMR */
 if (!window.__TBP_CTX_MOUNTED) {
   window.__TBP_CTX_MOUNTED = false;
@@ -34,6 +38,7 @@ const MENU_GROUP = `${ID}/initiative-manage`;
 
 /* --------------------------- Helper “chiudi” ---------------------------- */
 function closeContextMenuSoon() {
+  // microtask + piccolo delay per non “mangiare” l’update
   Promise.resolve().then(() => {
     OBR.player.deselect().catch(() => {});
   });
@@ -50,16 +55,16 @@ export function setupContextMenu() {
   /* ======================= “Segna come…” (EMBED) ======================= */
   OBR.contextMenu.create({
     id: `${ID}/mark-as`,
-    group: MENU_GROUP, // <— TOP-LEVEL
+    group: MENU_GROUP, // TOP-LEVEL
     icons: [
       {
-        icon: "/public/mark.svg",
+        icon: "/mark.svg", // <- gli asset in public/ finiscono in / nel build
         label: "Segna come…",
         filter: { every: [isCharacter(), hasMeta("!=")] },
       },
     ],
     embed: {
-      url: "/ctx-mark.html",
+      url: MARK_MENU_URL,
       height: EMBED_3ROWS_H,
     },
   });
@@ -67,10 +72,10 @@ export function setupContextMenu() {
   /* =================== “Rimuovi dall’iniziativa” (CLICK) =================== */
   OBR.contextMenu.create({
     id: `${ID}/remove-from-initiative`,
-    group: MENU_GROUP, // <— TOP-LEVEL
+    group: MENU_GROUP, // TOP-LEVEL
     icons: [
       {
-        icon: "/public/remove.svg",
+        icon: "/remove.svg",
         label: "Rimuovi dall’iniziativa",
         filter: { every: [isCharacter(), hasMeta("!=")] },
       },
@@ -95,16 +100,16 @@ export function setupContextMenu() {
   /* ============== “Aggiungi all’iniziativa come…” (EMBED) ============== */
   OBR.contextMenu.create({
     id: `${ID}/add-to-initiative`,
-    group: MENU_GROUP, // <— TOP-LEVEL
+    group: MENU_GROUP, // TOP-LEVEL
     icons: [
       {
-        icon: "/public/add.svg",
+        icon: "/add.svg",
         label: "Aggiungi all’iniziativa come…",
         filter: { every: [isCharacter(), hasMeta("==")] },
       },
     ],
     embed: {
-      url: "/ctx-add.html",
+      url: ADD_MENU_URL,
       height: EMBED_3ROWS_H,
     },
   });

@@ -3,23 +3,11 @@
   "version": "1.0.0",
   "manifest_version": 1,
   "action": {
-    "description": "A sleek, yet intuitive plugin for initiative tracking, designed for in-person VTTs",
+    "description": "A sleek, yet intuitive plugin for initiative tracking, designed for in-person VTTs.",
     "title": "Take Initiative!",
     "icon": "./icon.svg",
     "popover": "./",
     "height": 1000,
     "width": 280
-  },
-  "contextMenus": [
-    {
-      "id": "ctx-add",
-      "title": "Add to Initiative...",
-      "url": "/ctx-add.html"
-    },
-    {
-      "id": "ctx-mark",
-      "title": "Mark As...",
-      "url": "/ctx-mark.html"
-    }
-  ]
+  }
 }
