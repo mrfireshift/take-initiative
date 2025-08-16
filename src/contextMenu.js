@@ -9,6 +9,14 @@ export const ID = "com.thebigpicture.initiative";
 
 /** Chiave metadata condivisa dai token (hp, initiative, attitude, ecc.) */
 const META_KEY = `${ID}/meta`;
+const BASE_URL = (import.meta?.env?.BASE_URL ?? "/"); // es. "/" o "/initiative-tracker/"
+const ORIGIN   = window.location.origin.replace(/\/+$/, "");
+const ASSET    = (name) => `${ORIGIN}${BASE_URL}${name}`.replace(/([^:]\/)\/+/g, "$1");
+
+// Icone (i file stanno in 'public/', ma si servono dalla root)
+const ICON_ADD    = ASSET("add.svg");
+const ICON_MARK   = ASSET("mark.svg");
+const ICON_REMOVE = ASSET("remove.svg");
 
 /** Evita doppie registrazioni in dev/HMR */
 if (!window.__TBP_CTX_MOUNTED) {
@@ -53,7 +61,7 @@ export function setupContextMenu() {
     group: MENU_GROUP, // <— TOP-LEVEL
     icons: [
       {
-        icon: "/public/mark.svg",
+        icon: ICON_MARK,
         label: "Segna come…",
         filter: { every: [isCharacter(), hasMeta("!=")] },
       },
@@ -70,7 +78,7 @@ export function setupContextMenu() {
     group: MENU_GROUP, // <— TOP-LEVEL
     icons: [
       {
-        icon: "/public/remove.svg",
+        icon: ICON_REMOVE,
         label: "Rimuovi dall’iniziativa",
         filter: { every: [isCharacter(), hasMeta("!=")] },
       },
@@ -98,7 +106,7 @@ export function setupContextMenu() {
     group: MENU_GROUP, // <— TOP-LEVEL
     icons: [
       {
-        icon: "/public/add.svg",
+        icon: ICON_ADD,
         label: "Aggiungi all’iniziativa come…",
         filter: { every: [isCharacter(), hasMeta("==")] },
       },
