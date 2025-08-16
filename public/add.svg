@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Livello 1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .b {
+        fill: none;
+        stroke: #1d1e1c;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+
+      .c {
+        fill: #1d1e1c;
+      }
+    </style>
+  </defs>
+  <path class="b" d="M18.88,9.77c-.08,1.26-.18,2.59-.35,3.8-.21,1.58-.61,2.69-1.14,3.5-1.79,2.74-5.77,4.7-7.03,5.27-.25.11-.53.12-.78.01-1.17-.49-4.66-2.14-6.87-5.12-.71-.95-1.33-2.54-1.44-3.76-.29-3.16-.29-6.8-.27-8.4,0-.48.35-.88.82-.97.33-.06.77-.15,1.29-.26,0,0,2.81-.49,4.8-1.49.59-.3,1.19-.64,1.51-.85"/>
+  <rect class="c" x="14.21" width="1.81" height="10.24" rx=".91" ry=".91"/>
+  <rect class="c" x="14.21" y="0" width="1.81" height="10.24" rx=".91" ry=".91" transform="translate(20.23 -9.99) rotate(90)"/>
+</svg>

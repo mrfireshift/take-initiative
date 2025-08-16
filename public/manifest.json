@@ -1,0 +1,12 @@
+{
+  "name": "Initiative Tracker",
+  "version": "0.0.1",
+  "manifest_version": 1,
+  "action": {
+    "title": "Take Initiative!",
+    "icon": "/icon.svg",
+    "popover": "/",
+    "height": 1000,
+    "width": 280
+  }
+}

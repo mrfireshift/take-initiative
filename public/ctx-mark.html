@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root,body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  :root{
+    /* valori iniziali (fallback) che il TS aggiornerà via OBR.theme */
+    --obrt-text: CanvasText;
+    --obrt-hover: rgba(0,0,0,.06);
+  }
+  html, body { height: 100%; overflow: hidden; background: transparent !important; }
+  body{ color: var(--obrt-text); font-size:14px; line-height:1; }
+
+  ul{list-style:none;margin:0;padding:8px}
+  li{
+    display:flex;gap:8px;align-items:center;
+    height:32px;padding:0 8px;border-radius:8px;cursor:pointer;
+    color:inherit; user-select:none;
+  }
+  li:hover{ background: var(--obrt-hover); }
+
+  .dot{width:10px;height:10px;border-radius:50%;border:1px solid color-mix(in oklab, currentColor 35%, transparent)}
+  .enemy .dot{background:#ef4444}
+  .ally .dot{background:#22c55e}
+  .neutral .dot{background:#eab308}
+</style>
+  </head>
+  <body>
+    <ul>
+      <li class="ally"    data-att="ally"><span class="dot"></span>Alleato</li>
+      <li class="neutral" data-att="neutral"><span class="dot"></span>Neutrale</li>
+      <li class="enemy"   data-att="enemy"><span class="dot"></span>Nemico</li>
+    </ul>
+
+    <!-- IMPORTA lo script dalla sorgente (Vite lo serve/compila) -->
+    <script type="module" src="/src/ctx-mark.ts"></script>
+  </body>
+</html>
