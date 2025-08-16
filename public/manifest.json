@@ -2,8 +2,8 @@
   "name": "Take Initiative!",
   "version": "1.0.0",
   "manifest_version": 1,
+  "description": "A sleek, yet intuitive plugin for initiative tracking, designed for in-person VTTs.",
   "action": {
-    "description": "A sleek, yet intuitive plugin for initiative tracking, designed for in-person VTTs.",
     "title": "Take Initiative!",
     "icon": "./icon.svg",
     "popover": "./",
