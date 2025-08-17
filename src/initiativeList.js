@@ -946,9 +946,7 @@ async function setLegendaryCurrent(itemId, nextCurrent) {
 
     const max = Math.max(0, Number(lg.max) || 0);
     const wanted = Number(nextCurrent) || 0;
-    const cur = max > 0
-      ? Math.max(1, Math.min(max, wanted)) // ← mai sotto 1 se attivo
-      : 0;
+    const cur = Math.max(0, Math.min(max, wanted));
 
     me.legendary = { max, current: cur };
     m[META_KEY] = me;
@@ -1036,16 +1034,11 @@ function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
       pip.style.transform = LEG_PIPS_CFG.diamond ? "rotate(45deg)" : "none"; pip.style.opacity = ".9";
     });
     pip.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      if (!IS_GM) return;
+  ev.stopPropagation();
+  if (!IS_GM) return;
 
-  // Se sto cliccando per "spegnere" e rimarrebbe 0 mentre max>0, blocca
-      if (i <= cur && cur === 1 && (legendary?.max || 0) > 0) {
-        return; // niente 1→0 quando attivo
-  }
-
-  const next = (i <= cur) ? (i - 1) : i; // consume/rest
-  onSet(next); // passerà comunque da setLegendaryCurrent che riclamp-a
+  const next = (i <= cur) ? (i - 1) : i; // 1→0 consentito
+  onSet(next);
 });
 
     wrap.appendChild(pip);
