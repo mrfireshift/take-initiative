@@ -7,6 +7,27 @@
   const FOCUS_MIN_PAD_PX = 64;    // prima era 64: spazio minimo extra attorno al token
   const FOCUS_ZOOM_BIAS  = 10;  // 1 = fit preciso; >1 = zoom più lontano
   const ARROW_PROXY_WINDOW_MS = 2000
+  // ===== LAIR ACTIONS =====
+  const LAIR_ID          = "__LAIR__";
+  const LAIR_NAME        = "Azioni di Tana";
+  const LAIR_INITIATIVE  = 20;
+  const LAIR_PORTRAIT = new URL("./lair.png", import.meta.url).href;
+
+
+  function isLairId(id) { return id === LAIR_ID; }
+  function makeLairEntry() {
+  return {
+    id: LAIR_ID,
+    name: LAIR_NAME,
+    initiative: LAIR_INITIATIVE,
+    portrait: LAIR_PORTRAIT,
+    attitude: "neutral",
+    hp: null,
+    hpMax: null,
+    legendary: { max: 0, current: 0 },
+  };
+}
+
   const LEG_BOSS_CFG = {
   scale: 1,          // quanto ingrandire la card
   extraHeight: 24,       // px in più all’altezza base
@@ -150,6 +171,17 @@ Object.assign(roundPill.style, {
 });
 roundPill.textContent = "Turno 1";
 
+// ROW in alto: Turno + Toggle Tana (solo GM)
+const topRow = document.createElement("div");
+Object.assign(topRow.style, {
+  alignSelf: "center",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  flexWrap: "wrap",     // se si stringe, va a capo con grazia
+});
+topRow.appendChild(roundPill);
+
 // wrapper della lista — l’UNICO che scrolla
 const trackWrap = document.createElement("div");
 trackWrap.style.flex = "1 1 auto";        // ← occupa tutto lo spazio rimanente
@@ -254,9 +286,48 @@ track.addEventListener("drop", async (ev) => {
   __draggingWasCollapsed = false;
 });
 }
+// --- Toggle Lair (Azioni di Tana a iniziativa 20) ---
+const lairToggleWrap = document.createElement("label");
+Object.assign(lairToggleWrap.style, {
+  alignSelf: "center",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "2px 8px",
+  background: "rgba(0,0,0,.28)",
+  border: "1px solid rgba(255,255,255,.18)",
+  borderRadius: "999px",
+  boxShadow: "0 1px 4px rgba(0,0,0,.35)",
+  userSelect: "none",
+  cursor: "pointer",
+});
 
-// ordine verticale: ▲ – Turno – Lista – ▼
-col.append(btnPrev, roundPill, trackWrap, btnNext);
+const lairChk = document.createElement("input");
+lairChk.type = "checkbox";
+lairChk.style.transform = "scale(1.1)";
+lairChk.style.cursor = "pointer";
+
+const lairLbl = document.createElement("span");
+lairLbl.textContent = "Tana";
+Object.assign(lairLbl.style, { fontSize: "12px", fontWeight: "700", color: "#fff" });
+
+lairToggleWrap.append(lairChk, lairLbl);
+
+// inizializza lo stato visivo dal metadata
+(async () => {
+  const st = await getSceneState();
+  lairChk.checked = !!st?.lairEnabled;
+})();
+
+lairChk.addEventListener("change", async (e) => {
+  const enabled = !!e.target.checked;
+  await setSceneState(prev => ({ ...(prev || {}), lairEnabled: enabled }));
+  await reconcileStateWithItems();
+  await renderAll();
+});
+
+// Inserisci il toggle tra Turno e Lista
+col.append(btnPrev, topRow, trackWrap, btnNext);
 
 // stile scrollbar (già presente, lo riutilizziamo)
 function injectScrollbarStyles() {
@@ -453,6 +524,13 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       });
     }
     return [...byId.values()];
+}
+
+// Unisce entries reali + lair (se attiva a stato)
+async function getEntriesWithLair(state) {
+  const base = await readEntries();
+  if (state?.lairEnabled) base.push(makeLairEntry());
+  return base;
 }
 
 // ——— helpers per rename + label TEXT ———
@@ -768,18 +846,37 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   }
 }
 
-// ===== Ordina per iniziativa (desc) con tie-break sull'ordine esistente =====
+// ===== Ordina per iniziativa (desc) con tiebreak:
+// 1) iniziativa desc
+// 2) se pareggio a 20: la Tana va SEMPRE dopo gli altri
+// 3) poi mantieni l'ordine manuale nei pareggi
+// 4) fallback stabile su id
 function sortByInitiative(entries, state) {
   const order = Array.isArray(state?.order) ? state.order : [];
   const pos = new Map(order.map((id, i) => [id, i]));
+
   return [...entries].sort((a, b) => {
     const ia = Number(a.initiative) || 0;
     const ib = Number(b.initiative) || 0;
     if (ib !== ia) return ib - ia; // desc
+
+    // --- TIEBREAK SPECIFICO TANA ---
+    if (ia === LAIR_INITIATIVE) {
+      const aIsLair = isLairId(a.id);
+      const bIsLair = isLairId(b.id);
+      if (aIsLair !== bIsLair) {
+        // la Tana perde sempre i pareggi → va dopo
+        return aIsLair ? 1 : -1;
+      }
+    }
+
+    // tiebreak normale: rispetta eventuale riordino manuale
     const pa = pos.has(a.id) ? pos.get(a.id) : Number.MAX_SAFE_INTEGER;
     const pb = pos.has(b.id) ? pos.get(b.id) : Number.MAX_SAFE_INTEGER;
-    if (pa !== pb) return pa - pb; // mantieni ordine manuale nei pareggi
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; // fallback deterministico
+    if (pa !== pb) return pa - pb;
+
+    // fallback deterministico
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
 
@@ -1007,7 +1104,7 @@ for (const e of entries) {
     card.dataset.itemId     = e.id;
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
-    card.setAttribute("draggable", "true");
+    card.setAttribute("draggable", isLairId(e.id) ? "false" : "true");
     const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
 
 
@@ -1693,7 +1790,7 @@ if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) 
   card.appendChild(header);
 
 // === HP pill (solo GM)
-if (IS_GM && !e.__groupCollapsed) {
+if (IS_GM && !e.__groupCollapsed && !isLairId(e.id)) {
   const pill = document.createElement("div");
   pill.title = "Click per modificare HP (puoi usare +N o -N)";
   pill.style.position = "absolute";
@@ -1977,7 +2074,7 @@ const commitAndOpenNeighbor = async (goPrev = false) => {
 async function ensureState() {
   const state = await getSceneState();
   if (state) return;
-  const sorted = sortByInitiative(await readEntries(), null);
+  const sorted = sortByInitiative(await getEntriesWithLair(null), null);
   await setSceneState({
     order: [...new Set(sorted.map(e => e.id))],
     current: 0,
@@ -1995,8 +2092,8 @@ async function ensureState() {
 
   }
 async function reconcileStateWithItems() {
-  const [state, entries] = await Promise.all([getSceneState(), readEntries()]);
-
+  const state = await getSceneState();
+  const entries = await getEntriesWithLair(state);
   // → Se non c'è più nessun token con META_KEY, reset completo (turno=1)
   if (!entries || entries.length === 0) {
     await resetTrackerState();
@@ -2171,7 +2268,8 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
 
     async function renderAll() {
     // leggi in parallelo
-    const [stateRaw, entries] = await Promise.all([getSceneState(), readEntries()]);
+    const stateRaw = await getSceneState();
+    const entries  = await getEntriesWithLair(stateRaw);
     const byId = new Map(entries.map((e) => [e.id, e]));
 
     // stato “pulito” per evitare flicker/duplicati
@@ -2213,6 +2311,22 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
         (await OBR.room?.getRole?.()) ||
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
+      // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
+try {
+  if (IS_GM) {
+    if (!lairToggleWrap.isConnected) {
+      // inserisci il toggle tra la pill “Turno” e la lista
+      if (IS_GM) {
+  if (!lairToggleWrap.isConnected) topRow.appendChild(lairToggleWrap);
+} else {
+  if (lairToggleWrap.isConnected) lairToggleWrap.remove();
+}
+    }
+  } else {
+    if (lairToggleWrap.isConnected) lairToggleWrap.remove();
+  }
+} catch {}
+
     } catch {
       IS_GM = false;
     }
@@ -2229,10 +2343,13 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
   if (IS_GM) {
     try {
       const { syncHPBarNow } = await import("./hpbar-items.js");
-      const entries = await readEntries();
+      const st = await getSceneState();
+      const entries = await getEntriesWithLair(st);
       for (const e of entries) {
-        syncHPBarNow(e.id, e.hp ?? 0, e.hpMax ?? 0);
-      }
+      if (isLairId(e.id)) continue; // la Tana non ha HP
+  syncHPBarNow(e.id, e.hp ?? 0, e.hpMax ?? 0);
+}
+
     } catch (err) {
       console.warn("[hpbar] boot sync error", err);
     }
@@ -2253,10 +2370,13 @@ OBR.scene.onMetadataChange(async (meta) => {
   __lastActiveId = activeId;
 
   // Reset delle azioni leggendarie a inizio turno della creatura attiva
+  // Se è la Tana, niente reset legend e niente focus su scena
+if (!isLairId(activeId)) {
   try { await resetLegendaryIfAny(activeId); }
   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
 
   await selectAndFocus(activeId);
+}
 
   try {
     const entriesNow = await readEntries();
