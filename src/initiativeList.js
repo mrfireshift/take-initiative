@@ -11,7 +11,7 @@
   const LAIR_ID          = "__LAIR__";
   const LAIR_NAME        = "Azioni di Tana";
   const LAIR_INITIATIVE  = 20;
-  const LAIR_PORTRAIT = new URL("./lair.png", import.meta.url).href;
+  const LAIR_PORTRAIT = "/lair.png";
 
 
   function isLairId(id) { return id === LAIR_ID; }
@@ -21,7 +21,7 @@
     name: LAIR_NAME,
     initiative: LAIR_INITIATIVE,
     portrait: LAIR_PORTRAIT,
-    attitude: "neutral",
+    attitude: "enemy",
     hp: null,
     hpMax: null,
     legendary: { max: 0, current: 0 },
@@ -2411,7 +2411,7 @@ if (!isLairId(activeId)) {
     } catch {}
 
     const activeId = next.order[next.current];
-    if (activeId) await selectAndFocus(activeId);
+    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
 
     handoffFocusToCanvas?.();
     armArrowProxy?.();
@@ -2434,9 +2434,8 @@ if (!isLairId(activeId)) {
     await __applyAutoCollapse(entriesNow, next);
     } catch {}
 
-
     const activeId = next.order[next.current];
-    if (activeId) await selectAndFocus(activeId);
+    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
 
     handoffFocusToCanvas?.();
     armArrowProxy?.();
