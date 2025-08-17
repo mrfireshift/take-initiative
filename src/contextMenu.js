@@ -36,6 +36,7 @@ const ROW_H = 32;
 const GAP_Y = 6;
 const PAD_Y = 8;
 const EMBED_3ROWS_H = PAD_Y * 2 + ROW_H * 3 + GAP_Y * 2; // = 124px
+const EMBED_4ROWS_H = PAD_Y * 2 + ROW_H * 4 + GAP_Y * 3; // = 170px circa
 
 /* --------------------------- Group unificato ---------------------------- */
 const MENU_GROUP = `${ID}/initiative-manage`;
@@ -93,7 +94,7 @@ export function setupContextMenu() {
     ],
     embed: {
       url: "/ctx-mark.html",
-      height: EMBED_3ROWS_H,
+      height: EMBED_4ROWS_H,
     },
   });
 
@@ -138,7 +139,7 @@ export function setupContextMenu() {
     ],
     embed: {
       url: "/ctx-add.html",
-      height: EMBED_3ROWS_H,
+      height: EMBED_4ROWS_H,
     },
   });
 

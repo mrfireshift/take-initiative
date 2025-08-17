@@ -17,7 +17,7 @@ async function getCtxItemsSafe(): Promise<string[]> {
   }
   // Fallback: usa la selezione del player
   try {
-  return await OBR.player.getSelection();
+    return await OBR.player.getSelection();
   } catch {
     return [];
   }
@@ -59,7 +59,7 @@ async function closeContextMenuSoon() {
 }
 
 /* --------------------------- Azione principale ------------------------- */
-async function addToInitiative(attitude: "ally" | "neutral" | "enemy") {
+async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { // NEW: pc
   // Nel menu embedded fidati del context; se manca, fallback alla selezione
   const ids = await getCtxItemsSafe();
 
@@ -94,6 +94,7 @@ function wireUI() {
   qs('[data-att="ally"]').forEach((el)    => el.addEventListener("click", () => void addToInitiative("ally")));
   qs('[data-att="neutral"]').forEach((el) => el.addEventListener("click", () => void addToInitiative("neutral")));
   qs('[data-att="enemy"]').forEach((el)   => el.addEventListener("click", () => void addToInitiative("enemy")));
+  qs('[data-att="pc"]').forEach((el)      => el.addEventListener("click", () => void addToInitiative("pc"))); // NEW: pc
 
   // ESC per chiudere
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeContextMenuSoon(); }, { once: true });

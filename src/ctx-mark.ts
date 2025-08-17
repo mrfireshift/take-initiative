@@ -22,7 +22,7 @@ function closeContextMenuSoon() {
 }
 
 /* --------------------------- Azione principale ------------------------- */
-async function setAttitude(attitude: "ally" | "neutral" | "enemy") {
+async function setAttitude(attitude: "ally" | "neutral" | "enemy" | "pc") { // NEW: pc
   try {
     const ids = await OBR.player.getSelection();
     if (!ids || ids.length === 0) return;
@@ -47,6 +47,7 @@ function wireUI() {
   qs('[data-att="ally"]').forEach((el)    => el.addEventListener("click", () => void setAttitude("ally")));
   qs('[data-att="neutral"]').forEach((el) => el.addEventListener("click", () => void setAttitude("neutral")));
   qs('[data-att="enemy"]').forEach((el)   => el.addEventListener("click", () => void setAttitude("enemy")));
+  qs('[data-att="pc"]').forEach((el)      => el.addEventListener("click", () => void setAttitude("pc"))); // NEW: pc
 
   // ESC per chiudere
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeContextMenuSoon(); }, { once: true });

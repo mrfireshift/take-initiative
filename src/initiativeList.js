@@ -882,27 +882,33 @@ function sortByInitiative(entries, state) {
 
     // ===== Colori fazione (border/glow + base per i gradienti)
   function factionColors(att) {
-    switch (att) {
-      case "enemy":
-        return {
-          border: "#ef4444",
-          glow: "rgba(239,68,68,.28)",
-          base: "#ef4444",
-        };
-      case "neutral":
-        return {
-          border: "#eab308",
-          glow: "rgba(234,179,8,.24)",
-          base: "#eab308",
-        };
-      default: // ally
-        return {
-          border: "#22c55e",
-          glow: "rgba(34,197,94,.28)",
-          base: "#22c55e",
-        };
-    }
+  switch (att) {
+    case "enemy":
+      return {
+        border: "#ef4444",
+        glow: "rgba(239,68,68,.28)",
+        base: "#ef4444",
+      };
+    case "neutral":
+      return {
+        border: "#eab308",
+        glow: "rgba(234,179,8,.24)",
+        base: "#eab308",
+      };
+    case "pc": // NEW: azzurro per i personaggi
+      return {
+        border: "#3AA7FF",
+        glow: "rgba(58,167,255,.28)",
+        base: "#3AA7FF",
+      };
+    default: // ally
+      return {
+        border: "#22c55e",
+        glow: "rgba(34,197,94,.28)",
+        base: "#22c55e",
+      };
   }
+}
 
   // helper: hex -> rgba con alpha
   function rgba(hex, a) {
@@ -1992,23 +1998,35 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id)) {
   pill.__cancelFn = cancel;
 
   // helper: commit e apri l'editor HP del vicino (giù o su)
-  // helper: commit e apri l'editor HP del vicino (giù o su)
-const commitAndOpenNeighbor = async (goPrev = false) => {
+  // saltando card che NON hanno la pill HP (es. Azioni di Tana)
+  const commitAndOpenNeighbor = async (goPrev = false) => {
   let targetId = null;
+  let direction = goPrev ? -1 : 1;
+
   try {
     const st = await getSceneState();
     const order = Array.isArray(st?.order) ? st.order : [];
     const idx = order.indexOf(e.id);
+
     if (idx >= 0) {
-      const ni = goPrev ? idx - 1 : idx + 1;
-      if (ni >= 0 && ni < order.length) targetId = order[ni];
+      // Scorri fino a trovare una card con [data-badge="hp"]
+      let ni = idx + direction;
+      while (ni >= 0 && ni < order.length) {
+        const candId = order[ni];
+        // NB: verifichiamo direttamente sul DOM se esiste la pill HP
+        const hasHp = !!document.querySelector(
+          `[data-badge="hp"][data-item-id="${candId}"]`
+        );
+        if (hasHp) { targetId = candId; break; }
+        ni += direction; // salta card senza HP (es. lair)
+      }
     }
   } catch {}
 
   await commit();
 
   if (targetId) {
-    // aspetta il render, poi apri l’editor sulla prossima pill con *pointerdown*
+    // aspetta il render, poi apri l’editor HP della prossima card valida
     requestAnimationFrame(() => {
       const nextEl = document.querySelector(
         `[data-badge="hp"][data-item-id="${targetId}"]`
