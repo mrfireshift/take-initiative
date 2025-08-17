@@ -48,6 +48,31 @@ function closeContextMenuSoon() {
   setTimeout(() => {
     OBR.player.deselect().catch(() => {});
   }, 20);
+
+}
+/* ---------------- Legendary: toggle create/remove (default=3) ----------- */
+async function toggleLegendaryDefault(itemIds) {
+  if (!itemIds?.length) return;
+
+  // Leggi gli item per capire se TUTTI hanno già legendary
+  const items = await OBR.scene.items.getItems(itemIds);
+  const allHave = items.length > 0 && items.every(it => !!it.metadata?.[META_KEY]?.legendary);
+
+  await OBR.scene.items.updateItems(itemIds, (draft) => {
+    for (const it of draft) {
+      const m  = it.metadata || {};
+      const me = { ...(m[META_KEY] || {}) };
+      if (allHave) {
+        // toggle OFF: rimuovi il campo
+        if (me.legendary) delete me.legendary;
+      } else {
+        // toggle ON: default 3 pips pieni
+        me.legendary = { max: 3, current: 3 };
+      }
+      m[META_KEY] = me;
+      it.metadata = m;
+    }
+  });
 }
 
 /* ============================ REGISTRAZIONE ============================= */
@@ -116,4 +141,29 @@ export function setupContextMenu() {
       height: EMBED_3ROWS_H,
     },
   });
+
+  /* ===================== “Azioni leggendarie” (CLICK) ===================== */
+OBR.contextMenu.create({
+  id: `${ID}/legendary`,
+  group: MENU_GROUP,
+  icons: [
+    {
+      icon: ICON_MARK,              // riuso icona già presente
+      label: "Azioni leggendarie",
+      filter: { every: [isCharacter(), hasMeta("!=")] },
+    },
+  ],
+  /** @param {import("@owlbear-rodeo/sdk").ContextMenuContext} ctx */
+  onClick: async (ctx) => {
+    try {
+      const ids = (ctx.items || []).map(i => i.id);
+      if (!ids.length) return;
+      await toggleLegendaryDefault(ids);
+    } catch (err) {
+      console.warn("[contextMenu] legendary toggle:", err);
+    } finally {
+      closeContextMenuSoon();
+    }
+  },
+});
 }

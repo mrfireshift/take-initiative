@@ -7,6 +7,46 @@
   const FOCUS_MIN_PAD_PX = 64;    // prima era 64: spazio minimo extra attorno al token
   const FOCUS_ZOOM_BIAS  = 10;  // 1 = fit preciso; >1 = zoom più lontano
   const ARROW_PROXY_WINDOW_MS = 2000
+  const LEG_BOSS_CFG = {
+  scale: 1,          // quanto ingrandire la card
+  extraHeight: 24,       // px in più all’altezza base
+  zIndex: 6,            // per sovrapporsi leggermente alle altre
+  shadow: "0 0 10px rgba(255,215,0,.25)" // alone leggero dorato
+};
+
+  // ===== Legendary UI (2 gruppi indipendenti) =====
+  const LEG_PIPS_CFG = {
+  // Posizione del GRUPPO PIPS rispetto all'header
+  top: -2,                    // px dall'alto dell'header
+  right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
+  rightFromBadge: 130,        // distanza dal bordo destro del badge iniziativa
+  // Parametri interni del gruppo pips
+  gap: 6,                    // tra i singoli pips
+  paddingX: 0,
+  paddingY: 0,
+  size: 8,                  // lato del diamante/circolo
+  diamond: true              // true=♦, false=●
+};
+
+  const LEG_CTRL_CFG = {
+  // Posizione del GRUPPO CONTROLLI (+/-) rispetto all'header
+  top: -8,                   // px dall'alto dell'header (indipendente dai pips)
+  right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
+  rightFromBadge: 185,        // distanza dal bordo destro del badge iniziativa
+  // Parametri interni del gruppo controlli
+  gap: 2,                    // tra i due bottoni
+  paddingX: 0,
+  paddingY: 0,
+  btnSize: 20,               // lato dei bottoni
+  btnRadius: 16,             // raggio dei bottoni
+  // Stile pill del gruppo controlli
+  //dockBg: "rgba(0,0,0,.22)",
+  //dockBorder: "1px solid rgba(255,255,255,.18)",
+  //dockRadius: 12,
+};
+
+// Se ti serve riservare più spazio a destra del testo per i due gruppi:
+  const HEADER_RIGHT_PAD_EXTRA = 120; // px extra oltre al badge
 
   // --- Drag & Drop (riordino fra pari iniziativa) ---
   let __draggingId   = null;   // id card trascinata
@@ -406,6 +446,10 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
         attitude: meta.attitude || "ally",
         hp: (meta.hp ?? null),
         hpMax: (meta.hpMax ?? null),
+        // ← Aggiunta: stato azioni leggendarie
+        legendary: (meta.legendary && typeof meta.legendary === "object")
+        ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
+        : { max: 0, current: 0 },
       });
     }
     return [...byId.values()];
@@ -793,6 +837,125 @@ function sortByInitiative(entries, state) {
     });
   }
 
+  // ===== Legendary helpers =====
+// Imposta current a un valore specifico (clamp 0..max; se max>0, min=1)
+async function setLegendaryCurrent(itemId, nextCurrent) {
+  await OBR.scene.items.updateItems([itemId], (items) => {
+    const it = items[0];
+    if (!it) return;
+    const m  = it.metadata || {};
+    const me = { ...(m[META_KEY] || {}) };
+    const lg = { ...(me.legendary || { max: 0, current: 0 }) };
+
+    const max = Math.max(0, Number(lg.max) || 0);
+    const wanted = Number(nextCurrent) || 0;
+    const cur = max > 0
+      ? Math.max(1, Math.min(max, wanted)) // ← mai sotto 1 se attivo
+      : 0;
+
+    me.legendary = { max, current: cur };
+    m[META_KEY] = me;
+    it.metadata = m;
+  });
+}
+
+// Reset al pieno a inizio turno della creatura attiva
+async function resetLegendaryIfAny(activeId) {
+  if (!activeId) return;
+  await OBR.scene.items.updateItems([activeId], (items) => {
+    const it = items[0];
+    if (!it) return;
+    const m  = it.metadata || {};
+    const me = { ...(m[META_KEY] || {}) };
+    if (me.legendary && Number(me.legendary.max) > 0) {
+      me.legendary.current = Number(me.legendary.max) || 0;
+      m[META_KEY] = me;
+      it.metadata = m;
+    }
+  });
+}
+// Cambia il numero massimo di pips (clamp 1..10) e corregge current
+async function setLegendaryMax(itemId, nextMax) {
+  // ← prima partiva da 0..10; ora impediamo di scendere sotto 1
+  const max = Math.max(1, Math.min(5, Math.floor(Number(nextMax) || 0)));
+  await OBR.scene.items.updateItems([itemId], (items) => {
+    const it = items[0]; if (!it) return;
+    const m  = it.metadata || {};
+    const me = { ...(m[META_KEY] || {}) };
+    const cur = Math.max(0, Math.min(max, Number(me.legendary?.current || 0)));
+    me.legendary = { max, current: max > 0 ? cur : 0 }; // max è sempre ≥1 qui
+    m[META_KEY] = me;
+    it.metadata = m;
+  });
+}
+
+
+// ===== Legendary UI helpers (pips minacciosi, parametrici) =====
+function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: `${LEG_PIPS_CFG.gap}px`,
+    flexDirection: "row",          // ← ordine naturale: da sinistra a destra
+    justifyContent: "flex-start",  // ← l’origine resta ancorata a sinistra
+  });
+
+  const max = Math.max(0, Number(legendary?.max) || 0);
+  const cur = Math.max(0, Number(legendary?.current) || 0);
+
+  const ON = (() => {
+    if (attitude === "enemy")   return { bg: "#dc2626", glow: "0 0 8px rgba(220,38,38,.70)" };
+    if (attitude === "neutral") return { bg: "#a16207", glow: "0 0 7px rgba(161,98,7,.60)"  };
+    return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" }; // ally
+  })();
+
+  for (let i = 1; i <= max; i++) {
+    const pip = document.createElement("div");
+    const S = `${LEG_PIPS_CFG.size}px`;
+    Object.assign(pip.style, {
+      width: S,
+      height: S,
+      transform: LEG_PIPS_CFG.diamond ? "rotate(45deg)" : "none",
+      borderRadius: LEG_PIPS_CFG.diamond ? "1px" : "999px",
+      border: "2px solid rgba(255, 0, 0, 1)",
+      background: "rgba(0, 0, 0, 0.5)",
+      boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.5)",
+      opacity: "1",
+      cursor: IS_GM ? "pointer" : "default",
+      transition: "transform .12s ease, opacity .12s ease, box-shadow .12s ease, background-color .12s ease",
+    });
+    if (i <= cur) {
+      pip.style.background = ON.bg;
+      pip.style.boxShadow  = `${ON.glow}, inset 0 0 1px rgba(0,0,0,.6)`;
+      pip.style.borderColor = "rgba(255,255,255,.28)";
+    }
+    pip.title = "Azione leggendaria";
+    pip.addEventListener("mouseenter", () => {
+      const rot = LEG_PIPS_CFG.diamond ? "rotate(45deg) " : "";
+      pip.style.transform = `${rot}scale(1.12)`; pip.style.opacity = "1";
+    });
+    pip.addEventListener("mouseleave", () => {
+      pip.style.transform = LEG_PIPS_CFG.diamond ? "rotate(45deg)" : "none"; pip.style.opacity = ".9";
+    });
+    pip.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (!IS_GM) return;
+
+  // Se sto cliccando per "spegnere" e rimarrebbe 0 mentre max>0, blocca
+      if (i <= cur && cur === 1 && (legendary?.max || 0) > 0) {
+        return; // niente 1→0 quando attivo
+  }
+
+  const next = (i <= cur) ? (i - 1) : i; // consume/rest
+  onSet(next); // passerà comunque da setLegendaryCurrent che riclamp-a
+});
+
+    wrap.appendChild(pip);
+  }
+  return wrap;
+}
+
     // ===== Render card
     function renderTrack(entries, state) {
     const len = state.order.length;
@@ -845,6 +1008,8 @@ for (const e of entries) {
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
     card.setAttribute("draggable", "true");
+    const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
+
 
 
       function ringMask(el, insetPx){
@@ -928,23 +1093,42 @@ for (const e of entries) {
     card.append(outline, ringFill, ringHole, sheen);
   }
 
-  // base card
-  card.style.minWidth = "250px";
-  card.style.maxWidth = "250px";
-  card.style.padding  = "0px 0px 0px";
-  card.style.color = "#fff";
-  card.style.display = "flex";
-  card.style.flexDirection = "column";
-  card.style.alignItems = "stretch";
-  card.style.gap = "100%";
+// base card
+card.style.minWidth = "250px";
+card.style.maxWidth = "250px";
+card.style.padding  = "0px 0px 0px";
+card.style.color = "#fff";
+card.style.display = "flex";
+card.style.flexDirection = "column";
+card.style.alignItems = "stretch";
+card.style.gap = "100%";
 
-  // applica la cornice stile BG3
-  applyBG3Frame(card, c, {
-    outlineW: 1.5,
-    frameW: 4,
-    rOuter: 0,
-    rInner: 8
-  });
+// altezza base + boost se boss
+const BASE_CARD_H = 48;
+const CARD_H = HAS_LEG ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
+
+// applica cornice stile BG3 (come prima)
+applyBG3Frame(card, c, {
+  outlineW: 1.5,
+  frameW: 4,
+  rOuter: 0,
+  rInner: 8
+});
+
+// sostituisci l'assegnazione fissa dell'altezza:
+card.style.height = CARD_H + "px";
+
+// animazione/scala/z-index se boss
+card.style.transition = "transform .15s ease, box-shadow .15s ease, height .15s ease";
+if (HAS_LEG) {
+  card.style.transform = `scale(${LEG_BOSS_CFG.scale})`;
+  card.style.zIndex = String(LEG_BOSS_CFG.zIndex);
+  // aggiungi un alone dorato soft senza togliere le ombre esistenti
+  const prev = card.style.boxShadow || "";
+  card.style.boxShadow = (prev ? (prev + ", ") : "") + LEG_BOSS_CFG.shadow;
+} else {
+  card.style.transform = "none";
+}
 
     const isActive = e.__groupMembers
   ? e.__groupMembers.some(m => m.id === state.order[state.current])
@@ -1005,11 +1189,16 @@ const isNext = e.__groupMembers
   // --- header: avatar + name + badge (tutto in riga)
 
   // --- costanti avatar/overlap ---
-  const AVA = 52;     // diametro avatar
-  const OVER = 12;    // quanto sporge fuori a sinistra
+  const AVA_BASE  = 52;                 // diametro avatar “normale”
+  const OVER_BASE = 12;                 // sporgenza normale
+
+// Se ha azioni leggendarie, avatar più grande e un filo più “sporgente”
+  const AVA  = HAS_LEG ? Math.round(AVA_BASE * 1.5) : AVA_BASE;       // ~65 px
+  const OVER = HAS_LEG ? Math.round(OVER_BASE * 1.2) : OVER_BASE;     // ~14 px
 
   // header: avatar + name + badge
   const header = document.createElement("div");
+  const CONTENT_LEFT = (AVA - OVER + 12); // ← inizio contenuto (subito a destra dell’avatar)
   Object.assign(header.style, {
     position: "relative",
     display: "flex",
@@ -1018,7 +1207,7 @@ const isNext = e.__groupMembers
     height: "100%",
     width: "100%",
     padding: "8px 16px",
-    paddingLeft: `${AVA - OVER + 12}px`,   // spazio per il testo
+    paddingLeft: `${CONTENT_LEFT}px`,      // spazio per il testo (riusa la costante)
     paddingRight: "40px",
     boxSizing: "border-box",
   });
@@ -1035,13 +1224,14 @@ Object.assign(avatarWrap.style, {
   width: `${AVA}px`,
   height: `${AVA}px`,
   borderRadius: "50%",
-  overflow: "hidden",             // << clippa il contenuto
+  overflow: "hidden",
   zIndex: "2",
   boxShadow: `
-    0 0 0 2px ${c.base},          /* bordo di fazione */
-    0 0 0 4px black,              /* bordo nero esterno */
-    0 0 10px ${c.glow}            /* alone */
+    0 0 0 2px ${c.base},
+    0 0 0 4px black,
+    0 0 10px ${c.glow}
   `,
+  transition: "width .15s ease, height .15s ease, left .15s ease"
 });
 
 let avatarInner;
@@ -1415,6 +1605,88 @@ else if (e.__groupFirst) {
     });
   });
   header.appendChild(chev);
+}
+// ===== 2 DOCKS INDIPENDENTI: PIPS e CONTROLLI (+/-) =====
+function __rightPxFrom(cfg) {
+  // Se cfg.right è un numero, è assoluto; altrimenti calcola rispetto al badge
+  if (Number.isFinite(cfg.right)) return Number(cfg.right);
+  return 12 + BADGE_SIZE + Number(cfg.rightFromBadge || 0);
+}
+
+// --- DOCK PIPS (indipendente) ---
+if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
+    const dockPips = document.createElement("div");
+    Object.assign(dockPips.style, {
+    position: "absolute",
+    top: `${LEG_PIPS_CFG.top}px`,
+    left: `${CONTENT_LEFT + (LEG_PIPS_CFG.offsetX || 0)}px`, // ← ancora fissa a sinistra
+    display: "flex",
+    alignItems: "center",
+    // Niente sfondo/bordo di default: è solo il gruppo pips
+    zIndex: "5",
+    pointerEvents: "auto",
+  });
+
+  const pipsNode = mkLegendaryPips(
+    e.legendary,
+    async (nextCurrent) => { if (IS_GM) { try { await setLegendaryCurrent(e.id, nextCurrent); } catch {} } },
+    e.attitude || "enemy"
+  );
+  dockPips.appendChild(pipsNode);
+  header.appendChild(dockPips);
+}
+
+// --- DOCK CONTROLLI (+/-) (indipendente) ---
+if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) {
+  const dockCtrl = document.createElement("div");
+  Object.assign(dockCtrl.style, {
+    position: "absolute",
+    top: `${LEG_CTRL_CFG.top}px`,
+    right: `${__rightPxFrom(LEG_CTRL_CFG)}px`,
+    display: "flex",
+    alignItems: "center",
+    gap: `${LEG_CTRL_CFG.gap}px`,
+    padding: `${LEG_CTRL_CFG.paddingY}px ${LEG_CTRL_CFG.paddingX}px`,
+    borderRadius: `${LEG_CTRL_CFG.dockRadius}px`,
+    background: LEG_CTRL_CFG.dockBg,
+    border: LEG_CTRL_CFG.dockBorder,
+    zIndex: "5",
+    pointerEvents: "auto",
+  });
+
+  const mkBtn = (txt, delta) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    Object.assign(b.style, {
+      width: `${LEG_CTRL_CFG.btnSize}px`,
+      height: `${LEG_CTRL_CFG.btnSize}px`,
+      borderRadius: `${LEG_CTRL_CFG.btnRadius}px`,
+      border: "1px solid rgba(255,255,255,.18)",
+      background: "rgba(0, 0, 0, 0.72)",
+      color: "#fff",
+      fontSize: "12px",
+      fontWeight: "800",
+      lineHeight: "1",
+      padding: "0",
+      cursor: "pointer",
+      boxShadow: "0 1px 3px rgba(0,0,0,.4)",
+      transition: "transform .12s ease, background-color .12s ease, border-color .12s ease",
+    });
+    b.textContent = txt;
+    b.addEventListener("mouseenter", () => { b.style.transform = "translateY(-1px)"; });
+    b.addEventListener("mouseleave", () => { b.style.transform = "translateY(0)"; });
+    b.addEventListener("click", async (ev) => {
+  ev.stopPropagation();
+  // Impedisci di scendere sotto 1 già a livello UI
+  const nextMax = Math.max(1, Math.min(10, Number(e.legendary.max) + delta));
+  try { await setLegendaryMax(e.id, nextMax); } catch {}
+});
+    return b;
+  };
+
+  dockCtrl.appendChild(mkBtn("−", -1));
+  dockCtrl.appendChild(mkBtn("+", +1));
+  header.appendChild(dockCtrl);
 }
 
   header.append(avatarWrap, name, badge);
@@ -1971,19 +2243,28 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
 
 OBR.scene.onMetadataChange(async (meta) => {
   await renderAll(); // ridisegna UI
-    const st = meta?.[STATE_KEY];
-    if (!st || !Array.isArray(st.order) || st.order.length === 0) return;
-    const activeId = st.order[st.current];
-    if (!activeId || activeId === __lastActiveId) return;
-    __lastActiveId = activeId;
-    await selectAndFocus(activeId);
+
+  const st = meta?.[STATE_KEY];
+  if (!st || !Array.isArray(st.order) || st.order.length === 0) return;
+
+  const activeId = st.order[st.current];
+  if (!activeId || activeId === __lastActiveId) return;
+
+  __lastActiveId = activeId;
+
+  // Reset delle azioni leggendarie a inizio turno della creatura attiva
+  try { await resetLegendaryIfAny(activeId); }
+  catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
+
+  await selectAndFocus(activeId);
+
   try {
-  const entriesNow = await readEntries();
-  await __applyAutoCollapse(entriesNow, st); // espandi il gruppo dell'attivo, collassa gli altri
-  await renderAll();                         // ridisegna subito per evitare flicker
-} catch (e) {
-  console.warn("[initiative] auto-collapse on turn change:", e?.message || e);
-}
+    const entriesNow = await readEntries();
+    await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
+    await renderAll();                         // ridisegna per evitare flicker
+  } catch (e) {
+    console.warn("[initiative] auto-collapse on turn change:", e?.message || e);
+  }
 });
 
   OBR.scene.items.onChange(async (changes = []) => {
