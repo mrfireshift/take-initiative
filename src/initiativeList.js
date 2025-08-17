@@ -13,6 +13,8 @@
   const LAIR_INITIATIVE  = 20;
   const LAIR_PORTRAIT = "/lair.png";
 
+  let __lastRenderedActiveId = null;
+  let __prevActiveId = null;
 
   function isLairId(id) { return id === LAIR_ID; }
   function makeLairEntry() {
@@ -35,6 +37,30 @@
   shadow: "0 0 10px rgba(255,215,0,.25)" // alone leggero dorato
 };
 
+// --- ZOOM CONFIG GLOBALE ---
+const ZOOM_CFG = {
+  scale: 1.1,                                     // +6% elegante
+  dur:   500,                                      // ms
+  ease:  "cubic-bezier(.16,.84,.22,1)"             // easing morbido
+};
+
+function __applyZoomTransition(el) {
+  const dur = ZOOM_CFG.dur;
+  // NB: box-shadow un filo più corto, height come prima
+  el.style.transition = `transform ${dur}ms ${ZOOM_CFG.ease}, box-shadow ${Math.max(120, dur - 40)}ms ease, height .15s ease`;
+}
+
+// Applica una transform senza animazione, poi ripristina la transition desiderata
+function __instaTransform(el, value) {
+  const prev = el.style.transition;
+  el.style.transition = "none";
+  el.style.transform = value;
+  // commit layout per evitare transizioni fantasma
+  void el.offsetHeight; // eslint-disable-line no-unused-expressions
+  el.style.transition = prev || "";
+  if (!prev) __applyZoomTransition(el);
+}
+
   // ===== Legendary UI (2 gruppi indipendenti) =====
   const LEG_PIPS_CFG = {
   // Posizione del GRUPPO PIPS rispetto all'header
@@ -53,7 +79,7 @@
   // Posizione del GRUPPO CONTROLLI (+/-) rispetto all'header
   top: -8,                   // px dall'alto dell'header (indipendente dai pips)
   right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
-  rightFromBadge: 185,        // distanza dal bordo destro del badge iniziativa
+  rightFromBadge: 179,        // distanza dal bordo destro del badge iniziativa
   // Parametri interni del gruppo controlli
   gap: 2,                    // tra i due bottoni
   paddingX: 0,
@@ -168,8 +194,68 @@ Object.assign(roundPill.style, {
   borderRadius: "32px",
   boxShadow: "0 2px 6px rgba(0,0,0,.45)",
   userSelect: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px"
 });
-roundPill.textContent = "Turno 1";
+
+// ⬇️ NUOVO: label separato così non perdiamo il bottone ai render
+const roundLabel = document.createElement("span");
+roundLabel.id = "tbp-round-label";
+roundPill.appendChild(roundLabel);
+
+const roundSep = document.createElement("span");
+roundSep.textContent = "•";
+Object.assign(roundSep.style, { opacity: ".6" });
+
+const turnCounter = document.createElement("span");
+turnCounter.id = "tbp-turn-counter";
+Object.assign(turnCounter.style, {
+  fontVariantNumeric: "tabular-nums",
+  opacity: ".9"
+});
+
+// di default lo nascondo finché non ho dati
+roundSep.style.display = "none";
+turnCounter.style.display = "none";
+
+roundPill.append(roundSep, turnCounter);
+
+// ⬇️ NUOVO: bottone reset turno (solo GM)
+function makeRoundResetBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.resetRound = "1";
+  b.title = "Resetta il turno a 1 (solo GM)";
+  b.textContent = "↺";
+  Object.assign(b.style, {
+    width: "22px",
+    height: "22px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,255,255,.18)",
+    background: "rgba(0,0,0,.45)",
+    color: "#fff",
+    fontSize: "13px",
+    fontWeight: "800",
+    lineHeight: "1",
+    borderRadius: "999px",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    padding: "0",
+  });
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    try {
+      await setSceneState(prev => ({ ...(prev || {}), round: 1 }));
+      await renderAll();
+    } catch (err) {
+      console.warn("[round-reset] errore reset turno:", err?.message || err);
+    }
+  });
+  return b;
+}
 
 // ROW in alto: Turno + Toggle Tana (solo GM)
 const topRow = document.createElement("div");
@@ -1053,18 +1139,21 @@ function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
 }
 
     // ===== Render card
-    function renderTrack(entries, state) {
+    function renderTrack(entries, state, opts = {}) {
+    const animateActive = !!opts.animateActive;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
+    const currentActiveId = len ? state.order[activeIdx] : null;   // <-- AGGIUNTO QUI
     const nextId = len ? state.order[(activeIdx + 1) % len] : null;
+    
     // ---- PRE-PROCESS: costruiamo una lista “entriesForRender” che rispetta i collapse
-const collapsed = state?.collapsed || {};
-const groups = new Map(); // key -> array di membri
-for (const e of entries) {
-  const k = __groupKey(e);
-  if (!groups.has(k)) groups.set(k, []);
-  groups.get(k).push(e);
-}
+    const collapsed = state?.collapsed || {};
+    const groups = new Map(); // key -> array di membri
+    for (const e of entries) {
+    const k = __groupKey(e);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(e);
+  }
 
 const emitted = new Set();
 const entriesForRender = [];
@@ -1096,27 +1185,16 @@ for (const e of entries) {
     entriesForRender.push(e);
   }
 }
-
     const nodes = entriesForRender.map((e) => {
     const c = factionColors(e.attitude);
     const card = document.createElement("div");
+
     card.dataset.itemId     = e.id;
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
     card.setAttribute("draggable", isLairId(e.id) ? "false" : "true");
     const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
 
-
-
-      function ringMask(el, insetPx){
-        Object.assign(el.style, {
-        padding: `${insetPx}px`, // spessore dell’anello
-        WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-        mask:       "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-        WebkitMaskComposite: "xor",
-        maskComposite: "exclude",
-      });
-    }
     function applyBG3Frame(card, c, opts = {}) {
     const OUTLINE_W = opts.outlineW ?? 2;   // bordo nero
     const FRAME_W   = opts.frameW   ?? 4;   // spessore anello
@@ -1187,11 +1265,21 @@ for (const e of entries) {
     });
 
     card.append(outline, ringFill, ringHole, sheen);
-  }
+
+    // --- RESET base per tutte le card ---
+    const baseScale = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+    const wantBase = `translateZ(0) scale(${baseScale})`;
+    if (card.dataset.zoomState !== "base") {
+    __instaTransform(card, wantBase);   // ← niente animazione qui
+    card.dataset.zoomState = "base";
+}
+    card.style.zIndex = HAS_LEG ? String(LEG_BOSS_CFG.zIndex) : "";
+
+}
 
 // base card
-card.style.minWidth = "250px";
-card.style.maxWidth = "250px";
+card.style.minWidth = "240px";
+card.style.maxWidth = "240px";
 card.style.padding  = "0px 0px 0px";
 card.style.color = "#fff";
 card.style.display = "flex";
@@ -1213,9 +1301,7 @@ applyBG3Frame(card, c, {
 
 // sostituisci l'assegnazione fissa dell'altezza:
 card.style.height = CARD_H + "px";
-
-// animazione/scala/z-index se boss
-card.style.transition = "transform .15s ease, box-shadow .15s ease, height .15s ease";
+;
 if (HAS_LEG) {
   card.style.transform = `scale(${LEG_BOSS_CFG.scale})`;
   card.style.zIndex = String(LEG_BOSS_CFG.zIndex);
@@ -1225,6 +1311,9 @@ if (HAS_LEG) {
 } else {
   card.style.transform = "none";
 }
+  const baseScale = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+  card.style.transform = `translateZ(0) scale(${baseScale})`;
+  card.style.zIndex = HAS_LEG ? String(LEG_BOSS_CFG.zIndex) : "";
 
     const isActive = e.__groupMembers
   ? e.__groupMembers.some(m => m.id === state.order[state.current])
@@ -1244,10 +1333,34 @@ const isNext = e.__groupMembers
 
     card.style.boxShadow =
       `0 0 0 2px ${c.glow},
-      0 0 14px 2px ${c.glow},
+      0 0 14px 2px ${c.glow}, 
       inset 0 0 0 1px rgba(255,255,255,.66)`;
 
     card.dataset.active = "1";
+{
+
+  // --- ZOOM ATTIVO: anima SOLTANTO quando cambia l’attivo ---
+  const baseScale   = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+  const activeScale = baseScale * ZOOM_CFG.scale;
+  const target      = `translateZ(0) scale(${activeScale})`;
+
+      if (animateActive) {
+      __instaTransform(card, `translateZ(0) scale(${baseScale})`);
+      requestAnimationFrame(() => {
+        card.style.transform = target;
+        card.dataset.zoomState = "active";
+      });
+    } else {
+      const prev = card.style.transition;
+      card.style.transition = "none";
+      card.style.transform = target;
+      void card.offsetHeight;
+      card.style.transition = prev || "";
+      card.dataset.zoomState = "active";
+    }
+
+    card.style.zIndex = "6";
+  }
 
   const activeBadge = document.createElement("div");
     activeBadge.textContent = "⚔";
@@ -2077,10 +2190,11 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id)) {
 
     track.replaceChildren(...nodes.filter(Boolean));
 
-    const active = track.querySelector('[data-active="1"]');
+  const active = track.querySelector('[data-active="1"]');
   active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
 
-  }
+  __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
+}
 
 async function ensureState() {
   const state = await getSceneState();
@@ -2287,8 +2401,27 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
     const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
 
     try {
-      roundPill.textContent = `Turno ${Math.max(1, stateClean.round || 1)}`;
-    } catch {}
+  const lbl = document.getElementById("tbp-round-label");
+  if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
+
+  const cnt = document.getElementById("tbp-turn-counter");
+  const sep = roundPill.querySelector("span:nth-child(2)"); // il puntino "•"
+
+  const tot = Array.isArray(stateClean.order) ? stateClean.order.length : 0;
+  const cur = Math.max(0, Math.min(tot, (stateClean.current ?? 0) + 1));
+
+  if (cnt && sep) {
+    if (tot > 0) {
+      cnt.textContent = `${cur}/${tot}`;
+      cnt.style.display = "";
+      sep.style.display = "";
+    } else {
+      // niente partecipanti → nascondi contatore e separatore
+      cnt.style.display = "none";
+      sep.style.display = "none";
+    }
+  }
+} catch {}
 
     // se lo stato pulito è diverso dal raw, riallinea i metadata una volta sola
     const needFix =
@@ -2310,9 +2443,12 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
 }
     // costruisci la lista rispettando l’ordine pulito
     const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
+    const activeIdNow = stateClean.order[stateClean.current];
+    const animateActive = (activeIdNow !== __prevActiveId);
 
-    // render “idempotente”
-    renderTrack(ordered, stateClean);
+    renderTrack(ordered, stateClean, { animateActive });  // <-- passa il flag
+
+    __prevActiveId = activeIdNow; // aggiorna per il prossimo render
   }
 
   OBR.onReady(async () => {
@@ -2323,6 +2459,15 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
+try {
+  const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
+  if (IS_GM) {
+    if (!hasBtn) roundPill.appendChild(makeRoundResetBtn());
+  } else {
+    if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
+  }
+} catch {}
+
 try {
   if (IS_GM) {
     if (!lairToggleWrap.isConnected) {
@@ -2368,6 +2513,7 @@ try {
 });
 
   let __lastActiveId = null;
+  let __zoomActiveId = null;
 
 OBR.scene.onMetadataChange(async (meta) => {
   await renderAll(); // ridisegna UI
@@ -2415,6 +2561,7 @@ if (!isLairId(activeId)) {
 
     const next = { ...st, current: prevIdx, round: nextRound };
     await setSceneState(next);
+    try { delete document.__tbpZoomStamp; } catch {}
 
     try {
     const entriesNow = await readEntries();
@@ -2439,6 +2586,7 @@ if (!isLairId(activeId)) {
 
     const next = { ...st, current: nextIdx, round: nextRound };
     await setSceneState(next);
+    try { delete document.__tbpZoomStamp; } catch {}
 
     try {
     const entriesNow = await readEntries();
