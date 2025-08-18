@@ -92,6 +92,22 @@ function __instaTransform(el, value) {
   //dockRadius: 12,
 };
 
+// --- Paragon controls: stessa posizione/stile dei Legendary (+/-)
+const PAR_CTRL_CFG = {
+  top: -8,
+  right: null,            // se null → usa rightFromBadge come i Legendary
+  rightFromBadge: 149,    // identico ai Legendary; se vuoi più vicino al badge, riduci
+  gap: 2,
+  paddingX: 0,
+  paddingY: 0,
+  btnSize: 20,
+  btnRadius: 32,
+  // dockBg: "rgba(0,0,0,.22)",
+  // dockBorder: "1px solid rgba(255,255,255,.18)",
+  // dockRadius: 12,
+};
+
+
 // Se ti serve riservare più spazio a destra del testo per i due gruppi:
   const HEADER_RIGHT_PAD_EXTRA = 120; // px extra oltre al badge
 
@@ -603,6 +619,10 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
         attitude: meta.attitude || "ally",
         hp: (meta.hp ?? null),
         hpMax: (meta.hpMax ?? null),
+          // <<< NEW: paragon >>>
+        paragonActions: (meta.paragon && Number(meta.paragon.actions) > 0)
+        ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
+        : 0,
         // ← Aggiunta: stato azioni leggendarie
         legendary: (meta.legendary && typeof meta.legendary === "object")
         ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
@@ -619,8 +639,46 @@ async function getEntriesWithLair(state) {
   return base;
 }
 
-// ——— helpers per rename + label TEXT ———
-const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// id virtuali paragon: "<baseId>::p<k>" con k>=1
+function isParagonVirtualId(id) {
+  return typeof id === "string" && id.includes("::p");
+}
+function splitParagonId(id) {
+  if (!isParagonVirtualId(id)) return { baseId: id, idx: 0 };
+  const [baseId, tail] = id.split("::p");
+  const idx = Math.max(0, parseInt(tail, 10) || 0);
+  return { baseId, idx };
+}
+
+// Espande le entry in base a paragonActions, replicando le card.
+// Per k=0 mantiene l'id originale; per k>=1 crea id virtuali "<id>::p<k>".
+// La initiative per-card viene presa da state.paragonInits[baseId][k] se presente.
+function expandParagonEntries(entries, state) {
+  const out = [];
+  const pInits = (state && state.paragonInits) || {};
+  for (const e of entries) {
+    const n = Math.max(0, Math.floor(Number(e.paragonActions) || 0));
+    if (n <= 1) { out.push(e); continue; }
+
+    // clona n volte; k=0 conserva id base
+    for (let k = 0; k < n; k++) {
+      const clone = { ...e };
+      if (k > 0) clone.id = `${e.id}::p${k}`;
+
+      // iniziativa per-card
+      const arr = Array.isArray(pInits[e.id]) ? pInits[e.id] : [];
+      const ini = Number.isFinite(arr[k]) ? Math.floor(arr[k]) : e.initiative;
+      clone.initiative = ini;
+
+      // bookkeeping (utile in UI)
+      clone.__paragonIndex = k;
+      clone.__paragonBaseId = e.id;
+
+      out.push(clone);
+    }
+  }
+  return out;
+}
 
 // 1) Parser: rimuove TUTTI i prefissi "(n) " e restituisce base pulita
 function _parseIndexedName(name) {
@@ -1013,20 +1071,67 @@ function sortByInitiative(entries, state) {
 
   // aggiorna l'iniziativa del token e riallinea l'ordine
   async function updateInitiative(itemId, nextVal) {
-    const val = Number.isFinite(Number(nextVal)) ? Math.floor(Number(nextVal)) : 0;
+  const val = Number.isFinite(Number(nextVal)) ? Math.floor(Number(nextVal)) : 0;
+  const { baseId, idx } = splitParagonId(itemId);
 
-    await OBR.scene.items.updateItems([itemId], (items) => {
+  // aggiorna stato per-card
+  await setSceneState(prev => {
+    const p = { ...(prev?.paragonInits || {}) };
+    const arr = Array.isArray(p[baseId]) ? p[baseId].slice() : [];
+    const wantLen = Math.max(arr.length, idx + 1);
+    while (arr.length < wantLen) arr.push(val);
+    arr[idx] = val;
+    p[baseId] = arr;
+    return { ...(prev || {}), paragonInits: p };
+  });
+
+  // se è il card 0 (base), scrivi anche nel token per coerenza con la logica esistente
+  if (idx === 0) {
+    await OBR.scene.items.updateItems([baseId], (items) => {
       for (const it of items) {
         const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-        it.metadata = {
-          ...(it.metadata || {}),
-          [META_KEY]: { ...prevMeta, initiative: val },
-        };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, initiative: val } };
       }
     });
   }
+}
 
-  // ===== Legendary helpers =====
+// ===== Legendary helpers =====
+
+async function setParagonActions(baseId, nextActions) {
+  const n = Math.max(0, Math.floor(Number(nextActions) || 0));
+  await OBR.scene.items.updateItems([baseId], (items) => {
+    const it = items[0];
+    if (!it) return;
+    const me = { ...(it.metadata?.[META_KEY] || {}) };
+    if (n <= 1) {
+      // disattiva Paragon se <=1
+      if (me.paragon) delete me.paragon;
+    } else {
+      me.paragon = { actions: n };
+    }
+    it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+  });
+
+  // adatta paragonInits (mantieni le prime, tronca/estendi col valore della base)
+  const baseEntries = await readEntries();
+  const base = baseEntries.find(x => x.id === baseId);
+  const baseInit = Number(base?.initiative) || 0;
+
+  await setSceneState(prev => {
+    const p = { ...(prev?.paragonInits || {}) };
+    let arr = Array.isArray(p[baseId]) ? p[baseId].slice() : [baseInit];
+    if (n <= 1) {
+      delete p[baseId];
+    } else {
+      if (arr.length > n) arr = arr.slice(0, n);
+      while (arr.length < n) arr.push(baseInit);
+      p[baseId] = arr;
+    }
+    return { ...(prev || {}), paragonInits: p };
+  });
+}
+
 // Imposta current a un valore specifico (clamp 0..max; se max>0, min=1)
 async function setLegendaryCurrent(itemId, nextCurrent) {
   await OBR.scene.items.updateItems([itemId], (items) => {
@@ -1194,6 +1299,8 @@ for (const e of entries) {
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
     card.setAttribute("draggable", isLairId(e.id) ? "false" : "true");
     const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
+    const HAS_PAR  = Number(e.paragonActions) > 1;
+    const IS_BOSS = HAS_LEG || HAS_PAR;
 
     function applyBG3Frame(card, c, opts = {}) {
     const OUTLINE_W = opts.outlineW ?? 2;   // bordo nero
@@ -1267,13 +1374,13 @@ for (const e of entries) {
     card.append(outline, ringFill, ringHole, sheen);
 
     // --- RESET base per tutte le card ---
-    const baseScale = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
-    const wantBase = `translateZ(0) scale(${baseScale})`;
+    const baseScale = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+    const wantBase  = `translateZ(0) scale(${baseScale})`;
     if (card.dataset.zoomState !== "base") {
-    __instaTransform(card, wantBase);   // ← niente animazione qui
-    card.dataset.zoomState = "base";
-}
-    card.style.zIndex = HAS_LEG ? String(LEG_BOSS_CFG.zIndex) : "";
+      __instaTransform(card, wantBase);
+      card.dataset.zoomState = "base";
+  }
+  card.style.zIndex = IS_BOSS ? String(LEG_BOSS_CFG.zIndex) : "";
 
 }
 
@@ -1289,7 +1396,8 @@ card.style.gap = "100%";
 
 // altezza base + boost se boss
 const BASE_CARD_H = 48;
-const CARD_H = HAS_LEG ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
+const CARD_H = IS_BOSS ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
+card.style.height = CARD_H + "px";
 
 // applica cornice stile BG3 (come prima)
 applyBG3Frame(card, c, {
@@ -1305,15 +1413,16 @@ card.style.height = CARD_H + "px";
 if (HAS_LEG) {
   card.style.transform = `scale(${LEG_BOSS_CFG.scale})`;
   card.style.zIndex = String(LEG_BOSS_CFG.zIndex);
+  
   // aggiungi un alone dorato soft senza togliere le ombre esistenti
   const prev = card.style.boxShadow || "";
   card.style.boxShadow = (prev ? (prev + ", ") : "") + LEG_BOSS_CFG.shadow;
 } else {
   card.style.transform = "none";
 }
-  const baseScale = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+  const baseScale = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
   card.style.transform = `translateZ(0) scale(${baseScale})`;
-  card.style.zIndex = HAS_LEG ? String(LEG_BOSS_CFG.zIndex) : "";
+  card.style.zIndex = IS_BOSS ? String(LEG_BOSS_CFG.zIndex) : "";
 
     const isActive = e.__groupMembers
   ? e.__groupMembers.some(m => m.id === state.order[state.current])
@@ -1340,7 +1449,7 @@ const isNext = e.__groupMembers
 {
 
   // --- ZOOM ATTIVO: anima SOLTANTO quando cambia l’attivo ---
-  const baseScale   = HAS_LEG ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
+  const baseScale   = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
   const activeScale = baseScale * ZOOM_CFG.scale;
   const target      = `translateZ(0) scale(${activeScale})`;
 
@@ -1402,8 +1511,8 @@ const isNext = e.__groupMembers
   const OVER_BASE = 12;                 // sporgenza normale
 
 // Se ha azioni leggendarie, avatar più grande e un filo più “sporgente”
-  const AVA  = HAS_LEG ? Math.round(AVA_BASE * 1.5) : AVA_BASE;       // ~65 px
-  const OVER = HAS_LEG ? Math.round(OVER_BASE * 1.2) : OVER_BASE;     // ~14 px
+  const AVA  = IS_BOSS ? Math.round(AVA_BASE * 1.5) : AVA_BASE;
+  const OVER = IS_BOSS ? Math.round(OVER_BASE * 1.2) : OVER_BASE;
 
   // header: avatar + name + badge
   const header = document.createElement("div");
@@ -1845,7 +1954,7 @@ if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
   header.appendChild(dockPips);
 }
 
-// --- DOCK CONTROLLI (+/-) (indipendente) ---
+// --- DOCK CONTROLLI LEGENDARY (+/−) ---
 if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) {
   const dockCtrl = document.createElement("div");
   Object.assign(dockCtrl.style, {
@@ -1863,7 +1972,7 @@ if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) 
     pointerEvents: "auto",
   });
 
-  const mkBtn = (txt, delta) => {
+  const mkLegBtn = (txt, delta) => {
     const b = document.createElement("button");
     b.type = "button";
     Object.assign(b.style, {
@@ -1885,17 +1994,90 @@ if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) 
     b.addEventListener("mouseenter", () => { b.style.transform = "translateY(-1px)"; });
     b.addEventListener("mouseleave", () => { b.style.transform = "translateY(0)"; });
     b.addEventListener("click", async (ev) => {
-  ev.stopPropagation();
-  // Impedisci di scendere sotto 1 già a livello UI
-  const nextMax = Math.max(1, Math.min(10, Number(e.legendary.max) + delta));
-  try { await setLegendaryMax(e.id, nextMax); } catch {}
-});
+      ev.stopPropagation();
+      const nextMax = Math.max(1, Math.min(10, Number(e.legendary.max) + delta));
+      try { await setLegendaryMax(e.id, nextMax); } catch {}
+    });
     return b;
   };
 
-  dockCtrl.appendChild(mkBtn("−", -1));
-  dockCtrl.appendChild(mkBtn("+", +1));
+  dockCtrl.appendChild(mkLegBtn("−", -1));
+  dockCtrl.appendChild(mkLegBtn("+", +1));
   header.appendChild(dockCtrl);
+} // ← CHIUDE il blocco Legendary
+
+// --- DOCK PARAGON (+ / −) --- (solo GM, attivo solo se Legendary assente/0)
+if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
+    (!e.legendary || Number(e.legendary.max) === 0)) {
+  const dockPar = document.createElement("div");
+  Object.assign(dockPar.style, {
+    position: "absolute",
+    top: `${PAR_CTRL_CFG.top}px`,
+    right: `${__rightPxFrom(PAR_CTRL_CFG)}px`,
+    display: "flex",
+    alignItems: "center",
+    gap: `${PAR_CTRL_CFG.gap}px`,
+    padding: `${PAR_CTRL_CFG.paddingY}px ${PAR_CTRL_CFG.paddingX}px`,
+    borderRadius: `${PAR_CTRL_CFG.dockRadius || 0}px`,
+    background: PAR_CTRL_CFG.dockBg || "transparent",
+    border: PAR_CTRL_CFG.dockBorder || "none",
+    zIndex: "5",
+    pointerEvents: "auto",
+  });
+
+  const mkParBtn = (txt, delta) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    Object.assign(b.style, {
+      width: `${PAR_CTRL_CFG.btnSize}px`,
+      height: `${PAR_CTRL_CFG.btnSize}px`,
+      borderRadius: `${PAR_CTRL_CFG.btnRadius}px`,
+      border: "1px solid rgba(255,255,255,.18)",
+      background: "rgba(0, 0, 0, 0.72)",
+      color: "#fff",
+      fontSize: "12px",
+      fontWeight: "800",
+      lineHeight: "1",
+      padding: "0",
+      cursor: "pointer",
+      boxShadow: "0 1px 3px rgba(0,0,0,.4)",
+      transition: "transform .12s ease, background-color .12s ease, border-color .12s ease",
+    });
+    b.textContent = txt;
+    b.addEventListener("mouseenter", () => { b.style.transform = "translateY(-1px)"; });
+    b.addEventListener("mouseleave", () => { b.style.transform = "translateY(0)"; });
+    b.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const baseId = e.__paragonBaseId || e.id;
+      const cur = Math.max(1, Math.floor(Number(e.paragonActions) || 1));
+      const next = Math.max(1, Math.min(10, cur + delta));
+      try {
+        await setParagonActions(baseId, next);
+        await reconcileStateWithItems();
+        await renderAll();
+      } catch (err) {
+        console.warn("[paragon] set actions error:", err?.message || err);
+      }
+    });
+    return b;
+  };
+
+  const lab = document.createElement("div");
+  lab.textContent = `P:${String(e.paragonActions)}`;
+  Object.assign(lab.style, {
+    fontSize: "12px",
+    fontWeight: "800",
+    minWidth: "28px",
+    textAlign: "center",
+    color: "#fff",
+    userSelect: "none",
+  });
+  
+  const btnMinus = mkParBtn("−", -1);
+  const btnPlus  = mkParBtn("+", +1);
+
+  dockPar.append(btnMinus, btnPlus, lab);
+  header.appendChild(dockPar);
 }
 
   header.append(avatarWrap, name, badge);
@@ -2219,13 +2401,14 @@ async function ensureState() {
 async function reconcileStateWithItems() {
   const state = await getSceneState();
   const entries = await getEntriesWithLair(state);
-  // → Se non c'è più nessun token con META_KEY, reset completo (turno=1)
+
   if (!entries || entries.length === 0) {
     await resetTrackerState();
     return true;
   }
 
-  const sorted   = sortByInitiative(entries, state);
+  const expanded = expandParagonEntries(entries, state);
+  const sorted   = sortByInitiative(expanded, state);
   const newOrder = [...new Set(sorted.map(e => e.id))];
 
   let newCurrent = 0;
@@ -2246,7 +2429,8 @@ async function reconcileStateWithItems() {
   const round = Math.max(1, state?.round || 1);
   const seededGroups = state?.seededGroups || {};
   const collapsed = state?.collapsed || {};
-  await setSceneState({ order: newOrder, current: newCurrent, round, seededGroups, collapsed });
+  const paragonInits = state?.paragonInits || {};
+  await setSceneState({ order: newOrder, current: newCurrent, round, seededGroups, collapsed, paragonInits });
   return true;
 }
 
@@ -2365,15 +2549,14 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
   const cleanOrder = [];
 
   for (const id of state?.order ?? []) {
-    if (!byId.has(id)) continue;   // scarta ID non più esistenti
-    if (seen.has(id)) continue;    // scarta duplicati
+    if (!byId.has(id)) continue;
+    if (seen.has(id)) continue;
     seen.add(id);
     cleanOrder.push(id);
   }
 
-  // Se non restano elementi → RESET visivo: round=1 e seededGroups azzerati
   if (cleanOrder.length === 0) {
-    return { order: [], current: 0, round: 1, seededGroups: {}, collapsed: {} };
+    return { order: [], current: 0, round: 1, seededGroups: {}, collapsed: {}, paragonInits: {} };
   }
 
   const activeId = state?.order?.[state.current];
@@ -2384,21 +2567,22 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
   } else {
     current = Math.min(state?.current ?? 0, cleanOrder.length - 1);
   }
-    const round = Math.max(1, state?.round || 1);
-    const seededGroups = state?.seededGroups || {};
-    const collapsed = (state && typeof state.collapsed === "object" && state.collapsed) || {};
-    return { order: cleanOrder, current, round, seededGroups, collapsed };
 
-  }
+  const round = Math.max(1, state?.round || 1);
+  const seededGroups = state?.seededGroups || {};
+  const collapsed = (state && typeof state.collapsed === "object" && state.collapsed) || {};
+  const paragonInits = (state && typeof state.paragonInits === "object" && state.paragonInits) || {};
 
-    async function renderAll() {
-    // leggi in parallelo
-    const stateRaw = await getSceneState();
-    const entries  = await getEntriesWithLair(stateRaw);
-    const byId = new Map(entries.map((e) => [e.id, e]));
+  return { order: cleanOrder, current, round, seededGroups, collapsed, paragonInits };
+}
 
-    // stato “pulito” per evitare flicker/duplicati
-    const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
+async function renderAll() {
+  const stateRaw = await getSceneState();
+  const baseEntries  = await getEntriesWithLair(stateRaw);
+  const entries = expandParagonEntries(baseEntries, stateRaw);
+  const byId = new Map(entries.map((e) => [e.id, e]));
+
+  const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
 
     try {
   const lbl = document.getElementById("tbp-round-label");
