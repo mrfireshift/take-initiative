@@ -1,4 +1,4 @@
-  import OBR from "@owlbear-rodeo/sdk";
+  import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./contextMenu";
   import { mountHPBars } from "./hpbar-items.js"
 
@@ -16,9 +16,46 @@
   const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
   const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
 
+  // --- Active Turn Label (ancorata al token attivo)
+  const ACTIVE_LABEL_META = `${ID}/activeTurnLabel`;
+  const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
+  // offset verticale in celle (negativo = sopra il token)
+  const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
+
   // === EPIC ACTIONS (voci virtuali in lista) ===
   const EPIC_ACT_PREFIX = "__EPIC__";
 
+  // --- FIX duplicazione label: ripulisci locale+globale e restituisci (se c'è) l'unica label globale
+async function __cleanupActiveTurnLabels() {
+  // 1) elimina eventuali etichette locali legacy
+  try {
+    const locals = await OBR.scene.local.getItems(
+      (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
+    );
+    if (locals.length) {
+      await OBR.scene.local.deleteItems(locals.map(i => i.id));
+    }
+  } catch (e) {
+    console.warn("[activeLabel] cleanup local failed:", e?.message || e);
+  }
+
+  // 2) dedupe lato globale e tienine una sola
+  let globals = [];
+  try {
+    globals = await OBR.scene.items.getItems(
+      (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
+    );
+    if (globals.length > 1) {
+      const keep = globals[0].id;
+      const junk = globals.slice(1).map(i => i.id);
+      await OBR.scene.items.deleteItems(junk);
+      globals = globals.filter(i => i.id === keep);
+    }
+  } catch (e) {
+    console.warn("[activeLabel] cleanup global failed:", e?.message || e);
+  }
+  return globals[0] || null;
+}
   function isEpicActionId(id) {
   return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
 }
@@ -597,6 +634,99 @@ async function selectAndFocus(itemId) {
   await centerOnItem(itemId);
 }
 
+// Restituisce l'ID del token reale a cui ancorare la label (null se virtuale)
+function __resolveAnchorForActive(activeId) {
+  if (!activeId) return null;
+  if (isEpicActionId && isEpicActionId(activeId)) return null; // voce virtuale
+  if (isLairId && isLairId(activeId)) return null;             // Tana è virtuale
+  const { baseId } = splitParagonId(activeId);                  // paragon -> base
+  return baseId || activeId;
+}
+
+// Trova la label attiva esistente (identificata dal nostro metadata)
+async function __findExistingActiveLabel() {
+  return await __cleanupActiveTurnLabels();
+}
+
+let __mutatingActiveLabel = 0;    
+
+async function upsertActiveTurnLabel(anchorId, displayText) {
+  const existing = await __findExistingActiveLabel();
+
+  if (!anchorId) {
+    if (existing) await OBR.scene.items.deleteItems([existing.id]);
+    return;
+  }
+
+  const dpi = await OBR.scene.grid.getDpi();
+  const [anchor] = await OBR.scene.items.getItems([anchorId]);
+  if (!anchor) { if (existing) await OBR.scene.items.deleteItems([existing.id]); return; }
+
+  const offsetPx = { x: 0, y: ACTIVE_LABEL_OFFSET_Y_CELLS * dpi };
+  const pos = { x: anchor.position.x + offsetPx.x, y: anchor.position.y + offsetPx.y };
+  const textStr = String(displayText ?? "");
+
+  if (!existing) {
+    __mutatingActiveLabel++;
+    try {
+      const item = buildLabel()
+        .plainText(textStr)
+        .fillColor("#ffffffff")
+        .strokeColor("rgba(0,0,0,.85)")
+        .strokeWidth(2)
+        .layer("TEXT")
+        .position(pos)
+        .attachedTo(anchorId)
+        .style({
+          backgroundColor: "#ff0000a8",
+          backgroundOpacity: 0.75,
+          cornerRadius: 14,
+          pointerDirection: "DOWN",
+          pointerWidth: 16,
+          pointerHeight: 12
+        })
+        .metadata({ [ACTIVE_LABEL_META]: { enabled: true } })
+        .name("Turno attuale")
+        .build();
+      await OBR.scene.items.addItems([item]);
+    } finally {
+      __mutatingActiveLabel--;
+    }
+  } else {
+  // aggiorna solo se serve per evitare update inutili
+  const sameAnchor = existing.attachedTo === anchorId;
+  const sameText   = existing.text?.type === "PLAIN" && existing.text?.plainText === textStr;
+  if (sameAnchor && sameText) return;
+
+  __mutatingActiveLabel++;
+  try {
+    await OBR.scene.items.updateItems([existing.id], (list) => {
+      const it = list[0]; if (!it) return;
+
+      it.attachedTo = anchorId;
+      it.position   = pos;
+
+      // ⚠️ PRESERVA LO STYLE DEL TESTO (richiesto dal renderer)
+      const prevStyle =
+        (it.text && typeof it.text === "object" && it.text.style) ||
+        { fillColor: "#ffffff", strokeColor: "rgba(0,0,0,.85)", strokeWidth: 2 };
+
+      if (it.text && typeof it.text === "object") {
+        it.text.type = "PLAIN";
+        it.text.plainText = textStr;
+        it.text.style = { ...prevStyle };
+      } else {
+        it.text = { type: "PLAIN", plainText: textStr, style: { ...prevStyle } };
+      }
+
+      it.layer = "TEXT";
+    });
+    } finally {
+      __mutatingActiveLabel--;
+    }
+  }
+}
+
 function handoffFocusToCanvas() {
   try {
     // togli il focus da qualunque cosa nel plugin
@@ -609,11 +739,12 @@ function handoffFocusToCanvas() {
 }
 
 async function closeOpenEditors() {
-  __suspendRenders = true;  // evita che un render distrugga il nuovo input che stai aprendo
+  const wasSuspended = __suspendRenders;
+  __suspendRenders = true;                // congela i render durante la chiusura
   try {
     const openInit = document.querySelector('[data-init-editing="1"]');
     if (openInit && typeof openInit.__commitFn === "function") {
-      await openInit.__commitFn(); // commit silenzioso
+      await openInit.__commitFn();
     }
     const openHP = document.querySelector('[data-hp-editing="1"]');
     if (openHP && typeof openHP.__commitFn === "function") {
@@ -622,14 +753,18 @@ async function closeOpenEditors() {
   } catch (e) {
     console.warn("[edit] closeOpenEditors", e?.message || e);
   } finally {
-    // non facciamo render qui: lo farà la prossima azione (o il commit dell’editor corrente)
-    __suspendRenders = false;
+    __suspendRenders = wasSuspended;      // ← ripristina come prima
   }
 }
 
 let __arrowProxyUntil = 0;
 function armArrowProxy() {
   __arrowProxyUntil = Date.now() + ARROW_PROXY_WINDOW_MS;
+}
+
+let __ignoreDocClickUntil = 0;
+function armDocClickIgnore(ms = 250) {
+  __ignoreDocClickUntil = Date.now() + ms;
 }
 
 async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
@@ -839,74 +974,209 @@ async function _getGroupForItemId(itemId) {
   const members = entries.filter(x => _groupKeyFromEntry(x) === key).map(x => x.id);
   return { key, members, me, entries };
 }
-// Propagazione iniziativa al gruppo (solo la prima volta)
+// Raccoglie i group-key (base-name + portrait) attualmente presenti in scena
+async function __currentSeedGroupKeySet() {
+  const entries = await readEntries(); // solo token reali
+  const keys = new Set();
+  for (const e of entries) {
+    const k = _groupKeyFromEntry(e);
+    if (k) keys.add(k);
+  }
+  return keys;
+}
+
+// Rimuove da state.seededGroups le chiavi che non hanno più membri in scena
+async function __gcSeededGroups() {
+  const st = await getSceneState();
+  const prev = (st && st.seededGroups) || {};
+  const present = await __currentSeedGroupKeySet();
+
+  let changed = false;
+  const next = { ...prev };
+  for (const k of Object.keys(prev)) {
+    if (!present.has(k)) { // gruppo scomparso → sblocca autofill futuro
+      delete next[k];
+      changed = true;
+    }
+  }
+  if (changed) {
+    await setSceneState(p => ({ ...(p || {}), seededGroups: next }));
+  }
+}
+
+// Backfill di iniziativa per i gruppi già seedati quando compaiono nuovi membri
+async function __backfillInitiativeForSeededGroups() {
+  const st = await getSceneState();
+  const seeded = st?.seededGroups || {};
+  const keys = Object.keys(seeded).filter(k => seeded[k]?.initiative);
+  if (!keys.length) return;
+
+  // prendi tutti i token "tracciati" (con il nostro META_KEY)
+  const all = await OBR.scene.items.getItems();
+  const tracked = all.filter(it => it?.metadata?.[META_KEY]);
+
+  // raggruppa per (base-name + portrait) come _groupKeyFromEntry
+  const byKey = new Map();
+  for (const it of tracked) {
+    const entryLike = { name: it.name || "", portrait: getTokenImageUrl(it) || "" };
+    const key = _groupKeyFromEntry(entryLike);
+    if (!keys.includes(key)) continue;              // solo gruppi già seedati per iniziativa
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(it);
+  }
+
+  for (const k of keys) {
+    const items = byKey.get(k) || [];
+    if (items.length <= 1) continue;
+
+    // scegli un valore "seed" dal primo membro con initTouched=true (fallback: qualunque >0)
+    let seed = null;
+    for (const it of items) {
+      const m = it.metadata?.[META_KEY] || {};
+      if (m.epic) continue;
+      if (m.initTouched === true && Number.isFinite(m.initiative) && Number(m.initiative) !== 0) {
+        seed = Math.floor(Number(m.initiative)); break;
+      }
+    }
+    if (seed === null) {
+      for (const it of items) {
+        const m = it.metadata?.[META_KEY] || {};
+        if (m.epic) continue;
+        if (Number.isFinite(m.initiative) && Number(m.initiative) !== 0) {
+          seed = Math.floor(Number(m.initiative)); break;
+        }
+      }
+    }
+    if (!Number.isFinite(seed)) continue;
+
+    // target = nuovi membri non-epic con iniziativa mancante/zero e non "toccati"
+    const targets = items
+      .filter(it => {
+        const m = it.metadata?.[META_KEY] || {};
+        if (m.epic) return false;
+        const touched = m.initTouched === true;
+        const ini = m.initiative;
+        const hasIni = ini !== undefined && ini !== null;
+        return !touched && (!hasIni || Number(ini) === 0);
+      })
+      .map(it => it.id);
+
+    if (!targets.length) continue;
+
+    await OBR.scene.items.updateItems(targets, (list) => {
+      for (const it of list) {
+        const prev = it.metadata?.[META_KEY] || {};
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prev, initiative: seed, initTouched: true } };
+      }
+    });
+  }
+}
+
+// Propagazione iniziativa al gruppo (prima volta + backfill per nuovi membri)
 async function trySeedGroupInitiative(itemId, value) {
   const st = await getSceneState();
   const { key, members } = await _getGroupForItemId(itemId);
   if (!key || members.length <= 1) return;
 
-  const already = st?.seededGroups?.[key]?.initiative;
-  if (already) return;
+  const already = !!st?.seededGroups?.[key]?.initiative;
 
-  // scrivi l’iniziativa su TUTTI i membri del gruppo
+  // carica gli item reali del gruppo
+  const items = await OBR.scene.items.getItems(members);
+
+  // Non toccare mai gli Epic
+  const notEpic = (it) => !(it.metadata?.[META_KEY]?.epic);
+
+  // target:
+  // - prima volta: tutti i non-epic
+  // - backfill: solo i non-epic con initiative mancante O zero e NON "toccati" (initTouched !== true)
+  let targetIds;
+  if (!already) {
+    targetIds = items.filter(notEpic).map(it => it.id);
+  } else {
+  targetIds = items
+    .filter(notEpic)
+    .filter(it => (it.metadata?.[META_KEY]?.initTouched !== true))
+    .map(it => it.id);
+    if (targetIds.length === 0) return; // niente da backfillare
+  }
+
   const val = Number.isFinite(Number(value)) ? Math.floor(Number(value)) : 0;
-  await OBR.scene.items.updateItems(members, (list) => {
+
+  await OBR.scene.items.updateItems(targetIds, (list) => {
     for (const it of list) {
       const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, initiative: val } };
+      it.metadata = {
+        ...(it.metadata || {}),
+        [META_KEY]: { ...prevMeta, initiative: val, initTouched: true } // ⟵ segna come “toccato”
+      };
     }
   });
 
-  // marca il gruppo come seedato per iniziativa
-  await setSceneState(prev => ({
-    ...(prev || { order: [], current: 0, round: 1 }),
-    seededGroups: {
-      ...(prev?.seededGroups || {}),
-      [key]: { ...(prev?.seededGroups?.[key] || {}), initiative: true }
-    }
-  }));
+  // Se era la prima volta, marca il gruppo come seedato per iniziativa
+  if (!already) {
+    await setSceneState(prev => ({
+      ...(prev || { order: [], current: 0, round: 1 }),
+      seededGroups: {
+        ...(prev?.seededGroups || {}),
+        [key]: { ...(prev?.seededGroups?.[key] || {}), initiative: true }
+      }
+    }));
+  }
 
-  // ricalcola l’ordine e ridisegna
   await reconcileStateWithItems();
   await renderAll();
 }
 
-// Propagazione HP/HPMax al gruppo (solo la prima volta)
+// Propagazione HP/HPMax al gruppo con backfill per nuovi membri
 async function trySeedGroupHP(itemId, hp, hpMax) {
   const st = await getSceneState();
   const { key, members } = await _getGroupForItemId(itemId);
   if (!key || members.length <= 1) return;
 
-  const already = st?.seededGroups?.[key]?.hp;
-  if (already) return;
+  const already = !!st?.seededGroups?.[key]?.hp;
+
+  // Se già seedato, limita la propagazione ai membri con HP non inizializzati
+  let targetIds = members;
+  if (already) {
+    const items = await OBR.scene.items.getItems(members);
+    targetIds = items
+      .filter(it => {
+        const m = it.metadata?.[META_KEY] || {};
+        return (m.hp ?? null) == null && (m.hpMax ?? null) == null;
+      })
+      .map(it => it.id);
+    if (targetIds.length === 0) return; // niente da backfillare
+  }
 
   const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
   const nHPclamped = nMax > 0 ? Math.min(nHP, nMax) : nHP;
 
-  await OBR.scene.items.updateItems(members, (list) => {
+  await OBR.scene.items.updateItems(targetIds, (list) => {
     for (const it of list) {
       const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
       it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, hp: nHPclamped, hpMax: nMax } };
     }
   });
 
-  // aggiorna subito le barre HP per tutti (best-effort)
+  // aggiorna subito barre HP per i target (best-effort)
   try {
     const { syncHPBarNow } = await import("./hpbar-items.js");
-    for (const id of members) syncHPBarNow(id, nHPclamped, nMax);
+    for (const id of targetIds) syncHPBarNow(id, nHPclamped, nMax);
   } catch (err) {
-    console.warn("[hpbar] group sync error", err?.message || err);
+    console.warn("[hpbar] group backfill error", err?.message || err);
   }
 
-  // marca il gruppo come seedato per HP
-  await setSceneState(prev => ({
-    ...(prev || { order: [], current: 0, round: 1 }),
-    seededGroups: {
-      ...(prev?.seededGroups || {}),
-      [key]: { ...(prev?.seededGroups?.[key] || {}), hp: true }
-    }
-  }));
+  // Se era la prima volta, marca il gruppo come seedato per HP
+  if (!already) {
+    await setSceneState(prev => ({
+      ...(prev || { order: [], current: 0, round: 1 }),
+      seededGroups: {
+        ...(prev?.seededGroups || {}),
+        [key]: { ...(prev?.seededGroups?.[key] || {}), hp: true }
+      }
+    }));
+  }
 
   await renderAll();
 }
@@ -1171,7 +1441,7 @@ function sortByInitiative(entries, state) {
     await OBR.scene.items.updateItems([baseId], (items) => {
       for (const it of items) {
         const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-        it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, initiative: val } };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, initiative: val, initTouched: true }  };
       }
     });
   }
@@ -1326,6 +1596,7 @@ function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
 
     // ===== Render card
     function renderTrack(entries, state, opts = {}) {
+    if (__suspendRenders) return;
     const animateActive = !!opts.animateActive;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
@@ -1915,14 +2186,21 @@ badge.addEventListener("pointerdown", async (ev) => {
   if (e.__groupCollapsed || e.isEpic || e.isEpicAction) { ev.preventDefault(); ev.stopPropagation(); return; }
   if (badge.dataset.editing === "1") return;
 
+  ev.stopImmediatePropagation();
   ev.preventDefault();
-  ev.stopPropagation();
+  armDocClickIgnore(350);                           // un filo più lunga
+  const onPU = () => {                              // estendi un attimo dopo il pointerup
+    armDocClickIgnore(150);
+    document.removeEventListener("pointerup", onPU, true);
+  };
+  document.addEventListener("pointerup", onPU, true);
 
-  // chiudi QUALSIASI altro editor già aperto (HP o iniziativa)
-  await closeOpenEditors();
-
-  // entra in modalità editing con lock (evita re-render)
+  // 1) blocca subito i render e marca l'ID che sta per entrare in edit
+  __suspendRenders = true;
   __editingInitForId = e.id;
+
+  // 2) chiudi QUALSIASI altro editor già aperto
+  await closeOpenEditors(); 
 
   const input = document.createElement("input");
   input.type = "text";                // niente spinner
@@ -1930,7 +2208,18 @@ badge.addEventListener("pointerdown", async (ev) => {
   input.autocomplete = "off";
   input.spellcheck = false;
   input.pattern = "-?\\d*";
-  input.value = String(e.initiative);
+
+  let liveInit = null;
+  try {
+  const [live] = await OBR.scene.items.getItems([e.id]);
+  const mm = live?.metadata?.[META_KEY] || {};
+  if (Number.isFinite(mm.initiative)) liveInit = Math.floor(Number(mm.initiative));
+  } catch {}
+  const prefillInit = (liveInit ?? (Number.isFinite(e.initiative) ? Math.floor(Number(e.initiative)) : 0));
+  input.value = String(prefillInit);
+
+  // 3) l'editor è stabile → sblocca i render nel prossimo tick
+  setTimeout(() => { __suspendRenders = false; }, 0);
 
   Object.assign(input.style, {
   width: "100%",           // riempi il cerchio
@@ -2381,20 +2670,65 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   card.appendChild(hpBarWrap);
 
   // Apriamo l’editor su pointerdown per evitare click “di coda”
-  pill.addEventListener("pointerdown", async (ev) => {
-  ev.stopPropagation();
-  ev.preventDefault(); // evita selezione/drag prima di montare gli input
-  if (pill.dataset.hpEditing === "1") return; // già aperto
+// === apertura editor HP su pointerdown (con handoff robusto) ===
+pill.addEventListener("pointerdown", async (ev) => {
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
 
-  // 1) Chiudi QUALSIASI altro editor già aperto (HP o iniziativa)
+  // ⬅︎⬅︎ NEW — HANDOFF: se c'è già una pill HP in edit e NON è questa,
+  // chiudi prima quella e rilancia questo pointerdown al prossimo frame.
+  if (__editingHPForId && __editingHPForId !== e.id) {
+    const targetId = e.id;
+    __suspendRenders = true;                 // niente rimpiazzi DOM durante il passaggio
+    try { await closeOpenEditors(); } catch {}
+    requestAnimationFrame(() => {
+      // ignora eventuali click di scia generati dal commit della prima pill
+      armDocClickIgnore(250);
+      const nextEl = document.querySelector(
+        `[data-badge="hp"][data-item-id="${targetId}"]`
+      );
+      if (nextEl) {
+        nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      }
+      __suspendRenders = false;
+    });
+    return; // ← importantissimo: NON proseguire con il bootstrap dell’editor adesso
+  }
+
+  // Da qui in giù: comportamento normale di apertura editor per questa pill
+
+  // Estendi la finestra di ignore per il click di coda generato da questo pointerdown
+  armDocClickIgnore(350);
+  const onPU = () => {
+    armDocClickIgnore(150); // un filo in più appena dopo il pointerup
+    document.removeEventListener("pointerup", onPU, true);
+  };
+  document.addEventListener("pointerup", onPU, true);
+
+  // Inghiotte il PRIMO click di coda (solo se cade dentro la pill aperta)
+  const swallowFirstClick = (evt) => {
+    if (pill.contains(evt.target)) { evt.stopPropagation(); evt.preventDefault(); }
+  };
+  document.addEventListener("click", swallowFirstClick, { capture: true, once: true });
+
+  // 🔒 Congela subito e marca l’ID in edit (evita che un render distrugga il DOM appena creato)
+  __suspendRenders = true;
+  __editingHPForId = e.id;
+
+  // Chiudi eventuali altri editor (qui NON entriamo più nel caso HP→HP grazie all’handoff sopra)
   await closeOpenEditors();
 
-  // 2) Marca questa pill come “in edit” + disabilita temporaneamente il drag della card
-  __editingHPForId = e.id;
+  // Flag locale per questa pill
   pill.dataset.hpEditing = "1";
+
+  // Disabilita drag sulla card finché editi
   const cardEl = pill.closest('[data-item-id]');
   const prevDraggable = cardEl ? cardEl.getAttribute("draggable") : null;
   if (cardEl) cardEl.setAttribute("draggable", "false");
+
+  // ====== (tutto il resto del tuo bootstrap editor rimane uguale) ======
+  // Parser inline, prefill, costruzione wrap + input iHP/iMax, stile, ecc...
+  // --- INIZIO: blocco invariato dal tuo codice ---
 
   // 3) Parser inline (+N/-N o assoluti)
   function parseInlineMath(input, baseValue) {
@@ -2411,14 +2745,26 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     return baseValue;
   }
 
-  // 4) PREFILL ROBUSTO: prova dalla pill, poi dai metadata
-  const pillTxt = (pill.textContent || "").trim();
-  let fromPillHP = null, fromPillMax = null;
+  // 4) PREFILL ROBUSTO + LIVE (autofill immediato quando si passa alla successiva)
+let liveHP = null, liveMax = null;
+try {
+  const [live] = await OBR.scene.items.getItems([e.id]);
+  const mm = live?.metadata?.[META_KEY] || {};
+  if (Number.isFinite(mm.hp))   liveHP = mm.hp;
+  if (Number.isFinite(mm.hpMax)) liveMax = mm.hpMax;
+} catch {}
+
+const pillTxt = (pill.textContent || "").trim();
+let fromPillHP = null, fromPillMax = null;
+{
   const m = /^(\d+)\s*\/\s*(\d+)$/.exec(pillTxt);
   if (m) { fromPillHP = parseInt(m[1], 10); fromPillMax = parseInt(m[2], 10); }
+}
 
-  const hpVal  = Number.isFinite(fromPillHP)  ? fromPillHP  : (Number.isFinite(e.hp)    ? e.hp    : 0);
-  const hpMaxV = Number.isFinite(fromPillMax) ? fromPillMax : (Number.isFinite(e.hpMax) ? e.hpMax : 0);
+// Priorità: valori live dei metadata (post-seed) → testo pill → snapshot `e`
+const hpVal  = (liveHP  ?? fromPillHP ?? (Number.isFinite(e.hp)    ? e.hp    : 0));
+const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 0));
+
 
   // editor: due input "text" (niente spinner)
   const wrap = document.createElement("div");
@@ -2433,7 +2779,7 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     inp.inputMode = "numeric";
     inp.autocomplete = "off";
     inp.spellcheck = false;
-    inp.pattern = "[+\\-]?\\d*";   // consenti +N/-N o numero
+    inp.pattern = "[+\\-]?\\d*";
     // stile
     inp.style.width = "22px";
     inp.style.border = "none";
@@ -2443,22 +2789,20 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     inp.style.fontSize = "15px";
     inp.style.fontWeight = "700";
     inp.style.textAlign = "center";
-    // niente wheel / arrows verticali
-    inp.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
+    // filters
+    inp.addEventListener("wheel", (e2) => e2.preventDefault(), { passive: false });
     inp.addEventListener("keydown", (ke) => {
       if (ke.key === "ArrowUp" || ke.key === "ArrowDown") ke.preventDefault();
     });
-    // pulizia: un solo segno in testa e cifre
     inp.addEventListener("input", () => {
       let v = (inp.value || "").replace(/\s+/g, "");
-      v = v.replace(/(?!^)[+\-]/g, "");        // solo segno iniziale
-      v = v.replace(/(?!^[+\-])\D+/g, "");     // poi solo cifre
+      v = v.replace(/(?!^)[+\-]/g, "");
+      v = v.replace(/(?!^[+\-])\D+/g, "");
       inp.value = v;
     });
-    // non propagare click interni
     inp.addEventListener("click", (e2) => e2.stopPropagation());
   }
-  iHP.value  = "";     // vuoto → usa base come preview
+  iHP.value  = "";
   iMax.value = "";
 
   const slash = document.createElement("span");
@@ -2471,44 +2815,57 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   wrap.append(iHP, slash, iMax);
   pill.appendChild(wrap);
 
-  // focus su XX o YY in base al click (se clicchi a destra della pill -> YY)
+  // Commit se esci dalla pill (ma non quando vai tra iHP/iMax)
+  wrap.addEventListener("focusout", () => {
+    setTimeout(async () => {
+      const ae = document.activeElement;
+      if (!pill.contains(ae)) { await commit(); }
+    }, 0);
+  });
+
+  // Focus SINCRONO su metà cliccata
   const clickedRightHalf = ev.offsetX > pill.clientWidth / 2;
   (clickedRightHalf ? iMax : iHP).focus({ preventScroll: true });
   (clickedRightHalf ? iMax : iHP).select();
 
-  // ---- commit/cancel con guard + supporto TAB-jump ----
+  // ✅ ora l’editor è stabile: sblocca i render
+  setTimeout(() => { __suspendRenders = false; }, 0);
+
+  // ---- commit/cancel + export verso closeOpenEditors()
   let committed = false;
-  let tabbing = false;
+
+  function cleanup() {
+    try { document.removeEventListener("click", onDocClick, true); } catch {}
+    __editingHPForId = null;
+    delete pill.dataset.hpEditing;
+    delete pill.__commitFn;
+    delete pill.__cancelFn;
+    if (cardEl) {
+      if (prevDraggable === null) cardEl.removeAttribute("draggable");
+      else cardEl.setAttribute("draggable", prevDraggable);
+    }
+  }
 
   const commit = async () => {
     if (committed) return;
     committed = true;
 
-    // leggi gli originali dalla pill (prima di sostituirla li avevamo)
-    const hpVal  = Number.isFinite(e.hp)    ? e.hp    : 0;
-    const hpMaxV = Number.isFinite(e.hpMax) ? e.hpMax : 0;
-
     const vHP  = iHP.value.trim();
     const vMax = iMax.value.trim();
 
-    // calcola con inline math rispetto agli originali
     let nextHP    = parseInlineMath(vHP,  hpVal);
     let nextHPMax = parseInlineMath(vMax, hpMaxV);
-  
-    // clamp: HP <= HPMax (se > 0)
     if (nextHPMax > 0) nextHP = Math.min(nextHP, nextHPMax);
 
     pill.innerHTML = `${nextHP}/${nextHPMax}`;
-    // aggiorna mini-barra visuale accanto alla pill
     const pct = nextHPMax > 0 ? Math.max(0, Math.min(1, nextHP / nextHPMax)) : 0;
     hpFill.style.width = (pct * 100) + "%";
     hpFill.style.background = hpColorByPct(pct);
 
     await updateHP(e.id, nextHP, nextHPMax);
-    try { await trySeedGroupHP(e.id, nextHP, nextHPMax); } catch (err) { console.warn(err); }
+    try { await trySeedGroupHP(e.id, nextHP, nextHPMax); } catch {}
+
     cleanup();
-    // (opzionale) ridisegna adesso che non sei più in edit
-    // await renderAll();
   };
 
   const cancel = () => {
@@ -2516,85 +2873,77 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     committed = true;
     pill.innerHTML = oldHTML;
     cleanup();
-    // renderAll(); // opzionale
   };
 
-  // chiudi solo cliccando FUORI dalla pill
   const onDocClick = async (evt) => {
-    if (!pill.contains(evt.target)) {
-      await commit();
-    }
+    if (Date.now() < __ignoreDocClickUntil) return; // 👈 ignora click di scia
+    if (pill.contains(evt.target)) return;
+    await commit();
   };
-  document.addEventListener("click", onDocClick, { capture: true });
+  document.addEventListener("click", onDocClick, true);
 
-  function cleanup() {
-    try { document.removeEventListener("click", onDocClick, { capture: true }); } catch {}
-    __editingHPForId = null;
-    delete pill.dataset.hpEditing;
-    delete pill.__commitFn;
-    delete pill.__cancelFn;
-  }
-
-  // espone commit/cancel a closeOpenEditors()
   pill.__commitFn = commit;
   pill.__cancelFn = cancel;
 
-  // helper: commit e apri l'editor HP del vicino (giù o su)
-  // saltando card che NON hanno la pill HP (es. Azioni di Tana)
+  // Commit e passa alla pill vicina (come nel tuo codice)
   const commitAndOpenNeighbor = async (goPrev = false) => {
-  let targetId = null;
-  let direction = goPrev ? -1 : 1;
+    let targetId = null;
+    const direction = goPrev ? -1 : 1;
 
-  try {
-    const st = await getSceneState();
-    const order = Array.isArray(st?.order) ? st.order : [];
-    const idx = order.indexOf(e.id);
+    __suspendRenders = true;
+    try {
+      // fotografa ordine prima del commit
+      let preOrder = [];
+      try {
+        const st = await getSceneState();
+        preOrder = Array.isArray(st?.order) ? [...st.order] : [];
+      } catch {}
 
-    if (idx >= 0) {
-      // Scorri fino a trovare una card con [data-badge="hp"]
-      let ni = idx + direction;
-      while (ni >= 0 && ni < order.length) {
-        const candId = order[ni];
-        // NB: verifichiamo direttamente sul DOM se esiste la pill HP
-        const hasHp = !!document.querySelector(
-          `[data-badge="hp"][data-item-id="${candId}"]`
-        );
-        if (hasHp) { targetId = candId; break; }
-        ni += direction; // salta card senza HP (es. lair)
+      await commit();
+
+      // trova vicino editabile
+      const idx = preOrder.indexOf(e.id);
+      if (idx >= 0) {
+        let i = idx + direction;
+        while (i >= 0 && i < preOrder.length) {
+          const candId = preOrder[i];
+          const cardEl2  = document.querySelector(`[data-item-id="${candId}"]`);
+          const badgeEl2 = document.querySelector(`[data-badge="hp"][data-item-id="${candId}"]`);
+          const collapsed = cardEl2?.dataset.groupCollapsed === "1";
+          const isEpicAct = typeof isEpicActionId === "function" ? isEpicActionId(candId) : false;
+          if (badgeEl2 && !collapsed && !isEpicAct) { targetId = candId; break; }
+          i += direction;
+        }
       }
-    }
-  } catch {}
 
-  await commit();
-
-  if (targetId) {
-    // aspetta il render, poi apri l’editor HP della prossima card valida
-    requestAnimationFrame(() => {
-      const nextEl = document.querySelector(
-        `[data-badge="hp"][data-item-id="${targetId}"]`
-      );
-      if (nextEl) {
-        nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-        nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
-        // dai un frame all'editor per montarsi, poi focus selezionato
+      if (targetId) {
         requestAnimationFrame(() => {
-          const inputs = nextEl.querySelectorAll("input");
-          const first = inputs && inputs[0];
-          if (first) { try { first.focus({ preventScroll: true }); first.select(); } catch {} }
+          const nextEl = document.querySelector(
+            `[data-badge="hp"][data-item-id="${targetId}"]`
+          );
+          if (nextEl) {
+            // ignora il click che nasce dal nostro dispatch
+            armDocClickIgnore(250);
+            nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+            nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+            requestAnimationFrame(() => { __suspendRenders = false; });
+          } else {
+            __suspendRenders = false;
+          }
         });
+      } else {
+        __suspendRenders = false;
       }
-    });
-  }
-};
+    } catch (err) {
+      __suspendRenders = false;
+      throw err;
+    }
+  };
 
-  // keymap:
-  //  - Enter su uno qualunque: commit
-  //  - Esc: cancel
-  //  - Tab su HP: focus HPMax (senza commit). Shift+Tab: commit + vai al precedente
-  //  - Tab su HPMax: commit + vai al successivo. Shift+Tab: focus HP
+  // keymap
   const onKeyHP = async (ke) => {
-    if (ke.key === "Enter") { ke.preventDefault(); await commit(); return; }
-    if (ke.key === "Escape") { ke.preventDefault(); cancel(); return; }
+    if (ke.key === "Enter")  { ke.preventDefault(); await commit(); return; }
+    if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
     if (ke.key === "Tab") {
       ke.preventDefault();
       if (ke.shiftKey) { await commitAndOpenNeighbor(true); }
@@ -2602,8 +2951,8 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
     }
   };
   const onKeyMax = async (ke) => {
-    if (ke.key === "Enter") { ke.preventDefault(); await commit(); return; }
-    if (ke.key === "Escape") { ke.preventDefault(); cancel(); return; }
+    if (ke.key === "Enter")  { ke.preventDefault(); await commit(); return; }
+    if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
     if (ke.key === "Tab") {
       ke.preventDefault();
       if (ke.shiftKey) { iHP.focus({ preventScroll: true }); iHP.select(); }
@@ -2650,7 +2999,10 @@ async function ensureState() {
 
   }
 async function reconcileStateWithItems() {
-  const state = await getSceneState();
+  await __gcSeededGroups();
+  await __backfillInitiativeForSeededGroups();  // ← NEW: backfill per nuovi membri
+
+  const state   = await getSceneState();
   const entries = await getEntriesWithLair(state);
 
   if (!entries || entries.length === 0) {
@@ -2875,6 +3227,7 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
 }
 
 async function renderAll() {
+  if (__suspendRenders) return;
   const stateRaw = await getSceneState();
   const baseEntries  = await getEntriesWithLair(stateRaw);
   const entries = expandParagonEntries(baseEntries, stateRaw);
@@ -2942,6 +3295,17 @@ const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
     // costruisci la lista rispettando l’ordine pulito
     const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
+    // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
+try {
+  const anchorId = __resolveAnchorForActive(activeIdNow);
+  let labelName = "Turno";
+  const activeEntry = (byId && byId.get && (byId.get(activeIdNow) || byId.get(anchorId)));
+  if (activeEntry && activeEntry.name) labelName = __safeBaseName(activeEntry.name);
+  await upsertActiveTurnLabel(anchorId, ACTIVE_LABEL_TEXT_FMT(labelName));
+} catch (err) {
+  console.warn("[active-label] upsert error:", err?.message || err);
+}
+
     const animateActive = (activeIdNow !== __prevActiveId);
 
     renderTrack(ordered, stateClean, { animateActive });  // <-- passa il flag
@@ -3043,6 +3407,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
 });
 
   OBR.scene.items.onChange(async (changes = []) => {
+    if (__mutatingActiveLabel > 0) return;
     await reconcileStateWithItems();
     await enforceUniqueNamePrefixes();
     await renderAll();
