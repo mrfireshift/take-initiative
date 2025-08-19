@@ -13,6 +13,47 @@
   const LAIR_INITIATIVE  = 20;
   const LAIR_PORTRAIT = "/lair.png";
 
+  const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
+  const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
+
+  // === EPIC ACTIONS (voci virtuali in lista) ===
+  const EPIC_ACT_PREFIX = "__EPIC__";
+
+  function isEpicActionId(id) {
+  return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
+}
+
+// Parser sicuro del "base name" senza i prefissi "(n) "
+// Usa _parseIndexedName se disponibile nello scope corrente, altrimenti fallback identico
+function __safeBaseName(name) {
+  try {
+    if (typeof _parseIndexedName === "function") {
+      return _parseIndexedName(name).base;
+    }
+  } catch {}
+  const raw = String(name || "Unnamed").trim();
+  return raw.replace(/^(\(\d+\)\s*)+/, "").trim();
+}
+
+// Crea una voce virtuale "Epic Action" del boss dopo un certo PG
+function makeEpicActionEntry(bossEntry, pcEntry) {
+  // id unico stabile (non finisce nei metadata della scena)
+  const id = `${EPIC_ACT_PREFIX}::${bossEntry.id}::after::${pcEntry.id}`;
+  return {
+    id,
+    // stesso nome del token (boss)
+    name: bossEntry.name,
+    initiative: pcEntry.initiative,    // badge informativo; non editabile
+    portrait: bossEntry.portrait || null,
+    attitude: bossEntry.attitude || "enemy",
+    hp: null,
+    hpMax: null,
+    isEpicAction: true,
+    epicBossId: bossEntry.id,
+    epicAfterPCId: pcEntry.id,
+  };
+}
+
   let __lastRenderedActiveId = null;
   let __prevActiveId = null;
 
@@ -34,7 +75,7 @@
   scale: 1,          // quanto ingrandire la card
   extraHeight: 24,       // px in più all’altezza base
   zIndex: 6,            // per sovrapporsi leggermente alle altre
-  shadow: "0 0 10px rgba(255,215,0,.25)" // alone leggero dorato
+  shadow: "0 0 10px rgba(255, 0, 0, 0.8)" // alone leggero dorato
 };
 
 // --- ZOOM CONFIG GLOBALE ---
@@ -107,9 +148,29 @@ const PAR_CTRL_CFG = {
   // dockRadius: 12,
 };
 
-
 // Se ti serve riservare più spazio a destra del testo per i due gruppi:
   const HEADER_RIGHT_PAD_EXTRA = 120; // px extra oltre al badge
+
+// --- EPIC / EPIC ACTION tag config (solo controlli via JS) ---
+const EPIC_TAG_CFG = {
+  // Posizioni (solo layout)
+  posBoss:   { top: -6, right: null, rightFromBadge: 124, gap: 6, reserve: 120 },
+  posAction: { top: 35, right: null, rightFromBadge: 71, gap: 6, reserve: 120 },
+
+  // Stile delle pill
+  epic: {
+    label: "Boss Epico",
+    fontSize: 11, fontWeight: 700, padX: 6, padY: 2, radius: 999,
+    bg: "rgba(255, 0, 0, 1)", color: "#fff",
+    border: "1px solid rgba(0, 0, 0, 1)", letterSpacing: .2
+  },
+  action: {
+    label: "Azione Epica",
+    fontSize: 11, fontWeight: 700, padX: 6, padY: 2, radius: 999,
+    bg: "rgba(255, 0, 0, 1)", color: "#fff",
+    border: "1px solid rgba(6, 0, 0, 1)", letterSpacing: .2
+  }
+};
 
   // --- Drag & Drop (riordino fra pari iniziativa) ---
   let __draggingId   = null;   // id card trascinata
@@ -321,6 +382,7 @@ if (!track.__dndMounted) {
 
 track.addEventListener("dragstart", (ev) => {
   const card = ev.target.closest('[data-item-id]');
+  if (card.dataset.isEpic === "1") { ev.preventDefault(); return; }
   if (!card) return;
 
   const init = card.dataset.initiative || "";
@@ -485,12 +547,15 @@ async function resetTrackerState() {
   });
 }
 
-
-    // ===== Selezione + centratura viewport (robusta) =====
+// ===== Selezione + centratura viewport (robusta) =====
 async function selectInScene(itemId, replace = true) {
-  if (!itemId) return;
-  try { await OBR.player.select([itemId], replace); } catch {}
+  // Solo il GM forza la selezione locale del token
+  if (!IS_GM || !itemId) return;
+  try {
+    await OBR.player.select([itemId], replace);
+  } catch {}
 }
+
 
 async function buildBiasedBBox(bounds, bias = FOCUS_ZOOM_BIAS, minPadPx = FOCUS_MIN_PAD_PX) {
   const w  = Number(bounds?.width  ?? (bounds?.max?.x ?? 0) - (bounds?.min?.x ?? 0));
@@ -614,12 +679,12 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       byId.set(it.id, {
         id: it.id,
         name: it.name || "Unnamed",
-        initiative: Number(meta.initiative) || 0,
+        initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
         portrait: getTokenImageUrl(it),
         attitude: meta.attitude || "ally",
         hp: (meta.hp ?? null),
         hpMax: (meta.hpMax ?? null),
-          // <<< NEW: paragon >>>
+        isEpic: !!meta.epic,
         paragonActions: (meta.paragon && Number(meta.paragon.actions) > 0)
         ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
         : 0,
@@ -627,6 +692,7 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
         legendary: (meta.legendary && typeof meta.legendary === "object")
         ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
         : { max: 0, current: 0 },
+        
       });
     }
     return [...byId.values()];
@@ -696,6 +762,14 @@ function _indexName(base, n) {
 // === Raggruppamento per base-name + attitude (solo per UI) ===
 const __GROUP_SEP = "::";
 function __groupKey(e) {
+  // Azione Epica: mai raggruppare
+  if (e.isEpicAction) return `EPICACTION${__GROUP_SEP}${e.id}`;
+
+  // Paragon (quando esistono le card replicate): mai raggruppare
+  // (include anche la card base k=0 quando Paragon è attivo)
+  if (e.__paragonIndex !== undefined) return `PARAGON${__GROUP_SEP}${e.id}`;
+
+  // Resto: raggruppo per attitude + base-name
   const { base } = _parseIndexedName(e.name);
   return `${e.attitude || "ally"}${__GROUP_SEP}${base}`;
 }
@@ -1004,6 +1078,13 @@ function sortByInitiative(entries, state) {
     const ib = Number(b.initiative) || 0;
     if (ib !== ia) return ib - ia; // desc
 
+    // --- TIEBREAK SPECIFICO EPIC (vincono i pareggi a 20) ---
+    if (ia === LAIR_INITIATIVE) {
+      const aEpic = !!a.isEpic;
+      const bEpic = !!b.isEpic;
+      if (aEpic !== bEpic) return aEpic ? -1 : 1; // Epic prima
+    }
+
     // --- TIEBREAK SPECIFICO TANA ---
     if (ia === LAIR_INITIATIVE) {
       const aIsLair = isLairId(a.id);
@@ -1297,10 +1378,16 @@ for (const e of entries) {
     card.dataset.itemId     = e.id;
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
-    card.setAttribute("draggable", isLairId(e.id) ? "false" : "true");
+
     const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
-    const HAS_PAR  = Number(e.paragonActions) > 1;
-    const IS_BOSS = HAS_LEG || HAS_PAR;
+    const HAS_PAR = Number(e.paragonActions) > 1;
+    const IS_EPIC = !!e.isEpic;
+    const IS_BOSS = HAS_LEG || HAS_PAR || IS_EPIC;
+
+    const DRAG_OK = !(isLairId(e.id) || isEpicActionId(e.id) || IS_EPIC);
+    card.setAttribute("draggable", DRAG_OK ? "true" : "false");
+    card.dataset.isEpicAction = e.isEpicAction ? "1" : "0";
+
 
     function applyBG3Frame(card, c, opts = {}) {
     const OUTLINE_W = opts.outlineW ?? 2;   // bordo nero
@@ -1471,29 +1558,42 @@ const isNext = e.__groupMembers
     card.style.zIndex = "6";
   }
 
-  const activeBadge = document.createElement("div");
-    activeBadge.textContent = "⚔";
-    Object.assign(activeBadge.style, {
-      position: "absolute",
-      left: "28px",                 // spilla sul lato sinistro della card
-      top: "50%",
-      transform: "translateY(55%)", // spostala leggermente in basso
-      width: "18px",
-      height: "18px",
-      borderRadius: "50%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "14px",
-      fontWeight: "900",
-      color: "#fff",
-      background: c.border,
-      boxShadow: "0 2px 6px rgba(0,0,0,.85), 0 0 0 2px rgba(0,0,0,.6)",
-      zIndex: "4",
-      pointerEvents: "none",
-    });
-    card.appendChild(activeBadge);
+  // Badge "turno attivo" (⚔) dimensionato in proporzione alla card/boss
+if (isActive) {
+  // Fattore di scala: i boss usano avatar 1.5× (vedi AVA = AVA_BASE * 1.5)
+  const K = IS_BOSS ? 1.3 : 1;
 
+  const BADGE_BASE_SIZE = 18;  // size standard
+  const BADGE_BASE_LEFT = -8;  // offset standard
+  const BADGE_BASE_FONT = 14;  // font standard
+
+  const S = Math.round(BADGE_BASE_SIZE * K);  // diametro badge
+  const L = Math.round(BADGE_BASE_LEFT * K);  // distanza da sinistra
+  const F = Math.round(BADGE_BASE_FONT * K);  // font-size
+
+  const activeBadge = document.createElement("div");
+  activeBadge.textContent = "⚔";
+  Object.assign(activeBadge.style, {
+    position: "absolute",
+    left: `${L}px`,
+    top: "50%",
+    transform: "translateY(55%)",
+    width: `${S}px`,
+    height: `${S}px`,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: `${F}px`,
+    fontWeight: "900",
+    color: "#fff",
+    background: c.border,
+    boxShadow: "0 2px 6px rgba(0,0,0,.85), 0 0 0 2px rgba(0,0,0,.6)",
+    zIndex: "4",
+    pointerEvents: "none",
+  });
+  card.appendChild(activeBadge);
+}
   }
 
   if (isNext && !isActive) {
@@ -1612,6 +1712,123 @@ Object.assign(nameLabel.style, {
 });
 name.appendChild(nameLabel);
 
+  // ---- TAGs spostabili (posizione salvata in scena)
+  const tagsDock = document.createElement("div");
+  Object.assign(tagsDock.style, {
+    position: "absolute",
+    display: "flex",
+    gap: "6px",
+    alignItems: "center",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "auto",
+    zIndex: "5",
+  });
+  // posizione percentuale (left/top) letta dallo stato
+  (function setTagsDockPosFromState(){
+    const tp = (state?.ui?.tagsDock) || { x: 0.72, y: 0.50 };
+    tagsDock.style.left = (tp.x * 100) + "%";
+    tagsDock.style.top  = (tp.y * 100) + "%";
+  })();
+
+  // Drag dei tag (solo GM): trascina l’intero dock
+  if (IS_GM) {
+    tagsDock.style.cursor = "grab";
+    let dragging = false, rect = null, pid = 0;
+    const onMove = async (ev) => {
+      if (!dragging || !rect) return;
+      const x = (ev.clientX - rect.left) / rect.width;
+      const y = (ev.clientY - rect.top)  / rect.height;
+      const nx = Math.max(0.05, Math.min(0.95, x));
+      const ny = Math.max(0.10, Math.min(0.90, y));
+      tagsDock.style.left = (nx * 100) + "%";
+      tagsDock.style.top  = (ny * 100) + "%";
+      await setSceneState(prev => ({
+        ...(prev || {}),
+        ui: { ...(prev?.ui || {}), tagsDock: { x: nx, y: ny } }
+      }));
+    };
+    const onUp = () => {
+      dragging = false;
+      tagsDock.releasePointerCapture?.(pid);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onUp, true);
+      tagsDock.style.cursor = "grab";
+    };
+    tagsDock.addEventListener("pointerdown", (ev) => {
+      if (!IS_GM) return;
+      ev.stopPropagation();
+      pid = ev.pointerId || 0;
+      dragging = true;
+      tagsDock.setPointerCapture?.(pid);
+      rect = header.getBoundingClientRect();
+      tagsDock.style.cursor = "grabbing";
+      document.addEventListener("pointermove", onMove, true);
+      document.addEventListener("pointerup", onUp, true);
+    });
+  }
+
+// --- Tag Dock (EPIC e AZIONE EPICA) separati: non draggabili ---
+if (!e.__groupCollapsed) {
+  const mkPill = (cfg) => {
+  const s = document.createElement("span");
+  s.textContent = cfg.label || "";
+
+  // letter-spacing sicuro: usa valore numerico → "Npx", altrimenti default "0.5px"
+  const ls = Number.isFinite(cfg?.letterSpacing) ? `${cfg.letterSpacing}px` : "0.5px";
+
+  Object.assign(s.style, {
+    fontSize: `${cfg.fontSize ?? 11}px`,
+    fontWeight: String(cfg.fontWeight ?? 800),
+    padding: `${cfg.padY ?? 2}px ${cfg.padX ?? 6}px`,
+    borderRadius: `${cfg.radius ?? 999}px`,
+    background: cfg.bg || "rgba(147,112,219,.35)",
+    color: cfg.color || "#fff",
+    border: cfg.border || "1px solid rgba(255,255,255,.18)",
+    letterSpacing: ls,
+    userSelect: "none",
+    pointerEvents: "none",
+  });
+
+  return s;
+};
+
+  // Boss Epico
+  if (IS_EPIC) {
+    const pos = EPIC_TAG_CFG.posBoss;
+    const dockBoss = document.createElement("div");
+    Object.assign(dockBoss.style, {
+      position: "absolute",
+      top: `${pos.top}px`,
+      right: `${__rightPxFrom(pos)}px`,
+      display: "flex",
+      alignItems: "center",
+      gap: `${pos.gap || 6}px`,
+      zIndex: "5",
+      pointerEvents: "none"
+    });
+    dockBoss.appendChild(mkPill(EPIC_TAG_CFG.epic));
+    header.appendChild(dockBoss);
+  }
+
+  // Azione Epica (entry virtuale)
+  if (e.isEpicAction) {
+    const pos = EPIC_TAG_CFG.posAction;
+    const dockAct = document.createElement("div");
+    Object.assign(dockAct.style, {
+      position: "absolute",
+      top: `${pos.top}px`,
+      right: `${__rightPxFrom(pos)}px`,
+      display: "flex",
+      alignItems: "center",
+      gap: `${pos.gap || 6}px`,
+      zIndex: "5",
+      pointerEvents: "none"
+    });
+    dockAct.appendChild(mkPill(EPIC_TAG_CFG.action));
+    header.appendChild(dockAct);
+  }
+}
+
 // --- CHIP ×N SULL'AVATAR (solo se collassato) ---
 if (e.__groupCollapsed && e.__groupCount > 1) {
   const CHIP = 32;            // diametro chip (regola qui)
@@ -1661,11 +1878,9 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   const badge = document.createElement("div");
   badge.textContent = String(e.initiative);
   badge.title = "Click per modificare l'iniziativa";
-  // cerchio fisso 28px
-  const BADGE_SIZE = 28;
   Object.assign(badge.style, {
   position: "absolute",
-  right: "12px",
+  right: BADGE_RIGHT + "px",
   top: "50%",
   transform: "translateY(-50%)",
   width: BADGE_SIZE + "px",
@@ -1697,7 +1912,7 @@ badge.dataset.itemId = e.id;
 
 badge.addEventListener("pointerdown", async (ev) => {
   // se è già in editing, non fare nulla
-  if (e.__groupCollapsed) { ev.preventDefault(); ev.stopPropagation(); return; }
+  if (e.__groupCollapsed || e.isEpic || e.isEpicAction) { ev.preventDefault(); ev.stopPropagation(); return; }
   if (badge.dataset.editing === "1") return;
 
   ev.preventDefault();
@@ -1734,6 +1949,10 @@ badge.addEventListener("pointerdown", async (ev) => {
   appearance: "none",
 });
 
+  if (e.isEpic) {
+  badge.title = "Un Epic Boss agisce sempre su iniziativa 20.";
+  badge.style.cursor = "default";
+}
   const old = badge.textContent;
   badge.textContent = "";
   badge.appendChild(input);
@@ -1780,17 +1999,26 @@ badge.addEventListener("pointerdown", async (ev) => {
   const commit = async () => {
   if (committed) return;
   committed = true;
+
   const v = input.value.trim();
   try { badge.removeChild(input); } catch {}
   const normalized = v === "" ? old : String(Math.floor(Number(v) || 0));
   badge.textContent = normalized;
 
   await updateInitiative(e.id, normalized);
-  // <<< PROPAGAZIONE (prima volta) >>>
   try { await trySeedGroupInitiative(e.id, normalized); } catch (err) { console.warn(err); }
 
   cleanup();
+
+  // 🔧 NEW: riordina SUBITO e ridisegna
+  await reconcileStateWithItems();
   await renderAll();
+
+  // (senza TAB) centra la card nella sua nuova posizione
+  requestAnimationFrame(() => {
+    const me = document.querySelector(`[data-item-id="${e.id}"]`);
+    me?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+  });
 };
 
   const cancel = () => {
@@ -1808,37 +2036,56 @@ badge.addEventListener("pointerdown", async (ev) => {
 
   // helper: conferma e apre la pill adiacente (sotto/ sopra) in base a goPrev
   const commitAndOpenNeighbor = async (goPrev = false) => {
-    let targetId = null;
-    try {
-      const st = await getSceneState();
-      const order = Array.isArray(st?.order) ? st.order : [];
-      const idx = order.indexOf(e.id);
-      if (idx >= 0) {
-        const ni = goPrev ? idx - 1 : idx + 1;
-        if (ni >= 0 && ni < order.length) targetId = order[ni];
-      }
-    } catch {}
+  tabbing = true;
 
-    tabbing = true;
-    await commit();
-    tabbing = false;
+  // 📸 fotografiamo l'ordine PRIMA del riordino
+  let preOrder = [];
+  try {
+    const st = await getSceneState();
+    preOrder = Array.isArray(st?.order) ? [...st.order] : [];
+  } catch {}
 
-    if (targetId) {
-      // aspetta il render, poi entra in edit sulla pill target
-      requestAnimationFrame(() => {
-        const nextEl = document.querySelector(
-          `[data-badge="init"][data-item-id="${targetId}"]`
-        );
-        if (nextEl) {
-          nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-          // scrolla e focus input se già presente
-          nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
-          const nxt = nextEl.querySelector("input");
-          if (nxt) { try { nxt.focus({ preventScroll: true }); nxt.select(); } catch {} }
-        }
-      });
+  await commit();   // aggiorna, riordina, renderizza
+  tabbing = false;
+
+  let targetId = null;
+  const direction = goPrev ? -1 : 1;
+
+  // 🔍 cerchiamo il vicino basandoci su preOrder (quello originale)
+  const idx = preOrder.indexOf(e.id);
+  if (idx >= 0) {
+    let i = idx + direction;
+    while (i >= 0 && i < preOrder.length) {
+      const candId = preOrder[i];
+
+      // escludiamo pill non editabili
+      const cardEl  = document.querySelector(`[data-item-id="${candId}"]`);
+      const badgeEl = document.querySelector(`[data-badge="init"][data-item-id="${candId}"]`);
+      const collapsed  = cardEl?.dataset.groupCollapsed === "1";
+      const isEpicBoss = cardEl?.dataset.isEpic === "1";
+      const isEpicAct  = typeof isEpicActionId === "function" ? isEpicActionId(candId) : false;
+
+      const editable = !!badgeEl && !collapsed && !isEpicBoss && !isEpicAct;
+      if (editable) { targetId = candId; break; }
+
+      i += direction;
     }
-  };
+  }
+
+  if (targetId) {
+    requestAnimationFrame(() => {
+      const nextEl = document.querySelector(
+        `[data-badge="init"][data-item-id="${targetId}"]`
+      );
+      if (nextEl) {
+        nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+        const nxt = nextEl.querySelector("input");
+        if (nxt) { try { nxt.focus({ preventScroll: true }); nxt.select(); } catch {} }
+      }
+    });
+  }
+};
 
   // tastiera: Enter = solo commit; Tab = commit + vai giù (Shift+Tab su)
   input.addEventListener("keydown", async (ke) => {
@@ -1926,9 +2173,9 @@ else if (e.__groupFirst) {
 }
 // ===== 2 DOCKS INDIPENDENTI: PIPS e CONTROLLI (+/-) =====
 function __rightPxFrom(cfg) {
-  // Se cfg.right è un numero, è assoluto; altrimenti calcola rispetto al badge
+  // Se cfg.right è numerico → assoluto; altrimenti calcola dal bordo destro oltre il badge
   if (Number.isFinite(cfg.right)) return Number(cfg.right);
-  return 12 + BADGE_SIZE + Number(cfg.rightFromBadge || 0);
+  return BADGE_RIGHT + BADGE_SIZE + Number(cfg.rightFromBadge || 0);
 }
 
 // --- DOCK PIPS (indipendente) ---
@@ -2084,7 +2331,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   card.appendChild(header);
 
 // === HP pill (solo GM)
-if (IS_GM && !e.__groupCollapsed && !isLairId(e.id)) {
+if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   const pill = document.createElement("div");
   pill.title = "Click per modificare HP (puoi usare +N o -N)";
   pill.style.position = "absolute";
@@ -2387,7 +2634,11 @@ async function ensureState() {
     current: 0,
     round: 1,
     seededGroups: {},
-    collapsed: {}
+    collapsed: {},
+    ui: {
+    activeBadge: { x: 0.12, y: 0.60 }, // 12% da sinistra, 60% dall’alto
+    tagsDock:    { x: 0.72, y: 0.50 }  // badge EPIC a destra, centrato
+    }
   });
 }
 
@@ -2409,7 +2660,32 @@ async function reconcileStateWithItems() {
 
   const expanded = expandParagonEntries(entries, state);
   const sorted   = sortByInitiative(expanded, state);
-  const newOrder = [...new Set(sorted.map(e => e.id))];
+
+// base: SOLO item reali (niente EPIC virtual qui)
+  let newOrder = [...new Set(sorted.map(e => e.id))];
+
+// Se ci sono Epic Boss, inserisci una voce virtuale dopo OGNI PG
+  const byId = new Map(sorted.map(e => [e.id, e]));
+  const epicBosses = sorted.filter(e => !!e.isEpic);
+  if (epicBosses.length > 0) {
+  const injected = [];
+  for (let i = 0; i < newOrder.length; i++) {
+    const id = newOrder[i];
+    injected.push(id);
+
+    const ent = byId.get(id);
+    if (!ent) continue;
+    // solo dopo i PG
+    if (String(ent.attitude || "") !== "pc") continue;
+
+    // per OGNI Epic Boss aggiungo una voce virtuale
+    for (const boss of epicBosses) {
+      const vId = `${EPIC_ACT_PREFIX}::${boss.id}::after::${id}`;
+      injected.push(vId);
+    }
+  }
+  newOrder = injected;
+}
 
   let newCurrent = 0;
   const activeId = state?.order?.[state.current];
@@ -2445,6 +2721,10 @@ async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore) {
   if (!src || !dst) return;
 
   const init = Number(src.initiative) || 0;
+  const isTwenty = init === LAIR_INITIATIVE;
+  const srcIsEpic = !!byId.get(sourceId)?.isEpic;
+  // Mai muovere gli Epic
+  if (isTwenty && srcIsEpic) return;
   if ((Number(dst.initiative) || 0) !== init) return;  // solo fra pari
 
   const curOrder = Array.isArray(st?.order) ? st.order.slice() : [];
@@ -2457,14 +2737,20 @@ async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore) {
   const blockStart = Math.min(...indices);
   const blockEnd   = Math.max(...indices);
   const tieIds     = curOrder.slice(blockStart, blockEnd + 1);
+  const pinnedCount = isTwenty ? tieIds.filter(id => !!byId.get(id)?.isEpic).length : 0;
 
   const srcIdx = tieIds.indexOf(sourceId);
   const dstIdx = tieIds.indexOf(targetId);
   if (srcIdx < 0 || dstIdx < 0) return;
 
   const cut = tieIds.splice(srcIdx, 1)[0];
-  const insertAt = placeBefore ? dstIdx : (dstIdx + 1);
-  tieIds.splice(insertAt > srcIdx ? insertAt - 1 : insertAt, 0, cut);
+  let insertAt = placeBefore ? dstIdx : (dstIdx + 1);
+  if (dstIdx > srcIdx) insertAt -= 1;        // correzione indice dopo la rimozione
+  // Non far passare avanti agli Epic a 20
+  if (isTwenty && !byId.get(cut)?.isEpic && insertAt < pinnedCount) {
+    insertAt = pinnedCount;
+  }
+  tieIds.splice(insertAt, 0, cut);
 
   const newOrder = curOrder.slice(0, blockStart).concat(tieIds, curOrder.slice(blockEnd + 1));
 
@@ -2493,6 +2779,7 @@ async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefor
 
   // vincolo: tutte le sorgenti e il target devono avere la STESSA iniziativa
   const init = Number(target.initiative) || 0;
+  const isTwenty = init === LAIR_INITIATIVE;
   for (const s of allSrc) {
     if ((Number(s.initiative) || 0) !== init) {
       console.warn("[dnd] gruppo contiene iniziative diverse: annullo move");
@@ -2511,11 +2798,14 @@ async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefor
   const blockStart = Math.min(...indices);
   const blockEnd   = Math.max(...indices);
   const tieIds     = curOrder.slice(blockStart, blockEnd + 1);
+  const pinnedCount = isTwenty ? tieIds.filter(id => !!byId.get(id)?.isEpic).length : 0;
 
   // estrai le sorgenti (mantenendo l’ordine relativo)
   const srcSet = new Set(uniqSrc);
   const moving = tieIds.filter(id => srcSet.has(id));
   if (!moving.length) return;
+  // Se il blocco contiene un Epic a 20, non si muove
+  if (isTwenty && moving.some(id => !!byId.get(id)?.isEpic)) return;
 
   // rimuovi le sorgenti dal blocco
   const tieFiltered = tieIds.filter(id => !srcSet.has(id));
@@ -2524,7 +2814,8 @@ async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefor
   const dstIdx = tieFiltered.indexOf(targetId);
   if (dstIdx < 0) return;
 
-  const insertAt = placeBefore ? dstIdx : (dstIdx + 1);
+  let insertAt = placeBefore ? dstIdx : (dstIdx + 1);
+  if (isTwenty && insertAt < pinnedCount) insertAt = pinnedCount;
   tieFiltered.splice(insertAt, 0, ...moving);
 
   // ricompone l'ordine finale
@@ -2539,7 +2830,13 @@ async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefor
 
 // Wrapper: trova i membri del gruppo del lead collassato e chiama il riordino a blocco
 async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId, placeBefore) {
-  const { members } = await _getGroupForItemId(sourceLeadId); // già presente nel tuo file
+  const { members } = await _getGroupForItemId(sourceLeadId);
+// Se nel gruppo c'è un Epic (a 20), non consentire lo spostamento del blocco
+try {
+const entries = await readEntries();
+const byId = new Map(entries.map(e => [e.id, e]));
+if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
+} catch {}
   const ids = (members && members.length > 0) ? members : [sourceLeadId];
   await _reorderBlockWithinSameInitiative(ids, targetId, placeBefore);
 }
@@ -2573,14 +2870,31 @@ async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId
   const collapsed = (state && typeof state.collapsed === "object" && state.collapsed) || {};
   const paragonInits = (state && typeof state.paragonInits === "object" && state.paragonInits) || {};
 
-  return { order: cleanOrder, current, round, seededGroups, collapsed, paragonInits };
+  const ui = (state && typeof state.ui === "object" && state.ui) || {};
+  return { order: cleanOrder, current, round, seededGroups, collapsed, paragonInits, ui };
 }
 
 async function renderAll() {
   const stateRaw = await getSceneState();
   const baseEntries  = await getEntriesWithLair(stateRaw);
   const entries = expandParagonEntries(baseEntries, stateRaw);
-  const byId = new Map(entries.map((e) => [e.id, e]));
+
+  // Costruisci le entry VIRTUALI EPIC corrispondenti all’ordine che inietteremo
+  const epicBosses = entries.filter(e => !!e.isEpic);
+  const pcs        = entries.filter(e => String(e.attitude || "") === "pc");
+  const epicVirtuals = [];
+  if (epicBosses.length > 0 && pcs.length > 0) {
+  for (const pc of pcs) {
+    for (const boss of epicBosses) {
+      epicVirtuals.push(makeEpicActionEntry(boss, pc));
+    }
+  }
+}
+
+// byId deve conoscere anche le voci virtuali
+const entriesWithVirtuals = entries.concat(epicVirtuals);
+const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
+
 
   const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
 
@@ -2712,7 +3026,7 @@ OBR.scene.onMetadataChange(async (meta) => {
 
   // Reset delle azioni leggendarie a inizio turno della creatura attiva
   // Se è la Tana, niente reset legend e niente focus su scena
-if (!isLairId(activeId)) {
+if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   try { await resetLegendaryIfAny(activeId); }
   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
 
