@@ -17,6 +17,7 @@ export default defineConfig({
         ctxAdd:  path.resolve(process.cwd(), "ctx-add.html"),
         ctxMark: path.resolve(process.cwd(), "ctx-mark.html"),
         ctxConditions: path.resolve(process.cwd(), "ctx-conditions.html"),
+        ctxSpells: path.resolve(process.cwd(), "ctx-spells.html"),
       },
     },
   },
