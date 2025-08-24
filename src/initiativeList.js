@@ -1,6 +1,82 @@
   import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./contextMenu";
   import { mountHPBars } from "./hpbar-items.js"
+  import { buildConditionChips, refreshConditionLabels } from "./conditions";
+
+  // Configurazione condizioni per tag card
+export const CONDITIONS = [
+  "Accecato", "Affascinato", "Afferrato", "Assordato", "Avvelenato",
+  "Incapacitato", "Invisibile", "Paralizzato", "Pietrificato", "Privo di sensi",
+  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione"
+];
+
+// --- Fallback chips condizioni (se conditions.js lancia)
+function __chip(label, compact=true) {
+  const s = document.createElement("span");
+  s.textContent = String(label);
+  Object.assign(s.style, {
+    fontSize: compact ? "10px" : "11px",
+    fontWeight: "800",
+    padding: compact ? "1px 5px" : "2px 6px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,.72)",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    lineHeight: "1",
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  });
+  return s;
+}
+
+function __buildChipsSimple(cond, opts = {}) {
+  const frag = document.createDocumentFragment();
+  const cap = Array.isArray(opts.cap) ? opts.cap : [];
+  const compact = !!opts.compact;
+
+  const flags  = (cond && typeof cond === "object" && cond.flags && typeof cond.flags === "object")
+    ? cond.flags : {};
+  let custom = (cond && typeof cond === "object" && Array.isArray(cond.custom))
+    ? cond.custom
+    : [];
+
+  // se custom è oggetto (vecchi dump), usa le chiavi truthy
+  if (!Array.isArray(custom) && custom && typeof custom === "object") {
+    custom = Object.keys(custom).filter(k => !!custom[k]);
+  }
+
+  // standard (rispetta l’ordine/whitelist di cap)
+  for (const name of cap) {
+    if (flags[name]) frag.appendChild(__chip(name, compact));
+  }
+  // eventuali flag “fuori cap”
+  for (const k of Object.keys(flags)) {
+    if (!cap.includes(k) && flags[k]) frag.appendChild(__chip(k, compact));
+  }
+  // custom
+  for (const t of custom) {
+    if (t != null && String(t).trim()) frag.appendChild(__chip(String(t), compact));
+  }
+  return frag;
+}
+
+function __buildConditionChipsSafe(cond, opts) {
+  try {
+    if (typeof buildConditionChips === "function") {
+      return buildConditionChips(cond, opts);
+    }
+  } catch (err) {
+    console.warn("[conditions] chip render (fallback):", err?.message || err);
+  }
+  // fallback nostro (silenzioso)
+  return __buildChipsSimple(cond, opts);
+}
+// — Dock condizioni (chip) sulla card
+const COND_DOCK_CFG = {
+  top: -6,                 // px dall’alto dell’header
+  rightFromBadge: 0,   // ← non servirà più
+  leftFromContent: -5
+};
 
   const STATE_KEY = `${ID}/state`;
   const META_KEY  = `${ID}/meta`;
@@ -60,8 +136,15 @@ async function __cleanupActiveTurnLabels() {
   return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
 }
 
+// Copia - Aggiunta (subito dopo isEpicActionId)
+function __safeConditions(c) {
+  const src = (c && typeof c === "object") ? c : {};
+  const flags = (src.flags && typeof src.flags === "object") ? src.flags : {};
+  const custom = Array.isArray(src.custom) ? src.custom : [];
+  return { flags, custom };
+}
+
 // Parser sicuro del "base name" senza i prefissi "(n) "
-// Usa _parseIndexedName se disponibile nello scope corrente, altrimenti fallback identico
 function __safeBaseName(name) {
   try {
     if (typeof _parseIndexedName === "function") {
@@ -88,6 +171,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
     isEpicAction: true,
     epicBossId: bossEntry.id,
     epicAfterPCId: pcEntry.id,
+    conditions: __safeConditions(null),
   };
 }
 
@@ -105,6 +189,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
     hp: null,
     hpMax: null,
     legendary: { max: 0, current: 0 },
+    conditions: __safeConditions(null),
   };
 }
 
@@ -190,20 +275,19 @@ const PAR_CTRL_CFG = {
 
 // --- EPIC / EPIC ACTION tag config (solo controlli via JS) ---
 const EPIC_TAG_CFG = {
-  // Posizioni (solo layout)
-  posBoss:   { top: -6, right: null, rightFromBadge: 124, gap: 6, reserve: 120 },
-  posAction: { top: 35, right: null, rightFromBadge: 71, gap: 6, reserve: 120 },
+  posBoss:   { top: -6, right: null, rightFromBadge: 146, gap: 6, reserve: 120 },
+  posAction: { top: -6, right: null, rightFromBadge: 146, gap: 6, reserve: 120 },
 
   // Stile delle pill
   epic: {
     label: "Boss Epico",
-    fontSize: 11, fontWeight: 700, padX: 6, padY: 2, radius: 999,
+    fontSize: 12, fontWeight: 700, padX: 6, padY: 2, radius: 999,
     bg: "rgba(255, 0, 0, 1)", color: "#fff",
     border: "1px solid rgba(0, 0, 0, 1)", letterSpacing: .2
   },
   action: {
     label: "Azione Epica",
-    fontSize: 11, fontWeight: 700, padX: 6, padY: 2, radius: 999,
+    fontSize: 9, fontWeight: 500, padX: 6, padY: 2, radius: 999,
     bg: "rgba(255, 0, 0, 1)", color: "#fff",
     border: "1px solid rgba(6, 0, 0, 1)", letterSpacing: .2
   }
@@ -812,6 +896,7 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       if (!meta) continue;
       if (byId.has(it.id)) continue; // dedupe
       byId.set(it.id, {
+        conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
         id: it.id,
         name: it.name || "Unnamed",
         initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
@@ -823,7 +908,6 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
         paragonActions: (meta.paragon && Number(meta.paragon.actions) > 0)
         ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
         : 0,
-        // ← Aggiunta: stato azioni leggendarie
         legendary: (meta.legendary && typeof meta.legendary === "object")
         ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
         : { max: 0, current: 0 },
@@ -1594,6 +1678,92 @@ function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
   return wrap;
 }
 
+// Quanti chip mostrare prima del "+N"
+const MAX_VISIBLE_CHIPS = 3;
+
+// Stile pill generico, simile ai chip
+function styleChipPill(el, { compact = true } = {}) {
+  Object.assign(el.style, {
+    fontSize: compact ? "10px" : "11px",
+    fontWeight: "800",
+    padding: compact ? "1px 6px" : "2px 8px",
+    borderRadius: "999px",
+    background: "rgba(0,0,0,.72)",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,.18)",
+    lineHeight: "1",
+    whiteSpace: "nowrap",
+    userSelect: "none",
+    cursor: "pointer",
+  });
+}
+
+// Monta i chip con overflow → +N che espande/comprime **su seconda riga**
+function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBLE_CHIPS } = {}) {
+  // Estraggo gli elementi chip dal fragment
+  const chips = Array.from(frag.childNodes).filter(n => n.nodeType === 1);
+
+  // Creo due righe: row1 (prime 3 + toggle), row2 (nascosta)
+  const row1 = document.createElement("div");
+  Object.assign(row1.style, {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "1px",
+  });
+
+  const row2 = document.createElement("div");
+  Object.assign(row2.style, {
+    display: "none",            // nascosta finché non espando
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "1px",
+  });
+
+  // Caso semplice: <= limit → tutto in row1, niente toggle
+  if (chips.length <= limit) {
+    row1.append(...chips);
+    dock.append(row1);
+    return;
+  }
+
+  const visible = chips.slice(0, limit);
+  const hidden  = chips.slice(limit);
+
+  // Metto le prime 3 in riga 1
+  row1.append(...visible);
+
+  // Preparo la riga 2 con le extra (ma resta display:none)
+  row2.append(...hidden);
+
+  // Bottone +N / −
+  const more = document.createElement("span");
+  more.textContent = `+${hidden.length}`;
+  styleChipPill(more, { compact });
+  more.title = `Mostra altre ${hidden.length} condizioni`;
+
+  let expanded = false;
+  more.addEventListener("click", (e) => {
+    e.stopPropagation();
+    expanded = !expanded;
+    if (expanded) {
+      row2.style.display = "flex";
+      more.textContent = "−";
+      more.title = "Comprimi";
+    } else {
+      row2.style.display = "none";
+      more.textContent = `+${hidden.length}`;
+      more.title = `Mostra altre ${hidden.length} condizioni`;
+    }
+  });
+
+  // Il toggle va in coda alla prima riga
+  row1.appendChild(more);
+
+  // Monta entrambe le righe nel dock (riga2 nascosta finché non espando)
+  dock.append(row1, row2);
+}
+
     // ===== Render card
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
@@ -1835,8 +2005,8 @@ if (isActive) {
   const K = IS_BOSS ? 1.3 : 1;
 
   const BADGE_BASE_SIZE = 18;  // size standard
-  const BADGE_BASE_LEFT = -8;  // offset standard
-  const BADGE_BASE_FONT = 14;  // font standard
+  const BADGE_BASE_LEFT = -15;  // offset standard
+  const BADGE_BASE_FONT = 12;  // font standard
 
   const S = Math.round(BADGE_BASE_SIZE * K);  // diametro badge
   const L = Math.round(BADGE_BASE_LEFT * K);  // distanza da sinistra
@@ -2056,6 +2226,7 @@ if (!e.__groupCollapsed) {
     color: cfg.color || "#fff",
     border: cfg.border || "1px solid rgba(255,255,255,.18)",
     letterSpacing: ls,
+    whiteSpace: "nowrap", 
     userSelect: "none",
     pointerEvents: "none",
   });
@@ -2170,6 +2341,34 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   boxShadow: "0 0 0 1px rgba(0,0,0,.25)",
   cursor: "text",
 });
+
+// --- Dock per condizioni
+const condDock = document.createElement("div");
+condDock.style.position = "absolute";
+condDock.style.top = `${COND_DOCK_CFG.top}px`;
+condDock.style.left = `${CONTENT_LEFT + (COND_DOCK_CFG.leftFromContent || 0)}px`;
+condDock.style.right = "auto";
+condDock.style.zIndex = "10";
+condDock.style.overflow = "visible"; // importantissimo per far “uscire” l’overlay
+condDock.style.display = "flex";
+condDock.style.flexDirection = "column";
+condDock.style.alignItems = "flex-start";   // ancora a sinistra
+condDock.style.gap = "1px";                 // gap tra riga1 e riga2
+header.appendChild(condDock);
+
+const condData = __safeConditions(e.conditions);
+const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0);
+
+if (hasAny) {
+const chipGroup = __buildConditionChipsSafe(condData, {
+  cap: CONDITIONS,
+  compact: true,
+});
+if (chipGroup) {
+  condDock.style.gap = "1px";
+  mountChipsWithOverflow(condDock, chipGroup, { compact: true, limit: 3 }); // ← 3 visibili, poi +N
+}
+}
 
 if (e.__groupCollapsed) {
   // Sulla card collassata l’iniziativa è solo informativa
@@ -2430,7 +2629,7 @@ else if (e.__groupFirst) {
   chev.textContent = "▾";
   Object.assign(chev.style, {
     position: "absolute",
-    left: "2px",
+    left: "24px",
     top: "50%",
     transform: "translateY(30%)",
     width: "22px",
@@ -2624,9 +2823,9 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   const pill = document.createElement("div");
   pill.title = "Click per modificare HP (puoi usare +N o -N)";
   pill.style.position = "absolute";
-  pill.style.top = "70%";
+  pill.style.top = "75%";
   pill.style.left = "19%";
-  pill.style.padding = "4px 8px";
+  pill.style.padding = "2px 8px";
   pill.style.fontSize = "13px";
   pill.style.fontWeight = "700";
   pill.style.lineHeight = "1";
@@ -3463,4 +3662,4 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
     armArrowProxy?.();
   });
 
-}
+} 

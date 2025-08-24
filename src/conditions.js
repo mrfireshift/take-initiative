@@ -137,18 +137,6 @@ export async function clearAllConditionsForItems(itemIds) {
   });
 }
 
-// === Label accanto al token (mostra condizioni attive)
-function formatShortCondText(flags, custom) {
-  const on = Object.keys(flags || {}).filter(k => !!flags[k]);
-  const parts = [...on, ...(custom || [])];
-  if (parts.length === 0) return "";
-  // mostriamo al massimo 3 voci + “+N”
-  const MAX = 3;
-  const head = parts.slice(0, MAX);
-  const rest = parts.length - head.length;
-  return rest > 0 ? `${head.join(", ")}, +${rest}` : head.join(", ");
-}
-
 // Payload Slate minimale per un testo monoriga
 function _mkSlateParagraph(text) {
   return [{ type: "paragraph", children: [{ text: String(text || "") }] }];
@@ -499,57 +487,60 @@ export async function __cleanupLegacyConditionLabels() {
 }
 
 // Modifica
-export function buildConditionChips(flags = {}, custom = []) {
-  // ritorna { node, countHidden } – node è un <div> con le chip
+// Sostituisci la buildConditionChips esistente
+export function buildConditionChips(cond = {}, opts = {}) {
+  const flags  = (cond && typeof cond === "object" && cond.flags && typeof cond.flags === "object")
+    ? cond.flags : {};
+  let custom = Array.isArray(cond?.custom) ? cond.custom : [];
+
+  // compat: se per caso arriva lo schema vecchio (custom oggetto -> chiavi truthy)
+  if (!Array.isArray(custom) && custom && typeof custom === "object") {
+    custom = Object.keys(custom).filter(k => !!custom[k]);
+  }
+
+  const cap = Array.isArray(opts.cap) ? opts.cap : [];
+  const compact = !!opts.compact;
+
   const wrap = document.createElement("div");
   Object.assign(wrap.style, {
     display: "inline-flex",
-    gap: "4px",
+    gap: "6px",
     alignItems: "center",
-    pointerEvents: "none",   // totalmente “pass-through”
-    // niente margin/width: sarà posizionato nel dock assoluto della card
+    pointerEvents: "none",
   });
 
-  const active = Object.keys(flags).filter(k => !!flags[k]);
-  const parts = [...active, ...(custom || [])];
-
-  const MAX = 2;
-  let hidden = 0;
-
-  parts.slice(0, MAX).forEach(txt => {
+  const mk = (txt) => {
     const s = document.createElement("span");
-    s.textContent = txt;
+    s.textContent = String(txt);
+
+    const borderCol = COND_BORDER[txt] || "rgba(255, 255, 255, 1)";
+
     Object.assign(s.style, {
-      fontSize: "9px",
-      fontWeight: "500",
-      padding: "2px 6px",
+      fontSize: compact ? "10px" : "11px",
+      fontWeight: " 500",
+      padding: compact ? "2px 6px" : "4px 8px",
       borderRadius: "999px",
-      background: "rgba(0, 0, 0, 0.7)",
-      border: "1px solid rgba(255, 255, 255, 0.8)",
+      background: "rgba(0,0,0,.72)",
+      color: "#fff",
+      border: `2px solid ${borderCol}`,
       lineHeight: "1",
       whiteSpace: "nowrap",
+      userSelect: "none",
       pointerEvents: "none",
     });
-    wrap.appendChild(s);
-  });
+    return s;
+  };
 
-  if (parts.length > MAX) {
-    hidden = parts.length - MAX;
-    const s = document.createElement("span");
-    s.textContent = `+${hidden}`;
-    Object.assign(s.style, {
-      fontSize: "10px",
-      fontWeight: "900",
-      padding: "2px 6px",
-      borderRadius: "999px",
-      background: "rgba(7, 0, 0, 0.1)",
-      border: "1px solid rgba(255,255,255,.22)",
-      lineHeight: "1",
-      whiteSpace: "nowrap",
-      pointerEvents: "none",
-    });
-    wrap.appendChild(s);
+  // 1) flag nell’ordine/whitelist di cap
+  for (const name of cap) if (flags[name]) wrap.appendChild(mk(name));
+
+  // 2) eventuali flag attive non in cap
+  for (const k of Object.keys(flags)) {
+    if (!cap.includes(k) && flags[k]) wrap.appendChild(mk(k));
   }
 
-  return { node: wrap, countHidden: hidden };
+  // 3) custom
+  for (const t of custom) if (t != null && String(t).trim()) wrap.appendChild(mk(String(t)));
+
+  return wrap; // <-- direttamente un Node
 }

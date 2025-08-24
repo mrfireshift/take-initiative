@@ -28,10 +28,13 @@
 
   /* ----------------------------- Filtri utili ----------------------------- */
   function isCharacter() {
-    return { key: "layer", value: "CHARACTER" };
+  return { key: "layer", value: "CHARACTER" };
   }
   function hasMeta(op /* "==" | "!=" */) {
-    return { key: ["metadata", META_KEY], operator: op, value: undefined };
+  return { key: ["metadata", META_KEY], operator: op, value: undefined };
+  }
+  function isNotPC() {
+  return { key: ["metadata", META_KEY, "attitude"], operator: "!=", value: "pc" };
   }
 
   /* ----------------------- Altezza submenu (embed) ------------------------ */
@@ -261,6 +264,7 @@ OBR.contextMenu.create({
         every: [
           isCharacter(),
           hasMeta("!="),
+          isNotPC(),
           { key: ["metadata", META_KEY, "paragon"],   operator: "==", value: undefined },
           { key: ["metadata", META_KEY, "legendary"], operator: "==", value: undefined },
           { key: ["metadata", META_KEY, "epic"], operator: "==", value: undefined }
@@ -323,6 +327,7 @@ OBR.contextMenu.create({
         every: [
           isCharacter(),
           hasMeta("!="),
+          isNotPC(),
           { key: ["metadata", META_KEY, "legendary"], operator: "==", value: undefined },
           { key: ["metadata", META_KEY, "paragon"],   operator: "==", value: undefined },
           { key: ["metadata", META_KEY, "epic"], operator: "==", value: undefined }
@@ -376,6 +381,7 @@ OBR.contextMenu.create({
       every: [
         isCharacter(),
         hasMeta("!="),
+        isNotPC(),
         { key: ["metadata", META_KEY, "legendary"], operator: "==", value: undefined },
         { key: ["metadata", META_KEY, "paragon"],   operator: "==", value: undefined },
         { key: ["metadata", META_KEY, "epic"],      operator: "==", value: undefined },
