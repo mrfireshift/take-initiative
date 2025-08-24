@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Incantesimi attivi</title>
+  <style>
+    select:disabled { cursor: not-allowed; opacity: .6; }
+    :root{ --obrt-text:#fff; --obrt-hover:rgba(255,255,255,.06); }
+    html,body{
+      margin:0; padding:0; background:transparent; color:var(--obrt-text);
+      font-family:system-ui, Roboto, Arial, sans-serif; font-size:12px; line-height:1.2;
+    }
+
+    /* 2 colonne: etichetta (120px) + controllo flessibile */
+    .wrap{
+      display:grid; grid-template-columns: 120px 1fr;
+      gap:6px; padding:8px; min-width:240px; max-width:360px;
+      align-items:center;
+    }
+
+    .muted{ opacity:.75; font-size:11px; }
+    label{ font-weight:400; opacity:.9; }
+
+    input[type="text"], input[type="number"], select{
+      width:100%; min-width:0; padding:6px 8px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.15);
+      background:rgba(0,0,0,.35); color:var(--obrt-text);
+      font:inherit; line-height:1.2; box-sizing:border-box;
+    }
+    input[type="number"]{ -moz-appearance:textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+
+    button{
+      padding:8px 12px; border-radius:32px;
+      border:1px solid rgba(255,255,255,.15);
+      background:rgba(255,255,255,.07);
+      color:var(--obrt-text); cursor:pointer; font:inherit; font-weight:400;
+    }
+    button:hover{ background:rgba(255,255,255,.12); }
+    .primary{ background:#2563eb; border-color:rgba(255,255,255,.20); }
+
+    /* pulsanti a tutta riga */
+    .blockbtn{ grid-column:1 / -1; width:100%; }
+
+    /* pill riepilogo concentrazione */
+    .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 6px; border-radius:10px;
+      background:var(--obrt-hover); border:1px solid rgba(255,255,255,.10);
+      white-space:nowrap; user-select:none;
+    }
+
+    /* righe “extra” che devono andare a tutta larghezza */
+    .row { grid-column:1 / -1; display:flex; gap:6px; align-items:center; }
+  </style>
+</head>
+<body>
+  <form id="f" class="wrap" autocomplete="off">
+    <label for="name">Incantesimo</label>
+    <input id="name" name="spellName" type="text" placeholder="Velocità"
+           list="spell-list" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
+
+    <label for="dur">Durata (in round)</label>
+    <input id="dur" name="dur" type="number" min="1" step="1" value="10"/>
+
+    <label for="caster">Caster</label>
+    <select id="caster" name="caster" disabled>
+      <option value="">—</option>
+    </select>
+
+    <!-- Checkbox in linea: etichetta a sinistra, spunta nella colonna di destra -->
+    <label for="conc">Concentrazione</label>
+    <input id="conc" type="checkbox" style="justify-self:start; width:auto; height:auto;" />
+
+    <!-- Pulsanti: uno per riga, full width -->
+    <button class="blockbtn" type="button" id="cancel">Termina incantesimi</button>
+    <button class="blockbtn primary" type="submit" id="submit">Aggiungi / Aggiorna</button>
+
+    <!-- Riepilogo concentrazione del caster -->
+    <div class="row" id="concWrap" style="display:none;">
+      <div style="font-weight:400; opacity:.85;">Concentrato su:</div>
+      <div class="chips" id="concList"></div>
+    </div>
+
+    <datalist id="spell-list"></datalist>
+  </form>
+
+  <script type="module" src="/src/spells-panel.js"></script>
+</body>
+</html>

@@ -1,7 +1,9 @@
-  import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
-  import { ID } from "./contextMenu";
-  import { mountHPBars } from "./hpbar-items.js"
-  import { buildConditionChips, refreshConditionLabels } from "./conditions";
+import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
+import { ID } from "./contextMenu";
+import { mountHPBars } from "./hpbar-items.js";
+import { mountConcentrationWatcher } from "./concentration-widget.js";
+import { buildConditionChips, refreshConditionLabels } from "./conditions";
+import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -9,8 +11,80 @@ export const CONDITIONS = [
   "Incapacitato", "Invisibile", "Paralizzato", "Pietrificato", "Privo di sensi",
   "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione"
 ];
+// — Dock condizioni (chip) sulla card
+const COND_DOCK_CFG = {
+  top: -6,                 // px dall’alto dell’header
+  rightFromBadge: 0,   // ← non servirà più
+  leftFromContent: -5
+};
+  const STATE_KEY = `${ID}/state`;
+  const META_KEY  = `${ID}/meta`;
+  const CONC_META_KEY = `${ID}/concentration`; // { [spellKey]: { targets: [...] } }
 
-// --- Fallback chips condizioni (se conditions.js lancia)
+  // —— CHIP STYLE PRESET (condizioni + spell)
+const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
+const CHIP_HEIGHT_PX = 18;  // altezza visiva della pill
+const CHIP_PAD_X_PX  = 6;   // padding orizzontale
+const CHIP_RADIUS_PX = 9;   // bordo arrotondato (mezzo dell'altezza)
+const CHIP_GAP_PX    = 2;   // distanza tra pill adiacenti
+
+function __styleChip(el) {
+  Object.assign(el.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    height: CHIP_HEIGHT_PX + "px",
+    lineHeight: CHIP_HEIGHT_PX + "px",
+    padding: `0 ${CHIP_PAD_X_PX}px`,
+    borderRadius: CHIP_RADIUS_PX + "px",
+    fontSize: CHIP_FONT_PX + "px",
+    fontWeight: "600",
+    letterSpacing: "0.2px",
+    // opzionali:
+    // boxShadow: "inset 0 -1px 0 rgba(255,255,255,.12)"
+  });
+}
+
+// Normalizza il nome spell a chiave
+function __spellKey(name) {
+  return String(name || "").trim().toLowerCase();
+}
+// Hash → hue (0..359) e palette leggibile
+function __hueFromKey(key) {
+  let h = 0;
+  for (let i = 0; i < String(key).length; i++) h = (h * 31 + String(key).charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+function __spellColor(key) {
+  const hue = __hueFromKey(String(key || ""));
+  return {
+    bgSoft:  `hsla(${hue}, 70%, 45%, .28)`,
+    border:  `hsla(${hue}, 80%, 55%, .55)`,
+    solid:   `hsl(${hue}, 70%, 45%)`,
+  };
+}
+  
+  const FOCUS_MIN_PAD_PX = 64;    // prima era 64: spazio minimo extra attorno al token
+  const FOCUS_ZOOM_BIAS  = 10;  // 1 = fit preciso; >1 = zoom più lontano
+  const ARROW_PROXY_WINDOW_MS = 2000
+  // ===== LAIR ACTIONS =====
+  const LAIR_ID          = "__LAIR__";
+  const LAIR_NAME        = "Azioni di Tana";
+  const LAIR_INITIATIVE  = 20;
+  const LAIR_PORTRAIT = "/lair.png";
+
+  const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
+  const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
+
+  // --- Active Turn Label (ancorata al token attivo)
+  const ACTIVE_LABEL_META = `${ID}/activeTurnLabel`;
+  const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
+  // offset verticale in celle (negativo = sopra il token)
+  const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
+
+  // === EPIC ACTIONS (voci virtuali in lista) ===
+  const EPIC_ACT_PREFIX = "__EPIC__";
+
+  // --- Fallback chips condizioni (se conditions.js lancia)
 function __chip(label, compact=true) {
   const s = document.createElement("span");
   s.textContent = String(label);
@@ -71,35 +145,6 @@ function __buildConditionChipsSafe(cond, opts) {
   // fallback nostro (silenzioso)
   return __buildChipsSimple(cond, opts);
 }
-// — Dock condizioni (chip) sulla card
-const COND_DOCK_CFG = {
-  top: -6,                 // px dall’alto dell’header
-  rightFromBadge: 0,   // ← non servirà più
-  leftFromContent: -5
-};
-
-  const STATE_KEY = `${ID}/state`;
-  const META_KEY  = `${ID}/meta`;
-  const FOCUS_MIN_PAD_PX = 64;    // prima era 64: spazio minimo extra attorno al token
-  const FOCUS_ZOOM_BIAS  = 10;  // 1 = fit preciso; >1 = zoom più lontano
-  const ARROW_PROXY_WINDOW_MS = 2000
-  // ===== LAIR ACTIONS =====
-  const LAIR_ID          = "__LAIR__";
-  const LAIR_NAME        = "Azioni di Tana";
-  const LAIR_INITIATIVE  = 20;
-  const LAIR_PORTRAIT = "/lair.png";
-
-  const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
-  const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
-
-  // --- Active Turn Label (ancorata al token attivo)
-  const ACTIVE_LABEL_META = `${ID}/activeTurnLabel`;
-  const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
-  // offset verticale in celle (negativo = sopra il token)
-  const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
-
-  // === EPIC ACTIONS (voci virtuali in lista) ===
-  const EPIC_ACT_PREFIX = "__EPIC__";
 
   // --- FIX duplicazione label: ripulisci locale+globale e restituisci (se c'è) l'unica label globale
 async function __cleanupActiveTurnLabels() {
@@ -177,6 +222,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
 
   let __lastRenderedActiveId = null;
   let __prevActiveId = null;
+  let __lastRoundSeen = null;
 
   function isLairId(id) { return id === LAIR_ID; }
   function makeLairEntry() {
@@ -227,11 +273,11 @@ function __instaTransform(el, value) {
   // ===== Legendary UI (2 gruppi indipendenti) =====
   const LEG_PIPS_CFG = {
   // Posizione del GRUPPO PIPS rispetto all'header
-  top: -2,                    // px dall'alto dell'header
+  top: 45,                    // px dall'alto dell'header
   right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
   rightFromBadge: 130,        // distanza dal bordo destro del badge iniziativa
   // Parametri interni del gruppo pips
-  gap: 6,                    // tra i singoli pips
+  gap: 4,                    // tra i singoli pips
   paddingX: 0,
   paddingY: 0,
   size: 8,                  // lato del diamante/circolo
@@ -306,6 +352,7 @@ const EPIC_TAG_CFG = {
   export function mountInitiativeList(container) {
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
+    mountConcentrationWatcher();
 
     const styleTag = document.createElement("style");
 styleTag.textContent = `
@@ -491,15 +538,6 @@ trackWrap.appendChild(track);
 // === Drag & Drop per pareggi d'iniziativa (delegato sul track) ===
 if (!track.__dndMounted) {
   track.__dndMounted = true;
-
-  const clearHints = () => {
-    const hinted = track.querySelectorAll('[data-drop-hint]');
-    hinted.forEach(n => {
-      n.style.borderTop    = "";
-      n.style.borderBottom = "";
-      delete n.dataset.dropHint;
-    });
-  };
 
 track.addEventListener("dragstart", (ev) => {
   const card = ev.target.closest('[data-item-id]');
@@ -887,34 +925,56 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       return null;
     }
 
-    // ===== Leggi token tracciati (senza ordinare qui)
-  async function readEntries() {
-    const items = await OBR.scene.items.getItems();
-    const byId = new Map();
-    for (const it of items) {
-      const meta = it.metadata && it.metadata[META_KEY];
-      if (!meta) continue;
-      if (byId.has(it.id)) continue; // dedupe
-      byId.set(it.id, {
-        conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
-        id: it.id,
-        name: it.name || "Unnamed",
-        initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
-        portrait: getTokenImageUrl(it),
-        attitude: meta.attitude || "ally",
-        hp: (meta.hp ?? null),
-        hpMax: (meta.hpMax ?? null),
-        isEpic: !!meta.epic,
-        paragonActions: (meta.paragon && Number(meta.paragon.actions) > 0)
-        ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
-        : 0,
-        legendary: (meta.legendary && typeof meta.legendary === "object")
-        ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
-        : { max: 0, current: 0 },
-        
+// ===== Leggi token tracciati (senza ordinare qui)
+async function readEntries() {
+  const items = await OBR.scene.items.getItems();
+  const out = [];
+  const seen = new Set();
+
+  for (const it of items) {
+    const meta = it.metadata && it.metadata[META_KEY];
+    if (!meta) continue;
+    if (seen.has(it.id)) continue;
+    seen.add(it.id);
+
+    // Concentrazione: presente SOLO sul caster, come oggetto non vuoto
+    const concObj = it.metadata?.[META_KEY]?.[CONC_META_KEY] || null;
+    const isConcentrating =
+      !!(concObj && typeof concObj === "object" && Object.keys(concObj).length > 0);
+
+    out.push({
+
+      conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
+      id: it.id,
+      name: it.name || "Unnamed",
+      initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
+      portrait: getTokenImageUrl(it),
+      attitude: meta.attitude || "ally",
+      hp: (meta.hp ?? null),
+      hpMax: (meta.hpMax ?? null),
+      isEpic: !!meta.epic,
+      paragonActions:
+        (meta.paragon && Number(meta.paragon.actions) > 0)
+          ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
+          : 0,
+      legendary:
+        (meta.legendary && typeof meta.legendary === "object")
+          ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
+          : { max: 0, current: 0 },
+      spells: getSpellsFromItem(it),
+        // Flag concentrazione + chiave spell
+      isConcentrating: !!(it.metadata?.[META_KEY]?.[CONC_META_KEY] &&
+                          typeof it.metadata?.[META_KEY]?.[CONC_META_KEY] === "object" &&
+                          Object.keys(it.metadata?.[META_KEY]?.[CONC_META_KEY]).length > 0),
+      concSpellKey: (() => {
+        const conc = it.metadata?.[META_KEY]?.[CONC_META_KEY];
+        if (!conc || typeof conc !== "object") return null;
+        const keys = Object.keys(conc);
+        return keys.length ? keys[0] : null;   // per design: una sola concentrazione per caster
+})(),
       });
-    }
-    return [...byId.values()];
+  }
+  return out;
 }
 
 // Unisce entries reali + lair (se attiva a stato)
@@ -1698,29 +1758,56 @@ function styleChipPill(el, { compact = true } = {}) {
   });
 }
 
-// Monta i chip con overflow → +N che espande/comprime **su seconda riga**
-function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBLE_CHIPS } = {}) {
-  // Estraggo gli elementi chip dal fragment
-  const chips = Array.from(frag.childNodes).filter(n => n.nodeType === 1);
+// Estrae TUTTE le chip reali da un fragment (anche se miste cond/spell).
+// - Prende elementi marcati esplicitamente (.chip, .spell-chip, .condition-chip, [data-chip])
+// - In AGGIUNTA, raccoglie i "leaf" (span/div senza figli) non già presi.
+//   Questo copre le condition chip che non usano classi specifiche.
+function __collectChipsDeep(frag) {
+  const tmp = document.createElement("div");
+  tmp.appendChild(frag); // reparent temporaneo
 
-  // Creo due righe: row1 (prime 3 + toggle), row2 (nascosta)
+  const out = [];
+  const seen = new Set();
+
+  // 1) chip esplicite (spell usa .chip, condizioni potrebbero avere data-attr)
+  const explicit = tmp.querySelectorAll(".chip, .spell-chip, .condition-chip, .cond-chip, [data-chip]");
+  explicit.forEach(el => { if (!seen.has(el)) { seen.add(el); out.push(el); } });
+
+  // 2) fallback robusto: tutti i leaf elements significativi (span/div senza figli)
+  const leaves = tmp.querySelectorAll("span, div");
+  leaves.forEach(el => {
+    if (el.children.length === 0 && !seen.has(el)) {
+      // escludi micro-elementi vuoti/spaziatori
+      const txt = (el.textContent || "").trim();
+      if (txt.length) { seen.add(el); out.push(el); }
+    }
+  });
+
+  return out;
+}
+
+// Monta i chip con overflow → +N che espande/comprime **su seconda riga**
+// Monta chip con overflow condiviso (condizioni + incantesimi):
+// prime `limit` in riga 1, le altre dietro al toggle +N in riga 2.
+function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBLE_CHIPS } = {}) {
+  const chips = __collectChipsDeep(frag); // 👈 ora abbiamo TUTTE le chip “piatte”
   const row1 = document.createElement("div");
   Object.assign(row1.style, {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    gap: "1px",
+    gap: CHIP_GAP_PX + "px",
   });
 
+  // di default nascosta; la apro col toggle
   const row2 = document.createElement("div");
   Object.assign(row2.style, {
-    display: "none",            // nascosta finché non espando
+    display: "none",
     flexDirection: "row",
     alignItems: "center",
-    gap: "1px",
+    gap: CHIP_GAP_PX + "px",
   });
 
-  // Caso semplice: <= limit → tutto in row1, niente toggle
   if (chips.length <= limit) {
     row1.append(...chips);
     dock.append(row1);
@@ -1730,37 +1817,24 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
   const visible = chips.slice(0, limit);
   const hidden  = chips.slice(limit);
 
-  // Metto le prime 3 in riga 1
   row1.append(...visible);
-
-  // Preparo la riga 2 con le extra (ma resta display:none)
   row2.append(...hidden);
 
-  // Bottone +N / −
   const more = document.createElement("span");
   more.textContent = `+${hidden.length}`;
   styleChipPill(more, { compact });
   more.title = `Mostra altre ${hidden.length} condizioni`;
-
   let expanded = false;
-  more.addEventListener("click", (e) => {
-    e.stopPropagation();
+
+  more.addEventListener("click", (ev) => {
+    ev.stopPropagation();
     expanded = !expanded;
-    if (expanded) {
-      row2.style.display = "flex";
-      more.textContent = "−";
-      more.title = "Comprimi";
-    } else {
-      row2.style.display = "none";
-      more.textContent = `+${hidden.length}`;
-      more.title = `Mostra altre ${hidden.length} condizioni`;
-    }
+    row2.style.display = expanded ? "flex" : "none";
+    more.textContent = expanded ? "−" : `+${hidden.length}`;
+    more.title = expanded ? "Comprimi" : `Mostra altre ${hidden.length} condizioni`;
   });
 
-  // Il toggle va in coda alla prima riga
   row1.appendChild(more);
-
-  // Monta entrambe le righe nel dock (riga2 nascosta finché non espando)
   dock.append(row1, row2);
 }
 
@@ -1772,7 +1846,7 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
     const activeIdx = state.current ?? 0;
     const currentActiveId = len ? state.order[activeIdx] : null;   // <-- AGGIUNTO QUI
     const nextId = len ? state.order[(activeIdx + 1) % len] : null;
-    
+
     // ---- PRE-PROCESS: costruiamo una lista “entriesForRender” che rispetta i collapse
     const collapsed = state?.collapsed || {};
     const groups = new Map(); // key -> array di membri
@@ -2353,22 +2427,40 @@ condDock.style.overflow = "visible"; // importantissimo per far “uscire” l�
 condDock.style.display = "flex";
 condDock.style.flexDirection = "column";
 condDock.style.alignItems = "flex-start";   // ancora a sinistra
-condDock.style.gap = "1px";                 // gap tra riga1 e riga2
+condDock.style.gap = CHIP_GAP_PX + "px";
 header.appendChild(condDock);
 
+// --- CHIPS: condizioni + incantesimi in un unico gruppo con overflow condiviso ---
+const fragAll = document.createDocumentFragment();
+
+// 1) Condizioni
 const condData = __safeConditions(e.conditions);
 const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0);
-
 if (hasAny) {
-const chipGroup = __buildConditionChipsSafe(condData, {
-  cap: CONDITIONS,
-  compact: true,
-});
-if (chipGroup) {
-  condDock.style.gap = "1px";
-  mountChipsWithOverflow(condDock, chipGroup, { compact: true, limit: 3 }); // ← 3 visibili, poi +N
+  const fragCond = __buildConditionChipsSafe(condData, { cap: CONDITIONS, compact: true });
+  if (fragCond) fragAll.appendChild(fragCond);
 }
+
+// 2) Incantesimi
+if (Array.isArray(e.spells) && e.spells.length) {
+  const fragSp = buildSpellChips(e.spells);
+
+  // colore pieno = stesso del badge "C"
+    const chips = Array.from(fragSp.childNodes).filter(n => n.nodeType === 1);
+  for (let i = 0; i < chips.length && i < e.spells.length; i++) {
+    const k   = __spellKey(e.spells[i]?.name);
+    const col = __spellColor(k);
+    const el  = chips[i];
+    el.style.background = col.solid; // ⟵ colore pieno, no alpha
+    // NON toccare font/padding/radius/border/shadow: gestiscili in spells.js
+  }
+
+  fragAll.appendChild(fragSp);
 }
+
+// 3) Monta TUTTO assieme: 3 visibili in totale, poi +N
+condDock.style.gap = CHIP_GAP_PX + "px";
+mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 3 });
 
 if (e.__groupCollapsed) {
   // Sulla card collassata l’iniziativa è solo informativa
@@ -2816,6 +2908,54 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
 }
 
   header.append(avatarWrap, name, badge);
+// Indicatore concentrazione: pallino con "C" se il caster sta concentrando
+// Se la card è collassata, lo mostriamo se QUALSIASI membro del gruppo sta concentrando.
+{
+  // ON se il caster (o un membro del gruppo collassato) sta concentrando
+  const concOn = !!(e.isConcentrating ||
+                    (e.__groupCollapsed && Array.isArray(e.__groupMembers) &&
+                     e.__groupMembers.some(m => m.isConcentrating)));
+  if (concOn) {
+    // Ricava la chiave spell dal caster o, se collassato, dal primo membro che ce l’ha
+    const k = e.concSpellKey ||
+              (e.__groupCollapsed
+                ? (e.__groupMembers?.find(m => m.concSpellKey)?.concSpellKey || null)
+                : null);
+    const col = k ? __spellColor(k) : { solid: "rgba(0,0,0,0.80)", border: "rgba(255,255,255,.18)" };
+
+    const C_DOT_SIZE = 18;           // diametro pallino
+    const cDot = document.createElement("div");
+    cDot.textContent = "C";
+    cDot.title = k
+      ? `Concentrazione: ${k[0].toUpperCase() + k.slice(1)}`
+      : "Concentrazione attiva";
+
+    Object.assign(cDot.style, {
+      position: "absolute",
+      right: "98%",              // lasciamo libero di “uscire” dalla card vicino all’avatar
+      top: "15%",
+      transform: "translateY(-50%)",
+      width: C_DOT_SIZE + "px",
+      height: C_DOT_SIZE + "px",
+      borderRadius: "50%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "10px",
+      fontWeight: "800",
+      lineHeight: "1",
+      color: "#fff",
+      background: col.solid,      // ⟵ colore della spell
+      border: `2px solid rgba(0,0,0,1)`,
+      boxShadow: "0 0 0 1px rgba(0, 0, 0, 0.5)",
+      zIndex: "6",
+      pointerEvents: "none"
+    });
+    header.appendChild(cDot);
+  }
+}
+
+
   card.appendChild(header);
 
 // === HP pill (solo GM)
@@ -3574,7 +3714,6 @@ try {
 });
 
   let __lastActiveId = null;
-  let __zoomActiveId = null;
 
 OBR.scene.onMetadataChange(async (meta) => {
   await renderAll(); // ridisegna UI
@@ -3585,6 +3724,29 @@ OBR.scene.onMetadataChange(async (meta) => {
   const activeId = st.order[st.current];
   if (!activeId || activeId === __lastActiveId) return;
 
+// --- Tick incantesimi per ROUND (con direzione) ---
+try {
+  const roundNow = Math.max(1, Number(st.round || 1));
+  if (__lastRoundSeen == null) {
+    __lastRoundSeen = roundNow; // prima inizializzazione: niente tick
+  } else if (roundNow !== __lastRoundSeen) {
+    // direzione: avanti → -1, indietro → +1
+    const delta = roundNow > __lastRoundSeen ? -1 : +1;
+
+    // prendo i token in iniziativa (id base se paragon)
+    const tokenIds = (Array.isArray(st.order) ? st.order : [])
+      .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
+      .filter(Boolean);
+    const unique = Array.from(new Set(tokenIds));
+
+    await adjustSpellsForItems(unique, delta);
+    __lastRoundSeen = roundNow;
+  }
+} catch (err) {
+  console.warn("[spells] tick round (dir) error:", err);
+}
+
+
   __lastActiveId = activeId;
 
   // Reset delle azioni leggendarie a inizio turno della creatura attiva
@@ -3594,6 +3756,22 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
 
   await selectAndFocus(activeId);
+}
+  try {
+    const roundNow = Math.max(1, Number(st.round || 1));
+  if (__lastRoundSeen == null) {
+    __lastRoundSeen = roundNow; // prima inizializzazione → niente tick
+  } else if (roundNow !== __lastRoundSeen) {
+    // scala di 1 tutti i token in iniziativa (usa id base per paragon)
+    const tokenIds = (Array.isArray(st.order) ? st.order : [])
+      .map(id => (splitParagonId ? splitParagonId(id).baseId : id))
+      .filter(Boolean);
+    const unique = Array.from(new Set(tokenIds));
+    await tickSpellsForItems(unique);
+    __lastRoundSeen = roundNow;
+  }
+} catch (err) {
+  console.warn("[spells] tick round error:", err);
 }
 
   try {

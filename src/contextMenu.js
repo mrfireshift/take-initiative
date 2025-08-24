@@ -19,6 +19,7 @@
   const ICON_REMOVE = ASSET("remove.svg");
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
+  const ICON_SPELLS = ASSET("spells.svg")
 
   /** Evita doppie registrazioni in dev/HMR */
   if (!window.__TBP_CTX_MOUNTED) {
@@ -38,7 +39,7 @@
   }
 
   /* ----------------------- Altezza submenu (embed) ------------------------ */
-  const ROW_H = 32;
+  const ROW_H = 28;
   const GAP_Y = 6;
   const PAD_Y = 8;
   const EMBED_3ROWS_H = PAD_Y * 2 + ROW_H * 3 + GAP_Y * 2; // = 124px
@@ -248,6 +249,23 @@ OBR.contextMenu.create({
   embed: {
     url: "/ctx-conditions.html",   // HTML in root
     height: EMBED_4ROWS_H,         // ~170px; puoi alzarlo a 280-360 se vuoi
+  },
+});
+
+// === Incantesimi ===
+OBR.contextMenu.create({
+  id: `${ID}/spells-embed`,
+  group: MENU_GROUP,
+  icons: [{
+    icon: ICON_SPELLS,
+    label: "Incantesimi…",
+    filter: { every: [isCharacter(), hasMeta("!=")] },
+  }],
+  embed: {
+    // usa ASSET() per rispettare BASE_URL anche in hosting sotto sottocartelle
+    url: ASSET("ctx-spells.html"),
+    // alza un filo l'altezza se vuoi: 260–320 è comodo
+    height: 500
   },
 });
 
