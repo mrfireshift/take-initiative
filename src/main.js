@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { setupContextMenu } from "./contextMenu";
 import { mountInitiativeList } from "./initiativeList";
+import { initHPMemory } from "./hpMemory.js";
 import "./sync-open.js";
 
 const app = document.querySelector("#app");
@@ -41,5 +42,6 @@ root.appendChild(list);
 
 OBR.onReady(() => {
   setupContextMenu();
+  initHPMemory();
   mountInitiativeList(list);
 });

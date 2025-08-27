@@ -1,7 +1,8 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./contextMenu";
 import { mountHPBars } from "./hpbar-items.js";
-import { mountConcentrationWatcher } from "./concentration-widget.js";
+import { mountConcentrationWatcher } from "./spells-tag.js";
+import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, refreshConditionLabels } from "./conditions";
 import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 
@@ -675,6 +676,25 @@ function injectScrollbarStyles() {
 injectScrollbarStyles();
 trackWrap.classList.add("tbp-scroll");
 
+// HP Memory: riempi HP mancanti dei token da memoria (all'avvio)
+(async () => {
+  try {
+    await applyHPMemoryToSceneForMissingHP();
+  } catch (err) {
+    console.warn("[hpMemory] apply on mount:", err?.message || err);
+  }
+})();
+
+
+// ——— HP Memory: riempi HP mancanti dei PG da memoria stanza
+(async () => {
+  try {
+    await applyHPMemoryToSceneForMissingHP();
+  } catch (err) {
+    console.warn("[hpMemory] apply on mount:", err?.message || err);
+  }
+})();
+
 // opzionale: isola la rotellina (niente scroll “a cascata”)
 trackWrap.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
 
@@ -926,6 +946,7 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
     }
 
 // ===== Leggi token tracciati (senza ordinare qui)
+// ===== Leggi token tracciati (senza ordinare qui)
 async function readEntries() {
   const items = await OBR.scene.items.getItems();
   const out = [];
@@ -934,6 +955,10 @@ async function readEntries() {
   for (const it of items) {
     const meta = it.metadata && it.metadata[META_KEY];
     if (!meta) continue;
+
+    // ⬅️⬅️ PATCH: mostra SOLO i token marcati esplicitamente in iniziativa
+    if (meta.inInitiative !== true) continue;
+
     if (seen.has(it.id)) continue;
     seen.add(it.id);
 
@@ -943,7 +968,6 @@ async function readEntries() {
       !!(concObj && typeof concObj === "object" && Object.keys(concObj).length > 0);
 
     out.push({
-
       conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
       id: it.id,
       name: it.name || "Unnamed",
@@ -962,7 +986,8 @@ async function readEntries() {
           ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
           : { max: 0, current: 0 },
       spells: getSpellsFromItem(it),
-        // Flag concentrazione + chiave spell
+
+      // Flag concentrazione + chiave spell
       isConcentrating: !!(it.metadata?.[META_KEY]?.[CONC_META_KEY] &&
                           typeof it.metadata?.[META_KEY]?.[CONC_META_KEY] === "object" &&
                           Object.keys(it.metadata?.[META_KEY]?.[CONC_META_KEY]).length > 0),
@@ -971,8 +996,8 @@ async function readEntries() {
         if (!conc || typeof conc !== "object") return null;
         const keys = Object.keys(conc);
         return keys.length ? keys[0] : null;   // per design: una sola concentrazione per caster
-})(),
-      });
+      })(),
+    });
   }
   return out;
 }
@@ -1303,12 +1328,16 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
     }
   });
 
-  // aggiorna subito barre HP per i target (best-effort)
+  // Modifica
+  // aggiorna subito barre + testo (best-effort)
   try {
-    const { syncHPBarNow } = await import("./hpbar-items.js");
-    for (const id of targetIds) syncHPBarNow(id, nHPclamped, nMax);
+    const { syncHPBarNow, syncHPTextNow } = await import("./hpbar-items.js");
+    for (const id of targetIds) {
+      syncHPBarNow(id, nHPclamped, nMax);
+      syncHPTextNow(id, nHPclamped, nMax);
+    }
   } catch (err) {
-    console.warn("[hpbar] group backfill error", err?.message || err);
+    console.warn("[hpbar/hptext] group backfill error", err?.message || err);
   }
 
   // Se era la prima volta, marca il gruppo come seedato per HP
@@ -1469,12 +1498,22 @@ async function updateHP(itemId, nextHP, nextHPMax) {
     }
   });
 
-  // pinga il modulo hpbar per l’aggiornamento immediato
+  // Modifica
+  // Aggiorna subito BARRE + TESTO sopra le barre (SOLO quando confermi la pill)
+  // Modifica
   try {
-    const { syncHPBarNow } = await import("./hpbar-items.js");
+    const { syncHPBarNow, syncHPTextNow } = await import("./hpbar-items.js");
     syncHPBarNow(itemId, n, nm);
+    syncHPTextNow(itemId, n, nm); // ← aggiorna SOLO alla conferma della pill
   } catch (err) {
-    console.warn("[hpbar] sync error", err);
+    console.warn("[hpbar/hptext] sync error", err);
+  }
+
+  // NEW: salva nella memoria stanza (cross‑scene) se è un PG
+  try {
+    await saveHPToMemoryByItemId(itemId, n, nm);
+  } catch (err) {
+    console.warn("[hpMemory] save error:", err?.message || err);
   }
 }
 
@@ -1563,6 +1602,23 @@ function sortByInitiative(entries, state) {
     if (p > 0.33) return "#facc15"; // giallo
     return "#dc2626";               // rosso
   }
+
+  // Mostra "cur/max"; se cur > max, colora cur per indicare Temp HP
+  // Mostra "cur/max"; se cur > max, colora cur per indicare Temp HP
+  function formatHPHTML(cur, max) {
+  const nCur = Math.max(0, Math.floor(Number(cur) || 0));
+  const nMax = Math.max(0, Math.floor(Number(max) || 0));
+  const hasTemp = nMax > 0 && nCur > nMax;
+
+  // azzurro leggibile (coerente con palette PC)
+  const tempColor = "#3AA7FF";
+
+  if (hasTemp) {
+    // pointer-events:none → il click passa alla pill (evitiamo target=span)
+    return `<span style="color:${tempColor};pointer-events:none">${nCur}</span>/${nMax}`;
+  }
+  return `${nCur}/${nMax}`;
+}
 
   // aggiorna l'iniziativa del token e riallinea l'ordine
   async function updateInitiative(itemId, nextVal) {
@@ -2959,7 +3015,12 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   card.appendChild(header);
 
 // === HP pill (solo GM)
-if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
+// === HP pill (GM sempre; Player solo per ally/pc)
+const _att = String(e.attitude || "").toLowerCase();
+const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
+const _playerCanSeeHP = PLAYER_VISIBLE_ATTITUDES.includes(_att);
+
+if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   const pill = document.createElement("div");
   pill.title = "Click per modificare HP (puoi usare +N o -N)";
   pill.style.position = "absolute";
@@ -2979,7 +3040,7 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
 
   const hpVal  = Number.isFinite(e.hp)    ? e.hp    : 0;
   const hpMaxV = Number.isFinite(e.hpMax) ? e.hpMax : 0;
-  pill.textContent = `${hpVal}/${hpMaxV}`;
+  pill.innerHTML = formatHPHTML(hpVal, hpMaxV);   // <-- usa HTML per colorare cur se temp
   pill.dataset.badge  = "hp";
   pill.dataset.itemId = e.id;
 
@@ -3008,11 +3069,35 @@ if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   card.appendChild(pill);
   card.appendChild(hpBarWrap);
 
-  // Apriamo l’editor su pointerdown per evitare click “di coda”
 // === apertura editor HP su pointerdown (con handoff robusto) ===
+
+if (IS_GM) {
 pill.addEventListener("pointerdown", async (ev) => {
   ev.stopImmediatePropagation();
   ev.preventDefault();
+
+    // --- Se questa pill è già in edit: NON rebootare l'editor, cambia solo focus ---
+  if (pill.dataset.hpEditing === "1" && __editingHPForId === e.id) {
+    // ignora i click di scia per evitare il commit del doc-click handler
+    armDocClickIgnore(200);
+
+    // calcolo metà rispetto alla pill (non al target interno)
+    const r = pill.getBoundingClientRect();
+    const clickedRightHalf = (ev.clientX - r.left) > (r.width / 2);
+
+    // referenze agli input già esistenti (memorizzate su pill in fase di bootstrap)
+    const iHP  = pill.__iHP;
+    const iMax = pill.__iMax;
+
+    if (clickedRightHalf && iMax) {
+      iMax.focus({ preventScroll: true });
+      iMax.select();
+    } else if (iHP) {
+      iHP.focus({ preventScroll: true });
+      iHP.select();
+    }
+    return; // ⬅️ importantissimo: NON proseguire con il bootstrap (evita flicker)
+  }
 
   // ⬅︎⬅︎ NEW — HANDOFF: se c'è già una pill HP in edit e NON è questa,
   // chiudi prima quella e rilancia questo pointerdown al prossimo frame.
@@ -3141,10 +3226,29 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     });
     inp.addEventListener("click", (e2) => e2.stopPropagation());
   }
-  iHP.value  = "";
-  iMax.value = "";
+  iHP.value  = String(Number.isFinite(hpVal)  ? hpVal  : 0);
+  iMax.value = String(Number.isFinite(hpMaxV) ? hpMaxV : 0);
 
   const slash = document.createElement("span");
+
+    // --- NEW: select-all anche quando clicco direttamente dentro gli input ---
+  // Se l'editor è aperto e clicco nell'input, impedisco il posizionamento del caret
+  // e forzo focus+select: così "+5" / "-3" sostituiscono il valore intero.
+  for (const inp of [iHP, iMax]) {
+    inp.addEventListener("pointerdown", (pe) => {
+      if (pill.dataset.hpEditing === "1" && __editingHPForId === e.id) {
+        pe.preventDefault(); // evita che il browser posizioni il caret dove clicco
+        // ignora eventuale click di scia che potrebbe far scattare il commit globale
+        armDocClickIgnore(200);
+        // seleziona tutto al frame successivo
+        setTimeout(() => {
+          try { inp.focus({ preventScroll: true }); inp.select(); } catch {}
+        }, 0);
+      }
+      // NB: manteniamo lo stopPropagation già presente più sotto sugli input click
+    }, { capture: true });
+  }
+
   slash.textContent = "/";
   slash.style.opacity = ".8";
   slash.addEventListener("click", (e2) => e2.stopPropagation());
@@ -3153,6 +3257,9 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   pill.textContent = "";
   wrap.append(iHP, slash, iMax);
   pill.appendChild(wrap);
+
+  pill.__iHP  = iHP;
+  pill.__iMax = iMax;
 
   // Commit se esci dalla pill (ma non quando vai tra iHP/iMax)
   wrap.addEventListener("focusout", () => {
@@ -3163,7 +3270,8 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   });
 
   // Focus SINCRONO su metà cliccata
-  const clickedRightHalf = ev.offsetX > pill.clientWidth / 2;
+  const r = pill.getBoundingClientRect();
+  const clickedRightHalf = (ev.clientX - r.left) > (r.width / 2);
   (clickedRightHalf ? iMax : iHP).focus({ preventScroll: true });
   (clickedRightHalf ? iMax : iHP).select();
 
@@ -3177,6 +3285,8 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     try { document.removeEventListener("click", onDocClick, true); } catch {}
     __editingHPForId = null;
     delete pill.dataset.hpEditing;
+        delete pill.__iHP;
+    delete pill.__iMax;
     delete pill.__commitFn;
     delete pill.__cancelFn;
     if (cardEl) {
@@ -3194,12 +3304,15 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
 
     let nextHP    = parseInlineMath(vHP,  hpVal);
     let nextHPMax = parseInlineMath(vMax, hpMaxV);
-    if (nextHPMax > 0) nextHP = Math.min(nextHP, nextHPMax);
 
-    pill.innerHTML = `${nextHP}/${nextHPMax}`;
+    // ⬇️ NIENTE CLAMP: consentiamo HP > HP Max per modellare i Temp HP
+    // (la barra resta clampata a 100% tramite pct)
+
+    pill.innerHTML = formatHPHTML(nextHP, nextHPMax);  // <-- HTML con colore per temp
     const pct = nextHPMax > 0 ? Math.max(0, Math.min(1, nextHP / nextHPMax)) : 0;
     hpFill.style.width = (pct * 100) + "%";
     hpFill.style.background = hpColorByPct(pct);
+
 
     await updateHP(e.id, nextHP, nextHPMax);
     try { await trySeedGroupHP(e.id, nextHP, nextHPMax); } catch {}
@@ -3302,6 +3415,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   iHP.addEventListener("keydown", onKeyHP);
   iMax.addEventListener("keydown", onKeyMax);
 });
+}
 }      return card;
     });
 
@@ -3789,6 +3903,16 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
     await enforceUniqueNamePrefixes();
     await renderAll();
   });
+
+  // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
+// (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)
+try {
+  OBR.scene.items.onChange(() => {
+    scheduleHPMemoryAutofill(150); // 150ms debounce
+  });
+} catch (e) {
+  console.warn("[hpMemory] onChange subscribe failed", e);
+}
 
     btnPrev.addEventListener("click", async () => {
     const st = await getSceneState();

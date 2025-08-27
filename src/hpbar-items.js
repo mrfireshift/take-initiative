@@ -1,10 +1,11 @@
 // src/hpbar-items.js
-import OBR, { buildShape } from "@owlbear-rodeo/sdk";
+import OBR, { buildShape, buildText } from "@owlbear-rodeo/sdk";
 import { ID } from "./contextMenu";
 
 /* ========= Chiavi metadata ========= */
-const META_KEY        = `${ID}/meta`;   // nei token: { hp, hpMax, ... }
-const HPBAR_META_FLAG = `${ID}/hpbar`;  // nelle shape-barre: { kind: "bg"|"fg", targetId }
+const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
+const HPBAR_META_FLAG  = `${ID}/hpbar`;   // nelle shape-barre: { kind: "bg"|"fg", targetId }
+const HPTEXT_META_FLAG = `${ID}/hptext`;  // text item: { targetId }
 
 /* ========= Parametri estetici/posizionamento ========= */
 // Barra “mini”: sottile, centrata, sotto al bordo, con lieve sovrapposizione
@@ -24,6 +25,31 @@ const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
 /* ========= Utils ========= */
 const clamp   = (n, a, b) => Math.max(a, Math.min(b, n));
 const clamp01 = (n) => clamp(n, 0, 1);
+
+// Config: quali attitude sono visibili ai player
+const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
+
+// diff veloce fra due firme
+function __diffSig(a = {}, b = {}) {
+  const diff = {};
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (a[k] !== b[k]) diff[k] = { from: a[k], to: b[k] };
+  }
+  return diff;
+}
+
+// Normalizza l'attitude
+function getAttitude(item){
+  try {
+    const att = String(item?.metadata?.[META_KEY]?.attitude || "").toLowerCase().trim();
+    return att || null;
+  } catch { return null; }
+}
+
+function isPlayerVisibleAttitude(att){
+  const a = (att || "").toLowerCase();
+  return PLAYER_VISIBLE_ATTITUDES.includes(a);
+}
 
 function hpColorByPct(p){
   if (p > 0.66) return "#16a34a"; // verde
@@ -165,7 +191,10 @@ async function createHPBars(tokenId){
 
 /* ========= Coda aggiornamenti (batch) ========= */
 function queueToken(tokenId, hp, hpMax){
-  _pending.set(tokenId, { hp: Number(hp)||0, hpMax: Number(hpMax)||0 });
+  const nHP  = Number(hp)    || 0;
+  const nMax = Number(hpMax) || 0;
+  _pending.set(tokenId, { hp: nHP, hpMax: nMax });
+
   if (!_flushT) _flushT = setTimeout(flushQueued, FLUSH_MS);
 }
 
@@ -174,79 +203,136 @@ async function flushQueued(){
   _flushing = true;
   clearTimeout(_flushT); _flushT = null;
 
+  const startedAt = Date.now();
   try {
     await waitForSceneReady();
 
     const entries = Array.from(_pending.entries());
     _pending.clear();
-    if (!entries.length) return;
+    if (!entries.length) { return; }
 
     const idsToUpdate = [];
     const updatesById = new Map();
 
+    // mappa: tokenId -> textItem (se esiste)
+    const allItemsNow = await OBR.scene.items.getItems();
+    const hptextByToken = new Map();
+    for (const it of allItemsNow) {
+      const m = it.metadata?.[HPTEXT_META_FLAG];
+      if (m?.targetId) hptextByToken.set(m.targetId, it);
+    }
+
     for (const [tokenId, { hp, hpMax }] of entries){
+      // Ricava item+nome (solo per log)
+      let item = null;
+      try { const tmp = await OBR.scene.items.getItems([tokenId]); item = tmp?.[0] || null; } catch {}
+      const nameForLog = item?.name || tokenId;
+
+      // Layout
       const layout = await computeBarLayout(tokenId);
-      if (!layout) continue;
+      if (!layout) { continue; }
 
       const { barW, barH, leftX, topY, tokenZ } = layout;
       const pct   = clamp01(hpMax > 0 ? hp / hpMax : 0);
       const color = hpColorByPct(pct);
 
-      const sig = { barW, barH, leftX, topY, pct, color };
+      // Firma di dedup (include hp/hpMax)
+      const sig = { barW, barH, leftX, topY, pct, color, hp, hpMax };
       const last = _last.get(tokenId);
-      if (last &&
-          last.barW===sig.barW && last.barH===sig.barH &&
-          last.leftX===sig.leftX && last.topY===sig.topY &&
-          last.pct===sig.pct && last.color===sig.color) {
-        continue;
+      if (last) {
+        const ds = __diffSig(last, sig);
+        const keysChanged = Object.keys(ds);
+        if (!keysChanged.length) {
+          continue;
+        }
       }
 
+      // Trova o crea le due shape (bg/fg)
       let { bg, fg } = await findHPBars(tokenId);
       if (!bg || !fg){
         const created = await createHPBars(tokenId);
         if (created) ({ bg, fg } = created);
-        else continue;
+        else { continue; }
       }
 
+      // Geometria e fill
       const inner = Math.max(0, barW - 2);
       const fillW = Math.floor(inner * pct);
+
+      // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
+      // Il GM vede comunque anche quando visible=false.
+      const att = getAttitude(item);
+      const playerVisible = isPlayerVisibleAttitude(att);
 
       updatesById.set(bg.id, {
         width: barW, height: barH,
         position: { x: leftX, y: topY },
         zIndex: tokenZ + 2,
+        visible: playerVisible,
       });
-
       updatesById.set(fg.id, {
         width: fillW, height: barH - 2,
         position: { x: leftX + 1, y: topY + 1 },
         zIndex: tokenZ + 3,
         fillColor: color, fillOpacity: 1,
+        visible: playerVisible,
       });
-
       idsToUpdate.push(bg.id, fg.id);
+
+      // riallinea anche il TEXT se esiste (NO width/height sui TextItem)
+      const txt = hptextByToken.get(tokenId);
+      if (txt) {
+        updatesById.set(txt.id, {
+          position: { x: leftX, y: topY },
+          zIndex: tokenZ + 1000,
+          visible: playerVisible,
+        });
+        idsToUpdate.push(txt.id);
+      }
+
+      // Memorizza l'ultimo stato
       _last.set(tokenId, sig);
     }
 
     if (idsToUpdate.length) {
-  await OBR.scene.items.updateItems(idsToUpdate, (items) => {
-    for (const it of items) {
-      const u = updatesById.get(it.id);
-      if (!u) continue;
-      if (u.width       !== undefined) it.width = u.width;
-      if (u.height      !== undefined) it.height = u.height;
-      if (u.position)                   it.position = u.position;
-      if (u.zIndex      !== undefined) it.zIndex = u.zIndex;
-      // colore: va dentro it.style
-      if (u.fillColor || u.fillOpacity !== undefined) {
-        it.style = { ...(it.style || {}) };
-        if (u.fillColor)                 it.style.fillColor   = u.fillColor;
-        if (u.fillOpacity !== undefined) it.style.fillOpacity = u.fillOpacity;
+      // ricontrollo esistenza id prima di aggiornare
+      const current = await OBR.scene.items.getItems(idsToUpdate);
+      const existing = new Set(current.map(i => i?.id).filter(Boolean));
+      const finalIds = idsToUpdate.filter(id => existing.has(id));
+
+      if (finalIds.length) {
+        await OBR.scene.items.updateItems(finalIds, (items) => {
+          for (const it of items) {
+            const u = updatesById.get(it.id);
+            if (!u) { continue; }
+
+            const isText = !!it.text;
+
+            if (!isText) {
+              // SHAPE (bg/fg): ok width/height/pos/zIndex/visible + fill
+              if (u.width       !== undefined) { it.width = u.width; }
+              if (u.height      !== undefined) { it.height = u.height; }
+              if (u.position)                   { it.position = u.position; }
+              if (u.zIndex      !== undefined) { it.zIndex = u.zIndex; }
+              if (u.visible     !== undefined) { it.visible = !!u.visible; }
+
+              if (u.fillColor || u.fillOpacity !== undefined) {
+                it.style = { ...(it.style || {}) };
+                if (u.fillColor)                 { it.style.fillColor   = u.fillColor; }
+                if (u.fillOpacity !== undefined) { it.style.fillOpacity = u.fillOpacity; }
+              }
+            } else {
+              // TEXT: solo pos/zIndex/visibilità (no width/height/no fill)
+              if (u.position)                   { it.position = u.position; }
+              if (u.zIndex      !== undefined) { it.zIndex = u.zIndex; }
+              if (u.visible     !== undefined) { it.visible = !!u.visible; }
+            }
+          }
+        });
       }
     }
-  });
-}
 
+    // Pulizia orfani (barre senza token target)
     const all = await OBR.scene.items.getItems();
     const ids = new Set(all.map(i => i.id));
     const toRemove = [];
@@ -254,10 +340,12 @@ async function flushQueued(){
       const m = it.metadata?.[HPBAR_META_FLAG];
       if (m && !ids.has(m.targetId)) toRemove.push(it.id);
     }
-    if (toRemove.length) await OBR.scene.items.deleteItems(toRemove);
+    if (toRemove.length) {
+      await OBR.scene.items.deleteItems(toRemove);
+    }
 
   } catch (e) {
-    console.warn("[hpbar] flush error", e?.error?.message || e?.message || e);
+    // silenzioso
   } finally {
     _flushing = false;
   }
@@ -287,6 +375,7 @@ export async function mountHPBars(){
       if (!m) continue;
       queueToken(it.id, Number(m.hp)||0, Number(m.hpMax)||0);
     }
+
     setTimeout(flushQueued, 0);
   }
 
@@ -328,4 +417,95 @@ export function syncHPBarNow(tokenId, hp, hpMax) {
     queueToken(tokenId, Number(hp) || 0, Number(hpMax) || 0);
     setTimeout(flushQueued, 0);
   } catch {}
+}
+
+// Modifica
+// Crea/aggiorna un item di TESTO "(HP/Max - %)" sopra le HPBAR.
+// Usa il TextBuilder correttamente (plainText + metodi stile del builder).
+export async function syncHPTextNow(tokenId, hp, hpMax) {
+  try {
+    await waitForSceneReady();
+
+    const [token] = await OBR.scene.items.getItems([tokenId]);
+    if (!token) return;
+
+    const L = await computeBarLayout(tokenId);
+    if (!L) return;
+    const { leftX, topY, barH, tokenZ } = L;
+
+    const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
+    const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
+    const pct  = nMax > 0 ? Math.round(Math.min(1, nHP / nMax) * 100) : 0;
+    const textStr = `${nHP}/${nMax} (${pct}%)`;
+
+    // Visibilità lato player (GM vede comunque anche se false)
+    const att = getAttitude(token);
+    const playerVisible = isPlayerVisibleAttitude(att);
+
+    const pos = { x: leftX, y: topY - 1 };
+    const z   = (Number(tokenZ) || 0) + 1000;
+
+    // dedup
+    const all = await OBR.scene.items.getItems();
+    let existing = all.find(it => it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId);
+    const dups = all
+      .filter(it => it.id !== (existing?.id) && it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId)
+      .map(it => it.id);
+    if (dups.length) await OBR.scene.items.deleteItems(dups);
+
+    if (!existing) {
+      const textItem = buildText()
+        .plainText(textStr)          // ← contenuto testuale
+        .textType("PLAIN")           // ← esplicito per evitare ambiguità
+        .fontFamily("Inter, Arial, sans-serif")
+        .fontSize(14)
+        .textAlign("CENTER")
+        .textAlignVertical("MIDDLE")
+        .fillColor("#ffffff")
+        .strokeColor("rgba(0,0,0,0.8)")
+        .strokeWidth(2)
+        .position(pos)
+        .layer("ATTACHMENT")
+        .attachedTo(tokenId)
+        .zIndex(z)
+        .visible(playerVisible)
+        .metadata({ [HPTEXT_META_FLAG]: { targetId: tokenId } })
+        .name("HP Text")
+        .build();
+
+      await OBR.scene.items.addItems([textItem]);
+    } else {
+      await OBR.scene.items.updateItems([existing.id], (list) => {
+        const it = list[0]; if (!it) return;
+        it.layer      = "ATTACHMENT";
+        it.attachedTo = tokenId;
+        it.position   = pos;
+        it.zIndex     = z;
+        it.visible    = playerVisible;
+
+        // Aggiorna contenuto e stile tramite proprietà del Text item
+        if (!it.text) it.text = { type: "PLAIN", plainText: textStr };
+        it.text.type = "PLAIN";
+        it.text.plainText = textStr;
+
+        // Alcune proprietà di stile stanno su it.text.style; altre sono a livello item per i builder.
+        // Qui preserviamo font/align se già presenti.
+        it.text.style = {
+          ...(it.text.style || {}),
+          fontFamily: (it.text.style?.fontFamily) || "Inter, Arial, sans-serif",
+          fontSize:   (it.text.style?.fontSize)   || 14,
+          textAlign:  "CENTER",
+          textAlignVertical: "MIDDLE",
+          fillColor:  (it.text.style?.fillColor)  || "#ffffff",
+          strokeColor: (it.text.style?.strokeColor) || "rgba(0,0,0,0.8)",
+          strokeWidth: (typeof it.text.style?.strokeWidth === "number") ? it.text.style.strokeWidth : 2,
+        };
+
+        if (!it.metadata) it.metadata = {};
+        it.metadata[HPTEXT_META_FLAG] = { targetId: tokenId };
+      });
+    }
+  } catch (error) {
+    // silenzioso
+  }
 }

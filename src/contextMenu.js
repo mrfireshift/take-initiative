@@ -20,12 +20,33 @@
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
   const ICON_SPELLS = ASSET("spells.svg")
+  
+  // ===== DEBUG =====
+const DEBUG_CTX = true;
+const clog = (...a) => { if (DEBUG_CTX) console.debug("[ctx]", ...a); };
+
+// Dump rapido: nome, id, inInitiative, hp/hpMax, attitude
+async function dumpItems(ids, label) {
+  try {
+    const idset = new Set(ids);
+    const arr = await OBR.scene.items.getItems(i => idset.has(i.id));
+    clog(label, arr.map(i => ({
+      id: i.id,
+      name: i.name,
+      inInitiative: !!i.metadata?.[META_KEY]?.inInitiative,
+      hp: i.metadata?.[META_KEY]?.hp,
+      hpMax: i.metadata?.[META_KEY]?.hpMax,
+      att: i.metadata?.[META_KEY]?.attitude,
+    })));
+  } catch (e) {
+    console.warn("[ctx] dumpItems error:", e?.message || e);
+  }
+}
 
   /** Evita doppie registrazioni in dev/HMR */
   if (!window.__TBP_CTX_MOUNTED) {
     window.__TBP_CTX_MOUNTED = false;
   }
-
 
   /* ----------------------------- Filtri utili ----------------------------- */
   function isCharacter() {
@@ -183,7 +204,12 @@ async function toggleEpicBossOn(ids) {
         {
           icon: ICON_MARK,
           label: "Segna come…",
-          filter: { every: [isCharacter(), hasMeta("!=")] },
+          filter: {
+          every: [
+          isCharacter(),
+          { key: ["metadata", META_KEY, "inInitiative"], operator: "==", value: true }, // ← SOLO se in iniziativa
+          ],
+          },
         },
       ],
       embed: {
@@ -200,22 +226,46 @@ async function toggleEpicBossOn(ids) {
         {
           icon: ICON_REMOVE,
           label: "Rimuovi dall’iniziativa",
-          filter: { every: [isCharacter(), hasMeta("!=")] },
+          filter: {
+  every: [
+    isCharacter(),
+     { key: ["metadata", META_KEY, "inInitiative"], operator: "==", value: true },
+        ],
         },
-      ],
+        },
+        ],
       /** @param {import("@owlbear-rodeo/sdk").ContextMenuContext} ctx */
       async onClick(ctx) {
         try {
-          if (!ctx.items?.length) return;
-          await OBR.scene.items.updateItems(ctx.items, (items) => {
-            for (const it of items) {
-              if (it.metadata) delete it.metadata[META_KEY];
+          const ids = Array.isArray(ctx.items)
+            ? ctx.items.map(x => typeof x === "string" ? x : x.id)
+            : [];
+          if (!ids.length) return;
+
+          clog("remove: ctx.items =", ctx.items);
+          clog("remove: ids =", ids);
+
+          await dumpItems(ids, "remove: BEFORE");
+
+          await OBR.scene.items.updateItems(ids, (draft) => {
+            for (const it of draft) {
+              const m  = it.metadata || {};
+              const me = { ...(m[META_KEY] || {}) };
+              clog("remove:update", it.name, it.id, "had inInitiative=", !!me.inInitiative);
+              delete me.inInitiative;                 // << togli SOLO il flag
+              m[META_KEY] = me;
+              it.metadata = m;
             }
           });
+
+          await dumpItems(ids, "remove: AFTER (immediate)");
+          setTimeout(() => { void dumpItems(ids, "remove: AFTER 200ms"); }, 200);
         } catch (err) {
           console.warn("[contextMenu] remove-from-initiative:", err);
         } finally {
-          closeContextMenuSoon();
+          // chiudi menu e deseleziona
+          Promise.resolve().then(() => OBR.player.deselect().catch(() => {}));
+          setTimeout(() => OBR.player.deselect().catch(() => {}), 20);
         }
       },
     });
@@ -227,8 +277,14 @@ async function toggleEpicBossOn(ids) {
       icons: [
         {
           icon: ICON_ADD,
-          label: "Aggiungi all’iniziativa come…",
-          filter: { every: [isCharacter(), hasMeta("==")] },
+          label: "Aggiungi all’iniziativa…",
+          filter: {
+          every: [
+          isCharacter(),
+          // Mostra la voce solo se NON è già in iniziativa
+          { key: ["metadata", META_KEY, "inInitiative"], operator: "!=", value: true },
+          ],
+        },
         },
       ],
       embed: {

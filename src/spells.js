@@ -184,61 +184,23 @@ export async function breakAllConcentrations(casterId) {
   }
 }
 
-// ⬇️ NUOVO: pulisce TUTTI gli incantesimi dai token selezionati
+// Pulisce SOLO gli incantesimi senza concentrazione sui token passati
 export async function clearSpellsOnItems(itemIds) {
   const ids = Array.isArray(itemIds) ? itemIds.filter(Boolean) : [];
   if (!ids.length) return;
 
-  // 1) leggi i token per sapere quali caster vanno “sganciati”
-  const items = await OBR.scene.items.getItems(ids);
-
-  // mappa casterId -> { spellKey -> Set(targetIds) }
-  const toDetach = new Map();
-
-  for (const it of items) {
-    const list = getSpellsFromItem(it);
-    for (const s of list) {
-      if (s.conc && s.casterId) {
-        const key = spellKey(s.name);
-        if (!toDetach.has(s.casterId)) toDetach.set(s.casterId, new Map());
-        const bySpell = toDetach.get(s.casterId);
-        if (!bySpell.has(key)) bySpell.set(key, new Set());
-        bySpell.get(key).add(it.id);
-      }
-    }
-  }
-
-  // 2) azzera gli incantesimi sui target
   await OBR.scene.items.updateItems(ids, (drafts) => {
     for (const it of drafts) {
+      const list = getSpellsFromItem(it);
+      // Mantieni SOLO quelli con conc == true
+      const keep = list.filter(s => !!s.conc);
       it.metadata = it.metadata || {};
       it.metadata[META_KEY] = it.metadata[META_KEY] || {};
-      it.metadata[META_KEY][SPELLS_META_KEY] = [];
+      it.metadata[META_KEY][SPELLS_META_KEY] = keep;
     }
   });
-
-  // 3) ripulisci i registri di concentrazione dei caster
-  for (const [casterId, spellsMap] of toDetach.entries()) {
-    const [caster] = await OBR.scene.items.getItems([casterId]);
-    const conc = caster?.metadata?.[META_KEY]?.[CONC_META_KEY] || {};
-    let changed = false;
-
-    for (const [key, setIds] of spellsMap.entries()) {
-      const entry = conc[key];
-      if (!entry) continue;
-      const prevTargets = Array.isArray(entry.targets) ? entry.targets : [];
-      const nextTargets = prevTargets.filter(tid => !setIds.has(tid));
-      if (nextTargets.length !== prevTargets.length) {
-        changed = true;
-        if (nextTargets.length) conc[key] = { targets: nextTargets };
-        else delete conc[key];
-      }
-    }
-    if (changed) {
-      await __setConcentration(casterId, conc);
-    }
-  }
 }
+
 
 // ===== UI helper (chips) =====
 export function buildSpellChips(spells) {

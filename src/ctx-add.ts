@@ -70,17 +70,18 @@ async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { 
     await OBR.player.select(ids).catch(() => {});
 
     await OBR.scene.items.updateItems(ids, (items) => {
-      for (const it of items) {
-        it.metadata = it.metadata || {};
-        const prev = (it.metadata as any)[META_KEY] || {};
-        // NB: iniziativa impostata solo se non esiste già
-        (it.metadata as any)[META_KEY] = {
-          ...prev,
-          initiative: prev.initiative ?? DEFAULT_INITIATIVE,
-          attitude,
-        };
-      }
-    });
+  for (const it of items) {
+    it.metadata = it.metadata || {};
+    const prev = (it.metadata as any)[META_KEY] || {};
+    (it.metadata as any)[META_KEY] = {
+      ...prev,
+      initiative: prev.initiative ?? DEFAULT_INITIATIVE,
+      attitude,
+      inInitiative: true,   // ← chiave: entra in lista anche se “in memoria”
+    };
+  }
+});
+
   } catch (e) {
     console.warn("[ctx-add] update error:", (e as any)?.message || e);
   } finally {
