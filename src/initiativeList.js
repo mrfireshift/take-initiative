@@ -10,7 +10,7 @@ import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsFor
 export const CONDITIONS = [
   "Accecato", "Affascinato", "Afferrato", "Assordato", "Avvelenato",
   "Incapacitato", "Invisibile", "Paralizzato", "Pietrificato", "Privo di sensi",
-  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione"
+  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione", "Ira"
 ];
 // — Dock condizioni (chip) sulla card
 const COND_DOCK_CFG = {
