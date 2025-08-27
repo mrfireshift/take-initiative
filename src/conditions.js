@@ -45,7 +45,7 @@ const COND_BORDER = Object.freeze({
   "Stordito":        "#e67e22",
   "Trattenuto":      "#ff6f00",
   "Indebolimento":   "#d81b60",
-  "Ira":  "rgba(255, 0, 0, 1)ff",
+  "Ira":             "#ff0000",
 });
 
 // Aggiorna automaticamente le pillole quando qualsiasi item cambia.
