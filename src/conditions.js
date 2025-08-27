@@ -23,7 +23,7 @@ export const CONDITION_LIST = [
   "Stordito",
   "Trattenuto",
   "Indebolimento",
-  "Concentrazione",
+  "Ira",
 ];
 
 const MAX_CUSTOM_SLOTS = 3;
@@ -45,7 +45,7 @@ const COND_BORDER = Object.freeze({
   "Stordito":        "#e67e22",
   "Trattenuto":      "#ff6f00",
   "Indebolimento":   "#d81b60",
-  "Concentrazione":  "#7c4dff",
+  "Ira":  "rgba(255, 0, 0, 1)ff",
 });
 
 // Aggiorna automaticamente le pillole quando qualsiasi item cambia.
