@@ -1,6 +1,7 @@
   // src/spells-tag.js
   import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
   import { ID } from "./contextMenu";
+  import { isOnlyActiveTurnLabelChange } from "./constants.js";
 
   /* ===================== DEBUG ===================== */
   const DEBUG_CONC = true;
@@ -761,7 +762,11 @@ async function upsertDotForItem(it) {
     __mounted = true;
     dlog("watcher:mounted");
     refreshConcentrationDots().catch(e => dlog("watcher:init-error", e));
-    OBR.scene.items.onChange(() => { dlog("onChange"); __scheduleRefresh(); });
+    OBR.scene.items.onChange((changes = []) => {
+      if (isOnlyActiveTurnLabelChange(changes)) return;
+      dlog("onChange");
+      __scheduleRefresh();
+    });
   }
 
   // montaggio automatico se non lo fai tu altrove

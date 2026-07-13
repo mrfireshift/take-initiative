@@ -1,6 +1,7 @@
 // src/hpbar-items.js
 import OBR, { buildShape, buildText } from "@owlbear-rodeo/sdk";
 import { ID } from "./contextMenu";
+import { isOnlyActiveTurnLabelChange } from "./constants.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
@@ -21,6 +22,9 @@ let   _flushing = false;
 
 // cache dell’ultimo stato applicato (evita update inutili)
 const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
+const _barRefs = new Map(); // tokenId -> {fgId, inner}
+const _fastFillPending = new Map(); // tokenId -> {hp, hpMax}
+const _fastFillRunning = new Set();
 
 /* ========= Utils ========= */
 const clamp   = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -55,6 +59,48 @@ function hpColorByPct(p){
   if (p > 0.66) return "#16a34a"; // verde
   if (p > 0.33) return "#facc15"; // giallo
   return "#dc2626";               // rosso
+}
+
+function queueFastFill(tokenId, hp, hpMax) {
+  _fastFillPending.set(tokenId, {
+    hp: Number(hp) || 0,
+    hpMax: Number(hpMax) || 0,
+  });
+  if (_fastFillRunning.has(tokenId)) return;
+
+  _fastFillRunning.add(tokenId);
+  void (async () => {
+    try {
+      while (_fastFillPending.has(tokenId)) {
+        const next = _fastFillPending.get(tokenId);
+        _fastFillPending.delete(tokenId);
+
+        const ref = _barRefs.get(tokenId);
+        if (!ref) continue;
+
+        const pct = clamp01(next.hpMax > 0 ? next.hp / next.hpMax : 0);
+        const fillW = Math.floor(ref.inner * pct);
+        const color = hpColorByPct(pct);
+
+        try {
+          await OBR.scene.items.updateItems([ref.fgId], (items) => {
+            const fg = items[0];
+            if (!fg) return;
+            fg.width = fillW;
+            fg.style = { ...(fg.style || {}), fillColor: color, fillOpacity: 1 };
+          });
+        } catch {
+          _barRefs.delete(tokenId);
+        }
+      }
+    } finally {
+      _fastFillRunning.delete(tokenId);
+      if (_fastFillPending.has(tokenId)) {
+        const next = _fastFillPending.get(tokenId);
+        queueFastFill(tokenId, next.hp, next.hpMax);
+      }
+    }
+  })();
 }
 
 // Attende che la scena sia pronta (evita "No scene found")
@@ -98,7 +144,7 @@ function computeBarSizeByToken(bbox){
   return { barW, barH };
 }
 
-async function computeBarLayout(tokenId){
+async function computeBarLayout(tokenId, tokenSnapshot = null){
   let b;
   try { b = await OBR.scene.items.getItemBounds([tokenId]); }
   catch { return null; }
@@ -114,7 +160,7 @@ async function computeBarLayout(tokenId){
   const leftX = Math.round(cx - barW / 2);
   const topY  = Math.round(b.max.y - overlap + gap);
 
-  const tokenItem = await getItemById(tokenId);
+  const tokenItem = tokenSnapshot || await getItemById(tokenId);
   const tokenZ    = tokenItem?.zIndex ?? 0;
 
   return { barW, barH, leftX, topY, tokenZ };
@@ -123,8 +169,8 @@ async function computeBarLayout(tokenId){
 /* ========= Creazione & ricerca shape ========= */
 
 // Trova la base/riempimento di un token e rimuove eventuali duplicati/ombre
-async function findHPBars(tokenId){
-  const items = await OBR.scene.items.getItems();
+async function findHPBars(tokenId, itemsSnapshot = null){
+  const items = itemsSnapshot || await OBR.scene.items.getItems();
   const ofToken = items.filter(
     it => it.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId
   );
@@ -204,6 +250,7 @@ async function flushQueued(){
   clearTimeout(_flushT); _flushT = null;
 
   const startedAt = Date.now();
+  const hpTextUpdates = [];
   try {
     await waitForSceneReady();
 
@@ -216,6 +263,7 @@ async function flushQueued(){
 
     // mappa: tokenId -> textItem (se esiste)
     const allItemsNow = await OBR.scene.items.getItems();
+    const itemsById = new Map(allItemsNow.map(it => [it.id, it]));
     const hptextByToken = new Map();
     for (const it of allItemsNow) {
       const m = it.metadata?.[HPTEXT_META_FLAG];
@@ -224,12 +272,11 @@ async function flushQueued(){
 
     for (const [tokenId, { hp, hpMax }] of entries){
       // Ricava item+nome (solo per log)
-      let item = null;
-      try { const tmp = await OBR.scene.items.getItems([tokenId]); item = tmp?.[0] || null; } catch {}
+      const item = itemsById.get(tokenId) || null;
       const nameForLog = item?.name || tokenId;
 
       // Layout
-      const layout = await computeBarLayout(tokenId);
+      const layout = await computeBarLayout(tokenId, item);
       if (!layout) { continue; }
 
       const { barW, barH, leftX, topY, tokenZ } = layout;
@@ -248,7 +295,7 @@ async function flushQueued(){
       }
 
       // Trova o crea le due shape (bg/fg)
-      let { bg, fg } = await findHPBars(tokenId);
+      let { bg, fg } = await findHPBars(tokenId, allItemsNow);
       if (!bg || !fg){
         const created = await createHPBars(tokenId);
         if (created) ({ bg, fg } = created);
@@ -258,6 +305,7 @@ async function flushQueued(){
       // Geometria e fill
       const inner = Math.max(0, barW - 2);
       const fillW = Math.floor(inner * pct);
+      _barRefs.set(tokenId, { fgId: fg.id, inner });
 
       // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
       // Il GM vede comunque anche quando visible=false.
@@ -292,6 +340,7 @@ async function flushQueued(){
 
       // Memorizza l'ultimo stato
       _last.set(tokenId, sig);
+      hpTextUpdates.push({ tokenId, hp, hpMax });
     }
 
     if (idsToUpdate.length) {
@@ -348,10 +397,31 @@ async function flushQueued(){
     // silenzioso
   } finally {
     _flushing = false;
+    if (_pending.size && !_flushT) {
+      _flushT = setTimeout(flushQueued, 0);
+    }
+  }
+
+  // Il testo segue le barre senza trattenere il lock del batch grafico.
+  for (const { tokenId, hp, hpMax } of hpTextUpdates) {
+    await syncHPTextNow(tokenId, hp, hpMax);
   }
 }
 
 /* ========= Entrypoint pubblico ========= */
+function hasCanonicalHP(meta) {
+  return !!meta && ((meta.hp ?? null) !== null || (meta.hpMax ?? null) !== null);
+}
+
+export async function removeHPWidgetsNow(tokenId) {
+  if (!tokenId) return;
+  const widgets = await OBR.scene.items.getItems((item) =>
+    item.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId ||
+    item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
+  );
+  if (widgets.length) await OBR.scene.items.deleteItems(widgets.map((item) => item.id));
+}
+
 export async function mountHPBars(){
   try {
     const role =
@@ -372,7 +442,7 @@ export async function mountHPBars(){
     const items = await OBR.scene.items.getItems();
     for (const it of items){
       const m = it.metadata?.[META_KEY];
-      if (!m) continue;
+      if (!hasCanonicalHP(m)) continue;
       queueToken(it.id, Number(m.hp)||0, Number(m.hpMax)||0);
     }
 
@@ -382,6 +452,7 @@ export async function mountHPBars(){
   let itemsChangeTimer = null;
   OBR.scene.items.onChange((changes = []) => {
     if (!IS_GM) return;
+    if (isOnlyActiveTurnLabelChange(changes)) return;
     clearTimeout(itemsChangeTimer);
     itemsChangeTimer = setTimeout(async () => {
       const items = await OBR.scene.items.getItems();
@@ -391,7 +462,7 @@ export async function mountHPBars(){
         if (!cur) continue;
         if (cur.metadata?.[HPBAR_META_FLAG]) continue;
         const m = cur.metadata?.[META_KEY];
-        if (!m) continue;
+        if (!hasCanonicalHP(m)) continue;
         queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
       }
     }, 0);
@@ -405,7 +476,7 @@ export async function mountHPBars(){
       const items = await OBR.scene.items.getItems();
       for (const it of items){
         const m = it.metadata?.[META_KEY];
-        if (!m) continue;
+        if (!hasCanonicalHP(m)) continue;
         queueToken(it.id, Number(m.hp)||0, Number(m.hpMax)||0);
       }
     }, 0);
@@ -414,6 +485,7 @@ export async function mountHPBars(){
 
 export function syncHPBarNow(tokenId, hp, hpMax) {
   try {
+    queueFastFill(tokenId, hp, hpMax);
     queueToken(tokenId, Number(hp) || 0, Number(hpMax) || 0);
     setTimeout(flushQueued, 0);
   } catch {}

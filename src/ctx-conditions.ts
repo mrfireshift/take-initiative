@@ -5,7 +5,8 @@ import {
   CONDITION_LIST,
   toggleFlagForItems,
   addCustomForItems,
-  clearAllConditionsForItems
+  clearAllConditionsForItems,
+  getConditionInstances
 } from "./conditions.js";
 
 const META_KEY = `${ID}/meta`;
@@ -33,6 +34,16 @@ function paintChip(chip: HTMLElement, state: "on" | "off" | "mixed") {
 
 let __REFRESH_TIMER: any = null;
 let __CURRENT_IDS: string[] = [];
+
+function readDuration(input: HTMLInputElement | null): number | null {
+  const n = Math.floor(Number(input?.value || 0));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function durationOpts(input: HTMLInputElement | null) {
+  const turns = readDuration(input);
+  return turns ? { turns } : {};
+}
 
 function queueRefresh(grid: HTMLElement) {
   clearTimeout(__REFRESH_TIMER);
@@ -76,29 +87,27 @@ async function readFlagsFor(ids) {
   if (!ids.length) return { byCond: new Map(), anyCustom: false };
   const idset = new Set(ids.filter(Boolean));
   const items = await OBR.scene.items.getItems(i => idset.has(i.id));
-  const byCond = new Map(); // condName -> { all, some }
+  const byCond = new Map();
   const allNames = [...CONDITION_LIST];
-
-  // includi anche i custom per capire lo stato "anyCustom"
   let anyCustom = false;
 
   for (const it of items) {
-    const c = it?.metadata?.[META_KEY]?.conditions || {};
-    const flags = (c.flags && typeof c.flags === "object") ? c.flags : {};
-    const custom = Array.isArray(c.custom) ? c.custom.filter(Boolean) : [];
-    if (custom.length) anyCustom = true;
+    const instances = getConditionInstances(it?.metadata?.[META_KEY]?.conditions || {});
+    const names = new Set(instances.map((instance) => String(instance.condition || "").toLocaleLowerCase()));
+    if (instances.some((instance) => !CONDITION_LIST.includes(String(instance.condition || "")))) {
+      anyCustom = true;
+    }
 
     for (const name of allNames) {
-      const v = !!flags[name];
+      const active = names.has(name.toLocaleLowerCase());
       if (!byCond.has(name)) byCond.set(name, { all: true, some: false });
-      const s = byCond.get(name);
-      s.all = s.all && v;
-      s.some = s.some || v;
+      const state = byCond.get(name);
+      state.all = state.all && active;
+      state.some = state.some || active;
     }
   }
   return { byCond, anyCustom };
 }
-
 async function refreshChipsState(grid, ids) {
   const { byCond } = await readFlagsFor(ids);
   grid.querySelectorAll(".chip").forEach(chip => {
@@ -132,6 +141,8 @@ async function mount() {
   grid.style.display = "contents"; // sfrutta la grid del parent
   wrap.insertBefore(grid, wrap.firstElementChild);
 
+  const turnsInput = document.getElementById("conditionTurns") as HTMLInputElement | null;
+
   // crea chip per ogni condizione
 CONDITION_LIST.forEach((name) => {
   const chip = makeChip(name);
@@ -151,7 +162,7 @@ chip.addEventListener("click", () => {
     }
 
     // 3) fire‑and‑forget: non bloccare il listener
-    toggleFlagForItems(ids, name)
+    toggleFlagForItems(ids, name, wasOn ? {} : durationOpts(turnsInput))
       .then(() => { queueRefresh(grid); })
       .catch(() => {
         // in caso di errore: ripristina lo stato visivo precedente
@@ -167,7 +178,7 @@ chip.addEventListener("click", () => {
 });
 
   // controlli extra (custom + clear)
-  const input = document.getElementById("customText");
+  const input = document.getElementById("customText") as HTMLInputElement | null;
   const btnAdd = document.getElementById("btnAdd");
   const btnClear = document.getElementById("btnClear");
 
@@ -176,7 +187,7 @@ chip.addEventListener("click", () => {
     if (!text) return;
     const ids = await getSelectedIdsSafe();
     if (!ids.length) return;
-    await addCustomForItems(ids, text);
+    await addCustomForItems(ids, text, durationOpts(turnsInput));
     input.value = "";
     await refreshChipsState(grid, ids);
   });

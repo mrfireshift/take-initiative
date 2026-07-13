@@ -1,6 +1,7 @@
 // hpMemory.js
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./contextMenu";
+import { isOnlyActiveTurnLabelChange } from "./constants.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __attScanTimer = null;          // debounce per la scansione attitude
@@ -96,7 +97,8 @@ export async function initHPMemory() {
   if (!__attSubMounted) {
     __attSubMounted = true;
     try {
-      OBR.scene.items.onChange(() => {
+      OBR.scene.items.onChange((changes = []) => {
+        if (isOnlyActiveTurnLabelChange(changes)) return;
         scheduleAttitudeRescan(120); // debounce breve: 120ms
       });
     } catch (err) {
@@ -126,6 +128,18 @@ export async function saveHPToMemoryByItemId(itemId, hp, hpMax) {
 }
 
 // ——— All’avvio della lista: riempi HP mancanti dei PG da memoria (senza toccare i mostri)
+export async function removeHPFromMemoryByItemId(itemId) {
+  const [item] = await OBR.scene.items.getItems([itemId]);
+  if (!item) return;
+  const key = pcKeyFromItem(item);
+  if (!key) return;
+
+  await writeRoomHPMap((map) => {
+    delete map[key];
+    return map;
+  });
+}
+
 export async function applyHPMemoryToSceneForMissingHP() {
   if (__hpApplyBusy) return;
   __hpApplyBusy = true;

@@ -15,7 +15,6 @@
   // Icone (i file stanno in 'public/', ma si servono dalla root)
   const ICON_ADD    = ASSET("add.svg");
   const ICON_MARK   = ASSET("mark.svg");
-  const ICON_CONDITIONS   = ASSET("conditions.svg");
   const ICON_REMOVE = ASSET("remove.svg");
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
@@ -293,20 +292,6 @@ async function toggleEpicBossOn(ids) {
       },
     });
 
-// === Condizioni (EMBED) ===
-OBR.contextMenu.create({
-  id: `${ID}/conditions`,
-  group: MENU_GROUP, // <-- coerente con gli altri
-  icons: [{
-    icon: ICON_CONDITIONS,
-    label: "Condizioni…",
-    filter: { every: [isCharacter(), hasMeta("!=")] },
-  }],
-  embed: {
-    url: "/ctx-conditions.html",   // HTML in root
-    height: EMBED_4ROWS_H,         // ~170px; puoi alzarlo a 280-360 se vuoi
-  },
-});
 
 // === Incantesimi ===
 OBR.contextMenu.create({
@@ -326,7 +311,22 @@ OBR.contextMenu.create({
 });
 
 
-    /* ===================== “Abilita Azioni Leggendarie” (CLICK) ===================== */
+    // Rimozione rapida condizioni
+  OBR.contextMenu.create({
+    id: `${ID}/remove-condition-embed`,
+    group: MENU_GROUP,
+    icons: [{
+      icon: ICON_REMOVE,
+      label: "Rimuovi condizione...",
+      filter: { every: [isCharacter(), hasMeta("!=")] },
+    }],
+    embed: {
+      url: ASSET("ctx-remove-condition.html"),
+      height: 286,
+    },
+  });
+
+  // Abilita Azioni Leggendarie (CLICK)
   OBR.contextMenu.create({
     id: `${ID}/legendary-enable`,
     group: MENU_GROUP,

@@ -1,10 +1,12 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./contextMenu";
-import { mountHPBars } from "./hpbar-items.js";
+import { ACTIVE_TURN_LABEL_META, isOnlyActiveTurnLabelChange } from "./constants.js";
+import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { mountConcentrationWatcher } from "./spells-tag.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels } from "./conditions";
+import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
 import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { withItemMetaHistory, mountMovementHistoryWatcher } from "./history.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -77,7 +79,7 @@ function __spellColor(key) {
   const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
 
   // --- Active Turn Label (ancorata al token attivo)
-  const ACTIVE_LABEL_META = `${ID}/activeTurnLabel`;
+  const ACTIVE_LABEL_META = ACTIVE_TURN_LABEL_META;
   const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
   // offset verticale in celle (negativo = sopra il token)
   const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
@@ -120,6 +122,25 @@ function __buildChipsSimple(cond, opts = {}) {
     custom = Object.keys(custom).filter(k => !!custom[k]);
   }
 
+  const instances = getConditionInstances(cond);
+  if (instances.length) {
+    const grouped = new Map();
+    for (const instance of instances) {
+      const name = String(instance.condition || "").trim();
+      if (!name) continue;
+      const current = grouped.get(name) || 0;
+      grouped.set(name, current + 1);
+    }
+    const names = [
+      ...cap.filter((name) => grouped.has(name)),
+      ...Array.from(grouped.keys()).filter((name) => !cap.includes(name)),
+    ];
+    for (const name of names) {
+      const count = grouped.get(name) || 0;
+      frag.appendChild(__chip(count > 1 ? `${name} x${count}` : name, compact));
+    }
+    return frag;
+  }
   // standard (rispetta l’ordine/whitelist di cap)
   for (const name of cap) {
     if (flags[name]) frag.appendChild(__chip(name, compact));
@@ -147,36 +168,60 @@ function __buildConditionChipsSafe(cond, opts) {
   return __buildChipsSimple(cond, opts);
 }
 
-  // --- FIX duplicazione label: ripulisci locale+globale e restituisci (se c'è) l'unica label globale
+let __activeTurnLabel = null;
+let __activeTurnLabelInitialized = false;
+let __activeTurnLabelDpi = null;
+let __activeLabelEntriesById = new Map();
+let __latestInitiativeState = null;
+let __activeTurnLabelDesired = null;
+let __activeTurnLabelPumpRunning = false;
+let __navigationDesiredState = null;
+let __navigationPumpRunning = false;
+let __navigationFlushTimer = null;
+let __navigationDesiredAt = 0;
+let __navigationRevision = 0;
+let __lastNavigationAt = 0;
+let __lastConditionTurnState = null;
+let __conditionNavigationHint = null;
+let __conditionTurnQueue = Promise.resolve();
+const NAVIGATION_STALE_GRACE_MS = 500;
+const NAVIGATION_WRITE_SETTLE_MS = 60;
+
+
+  // Scansione e deduplicazione una tantum all'avvio.
 async function __cleanupActiveTurnLabels() {
-  // 1) elimina eventuali etichette locali legacy
+  if (!IS_GM) {
+    __activeTurnLabel = null;
+    __activeTurnLabelInitialized = true;
+    return null;
+  }
+
+  // Elimina le label locali create dalle build precedenti.
   try {
     const locals = await OBR.scene.local.getItems(
       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
     );
-    if (locals.length) {
-      await OBR.scene.local.deleteItems(locals.map(i => i.id));
-    }
+    if (locals.length) await OBR.scene.local.deleteItems(locals.map((it) => it.id));
   } catch (e) {
-    console.warn("[activeLabel] cleanup local failed:", e?.message || e);
+    console.warn("[activeLabel] local cleanup failed:", e?.message || e);
   }
 
-  // 2) dedupe lato globale e tienine una sola
   let globals = [];
   try {
     globals = await OBR.scene.items.getItems(
       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
     );
     if (globals.length > 1) {
-      const keep = globals[0].id;
-      const junk = globals.slice(1).map(i => i.id);
-      await OBR.scene.items.deleteItems(junk);
-      globals = globals.filter(i => i.id === keep);
+      await OBR.scene.items.deleteItems(globals.slice(1).map((it) => it.id));
+      globals = globals.slice(0, 1);
     }
   } catch (e) {
-    console.warn("[activeLabel] cleanup global failed:", e?.message || e);
+    console.warn("[activeLabel] global init failed:", e?.message || e);
   }
-  return globals[0] || null;
+
+  __activeTurnLabel = globals[0] || null;
+  __activeTurnLabelInitialized = true;
+  return __activeTurnLabel;
 }
   function isEpicActionId(id) {
   return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
@@ -187,9 +232,9 @@ function __safeConditions(c) {
   const src = (c && typeof c === "object") ? c : {};
   const flags = (src.flags && typeof src.flags === "object") ? src.flags : {};
   const custom = Array.isArray(src.custom) ? src.custom : [];
-  return { flags, custom };
+  const instances = Array.isArray(src.instances) ? src.instances : [];
+  return { ...src, flags, custom, instances };
 }
-
 // Parser sicuro del "base name" senza i prefissi "(n) "
 function __safeBaseName(name) {
   try {
@@ -224,6 +269,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
   let __lastRenderedActiveId = null;
   let __prevActiveId = null;
   let __lastRoundSeen = null;
+  let __scrollActiveOnNextRender = false;
 
   function isLairId(id) { return id === LAIR_ID; }
   function makeLairEntry() {
@@ -503,16 +549,143 @@ function makeRoundResetBtn() {
   return b;
 }
 
+function makeClearInitiativeBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.clearInitiative = "1";
+  b.title = "Rimuovi tutte le card dall'iniziativa (solo GM)";
+  b.textContent = "×";
+  Object.assign(b.style, {
+    width: "22px",
+    height: "22px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(248,113,113,.55)",
+    background: "rgba(127,29,29,.55)",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: "800",
+    lineHeight: "1",
+    borderRadius: "999px",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    padding: "0",
+  });
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    b.disabled = true;
+    try {
+      const items = await OBR.scene.items.getItems(
+        it => it.metadata?.[META_KEY]?.inInitiative === true
+      );
+      const ids = items.map(it => it.id);
+      if (ids.length) {
+        await OBR.scene.items.updateItems(ids, (drafts) => {
+          for (const it of drafts) {
+            const me = { ...(it.metadata?.[META_KEY] || {}) };
+            delete me.inInitiative;
+            it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+          }
+        });
+      }
+      await resetTrackerState();
+      await renderAll();
+    } catch (err) {
+      console.warn("[initiative-clear] errore svuotamento:", err?.message || err);
+    } finally {
+      b.disabled = false;
+    }
+  });
+  return b;
+}
+
+function makeHistoryBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.history = "1";
+  b.title = "Cronologia e Undo (solo GM)";
+  b.textContent = "\u21B6";
+  Object.assign(b.style, {
+    width: "22px",
+    height: "22px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,255,255,.18)",
+    background: "rgba(0,0,0,.45)",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: "800",
+    lineHeight: "1",
+    borderRadius: "999px",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    padding: "0",
+  });
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    try {
+      await OBR.modal.open({
+        id: `${ID}/history-modal`,
+        url: "/history-modal.html",
+        width: 480,
+        height: 460,
+      });
+    } catch (err) {
+      console.warn("[history] modal open error:", err?.message || err);
+    }
+  });
+  return b;
+}
+
 // ROW in alto: Turno + Toggle Tana (solo GM)
 const topRow = document.createElement("div");
 Object.assign(topRow.style, {
   alignSelf: "center",
+  width: "100%",
   display: "flex",
   alignItems: "center",
+  justifyContent: "center",
   gap: "8px",
   flexWrap: "wrap",     // se si stringe, va a capo con grazia
 });
 topRow.appendChild(roundPill);
+
+// Toggle dello zoom automatico. Il default resta attivo per compatibilità
+// con le scene che non hanno ancora salvato questa preferenza.
+const zoomToggleWrap = document.createElement("label");
+Object.assign(zoomToggleWrap.style, {
+  alignSelf: "center",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  padding: "2px 8px",
+  background: "rgba(0,0,0,.28)",
+  border: "1px solid rgba(255,255,255,.18)",
+  borderRadius: "999px",
+  boxShadow: "0 1px 4px rgba(0,0,0,.35)",
+  userSelect: "none",
+  cursor: "pointer",
+});
+
+const zoomChk = document.createElement("input");
+zoomChk.type = "checkbox";
+zoomChk.checked = true;
+zoomChk.style.transform = "scale(1.1)";
+zoomChk.style.cursor = "pointer";
+zoomChk.title = "Centra automaticamente la scena sul token attivo";
+
+const zoomLbl = document.createElement("span");
+zoomLbl.textContent = "Zoom";
+Object.assign(zoomLbl.style, {
+  fontSize: "12px",
+  fontWeight: "700",
+  color: "#fff",
+});
+
+zoomToggleWrap.append(zoomChk, zoomLbl);
+topRow.appendChild(zoomToggleWrap);
 
 // wrapper della lista — l’UNICO che scrolla
 const trackWrap = document.createElement("div");
@@ -650,6 +823,22 @@ lairChk.addEventListener("change", async (e) => {
   await renderAll();
 });
 
+zoomChk.addEventListener("change", async (e) => {
+  const enabled = !!e.target.checked;
+  const next = {
+    ...(__latestInitiativeState || {}),
+    ui: {
+      ...(__latestInitiativeState?.ui || {}),
+      autoFocus: enabled,
+    },
+  };
+  __latestInitiativeState = next;
+  await setSceneState(prev => ({
+    ...(prev || {}),
+    ui: { ...(prev?.ui || {}), autoFocus: enabled },
+  }));
+});
+
 // Inserisci il toggle tra Turno e Lista
 col.append(btnPrev, topRow, trackWrap, btnNext);
 
@@ -771,9 +960,56 @@ async function centerOnItem(itemId) {
   }
 }
 
-async function selectAndFocus(itemId) {
+function isAutoFocusEnabled(state) {
+  return state?.ui?.autoFocus !== false;
+}
+
+async function selectAndFocus(itemId, autoFocus = true) {
   await selectInScene(itemId, true);
-  await centerOnItem(itemId);
+  if (autoFocus) await centerOnItem(itemId);
+}
+
+let __selectFocusDesired = null;
+let __selectFocusPumpRunning = false;
+
+function queueSelectAndFocus(itemId, autoFocus = true) {
+  const anchorId = __resolveAnchorForActive(itemId);
+  if (!anchorId) return;
+  __selectFocusDesired = {
+    itemId: anchorId,
+    autoFocus,
+    revision: __navigationRevision,
+  };
+  if (__selectFocusPumpRunning) return;
+
+  __selectFocusPumpRunning = true;
+  void (async () => {
+    try {
+      while (__selectFocusDesired) {
+        const desired = __selectFocusDesired;
+        __selectFocusDesired = null;
+        if (desired.revision !== __navigationRevision) continue;
+
+        await selectInScene(desired.itemId, true);
+        if (
+          desired.autoFocus &&
+          desired.revision === __navigationRevision &&
+          !__selectFocusDesired
+        ) {
+          await centerOnItem(desired.itemId);
+        }
+      }
+    } catch (err) {
+      console.warn("[initiative] select/focus queue error:", err?.message || err);
+    } finally {
+      __selectFocusPumpRunning = false;
+      if (__selectFocusDesired) {
+        const desired = __selectFocusDesired;
+        __selectFocusDesired = null;
+        queueSelectAndFocus(desired.itemId, desired.autoFocus);
+      }
+    }
+  })();
 }
 
 // Restituisce l'ID del token reale a cui ancorare la label (null se virtuale)
@@ -787,28 +1023,59 @@ function __resolveAnchorForActive(activeId) {
 
 // Trova la label attiva esistente (identificata dal nostro metadata)
 async function __findExistingActiveLabel() {
+  if (__activeTurnLabelInitialized) return __activeTurnLabel;
   return await __cleanupActiveTurnLabels();
 }
 
-let __mutatingActiveLabel = 0;    
+let __mutatingActiveLabel = 0;
+let __activeTurnLabelRevision = 0;
+let __activeTurnLabelLatestKey = null;
 
-async function upsertActiveTurnLabel(anchorId, displayText) {
+function __setActiveTurnLabelText(item, text) {
+  const prevStyle =
+    (item.text && typeof item.text === "object" && item.text.style) ||
+    { fillColor: "#ffffff", strokeColor: "rgba(0,0,0,.85)", strokeWidth: 2 };
+  item.text = item.text && typeof item.text === "object" ? item.text : {};
+  item.text.type = "PLAIN";
+  item.text.plainText = text;
+  item.text.style = { ...prevStyle };
+}
+
+async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = null, revision = __activeTurnLabelRevision) {
+  const textStr = String(displayText ?? "");
   const existing = await __findExistingActiveLabel();
 
   if (!anchorId) {
-    if (existing) await OBR.scene.items.deleteItems([existing.id]);
+    if (existing && existing.visible !== false) {
+      await OBR.scene.items.updateItems([existing.id], (list) => {
+        const item = list[0];
+        if (!item) return;
+        item.visible = false;
+        item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
+          .filter((behavior) => behavior !== "POSITION");
+      });
+      existing.visible = false;
+      existing.disableAttachmentBehavior = (existing.disableAttachmentBehavior || [])
+        .filter((behavior) => behavior !== "POSITION");
+    }
     return;
   }
 
-  const dpi = await OBR.scene.grid.getDpi();
-  const [anchor] = await OBR.scene.items.getItems([anchorId]);
-  if (!anchor) { if (existing) await OBR.scene.items.deleteItems([existing.id]); return; }
+  const dpi = __activeTurnLabelDpi ?? await OBR.scene.grid.getDpi();
+  __activeTurnLabelDpi = dpi;
+  const anchor = anchorSnapshot || (await OBR.scene.items.getItems([anchorId]))[0];
+  if (!anchor) {
+    __activeTurnLabelLatestKey = null;
+    return;
+  }
 
-  const offsetPx = { x: 0, y: ACTIVE_LABEL_OFFSET_Y_CELLS * dpi };
-  const pos = { x: anchor.position.x + offsetPx.x, y: anchor.position.y + offsetPx.y };
-  const textStr = String(displayText ?? "");
+  const pos = {
+    x: anchor.position.x,
+    y: anchor.position.y + ACTIVE_LABEL_OFFSET_Y_CELLS * dpi,
+  };
 
   if (!existing) {
+    if (revision !== __activeTurnLabelRevision) return;
     __mutatingActiveLabel++;
     try {
       const item = buildLabel()
@@ -825,50 +1092,190 @@ async function upsertActiveTurnLabel(anchorId, displayText) {
           cornerRadius: 14,
           pointerDirection: "DOWN",
           pointerWidth: 16,
-          pointerHeight: 12
+          pointerHeight: 12,
         })
         .metadata({ [ACTIVE_LABEL_META]: { enabled: true } })
         .name("Turno attuale")
         .build();
       await OBR.scene.items.addItems([item]);
+      __activeTurnLabel = item;
     } finally {
       __mutatingActiveLabel--;
     }
-  } else {
-  // aggiorna solo se serve per evitare update inutili
-  const sameAnchor = existing.attachedTo === anchorId;
-  const sameText   = existing.text?.type === "PLAIN" && existing.text?.plainText === textStr;
-  if (sameAnchor && sameText) return;
+    return;
+  }
+
+  if (revision !== __activeTurnLabelRevision) return;
 
   __mutatingActiveLabel++;
   try {
+    // Attachment e posizione cambiano insieme, ricostruendo il legame col token.
     await OBR.scene.items.updateItems([existing.id], (list) => {
-      const it = list[0]; if (!it) return;
-
-      it.attachedTo = anchorId;
-      it.position   = pos;
-
-      // ⚠️ PRESERVA LO STYLE DEL TESTO (richiesto dal renderer)
-      const prevStyle =
-        (it.text && typeof it.text === "object" && it.text.style) ||
-        { fillColor: "#ffffff", strokeColor: "rgba(0,0,0,.85)", strokeWidth: 2 };
-
-      if (it.text && typeof it.text === "object") {
-        it.text.type = "PLAIN";
-        it.text.plainText = textStr;
-        it.text.style = { ...prevStyle };
-      } else {
-        it.text = { type: "PLAIN", plainText: textStr, style: { ...prevStyle } };
-      }
-
-      it.layer = "TEXT";
+      const item = list[0];
+      if (!item) return;
+      item.attachedTo = anchorId;
+      item.position = pos;
+      item.visible = true;
+      item.layer = "TEXT";
+      __setActiveTurnLabelText(item, textStr);
+      item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
+        .filter((behavior) => behavior !== "POSITION");
     });
-    } finally {
-      __mutatingActiveLabel--;
+    existing.attachedTo = anchorId;
+    existing.position = pos;
+    existing.visible = true;
+    existing.disableAttachmentBehavior = (existing.disableAttachmentBehavior || [])
+      .filter((behavior) => behavior !== "POSITION");
+    __setActiveTurnLabelText(existing, textStr);
+    __activeTurnLabel = existing;
+  } finally {
+    __mutatingActiveLabel--;
+  }
+}
+async function __pumpActiveTurnLabel() {
+  if (__activeTurnLabelPumpRunning) return;
+  __activeTurnLabelPumpRunning = true;
+  try {
+    while (__activeTurnLabelDesired) {
+      const desired = __activeTurnLabelDesired;
+      __activeTurnLabelDesired = null;
+      if (desired.revision !== __activeTurnLabelRevision) continue;
+      await upsertActiveTurnLabel(
+        desired.anchorId,
+        desired.text,
+        desired.anchor,
+        desired.revision
+      );
     }
+  } catch (err) {
+    __activeTurnLabelLatestKey = null;
+    console.warn("[active-label] update queue error:", err?.message || err);
+  } finally {
+    __activeTurnLabelPumpRunning = false;
+    if (__activeTurnLabelDesired) void __pumpActiveTurnLabel();
   }
 }
 
+function syncActiveTurnLabel(activeId) {
+  if (!IS_GM) return;
+  const anchorId = __resolveAnchorForActive(activeId);
+  const activeEntry =
+    __activeLabelEntriesById.get(activeId) ||
+    __activeLabelEntriesById.get(anchorId);
+  const labelName = activeEntry?.name
+    ? __safeBaseName(activeEntry.name)
+    : "Turno";
+  const text = ACTIVE_LABEL_TEXT_FMT(labelName);
+  const key = `${anchorId || ""}\u0000${text}`;
+  if (__activeTurnLabelLatestKey === key) return;
+
+  __activeTurnLabelLatestKey = key;
+  const revision = ++__activeTurnLabelRevision;
+  __activeTurnLabelDesired = {
+    anchorId,
+    text,
+    anchor: activeEntry?.position ? activeEntry : null,
+    revision,
+  };
+
+  if (!__activeTurnLabelPumpRunning) void __pumpActiveTurnLabel();
+}
+function __scheduleNavigationStateFlush() {
+  if (__navigationFlushTimer !== null) clearTimeout(__navigationFlushTimer);
+  const elapsed = Date.now() - __navigationDesiredAt;
+  const wait = Math.max(0, NAVIGATION_WRITE_SETTLE_MS - elapsed);
+  __navigationFlushTimer = setTimeout(() => {
+    __navigationFlushTimer = null;
+    void __flushNavigationState();
+  }, wait);
+}
+
+async function __flushNavigationState() {
+  if (__navigationPumpRunning) return;
+  const desired = __navigationDesiredState;
+  if (!desired) return;
+
+  __navigationDesiredState = null;
+  __navigationPumpRunning = true;
+  try {
+    await setSceneState(desired);
+    const desiredActiveId = __activeIdForState(desired);
+    const latestActiveId = __activeIdForState(__latestInitiativeState);
+    if (!__navigationDesiredState && desiredActiveId === latestActiveId) {
+      syncActiveTurnLabel(desiredActiveId);
+    }
+  } catch (err) {
+    console.warn("[initiative] navigation queue error:", err?.message || err);
+  } finally {
+    __navigationPumpRunning = false;
+    if (__navigationDesiredState) __scheduleNavigationStateFlush();
+  }
+}
+
+function queueNavigationState(next) {
+  __navigationDesiredState = next;
+  __navigationDesiredAt = Date.now();
+  __scheduleNavigationStateFlush();
+}
+function __activeIdForState(state) {
+  return Array.isArray(state?.order) ? state.order[state.current] : null;
+}
+
+function __conditionTurnStateSnapshot(state) {
+  const order = Array.isArray(state?.order) ? state.order.slice() : [];
+  if (!order.length) return null;
+  const current = Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)));
+  const round = Math.max(1, Math.floor(Number(state?.round) || 1));
+  return { order, current, round };
+}
+
+function __conditionActorId(id) {
+  if (!id || isLairId(id) || isEpicActionId(id)) return null;
+  return splitParagonId(id).baseId || null;
+}
+
+function __forwardConditionTurnBoundaries(previous, next, directionHint = 0) {
+  if (directionHint < 0 || !previous || !next) return [];
+  if (previous.order.length !== next.order.length) return [];
+  if (previous.order.some((id, index) => id !== next.order[index])) return [];
+
+  const length = next.order.length;
+  const previousOrdinal = ((previous.round - 1) * length) + previous.current;
+  const nextOrdinal = ((next.round - 1) * length) + next.current;
+  const distance = nextOrdinal - previousOrdinal;
+  if (distance <= 0 || distance > 1000) return [];
+
+  const boundaries = [];
+  for (let ordinal = previousOrdinal; ordinal < nextOrdinal; ordinal += 1) {
+    const endingActorId = __conditionActorId(next.order[ordinal % length]);
+    const startingActorId = __conditionActorId(next.order[(ordinal + 1) % length]);
+    if (endingActorId) boundaries.push({ phase: "end", actorId: endingActorId });
+    if (startingActorId) boundaries.push({ phase: "start", actorId: startingActorId });
+  }
+  return boundaries;
+}
+
+function __conditionDirectionHintFor(state) {
+  const hint = __conditionNavigationHint;
+  if (!hint) return 0;
+  const matches =
+    hint.round === Math.max(1, Math.floor(Number(state?.round) || 1)) &&
+    hint.current === Math.floor(Number(state?.current) || 0) &&
+    hint.activeId === __activeIdForState(state);
+  if (!matches) return 0;
+  __conditionNavigationHint = null;
+  return hint.direction;
+}
+
+function __isStaleNavigationState(state) {
+  const inNavigationGrace =
+    __lastNavigationAt > 0 &&
+    (Date.now() - __lastNavigationAt) < NAVIGATION_STALE_GRACE_MS;
+  if (!__navigationPumpRunning && !__navigationDesiredState && !inNavigationGrace) return false;
+  const expectedId = __activeIdForState(__latestInitiativeState);
+  const receivedId = __activeIdForState(state);
+  return !!expectedId && receivedId !== expectedId;
+}
 function handoffFocusToCanvas() {
   try {
     // togli il focus da qualunque cosa nel plugin
@@ -971,6 +1378,7 @@ async function readEntries() {
       conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
       id: it.id,
       name: it.name || "Unnamed",
+      position: it.position ? { x: it.position.x, y: it.position.y } : null,
       initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
       portrait: getTokenImageUrl(it),
       attitude: meta.attitude || "ally",
@@ -1127,12 +1535,10 @@ function _mkSlateParagraph(text) {
   return [{ type: "paragraph", children: [{ text: String(text || "") }] }];
 }
 
-// --- Grouping per propagazione (nome base + immagine) ---
+// --- Grouping per propagazione: identico alle tab visive ---
 function _groupKeyFromEntry(e) {
-  // usa già il parser esistente per rimuovere i prefissi "(n) "
   const { base } = _parseIndexedName(e.name || "");
-  const img = e.portrait || "";
-  return `${base}||${img}`;
+  return `${e.attitude || "ally"}${__GROUP_SEP}${base}`;
 }
 
 async function _getGroupForItemId(itemId) {
@@ -1143,7 +1549,7 @@ async function _getGroupForItemId(itemId) {
   const members = entries.filter(x => _groupKeyFromEntry(x) === key).map(x => x.id);
   return { key, members, me, entries };
 }
-// Raccoglie i group-key (base-name + portrait) attualmente presenti in scena
+// Raccoglie i group-key (attitude + base-name) attualmente presenti in scena
 async function __currentSeedGroupKeySet() {
   const entries = await readEntries(); // solo token reali
   const keys = new Set();
@@ -1184,10 +1590,11 @@ async function __backfillInitiativeForSeededGroups() {
   const all = await OBR.scene.items.getItems();
   const tracked = all.filter(it => it?.metadata?.[META_KEY]);
 
-  // raggruppa per (base-name + portrait) come _groupKeyFromEntry
+  // Raggruppa con la stessa chiave usata dalle tab del tracker.
   const byKey = new Map();
   for (const it of tracked) {
-    const entryLike = { name: it.name || "", portrait: getTokenImageUrl(it) || "" };
+    const meta = it.metadata?.[META_KEY] || {};
+    const entryLike = { name: it.name || "", attitude: meta.attitude || "ally" };
     const key = _groupKeyFromEntry(entryLike);
     if (!keys.includes(key)) continue;              // solo gruppi già seedati per iniziativa
     if (!byKey.has(key)) byKey.set(key, []);
@@ -1304,18 +1711,18 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
 
   const already = !!st?.seededGroups?.[key]?.hp;
 
-  // Se già seedato, limita la propagazione ai membri con HP non inizializzati
-  let targetIds = members;
-  if (already) {
-    const items = await OBR.scene.items.getItems(members);
-    targetIds = items
-      .filter(it => {
-        const m = it.metadata?.[META_KEY] || {};
-        return (m.hp ?? null) == null && (m.hpMax ?? null) == null;
-      })
-      .map(it => it.id);
-    if (targetIds.length === 0) return; // niente da backfillare
-  }
+  // Un HP massimo positivo indica che il membro è già stato inizializzato.
+  // Conserva sia i mostri danneggiati sia quelli a 0 HP, e riempi in un solo
+  // passaggio tutti i fratelli ancora vuoti o compilati solo a metà.
+  const items = await OBR.scene.items.getItems(members);
+  const targetIds = items
+    .filter(it => it.id !== itemId)
+    .filter(it => {
+      const memberHPMax = Number(it.metadata?.[META_KEY]?.hpMax);
+      return !Number.isFinite(memberHPMax) || memberHPMax <= 0;
+    })
+    .map(it => it.id);
+  if (targetIds.length === 0) return;
 
   const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
@@ -1335,6 +1742,7 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
     for (const id of targetIds) {
       syncHPBarNow(id, nHPclamped, nMax);
       syncHPTextNow(id, nHPclamped, nMax);
+      syncTrackerHPNow(id, nHPclamped, nMax);
     }
   } catch (err) {
     console.warn("[hpbar/hptext] group backfill error", err?.message || err);
@@ -1488,6 +1896,10 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   const n  = nextHP    === "" ? 0 : Math.floor(Number(nextHP)    || 0);
   const nm = nextHPMax === "" ? 0 : Math.floor(Number(nextHPMax) || 0);
 
+  // Avvia subito l'aggiornamento visivo, senza aspettare il round-trip dei metadata.
+  syncHPBarNow(itemId, n, nm);
+  void syncHPTextNow(itemId, n, nm);
+
   await OBR.scene.items.updateItems([itemId], (items) => {
     for (const it of items) {
       const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
@@ -1498,16 +1910,6 @@ async function updateHP(itemId, nextHP, nextHPMax) {
     }
   });
 
-  // Modifica
-  // Aggiorna subito BARRE + TESTO sopra le barre (SOLO quando confermi la pill)
-  // Modifica
-  try {
-    const { syncHPBarNow, syncHPTextNow } = await import("./hpbar-items.js");
-    syncHPBarNow(itemId, n, nm);
-    syncHPTextNow(itemId, n, nm); // ← aggiorna SOLO alla conferma della pill
-  } catch (err) {
-    console.warn("[hpbar/hptext] sync error", err);
-  }
 
   // NEW: salva nella memoria stanza (cross‑scene) se è un PG
   try {
@@ -1515,6 +1917,85 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   } catch (err) {
     console.warn("[hpMemory] save error:", err?.message || err);
   }
+}
+
+function parseRelativeHPDelta(value) {
+  const match = /^([+\-])(\d+)$/.exec(String(value || "").trim());
+  if (!match) return null;
+  const amount = Math.floor(Number(match[2]) || 0);
+  return match[1] === "-" ? -amount : amount;
+}
+
+async function updateMultipleHP(updates = []) {
+  const byId = new Map();
+  for (const update of updates) {
+    const itemId = String(update?.itemId || "").trim();
+    if (!itemId) continue;
+    byId.set(itemId, {
+      itemId,
+      hp: Math.max(0, Math.floor(Number(update?.hp) || 0)),
+      hpMax: Math.max(0, Math.floor(Number(update?.hpMax) || 0)),
+    });
+  }
+  if (!byId.size) return;
+
+  for (const update of byId.values()) {
+    syncHPBarNow(update.itemId, update.hp, update.hpMax);
+    void syncHPTextNow(update.itemId, update.hp, update.hpMax);
+  }
+
+  await OBR.scene.items.updateItems([...byId.keys()], (items) => {
+    for (const it of items) {
+      const update = byId.get(it.id);
+      if (!update) continue;
+      const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
+      it.metadata = {
+        ...(it.metadata || {}),
+        [META_KEY]: { ...prevMeta, hp: update.hp, hpMax: update.hpMax },
+      };
+    }
+  });
+
+  for (const update of byId.values()) {
+    try {
+      await saveHPToMemoryByItemId(update.itemId, update.hp, update.hpMax);
+    } catch (err) {
+      console.warn("[hpMemory] multi save error:", err?.message || err);
+    }
+  }
+}
+
+async function applyGroupHPMaxDelta(itemId, delta) {
+  const amount = Math.floor(Number(delta) || 0);
+  if (!amount) return 0;
+
+  const { members, me } = await _getGroupForItemId(itemId);
+  if (members.length <= 1) return 0;
+
+  const items = await OBR.scene.items.getItems(members);
+  const updates = items
+    .filter((item) => item.metadata?.[META_KEY]?.inInitiative === true)
+    .map((item) => {
+      const meta = item.metadata?.[META_KEY] || {};
+      const hp = Math.max(0, Math.floor(Number(meta.hp) || 0));
+      const hpMax = Math.max(0, Math.floor(Number(meta.hpMax) || 0));
+      return {
+        itemId: item.id,
+        hp: Math.max(0, hp + amount),
+        hpMax: Math.max(0, hpMax + amount),
+      };
+    });
+  if (updates.length <= 1) return 0;
+
+  const groupName = _parseIndexedName(me?.name || "Gruppo").base || "Gruppo";
+  await withItemMetaHistory({
+    kind: "hp",
+    label: `Ricalibrazione HP/Max gruppo: ${groupName} (×${updates.length})`,
+    itemIds: updates.map((update) => update.itemId),
+    fields: ["hp", "hpMax"],
+  }, () => updateMultipleHP(updates));
+
+  return updates.length;
 }
 
 // ===== Ordina per iniziativa (desc) con tiebreak:
@@ -1618,6 +2099,24 @@ function sortByInitiative(entries, state) {
     return `<span style="color:${tempColor};pointer-events:none">${nCur}</span>/${nMax}`;
   }
   return `${nCur}/${nMax}`;
+}
+
+function syncTrackerHPNow(itemId, hp, hpMax) {
+  const pill = document.querySelector(
+    `[data-badge="hp"][data-item-id="${itemId}"]`
+  );
+  if (pill && pill.dataset.hpEditing !== "1") {
+    pill.innerHTML = formatHPHTML(hp, hpMax);
+  }
+
+  const fill = document.querySelector(
+    `[data-hp-fill="1"][data-item-id="${itemId}"]`
+  );
+  if (fill) {
+    const pct = hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : 0;
+    fill.style.width = `${pct * 100}%`;
+    fill.style.background = hpColorByPct(pct);
+  }
 }
 
   // aggiorna l'iniziativa del token e riallinea l'ordine
@@ -1894,6 +2393,25 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
   dock.append(row1, row2);
 }
 
+
+async function openCardEffectsPopup(sourceEntry, entries) {
+  if (!sourceEntry || sourceEntry.__groupCollapsed || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+
+  const sourceId = splitParagonId(sourceEntry.id).baseId;
+  if (!sourceId) return;
+
+  try {
+    await OBR.modal.open({
+      id: `${ID}/effects-modal`,
+      url: `/effects-modal.html?source=${encodeURIComponent(sourceId)}`,
+      width: 720,
+      height: 600,
+      hideBackdrop: true,
+    });
+  } catch (err) {
+    console.warn("[effects] modal open error:", err?.message || err);
+  }
+}
     // ===== Render card
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
@@ -2283,6 +2801,175 @@ Object.assign(nameLabel.style, {
 });
 name.appendChild(nameLabel);
 
+let cardToolsDock = null;
+if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
+  cardToolsDock = document.createElement("div");
+  Object.assign(cardToolsDock.style, {
+    position: "absolute",
+    top: "-8px",
+    right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    zIndex: "12",
+    pointerEvents: "auto",
+  });
+  header.appendChild(cardToolsDock);
+}
+
+if (cardToolsDock && !e.__groupCollapsed) {
+  const effectsBtn = document.createElement("button");
+  effectsBtn.type = "button";
+  effectsBtn.textContent = "✨";
+  effectsBtn.title = "Gestisci condizioni ed effetti";
+  Object.assign(effectsBtn.style, {
+    flex: "0 0 auto",
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,.22)",
+    background: "rgba(0,0,0,.52)",
+    color: "#fff",
+    fontSize: "13px",
+    lineHeight: "1",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+  });
+  effectsBtn.addEventListener("pointerdown", (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+  });
+  effectsBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    openCardEffectsPopup(e, entries);
+  });
+  cardToolsDock.appendChild(effectsBtn);
+}
+
+if (cardToolsDock && e.__groupCollapsed) {
+  const groupDeltaButton = document.createElement("button");
+  groupDeltaButton.type = "button";
+  groupDeltaButton.textContent = `HP ± ×${e.__groupCount || e.__groupMembers?.length || 0}`;
+  groupDeltaButton.title = "Ricalibra HP correnti e massimi di tutto il gruppo";
+  Object.assign(groupDeltaButton.style, {
+    flex: "0 0 auto",
+    minWidth: "58px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0 6px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,.22)",
+    background: "rgba(0,0,0,.52)",
+    color: "#fff",
+    fontSize: "11px",
+    fontWeight: "800",
+    lineHeight: "1",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+  });
+  groupDeltaButton.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    armDocClickIgnore(350);
+  });
+  groupDeltaButton.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    armDocClickIgnore(350);
+    await closeOpenEditors();
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.placeholder = "+/-";
+    input.pattern = "[+\\-]?\\d*";
+    input.dataset.groupHpDeltaEditor = "1";
+    Object.assign(input.style, {
+      width: "58px",
+      height: "24px",
+      boxSizing: "border-box",
+      padding: "0 6px",
+      borderRadius: "999px",
+      border: "1px solid rgba(251,191,36,.82)",
+      outline: "none",
+      background: "rgba(245,158,11,.42)",
+      color: "#fff",
+      fontSize: "12px",
+      fontWeight: "800",
+      textAlign: "center",
+      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    });
+
+    const previousDraggable = card.getAttribute("draggable");
+    card.setAttribute("draggable", "false");
+    groupDeltaButton.replaceWith(input);
+
+    let finished = false;
+    const restore = () => {
+      if (input.isConnected) input.replaceWith(groupDeltaButton);
+      if (previousDraggable === null) card.removeAttribute("draggable");
+      else card.setAttribute("draggable", previousDraggable);
+    };
+    const cancel = () => {
+      if (finished) return;
+      finished = true;
+      restore();
+    };
+    const commit = async () => {
+      if (finished) return;
+      const delta = parseRelativeHPDelta(input.value);
+      if (delta === null || delta === 0) {
+        cancel();
+        return;
+      }
+      finished = true;
+      input.disabled = true;
+      const wasSuspended = __suspendRenders;
+      __suspendRenders = true;
+      try {
+        await applyGroupHPMaxDelta(e.id, delta);
+      } catch (err) {
+        console.warn("[hp] group delta error:", err?.message || err);
+      } finally {
+        __suspendRenders = wasSuspended;
+        restore();
+        await renderAll();
+      }
+    };
+
+    input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
+    input.addEventListener("click", (ev) => ev.stopPropagation());
+    input.addEventListener("input", () => {
+      let value = String(input.value || "").replace(/\s+/g, "");
+      value = value.replace(/(?!^)[+\-]/g, "");
+      value = value.replace(/(?!^[+\-])\D+/g, "");
+      input.value = value;
+    });
+    input.addEventListener("keydown", (keyEvent) => {
+      if (keyEvent.key === "Enter") {
+        keyEvent.preventDefault();
+        void commit();
+      } else if (keyEvent.key === "Escape") {
+        keyEvent.preventDefault();
+        cancel();
+      }
+    });
+    input.addEventListener("blur", () => void commit());
+    requestAnimationFrame(() => {
+      input.focus({ preventScroll: true });
+      input.select();
+    });
+  });
+  cardToolsDock.appendChild(groupDeltaButton);
+}
+
   // ---- TAGs spostabili (posizione salvata in scena)
   const tagsDock = document.createElement("div");
   Object.assign(tagsDock.style, {
@@ -2491,7 +3178,7 @@ const fragAll = document.createDocumentFragment();
 
 // 1) Condizioni
 const condData = __safeConditions(e.conditions);
-const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0);
+const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0) || condData.instances.length > 0;
 if (hasAny) {
   const fragCond = __buildConditionChipsSafe(condData, { cap: CONDITIONS, compact: true });
   if (fragCond) fragAll.appendChild(fragCond);
@@ -3022,7 +3709,7 @@ const _playerCanSeeHP = PLAYER_VISIBLE_ATTITUDES.includes(_att);
 
 if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   const pill = document.createElement("div");
-  pill.title = "Click per modificare HP (puoi usare +N o -N)";
+  pill.title = "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi";
   pill.style.position = "absolute";
   pill.style.top = "75%";
   pill.style.left = "19%";
@@ -3060,6 +3747,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   const initPct = hpMaxV > 0 ? Math.max(0, Math.min(1, hpVal / hpMaxV)) : 0;
   const hpFill = document.createElement("div");
+  hpFill.dataset.hpFill = "1";
+  hpFill.dataset.itemId = e.id;
   hpFill.style.width = (initPct * 100) + "%";
   hpFill.style.height = "100%";
   hpFill.style.background = initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
@@ -3068,6 +3757,74 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   card.appendChild(pill);
   card.appendChild(hpBarWrap);
+
+  let hpDeltaButton = null;
+  const setHPDeltaButtonActive = (active) => {
+    if (!hpDeltaButton) return;
+    hpDeltaButton.setAttribute("aria-pressed", String(!!active));
+    hpDeltaButton.style.background = active
+      ? "rgba(245,158,11,.42)"
+      : "rgba(0,0,0,.52)";
+    hpDeltaButton.style.borderColor = active
+      ? "rgba(251,191,36,.82)"
+      : "rgba(255,255,255,.22)";
+  };
+
+  if (IS_GM) {
+    hpDeltaButton = document.createElement("button");
+    hpDeltaButton.type = "button";
+    hpDeltaButton.textContent = "HP ±";
+    hpDeltaButton.title = "Ricalibra HP correnti e massimi dello stesso +N/-N";
+    hpDeltaButton.setAttribute("aria-pressed", "false");
+    Object.assign(hpDeltaButton.style, {
+      flex: "0 0 auto",
+      minWidth: "42px",
+      height: "24px",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0 6px",
+      borderRadius: "999px",
+      border: "1px solid rgba(255,255,255,.22)",
+      background: "rgba(0,0,0,.52)",
+      color: "#fff",
+      fontSize: "11px",
+      fontWeight: "800",
+      lineHeight: "1",
+      cursor: "pointer",
+      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    });
+    hpDeltaButton.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      armDocClickIgnore(350);
+    });
+    hpDeltaButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      armDocClickIgnore(350);
+
+      if (
+        pill.dataset.hpEditing === "1" &&
+        __editingHPForId === e.id &&
+        typeof pill.__setLinkedHPMaxDelta === "function"
+      ) {
+        pill.__setLinkedHPMaxDelta(!pill.__linkedHPMaxDelta);
+        pill.__iHP?.focus({ preventScroll: true });
+        pill.__iHP?.select();
+        return;
+      }
+
+      pill.dataset.hpOpenLinkedDelta = "1";
+      const rect = pill.getBoundingClientRect();
+      pill.dispatchEvent(new PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: rect.left + 1,
+        clientY: rect.top + (rect.height / 2),
+      }));
+    });
+    cardToolsDock?.appendChild(hpDeltaButton);
+  }
 
 // === apertura editor HP su pointerdown (con handoff robusto) ===
 
@@ -3229,6 +3986,23 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   iHP.value  = String(Number.isFinite(hpVal)  ? hpVal  : 0);
   iMax.value = String(Number.isFinite(hpMaxV) ? hpMaxV : 0);
 
+  let linkedHPMaxDelta = false;
+  const syncLinkedHPMaxDelta = () => {
+    if (!linkedHPMaxDelta) return;
+    const relative = parseRelativeHPDelta(iHP.value);
+    iMax.value = relative === null ? String(hpMaxV) : iHP.value.trim();
+  };
+  const setLinkedHPMaxDelta = (enabled) => {
+    linkedHPMaxDelta = !!enabled;
+    pill.__linkedHPMaxDelta = linkedHPMaxDelta;
+    setHPDeltaButtonActive(linkedHPMaxDelta);
+    iMax.readOnly = linkedHPMaxDelta;
+    iMax.style.opacity = linkedHPMaxDelta ? ".72" : "1";
+    if (linkedHPMaxDelta) syncLinkedHPMaxDelta();
+    else iMax.value = String(hpMaxV);
+  };
+  iHP.addEventListener("input", syncLinkedHPMaxDelta);
+
   const slash = document.createElement("span");
 
     // --- NEW: select-all anche quando clicco direttamente dentro gli input ---
@@ -3260,6 +4034,11 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
 
   pill.__iHP  = iHP;
   pill.__iMax = iMax;
+  pill.__setLinkedHPMaxDelta = setLinkedHPMaxDelta;
+  if (pill.dataset.hpOpenLinkedDelta === "1") {
+    delete pill.dataset.hpOpenLinkedDelta;
+    setLinkedHPMaxDelta(true);
+  }
 
   // Commit se esci dalla pill (ma non quando vai tra iHP/iMax)
   wrap.addEventListener("focusout", () => {
@@ -3287,8 +4066,11 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     delete pill.dataset.hpEditing;
         delete pill.__iHP;
     delete pill.__iMax;
+    delete pill.__setLinkedHPMaxDelta;
+    delete pill.__linkedHPMaxDelta;
     delete pill.__commitFn;
     delete pill.__cancelFn;
+    setHPDeltaButtonActive(false);
     if (cardEl) {
       if (prevDraggable === null) cardEl.removeAttribute("draggable");
       else cardEl.setAttribute("draggable", prevDraggable);
@@ -3305,6 +4087,41 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     let nextHP    = parseInlineMath(vHP,  hpVal);
     let nextHPMax = parseInlineMath(vMax, hpMaxV);
 
+    const hpDelta = parseRelativeHPDelta(vHP);
+    const hpMaxDelta = parseRelativeHPDelta(vMax);
+    let multiUpdates = [];
+    if (!linkedHPMaxDelta && (hpDelta !== null || hpMaxDelta !== null)) {
+      try {
+        const selected = await OBR.player.getSelection();
+        const selectedIds = Array.from(new Set(Array.isArray(selected) ? selected : []));
+        if (selectedIds.length > 1 && selectedIds.includes(e.id)) {
+          const selectedItems = await OBR.scene.items.getItems(selectedIds);
+          const trackedItems = selectedItems.filter((item) =>
+            item.metadata?.[META_KEY]?.inInitiative === true
+          );
+          if (trackedItems.length > 1 && trackedItems.some((item) => item.id === e.id)) {
+            multiUpdates = trackedItems.map((item) => {
+              const meta = item.metadata?.[META_KEY] || {};
+              const baseHP = Math.max(0, Math.floor(Number(meta.hp) || 0));
+              const baseHPMax = Math.max(0, Math.floor(Number(meta.hpMax) || 0));
+              return {
+                itemId: item.id,
+                hp: hpDelta === null ? baseHP : Math.max(0, baseHP + hpDelta),
+                hpMax: hpMaxDelta === null ? baseHPMax : Math.max(0, baseHPMax + hpMaxDelta),
+              };
+            });
+            const sourceUpdate = multiUpdates.find((update) => update.itemId === e.id);
+            if (sourceUpdate) {
+              nextHP = sourceUpdate.hp;
+              nextHPMax = sourceUpdate.hpMax;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[hp] multi selection error:", err?.message || err);
+      }
+    }
+
     // ⬇️ NIENTE CLAMP: consentiamo HP > HP Max per modellare i Temp HP
     // (la barra resta clampata a 100% tramite pct)
 
@@ -3314,8 +4131,32 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     hpFill.style.background = hpColorByPct(pct);
 
 
-    await updateHP(e.id, nextHP, nextHPMax);
-    try { await trySeedGroupHP(e.id, nextHP, nextHPMax); } catch {}
+    const isMultiTarget = multiUpdates.length > 1;
+    const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
+    let historyIds = isMultiTarget ? multiUpdates.map((update) => update.itemId) : [e.id];
+    if (!isMultiTarget) {
+      try {
+        const group = await _getGroupForItemId(e.id);
+        historyIds = Array.from(new Set([e.id, ...(group?.members || [])]));
+      } catch {}
+    }
+
+    await withItemMetaHistory({
+      kind: "hp",
+      label: isMultiTarget
+        ? (recalibratesMax ? "Ricalibrazione HP/Max multitarget" : "Modifica HP multitarget")
+        : (recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP"),
+      itemIds: historyIds,
+      fields: ["hp", "hpMax"],
+    }, async () => {
+      if (isMultiTarget) {
+        await updateMultipleHP(multiUpdates);
+      } else {
+        await updateHP(e.id, nextHP, nextHPMax);
+        try { await trySeedGroupHP(e.id, nextHP, nextHPMax); }
+        catch (err) { console.warn("[hp] group seed error:", err?.message || err); }
+      }
+    });
 
     cleanup();
   };
@@ -3394,7 +4235,12 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
 
   // keymap
   const onKeyHP = async (ke) => {
-    if (ke.key === "Enter")  { ke.preventDefault(); await commit(); return; }
+    if (ke.key === "Enter")  {
+      ke.preventDefault();
+      if (ke.altKey) setLinkedHPMaxDelta(true);
+      await commit();
+      return;
+    }
     if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
     if (ke.key === "Tab") {
       ke.preventDefault();
@@ -3421,8 +4267,11 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
 
     track.replaceChildren(...nodes.filter(Boolean));
 
-  const active = track.querySelector('[data-active="1"]');
-  active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+  if (__scrollActiveOnNextRender) {
+    __scrollActiveOnNextRender = false;
+    const active = track.querySelector('[data-active="1"]');
+    active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+  }
 
   __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
 }
@@ -3682,6 +4531,9 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
 async function renderAll() {
   if (__suspendRenders) return;
   const stateRaw = await getSceneState();
+  // Gli snapshot intermedi di una raffica di click non devono ridisegnare
+  // lista, fumetto o selezione sopra lo stato ottimistico più recente.
+  if (__isStaleNavigationState(stateRaw)) return;
   const baseEntries  = await getEntriesWithLair(stateRaw);
   const entries = expandParagonEntries(baseEntries, stateRaw);
 
@@ -3700,9 +4552,14 @@ async function renderAll() {
 // byId deve conoscere anche le voci virtuali
 const entriesWithVirtuals = entries.concat(epicVirtuals);
 const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
+__activeLabelEntriesById = byId;
 
 
   const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
+  if (!__navigationPumpRunning && !__navigationDesiredState) {
+    __latestInitiativeState = stateClean;
+  }
+  zoomChk.checked = isAutoFocusEnabled(stateClean);
 
     try {
   const lbl = document.getElementById("tbp-round-label");
@@ -3750,11 +4607,7 @@ const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
     const activeIdNow = stateClean.order[stateClean.current];
     // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
 try {
-  const anchorId = __resolveAnchorForActive(activeIdNow);
-  let labelName = "Turno";
-  const activeEntry = (byId && byId.get && (byId.get(activeIdNow) || byId.get(anchorId)));
-  if (activeEntry && activeEntry.name) labelName = __safeBaseName(activeEntry.name);
-  await upsertActiveTurnLabel(anchorId, ACTIVE_LABEL_TEXT_FMT(labelName));
+  syncActiveTurnLabel(activeIdNow);
 } catch (err) {
   console.warn("[active-label] upsert error:", err?.message || err);
 }
@@ -3776,10 +4629,16 @@ try {
       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
 try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
+  const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
+  const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
   if (IS_GM) {
     if (!hasBtn) roundPill.appendChild(makeRoundResetBtn());
+    if (!hasClearBtn) roundPill.appendChild(makeClearInitiativeBtn());
+    if (!hasHistoryBtn) roundPill.appendChild(makeHistoryBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
+    if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
+    if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();
   }
 } catch {}
 
@@ -3806,10 +4665,12 @@ try {
   console.error("[hpbar] mount error", e?.error?.message || e?.message || e);
 }
   await mountHPBars();
+  if (IS_GM) await mountMovementHistoryWatcher();
   await ensureState();
   await reconcileStateWithItems();
   await enforceUniqueNamePrefixes();
   await renderAll();
+  __lastConditionTurnState = __conditionTurnStateSnapshot(__latestInitiativeState);
 
   if (IS_GM) {
     try {
@@ -3830,37 +4691,72 @@ try {
   let __lastActiveId = null;
 
 OBR.scene.onMetadataChange(async (meta) => {
-  await renderAll(); // ridisegna UI
-
   const st = meta?.[STATE_KEY];
+  if (__isStaleNavigationState(st)) return;
+
+  let conditionTransition = null;
+  if (st && Array.isArray(st.order) && st.order.length > 0) {
+    const previousTurnState = __lastConditionTurnState;
+    const nextTurnState = __conditionTurnStateSnapshot(st);
+    const directionHint = __conditionDirectionHintFor(st);
+    const boundaries = __forwardConditionTurnBoundaries(previousTurnState, nextTurnState, directionHint);
+    __lastConditionTurnState = nextTurnState;
+    conditionTransition = { previousTurnState, nextTurnState, boundaries };
+  } else {
+    __lastConditionTurnState = null;
+    __conditionNavigationHint = null;
+  }
+
+  await renderAll(); // ridisegna UI
   if (!st || !Array.isArray(st.order) || st.order.length === 0) return;
 
   const activeId = st.order[st.current];
-  if (!activeId || activeId === __lastActiveId) return;
 
-// --- Tick incantesimi per ROUND (con direzione) ---
+// --- Tick incantesimi/condizioni per ROUND (con direzione) ---
 try {
   const roundNow = Math.max(1, Number(st.round || 1));
   if (__lastRoundSeen == null) {
     __lastRoundSeen = roundNow; // prima inizializzazione: niente tick
   } else if (roundNow !== __lastRoundSeen) {
-    // direzione: avanti → -1, indietro → +1
-    const delta = roundNow > __lastRoundSeen ? -1 : +1;
+    const delta = __lastRoundSeen - roundNow;
 
-    // prendo i token in iniziativa (id base se paragon)
     const tokenIds = (Array.isArray(st.order) ? st.order : [])
       .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
-      .filter(Boolean);
+      .filter(id => id && !isLairId(id) && !isEpicActionId(id));
     const unique = Array.from(new Set(tokenIds));
 
     await adjustSpellsForItems(unique, delta);
+    await adjustConditionDurationsForItems(unique, delta);
     __lastRoundSeen = roundNow;
   }
 } catch (err) {
-  console.warn("[spells] tick round (dir) error:", err);
+  console.warn("[effects] tick round error:", err);
 }
 
+try {
+  const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
+  if (IS_GM && boundaries.length) {
+    const run = async () => {
+      const tokenIds = Array.from(new Set(
+        [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
+          .map(__conditionActorId)
+          .filter(Boolean)
+      ));
+      await withItemMetaHistory({
+        kind: "condition",
+        label: "Scadenza condizioni di turno",
+        itemIds: tokenIds,
+        fields: ["conditions"],
+      }, () => advanceConditionTurnBoundariesForItems(tokenIds, boundaries));
+    };
+    __conditionTurnQueue = __conditionTurnQueue.then(run, run);
+    await __conditionTurnQueue;
+  }
+} catch (err) {
+  console.warn("[conditions] tick turn boundary error:", err?.message || err);
+}
 
+  if (!activeId || activeId === __lastActiveId) return;
   __lastActiveId = activeId;
 
   // Reset delle azioni leggendarie a inizio turno della creatura attiva
@@ -3869,7 +4765,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   try { await resetLegendaryIfAny(activeId); }
   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
 
-  await selectAndFocus(activeId);
+  queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
   try {
     const roundNow = Math.max(1, Number(st.round || 1));
@@ -3898,7 +4794,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
 });
 
   OBR.scene.items.onChange(async (changes = []) => {
-    if (__mutatingActiveLabel > 0) return;
+    if (__mutatingActiveLabel > 0 || isOnlyActiveTurnLabelChange(changes)) return;
     await reconcileStateWithItems();
     await enforceUniqueNamePrefixes();
     await renderAll();
@@ -3907,7 +4803,8 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
 // (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)
 try {
-  OBR.scene.items.onChange(() => {
+  OBR.scene.items.onChange((changes = []) => {
+    if (isOnlyActiveTurnLabelChange(changes)) return;
     scheduleHPMemoryAutofill(150); // 150ms debounce
   });
 } catch (e) {
@@ -3915,7 +4812,7 @@ try {
 }
 
     btnPrev.addEventListener("click", async () => {
-    const st = await getSceneState();
+    const st = __latestInitiativeState || await getSceneState();
     if (!st || !st.order || st.order.length === 0) return;
     const len = st.order.length;
 
@@ -3924,23 +4821,33 @@ try {
     const nextRound = Math.max(1, (st.round || 1) - (wrapped ? 1 : 0));
 
     const next = { ...st, current: prevIdx, round: nextRound };
-    await setSceneState(next);
+    __latestInitiativeState = next;
+    const activeId = next.order[next.current];
+    __conditionNavigationHint = { activeId, current: prevIdx, round: nextRound, direction: -1 };
+    const revision = ++__navigationRevision;
+    __lastNavigationAt = Date.now();
+    __scrollActiveOnNextRender = true;
+
+    queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}
 
     try {
     const entriesNow = await readEntries();
+    if (revision !== __navigationRevision) return;
     await __applyAutoCollapse(entriesNow, next);
     } catch {}
 
-    const activeId = next.order[next.current];
-    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
+    if (revision !== __navigationRevision) return;
+    if (activeId && !isLairId(activeId)) {
+      queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
+    }
 
     handoffFocusToCanvas?.();
     armArrowProxy?.();
   });
 
   btnNext.addEventListener("click", async () => {
-    const st = await getSceneState();
+    const st = __latestInitiativeState || await getSceneState();
     if (!st || !st.order || st.order.length === 0) return;
     const len = st.order.length;
 
@@ -3949,19 +4856,29 @@ try {
     const nextRound = Math.max(1, (st.round || 1) + (wrapped ? 1 : 0));
 
     const next = { ...st, current: nextIdx, round: nextRound };
-    await setSceneState(next);
+    __latestInitiativeState = next;
+    const activeId = next.order[next.current];
+    __conditionNavigationHint = { activeId, current: nextIdx, round: nextRound, direction: 1 };
+    const revision = ++__navigationRevision;
+    __lastNavigationAt = Date.now();
+    __scrollActiveOnNextRender = true;
+
+    queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}
 
     try {
     const entriesNow = await readEntries();
+    if (revision !== __navigationRevision) return;
     await __applyAutoCollapse(entriesNow, next);
     } catch {}
 
-    const activeId = next.order[next.current];
-    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
+    if (revision !== __navigationRevision) return;
+    if (activeId && !isLairId(activeId)) {
+      queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
+    }
 
     handoffFocusToCanvas?.();
     armArrowProxy?.();
   });
 
-} 
+}
