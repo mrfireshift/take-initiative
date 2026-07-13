@@ -19,6 +19,7 @@ export default defineConfig({
         ctxSpells: path.resolve(process.cwd(), "ctx-spells.html"),
         ctxRemoveCondition: path.resolve(process.cwd(), "ctx-remove-condition.html"),
         effectsModal: path.resolve(process.cwd(), "effects-modal.html"),
+        spellsModal: path.resolve(process.cwd(), "spells-modal.html"),
         historyModal: path.resolve(process.cwd(), "history-modal.html"),
       },
     },

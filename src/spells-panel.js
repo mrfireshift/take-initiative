@@ -10,6 +10,7 @@ import {
 import { ID } from "./constants.js";
 
 const META_KEY = `${ID}/meta`;
+const MODAL_ID = `${ID}/spells-modal`;
 
 const $ = (id) => document.getElementById(id);
 
@@ -25,6 +26,20 @@ async function init() {
   const concWrap = $("concWrap");
   const concList = $("concList");
   const btnCancel = $("cancel");
+  const modalTitle = $("modalTitle");
+  const modalClose = $("modalClose");
+  const sourceId = new URLSearchParams(window.location.search).get("source") || "";
+  const isModal = !!sourceId;
+
+  if (isModal) {
+    let sourceName = "Token";
+    try {
+      const [source] = await OBR.scene.items.getItems([sourceId]);
+      sourceName = source?.name || sourceName;
+    } catch {}
+    if (modalTitle) modalTitle.textContent = `Incantesimi: ${sourceName}`;
+    modalClose?.addEventListener("click", () => OBR.modal.close(MODAL_ID));
+  }
 
   try { iName.setAttribute("autocomplete", "off"); iName.focus(); } catch {}
 
@@ -42,8 +57,10 @@ async function init() {
     }
   } catch {}
 
-  // Target dal context o selezione
-  const targetIds = await getContextOrSelectionIds();
+  // Da card: selezione mappa come bersagli, fallback sul token sorgente.
+  const targetIds = isModal
+    ? await getCardTargetIds(sourceId)
+    : await getContextOrSelectionIds();
 
   // Popola caster: QUALSIASI token in iniziativa
   const allCasters = await getAllInitiativeCharacters();
@@ -53,8 +70,9 @@ async function init() {
     opt.textContent = it.name || it.id;
     iCaster.appendChild(opt);
   }
-  if (targetIds.length === 1 && allCasters.some(c => c.id === targetIds[0])) {
-    iCaster.value = targetIds[0];
+  const defaultCasterId = isModal ? sourceId : (targetIds.length === 1 ? targetIds[0] : "");
+  if (defaultCasterId && allCasters.some(c => c.id === defaultCasterId)) {
+    iCaster.value = defaultCasterId;
   }
 
   // Abilita/disabilita select caster in base al toggle
@@ -67,7 +85,7 @@ async function init() {
   refreshCasterEnabled();
 
   // Riepilogo concentrazione: visibile SOLO se apri sul caster e ha concentrazioni
-  const contextCasterId = await deduceContextSingleId();
+  const contextCasterId = isModal ? sourceId : await deduceContextSingleId();
   await refreshCasterSummary(contextCasterId, concWrap, concList);
 
   // Submit: aggiungi/aggiorna spell
@@ -110,15 +128,20 @@ if (wantsC && casterId) {
   await registerConcentration(casterId, name, targetIds);
 }
 
-    try { await OBR.contextMenu.close?.(); } catch {}
+    await refreshCasterSummary(contextCasterId, concWrap, concList);
+    if (!isModal) {
+      try { await OBR.contextMenu.close?.(); } catch {}
+    }
   });
 
 // === Annulla: rimuove TUTTI gli incantesimi dai token selezionati
 btnCancel?.addEventListener("click", async () => {
-  const ids = await getContextOrSelectionIds();
+  const ids = isModal ? targetIds : await getContextOrSelectionIds();
   if (!ids.length) return;
   await clearSpellsOnItems(ids);
-  try { await OBR.contextMenu.close?.(); } catch {}
+  if (!isModal) {
+    try { await OBR.contextMenu.close?.(); } catch {}
+  }
 });
 }
 
@@ -135,6 +158,21 @@ async function getContextOrSelectionIds() {
     if (sel?.length) return sel.filter(Boolean);
   } catch {}
   return [];
+}
+
+async function getCardTargetIds(sourceId) {
+  try {
+    const selected = await OBR.player.getSelection();
+    const ids = Array.from(new Set(Array.isArray(selected) ? selected.filter(Boolean) : []));
+    if (ids.length) {
+      const items = await OBR.scene.items.getItems(ids);
+      const valid = items
+        .filter((item) => item.layer === "CHARACTER" && item.metadata?.[META_KEY]?.inInitiative === true)
+        .map((item) => item.id);
+      if (valid.length) return valid;
+    }
+  } catch {}
+  return sourceId ? [sourceId] : [];
 }
 
 async function deduceContextSingleId() {

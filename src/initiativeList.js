@@ -2412,6 +2412,25 @@ async function openCardEffectsPopup(sourceEntry, entries) {
     console.warn("[effects] modal open error:", err?.message || err);
   }
 }
+
+async function openCardSpellsPopup(sourceEntry) {
+  if (!sourceEntry || sourceEntry.__groupCollapsed || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+
+  const sourceId = splitParagonId(sourceEntry.id).baseId;
+  if (!sourceId) return;
+
+  try {
+    await OBR.modal.open({
+      id: `${ID}/spells-modal`,
+      url: `/spells-modal.html?source=${encodeURIComponent(sourceId)}`,
+      width: 720,
+      height: 600,
+      hideBackdrop: true,
+    });
+  } catch (err) {
+    console.warn("[spells] modal open error:", err?.message || err);
+  }
+}
     // ===== Render card
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
@@ -2487,7 +2506,7 @@ for (const e of entries) {
 
     // base card (tuo background neutro)
     card.style.position = "relative";
-    card.style.marginLeft = "16px"; // o il valore che vuoi
+    card.style.marginLeft = "22px"; // spazio per i controlli radiali sul bordo del ritratto
     card.style.background = "linear-gradient(180deg, rgba(12,16,22,.65), rgba(12,16,22,.35))";
     card.style.border = "none";
     card.style.borderRadius = `${R_INNER}px`; // raggio del contenuto
@@ -2802,18 +2821,52 @@ Object.assign(nameLabel.style, {
 name.appendChild(nameLabel);
 
 let cardToolsDock = null;
+let placeCardToolInRadialSlot = null;
 if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
   cardToolsDock = document.createElement("div");
-  Object.assign(cardToolsDock.style, {
-    position: "absolute",
-    top: "-8px",
-    right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-    zIndex: "12",
-    pointerEvents: "auto",
-  });
+  if (e.__groupCollapsed) {
+    Object.assign(cardToolsDock.style, {
+      position: "absolute",
+      top: "-8px",
+      right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      zIndex: "12",
+      pointerEvents: "auto",
+    });
+  } else {
+    Object.assign(cardToolsDock.style, {
+      position: "absolute",
+      left: `-${OVER}px`,
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: `${AVA}px`,
+      height: `${AVA}px`,
+      zIndex: "12",
+      pointerEvents: "none",
+    });
+
+    const radialAngles = [228, 180, 132];
+    const radialButtonSize = 20;
+    const radialRadius = (AVA / 2) - 2;
+    placeCardToolInRadialSlot = (button, slot) => {
+      const angle = (radialAngles[slot] ?? 0) * (Math.PI / 180);
+      const center = AVA / 2;
+      const left = center + (Math.cos(angle) * radialRadius) - (radialButtonSize / 2);
+      const top = center + (Math.sin(angle) * radialRadius) - (radialButtonSize / 2);
+      Object.assign(button.style, {
+        position: "absolute",
+        left: `${Math.round(left)}px`,
+        top: `${Math.round(top)}px`,
+        width: `${radialButtonSize}px`,
+        minWidth: `${radialButtonSize}px`,
+        height: `${radialButtonSize}px`,
+        padding: "0",
+        pointerEvents: "auto",
+      });
+    };
+  }
   header.appendChild(cardToolsDock);
 }
 
@@ -2822,6 +2875,7 @@ if (cardToolsDock && !e.__groupCollapsed) {
   effectsBtn.type = "button";
   effectsBtn.textContent = "✨";
   effectsBtn.title = "Gestisci condizioni ed effetti";
+  effectsBtn.setAttribute("aria-label", effectsBtn.title);
   Object.assign(effectsBtn.style, {
     flex: "0 0 auto",
     width: "24px",
@@ -2848,7 +2902,50 @@ if (cardToolsDock && !e.__groupCollapsed) {
     ev.preventDefault();
     openCardEffectsPopup(e, entries);
   });
+  placeCardToolInRadialSlot?.(effectsBtn, 0);
   cardToolsDock.appendChild(effectsBtn);
+
+  const spellsBtn = document.createElement("button");
+  spellsBtn.type = "button";
+  spellsBtn.title = "Gestisci incantesimi";
+  spellsBtn.setAttribute("aria-label", spellsBtn.title);
+  Object.assign(spellsBtn.style, {
+    flex: "0 0 auto",
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0",
+    borderRadius: "999px",
+    border: "1px solid rgba(255,255,255,.22)",
+    background: "rgba(0,0,0,.52)",
+    color: "#fff",
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+  });
+  const spellsIcon = document.createElement("img");
+  spellsIcon.src = `${import.meta.env.BASE_URL || "/"}spells.svg`;
+  spellsIcon.alt = "";
+  Object.assign(spellsIcon.style, {
+    width: "17px",
+    height: "17px",
+    display: "block",
+    filter: "brightness(0) invert(1)",
+    pointerEvents: "none",
+  });
+  spellsBtn.appendChild(spellsIcon);
+  spellsBtn.addEventListener("pointerdown", (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+  });
+  spellsBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    openCardSpellsPopup(e);
+  });
+  placeCardToolInRadialSlot?.(spellsBtn, 1);
+  cardToolsDock.appendChild(spellsBtn);
 }
 
 if (cardToolsDock && e.__groupCollapsed) {
@@ -3773,8 +3870,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   if (IS_GM) {
     hpDeltaButton = document.createElement("button");
     hpDeltaButton.type = "button";
-    hpDeltaButton.textContent = "HP ±";
+    hpDeltaButton.textContent = "±";
     hpDeltaButton.title = "Ricalibra HP correnti e massimi dello stesso +N/-N";
+    hpDeltaButton.setAttribute("aria-label", hpDeltaButton.title);
     hpDeltaButton.setAttribute("aria-pressed", "false");
     Object.assign(hpDeltaButton.style, {
       flex: "0 0 auto",
@@ -3823,6 +3921,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
         clientY: rect.top + (rect.height / 2),
       }));
     });
+    placeCardToolInRadialSlot?.(hpDeltaButton, 2);
+    hpDeltaButton.style.fontSize = "15px";
     cardToolsDock?.appendChild(hpDeltaButton);
   }
 

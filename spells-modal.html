@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Incantesimi attivi</title>
+  <style>
+    :root { --obrt-text:#fff; --obrt-hover:rgba(255,255,255,.06); }
+    html, body { margin:0; min-height:100%; background:transparent; color:var(--obrt-text); }
+    body { font-family:system-ui,Roboto,Arial,sans-serif; font-size:12px; line-height:1.2; }
+    * { box-sizing:border-box; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.55) transparent; }
+    .panel { min-height:100vh; padding:12px; position:relative; }
+    .title { margin:0 40px 12px; text-align:center; font-size:15px; font-weight:700; }
+    .close {
+      position:fixed; top:9px; right:12px; width:30px; height:30px; padding:0;
+      border:0; border-radius:32px; background:transparent; color:inherit;
+      font:inherit; font-size:15px; cursor:pointer;
+    }
+    .close:hover { background:rgba(255,255,255,.08); }
+    .wrap { display:grid; grid-template-columns:140px minmax(0,1fr); gap:8px; align-items:center; }
+    label { font-weight:400; opacity:.9; }
+    input[type="text"], input[type="number"], select {
+      width:100%; min-width:0; min-height:32px; padding:6px 8px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.35);
+      color:inherit; font:inherit; line-height:1.2;
+    }
+    input[type="number"] { -moz-appearance:textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+    select:disabled { cursor:not-allowed; opacity:.6; }
+    button {
+      min-height:32px; padding:8px 12px; border-radius:32px;
+      border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.07);
+      color:inherit; cursor:pointer; font:inherit; font-weight:400;
+    }
+    button:hover { background:rgba(255,255,255,.12); }
+    .primary { background:#2563eb; border-color:rgba(255,255,255,.20); }
+    .blockbtn { grid-column:1 / -1; width:100%; }
+    .row { grid-column:1 / -1; display:flex; gap:6px; align-items:center; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip {
+      display:inline-flex; align-items:center; gap:6px; padding:5px 6px;
+      border-radius:10px; background:var(--obrt-hover);
+      border:1px solid rgba(255,255,255,.10); white-space:nowrap; user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <div class="title" id="modalTitle">Incantesimi</div>
+    <button class="close" type="button" id="modalClose" title="Chiudi">X</button>
+    <form id="f" class="wrap" autocomplete="off">
+      <label for="name">Incantesimo</label>
+      <input id="name" name="spellName" type="text" placeholder="Velocità"
+             list="spell-list" autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false" />
+
+      <label for="dur">Durata (in round)</label>
+      <input id="dur" name="dur" type="number" min="1" step="1" value="10" />
+
+      <label for="caster">Caster</label>
+      <select id="caster" name="caster" disabled><option value="">—</option></select>
+
+      <label for="conc">Concentrazione</label>
+      <input id="conc" type="checkbox" style="justify-self:start;width:auto;height:auto" />
+
+      <button class="blockbtn" type="button" id="cancel">Termina incantesimi</button>
+      <button class="blockbtn primary" type="submit" id="submit">Aggiungi / Aggiorna</button>
+
+      <div class="row" id="concWrap" style="display:none">
+        <div style="font-weight:400;opacity:.85">Concentrato su:</div>
+        <div class="chips" id="concList"></div>
+      </div>
+
+      <datalist id="spell-list"></datalist>
+    </form>
+  </main>
+  <script type="module" src="/src/spells-panel.js"></script>
+</body>
+</html>
