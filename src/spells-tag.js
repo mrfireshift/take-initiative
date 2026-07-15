@@ -1,13 +1,12 @@
   // src/spells-tag.js
   import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
-  import { ID } from "./contextMenu";
-  import { isOnlyActiveTurnLabelChange } from "./constants.js";
+  import { ID } from "./constants.js";
+  import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+  import { getSpellDefinition } from "./spells-srd.js";
 
   /* ===================== DEBUG ===================== */
-  const DEBUG_CONC = true;
-  // log anche su console.log per evitare filtri sui debug
+  const DEBUG_CONC = false;
   const dlog = (...a) => { if (DEBUG_CONC) console.debug("[conc]", ...a); };
-  console.log("[conc] module loaded");
 
   /* ===================== METADATA KEYS ===================== */
   const META_KEY           = `${ID}/meta`;
@@ -482,7 +481,7 @@ async function upsertDotForItem(it) {
     const keyRaw  = a.key;
     const keyNorm = spellKey(keyRaw);
     const col     = spellColorFromKey(a.colorKey);
-    const spellTitle = titleCaseLite(keyRaw);
+    const spellTitle = getSpellDefinition(keyRaw)?.displayName || titleCaseLite(keyRaw);
     const targets = a.targets && a.targets.length ? a.targets : [it.id];
 
     // esistenti di questo caster+key
@@ -762,11 +761,10 @@ async function upsertDotForItem(it) {
     __mounted = true;
     dlog("watcher:mounted");
     refreshConcentrationDots().catch(e => dlog("watcher:init-error", e));
-    OBR.scene.items.onChange((changes = []) => {
-      if (isOnlyActiveTurnLabelChange(changes)) return;
+    subscribeSceneItemChanges(() => {
       dlog("onChange");
       __scheduleRefresh();
-    });
+    }, { filter: (event) => event.flags.concentration });
   }
 
   // montaggio automatico se non lo fai tu altrove

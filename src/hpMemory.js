@@ -1,7 +1,7 @@
 // hpMemory.js
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./contextMenu";
-import { isOnlyActiveTurnLabelChange } from "./constants.js";
+import { ID } from "./constants.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __attScanTimer = null;          // debounce per la scansione attitude
@@ -97,10 +97,9 @@ export async function initHPMemory() {
   if (!__attSubMounted) {
     __attSubMounted = true;
     try {
-      OBR.scene.items.onChange((changes = []) => {
-        if (isOnlyActiveTurnLabelChange(changes)) return;
+      subscribeSceneItemChanges(() => {
         scheduleAttitudeRescan(120); // debounce breve: 120ms
-      });
+      }, { filter: (event) => event.flags.hpMemory });
     } catch (err) {
       console.warn("[hpMemory] attitude watcher subscribe failed:", err?.message || err);
     }

@@ -1,18 +1,26 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
-import { ID } from "./contextMenu";
-import { ACTIVE_TURN_LABEL_META, isOnlyActiveTurnLabelChange } from "./constants.js";
+import { ID, ACTIVE_TURN_LABEL_META } from "./constants.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { mountConcentrationWatcher } from "./spells-tag.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
-import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
-import { withItemMetaHistory, mountMovementHistoryWatcher } from "./history.js";
+import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  FACTION_CONFIGURATOR_ID,
+  readFactionRegistry,
+  rememberFactionForIds,
+  registeredAttitudeForItem,
+} from "./factionRegistry.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
   "Accecato", "Affascinato", "Afferrato", "Assordato", "Avvelenato",
   "Incapacitato", "Invisibile", "Paralizzato", "Pietrificato", "Privo di sensi",
-  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione", "Ira"
+  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione", "Ira", "Giuramento di Inimicizia"
 ];
 // — Dock condizioni (chip) sulla card
 const COND_DOCK_CFG = {
@@ -23,7 +31,10 @@ const COND_DOCK_CFG = {
   const STATE_KEY = `${ID}/state`;
   const META_KEY  = `${ID}/meta`;
   const CONC_META_KEY = `${ID}/concentration`; // { [spellKey]: { targets: [...] } }
-
+  const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
+  const CONCENTRATION_WARNING_MODAL_ID = `${ID}/concentration-warning-modal`;
+  const TURN_NOTICE_CHANNEL = ID + "/turn-notice";
+  const TURN_NOTICE_MODAL_ID = ID + "/turn-notice-modal";
   // —— CHIP STYLE PRESET (condizioni + spell)
 const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
 const CHIP_HEIGHT_PX = 18;  // altezza visiva della pill
@@ -66,14 +77,15 @@ function __spellColor(key) {
   };
 }
   
-  const FOCUS_MIN_PAD_PX = 64;    // prima era 64: spazio minimo extra attorno al token
-  const FOCUS_ZOOM_BIAS  = 10;  // 1 = fit preciso; >1 = zoom più lontano
+  const FOCUS_MIN_PAD_PX = 64;
+  const FOCUS_GRID_SPAN = 10; // Campo visivo fisso, indipendente dalle dimensioni token
+  const FOCUS_FALLBACK_DPI = 150;
   const ARROW_PROXY_WINDOW_MS = 2000
   // ===== LAIR ACTIONS =====
   const LAIR_ID          = "__LAIR__";
   const LAIR_NAME        = "Azioni di Tana";
   const LAIR_INITIATIVE  = 20;
-  const LAIR_PORTRAIT = "/lair.png";
+  const LAIR_PORTRAIT = "/lair-actions.svg";
 
   const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
   const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
@@ -181,9 +193,15 @@ let __navigationFlushTimer = null;
 let __navigationDesiredAt = 0;
 let __navigationRevision = 0;
 let __lastNavigationAt = 0;
+let __lastActiveId = null;
 let __lastConditionTurnState = null;
 let __conditionNavigationHint = null;
 let __conditionTurnQueue = Promise.resolve();
+let __roundEffectQueue = Promise.resolve();
+let __selectedSceneItemIds = new Set();
+let __playerSelectionUnsubscribe = null;
+let __playerSelectionPollTimer = null;
+let __playerSelectionPollBusy = false;
 const NAVIGATION_STALE_GRACE_MS = 500;
 const NAVIGATION_WRITE_SETTLE_MS = 60;
 
@@ -368,7 +386,7 @@ const PAR_CTRL_CFG = {
 
 // --- EPIC / EPIC ACTION tag config (solo controlli via JS) ---
 const EPIC_TAG_CFG = {
-  posBoss:   { top: -6, right: null, rightFromBadge: 146, gap: 6, reserve: 120 },
+  posBoss:   { top: -6, right: null, rightFromBadge: 100, gap: 6, reserve: 120 },
   posAction: { top: -6, right: null, rightFromBadge: 146, gap: 6, reserve: 120 },
 
   // Stile delle pill
@@ -404,7 +422,6 @@ const EPIC_TAG_CFG = {
     const styleTag = document.createElement("style");
 styleTag.textContent = `
   :root, body { height: 100%; overflow: hidden; }
-  /* niente text-select nel widget tranne campi editabili */
   .tbp-root, .tbp-root *:not(input):not(textarea):not([contenteditable="true"]) {
     -webkit-user-select: none;
     user-select: none;
@@ -412,23 +429,16 @@ styleTag.textContent = `
 `;
 document.head.appendChild(styleTag);
 
-// segna il container come root del widget
 container.classList.add("tbp-root");
 container.style.height = "100%";
 container.style.overflow = "hidden";
 
 container.addEventListener("mousedown", (e) => {
-  // Se è aperto un editor (HP o iniziativa) non bloccare/alterare nulla
   if (__editingHPForId || __editingInitForId) return;
 
   const t = e.target;
+  if (t.closest('[data-item-id]') || t.closest('[draggable="true"]')) return;
 
-  // CONSENTI drag&drop e click sulle card: niente preventDefault
-  if (t.closest('[data-item-id]') || t.closest('[draggable="true"]')) {
-    return;
-  }
-
-  // Interattivi consentiti
   const interactive = t.closest("input, textarea, [contenteditable='true'], button, [role='button']");
   if (!interactive) {
     e.preventDefault();
@@ -436,19 +446,18 @@ container.addEventListener("mousedown", (e) => {
   }
 }, { capture: true });
 
-// ===== LAYOUT VERTICALE: ▲ – Turno – Track – ▼ (full-height, single scroller) =====
 const col = document.createElement("div");
 col.style.display = "flex";
 col.style.flexDirection = "column";
 col.style.alignItems = "stretch";
 col.style.gap = "8px";
-col.style.height = "100%";      // ← piena altezza
-col.style.overflow = "hidden";  // ← niente scroll qui
+col.style.height = "100%";
+col.style.overflow = "hidden";
 container.replaceChildren(col);
 
 function mkBtn(txt) {
   const b = document.createElement("button");
-  b.textContent = txt;                  // ▲ / ▼
+  b.textContent = txt;
   b.style.width = "100%";
   b.style.height = "28px";
   b.style.padding = "0 6px";
@@ -461,40 +470,67 @@ function mkBtn(txt) {
   b.style.userSelect = "none";
   b.type = "button";
   b.tabIndex = -1;
-  b.addEventListener("mousedown", (e) => e.preventDefault());
+  b.addEventListener("mousedown", (event) => event.preventDefault());
   b.style.outline = "none";
   b.onmouseenter = () => (b.style.background = "rgba(255,255,255,0.08)");
   b.onmouseleave = () => (b.style.background = "transparent");
   return b;
 }
 
-const btnPrev = mkBtn("▲");
-const btnNext = mkBtn("▼");
+const btnPrev = mkBtn("\u25B2");
+const btnNext = mkBtn("\u25BC");
 
 // pill “Turno N”
 const roundPill = document.createElement("div");
 roundPill.title = "Numero di turni (scatta quando l'iniziativa avanza e ritorna all'inizio)";
 Object.assign(roundPill.style, {
   alignSelf: "center",
-  padding: "8px 32px",
+  width: "calc(100% - 16px)",
+  maxWidth: "460px",
+  minHeight: "52px",
+  boxSizing: "border-box",
+  padding: "8px 12px",
   fontSize: "14px",
   fontWeight: "600",
   lineHeight: "1",
   color: "#fff",
-  background: "rgba(0, 0, 0, 0.33)",
-  border: "1px solid rgba(255,255,255,.18)",
-  borderRadius: "32px",
-  boxShadow: "0 2px 6px rgba(0,0,0,.45)",
+  background: "linear-gradient(180deg, rgba(14,19,31,.82), rgba(8,12,21,.76))",
+  border: "1px solid rgba(148,163,184,.28)",
+  borderRadius: "18px",
+  boxShadow: "0 8px 22px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.05)",
   userSelect: "none",
   display: "inline-flex",
   alignItems: "center",
-  gap: "8px"
+  gap: "7px",
 });
 
-// ⬇️ NUOVO: label separato così non perdiamo il bottone ai render
+const roundStatus = document.createElement("div");
+Object.assign(roundStatus.style, {
+  flex: "1 1 120px",
+  minWidth: "120px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "7px",
+});
+
 const roundLabel = document.createElement("span");
 roundLabel.id = "tbp-round-label";
-roundPill.appendChild(roundLabel);
+Object.assign(roundLabel.style, {
+  flex: "0 0 auto",
+  overflow: "visible",
+  whiteSpace: "nowrap",
+  fontSize: "15px",
+  fontWeight: "750",
+});
+
+const roundResetSlot = document.createElement("div");
+Object.assign(roundResetSlot.style, {
+  display: "inline-flex",
+  alignItems: "center",
+  paddingRight: "7px",
+  borderRight: "1px solid rgba(148,163,184,.22)",
+});
 
 const roundSep = document.createElement("span");
 roundSep.textContent = "•";
@@ -511,30 +547,47 @@ Object.assign(turnCounter.style, {
 roundSep.style.display = "none";
 turnCounter.style.display = "none";
 
-roundPill.append(roundSep, turnCounter);
+roundStatus.append(roundLabel, roundSep, turnCounter);
+roundPill.appendChild(roundStatus);
+
+const roundActions = document.createElement("div");
+roundActions.dataset.roundActions = "1";
+Object.assign(roundActions.style, {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "3px",
+});
+
+const roundHistorySlot = document.createElement("div");
+Object.assign(roundHistorySlot.style, {
+  display: "inline-flex",
+  alignItems: "center",
+  paddingLeft: "7px",
+  borderLeft: "1px solid rgba(148,163,184,.22)",
+});
 
 // ⬇️ NUOVO: bottone reset turno (solo GM)
 function makeRoundResetBtn() {
   const b = document.createElement("button");
   b.type = "button";
   b.dataset.resetRound = "1";
-  b.title = "Resetta il turno a 1 (solo GM)";
+  b.title = "Resetta il round a 1 (solo GM)";
   b.textContent = "↺";
   Object.assign(b.style, {
-    width: "22px",
-    height: "22px",
+    width: "24px",
+    height: "24px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     border: "1px solid rgba(255,255,255,.18)",
     background: "rgba(0,0,0,.45)",
     color: "#fff",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "800",
     lineHeight: "1",
-    borderRadius: "999px",
+    borderRadius: "8px",
     cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
     padding: "0",
   });
   b.addEventListener("click", async (e) => {
@@ -549,6 +602,143 @@ function makeRoundResetBtn() {
   return b;
 }
 
+function makeAddAllInitiativeBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.addAllInitiative = "1";
+  b.title = "Aggiungi tutti i token della scena all'iniziativa (solo GM)";
+  b.textContent = "+";
+  Object.assign(b.style, {
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(74,222,128,.68)",
+    background: "rgba(21,128,61,.62)",
+    color: "#fff",
+    fontSize: "15px",
+    fontWeight: "800",
+    lineHeight: "1",
+    borderRadius: "8px",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    padding: "0 0 2px",
+  });
+  b.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    b.disabled = true;
+    try {
+      const items = await OBR.scene.items.getItems((item) => (
+        item.layer === "CHARACTER" && !item.attachedTo
+      ));
+      const pending = items.filter((item) => item.metadata?.[META_KEY]?.inInitiative !== true);
+      if (!pending.length) {
+        await OBR.notification.show("Tutti i token sono gia nell'iniziativa.", "INFO");
+        return;
+      }
+
+      const ids = pending.map((item) => item.id);
+      const registry = await readFactionRegistry();
+      const resolvedAttitudes = new Map();
+      let unknownCount = 0;
+      for (const item of pending) {
+        const previous = item.metadata?.[META_KEY] || {};
+        const registered = registeredAttitudeForItem(item, registry);
+        if (!previous.attitude && !registered) unknownCount += 1;
+        resolvedAttitudes.set(item.id, registered || previous.attitude || "enemy");
+      }
+      await OBR.scene.items.updateItems(ids, (drafts) => {
+        for (const item of drafts) {
+          const previous = { ...(item.metadata?.[META_KEY] || {}) };
+          item.metadata = {
+            ...(item.metadata || {}),
+            [META_KEY]: {
+              ...previous,
+              initiative: previous.initiative ?? 10,
+              attitude: resolvedAttitudes.get(item.id) || previous.attitude || "enemy",
+              inInitiative: true,
+            },
+          };
+        }
+      });
+      await reconcileStateWithItems();
+      await enforceUniqueNamePrefixes();
+      await renderAll();
+      await OBR.notification.show(
+        `${ids.length} token aggiunti all'iniziativa.${unknownCount ? ` ${unknownCount} non riconosciuti: ostili.` : ""}`,
+        "SUCCESS"
+      );
+    } catch {
+      await OBR.notification.show("Impossibile aggiungere tutti i token.", "ERROR").catch(() => {});
+    } finally {
+      b.disabled = false;
+    }
+  });
+  return b;
+}
+function makeFactionConfiguratorBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.factionConfigurator = "1";
+  b.title = "Configura le fazioni automatiche (solo GM)";
+  Object.assign(b.style, {
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(147,197,253,.55)",
+    background: "rgba(30,64,175,.48)",
+    color: "#fff",
+    lineHeight: "1",
+    borderRadius: "8px",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    padding: "0",
+  });
+  const icon = document.createElement("img");
+  icon.src = (import.meta.env.BASE_URL || "/") + "mark.svg";
+  icon.alt = "";
+  Object.assign(icon.style, {
+    width: "12px",
+    height: "12px",
+    display: "block",
+    filter: "brightness(0) invert(1)",
+    pointerEvents: "none",
+  });
+  b.appendChild(icon);
+  b.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    b.disabled = true;
+    const popupUrl = "/faction-configurator.html";
+    try {
+      const [anchorPosition] = await Promise.all([
+        getTrackerPopoverAnchor(),
+        fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
+      ]);
+      await OBR.popover.close(FACTION_CONFIGURATOR_ID).catch(() => {});
+      await OBR.popover.open({
+        id: FACTION_CONFIGURATOR_ID,
+        url: popupUrl,
+        width: 420,
+        height: 420,
+        anchorReference: "POSITION",
+        anchorPosition,
+        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        disableClickAway: true,
+        marginThreshold: 12,
+        hidePaper: true,
+      });
+    } catch {
+      await OBR.notification.show("Impossibile aprire il configuratore fazioni.", "ERROR").catch(() => {});
+    } finally {
+      b.disabled = false;
+    }
+  });
+  return b;
+}
 function makeClearInitiativeBtn() {
   const b = document.createElement("button");
   b.type = "button";
@@ -556,20 +746,20 @@ function makeClearInitiativeBtn() {
   b.title = "Rimuovi tutte le card dall'iniziativa (solo GM)";
   b.textContent = "×";
   Object.assign(b.style, {
-    width: "22px",
-    height: "22px",
+    width: "24px",
+    height: "24px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     border: "1px solid rgba(248,113,113,.55)",
     background: "rgba(127,29,29,.55)",
     color: "#fff",
-    fontSize: "16px",
+    fontSize: "14px",
     fontWeight: "800",
     lineHeight: "1",
-    borderRadius: "999px",
+    borderRadius: "8px",
     cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
     padding: "0",
   });
   b.addEventListener("click", async (e) => {
@@ -605,41 +795,63 @@ function makeHistoryBtn() {
   b.type = "button";
   b.dataset.history = "1";
   b.title = "Cronologia e Undo (solo GM)";
-  b.textContent = "\u21B6";
   Object.assign(b.style, {
-    width: "22px",
-    height: "22px",
+    width: "24px",
+    height: "24px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    border: "1px solid rgba(255,255,255,.18)",
-    background: "rgba(0,0,0,.45)",
+    border: "1px solid rgba(147,197,253,.62)",
+    background: "rgba(30,64,175,.58)",
     color: "#fff",
     fontSize: "14px",
     fontWeight: "800",
     lineHeight: "1",
-    borderRadius: "999px",
+    borderRadius: "8px",
     cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
     padding: "0",
   });
+  const icon = document.createElement("img");
+  icon.src = (import.meta.env.BASE_URL || "/") + "history.svg";
+  icon.alt = "";
+  Object.assign(icon.style, {
+    width: "14px",
+    height: "14px",
+    display: "block",
+    pointerEvents: "none",
+  });
+  b.appendChild(icon);
   b.addEventListener("click", async (e) => {
     e.stopPropagation();
+    const popupId = `${ID}/history-modal`;
+    if (!await beginTrackerPopoverToggle(popupId)) return;
     try {
-      await OBR.modal.open({
-        id: `${ID}/history-modal`,
+      const anchorPosition = await getTrackerPopoverAnchor();
+      await OBR.modal.close(popupId).catch(() => {});
+      await OBR.popover.close(popupId).catch(() => {});
+      await OBR.popover.open({
+        id: popupId,
         url: "/history-modal.html",
         width: 480,
         height: 460,
+        anchorReference: "POSITION",
+        anchorPosition,
+        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        disableClickAway: true,
+        marginThreshold: 12,
+        hidePaper: true,
       });
+      __openTrackerPopoverId = popupId;
     } catch (err) {
-      console.warn("[history] modal open error:", err?.message || err);
+      __openTrackerPopoverId = "";
+      console.warn("[history] popover open error:", err?.message || err);
     }
   });
   return b;
 }
 
-// ROW in alto: Turno + Toggle Tana (solo GM)
 const topRow = document.createElement("div");
 Object.assign(topRow.style, {
   alignSelf: "center",
@@ -647,24 +859,60 @@ Object.assign(topRow.style, {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  gap: "8px",
-  flexWrap: "wrap",     // se si stringe, va a capo con grazia
+  gap: "6px",
+  paddingBottom: "2px",
+  flexDirection: "column",
+  flexWrap: "nowrap",
 });
-topRow.appendChild(roundPill);
+
+const viewOptionsRow = document.createElement("div");
+Object.assign(viewOptionsRow.style, {
+  width: "calc(100% - 32px)",
+  maxWidth: "430px",
+  minHeight: "40px",
+  boxSizing: "border-box",
+  display: "none",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "4px",
+  padding: "4px",
+  border: "1px solid rgba(148,163,184,.2)",
+  borderRadius: "13px",
+  background: "rgba(8,12,21,.46)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+});
+
+const sceneOptionsGroup = document.createElement("div");
+Object.assign(sceneOptionsGroup.style, {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "2px",
+});
+const toolOptionsGroup = document.createElement("div");
+Object.assign(toolOptionsGroup.style, {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "2px",
+  paddingLeft: "5px",
+  borderLeft: "1px solid rgba(148,163,184,.2)",
+});
+viewOptionsRow.append(sceneOptionsGroup, toolOptionsGroup);
+topRow.append(roundPill, viewOptionsRow);
 
 // Toggle dello zoom automatico. Il default resta attivo per compatibilità
 // con le scene che non hanno ancora salvato questa preferenza.
 const zoomToggleWrap = document.createElement("label");
 Object.assign(zoomToggleWrap.style, {
-  alignSelf: "center",
+  position: "relative",
+  width: "28px",
+  minHeight: "28px",
   display: "flex",
   alignItems: "center",
-  gap: "6px",
-  padding: "2px 8px",
-  background: "rgba(0,0,0,.28)",
-  border: "1px solid rgba(255,255,255,.18)",
-  borderRadius: "999px",
-  boxShadow: "0 1px 4px rgba(0,0,0,.35)",
+  justifyContent: "center",
+  padding: "0",
+  background: "transparent",
+  border: "1px solid transparent",
+  borderRadius: "8px",
   userSelect: "none",
   cursor: "pointer",
 });
@@ -672,20 +920,359 @@ Object.assign(zoomToggleWrap.style, {
 const zoomChk = document.createElement("input");
 zoomChk.type = "checkbox";
 zoomChk.checked = true;
-zoomChk.style.transform = "scale(1.1)";
-zoomChk.style.cursor = "pointer";
+Object.assign(zoomChk.style, {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  opacity: "0",
+  pointerEvents: "none",
+});
 zoomChk.title = "Centra automaticamente la scena sul token attivo";
 
-const zoomLbl = document.createElement("span");
-zoomLbl.textContent = "Zoom";
+const zoomLbl = document.createElement("img");
+zoomLbl.src = `${import.meta.env.BASE_URL || "/"}zoom.svg`;
+zoomLbl.alt = "";
 Object.assign(zoomLbl.style, {
-  fontSize: "12px",
-  fontWeight: "700",
-  color: "#fff",
+  width: "15px",
+  height: "15px",
+  objectFit: "contain",
+  pointerEvents: "none",
 });
 
+function setCompactToggleVisual(wrap, active) {
+  wrap.setAttribute("aria-pressed", active ? "true" : "false");
+  wrap.style.background = active ? "rgba(37,99,235,.82)" : "transparent";
+  wrap.style.borderColor = active ? "rgba(147,197,253,.8)" : "transparent";
+  wrap.style.boxShadow = active ? "inset 0 1px 0 rgba(255,255,255,.18)" : "none";
+}
+
 zoomToggleWrap.append(zoomChk, zoomLbl);
-topRow.appendChild(zoomToggleWrap);
+zoomToggleWrap.title = zoomChk.title;
+zoomToggleWrap.setAttribute("aria-label", zoomChk.title);
+setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
+sceneOptionsGroup.appendChild(zoomToggleWrap);
+
+function makeGlobalPanelButton(title, iconPath, invert = false) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  Object.assign(button.style, {
+    width: "28px",
+    minWidth: "28px",
+    height: "28px",
+    padding: "0",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "8px",
+    border: "1px solid transparent",
+    background: "transparent",
+    boxShadow: "none",
+    cursor: "pointer",
+  });
+  const icon = document.createElement("img");
+  icon.src = `${import.meta.env.BASE_URL || "/"}${iconPath}`;
+  icon.alt = "";
+  Object.assign(icon.style, {
+    width: "15px",
+    height: "15px",
+    display: "block",
+    objectFit: "contain",
+    filter: invert ? "brightness(0) invert(1)" : "none",
+    pointerEvents: "none",
+  });
+  button.appendChild(icon);
+  return button;
+}
+
+const globalPanelsWrap = document.createElement("div");
+Object.assign(globalPanelsWrap.style, {
+  display: "none",
+  alignItems: "center",
+  gap: "2px",
+});
+const globalEffectsButton = makeGlobalPanelButton("Condizioni", "conditions.png");
+const globalSpellsButton = makeGlobalPanelButton("Incantesimi", "spells.svg", true);
+const TRACKED_MOVE_TOOL_ID = ID + "/tracked-move-tool";
+const TRACKED_MOVE_PREVIOUS_TOOL_KEY = ID + "/tracked-move-previous-tool";
+const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed.svg");
+trackedMoveButton.setAttribute("aria-pressed", "false");
+let trackedMovePreviousToolId = sessionStorage.getItem(TRACKED_MOVE_PREVIOUS_TOOL_KEY) || "";
+let trackedMoveActive = false;
+let trackedMoveSwitching = false;
+
+function rememberTrackedMovePreviousTool(toolId) {
+  if (!toolId || toolId === TRACKED_MOVE_TOOL_ID) return;
+  trackedMovePreviousToolId = toolId;
+  sessionStorage.setItem(TRACKED_MOVE_PREVIOUS_TOOL_KEY, toolId);
+}
+
+function setTrackedMoveButtonActive(active) {
+  trackedMoveActive = !!active;
+  setSpeedCheckEnabled(trackedMoveActive);
+  trackedMoveButton.setAttribute("aria-pressed", active ? "true" : "false");
+  trackedMoveButton.style.background = active ? "rgba(37,99,235,.82)" : "transparent";
+  trackedMoveButton.style.borderColor = active ? "rgba(147,197,253,.8)" : "transparent";
+  trackedMoveButton.style.boxShadow = active
+    ? "inset 0 1px 0 rgba(255,255,255,.18)"
+    : "none";
+}
+
+trackedMoveButton.addEventListener("click", async () => {
+  if (trackedMoveSwitching) return;
+  trackedMoveSwitching = true;
+  try {
+    if (trackedMoveActive) {
+      if (!trackedMovePreviousToolId) throw new Error("Missing previous tool");
+      await OBR.tool.activateTool(trackedMovePreviousToolId);
+      setTrackedMoveButtonActive(false);
+    } else {
+      rememberTrackedMovePreviousTool(await OBR.tool.getActiveTool());
+      await OBR.tool.activateTool(TRACKED_MOVE_TOOL_ID);
+      setTrackedMoveButtonActive(true);
+    }
+  } catch {
+    const current = await OBR.tool.getActiveTool().catch(() => "");
+    setTrackedMoveButtonActive(current === TRACKED_MOVE_TOOL_ID);
+  } finally {
+    trackedMoveSwitching = false;
+  }
+});
+globalEffectsButton.addEventListener("click", () => void openGlobalEffectsPopup());
+globalSpellsButton.addEventListener("click", () => void openGlobalSpellsPopup());
+globalPanelsWrap.append(globalEffectsButton, globalSpellsButton);
+toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
+
+const movementReadout = document.createElement("div");
+Object.assign(movementReadout.style, {
+  width: "calc(100% - 24px)",
+  maxWidth: "440px",
+  boxSizing: "border-box",
+  display: "none",
+  flexDirection: "column",
+  gap: "6px",
+  padding: "8px 12px",
+  border: "1px solid rgba(148,163,184,.2)",
+  borderRadius: "12px",
+  background: "linear-gradient(180deg, rgba(12,17,28,.64), rgba(7,11,19,.52))",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04), 0 5px 14px rgba(0,0,0,.18)",
+  color: "#fff",
+  userSelect: "none",
+  cursor: "pointer",
+});
+const movementReadoutLine = document.createElement("div");
+Object.assign(movementReadoutLine.style, {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "10px",
+  fontSize: "10.5px",
+});
+const movementReadoutValue = document.createElement("strong");
+Object.assign(movementReadoutValue.style, {
+  flex: "1 1 auto",
+  minWidth: "0",
+  overflow: "hidden",
+  fontSize: "14px",
+  fontWeight: "800",
+  fontVariantNumeric: "tabular-nums",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+const movementReadoutMeta = document.createElement("span");
+Object.assign(movementReadoutMeta.style, {
+  flex: "0 0 auto",
+  color: "rgba(255,255,255,.72)",
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+});
+const movementReadoutTrack = document.createElement("div");
+Object.assign(movementReadoutTrack.style, {
+  height: "4px",
+  overflow: "hidden",
+  borderRadius: "999px",
+  background: "rgba(0,0,0,.38)",
+});
+const movementReadoutBar = document.createElement("div");
+Object.assign(movementReadoutBar.style, {
+  width: "0%",
+  height: "100%",
+  borderRadius: "inherit",
+  background: "#3b82f6",
+  transition: "width 80ms linear, background-color 120ms ease",
+});
+movementReadoutTrack.appendChild(movementReadoutBar);
+movementReadoutLine.append(movementReadoutValue, movementReadoutMeta);
+const movementDetails = document.createElement("div");
+Object.assign(movementDetails.style, {
+  display: "none",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "6px",
+  paddingTop: "7px",
+  borderTop: "1px solid rgba(255,255,255,.12)",
+});
+const movementDetailValues = {};
+for (const [key, label] of [
+  ["speed", "Velocit\u00e0"],
+  ["allowance", "Disponibile"],
+  ["total", "Totale turno"],
+  ["remaining", "Residuo"],
+]) {
+  const cell = document.createElement("div");
+  Object.assign(cell.style, {
+    minWidth: "0",
+    padding: "5px 7px",
+    border: "1px solid rgba(255,255,255,.11)",
+    borderRadius: "6px",
+    background: "rgba(255,255,255,.055)",
+  });
+  const caption = document.createElement("div");
+  caption.textContent = label;
+  Object.assign(caption.style, {
+    color: "rgba(255,255,255,.58)",
+    fontSize: "9px",
+    textTransform: "uppercase",
+  });
+  const value = document.createElement("strong");
+  Object.assign(value.style, {
+    display: "block",
+    overflow: "hidden",
+    marginTop: "2px",
+    fontSize: "11px",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  });
+  movementDetailValues[key] = value;
+  cell.append(caption, value);
+  movementDetails.appendChild(cell);
+}
+const movementAllowanceControls = document.createElement("div");
+Object.assign(movementAllowanceControls.style, {
+  gridColumn: "1 / -1",
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "6px",
+});
+function makeMovementStepper(label, onDecrease, onIncrease) {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, {
+    display: "grid",
+    gridTemplateColumns: "24px minmax(0, 1fr) 24px",
+    alignItems: "center",
+    gap: "4px",
+    padding: "4px",
+    border: "1px solid rgba(255,255,255,.11)",
+    borderRadius: "6px",
+    background: "rgba(255,255,255,.055)",
+  });
+  const decrease = document.createElement("button");
+  const increase = document.createElement("button");
+  const value = document.createElement("strong");
+  decrease.type = increase.type = "button";
+  decrease.textContent = "-";
+  increase.textContent = "+";
+  value.textContent = label;
+  Object.assign(value.style, {
+    overflow: "hidden",
+    fontSize: "10px",
+    textAlign: "center",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  });
+  for (const button of [decrease, increase]) {
+    Object.assign(button.style, {
+      width: "24px",
+      height: "24px",
+      padding: "0",
+      border: "1px solid rgba(255,255,255,.18)",
+      borderRadius: "50%",
+      background: "rgba(0,0,0,.28)",
+      color: "#fff",
+      fontSize: "15px",
+      lineHeight: "1",
+      cursor: "pointer",
+    });
+  }
+  decrease.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onDecrease();
+  });
+  increase.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onIncrease();
+  });
+  wrap.append(decrease, value, increase);
+  return { wrap, value };
+}
+const movementDashStepper = makeMovementStepper(
+  "Scatto x0",
+  () => adjustSpeedCheckDash(-1),
+  () => adjustSpeedCheckDash(1),
+);
+const movementBonusStepper = makeMovementStepper(
+  "Bonus 0 m",
+  () => adjustSpeedCheckBonus(-1.5),
+  () => adjustSpeedCheckBonus(1.5),
+);
+movementAllowanceControls.append(movementDashStepper.wrap, movementBonusStepper.wrap);
+movementDetails.appendChild(movementAllowanceControls);
+const movementResetButton = document.createElement("button");
+movementResetButton.type = "button";
+movementResetButton.textContent = "Reset movimento";
+Object.assign(movementResetButton.style, {
+  gridColumn: "1 / -1",
+  minHeight: "28px",
+  border: "1px solid rgba(255,255,255,.2)",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,.09)",
+  color: "#fff",
+  font: "inherit",
+  fontSize: "11px",
+  fontWeight: "700",
+  cursor: "pointer",
+});
+movementDetails.appendChild(movementResetButton);
+movementReadout.append(movementReadoutLine, movementReadoutTrack, movementDetails);
+topRow.appendChild(movementReadout);
+
+let movementDetailsOpen = false;
+movementReadout.addEventListener("click", () => {
+  movementDetailsOpen = !movementDetailsOpen;
+  movementDetails.style.display = movementDetailsOpen ? "grid" : "none";
+});
+movementResetButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  resetSpeedCheckMovement();
+});
+
+let latestMovementSnapshot = null;
+
+function movementNumber(value) {
+  return Number(value || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
+}
+
+subscribeSpeedCheckState((snapshot) => {
+  latestMovementSnapshot = snapshot;
+  queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
+  const visible = snapshot.available;
+  movementReadout.style.display = visible ? "flex" : "none";
+  if (!visible) return;
+  movementReadoutValue.textContent = snapshot.name || "Movimento";
+  movementReadoutMeta.textContent = movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
+  movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile";
+
+  movementDetailValues.speed.textContent = movementNumber(snapshot.speedMeters) + " m";
+  movementDetailValues.allowance.textContent = movementNumber(snapshot.allowanceMeters) + " m";
+  movementDetailValues.total.textContent = movementNumber(snapshot.totalMeters) + " m";
+  movementDetailValues.remaining.textContent = movementNumber(snapshot.remainingMeters) + " m";
+
+  movementDashStepper.value.textContent = "Scatto x" + snapshot.dashCount;
+  movementBonusStepper.value.textContent = "Bonus " + movementNumber(snapshot.bonusMeters) + " m";
+  const percent = Math.max(0, Math.min(100, snapshot.progress * 100));
+  movementReadoutBar.style.width = percent + "%";
+  movementReadoutBar.style.background = percent >= 99.9 ? "#ef4444" : percent >= 75 ? "#f59e0b" : "#3b82f6";
+});
 
 // wrapper della lista — l’UNICO che scrolla
 const trackWrap = document.createElement("div");
@@ -704,10 +1291,14 @@ const track = document.createElement("div");
 track.style.display = "flex";
 track.style.flexDirection = "column";
 track.style.alignItems = "center";
-track.style.gap = "12px";
+track.style.gap = "16px";
 track.style.paddingTop = "8px";
 track.style.paddingBottom = "8px";
 trackWrap.appendChild(track);
+
+function updateActiveCardMovementIndicator() {
+  track.querySelector('[data-speed-card-indicator="1"]')?.remove();
+}
 
 // === Drag & Drop per pareggi d'iniziativa (delegato sul track) ===
 if (!track.__dndMounted) {
@@ -786,38 +1377,54 @@ track.addEventListener("drop", async (ev) => {
 // --- Toggle Lair (Azioni di Tana a iniziativa 20) ---
 const lairToggleWrap = document.createElement("label");
 Object.assign(lairToggleWrap.style, {
-  alignSelf: "center",
+  position: "relative",
+  width: "28px",
+  minHeight: "28px",
   display: "flex",
   alignItems: "center",
-  gap: "8px",
-  padding: "2px 8px",
-  background: "rgba(0,0,0,.28)",
-  border: "1px solid rgba(255,255,255,.18)",
-  borderRadius: "999px",
-  boxShadow: "0 1px 4px rgba(0,0,0,.35)",
+  justifyContent: "center",
+  padding: "0",
+  background: "transparent",
+  border: "1px solid transparent",
+  borderRadius: "8px",
   userSelect: "none",
   cursor: "pointer",
 });
 
 const lairChk = document.createElement("input");
 lairChk.type = "checkbox";
-lairChk.style.transform = "scale(1.1)";
-lairChk.style.cursor = "pointer";
+Object.assign(lairChk.style, {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  opacity: "0",
+  pointerEvents: "none",
+});
 
-const lairLbl = document.createElement("span");
-lairLbl.textContent = "Tana";
-Object.assign(lairLbl.style, { fontSize: "12px", fontWeight: "700", color: "#fff" });
+const lairLbl = document.createElement("img");
+lairLbl.src = `${import.meta.env.BASE_URL || "/"}lair-actions.svg`;
+lairLbl.alt = "";
+Object.assign(lairLbl.style, {
+  width: "16px",
+  height: "16px",
+  objectFit: "contain",
+  pointerEvents: "none",
+});
 
 lairToggleWrap.append(lairChk, lairLbl);
+lairToggleWrap.title = "Azioni di Tana";
+lairToggleWrap.setAttribute("aria-label", lairToggleWrap.title);
 
 // inizializza lo stato visivo dal metadata
 (async () => {
   const st = await getSceneState();
   lairChk.checked = !!st?.lairEnabled;
+  setCompactToggleVisual(lairToggleWrap, lairChk.checked);
 })();
 
 lairChk.addEventListener("change", async (e) => {
   const enabled = !!e.target.checked;
+  setCompactToggleVisual(lairToggleWrap, enabled);
   await setSceneState(prev => ({ ...(prev || {}), lairEnabled: enabled }));
   await reconcileStateWithItems();
   await renderAll();
@@ -825,6 +1432,7 @@ lairChk.addEventListener("change", async (e) => {
 
 zoomChk.addEventListener("change", async (e) => {
   const enabled = !!e.target.checked;
+  setCompactToggleVisual(zoomToggleWrap, enabled);
   const next = {
     ...(__latestInitiativeState || {}),
     ui: {
@@ -925,21 +1533,18 @@ async function selectInScene(itemId, replace = true) {
 }
 
 
-async function buildBiasedBBox(bounds, bias = FOCUS_ZOOM_BIAS, minPadPx = FOCUS_MIN_PAD_PX) {
-  const w  = Number(bounds?.width  ?? (bounds?.max?.x ?? 0) - (bounds?.min?.x ?? 0));
-  const h  = Number(bounds?.height ?? (bounds?.max?.y ?? 0) - (bounds?.min?.y ?? 0));
+async function buildBiasedBBox(bounds, gridDpi, gridSpan = FOCUS_GRID_SPAN, minPadPx = FOCUS_MIN_PAD_PX) {
   const cx = (Number(bounds?.min?.x) + Number(bounds?.max?.x)) / 2;
   const cy = (Number(bounds?.min?.y) + Number(bounds?.max?.y)) / 2;
 
-  // Applica un bias (>1 = più “largo”) + un padding minimo in pixel
-  const effW = Math.max(1, w * bias + 2 * minPadPx);
-  const effH = Math.max(1, h * bias + 2 * minPadPx);
+  const dpi = Math.max(1, Number(gridDpi) || FOCUS_FALLBACK_DPI);
+  const focusSize = Math.max(1, dpi * gridSpan + 2 * minPadPx);
 
   return {
-    min:   { x: cx - effW / 2, y: cy - effH / 2 },
-    max:   { x: cx + effW / 2, y: cy + effH / 2 },
-    width:  effW,
-    height: effH,
+    min:   { x: cx - focusSize / 2, y: cy - focusSize / 2 },
+    max:   { x: cx + focusSize / 2, y: cy + focusSize / 2 },
+    width:  focusSize,
+    height: focusSize,
     center: { x: cx, y: cy },
   };
 }
@@ -950,10 +1555,13 @@ async function centerOnItem(itemId) {
     const items = await OBR.scene.items.getItems([itemId]);
     if (!items || items.length === 0) return;
 
-    const raw = await OBR.scene.items.getItemBounds([itemId]);
+    const [raw, gridDpi] = await Promise.all([
+      OBR.scene.items.getItemBounds([itemId]),
+      OBR.scene.grid.getDpi().catch(() => FOCUS_FALLBACK_DPI),
+    ]);
     if (!raw) return;
 
-    const biased = await buildBiasedBBox(raw);
+    const biased = await buildBiasedBBox(raw, gridDpi);
     await OBR.viewport.animateToBounds(biased);
   } catch (e) {
     console.warn("[initiative] centerOnItem failed:", e?.message || e);
@@ -1426,6 +2034,84 @@ function splitParagonId(id) {
   const [baseId, tail] = id.split("::p");
   const idx = Math.max(0, parseInt(tail, 10) || 0);
   return { baseId, idx };
+}
+function __selectionIdsForEntry(entry) {
+  const members = Array.isArray(entry?.__groupMembers) && entry.__groupMembers.length
+    ? entry.__groupMembers
+    : [entry];
+  return Array.from(new Set(members
+    .map((member) => splitParagonId(member?.id).baseId)
+    .filter((id) => id && !isLairId(id) && !isEpicActionId(id))));
+}
+
+function __applyTrackerSelectionState(card) {
+  const ids = Array.isArray(card?.__selectionItemIds) ? card.__selectionItemIds : [];
+  const selectedCount = ids.filter((id) => __selectedSceneItemIds.has(id)).length;
+  const fullySelected = ids.length > 0 && selectedCount === ids.length;
+  const partlySelected = selectedCount > 0 && !fullySelected;
+  card.dataset.selectionState = fullySelected ? "all" : partlySelected ? "partial" : "none";
+  if (card.__selectionBaseShadow == null) {
+    card.__selectionBaseShadow = card.style.boxShadow || "";
+  }
+  const glow = fullySelected
+    ? "0 0 0 2px rgba(255,255,255,.98), 0 0 11px 4px rgba(255,255,255,.92), 0 0 25px 9px rgba(255,255,255,.50)"
+    : partlySelected
+      ? "0 0 0 1px rgba(255,255,255,.84), 0 0 9px 3px rgba(255,255,255,.72), 0 0 19px 6px rgba(255,255,255,.32)"
+      : "";
+  card.style.boxShadow = [card.__selectionBaseShadow, glow].filter(Boolean).join(", ");
+  card.style.outline = "none";
+  card.style.outlineOffset = "";
+}
+
+function __setTrackerSelection(ids) {
+  const next = new Set(Array.isArray(ids) ? ids.filter(Boolean) : []);
+  if (next.size === __selectedSceneItemIds.size &&
+      [...next].every((id) => __selectedSceneItemIds.has(id))) return;
+  __selectedSceneItemIds = next;
+  document.querySelectorAll("[data-tracker-card='1']").forEach(__applyTrackerSelectionState);
+}
+
+async function __refreshTrackerSelectionFromScene() {
+  if (__playerSelectionPollBusy) return;
+  __playerSelectionPollBusy = true;
+  try { __setTrackerSelection(await OBR.player.getSelection()); } catch {}
+  finally { __playerSelectionPollBusy = false; }
+}
+
+async function __selectTrackerEntry(entry, event) {
+  const ids = __selectionIdsForEntry(entry);
+  if (!ids.length) return;
+  const additive = !!(event?.ctrlKey || event?.metaKey || event?.shiftKey);
+
+  try {
+    if (!additive) {
+      __setTrackerSelection(ids);
+      await OBR.player.select(ids, true);
+      return;
+    }
+
+    const allSelected = ids.every((id) => __selectedSceneItemIds.has(id));
+    const next = new Set(__selectedSceneItemIds);
+    for (const id of ids) {
+      if (allSelected) next.delete(id);
+      else next.add(id);
+    }
+    __setTrackerSelection([...next]);
+    if (allSelected) await OBR.player.deselect(ids);
+    else await OBR.player.select(ids, false);
+  } catch (err) {
+    console.warn("[initiative] tracker selection error:", err?.message || err);
+    try { __setTrackerSelection(await OBR.player.getSelection()); } catch {}
+  }
+}
+
+async function __mountTrackerSelectionSync() {
+  if (__playerSelectionUnsubscribe) return;
+  await __refreshTrackerSelectionFromScene();
+  __playerSelectionUnsubscribe = OBR.player.onChange((player) => {
+    if (Array.isArray(player?.selection)) __setTrackerSelection(player.selection);
+  });
+  __playerSelectionPollTimer = window.setInterval(__refreshTrackerSelectionFromScene, 120);
 }
 
 // Espande le entry in base a paragonActions, replicando le card.
@@ -1926,6 +2612,116 @@ function parseRelativeHPDelta(value) {
   return match[1] === "-" ? -amount : amount;
 }
 
+function concentrationSaveDC(damage) {
+  return Math.max(10, Math.floor(Math.max(0, Number(damage) || 0) / 2));
+}
+
+let __concentrationWarningListenerMounted = false;
+let __concentrationWarningModalQueue = Promise.resolve();
+
+function normalizeConcentrationWarnings(values = []) {
+  return (Array.isArray(values) ? values : []).slice(0, 20).map((warning) => ({
+    name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
+    damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
+    dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
+    portrait: String(warning?.portrait || "").trim().slice(0, 2048),
+    attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
+  })).filter((warning) => warning.damage > 0);
+}
+
+async function openConcentrationWarningModal(data) {
+  const warnings = normalizeConcentrationWarnings(data?.warnings);
+  if (!warnings.length) return;
+
+  try { await OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID); } catch {}
+  const payload = encodeURIComponent(JSON.stringify({ warnings }));
+  await OBR.modal.open({
+    id: CONCENTRATION_WARNING_MODAL_ID,
+    url: `/concentration-warning.html?payload=${payload}`,
+    fullScreen: true,
+    hideBackdrop: true,
+    hidePaper: true,
+    disablePointerEvents: true,
+  });
+}
+
+function mountConcentrationWarningBroadcast() {
+  if (__concentrationWarningListenerMounted) return;
+  __concentrationWarningListenerMounted = true;
+  OBR.broadcast.onMessage(CONCENTRATION_WARNING_CHANNEL, (event) => {
+    if (event?.data?.type !== "show-concentration-warning") return;
+    const run = async () => {
+      try {
+        await openConcentrationWarningModal(event.data);
+      } catch (err) {
+        console.warn("[concentration] warning modal error:", err?.message || err);
+      }
+    };
+    __concentrationWarningModalQueue = __concentrationWarningModalQueue.then(run, run);
+  });
+}
+
+let __turnNoticeListenerMounted = false;
+let __turnNoticeSequence = 0;
+
+async function mountTurnNoticeBroadcast() {
+  if (__turnNoticeListenerMounted) return;
+  __turnNoticeListenerMounted = true;
+  await OBR.modal.open({
+    id: TURN_NOTICE_MODAL_ID,
+    url: "/turn-notice.html",
+    fullScreen: true,
+    hideBackdrop: true,
+    hidePaper: true,
+    disablePointerEvents: true,
+  });
+}
+
+async function broadcastTurnNotice(state) {
+  if (!IS_GM) return;
+  const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
+  if (!notice) return;
+  await OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
+    type: "show-turn-notice",
+    ...notice,
+    noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
+  }, { destination: "ALL" });
+}
+async function showConcentrationDamageWarning(changes = []) {
+  if (!IS_GM) return;
+
+  const damageById = new Map();
+  for (const change of changes) {
+    const itemId = String(change?.itemId || "").trim();
+    const damage = Math.max(0, Math.floor(Number(change?.damage) || 0));
+    if (!itemId || damage <= 0) continue;
+    damageById.set(itemId, Math.max(damageById.get(itemId) || 0, damage));
+  }
+  if (!damageById.size) return;
+
+  const items = await OBR.scene.items.getItems([...damageById.keys()]);
+  const warnings = [];
+  for (const item of items) {
+    const concentration = item.metadata?.[META_KEY]?.[CONC_META_KEY];
+    if (!concentration || typeof concentration !== "object" || !Object.keys(concentration).length) continue;
+    const damage = damageById.get(item.id) || 0;
+    warnings.push({
+      name: item.name || "Token",
+      damage,
+      dc: concentrationSaveDC(damage),
+      portrait: getTokenImageUrl(item) || "",
+      attitude: item.metadata?.[META_KEY]?.attitude || "neutral",
+    });
+  }
+  if (!warnings.length) return;
+
+  await OBR.broadcast.sendMessage(CONCENTRATION_WARNING_CHANNEL, {
+    type: "show-concentration-warning",
+    warnings,
+    createdAt: Date.now(),
+  }, { destination: "ALL" });
+}
+
 async function updateMultipleHP(updates = []) {
   const byId = new Map();
   for (const update of updates) {
@@ -2394,42 +3190,497 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
 }
 
 
+async function getTrackerPopoverAnchor() {
+  let trackerWidth = 340;
+  try {
+    trackerWidth = Math.max(240, Number(await OBR.action.getWidth()) || trackerWidth);
+  } catch {}
+  const viewportWidth = Math.max(
+    Number(window.innerWidth) || 0,
+    Number(document.documentElement?.getBoundingClientRect?.().width) || 0,
+    Number(document.body?.getBoundingClientRect?.().width) || 0,
+  );
+  trackerWidth = Math.max(trackerWidth, viewportWidth);
+  return { left: Math.ceil(trackerWidth) + 14, top: 52 };
+}
+
+async function resolveGlobalPopupSourceEntry() {
+  const [entries, state, selection] = await Promise.all([
+    readEntries(),
+    getSceneState(),
+    OBR.player.getSelection().catch(() => []),
+  ]);
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  for (const selectedId of Array.isArray(selection) ? selection : []) {
+    const entry = byId.get(splitParagonId(selectedId).baseId);
+    if (entry) return entry;
+  }
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const activeIndex = Math.max(0, Math.min(order.length - 1, state?.current ?? 0));
+  const activeId = order.length ? order[activeIndex] : "";
+  const activeEntry = byId.get(splitParagonId(activeId).baseId);
+  return activeEntry || entries[0] || null;
+}
+
+async function openGlobalEffectsPopup() {
+  const sourceEntry = await resolveGlobalPopupSourceEntry();
+  if (sourceEntry) await openCardEffectsPopup(sourceEntry);
+}
+
+async function openGlobalSpellsPopup() {
+  const sourceEntry = await resolveGlobalPopupSourceEntry();
+  if (sourceEntry) await openCardSpellsPopup(sourceEntry);
+}
+
+const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
+const TRACKER_POPOVER_IDS = [
+  `${ID}/history-modal`,
+  `${ID}/effects-modal`,
+  `${ID}/spells-modal`,
+  `${ID}/initiative-card-modal`,
+];
+let __openTrackerPopoverId = "";
+
+function mountTrackerPopoverToggleListener() {
+  OBR.broadcast.onMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, (event) => {
+    const data = event?.data;
+    if (data?.type === "closed" && data.id === __openTrackerPopoverId) {
+      __openTrackerPopoverId = "";
+    }
+  });
+}
+
+async function beginTrackerPopoverToggle(popupId) {
+  if (__openTrackerPopoverId === popupId) {
+    await OBR.popover.close(popupId).catch(() => {});
+    __openTrackerPopoverId = "";
+    return false;
+  }
+  await Promise.all(TRACKER_POPOVER_IDS.map((id) => OBR.popover.close(id).catch(() => {})));
+  __openTrackerPopoverId = "";
+  return true;
+}
+
 async function openCardEffectsPopup(sourceEntry, entries) {
-  if (!sourceEntry || sourceEntry.__groupCollapsed || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+  if (!sourceEntry || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
 
+  const popupId = `${ID}/effects-modal`;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try { await OBR.modal.close(popupId); } catch {}
+  try { await OBR.popover.close(popupId); } catch {}
+  const anchorPosition = await getTrackerPopoverAnchor();
   try {
-    await OBR.modal.open({
-      id: `${ID}/effects-modal`,
+    await OBR.popover.open({
+      id: popupId,
       url: `/effects-modal.html?source=${encodeURIComponent(sourceId)}`,
-      width: 720,
-      height: 600,
-      hideBackdrop: true,
+      width: 560,
+      height: 560,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
     });
+    __openTrackerPopoverId = popupId;
   } catch (err) {
-    console.warn("[effects] modal open error:", err?.message || err);
+    __openTrackerPopoverId = "";
+    console.warn("[effects] popover open error:", err?.message || err);
   }
 }
 
 async function openCardSpellsPopup(sourceEntry) {
-  if (!sourceEntry || sourceEntry.__groupCollapsed || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+  if (!sourceEntry || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
 
+  const popupId = `${ID}/spells-modal`;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  const popupUrl = `/spells-modal.html?source=${encodeURIComponent(sourceId)}`;
+  const [anchorPosition] = await Promise.all([
+    getTrackerPopoverAnchor(),
+    fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
+  ]);
+  try { await OBR.modal.close(popupId); } catch {}
+  try { await OBR.popover.close(popupId); } catch {}
   try {
-    await OBR.modal.open({
-      id: `${ID}/spells-modal`,
-      url: `/spells-modal.html?source=${encodeURIComponent(sourceId)}`,
-      width: 720,
-      height: 600,
-      hideBackdrop: true,
+    await OBR.popover.open({
+      id: popupId,
+      url: popupUrl,
+      width: 560,
+      height: 560,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
     });
+    __openTrackerPopoverId = popupId;
   } catch (err) {
-    console.warn("[spells] modal open error:", err?.message || err);
+    __openTrackerPopoverId = "";
+    console.warn("[spells] popover open error:", err?.message || err);
   }
+}
+
+async function openInitiativeCardPopup(sourceEntry) {
+  if (!sourceEntry || sourceEntry.__groupCollapsed || sourceEntry.attitude !== "pc" ||
+      isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+
+  const sourceId = splitParagonId(sourceEntry.id).baseId;
+  if (!sourceId) return;
+
+  const popupId = `${ID}/initiative-card-modal`;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try { await OBR.modal.close(popupId); } catch {}
+  try { await OBR.popover.close(popupId); } catch {}
+  const anchorPosition = await getTrackerPopoverAnchor();
+  try {
+    await OBR.popover.open({
+      id: popupId,
+      url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
+      width: 440,
+      height: 500,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __openTrackerPopoverId = popupId;
+  } catch (err) {
+    __openTrackerPopoverId = "";
+    console.warn("[initiative-card] popover open error:", err?.message || err);
+  }
+}
+
+let __initiativeCardContextMenu = null;
+let __initiativeCardContextMenuAbort = null;
+
+function __closeInitiativeCardContextMenu() {
+  __initiativeCardContextMenuAbort?.abort();
+  __initiativeCardContextMenuAbort = null;
+  __initiativeCardContextMenu?.remove();
+  __initiativeCardContextMenu = null;
+}
+
+function __cardBossMode(entry) {
+  if (entry?.isEpic) return "epic";
+  if (Number(entry?.paragonActions) > 1) return "paragon";
+  if (Number(entry?.legendary?.max) > 0) return "legendary";
+  return "none";
+}
+
+function __contextScopeIds(entry) {
+  const entryIds = __selectionIdsForEntry(entry);
+  if (entry?.__groupCollapsed) return entryIds;
+  const trackerIds = new Set();
+  document.querySelectorAll("[data-tracker-card='1']").forEach((card) => {
+    for (const id of card.__selectionItemIds || []) trackerIds.add(id);
+  });
+  const selected = [...__selectedSceneItemIds].filter((id) => trackerIds.has(id));
+  return selected.length > 1 ? selected : entryIds.slice(0, 1);
+}
+
+async function __selectContextScope(ids) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+  __setTrackerSelection(scopeIds);
+  await OBR.player.select(scopeIds, true);
+}
+
+async function __setCardAttitude(ids, attitude) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+  await OBR.scene.items.updateItems(scopeIds, (items) => {
+    for (const item of items) {
+      const meta = { ...(item.metadata?.[META_KEY] || {}), attitude };
+      item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+    }
+  });
+  await rememberFactionForIds(scopeIds, attitude).catch(() => {});
+  await reconcileStateWithItems();
+  await renderAll();
+}
+
+async function __setCardBossMode(entry, mode) {
+  const id = splitParagonId(entry?.id).baseId;
+  if (!id) return;
+  await OBR.scene.items.updateItems([id], (items) => {
+    const item = items[0];
+    if (!item) return;
+    const meta = { ...(item.metadata?.[META_KEY] || {}) };
+    delete meta.legendary;
+    delete meta.paragon;
+    delete meta.epic;
+    if (mode === "legendary") meta.legendary = { max: 3, current: 3 };
+    if (mode === "paragon") meta.paragon = { actions: 2 };
+    if (mode === "epic") {
+      meta.epic = { enabled: 1 };
+      meta.initiative = 20;
+    }
+    item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+  });
+  await setSceneState((previous) => {
+    const paragonInits = { ...(previous?.paragonInits || {}) };
+    if (mode === "paragon") {
+      const initiative = Number(entry?.initiative) || 10;
+      paragonInits[id] = [initiative, initiative];
+    } else {
+      delete paragonInits[id];
+    }
+    return { ...(previous || {}), paragonInits };
+  });
+  await reconcileStateWithItems();
+  await renderAll();
+}
+
+async function __removeCardFromInitiative(ids) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+  await OBR.scene.items.updateItems(scopeIds, (items) => {
+    for (const item of items) {
+      const meta = { ...(item.metadata?.[META_KEY] || {}) };
+      delete meta.inInitiative;
+      item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+    }
+  });
+  await reconcileStateWithItems();
+  await renderAll();
+}
+
+function __openInitiativeCardContextMenu(sourceEntry, event) {
+  if (!IS_GM || !sourceEntry ||
+      isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  __closeInitiativeCardContextMenu();
+  const scopeIds = __contextScopeIds(sourceEntry);
+  const isBulkScope = scopeIds.length > 1;
+  const menuTitle = sourceEntry.__groupCollapsed
+    ? sourceEntry.__groupBase
+    : sourceEntry.name;
+
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "menu");
+  Object.assign(menu.style, {
+    position: "fixed",
+    left: `${event.clientX}px`,
+    top: `${event.clientY}px`,
+    minWidth: "238px",
+    padding: "7px",
+    border: "1px solid rgba(255,255,255,.16)",
+    borderRadius: "12px",
+    background: "rgba(42,47,64,.62)",
+    backdropFilter: "blur(18px) saturate(125%)",
+    WebkitBackdropFilter: "blur(18px) saturate(125%)",
+    boxShadow: "0 16px 42px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.07)",
+    color: "#fff",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    fontSize: "12px",
+    zIndex: "100000",
+  });
+
+  const title = document.createElement("div");
+  title.textContent = isBulkScope
+    ? `${menuTitle || "Azioni"} (${scopeIds.length})`
+    : (menuTitle || "Azioni");
+  Object.assign(title.style, {
+    padding: "7px 9px 9px",
+    marginBottom: "5px",
+    borderBottom: "1px solid rgba(255,255,255,.12)",
+    fontSize: "13px",
+    fontWeight: "800",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  });
+  menu.appendChild(title);
+
+  const asset = (name) => `${import.meta.env.BASE_URL || "/"}${name}`;
+  const iconNode = (icon, color) => {
+    if (color) {
+      const dot = document.createElement("span");
+      Object.assign(dot.style, {
+        width: "11px", height: "11px", flex: "0 0 11px",
+        borderRadius: "999px", background: color,
+        border: "1px solid rgba(255,255,255,.55)",
+      });
+      return dot;
+    }
+    const image = document.createElement("img");
+    image.src = asset(icon);
+    image.alt = "";
+    Object.assign(image.style, {
+      width: "18px", height: "18px", flex: "0 0 18px",
+      objectFit: "contain", pointerEvents: "none",
+      filter: icon === "conditions.png" || icon === "character-sheet.svg"
+        ? "none" : "brightness(0) invert(1)",
+    });
+    return image;
+  };
+
+  const makeAction = (parent, label, icon, action, options = {}) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    Object.assign(button.style, {
+      width: "100%", minHeight: "36px", padding: "7px 9px",
+      border: "0", borderRadius: "8px",
+      background: options.current ? "rgba(37,99,235,.30)" : "transparent",
+      color: options.danger ? "#fecaca" : "#fff",
+      fontFamily: "inherit", fontSize: "13px", fontWeight: "600",
+      textAlign: "left", cursor: "pointer",
+      display: "flex", alignItems: "center", gap: "9px",
+    });
+    button.appendChild(iconNode(icon, options.color));
+    const labelNode = document.createElement("span");
+    labelNode.textContent = label;
+    labelNode.style.flex = "1 1 auto";
+    button.appendChild(labelNode);
+    if (options.trailing) {
+      const trailing = document.createElement("span");
+      trailing.textContent = options.trailing;
+      trailing.style.opacity = ".72";
+      button.appendChild(trailing);
+    }
+    button.addEventListener("pointerenter", () => {
+      button.style.background = "rgba(255,255,255,.12)";
+    });
+    button.addEventListener("pointerleave", () => {
+      button.style.background = options.current ? "rgba(37,99,235,.30)" : "transparent";
+    });
+    if (action) {
+      button.addEventListener("click", async (clickEvent) => {
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        __closeInitiativeCardContextMenu();
+        await action();
+      });
+    }
+    parent.appendChild(button);
+    return button;
+  };
+
+  const addAction = (label, icon, action, options) =>
+    makeAction(menu, label, icon, action, options);
+  let openSubmenu = null;
+  const addSubmenu = (label, icon, entries) => {
+    const wrap = document.createElement("div");
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      display: "none", margin: "2px 0 5px 27px", padding: "3px",
+      borderLeft: "1px solid rgba(255,255,255,.14)",
+    });
+    const trigger = makeAction(wrap, label, icon, null, { trailing: ">" });
+    trigger.addEventListener("click", (clickEvent) => {
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+      if (openSubmenu && openSubmenu !== content) openSubmenu.style.display = "none";
+      const show = content.style.display === "none";
+      content.style.display = show ? "block" : "none";
+      openSubmenu = show ? content : null;
+    });
+    for (const entry of entries) {
+      makeAction(content, entry.label, entry.icon, entry.action, entry.options);
+    }
+    wrap.appendChild(content);
+    menu.appendChild(wrap);
+  };
+  const divider = () => {
+    const line = document.createElement("div");
+    Object.assign(line.style, {
+      height: "1px", margin: "5px 7px",
+      background: "rgba(255,255,255,.12)",
+    });
+    menu.appendChild(line);
+  };
+
+
+  addAction("Condizioni", "conditions.png", async () => {
+    await __selectContextScope(scopeIds);
+    await openCardEffectsPopup(sourceEntry);
+  });
+  addAction("Incantesimi", "spells.svg", async () => {
+    await __selectContextScope(scopeIds);
+    await openCardSpellsPopup(sourceEntry);
+  });
+  if (!isBulkScope && sourceEntry.attitude === "pc") {
+    addAction("Scheda iniziativa", "character-sheet.svg", () => openInitiativeCardPopup(sourceEntry));
+  }
+
+  divider();
+  const attitudes = [
+    { value: "ally", label: "Alleato", color: "#22c55e" },
+    { value: "neutral", label: "Neutrale", color: "#eab308" },
+    { value: "pc", label: "Personaggio", color: "#3b82f6" },
+    { value: "enemy", label: "Nemico", color: "#ef4444" },
+  ];
+  addSubmenu("Cambia fazione", "mark.svg", attitudes.map((item) => ({
+    label: item.label,
+    icon: "mark.svg",
+    action: () => __setCardAttitude(scopeIds, item.value),
+    options: {
+      color: item.color,
+      current: (!isBulkScope || sourceEntry.__groupCollapsed) && sourceEntry.attitude === item.value,
+      trailing: (!isBulkScope || sourceEntry.__groupCollapsed) && sourceEntry.attitude === item.value ? "Attiva" : "",
+    },
+  })));
+
+  if (!isBulkScope && sourceEntry.attitude === "enemy") {
+    const activeMode = __cardBossMode(sourceEntry);
+    const modes = [
+      { value: "none", label: "Nessuno", icon: "boss-remove.svg" },
+      { value: "legendary", label: "Azioni Leggendarie", icon: "boss.svg" },
+      { value: "paragon", label: "Paragon Boss", icon: "boss.svg" },
+      { value: "epic", label: "Epic Boss", icon: "boss.svg" },
+    ];
+    addSubmenu("Tipo di Boss", "boss.svg", modes.map((item) => ({
+      label: item.label,
+      icon: item.icon,
+      action: () => __setCardBossMode(sourceEntry, item.value),
+      options: {
+        current: activeMode === item.value,
+        trailing: activeMode === item.value ? "Attivo" : "",
+      },
+    })));
+  }
+
+
+  divider();
+  addAction("Rimuovi dall'iniziativa", "remove.svg",
+    () => __removeCardFromInitiative(scopeIds), {
+      danger: true,
+      trailing: isBulkScope ? String(scopeIds.length) : "",
+    });
+
+  document.body.appendChild(menu);
+  __initiativeCardContextMenu = menu;
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
+  menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8))}px`;
+
+  const abort = new AbortController();
+  __initiativeCardContextMenuAbort = abort;
+  document.addEventListener("pointerdown", (outsideEvent) => {
+    if (!menu.contains(outsideEvent.target)) __closeInitiativeCardContextMenu();
+  }, { capture: true, signal: abort.signal });
+  document.addEventListener("keydown", (keyEvent) => {
+    if (keyEvent.key === "Escape") __closeInitiativeCardContextMenu();
+  }, { signal: abort.signal });
+  document.addEventListener("scroll", __closeInitiativeCardContextMenu, {
+    capture: true, signal: abort.signal,
+  });
+  window.addEventListener("blur", __closeInitiativeCardContextMenu, { signal: abort.signal });
 }
     // ===== Render card
     function renderTrack(entries, state, opts = {}) {
@@ -2486,6 +3737,18 @@ for (const e of entries) {
     card.dataset.itemId     = e.id;
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
+    card.dataset.trackerCard = "1";
+    card.__selectionItemIds = __selectionIdsForEntry(e);
+    card.title = "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
+    card.style.cursor = card.__selectionItemIds.length ? "pointer" : "default";
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button, input, select, textarea, [contenteditable='true'], [role='button'], [data-badge], [data-card-selection-ignore]")) return;
+      event.stopPropagation();
+      void __selectTrackerEntry(e, event);
+    });
+    card.addEventListener("contextmenu", (event) => {
+      __openInitiativeCardContextMenu(e, event);
+    });
 
     const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
     const HAS_PAR = Number(e.paragonActions) > 1;
@@ -2820,6 +4083,7 @@ Object.assign(nameLabel.style, {
 });
 name.appendChild(nameLabel);
 
+
 let cardToolsDock = null;
 let placeCardToolInRadialSlot = null;
 if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
@@ -2827,8 +4091,9 @@ if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
   if (e.__groupCollapsed) {
     Object.assign(cardToolsDock.style, {
       position: "absolute",
-      top: "-8px",
-      right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
+      top: "calc(50% + 9px)",
+      left: `${AVA - OVER + 18}px`,
+      right: "auto",
       display: "flex",
       alignItems: "center",
       gap: "4px",
@@ -2847,13 +4112,14 @@ if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
       pointerEvents: "none",
     });
 
-    const radialAngles = [228, 180, 132];
+    const radialAngles = IS_BOSS ? [212, 180, 132] : [228, 180, 132];
     const radialButtonSize = 20;
     const radialRadius = (AVA / 2) - 2;
+    const radialLeftOffset = IS_BOSS ? -8 : -4;
     placeCardToolInRadialSlot = (button, slot) => {
       const angle = (radialAngles[slot] ?? 0) * (Math.PI / 180);
       const center = AVA / 2;
-      const left = center + (Math.cos(angle) * radialRadius) - (radialButtonSize / 2);
+      const left = center + (Math.cos(angle) * radialRadius) - (radialButtonSize / 2) + radialLeftOffset;
       const top = center + (Math.sin(angle) * radialRadius) - (radialButtonSize / 2);
       Object.assign(button.style, {
         position: "absolute",
@@ -2870,102 +4136,26 @@ if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
   header.appendChild(cardToolsDock);
 }
 
-if (cardToolsDock && !e.__groupCollapsed) {
-  const effectsBtn = document.createElement("button");
-  effectsBtn.type = "button";
-  effectsBtn.textContent = "✨";
-  effectsBtn.title = "Gestisci condizioni ed effetti";
-  effectsBtn.setAttribute("aria-label", effectsBtn.title);
-  Object.assign(effectsBtn.style, {
-    flex: "0 0 auto",
-    width: "24px",
-    height: "24px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0",
-    borderRadius: "999px",
-    border: "1px solid rgba(255,255,255,.22)",
-    background: "rgba(0,0,0,.52)",
-    color: "#fff",
-    fontSize: "13px",
-    lineHeight: "1",
-    cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-  });
-  effectsBtn.addEventListener("pointerdown", (ev) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-  });
-  effectsBtn.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-    openCardEffectsPopup(e, entries);
-  });
-  placeCardToolInRadialSlot?.(effectsBtn, 0);
-  cardToolsDock.appendChild(effectsBtn);
-
-  const spellsBtn = document.createElement("button");
-  spellsBtn.type = "button";
-  spellsBtn.title = "Gestisci incantesimi";
-  spellsBtn.setAttribute("aria-label", spellsBtn.title);
-  Object.assign(spellsBtn.style, {
-    flex: "0 0 auto",
-    width: "24px",
-    height: "24px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0",
-    borderRadius: "999px",
-    border: "1px solid rgba(255,255,255,.22)",
-    background: "rgba(0,0,0,.52)",
-    color: "#fff",
-    cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-  });
-  const spellsIcon = document.createElement("img");
-  spellsIcon.src = `${import.meta.env.BASE_URL || "/"}spells.svg`;
-  spellsIcon.alt = "";
-  Object.assign(spellsIcon.style, {
-    width: "17px",
-    height: "17px",
-    display: "block",
-    filter: "brightness(0) invert(1)",
-    pointerEvents: "none",
-  });
-  spellsBtn.appendChild(spellsIcon);
-  spellsBtn.addEventListener("pointerdown", (ev) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-  });
-  spellsBtn.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-    openCardSpellsPopup(e);
-  });
-  placeCardToolInRadialSlot?.(spellsBtn, 1);
-  cardToolsDock.appendChild(spellsBtn);
-}
-
 if (cardToolsDock && e.__groupCollapsed) {
   const groupDeltaButton = document.createElement("button");
   groupDeltaButton.type = "button";
-  groupDeltaButton.textContent = `HP ± ×${e.__groupCount || e.__groupMembers?.length || 0}`;
+  groupDeltaButton.textContent = "±";
   groupDeltaButton.title = "Ricalibra HP correnti e massimi di tutto il gruppo";
+  groupDeltaButton.setAttribute("aria-label", groupDeltaButton.title);
   Object.assign(groupDeltaButton.style, {
     flex: "0 0 auto",
-    minWidth: "58px",
-    height: "24px",
+    minWidth: "24px",
+    width: "24px",
+    height: "20px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0 6px",
+    padding: "0",
     borderRadius: "999px",
     border: "1px solid rgba(255,255,255,.22)",
     background: "rgba(0,0,0,.52)",
     color: "#fff",
-    fontSize: "11px",
+    fontSize: "15px",
     fontWeight: "800",
     lineHeight: "1",
     cursor: "pointer",
@@ -2989,10 +4179,10 @@ if (cardToolsDock && e.__groupCollapsed) {
     input.pattern = "[+\\-]?\\d*";
     input.dataset.groupHpDeltaEditor = "1";
     Object.assign(input.style, {
-      width: "58px",
-      height: "24px",
+      width: "52px",
+      height: "20px",
       boxSizing: "border-box",
-      padding: "0 6px",
+      padding: "0 4px",
       borderRadius: "999px",
       border: "1px solid rgba(251,191,36,.82)",
       outline: "none",
@@ -3069,6 +4259,7 @@ if (cardToolsDock && e.__groupCollapsed) {
 
   // ---- TAGs spostabili (posizione salvata in scena)
   const tagsDock = document.createElement("div");
+  tagsDock.dataset.cardSelectionIgnore = "1";
   Object.assign(tagsDock.style, {
     position: "absolute",
     display: "flex",
@@ -3522,6 +4713,7 @@ badge.addEventListener("pointerdown", async (ev) => {
 
 if (e.__groupCollapsed) {
   const chev = document.createElement("div");
+  chev.dataset.cardSelectionIgnore = "1";
   chev.textContent = "▸";
   Object.assign(chev.style, {
     position: "absolute",
@@ -3558,6 +4750,7 @@ if (e.__groupCollapsed) {
 
 else if (e.__groupFirst) {
   const chev = document.createElement("div");
+  chev.dataset.cardSelectionIgnore = "1";
   chev.textContent = "▾";
   Object.assign(chev.style, {
     position: "absolute",
@@ -3642,7 +4835,7 @@ if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) 
   const mkLegBtn = (txt, delta) => {
     const b = document.createElement("button");
     b.type = "button";
-    Object.assign(b.style, {
+      Object.assign(b.style, {
       width: `${LEG_CTRL_CFG.btnSize}px`,
       height: `${LEG_CTRL_CFG.btnSize}px`,
       borderRadius: `${LEG_CTRL_CFG.btnRadius}px`,
@@ -3695,7 +4888,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   const mkParBtn = (txt, delta) => {
     const b = document.createElement("button");
     b.type = "button";
-    Object.assign(b.style, {
+      Object.assign(b.style, {
       width: `${PAR_CTRL_CFG.btnSize}px`,
       height: `${PAR_CTRL_CFG.btnSize}px`,
       borderRadius: `${PAR_CTRL_CFG.btnRadius}px`,
@@ -3730,13 +4923,22 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   };
 
   const lab = document.createElement("div");
-  lab.textContent = `P:${String(e.paragonActions)}`;
+  lab.textContent = String(e.paragonActions);
   Object.assign(lab.style, {
+    width: `${PAR_CTRL_CFG.btnSize}px`,
+    height: `${PAR_CTRL_CFG.btnSize}px`,
+    minWidth: `${PAR_CTRL_CFG.btnSize}px`,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
+    borderRadius: `${PAR_CTRL_CFG.btnRadius}px`,
+    border: "1px solid rgba(255,255,255,.18)",
+    background: "rgba(0, 0, 0, 0.72)",
+    color: "#fff",
     fontSize: "12px",
     fontWeight: "800",
-    minWidth: "28px",
-    textAlign: "center",
-    color: "#fff",
+    lineHeight: "1",
     userSelect: "none",
   });
   
@@ -3771,10 +4973,8 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
       : "Concentrazione attiva";
 
     Object.assign(cDot.style, {
-      position: "absolute",
-      right: "98%",              // lasciamo libero di “uscire” dalla card vicino all’avatar
-      top: "15%",
-      transform: "translateY(-50%)",
+      boxSizing: "border-box",
+      flex: "0 0 auto",
       width: C_DOT_SIZE + "px",
       height: C_DOT_SIZE + "px",
       borderRadius: "50%",
@@ -3791,7 +4991,9 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
       zIndex: "6",
       pointerEvents: "none"
     });
-    header.appendChild(cDot);
+    const chipRow = condDock.firstElementChild;
+    if (chipRow) chipRow.prepend(cDot);
+    else condDock.appendChild(cDot);
   }
 }
 
@@ -3805,11 +5007,23 @@ const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
 const _playerCanSeeHP = PLAYER_VISIBLE_ATTITUDES.includes(_att);
 
 if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
+  const hpControlsRow = document.createElement("div");
+  Object.assign(hpControlsRow.style, {
+    position: "absolute",
+    top: "75%",
+    left: "19%",
+    right: "10px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: "3px",
+    zIndex: "3",
+  });
+
   const pill = document.createElement("div");
   pill.title = "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi";
-  pill.style.position = "absolute";
-  pill.style.top = "75%";
-  pill.style.left = "19%";
+  pill.style.position = "relative";
+  pill.style.marginRight = "auto";
   pill.style.padding = "2px 8px";
   pill.style.fontSize = "13px";
   pill.style.fontWeight = "700";
@@ -3830,11 +5044,11 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   // === Barra HP visuale accanto alla pill ===
   const hpBarWrap = document.createElement("div");
-  hpBarWrap.style.position = "absolute";
-  hpBarWrap.style.top = "80%";
-  hpBarWrap.style.left = "calc(23% + 60px)"; // spostata a destra della pill
-  hpBarWrap.style.width = "90px";
-  hpBarWrap.style.height = "12px";
+  hpBarWrap.style.position = "relative";
+  hpBarWrap.style.flex = `0 0 ${IS_GM ? 78 : 96}px`;
+  hpBarWrap.style.width = IS_GM ? "78px" : "96px";
+  hpBarWrap.style.height = "10px";
+  hpBarWrap.style.boxSizing = "border-box";
   hpBarWrap.style.background = "rgba(0, 0, 0, 0.85)";
   hpBarWrap.style.border = "1px solid rgba(0, 0, 0, 1)";
   hpBarWrap.style.borderRadius = "16px";
@@ -3852,9 +5066,6 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   hpBarWrap.appendChild(hpFill);
 
-  card.appendChild(pill);
-  card.appendChild(hpBarWrap);
-
   let hpDeltaButton = null;
   const setHPDeltaButtonActive = (active) => {
     if (!hpDeltaButton) return;
@@ -3867,7 +5078,47 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       : "rgba(255,255,255,.22)";
   };
 
-  if (IS_GM) {
+  let initiativeCardButton = null;
+  if (e.attitude === "pc") {
+    initiativeCardButton = document.createElement("button");
+    initiativeCardButton.type = "button";
+    initiativeCardButton.title = "Apri scheda iniziativa";
+    initiativeCardButton.setAttribute("aria-label", initiativeCardButton.title);
+    Object.assign(initiativeCardButton.style, {
+      flex: "0 0 auto",
+      minWidth: "24px",
+      width: "24px",
+      height: "20px",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0",
+      borderRadius: "999px",
+      border: "1px solid rgba(255,255,255,.22)",
+      background: "rgba(0,0,0,.52)",
+      cursor: "pointer",
+      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+    });
+    const initiativeCardIcon = document.createElement("img");
+    initiativeCardIcon.src = `${import.meta.env.BASE_URL || "/"}character-sheet.svg`;
+    initiativeCardIcon.alt = "";
+    Object.assign(initiativeCardIcon.style, {
+      width: "15px",
+      height: "15px",
+      display: "block",
+      pointerEvents: "none",
+    });
+    initiativeCardButton.appendChild(initiativeCardIcon);
+    initiativeCardButton.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+    });
+    initiativeCardButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      void openInitiativeCardPopup(e);
+    });
+  } else if (IS_GM) {
     hpDeltaButton = document.createElement("button");
     hpDeltaButton.type = "button";
     hpDeltaButton.textContent = "±";
@@ -3876,12 +5127,13 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.setAttribute("aria-pressed", "false");
     Object.assign(hpDeltaButton.style, {
       flex: "0 0 auto",
-      minWidth: "42px",
-      height: "24px",
+      minWidth: "24px",
+      width: "24px",
+      height: "20px",
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      padding: "0 6px",
+      padding: "0",
       borderRadius: "999px",
       border: "1px solid rgba(255,255,255,.22)",
       background: "rgba(0,0,0,.52)",
@@ -3921,10 +5173,14 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
         clientY: rect.top + (rect.height / 2),
       }));
     });
-    placeCardToolInRadialSlot?.(hpDeltaButton, 2);
     hpDeltaButton.style.fontSize = "15px";
-    cardToolsDock?.appendChild(hpDeltaButton);
   }
+
+  hpControlsRow.appendChild(pill);
+  if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
+  if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
+  hpControlsRow.appendChild(hpBarWrap);
+  card.appendChild(hpControlsRow);
 
 // === apertura editor HP su pointerdown (con handoff robusto) ===
 
@@ -4233,6 +5489,14 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
 
     const isMultiTarget = multiUpdates.length > 1;
     const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
+    const concentrationDamage = hpDelta !== null && hpDelta < 0
+      ? Math.abs(hpDelta)
+      : Math.max(0, hpVal - nextHP);
+    const concentrationDamageChanges = recalibratesMax || concentrationDamage <= 0
+      ? []
+      : (isMultiTarget
+          ? multiUpdates.map((update) => ({ itemId: update.itemId, damage: concentrationDamage }))
+          : [{ itemId: e.id, damage: concentrationDamage }]);
     let historyIds = isMultiTarget ? multiUpdates.map((update) => update.itemId) : [e.id];
     if (!isMultiTarget) {
       try {
@@ -4259,6 +5523,13 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     });
 
     cleanup();
+    if (concentrationDamageChanges.length) {
+      try {
+        await showConcentrationDamageWarning(concentrationDamageChanges);
+      } catch (err) {
+        console.warn("[concentration] damage warning error:", err?.message || err);
+      }
+    }
   };
 
   const cancel = () => {
@@ -4362,10 +5633,13 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   iMax.addEventListener("keydown", onKeyMax);
 });
 }
-}      return card;
+}
+      __applyTrackerSelectionState(card);
+      return card;
     });
 
     track.replaceChildren(...nodes.filter(Boolean));
+    updateActiveCardMovementIndicator(latestMovementSnapshot);
 
   if (__scrollActiveOnNextRender) {
     __scrollActiveOnNextRender = false;
@@ -4660,6 +5934,7 @@ __activeLabelEntriesById = byId;
     __latestInitiativeState = stateClean;
   }
   zoomChk.checked = isAutoFocusEnabled(stateClean);
+  setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
 
     try {
   const lbl = document.getElementById("tbp-round-label");
@@ -4699,7 +5974,6 @@ __activeLabelEntriesById = byId;
     // Evita rimpiazzi DOM mentre c'è un editor aperto o stiamo switchando editor
     if (__suspendRenders) return;
     if (__editingInitForId || __editingHPForId) {
-    if (needFix) await setSceneState(stateClean); // allinea lo stato, ma NON ridisegnare
     return;
 }
     // costruisci la lista rispettando l’ordine pulito
@@ -4720,25 +5994,53 @@ try {
   }
 
   OBR.onReady(async () => {
+    mountTrackerPopoverToggleListener();
+    mountSpeedCheckStateBroadcast();
+    mountConcentrationWarningBroadcast();
+    await mountTurnNoticeBroadcast().catch(() => {});
+    await mountSpeedWarningBroadcast().catch(() => {});
+    OBR.tool.onToolChange((toolId) => {
+      rememberTrackedMovePreviousTool(toolId);
+      setTrackedMoveButtonActive(toolId === TRACKED_MOVE_TOOL_ID);
+    });
+    setTrackedMoveButtonActive((await OBR.tool.getActiveTool().catch(() => "")) === TRACKED_MOVE_TOOL_ID);
     try {
       const role =
         (await OBR.player?.getRole?.()) ||
         (await OBR.room?.getRole?.()) ||
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
+      viewOptionsRow.style.display = IS_GM ? "flex" : "none";
+      globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";
+      zoomToggleWrap.style.display = IS_GM ? "flex" : "none";
+      trackedMoveButton.style.display = IS_GM ? "inline-flex" : "none";
+      movementAllowanceControls.style.display = IS_GM ? "grid" : "none";
+      movementResetButton.style.display = IS_GM ? "block" : "none";
       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
 try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
+  const hasAddAllBtn = !!roundPill.querySelector('[data-add-all-initiative="1"]');
+  const hasFactionConfiguratorBtn = !!roundPill.querySelector('[data-faction-configurator="1"]');
   const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
   const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
   if (IS_GM) {
-    if (!hasBtn) roundPill.appendChild(makeRoundResetBtn());
-    if (!hasClearBtn) roundPill.appendChild(makeClearInitiativeBtn());
-    if (!hasHistoryBtn) roundPill.appendChild(makeHistoryBtn());
+    if (!roundResetSlot.isConnected) roundPill.prepend(roundResetSlot);
+    if (!roundActions.isConnected) roundPill.appendChild(roundActions);
+    if (!roundHistorySlot.isConnected) roundPill.appendChild(roundHistorySlot);
+    if (!hasBtn) roundResetSlot.appendChild(makeRoundResetBtn());
+    if (!hasAddAllBtn) roundActions.appendChild(makeAddAllInitiativeBtn());
+    if (!hasClearBtn) roundActions.appendChild(makeClearInitiativeBtn());
+    if (!hasFactionConfiguratorBtn) roundActions.appendChild(makeFactionConfiguratorBtn());
+    if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
+    if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();
+    if (hasFactionConfiguratorBtn) roundPill.querySelector('[data-faction-configurator="1"]').remove();
     if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
     if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();
+    if (roundResetSlot.isConnected) roundResetSlot.remove();
+    if (roundActions.isConnected) roundActions.remove();
+    if (roundHistorySlot.isConnected) roundHistorySlot.remove();
   }
 } catch {}
 
@@ -4747,7 +6049,7 @@ try {
     if (!lairToggleWrap.isConnected) {
       // inserisci il toggle tra la pill “Turno” e la lista
       if (IS_GM) {
-  if (!lairToggleWrap.isConnected) topRow.appendChild(lairToggleWrap);
+  if (!lairToggleWrap.isConnected) sceneOptionsGroup.appendChild(lairToggleWrap);
 } else {
   if (lairToggleWrap.isConnected) lairToggleWrap.remove();
 }
@@ -4760,16 +6062,24 @@ try {
     } catch {
       IS_GM = false;
     }
+    await __mountTrackerSelectionSync();
     try {
 } catch (e) {
   console.error("[hpbar] mount error", e?.error?.message || e?.message || e);
 }
   await mountHPBars();
-  if (IS_GM) await mountMovementHistoryWatcher();
+  if (IS_GM) {
+    enableSpeedCheckProcessor();
+    subscribeMovementSegments(queueSpeedCheckMovements);
+    await mountMovementHistoryWatcher();
+  }
   await ensureState();
   await reconcileStateWithItems();
   await enforceUniqueNamePrefixes();
   await renderAll();
+  __lastActiveId = __activeIdForState(__latestInitiativeState);
+  syncSpeedCheckTurn(__latestInitiativeState);
+  __lastRoundSeen = Math.max(1, Number(__latestInitiativeState?.round || 1));
   __lastConditionTurnState = __conditionTurnStateSnapshot(__latestInitiativeState);
 
   if (IS_GM) {
@@ -4788,11 +6098,10 @@ try {
   }
 });
 
-  let __lastActiveId = null;
-
 OBR.scene.onMetadataChange(async (meta) => {
   const st = meta?.[STATE_KEY];
   if (__isStaleNavigationState(st)) return;
+  syncSpeedCheckTurn(st);
 
   let conditionTransition = null;
   if (st && Array.isArray(st.order) && st.order.length > 0) {
@@ -4807,28 +6116,44 @@ OBR.scene.onMetadataChange(async (meta) => {
     __conditionNavigationHint = null;
   }
 
+  let roundEffectAdjustment = Promise.resolve();
+  try {
+    if (st && Array.isArray(st.order) && st.order.length > 0) {
+      const roundNow = Math.max(1, Number(st.round || 1));
+      if (__lastRoundSeen == null) {
+        __lastRoundSeen = roundNow;
+      } else if (roundNow !== __lastRoundSeen) {
+        const delta = __lastRoundSeen - roundNow;
+        __lastRoundSeen = roundNow;
+
+        if (IS_GM) {
+          const tokenIds = st.order
+            .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
+            .filter(id => id && !isLairId(id) && !isEpicActionId(id));
+          const unique = Array.from(new Set(tokenIds));
+          const run = async () => {
+            await adjustSpellsForItems(unique, delta);
+            await adjustConditionDurationsForItems(unique, delta);
+          };
+          __roundEffectQueue = __roundEffectQueue.then(run, run);
+          roundEffectAdjustment = __roundEffectQueue;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[effects] queue round tick error:", err);
+  }
+
   await renderAll(); // ridisegna UI
-  if (!st || !Array.isArray(st.order) || st.order.length === 0) return;
+  if (!st || !Array.isArray(st.order) || st.order.length === 0) {
+    return;
+  }
 
   const activeId = st.order[st.current];
 
 // --- Tick incantesimi/condizioni per ROUND (con direzione) ---
 try {
-  const roundNow = Math.max(1, Number(st.round || 1));
-  if (__lastRoundSeen == null) {
-    __lastRoundSeen = roundNow; // prima inizializzazione: niente tick
-  } else if (roundNow !== __lastRoundSeen) {
-    const delta = __lastRoundSeen - roundNow;
-
-    const tokenIds = (Array.isArray(st.order) ? st.order : [])
-      .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
-      .filter(id => id && !isLairId(id) && !isEpicActionId(id));
-    const unique = Array.from(new Set(tokenIds));
-
-    await adjustSpellsForItems(unique, delta);
-    await adjustConditionDurationsForItems(unique, delta);
-    __lastRoundSeen = roundNow;
-  }
+  await roundEffectAdjustment;
 } catch (err) {
   console.warn("[effects] tick round error:", err);
 }
@@ -4857,7 +6182,13 @@ try {
 }
 
   if (!activeId || activeId === __lastActiveId) return;
+  const previousActiveId = __lastActiveId;
   __lastActiveId = activeId;
+  if (previousActiveId && IS_GM) {
+    void broadcastTurnNotice(st).catch((err) => {
+      console.warn("[turn-notice] broadcast error:", err?.message || err);
+    });
+  }
 
   // Reset delle azioni leggendarie a inizio turno della creatura attiva
   // Se è la Tana, niente reset legend e niente focus su scena
@@ -4868,23 +6199,6 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
   try {
-    const roundNow = Math.max(1, Number(st.round || 1));
-  if (__lastRoundSeen == null) {
-    __lastRoundSeen = roundNow; // prima inizializzazione → niente tick
-  } else if (roundNow !== __lastRoundSeen) {
-    // scala di 1 tutti i token in iniziativa (usa id base per paragon)
-    const tokenIds = (Array.isArray(st.order) ? st.order : [])
-      .map(id => (splitParagonId ? splitParagonId(id).baseId : id))
-      .filter(Boolean);
-    const unique = Array.from(new Set(tokenIds));
-    await tickSpellsForItems(unique);
-    __lastRoundSeen = roundNow;
-  }
-} catch (err) {
-  console.warn("[spells] tick round error:", err);
-}
-
-  try {
     const entriesNow = await readEntries();
     await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
     await renderAll();                         // ridisegna per evitare flicker
@@ -4893,20 +6207,19 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   }
 });
 
-  OBR.scene.items.onChange(async (changes = []) => {
-    if (__mutatingActiveLabel > 0 || isOnlyActiveTurnLabelChange(changes)) return;
+  subscribeSceneItemChanges(async () => {
+    if (__mutatingActiveLabel > 0) return;
     await reconcileStateWithItems();
     await enforceUniqueNamePrefixes();
     await renderAll();
-  });
+  }, { filter: (event) => event.flags.tracker });
 
   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
 // (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)
 try {
-  OBR.scene.items.onChange((changes = []) => {
-    if (isOnlyActiveTurnLabelChange(changes)) return;
+  subscribeSceneItemChanges(() => {
     scheduleHPMemoryAutofill(150); // 150ms debounce
-  });
+  }, { filter: (event) => event.flags.hpMemoryAutofill });
 } catch (e) {
   console.warn("[hpMemory] onChange subscribe failed", e);
 }
@@ -4917,7 +6230,7 @@ try {
     const len = st.order.length;
 
     const prevIdx = (st.current - 1 + len) % len;
-    const wrapped = prevIdx === (len - 1);                      // ritorno a fine
+    const wrapped = prevIdx === (len - 1);
     const nextRound = Math.max(1, (st.round || 1) - (wrapped ? 1 : 0));
 
     const next = { ...st, current: prevIdx, round: nextRound };
@@ -4932,9 +6245,9 @@ try {
     try { delete document.__tbpZoomStamp; } catch {}
 
     try {
-    const entriesNow = await readEntries();
-    if (revision !== __navigationRevision) return;
-    await __applyAutoCollapse(entriesNow, next);
+      const entriesNow = await readEntries();
+      if (revision !== __navigationRevision) return;
+      await __applyAutoCollapse(entriesNow, next);
     } catch {}
 
     if (revision !== __navigationRevision) return;
@@ -4942,8 +6255,6 @@ try {
       queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
     }
 
-    handoffFocusToCanvas?.();
-    armArrowProxy?.();
   });
 
   btnNext.addEventListener("click", async () => {
@@ -4952,7 +6263,7 @@ try {
     const len = st.order.length;
 
     const nextIdx = (st.current + 1) % len;
-    const wrapped = nextIdx === 0;                              // ritorno a inizio
+    const wrapped = nextIdx === 0;
     const nextRound = Math.max(1, (st.round || 1) + (wrapped ? 1 : 0));
 
     const next = { ...st, current: nextIdx, round: nextRound };
@@ -4967,9 +6278,9 @@ try {
     try { delete document.__tbpZoomStamp; } catch {}
 
     try {
-    const entriesNow = await readEntries();
-    if (revision !== __navigationRevision) return;
-    await __applyAutoCollapse(entriesNow, next);
+      const entriesNow = await readEntries();
+      if (revision !== __navigationRevision) return;
+      await __applyAutoCollapse(entriesNow, next);
     } catch {}
 
     if (revision !== __navigationRevision) return;
@@ -4977,8 +6288,6 @@ try {
       queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
     }
 
-    handoffFocusToCanvas?.();
-    armArrowProxy?.();
   });
 
 }

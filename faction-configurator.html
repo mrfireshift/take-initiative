@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fazioni automatiche</title>
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #f8fafc; }
+      button { font: inherit; }
+      .shell { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
+      .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+      .close { width: 30px; height: 30px; border: 0; border-radius: 999px; color: #fff; background: rgba(10, 12, 18, .36); cursor: pointer; font-size: 20px; }
+      .intro, .note { margin: 0; color: rgba(248, 250, 252, .72); font-size: 12px; line-height: 1.45; }
+      .factions { display: grid; gap: 9px; }
+      .faction { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 58px; padding: 10px 11px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 8px; background: rgba(12, 15, 22, .28); }
+      .identity { min-width: 0; }
+      .name { display: flex; align-items: center; gap: 8px; font-weight: 750; }
+      .dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 999px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); }
+      .pc { background: #38a9ff; }
+      .ally { background: #2bd576; }
+      .enemy { background: #ff575f; }
+      .count { margin: 4px 0 0 18px; color: rgba(248, 250, 252, .65); font-size: 12px; }
+      .choose, .secondary, .danger { border: 1px solid rgba(255, 255, 255, .18); border-radius: 999px; color: #fff; cursor: pointer; min-height: 34px; padding: 0 14px; }
+      .choose { background: rgba(37, 99, 235, .82); }
+      .secondary { background: rgba(255, 255, 255, .08); }
+      .danger { background: rgba(127, 29, 29, .58); border-color: rgba(248, 113, 113, .38); }
+      button:hover { filter: brightness(1.1); }
+      button:disabled { cursor: wait; opacity: .56; }
+      .footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .12); }
+    </style>
+  </head>
+  <body>
+    <main class="shell" data-glass-popover="1">
+      <div class="header">
+        <h1>Fazioni automatiche</h1>
+        <button class="close" type="button" data-close aria-label="Chiudi">x</button>
+      </div>
+      <p class="intro">Trascina i token dalle cartelle sulla mappa, selezionali e assegna la fazione. Potrai poi cancellarli: il riconoscimento restera memorizzato.</p>
+      <section class="factions" aria-label="Registri fazione">
+        <div class="faction">
+          <div class="identity"><div class="name"><span class="dot pc"></span>Personaggi</div><div class="count" data-count="pc">0 asset</div></div>
+          <button class="choose" type="button" data-register="pc">Assegna selezione</button>
+        </div>
+        <div class="faction">
+          <div class="identity"><div class="name"><span class="dot ally"></span>Alleati</div><div class="count" data-count="ally">0 asset</div></div>
+          <button class="choose" type="button" data-register="ally">Assegna selezione</button>
+        </div>
+        <div class="faction">
+          <div class="identity"><div class="name"><span class="dot enemy"></span>Mostri</div><div class="count" data-count="enemy">0 asset</div></div>
+          <button class="choose" type="button" data-register="enemy">Assegna selezione</button>
+        </div>
+      </section>
+      <p class="note">Le assegnazioni manuali future aggiornano il registro. I token sconosciuti vengono aggiunti come ostili.</p>
+      <div class="footer">
+        <button class="secondary" type="button" data-import-scene>Importa dalla scena</button>
+        <button class="danger" type="button" data-clear>Reset registro</button>
+      </div>
+    </main>
+    <script type="module" src="/src/faction-configurator.ts"></script>
+  </body>
+</html>

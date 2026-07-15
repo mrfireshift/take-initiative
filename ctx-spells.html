@@ -55,6 +55,13 @@
 
     /* righe “extra” che devono andare a tutta larghezza */
     .row { grid-column:1 / -1; display:flex; gap:6px; align-items:center; }
+    .automation {
+      align-items:flex-start; flex-direction:column; padding:8px;
+      border:1px solid rgba(255,255,255,.12); border-radius:10px;
+      background:rgba(0,0,0,.20);
+    }
+    .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+    .automation-line input { margin-top:2px; }
   </style>
 </head>
 <body>
@@ -64,7 +71,7 @@
            list="spell-list" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"/>
 
     <label for="dur">Durata (in round)</label>
-    <input id="dur" name="dur" type="number" min="1" step="1" value="10"/>
+    <input id="dur" name="dur" type="number" min="1" step="1" value="10" required />
 
     <label for="caster">Caster</label>
     <select id="caster" name="caster" disabled>
@@ -74,6 +81,13 @@
     <!-- Checkbox in linea: etichetta a sinistra, spunta nella colonna di destra -->
     <label for="conc">Concentrazione</label>
     <input id="conc" type="checkbox" style="justify-self:start; width:auto; height:auto;" />
+    <div class="row automation" id="automationWrap" style="display:none">
+      <label class="automation-line">
+        <input id="applyConditions" type="checkbox" />
+        <span id="automationText"></span>
+      </label>
+      <select id="conditionChoice" aria-label="Condizione da applicare" style="display:none"></select>
+    </div>
 
     <!-- Pulsanti: uno per riga, full width -->
     <button class="blockbtn" type="button" id="cancel">Termina incantesimi</button>

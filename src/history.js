@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const HISTORY_KEY = `${ID}/history`;
@@ -14,6 +15,7 @@ let __movementFlushTimer = null;
 const __movementPositions = new Map();
 const __pendingMovements = new Map();
 const __suppressedMovements = new Map();
+const __movementSegmentListeners = new Set();
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -145,6 +147,42 @@ export async function getHistoryEntries() {
   return normalizeHistory(md?.[HISTORY_KEY]).entries.slice();
 }
 
+export function subscribeMovementSegments(handler) {
+  if (typeof handler !== "function") throw new TypeError("handler must be a function");
+  __movementSegmentListeners.add(handler);
+  return () => __movementSegmentListeners.delete(handler);
+}
+
+function notifyMovementSegments(changes) {
+  for (const handler of __movementSegmentListeners) {
+    try {
+      const task = handler(changes);
+      if (task?.catch) task.catch((err) => console.warn("[history] movement listener:", err?.message || err));
+    } catch (err) {
+      console.warn("[history] movement listener:", err?.message || err);
+    }
+  }
+}
+
+async function measuredMovementCells(move, dpi) {
+  const segments = Array.isArray(move?.segments) && move.segments.length
+    ? move.segments
+    : [{ beforePosition: move.beforePosition, afterPosition: move.afterPosition }];
+  const measured = await Promise.all(segments.map(async (segment) => {
+    const fallback = Math.hypot(
+      segment.afterPosition.x - segment.beforePosition.x,
+      segment.afterPosition.y - segment.beforePosition.y
+    ) / dpi;
+    try {
+      const distance = await OBR.scene.grid.getDistance(segment.beforePosition, segment.afterPosition);
+      return Number.isFinite(distance) ? Number(distance) : fallback;
+    } catch {
+      return fallback;
+    }
+  }));
+  return measured.reduce((total, cells) => total + Math.max(0, Number(cells) || 0), 0);
+}
+
 async function flushPendingMovements() {
   __movementFlushTimer = null;
   const pending = Array.from(__pendingMovements.values());
@@ -152,28 +190,17 @@ async function flushPendingMovements() {
   if (!pending.length) return;
 
   let dpi = 1;
-  let scaleMultiplier = 1;
   try {
-    const [gridDpi, scale] = await Promise.all([
-      OBR.scene.grid.getDpi(),
-      OBR.scene.grid.getScale(),
-    ]);
+    const gridDpi = await OBR.scene.grid.getDpi();
     dpi = Math.max(1, Number(gridDpi) || 1);
-    scaleMultiplier = Math.max(0.0001, Number(scale?.parsed?.multiplier) || 1);
   } catch {}
 
   const changes = [];
   for (const move of pending) {
-    if (samePosition(move.beforePosition, move.afterPosition)) continue;
+    const hasSegments = Array.isArray(move.segments) && move.segments.length > 0;
+    if (!hasSegments && samePosition(move.beforePosition, move.afterPosition)) continue;
 
-    let cells = Math.hypot(
-      move.afterPosition.x - move.beforePosition.x,
-      move.afterPosition.y - move.beforePosition.y
-    ) / dpi;
-    try {
-      const distance = await OBR.scene.grid.getDistance(move.beforePosition, move.afterPosition);
-      if (Number.isFinite(distance)) cells = Number(distance) / scaleMultiplier;
-    } catch {}
+    const cells = await measuredMovementCells(move, dpi);
     if (cells < 0.01) continue;
 
     changes.push({
@@ -233,7 +260,7 @@ export async function mountMovementHistoryWatcher() {
   );
   for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
 
-  OBR.scene.items.onChange((changes = []) => {
+  subscribeSceneItemChanges(({ items: changes }) => {
     const now = Date.now();
     let movementChanged = false;
 
@@ -249,6 +276,15 @@ export async function mountMovementHistoryWatcher() {
       if (suppression?.until > now) {
         const expectedIndex = suppression.positions.findIndex((position) => samePosition(position, next));
         if (expectedIndex >= 0) {
+          if (previous && !samePosition(previous, next)) {
+            notifyMovementSegments([{
+              id: item.id,
+              name: String(item.name || "").trim() || "Token",
+              beforePosition: previous,
+              afterPosition: next,
+              undo: true,
+            }]);
+          }
           suppression.positions.splice(0, expectedIndex + 1);
           if (!suppression.positions.length) __suppressedMovements.delete(item.id);
           __pendingMovements.delete(item.id);
@@ -260,20 +296,29 @@ export async function mountMovementHistoryWatcher() {
       }
       if (!previous || samePosition(previous, next)) continue;
 
+      notifyMovementSegments([{
+        id: item.id,
+        name: String(item.name || "").trim() || "Token",
+        beforePosition: previous,
+        afterPosition: next,
+      }]);
+
       const pending = __pendingMovements.get(item.id) || {
         id: item.id,
         name: String(item.name || "").trim() || "Token",
         beforePosition: previous,
         afterPosition: next,
+        segments: [],
       };
       pending.name = String(item.name || "").trim() || pending.name;
       pending.afterPosition = next;
+      pending.segments.push({ beforePosition: previous, afterPosition: next });
       __pendingMovements.set(item.id, pending);
       movementChanged = true;
     }
 
     if (movementChanged) scheduleMovementFlush();
-  });
+  }, { immediate: true, filter: (event) => event.flags.movement });
 }
 
 async function restoreEntry(entry) {
@@ -323,6 +368,9 @@ async function syncRestoredEntry(entry) {
   const restoredConditions = changes.some((change) =>
     Object.prototype.hasOwnProperty.call(change?.before || {}, "conditions")
   );
+  const restoredInitiativeCards = changes.some((change) =>
+    Object.prototype.hasOwnProperty.call(change?.before || {}, "initiativeCard")
+  );
 
   if (restoredHP) {
     try {
@@ -358,6 +406,15 @@ async function syncRestoredEntry(entry) {
       await refreshConditionLabels(ids);
     } catch (err) {
       console.warn("[history] condition sync after undo:", err?.message || err);
+    }
+  }
+
+  if (restoredInitiativeCards) {
+    try {
+      const { syncInitiativeCardRegistryFromItems } = await import("./initiativeCards.js");
+      await syncInitiativeCardRegistryFromItems(ids);
+    } catch (err) {
+      console.warn("[history] initiative card sync after undo:", err?.message || err);
     }
   }
 }

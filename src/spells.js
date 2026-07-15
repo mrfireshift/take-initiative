@@ -1,15 +1,35 @@
-// src/spells.js
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { removeConditionInstancesByParentEffects } from "./conditions.js";
+import { getSpellDefinition } from "./spells-srd.js";
 
-const META_KEY        = `${ID}/meta`;
-const SPELLS_META_KEY = `${ID}/spells`;        // [{ id, name, turns, conc?, casterId? }]
-const CONC_META_KEY   = `${ID}/concentration`; // sul CASTER: { [spellKey]: { targets: string[] } }
+const META_KEY = ID + "/meta";
+const SPELLS_META_KEY = ID + "/spells";
+const CONC_META_KEY = ID + "/concentration";
 
-// util
-const keyOf = (name) => String(name || "").trim().toLowerCase();
+const keyOf = (name) => String(name || "").trim().toLocaleLowerCase();
 
-// ===== Base storage =====
+function createId(prefix) {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch {}
+  return prefix + ":" + Date.now().toString(36) + ":" + Math.random().toString(36).slice(2);
+}
+
+export function createSpellInstanceId() {
+  return createId("spell");
+}
+
+function linkedConditionRemoval(itemId, spell) {
+  const parentEffectId = String(spell?.instanceId || "").trim();
+  return itemId && parentEffectId ? { itemId, parentEffectId } : null;
+}
+
+async function removeLinkedConditions(removals) {
+  const valid = (Array.isArray(removals) ? removals : []).filter(Boolean);
+  if (valid.length) await removeConditionInstancesByParentEffects(valid);
+}
+
 export function getSpellsFromItem(item) {
   const meta = item?.metadata?.[META_KEY] || {};
   const list = meta[SPELLS_META_KEY];
@@ -18,199 +38,304 @@ export function getSpellsFromItem(item) {
 
 export async function setSpellsOnItem(itemId, spells) {
   await OBR.scene.items.updateItems([itemId], (drafts) => {
-    const it = drafts[0]; if (!it) return;
-    it.metadata = it.metadata || {};
-    it.metadata[META_KEY] = it.metadata[META_KEY] || {};
-    it.metadata[META_KEY][SPELLS_META_KEY] = Array.isArray(spells) ? spells : [];
+    const it = drafts[0];
+    if (!it) return;
+    const meta = {
+      ...(it.metadata?.[META_KEY] || {}),
+      [SPELLS_META_KEY]: Array.isArray(spells) ? spells : [],
+    };
+    it.metadata = { ...(it.metadata || {}), [META_KEY]: meta };
   });
 }
 
-// ===== Concentrazione (salvata sul caster) =====
 async function __getConcentration(casterId) {
   const [it] = await OBR.scene.items.getItems([casterId]);
   const conc = it?.metadata?.[META_KEY]?.[CONC_META_KEY] || {};
   return { caster: it, conc };
 }
+
 async function __setConcentration(casterId, obj) {
   await OBR.scene.items.updateItems([casterId], (drafts) => {
-    const it = drafts[0]; if (!it) return;
-    it.metadata = it.metadata || {};
-    it.metadata[META_KEY] = it.metadata[META_KEY] || {};
-    it.metadata[META_KEY][CONC_META_KEY] = obj || {};
+    const it = drafts[0];
+    if (!it) return;
+    const meta = {
+      ...(it.metadata?.[META_KEY] || {}),
+      [CONC_META_KEY]: obj || {},
+    };
+    it.metadata = { ...(it.metadata || {}), [META_KEY]: meta };
   });
 }
 
-// ===== CRUD incantesimi =====
 export async function addOrUpdateSpell(itemId, name, turns, opts = {}) {
   const [item] = await OBR.scene.items.getItems([itemId]);
-  if (!item) return;
+  if (!item) return null;
 
   const list = getSpellsFromItem(item).slice();
-  const idx  = list.findIndex((s) => keyOf(s.name) === keyOf(name));
-  const t    = Math.max(1, Math.floor(Number(turns) || 1));
-
+  const instanceId = String(opts?.instanceId || "").trim();
+  const sourceId = String(opts?.source || "").trim();
+  const spellId = String(opts?.spellId || "").trim();
+  const idx = instanceId
+    ? list.findIndex((spell) => String(spell.instanceId || "") === instanceId)
+    : list.findIndex((spell) =>
+      keyOf(spell.name) === keyOf(name)
+      && (!sourceId || !spell.casterId || String(spell.casterId) === sourceId)
+    );
+  const normalizedTurns = Math.max(1, Math.floor(Number(turns) || 1));
   const extra = {};
-  if (opts && typeof opts === "object") {
-    if (opts.source)  extra.casterId = String(opts.source);
-    if (opts.conc != null) extra.conc = !!opts.conc;
+
+  if (sourceId) extra.casterId = sourceId;
+  if (opts.conc != null) extra.conc = !!opts.conc;
+  if (instanceId) extra.instanceId = instanceId;
+  if (spellId) extra.spellId = spellId;
+
+  if (idx >= 0) {
+    list[idx] = { ...list[idx], turns: normalizedTurns, ...extra };
+  } else {
+    list.push({
+      id: createId("spell-entry"),
+      name: String(name).trim(),
+      turns: normalizedTurns,
+      ...extra,
+    });
   }
 
-  if (idx >= 0) list[idx] = { ...list[idx], turns: t, ...extra };
-  else list.push({ id: crypto.randomUUID(), name: String(name).trim(), turns: t, ...extra });
-
   await setSpellsOnItem(itemId, list);
+  return idx >= 0 ? list[idx] : list[list.length - 1];
 }
 
 export async function removeSpellByName(itemId, name) {
   return removeSpellByNameAndSource(itemId, name, null);
 }
 
-// rimuovi per nome e, se passato, SOLO se l’origine è quel caster
-export async function removeSpellByNameAndSource(itemId, name, casterId /* nullable */) {
+export async function removeSpellByNameAndSource(itemId, name, casterId) {
   const [item] = await OBR.scene.items.getItems([itemId]);
   if (!item) return;
+
   const want = keyOf(name);
-  const next = getSpellsFromItem(item).filter((s) => {
-    if (keyOf(s.name) !== want) return true;
-    if (casterId && s.casterId && s.casterId !== casterId) return true; // lascia gli altri caster
+  const sourceId = String(casterId || "").trim();
+  const list = getSpellsFromItem(item);
+  const removed = [];
+  const next = list.filter((spell) => {
+    if (keyOf(spell.name) !== want) return true;
+    if (sourceId && spell.casterId && String(spell.casterId) !== sourceId) return true;
+    removed.push(spell);
     return false;
   });
+  if (!removed.length) return;
+
   await setSpellsOnItem(itemId, next);
+  await removeLinkedConditions(
+    removed.map((spell) => linkedConditionRemoval(itemId, spell))
+  );
 }
 
-// ===== Avanzamento round =====
+export async function removeSpellByInstance(itemId, instanceId) {
+  const id = String(instanceId || "").trim();
+  if (!itemId || !id) return;
+
+  const [item] = await OBR.scene.items.getItems([itemId]);
+  if (!item) return;
+  const list = getSpellsFromItem(item);
+  const next = list.filter((spell) => String(spell.instanceId || "") !== id);
+  if (next.length === list.length) return;
+
+  await setSpellsOnItem(itemId, next);
+  await removeLinkedConditions([{ itemId, parentEffectId: id }]);
+}
+
+async function clearExpiredConcentrations(entries) {
+  const seen = new Set();
+  for (const entry of entries) {
+    const casterId = String(entry?.casterId || "").trim();
+    const ref = String(entry?.instanceId || entry?.name || "").trim();
+    if (!casterId || !ref) continue;
+    const signature = casterId + "|" + ref;
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    await breakConcentration(casterId, ref);
+  }
+}
+
 export async function tickSpellsForItems(itemIds) {
   if (!itemIds?.length) return new Map();
   const items = await OBR.scene.items.getItems(itemIds);
   const updates = new Map();
+  const removals = [];
+  const expiredConcentrations = [];
 
   for (const it of items) {
     const list = getSpellsFromItem(it);
     if (!list.length) continue;
 
-    const next = list
-      .map((s) => ({ ...s, turns: Math.max(0, Number(s.turns || 0) - 1) }))
-      .filter((s) => s.turns > 0);
+    const next = [];
+    for (const spell of list) {
+      const turns = Math.max(0, Number(spell.turns || 0) - 1);
+      if (turns > 0) {
+        next.push({ ...spell, turns });
+      } else {
+        removals.push(linkedConditionRemoval(it.id, spell));
+        if (spell.conc) expiredConcentrations.push(spell);
+      }
+    }
 
     if (JSON.stringify(next) !== JSON.stringify(list)) updates.set(it.id, next);
   }
 
   if (updates.size) {
     await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
-      for (const d of drafts) {
-        d.metadata = d.metadata || {};
-        d.metadata[META_KEY] = d.metadata[META_KEY] || {};
-        d.metadata[META_KEY][SPELLS_META_KEY] = updates.get(d.id) || [];
+      for (const it of drafts) {
+        const meta = {
+          ...(it.metadata?.[META_KEY] || {}),
+          [SPELLS_META_KEY]: updates.get(it.id) || [],
+        };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: meta };
       }
     });
   }
+
+  await removeLinkedConditions(removals);
+  await clearExpiredConcentrations(expiredConcentrations);
   return updates;
 }
 
-// ⬇️ Aggiunta: applica un delta (+/-) ai turni rimanenti degli incantesimi
 export async function adjustSpellsForItems(itemIds, delta) {
   if (!itemIds?.length || !Number.isFinite(delta) || delta === 0) return new Map();
 
   const items = await OBR.scene.items.getItems(itemIds);
   const updates = new Map();
+  const removals = [];
+  const expiredConcentrations = [];
 
   for (const it of items) {
     const list = getSpellsFromItem(it);
     if (!list.length) continue;
 
-    const next = list
-      .map(s => {
-        const cur = Math.max(0, Number(s.turns || 0));
-        const n = Math.max(0, cur + delta);   // +1 se vado indietro, -1 se avanti
-        return { ...s, turns: n };
-      })
-      .filter(s => s.turns > 0);               // non resuscita scaduti
-
-    if (JSON.stringify(next) !== JSON.stringify(list)) {
-      updates.set(it.id, next);
+    const next = [];
+    for (const spell of list) {
+      const current = Math.max(0, Number(spell.turns || 0));
+      const turns = Math.max(0, current + delta);
+      if (turns > 0) {
+        next.push({ ...spell, turns });
+      } else {
+        removals.push(linkedConditionRemoval(it.id, spell));
+        if (spell.conc) expiredConcentrations.push(spell);
+      }
     }
+
+    if (JSON.stringify(next) !== JSON.stringify(list)) updates.set(it.id, next);
   }
 
   if (updates.size) {
-    await OBR.scene.items.updateItems(Array.from(updates.keys()), (drafts) => {
+    await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
       for (const it of drafts) {
-        const arr = updates.get(it.id) || [];
-        it.metadata = it.metadata || {};
-        it.metadata[`${ID}/meta`] = it.metadata[`${ID}/meta`] || {};
-        it.metadata[`${ID}/meta`][`${ID}/spells`] = arr;
+        const meta = {
+          ...(it.metadata?.[META_KEY] || {}),
+          [SPELLS_META_KEY]: updates.get(it.id) || [],
+        };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: meta };
       }
     });
   }
+
+  await removeLinkedConditions(removals);
+  await clearExpiredConcentrations(expiredConcentrations);
   return updates;
 }
 
-// ===== Concentrazione: registro e break =====
-export async function registerConcentration(casterId, name, targetIds) {
+export async function registerConcentration(casterId, name, targetIds, opts = {}) {
   const key = keyOf(name);
   const { conc } = await __getConcentration(casterId);
-  const prev = conc[key]?.targets || [];
-  const set = new Set([...prev, ...(Array.isArray(targetIds) ? targetIds : [])]);
-  conc[key] = { targets: Array.from(set) };
-  await __setConcentration(casterId, conc);
+  const previous = conc[key] && typeof conc[key] === "object" ? conc[key] : {};
+  const targets = new Set([
+    ...(Array.isArray(previous.targets) ? previous.targets : []),
+    ...(Array.isArray(targetIds) ? targetIds : []),
+  ]);
+  const entry = { ...previous, targets: [...targets], name: String(name || "").trim() };
+  if (opts.instanceId) entry.instanceId = String(opts.instanceId);
+  if (opts.spellId) entry.spellId = String(opts.spellId);
+  await __setConcentration(casterId, { ...conc, [key]: entry });
 }
+
 export async function getCasterConcentrations(casterId) {
   const { conc } = await __getConcentration(casterId);
-  return conc; // { [spellKey]: { targets: [...] } }
+  return conc;
 }
 
-// interrompe SOLO quella spell del caster
-export async function breakConcentration(casterId, name) {
-  const key = keyOf(name);
+export async function breakConcentration(casterId, nameOrInstanceId) {
+  const wanted = String(nameOrInstanceId || "").trim();
+  const key = keyOf(wanted);
   const { conc } = await __getConcentration(casterId);
-  const entry = conc[key];
-  if (!entry) return;
-
-  const targets = Array.isArray(entry.targets) ? entry.targets : [];
-  for (const tId of targets) {
-    await removeSpellByNameAndSource(tId, name, casterId);
+  let matchedKey = Object.prototype.hasOwnProperty.call(conc, key) ? key : "";
+  if (!matchedKey) {
+    matchedKey = Object.keys(conc || {}).find((candidate) =>
+      String(conc[candidate]?.instanceId || "") === wanted
+    ) || "";
   }
+  if (!matchedKey) return;
+
+  const entry = conc[matchedKey] || {};
+  const targets = Array.isArray(entry.targets) ? entry.targets : [];
+  const instanceId = String(entry.instanceId || "").trim();
+  const spellName = String(entry.name || matchedKey).trim();
+
+  for (const targetId of targets) {
+    if (instanceId) await removeSpellByInstance(targetId, instanceId);
+    else await removeSpellByNameAndSource(targetId, spellName, casterId);
+  }
+
   const next = { ...conc };
-  delete next[key];
+  delete next[matchedKey];
   await __setConcentration(casterId, next);
 }
 
-// interrompe TUTTO ciò su cui il caster si sta concentrando
 export async function breakAllConcentrations(casterId) {
   const { conc } = await __getConcentration(casterId);
-  const keys = Object.keys(conc || {});
-  for (const k of keys) {
-    const human = k; // già in minuscolo
-    await breakConcentration(casterId, human);
+  for (const key of Object.keys(conc || {})) {
+    await breakConcentration(casterId, key);
   }
 }
 
-// Pulisce SOLO gli incantesimi senza concentrazione sui token passati
 export async function clearSpellsOnItems(itemIds) {
-  const ids = Array.isArray(itemIds) ? itemIds.filter(Boolean) : [];
+  const ids = Array.from(new Set(Array.isArray(itemIds) ? itemIds.filter(Boolean) : []));
   if (!ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const list = getSpellsFromItem(it);
-      // Mantieni SOLO quelli con conc == true
-      const keep = list.filter(s => !!s.conc);
-      it.metadata = it.metadata || {};
-      it.metadata[META_KEY] = it.metadata[META_KEY] || {};
-      it.metadata[META_KEY][SPELLS_META_KEY] = keep;
+  const items = await OBR.scene.items.getItems(ids);
+  const updates = new Map();
+  const removals = [];
+
+  for (const item of items) {
+    const list = getSpellsFromItem(item);
+    const keep = list.filter((spell) => !!spell.conc);
+    for (const spell of list) {
+      if (!spell.conc) removals.push(linkedConditionRemoval(item.id, spell));
     }
-  });
+    if (keep.length !== list.length) updates.set(item.id, keep);
+  }
+
+  if (updates.size) {
+    await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
+      for (const it of drafts) {
+        const meta = {
+          ...(it.metadata?.[META_KEY] || {}),
+          [SPELLS_META_KEY]: updates.get(it.id) || [],
+        };
+        it.metadata = { ...(it.metadata || {}), [META_KEY]: meta };
+      }
+    });
+  }
+
+  await removeLinkedConditions(removals);
 }
 
-
-// ===== UI helper (chips) =====
 export function buildSpellChips(spells) {
   const frag = document.createDocumentFragment();
   const list = Array.isArray(spells) ? spells : [];
-  for (const s of list) {
+  for (const spell of list) {
+    const displayName = getSpellDefinition(spell.name)?.displayName || spell.name;
     const chip = document.createElement("span");
     chip.className = "chip spell-chip";
-    chip.textContent = formatSpellChip(s.name, s.turns);
-    chip.title = `${s.name} — ${s.turns} round rimanenti`;
+    chip.textContent = formatSpellChip(displayName, spell.turns);
+    chip.title = displayName + " — " + spell.turns + " round rimanenti";
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
@@ -228,9 +353,12 @@ export function buildSpellChips(spells) {
   }
   return frag;
 }
+
 function formatSpellChip(name, turns) {
-  const n = String(name || "").trim();
-  const short = n.length > 10 ? n.slice(0, 9) + "…" : n;
-  const t = Math.max(0, Math.floor(Number(turns) || 0));
-  return `${short} (${t})`;
+  const normalizedName = String(name || "").trim();
+  const short = normalizedName.length > 10
+    ? normalizedName.slice(0, 9) + "…"
+    : normalizedName;
+  const remaining = Math.max(0, Math.floor(Number(turns) || 0));
+  return short + " (" + remaining + ")";
 }

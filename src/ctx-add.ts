@@ -1,6 +1,7 @@
 // src/ctx-add.ts
 import OBR, { type Theme } from "@owlbear-rodeo/sdk";
-import { ID } from "./contextMenu";
+import { ID } from "./constants.js";
+import { rememberFactionForIds } from "./factionRegistry.js";
 
 const META_KEY = `${ID}/meta`;
 const DEFAULT_INITIATIVE = 10;
@@ -81,6 +82,7 @@ async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { 
     };
   }
 });
+    await rememberFactionForIds(ids, attitude).catch(() => {});
 
   } catch (e) {
     console.warn("[ctx-add] update error:", (e as any)?.message || e);

@@ -4,12 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Incantesimi attivi</title>
+  <link rel="stylesheet" href="/popover-glass.css" />
   <style>
     :root { --obrt-text:#fff; --obrt-hover:rgba(255,255,255,.06); }
-    html, body { margin:0; min-height:100%; background:transparent; color:var(--obrt-text); }
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; color:var(--obrt-text); }
     body { font-family:system-ui,Roboto,Arial,sans-serif; font-size:12px; line-height:1.2; }
     * { box-sizing:border-box; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.55) transparent; }
-    .panel { min-height:100vh; padding:12px; position:relative; }
+    .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; }
+    .panel { flex:1 1 auto; min-height:0; padding:12px; position:relative; overflow-y:auto; }
     .title { margin:0 40px 12px; text-align:center; font-size:15px; font-weight:700; }
     .close {
       position:fixed; top:9px; right:12px; width:30px; height:30px; padding:0;
@@ -43,9 +45,75 @@
       border-radius:10px; background:var(--obrt-hover);
       border:1px solid rgba(255,255,255,.10); white-space:nowrap; user-select:none;
     }
+    .automation {
+      align-items:flex-start; flex-direction:column; padding:8px;
+      border:1px solid rgba(255,255,255,.12); border-radius:10px;
+      background:rgba(0,0,0,.20);
+    }
+    .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+    .automation-line input { margin-top:2px; }
+    .targets { margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.12); }
+    .targets-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+    .targets-title { font-size:11px; color:rgba(255,255,255,.9); }
+    .target-actions { display:flex; gap:6px; }
+    .target-actions button { min-height:26px; padding:4px 9px; font-size:11px; }
+    .target-list {
+      display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;
+      max-height:126px; overflow-y:auto; padding:7px; border-radius:8px;
+      border:1px solid rgba(255,255,255,.16); background:rgba(0,0,0,.24);
+    }
+    .spell-target {
+      display:flex; align-items:center; gap:8px; min-width:0; min-height:32px;
+      padding:5px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.10);
+      cursor:pointer; background:rgba(255,255,255,.025);
+    }
+    .spell-target.selected { background:rgba(37,99,235,.34); border-color:rgba(96,165,250,.72); }
+    .spell-target span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .overview { margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.12); }
+    .overview-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+    .overview-title { font-size:11px; font-weight:400; color:rgba(255,255,255,.9); }
+    .overview-count {
+      min-width:22px; padding:3px 7px; border-radius:10px; text-align:center;
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+    }
+    .overview-list { display:grid; gap:6px; max-height:245px; overflow-y:auto; }
+    .spell-overview-row {
+      display:flex; align-items:center; gap:10px; min-width:0; padding:8px 9px;
+      border-radius:8px; border:1px solid rgba(255,255,255,.11);
+      background:rgba(0,0,0,.20);
+    }
+    .spell-overview-content { flex:1 1 auto; min-width:0; display:grid; gap:3px; }
+    .spell-overview-heading { display:flex; align-items:center; gap:6px; min-width:0; }
+    .spell-overview-heading strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+    .overview-badge {
+      flex:0 0 auto; padding:2px 6px; border-radius:9px; font-size:10px;
+      background:rgba(37,99,235,.28); border:1px solid rgba(96,165,250,.40);
+    }
+    .overview-badge.concentration {
+      width:18px; height:18px; padding:0; display:inline-grid; place-items:center;
+      border-radius:50%; font-weight:700; background:rgba(14,165,233,.48);
+    }
+    .spell-overview-meta { color:rgba(255,255,255,.82); }
+    .spell-overview-targets { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.68); }
+    .terminate-spell {
+      flex:0 0 auto; min-height:28px; padding:5px 10px;
+      background:rgba(220,38,38,.28); border-color:rgba(248,113,113,.42);
+    }
+    .terminate-spell:hover { background:rgba(220,38,38,.46); }
+    .terminate-spell:disabled { opacity:.55; cursor:default; }
+    .overview-empty { padding:18px 10px; text-align:center; color:rgba(255,255,255,.68); }
+    @media (max-width:520px) {
+      .panel { padding:10px; }
+      .wrap { grid-template-columns:1fr; }
+      .wrap > label, .wrap > input, .wrap > select { grid-column:1; }
+      .target-list { grid-template-columns:1fr; }
+      .spell-overview-row { align-items:flex-start; flex-wrap:wrap; }
+      .terminate-spell { width:100%; }
+    }
   </style>
 </head>
 <body>
+  <div class="glass-shell" data-glass-popover="1">
   <main class="panel">
     <div class="title" id="modalTitle">Incantesimi</div>
     <button class="close" type="button" id="modalClose" title="Chiudi">X</button>
@@ -56,13 +124,20 @@
              autocorrect="off" spellcheck="false" />
 
       <label for="dur">Durata (in round)</label>
-      <input id="dur" name="dur" type="number" min="1" step="1" value="10" />
+      <input id="dur" name="dur" type="number" min="1" step="1" value="10" required />
 
       <label for="caster">Caster</label>
       <select id="caster" name="caster" disabled><option value="">—</option></select>
 
       <label for="conc">Concentrazione</label>
       <input id="conc" type="checkbox" style="justify-self:start;width:auto;height:auto" />
+      <div class="row automation" id="automationWrap" style="display:none">
+        <label class="automation-line">
+          <input id="applyConditions" type="checkbox" />
+          <span id="automationText"></span>
+        </label>
+        <select id="conditionChoice" aria-label="Condizione da applicare" style="display:none"></select>
+      </div>
 
       <button class="blockbtn" type="button" id="cancel">Termina incantesimi</button>
       <button class="blockbtn primary" type="submit" id="submit">Aggiungi / Aggiorna</button>
@@ -74,7 +149,25 @@
 
       <datalist id="spell-list"></datalist>
     </form>
+    <section class="targets" aria-labelledby="spellTargetsTitle">
+      <div class="targets-header">
+        <div class="targets-title" id="spellTargetsTitle">BERSAGLI</div>
+        <div class="target-actions">
+          <button type="button" id="spellTargetsAll">Tutti</button>
+          <button type="button" id="spellTargetsNone">Nessuno</button>
+        </div>
+      </div>
+      <div class="target-list" id="spellTargetList"></div>
+    </section>
+    <section class="overview" aria-labelledby="spellOverviewTitle">
+      <div class="overview-header">
+        <div class="overview-title" id="spellOverviewTitle">INCANTESIMI ATTIVI SUL CAMPO</div>
+        <span class="overview-count" id="spellOverviewCount">0</span>
+      </div>
+      <div class="overview-list" id="spellOverviewList"></div>
+    </section>
   </main>
+  </div>
   <script type="module" src="/src/spells-panel.js"></script>
 </body>
 </html>

@@ -1,0 +1,40 @@
+const LAIR_ID = "__LAIR__";
+const EPIC_PREFIX = "__EPIC__";
+
+function entryForId(id, entriesById) {
+  const direct = entriesById?.get?.(id);
+  if (direct) return direct;
+  const baseId = String(id || "").split("::p")[0];
+  return entriesById?.get?.(baseId) || null;
+}
+
+function entryName(id, entriesById) {
+  const entry = entryForId(id, entriesById);
+  const rawName = String(entry?.name || "").trim();
+  if (id === LAIR_ID) return rawName || "Azioni di Tana";
+  if (String(id || "").startsWith(EPIC_PREFIX)) {
+    return rawName ? rawName + " (Azione Epica)" : "Azione Epica";
+  }
+  if (rawName) return rawName;
+
+  return "Creatura";
+}
+
+export function buildTurnNoticePayload(state, entriesById) {
+  const order = Array.isArray(state?.order) ? state.order.filter(Boolean) : [];
+  if (!order.length) return null;
+  const current = Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)));
+  const currentId = order[current];
+  const nextId = order[(current + 1) % order.length];
+  const currentEntry = entryForId(currentId, entriesById);
+  const portrait = String(currentEntry?.portrait || "").trim();
+  return {
+    currentId,
+    nextId,
+    currentName: entryName(currentId, entriesById),
+    nextName: entryName(nextId, entriesById),
+    currentPortrait: portrait.length <= 2048 ? portrait : "",
+    currentAttitude: String(currentEntry?.attitude || "neutral").trim().toLowerCase(),
+    round: Math.max(1, Math.floor(Number(state?.round) || 1)),
+  };
+}

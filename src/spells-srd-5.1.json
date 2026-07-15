@@ -1,0 +1,3145 @@
+{
+  "schemaVersion": 1,
+  "ruleset": "D&D 5e SRD 5.1 (2014)",
+  "source": "https://www.dnd5eapi.co/api/2014/spells",
+  "upstream": "https://github.com/5e-bits/5e-database",
+  "license": "CC-BY-4.0",
+  "generatedAt": "2026-07-13",
+  "spells": [
+    {
+      "id": "acid-arrow",
+      "name": "Acid Arrow",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "acid-splash",
+      "name": "Acid Splash",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "aid",
+      "name": "Aid",
+      "level": 2,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "alarm",
+      "name": "Alarm",
+      "level": 1,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "alter-self",
+      "name": "Alter Self",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "animal-friendship",
+      "name": "Animal Friendship",
+      "level": 1,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "animal-messenger",
+      "name": "Animal Messenger",
+      "level": 2,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "animal-shapes",
+      "name": "Animal Shapes",
+      "level": 8,
+      "duration": "Up to 24 hours",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "animate-dead",
+      "name": "Animate Dead",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "animate-objects",
+      "name": "Animate Objects",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "antilife-shell",
+      "name": "Antilife Shell",
+      "level": 5,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "antimagic-field",
+      "name": "Antimagic Field",
+      "level": 8,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "antipathy-sympathy",
+      "name": "Antipathy/Sympathy",
+      "level": 8,
+      "duration": "10 days",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 200
+      }
+    },
+    {
+      "id": "arcane-eye",
+      "name": "Arcane Eye",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "30 feet",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "arcane-hand",
+      "name": "Arcane Hand",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "arcane-lock",
+      "name": "Arcane Lock",
+      "level": 2,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "arcane-sword",
+      "name": "Arcane Sword",
+      "level": 7,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "arcanists-magic-aura",
+      "name": "Arcanist's Magic Aura",
+      "level": 2,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "astral-projection",
+      "name": "Astral Projection",
+      "level": 9,
+      "duration": "Special",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "augury",
+      "name": "Augury",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "awaken",
+      "name": "Awaken",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "bane",
+      "name": "Bane",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "banishment",
+      "name": "Banishment",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "barkskin",
+      "name": "Barkskin",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "beacon-of-hope",
+      "name": "Beacon of Hope",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "bestow-curse",
+      "name": "Bestow Curse",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "black-tentacles",
+      "name": "Black Tentacles",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "blade-barrier",
+      "name": "Blade Barrier",
+      "level": 6,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "line",
+        "size": 100
+      }
+    },
+    {
+      "id": "bless",
+      "name": "Bless",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "blight",
+      "name": "Blight",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "blindness-deafness",
+      "name": "Blindness/Deafness",
+      "level": 2,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "blink",
+      "name": "Blink",
+      "level": 3,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "blur",
+      "name": "Blur",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "branding-smite",
+      "name": "Branding Smite",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "burning-hands",
+      "name": "Burning Hands",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "cone",
+        "size": 15
+      }
+    },
+    {
+      "id": "call-lightning",
+      "name": "Call Lightning",
+      "level": 3,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 5
+      }
+    },
+    {
+      "id": "calm-emotions",
+      "name": "Calm Emotions",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "chain-lightning",
+      "name": "Chain Lightning",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": null
+    },
+    {
+      "id": "charm-person",
+      "name": "Charm Person",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "chill-touch",
+      "name": "Chill Touch",
+      "level": 0,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "circle-of-death",
+      "name": "Circle of Death",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": {
+        "type": "sphere",
+        "size": 60
+      }
+    },
+    {
+      "id": "clairvoyance",
+      "name": "Clairvoyance",
+      "level": 3,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "1 mile",
+      "area": null
+    },
+    {
+      "id": "clone",
+      "name": "Clone",
+      "level": 8,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "cloudkill",
+      "name": "Cloudkill",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "color-spray",
+      "name": "Color Spray",
+      "level": 1,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "cone",
+        "size": 15
+      }
+    },
+    {
+      "id": "command",
+      "name": "Command",
+      "level": 1,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "commune",
+      "name": "Commune",
+      "level": 5,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "commune-with-nature",
+      "name": "Commune With Nature",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "comprehend-languages",
+      "name": "Comprehend Languages",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "compulsion",
+      "name": "Compulsion",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "cone-of-cold",
+      "name": "Cone of Cold",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "cone",
+        "size": 60
+      }
+    },
+    {
+      "id": "confusion",
+      "name": "Confusion",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "conjure-animals",
+      "name": "Conjure Animals",
+      "level": 3,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "conjure-celestial",
+      "name": "Conjure Celestial",
+      "level": 7,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "conjure-elemental",
+      "name": "Conjure Elemental",
+      "level": 5,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "cube",
+        "size": 10
+      }
+    },
+    {
+      "id": "conjure-fey",
+      "name": "Conjure Fey",
+      "level": 6,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "conjure-minor-elementals",
+      "name": "Conjure Minor Elementals",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "conjure-woodland-beings",
+      "name": "Conjure Woodland Beings",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "contact-other-plane",
+      "name": "Contact Other Plane",
+      "level": 5,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "contagion",
+      "name": "Contagion",
+      "level": 5,
+      "duration": "7 days",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "contingency",
+      "name": "Contingency",
+      "level": 6,
+      "duration": "10 days",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "continual-flame",
+      "name": "Continual Flame",
+      "level": 2,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "control-water",
+      "name": "Control Water",
+      "level": 4,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "300 feet",
+      "area": {
+        "type": "cube",
+        "size": 100
+      }
+    },
+    {
+      "id": "control-weather",
+      "name": "Control Weather",
+      "level": 8,
+      "duration": "Up to 8 hours",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "counterspell",
+      "name": "Counterspell",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "create-food-and-water",
+      "name": "Create Food and Water",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "create-or-destroy-water",
+      "name": "Create or Destroy Water",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": {
+        "type": "cube",
+        "size": 30
+      }
+    },
+    {
+      "id": "create-undead",
+      "name": "Create Undead",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "creation",
+      "name": "Creation",
+      "level": 5,
+      "duration": "Special",
+      "concentration": false,
+      "range": "30 feet",
+      "area": {
+        "type": "cube",
+        "size": 5
+      }
+    },
+    {
+      "id": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "dancing-lights",
+      "name": "Dancing Lights",
+      "level": 0,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "darkness",
+      "name": "Darkness",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 15
+      }
+    },
+    {
+      "id": "darkvision",
+      "name": "Darkvision",
+      "level": 2,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "daylight",
+      "name": "Daylight",
+      "level": 3,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 60
+      }
+    },
+    {
+      "id": "death-ward",
+      "name": "Death Ward",
+      "level": 4,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "delayed-blast-fireball",
+      "name": "Delayed Blast Fireball",
+      "level": 7,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "150 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "demiplane",
+      "name": "Demiplane",
+      "level": 8,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "detect-evil-and-good",
+      "name": "Detect Evil and Good",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "detect-magic",
+      "name": "Detect Magic",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "detect-poison-and-disease",
+      "name": "Detect Poison and Disease",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "detect-thoughts",
+      "name": "Detect Thoughts",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "dimension-door",
+      "name": "Dimension Door",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "500 feet",
+      "area": null
+    },
+    {
+      "id": "disguise-self",
+      "name": "Disguise Self",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "disintegrate",
+      "name": "Disintegrate",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 10
+      }
+    },
+    {
+      "id": "dispel-evil-and-good",
+      "name": "Dispel Evil and Good",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "dispel-magic",
+      "name": "Dispel Magic",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "divination",
+      "name": "Divination",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "divine-favor",
+      "name": "Divine Favor",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "divine-word",
+      "name": "Divine Word",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "dominate-beast",
+      "name": "Dominate Beast",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "dominate-monster",
+      "name": "Dominate Monster",
+      "level": 8,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "dominate-person",
+      "name": "Dominate Person",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "dream",
+      "name": "Dream",
+      "level": 5,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Special",
+      "area": null
+    },
+    {
+      "id": "druidcraft",
+      "name": "Druidcraft",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "earthquake",
+      "name": "Earthquake",
+      "level": 8,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "500 feet",
+      "area": {
+        "type": "sphere",
+        "size": 100
+      }
+    },
+    {
+      "id": "eldritch-blast",
+      "name": "Eldritch Blast",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "enhance-ability",
+      "name": "Enhance Ability",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "enlarge-reduce",
+      "name": "Enlarge/Reduce",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "entangle",
+      "name": "Entangle",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "enthrall",
+      "name": "Enthrall",
+      "level": 2,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "etherealness",
+      "name": "Etherealness",
+      "level": 7,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "expeditious-retreat",
+      "name": "Expeditious Retreat",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "eyebite",
+      "name": "Eyebite",
+      "level": 6,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "fabricate",
+      "name": "Fabricate",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "faerie-fire",
+      "name": "Faerie Fire",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "faithful-hound",
+      "name": "Faithful Hound",
+      "level": 4,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "false-life",
+      "name": "False Life",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "fear",
+      "name": "Fear",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "cone",
+        "size": 30
+      }
+    },
+    {
+      "id": "feather-fall",
+      "name": "Feather Fall",
+      "level": 1,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "feeblemind",
+      "name": "Feeblemind",
+      "level": 8,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": null
+    },
+    {
+      "id": "find-familiar",
+      "name": "Find Familiar",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "find-steed",
+      "name": "Find Steed",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "find-the-path",
+      "name": "Find the Path",
+      "level": 6,
+      "duration": "Up to 24 hours",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "find-traps",
+      "name": "Find Traps",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "finger-of-death",
+      "name": "Finger of Death",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "fire-bolt",
+      "name": "Fire Bolt",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "fire-shield",
+      "name": "Fire Shield",
+      "level": 4,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 5
+      }
+    },
+    {
+      "id": "fire-storm",
+      "name": "Fire Storm",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": {
+        "type": "cube",
+        "size": 100
+      }
+    },
+    {
+      "id": "fireball",
+      "name": "Fireball",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "flame-blade",
+      "name": "Flame Blade",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "flame-strike",
+      "name": "Flame Strike",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 40
+      }
+    },
+    {
+      "id": "flaming-sphere",
+      "name": "Flaming Sphere",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "flesh-to-stone",
+      "name": "Flesh to Stone",
+      "level": 6,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "floating-disk",
+      "name": "Floating Disk",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "fly",
+      "name": "Fly",
+      "level": 3,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "fog-cloud",
+      "name": "Fog Cloud",
+      "level": 1,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "forbiddance",
+      "name": "Forbiddance",
+      "level": 6,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": {
+        "type": "cube",
+        "size": 40000
+      }
+    },
+    {
+      "id": "forcecage",
+      "name": "Forcecage",
+      "level": 7,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "100 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "foresight",
+      "name": "Foresight",
+      "level": 9,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "freedom-of-movement",
+      "name": "Freedom of Movement",
+      "level": 4,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "freezing-sphere",
+      "name": "Freezing Sphere",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "300 feet",
+      "area": {
+        "type": "sphere",
+        "size": 60
+      }
+    },
+    {
+      "id": "gaseous-form",
+      "name": "Gaseous Form",
+      "level": 3,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "gate",
+      "name": "Gate",
+      "level": 9,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "geas",
+      "name": "Geas",
+      "level": 5,
+      "duration": "30 days",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "gentle-repose",
+      "name": "Gentle Repose",
+      "level": 2,
+      "duration": "10 days",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "giant-insect",
+      "name": "Giant Insect",
+      "level": 4,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "glibness",
+      "name": "Glibness",
+      "level": 8,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "globe-of-invulnerability",
+      "name": "Globe of Invulnerability",
+      "level": 6,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "glyph-of-warding",
+      "name": "Glyph of Warding",
+      "level": 3,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "goodberry",
+      "name": "Goodberry",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "grease",
+      "name": "Grease",
+      "level": 1,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 10
+      }
+    },
+    {
+      "id": "greater-invisibility",
+      "name": "Greater Invisibility",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "greater-restoration",
+      "name": "Greater Restoration",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "guardian-of-faith",
+      "name": "Guardian of Faith",
+      "level": 4,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 10
+      }
+    },
+    {
+      "id": "guards-and-wards",
+      "name": "Guards and Wards",
+      "level": 6,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": {
+        "type": "cube",
+        "size": 2500
+      }
+    },
+    {
+      "id": "guidance",
+      "name": "Guidance",
+      "level": 0,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "guiding-bolt",
+      "name": "Guiding Bolt",
+      "level": 1,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "gust-of-wind",
+      "name": "Gust of Wind",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "line",
+        "size": 60
+      }
+    },
+    {
+      "id": "hallow",
+      "name": "Hallow",
+      "level": 5,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": {
+        "type": "sphere",
+        "size": 60
+      }
+    },
+    {
+      "id": "hallucinatory-terrain",
+      "name": "Hallucinatory Terrain",
+      "level": 4,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "300 feet",
+      "area": {
+        "type": "cube",
+        "size": 150
+      }
+    },
+    {
+      "id": "harm",
+      "name": "Harm",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "haste",
+      "name": "Haste",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "heal",
+      "name": "Heal",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "healing-word",
+      "name": "Healing Word",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "heat-metal",
+      "name": "Heat Metal",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "hellish-rebuke",
+      "name": "Hellish Rebuke",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "heroes-feast",
+      "name": "Heroes' Feast",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "heroism",
+      "name": "Heroism",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "hideous-laughter",
+      "name": "Hideous Laughter",
+      "level": 1,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "hold-monster",
+      "name": "Hold Monster",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "hold-person",
+      "name": "Hold Person",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "holy-aura",
+      "name": "Holy Aura",
+      "level": 8,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "hunters-mark",
+      "name": "Hunter's Mark",
+      "level": 1,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "90 feet",
+      "area": null
+    },
+    {
+      "id": "hypnotic-pattern",
+      "name": "Hypnotic Pattern",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "ice-storm",
+      "name": "Ice Storm",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "300 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 20
+      }
+    },
+    {
+      "id": "identify",
+      "name": "Identify",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "illusory-script",
+      "name": "Illusory Script",
+      "level": 1,
+      "duration": "10 days",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "imprisonment",
+      "name": "Imprisonment",
+      "level": 9,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "incendiary-cloud",
+      "name": "Incendiary Cloud",
+      "level": 8,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "150 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "inflict-wounds",
+      "name": "Inflict Wounds",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "insect-plague",
+      "name": "Insect Plague",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "300 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "instant-summons",
+      "name": "Instant Summons",
+      "level": 6,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "invisibility",
+      "name": "Invisibility",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "irresistible-dance",
+      "name": "Irresistible Dance",
+      "level": 6,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "jump",
+      "name": "Jump",
+      "level": 1,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "knock",
+      "name": "Knock",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "legend-lore",
+      "name": "Legend Lore",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "lesser-restoration",
+      "name": "Lesser Restoration",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "levitate",
+      "name": "Levitate",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "light",
+      "name": "Light",
+      "level": 0,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "lightning-bolt",
+      "name": "Lightning Bolt",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "line",
+        "size": 100
+      }
+    },
+    {
+      "id": "locate-animals-or-plants",
+      "name": "Locate Animals or Plants",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "locate-creature",
+      "name": "Locate Creature",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "locate-object",
+      "name": "Locate Object",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "longstrider",
+      "name": "Longstrider",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "mage-armor",
+      "name": "Mage Armor",
+      "level": 1,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "mage-hand",
+      "name": "Mage Hand",
+      "level": 0,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "magic-circle",
+      "name": "Magic Circle",
+      "level": 3,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "10 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 10
+      }
+    },
+    {
+      "id": "magic-jar",
+      "name": "Magic Jar",
+      "level": 6,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "magic-mouth",
+      "name": "Magic Mouth",
+      "level": 2,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "magic-weapon",
+      "name": "Magic Weapon",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "magnificent-mansion",
+      "name": "Magnificent Mansion",
+      "level": 7,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "300 feet",
+      "area": {
+        "type": "cube",
+        "size": 5
+      }
+    },
+    {
+      "id": "major-image",
+      "name": "Major Image",
+      "level": 3,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "mass-cure-wounds",
+      "name": "Mass Cure Wounds",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "mass-heal",
+      "name": "Mass Heal",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "mass-healing-word",
+      "name": "Mass Healing Word",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "mass-suggestion",
+      "name": "Mass Suggestion",
+      "level": 6,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "maze",
+      "name": "Maze",
+      "level": 8,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "meld-into-stone",
+      "name": "Meld Into Stone",
+      "level": 3,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "mending",
+      "name": "Mending",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "message",
+      "name": "Message",
+      "level": 0,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "meteor-swarm",
+      "name": "Meteor Swarm",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "1 mile",
+      "area": {
+        "type": "sphere",
+        "size": 40
+      }
+    },
+    {
+      "id": "mind-blank",
+      "name": "Mind Blank",
+      "level": 8,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "minor-illusion",
+      "name": "Minor Illusion",
+      "level": 0,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "mirage-arcane",
+      "name": "Mirage Arcane",
+      "level": 7,
+      "duration": "10 days",
+      "concentration": false,
+      "range": "Sight",
+      "area": {
+        "type": "cube",
+        "size": 5280
+      }
+    },
+    {
+      "id": "mirror-image",
+      "name": "Mirror Image",
+      "level": 2,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "mislead",
+      "name": "Mislead",
+      "level": 5,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "misty-step",
+      "name": "Misty Step",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "modify-memory",
+      "name": "Modify Memory",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "moonbeam",
+      "name": "Moonbeam",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 5
+      }
+    },
+    {
+      "id": "move-earth",
+      "name": "Move Earth",
+      "level": 6,
+      "duration": "Up to 2 hours",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "cone",
+        "size": 40
+      }
+    },
+    {
+      "id": "nondetection",
+      "name": "Nondetection",
+      "level": 3,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "pass-without-trace",
+      "name": "Pass Without Trace",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "passwall",
+      "name": "Passwall",
+      "level": 5,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "phantasmal-killer",
+      "name": "Phantasmal Killer",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "phantom-steed",
+      "name": "Phantom Steed",
+      "level": 3,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "planar-ally",
+      "name": "Planar Ally",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "planar-binding",
+      "name": "Planar Binding",
+      "level": 5,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "plane-shift",
+      "name": "Plane Shift",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "plant-growth",
+      "name": "Plant Growth",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": null
+    },
+    {
+      "id": "poison-spray",
+      "name": "Poison Spray",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "polymorph",
+      "name": "Polymorph",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "power-word-kill",
+      "name": "Power Word Kill",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "power-word-stun",
+      "name": "Power Word Stun",
+      "level": 8,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "prayer-of-healing",
+      "name": "Prayer of Healing",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "prestidigitation",
+      "name": "Prestidigitation",
+      "level": 0,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "prismatic-spray",
+      "name": "Prismatic Spray",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "cone",
+        "size": 60
+      }
+    },
+    {
+      "id": "prismatic-wall",
+      "name": "Prismatic Wall",
+      "level": 9,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "line",
+        "size": 90
+      }
+    },
+    {
+      "id": "private-sanctum",
+      "name": "Private Sanctum",
+      "level": 4,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "120 feet",
+      "area": {
+        "type": "cube",
+        "size": 100
+      }
+    },
+    {
+      "id": "produce-flame",
+      "name": "Produce Flame",
+      "level": 0,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "programmed-illusion",
+      "name": "Programmed Illusion",
+      "level": 6,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "120 feet",
+      "area": {
+        "type": "cube",
+        "size": 30
+      }
+    },
+    {
+      "id": "project-image",
+      "name": "Project Image",
+      "level": 7,
+      "duration": "Up to 24 hours",
+      "concentration": true,
+      "range": "500 miles",
+      "area": null
+    },
+    {
+      "id": "protection-from-energy",
+      "name": "Protection From Energy",
+      "level": 3,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "protection-from-evil-and-good",
+      "name": "Protection from Evil and Good",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "protection-from-poison",
+      "name": "Protection from Poison",
+      "level": 2,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "purify-food-and-drink",
+      "name": "Purify Food and Drink",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "raise-dead",
+      "name": "Raise Dead",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "ray-of-enfeeblement",
+      "name": "Ray of Enfeeblement",
+      "level": 2,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "ray-of-frost",
+      "name": "Ray of Frost",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "regenerate",
+      "name": "Regenerate",
+      "level": 7,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "reincarnate",
+      "name": "Reincarnate",
+      "level": 5,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "remove-curse",
+      "name": "Remove Curse",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "resilient-sphere",
+      "name": "Resilient Sphere",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "resistance",
+      "name": "Resistance",
+      "level": 0,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "resurrection",
+      "name": "Resurrection",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "reverse-gravity",
+      "name": "Reverse Gravity",
+      "level": 7,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "100 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 50
+      }
+    },
+    {
+      "id": "revivify",
+      "name": "Revivify",
+      "level": 3,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "rope-trick",
+      "name": "Rope Trick",
+      "level": 2,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "sacred-flame",
+      "name": "Sacred Flame",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "sanctuary",
+      "name": "Sanctuary",
+      "level": 1,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "scorching-ray",
+      "name": "Scorching Ray",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "scrying",
+      "name": "Scrying",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "secret-chest",
+      "name": "Secret Chest",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "see-invisibility",
+      "name": "See Invisibility",
+      "level": 2,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "seeming",
+      "name": "Seeming",
+      "level": 5,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "sending",
+      "name": "Sending",
+      "level": 3,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "Unlimited",
+      "area": null
+    },
+    {
+      "id": "sequester",
+      "name": "Sequester",
+      "level": 7,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "shapechange",
+      "name": "Shapechange",
+      "level": 9,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "shatter",
+      "name": "Shatter",
+      "level": 2,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "shield",
+      "name": "Shield",
+      "level": 1,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "shield-of-faith",
+      "name": "Shield of Faith",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "shillelagh",
+      "name": "Shillelagh",
+      "level": 0,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "shocking-grasp",
+      "name": "Shocking Grasp",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "silence",
+      "name": "Silence",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "silent-image",
+      "name": "Silent Image",
+      "level": 1,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 15
+      }
+    },
+    {
+      "id": "simulacrum",
+      "name": "Simulacrum",
+      "level": 7,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "sleep",
+      "name": "Sleep",
+      "level": 1,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "90 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "sleet-storm",
+      "name": "Sleet Storm",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "150 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 40
+      }
+    },
+    {
+      "id": "slow",
+      "name": "Slow",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "cube",
+        "size": 40
+      }
+    },
+    {
+      "id": "spare-the-dying",
+      "name": "Spare the Dying",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "speak-with-animals",
+      "name": "Speak with Animals",
+      "level": 1,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "speak-with-dead",
+      "name": "Speak with Dead",
+      "level": 3,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "speak-with-plants",
+      "name": "Speak with Plants",
+      "level": 3,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "spider-climb",
+      "name": "Spider Climb",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "spike-growth",
+      "name": "Spike Growth",
+      "level": 2,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "150 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 20
+      }
+    },
+    {
+      "id": "spirit-guardians",
+      "name": "Spirit Guardians",
+      "level": 3,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "spiritual-weapon",
+      "name": "Spiritual Weapon",
+      "level": 2,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "stinking-cloud",
+      "name": "Stinking Cloud",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "90 feet",
+      "area": {
+        "type": "sphere",
+        "size": 20
+      }
+    },
+    {
+      "id": "stone-shape",
+      "name": "Stone Shape",
+      "level": 4,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "stoneskin",
+      "name": "Stoneskin",
+      "level": 4,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "storm-of-vengeance",
+      "name": "Storm of Vengeance",
+      "level": 9,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Sight",
+      "area": {
+        "type": "sphere",
+        "size": 360
+      }
+    },
+    {
+      "id": "suggestion",
+      "name": "Suggestion",
+      "level": 2,
+      "duration": "Up to 8 hours",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "sunbeam",
+      "name": "Sunbeam",
+      "level": 6,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": {
+        "type": "line",
+        "size": 60
+      }
+    },
+    {
+      "id": "sunburst",
+      "name": "Sunburst",
+      "level": 8,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "150 feet",
+      "area": {
+        "type": "cylinder",
+        "size": 60
+      }
+    },
+    {
+      "id": "symbol",
+      "name": "Symbol",
+      "level": 7,
+      "duration": "Until dispelled",
+      "concentration": false,
+      "range": "Touch",
+      "area": {
+        "type": "cube",
+        "size": 10
+      }
+    },
+    {
+      "id": "telekinesis",
+      "name": "Telekinesis",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "telepathic-bond",
+      "name": "Telepathic Bond",
+      "level": 5,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "teleport",
+      "name": "Teleport",
+      "level": 7,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "10 feet",
+      "area": {
+        "type": "cube",
+        "size": 10
+      }
+    },
+    {
+      "id": "teleportation-circle",
+      "name": "Teleportation Circle",
+      "level": 5,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "10 feet",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "thaumaturgy",
+      "name": "Thaumaturgy",
+      "level": 0,
+      "duration": "1 minute",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "thunderwave",
+      "name": "Thunderwave",
+      "level": 1,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "cube",
+        "size": 15
+      }
+    },
+    {
+      "id": "time-stop",
+      "name": "Time Stop",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "tiny-hut",
+      "name": "Tiny Hut",
+      "level": 3,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "Self",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "tongues",
+      "name": "Tongues",
+      "level": 3,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "transport-via-plants",
+      "name": "Transport via Plants",
+      "level": 6,
+      "duration": "1 round",
+      "concentration": false,
+      "range": "10 feet",
+      "area": null
+    },
+    {
+      "id": "tree-stride",
+      "name": "Tree Stride",
+      "level": 5,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "true-polymorph",
+      "name": "True Polymorph",
+      "level": 9,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "true-resurrection",
+      "name": "True Resurrection",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "true-seeing",
+      "name": "True Seeing",
+      "level": 6,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "true-strike",
+      "name": "True Strike",
+      "level": 0,
+      "duration": "Up to 1 round",
+      "concentration": true,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "unseen-servant",
+      "name": "Unseen Servant",
+      "level": 1,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "vampiric-touch",
+      "name": "Vampiric Touch",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "vicious-mockery",
+      "name": "Vicious Mockery",
+      "level": 0,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "60 feet",
+      "area": null
+    },
+    {
+      "id": "wall-of-fire",
+      "name": "Wall of Fire",
+      "level": 4,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "line",
+        "size": 60
+      }
+    },
+    {
+      "id": "wall-of-force",
+      "name": "Wall of Force",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "wall-of-ice",
+      "name": "Wall of Ice",
+      "level": 6,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 10
+      }
+    },
+    {
+      "id": "wall-of-stone",
+      "name": "Wall of Stone",
+      "level": 5,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": null
+    },
+    {
+      "id": "wall-of-thorns",
+      "name": "Wall of Thorns",
+      "level": 6,
+      "duration": "Up to 10 minutes",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "line",
+        "size": 60
+      }
+    },
+    {
+      "id": "warding-bond",
+      "name": "Warding Bond",
+      "level": 2,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "Touch",
+      "area": null
+    },
+    {
+      "id": "water-breathing",
+      "name": "Water Breathing",
+      "level": 3,
+      "duration": "24 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "water-walk",
+      "name": "Water Walk",
+      "level": 3,
+      "duration": "1 hour",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "web",
+      "name": "Web",
+      "level": 2,
+      "duration": "Up to 1 hour",
+      "concentration": true,
+      "range": "60 feet",
+      "area": {
+        "type": "cube",
+        "size": 20
+      }
+    },
+    {
+      "id": "weird",
+      "name": "Weird",
+      "level": 9,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "sphere",
+        "size": 30
+      }
+    },
+    {
+      "id": "wind-walk",
+      "name": "Wind Walk",
+      "level": 6,
+      "duration": "8 hours",
+      "concentration": false,
+      "range": "30 feet",
+      "area": null
+    },
+    {
+      "id": "wind-wall",
+      "name": "Wind Wall",
+      "level": 3,
+      "duration": "Up to 1 minute",
+      "concentration": true,
+      "range": "120 feet",
+      "area": {
+        "type": "line",
+        "size": 50
+      }
+    },
+    {
+      "id": "wish",
+      "name": "Wish",
+      "level": 9,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "Self",
+      "area": null
+    },
+    {
+      "id": "word-of-recall",
+      "name": "Word of Recall",
+      "level": 6,
+      "duration": "Instantaneous",
+      "concentration": false,
+      "range": "5 feet",
+      "area": {
+        "type": "sphere",
+        "size": 5
+      }
+    },
+    {
+      "id": "zone-of-truth",
+      "name": "Zone of Truth",
+      "level": 2,
+      "duration": "10 minutes",
+      "concentration": false,
+      "range": "60 feet",
+      "area": {
+        "type": "sphere",
+        "size": 15
+      }
+    }
+  ]
+}

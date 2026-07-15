@@ -1,7 +1,7 @@
 // src/hpbar-items.js
 import OBR, { buildShape, buildText } from "@owlbear-rodeo/sdk";
-import { ID } from "./contextMenu";
-import { isOnlyActiveTurnLabelChange } from "./constants.js";
+import { ID } from "./constants.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
@@ -449,24 +449,15 @@ export async function mountHPBars(){
     setTimeout(flushQueued, 0);
   }
 
-  let itemsChangeTimer = null;
-  OBR.scene.items.onChange((changes = []) => {
+  subscribeSceneItemChanges(({ items }) => {
     if (!IS_GM) return;
-    if (isOnlyActiveTurnLabelChange(changes)) return;
-    clearTimeout(itemsChangeTimer);
-    itemsChangeTimer = setTimeout(async () => {
-      const items = await OBR.scene.items.getItems();
-      const byId  = new Map(items.map(it => [it.id, it]));
-      for (const ch of changes){
-        const cur = byId.get(ch.id);
-        if (!cur) continue;
-        if (cur.metadata?.[HPBAR_META_FLAG]) continue;
-        const m = cur.metadata?.[META_KEY];
-        if (!hasCanonicalHP(m)) continue;
-        queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
-      }
-    }, 0);
-  });
+    for (const cur of items) {
+      if (cur.metadata?.[HPBAR_META_FLAG]) continue;
+      const m = cur.metadata?.[META_KEY];
+      if (!hasCanonicalHP(m)) continue;
+      queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
+    }
+  }, { filter: (event) => event.flags.hpBars });
 
   let metaChangeTimer = null;
   OBR.scene.onMetadataChange(() => {

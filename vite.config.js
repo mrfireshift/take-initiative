@@ -14,6 +14,8 @@ export default defineConfig({
       // 👇 usa percorsi ASSOLUTI (Windows-friendly)
       input: {
         main:    path.resolve(process.cwd(), "index.html"),
+        actionLauncher: path.resolve(process.cwd(), "action-launcher.html"),
+        background: path.resolve(process.cwd(), "background.html"),
         ctxAdd:  path.resolve(process.cwd(), "ctx-add.html"),
         ctxMark: path.resolve(process.cwd(), "ctx-mark.html"),
         ctxSpells: path.resolve(process.cwd(), "ctx-spells.html"),
@@ -21,6 +23,11 @@ export default defineConfig({
         effectsModal: path.resolve(process.cwd(), "effects-modal.html"),
         spellsModal: path.resolve(process.cwd(), "spells-modal.html"),
         historyModal: path.resolve(process.cwd(), "history-modal.html"),
+        concentrationWarning: path.resolve(process.cwd(), "concentration-warning.html"),
+        speedWarning: path.resolve(process.cwd(), "speed-warning.html"),
+        turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
+        initiativeCardModal: path.resolve(process.cwd(), "initiative-card-modal.html"),
+        factionConfigurator: path.resolve(process.cwd(), "faction-configurator.html"),
       },
     },
   },

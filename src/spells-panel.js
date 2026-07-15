@@ -1,33 +1,160 @@
-// src/spells-panel.js
 import OBR from "@owlbear-rodeo/sdk";
 import {
   addOrUpdateSpell,
+  removeSpellByInstance,
+  removeSpellByNameAndSource,
+  createSpellInstanceId,
   registerConcentration,
   breakConcentration,
   getCasterConcentrations,
-  clearSpellsOnItems, // resta per "Termina Incantesimo" se lo userai in seguito
+  getSpellsFromItem,
+  clearSpellsOnItems,
 } from "./spells.js";
+import {
+  addOrUpdateConditionForItems,
+  refreshConditionLabels,
+} from "./conditions.js";
+import {
+  getTrackableSpellOptions,
+  getSpellDefinition,
+  getProposedConditions,
+} from "./spells-srd.js";
+import { withItemMetaHistory } from "./history.js";
 import { ID } from "./constants.js";
 
-const META_KEY = `${ID}/meta`;
-const MODAL_ID = `${ID}/spells-modal`;
+const META_KEY = ID + "/meta";
+const STATE_KEY = ID + "/state";
+const SPELLS_META_KEY = ID + "/spells";
+const CONC_META_KEY = ID + "/concentration";
+const MODAL_ID = ID + "/spells-modal";
+const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
+
+function closeSpellsPopover() {
+  void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
+    type: "closed",
+    id: MODAL_ID,
+  }, { destination: "LOCAL" }).catch(() => {});
+  void OBR.popover.close(MODAL_ID);
+}
 
 const $ = (id) => document.getElementById(id);
+const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
 
-document.addEventListener("DOMContentLoaded", init, { once: true });
+function spellDisplayName(value) {
+  const raw = String(value || "").trim();
+  return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
+}
+
+function spellOverviewGroups(items = []) {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const groups = new Map();
+
+  for (const target of items) {
+    for (const spell of getSpellsFromItem(target)) {
+      const instanceId = String(spell?.instanceId || "").trim();
+      const casterId = String(spell?.casterId || "").trim();
+      const storedName = String(spell?.name || "").trim();
+      const fallbackKey = casterId + "\u0000" + storedName.toLocaleLowerCase("it");
+      const key = instanceId ? "instance:" + instanceId : "legacy:" + fallbackKey;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          key,
+          instanceId,
+          storedName,
+          name: spellDisplayName(spell?.spellId || storedName),
+          casterId,
+          casterName: byId.get(casterId)?.name || "Non indicato",
+          concentrating: !!spell?.conc,
+          concentrationRef: instanceId || storedName,
+          targets: new Map(),
+          turns: [],
+        };
+        groups.set(key, group);
+      }
+      group.concentrating = group.concentrating || !!spell?.conc;
+      group.targets.set(target.id, target.name || target.id);
+      group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
+    }
+  }
+
+  for (const caster of items) {
+    const concentrations = caster?.metadata?.[META_KEY]?.[CONC_META_KEY] || {};
+    for (const [key, info] of Object.entries(concentrations)) {
+      const instanceId = String(info?.instanceId || "").trim();
+      const storedName = String(info?.name || key).trim();
+      const exactKey = instanceId ? "instance:" + instanceId : "";
+      const legacyKey = "legacy:" + caster.id + "\u0000" + storedName.toLocaleLowerCase("it");
+      const group = (exactKey && groups.get(exactKey)) || groups.get(legacyKey);
+      if (!group) continue;
+      group.concentrating = true;
+      group.casterId = caster.id;
+      group.casterName = caster.name || caster.id;
+      group.concentrationRef = instanceId || key;
+    }
+  }
+
+  return Array.from(groups.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, "it") || a.casterName.localeCompare(b.casterName, "it")
+  );
+}
+
+function spellTurnsLabel(turns = []) {
+  const values = turns.filter(Number.isFinite);
+  if (!values.length) return "Durata non indicata";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return min === max ? min + " round" : min + "-" + max + " round";
+}
+
+async function terminateSpellGroup(group) {
+  const targetIds = Array.from(group.targets.keys());
+  const historyIds = uniqueIds([group.casterId, ...targetIds]);
+  await withItemMetaHistory({
+    kind: "spell",
+    label: "Terminato incantesimo: " + group.name,
+    itemIds: historyIds,
+    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+  }, async () => {
+    if (group.concentrating && group.casterId) {
+      await breakConcentration(group.casterId, group.concentrationRef);
+    }
+    for (const targetId of targetIds) {
+      if (group.instanceId) await removeSpellByInstance(targetId, group.instanceId);
+      else await removeSpellByNameAndSource(targetId, group.storedName, group.casterId || null);
+    }
+  });
+  await refreshConditionLabels(targetIds);
+}
+
+OBR.onReady(() => {
+  init().catch((err) => {
+    console.error("[spell-panel] init:", err?.message || err);
+  });
+});
 
 async function init() {
-  const f        = $("f");
-  const iName    = $("name");
-  const iDur     = $("dur");
-  const iConc    = $("conc");
-  const iCaster  = $("caster");
-  const btnEnd   = $("end");      // se non esiste nell'HTML, resta null e non fa nulla
-  const concWrap = $("concWrap");
-  const concList = $("concList");
-  const btnCancel = $("cancel");
+  const form = $("f");
+  const nameInput = $("name");
+  const durationInput = $("dur");
+  const concentrationInput = $("conc");
+  const casterSelect = $("caster");
+  const endButton = $("end");
+  const concentrationWrap = $("concWrap");
+  const concentrationList = $("concList");
+  const cancelButton = $("cancel");
+  const submitButton = $("submit");
   const modalTitle = $("modalTitle");
   const modalClose = $("modalClose");
+  const automationWrap = $("automationWrap");
+  const applyConditionsInput = $("applyConditions");
+  const automationText = $("automationText");
+  const conditionChoice = $("conditionChoice");
+  const overviewList = $("spellOverviewList");
+  const overviewCount = $("spellOverviewCount");
+  const spellTargetList = $("spellTargetList");
+  const spellTargetsAll = $("spellTargetsAll");
+  const spellTargetsNone = $("spellTargetsNone");
   const sourceId = new URLSearchParams(window.location.search).get("source") || "";
   const isModal = !!sourceId;
 
@@ -37,138 +164,416 @@ async function init() {
       const [source] = await OBR.scene.items.getItems([sourceId]);
       sourceName = source?.name || sourceName;
     } catch {}
-    if (modalTitle) modalTitle.textContent = `Incantesimi: ${sourceName}`;
-    modalClose?.addEventListener("click", () => OBR.modal.close(MODAL_ID));
+    if (modalTitle) modalTitle.textContent = "Incantesimi: " + sourceName;
+    modalClose?.addEventListener("click", closeSpellsPopover);
   }
 
-  try { iName.setAttribute("autocomplete", "off"); iName.focus(); } catch {}
-
-  // SRD (opzionale)
   try {
-    const mod = await import("./spells-srd.js");
-    const SRD = Array.isArray(mod.SPELLS_5E_SRD) ? mod.SPELLS_5E_SRD : [];
-    if (SRD.length) {
-      const dl = $("spell-list");
-      for (const n of SRD) {
-        const opt = document.createElement("option");
-        opt.value = n;
-        dl.appendChild(opt);
-      }
-    }
+    nameInput.setAttribute("autocomplete", "off");
+    nameInput.focus();
   } catch {}
 
-  // Da card: selezione mappa come bersagli, fallback sul token sorgente.
-  const targetIds = isModal
-    ? await getCardTargetIds(sourceId)
+  const dataList = $("spell-list");
+  for (const entry of getTrackableSpellOptions()) {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.label = entry.label;
+    option.dataset.spellId = entry.id;
+    dataList?.appendChild(option);
+  }
+
+  const allCasters = await getAllInitiativeCharacters(sourceId);
+  const capturedTargetIds = isModal
+    ? await getCardTargetIds(sourceId, allCasters)
     : await getContextOrSelectionIds();
+  const spellTargetControls = new Map();
+  let spellSelectionWriteDepth = 0;
 
-  // Popola caster: QUALSIASI token in iniziativa
-  const allCasters = await getAllInitiativeCharacters();
-  for (const it of allCasters) {
-    const opt = document.createElement("option");
-    opt.value = it.id;
-    opt.textContent = it.name || it.id;
-    iCaster.appendChild(opt);
-  }
-  const defaultCasterId = isModal ? sourceId : (targetIds.length === 1 ? targetIds[0] : "");
-  if (defaultCasterId && allCasters.some(c => c.id === defaultCasterId)) {
-    iCaster.value = defaultCasterId;
-  }
+  const selectedSpellTargetIds = () => Array.from(spellTargetControls.entries())
+    .filter(([, control]) => control.checkbox.checked)
+    .map(([id]) => id);
 
-  // Abilita/disabilita select caster in base al toggle
-  const refreshCasterEnabled = () => {
-    const on = !!iConc.checked;
-    iCaster.disabled = !on;
-    iCaster.style.opacity = on ? "1" : ".6";
+  const applySpellTargetSelection = (ids) => {
+    const selected = new Set(Array.isArray(ids) ? ids : []);
+    for (const [id, control] of spellTargetControls) {
+      control.checkbox.checked = selected.has(id);
+      control.row.classList.toggle("selected", control.checkbox.checked);
+    }
   };
-  iConc.addEventListener("change", refreshCasterEnabled);
+
+  const writeSpellTargetSelection = async (ids, selected, replace = false) => {
+    spellSelectionWriteDepth += 1;
+    try {
+      if (selected) await OBR.player.select(ids, replace);
+      else await OBR.player.deselect(ids);
+    } finally {
+      spellSelectionWriteDepth -= 1;
+    }
+  };
+
+  for (const item of allCasters) {
+    const row = document.createElement("label");
+    row.className = "spell-target";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = item.id;
+    checkbox.style.accentColor = "#2563eb";
+    const label = document.createElement("span");
+    label.textContent = item.name || item.id;
+    row.append(checkbox, label);
+    spellTargetList?.appendChild(row);
+    spellTargetControls.set(item.id, { row, checkbox });
+    checkbox.addEventListener("change", () => {
+      row.classList.toggle("selected", checkbox.checked);
+      void writeSpellTargetSelection([item.id], checkbox.checked);
+    });
+  }
+  applySpellTargetSelection(capturedTargetIds);
+
+  spellTargetsAll?.addEventListener("click", () => {
+    const ids = Array.from(spellTargetControls.keys());
+    applySpellTargetSelection(ids);
+    void writeSpellTargetSelection(ids, true, true);
+  });
+  spellTargetsNone?.addEventListener("click", () => {
+    const ids = Array.from(spellTargetControls.keys());
+    applySpellTargetSelection([]);
+    void writeSpellTargetSelection(ids, false);
+  });
+
+  const refreshSpellTargetSelection = async () => {
+    if (spellSelectionWriteDepth > 0) return;
+    try {
+      applySpellTargetSelection(await OBR.player.getSelection());
+    } catch {}
+  };
+  const selectionUnsubscribe = OBR.player.onChange((player) => {
+    if (spellSelectionWriteDepth === 0 && Array.isArray(player?.selection)) {
+      applySpellTargetSelection(player.selection);
+    }
+  });
+  const selectionPollTimer = window.setInterval(refreshSpellTargetSelection, 120);
+  window.addEventListener("beforeunload", () => {
+    selectionUnsubscribe?.();
+    window.clearInterval(selectionPollTimer);
+  }, { once: true });
+
+  for (const item of allCasters) {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.name || item.id;
+    casterSelect.appendChild(option);
+  }
+
+  const defaultCasterId = isModal ? sourceId : (capturedTargetIds[0] || "");
+  if (defaultCasterId && allCasters.some((item) => item.id === defaultCasterId)) {
+    casterSelect.value = defaultCasterId;
+  }
+
+  const refreshCasterEnabled = () => {
+    const enabled = !!concentrationInput.checked && allCasters.length > 0;
+    casterSelect.disabled = !enabled;
+    casterSelect.style.opacity = enabled ? "1" : ".6";
+  };
+  concentrationInput.addEventListener("change", refreshCasterEnabled);
   refreshCasterEnabled();
 
-  // Riepilogo concentrazione: visibile SOLO se apri sul caster e ha concentrazioni
+  let automationSpellId = "";
+  const renderAutomation = (spell) => {
+    if (!automationWrap || !automationText || !applyConditionsInput || !conditionChoice) return;
+    if (!spell) {
+      automationWrap.style.display = "none";
+      automationSpellId = "";
+      return;
+    }
+
+    automationWrap.style.display = "";
+    const targetLabel = spell.targetMode === "self"
+      ? "caster"
+      : spell.targetMode === "area"
+        ? "token selezionati dopo gli esiti"
+        : "token selezionati";
+    const durationLabel = spell.duration
+      ? " Durata SRD: " + spell.duration + "."
+        + (spell.defaultTurns ? "" : " Imposta i round manualmente.")
+      : "";
+    const automation = spell.automation;
+
+    if (!automation) {
+      applyConditionsInput.checked = false;
+      applyConditionsInput.disabled = true;
+      applyConditionsInput.style.display = "none";
+      conditionChoice.style.display = "none";
+      automationText.textContent = "Solo tracciamento. Bersaglio: " + targetLabel + "." + durationLabel;
+      automationSpellId = spell.id;
+      return;
+    }
+
+    applyConditionsInput.disabled = false;
+    applyConditionsInput.style.display = "";
+    if (automationSpellId !== spell.id) applyConditionsInput.checked = true;
+    conditionChoice.replaceChildren();
+
+    if (automation.mode === "choice") {
+      for (const choice of automation.choices || []) {
+        const option = document.createElement("option");
+        option.value = choice;
+        option.textContent = choice;
+        conditionChoice.appendChild(option);
+      }
+      conditionChoice.style.display = "";
+      automationText.textContent = "Scegli condizione; bersaglio: " + targetLabel + "." + durationLabel;
+    } else {
+      conditionChoice.style.display = "none";
+      const conditions = (automation.conditions || []).join(", ");
+      const prefix = automation.mode === "automatic"
+        ? "Applica automaticamente: "
+        : "Dopo gli esiti, applica: ";
+      automationText.textContent = prefix + conditions + ". Bersaglio: " + targetLabel + "." + durationLabel;
+    }
+    automationSpellId = spell.id;
+  };
+
+  const syncCatalogSelection = (applyDefaults) => {
+    const spell = getSpellDefinition(nameInput.value);
+    if (spell && applyDefaults) {
+      durationInput.value = spell.defaultTurns ? String(spell.defaultTurns) : "";
+      concentrationInput.checked = !!spell.concentration;
+      refreshCasterEnabled();
+    }
+    renderAutomation(spell);
+    return spell;
+  };
+
+  nameInput.addEventListener("input", () => syncCatalogSelection(false));
+  nameInput.addEventListener("change", () => syncCatalogSelection(true));
+
   const contextCasterId = isModal ? sourceId : await deduceContextSingleId();
-  await refreshCasterSummary(contextCasterId, concWrap, concList);
+  let overviewRevision = 0;
+  const refreshOverview = async () => {
+    if (!overviewList) return;
+    const revision = ++overviewRevision;
+    const items = await getAllInitiativeCharacters(sourceId);
+    const groups = spellOverviewGroups(items);
+    if (revision !== overviewRevision) return;
 
-  // Submit: aggiungi/aggiorna spell
-  f.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const name   = (iName.value || "").trim();
-    const turns  = Math.max(1, Math.floor(Number(iDur.value) || 1));
-    const wantsC = !!iConc.checked;
-    if (!name) { iName.focus(); return; }
-
-    let casterId = iCaster.value || null;
-if (wantsC && !casterId && allCasters.length) {
-  casterId = allCasters[0].id; // fallback
-}
-
-// 🔒 Regola D&D: un caster può avere una sola concentrazione.
-// Se il caster ha già concentrazioni attive, interrompile TUTTE prima di applicare la nuova.
-if (wantsC && casterId) {
-  try {
-    const conc = await getCasterConcentrations(casterId); // { key: {targets:[...]}, ... }
-    const keys = Object.keys(conc || {});
-    for (const k of keys) {
-      await breakConcentration(casterId, k);
+    overviewList.replaceChildren();
+    if (overviewCount) overviewCount.textContent = String(groups.length);
+    if (!groups.length) {
+      const empty = document.createElement("div");
+      empty.className = "overview-empty";
+      empty.textContent = "Nessun incantesimo attivo sul campo.";
+      overviewList.appendChild(empty);
+      return;
     }
-  } catch (e) {
-    console.warn("[spell-panel] break previous concentration:", e);
+
+    for (const group of groups) {
+      const row = document.createElement("article");
+      row.className = "spell-overview-row";
+      const content = document.createElement("div");
+      content.className = "spell-overview-content";
+      const heading = document.createElement("div");
+      heading.className = "spell-overview-heading";
+      const name = document.createElement("strong");
+      name.textContent = group.name;
+      const duration = document.createElement("span");
+      duration.className = "overview-badge";
+      duration.textContent = spellTurnsLabel(group.turns);
+      heading.append(name, duration);
+      if (group.concentrating) {
+        const concentration = document.createElement("span");
+        concentration.className = "overview-badge concentration";
+        concentration.textContent = "C";
+        concentration.title = "Concentrazione";
+        heading.appendChild(concentration);
+      }
+
+      const caster = document.createElement("div");
+      caster.className = "spell-overview-meta";
+      caster.textContent = (group.concentrating ? "Concentrazione: " : "Caster: ") + group.casterName;
+      const targets = document.createElement("div");
+      targets.className = "spell-overview-targets";
+      targets.textContent = "Bersagli: " + Array.from(group.targets.values()).join(", ");
+      targets.title = targets.textContent;
+      content.append(heading, caster, targets);
+
+      const terminate = document.createElement("button");
+      terminate.type = "button";
+      terminate.className = "terminate-spell";
+      terminate.textContent = "Termina";
+      terminate.addEventListener("click", async () => {
+        terminate.disabled = true;
+        try {
+          await terminateSpellGroup(group);
+          await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+          await refreshOverview();
+        } catch (err) {
+          console.warn("[spell-panel] terminate overview spell:", err?.message || err);
+          terminate.disabled = false;
+        }
+      });
+      row.append(content, terminate);
+      overviewList.appendChild(row);
+    }
+  };
+
+  await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+  await refreshOverview();
+  let overviewRefreshTimer = null;
+  if (overviewList) {
+    OBR.scene.items.onChange(() => {
+      if (overviewRefreshTimer) clearTimeout(overviewRefreshTimer);
+      overviewRefreshTimer = setTimeout(() => void refreshOverview(), 80);
+    });
   }
-}
 
-// Applica l'incantesimo ai target selezionati
-for (const id of targetIds) {
-  await addOrUpdateSpell(id, name, turns, {
-    conc: wantsC && !!casterId,
-    source: wantsC ? casterId : undefined,
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const enteredName = String(nameInput.value || "").trim();
+    if (!enteredName) {
+      nameInput.focus();
+      return;
+    }
+
+    const spell = getSpellDefinition(enteredName);
+    const name = spell?.displayName || enteredName;
+    const rawTurns = Number(durationInput.value);
+    if (!Number.isFinite(rawTurns) || rawTurns < 1) {
+      durationInput.focus();
+      return;
+    }
+    const turns = Math.floor(rawTurns);
+    const wantsConcentration = !!concentrationInput.checked;
+    let casterId = casterSelect.value || defaultCasterId || sourceId || null;
+    if (wantsConcentration && !casterId && allCasters.length) casterId = allCasters[0].id;
+
+    const targetIds = uniqueIds(
+      spell?.targetMode === "self" && casterId ? [casterId] : selectedSpellTargetIds()
+    );
+    if (!targetIds.length) return;
+
+    const caster = allCasters.find((item) => item.id === casterId) || null;
+    const casterName = caster?.name || "";
+    const instanceId = createSpellInstanceId();
+    const spellId = spell?.id || "";
+    const proposedConditions = applyConditionsInput?.checked
+      ? getProposedConditions(spell, conditionChoice?.value || "")
+      : [];
+
+    let previousConcentration = {};
+    if (wantsConcentration && casterId) {
+      try {
+        previousConcentration = await getCasterConcentrations(casterId);
+      } catch {}
+    }
+    const previousTargetIds = Object.values(previousConcentration || {})
+      .flatMap((entry) => Array.isArray(entry?.targets) ? entry.targets : []);
+    const historyIds = uniqueIds([...targetIds, casterId, ...previousTargetIds]);
+    const appliedAt = await getAppliedAt();
+
+    submitButton.disabled = true;
+    try {
+      await withItemMetaHistory({
+        kind: "spell",
+        label: "Incantesimo: " + name,
+        itemIds: historyIds,
+        fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+      }, async () => {
+        if (wantsConcentration && casterId) {
+          for (const key of Object.keys(previousConcentration || {})) {
+            await breakConcentration(casterId, key);
+          }
+        }
+
+        for (const targetId of targetIds) {
+          const previousNames = new Set([enteredName, name, spell?.name].filter(Boolean));
+          for (const previousName of previousNames) {
+            await removeSpellByNameAndSource(targetId, previousName, casterId);
+          }
+          await addOrUpdateSpell(targetId, name, turns, {
+            conc: wantsConcentration && !!casterId,
+            source: casterId || undefined,
+            instanceId,
+            spellId,
+          });
+        }
+
+        const expiry = wantsConcentration
+          ? { mode: "concentration" }
+          : { mode: "rounds", remaining: turns };
+        for (const condition of proposedConditions) {
+          await addOrUpdateConditionForItems(targetIds, condition, {
+            sourceId: casterId || "",
+            sourceName: casterName,
+            parentEffectId: instanceId,
+            type: "spell",
+            appliedAt,
+            expiry,
+          });
+        }
+
+        if (wantsConcentration && casterId) {
+          await registerConcentration(casterId, name, targetIds, {
+            instanceId,
+            spellId,
+          });
+        }
+      });
+
+      await refreshConditionLabels(uniqueIds([...targetIds, ...previousTargetIds]));
+      await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+      await refreshOverview();
+      if (!isModal) {
+        try {
+          await OBR.contextMenu.close?.();
+        } catch {}
+      }
+    } finally {
+      submitButton.disabled = false;
+    }
   });
-}
 
-// Registra la nuova concentrazione sul caster (se richiesto)
-if (wantsC && casterId) {
-  await registerConcentration(casterId, name, targetIds);
-}
-
-    await refreshCasterSummary(contextCasterId, concWrap, concList);
+  cancelButton?.addEventListener("click", async () => {
+    const ids = isModal ? selectedSpellTargetIds() : await getContextOrSelectionIds();
+    if (!ids.length) return;
+    await withItemMetaHistory({
+      kind: "spell",
+      label: ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi",
+      itemIds: ids,
+      fields: [SPELLS_META_KEY, "conditions"],
+    }, () => clearSpellsOnItems(ids));
+    await refreshConditionLabels(ids);
+    await refreshOverview();
     if (!isModal) {
-      try { await OBR.contextMenu.close?.(); } catch {}
+      try {
+        await OBR.contextMenu.close?.();
+      } catch {}
     }
   });
 
-// === Annulla: rimuove TUTTI gli incantesimi dai token selezionati
-btnCancel?.addEventListener("click", async () => {
-  const ids = isModal ? targetIds : await getContextOrSelectionIds();
-  if (!ids.length) return;
-  await clearSpellsOnItems(ids);
-  if (!isModal) {
-    try { await OBR.contextMenu.close?.(); } catch {}
-  }
-});
+  endButton?.addEventListener("click", () => cancelButton?.click());
 }
-
-/* ---------------- helpers ---------------- */
 
 async function getContextOrSelectionIds() {
   try {
-    const ctx = await OBR.contextMenu.getContext();
-    const ids = (ctx?.items || []).map(i => i.id).filter(Boolean);
+    const context = await OBR.contextMenu.getContext();
+    const ids = (context?.items || []).map((item) => item.id).filter(Boolean);
     if (ids.length) return ids;
   } catch {}
   try {
-    const sel = await OBR.player.getSelection();
-    if (sel?.length) return sel.filter(Boolean);
+    const selection = await OBR.player.getSelection();
+    if (selection?.length) return selection.filter(Boolean);
   } catch {}
   return [];
 }
 
-async function getCardTargetIds(sourceId) {
+async function getCardTargetIds(sourceId, initiativeCharacters = []) {
   try {
     const selected = await OBR.player.getSelection();
-    const ids = Array.from(new Set(Array.isArray(selected) ? selected.filter(Boolean) : []));
+    const ids = uniqueIds(Array.isArray(selected) ? selected : []);
     if (ids.length) {
-      const items = await OBR.scene.items.getItems(ids);
-      const valid = items
-        .filter((item) => item.layer === "CHARACTER" && item.metadata?.[META_KEY]?.inInitiative === true)
-        .map((item) => item.id);
+      const activeIds = new Set(initiativeCharacters.map((item) => item.id));
+      const valid = ids.filter((id) => activeIds.has(id));
       if (valid.length) return valid;
     }
   } catch {}
@@ -176,59 +581,113 @@ async function getCardTargetIds(sourceId) {
 }
 
 async function deduceContextSingleId() {
-  try {
-    const ctx = await OBR.contextMenu.getContext();
-    const ids = (ctx?.items || []).map(i => i.id);
-    if (ids.length === 1) return ids[0];
-  } catch {}
-  try {
-    const sel = await OBR.player.getSelection();
-    if (sel?.length === 1) return sel[0];
-  } catch {}
-  return null;
+  const ids = await getContextOrSelectionIds();
+  return ids.length === 1 ? ids[0] : null;
 }
 
-async function getAllInitiativeCharacters() {
+function getTrackerBaseItemId(value) {
+  const id = String(value || "").trim();
+  if (!id || id === "__LAIR__" || id.startsWith("__EPIC__")) return "";
+  return id.replace(/::p\d+$/, "");
+}
+
+async function getAllInitiativeCharacters(sourceId = "") {
+  try {
+    const metadata = await OBR.scene.getMetadata();
+    const order = Array.isArray(metadata?.[STATE_KEY]?.order)
+      ? metadata[STATE_KEY].order
+      : [];
+    const orderedIds = uniqueIds(order.map(getTrackerBaseItemId));
+    const orderedSet = new Set(orderedIds);
+    const items = await OBR.scene.items.getItems((item) => {
+      const meta = item.metadata?.[META_KEY];
+      return item.layer === "CHARACTER"
+        && !!meta
+        && (meta.inInitiative === true || orderedSet.has(item.id) || item.id === sourceId);
+    });
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const active = orderedIds.map((id) => byId.get(id)).filter(Boolean);
+    for (const item of items) {
+      if (!active.some((candidate) => candidate.id === item.id)
+        && (item.metadata?.[META_KEY]?.inInitiative === true || item.id === sourceId)) {
+        active.push(item);
+      }
+    }
+    if (active.length) return active;
+  } catch (err) {
+    console.warn("[spell-panel] initiative caster lookup:", err?.message || err);
+  }
+
   try {
     const items = await OBR.scene.items.getItems(
-      (it) => it.layer === "CHARACTER" && !!(it.metadata && it.metadata[META_KEY])
+      (item) => item.layer === "CHARACTER" && !!item.metadata?.[META_KEY]
     );
-    items.sort((a,b) => (a.name || a.id).localeCompare(b.name || b.id, "it"));
+    items.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id, "it"));
     return items;
-  } catch { return []; }
+  } catch {
+    return [];
+  }
+}
+
+async function getAppliedAt() {
+  try {
+    const metadata = await OBR.scene.getMetadata();
+    const state = metadata?.[STATE_KEY] || {};
+    const order = Array.isArray(state.order) ? state.order : [];
+    return {
+      round: Math.max(1, Number(state.round || 1)),
+      actorId: order[state.current] || null,
+      phase: "turn",
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function refreshCasterSummary(casterId, wrap, list) {
   list.replaceChildren();
-  if (!casterId) { wrap.style.display = "none"; return; }
+  if (!casterId) {
+    wrap.style.display = "none";
+    return;
+  }
   try {
-    const conc = await getCasterConcentrations(casterId); // { [spellKey]: { targets: [] } }
-    const entries = Object.entries(conc || {});
-    if (!entries.length) { wrap.style.display = "none"; return; }
+    const concentrations = await getCasterConcentrations(casterId);
+    const entries = Object.entries(concentrations || {});
+    if (!entries.length) {
+      wrap.style.display = "none";
+      return;
+    }
     wrap.style.display = "";
 
     for (const [key, info] of entries) {
-      const nice = key ? key[0].toUpperCase()+key.slice(1) : key;
-      const n    = Array.isArray(info?.targets) ? info.targets.length : 0;
-
+      const storedName = String(info?.name || key);
+      const nice = getSpellDefinition(storedName)?.displayName || storedName;
+      const targets = Array.isArray(info?.targets) ? info.targets : [];
       const chip = document.createElement("span");
       chip.className = "chip";
-      chip.textContent = `${nice} (${n})`;
+      chip.textContent = nice + " (" + targets.length + ")";
 
-      const btn = document.createElement("button");
-      btn.className = "iconbtn";
-      btn.type = "button";
-      btn.textContent = "✕";
-      btn.title = "Interrompi questa concentrazione";
-      btn.addEventListener("click", async (ev) => {
-        ev.stopPropagation();
-        await breakConcentration(casterId, key);
+      const button = document.createElement("button");
+      button.className = "iconbtn";
+      button.type = "button";
+      button.textContent = "X";
+      button.title = "Interrompi questa concentrazione";
+      button.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        const ids = uniqueIds([casterId, ...targets]);
+        await withItemMetaHistory({
+          kind: "spell",
+          label: "Concentrazione interrotta: " + nice,
+          itemIds: ids,
+          fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+        }, () => breakConcentration(casterId, info?.instanceId || key));
+        await refreshConditionLabels(targets);
         await refreshCasterSummary(casterId, wrap, list);
       });
 
       const row = document.createElement("span");
       row.className = "row";
-      row.append(chip, btn);
+      row.append(chip, button);
       list.append(row);
     }
   } catch {

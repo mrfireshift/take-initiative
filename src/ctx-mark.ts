@@ -1,6 +1,7 @@
 // src/ctx-mark.ts
 import OBR, { type Theme } from "@owlbear-rodeo/sdk";
-import { ID } from "./contextMenu";
+import { ID } from "./constants.js";
+import { rememberFactionForIds } from "./factionRegistry.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -34,6 +35,7 @@ async function setAttitude(attitude: "ally" | "neutral" | "enemy" | "pc") { // N
         (it.metadata as any)[META_KEY] = { ...prev, attitude };
       }
     });
+    await rememberFactionForIds(ids, attitude).catch(() => {});
   } catch (e) {
     console.warn("[ctx-mark] update error:", (e as any)?.message || e);
   } finally {

@@ -14,8 +14,54 @@ import { withItemMetaHistory } from "./history.js";
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
 const MODAL_ID = `${ID}/effects-modal`;
+const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
+
+function closeEffectsPopover() {
+  void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
+    type: "closed",
+    id: MODAL_ID,
+  }, { destination: "LOCAL" }).catch(() => {});
+  void OBR.popover.close(MODAL_ID);
+}
 const LAIR_ID = "__LAIR__";
 const EPIC_ACT_PREFIX = "__EPIC__";
+let effectsSelectionApply: ((ids: string[]) => void) | null = null;
+let effectsSelectionUnsubscribe: (() => void) | null = null;
+let effectsSelectionPollTimer: number | null = null;
+let effectsSelectionPollBusy = false;
+let effectsSelectionWriteDepth = 0;
+
+async function refreshEffectsSelectionFromScene() {
+  if (effectsSelectionPollBusy || effectsSelectionWriteDepth > 0) return;
+  effectsSelectionPollBusy = true;
+  try {
+    const selected = await OBR.player.getSelection();
+    effectsSelectionApply?.(Array.isArray(selected) ? selected : []);
+  } catch {} finally {
+    effectsSelectionPollBusy = false;
+  }
+}
+
+function mountEffectsSelectionSync() {
+  if (effectsSelectionUnsubscribe) return;
+  effectsSelectionUnsubscribe = OBR.player.onChange((player) => {
+    if (effectsSelectionWriteDepth === 0 && Array.isArray(player?.selection)) {
+      effectsSelectionApply?.(player.selection);
+    }
+  });
+  effectsSelectionPollTimer = window.setInterval(refreshEffectsSelectionFromScene, 120);
+}
+
+async function updateSceneTargetSelection(ids: string[], selected: boolean, replace = false) {
+  effectsSelectionWriteDepth += 1;
+  try {
+    if (selected) await OBR.player.select(ids, replace);
+    else await OBR.player.deselect(ids);
+  } finally {
+    effectsSelectionWriteDepth -= 1;
+    await refreshEffectsSelectionFromScene();
+  }
+}
 
 function splitParagonId(id: string) {
   const s = String(id || "");
@@ -54,7 +100,8 @@ async function loadData(sourceId: string) {
   const ordered = new Set(orderedIds);
   const items = await OBR.scene.items.getItems((it) => {
     const meta = it.metadata?.[META_KEY];
-    return !!meta && (meta.inInitiative === true || ordered.has(it.id) || it.id === sourceId);
+    const hasConditions = getConditionInstances(meta?.conditions || {}).length > 0;
+    return !!meta && (meta.inInitiative === true || ordered.has(it.id) || it.id === sourceId || hasConditions);
   });
   const byId = new Map(items.map((it) => [it.id, it]));
   const targets = orderedIds.map((id) => byId.get(id)).filter(Boolean) as any[];
@@ -64,7 +111,10 @@ async function loadData(sourceId: string) {
     }
   }
   const source = byId.get(sourceId) || targets.find((it) => it.id === sourceId) || null;
-  return { source, targets, state };
+  const conditionTargets = items.filter((it) => (
+    getConditionInstances(it.metadata?.[META_KEY]?.conditions || {}).length > 0
+  ));
+  return { source, targets, conditionTargets, state };
 }
 
 function styleBase() {
@@ -78,6 +128,18 @@ function styleBase() {
   document.body.style.fontFamily = "system-ui, Roboto, Arial, sans-serif";
   document.body.style.fontSize = "12px";
   document.body.style.lineHeight = "1.2";
+  const responsive = document.createElement("style");
+  responsive.textContent = `
+    @media (max-width: 620px) {
+      [data-effects-form-grid] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      [data-effects-form-grid] > button { width: 100%; }
+    }
+    @media (max-width: 420px) {
+      [data-effects-form-grid] { grid-template-columns: 1fr !important; }
+      [data-effects-target-grid] { grid-template-columns: 1fr !important; }
+    }
+  `;
+  document.head.appendChild(responsive);
 }
 
 function field<T extends HTMLElement>(el: T) {
@@ -154,17 +216,18 @@ function setButtonEnabled(button: HTMLButtonElement, enabled: boolean) {
 }
 
 async function render(sourceId: string, preservedTargetIds: string[] | null = null) {
+  effectsSelectionApply = null;
   const app = document.getElementById("app");
   if (!app) return;
-  const { source, targets, state } = await loadData(sourceId);
+  const { source, targets, conditionTargets, state } = await loadData(sourceId);
   if (!source) {
     app.textContent = "Token non trovato.";
     return;
   }
 
   const panel = document.createElement("div");
+
   Object.assign(panel.style, {
-    minHeight: "100vh",
     boxSizing: "border-box",
     padding: "12px",
     background: "transparent",
@@ -200,9 +263,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   });
   close.addEventListener("mouseenter", () => { close.style.background = "rgba(255,255,255,.08)"; });
   close.addEventListener("mouseleave", () => { close.style.background = "transparent"; });
-  close.addEventListener("click", () => OBR.modal.close(MODAL_ID));
+  close.addEventListener("click", closeEffectsPopover);
 
   const grid = document.createElement("div");
+  grid.dataset.effectsFormGrid = "1";
   Object.assign(grid.style, {
     display: "grid",
     gridTemplateColumns: "minmax(170px,1.35fr) 82px 125px minmax(150px,1fr) auto",
@@ -354,6 +418,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   targetHeader.append(targetTitle, targetActions);
 
   const targetGrid = document.createElement("div");
+  targetGrid.dataset.effectsTargetGrid = "1";
   Object.assign(targetGrid.style, {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -427,12 +492,23 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const activeTitle = caption("EFFETTI ATTIVI");
   activeTitle.style.margin = "0";
   const removeSelectedButton = commandButton("Rimuovi selezionati", "danger");
-  Object.assign(removeSelectedButton.style, {
-    minHeight: "28px",
-    padding: "0 9px",
-    fontSize: "11px",
+  const removeAllButton = commandButton("Rimuovi Tutto", "danger");
+  const activeActions = document.createElement("div");
+  Object.assign(activeActions.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
   });
-  activeHeader.append(activeTitle, removeSelectedButton);
+  for (const button of [removeSelectedButton, removeAllButton]) {
+    Object.assign(button.style, {
+      minHeight: "28px",
+      padding: "0 9px",
+      fontSize: "11px",
+    });
+  }
+  setButtonEnabled(removeAllButton, false);
+  activeActions.append(removeSelectedButton, removeAllButton);
+  activeHeader.append(activeTitle, activeActions);
 
   const activeList = document.createElement("div");
   Object.assign(activeList.style, {
@@ -475,7 +551,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     selectedEffectRows.clear();
     updateRemoveSelectedButton();
 
-    visibleEffectRows = targets.flatMap((target) => conditionRows(target));
+    visibleEffectRows = conditionTargets.flatMap((target) => conditionRows(target));
+    setButtonEnabled(removeAllButton, visibleEffectRows.length > 0);
 
     if (!visibleEffectRows.length) {
       const empty = document.createElement("div");
@@ -559,21 +636,34 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     setButtonEnabled(addButton, selectedTargetIds().length > 0);
   };
 
-  for (const control of targetControls.values()) {
-    control.checkbox.addEventListener("change", updateTargetSelection);
+  effectsSelectionApply = (ids: string[]) => {
+    const selected = new Set(ids);
+    for (const [id, control] of targetControls) control.checkbox.checked = selected.has(id);
+    updateTargetSelection();
+  };
+
+  for (const [id, control] of targetControls) {
+    control.checkbox.addEventListener("change", () => {
+      updateTargetSelection();
+      void updateSceneTargetSelection([id], control.checkbox.checked);
+    });
   }
   selectAllButton.addEventListener("click", () => {
     for (const control of targetControls.values()) control.checkbox.checked = true;
     updateTargetSelection();
+    void updateSceneTargetSelection([...targetControls.keys()], true, true);
   });
   selectNoneButton.addEventListener("click", () => {
     for (const control of targetControls.values()) control.checkbox.checked = false;
     updateTargetSelection();
+    void updateSceneTargetSelection([...targetControls.keys()], false);
   });
-
   removeSelectedButton.addEventListener("click", () => {
     const rows = visibleEffectRows.filter((row) => selectedEffectRows.has(`${row.targetId}\u0000${row.id}`));
     void removeRows(rows);
+  });
+  removeAllButton.addEventListener("click", () => {
+    void removeRows(visibleEffectRows);
   });
 
   const syncExpiryControls = () => {
@@ -633,11 +723,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   syncExpiryControls();
   updateTargetSelection();
   renderActiveRows();
+  void refreshEffectsSelectionFromScene();
   effectSelect.focus();
 }
 
 OBR.onReady(async () => {
   styleBase();
+  mountEffectsSelectionSync();
   const sourceId = new URLSearchParams(window.location.search).get("source") || "";
   await render(sourceId);
 });

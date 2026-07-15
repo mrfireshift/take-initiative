@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiro di Concentrazione</title>
+    <style>
+      html, body, #app { width: 100%; height: 100%; margin: 0; background: transparent; }
+      * { box-sizing: border-box; }
+      body {
+        position: relative;
+        overflow: hidden;
+        color: #fff;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        pointer-events: none;
+      }
+      .warning {
+        --accent: #fb923c;
+        --accent-soft: rgba(251, 146, 60, .42);
+        --accent-deep: rgba(104, 39, 20, .95);
+        position: absolute;
+        top: 9vh;
+        left: 50%;
+        width: min(620px, calc(100vw - 32px));
+        min-height: 158px;
+        max-height: calc(91vh - 24px);
+        overflow: visible;
+        padding: 18px 78px 17px 132px;
+        border: 2px solid #080b10;
+        border-radius: 8px;
+        background:
+          linear-gradient(115deg, var(--accent-deep) 0%, rgba(27, 20, 18, .97) 48%, rgba(10, 11, 14, .98) 100%);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 22px 5px var(--accent-soft),
+          0 18px 48px rgba(0, 0, 0, .68),
+          inset 0 0 0 1px rgba(255, 255, 255, .12),
+          inset 0 -28px 44px rgba(0, 0, 0, .25);
+        transform: translateX(-50%);
+      }
+      .warning::before {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        bottom: 8px;
+        left: 10px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 4px;
+        content: "";
+        pointer-events: none;
+      }
+      .portrait {
+        position: absolute;
+        top: 50%;
+        left: 16px;
+        width: 104px;
+        height: 104px;
+        overflow: hidden;
+        border: 3px solid #080b10;
+        border-radius: 50%;
+        background: rgba(4, 7, 11, .96);
+        box-shadow:
+          0 0 0 3px var(--accent),
+          0 0 18px 4px var(--accent-soft),
+          inset 0 0 0 1px rgba(255,255,255,.18);
+        transform: translateY(-50%);
+      }
+      .portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
+      .portrait-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 44px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px #000;
+      }
+      .copy { position: relative; min-width: 0; z-index: 1; }
+      .eyebrow {
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+      }
+      .title {
+        margin-top: 3px;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(22px, 3.5vw, 29px);
+        font-weight: 800;
+        line-height: 1.05;
+        text-overflow: ellipsis;
+        text-shadow: 0 2px 3px rgba(0,0,0,.9);
+        white-space: nowrap;
+      }
+      .save-badge {
+        position: absolute;
+        top: 18px;
+        right: 19px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(5, 9, 14, .88);
+        box-shadow: 0 0 0 1px var(--accent), inset 0 0 12px var(--accent-soft);
+        line-height: 1;
+        z-index: 1;
+      }
+      .save-badge span { color: var(--accent); font-size: 8px; font-weight: 900; letter-spacing: .5px; }
+      .save-badge strong { margin-top: 3px; font-family: Georgia, "Times New Roman", serif; font-size: 18px; }
+      .list {
+        position: relative;
+        display: grid;
+        gap: 6px;
+        max-height: 190px;
+        margin-top: 17px;
+        padding-top: 10px;
+        overflow-y: auto;
+        border-top: 1px solid rgba(251,146,60,.42);
+        z-index: 1;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 10px;
+        align-items: center;
+        padding: 6px 8px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 4px;
+        background: rgba(0,0,0,.24);
+      }
+      .name { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+      .damage { color: rgba(255,255,255,.68); font-size: 11px; }
+      .dc { color: var(--accent); font-size: 12px; font-weight: 900; }
+      .timer {
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 0 0 6px 6px;
+        background: rgba(255,255,255,.07);
+      }
+      .timer::after {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        content: "";
+        transform-origin: left;
+        animation: expire 6s linear forwards;
+      }
+      @keyframes expire { to { transform: scaleX(0); } }
+      @media (max-width: 520px) {
+        .warning { padding: 16px 64px 15px 104px; min-height: 140px; }
+        .portrait { left: 13px; width: 78px; height: 78px; }
+        .title { font-size: 21px; }
+        .save-badge { top: 15px; right: 14px; width: 42px; height: 42px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/concentration-warning.ts"></script>
+  </body>
+</html>

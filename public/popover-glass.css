@@ -1,0 +1,21 @@
+:root {
+  --obrt-popover-glass: rgba(42, 47, 64, .62);
+  --obrt-popover-border: rgba(255, 255, 255, .16);
+}
+
+html,
+body {
+  background: transparent !important;
+}
+
+[data-glass-popover="1"] {
+  min-height: 100vh !important;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--obrt-popover-border);
+  border-radius: 16px;
+  background: var(--obrt-popover-glass) !important;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .07);
+  backdrop-filter: blur(18px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(125%) !important;
+}

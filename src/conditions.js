@@ -1,6 +1,7 @@
 // src/conditions.js
 import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
-import { ID, isOnlyActiveTurnLabelChange } from "./constants.js";
+import { ID } from "./constants.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -24,6 +25,7 @@ export const CONDITION_LIST = [
   "Trattenuto",
   "Indebolimento",
   "Ira",
+  "Giuramento di Inimicizia",
 ];
 
 
@@ -44,6 +46,7 @@ export const CONDITION_EMOJI = Object.freeze({
   "Trattenuto": "⛓️",
   "Indebolimento": "🩸",
   "Ira": "🔥",
+  "Giuramento di Inimicizia": "⚔️",
 });
 
 export function formatConditionName(name) {
@@ -367,21 +370,14 @@ function __scheduleConditionLabelRefresh() {
   }, 80);
 }
 
-function __isOnlyConditionWidgetChange(changes = []) {
-  return changes.length > 0 && changes.every((it) =>
-    !!it?.metadata?.[COND_WIDGET_META] && !it?.metadata?.[META_KEY]
-  );
-}
 
 export function mountConditionsLabelWatcher() {
   if (__COND_WATCH_MOUNTED) return;
   __COND_WATCH_MOUNTED = true;
 
-  OBR.scene.items.onChange(async (changes = []) => {
-    if (isOnlyActiveTurnLabelChange(changes)) return;
-    if (__isOnlyConditionWidgetChange(changes)) return;
+  subscribeSceneItemChanges(() => {
     __scheduleConditionLabelRefresh();
-  });
+  }, { filter: (event) => event.flags.conditions });
 }
 
 // === Helpers lettura/scrittura metadati condizione
@@ -638,6 +634,37 @@ export async function removeConditionInstancesFromItems(removals = []) {
   });
 }
 
+export async function removeConditionInstancesByParentEffects(removals = []) {
+  const byItem = new Map();
+  for (const removal of Array.isArray(removals) ? removals : []) {
+    const itemId = String(removal?.itemId || "").trim();
+    const parentEffectId = String(removal?.parentEffectId || "").trim();
+    if (!itemId || !parentEffectId) continue;
+    const ids = byItem.get(itemId) || new Set();
+    ids.add(parentEffectId);
+    byItem.set(itemId, ids);
+  }
+  if (!byItem.size) return;
+
+  await OBR.scene.items.updateItems([...byItem.keys()], (drafts) => {
+    for (const it of drafts) {
+      const parentIds = byItem.get(it.id);
+      if (!parentIds?.size) continue;
+      const me = { ...(it.metadata?.[META_KEY] || {}) };
+      const cond = __conditionsForWrite(me.conditions || {});
+      const nextInstances = cond.instances.filter((instance) =>
+        instance.type !== "spell" || !parentIds.has(String(instance.parentEffectId || ""))
+      );
+      if (nextInstances.length === cond.instances.length) continue;
+      if (nextInstances.length) {
+        me.conditions = { version: CONDITION_SCHEMA_VERSION, instances: nextInstances };
+      } else {
+        delete me.conditions;
+      }
+      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+    }
+  });
+}
 export async function removeConditionFromItems(itemIds, conditionName) {
   const name = String(conditionName || "").trim();
   const ids = (itemIds || []).filter(Boolean);

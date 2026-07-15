@@ -2,7 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { setupContextMenu } from "./contextMenu";
 import { mountInitiativeList } from "./initiativeList";
 import { initHPMemory } from "./hpMemory.js";
-import "./sync-open.js";
+
 
 const app = document.querySelector("#app");
 
@@ -20,10 +20,10 @@ app.style.flexDirection = "column";
 // Contenitore (colonna: track sopra, pulsanti sotto)
 const root = document.createElement("div");
 root.id = "initiative-widget";
+root.dataset.glassPopover = "1";
 root.style.boxSizing = "border-box";
 root.style.padding = "2px";
 root.style.background = "transparent";
-root.style.backdropFilter = "none";
 root.style.border = "none";
 root.style.borderRadius = "12px";
 root.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";

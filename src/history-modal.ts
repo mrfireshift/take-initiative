@@ -3,6 +3,15 @@ import { ID } from "./constants.js";
 import { getHistoryEntries, undoHistoryThrough } from "./history.js";
 
 const MODAL_ID = `${ID}/history-modal`;
+const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
+
+function closeHistoryPopover() {
+  void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
+    type: "closed",
+    id: MODAL_ID,
+  }, { destination: "LOCAL" }).catch(() => {});
+  void OBR.popover.close(MODAL_ID);
+}
 
 function styleButton(button: HTMLButtonElement) {
   Object.assign(button.style, {
@@ -102,7 +111,7 @@ async function render(message = "") {
   close.type = "button";
   close.textContent = "Chiudi";
   styleButton(close);
-  close.addEventListener("click", () => OBR.modal.close(MODAL_ID));
+  close.addEventListener("click", closeHistoryPopover);
 
   actions.append(undo, close);
   header.append(title, actions);

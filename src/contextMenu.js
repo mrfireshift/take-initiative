@@ -18,14 +18,14 @@
   const ICON_REMOVE = ASSET("remove.svg");
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
-  const ICON_SPELLS = ASSET("spells.svg")
   
   // ===== DEBUG =====
-const DEBUG_CTX = true;
+const DEBUG_CTX = false;
 const clog = (...a) => { if (DEBUG_CTX) console.debug("[ctx]", ...a); };
 
 // Dump rapido: nome, id, inInitiative, hp/hpMax, attitude
 async function dumpItems(ids, label) {
+  if (!DEBUG_CTX) return;
   try {
     const idset = new Set(ids);
     const arr = await OBR.scene.items.getItems(i => idset.has(i.id));
@@ -293,38 +293,9 @@ async function toggleEpicBossOn(ids) {
     });
 
 
-// === Incantesimi ===
-OBR.contextMenu.create({
-  id: `${ID}/spells-embed`,
-  group: MENU_GROUP,
-  icons: [{
-    icon: ICON_SPELLS,
-    label: "Incantesimi…",
-    filter: { every: [isCharacter(), hasMeta("!=")] },
-  }],
-  embed: {
-    // usa ASSET() per rispettare BASE_URL anche in hosting sotto sottocartelle
-    url: ASSET("ctx-spells.html"),
-    // alza un filo l'altezza se vuoi: 260–320 è comodo
-    height: 500
-  },
-});
-
-
-    // Rimozione rapida condizioni
-  OBR.contextMenu.create({
-    id: `${ID}/remove-condition-embed`,
-    group: MENU_GROUP,
-    icons: [{
-      icon: ICON_REMOVE,
-      label: "Rimuovi condizione...",
-      filter: { every: [isCharacter(), hasMeta("!=")] },
-    }],
-    embed: {
-      url: ASSET("ctx-remove-condition.html"),
-      height: 286,
-    },
-  });
+    // Pulisce le registrazioni legacy, ora gestite dal lister.
+    void OBR.contextMenu.remove(`${ID}/spells-embed`).catch(() => {});
+    void OBR.contextMenu.remove(`${ID}/remove-condition-embed`).catch(() => {});
 
   // Abilita Azioni Leggendarie (CLICK)
   OBR.contextMenu.create({
