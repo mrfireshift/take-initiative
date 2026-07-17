@@ -5,6 +5,7 @@ import {
   formatConditionName,
   formatConditionInstance,
   getConditionInstances,
+  addCustomForItems,
   addOrUpdateConditionForItems,
   removeConditionInstancesFromItems,
   refreshConditionLabels,
@@ -299,6 +300,24 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     option.textContent = formatConditionName(name);
     effectSelect.appendChild(option);
   }
+  const CUSTOM_EFFECT_VALUE = "__custom__";
+  const customOption = document.createElement("option");
+  customOption.value = CUSTOM_EFFECT_VALUE;
+  customOption.textContent = "Personalizzata...";
+  effectSelect.appendChild(customOption);
+
+  const customEffectInput = document.createElement("input");
+  customEffectInput.type = "text";
+  customEffectInput.maxLength = 80;
+  customEffectInput.autocomplete = "off";
+  customEffectInput.spellcheck = false;
+  customEffectInput.placeholder = "Es. Santuario del Crepuscolo";
+  customEffectInput.style.display = "none";
+  customEffectInput.style.marginTop = "6px";
+
+  const effectCell = document.createElement("div");
+  effectCell.style.minWidth = "0";
+  effectCell.append(caption("CONDIZIONE"), field(effectSelect), field(customEffectInput));
 
   const durationInput = document.createElement("input");
   durationInput.type = "number";
@@ -405,7 +424,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const addButton = commandButton("Aggiungi", "primary");
   grid.append(
-    cell("CONDIZIONE", effectSelect),
+    effectCell,
     cell("DURATA", durationInput),
     cell("SCADENZA", expirySelect),
     actorCell,
@@ -562,6 +581,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const selectedTargetIds = () => Array.from(targetControls.entries())
     .filter(([, control]) => control.checkbox.checked)
     .map(([id]) => id);
+  const selectedEffectName = () => effectSelect.value === CUSTOM_EFFECT_VALUE
+    ? customEffectInput.value.trim()
+    : effectSelect.value;
 
   const updateRemoveSelectedButton = () => {
     setButtonEnabled(removeSelectedButton, selectedEffectRows.size > 0);
@@ -680,8 +702,17 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(255,255,255,.025)";
       control.row.style.borderColor = selected ? "rgba(96,165,250,.62)" : "rgba(148,163,184,.14)";
     }
-    setButtonEnabled(addButton, selectedTargetIds().length > 0);
+    setButtonEnabled(addButton, selectedTargetIds().length > 0 && selectedEffectName().length > 0);
   };
+
+  const syncEffectControls = () => {
+    const custom = effectSelect.value === CUSTOM_EFFECT_VALUE;
+    customEffectInput.style.display = custom ? "block" : "none";
+    updateTargetSelection();
+    if (custom) customEffectInput.focus();
+  };
+  effectSelect.addEventListener("change", syncEffectControls);
+  customEffectInput.addEventListener("input", updateTargetSelection);
 
   effectsSelectionApply = (ids: string[]) => {
     const selected = new Set(ids);
@@ -729,6 +760,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   addButton.addEventListener("click", async () => {
     const ids = selectedTargetIds();
     if (!ids.length) return;
+    const effectName = selectedEffectName();
+    if (!effectName) {
+      customEffectInput.focus();
+      return;
+    }
+    const isCustomEffect = effectSelect.value === CUSTOM_EFFECT_VALUE;
     setButtonEnabled(addButton, false);
 
     const mode = expirySelect.value;
@@ -748,10 +785,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     const activeId = order[state?.current] || null;
     await withItemMetaHistory({
       kind: "condition",
-      label: `Applicata: ${effectSelect.value}`,
+      label: `Applicata: ${effectName}`,
       itemIds: ids,
       fields: ["conditions"],
-    }, () => addOrUpdateConditionForItems(ids, effectSelect.value, {
+    }, () => (isCustomEffect ? addCustomForItems : addOrUpdateConditionForItems)(ids, effectName, {
       sourceId,
       sourceName: displayName(source.name),
       appliedAt: {
@@ -768,7 +805,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   panel.append(close, title, grid, targetWrap, activeWrap);
   app.replaceChildren(panel);
   syncExpiryControls();
-  updateTargetSelection();
+  syncEffectControls();
   renderActiveRows();
   void refreshEffectsSelectionFromScene();
   effectSelect.focus();
