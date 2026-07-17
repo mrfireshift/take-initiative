@@ -45,6 +45,14 @@ function spellDisplayName(value) {
   return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
 }
 
+function factionColor(item) {
+  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
+  if (attitude === "enemy") return "#ef4444";
+  if (attitude === "ally") return "#22c55e";
+  if (attitude === "pc") return "#38bdf8";
+  return "#eab308";
+}
+
 function spellOverviewGroups(items = []) {
   const byId = new Map(items.map((item) => [item.id, item]));
   const groups = new Map();
@@ -218,9 +226,14 @@ async function init() {
     checkbox.type = "checkbox";
     checkbox.value = item.id;
     checkbox.style.accentColor = "#2563eb";
+    const faction = document.createElement("span");
+    faction.className = "spell-target-faction";
+    faction.style.background = factionColor(item);
+    faction.style.color = factionColor(item);
     const label = document.createElement("span");
+    label.className = "spell-target-name";
     label.textContent = item.name || item.id;
-    row.append(checkbox, label);
+    row.append(checkbox, faction, label);
     spellTargetList?.appendChild(row);
     spellTargetControls.set(item.id, { row, checkbox });
     checkbox.addEventListener("change", () => {

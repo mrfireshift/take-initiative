@@ -3,6 +3,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
   CONDITION_LIST,
+  APPLICABLE_CONDITION_LIST,
   toggleFlagForItems,
   addCustomForItems,
   clearAllConditionsForItems,
@@ -144,7 +145,7 @@ async function mount() {
   const turnsInput = document.getElementById("conditionTurns") as HTMLInputElement | null;
 
   // crea chip per ogni condizione
-CONDITION_LIST.forEach((name) => {
+APPLICABLE_CONDITION_LIST.forEach((name) => {
   const chip = makeChip(name);
 
 chip.addEventListener("click", () => {

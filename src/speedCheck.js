@@ -1,6 +1,12 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { loadInitiativeCard } from "./initiativeCards.js";
+import { getConditionInstances } from "./conditions.js";
+import {
+  conditionMovementCostCells,
+  proneStandingCostMeters,
+  resolveConditionSpeed,
+} from "./conditionSpeedCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import {
   advanceSpeedCycle,
@@ -121,6 +127,59 @@ function movementTotalMeters(state) {
     + Math.max(0, Number(state?.cycleMeters) || 0);
 }
 
+function conditionSpeedForItem(item, baseSpeedMeters) {
+  const conditions = item?.metadata?.[META_KEY]?.conditions || {};
+  return resolveConditionSpeed(baseSpeedMeters, getConditionInstances(conditions));
+}
+
+async function applyConditionSpeedItem(item) {
+  if (!movementState || item?.id !== movementState.itemId || movementState.disabled) return;
+  const totalMeters = movementTotalMeters(movementState);
+  const wasProne = movementState.prone === true;
+  const resolved = conditionSpeedForItem(item, movementState.baseSpeedMeters);
+  const previousSignature = [
+    movementState.speedMeters,
+    movementState.blocked,
+    movementState.conditionSummary,
+    movementState.prone,
+  ].join("|");
+  const nextSignature = [resolved.speedMeters, resolved.blocked, resolved.summary, resolved.prone].join("|");
+  if (previousSignature === nextSignature) return;
+
+  Object.assign(movementState, {
+    speedMeters: resolved.speedMeters,
+    blocked: resolved.blocked,
+    blocksSpeedBonuses: resolved.blocksSpeedBonuses,
+    conditionSummary: resolved.summary,
+    conditionReasons: resolved.reasons,
+    prone: resolved.prone,
+    movementCostMultiplier: resolved.movementCostMultiplier,
+    blockedWarningSent: false,
+  });
+  movementState.cycle = resolved.speedMeters > 0
+    ? Math.floor((totalMeters + 1e-9) / resolved.speedMeters)
+    : 0;
+  movementState.cycleMeters = resolved.speedMeters > 0
+    ? Math.max(0, totalMeters - (movementState.cycle * resolved.speedMeters))
+    : totalMeters;
+
+  const standingCostMeters = wasProne && !resolved.prone
+    ? proneStandingCostMeters(resolved.speedMeters)
+    : 0;
+  if (standingCostMeters > 0) {
+    Object.assign(
+      movementState,
+      advanceSpeedCycle(
+        movementState,
+        standingCostMeters / SPEED_CHECK_METERS_PER_CELL,
+        movementState.speedMeters
+      )
+    );
+  }
+  notifyMovementState();
+  if (standingCostMeters > 0) await persistMovementState(movementState);
+}
+
 function persistedMovementPayload(state) {
   return {
     version: SPEED_CHECK_META_VERSION,
@@ -166,7 +225,9 @@ function applyPersistedMovementItem(item) {
   trimMovementPathToTotal(movementState, totalMeters);
   const speed = Math.max(0, Number(movementState.speedMeters) || 0);
   movementState.cycle = speed > 0 ? Math.floor((totalMeters + 1e-9) / speed) : 0;
-  movementState.cycleMeters = speed > 0 ? Math.max(0, totalMeters - (movementState.cycle * speed)) : 0;
+  movementState.cycleMeters = speed > 0
+    ? Math.max(0, totalMeters - (movementState.cycle * speed))
+    : totalMeters;
   movementState.lastCell = validPoint(payload.lastCell) || movementState.lastCell;
   movementState.persistedSignature = signature;
   notifyMovementState();
@@ -193,9 +254,11 @@ function mountSpeedMetadataListener() {
   if (speedMetadataListenerMounted) return;
   speedMetadataListenerMounted = true;
   subscribeSceneItemChanges((event) => {
-    if (!event.flags.speedCheck || !movementState?.itemId) return;
+    if (!movementState?.itemId) return;
     const item = event.items.find((candidate) => candidate?.id === movementState.itemId);
-    if (item) applyPersistedMovementItem(item);
+    if (!item) return;
+    if (event.flags.speedCheck) applyPersistedMovementItem(item);
+    if (event.flags.conditions) void applyConditionSpeedItem(item).catch(() => {});
   }, { immediate: true });
 }
 
@@ -238,10 +301,12 @@ async function loadMovementState(turn) {
     OBR.scene.grid.getDpi().catch(() => 150),
     snapToGridCell(item.position),
   ]);
-  const speedMeters = Math.max(0, Number(profile?.speed) || 0);
-  if (speedMeters <= 0) {
+  const baseSpeedMeters = Math.max(0, Number(profile?.speed) || 0);
+  if (baseSpeedMeters <= 0) {
     return { turnKey, itemId: actorId, disabled: true, path: [] };
   }
+  const resolvedSpeed = conditionSpeedForItem(item, baseSpeedMeters);
+  const speedMeters = resolvedSpeed.speedMeters;
 
   const persisted = meta?.[SPEED_CHECK_META_FIELD];
   const persistedMatches = String(persisted?.turnKey || "") === turnKey;
@@ -251,7 +316,15 @@ async function loadMovementState(turn) {
     turnKey,
     itemId: actorId,
     disabled: false,
+    baseSpeedMeters,
     speedMeters,
+    blocked: resolvedSpeed.blocked,
+    blocksSpeedBonuses: resolvedSpeed.blocksSpeedBonuses,
+    conditionSummary: resolvedSpeed.summary,
+    conditionReasons: resolvedSpeed.reasons,
+    prone: resolvedSpeed.prone,
+    movementCostMultiplier: resolvedSpeed.movementCostMultiplier,
+    blockedWarningSent: false,
     gridDpi: Math.max(1, Number(gridDpi) || 150),
     cycle,
     cycleMeters: Math.max(0, totalMeters - (cycle * speedMeters)),
@@ -467,13 +540,14 @@ async function processSpeedCheckMovement(movement, turn) {
     return;
   }
 
+  const chargedCells = conditionMovementCostCells(movedCells, state.movementCostMultiplier);
   const beforeSnapshot = buildSpeedCheckSnapshot(state, true);
-  const next = advanceSpeedCycle(state, movedCells, state.speedMeters);
+  const next = advanceSpeedCycle(state, chargedCells, state.speedMeters);
   Object.assign(state, next);
   state.path.push({
     beforeCell: { ...beforeCell },
     afterCell: { ...afterCell },
-    cells: movedCells,
+    cells: chargedCells,
     toolDragId: movement?.toolDragId || "",
   });
   state.lastCell = afterCell;
@@ -481,6 +555,27 @@ async function processSpeedCheckMovement(movement, turn) {
     state.path.splice(0, state.path.length - MAX_MOVEMENT_SEGMENTS);
   }
   const afterSnapshot = buildSpeedCheckSnapshot(state, true);
+  if (state.blocked && state.speedMeters <= 0) {
+    notifyMovementState();
+    const persistTask = sample.toolSynthetic ? null : persistMovementState(state);
+    if (!state.blockedWarningSent) {
+      state.blockedWarningSent = true;
+      void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
+        type: "show-speed-warning",
+        blocked: true,
+        reason: state.conditionSummary,
+        name: state.name,
+        portrait: state.portrait,
+        speedMeters: 0,
+        limitMeters: 0,
+        cycle: 0,
+        cyclesCrossed: 1,
+        createdAt: Date.now(),
+      }, { destination: "ALL" }).catch(() => {});
+    }
+    if (persistTask) await persistTask;
+    return;
+  }
   const limitCrossings = countSpeedLimitCrossings(
     beforeSnapshot.totalMeters,
     afterSnapshot.totalMeters,

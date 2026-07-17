@@ -11,20 +11,25 @@ type Warning = {
   limitMeters: number;
   cycle: number;
   cyclesCrossed: number;
+  blocked: boolean;
+  reason: string;
 };
 
 let hideTimer = 0;
 
 function normalizeWarning(value: any): Warning | null {
   const speedMeters = Math.max(0, Number(value?.speedMeters) || 0);
-  if (speedMeters <= 0) return null;
+  const blocked = value?.blocked === true;
+  if (speedMeters <= 0 && !blocked) return null;
   return {
     name: String(value?.name || "Personaggio").trim().slice(0, 80) || "Personaggio",
     portrait: String(value?.portrait || "").trim().slice(0, 2048),
     speedMeters,
-    limitMeters: Math.max(speedMeters, Number(value?.limitMeters) || speedMeters),
+    limitMeters: blocked ? 0 : Math.max(speedMeters, Number(value?.limitMeters) || speedMeters),
     cycle: Math.max(1, Math.floor(Number(value?.cycle) || 1)),
     cyclesCrossed: Math.max(1, Math.floor(Number(value?.cyclesCrossed) || 1)),
+    blocked,
+    reason: String(value?.reason || "").trim().slice(0, 160),
   };
 }
 
@@ -37,7 +42,7 @@ function renderWarning(value: any) {
   const panel = document.createElement("section");
   panel.className = "warning";
   panel.setAttribute("role", "alert");
-  panel.setAttribute("aria-label", "Movimento esaurito per " + warning.name);
+  panel.setAttribute("aria-label", (warning.blocked ? "Movimento impedito per " : "Movimento esaurito per ") + warning.name);
 
   const portrait = document.createElement("div");
   portrait.className = "portrait";
@@ -61,24 +66,26 @@ function renderWarning(value: any) {
   eyebrow.textContent = "Movimento";
   const title = document.createElement("div");
   title.className = "title";
-  title.textContent = "Movimento esaurito";
+  title.textContent = warning.blocked ? "Movimento impedito" : "Movimento esaurito";
   copy.append(eyebrow, title);
 
   const detail = document.createElement("div");
   detail.className = "detail";
   const name = document.createElement("strong");
   name.textContent = warning.name;
-  detail.append(name, document.createTextNode(" ha raggiunto " + warning.limitMeters + " m"));
-  if (warning.cyclesCrossed > 1) {
+  detail.append(name, document.createTextNode(warning.blocked
+    ? ` non può muoversi${warning.reason ? `: ${warning.reason}` : ""}`
+    : " ha raggiunto " + warning.limitMeters + " m"));
+  if (!warning.blocked && warning.cyclesCrossed > 1) {
     detail.append(document.createTextNode(" (" + warning.cyclesCrossed + " cicli superati)"));
   }
 
   const badge = document.createElement("div");
   badge.className = "cycle-badge";
   const badgeLabel = document.createElement("span");
-  badgeLabel.textContent = "CICLO";
+  badgeLabel.textContent = warning.blocked ? "VELOCITÀ" : "CICLO";
   const badgeValue = document.createElement("strong");
-  badgeValue.textContent = String(warning.cycle);
+  badgeValue.textContent = warning.blocked ? "0" : String(warning.cycle);
   badge.append(badgeLabel, badgeValue);
 
   const timer = document.createElement("div");

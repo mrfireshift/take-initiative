@@ -1,7 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
-  CONDITION_LIST,
+  APPLICABLE_CONDITION_LIST,
   formatConditionName,
   formatConditionInstance,
   getConditionInstances,
@@ -77,6 +77,14 @@ function displayName(name: string) {
   return String(name || "").trim() || "Unnamed";
 }
 
+function factionColor(target: any) {
+  const attitude = String(target?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
+  if (attitude === "enemy") return "#ef4444";
+  if (attitude === "ally") return "#22c55e";
+  if (attitude === "pc") return "#38bdf8";
+  return "#eab308";
+}
+
 function conditionRows(target: any) {
   const conditions = target?.metadata?.[META_KEY]?.conditions || {};
   return getConditionInstances(conditions).map((instance: any) => ({
@@ -85,6 +93,7 @@ function conditionRows(target: any) {
     targetName: displayName(target.name),
     name: String(instance.condition || ""),
     label: formatConditionInstance(instance),
+    managed: instance.type === "initiative-card",
   }));
 }
 
@@ -125,7 +134,7 @@ function styleBase() {
   document.body.style.margin = "0";
   document.body.style.background = "transparent";
   document.body.style.color = "var(--obrt-text)";
-  document.body.style.fontFamily = "system-ui, Roboto, Arial, sans-serif";
+  document.body.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
   document.body.style.fontSize = "12px";
   document.body.style.lineHeight = "1.2";
   const responsive = document.createElement("style");
@@ -149,7 +158,7 @@ function field<T extends HTMLElement>(el: T) {
     minHeight: "32px",
     padding: "6px 8px",
     borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,.15)",
+    border: "1px solid rgba(148,163,184,.28)",
     background: "rgba(0,0,0,.35)",
     color: "var(--obrt-text)",
     font: "inherit",
@@ -166,10 +175,10 @@ function caption(text: string) {
     display: "block",
     margin: "0 0 4px",
     textAlign: "left",
-    fontSize: "11px",
-    fontWeight: "400",
-    letterSpacing: "0",
-    color: "rgba(255,255,255,.9)",
+    fontSize: "10px",
+    fontWeight: "700",
+    letterSpacing: ".07em",
+    color: "rgba(255,255,255,.66)",
   });
   return element;
 }
@@ -194,7 +203,7 @@ function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "n
     minHeight: "32px",
     padding: "8px 12px",
     border: `1px solid ${palette.border}`,
-    borderRadius: "32px",
+    borderRadius: "9px",
     background: palette.base,
     color: "var(--obrt-text)",
     font: "inherit",
@@ -237,10 +246,15 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const title = document.createElement("div");
   title.textContent = `Effetti: ${displayName(source.name)}`;
   Object.assign(title.style, {
-    textAlign: "center",
-    fontSize: "15px",
-    fontWeight: "700",
-    marginBottom: "12px",
+    paddingRight: "40px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    textAlign: "left",
+    fontSize: "16px",
+    fontWeight: "750",
+    letterSpacing: "-.01em",
+    marginBottom: "10px",
   });
 
   const close = document.createElement("button");
@@ -253,8 +267,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     top: "9px",
     width: "30px",
     height: "30px",
-    border: "0",
-    borderRadius: "32px",
+    border: "1px solid transparent",
+    borderRadius: "9px",
     background: "transparent",
     color: "var(--obrt-text)",
     font: "inherit",
@@ -272,10 +286,14 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     gridTemplateColumns: "minmax(170px,1.35fr) 82px 125px minmax(150px,1fr) auto",
     gap: "6px",
     alignItems: "end",
+    padding: "8px",
+    border: "1px solid rgba(148,163,184,.20)",
+    borderRadius: "11px",
+    background: "rgba(3,7,18,.30)",
   });
 
   const effectSelect = document.createElement("select");
-  for (const name of CONDITION_LIST) {
+  for (const name of APPLICABLE_CONDITION_LIST) {
     const option = document.createElement("option");
     option.value = name;
     option.textContent = formatConditionName(name);
@@ -332,9 +350,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     maxHeight: "220px",
     overflowY: "auto",
     padding: "5px",
-    border: "1px solid rgba(255,255,255,.15)",
+    border: "1px solid rgba(148,163,184,.28)",
     borderRadius: "10px",
-    background: "rgba(31,44,37,.96)",
+    background: "rgba(15,23,42,.97)",
     boxShadow: "0 8px 20px rgba(0,0,0,.45)",
   });
 
@@ -402,7 +420,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "5px",
+    marginBottom: "7px",
   });
   const targetTitle = caption("BERSAGLI");
   targetTitle.style.margin = "0";
@@ -422,13 +440,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   Object.assign(targetGrid.style, {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "6px",
+    gap: "5px",
     maxHeight: "150px",
     overflowY: "auto",
-    padding: "7px",
-    border: "1px solid rgba(255,255,255,.18)",
-    borderRadius: "6px",
-    background: "rgba(0,0,0,.28)",
+    padding: "6px",
+    border: "1px solid rgba(148,163,184,.20)",
+    borderRadius: "11px",
+    background: "rgba(0,0,0,.20)",
   });
 
   let initialTargetIds = preservedTargetIds === null
@@ -455,8 +473,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       minHeight: "32px",
       padding: "5px 8px",
       boxSizing: "border-box",
-      border: "1px solid rgba(255,255,255,.10)",
-      borderRadius: "10px",
+      border: "1px solid rgba(148,163,184,.14)",
+      borderRadius: "9px",
+      background: "rgba(255,255,255,.025)",
       cursor: "pointer",
     });
     const checkbox = document.createElement("input");
@@ -464,6 +483,18 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     checkbox.checked = initialIds.has(target.id);
     checkbox.value = target.id;
     checkbox.style.accentColor = "#2563eb";
+    checkbox.style.margin = "0";
+    const faction = document.createElement("span");
+    const color = factionColor(target);
+    Object.assign(faction.style, {
+      width: "8px",
+      height: "8px",
+      flex: "0 0 8px",
+      borderRadius: "50%",
+      background: color,
+      color,
+      boxShadow: "0 0 8px currentColor",
+    });
     const name = document.createElement("span");
     name.textContent = displayName(target.name);
     Object.assign(name.style, {
@@ -472,8 +503,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
       fontSize: "12px",
+      fontWeight: "700",
+      letterSpacing: "0",
     });
-    row.append(checkbox, name);
+    row.append(checkbox, faction, name);
     targetGrid.appendChild(row);
     targetControls.set(target.id, { checkbox, row });
   }
@@ -513,9 +546,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const activeList = document.createElement("div");
   Object.assign(activeList.style, {
     display: "grid",
-    gap: "6px",
+    gap: "5px",
     maxHeight: "190px",
     overflowY: "auto",
+    padding: "6px",
+    border: "1px solid rgba(148,163,184,.20)",
+    borderRadius: "11px",
+    background: "rgba(0,0,0,.20)",
   });
   activeWrap.append(activeHeader, activeList);
 
@@ -531,6 +568,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   };
 
   const removeRows = async (rows: ReturnType<typeof conditionRows>) => {
+    rows = rows.filter((row) => !row.managed);
     if (!rows.length) return;
     const targetIds = selectedTargetIds();
     const changedIds = Array.from(new Set(rows.map((row) => row.targetId)));
@@ -552,7 +590,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     updateRemoveSelectedButton();
 
     visibleEffectRows = conditionTargets.flatMap((target) => conditionRows(target));
-    setButtonEnabled(removeAllButton, visibleEffectRows.length > 0);
+    setButtonEnabled(removeAllButton, visibleEffectRows.some((row) => !row.managed));
 
     if (!visibleEffectRows.length) {
       const empty = document.createElement("div");
@@ -576,9 +614,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         gap: "8px",
         minWidth: "0",
         padding: "6px 8px",
-        borderRadius: "10px",
-        background: "var(--obrt-hover)",
-        border: "1px solid rgba(255,255,255,.10)",
+        borderRadius: "9px",
+        background: "rgba(255,255,255,.025)",
+        border: "1px solid rgba(148,163,184,.14)",
       });
 
       const selectRow = document.createElement("label");
@@ -592,6 +630,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       });
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.disabled = row.managed;
       checkbox.style.accentColor = "#2563eb";
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) selectedEffectRows.add(key);
@@ -612,6 +651,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       targetBadge.style.marginRight = "7px";
       const effectText = document.createTextNode(row.label);
       text.append(targetBadge, effectText);
+      if (row.managed) {
+        const managed = document.createElement("small");
+        managed.textContent = " · scheda iniziativa";
+        managed.style.color = "rgba(255,255,255,.55)";
+        text.appendChild(managed);
+        selectRow.style.cursor = "default";
+      }
       selectRow.append(checkbox, text);
 
       const removeButton = commandButton("Rimuovi", "danger");
@@ -622,7 +668,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         fontSize: "11px",
       });
       removeButton.addEventListener("click", () => removeRows([row]));
-      line.append(selectRow, removeButton);
+      line.append(selectRow);
+      if (!row.managed) line.append(removeButton);
       activeList.appendChild(line);
     }
   };
@@ -630,8 +677,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const updateTargetSelection = () => {
     for (const control of targetControls.values()) {
       const selected = control.checkbox.checked;
-      control.row.style.background = selected ? "rgba(37,99,235,.30)" : "var(--obrt-hover)";
-      control.row.style.borderColor = selected ? "rgba(96,165,250,.65)" : "rgba(255,255,255,.10)";
+      control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(255,255,255,.025)";
+      control.row.style.borderColor = selected ? "rgba(96,165,250,.62)" : "rgba(148,163,184,.14)";
     }
     setButtonEnabled(addButton, selectedTargetIds().length > 0);
   };

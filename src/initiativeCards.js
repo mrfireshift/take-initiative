@@ -3,9 +3,23 @@ import defaults from "./initiative-cards.json";
 import { ID } from "./constants.js";
 import { withItemMetaHistory } from "./history.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
+import {
+  getExhaustionLevel,
+  reconcileExhaustionCondition,
+  refreshConditionLabels,
+} from "./conditions.js";
+import { shouldRoomInitiativeCardWin } from "./initiativeCardConflict.js";
+import {
+  findInitiativeCardRegistryEntry,
+  initiativeCardRegistryKeys,
+  mergeInitiativeCardRegistries,
+  normalizeInitiativeCardRegistry,
+} from "./initiativeCardRegistryCore.js";
 
 const META_KEY = `${ID}/meta`;
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
+const LOCAL_CARD_KEY = `${ID}/initiativeCards/local`;
+let initiativeCardWriteQueue = Promise.resolve();
 export const INITIATIVE_CARD_FIELD = "initiativeCard";
 export const SAVE_KEYS = ["str", "dex", "con", "int", "wis", "cha"];
 
@@ -32,6 +46,7 @@ export function sanitizeInitiativeCard(value) {
     armorClass: optionalInteger(source.armorClass, 0, 99),
     passivePerception: optionalInteger(source.passivePerception, 0, 99),
     speed: normalizeSpeedMeters(source.speed),
+    exhaustion: optionalInteger(source.exhaustion, 0, 5) ?? 0,
     savingThrows: Object.fromEntries(
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
     ),
@@ -55,6 +70,7 @@ function mergeProfile(base, value) {
       ? cleanValue.passivePerception
       : cleanBase.passivePerception,
     speed: value.speed !== undefined ? cleanValue.speed : cleanBase.speed,
+    exhaustion: value.exhaustion !== undefined ? cleanValue.exhaustion : cleanBase.exhaustion,
     savingThrows: Object.fromEntries(SAVE_KEYS.map((key) => [
       key,
       value.savingThrows?.[key] !== undefined
@@ -74,58 +90,146 @@ function roomEntryProfile(entry) {
   return entry.profile && typeof entry.profile === "object" ? entry.profile : entry;
 }
 
+function readLocalInitiativeCards() {
+  try {
+    if (typeof localStorage === "undefined") return {};
+    return normalizeInitiativeCardRegistry(
+      JSON.parse(localStorage.getItem(LOCAL_CARD_KEY) || "{}")
+    );
+  } catch {
+    return {};
+  }
+}
+
+function profileWithConditionFallback(name, value, conditions) {
+  const profile = profileWithDefaults(name, value);
+  if (!Object.prototype.hasOwnProperty.call(value || {}, "exhaustion")) {
+    profile.exhaustion = getExhaustionLevel(conditions);
+  }
+  return profile;
+}
+
+function writeLocalInitiativeCards(registry) {
+  try {
+    if (typeof localStorage === "undefined") return false;
+    localStorage.setItem(
+      LOCAL_CARD_KEY,
+      JSON.stringify(normalizeInitiativeCardRegistry(registry))
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readInitiativeCardRegistry() {
+  const local = readLocalInitiativeCards();
+  const metadata = await OBR.room.getMetadata().catch(() => ({}));
+  return {
+    metadata,
+    registry: mergeInitiativeCardRegistries(local, metadata?.[ROOM_CARD_KEY]),
+  };
+}
+
 async function updateRoomCards(updater) {
-  const metadata = await OBR.room.getMetadata();
-  const previous = metadata?.[ROOM_CARD_KEY];
-  const registry = previous && typeof previous === "object" ? { ...previous } : {};
-  const next = updater(registry) || registry;
-  await OBR.room.setMetadata({ ...metadata, [ROOM_CARD_KEY]: next });
-  return next;
+  const write = async () => {
+    const metadata = await OBR.room.getMetadata().catch(() => ({}));
+    const previous = mergeInitiativeCardRegistries(
+      readLocalInitiativeCards(),
+      metadata?.[ROOM_CARD_KEY]
+    );
+    const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
+    const localWritten = writeLocalInitiativeCards(next);
+    try {
+      await OBR.room.setMetadata({ ...metadata, [ROOM_CARD_KEY]: next });
+    } catch (error) {
+      if (!localWritten) throw error;
+    }
+    return next;
+  };
+  initiativeCardWriteQueue = initiativeCardWriteQueue.then(write, write);
+  return initiativeCardWriteQueue;
 }
 
 async function writeTokenProfile(itemId, storedProfile) {
+  let conditionsChanged = false;
   await OBR.scene.items.updateItems([itemId], (items) => {
     const item = items[0];
     if (!item) return;
     const meta = { ...(item.metadata?.[META_KEY] || {}) };
     meta[INITIATIVE_CARD_FIELD] = storedProfile;
+    const previousConditions = meta.conditions;
+    const nextConditions = reconcileExhaustionCondition(
+      previousConditions,
+      storedProfile?.exhaustion,
+      item.id
+    );
+    conditionsChanged = JSON.stringify(previousConditions || null) !== JSON.stringify(nextConditions);
+    if (nextConditions) meta.conditions = nextConditions;
+    else delete meta.conditions;
     item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
   });
+  if (conditionsChanged) await refreshConditionLabels([itemId]);
 }
 
 async function removeTokenProfile(itemId) {
+  let conditionsChanged = false;
   await OBR.scene.items.updateItems([itemId], (items) => {
     const item = items[0];
     if (!item) return;
     const meta = { ...(item.metadata?.[META_KEY] || {}) };
     delete meta[INITIATIVE_CARD_FIELD];
+    const previousConditions = meta.conditions;
+    const nextConditions = reconcileExhaustionCondition(previousConditions, 0, item.id);
+    conditionsChanged = JSON.stringify(previousConditions || null) !== JSON.stringify(nextConditions);
+    if (nextConditions) meta.conditions = nextConditions;
+    else delete meta.conditions;
     item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
   });
+  if (conditionsChanged) await refreshConditionLabels([itemId]);
 }
 
 export function getInitiativeCard(item) {
   const storedRaw = item?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
-  return profileWithDefaults(item?.name, storedRaw);
+  const conditions = item?.metadata?.[META_KEY]?.conditions;
+  return profileWithConditionFallback(item?.name, storedRaw, conditions);
 }
 
 export async function loadInitiativeCard(item, { hydrate = false } = {}) {
-  const metadata = await OBR.room.getMetadata();
-  const registry = metadata?.[ROOM_CARD_KEY];
-  const key = initiativeCardNameKey(item?.name);
-  const roomEntry = registry && typeof registry === "object" ? registry[key] : null;
+  const { registry } = await readInitiativeCardRegistry();
+  const keys = initiativeCardRegistryKeys(item);
+  const roomEntry = findInitiativeCardRegistryEntry(registry, item);
   const roomProfile = roomEntryProfile(roomEntry);
   const roomDeleted = roomEntry?.deleted === true;
   const hasRoomVersion = !!roomProfile || roomDeleted;
   const roomUpdatedAt = Math.max(0, Number(roomEntry?.updatedAt) || 0);
   const tokenRaw = item?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+  const tokenConditions = item?.metadata?.[META_KEY]?.conditions;
+  const legacyExhaustion = getExhaustionLevel(tokenConditions);
   const hasTokenProfile = !!(tokenRaw && typeof tokenRaw === "object");
   const tokenUpdatedAt = Math.max(0, Number(tokenRaw?.updatedAt) || 0);
+  const roomHasValues = !roomDeleted && !!roomProfile &&
+    hasInitiativeCardValues(sanitizeInitiativeCard(roomProfile));
+  const tokenHasValues = hasTokenProfile &&
+    hasInitiativeCardValues(sanitizeInitiativeCard(tokenRaw));
 
-  const roomWins = hasRoomVersion && (!hasTokenProfile || roomUpdatedAt >= tokenUpdatedAt);
+  // Tra una copia compilata e una vuota preserviamo sempre quella compilata:
+  // così una nuova scena non azzera il registro e una vecchia scena può anche
+  // ripararlo. Tra copie equivalenti, e per le cancellazioni esplicite, resta
+  // determinante il timestamp.
+  const roomWins = shouldRoomInitiativeCardWin({
+    hasRoomVersion,
+    hasTokenProfile,
+    roomDeleted,
+    roomHasValues,
+    tokenHasValues,
+    roomUpdatedAt,
+    tokenUpdatedAt,
+  });
   const winner = roomWins ? (roomDeleted ? null : roomProfile) : (hasTokenProfile ? tokenRaw : null);
-  const profile = profileWithDefaults(item?.name, winner);
+  const profile = profileWithConditionFallback(item?.name, winner, tokenConditions);
 
-  if (hydrate && key && (hasRoomVersion || hasTokenProfile)) {
+  if (hydrate && keys.length && (hasRoomVersion || hasTokenProfile || legacyExhaustion > 0)) {
     const updatedAt = roomWins
       ? (roomUpdatedAt || Date.now())
       : (tokenUpdatedAt || Date.now());
@@ -133,23 +237,33 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
       if (hasTokenProfile) await removeTokenProfile(item.id);
       return profile;
     }
-    const cleanWinner = sanitizeInitiativeCard(winner);
+    const cleanWinner = {
+      ...sanitizeInitiativeCard(winner),
+      exhaustion: profile.exhaustion,
+    };
     const storedProfile = { ...cleanWinner, updatedAt };
-    const needsRoomSync = !roomProfile || !roomWins || roomUpdatedAt !== updatedAt;
     const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt ||
       JSON.stringify(sanitizeInitiativeCard(tokenRaw)) !== JSON.stringify(cleanWinner);
+    const desiredConditions = reconcileExhaustionCondition(
+      tokenConditions,
+      cleanWinner.exhaustion,
+      item.id
+    );
+    const needsConditionSync = JSON.stringify(tokenConditions || null) !==
+      JSON.stringify(desiredConditions);
 
-    if (needsRoomSync) {
-      await updateRoomCards((next) => {
-        next[key] = {
-          name: String(item?.name || ""),
-          profile: cleanWinner,
-          updatedAt,
-        };
-        return next;
-      });
-    }
-    if (needsTokenSync) await writeTokenProfile(item.id, storedProfile);
+    // Read-through migration: ogni apertura GM riallinea chiave asset, fallback
+    // nome, metadata stanza e backup locale, anche per schede legacy.
+    await updateRoomCards((next) => {
+      const entry = {
+        name: String(item?.name || ""),
+        profile: cleanWinner,
+        updatedAt,
+      };
+      for (const key of keys) next[key] = entry;
+      return next;
+    });
+    if (needsTokenSync || needsConditionSync) await writeTokenProfile(item.id, storedProfile);
   }
 
   return profile;
@@ -159,13 +273,16 @@ export function hasInitiativeCardValues(profile) {
   return profile?.armorClass !== null ||
     profile?.passivePerception !== null ||
     profile?.speed !== null ||
+    Number(profile?.exhaustion) > 0 ||
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }
 
 export async function saveInitiativeCard(itemId, name, value) {
   const profile = sanitizeInitiativeCard(value);
-  const key = initiativeCardNameKey(name);
-  if (!key) throw new Error("Nome del personaggio non valido");
+  const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
+  const identity = sourceItem || { name };
+  const keys = initiativeCardRegistryKeys(identity);
+  if (!keys.length) throw new Error("Identità del personaggio non valida");
   const updatedAt = Date.now();
   const storedProfile = { ...profile, updatedAt };
 
@@ -173,10 +290,11 @@ export async function saveInitiativeCard(itemId, name, value) {
     kind: "initiative-card",
     label: `Scheda iniziativa: ${String(name || "Personaggio")}`,
     itemIds: [itemId],
-    fields: [INITIATIVE_CARD_FIELD],
+    fields: [INITIATIVE_CARD_FIELD, "conditions"],
   }, async () => {
     await updateRoomCards((next) => {
-      next[key] = { name: String(name || ""), profile, updatedAt };
+      const entry = { name: String(sourceItem?.name || name || ""), profile, updatedAt };
+      for (const key of keys) next[key] = entry;
       return next;
     });
     await writeTokenProfile(itemId, storedProfile);
@@ -194,20 +312,26 @@ export async function syncInitiativeCardRegistryFromItems(itemIds) {
   await updateRoomCards((next) => {
     let offset = 0;
     for (const item of items) {
-      const key = initiativeCardNameKey(item.name);
-      if (!key) continue;
+      const keys = initiativeCardRegistryKeys(item);
+      if (!keys.length) continue;
       const raw = item.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
       if (!raw || typeof raw !== "object") {
-        next[key] = {
+        const entry = {
           name: String(item.name || ""),
           deleted: true,
           updatedAt: Date.now() + offset++,
         };
+        for (const key of keys) next[key] = entry;
         continue;
       }
       const updatedAt = Date.now() + offset++;
-      const profile = sanitizeInitiativeCard(raw);
-      next[key] = { name: String(item.name || ""), profile, updatedAt };
+      const profile = profileWithConditionFallback(
+        item.name,
+        raw,
+        item.metadata?.[META_KEY]?.conditions
+      );
+      const entry = { name: String(item.name || ""), profile, updatedAt };
+      for (const key of keys) next[key] = entry;
       stampById.set(item.id, { ...profile, updatedAt });
     }
     return next;

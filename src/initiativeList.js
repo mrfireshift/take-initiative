@@ -3,12 +3,20 @@ import { ID, ACTIVE_TURN_LABEL_META } from "./constants.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { mountConcentrationWatcher } from "./spells-tag.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
+import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
 import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  TRACKER_LAYOUT_CHANNEL,
+  TRACKER_LAYOUT_CLASSIC,
+  TRACKER_LAYOUT_COMPACT,
+  TRACKER_POPOVER_ID,
+  getTrackerLayout,
+  setTrackerLayout,
+} from "./trackerPopover.js";
 import {
   FACTION_CONFIGURATOR_ID,
   readFactionRegistry,
@@ -87,8 +95,8 @@ function __spellColor(key) {
   const LAIR_INITIATIVE  = 20;
   const LAIR_PORTRAIT = "/lair-actions.svg";
 
-  const BADGE_SIZE  = 28; // diametro del badge iniziativa (px)
-  const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
+  const BADGE_SIZE  = 36; // diametro del badge iniziativa (px)
+  const BADGE_RIGHT = 8; // distanza del badge dal bordo destro (px)
 
   // --- Active Turn Label (ancorata al token attivo)
   const ACTIVE_LABEL_META = ACTIVE_TURN_LABEL_META;
@@ -264,6 +272,24 @@ function __safeBaseName(name) {
   return raw.replace(/^(\(\d+\)\s*)+/, "").trim();
 }
 
+// Mantiene sincronizzati il nome interno del token e la label nativa mostrata
+// sotto l'immagine da Owlbear Rodeo, senza modificare lo stile del testo.
+function __setSceneTokenDisplayName(item, nextName) {
+  if (!item) return;
+  item.name = nextName;
+  if (item.type !== "IMAGE" || !item.text || typeof item.text !== "object") return;
+  item.text = {
+    ...item.text,
+    plainText: nextName,
+    richText: [
+      {
+        type: "paragraph",
+        children: [{ text: nextName }],
+      },
+    ],
+  };
+}
+
 // Crea una voce virtuale "Epic Action" del boss dopo un certo PG
 function makeEpicActionEntry(bossEntry, pcEntry) {
   // id unico stabile (non finisce nei metadata della scena)
@@ -313,7 +339,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
 
 // --- ZOOM CONFIG GLOBALE ---
 const ZOOM_CFG = {
-  scale: 1.1,                                     // +6% elegante
+  scale: 1.035,                                   // enfasi attiva senza invadere le card adiacenti
   dur:   500,                                      // ms
   ease:  "cubic-bezier(.16,.84,.22,1)"             // easing morbido
 };
@@ -413,6 +439,12 @@ const EPIC_TAG_CFG = {
   let __editingHPForId   = null; // nuovo: lock per pill HP
   let __suspendRenders   = false; // nuovo: sospende render durante lo switch di editor
   let IS_GM = false;
+  let __trackerLayout = getTrackerLayout();
+
+  function isCompactTrackerLayout() {
+    return __trackerLayout === TRACKER_LAYOUT_COMPACT;
+  }
+
 
   export function mountInitiativeList(container) {
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
@@ -422,6 +454,13 @@ const EPIC_TAG_CFG = {
     const styleTag = document.createElement("style");
 styleTag.textContent = `
   :root, body { height: 100%; overflow: hidden; }
+  .tbp-root {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+  .tbp-root button, .tbp-root input, .tbp-root textarea, .tbp-root select {
+    font-family: inherit;
+  }
   .tbp-root, .tbp-root *:not(input):not(textarea):not([contenteditable="true"]) {
     -webkit-user-select: none;
     user-select: none;
@@ -532,24 +571,151 @@ Object.assign(roundResetSlot.style, {
   borderRight: "1px solid rgba(148,163,184,.22)",
 });
 
-const roundSep = document.createElement("span");
-roundSep.textContent = "•";
-Object.assign(roundSep.style, { opacity: ".6" });
 
-const turnCounter = document.createElement("span");
-turnCounter.id = "tbp-turn-counter";
-Object.assign(turnCounter.style, {
-  fontVariantNumeric: "tabular-nums",
-  opacity: ".9"
+roundStatus.append(roundLabel);
+roundPill.appendChild(roundStatus);
+const trackerDragHandle = document.createElement("button");
+trackerDragHandle.type = "button";
+trackerDragHandle.textContent = "\u2630";
+trackerDragHandle.title = "Trascina per spostare il tracker. Doppio click per ricentrare";
+trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
+Object.assign(trackerDragHandle.style, {
+  flex: "0 0 auto",
+  width: "28px",
+  height: "28px",
+  display: "none",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0",
+  border: "1px solid rgba(148,163,184,.28)",
+  borderRadius: "8px",
+  background: "rgba(0,0,0,.34)",
+  color: "rgba(255,255,255,.82)",
+  fontSize: "15px",
+  lineHeight: "1",
+  cursor: "grab",
+  touchAction: "none",
 });
 
-// di default lo nascondo finché non ho dati
-roundSep.style.display = "none";
-turnCounter.style.display = "none";
+let __compactDragStart = null;
+trackerDragHandle.addEventListener("pointerdown", (event) => {
+  if (!isCompactTrackerLayout() || event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  __compactDragStart = {
+    x: Number.isFinite(event.screenX) ? event.screenX : event.clientX,
+    y: Number.isFinite(event.screenY) ? event.screenY : event.clientY,
+  };
+  trackerDragHandle.style.cursor = "grabbing";
+  trackerDragHandle.setPointerCapture?.(event.pointerId);
+});
+trackerDragHandle.addEventListener("pointerup", (event) => {
+  if (!__compactDragStart) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const endX = Number.isFinite(event.screenX) ? event.screenX : event.clientX;
+  const endY = Number.isFinite(event.screenY) ? event.screenY : event.clientY;
+  const deltaX = endX - __compactDragStart.x;
+  const deltaY = endY - __compactDragStart.y;
+  __compactDragStart = null;
+  trackerDragHandle.style.cursor = "grab";
+  try { trackerDragHandle.releasePointerCapture?.(event.pointerId); } catch {}
+  if (Math.abs(deltaX) + Math.abs(deltaY) < 4) return;
+  void OBR.broadcast.sendMessage(TRACKER_LAYOUT_CHANNEL, {
+    type: "tracker-position-change",
+    deltaX,
+    deltaY,
+  }, { destination: "LOCAL" });
+});
+trackerDragHandle.addEventListener("pointercancel", () => {
+  __compactDragStart = null;
+  trackerDragHandle.style.cursor = "grab";
+});
+trackerDragHandle.addEventListener("dblclick", (event) => {
+  if (!isCompactTrackerLayout()) return;
+  event.preventDefault();
+  event.stopPropagation();
+  void OBR.broadcast.sendMessage(TRACKER_LAYOUT_CHANNEL, {
+    type: "tracker-position-reset",
+  }, { destination: "LOCAL" });
+});
 
-roundStatus.append(roundLabel, roundSep, turnCounter);
-roundPill.appendChild(roundStatus);
+roundPill.appendChild(trackerDragHandle);
 
+
+const layoutToggleButton = document.createElement("button");
+layoutToggleButton.type = "button";
+layoutToggleButton.dataset.layoutToggle = "1";
+Object.assign(layoutToggleButton.style, {
+  flex: "0 0 auto",
+  width: "28px",
+  height: "28px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "0",
+  border: "1px solid rgba(148,163,184,.28)",
+  borderRadius: "8px",
+  background: "rgba(0,0,0,.34)",
+  color: "#fff",
+  fontSize: "16px",
+  lineHeight: "1",
+  cursor: "pointer",
+});
+
+const layoutToggleIcon = document.createElement("img");
+layoutToggleIcon.alt = "";
+layoutToggleIcon.setAttribute("aria-hidden", "true");
+Object.assign(layoutToggleIcon.style, {
+  width: "18px",
+  height: "18px",
+  display: "block",
+  objectFit: "contain",
+  pointerEvents: "none",
+});
+const layoutToggleCaption = document.createElement("span");
+layoutToggleCaption.dataset.layoutToggleCaption = "1";
+layoutToggleCaption.setAttribute("aria-hidden", "true");
+Object.assign(layoutToggleCaption.style, {
+  display: "inline",
+  pointerEvents: "none",
+  whiteSpace: "nowrap",
+  fontSize: "10px",
+  fontWeight: "700",
+  lineHeight: "1",
+});
+layoutToggleButton.append(layoutToggleIcon, layoutToggleCaption);
+
+function updateLayoutToggleButton() {
+  const compact = isCompactTrackerLayout();
+  trackerDragHandle.style.display = compact ? "inline-flex" : "none";
+  layoutToggleIcon.src = compact
+    ? "/modalita-estesa.svg"
+    : "/modalita-compatta.svg";
+  layoutToggleButton.title = compact
+    ? "Passa alla modalità estesa"
+    : "Passa alla modalità compatta";
+  layoutToggleButton.setAttribute("aria-label", layoutToggleButton.title);
+  layoutToggleButton.setAttribute("aria-pressed", String(compact));
+  layoutToggleCaption.textContent = compact ? "Estesa" : "Compatta";
+  layoutToggleCaption.style.display = compact ? "none" : "inline";
+}
+
+layoutToggleButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  __trackerLayout = isCompactTrackerLayout()
+    ? TRACKER_LAYOUT_CLASSIC
+    : TRACKER_LAYOUT_COMPACT;
+  updateLayoutToggleButton();
+  applyTrackerLayout();
+  void renderAll();
+  void setTrackerLayout(__trackerLayout).catch((error) => {
+    console.warn("[tracker-layout] salvataggio fallito:", error?.message || error);
+  });
+});
+
+roundPill.appendChild(layoutToggleButton);
+updateLayoutToggleButton();
 const roundActions = document.createElement("div");
 roundActions.dataset.roundActions = "1";
 Object.assign(roundActions.style, {
@@ -896,7 +1062,52 @@ Object.assign(toolOptionsGroup.style, {
   paddingLeft: "5px",
   borderLeft: "1px solid rgba(148,163,184,.2)",
 });
-viewOptionsRow.append(sceneOptionsGroup, toolOptionsGroup);
+function makeToolbarSection(title, content) {
+  const section = document.createElement("section");
+  const heading = document.createElement("div");
+  heading.textContent = title;
+  heading.dataset.toolbarHeading = "1";
+  Object.assign(section.style, {
+    minWidth: "0",
+    display: "flex",
+    alignItems: "center",
+  });
+  Object.assign(heading.style, {
+    display: "none",
+    color: "rgba(255,255,255,.58)",
+    fontSize: "9px",
+    fontWeight: "750",
+    letterSpacing: ".08em",
+    textTransform: "uppercase",
+  });
+  section.append(heading, content);
+  return { section, heading };
+}
+
+function decorateToolbarControl(control, label) {
+  control.dataset.toolbarControl = "1";
+  const caption = document.createElement("span");
+  caption.dataset.toolbarCaption = "1";
+  caption.textContent = label;
+  Object.assign(caption.style, {
+    display: "none",
+    maxWidth: "100%",
+    overflow: "hidden",
+    color: "rgba(255,255,255,.88)",
+    fontSize: "10px",
+    fontWeight: "600",
+    lineHeight: "1.1",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+  });
+  control.appendChild(caption);
+  return control;
+}
+
+const encounterToolbar = makeToolbarSection("Incontro", sceneOptionsGroup);
+const trackersToolbar = makeToolbarSection("Tracker", toolOptionsGroup);
+viewOptionsRow.append(encounterToolbar.section, trackersToolbar.section);
 topRow.append(roundPill, viewOptionsRow);
 
 // Toggle dello zoom automatico. Il default resta attivo per compatibilità
@@ -930,7 +1141,7 @@ Object.assign(zoomChk.style, {
 zoomChk.title = "Centra automaticamente la scena sul token attivo";
 
 const zoomLbl = document.createElement("img");
-zoomLbl.src = `${import.meta.env.BASE_URL || "/"}zoom.svg`;
+zoomLbl.src = `${import.meta.env.BASE_URL || "/"}zoom-on-token.svg`;
 zoomLbl.alt = "";
 Object.assign(zoomLbl.style, {
   width: "15px",
@@ -940,13 +1151,21 @@ Object.assign(zoomLbl.style, {
 });
 
 function setCompactToggleVisual(wrap, active) {
+  const classic = !isCompactTrackerLayout();
   wrap.setAttribute("aria-pressed", active ? "true" : "false");
-  wrap.style.background = active ? "rgba(37,99,235,.82)" : "transparent";
-  wrap.style.borderColor = active ? "rgba(147,197,253,.8)" : "transparent";
-  wrap.style.boxShadow = active ? "inset 0 1px 0 rgba(255,255,255,.18)" : "none";
+  wrap.style.background = active
+    ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
+    : classic ? "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))" : "transparent";
+  wrap.style.borderColor = active
+    ? "rgba(147,197,253,.8)"
+    : classic ? "rgba(148,163,184,.24)" : "transparent";
+  wrap.style.boxShadow = active
+    ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
+    : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
 }
 
 zoomToggleWrap.append(zoomChk, zoomLbl);
+decorateToolbarControl(zoomToggleWrap, "Follow");
 zoomToggleWrap.title = zoomChk.title;
 zoomToggleWrap.setAttribute("aria-label", zoomChk.title);
 setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
@@ -983,6 +1202,7 @@ function makeGlobalPanelButton(title, iconPath, invert = false) {
     pointerEvents: "none",
   });
   button.appendChild(icon);
+  decorateToolbarControl(button, title);
   return button;
 }
 
@@ -992,11 +1212,20 @@ Object.assign(globalPanelsWrap.style, {
   alignItems: "center",
   gap: "2px",
 });
-const globalEffectsButton = makeGlobalPanelButton("Condizioni", "conditions.png");
-const globalSpellsButton = makeGlobalPanelButton("Incantesimi", "spells.svg", true);
+const globalEffectsButton = makeGlobalPanelButton("Condizioni", "conditions-panel.svg");
+const globalSpellsButton = makeGlobalPanelButton("Incantesimi", "spells-panel.svg");
+const globalQuickHPButton = makeGlobalPanelButton("Danno rapido", "quick-damage.svg");
+globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Danno";
+const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
+const SPELLS_POPUP_ID = `${ID}/spells-modal`;
+const QUICK_HP_POPUP_ID = `${ID}/quick-hp-modal`;
+globalEffectsButton.setAttribute("aria-pressed", "false");
+globalSpellsButton.setAttribute("aria-pressed", "false");
+globalQuickHPButton.setAttribute("aria-pressed", "false");
 const TRACKED_MOVE_TOOL_ID = ID + "/tracked-move-tool";
 const TRACKED_MOVE_PREVIOUS_TOOL_KEY = ID + "/tracked-move-previous-tool";
-const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed.svg");
+const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed-panel.svg");
+trackedMoveButton.querySelector("[data-toolbar-caption='1']").textContent = "Movimento";
 trackedMoveButton.setAttribute("aria-pressed", "false");
 let trackedMovePreviousToolId = sessionStorage.getItem(TRACKED_MOVE_PREVIOUS_TOOL_KEY) || "";
 let trackedMoveActive = false;
@@ -1009,14 +1238,19 @@ function rememberTrackedMovePreviousTool(toolId) {
 }
 
 function setTrackedMoveButtonActive(active) {
+  const classic = !isCompactTrackerLayout();
   trackedMoveActive = !!active;
   setSpeedCheckEnabled(trackedMoveActive);
   trackedMoveButton.setAttribute("aria-pressed", active ? "true" : "false");
-  trackedMoveButton.style.background = active ? "rgba(37,99,235,.82)" : "transparent";
-  trackedMoveButton.style.borderColor = active ? "rgba(147,197,253,.8)" : "transparent";
+  trackedMoveButton.style.background = active
+    ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
+    : classic ? "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))" : "transparent";
+  trackedMoveButton.style.borderColor = active
+    ? "rgba(147,197,253,.8)"
+    : classic ? "rgba(148,163,184,.24)" : "transparent";
   trackedMoveButton.style.boxShadow = active
-    ? "inset 0 1px 0 rgba(255,255,255,.18)"
-    : "none";
+    ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
+    : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
 }
 
 trackedMoveButton.addEventListener("click", async () => {
@@ -1041,7 +1275,8 @@ trackedMoveButton.addEventListener("click", async () => {
 });
 globalEffectsButton.addEventListener("click", () => void openGlobalEffectsPopup());
 globalSpellsButton.addEventListener("click", () => void openGlobalSpellsPopup());
-globalPanelsWrap.append(globalEffectsButton, globalSpellsButton);
+globalQuickHPButton.addEventListener("click", () => void openGlobalQuickHPPopup());
+globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton);
 toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
 
 const movementReadout = document.createElement("div");
@@ -1238,6 +1473,11 @@ topRow.appendChild(movementReadout);
 
 let movementDetailsOpen = false;
 movementReadout.addEventListener("click", () => {
+  if (isCompactTrackerLayout()) {
+    movementDetailsOpen = false;
+    movementDetails.style.display = "none";
+    return;
+  }
   movementDetailsOpen = !movementDetailsOpen;
   movementDetails.style.display = movementDetailsOpen ? "grid" : "none";
 });
@@ -1252,6 +1492,13 @@ function movementNumber(value) {
   return Number(value || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
 }
 
+function movementReadoutSummary(snapshot, compact = isCompactTrackerLayout()) {
+  if (!snapshot) return "";
+  return compact
+    ? movementNumber(snapshot.totalMeters) + "/" + movementNumber(snapshot.allowanceMeters) + " m · (" + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + ")"
+    : movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
+}
+
 subscribeSpeedCheckState((snapshot) => {
   latestMovementSnapshot = snapshot;
   queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
@@ -1259,10 +1506,14 @@ subscribeSpeedCheckState((snapshot) => {
   movementReadout.style.display = visible ? "flex" : "none";
   if (!visible) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
-  movementReadoutMeta.textContent = movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
-  movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile";
+  movementReadoutMeta.textContent = movementReadoutSummary(snapshot);
+  movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile"
+    + (snapshot.conditionSummary ? "; " + snapshot.conditionSummary : "");
 
-  movementDetailValues.speed.textContent = movementNumber(snapshot.speedMeters) + " m";
+  movementDetailValues.speed.textContent = movementNumber(snapshot.speedMeters) + " m"
+    + (snapshot.baseSpeedMeters !== snapshot.speedMeters
+      ? " (base " + movementNumber(snapshot.baseSpeedMeters) + " m)"
+      : "");
   movementDetailValues.allowance.textContent = movementNumber(snapshot.allowanceMeters) + " m";
   movementDetailValues.total.textContent = movementNumber(snapshot.totalMeters) + " m";
   movementDetailValues.remaining.textContent = movementNumber(snapshot.remainingMeters) + " m";
@@ -1271,7 +1522,7 @@ subscribeSpeedCheckState((snapshot) => {
   movementBonusStepper.value.textContent = "Bonus " + movementNumber(snapshot.bonusMeters) + " m";
   const percent = Math.max(0, Math.min(100, snapshot.progress * 100));
   movementReadoutBar.style.width = percent + "%";
-  movementReadoutBar.style.background = percent >= 99.9 ? "#ef4444" : percent >= 75 ? "#f59e0b" : "#3b82f6";
+  movementReadoutBar.style.background = snapshot.blocked || percent >= 99.9 ? "#ef4444" : percent >= 75 ? "#f59e0b" : "#3b82f6";
 });
 
 // wrapper della lista — l’UNICO che scrolla
@@ -1280,8 +1531,10 @@ trackWrap.style.flex = "1 1 auto";        // ← occupa tutto lo spazio rimanent
 trackWrap.style.minHeight = "0";          // ← fondamentale in flex
 trackWrap.style.overflow = "auto";        // ← unica scrollbar
 trackWrap.style.overscrollBehavior = "contain";
+trackWrap.style.overflowAnchor = "none";
 trackWrap.style.padding = "0";
 trackWrap.style.boxSizing = "border-box";
+trackWrap.style.position = "relative";
 
 // (rimuovi i vecchi limiti! niente maxHeight/minHeight qui)
 // trackWrap.style.maxHeight = "575px";  // ← ELIMINATO
@@ -1289,9 +1542,10 @@ trackWrap.style.boxSizing = "border-box";
 
 const track = document.createElement("div");
 track.style.display = "flex";
+track.style.position = "relative";
 track.style.flexDirection = "column";
 track.style.alignItems = "center";
-track.style.gap = "16px";
+track.style.gap = "6px";
 track.style.paddingTop = "8px";
 track.style.paddingBottom = "8px";
 trackWrap.appendChild(track);
@@ -1306,8 +1560,8 @@ if (!track.__dndMounted) {
 
 track.addEventListener("dragstart", (ev) => {
   const card = ev.target.closest('[data-item-id]');
-  if (card.dataset.isEpic === "1") { ev.preventDefault(); return; }
   if (!card) return;
+  if (card.dataset.isEpic === "1") { ev.preventDefault(); return; }
 
   const init = card.dataset.initiative || "";
   const peers = track.querySelectorAll(`[data-initiative="${init}"]`);
@@ -1332,11 +1586,16 @@ track.addEventListener("dragover", (ev) => {
 
   ev.preventDefault(); // abilita il drop
   const r = over.getBoundingClientRect();
-  const before = ev.clientY < (r.top + r.height / 2);
+  const horizontal = isCompactTrackerLayout();
+  const before = horizontal
+    ? ev.clientX < (r.left + r.width / 2)
+    : ev.clientY < (r.top + r.height / 2);
 
   if (!over.dataset.dropHint) over.dataset.dropHint = "1";
-  over.style.borderTop    = before ? "2px solid rgba(255,255,255,.85)" : "";
-  over.style.borderBottom = before ? "" : "2px solid rgba(255,255,255,.85)";
+  over.style.borderTop = horizontal ? "" : before ? "2px solid rgba(255,255,255,.85)" : "";
+  over.style.borderBottom = horizontal ? "" : before ? "" : "2px solid rgba(255,255,255,.85)";
+  over.style.borderLeft = horizontal && before ? "2px solid rgba(255,255,255,.85)" : "";
+  over.style.borderRight = horizontal && !before ? "2px solid rgba(255,255,255,.85)" : "";
 });
 
 track.addEventListener("drop", async (ev) => {
@@ -1347,7 +1606,9 @@ track.addEventListener("drop", async (ev) => {
 
   ev.preventDefault();
   const r = over.getBoundingClientRect();
-  const before = ev.clientY < (r.top + r.height / 2);
+  const before = isCompactTrackerLayout()
+    ? ev.clientX < (r.left + r.width / 2)
+    : ev.clientY < (r.top + r.height / 2);
 
   const sourceId = __draggingId;
   const targetId = over.dataset.itemId;
@@ -1355,11 +1616,15 @@ track.addEventListener("drop", async (ev) => {
   // pulizia hint e opacità
   const hinted = track.querySelectorAll('[data-drop-hint]');
   hinted.forEach(n => {
-    n.style.borderTop    = "";
+    n.style.borderTop = "";
     n.style.borderBottom = "";
+    n.style.borderLeft = "";
+    n.style.borderRight = "";
     delete n.dataset.dropHint;
   });
-  const dragging = track.querySelector('[data-item-id][style*="opacity"]');
+  const dragging = Array.from(track.querySelectorAll('[data-item-id]')).find((node) =>
+    node.dataset.itemId === __draggingId
+  );
   if (dragging) dragging.style.opacity = "";
 
   // Riordino: se sto trascinando un LEAD collassato, sposto tutto il blocco gruppo
@@ -1369,6 +1634,22 @@ track.addEventListener("drop", async (ev) => {
     await _reorderWithinSameInitiative(sourceId, targetId, before);
   }
 
+  __draggingId = null;
+  __draggingInit = null;
+  __draggingWasCollapsed = false;
+});
+
+track.addEventListener("dragend", () => {
+  track.querySelectorAll('[data-drop-hint]').forEach((node) => {
+    node.style.borderTop = "";
+    node.style.borderBottom = "";
+    node.style.borderLeft = "";
+    node.style.borderRight = "";
+    delete node.dataset.dropHint;
+  });
+  const dragging = Array.from(track.querySelectorAll('[data-item-id]'))
+    .find((node) => node.dataset.itemId === __draggingId);
+  if (dragging) dragging.style.opacity = "";
   __draggingId = null;
   __draggingInit = null;
   __draggingWasCollapsed = false;
@@ -1412,6 +1693,7 @@ Object.assign(lairLbl.style, {
 });
 
 lairToggleWrap.append(lairChk, lairLbl);
+decorateToolbarControl(lairToggleWrap, "Tana");
 lairToggleWrap.title = "Azioni di Tana";
 lairToggleWrap.setAttribute("aria-label", lairToggleWrap.title);
 
@@ -1448,15 +1730,685 @@ zoomChk.addEventListener("change", async (e) => {
 });
 
 // Inserisci il toggle tra Turno e Lista
-col.append(btnPrev, topRow, trackWrap, btnNext);
+const compactNavigationRow = document.createElement("div");
+const compactRoundControls = document.createElement("div");
+const compactAdminMenu = document.createElement("div");
+const compactMoreButton = mkBtn("…");
 
+compactMoreButton.title = "Altre azioni del tracker";
+compactMoreButton.setAttribute("aria-label", compactMoreButton.title);
+compactMoreButton.setAttribute("aria-haspopup", "menu");
+compactMoreButton.setAttribute("aria-expanded", "false");
+compactAdminMenu.setAttribute("role", "menu");
+compactAdminMenu.setAttribute("aria-label", "Altre azioni del tracker");
+compactAdminMenu.style.display = "none";
+
+function setCompactAdminMenuOpen(open) {
+  const visible = !!open && isCompactTrackerLayout();
+  compactAdminMenu.style.display = visible ? "grid" : "none";
+  compactMoreButton.setAttribute("aria-expanded", visible ? "true" : "false");
+}
+
+compactMoreButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setCompactAdminMenuOpen(compactMoreButton.getAttribute("aria-expanded") !== "true");
+});
+document.addEventListener("pointerdown", (event) => {
+  if (compactMoreButton.getAttribute("aria-expanded") === "true" && !roundPill.contains(event.target)) {
+    setCompactAdminMenuOpen(false);
+  }
+});
+compactAdminMenu.addEventListener("click", (event) => {
+  if (event.target.closest("button")) window.setTimeout(() => setCompactAdminMenuOpen(false), 0);
+});
+
+function applyToolbarLayoutPresentation(compact) {
+  if (!IS_GM) {
+    viewOptionsRow.style.display = "none";
+    return;
+  }
+  const classic = !compact;
+
+  Object.assign(viewOptionsRow.style, classic ? {
+    display: "grid",
+    flex: "0 0 auto",
+    width: "100%",
+    maxWidth: "none",
+    height: "auto",
+    minHeight: "68px",
+    gridTemplateColumns: "minmax(88px, 2fr) minmax(0, 4fr)",
+    gridAutoRows: "auto",
+    alignItems: "stretch",
+    justifyItems: "stretch",
+    alignContent: "normal",
+    justifyContent: "stretch",
+    gap: "6px",
+    padding: "5px",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    border: "1px solid rgba(148,163,184,.22)",
+    borderRadius: "14px",
+    background: "linear-gradient(180deg, rgba(16,21,31,.78), rgba(7,11,18,.72))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
+  } : {
+    display: "grid",
+    flex: "0 0 98px",
+    width: "98px",
+    maxWidth: "98px",
+    height: "100%",
+    minHeight: "0",
+    gridTemplateColumns: "repeat(2, 40px)",
+    gridAutoRows: "38px",
+    alignItems: "center",
+    justifyItems: "center",
+    alignContent: "center",
+    justifyContent: "center",
+    gap: "4px",
+    padding: "5px",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    border: "1px solid rgba(148,163,184,.24)",
+    borderRadius: "14px",
+    background: "linear-gradient(180deg, rgba(31,39,51,.82), rgba(18,24,34,.78))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.07), 0 8px 20px rgba(0,0,0,.22)",
+  });
+
+  for (const toolbar of [encounterToolbar, trackersToolbar]) {
+    Object.assign(toolbar.section.style, {
+      display: classic ? "flex" : "contents",
+      flex: classic ? "1 1 0" : "0 0 auto",
+      width: classic ? "100%" : "auto",
+      minWidth: "0",
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: classic ? "4px" : "0",
+      overflow: classic ? "hidden" : "visible",
+    });
+    toolbar.heading.style.display = classic ? "block" : "none";
+    toolbar.heading.style.textAlign = "center";
+  }
+
+  Object.assign(sceneOptionsGroup.style, {
+    width: classic ? "100%" : "auto",
+    minWidth: "0",
+    display: classic ? "grid" : "contents",
+    gridTemplateColumns: classic ? "repeat(2, minmax(0, 1fr))" : "none",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: classic ? "3px" : "0",
+  });
+  Object.assign(toolOptionsGroup.style, {
+    width: classic ? "100%" : "auto",
+    minWidth: "0",
+    display: classic ? "grid" : "contents",
+    gridTemplateColumns: classic ? "repeat(4, minmax(0, 1fr))" : "none",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: classic ? "3px" : "0",
+    paddingLeft: classic ? "7px" : "0",
+    paddingTop: "0",
+    boxSizing: "border-box",
+    borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
+    borderTop: "none",
+  });
+  Object.assign(globalPanelsWrap.style, {
+    display: classic ? "contents" : "contents",
+    width: "auto",
+    minWidth: "0",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: "0",
+  });
+
+  viewOptionsRow.querySelectorAll("[data-toolbar-control='1']").forEach((control) => {
+    const active = control.getAttribute("aria-pressed") === "true";
+    Object.assign(control.style, {
+      width: classic ? "100%" : "40px",
+      minWidth: "0",
+      maxWidth: classic ? "100%" : "40px",
+      boxSizing: "border-box",
+      height: classic ? "46px" : "36px",
+      minHeight: classic ? "46px" : "36px",
+      flexDirection: classic ? "column" : "row",
+      justifyContent: "center",
+      gap: classic ? "3px" : "0",
+      padding: "0 2px",
+      overflow: "hidden",
+      borderRadius: classic ? "10px" : "9px",
+      border: active
+        ? "1px solid rgba(147,197,253,.8)"
+        : "1px solid rgba(148,163,184,.24)",
+      background: active
+        ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
+        : "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
+      boxShadow: active
+        ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
+        : "inset 0 1px 0 rgba(255,255,255,.04)",
+    });
+    const icon = control.querySelector("img");
+    if (icon) {
+      icon.style.width = classic ? "18px" : "18px";
+      icon.style.height = classic ? "18px" : "18px";
+      icon.style.flex = "0 0 auto";
+    }
+    const caption = control.querySelector("[data-toolbar-caption='1']");
+    if (caption) {
+      caption.style.display = classic ? "block" : "none";
+      caption.style.width = "100%";
+      caption.style.maxWidth = "100%";
+      caption.style.fontSize = "8px";
+      caption.style.lineHeight = "1";
+      caption.style.letterSpacing = "-.01em";
+      caption.style.whiteSpace = "nowrap";
+      caption.style.overflow = "hidden";
+      caption.style.textOverflow = "clip";
+      caption.style.textAlign = "center";
+    }
+  });
+}
+
+function ensureAdminMenuLabel(control, text) {
+  if (!control) return null;
+  let label = control.querySelector("[data-admin-menu-label='1']");
+  if (!label) {
+    label = document.createElement("span");
+    label.dataset.adminMenuLabel = "1";
+    control.appendChild(label);
+  }
+  label.textContent = text;
+  Object.assign(label.style, {
+    flex: "1 1 auto",
+    minWidth: "0",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+    textAlign: "left",
+    pointerEvents: "none",
+    fontSize: "10px",
+    fontWeight: "700",
+  });
+  return label;
+}
+
+function applyAdminMenuPresentation(compact) {
+  Object.assign(compactAdminMenu.style, {
+    position: "absolute",
+    left: compact ? "calc(100% + 8px)" : "auto",
+    right: compact ? "auto" : "0",
+    top: compact ? "auto" : "calc(100% + 6px)",
+    bottom: compact ? "0" : "auto",
+    zIndex: "40",
+    width: compact ? "184px" : "178px",
+    maxHeight: compact ? "168px" : "none",
+    overflowX: "hidden",
+    overflowY: compact ? "auto" : "visible",
+    gridTemplateColumns: "1fr",
+    gridTemplateRows: "",
+    alignItems: "stretch",
+    justifyItems: "stretch",
+    justifyContent: "stretch",
+    gap: "3px",
+    padding: "6px",
+    boxSizing: "border-box",
+    border: "1px solid rgba(148,163,184,.32)",
+    borderRadius: "12px",
+    background: "rgba(13,18,27,.98)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.07)",
+  });
+
+  const entries = [
+    [roundResetSlot.querySelector("button"), "Reset round", false],
+    ...(compact ? [[roundHistorySlot.querySelector("button"), "Cronologia", false]] : []),
+    [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
+    [roundActions.querySelector("[data-faction-configurator='1']"), "Configura fazioni", false],
+    [roundActions.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
+  ];
+
+  roundPill.querySelectorAll("[data-admin-menu-label='1']").forEach((label) => {
+    label.style.display = compactAdminMenu.contains(label.parentElement) ? "block" : "none";
+  });
+
+  for (const [control, text, danger] of entries) {
+    if (!control) continue;
+    const label = ensureAdminMenuLabel(control, text);
+    const inMenu = compactAdminMenu.contains(control);
+    label.style.display = inMenu ? "block" : "none";
+    if (!inMenu) continue;
+    Object.assign(control.style, {
+      width: "100%",
+      minWidth: "0",
+      maxWidth: "none",
+      height: compact ? "28px" : "30px",
+      minHeight: compact ? "28px" : "30px",
+      gridColumn: "1",
+      gridRow: "auto",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: "8px",
+      padding: "0 9px",
+      borderRadius: "8px",
+      textAlign: "left",
+      border: danger ? "1px solid rgba(248,113,113,.42)" : "1px solid rgba(148,163,184,.20)",
+      background: danger
+        ? "linear-gradient(180deg, rgba(127,29,29,.78), rgba(69,10,10,.72))"
+        : "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
+    });
+    const icon = control.querySelector("img");
+    if (icon) {
+      icon.style.width = "16px";
+      icon.style.height = "16px";
+      icon.style.flex = "0 0 16px";
+    }
+  }
+
+  roundResetSlot.style.display = compactAdminMenu.contains(roundResetSlot) ? "contents" : "inline-flex";
+  roundHistorySlot.style.display = compactAdminMenu.contains(roundHistorySlot) ? "contents" : "inline-flex";
+  roundActions.style.display = compactAdminMenu.contains(roundActions) ? "contents" : "flex";
+}
+
+function applyHeaderLayoutPresentation(compact) {
+  const classic = !compact;
+  roundPill.style.gap = classic ? "3px" : "4px";
+  roundPill.style.overflow = classic ? "hidden" : "visible";
+  roundStatus.style.flex = classic ? "1 1 72px" : "0 0 auto";
+  roundStatus.style.width = classic ? "auto" : "100%";
+  roundStatus.style.minWidth = classic ? "70px" : "0";
+  roundStatus.style.overflow = classic ? "hidden" : "visible";
+  roundStatus.style.flexDirection = classic ? "row" : "column";
+  roundStatus.style.justifyContent = classic ? "flex-start" : "center";
+  roundStatus.style.gap = classic ? "4px" : "1px";
+  roundStatus.style.paddingBottom = classic ? "0" : "4px";
+  roundStatus.style.borderBottom = classic ? "none" : "1px solid rgba(148,163,184,.22)";
+  roundLabel.style.fontSize = classic ? "15px" : "13px";
+  roundLabel.style.whiteSpace = "nowrap";
+  roundActions.style.width = classic ? "auto" : "100%";
+  roundActions.style.display = classic ? "flex" : "contents";
+  roundActions.style.gridColumn = compact ? "1" : "auto";
+  roundActions.style.flexWrap = "nowrap";
+  roundActions.style.justifyContent = classic ? "flex-start" : "center";
+  roundActions.style.gap = "3px";
+  Object.assign(roundResetSlot.style, {
+    display: classic ? "inline-flex" : "contents",
+    gridColumn: compact ? "1" : "auto",
+    paddingRight: classic ? "3px" : "0",
+    paddingTop: "0",
+    borderRight: classic ? "1px solid rgba(148,163,184,.24)" : "none",
+    borderTop: "none",
+  });
+  Object.assign(roundHistorySlot.style, {
+    display: compact ? "contents" : "inline-flex",
+    paddingLeft: classic ? "2px" : "0",
+    borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
+  });
+
+  roundPill.querySelectorAll("button").forEach((button) => {
+    const primary = button === btnPrev || button === btnNext || button === compactMoreButton;
+    const admin = compactAdminMenu.contains(button);
+    button.style.width = classic ? (button === layoutToggleButton ? "66px" : "26px") : admin ? "30px" : "26px";
+    button.style.minWidth = compact ? (admin ? "30px" : "26px") : "";
+    button.style.maxWidth = "";
+    button.style.height = classic ? "28px" : admin ? "30px" : "26px";
+    button.style.minHeight = compact ? (admin ? "30px" : "26px") : "";
+    button.style.borderRadius = classic ? "10px" : "9px";
+    button.style.gridColumn = "";
+    button.style.gridRow = "";
+    button.style.justifyContent = "center";
+    button.style.gap = "";
+    button.style.padding = "0";
+    button.tabIndex = primary || admin ? 0 : button.tabIndex;
+  });
+
+  Object.assign(trackerDragHandle.style, {
+    display: compact ? "flex" : "none",
+    width: compact ? "26px" : "",
+    minWidth: compact ? "26px" : "",
+    height: compact ? "26px" : "",
+    justifyContent: "center",
+    padding: "0",
+  });
+  Object.assign(layoutToggleButton.style, classic ? {
+    width: "66px",
+    minWidth: "66px",
+    height: "28px",
+    padding: "0 5px",
+    gap: "4px",
+    justifyContent: "center",
+    border: "1px solid rgba(96,165,250,.52)",
+    background: "linear-gradient(180deg, rgba(37,99,235,.34), rgba(30,64,175,.22))",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.10)",
+    color: "#dbeafe",
+    fontSize: "8.5px",
+  } : {
+    width: "26px",
+    minWidth: "26px",
+    height: "26px",
+    padding: "0",
+    gap: "0",
+    justifyContent: "center",
+    border: "1px solid rgba(148,163,184,.24)",
+    background: "rgba(8,12,21,.72)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
+    color: "#fff",
+    fontSize: "9px",
+  });
+  layoutToggleIcon.style.width = classic ? "16px" : "15px";
+  layoutToggleIcon.style.height = classic ? "16px" : "15px";
+  layoutToggleCaption.style.display = classic ? "inline" : "none";
+  layoutToggleCaption.style.fontSize = classic ? "8.5px" : "10px";
+  if (compact) {
+    applyAdminMenuPresentation(true);
+  } else {
+    roundPill.querySelectorAll("[data-admin-menu-label='1']").forEach((label) => {
+      label.style.display = "none";
+    });
+  }
+
+  if (compact) {
+    btnPrev.textContent = "◀";
+    btnNext.textContent = "▶";
+    btnPrev.title = "Turno precedente";
+    btnNext.title = "Turno successivo";
+    btnPrev.setAttribute("aria-label", btnPrev.title);
+    btnNext.setAttribute("aria-label", btnNext.title);
+    Object.assign(btnNext.style, {
+      border: "1px solid rgba(96,165,250,.86)",
+      background: "linear-gradient(180deg, rgba(37,99,235,.92), rgba(30,64,175,.82))",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.18), 0 4px 10px rgba(30,64,175,.28)",
+    });
+    Object.assign(btnPrev.style, {
+      border: "1px solid rgba(148,163,184,.28)",
+      background: "rgba(255,255,255,.055)",
+    });
+  }
+}
+
+function mountCompactSideControls() {
+  setCompactAdminMenuOpen(false);
+  if (IS_GM) {
+    compactAdminMenu.replaceChildren(roundResetSlot, roundHistorySlot, roundActions);
+    compactRoundControls.replaceChildren(trackerDragHandle, layoutToggleButton, compactMoreButton);
+  } else {
+    compactAdminMenu.replaceChildren();
+    compactRoundControls.replaceChildren(trackerDragHandle, layoutToggleButton);
+  }
+  roundPill.replaceChildren(roundStatus, compactRoundControls, movementReadout, compactAdminMenu);
+}
+
+function restoreClassicHeader() {
+  setCompactAdminMenuOpen(false);
+  compactAdminMenu.replaceChildren();
+  compactRoundControls.replaceChildren(compactMoreButton);
+  roundPill.replaceChildren(
+    roundResetSlot,
+    roundStatus,
+    layoutToggleButton,
+    roundActions,
+    roundHistorySlot,
+    trackerDragHandle,
+  );
+  topRow.replaceChildren(roundPill, viewOptionsRow, movementReadout);
+}
+function applyTrackerLayout() {
+  const compact = isCompactTrackerLayout();
+  container.dataset.trackerLayout = compact
+    ? TRACKER_LAYOUT_COMPACT
+    : TRACKER_LAYOUT_CLASSIC;
+  const glassRoot = container.closest("[data-glass-popover='1']");
+  if (glassRoot) glassRoot.dataset.trackerLayout = container.dataset.trackerLayout;
+
+  if (compact) {
+    mountCompactSideControls();
+    Object.assign(col.style, {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: "2px",
+      padding: "2px",
+      boxSizing: "border-box",
+      border: "1px solid rgba(148,163,184,.26)",
+      borderRadius: "16px",
+      background: "linear-gradient(180deg, rgba(28,35,46,.68), rgba(16,22,31,.60))",
+      boxShadow: "0 8px 20px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05)",
+    });
+    Object.assign(topRow.style, {
+      flex: "0 0 auto",
+      width: "100%",
+      gap: "3px",
+      padding: "0",
+      paddingBottom: "0",
+      border: "0",
+      borderRadius: "0",
+      background: "transparent",
+      boxShadow: "none",
+    });
+    Object.assign(roundPill.style, {
+      position: "relative",
+      flex: "0 0 118px",
+      width: "118px",
+      maxWidth: "118px",
+      height: "100%",
+      minHeight: "0",
+      flexDirection: "column",
+      justifyContent: "center",
+      padding: "4px",
+      boxSizing: "border-box",
+      borderRadius: "11px",
+      background: "linear-gradient(180deg, rgba(39,48,61,.92), rgba(22,29,40,.92))",
+    });
+    Object.assign(compactRoundControls.style, {
+      width: "100%",
+      display: "grid",
+      gridTemplateColumns: "26px",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "3px",
+    });
+    Object.assign(compactAdminMenu.style, {
+      position: "absolute",
+      left: "calc(100% + 8px)",
+      bottom: "0",
+      zIndex: "40",
+      width: "150px",
+      maxHeight: "none",
+      overflow: "visible",
+      gridTemplateColumns: "repeat(4, 30px)",
+      gridTemplateRows: "repeat(2, 30px)",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "5px",
+      padding: "7px",
+      boxSizing: "border-box",
+      border: "1px solid rgba(148,163,184,.32)",
+      borderRadius: "12px",
+      background: "rgba(13,18,27,.98)",
+      boxShadow: "0 12px 30px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.07)",
+    });
+    Object.assign(movementReadout.style, {
+      width: "100%",
+      minWidth: "0",
+      gap: "3px",
+      padding: "3px 4px",
+      borderRadius: "10px",
+      fontSize: "9px",
+      textAlign: "center",
+      cursor: "default",
+    });
+    movementDetailsOpen = false;
+    movementDetails.style.display = "none";
+    movementReadoutValue.style.display = "none";
+    movementReadoutMeta.textContent = movementReadoutSummary(latestMovementSnapshot, true);
+    movementReadoutLine.style.justifyContent = "center";
+    Object.assign(movementReadoutMeta.style, {
+      flex: "1 1 auto",
+      minWidth: "0",
+      width: "100%",
+      overflow: "hidden",
+      fontSize: "9px",
+      textAlign: "center",
+      textOverflow: "ellipsis",
+    });
+    Object.assign(compactNavigationRow.style, {
+      flex: "1 1 auto",
+      minHeight: "0",
+      width: "auto",
+      display: "flex",
+      alignItems: "stretch",
+      gap: "3px",
+      overflow: "hidden",
+    });
+    trackWrap.dataset.compactScroll = "1";
+    Object.assign(trackWrap.style, {
+      flex: "1 1 auto",
+      minWidth: "0",
+      minHeight: "0",
+      overflowX: "auto",
+      overflowY: "hidden",
+      padding: "0",
+      scrollBehavior: "smooth",
+      overscrollBehavior: "contain",
+    });
+    Object.assign(track.style, {
+      minWidth: "100%",
+      minHeight: "100%",
+      width: "max-content",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "5px",
+      padding: "2px 7px 4px",
+      boxSizing: "border-box",
+    });
+    for (const [button, text, label, primary] of [
+      [btnPrev, "‹", "Turno precedente", false],
+      [btnNext, "›", "Turno successivo", true],
+    ]) {
+      button.textContent = text;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.tabIndex = 0;
+      Object.assign(button.style, {
+        flex: "0 0 28px",
+        width: "28px",
+        minWidth: "28px",
+        height: "100%",
+        minHeight: "28px",
+        padding: "0",
+        border: primary ? "1px solid rgba(96,165,250,.82)" : "1px solid transparent",
+        borderRadius: "10px",
+        background: primary
+          ? "linear-gradient(180deg, rgba(37,99,235,.90), rgba(30,64,175,.78))"
+          : "rgba(8,12,21,.28)",
+        boxShadow: primary ? "inset 0 1px 0 rgba(255,255,255,.16)" : "none",
+        fontSize: "24px",
+      });
+    }
+    compactNavigationRow.replaceChildren(btnPrev, trackWrap, btnNext);
+    col.replaceChildren(roundPill, compactNavigationRow, viewOptionsRow);
+  } else {
+    restoreClassicHeader();
+    delete trackWrap.dataset.compactScroll;
+    Object.assign(movementReadout.style, {
+      gap: "6px",
+      padding: "8px 12px",
+      borderRadius: "12px",
+      cursor: "pointer",
+    });
+    movementReadoutValue.style.display = "block";
+    movementReadoutMeta.textContent = movementReadoutSummary(latestMovementSnapshot, false);
+    movementReadoutLine.style.justifyContent = "space-between";
+    Object.assign(movementReadoutMeta.style, {
+      flex: "0 0 auto",
+      minWidth: "",
+      width: "auto",
+      overflow: "visible",
+      fontSize: "",
+      textAlign: "left",
+      textOverflow: "clip",
+    });
+    Object.assign(col.style, {
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: "5px",
+      padding: "0",
+      border: "none",
+      borderRadius: "0",
+      background: "transparent",
+      boxShadow: "none",
+    });
+    Object.assign(topRow.style, {
+      flex: "0 0 auto",
+      width: "calc(100% - 12px)",
+      gap: "5px",
+      padding: "4px",
+      paddingBottom: "4px",
+      boxSizing: "border-box",
+      border: "1px solid rgba(148,163,184,.25)",
+      borderRadius: "16px",
+      background: "linear-gradient(180deg, rgba(25,25,27,.88), rgba(13,15,20,.84))",
+      boxShadow: "0 14px 34px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.07)",
+    });
+    Object.assign(roundPill.style, {
+      position: "relative",
+      flex: "1 1 auto",
+      width: "100%",
+      maxWidth: "none",
+      height: "auto",
+      minHeight: "46px",
+      flexDirection: "row",
+      justifyContent: "flex-start",
+      padding: "4px 6px",
+      borderRadius: "12px",
+      background: "linear-gradient(180deg, rgba(14,19,31,.82), rgba(8,12,21,.76))",
+    });
+    Object.assign(trackWrap.style, {
+      flex: "1 1 auto",
+      minWidth: "",
+      minHeight: "0",
+      overflow: "auto",
+      padding: "0",
+      scrollBehavior: "",
+      overscrollBehavior: "",
+    });
+    Object.assign(track.style, {
+      minWidth: "",
+      minHeight: "",
+      width: "",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "",
+      gap: "6px",
+      padding: "6px 0",
+    });
+    btnPrev.textContent = "▲";
+    btnNext.textContent = "▼";
+    for (const button of [btnPrev, btnNext]) {
+      Object.assign(button.style, {
+        flex: "",
+        width: "100%",
+        minWidth: "",
+        height: "28px",
+        minHeight: "",
+        padding: "0 6px",
+        border: "none",
+        background: "transparent",
+        boxShadow: "none",
+      });
+    }
+    col.replaceChildren(btnPrev, topRow, trackWrap, btnNext);
+  }
+  applyHeaderLayoutPresentation(compact);
+  applyToolbarLayoutPresentation(compact);
+}
+
+applyTrackerLayout();
 // stile scrollbar (già presente, lo riutilizziamo)
 function injectScrollbarStyles() {
   if (document.getElementById("tbp-scrollbar-style")) return;
   const s = document.createElement("style");
   s.id = "tbp-scrollbar-style";
   s.textContent = `
-  .tbp-scroll::-webkit-scrollbar { width: 10px; }
+  .tbp-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
   .tbp-scroll::-webkit-scrollbar-track { background: transparent; }
   .tbp-scroll::-webkit-scrollbar-thumb {
     background-color: rgba(148,163,184,0.35);
@@ -1467,6 +2419,13 @@ function injectScrollbarStyles() {
   .tbp-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,0.55); }
   .tbp-scroll::-webkit-scrollbar-thumb:active { background-color: rgba(148,163,184,0.75); }
   .tbp-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.55) transparent; }
+  .tbp-scroll[data-compact-scroll="1"]::-webkit-scrollbar { height: 4px; }
+  .tbp-scroll[data-compact-scroll="1"]::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,.42); border-width: 1px; }
+  .tbp-scroll[data-compact-scroll="1"]:hover::-webkit-scrollbar-thumb,
+  .tbp-scroll[data-compact-scroll="1"].is-scrolling::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,.58); }
+  .tbp-scroll[data-compact-scroll="1"] { scrollbar-color: rgba(148,163,184,.42) transparent; }
+  .tbp-scroll[data-compact-scroll="1"]:hover,
+  .tbp-scroll[data-compact-scroll="1"].is-scrolling { scrollbar-color: rgba(148,163,184,.58) transparent; }
   `;
   document.head.appendChild(s);
 }
@@ -1493,7 +2452,24 @@ trackWrap.classList.add("tbp-scroll");
 })();
 
 // opzionale: isola la rotellina (niente scroll “a cascata”)
-trackWrap.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+let __compactScrollActivityTimer = null;
+function markCompactCarouselScrolling() {
+  if (!isCompactTrackerLayout()) return;
+  trackWrap.classList.add("is-scrolling");
+  window.clearTimeout(__compactScrollActivityTimer);
+  __compactScrollActivityTimer = window.setTimeout(() => {
+    trackWrap.classList.remove("is-scrolling");
+  }, 850);
+}
+trackWrap.addEventListener("wheel", (event) => {
+  event.stopPropagation();
+  if (isCompactTrackerLayout() && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+    event.preventDefault();
+    trackWrap.scrollLeft += event.deltaY;
+  }
+  markCompactCarouselScrolling();
+}, { passive: false });
+trackWrap.addEventListener("scroll", markCompactCarouselScrolling, { passive: true });
 
 
     // ===== Stato scena
@@ -1659,6 +2635,8 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
         const item = list[0];
         if (!item) return;
         item.visible = false;
+        item.locked = true;
+        item.disableHit = true;
         item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
           .filter((behavior) => behavior !== "POSITION");
       });
@@ -1694,6 +2672,8 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
         .layer("TEXT")
         .position(pos)
         .attachedTo(anchorId)
+        .locked(true)
+        .disableHit(true)
         .style({
           backgroundColor: "#ff0000a8",
           backgroundOpacity: 0.75,
@@ -1725,6 +2705,8 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
       item.position = pos;
       item.visible = true;
       item.layer = "TEXT";
+      item.locked = true;
+      item.disableHit = true;
       __setActiveTurnLabelText(item, textStr);
       item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
         .filter((behavior) => behavior !== "POSITION");
@@ -2053,6 +3035,19 @@ function __applyTrackerSelectionState(card) {
   if (card.__selectionBaseShadow == null) {
     card.__selectionBaseShadow = card.style.boxShadow || "";
   }
+
+  if (card.dataset.compactCard === "1") {
+    const glow = fullySelected
+      ? "0 0 0 2px rgba(255,255,255,.96), 0 0 12px 4px rgba(255,255,255,.68), 0 0 22px 7px rgba(255,255,255,.30)"
+      : partlySelected
+        ? "0 0 0 1px rgba(255,255,255,.82), 0 0 9px 3px rgba(255,255,255,.48)"
+        : "";
+    card.style.boxShadow = [card.__selectionBaseShadow, glow].filter(Boolean).join(", ");
+    card.style.outline = "none";
+    card.style.outlineOffset = "";
+    return;
+  }
+
   const glow = fullySelected
     ? "0 0 0 2px rgba(255,255,255,.98), 0 0 11px 4px rgba(255,255,255,.92), 0 0 25px 9px rgba(255,255,255,.50)"
     : partlySelected
@@ -2182,9 +3177,10 @@ function __buildGroups(entries) {
   return m;
 }
 
-// Collassa TUTTI i gruppi (len>1) tranne quello dell'elemento attivo
-async function __applyAutoCollapse(entries, state) {
-  if (!state) return;
+// Calcola l'assetto dei gruppi senza scrivere metadata: la navigazione può così
+// accodare turno e collapse nello stesso snapshot, evitando render intermedi.
+function __autoCollapseSnapshot(entries, state) {
+  if (!state) return { collapsed: {}, changed: false };
   const groups = __buildGroups(entries);
   const activeId = Array.isArray(state.order) ? state.order[state.current] : null;
 
@@ -2211,9 +3207,13 @@ async function __applyAutoCollapse(entries, state) {
     }
   }
 
-  if (changed) {
-    await setSceneState(prev => ({ ...(prev || {}), collapsed: next }));
-  }
+  return { collapsed: next, changed };
+}
+
+// Collassa TUTTI i gruppi (len>1) tranne quello dell'elemento attivo
+async function __applyAutoCollapse(entries, state) {
+  const { collapsed, changed } = __autoCollapseSnapshot(entries, state);
+  if (changed) await setSceneState(prev => ({ ...(prev || {}), collapsed }));
 }
 
 // Slate payload minimale per un'etichetta monoriga
@@ -3142,6 +4142,8 @@ function __collectChipsDeep(frag) {
 // prime `limit` in riga 1, le altre dietro al toggle +N in riga 2.
 function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBLE_CHIPS } = {}) {
   const chips = __collectChipsDeep(frag); // 👈 ora abbiamo TUTTE le chip “piatte”
+  dock.style.flexDirection = "column";
+  dock.style.alignItems = "flex-start";
   const row1 = document.createElement("div");
   Object.assign(row1.style, {
     display: "flex",
@@ -3154,9 +4156,10 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
   const row2 = document.createElement("div");
   Object.assign(row2.style, {
     display: "none",
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "flex-start",
     gap: CHIP_GAP_PX + "px",
+    paddingTop: "2px",
   });
 
   if (chips.length <= limit) {
@@ -3171,18 +4174,31 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
   row1.append(...visible);
   row2.append(...hidden);
 
-  const more = document.createElement("span");
-  more.textContent = `+${hidden.length}`;
+  const more = document.createElement("button");
+  more.type = "button";
+  more.textContent = "[...]";
+  more.dataset.cardSelectionIgnore = "1";
+  more.setAttribute("aria-expanded", "false");
   styleChipPill(more, { compact });
-  more.title = `Mostra altre ${hidden.length} condizioni`;
+  Object.assign(more.style, {
+    minHeight: "18px",
+    height: "18px",
+    padding: "0 6px 2px",
+    fontFamily: "inherit",
+  });
+  more.title = `Mostra altri ${hidden.length} effetti`;
   let expanded = false;
+  const ownerCard = dock.closest('[data-tracker-card="1"]');
+  const ownerZIndex = ownerCard?.style.zIndex || "";
 
   more.addEventListener("click", (ev) => {
     ev.stopPropagation();
     expanded = !expanded;
     row2.style.display = expanded ? "flex" : "none";
-    more.textContent = expanded ? "−" : `+${hidden.length}`;
-    more.title = expanded ? "Comprimi" : `Mostra altre ${hidden.length} condizioni`;
+    more.setAttribute("aria-expanded", expanded ? "true" : "false");
+    more.style.background = expanded ? "rgba(59,130,246,.82)" : "rgba(0,0,0,.72)";
+    more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
+    if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
   });
 
   row1.appendChild(more);
@@ -3232,20 +4248,37 @@ async function openGlobalSpellsPopup() {
   if (sourceEntry) await openCardSpellsPopup(sourceEntry);
 }
 
+async function openGlobalQuickHPPopup() {
+  await openQuickHPPopup();
+}
+
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
 const TRACKER_POPOVER_IDS = [
   `${ID}/history-modal`,
   `${ID}/effects-modal`,
   `${ID}/spells-modal`,
+  `${ID}/quick-hp-modal`,
   `${ID}/initiative-card-modal`,
 ];
 let __openTrackerPopoverId = "";
+
+function syncGlobalPanelButtonPressedState() {
+  globalEffectsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === EFFECTS_POPUP_ID));
+  globalSpellsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === SPELLS_POPUP_ID));
+  globalQuickHPButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === QUICK_HP_POPUP_ID));
+  applyToolbarLayoutPresentation(isCompactTrackerLayout());
+}
+
+function setOpenTrackerPopoverId(popupId = "") {
+  __openTrackerPopoverId = popupId;
+  syncGlobalPanelButtonPressedState();
+}
 
 function mountTrackerPopoverToggleListener() {
   OBR.broadcast.onMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, (event) => {
     const data = event?.data;
     if (data?.type === "closed" && data.id === __openTrackerPopoverId) {
-      __openTrackerPopoverId = "";
+      setOpenTrackerPopoverId();
     }
   });
 }
@@ -3253,12 +4286,39 @@ function mountTrackerPopoverToggleListener() {
 async function beginTrackerPopoverToggle(popupId) {
   if (__openTrackerPopoverId === popupId) {
     await OBR.popover.close(popupId).catch(() => {});
-    __openTrackerPopoverId = "";
+    setOpenTrackerPopoverId();
     return false;
   }
   await Promise.all(TRACKER_POPOVER_IDS.map((id) => OBR.popover.close(id).catch(() => {})));
-  __openTrackerPopoverId = "";
+  setOpenTrackerPopoverId();
   return true;
+}
+
+async function openQuickHPPopup() {
+  const popupId = QUICK_HP_POPUP_ID;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  try { await OBR.modal.close(popupId); } catch {}
+  try { await OBR.popover.close(popupId); } catch {}
+  const anchorPosition = await getTrackerPopoverAnchor();
+  try {
+    await OBR.popover.open({
+      id: popupId,
+      url: "/quick-hp-modal.html",
+      width: 620,
+      height: 590,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    setOpenTrackerPopoverId(popupId);
+  } catch (err) {
+    setOpenTrackerPopoverId();
+    console.warn("[quick-hp] popover open error:", err?.message || err);
+  }
 }
 
 async function openCardEffectsPopup(sourceEntry, entries) {
@@ -3267,7 +4327,7 @@ async function openCardEffectsPopup(sourceEntry, entries) {
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
 
-  const popupId = `${ID}/effects-modal`;
+  const popupId = EFFECTS_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
   try { await OBR.modal.close(popupId); } catch {}
   try { await OBR.popover.close(popupId); } catch {}
@@ -3286,9 +4346,9 @@ async function openCardEffectsPopup(sourceEntry, entries) {
       marginThreshold: 12,
       hidePaper: true,
     });
-    __openTrackerPopoverId = popupId;
+    setOpenTrackerPopoverId(popupId);
   } catch (err) {
-    __openTrackerPopoverId = "";
+    setOpenTrackerPopoverId();
     console.warn("[effects] popover open error:", err?.message || err);
   }
 }
@@ -3299,7 +4359,7 @@ async function openCardSpellsPopup(sourceEntry) {
   const sourceId = splitParagonId(sourceEntry.id).baseId;
   if (!sourceId) return;
 
-  const popupId = `${ID}/spells-modal`;
+  const popupId = SPELLS_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
   const popupUrl = `/spells-modal.html?source=${encodeURIComponent(sourceId)}`;
   const [anchorPosition] = await Promise.all([
@@ -3322,9 +4382,9 @@ async function openCardSpellsPopup(sourceEntry) {
       marginThreshold: 12,
       hidePaper: true,
     });
-    __openTrackerPopoverId = popupId;
+    setOpenTrackerPopoverId(popupId);
   } catch (err) {
-    __openTrackerPopoverId = "";
+    setOpenTrackerPopoverId();
     console.warn("[spells] popover open error:", err?.message || err);
   }
 }
@@ -3523,7 +4583,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     Object.assign(image.style, {
       width: "18px", height: "18px", flex: "0 0 18px",
       objectFit: "contain", pointerEvents: "none",
-      filter: icon === "conditions.png" || icon === "character-sheet.svg"
+      filter: icon === "conditions-panel.svg" || icon === "spells-panel.svg" || icon === "character-sheet.svg"
         ? "none" : "brightness(0) invert(1)",
     });
     return image;
@@ -3606,11 +4666,11 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   };
 
 
-  addAction("Condizioni", "conditions.png", async () => {
+  addAction("Condizioni", "conditions-panel.svg", async () => {
     await __selectContextScope(scopeIds);
     await openCardEffectsPopup(sourceEntry);
   });
-  addAction("Incantesimi", "spells.svg", async () => {
+  addAction("Incantesimi", "spells-panel.svg", async () => {
     await __selectContextScope(scopeIds);
     await openCardSpellsPopup(sourceEntry);
   });
@@ -3683,8 +4743,1596 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   window.addEventListener("blur", __closeInitiativeCardContextMenu, { signal: abort.signal });
 }
     // ===== Render card
+let __lastCompactPopoverSize = "";
+let __compactPopoverResizeRevision = 0;
+
+function resizeCompactTrackerPopover(entries) {
+  void entries;
+  const requestedWidth = 1180;
+  const requestedHeight = 156;
+  const requestKey = `${requestedWidth}x${requestedHeight}`;
+  if (__lastCompactPopoverSize === requestKey) return;
+  __lastCompactPopoverSize = requestKey;
+  const revision = ++__compactPopoverResizeRevision;
+
+  void (async () => {
+    let viewportWidth = 1200;
+    try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+    if (revision !== __compactPopoverResizeRevision || !isCompactTrackerLayout()) return;
+    const width = Math.max(260, Math.min(requestedWidth, Math.floor(viewportWidth - 32)));
+    try {
+      await Promise.all([
+        OBR.popover.setWidth(TRACKER_POPOVER_ID, width),
+        OBR.popover.setHeight(TRACKER_POPOVER_ID, requestedHeight),
+      ]);
+    } catch (error) {
+      if (revision === __compactPopoverResizeRevision) __lastCompactPopoverSize = "";
+      console.warn("[tracker-layout] ridimensionamento compatto fallito:", error?.message || error);
+    }
+  })();
+}
+
+const GROUP_LAYOUT_ANIMATION_MS = 460;
+const GROUP_LAYOUT_STAGGER_MS = 34;
+const GROUP_LAYOUT_MAX_STAGGER_MS = 140;
+const GROUP_LAYOUT_EASING = "cubic-bezier(.45,0,.55,1)";
+const GROUP_CARD_SWAP_FADE_MS = 90;
+let __finishGroupLayoutTransition = null;
+let __activeGroupLayoutSignature = null;
+let __afterGroupLayoutTransition = null;
+
+function __runAfterGroupLayoutTransition(callback) {
+  __afterGroupLayoutTransition = callback;
+  if (__finishGroupLayoutTransition) return;
+  const pending = __afterGroupLayoutTransition;
+  __afterGroupLayoutTransition = null;
+  requestAnimationFrame(() => pending?.());
+}
+
+function __scrollTrackerCardIntoView(card) {
+  if (!(card instanceof HTMLElement)) return;
+  const wrapRect = trackWrap.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  const compact = isCompactTrackerLayout();
+  const wrapCenter = compact
+    ? wrapRect.left + wrapRect.width / 2
+    : wrapRect.top + wrapRect.height / 2;
+  const cardCenter = compact
+    ? cardRect.left + cardRect.width / 2
+    : cardRect.top + cardRect.height / 2;
+  const distance = cardCenter - wrapCenter;
+  const viewportSize = compact ? wrapRect.width : wrapRect.height;
+  const outside = compact
+    ? cardRect.left < wrapRect.left || cardRect.right > wrapRect.right
+    : cardRect.top < wrapRect.top || cardRect.bottom > wrapRect.bottom;
+  if (!outside) return;
+
+  if (Math.abs(distance) > viewportSize * 0.72) {
+    if (compact) trackWrap.scrollLeft += distance;
+    else trackWrap.scrollTop += distance;
+    return;
+  }
+  card.scrollIntoView?.({
+    behavior: "smooth",
+    block: compact ? "nearest" : "center",
+    inline: compact ? "center" : "nearest",
+  });
+}
+
+function __groupLayoutSignature(nodes) {
+  const layout = isCompactTrackerLayout() ? "compact" : "classic";
+  return `${layout}:${nodes
+    .filter((node) => node instanceof HTMLElement && node.dataset.trackerCard === "1")
+    .map((node) => `${node.dataset.groupKey || ""}:${node.dataset.itemId || ""}:${node.dataset.groupCollapsed || "0"}`)
+    .join("|")}`;
+}
+
+function __groupAccordionFrames(dx, dy, baseTransform = "none") {
+  const compact = isCompactTrackerLayout();
+  const axisX = compact ? dx : 0;
+  const axisY = compact ? 0 : dy;
+  const transformSuffix = baseTransform && baseTransform !== "none"
+    ? ` ${baseTransform}`
+    : "";
+  return [
+    { transform: `translate(${axisX}px, ${axisY}px)${transformSuffix}` },
+    { transform: baseTransform || "none" },
+  ];
+}
+
+function __trackerCardsByGroup(nodes) {
+  const groups = new Map();
+  for (const node of nodes) {
+    if (!(node instanceof HTMLElement) || node.dataset.trackerCard !== "1") continue;
+    const key = node.dataset.groupKey;
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(node);
+  }
+  return groups;
+}
+
+function __cardLayoutAnchor(card) {
+  const rect = card.getBoundingClientRect();
+  const width = card.offsetWidth || rect.width;
+  const height = card.offsetHeight || rect.height;
+  return {
+    left: rect.left + (rect.width - width) / 2,
+    top: rect.top + (rect.height - height) / 2,
+  };
+}
+
+function __captureTransitionCard(card) {
+  const rect = card.getBoundingClientRect();
+  return {
+    rect,
+    layoutLeft: card.offsetLeft,
+    layoutTop: card.offsetTop,
+    width: card.offsetWidth || rect.width,
+    height: card.offsetHeight || rect.height,
+    originalStyle: card.getAttribute("style"),
+    baseTransform: card.style.transform || "none",
+  };
+}
+
+function __placeCardInTransitionLayer(card, layer, snapshot = __captureTransitionCard(card)) {
+  const { rect, width, height, originalStyle, baseTransform } = snapshot;
+  const hostRect = trackWrap.getBoundingClientRect();
+  Object.assign(card.style, {
+    position: "absolute",
+    left: `${rect.left - hostRect.left + trackWrap.scrollLeft + (rect.width - width) / 2}px`,
+    top: `${rect.top - hostRect.top + trackWrap.scrollTop + (rect.height - height) / 2}px`,
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    height: `${height}px`,
+    margin: "0",
+    pointerEvents: "none",
+  });
+  layer.appendChild(card);
+  return { card, rect, width, height, originalStyle, baseTransform };
+}
+
+function __placeCardInTrackTransitionLayer(card, layer, snapshot = __captureTransitionCard(card)) {
+  const { rect, width, height, originalStyle, baseTransform } = snapshot;
+  const hostRect = track.getBoundingClientRect();
+  Object.assign(card.style, {
+    position: "absolute",
+    left: `${rect.left - hostRect.left + (rect.width - width) / 2}px`,
+    top: `${rect.top - hostRect.top + (rect.height - height) / 2}px`,
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    height: `${height}px`,
+    margin: "0",
+    pointerEvents: "none",
+  });
+  layer.appendChild(card);
+  return { card, rect, width, height, originalStyle, baseTransform };
+}
+
+function __restoreCardStyle(record) {
+  if (record.originalStyle === null) record.card.removeAttribute("style");
+  else record.card.setAttribute("style", record.originalStyle);
+}
+
+function __replaceTrackCardsAnimatedLegacy(nodes) {
+  const nextNodes = nodes.filter(Boolean);
+  const nextSignature = __groupLayoutSignature(nextNodes);
+  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
+
+  __finishGroupLayoutTransition?.();
+  __finishGroupLayoutTransition = null;
+  __activeGroupLayoutSignature = null;
+
+  const oldCards = Array.from(track.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  const oldGroups = __trackerCardsByGroup(oldCards);
+  const nextGroups = __trackerCardsByGroup(nextNodes);
+  const transitions = [];
+
+  for (const [key, nextCards] of nextGroups) {
+    const previousCards = oldGroups.get(key) || [];
+    const wasCollapsed = previousCards.length === 1 && previousCards[0].dataset.groupCollapsed === "1";
+    const isCollapsed = nextCards.length === 1 && nextCards[0].dataset.groupCollapsed === "1";
+    if (wasCollapsed && nextCards.length > 1) {
+      transitions.push({ key, type: "expand" });
+    } else if (previousCards.length > 1 && isCollapsed) {
+      transitions.push({ key, type: "collapse" });
+    }
+  }
+
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!transitions.length || reducedMotion) {
+    track.replaceChildren(...nextNodes);
+    return;
+  }
+
+  document.querySelectorAll('[data-group-transition-layer="1"]').forEach((layer) => layer.remove());
+  const transitionLayer = document.createElement("div");
+  transitionLayer.dataset.groupTransitionLayer = "1";
+  transitionLayer.className = "tbp-root";
+  Object.assign(transitionLayer.style, {
+    position: "absolute",
+    left: "0",
+    top: "0",
+    width: "0",
+    height: "0",
+    overflow: "visible",
+    pointerEvents: "none",
+    zIndex: "10000",
+    fontFamily: getComputedStyle(container).fontFamily,
+    color: getComputedStyle(container).color,
+  });
+
+  const oldRectsById = new Map();
+  for (const card of oldCards) {
+    oldRectsById.set(card.dataset.itemId, card.getBoundingClientRect());
+  }
+  const expansionAnchors = new Map();
+  const expansionLeadRecords = [];
+  for (const { key, type } of transitions) {
+    if (type !== "expand") continue;
+    const lead = oldGroups.get(key)?.[0];
+    if (!lead) continue;
+    expansionAnchors.set(key, __cardLayoutAnchor(lead));
+    const snapshot = __captureTransitionCard(lead);
+    const visualCopy = lead.cloneNode(true);
+    visualCopy.removeAttribute("id");
+    expansionLeadRecords.push({
+      ...__placeCardInTransitionLayer(visualCopy, transitionLayer, snapshot),
+      key,
+    });
+  }
+
+  const collapseLeadRecords = [];
+  const collapseRecords = [];
+  for (const { key, type } of transitions) {
+    if (type !== "collapse") continue;
+    const oldGroup = oldGroups.get(key) || [];
+    const snapshots = oldGroup.map((card) => ({
+      card,
+      snapshot: __captureTransitionCard(card),
+    })).sort((a, b) => isCompactTrackerLayout()
+      ? a.snapshot.rect.left - b.snapshot.rect.left
+      : a.snapshot.rect.top - b.snapshot.rect.top
+    );
+    const leadRecord = snapshots[0];
+    if (leadRecord) {
+      collapseLeadRecords.push({
+        card: leadRecord.card,
+        ...leadRecord.snapshot,
+        key,
+        finalLead: null,
+        finalLeadOriginalStyle: null,
+        finalLeadOpacity: "1",
+      });
+    }
+    const closingCards = snapshots.slice(1);
+    closingCards.forEach(({ card, snapshot }, index) => {
+      const placedCard = {
+        ...__placeCardInTransitionLayer(card, transitionLayer, snapshot),
+        key,
+        index,
+        count: closingCards.length,
+      };
+      placedCard.card.style.zIndex = String(900 - index);
+      placedCard.card.style.backgroundColor = "rgb(31, 39, 51)";
+      collapseRecords.push(placedCard);
+    });
+  }
+
+  const transitionScrollLeft = trackWrap.scrollLeft;
+  const transitionScrollTop = trackWrap.scrollTop;
+  track.replaceChildren(...nextNodes);
+  const renderedGroups = __trackerCardsByGroup(nextNodes);
+  const collapseAnchors = new Map();
+  const collapseSpacerRecords = [];
+  for (const { key, type } of transitions) {
+    if (type !== "collapse") continue;
+    const lead = renderedGroups.get(key)?.[0];
+    const leadRecord = collapseLeadRecords.find((record) => record.key === key);
+    if (!lead || !leadRecord) continue;
+
+    leadRecord.finalLead = lead;
+    leadRecord.finalLeadOriginalStyle = lead.getAttribute("style");
+    leadRecord.finalLeadOpacity = lead.style.opacity || "1";
+    lead.replaceWith(leadRecord.card);
+    leadRecord.card.style.zIndex = "10001";
+    Object.assign(lead.style, {
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      minWidth: "100%",
+      maxWidth: "100%",
+      height: "100%",
+      margin: "0",
+      pointerEvents: "none",
+      zIndex: "10002",
+    });
+    leadRecord.card.appendChild(lead);
+
+    let insertionPoint = leadRecord.card;
+    const records = collapseRecords.filter((record) => record.key === key);
+    for (const record of records) {
+      const spacer = document.createElement("div");
+      spacer.dataset.groupTransitionPlaceholder = "1";
+      spacer.setAttribute("aria-hidden", "true");
+      Object.assign(spacer.style, {
+        boxSizing: "border-box",
+        flex: `0 0 ${isCompactTrackerLayout() ? record.width : record.height}px`,
+        width: `${record.width}px`,
+        minWidth: isCompactTrackerLayout() ? `${record.width}px` : "0",
+        height: `${record.height}px`,
+        minHeight: isCompactTrackerLayout() ? "0" : `${record.height}px`,
+        pointerEvents: "none",
+        visibility: "hidden",
+      });
+      insertionPoint.after(spacer);
+      insertionPoint = spacer;
+      collapseSpacerRecords.push({
+        spacer,
+        key,
+        index: record.index,
+        count: record.count,
+        size: isCompactTrackerLayout() ? record.width : record.height,
+      });
+    }
+  }
+
+  // replaceChildren puÃ² ridurre temporaneamente lo scrollHeight e forzare un
+  // clamp dello scroll. Ripristiniamo il viewport dopo aver rimesso gli spacer.
+  trackWrap.scrollLeft = transitionScrollLeft;
+  trackWrap.scrollTop = transitionScrollTop;
+  for (const record of collapseLeadRecords) {
+    if (record.card.isConnected) {
+      collapseAnchors.set(record.key, __cardLayoutAnchor(record.card));
+    }
+  }
+
+  const expansionRecords = [];
+  for (const { key, type } of transitions) {
+    if (type !== "expand") continue;
+    const openingCards = (renderedGroups.get(key) || []).slice(1);
+    openingCards.forEach((card, index) => {
+      const placeholder = document.createElement("div");
+      placeholder.dataset.groupTransitionPlaceholder = "1";
+      placeholder.setAttribute("aria-hidden", "true");
+      placeholder.style.cssText = card.style.cssText;
+      placeholder.style.visibility = "hidden";
+      placeholder.style.pointerEvents = "none";
+      const snapshot = __captureTransitionCard(card);
+      card.replaceWith(placeholder);
+      expansionRecords.push({
+        ...__placeCardInTransitionLayer(card, transitionLayer, snapshot),
+        key,
+        index,
+        count: openingCards.length,
+        placeholder,
+      });
+    });
+  }
+
+  const movingCards = new Set([
+    ...expansionRecords.map(({ card }) => card),
+    ...collapseLeadRecords.map(({ finalLead }) => finalLead).filter(Boolean),
+  ]);
+  for (const card of nextNodes) {
+    if (!(card instanceof HTMLElement) || movingCards.has(card) || !card.isConnected) continue;
+    const oldRect = oldRectsById.get(card.dataset.itemId);
+    if (!oldRect) continue;
+    const finalRect = card.getBoundingClientRect();
+    const dx = oldRect.left - finalRect.left;
+    const dy = oldRect.top - finalRect.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+    card.animate?.(__groupAccordionFrames(
+      dx,
+      dy,
+      card.style.transform || "none"
+    ), {
+      duration: GROUP_LAYOUT_ANIMATION_MS,
+      easing: GROUP_LAYOUT_EASING,
+      fill: "backwards",
+    });
+  }
+
+  const hasOverlayCards = expansionRecords.length > 0 || expansionLeadRecords.length > 0 || collapseRecords.length > 0;
+  if (hasOverlayCards) trackWrap.appendChild(transitionLayer);
+
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    for (const record of expansionRecords) {
+      __restoreCardStyle(record);
+      if (record.placeholder.isConnected) record.placeholder.replaceWith(record.card);
+    }
+    for (const record of collapseSpacerRecords) record.spacer.remove();
+    for (const record of collapseLeadRecords) {
+      if (!record.finalLead) continue;
+      if (record.finalLeadOriginalStyle === null) record.finalLead.removeAttribute("style");
+      else record.finalLead.setAttribute("style", record.finalLeadOriginalStyle);
+      if (record.card.isConnected) record.card.replaceWith(record.finalLead);
+    }
+    transitionLayer.remove();
+    if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
+    if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
+    const afterTransition = __afterGroupLayoutTransition;
+    __afterGroupLayoutTransition = null;
+    if (afterTransition) {
+      requestAnimationFrame(() => {
+        if (__finishGroupLayoutTransition) __afterGroupLayoutTransition = afterTransition;
+        else afterTransition();
+      });
+    }
+  };
+  __finishGroupLayoutTransition = finish;
+  __activeGroupLayoutSignature = nextSignature;
+
+  requestAnimationFrame(() => {
+    if (finished) return;
+    for (const record of expansionLeadRecords) {
+      record.card.animate?.([
+        { opacity: 1 },
+        { opacity: 0 },
+      ], {
+        duration: GROUP_CARD_SWAP_FADE_MS,
+        easing: "ease-out",
+        fill: "forwards",
+      });
+    }
+
+    for (const record of expansionRecords) {
+      const anchor = expansionAnchors.get(record.key);
+      if (!anchor) continue;
+      const dx = anchor.left - record.rect.left;
+      const dy = anchor.top - record.rect.top;
+      record.card.animate?.(__groupAccordionFrames(
+        dx,
+        dy,
+        record.baseTransform
+      ), {
+        duration: GROUP_LAYOUT_ANIMATION_MS,
+        delay: Math.min(record.index * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
+        easing: GROUP_LAYOUT_EASING,
+        fill: "backwards",
+      });
+    }
+
+    for (const record of collapseRecords) {
+      const anchor = collapseAnchors.get(record.key);
+      if (!anchor) continue;
+      const dx = anchor.left - record.rect.left;
+      const dy = anchor.top - record.rect.top;
+      const reverseDelay = Math.min(
+        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
+        GROUP_LAYOUT_MAX_STAGGER_MS
+      );
+      record.card.animate?.(__groupAccordionFrames(
+        dx,
+        dy,
+        record.baseTransform
+      ), {
+        duration: GROUP_LAYOUT_ANIMATION_MS,
+        delay: reverseDelay,
+        easing: GROUP_LAYOUT_EASING,
+        direction: "reverse",
+        fill: "both",
+      });
+    }
+
+    for (const record of collapseSpacerRecords) {
+      const reverseDelay = Math.min(
+        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
+        GROUP_LAYOUT_MAX_STAGGER_MS
+      );
+      const compact = isCompactTrackerLayout();
+      if (!compact) continue;
+      record.spacer.animate?.([
+        { flexBasis: `${record.size}px`, width: `${record.size}px`, minWidth: `${record.size}px`, marginRight: "0" },
+        { flexBasis: "0px", width: "0px", minWidth: "0px", marginRight: `-${parseFloat(getComputedStyle(track).gap) || 0}px` },
+      ], {
+        duration: GROUP_LAYOUT_ANIMATION_MS,
+        delay: reverseDelay,
+        easing: GROUP_LAYOUT_EASING,
+        fill: "forwards",
+      });
+    }
+
+    const collapseFadeDelay = GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS - GROUP_CARD_SWAP_FADE_MS;
+    for (const record of collapseLeadRecords) {
+      const lead = record.finalLead;
+      if (!lead) continue;
+      lead.animate?.([
+        { opacity: 0 },
+        { opacity: Number.parseFloat(record.finalLeadOpacity) || 1 },
+      ], {
+        duration: GROUP_CARD_SWAP_FADE_MS,
+        delay: collapseFadeDelay,
+        easing: "ease-out",
+        fill: "backwards",
+      });
+    }
+
+    window.setTimeout(
+      finish,
+      GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS + 80
+    );
+  });
+}
+function __replaceTrackCardsAnimatedFLIP(nodes) {
+  const compact = isCompactTrackerLayout();
+  const nextNodes = nodes.filter(Boolean);
+  const nextSignature = __groupLayoutSignature(nextNodes);
+  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
+
+  __finishGroupLayoutTransition?.();
+  __finishGroupLayoutTransition = null;
+  __activeGroupLayoutSignature = null;
+
+  const oldCards = Array.from(track.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  const oldGroups = __trackerCardsByGroup(oldCards);
+  const nextGroups = __trackerCardsByGroup(nextNodes);
+  const transitions = [];
+
+  for (const [key, nextCards] of nextGroups) {
+    const previousCards = oldGroups.get(key) || [];
+    const wasCollapsed = previousCards.length === 1 && previousCards[0].dataset.groupCollapsed === "1";
+    const isCollapsed = nextCards.length === 1 && nextCards[0].dataset.groupCollapsed === "1";
+    if (wasCollapsed && nextCards.length > 1) transitions.push({ key, type: "expand" });
+    else if (previousCards.length > 1 && isCollapsed) transitions.push({ key, type: "collapse" });
+  }
+
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!transitions.length || reducedMotion) {
+    track.replaceChildren(...nextNodes);
+    return;
+  }
+
+  document.querySelectorAll('[data-group-transition-layer="1"]').forEach((layer) => layer.remove());
+  const transitionLayer = document.createElement("div");
+  transitionLayer.dataset.groupTransitionLayer = "1";
+  transitionLayer.className = "tbp-root";
+  Object.assign(transitionLayer.style, {
+    position: "absolute",
+    left: "0",
+    top: "0",
+    width: "0",
+    height: "0",
+    overflow: "visible",
+    pointerEvents: "none",
+    zIndex: "10000",
+    fontFamily: getComputedStyle(container).fontFamily,
+    color: getComputedStyle(container).color,
+  });
+
+  const oldSnapshotsById = new Map(oldCards.map((card) => [
+    card.dataset.itemId,
+    __captureTransitionCard(card),
+  ]));
+  const expansionRecords = [];
+  const collapseLeadRecords = [];
+  const collapseCardRecords = [];
+
+  for (const { key, type } of transitions) {
+    const oldGroup = (oldGroups.get(key) || [])
+      .map((card) => ({ card, snapshot: oldSnapshotsById.get(card.dataset.itemId) }))
+      .filter(({ snapshot }) => !!snapshot)
+      .sort((a, b) => compact
+        ? a.snapshot.rect.left - b.snapshot.rect.left
+        : a.snapshot.rect.top - b.snapshot.rect.top
+      );
+    const leadRecord = oldGroup[0];
+    if (!leadRecord) continue;
+
+    const leadCopy = leadRecord.card.cloneNode(true);
+    leadCopy.removeAttribute("id");
+    const placedLead = {
+      ...__placeCardInTrackTransitionLayer(leadCopy, transitionLayer, leadRecord.snapshot),
+      key,
+    };
+
+    if (type === "expand") {
+      expansionRecords.push(placedLead);
+      continue;
+    }
+
+    placedLead.card.style.zIndex = "1000";
+    placedLead.card.style.backgroundColor = "rgb(31, 39, 51)";
+    collapseLeadRecords.push(placedLead);
+    const closing = oldGroup.slice(1);
+    closing.forEach(({ card, snapshot }, index) => {
+      const visualCopy = card.cloneNode(true);
+      visualCopy.removeAttribute("id");
+      const placedCard = {
+        ...__placeCardInTrackTransitionLayer(visualCopy, transitionLayer, snapshot),
+        key,
+        index,
+        count: closing.length,
+      };
+      placedCard.card.style.zIndex = String(900 - index);
+      placedCard.card.style.backgroundColor = "rgb(31, 39, 51)";
+      collapseCardRecords.push(placedCard);
+    });
+  }
+
+  const transitionScrollLeft = trackWrap.scrollLeft;
+  const transitionScrollTop = trackWrap.scrollTop;
+  track.replaceChildren(...nextNodes);
+  const maxScrollLeft = Math.max(0, trackWrap.scrollWidth - trackWrap.clientWidth);
+  const maxScrollTop = Math.max(0, trackWrap.scrollHeight - trackWrap.clientHeight);
+  const nextScrollLeft = Math.min(transitionScrollLeft, maxScrollLeft);
+  const nextScrollTop = Math.min(transitionScrollTop, maxScrollTop);
+  trackWrap.scrollLeft = nextScrollLeft;
+  trackWrap.scrollTop = nextScrollTop;
+
+  const renderedGroups = __trackerCardsByGroup(nextNodes);
+  const collapseFinalRecords = [];
+  const expansionOpeningCards = new Set();
+  for (const { key, type } of transitions) {
+    const rendered = renderedGroups.get(key) || [];
+    if (type === "collapse") {
+      const finalLead = rendered[0];
+      if (!finalLead) continue;
+      collapseFinalRecords.push({
+        key,
+        card: finalLead,
+        visibility: finalLead.style.visibility,
+        opacity: finalLead.style.opacity || "1",
+      });
+      finalLead.style.visibility = "hidden";
+    } else {
+      for (const card of rendered.slice(1)) expansionOpeningCards.add(card);
+    }
+  }
+
+  const animations = [];
+  const play = (element, frames, options) => {
+    const animation = element.animate?.(frames, options);
+    if (animation) animations.push(animation);
+    return animation;
+  };
+
+  const collapseFinalCards = new Set(collapseFinalRecords.map(({ card }) => card));
+  for (const card of nextNodes) {
+    if (!(card instanceof HTMLElement) || !card.isConnected) continue;
+    if (collapseFinalCards.has(card) || expansionOpeningCards.has(card)) continue;
+    const oldSnapshot = oldSnapshotsById.get(card.dataset.itemId);
+    if (!oldSnapshot) continue;
+    const finalRect = card.getBoundingClientRect();
+    const dx = oldSnapshot.rect.left - finalRect.left;
+    const dy = oldSnapshot.rect.top - finalRect.top;
+    const axisDelta = compact ? dx : dy;
+    if (Math.abs(axisDelta) < 0.5) continue;
+    play(card, __groupAccordionFrames(dx, dy, card.style.transform || "none"), {
+      duration: GROUP_LAYOUT_ANIMATION_MS,
+      easing: GROUP_LAYOUT_EASING,
+      fill: "backwards",
+    });
+  }
+
+  track.appendChild(transitionLayer);
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    for (const animation of animations) animation.cancel?.();
+    for (const record of collapseFinalRecords) record.card.style.visibility = record.visibility;
+    transitionLayer.remove();
+    if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
+    if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
+    const afterTransition = __afterGroupLayoutTransition;
+    __afterGroupLayoutTransition = null;
+    if (afterTransition) {
+      requestAnimationFrame(() => {
+        if (__finishGroupLayoutTransition) __afterGroupLayoutTransition = afterTransition;
+        else afterTransition();
+      });
+    }
+  };
+  __finishGroupLayoutTransition = finish;
+  __activeGroupLayoutSignature = nextSignature;
+
+  requestAnimationFrame(() => {
+    if (finished) return;
+
+    for (const record of expansionRecords) {
+      const anchorRect = record.card.getBoundingClientRect();
+      play(record.card, [{ opacity: 1 }, { opacity: 0 }], {
+        duration: GROUP_CARD_SWAP_FADE_MS,
+        easing: "ease-out",
+        fill: "forwards",
+      });
+      const openingCards = (renderedGroups.get(record.key) || []).slice(1);
+      openingCards.forEach((card, index) => {
+        const finalRect = card.getBoundingClientRect();
+        play(card, __groupAccordionFrames(
+          anchorRect.left - finalRect.left,
+          anchorRect.top - finalRect.top,
+          card.style.transform || "none"
+        ), {
+          duration: GROUP_LAYOUT_ANIMATION_MS,
+          delay: Math.min(index * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
+          easing: GROUP_LAYOUT_EASING,
+          fill: "backwards",
+        });
+      });
+    }
+
+    for (const record of collapseCardRecords) {
+      const anchor = collapseLeadRecords.find(({ key }) => key === record.key);
+      if (!anchor) continue;
+      const anchorRect = anchor.card.getBoundingClientRect();
+      const cardRect = record.card.getBoundingClientRect();
+      const reverseDelay = Math.min(
+        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
+        GROUP_LAYOUT_MAX_STAGGER_MS
+      );
+      play(record.card, __groupAccordionFrames(
+        anchorRect.left - cardRect.left,
+        anchorRect.top - cardRect.top,
+        record.baseTransform
+      ), {
+        duration: GROUP_LAYOUT_ANIMATION_MS,
+        delay: reverseDelay,
+        easing: GROUP_LAYOUT_EASING,
+        direction: "reverse",
+        fill: "both",
+      });
+    }
+
+    const collapseFadeDelay = GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS - GROUP_CARD_SWAP_FADE_MS;
+    for (const record of collapseLeadRecords) {
+      play(record.card, [{ opacity: 1 }, { opacity: 0 }], {
+        duration: GROUP_CARD_SWAP_FADE_MS,
+        delay: collapseFadeDelay,
+        easing: "ease-out",
+        fill: "forwards",
+      });
+      const finalRecord = collapseFinalRecords.find(({ key }) => key === record.key);
+      if (!finalRecord) continue;
+      finalRecord.card.style.visibility = "";
+      play(finalRecord.card, [
+        { opacity: 0 },
+        { opacity: Number.parseFloat(finalRecord.opacity) || 1 },
+      ], {
+        duration: GROUP_CARD_SWAP_FADE_MS,
+        delay: collapseFadeDelay,
+        easing: "ease-out",
+        fill: "backwards",
+      });
+    }
+
+    window.setTimeout(
+      finish,
+      GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS + 80
+    );
+  });
+}
+
+function __replaceTrackCardsMagnetic(nodes) {
+  const compact = isCompactTrackerLayout();
+  const nextNodes = nodes.filter(Boolean);
+  const nextSignature = __groupLayoutSignature(nextNodes);
+  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
+
+  __finishGroupLayoutTransition?.();
+  __finishGroupLayoutTransition = null;
+  __activeGroupLayoutSignature = null;
+
+  const oldCards = Array.from(track.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  const oldGroups = __trackerCardsByGroup(oldCards);
+  const nextGroups = __trackerCardsByGroup(nextNodes);
+  const transitions = [];
+  for (const [key, nextCards] of nextGroups) {
+    const previousCards = oldGroups.get(key) || [];
+    const wasCollapsed = previousCards.length === 1 && previousCards[0].dataset.groupCollapsed === "1";
+    const isCollapsed = nextCards.length === 1 && nextCards[0].dataset.groupCollapsed === "1";
+    if (wasCollapsed && nextCards.length > 1) transitions.push({ key, type: "expand" });
+    else if (previousCards.length > 1 && isCollapsed) transitions.push({ key, type: "collapse" });
+  }
+
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!transitions.length || reducedMotion) {
+    track.replaceChildren(...nextNodes);
+    return;
+  }
+
+  const scrollLeftBefore = trackWrap.scrollLeft;
+  const scrollTopBefore = trackWrap.scrollTop;
+  const oldSnapshots = new Map(oldCards.map((card) => [card.dataset.itemId, __captureTransitionCard(card)]));
+  track.replaceChildren(...nextNodes);
+  const renderedGroups = __trackerCardsByGroup(nextNodes);
+  const finalSnapshots = new Map(nextNodes
+    .filter((card) => card instanceof HTMLElement && card.dataset.trackerCard === "1")
+    .map((card) => [card.dataset.itemId, __captureTransitionCard(card)]));
+  const promotedCards = nextNodes
+    .filter((card) => card instanceof HTMLElement && card.dataset.trackerCard === "1")
+    .map((card) => ({
+      card,
+      willChange: card.style.willChange,
+      backfaceVisibility: card.style.backfaceVisibility,
+    }));
+  for (const { card } of promotedCards) {
+    card.style.willChange = "transform";
+    card.style.backfaceVisibility = "hidden";
+  }
+  const stages = [];
+
+  const setAbsoluteCard = (card, snapshot, firstSnapshot, stageWidth, stageHeight) => {
+    const offset = compact
+      ? snapshot.rect.left - firstSnapshot.rect.left
+      : snapshot.layoutTop - firstSnapshot.layoutTop;
+    Object.assign(card.style, {
+      position: "absolute",
+      left: compact
+        ? `${offset}px`
+        : `${snapshot.layoutLeft - firstSnapshot.layoutLeft}px`,
+      top: compact ? `${(stageHeight - snapshot.height) / 2}px` : `${offset}px`,
+      width: `${snapshot.width}px`,
+      minWidth: `${snapshot.width}px`,
+      maxWidth: `${snapshot.width}px`,
+      height: `${snapshot.height}px`,
+      margin: "0",
+      pointerEvents: "none",
+      transition: "none",
+      willChange: "transform, opacity",
+      backfaceVisibility: "hidden",
+    });
+    return offset;
+  };
+
+  for (const { key, type } of transitions) {
+    const oldGroup = (oldGroups.get(key) || [])
+      .map((card) => ({ card, snapshot: oldSnapshots.get(card.dataset.itemId) }))
+      .filter(({ snapshot }) => !!snapshot)
+      .sort((a, b) => compact
+        ? a.snapshot.rect.left - b.snapshot.rect.left
+        : a.snapshot.rect.top - b.snapshot.rect.top
+      );
+    const rendered = (renderedGroups.get(key) || [])
+      .map((card) => ({ card, snapshot: finalSnapshots.get(card.dataset.itemId) }))
+      .filter(({ snapshot }) => !!snapshot)
+      .sort((a, b) => compact
+        ? a.snapshot.rect.left - b.snapshot.rect.left
+        : a.snapshot.rect.top - b.snapshot.rect.top
+      );
+    if (!oldGroup.length || !rendered.length) continue;
+
+    const stage = document.createElement("div");
+    stage.dataset.groupTransitionStage = "1";
+    const source = type === "collapse" ? oldGroup : rendered;
+    const firstSnapshot = source[0].snapshot;
+    const firstRect = firstSnapshot.rect;
+    const lastRecord = source[source.length - 1];
+    const expandedSize = compact
+      ? lastRecord.snapshot.rect.right - firstRect.left
+      : lastRecord.snapshot.layoutTop + lastRecord.snapshot.height - firstSnapshot.layoutTop;
+    const motherSize = compact
+      ? (type === "collapse" ? rendered[0].snapshot.width : oldGroup[0].snapshot.width)
+      : (type === "collapse" ? rendered[0].snapshot.height : oldGroup[0].snapshot.height);
+    const stageWidth = compact
+      ? (type === "collapse" ? expandedSize : expandedSize)
+      : Math.max(...source.map(({ snapshot }) => snapshot.width));
+    const stageHeight = compact
+      ? Math.max(...source.map(({ snapshot }) => snapshot.height))
+      : (type === "collapse" ? expandedSize : expandedSize);
+    const initialSize = type === "collapse" ? expandedSize : motherSize;
+    const finalSize = type === "collapse" ? motherSize : expandedSize;
+    Object.assign(stage.style, {
+      position: "relative",
+      flex: `0 0 ${initialSize}px`,
+      width: `${compact ? initialSize : stageWidth}px`,
+      minWidth: `${compact ? initialSize : stageWidth}px`,
+      height: `${compact ? stageHeight : initialSize}px`,
+      minHeight: `${compact ? stageHeight : initialSize}px`,
+      alignSelf: "center",
+      overflow: "visible",
+      boxSizing: "border-box",
+      zIndex: "2",
+      contain: "layout style",
+      willChange: "flex-basis",
+      marginLeft: compact ? "0" : (source[0].card.style.marginLeft || "0"),
+      marginRight: compact ? "0" : (source[0].card.style.marginRight || "0"),
+    });
+
+    const movingRecords = [];
+    let finalCards = [];
+    let finalLead = null;
+    let finalLeadStyle = null;
+    let swapVisual = null;
+
+    if (type === "collapse") {
+      finalLead = rendered[0].card;
+      finalLeadStyle = finalLead.getAttribute("style");
+      finalLead.replaceWith(stage);
+      oldGroup.forEach(({ card, snapshot }, index) => {
+        const visual = card;
+        visual.removeAttribute("id");
+        const offset = setAbsoluteCard(visual, snapshot, firstSnapshot, stageWidth, stageHeight);
+        visual.style.zIndex = index === 0 ? "1000" : String(900 - index);
+        visual.style.backgroundColor = "rgb(31, 39, 51)";
+        stage.appendChild(visual);
+        if (index === 0) swapVisual = visual;
+        else movingRecords.push({ card: visual, offset, baseTransform: snapshot.baseTransform, index: index - 1, count: oldGroup.length - 1 });
+      });
+      const finalSnapshot = rendered[0].snapshot;
+      setAbsoluteCard(finalLead, finalSnapshot, finalSnapshot, stageWidth, stageHeight);
+      finalLead.style.left = compact ? "0" : `${(stageWidth - finalSnapshot.width) / 2}px`;
+      finalLead.style.top = compact ? `${(stageHeight - finalSnapshot.height) / 2}px` : "0";
+      finalLead.style.visibility = "hidden";
+      finalLead.style.zIndex = "1001";
+      stage.appendChild(finalLead);
+      finalCards = [finalLead];
+    } else {
+      const firstCard = rendered[0].card;
+      firstCard.replaceWith(stage);
+      for (const { card, snapshot } of rendered) {
+        const originalStyle = card.getAttribute("style");
+        const offset = setAbsoluteCard(card, snapshot, firstSnapshot, stageWidth, stageHeight);
+        card.style.zIndex = card === firstCard ? "1000" : "800";
+        stage.appendChild(card);
+        movingRecords.push({ card, offset, baseTransform: snapshot.baseTransform, originalStyle, index: movingRecords.length, count: rendered.length });
+      }
+      const oldLead = oldGroup[0];
+      swapVisual = oldLead.card;
+      swapVisual.removeAttribute("id");
+      setAbsoluteCard(swapVisual, oldLead.snapshot, oldLead.snapshot, stageWidth, stageHeight);
+      swapVisual.style.left = compact ? "0" : `${(stageWidth - oldLead.snapshot.width) / 2}px`;
+      swapVisual.style.top = compact ? `${(stageHeight - oldLead.snapshot.height) / 2}px` : "0";
+      swapVisual.style.zIndex = "1001";
+      stage.appendChild(swapVisual);
+      finalCards = rendered.map(({ card }) => card);
+    }
+
+    const maxStaggerSteps = Math.max(
+      0,
+      movingRecords.length - (type === "expand" ? 2 : 1)
+    );
+    const transitionDuration = GROUP_LAYOUT_ANIMATION_MS + Math.min(
+      maxStaggerSteps * GROUP_LAYOUT_STAGGER_MS,
+      GROUP_LAYOUT_MAX_STAGGER_MS
+    );
+    stages.push({
+      key,
+      type,
+      stage,
+      initialSize,
+      finalSize,
+      stageWidth,
+      stageHeight,
+      movingRecords,
+      finalCards,
+      finalLead,
+      finalLeadStyle,
+      finalLeadOpacity: finalLead?.style.opacity || "1",
+      swapVisual,
+      transitionDuration,
+    });
+  }
+
+  trackWrap.scrollLeft = Math.min(scrollLeftBefore, Math.max(0, trackWrap.scrollWidth - trackWrap.clientWidth));
+  trackWrap.scrollTop = Math.min(scrollTopBefore, Math.max(0, trackWrap.scrollHeight - trackWrap.clientHeight));
+
+  const animations = [];
+  const play = (element, frames, options) => {
+    const animation = element.animate?.(frames, options);
+    if (animation) animations.push(animation);
+    return animation;
+  };
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    for (const animation of animations) animation.cancel?.();
+    for (const record of stages) {
+      if (record.type === "collapse") {
+        if (!record.finalLead) continue;
+        if (record.finalLeadStyle === null) record.finalLead.removeAttribute("style");
+        else record.finalLead.setAttribute("style", record.finalLeadStyle);
+        if (record.stage.isConnected) record.stage.replaceWith(record.finalLead);
+      } else {
+        for (const moving of record.movingRecords) {
+          if (moving.originalStyle === null) moving.card.removeAttribute("style");
+          else moving.card.setAttribute("style", moving.originalStyle);
+        }
+        if (record.stage.isConnected) record.stage.replaceWith(...record.finalCards);
+      }
+    }
+    for (const promoted of promotedCards) {
+      promoted.card.style.willChange = promoted.willChange;
+      promoted.card.style.backfaceVisibility = promoted.backfaceVisibility;
+    }
+    if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
+    if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
+    const afterTransition = __afterGroupLayoutTransition;
+    __afterGroupLayoutTransition = null;
+    if (afterTransition) requestAnimationFrame(() => afterTransition());
+  };
+  __finishGroupLayoutTransition = finish;
+  __activeGroupLayoutSignature = nextSignature;
+
+  requestAnimationFrame(() => {
+    if (finished) return;
+    for (const record of stages) {
+      const compactFrames = [
+        { flexBasis: `${record.initialSize}px`, width: `${record.initialSize}px`, minWidth: `${record.initialSize}px` },
+        { flexBasis: `${record.finalSize}px`, width: `${record.finalSize}px`, minWidth: `${record.finalSize}px` },
+      ];
+      const classicFrames = [
+        { flexBasis: `${record.initialSize}px`, height: `${record.initialSize}px`, minHeight: `${record.initialSize}px` },
+        { flexBasis: `${record.finalSize}px`, height: `${record.finalSize}px`, minHeight: `${record.finalSize}px` },
+      ];
+      play(record.stage, compact ? compactFrames : classicFrames, {
+        duration: record.transitionDuration,
+        easing: GROUP_LAYOUT_EASING,
+        fill: "forwards",
+      });
+
+      for (const moving of record.movingRecords) {
+        if (record.type === "collapse") {
+          const reverseDelay = Math.min(
+            Math.max(0, moving.count - 1 - moving.index) * GROUP_LAYOUT_STAGGER_MS,
+            GROUP_LAYOUT_MAX_STAGGER_MS
+          );
+          play(moving.card, __groupAccordionFrames(
+            compact ? -moving.offset : 0,
+            compact ? 0 : -moving.offset,
+            moving.baseTransform
+          ), {
+            duration: GROUP_LAYOUT_ANIMATION_MS,
+            delay: reverseDelay,
+            easing: GROUP_LAYOUT_EASING,
+            direction: "reverse",
+            fill: "both",
+          });
+        } else if (moving.offset > 0) {
+          play(moving.card, __groupAccordionFrames(
+            compact ? -moving.offset : 0,
+            compact ? 0 : -moving.offset,
+            moving.baseTransform
+          ), {
+            duration: GROUP_LAYOUT_ANIMATION_MS,
+            delay: Math.min(Math.max(0, moving.index - 1) * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
+            easing: GROUP_LAYOUT_EASING,
+            fill: "backwards",
+          });
+        }
+      }
+
+      if (record.type === "expand") {
+        play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
+          duration: GROUP_CARD_SWAP_FADE_MS,
+          easing: "ease-out",
+          fill: "forwards",
+        });
+      } else {
+        const fadeDelay = record.transitionDuration - GROUP_CARD_SWAP_FADE_MS;
+        play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
+          duration: GROUP_CARD_SWAP_FADE_MS,
+          delay: fadeDelay,
+          easing: "ease-out",
+          fill: "forwards",
+        });
+        record.finalLead.style.visibility = "";
+        play(record.finalLead, [
+          { opacity: 0 },
+          { opacity: Number.parseFloat(record.finalLeadOpacity) || 1 },
+        ], {
+          duration: GROUP_CARD_SWAP_FADE_MS,
+          delay: fadeDelay,
+          easing: "ease-out",
+          fill: "backwards",
+        });
+      }
+    }
+
+    const totalDuration = stages.reduce(
+      (maximum, record) => Math.max(maximum, record.transitionDuration),
+      GROUP_LAYOUT_ANIMATION_MS
+    );
+    window.setTimeout(finish, totalDuration + 80);
+  });
+}
+
+function __replaceTrackCardsAnimated(nodes) {
+  __replaceTrackCardsMagnetic(nodes);
+}
+
+function compactEntriesForRender(entries, state) {
+  const collapsed = state?.collapsed || {};
+  const groups = new Map();
+  for (const entry of entries) {
+    const key = __groupKey(entry);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(entry);
+  }
+
+  const emitted = new Set();
+  const output = [];
+  for (const entry of entries) {
+    const key = __groupKey(entry);
+    const members = groups.get(key) || [entry];
+    if (members.length > 1 && collapsed[key]) {
+      if (emitted.has(key)) continue;
+      output.push({
+        ...members[0],
+        __groupKey: key,
+        __groupMembers: members.slice(),
+        __groupCollapsed: true,
+        __groupBase: _parseIndexedName(entry.name).base,
+        __groupCount: members.length,
+      });
+      emitted.add(key);
+    } else {
+      output.push(entry);
+    }
+  }
+  return output;
+}
+
+function compactStatusBadge(text, title, tone = "neutral") {
+  const badge = document.createElement("span");
+  badge.textContent = text;
+  badge.title = title;
+  const colors = tone === "concentration"
+    ? { background: "#2563eb", border: "#93c5fd" }
+    : tone === "legendary"
+      ? { background: "#991b1b", border: "#fca5a5" }
+      : { background: "rgba(8,12,21,.92)", border: "rgba(255,255,255,.34)" };
+  Object.assign(badge.style, {
+    minWidth: "17px",
+    height: "17px",
+    boxSizing: "border-box",
+    padding: "0 4px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: `1px solid ${colors.border}`,
+    borderRadius: "999px",
+    background: colors.background,
+    color: "#fff",
+    fontSize: "9px",
+    fontWeight: "850",
+    lineHeight: "1",
+    boxShadow: "0 1px 4px rgba(0,0,0,.55)",
+    whiteSpace: "nowrap",
+  });
+  return badge;
+}
+
+function compactConditionSymbol(instance) {
+  const name = String(instance?.condition || "").trim();
+  const formatted = formatConditionName(name);
+  const symbol = formatted.split(/\s+/)[0];
+  return symbol && symbol !== name ? symbol : "!";
+}
+
+function renderCompactTrack(entries, state) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const activeIndex = Math.max(0, Math.min(order.length - 1, Number(state?.current) || 0));
+  const activeId = order[activeIndex] || null;
+  const activeChanged = !!activeId && activeId !== __lastRenderedActiveId;
+  const visibleEntries = compactEntriesForRender(entries, state);
+
+  track.style.justifyContent = "safe center";
+  const nodes = visibleEntries.map((entry) => {
+    const members = Array.isArray(entry.__groupMembers) && entry.__groupMembers.length
+      ? entry.__groupMembers
+      : [entry];
+    const memberIds = new Set(members.map((member) => member.id));
+    const active = memberIds.has(activeId);
+    const boss = !!entry.isEpic ||
+      Number(entry.paragonActions) > 1 ||
+      Number(entry.legendary?.max) > 0;
+    const virtual = isLairId(entry.id) || isEpicActionId(entry.id);
+    const attitude = String(entry.attitude || "").toLowerCase();
+    const faction = factionColors(attitude);
+    const cardWidth = boss ? 94 : 92;
+    const portraitSize = boss ? 50 : 49;
+    const canSeeHP = IS_GM || attitude === "pc";
+    const hp = Number(entry.hp);
+    const hpMax = Number(entry.hpMax);
+    const hasHP = !virtual && Number.isFinite(hpMax) && hpMax > 0;
+    const showHP = canSeeHP && hasHP;
+    const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;
+    const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;
+    const knockedOut = showHP && safeHP <= 0;
+
+    const card = document.createElement("article");
+    card.dataset.itemId = entry.id;
+    card.dataset.initiative = String(entry.initiative || 0);
+    card.dataset.groupCollapsed = entry.__groupCollapsed ? "1" : "0";
+    card.dataset.groupKey = entry.__groupKey || __groupKey(entry);
+    card.dataset.trackerCard = "1";
+    card.dataset.compactCard = "1";
+    card.dataset.isEpic = entry.isEpic ? "1" : "0";
+    card.__selectionItemIds = __selectionIdsForEntry(entry);
+    const dragAllowed = !(virtual || entry.isEpic);
+    card.setAttribute("draggable", dragAllowed ? "true" : "false");
+    card.setAttribute("aria-label", `${entry.name || "Creatura"}, iniziativa ${entry.initiative ?? 0}`);
+    card.title = virtual
+      ? entry.name
+      : "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
+    Object.assign(card.style, {
+      position: "relative",
+      flex: `0 0 ${cardWidth}px`,
+      width: `${cardWidth}px`,
+      minWidth: `${cardWidth}px`,
+      height: "120px",
+      padding: "3px 5px 2px",
+      boxSizing: "border-box",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      color: "#fff",
+      border: `${active ? 2 : 1}px solid ${rgba(faction.border, active ? .98 : .78)}`,
+      borderRadius: "11px",
+      background: active
+        ? `linear-gradient(155deg, ${rgba(faction.base, .86)}, ${rgba(faction.base, .60)} 56%, rgba(24,31,41,.96))`
+        : `linear-gradient(155deg, ${rgba(faction.base, .50)}, ${rgba(faction.base, .30)} 54%, rgba(20,27,37,.95))`,
+      boxShadow: active
+        ? `0 0 0 2px ${rgba(faction.border, .92)}, 0 0 16px 3px ${rgba(faction.border, .48)}, inset 0 1px 0 rgba(255,255,255,.18)`
+        : `0 4px 10px rgba(0,0,0,.28), inset 0 0 0 1px ${rgba(faction.border, .12)}`,
+      cursor: card.__selectionItemIds.length ? "pointer" : "default",
+      filter: knockedOut ? "saturate(.42) brightness(.72)" : active ? "brightness(1.13)" : "none",
+      opacity: knockedOut ? ".84" : "1",
+      transform: active ? "scale(1.035)" : "scale(1)",
+      transformOrigin: "50% 50%",
+      transition: "transform 160ms ease, filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+      zIndex: active ? "5" : boss ? "3" : "1",
+    });
+    card.__selectionBaseShadow = card.style.boxShadow;
+
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button, [role='button']")) return;
+      event.stopPropagation();
+      void __selectTrackerEntry(entry, event);
+    });
+    card.addEventListener("contextmenu", (event) => {
+      __openInitiativeCardContextMenu(entry, event);
+    });
+
+    const portrait = document.createElement("div");
+    Object.assign(portrait.style, {
+      position: "relative",
+      width: `${portraitSize}px`,
+      height: `${portraitSize}px`,
+      flex: `0 0 ${portraitSize}px`,
+      marginTop: "4px",
+      overflow: "hidden",
+      border: `2px solid ${faction.border}`,
+      borderRadius: "50%",
+      boxSizing: "border-box",
+      background: `linear-gradient(145deg, ${rgba(faction.base, .42)}, rgba(31,39,51,.94))`,
+      boxShadow: active
+        ? `0 0 0 1px ${rgba(faction.border, .92)}, 0 0 9px ${rgba(faction.border, .36)}, 0 3px 9px rgba(0,0,0,.38)`
+        : "0 3px 9px rgba(0,0,0,.38)",
+    });
+
+    if (entry.portrait) {
+      const image = document.createElement("img");
+      image.src = entry.portrait;
+      image.alt = "";
+      Object.assign(image.style, {
+        width: "100%",
+        height: "100%",
+        display: "block",
+        objectFit: "cover",
+        objectPosition: "50% 50%",
+        transform: "scale(1.04)",
+      });
+      portrait.appendChild(image);
+    } else {
+      const fallback = document.createElement("div");
+      fallback.textContent = String(entry.name || "?").slice(0, 1).toUpperCase();
+      Object.assign(fallback.style, {
+        width: "100%",
+        height: "100%",
+        display: "grid",
+        placeItems: "center",
+        fontSize: "23px",
+        fontWeight: "800",
+        background: `linear-gradient(145deg, ${rgba(faction.base, .60)}, rgba(8,12,21,.92))`,
+      });
+      portrait.appendChild(fallback);
+    }
+
+    const initiative = document.createElement("span");
+    initiative.textContent = String(entry.initiative ?? 0);
+    initiative.title = "Iniziativa";
+    Object.assign(initiative.style, {
+      position: "absolute",
+      left: "6px",
+      top: "6px",
+      minWidth: "25px",
+      height: "25px",
+      padding: "0 4px",
+      boxSizing: "border-box",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: `1px solid ${rgba(faction.border, active ? .98 : .78)}`,
+      borderRadius: "999px",
+      background: "rgba(7,11,18,.96)",
+      color: "#fff",
+      fontSize: "11px",
+      fontWeight: "800",
+      boxShadow: "0 2px 6px rgba(0,0,0,.56)",
+      zIndex: "4",
+    });
+    card.appendChild(initiative);
+
+    if (entry.__groupCollapsed && entry.__groupCount > 1) {
+      const count = compactStatusBadge(`x${entry.__groupCount}`, "Gruppo collassato");
+      Object.assign(count.style, {
+        position: "absolute",
+        right: "6px",
+        top: "6px",
+        height: "24px",
+        minWidth: "27px",
+        zIndex: "5",
+      });
+      card.appendChild(count);
+    } else if (entry.isEpicAction || entry.isEpic || isLairId(entry.id)) {
+      const label = compactStatusBadge(
+        entry.isEpicAction ? "EP" : entry.isEpic ? "E" : "L",
+        entry.isEpicAction ? "Azione Epica" : entry.isEpic ? "Boss Epico" : "Azione di Tana",
+        entry.isEpicAction || entry.isEpic ? "legendary" : "neutral"
+      );
+      Object.assign(label.style, {
+        position: "absolute",
+        right: "6px",
+        top: "6px",
+        height: "24px",
+        minWidth: "27px",
+        zIndex: "5",
+      });
+      card.appendChild(label);
+    }
+
+    if (active) {
+      const activeMarker = document.createElement("span");
+      activeMarker.title = "Turno attivo";
+      activeMarker.setAttribute("aria-label", activeMarker.title);
+      Object.assign(activeMarker.style, {
+        position: "absolute",
+        top: "2px",
+        left: "50%",
+        width: "0",
+        height: "0",
+        transform: "translateX(-50%)",
+        borderLeft: "5px solid transparent",
+        borderRight: "5px solid transparent",
+        borderTop: `7px solid ${faction.border}`,
+        zIndex: "6",
+      });
+      card.appendChild(activeMarker);
+    }
+
+    if (knockedOut) {
+      const ko = compactStatusBadge("KO", `Fuori combattimento: 0 / ${hpMax}`);
+      Object.assign(ko.style, {
+        position: "absolute",
+        right: "6px",
+        top: entry.__groupCollapsed && entry.__groupCount > 1 ? "34px" : "6px",
+        height: "21px",
+        zIndex: "6",
+      });
+      card.appendChild(ko);
+    }
+
+
+    const name = document.createElement("div");
+    name.textContent = entry.__groupCollapsed
+      ? `${entry.__groupBase} (Gruppo)`
+      : __safeBaseName(entry.name);
+    name.title = entry.__groupCollapsed
+      ? `${entry.__groupBase} (x${entry.__groupCount})`
+      : entry.name;
+    Object.assign(name.style, {
+      width: "100%",
+      height: "14px",
+      marginTop: "1px",
+      overflow: "hidden",
+      color: active ? "#fff" : "rgba(255,255,255,.90)",
+      fontSize: "9px",
+      fontWeight: active ? "750" : "650",
+      lineHeight: "14px",
+      textAlign: "center",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      textShadow: "0 1px 3px #000",
+    });
+    if (IS_GM && !virtual && !entry.__groupCollapsed) {
+      name.title = "Doppio clic per rinominare il token";
+      name.style.cursor = "text";
+      name.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (card.dataset.renaming === "1") return;
+
+        const originalName = String(entry.name || "").trim();
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = originalName;
+        input.maxLength = 120;
+        input.autocomplete = "off";
+        input.spellcheck = false;
+        Object.assign(input.style, {
+          width: "100%",
+          height: "20px",
+          marginTop: "0",
+          padding: "1px 4px",
+          border: `1px solid ${faction.border}`,
+          borderRadius: "5px",
+          background: "rgba(5,9,15,.97)",
+          color: "#fff",
+          fontSize: "9px",
+          fontWeight: "700",
+          textAlign: "center",
+          outline: "none",
+        });
+
+        card.dataset.renaming = "1";
+        card.draggable = false;
+        name.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let finished = false;
+        const finish = async (save) => {
+          if (finished) return;
+          finished = true;
+          const nextName = input.value.trim();
+          let displayedName = originalName;
+          if (save && nextName && nextName !== originalName) {
+            try {
+              await OBR.scene.items.updateItems([entry.id], (items) => {
+                const item = items[0];
+                __setSceneTokenDisplayName(item, nextName);
+              });
+              displayedName = nextName;
+              entry.name = nextName;
+            } catch (error) {
+              console.warn("[initiative] compact rename token:", error?.message || error);
+            }
+          }
+          name.textContent = __safeBaseName(displayedName);
+          name.title = displayedName;
+          if (input.isConnected) input.replaceWith(name);
+          delete card.dataset.renaming;
+          card.draggable = dragAllowed;
+        };
+
+        input.addEventListener("pointerdown", (event) => event.stopPropagation());
+        input.addEventListener("click", (event) => event.stopPropagation());
+        input.addEventListener("dblclick", (event) => event.stopPropagation());
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void finish(true);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            void finish(false);
+          }
+        });
+        input.addEventListener("blur", () => void finish(true));
+      });
+    }
+
+    const hpText = document.createElement("div");
+    hpText.textContent = showHP
+      ? `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`
+      : "";
+    Object.assign(hpText.style, {
+      display: showHP ? "block" : "none",
+      width: "100%",
+      height: "11px",
+      overflow: "hidden",
+      color: knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)",
+      fontSize: "8px",
+      fontWeight: "650",
+      lineHeight: "11px",
+      textAlign: "center",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+
+    const hpTrack = document.createElement("div");
+    Object.assign(hpTrack.style, {
+      display: showHP ? "block" : "none",
+      width: "calc(100% - 8px)",
+      height: "5px",
+      marginTop: "1px",
+      overflow: "hidden",
+      border: "1px solid rgba(0,0,0,.76)",
+      borderRadius: "999px",
+      background: "rgba(0,0,0,.64)",
+      boxSizing: "border-box",
+    });
+    const hpFill = document.createElement("div");
+    Object.assign(hpFill.style, {
+      width: showHP ? `${hpPercent * 100}%` : "0%",
+      height: "100%",
+      background: knockedOut ? "#475569" : hpColorByPct(hpPercent),
+    });
+    hpTrack.appendChild(hpFill);
+
+    const status = document.createElement("div");
+    Object.assign(status.style, {
+      width: "100%",
+      height: "14px",
+      marginTop: "0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "2px",
+      overflow: "hidden",
+    });
+    const conditionInstances = members.flatMap((member) =>
+      getConditionInstances(member.conditions || {})
+    );
+    const concentrating = members.some((member) => member.isConcentrating);
+    const spellCount = members.reduce((total, member) =>
+      total + (Array.isArray(member.spells) ? member.spells.length : 0), 0
+    );
+    const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
+
+    if (concentrating) {
+      status.appendChild(compactStatusBadge("C", "Concentrazione", "concentration"));
+    }
+    for (const instance of conditionInstances.slice(0, 2)) {
+      status.appendChild(compactStatusBadge(
+        compactConditionSymbol(instance),
+        formatConditionInstance(instance)
+      ));
+    }
+    if (!conditionInstances.length && spellCount > 0 && !concentrating) {
+      status.appendChild(compactStatusBadge("S", `${spellCount} incantesimi attivi`));
+    }
+    if (legendary) {
+      status.appendChild(compactStatusBadge(
+        `L${Math.max(0, Number(legendary.current) || 0)}`,
+        `Azioni leggendarie: ${Math.max(0, Number(legendary.current) || 0)}/${Math.max(0, Number(legendary.max) || 0)}`,
+        "legendary"
+      ));
+    }
+    const represented = Math.min(2, conditionInstances.length);
+    const hiddenCount = Math.max(0, conditionInstances.length - represented) +
+      Math.max(0, spellCount - (concentrating ? 1 : (!conditionInstances.length && spellCount ? 1 : 0)));
+    if (hiddenCount > 0) {
+      status.appendChild(compactStatusBadge(`+${hiddenCount}`, "Altri effetti attivi"));
+    }
+
+    card.append(portrait, name, hpText, hpTrack, status);
+    if (active) card.dataset.active = "1";
+    __applyTrackerSelectionState(card);
+    return card;
+  });
+
+  __replaceTrackCardsAnimated(nodes);
+  resizeCompactTrackerPopover(visibleEntries);
+  updateActiveCardMovementIndicator();
+  if (__scrollActiveOnNextRender || activeChanged) {
+    __scrollActiveOnNextRender = false;
+    __runAfterGroupLayoutTransition(() => {
+      __scrollTrackerCardIntoView(track.querySelector('[data-active="1"]'));
+    });
+  }
+  __lastRenderedActiveId = activeId;
+}
+
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
+    if (isCompactTrackerLayout()) {
+      renderCompactTrack(entries, state);
+      return;
+    }
     const animateActive = !!opts.animateActive;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
@@ -3737,6 +6385,7 @@ for (const e of entries) {
     card.dataset.itemId     = e.id;
     card.dataset.initiative = String(e.initiative || 0);
     card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
+    card.dataset.groupKey = e.__groupKey || __groupKey(e);
     card.dataset.trackerCard = "1";
     card.__selectionItemIds = __selectionIdsForEntry(e);
     card.title = "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
@@ -3755,6 +6404,14 @@ for (const e of entries) {
     const IS_EPIC = !!e.isEpic;
     const IS_BOSS = HAS_LEG || HAS_PAR || IS_EPIC;
 
+    const cardEffectData = __safeConditions(e.conditions);
+    const HAS_CARD_EFFECTS =
+      Object.keys(cardEffectData.flags || {}).length > 0 ||
+      (cardEffectData.custom?.length || 0) > 0 ||
+      (cardEffectData.instances?.length || 0) > 0 ||
+      (Array.isArray(e.spells) && e.spells.length > 0) ||
+      !!e.isConcentrating;
+
     const DRAG_OK = !(isLairId(e.id) || isEpicActionId(e.id) || IS_EPIC);
     card.setAttribute("draggable", DRAG_OK ? "true" : "false");
     card.dataset.isEpicAction = e.isEpicAction ? "1" : "0";
@@ -3769,20 +6426,19 @@ for (const e of entries) {
 
     // base card (tuo background neutro)
     card.style.position = "relative";
-    card.style.marginLeft = "22px"; // spazio per i controlli radiali sul bordo del ritratto
-    card.style.background = "linear-gradient(180deg, rgba(12,16,22,.65), rgba(12,16,22,.35))";
+    card.style.marginLeft = "20px"; // spazio per il ritratto e i controlli radiali
+    card.style.background = `linear-gradient(105deg, ${rgba(c.base, .38)} 0%, ${rgba(c.base, .16)} 58%, rgba(31,39,51,.94) 100%)`;
     card.style.border = "none";
-    card.style.borderRadius = `${R_INNER}px`; // raggio del contenuto
-    card.style.height = "48px"; // o un valore che ti piace
-    card.style.overflow = "visible"; // importante per permettere la fuoriuscita
+    card.style.borderRadius = `${R_INNER}px`;
+    card.style.overflow = "visible";
 
     // 1) Outline nero esterno — SHARP
     const outline = document.createElement("div");
     Object.assign(outline.style, {
       position: "absolute",
       inset: "0",
-      border: `${OUTLINE_W}px solid #000`,
-      borderRadius: "0px",            // spigolo vivo
+      border: `${OUTLINE_W}px solid ${rgba(c.border, .72)}`,
+      borderRadius: `${R_OUTER}px`,
       pointerEvents: "none",
       zIndex: "0",
     });
@@ -3791,13 +6447,10 @@ for (const e of entries) {
     const ringFill = document.createElement("div");
     Object.assign(ringFill.style, {
       position: "absolute",
-      inset: `${OUTLINE_W}px`,        // parte subito dopo l'outline
-      background: `
-        linear-gradient(135deg,
-          ${c.base} 0%,
-          ${c.base} 100%)
-      `,
-      borderRadius: "0px",            // SPIGOLO VIVO all’esterno
+      inset: `${OUTLINE_W}px`,
+      border: `1px solid ${rgba(c.base, .22)}`,
+      background: "transparent",
+      borderRadius: `${Math.max(0, R_OUTER - OUTLINE_W)}px`,
       pointerEvents: "none",
       zIndex: "0",
     });
@@ -3806,11 +6459,9 @@ for (const e of entries) {
     const ringHole = document.createElement("div");
     Object.assign(ringHole.style, {
       position: "absolute",
-      inset: `${OUTLINE_W + FRAME_W}px`,     // spessore anello
-      borderRadius: `${R_INNER}px`,          // ARROTONDATO all’interno
-      background: "inherit",                 // stesso bg della card
-      // bevel interno (facoltativo)
-      boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.9)",
+      inset: `${OUTLINE_W + FRAME_W}px`,
+      borderRadius: `${R_INNER}px`,
+      background: "transparent",
       pointerEvents: "none",
       zIndex: "0",
     });
@@ -3820,11 +6471,8 @@ for (const e of entries) {
     Object.assign(sheen.style, {
       position: "absolute",
       inset: `${OUTLINE_W}px`,
-      background: `
-        linear-gradient(140deg, rgba(255,255,255,0.10), transparent 45%),
-        linear-gradient(320deg, rgba(255,255,255,0.06), transparent 55%)
-      `,
-      borderRadius: "0px",            // fuori squadrato
+      background: "linear-gradient(135deg, rgba(255,255,255,.10), transparent 42%)",
+      borderRadius: `${Math.max(0, R_OUTER - OUTLINE_W)}px`,
       pointerEvents: "none",
       zIndex: "0",
     });
@@ -3843,26 +6491,29 @@ for (const e of entries) {
 }
 
 // base card
-card.style.minWidth = "240px";
-card.style.maxWidth = "240px";
+card.style.minWidth = "284px";
+card.style.maxWidth = "284px";
 card.style.padding  = "0px 0px 0px";
+card.style.boxSizing = "border-box";
 card.style.color = "#fff";
 card.style.display = "flex";
 card.style.flexDirection = "column";
 card.style.alignItems = "stretch";
-card.style.gap = "100%";
+card.style.gap = "0";
 
 // altezza base + boost se boss
-const BASE_CARD_H = 48;
-const CARD_H = IS_BOSS ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
+const BASE_CARD_H = 60;
+const MAIN_CARD_H = IS_BOSS ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
+const EFFECT_ROW_H = HAS_CARD_EFFECTS ? 14 : 0;
+const CARD_H = MAIN_CARD_H + EFFECT_ROW_H;
 card.style.height = CARD_H + "px";
 
 // applica cornice stile BG3 (come prima)
 applyBG3Frame(card, c, {
   outlineW: 1.5,
-  frameW: 4,
-  rOuter: 0,
-  rInner: 8
+  frameW: 2,
+  rOuter: 16,
+  rInner: 14
 });
 
 // sostituisci l'assegnazione fissa dell'altezza:
@@ -3893,15 +6544,16 @@ const isNext = e.__groupMembers
   if (isActive) {
     // gradiente “tintato” col colore di fazione
     card.style.background =
-      `linear-gradient(135deg,
-        ${rgba(c.base, 0.58)} 0%,
-        ${rgba(c.base, 1.00)} 100%
-      ), linear-gradient(75deg, rgba(165, 165, 165, 0.53), rgba(255, 255, 255, 1))`;
+      `linear-gradient(105deg,
+        ${rgba(c.base, .82)} 0%,
+        ${rgba(c.base, .52)} 52%,
+        rgba(34,43,56,.96) 100%
+      )`;
 
     card.style.boxShadow =
-      `0 0 0 2px ${c.glow},
-      0 0 14px 2px ${c.glow}, 
-      inset 0 0 0 1px rgba(255,255,255,.66)`;
+      `0 0 0 2px ${c.border},
+      0 0 16px 3px ${rgba(c.base, .42)},
+      inset 0 0 0 1px rgba(255,255,255,.38)`;
 
     card.dataset.active = "1";
 {
@@ -3978,12 +6630,12 @@ if (isActive) {
   // --- header: avatar + name + badge (tutto in riga)
 
   // --- costanti avatar/overlap ---
-  const AVA_BASE  = 52;                 // diametro avatar “normale”
+  const AVA_BASE  = 58;                 // diametro avatar “normale”
   const OVER_BASE = 12;                 // sporgenza normale
 
 // Se ha azioni leggendarie, avatar più grande e un filo più “sporgente”
-  const AVA  = IS_BOSS ? Math.round(AVA_BASE * 1.5) : AVA_BASE;
-  const OVER = IS_BOSS ? Math.round(OVER_BASE * 1.2) : OVER_BASE;
+  const AVA  = IS_BOSS ? Math.round(AVA_BASE * 1.15) : AVA_BASE;
+  const OVER = IS_BOSS ? Math.round(OVER_BASE * 1.1) : OVER_BASE;
 
   // header: avatar + name + badge
   const header = document.createElement("div");
@@ -3993,11 +6645,12 @@ if (isActive) {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    height: "100%",
+    height: `${MAIN_CARD_H}px`,
+    flex: `0 0 ${MAIN_CARD_H}px`,
     width: "100%",
-    padding: "8px 16px",
+    padding: "0",
     paddingLeft: `${CONTENT_LEFT}px`,      // spazio per il testo (riusa la costante)
-    paddingRight: "40px",
+    paddingRight: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
     boxSizing: "border-box",
   });
 
@@ -4071,16 +6724,93 @@ avatarWrap.appendChild(avatarInner);
 });
 
 const nameLabel = document.createElement("span");
-nameLabel.textContent = e.__groupCollapsed ? e.__groupBase : e.name;
+nameLabel.textContent = e.__groupCollapsed ? `${e.__groupBase} (Gruppo)` : e.name;
 Object.assign(nameLabel.style, {
   flex: "1 1 auto",
   minWidth: "0",
-  fontSize: "14px",
+  fontSize: "15px",
   fontWeight: "700",
+  letterSpacing: "-.01em",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
 });
+if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
+  nameLabel.title = "Doppio clic per rinominare il token";
+  nameLabel.style.cursor = "text";
+  nameLabel.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (card.dataset.renaming === "1") return;
+
+    const originalName = String(e.name || "").trim();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = originalName;
+    input.maxLength = 120;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.dataset.cardSelectionIgnore = "1";
+    Object.assign(input.style, {
+      flex: "1 1 auto",
+      minWidth: "0",
+      height: "28px",
+      padding: "2px 7px",
+      border: `1px solid ${c.border}`,
+      borderRadius: "7px",
+      background: "rgba(5,9,15,.96)",
+      color: "#fff",
+      font: "inherit",
+      fontSize: "14px",
+      fontWeight: "700",
+      outline: "none",
+    });
+
+    card.dataset.renaming = "1";
+    card.draggable = false;
+    nameLabel.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let finished = false;
+    const finish = async (save) => {
+      if (finished) return;
+      finished = true;
+      const nextName = input.value.trim();
+      let displayedName = originalName;
+      if (save && nextName && nextName !== originalName) {
+        try {
+          await OBR.scene.items.updateItems([e.id], (items) => {
+            const item = items[0];
+            __setSceneTokenDisplayName(item, nextName);
+          });
+          displayedName = nextName;
+          e.name = nextName;
+        } catch (error) {
+          console.warn("[initiative] rename token:", error?.message || error);
+        }
+      }
+      nameLabel.textContent = displayedName;
+      name.title = displayedName;
+      if (input.isConnected) input.replaceWith(nameLabel);
+      delete card.dataset.renaming;
+      card.draggable = DRAG_OK;
+    };
+
+    input.addEventListener("pointerdown", (event) => event.stopPropagation());
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void finish(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        void finish(false);
+      }
+    });
+    input.addEventListener("blur", () => void finish(true));
+  });
+}
 name.appendChild(nameLabel);
 
 
@@ -4385,8 +7115,8 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   cnt.textContent = `×${e.__groupCount}`;
   Object.assign(cnt.style, {
     position: "absolute",
-    left:  (52 - 12 - (CHIP / 2)) + "px",               // AVA - OVER - CHIP/2
-    top:   `calc(50% + ${(52 / 2) - (CHIP / 2) - OFFSET}px)`, // 50% + AVA/2 - CHIP/2 - offset
+    left:  (AVA - OVER - (CHIP / 2)) + "px",               // AVA - OVER - CHIP/2
+    top:   `calc(50% + ${(AVA / 2) - (CHIP / 2) - OFFSET}px)`, // 50% + AVA/2 - CHIP/2 - offset
     width:  CHIP + "px",
     height: CHIP + "px",
     borderRadius: "999px",
@@ -4406,19 +7136,23 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
 }
 
   Object.assign(name.style, {
-    position: "relative",   // serve per la riserva del paddingRight
+    position: "absolute",
+    top: IS_BOSS ? "12px" : "8px",
+    left: `${CONTENT_LEFT}px`,
+    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
+    height: "22px",
     display: "flex",
     alignItems: "center",
     gap: "6px",
     flex: "1 1 auto",
     minWidth: "0",                 // necessario per ellissi in flex
-    fontSize: "14px",
+    fontSize: "15px",
     fontWeight: "700",
     textAlign: "left",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    zIndex: "1",
+    zIndex: "3",
   });
 
   // badge iniziativa (ancorato a destra, centrato verticalmente)
@@ -4428,7 +7162,7 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   Object.assign(badge.style, {
   position: "absolute",
   right: BADGE_RIGHT + "px",
-  top: "50%",
+  top: `${MAIN_CARD_H / 2}px`,
   transform: "translateY(-50%)",
   width: BADGE_SIZE + "px",
   height: BADGE_SIZE + "px",
@@ -4436,28 +7170,29 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
   alignItems: "center",
   justifyContent: "center",
   padding: "0",
-  fontSize: "14px",
+  fontSize: "16px",
   fontWeight: "700",
   lineHeight: "1",
   color: "#fff",
-  background: "rgba(0,0,0,.72)",
-  border: "1px solid rgba(255,255,255,.18)",
+  background: "rgba(24,32,44,.84)",
+  border: `1px solid ${rgba(c.border, .88)}`,
   borderRadius: "50%",
-  boxShadow: "0 0 0 1px rgba(0,0,0,.25)",
+  boxShadow: `0 4px 12px rgba(0,0,0,.42), inset 0 0 0 1px ${rgba(c.base, .18)}`,
   cursor: "text",
 });
 
 // --- Dock per condizioni
 const condDock = document.createElement("div");
 condDock.style.position = "absolute";
-condDock.style.top = `${COND_DOCK_CFG.top}px`;
-condDock.style.left = `${CONTENT_LEFT + (COND_DOCK_CFG.leftFromContent || 0)}px`;
-condDock.style.right = "auto";
+condDock.style.top = `${MAIN_CARD_H - 1}px`;
+condDock.style.left = `${CONTENT_LEFT}px`;
+condDock.style.right = "10px";
+condDock.style.minHeight = "18px";
 condDock.style.zIndex = "10";
 condDock.style.overflow = "visible"; // importantissimo per far “uscire” l’overlay
 condDock.style.display = "flex";
-condDock.style.flexDirection = "column";
-condDock.style.alignItems = "flex-start";   // ancora a sinistra
+condDock.style.flexDirection = "row";
+condDock.style.alignItems = "center";   // ancora a sinistra
 condDock.style.gap = CHIP_GAP_PX + "px";
 header.appendChild(condDock);
 
@@ -4465,7 +7200,7 @@ header.appendChild(condDock);
 const fragAll = document.createDocumentFragment();
 
 // 1) Condizioni
-const condData = __safeConditions(e.conditions);
+const condData = cardEffectData;
 const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0) || condData.instances.length > 0;
 if (hasAny) {
   const fragCond = __buildConditionChipsSafe(condData, { cap: CONDITIONS, compact: true });
@@ -4491,7 +7226,7 @@ if (Array.isArray(e.spells) && e.spells.length) {
 
 // 3) Monta TUTTO assieme: 3 visibili in totale, poi +N
 condDock.style.gap = CHIP_GAP_PX + "px";
-mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 3 });
+mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 2 });
 
 if (e.__groupCollapsed) {
   // Sulla card collassata l’iniziativa è solo informativa
@@ -5010,29 +7745,30 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   const hpControlsRow = document.createElement("div");
   Object.assign(hpControlsRow.style, {
     position: "absolute",
-    top: "75%",
-    left: "19%",
-    right: "10px",
+    top: `${MAIN_CARD_H - 29}px`,
+    left: `${CONTENT_LEFT}px`,
+    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
+    height: "25px",
     display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: "3px",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    gap: "4px",
     zIndex: "3",
   });
 
   const pill = document.createElement("div");
   pill.title = "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi";
   pill.style.position = "relative";
-  pill.style.marginRight = "auto";
-  pill.style.padding = "2px 8px";
-  pill.style.fontSize = "13px";
+  pill.style.marginRight = "0";
+  pill.style.padding = "0";
+  pill.style.fontSize = "12px";
   pill.style.fontWeight = "700";
   pill.style.lineHeight = "1";
   pill.style.color = "#fff";
-  pill.style.background = "rgba(0,0,0,.72)";
-  pill.style.border = "1px solid rgba(255,255,255,.18)";
-  pill.style.borderRadius = "16px";
-  pill.style.boxShadow = "0 2px 6px rgba(0,0,0,.45)";
+  pill.style.background = "transparent";
+  pill.style.border = "none";
+  pill.style.borderRadius = "0";
+  pill.style.boxShadow = "none";
   pill.style.cursor = "text";
   pill.style.zIndex = "3";
 
@@ -5044,17 +7780,19 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   // === Barra HP visuale accanto alla pill ===
   const hpBarWrap = document.createElement("div");
-  hpBarWrap.style.position = "relative";
-  hpBarWrap.style.flex = `0 0 ${IS_GM ? 78 : 96}px`;
-  hpBarWrap.style.width = IS_GM ? "78px" : "96px";
-  hpBarWrap.style.height = "10px";
+  hpBarWrap.style.position = "absolute";
+  hpBarWrap.style.left = "0";
+  hpBarWrap.style.right = "0";
+  hpBarWrap.style.bottom = "0";
+  hpBarWrap.style.width = "auto";
+  hpBarWrap.style.height = "6px";
   hpBarWrap.style.boxSizing = "border-box";
-  hpBarWrap.style.background = "rgba(0, 0, 0, 0.85)";
-  hpBarWrap.style.border = "1px solid rgba(0, 0, 0, 1)";
-  hpBarWrap.style.borderRadius = "16px";
+  hpBarWrap.style.background = "rgba(0,0,0,.68)";
+  hpBarWrap.style.border = "1px solid rgba(0,0,0,.85)";
+  hpBarWrap.style.borderRadius = "999px";
   hpBarWrap.style.overflow = "hidden";
   hpBarWrap.style.zIndex = "3";
-  hpBarWrap.style.boxShadow = "0 2px 6px rgba(0,0,0,.55)";
+  hpBarWrap.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,.65)";
 
   const initPct = hpMaxV > 0 ? Math.max(0, Math.min(1, hpVal / hpMaxV)) : 0;
   const hpFill = document.createElement("div");
@@ -5176,6 +7914,17 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.style.fontSize = "15px";
   }
 
+  const hpCaption = document.createElement("span");
+  hpCaption.textContent = "HP";
+  Object.assign(hpCaption.style, {
+    color: "rgba(255,255,255,.62)",
+    fontSize: "11px",
+    fontWeight: "700",
+    lineHeight: "13px",
+    pointerEvents: "none",
+  });
+
+  hpControlsRow.appendChild(hpCaption);
   hpControlsRow.appendChild(pill);
   if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
   if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
@@ -5638,13 +8387,14 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
       return card;
     });
 
-    track.replaceChildren(...nodes.filter(Boolean));
+    __replaceTrackCardsAnimated(nodes);
     updateActiveCardMovementIndicator(latestMovementSnapshot);
 
   if (__scrollActiveOnNextRender) {
     __scrollActiveOnNextRender = false;
-    const active = track.querySelector('[data-active="1"]');
-    active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
+    __runAfterGroupLayoutTransition(() => {
+      __scrollTrackerCardIntoView(track.querySelector('[data-active="1"]'));
+    });
   }
 
   __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
@@ -5937,27 +8687,9 @@ __activeLabelEntriesById = byId;
   setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
 
     try {
-  const lbl = document.getElementById("tbp-round-label");
-  if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
-
-  const cnt = document.getElementById("tbp-turn-counter");
-  const sep = roundPill.querySelector("span:nth-child(2)"); // il puntino "•"
-
-  const tot = Array.isArray(stateClean.order) ? stateClean.order.length : 0;
-  const cur = Math.max(0, Math.min(tot, (stateClean.current ?? 0) + 1));
-
-  if (cnt && sep) {
-    if (tot > 0) {
-      cnt.textContent = `${cur}/${tot}`;
-      cnt.style.display = "";
-      sep.style.display = "";
-    } else {
-      // niente partecipanti → nascondi contatore e separatore
-      cnt.style.display = "none";
-      sep.style.display = "none";
-    }
-  }
-} catch {}
+      const lbl = document.getElementById("tbp-round-label");
+      if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
+    } catch {}
 
     // se lo stato pulito è diverso dal raw, riallinea i metadata una volta sola
     const needFix =
@@ -6058,6 +8790,7 @@ try {
     if (lairToggleWrap.isConnected) lairToggleWrap.remove();
   }
 } catch {}
+    applyTrackerLayout();
 
     } catch {
       IS_GM = false;
@@ -6233,7 +8966,10 @@ try {
     const wrapped = prevIdx === (len - 1);
     const nextRound = Math.max(1, (st.round || 1) - (wrapped ? 1 : 0));
 
-    const next = { ...st, current: prevIdx, round: nextRound };
+    const nextBase = { ...st, current: prevIdx, round: nextRound };
+    const cachedEntries = Array.from(__activeLabelEntriesById.values());
+    const { collapsed } = __autoCollapseSnapshot(cachedEntries, nextBase);
+    const next = { ...nextBase, collapsed };
     __latestInitiativeState = next;
     const activeId = next.order[next.current];
     __conditionNavigationHint = { activeId, current: prevIdx, round: nextRound, direction: -1 };
@@ -6243,12 +8979,6 @@ try {
 
     queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}
-
-    try {
-      const entriesNow = await readEntries();
-      if (revision !== __navigationRevision) return;
-      await __applyAutoCollapse(entriesNow, next);
-    } catch {}
 
     if (revision !== __navigationRevision) return;
     if (activeId && !isLairId(activeId)) {
@@ -6266,7 +8996,10 @@ try {
     const wrapped = nextIdx === 0;
     const nextRound = Math.max(1, (st.round || 1) + (wrapped ? 1 : 0));
 
-    const next = { ...st, current: nextIdx, round: nextRound };
+    const nextBase = { ...st, current: nextIdx, round: nextRound };
+    const cachedEntries = Array.from(__activeLabelEntriesById.values());
+    const { collapsed } = __autoCollapseSnapshot(cachedEntries, nextBase);
+    const next = { ...nextBase, collapsed };
     __latestInitiativeState = next;
     const activeId = next.order[next.current];
     __conditionNavigationHint = { activeId, current: nextIdx, round: nextRound, direction: 1 };
@@ -6276,12 +9009,6 @@ try {
 
     queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}
-
-    try {
-      const entriesNow = await readEntries();
-      if (revision !== __navigationRevision) return;
-      await __applyAutoCollapse(entriesNow, next);
-    } catch {}
 
     if (revision !== __navigationRevision) return;
     if (activeId && !isLairId(activeId)) {

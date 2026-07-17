@@ -3,13 +3,15 @@ export const SPEED_CHECK_METERS_PER_CELL = 1.5;
 export function buildSpeedCheckSnapshot(state, enabled = true) {
   const source = state && typeof state === "object" ? state : {};
   const speedMeters = Math.max(0, Number(source.speedMeters) || 0);
+  const baseSpeedMeters = Math.max(0, Number(source.baseSpeedMeters ?? speedMeters) || 0);
   const completedCycles = Math.max(0, Math.floor(Number(source.cycle) || 0));
   const usedMeters = Math.max(0, Number(source.cycleMeters) || 0);
   const dashCount = Math.max(0, Math.floor(Number(source.dashCount) || 0));
   const bonusMeters = Math.max(0, Number(source.bonusMeters) || 0);
-  const available = !!enabled && !source.disabled && speedMeters > 0;
+  const effectiveBonusMeters = source.blocksSpeedBonuses ? 0 : bonusMeters;
+  const available = !!enabled && !source.disabled && baseSpeedMeters > 0;
   const totalMeters = (completedCycles * speedMeters) + usedMeters;
-  const allowanceMeters = speedMeters * (1 + dashCount) + bonusMeters;
+  const allowanceMeters = speedMeters * (1 + dashCount) + effectiveBonusMeters;
 
   return {
     enabled: !!enabled,
@@ -17,6 +19,7 @@ export function buildSpeedCheckSnapshot(state, enabled = true) {
     turnKey: String(source.turnKey || ""),
     itemId: String(source.itemId || ""),
     name: String(source.name || ""),
+    baseSpeedMeters,
     speedMeters,
     usedMeters,
     remainingMeters: available ? Math.max(0, allowanceMeters - totalMeters) : 0,
@@ -28,6 +31,13 @@ export function buildSpeedCheckSnapshot(state, enabled = true) {
     allowanceCells: allowanceMeters / SPEED_CHECK_METERS_PER_CELL,
     dashCount,
     bonusMeters,
+    effectiveBonusMeters,
+    blocked: !!source.blocked,
+    blocksSpeedBonuses: !!source.blocksSpeedBonuses,
+    prone: !!source.prone,
+    movementCostMultiplier: Math.max(1, Number(source.movementCostMultiplier) || 1),
+    conditionSummary: String(source.conditionSummary || ""),
+    conditionReasons: Array.isArray(source.conditionReasons) ? [...source.conditionReasons] : [],
     completedCycles,
     cycle: completedCycles + 1,
     progress: available && allowanceMeters > 0 ? Math.min(1, totalMeters / allowanceMeters) : 0,
@@ -73,8 +83,11 @@ export function advanceSpeedCycle(previous, movedCells, speedMeters) {
   const prior = previous && typeof previous === "object" ? previous : {};
   const cycle = Math.max(0, Math.floor(Number(prior.cycle) || 0));
   const cycleMeters = Math.max(0, Number(prior.cycleMeters) || 0);
-  if (speed <= 0 || meters <= 0) {
+  if (meters <= 0) {
     return { cycle, cycleMeters, movedMeters: meters, cyclesCrossed: 0 };
+  }
+  if (speed <= 0) {
+    return { cycle: 0, cycleMeters: cycleMeters + meters, movedMeters: meters, cyclesCrossed: 0 };
   }
 
   const combined = cycleMeters + meters;
@@ -94,10 +107,19 @@ export function retreatSpeedCycle(previous, movedCells, speedMeters) {
   const prior = previous && typeof previous === "object" ? previous : {};
   const priorCycle = Math.max(0, Math.floor(Number(prior.cycle) || 0));
   const priorRemainder = Math.max(0, Number(prior.cycleMeters) || 0);
-  if (speed <= 0 || meters <= 0) {
+  if (meters <= 0) {
     return {
       cycle: priorCycle,
       cycleMeters: priorRemainder,
+      movedMeters: -meters,
+      cyclesCrossed: 0,
+      cyclesReverted: 0,
+    };
+  }
+  if (speed <= 0) {
+    return {
+      cycle: 0,
+      cycleMeters: Math.max(0, priorRemainder - meters),
       movedMeters: -meters,
       cyclesCrossed: 0,
       cyclesReverted: 0,

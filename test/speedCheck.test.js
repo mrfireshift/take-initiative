@@ -79,6 +79,28 @@ test("dash and bonus increase the movement allowance", () => {
   assert.equal(snapshot.progress, 6 / 19.5);
 });
 
+test("a blocked actor remains visible with speed 0 and ignores speed bonuses", () => {
+  const snapshot = buildSpeedCheckSnapshot({
+    baseSpeedMeters: 9,
+    speedMeters: 0,
+    blocked: true,
+    blocksSpeedBonuses: true,
+    conditionSummary: "Afferrato",
+    bonusMeters: 3,
+  });
+  assert.equal(snapshot.available, true);
+  assert.equal(snapshot.allowanceMeters, 0);
+  assert.equal(snapshot.baseSpeedMeters, 9);
+  assert.equal(snapshot.conditionSummary, "Afferrato");
+});
+
+test("movement at speed 0 is still tracked and can be undone", () => {
+  const moved = advanceSpeedCycle(null, 2, 0);
+  assert.equal(moved.cycleMeters, 3);
+  const undone = retreatSpeedCycle(moved, 1, 0);
+  assert.equal(undone.cycleMeters, 1.5);
+});
+
 test("movement warnings honor dash and repeat after the allowance", () => {
   assert.equal(countSpeedLimitCrossings(0, 9, 18, 9), 0);
   assert.equal(countSpeedLimitCrossings(9, 18, 18, 9), 1);

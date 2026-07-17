@@ -603,11 +603,18 @@ async function upsertDotForItem(it) {
   if (toAdd.length)  { dlog("add", toAdd.map(x => x.name)); await OBR.scene.items.addItems(toAdd); }
 
   // UNICO updateItems per SHAPE e TEXT
-  const idsToUpd = [...shapeUpdate.keys(), ...textUpdate.keys()];
+  const deletedIds = new Set(toDel);
+  const idsToUpd = Array.from(new Set([
+    ...casterOwned.filter((item) => !deletedIds.has(item.id)).map((item) => item.id),
+    ...shapeUpdate.keys(),
+    ...textUpdate.keys(),
+  ]));
   if (idsToUpd.length) {
     dlog("upd:mixed", idsToUpd.length);
     await OBR.scene.items.updateItems(idsToUpd, (draft) => {
       for (const itx of draft) {
+        itx.locked = true;
+        itx.disableHit = true;
         if (itx.type === "SHAPE") {
           const spec = shapeUpdate.get(itx.id);
           if (!spec) continue;

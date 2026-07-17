@@ -126,14 +126,19 @@ export async function withItemMetaHistory(options, action) {
     }).filter(Boolean);
 
     if (changes.length) {
-      await appendEntry({
+      const entry = {
         id: createEntryId(),
         version: HISTORY_VERSION,
         at: Date.now(),
         kind: String(options?.kind || "change"),
         label: String(options?.label || "Modifica"),
         changes,
-      });
+      };
+      await appendEntry(entry);
+      if (typeof options?.onRecorded === "function") {
+        try { options.onRecorded(entry); }
+        catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
+      }
     }
   } catch (err) {
     console.warn("[history] record:", err?.message || err);

@@ -2,6 +2,12 @@
 import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import {
+  EXHAUSTION_CONDITION,
+  exhaustionLevelFromInstances,
+  normalizeExhaustionLevel,
+  reconcileExhaustionInstances,
+} from "./exhaustionCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -27,6 +33,12 @@ export const CONDITION_LIST = [
   "Ira",
   "Giuramento di Inimicizia",
 ];
+
+// Indebolimento si gestisce dalla scheda iniziativa: resta nel catalogo per
+// ordinamento e riconoscimento, ma non viene proposto come condizione generica.
+export const APPLICABLE_CONDITION_LIST = CONDITION_LIST.filter(
+  (name) => name !== EXHAUSTION_CONDITION
+);
 
 
 export const CONDITION_EMOJI = Object.freeze({
@@ -135,6 +147,11 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.targetId) instance.targetId = String(value.targetId);
   if (value.parentEffectId) instance.parentEffectId = String(value.parentEffectId);
   if (value.type) instance.type = String(value.type);
+  if (condition === EXHAUSTION_CONDITION) {
+    instance.level = value.level === undefined || value.level === null || value.level === ""
+      ? 1
+      : Math.max(1, normalizeExhaustionLevel(value.level));
+  }
   const appliedAt = __normalizeAppliedAt(value.appliedAt);
   if (appliedAt) instance.appliedAt = appliedAt;
   const createdAt = Number(value.createdAt);
@@ -260,12 +277,18 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
   if (opts.sourceName) instance.sourceName = String(opts.sourceName);
   if (opts.parentEffectId) instance.parentEffectId = String(opts.parentEffectId);
   if (opts.type || opts.effectType) instance.type = String(opts.type || opts.effectType);
+  if (condition === EXHAUSTION_CONDITION) {
+    instance.level = Math.max(1, normalizeExhaustionLevel(opts.level || 1));
+  }
   const appliedAt = __normalizeAppliedAt(opts.appliedAt);
   if (appliedAt) instance.appliedAt = appliedAt;
   return instance;
 }
 
 function __compactExpiryLabel(instance) {
+  if (__conditionName(instance) === EXHAUSTION_CONDITION) {
+    return ` ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`;
+  }
   const expiry = instance?.expiry || { mode: "manual" };
   const remaining = __durationFrom(expiry.remaining);
   if (expiry.mode === "rounds") return remaining ? ` (${remaining})` : "";
@@ -294,7 +317,10 @@ function __fullExpiryLabel(instance) {
 export function formatConditionInstance(instance) {
   const name = __conditionName(instance);
   if (!name) return "";
-  const parts = [formatConditionName(name)];
+  const conditionLabel = name === EXHAUSTION_CONDITION
+    ? `${formatConditionName(name)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
+    : formatConditionName(name);
+  const parts = [conditionLabel];
   if (instance?.sourceName) parts.push(`fonte: ${instance.sourceName}`);
   parts.push(__fullExpiryLabel(instance));
   return parts.join(" | ");
@@ -324,7 +350,9 @@ function __groupConditionInstances(cond = {}) {
 
   return ordered.map((group) => ({
     ...group,
-    label: group.instances.length > 1
+    label: group.name === EXHAUSTION_CONDITION
+      ? `${formatConditionName(group.name)} ${exhaustionLevelFromInstances(group.instances)}`
+      : group.instances.length > 1
       ? `${formatConditionName(group.name)} x${group.instances.length}`
       : `${formatConditionName(group.name)}${__compactExpiryLabel(group.instances[0])}`,
   }));
@@ -394,6 +422,25 @@ export async function setItemConditions(itemId, next) {
     me.conditions = __conditionsForWrite(next);
     it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
   });
+}
+
+export function getExhaustionLevel(cond = {}) {
+  return exhaustionLevelFromInstances(__allConditionInstances(cond));
+}
+
+export function reconcileExhaustionCondition(cond = {}, level, targetId = "") {
+  const instances = reconcileExhaustionInstances(
+    __allConditionInstances(cond).map(__persistableConditionInstance),
+    level,
+    {
+      id: __newConditionInstanceId(),
+      targetId,
+      createdAt: Date.now(),
+    }
+  );
+  return instances.length
+    ? { version: CONDITION_SCHEMA_VERSION, instances }
+    : null;
 }
 
 function __sameCondition(instance, name) {

@@ -26,6 +26,7 @@ const $ = (id) => document.getElementById(id);
 let item = null;
 let profile = null;
 let isGM = false;
+let exhaustionSaving = false;
 
 function valueText(value, suffix = "") {
   return value === null || value === undefined ? "-" : `${value}${suffix}`;
@@ -61,6 +62,15 @@ function renderView() {
   $("armorClass").textContent = valueText(profile.armorClass);
   $("passivePerception").textContent = valueText(profile.passivePerception);
   $("speed").textContent = valueText(profile.speed, profile.speed === null ? "" : " m");
+  $("exhaustion").textContent = String(profile.exhaustion || 0);
+  for (const [id, disabled] of [
+    ["exhaustionDown", exhaustionSaving || !isGM || profile.exhaustion <= 0],
+    ["exhaustionUp", exhaustionSaving || !isGM || profile.exhaustion >= 5],
+  ]) {
+    const button = $(id);
+    button.style.display = isGM ? "inline-block" : "none";
+    button.disabled = disabled;
+  }
   $("saves").replaceChildren(...SAVE_KEYS.map((key) => {
     const row = document.createElement("div");
     row.className = "save";
@@ -81,8 +91,27 @@ function setEditing(active) {
   $("armorClassInput").value = profile.armorClass ?? "";
   $("passivePerceptionInput").value = profile.passivePerception ?? "";
   $("speedInput").value = profile.speed ?? "";
+  $("exhaustionInput").value = profile.exhaustion ?? 0;
   for (const key of SAVE_KEYS) $(`save-${key}`).value = profile.savingThrows[key] ?? "";
   $("status").textContent = "";
+}
+
+async function adjustExhaustion(delta) {
+  if (!isGM || !item || exhaustionSaving) return;
+  const next = Math.max(0, Math.min(5, Number(profile.exhaustion || 0) + delta));
+  if (next === profile.exhaustion) return;
+  exhaustionSaving = true;
+  renderView();
+  try {
+    await saveInitiativeCard(item.id, item.name, { ...profile, exhaustion: next });
+    [item] = await OBR.scene.items.getItems([item.id]);
+    profile = getInitiativeCard(item);
+  } catch (err) {
+    console.warn("[initiative-card] Indebolimento:", err?.message || err);
+  } finally {
+    exhaustionSaving = false;
+    renderView();
+  }
 }
 
 function buildSaveInputs() {
@@ -123,6 +152,8 @@ OBR.onReady(async () => {
 $("close").addEventListener("click", closeInitiativeCardPopover);
 $("edit").addEventListener("click", () => setEditing(true));
 $("cancel").addEventListener("click", () => setEditing(false));
+$("exhaustionDown").addEventListener("click", () => void adjustExhaustion(-1));
+$("exhaustionUp").addEventListener("click", () => void adjustExhaustion(1));
 $("form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!isGM || !item) return;
@@ -135,6 +166,7 @@ $("form").addEventListener("submit", async (event) => {
       armorClass: $("armorClassInput").value,
       passivePerception: $("passivePerceptionInput").value,
       speed: $("speedInput").value,
+      exhaustion: $("exhaustionInput").value,
       savingThrows,
     });
     [item] = await OBR.scene.items.getItems([item.id]);

@@ -354,6 +354,8 @@ async function flushQueued(){
           for (const it of items) {
             const u = updatesById.get(it.id);
             if (!u) { continue; }
+            it.locked = true;
+            it.disableHit = true;
 
             const isText = !!it.text;
 
@@ -530,6 +532,9 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
         .position(pos)
         .layer("ATTACHMENT")
         .attachedTo(tokenId)
+        .locked(true)
+        .disableHit(true)
+        .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
         .zIndex(z)
         .visible(playerVisible)
         .metadata({ [HPTEXT_META_FLAG]: { targetId: tokenId } })
@@ -542,6 +547,8 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
         const it = list[0]; if (!it) return;
         it.layer      = "ATTACHMENT";
         it.attachedTo = tokenId;
+        it.locked     = true;
+        it.disableHit = true;
         it.position   = pos;
         it.zIndex     = z;
         it.visible    = playerVisible;

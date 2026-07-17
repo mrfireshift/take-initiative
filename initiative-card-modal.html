@@ -29,10 +29,13 @@
     .hp { position:relative; display:flex; align-items:baseline; justify-content:space-between; padding:11px 13px; margin-bottom:10px; border-radius:7px; background:linear-gradient(100deg,rgba(96,165,250,.12),rgba(255,255,255,.04)); border:1px solid rgba(96,165,250,.34); box-shadow:inset 3px 0 0 var(--accent); }
     .hp span { color:rgba(255,255,255,.72); font-size:10px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; }
     .hp strong { color:#fff; font-family:Georgia,"Times New Roman",serif; font-size:22px; }
-    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
     .stat { min-width:0; padding:10px; border-radius:7px; text-align:center; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.22); }
     .stat span,.section-title { display:block; margin-bottom:5px; color:rgba(255,255,255,.68); font-size:10px; text-transform:uppercase; }
     .stat strong { font-family:Georgia,"Times New Roman",serif; font-size:18px; }
+    .exhaustion-stepper { display:flex; align-items:center; justify-content:center; gap:4px; }
+    .exhaustion-stepper button { width:25px; min-height:25px; padding:0; border-radius:8px; font-size:17px; line-height:1; }
+    .exhaustion-stepper strong { min-width:18px; }
     .section-title { margin:14px 0 7px; }
     .saves { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
     .save { display:flex; align-items:center; justify-content:space-between; padding:8px 9px; border-radius:7px; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.18); }
@@ -72,6 +75,7 @@
         <div class="stat"><span>CA</span><strong id="armorClass">-</strong></div>
         <div class="stat"><span>Percezione passiva</span><strong id="passivePerception">-</strong></div>
         <div class="stat"><span>Velocita</span><strong id="speed">-</strong></div>
+        <div class="stat"><span>Indebolimento</span><div class="exhaustion-stepper"><button id="exhaustionDown" type="button" title="Riduci Indebolimento">-</button><strong id="exhaustion">0</strong><button id="exhaustionUp" type="button" title="Aumenta Indebolimento">+</button></div></div>
       </div>
       <span class="section-title">Tiri salvezza</span>
       <div id="saves" class="saves"></div>
@@ -81,6 +85,7 @@
         <label>Classe Armatura<input id="armorClassInput" type="number" min="0" max="99" /></label>
         <label>Percezione passiva<input id="passivePerceptionInput" type="number" min="0" max="99" /></label>
         <label>Velocita (m)<input id="speedInput" type="number" min="0" max="999" step="0.1" inputmode="decimal" /></label>
+        <label>Indebolimento<input id="exhaustionInput" type="number" min="0" max="5" step="1" inputmode="numeric" /></label>
       </div>
       <span class="section-title">Modificatori tiri salvezza</span>
       <div id="saveInputs" class="save-inputs"></div>
