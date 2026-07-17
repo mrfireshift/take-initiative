@@ -23,6 +23,20 @@ import {
   rememberFactionForIds,
   registeredAttitudeForItem,
 } from "./factionRegistry.js";
+import {
+  INITIATIVE_GROUP_SEPARATOR as __GROUP_SEP,
+  __autoCollapseSnapshot,
+  __buildGroups,
+  __groupKey,
+  _indexName,
+  _parseIndexedName,
+  compactEntriesForRender,
+  expandParagonEntries,
+  reorderBlockWithinSameInitiativeState,
+  reorderWithinSameInitiativeState,
+  sanitizeState,
+  sortByInitiative,
+} from "./initiativeOrderCore.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -332,10 +346,15 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
 
   const LEG_BOSS_CFG = {
   scale: 1,          // quanto ingrandire la card
-  extraHeight: 24,       // px in più all’altezza base
+  extraHeight: 28,       // modulo boss da 88px, cornice estesa compresa
   zIndex: 6,            // per sovrapporsi leggermente alle altre
   shadow: "0 0 10px rgba(255, 0, 0, 0.8)" // alone leggero dorato
 };
+
+const BOSS_PORTRAIT_FRAME_SRC = "/boss-frame-ui.png";
+const BOSS_PORTRAIT_FRAME_SCALE = 1.38;
+const BOSS_PORTRAIT_FRAME_SCALE_COMPACT = 1.3;
+const BOSS_PORTRAIT_FRAME_MASK = "radial-gradient(circle at 50% 50%, transparent 0 43%, #000 44%)";
 
 // --- ZOOM CONFIG GLOBALE ---
 const ZOOM_CFG = {
@@ -363,40 +382,27 @@ function __instaTransform(el, value) {
 
   // ===== Legendary UI (2 gruppi indipendenti) =====
   const LEG_PIPS_CFG = {
-  // Posizione del GRUPPO PIPS rispetto all'header
-  top: 45,                    // px dall'alto dell'header
-  right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
-  rightFromBadge: 130,        // distanza dal bordo destro del badge iniziativa
-  // Parametri interni del gruppo pips
-  gap: 4,                    // tra i singoli pips
+  gap: 1,                    // tra i singoli pips
   paddingX: 0,
   paddingY: 0,
-  size: 8,                  // lato del diamante/circolo
+  size: 7,                  // lato del diamante/circolo
   diamond: true              // true=♦, false=●
 };
 
-  const LEG_CTRL_CFG = {
-  // Posizione del GRUPPO CONTROLLI (+/-) rispetto all'header
-  top: -8,                   // px dall'alto dell'header (indipendente dai pips)
-  right: null,               // se null, usa rightFromBadge; altrimenti override assoluto in px
-  rightFromBadge: 179,        // distanza dal bordo destro del badge iniziativa
-  // Parametri interni del gruppo controlli
-  gap: 2,                    // tra i due bottoni
-  paddingX: 0,
-  paddingY: 0,
-  btnSize: 20,               // lato dei bottoni
-  btnRadius: 16,             // raggio dei bottoni
-  // Stile pill del gruppo controlli
-  //dockBg: "rgba(0,0,0,.22)",
-  //dockBorder: "1px solid rgba(255,255,255,.18)",
-  //dockRadius: 12,
+const LEG_RESOURCE_CFG = {
+  top: 31,
+  clusterGap: 3,
+  controlWidth: 14,
+  controlHeight: 10,
 };
+
+const DEFAULT_LEGENDARY_RESISTANCES = 3;
 
 // --- Paragon controls: stessa posizione/stile dei Legendary (+/-)
 const PAR_CTRL_CFG = {
   top: -8,
   right: null,            // se null → usa rightFromBadge come i Legendary
-  rightFromBadge: 149,    // identico ai Legendary; se vuoi più vicino al badge, riduci
+  rightFromBadge: 105,    // identico ai Legendary; se vuoi più vicino al badge, riduci
   gap: 2,
   paddingX: 0,
   paddingY: 0,
@@ -413,7 +419,7 @@ const PAR_CTRL_CFG = {
 // --- EPIC / EPIC ACTION tag config (solo controlli via JS) ---
 const EPIC_TAG_CFG = {
   posBoss:   { top: -6, right: null, rightFromBadge: 100, gap: 6, reserve: 120 },
-  posAction: { top: -6, right: null, rightFromBadge: 146, gap: 6, reserve: 120 },
+  posAction: { top: -6, right: null, rightFromBadge: 115, gap: 6, reserve: 120 },
 
   // Stile delle pill
   epic: {
@@ -424,7 +430,7 @@ const EPIC_TAG_CFG = {
   },
   action: {
     label: "Azione Epica",
-    fontSize: 9, fontWeight: 500, padX: 6, padY: 2, radius: 999,
+    fontSize: 9, fontWeight: 500, padX: 8, padY: 2, radius: 999,
     bg: "rgba(255, 0, 0, 1)", color: "#fff",
     border: "1px solid rgba(6, 0, 0, 1)", letterSpacing: .2
   }
@@ -2983,6 +2989,17 @@ async function readEntries() {
         (meta.legendary && typeof meta.legendary === "object")
           ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
           : { max: 0, current: 0 },
+      legendaryResistances: (() => {
+        if (!meta.legendary || Number(meta.legendary.max) <= 0) return { max: 0, current: 0 };
+        const stored = meta.legendaryResistances;
+        const max = stored && typeof stored === "object"
+          ? Math.max(0, Math.floor(Number(stored.max) || 0))
+          : DEFAULT_LEGENDARY_RESISTANCES;
+        const current = stored && typeof stored === "object"
+          ? Math.max(0, Math.min(max, Math.floor(Number(stored.current) || 0)))
+          : max;
+        return { max, current };
+      })(),
       spells: getSpellsFromItem(it),
 
       // Flag concentrazione + chiave spell
@@ -3107,107 +3124,6 @@ async function __mountTrackerSelectionSync() {
     if (Array.isArray(player?.selection)) __setTrackerSelection(player.selection);
   });
   __playerSelectionPollTimer = window.setInterval(__refreshTrackerSelectionFromScene, 120);
-}
-
-// Espande le entry in base a paragonActions, replicando le card.
-// Per k=0 mantiene l'id originale; per k>=1 crea id virtuali "<id>::p<k>".
-// La initiative per-card viene presa da state.paragonInits[baseId][k] se presente.
-function expandParagonEntries(entries, state) {
-  const out = [];
-  const pInits = (state && state.paragonInits) || {};
-  for (const e of entries) {
-    const n = Math.max(0, Math.floor(Number(e.paragonActions) || 0));
-    if (n <= 1) { out.push(e); continue; }
-
-    // clona n volte; k=0 conserva id base
-    for (let k = 0; k < n; k++) {
-      const clone = { ...e };
-      if (k > 0) clone.id = `${e.id}::p${k}`;
-
-      // iniziativa per-card
-      const arr = Array.isArray(pInits[e.id]) ? pInits[e.id] : [];
-      const ini = Number.isFinite(arr[k]) ? Math.floor(arr[k]) : e.initiative;
-      clone.initiative = ini;
-
-      // bookkeeping (utile in UI)
-      clone.__paragonIndex = k;
-      clone.__paragonBaseId = e.id;
-
-      out.push(clone);
-    }
-  }
-  return out;
-}
-
-// 1) Parser: rimuove TUTTI i prefissi "(n) " e restituisce base pulita
-function _parseIndexedName(name) {
-  const raw = String(name || "Unnamed").trim();
-  const first = raw.match(/^\((\d+)\)/);
-  const index = first ? parseInt(first[1], 10) : null;
-  const base  = raw.replace(/^(\(\d+\)\s*)+/, "").trim(); // elimina ogni "(n) "
-  return { index, base };
-}
-
-function _indexName(base, n) {
-  return `(${n}) ${base}`;
-}
-
-// === Raggruppamento per base-name + attitude (solo per UI) ===
-const __GROUP_SEP = "::";
-function __groupKey(e) {
-  // Azione Epica: mai raggruppare
-  if (e.isEpicAction) return `EPICACTION${__GROUP_SEP}${e.id}`;
-
-  // Paragon (quando esistono le card replicate): mai raggruppare
-  // (include anche la card base k=0 quando Paragon è attivo)
-  if (e.__paragonIndex !== undefined) return `PARAGON${__GROUP_SEP}${e.id}`;
-
-  // Resto: raggruppo per attitude + base-name
-  const { base } = _parseIndexedName(e.name);
-  return `${e.attitude || "ally"}${__GROUP_SEP}${base}`;
-}
-
-function __buildGroups(entries) {
-  const m = new Map();
-  for (const e of entries) {
-    const k = __groupKey(e);
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(e);
-  }
-  return m;
-}
-
-// Calcola l'assetto dei gruppi senza scrivere metadata: la navigazione può così
-// accodare turno e collapse nello stesso snapshot, evitando render intermedi.
-function __autoCollapseSnapshot(entries, state) {
-  if (!state) return { collapsed: {}, changed: false };
-  const groups = __buildGroups(entries);
-  const activeId = Array.isArray(state.order) ? state.order[state.current] : null;
-
-  const next = { ...(state.collapsed || {}) };
-  let changed = false;
-
-  // ripulisci chiavi non più presenti
-  for (const k of Object.keys(next)) {
-    if (!groups.has(k)) { delete next[k]; changed = true; }
-  }
-
-  // default: collassa tutti i gruppi con più membri
-  for (const [k, list] of groups) {
-    if (list.length > 1 && next[k] === undefined) { next[k] = true; changed = true; }
-  }
-
-  // espandi SOLO il gruppo dell'attivo
-  if (activeId) {
-    for (const [k, list] of groups) {
-      if (list.length <= 1) continue;
-      const containsActive = list.some(m => m.id === activeId);
-      const wantCollapsed = !containsActive;
-      if (!!next[k] !== wantCollapsed) { next[k] = wantCollapsed; changed = true; }
-    }
-  }
-
-  return { collapsed: next, changed };
 }
 
 // Collassa TUTTI i gruppi (len>1) tranne quello dell'elemento attivo
@@ -3794,47 +3710,6 @@ async function applyGroupHPMaxDelta(itemId, delta) {
   return updates.length;
 }
 
-// ===== Ordina per iniziativa (desc) con tiebreak:
-// 1) iniziativa desc
-// 2) se pareggio a 20: la Tana va SEMPRE dopo gli altri
-// 3) poi mantieni l'ordine manuale nei pareggi
-// 4) fallback stabile su id
-function sortByInitiative(entries, state) {
-  const order = Array.isArray(state?.order) ? state.order : [];
-  const pos = new Map(order.map((id, i) => [id, i]));
-
-  return [...entries].sort((a, b) => {
-    const ia = Number(a.initiative) || 0;
-    const ib = Number(b.initiative) || 0;
-    if (ib !== ia) return ib - ia; // desc
-
-    // --- TIEBREAK SPECIFICO EPIC (vincono i pareggi a 20) ---
-    if (ia === LAIR_INITIATIVE) {
-      const aEpic = !!a.isEpic;
-      const bEpic = !!b.isEpic;
-      if (aEpic !== bEpic) return aEpic ? -1 : 1; // Epic prima
-    }
-
-    // --- TIEBREAK SPECIFICO TANA ---
-    if (ia === LAIR_INITIATIVE) {
-      const aIsLair = isLairId(a.id);
-      const bIsLair = isLairId(b.id);
-      if (aIsLair !== bIsLair) {
-        // la Tana perde sempre i pareggi → va dopo
-        return aIsLair ? 1 : -1;
-      }
-    }
-
-    // tiebreak normale: rispetta eventuale riordino manuale
-    const pa = pos.has(a.id) ? pos.get(a.id) : Number.MAX_SAFE_INTEGER;
-    const pb = pos.has(b.id) ? pos.get(b.id) : Number.MAX_SAFE_INTEGER;
-    if (pa !== pb) return pa - pb;
-
-    // fallback deterministico
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
-}
-
     // ===== Colori fazione (border/glow + base per i gradienti)
   function factionColors(att) {
   switch (att) {
@@ -3997,6 +3872,42 @@ async function setLegendaryCurrent(itemId, nextCurrent) {
   });
 }
 
+async function setLegendaryResistanceCurrent(itemId, nextCurrent) {
+  await OBR.scene.items.updateItems([itemId], (items) => {
+    const it = items[0];
+    if (!it) return;
+    const metadata = it.metadata || {};
+    const meta = { ...(metadata[META_KEY] || {}) };
+    if (!meta.legendary || Number(meta.legendary.max) <= 0) return;
+    const stored = meta.legendaryResistances;
+    const max = stored && typeof stored === "object"
+      ? Math.max(0, Math.floor(Number(stored.max) || 0))
+      : DEFAULT_LEGENDARY_RESISTANCES;
+    const current = Math.max(0, Math.min(max, Math.floor(Number(nextCurrent) || 0)));
+    meta.legendaryResistances = { max, current };
+    metadata[META_KEY] = meta;
+    it.metadata = metadata;
+  });
+}
+
+async function setLegendaryResistanceMax(itemId, nextMax) {
+  const max = Math.max(1, Math.min(5, Math.floor(Number(nextMax) || 0)));
+  await OBR.scene.items.updateItems([itemId], (items) => {
+    const it = items[0];
+    if (!it) return;
+    const metadata = it.metadata || {};
+    const meta = { ...(metadata[META_KEY] || {}) };
+    if (!meta.legendary || Number(meta.legendary.max) <= 0) return;
+    const stored = meta.legendaryResistances;
+    const current = stored && typeof stored === "object"
+      ? Math.max(0, Math.min(max, Math.floor(Number(stored.current) || 0)))
+      : Math.min(max, DEFAULT_LEGENDARY_RESISTANCES);
+    meta.legendaryResistances = { max, current };
+    metadata[META_KEY] = meta;
+    it.metadata = metadata;
+  });
+}
+
 // Reset al pieno a inizio turno della creatura attiva
 async function resetLegendaryIfAny(activeId) {
   if (!activeId) return;
@@ -4028,65 +3939,88 @@ async function setLegendaryMax(itemId, nextMax) {
 }
 
 
-// ===== Legendary UI helpers (pips minacciosi, parametrici) =====
-function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
+// ===== Legendary UI helpers: diamanti per le azioni, scudi per le resistenze =====
+function mkLegendaryResourcePips(resource, onSet, attitude = "enemy", kind = "action") {
   const wrap = document.createElement("div");
   Object.assign(wrap.style, {
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: `${LEG_PIPS_CFG.gap}px`,
-    flexDirection: "row",          // ← ordine naturale: da sinistra a destra
-    justifyContent: "flex-start",  // ← l’origine resta ancorata a sinistra
+    flexDirection: "row",
+    justifyContent: "flex-start",
   });
 
-  const max = Math.max(0, Number(legendary?.max) || 0);
-  const cur = Math.max(0, Number(legendary?.current) || 0);
+  const max = Math.max(0, Number(resource?.max) || 0);
+  const cur = Math.max(0, Math.min(max, Number(resource?.current) || 0));
+  const isResistance = kind === "resistance";
 
   const ON = (() => {
+    if (isResistance) return { bg: "#3b82f6", glow: "drop-shadow(0 0 4px rgba(96,165,250,.88))" };
     if (attitude === "enemy")   return { bg: "#dc2626", glow: "0 0 8px rgba(220,38,38,.70)" };
     if (attitude === "neutral") return { bg: "#a16207", glow: "0 0 7px rgba(161,98,7,.60)"  };
-    return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" }; // ally
+    return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" };
   })();
 
   for (let i = 1; i <= max; i++) {
-    const pip = document.createElement("div");
-    const S = `${LEG_PIPS_CFG.size}px`;
+    const pip = document.createElement("button");
+    pip.type = "button";
+    const size = isResistance ? LEG_PIPS_CFG.size + 1 : LEG_PIPS_CFG.size;
+    const baseTransform = isResistance ? "none" : "rotate(45deg)";
     Object.assign(pip.style, {
-      width: S,
-      height: S,
-      transform: LEG_PIPS_CFG.diamond ? "rotate(45deg)" : "none",
-      borderRadius: LEG_PIPS_CFG.diamond ? "1px" : "999px",
-      border: "2px solid rgba(255, 0, 0, 1)",
-      background: "rgba(0, 0, 0, 0.5)",
-      boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.5)",
+      width: `${size}px`,
+      minWidth: `${size}px`,
+      height: `${size}px`,
+      minHeight: `${size}px`,
+      padding: "0",
+      transform: baseTransform,
+      clipPath: isResistance
+        ? "polygon(50% 0, 94% 18%, 82% 72%, 50% 100%, 18% 72%, 6% 18%)"
+        : "none",
+      borderRadius: isResistance ? "0" : "1px",
+      border: isResistance ? "none" : "1px solid rgba(255,255,255,.28)",
+      background: isResistance ? "rgba(15,23,42,.92)" : "rgba(0,0,0,.58)",
+      boxShadow: isResistance ? "none" : "inset 0 0 0 1px rgba(0,0,0,.5)",
+      filter: isResistance ? "drop-shadow(0 0 1px rgba(147,197,253,.85))" : "none",
       opacity: "1",
       cursor: IS_GM ? "pointer" : "default",
-      transition: "transform .12s ease, opacity .12s ease, box-shadow .12s ease, background-color .12s ease",
+      transition: "transform .12s ease, opacity .12s ease, box-shadow .12s ease, filter .12s ease, background-color .12s ease",
     });
     if (i <= cur) {
       pip.style.background = ON.bg;
-      pip.style.boxShadow  = `${ON.glow}, inset 0 0 1px rgba(0,0,0,.6)`;
-      pip.style.borderColor = "rgba(255,255,255,.28)";
+      if (isResistance) pip.style.filter = ON.glow;
+      else pip.style.boxShadow = `${ON.glow}, inset 0 0 1px rgba(0,0,0,.6)`;
     }
-    pip.title = "Azione leggendaria";
+    const label = isResistance ? "Resistenza leggendaria" : "Azione leggendaria";
+    pip.title = `${label}: ${cur}/${max}`;
+    pip.setAttribute("aria-label", `${label} ${i} di ${max}`);
+    pip.setAttribute("aria-pressed", i <= cur ? "true" : "false");
     pip.addEventListener("mouseenter", () => {
-      const rot = LEG_PIPS_CFG.diamond ? "rotate(45deg) " : "";
-      pip.style.transform = `${rot}scale(1.12)`; pip.style.opacity = "1";
+      pip.style.transform = `${baseTransform === "none" ? "" : `${baseTransform} `}scale(1.12)`;
+      pip.style.opacity = "1";
     });
     pip.addEventListener("mouseleave", () => {
-      pip.style.transform = LEG_PIPS_CFG.diamond ? "rotate(45deg)" : "none"; pip.style.opacity = ".9";
+      pip.style.transform = baseTransform;
+      pip.style.opacity = ".9";
     });
     pip.addEventListener("click", (ev) => {
-  ev.stopPropagation();
-  if (!IS_GM) return;
-
-  const next = (i <= cur) ? (i - 1) : i; // 1→0 consentito
-  onSet(next);
-});
+      ev.stopPropagation();
+      if (!IS_GM) return;
+      const next = i <= cur ? i - 1 : i;
+      onSet(next);
+    });
 
     wrap.appendChild(pip);
   }
   return wrap;
+}
+
+function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
+  return mkLegendaryResourcePips(legendary, onSet, attitude, "action");
+}
+
+function mkLegendaryResistancePips(resistances, onSet) {
+  return mkLegendaryResourcePips(resistances, onSet, "enemy", "resistance");
 }
 
 // Quanti chip mostrare prima del "+N"
@@ -4181,7 +4115,7 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
   more.setAttribute("aria-expanded", "false");
   styleChipPill(more, { compact });
   Object.assign(more.style, {
-    minHeight: "18px",
+    minHeight: "20px",
     height: "18px",
     padding: "0 6px 2px",
     fontFamily: "inherit",
@@ -4479,9 +4413,16 @@ async function __setCardBossMode(entry, mode) {
     if (!item) return;
     const meta = { ...(item.metadata?.[META_KEY] || {}) };
     delete meta.legendary;
+    delete meta.legendaryResistances;
     delete meta.paragon;
     delete meta.epic;
-    if (mode === "legendary") meta.legendary = { max: 3, current: 3 };
+    if (mode === "legendary") {
+      meta.legendary = { max: 3, current: 3 };
+      meta.legendaryResistances = {
+        max: DEFAULT_LEGENDARY_RESISTANCES,
+        current: DEFAULT_LEGENDARY_RESISTANCES,
+      };
+    }
     if (mode === "paragon") meta.paragon = { actions: 2 };
     if (mode === "epic") {
       meta.epic = { enabled: 1 };
@@ -4852,16 +4793,6 @@ function __trackerCardsByGroup(nodes) {
   return groups;
 }
 
-function __cardLayoutAnchor(card) {
-  const rect = card.getBoundingClientRect();
-  const width = card.offsetWidth || rect.width;
-  const height = card.offsetHeight || rect.height;
-  return {
-    left: rect.left + (rect.width - width) / 2,
-    top: rect.top + (rect.height - height) / 2,
-  };
-}
-
 function __captureTransitionCard(card) {
   const rect = card.getBoundingClientRect();
   return {
@@ -4873,642 +4804,6 @@ function __captureTransitionCard(card) {
     originalStyle: card.getAttribute("style"),
     baseTransform: card.style.transform || "none",
   };
-}
-
-function __placeCardInTransitionLayer(card, layer, snapshot = __captureTransitionCard(card)) {
-  const { rect, width, height, originalStyle, baseTransform } = snapshot;
-  const hostRect = trackWrap.getBoundingClientRect();
-  Object.assign(card.style, {
-    position: "absolute",
-    left: `${rect.left - hostRect.left + trackWrap.scrollLeft + (rect.width - width) / 2}px`,
-    top: `${rect.top - hostRect.top + trackWrap.scrollTop + (rect.height - height) / 2}px`,
-    width: `${width}px`,
-    minWidth: `${width}px`,
-    height: `${height}px`,
-    margin: "0",
-    pointerEvents: "none",
-  });
-  layer.appendChild(card);
-  return { card, rect, width, height, originalStyle, baseTransform };
-}
-
-function __placeCardInTrackTransitionLayer(card, layer, snapshot = __captureTransitionCard(card)) {
-  const { rect, width, height, originalStyle, baseTransform } = snapshot;
-  const hostRect = track.getBoundingClientRect();
-  Object.assign(card.style, {
-    position: "absolute",
-    left: `${rect.left - hostRect.left + (rect.width - width) / 2}px`,
-    top: `${rect.top - hostRect.top + (rect.height - height) / 2}px`,
-    width: `${width}px`,
-    minWidth: `${width}px`,
-    height: `${height}px`,
-    margin: "0",
-    pointerEvents: "none",
-  });
-  layer.appendChild(card);
-  return { card, rect, width, height, originalStyle, baseTransform };
-}
-
-function __restoreCardStyle(record) {
-  if (record.originalStyle === null) record.card.removeAttribute("style");
-  else record.card.setAttribute("style", record.originalStyle);
-}
-
-function __replaceTrackCardsAnimatedLegacy(nodes) {
-  const nextNodes = nodes.filter(Boolean);
-  const nextSignature = __groupLayoutSignature(nextNodes);
-  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
-
-  __finishGroupLayoutTransition?.();
-  __finishGroupLayoutTransition = null;
-  __activeGroupLayoutSignature = null;
-
-  const oldCards = Array.from(track.children).filter(
-    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
-  );
-  const oldGroups = __trackerCardsByGroup(oldCards);
-  const nextGroups = __trackerCardsByGroup(nextNodes);
-  const transitions = [];
-
-  for (const [key, nextCards] of nextGroups) {
-    const previousCards = oldGroups.get(key) || [];
-    const wasCollapsed = previousCards.length === 1 && previousCards[0].dataset.groupCollapsed === "1";
-    const isCollapsed = nextCards.length === 1 && nextCards[0].dataset.groupCollapsed === "1";
-    if (wasCollapsed && nextCards.length > 1) {
-      transitions.push({ key, type: "expand" });
-    } else if (previousCards.length > 1 && isCollapsed) {
-      transitions.push({ key, type: "collapse" });
-    }
-  }
-
-  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  if (!transitions.length || reducedMotion) {
-    track.replaceChildren(...nextNodes);
-    return;
-  }
-
-  document.querySelectorAll('[data-group-transition-layer="1"]').forEach((layer) => layer.remove());
-  const transitionLayer = document.createElement("div");
-  transitionLayer.dataset.groupTransitionLayer = "1";
-  transitionLayer.className = "tbp-root";
-  Object.assign(transitionLayer.style, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    width: "0",
-    height: "0",
-    overflow: "visible",
-    pointerEvents: "none",
-    zIndex: "10000",
-    fontFamily: getComputedStyle(container).fontFamily,
-    color: getComputedStyle(container).color,
-  });
-
-  const oldRectsById = new Map();
-  for (const card of oldCards) {
-    oldRectsById.set(card.dataset.itemId, card.getBoundingClientRect());
-  }
-  const expansionAnchors = new Map();
-  const expansionLeadRecords = [];
-  for (const { key, type } of transitions) {
-    if (type !== "expand") continue;
-    const lead = oldGroups.get(key)?.[0];
-    if (!lead) continue;
-    expansionAnchors.set(key, __cardLayoutAnchor(lead));
-    const snapshot = __captureTransitionCard(lead);
-    const visualCopy = lead.cloneNode(true);
-    visualCopy.removeAttribute("id");
-    expansionLeadRecords.push({
-      ...__placeCardInTransitionLayer(visualCopy, transitionLayer, snapshot),
-      key,
-    });
-  }
-
-  const collapseLeadRecords = [];
-  const collapseRecords = [];
-  for (const { key, type } of transitions) {
-    if (type !== "collapse") continue;
-    const oldGroup = oldGroups.get(key) || [];
-    const snapshots = oldGroup.map((card) => ({
-      card,
-      snapshot: __captureTransitionCard(card),
-    })).sort((a, b) => isCompactTrackerLayout()
-      ? a.snapshot.rect.left - b.snapshot.rect.left
-      : a.snapshot.rect.top - b.snapshot.rect.top
-    );
-    const leadRecord = snapshots[0];
-    if (leadRecord) {
-      collapseLeadRecords.push({
-        card: leadRecord.card,
-        ...leadRecord.snapshot,
-        key,
-        finalLead: null,
-        finalLeadOriginalStyle: null,
-        finalLeadOpacity: "1",
-      });
-    }
-    const closingCards = snapshots.slice(1);
-    closingCards.forEach(({ card, snapshot }, index) => {
-      const placedCard = {
-        ...__placeCardInTransitionLayer(card, transitionLayer, snapshot),
-        key,
-        index,
-        count: closingCards.length,
-      };
-      placedCard.card.style.zIndex = String(900 - index);
-      placedCard.card.style.backgroundColor = "rgb(31, 39, 51)";
-      collapseRecords.push(placedCard);
-    });
-  }
-
-  const transitionScrollLeft = trackWrap.scrollLeft;
-  const transitionScrollTop = trackWrap.scrollTop;
-  track.replaceChildren(...nextNodes);
-  const renderedGroups = __trackerCardsByGroup(nextNodes);
-  const collapseAnchors = new Map();
-  const collapseSpacerRecords = [];
-  for (const { key, type } of transitions) {
-    if (type !== "collapse") continue;
-    const lead = renderedGroups.get(key)?.[0];
-    const leadRecord = collapseLeadRecords.find((record) => record.key === key);
-    if (!lead || !leadRecord) continue;
-
-    leadRecord.finalLead = lead;
-    leadRecord.finalLeadOriginalStyle = lead.getAttribute("style");
-    leadRecord.finalLeadOpacity = lead.style.opacity || "1";
-    lead.replaceWith(leadRecord.card);
-    leadRecord.card.style.zIndex = "10001";
-    Object.assign(lead.style, {
-      position: "absolute",
-      inset: "0",
-      width: "100%",
-      minWidth: "100%",
-      maxWidth: "100%",
-      height: "100%",
-      margin: "0",
-      pointerEvents: "none",
-      zIndex: "10002",
-    });
-    leadRecord.card.appendChild(lead);
-
-    let insertionPoint = leadRecord.card;
-    const records = collapseRecords.filter((record) => record.key === key);
-    for (const record of records) {
-      const spacer = document.createElement("div");
-      spacer.dataset.groupTransitionPlaceholder = "1";
-      spacer.setAttribute("aria-hidden", "true");
-      Object.assign(spacer.style, {
-        boxSizing: "border-box",
-        flex: `0 0 ${isCompactTrackerLayout() ? record.width : record.height}px`,
-        width: `${record.width}px`,
-        minWidth: isCompactTrackerLayout() ? `${record.width}px` : "0",
-        height: `${record.height}px`,
-        minHeight: isCompactTrackerLayout() ? "0" : `${record.height}px`,
-        pointerEvents: "none",
-        visibility: "hidden",
-      });
-      insertionPoint.after(spacer);
-      insertionPoint = spacer;
-      collapseSpacerRecords.push({
-        spacer,
-        key,
-        index: record.index,
-        count: record.count,
-        size: isCompactTrackerLayout() ? record.width : record.height,
-      });
-    }
-  }
-
-  // replaceChildren puÃ² ridurre temporaneamente lo scrollHeight e forzare un
-  // clamp dello scroll. Ripristiniamo il viewport dopo aver rimesso gli spacer.
-  trackWrap.scrollLeft = transitionScrollLeft;
-  trackWrap.scrollTop = transitionScrollTop;
-  for (const record of collapseLeadRecords) {
-    if (record.card.isConnected) {
-      collapseAnchors.set(record.key, __cardLayoutAnchor(record.card));
-    }
-  }
-
-  const expansionRecords = [];
-  for (const { key, type } of transitions) {
-    if (type !== "expand") continue;
-    const openingCards = (renderedGroups.get(key) || []).slice(1);
-    openingCards.forEach((card, index) => {
-      const placeholder = document.createElement("div");
-      placeholder.dataset.groupTransitionPlaceholder = "1";
-      placeholder.setAttribute("aria-hidden", "true");
-      placeholder.style.cssText = card.style.cssText;
-      placeholder.style.visibility = "hidden";
-      placeholder.style.pointerEvents = "none";
-      const snapshot = __captureTransitionCard(card);
-      card.replaceWith(placeholder);
-      expansionRecords.push({
-        ...__placeCardInTransitionLayer(card, transitionLayer, snapshot),
-        key,
-        index,
-        count: openingCards.length,
-        placeholder,
-      });
-    });
-  }
-
-  const movingCards = new Set([
-    ...expansionRecords.map(({ card }) => card),
-    ...collapseLeadRecords.map(({ finalLead }) => finalLead).filter(Boolean),
-  ]);
-  for (const card of nextNodes) {
-    if (!(card instanceof HTMLElement) || movingCards.has(card) || !card.isConnected) continue;
-    const oldRect = oldRectsById.get(card.dataset.itemId);
-    if (!oldRect) continue;
-    const finalRect = card.getBoundingClientRect();
-    const dx = oldRect.left - finalRect.left;
-    const dy = oldRect.top - finalRect.top;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-    card.animate?.(__groupAccordionFrames(
-      dx,
-      dy,
-      card.style.transform || "none"
-    ), {
-      duration: GROUP_LAYOUT_ANIMATION_MS,
-      easing: GROUP_LAYOUT_EASING,
-      fill: "backwards",
-    });
-  }
-
-  const hasOverlayCards = expansionRecords.length > 0 || expansionLeadRecords.length > 0 || collapseRecords.length > 0;
-  if (hasOverlayCards) trackWrap.appendChild(transitionLayer);
-
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    for (const record of expansionRecords) {
-      __restoreCardStyle(record);
-      if (record.placeholder.isConnected) record.placeholder.replaceWith(record.card);
-    }
-    for (const record of collapseSpacerRecords) record.spacer.remove();
-    for (const record of collapseLeadRecords) {
-      if (!record.finalLead) continue;
-      if (record.finalLeadOriginalStyle === null) record.finalLead.removeAttribute("style");
-      else record.finalLead.setAttribute("style", record.finalLeadOriginalStyle);
-      if (record.card.isConnected) record.card.replaceWith(record.finalLead);
-    }
-    transitionLayer.remove();
-    if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
-    if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
-    const afterTransition = __afterGroupLayoutTransition;
-    __afterGroupLayoutTransition = null;
-    if (afterTransition) {
-      requestAnimationFrame(() => {
-        if (__finishGroupLayoutTransition) __afterGroupLayoutTransition = afterTransition;
-        else afterTransition();
-      });
-    }
-  };
-  __finishGroupLayoutTransition = finish;
-  __activeGroupLayoutSignature = nextSignature;
-
-  requestAnimationFrame(() => {
-    if (finished) return;
-    for (const record of expansionLeadRecords) {
-      record.card.animate?.([
-        { opacity: 1 },
-        { opacity: 0 },
-      ], {
-        duration: GROUP_CARD_SWAP_FADE_MS,
-        easing: "ease-out",
-        fill: "forwards",
-      });
-    }
-
-    for (const record of expansionRecords) {
-      const anchor = expansionAnchors.get(record.key);
-      if (!anchor) continue;
-      const dx = anchor.left - record.rect.left;
-      const dy = anchor.top - record.rect.top;
-      record.card.animate?.(__groupAccordionFrames(
-        dx,
-        dy,
-        record.baseTransform
-      ), {
-        duration: GROUP_LAYOUT_ANIMATION_MS,
-        delay: Math.min(record.index * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
-        easing: GROUP_LAYOUT_EASING,
-        fill: "backwards",
-      });
-    }
-
-    for (const record of collapseRecords) {
-      const anchor = collapseAnchors.get(record.key);
-      if (!anchor) continue;
-      const dx = anchor.left - record.rect.left;
-      const dy = anchor.top - record.rect.top;
-      const reverseDelay = Math.min(
-        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
-        GROUP_LAYOUT_MAX_STAGGER_MS
-      );
-      record.card.animate?.(__groupAccordionFrames(
-        dx,
-        dy,
-        record.baseTransform
-      ), {
-        duration: GROUP_LAYOUT_ANIMATION_MS,
-        delay: reverseDelay,
-        easing: GROUP_LAYOUT_EASING,
-        direction: "reverse",
-        fill: "both",
-      });
-    }
-
-    for (const record of collapseSpacerRecords) {
-      const reverseDelay = Math.min(
-        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
-        GROUP_LAYOUT_MAX_STAGGER_MS
-      );
-      const compact = isCompactTrackerLayout();
-      if (!compact) continue;
-      record.spacer.animate?.([
-        { flexBasis: `${record.size}px`, width: `${record.size}px`, minWidth: `${record.size}px`, marginRight: "0" },
-        { flexBasis: "0px", width: "0px", minWidth: "0px", marginRight: `-${parseFloat(getComputedStyle(track).gap) || 0}px` },
-      ], {
-        duration: GROUP_LAYOUT_ANIMATION_MS,
-        delay: reverseDelay,
-        easing: GROUP_LAYOUT_EASING,
-        fill: "forwards",
-      });
-    }
-
-    const collapseFadeDelay = GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS - GROUP_CARD_SWAP_FADE_MS;
-    for (const record of collapseLeadRecords) {
-      const lead = record.finalLead;
-      if (!lead) continue;
-      lead.animate?.([
-        { opacity: 0 },
-        { opacity: Number.parseFloat(record.finalLeadOpacity) || 1 },
-      ], {
-        duration: GROUP_CARD_SWAP_FADE_MS,
-        delay: collapseFadeDelay,
-        easing: "ease-out",
-        fill: "backwards",
-      });
-    }
-
-    window.setTimeout(
-      finish,
-      GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS + 80
-    );
-  });
-}
-function __replaceTrackCardsAnimatedFLIP(nodes) {
-  const compact = isCompactTrackerLayout();
-  const nextNodes = nodes.filter(Boolean);
-  const nextSignature = __groupLayoutSignature(nextNodes);
-  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
-
-  __finishGroupLayoutTransition?.();
-  __finishGroupLayoutTransition = null;
-  __activeGroupLayoutSignature = null;
-
-  const oldCards = Array.from(track.children).filter(
-    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
-  );
-  const oldGroups = __trackerCardsByGroup(oldCards);
-  const nextGroups = __trackerCardsByGroup(nextNodes);
-  const transitions = [];
-
-  for (const [key, nextCards] of nextGroups) {
-    const previousCards = oldGroups.get(key) || [];
-    const wasCollapsed = previousCards.length === 1 && previousCards[0].dataset.groupCollapsed === "1";
-    const isCollapsed = nextCards.length === 1 && nextCards[0].dataset.groupCollapsed === "1";
-    if (wasCollapsed && nextCards.length > 1) transitions.push({ key, type: "expand" });
-    else if (previousCards.length > 1 && isCollapsed) transitions.push({ key, type: "collapse" });
-  }
-
-  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  if (!transitions.length || reducedMotion) {
-    track.replaceChildren(...nextNodes);
-    return;
-  }
-
-  document.querySelectorAll('[data-group-transition-layer="1"]').forEach((layer) => layer.remove());
-  const transitionLayer = document.createElement("div");
-  transitionLayer.dataset.groupTransitionLayer = "1";
-  transitionLayer.className = "tbp-root";
-  Object.assign(transitionLayer.style, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    width: "0",
-    height: "0",
-    overflow: "visible",
-    pointerEvents: "none",
-    zIndex: "10000",
-    fontFamily: getComputedStyle(container).fontFamily,
-    color: getComputedStyle(container).color,
-  });
-
-  const oldSnapshotsById = new Map(oldCards.map((card) => [
-    card.dataset.itemId,
-    __captureTransitionCard(card),
-  ]));
-  const expansionRecords = [];
-  const collapseLeadRecords = [];
-  const collapseCardRecords = [];
-
-  for (const { key, type } of transitions) {
-    const oldGroup = (oldGroups.get(key) || [])
-      .map((card) => ({ card, snapshot: oldSnapshotsById.get(card.dataset.itemId) }))
-      .filter(({ snapshot }) => !!snapshot)
-      .sort((a, b) => compact
-        ? a.snapshot.rect.left - b.snapshot.rect.left
-        : a.snapshot.rect.top - b.snapshot.rect.top
-      );
-    const leadRecord = oldGroup[0];
-    if (!leadRecord) continue;
-
-    const leadCopy = leadRecord.card.cloneNode(true);
-    leadCopy.removeAttribute("id");
-    const placedLead = {
-      ...__placeCardInTrackTransitionLayer(leadCopy, transitionLayer, leadRecord.snapshot),
-      key,
-    };
-
-    if (type === "expand") {
-      expansionRecords.push(placedLead);
-      continue;
-    }
-
-    placedLead.card.style.zIndex = "1000";
-    placedLead.card.style.backgroundColor = "rgb(31, 39, 51)";
-    collapseLeadRecords.push(placedLead);
-    const closing = oldGroup.slice(1);
-    closing.forEach(({ card, snapshot }, index) => {
-      const visualCopy = card.cloneNode(true);
-      visualCopy.removeAttribute("id");
-      const placedCard = {
-        ...__placeCardInTrackTransitionLayer(visualCopy, transitionLayer, snapshot),
-        key,
-        index,
-        count: closing.length,
-      };
-      placedCard.card.style.zIndex = String(900 - index);
-      placedCard.card.style.backgroundColor = "rgb(31, 39, 51)";
-      collapseCardRecords.push(placedCard);
-    });
-  }
-
-  const transitionScrollLeft = trackWrap.scrollLeft;
-  const transitionScrollTop = trackWrap.scrollTop;
-  track.replaceChildren(...nextNodes);
-  const maxScrollLeft = Math.max(0, trackWrap.scrollWidth - trackWrap.clientWidth);
-  const maxScrollTop = Math.max(0, trackWrap.scrollHeight - trackWrap.clientHeight);
-  const nextScrollLeft = Math.min(transitionScrollLeft, maxScrollLeft);
-  const nextScrollTop = Math.min(transitionScrollTop, maxScrollTop);
-  trackWrap.scrollLeft = nextScrollLeft;
-  trackWrap.scrollTop = nextScrollTop;
-
-  const renderedGroups = __trackerCardsByGroup(nextNodes);
-  const collapseFinalRecords = [];
-  const expansionOpeningCards = new Set();
-  for (const { key, type } of transitions) {
-    const rendered = renderedGroups.get(key) || [];
-    if (type === "collapse") {
-      const finalLead = rendered[0];
-      if (!finalLead) continue;
-      collapseFinalRecords.push({
-        key,
-        card: finalLead,
-        visibility: finalLead.style.visibility,
-        opacity: finalLead.style.opacity || "1",
-      });
-      finalLead.style.visibility = "hidden";
-    } else {
-      for (const card of rendered.slice(1)) expansionOpeningCards.add(card);
-    }
-  }
-
-  const animations = [];
-  const play = (element, frames, options) => {
-    const animation = element.animate?.(frames, options);
-    if (animation) animations.push(animation);
-    return animation;
-  };
-
-  const collapseFinalCards = new Set(collapseFinalRecords.map(({ card }) => card));
-  for (const card of nextNodes) {
-    if (!(card instanceof HTMLElement) || !card.isConnected) continue;
-    if (collapseFinalCards.has(card) || expansionOpeningCards.has(card)) continue;
-    const oldSnapshot = oldSnapshotsById.get(card.dataset.itemId);
-    if (!oldSnapshot) continue;
-    const finalRect = card.getBoundingClientRect();
-    const dx = oldSnapshot.rect.left - finalRect.left;
-    const dy = oldSnapshot.rect.top - finalRect.top;
-    const axisDelta = compact ? dx : dy;
-    if (Math.abs(axisDelta) < 0.5) continue;
-    play(card, __groupAccordionFrames(dx, dy, card.style.transform || "none"), {
-      duration: GROUP_LAYOUT_ANIMATION_MS,
-      easing: GROUP_LAYOUT_EASING,
-      fill: "backwards",
-    });
-  }
-
-  track.appendChild(transitionLayer);
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    for (const animation of animations) animation.cancel?.();
-    for (const record of collapseFinalRecords) record.card.style.visibility = record.visibility;
-    transitionLayer.remove();
-    if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
-    if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
-    const afterTransition = __afterGroupLayoutTransition;
-    __afterGroupLayoutTransition = null;
-    if (afterTransition) {
-      requestAnimationFrame(() => {
-        if (__finishGroupLayoutTransition) __afterGroupLayoutTransition = afterTransition;
-        else afterTransition();
-      });
-    }
-  };
-  __finishGroupLayoutTransition = finish;
-  __activeGroupLayoutSignature = nextSignature;
-
-  requestAnimationFrame(() => {
-    if (finished) return;
-
-    for (const record of expansionRecords) {
-      const anchorRect = record.card.getBoundingClientRect();
-      play(record.card, [{ opacity: 1 }, { opacity: 0 }], {
-        duration: GROUP_CARD_SWAP_FADE_MS,
-        easing: "ease-out",
-        fill: "forwards",
-      });
-      const openingCards = (renderedGroups.get(record.key) || []).slice(1);
-      openingCards.forEach((card, index) => {
-        const finalRect = card.getBoundingClientRect();
-        play(card, __groupAccordionFrames(
-          anchorRect.left - finalRect.left,
-          anchorRect.top - finalRect.top,
-          card.style.transform || "none"
-        ), {
-          duration: GROUP_LAYOUT_ANIMATION_MS,
-          delay: Math.min(index * GROUP_LAYOUT_STAGGER_MS, GROUP_LAYOUT_MAX_STAGGER_MS),
-          easing: GROUP_LAYOUT_EASING,
-          fill: "backwards",
-        });
-      });
-    }
-
-    for (const record of collapseCardRecords) {
-      const anchor = collapseLeadRecords.find(({ key }) => key === record.key);
-      if (!anchor) continue;
-      const anchorRect = anchor.card.getBoundingClientRect();
-      const cardRect = record.card.getBoundingClientRect();
-      const reverseDelay = Math.min(
-        Math.max(0, record.count - 1 - record.index) * GROUP_LAYOUT_STAGGER_MS,
-        GROUP_LAYOUT_MAX_STAGGER_MS
-      );
-      play(record.card, __groupAccordionFrames(
-        anchorRect.left - cardRect.left,
-        anchorRect.top - cardRect.top,
-        record.baseTransform
-      ), {
-        duration: GROUP_LAYOUT_ANIMATION_MS,
-        delay: reverseDelay,
-        easing: GROUP_LAYOUT_EASING,
-        direction: "reverse",
-        fill: "both",
-      });
-    }
-
-    const collapseFadeDelay = GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS - GROUP_CARD_SWAP_FADE_MS;
-    for (const record of collapseLeadRecords) {
-      play(record.card, [{ opacity: 1 }, { opacity: 0 }], {
-        duration: GROUP_CARD_SWAP_FADE_MS,
-        delay: collapseFadeDelay,
-        easing: "ease-out",
-        fill: "forwards",
-      });
-      const finalRecord = collapseFinalRecords.find(({ key }) => key === record.key);
-      if (!finalRecord) continue;
-      finalRecord.card.style.visibility = "";
-      play(finalRecord.card, [
-        { opacity: 0 },
-        { opacity: Number.parseFloat(finalRecord.opacity) || 1 },
-      ], {
-        duration: GROUP_CARD_SWAP_FADE_MS,
-        delay: collapseFadeDelay,
-        easing: "ease-out",
-        fill: "backwards",
-      });
-    }
-
-    window.setTimeout(
-      finish,
-      GROUP_LAYOUT_ANIMATION_MS + GROUP_LAYOUT_MAX_STAGGER_MS + 80
-    );
-  });
 }
 
 function __replaceTrackCardsMagnetic(nodes) {
@@ -5842,44 +5137,14 @@ function __replaceTrackCardsAnimated(nodes) {
   __replaceTrackCardsMagnetic(nodes);
 }
 
-function compactEntriesForRender(entries, state) {
-  const collapsed = state?.collapsed || {};
-  const groups = new Map();
-  for (const entry of entries) {
-    const key = __groupKey(entry);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(entry);
-  }
-
-  const emitted = new Set();
-  const output = [];
-  for (const entry of entries) {
-    const key = __groupKey(entry);
-    const members = groups.get(key) || [entry];
-    if (members.length > 1 && collapsed[key]) {
-      if (emitted.has(key)) continue;
-      output.push({
-        ...members[0],
-        __groupKey: key,
-        __groupMembers: members.slice(),
-        __groupCollapsed: true,
-        __groupBase: _parseIndexedName(entry.name).base,
-        __groupCount: members.length,
-      });
-      emitted.add(key);
-    } else {
-      output.push(entry);
-    }
-  }
-  return output;
-}
-
 function compactStatusBadge(text, title, tone = "neutral") {
   const badge = document.createElement("span");
   badge.textContent = text;
   badge.title = title;
   const colors = tone === "concentration"
     ? { background: "#2563eb", border: "#93c5fd" }
+    : tone === "resistance"
+      ? { background: "#1e3a8a", border: "#93c5fd" }
     : tone === "legendary"
       ? { background: "#991b1b", border: "#fca5a5" }
       : { background: "rgba(8,12,21,.92)", border: "rgba(255,255,255,.34)" };
@@ -5931,8 +5196,8 @@ function renderCompactTrack(entries, state) {
     const virtual = isLairId(entry.id) || isEpicActionId(entry.id);
     const attitude = String(entry.attitude || "").toLowerCase();
     const faction = factionColors(attitude);
-    const cardWidth = boss ? 94 : 92;
-    const portraitSize = boss ? 50 : 49;
+    const cardWidth = 92;
+    const portraitSize = boss ? 59 : 49;
     const canSeeHP = IS_GM || attitude === "pc";
     const hp = Number(entry.hp);
     const hpMax = Number(entry.hpMax);
@@ -6003,7 +5268,7 @@ function renderCompactTrack(entries, state) {
       width: `${portraitSize}px`,
       height: `${portraitSize}px`,
       flex: `0 0 ${portraitSize}px`,
-      marginTop: "4px",
+      marginTop: boss ? "6px" : "4px",
       overflow: "hidden",
       border: `2px solid ${faction.border}`,
       borderRadius: "50%",
@@ -6012,6 +5277,7 @@ function renderCompactTrack(entries, state) {
       boxShadow: active
         ? `0 0 0 1px ${rgba(faction.border, .92)}, 0 0 9px ${rgba(faction.border, .36)}, 0 3px 9px rgba(0,0,0,.38)`
         : "0 3px 9px rgba(0,0,0,.38)",
+      zIndex: "2",
     });
 
     if (entry.portrait) {
@@ -6040,6 +5306,30 @@ function renderCompactTrack(entries, state) {
         background: `linear-gradient(145deg, ${rgba(faction.base, .60)}, rgba(8,12,21,.92))`,
       });
       portrait.appendChild(fallback);
+    }
+
+    if (boss) {
+      const bossFrame = document.createElement("img");
+      const bossFrameSize = Math.round(portraitSize * BOSS_PORTRAIT_FRAME_SCALE_COMPACT);
+      bossFrame.src = BOSS_PORTRAIT_FRAME_SRC;
+      bossFrame.alt = "";
+      bossFrame.setAttribute("aria-hidden", "true");
+      bossFrame.draggable = false;
+      Object.assign(bossFrame.style, {
+        position: "absolute",
+        left: "50%",
+        top: `${3 + (boss ? 6 : 4) + (portraitSize / 2)}px`,
+        width: `${bossFrameSize}px`,
+        height: `${bossFrameSize}px`,
+        objectFit: "contain",
+        transform: "translate(-50%, -50%)",
+        pointerEvents: "none",
+        filter: "drop-shadow(0 2px 4px rgba(0,0,0,.72))",
+        WebkitMaskImage: BOSS_PORTRAIT_FRAME_MASK,
+        maskImage: BOSS_PORTRAIT_FRAME_MASK,
+        zIndex: "3",
+      });
+      card.appendChild(bossFrame);
     }
 
     const initiative = document.createElement("span");
@@ -6282,6 +5572,9 @@ function renderCompactTrack(entries, state) {
       total + (Array.isArray(member.spells) ? member.spells.length : 0), 0
     );
     const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
+    const legendaryResistances = members.find(
+      (member) => Number(member.legendaryResistances?.max) > 0
+    )?.legendaryResistances;
 
     if (concentrating) {
       status.appendChild(compactStatusBadge("C", "Concentrazione", "concentration"));
@@ -6297,9 +5590,16 @@ function renderCompactTrack(entries, state) {
     }
     if (legendary) {
       status.appendChild(compactStatusBadge(
-        `L${Math.max(0, Number(legendary.current) || 0)}`,
+        `A${Math.max(0, Number(legendary.current) || 0)}`,
         `Azioni leggendarie: ${Math.max(0, Number(legendary.current) || 0)}/${Math.max(0, Number(legendary.max) || 0)}`,
         "legendary"
+      ));
+    }
+    if (legendaryResistances) {
+      status.appendChild(compactStatusBadge(
+        `R${Math.max(0, Number(legendaryResistances.current) || 0)}`,
+        `Resistenze leggendarie: ${Math.max(0, Number(legendaryResistances.current) || 0)}/${Math.max(0, Number(legendaryResistances.max) || 0)}`,
+        "resistance"
       ));
     }
     const represented = Math.min(2, conditionInstances.length);
@@ -6341,12 +5641,7 @@ function renderCompactTrack(entries, state) {
 
     // ---- PRE-PROCESS: costruiamo una lista “entriesForRender” che rispetta i collapse
     const collapsed = state?.collapsed || {};
-    const groups = new Map(); // key -> array di membri
-    for (const e of entries) {
-    const k = __groupKey(e);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(e);
-  }
+    const groups = __buildGroups(entries);
 
 const emitted = new Set();
 const entriesForRender = [];
@@ -6403,6 +5698,11 @@ for (const e of entries) {
     const HAS_PAR = Number(e.paragonActions) > 1;
     const IS_EPIC = !!e.isEpic;
     const IS_BOSS = HAS_LEG || HAS_PAR || IS_EPIC;
+    const PLAYER_CARD_HAS_HP = !IS_GM && !e.__groupCollapsed &&
+      ["ally", "pc"].includes(String(e.attitude || "").toLowerCase());
+    const PLAYER_BOSS_VERTICAL_OFFSET = IS_BOSS && !IS_GM && !PLAYER_CARD_HAS_HP
+      ? (HAS_LEG ? 16 : 7)
+      : 0;
 
     const cardEffectData = __safeConditions(e.conditions);
     const HAS_CARD_EFFECTS =
@@ -6598,9 +5898,10 @@ if (isActive) {
   activeBadge.textContent = "⚔";
   Object.assign(activeBadge.style, {
     position: "absolute",
-    left: `${L}px`,
-    top: "50%",
-    transform: "translateY(55%)",
+    left: IS_BOSS ? "-8px" : `${L}px`,
+    top: IS_BOSS ? "auto" : "50%",
+    bottom: IS_BOSS ? "0px" : "auto",
+    transform: IS_BOSS ? "none" : "translateY(55%)",
     width: `${S}px`,
     height: `${S}px`,
     borderRadius: "50%",
@@ -6612,7 +5913,7 @@ if (isActive) {
     color: "#fff",
     background: c.border,
     boxShadow: "0 2px 6px rgba(0,0,0,.85), 0 0 0 2px rgba(0,0,0,.6)",
-    zIndex: "4",
+    zIndex: IS_BOSS ? "8" : "4",
     pointerEvents: "none",
   });
   card.appendChild(activeBadge);
@@ -6634,12 +5935,19 @@ if (isActive) {
   const OVER_BASE = 12;                 // sporgenza normale
 
 // Se ha azioni leggendarie, avatar più grande e un filo più “sporgente”
-  const AVA  = IS_BOSS ? Math.round(AVA_BASE * 1.15) : AVA_BASE;
-  const OVER = IS_BOSS ? Math.round(OVER_BASE * 1.1) : OVER_BASE;
+  const AVA  = IS_BOSS ? 72 : AVA_BASE;
+  const OVER = IS_BOSS ? 0 : OVER_BASE;
+  const AVATAR_LEFT = IS_BOSS ? -12 : -OVER;
 
   // header: avatar + name + badge
   const header = document.createElement("div");
-  const CONTENT_LEFT = (AVA - OVER + 12); // ← inizio contenuto (subito a destra dell’avatar)
+  const CONTENT_LEFT = IS_BOSS ? 76 : (AVA - OVER + 12);
+  const BOSS_CONTENT_OFFSET = IS_BOSS
+    ? Math.round((MAIN_CARD_H - BASE_CARD_H) / 2)
+    : 0;
+  const BOSS_HP_ROW_TOP = HAS_LEG ? 49 : 43;
+  const BOSS_HP_BAR_BOTTOM = HAS_LEG ? 8 : 14;
+  const CENTER_SINGLE_LINE_NAME = !!e.__groupCollapsed || !!e.isEpicAction || isEpicActionId(e.id);
   Object.assign(header.style, {
     position: "relative",
     display: "flex",
@@ -6660,14 +5968,14 @@ const AVATAR_ZOOM = 1.20; // ↑ porta a 1.08/1.12 se alcuni ritratti hanno “c
 const avatarWrap = document.createElement("div"); // contiene e clippa
 Object.assign(avatarWrap.style, {
   position: "absolute",
-  left: `-${OVER}px`,
+  left: `${AVATAR_LEFT}px`,
   top: "50%",
   transform: "translateY(-50%)",
   width: `${AVA}px`,
   height: `${AVA}px`,
   borderRadius: "50%",
   overflow: "hidden",
-  zIndex: "2",
+  zIndex: IS_BOSS ? "3" : "2",
   boxShadow: `
     0 0 0 2px ${c.base},
     0 0 0 4px black,
@@ -6710,6 +6018,73 @@ if (e.portrait) {
 
 avatarWrap.appendChild(avatarInner);
 
+let bossPortraitFrame = null;
+if (IS_BOSS) {
+  const frameSize = Math.round(AVA * BOSS_PORTRAIT_FRAME_SCALE);
+  const frameOutset = Math.round((frameSize - AVA) / 2);
+  bossPortraitFrame = document.createElement("img");
+  bossPortraitFrame.src = BOSS_PORTRAIT_FRAME_SRC;
+  bossPortraitFrame.alt = "";
+  bossPortraitFrame.setAttribute("aria-hidden", "true");
+  bossPortraitFrame.draggable = false;
+  Object.assign(bossPortraitFrame.style, {
+    position: "absolute",
+    left: `${AVATAR_LEFT - frameOutset}px`,
+    top: "50%",
+    width: `${frameSize}px`,
+    height: `${frameSize}px`,
+    objectFit: "contain",
+    transform: "translateY(-50%)",
+    pointerEvents: "none",
+    filter: "drop-shadow(0 2px 5px rgba(0,0,0,.78))",
+    WebkitMaskImage: BOSS_PORTRAIT_FRAME_MASK,
+    maskImage: BOSS_PORTRAIT_FRAME_MASK,
+    zIndex: "7",
+  });
+}
+
+  const bossTopRow = IS_BOSS && !e.__groupCollapsed
+    ? document.createElement("div")
+    : null;
+  if (bossTopRow) {
+    Object.assign(bossTopRow.style, {
+      position: "absolute",
+      top: HAS_LEG
+        ? `${8 + PLAYER_BOSS_VERTICAL_OFFSET}px`
+        : `${IS_GM ? 21 : (Math.round((MAIN_CARD_H - 20) / 2) - 7 + PLAYER_BOSS_VERTICAL_OFFSET)}px`,
+      left: `${CONTENT_LEFT}px`,
+      right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
+      height: "20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: "3px",
+      minWidth: "0",
+      overflow: "hidden",
+      zIndex: "5",
+    });
+  }
+
+  // Ogni boss usa una riga HP dedicata: mai affiancata al nome.
+  const legendaryHPRow = IS_BOSS && !e.__groupCollapsed
+    ? document.createElement("div")
+    : null;
+  if (legendaryHPRow) {
+    Object.assign(legendaryHPRow.style, {
+      position: "absolute",
+      top: `${BOSS_HP_ROW_TOP}px`,
+      left: `${CONTENT_LEFT}px`,
+      right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
+      height: "20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: "3px",
+      minWidth: "0",
+      zIndex: "5",
+    });
+  }
+
   // nome (parte subito a destra dell’avatar)
   const name = document.createElement("div");
   name.title = e.__groupCollapsed ? `${e.__groupBase} (${e.__groupCount})` : e.name;
@@ -6722,12 +6097,21 @@ avatarWrap.appendChild(avatarInner);
   alignItems: "center",
   gap: "6px",
 });
+if (HAS_LEG && !e.__groupCollapsed) {
+  Object.assign(name.style, {
+    position: "absolute",
+    top: "15px",
+    left: `${CONTENT_LEFT}px`,
+    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
+  });
+}
 
 const nameLabel = document.createElement("span");
 nameLabel.textContent = e.__groupCollapsed ? `${e.__groupBase} (Gruppo)` : e.name;
 Object.assign(nameLabel.style, {
   flex: "1 1 auto",
   minWidth: "0",
+  textAlign: "left",
   fontSize: "15px",
   fontWeight: "700",
   letterSpacing: "-.01em",
@@ -7137,10 +6521,14 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
 
   Object.assign(name.style, {
     position: "absolute",
-    top: IS_BOSS ? "12px" : "8px",
+    top: HAS_LEG
+      ? "8px"
+      : `${((!IS_GM && !PLAYER_CARD_HAS_HP && !IS_BOSS) || CENTER_SINGLE_LINE_NAME)
+        ? Math.round((MAIN_CARD_H - 22) / 2)
+        : (8 + BOSS_CONTENT_OFFSET)}px`,
     left: `${CONTENT_LEFT}px`,
-    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-    height: "22px",
+    right: `${BADGE_RIGHT + BADGE_SIZE + (HAS_LEG ? 102 : 10)}px`,
+    height: HAS_LEG ? "20px" : "22px",
     display: "flex",
     alignItems: "center",
     gap: "6px",
@@ -7152,8 +6540,27 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    zIndex: "3",
+    zIndex: "4",
   });
+  if (bossTopRow) {
+    Object.assign(name.style, {
+      position: "relative",
+      top: "auto",
+      left: "auto",
+      right: "auto",
+      width: "auto",
+      maxWidth: "100%",
+      height: "20px",
+      flex: "0 1 auto",
+      justifyContent: "flex-start",
+      textAlign: "left",
+      zIndex: "1",
+    });
+  }
+  if (!IS_GM && !bossTopRow) {
+    name.style.justifyContent = "flex-start";
+    name.style.textAlign = "left";
+  }
 
   // badge iniziativa (ancorato a destra, centrato verticalmente)
   const badge = document.createElement("div");
@@ -7184,7 +6591,7 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
 // --- Dock per condizioni
 const condDock = document.createElement("div");
 condDock.style.position = "absolute";
-condDock.style.top = `${MAIN_CARD_H - 1}px`;
+condDock.style.top = `${MAIN_CARD_H - 5}px`;
 condDock.style.left = `${CONTENT_LEFT}px`;
 condDock.style.right = "10px";
 condDock.style.minHeight = "18px";
@@ -7526,80 +6933,152 @@ function __rightPxFrom(cfg) {
   return BADGE_RIGHT + BADGE_SIZE + Number(cfg.rightFromBadge || 0);
 }
 
-// --- DOCK PIPS (indipendente) ---
+// --- FASCIA RISORSE LEGGENDARIE: fuori dal nome e dalla riga HP ---
 if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
-    const dockPips = document.createElement("div");
-    Object.assign(dockPips.style, {
+  const resourceDock = document.createElement("div");
+  Object.assign(resourceDock.style, {
     position: "absolute",
-    top: `${LEG_PIPS_CFG.top}px`,
-    left: `${CONTENT_LEFT + (LEG_PIPS_CFG.offsetX || 0)}px`, // ← ancora fissa a sinistra
+    top: `${(IS_GM ? 29 : LEG_RESOURCE_CFG.top) + PLAYER_BOSS_VERTICAL_OFFSET}px`,
+    left: `${CONTENT_LEFT}px`,
+    right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
+    minHeight: "18px",
     display: "flex",
     alignItems: "center",
-    // Niente sfondo/bordo di default: è solo il gruppo pips
+    justifyContent: "flex-start",
+    gap: `${LEG_RESOURCE_CFG.clusterGap}px`,
+    overflow: "hidden",
     zIndex: "5",
     pointerEvents: "auto",
   });
 
-  const pipsNode = mkLegendaryPips(
-    e.legendary,
-    async (nextCurrent) => { if (IS_GM) { try { await setLegendaryCurrent(e.id, nextCurrent); } catch {} } },
-    e.attitude || "enemy"
-  );
-  dockPips.appendChild(pipsNode);
-  header.appendChild(dockPips);
-}
-
-// --- DOCK CONTROLLI LEGENDARY (+/−) ---
-if (!e.__groupCollapsed && IS_GM && e.legendary && Number(e.legendary.max) > 0) {
-  const dockCtrl = document.createElement("div");
-  Object.assign(dockCtrl.style, {
-    position: "absolute",
-    top: `${LEG_CTRL_CFG.top}px`,
-    right: `${__rightPxFrom(LEG_CTRL_CFG)}px`,
-    display: "flex",
-    alignItems: "center",
-    gap: `${LEG_CTRL_CFG.gap}px`,
-    padding: `${LEG_CTRL_CFG.paddingY}px ${LEG_CTRL_CFG.paddingX}px`,
-    borderRadius: `${LEG_CTRL_CFG.dockRadius}px`,
-    background: LEG_CTRL_CFG.dockBg,
-    border: LEG_CTRL_CFG.dockBorder,
-    zIndex: "5",
-    pointerEvents: "auto",
-  });
-
-  const mkLegBtn = (txt, delta) => {
-    const b = document.createElement("button");
-    b.type = "button";
-      Object.assign(b.style, {
-      width: `${LEG_CTRL_CFG.btnSize}px`,
-      height: `${LEG_CTRL_CFG.btnSize}px`,
-      borderRadius: `${LEG_CTRL_CFG.btnRadius}px`,
-      border: "1px solid rgba(255,255,255,.18)",
-      background: "rgba(0, 0, 0, 0.72)",
-      color: "#fff",
-      fontSize: "12px",
-      fontWeight: "800",
+  const makeResourceLabel = (text, title) => {
+    const label = document.createElement("span");
+    label.textContent = text;
+    label.title = title;
+    Object.assign(label.style, {
+      flex: "0 0 auto",
+      color: "rgba(255,255,255,.74)",
+      fontSize: "7px",
+      fontWeight: "900",
       lineHeight: "1",
-      padding: "0",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,.4)",
-      transition: "transform .12s ease, background-color .12s ease, border-color .12s ease",
+      letterSpacing: ".04em",
     });
-    b.textContent = txt;
-    b.addEventListener("mouseenter", () => { b.style.transform = "translateY(-1px)"; });
-    b.addEventListener("mouseleave", () => { b.style.transform = "translateY(0)"; });
-    b.addEventListener("click", async (ev) => {
-      ev.stopPropagation();
-      const nextMax = Math.max(1, Math.min(10, Number(e.legendary.max) + delta));
-      try { await setLegendaryMax(e.id, nextMax); } catch {}
-    });
-    return b;
+    return label;
   };
 
-  dockCtrl.appendChild(mkLegBtn("−", -1));
-  dockCtrl.appendChild(mkLegBtn("+", +1));
-  header.appendChild(dockCtrl);
-} // ← CHIUDE il blocco Legendary
+  const actionsCluster = document.createElement("div");
+  Object.assign(actionsCluster.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: "3px",
+    minWidth: "0",
+    flex: "0 0 auto",
+  });
+  actionsCluster.append(
+    makeResourceLabel("A", "Azioni leggendarie"),
+    mkLegendaryPips(
+      e.legendary,
+      async (nextCurrent) => {
+        if (!IS_GM) return;
+        try { await setLegendaryCurrent(e.id, nextCurrent); } catch {}
+      },
+      e.attitude || "enemy",
+    ),
+  );
+
+  const makeMaxControls = (resourceName, currentMax, onChange) => {
+    const maxControls = document.createElement("div");
+    Object.assign(maxControls.style, {
+      display: "grid",
+      gridTemplateRows: `repeat(2, ${LEG_RESOURCE_CFG.controlHeight}px)`,
+      alignItems: "center",
+      gap: "0",
+      width: `${LEG_RESOURCE_CFG.controlWidth}px`,
+      height: `${LEG_RESOURCE_CFG.controlHeight * 2}px`,
+      flex: "0 0 auto",
+    });
+    const makeMaxButton = (text, delta) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = text;
+      button.title = delta < 0
+        ? `Riduci ${resourceName} massime`
+        : `Aumenta ${resourceName} massime`;
+      Object.assign(button.style, {
+        width: `${LEG_RESOURCE_CFG.controlWidth}px`,
+        minWidth: `${LEG_RESOURCE_CFG.controlWidth}px`,
+        height: `${LEG_RESOURCE_CFG.controlHeight}px`,
+        minHeight: `${LEG_RESOURCE_CFG.controlHeight}px`,
+        padding: "0",
+        borderRadius: delta < 0 ? "4px 4px 1px 1px" : "1px 1px 4px 4px",
+        border: "1px solid rgba(255,255,255,.18)",
+        background: "rgba(0,0,0,.68)",
+        color: "#fff",
+        fontSize: "9px",
+        fontWeight: "900",
+        lineHeight: "1",
+        cursor: "pointer",
+      });
+      button.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        const nextMax = Math.max(1, Math.min(5, Number(currentMax) + delta));
+        try { await onChange(nextMax); } catch {}
+      });
+      return button;
+    };
+    maxControls.append(makeMaxButton("+", 1), makeMaxButton("−", -1));
+    return maxControls;
+  };
+
+  if (IS_GM) {
+    actionsCluster.appendChild(makeMaxControls(
+      "azioni leggendarie",
+      e.legendary.max,
+      (nextMax) => setLegendaryMax(e.id, nextMax),
+    ));
+  }
+
+  const divider = document.createElement("span");
+  Object.assign(divider.style, {
+    width: "1px",
+    height: "12px",
+    flex: "0 0 1px",
+    background: "rgba(255,255,255,.18)",
+  });
+
+  const resistances = e.legendaryResistances || {
+    max: DEFAULT_LEGENDARY_RESISTANCES,
+    current: DEFAULT_LEGENDARY_RESISTANCES,
+  };
+  const resistanceCluster = document.createElement("div");
+  Object.assign(resistanceCluster.style, {
+    display: "flex",
+    alignItems: "center",
+    gap: "3px",
+    minWidth: "0",
+    flex: "0 0 auto",
+  });
+  resistanceCluster.append(
+    makeResourceLabel("R", "Resistenze leggendarie"),
+    mkLegendaryResistancePips(
+      resistances,
+      async (nextCurrent) => {
+        if (!IS_GM) return;
+        try { await setLegendaryResistanceCurrent(e.id, nextCurrent); } catch {}
+      },
+    ),
+  );
+  if (IS_GM) {
+    resistanceCluster.appendChild(makeMaxControls(
+      "resistenze leggendarie",
+      resistances.max,
+      (nextMax) => setLegendaryResistanceMax(e.id, nextMax),
+    ));
+  }
+
+  resourceDock.append(actionsCluster, divider, resistanceCluster);
+  header.appendChild(resourceDock);
+}
 
 // --- DOCK PARAGON (+ / −) --- (solo GM, attivo solo se Legendary assente/0)
 if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
@@ -7684,7 +7163,16 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   header.appendChild(dockPar);
 }
 
-  header.append(avatarWrap, name, badge);
+  header.append(avatarWrap);
+  if (bossPortraitFrame) header.appendChild(bossPortraitFrame);
+  if (bossTopRow) {
+    bossTopRow.appendChild(name);
+    header.appendChild(bossTopRow);
+    if (legendaryHPRow) header.appendChild(legendaryHPRow);
+    header.appendChild(badge);
+  } else {
+    header.append(name, badge);
+  }
 // Indicatore concentrazione: pallino con "C" se il caster sta concentrando
 // Se la card è collassata, lo mostriamo se QUALSIASI membro del gruppo sta concentrando.
 {
@@ -7745,15 +7233,18 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   const hpControlsRow = document.createElement("div");
   Object.assign(hpControlsRow.style, {
     position: "absolute",
-    top: `${MAIN_CARD_H - 29}px`,
+    top: IS_BOSS ? "0px" : `${MAIN_CARD_H - 32}px`,
     left: `${CONTENT_LEFT}px`,
     right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-    height: "25px",
+    height: IS_BOSS ? `${MAIN_CARD_H - 4}px` : "25px",
     display: "flex",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "flex-start",
     gap: "4px",
+    paddingBottom: IS_BOSS ? "0" : "6px",
+    boxSizing: "border-box",
     zIndex: "3",
+    pointerEvents: IS_BOSS ? "none" : "auto",
   });
 
   const pill = document.createElement("div");
@@ -7763,7 +7254,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   pill.style.padding = "0";
   pill.style.fontSize = "12px";
   pill.style.fontWeight = "700";
-  pill.style.lineHeight = "1";
+  pill.style.lineHeight = "13px";
   pill.style.color = "#fff";
   pill.style.background = "transparent";
   pill.style.border = "none";
@@ -7771,6 +7262,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   pill.style.boxShadow = "none";
   pill.style.cursor = "text";
   pill.style.zIndex = "3";
+  pill.style.pointerEvents = "auto";
 
   const hpVal  = Number.isFinite(e.hp)    ? e.hp    : 0;
   const hpMaxV = Number.isFinite(e.hpMax) ? e.hpMax : 0;
@@ -7783,7 +7275,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   hpBarWrap.style.position = "absolute";
   hpBarWrap.style.left = "0";
   hpBarWrap.style.right = "0";
-  hpBarWrap.style.bottom = "0";
+  hpBarWrap.style.bottom = IS_BOSS ? `${BOSS_HP_BAR_BOTTOM}px` : "0";
   hpBarWrap.style.width = "auto";
   hpBarWrap.style.height = "6px";
   hpBarWrap.style.boxSizing = "border-box";
@@ -7824,9 +7316,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     initiativeCardButton.setAttribute("aria-label", initiativeCardButton.title);
     Object.assign(initiativeCardButton.style, {
       flex: "0 0 auto",
-      minWidth: "24px",
-      width: "24px",
-      height: "20px",
+      minWidth: "18px",
+      width: "18px",
+      height: "18px",
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
@@ -7836,13 +7328,14 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       background: "rgba(0,0,0,.52)",
       cursor: "pointer",
       boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+      pointerEvents: "auto",
     });
     const initiativeCardIcon = document.createElement("img");
     initiativeCardIcon.src = `${import.meta.env.BASE_URL || "/"}character-sheet.svg`;
     initiativeCardIcon.alt = "";
     Object.assign(initiativeCardIcon.style, {
-      width: "15px",
-      height: "15px",
+      width: "13px",
+      height: "13px",
       display: "block",
       pointerEvents: "none",
     });
@@ -7865,9 +7358,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     hpDeltaButton.setAttribute("aria-pressed", "false");
     Object.assign(hpDeltaButton.style, {
       flex: "0 0 auto",
-      minWidth: "24px",
-      width: "24px",
-      height: "20px",
+      minWidth: "18px",
+      width: "18px",
+      height: "18px",
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
@@ -7876,11 +7369,12 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       border: "1px solid rgba(255,255,255,.22)",
       background: "rgba(0,0,0,.52)",
       color: "#fff",
-      fontSize: "11px",
+      fontSize: "13px",
       fontWeight: "800",
       lineHeight: "1",
       cursor: "pointer",
       boxShadow: "0 1px 3px rgba(0,0,0,.35)",
+      pointerEvents: "auto",
     });
     hpDeltaButton.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
@@ -7911,7 +7405,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
         clientY: rect.top + (rect.height / 2),
       }));
     });
-    hpDeltaButton.style.fontSize = "15px";
+    hpDeltaButton.style.fontSize = "13px";
   }
 
   const hpCaption = document.createElement("span");
@@ -7924,11 +7418,39 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
     pointerEvents: "none",
   });
 
-  hpControlsRow.appendChild(hpCaption);
-  hpControlsRow.appendChild(pill);
-  if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
-  if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
-  hpControlsRow.appendChild(hpBarWrap);
+  if (legendaryHPRow) {
+    hpCaption.style.fontSize = "9px";
+    hpCaption.style.lineHeight = "11px";
+    const legendaryHPButton = initiativeCardButton || hpDeltaButton;
+    if (legendaryHPButton) {
+      legendaryHPButton.style.width = "18px";
+      legendaryHPButton.style.minWidth = "18px";
+      legendaryHPButton.style.height = "18px";
+    }
+    legendaryHPRow.append(hpCaption, pill);
+    if (initiativeCardButton) legendaryHPRow.appendChild(initiativeCardButton);
+    if (hpDeltaButton) legendaryHPRow.appendChild(hpDeltaButton);
+    hpControlsRow.appendChild(hpBarWrap);
+  } else if (bossTopRow) {
+    hpCaption.style.fontSize = "9px";
+    hpCaption.style.lineHeight = "11px";
+    const bossHPButton = initiativeCardButton || hpDeltaButton;
+    if (bossHPButton) {
+      bossHPButton.style.width = "18px";
+      bossHPButton.style.minWidth = "18px";
+      bossHPButton.style.height = "18px";
+    }
+    bossTopRow.append(hpCaption, pill);
+    if (initiativeCardButton) bossTopRow.appendChild(initiativeCardButton);
+    if (hpDeltaButton) bossTopRow.appendChild(hpDeltaButton);
+    hpControlsRow.appendChild(hpBarWrap);
+  } else {
+    hpControlsRow.appendChild(hpCaption);
+    hpControlsRow.appendChild(pill);
+    if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
+    if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
+    hpControlsRow.appendChild(hpBarWrap);
+  }
   card.appendChild(hpControlsRow);
 
 // === apertura editor HP su pointerdown (con handoff robusto) ===
@@ -8072,8 +7594,11 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     inp.style.outline = "none";
     inp.style.background = "transparent";
     inp.style.color = "#fff";
-    inp.style.fontSize = "15px";
-    inp.style.fontWeight = "700";
+    inp.style.fontFamily = "inherit";
+    inp.style.fontSize = pill.style.fontSize || "12px";
+    inp.style.fontWeight = pill.style.fontWeight || "700";
+    inp.style.lineHeight = pill.style.lineHeight || "13px";
+    inp.style.padding = "0";
     inp.style.textAlign = "center";
     // filters
     inp.addEventListener("wheel", (e2) => e2.preventDefault(), { passive: false });
@@ -8490,120 +8015,40 @@ async function reconcileStateWithItems() {
 
 // --- DnD helper: sposta sourceId prima/dopo targetId ma SOLO fra pari iniziativa
 async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore) {
-  if (!sourceId || !targetId || sourceId === targetId) return;
-
   const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
-  const byId = new Map(entries.map(e => [e.id, e]));
-  const src = byId.get(sourceId);
-  const dst = byId.get(targetId);
-  if (!src || !dst) return;
-
-  const init = Number(src.initiative) || 0;
-  const isTwenty = init === LAIR_INITIATIVE;
-  const srcIsEpic = !!byId.get(sourceId)?.isEpic;
-  // Mai muovere gli Epic
-  if (isTwenty && srcIsEpic) return;
-  if ((Number(dst.initiative) || 0) !== init) return;  // solo fra pari
-
-  const curOrder = Array.isArray(st?.order) ? st.order.slice() : [];
-  if (!curOrder.length) return;
-
-  const isSameInit = (id) => (Number(byId.get(id)?.initiative) || 0) === init;
-  const indices = curOrder.map((id, i) => (isSameInit(id) ? i : -1)).filter(i => i >= 0);
-  if (!indices.length) return;
-
-  const blockStart = Math.min(...indices);
-  const blockEnd   = Math.max(...indices);
-  const tieIds     = curOrder.slice(blockStart, blockEnd + 1);
-  const pinnedCount = isTwenty ? tieIds.filter(id => !!byId.get(id)?.isEpic).length : 0;
-
-  const srcIdx = tieIds.indexOf(sourceId);
-  const dstIdx = tieIds.indexOf(targetId);
-  if (srcIdx < 0 || dstIdx < 0) return;
-
-  const cut = tieIds.splice(srcIdx, 1)[0];
-  let insertAt = placeBefore ? dstIdx : (dstIdx + 1);
-  if (dstIdx > srcIdx) insertAt -= 1;        // correzione indice dopo la rimozione
-  // Non far passare avanti agli Epic a 20
-  if (isTwenty && !byId.get(cut)?.isEpic && insertAt < pinnedCount) {
-    insertAt = pinnedCount;
-  }
-  tieIds.splice(insertAt, 0, cut);
-
-  const newOrder = curOrder.slice(0, blockStart).concat(tieIds, curOrder.slice(blockEnd + 1));
-
-  // mantieni attivo lo stesso ID (se presente)
-  const activeId = st?.order?.[st.current];
-  const newCurrent = Math.max(0, newOrder.indexOf(activeId));
-
-  await setSceneState(prev => ({ ...(prev || {}), order: newOrder, current: newCurrent }));
+  const next = reorderWithinSameInitiativeState(
+    st,
+    entries,
+    sourceId,
+    targetId,
+    placeBefore,
+    { lairInitiative: LAIR_INITIATIVE },
+  );
+  if (!next) return;
+  await setSceneState(prev => ({
+    ...(prev || {}),
+    order: next.order,
+    current: next.current,
+  }));
 }
 
 // Sposta un BLOCCO di ID (sourceIds) prima/dopo targetId SOLO nel blocco dei pari iniziativa
 async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefore) {
-  if (!Array.isArray(sourceIds) || sourceIds.length === 0) return;
-  if (!targetId) return;
-  const uniqSrc = [...new Set(sourceIds)];
-  if (uniqSrc.includes(targetId)) return; // niente no-op
-
   const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
-  const byId = new Map(entries.map(e => [e.id, e]));
-  const target = byId.get(targetId);
-  if (!target) return;
-
-  // tutte le sorgenti devono esistere
-  const allSrc = uniqSrc.map(id => byId.get(id)).filter(Boolean);
-  if (allSrc.length !== uniqSrc.length) return;
-
-  // vincolo: tutte le sorgenti e il target devono avere la STESSA iniziativa
-  const init = Number(target.initiative) || 0;
-  const isTwenty = init === LAIR_INITIATIVE;
-  for (const s of allSrc) {
-    if ((Number(s.initiative) || 0) !== init) {
-      console.warn("[dnd] gruppo contiene iniziative diverse: annullo move");
-      return;
-    }
-  }
-
-  const curOrder = Array.isArray(st?.order) ? st.order.slice() : [];
-  if (!curOrder.length) return;
-
-  // blocco contiguo di pari iniziativa nell'ordine corrente
-  const isSameInit = (id) => (Number(byId.get(id)?.initiative) || 0) === init;
-  const indices = curOrder.map((id, i) => (isSameInit(id) ? i : -1)).filter(i => i >= 0);
-  if (!indices.length) return;
-
-  const blockStart = Math.min(...indices);
-  const blockEnd   = Math.max(...indices);
-  const tieIds     = curOrder.slice(blockStart, blockEnd + 1);
-  const pinnedCount = isTwenty ? tieIds.filter(id => !!byId.get(id)?.isEpic).length : 0;
-
-  // estrai le sorgenti (mantenendo l’ordine relativo)
-  const srcSet = new Set(uniqSrc);
-  const moving = tieIds.filter(id => srcSet.has(id));
-  if (!moving.length) return;
-  // Se il blocco contiene un Epic a 20, non si muove
-  if (isTwenty && moving.some(id => !!byId.get(id)?.isEpic)) return;
-
-  // rimuovi le sorgenti dal blocco
-  const tieFiltered = tieIds.filter(id => !srcSet.has(id));
-
-  // trova l’indice del target NEL blocco filtrato
-  const dstIdx = tieFiltered.indexOf(targetId);
-  if (dstIdx < 0) return;
-
-  let insertAt = placeBefore ? dstIdx : (dstIdx + 1);
-  if (isTwenty && insertAt < pinnedCount) insertAt = pinnedCount;
-  tieFiltered.splice(insertAt, 0, ...moving);
-
-  // ricompone l'ordine finale
-  const newOrder = curOrder.slice(0, blockStart).concat(tieFiltered, curOrder.slice(blockEnd + 1));
-
-  // preserva l'attivo
-  const activeId = st?.order?.[st.current];
-  const newCurrent = Math.max(0, newOrder.indexOf(activeId));
-
-  await setSceneState(prev => ({ ...(prev || {}), order: newOrder, current: newCurrent }));
+  const next = reorderBlockWithinSameInitiativeState(
+    st,
+    entries,
+    sourceIds,
+    targetId,
+    placeBefore,
+    { lairInitiative: LAIR_INITIATIVE },
+  );
+  if (!next) return;
+  await setSceneState(prev => ({
+    ...(prev || {}),
+    order: next.order,
+    current: next.current,
+  }));
 }
 
 // Wrapper: trova i membri del gruppo del lead collassato e chiama il riordino a blocco
@@ -8617,39 +8062,6 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
 } catch {}
   const ids = (members && members.length > 0) ? members : [sourceLeadId];
   await _reorderBlockWithinSameInitiative(ids, targetId, placeBefore);
-}
-
-  function sanitizeState(state, byId) {
-  const seen = new Set();
-  const cleanOrder = [];
-
-  for (const id of state?.order ?? []) {
-    if (!byId.has(id)) continue;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    cleanOrder.push(id);
-  }
-
-  if (cleanOrder.length === 0) {
-    return { order: [], current: 0, round: 1, seededGroups: {}, collapsed: {}, paragonInits: {} };
-  }
-
-  const activeId = state?.order?.[state.current];
-  let current = 0;
-  if (activeId && byId.has(activeId)) {
-    const idx = cleanOrder.indexOf(activeId);
-    current = idx >= 0 ? idx : 0;
-  } else {
-    current = Math.min(state?.current ?? 0, cleanOrder.length - 1);
-  }
-
-  const round = Math.max(1, state?.round || 1);
-  const seededGroups = state?.seededGroups || {};
-  const collapsed = (state && typeof state.collapsed === "object" && state.collapsed) || {};
-  const paragonInits = (state && typeof state.paragonInits === "object" && state.paragonInits) || {};
-
-  const ui = (state && typeof state.ui === "object" && state.ui) || {};
-  return { order: cleanOrder, current, round, seededGroups, collapsed, paragonInits, ui };
 }
 
 async function renderAll() {

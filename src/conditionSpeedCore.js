@@ -1,4 +1,5 @@
 import { exhaustionLevelFromInstances } from "./exhaustionCore.js";
+import { SPEED_CHECK_METERS_PER_CELL } from "./speedCheckCore.js";
 
 const ZERO_SPEED_CONDITIONS = Object.freeze(new Map([
   ["afferrato", "Afferrato"],
@@ -17,6 +18,12 @@ function activeConditionNames(instances) {
     if (name) names.set(name.toLocaleLowerCase("it"), name);
   }
   return names;
+}
+
+function halvedSpeedInWholeCells(baseSpeedMeters) {
+  const baseCells = Math.max(0, Number(baseSpeedMeters) || 0) / SPEED_CHECK_METERS_PER_CELL;
+  const halvedCells = Math.floor((baseCells / 2) + 1e-9);
+  return halvedCells * SPEED_CHECK_METERS_PER_CELL;
 }
 
 export function resolveConditionSpeed(baseSpeedMeters, instances = []) {
@@ -39,7 +46,7 @@ export function resolveConditionSpeed(baseSpeedMeters, instances = []) {
   const speedMeters = blocked
     ? 0
     : halved
-      ? Math.round((baseSpeed / 2) * 1000) / 1000
+      ? halvedSpeedInWholeCells(baseSpeed)
       : baseSpeed;
 
   return {

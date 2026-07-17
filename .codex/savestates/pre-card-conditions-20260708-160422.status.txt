@@ -1,0 +1,14 @@
+﻿ M ctx-conditions.html
+ M package-lock.json
+ M package.json
+ M public/ctx-conditions.html
+ M public/manifest.json
+ M src/conditions.js
+ M src/constants.js
+ M src/ctx-conditions.ts
+ M src/hpMemory.js
+ M src/hpbar-items.js
+ M src/initiativeList.js
+ M src/spells-tag.js
+?? .codex/
+?? AGENTS.md

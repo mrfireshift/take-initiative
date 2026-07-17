@@ -30,6 +30,12 @@ test("Indebolimento 2-4 dimezza la velocità e il livello 5 la porta a 0", () =>
   assert.equal(resolveConditionSpeed(9, [condition("Indebolimento", { level: 5 })]).speedMeters, 0);
 });
 
+test("il dimezzamento arrotonda sempre per difetto le caselle decimali", () => {
+  const result = resolveConditionSpeed(10.5, [condition("Indebolimento", { level: 2 })]);
+  assert.equal(result.speedMeters, 4.5);
+  assert.equal(result.speedMeters / 1.5, 3);
+});
+
 test("Indebolimento 1 e le condizioni senza effetto sulla velocità non la modificano", () => {
   const result = resolveConditionSpeed(9, [
     condition("Indebolimento", { level: 1 }),

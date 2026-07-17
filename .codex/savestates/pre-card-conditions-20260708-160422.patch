@@ -1,0 +1,1377 @@
+diff --git a/ctx-conditions.html b/ctx-conditions.html
+index f933da7..194a6b4 100644
+--- a/ctx-conditions.html
++++ b/ctx-conditions.html
+@@ -72,6 +72,7 @@
+       <div id="grid"></div>  <!-- ← contenitore dove il TS inietterà i chip -->
+       <div class="row">
+         <input id="customText" type="text" placeholder="Altre condizioni..." />
++        <input id="conditionTurns" type="number" min="1" step="1" placeholder="Round" style="max-width:72px" />
+         <button id="btnAdd">Aggiungi</button>
+       </div>
+       <div class="footer">
+diff --git a/package-lock.json b/package-lock.json
+index 8c5e398..1c5931a 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "obr-initiative",
+-  "version": "0.0.0",
++  "version": "1.1.5",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "obr-initiative",
+-      "version": "0.0.0",
++      "version": "1.1.5",
+       "license": "ISC",
+       "dependencies": {
+         "@owlbear-rodeo/sdk": "^3.1.0"
+diff --git a/package.json b/package.json
+index 9ae9b69..2b62df8 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "obr-initiative",
+   "private": true,
+-  "version": "0.0.0",
++  "version": "1.1.5",
+   "type": "module",
+   "scripts": {
+     "dev": "vite",
+diff --git a/public/ctx-conditions.html b/public/ctx-conditions.html
+index f933da7..194a6b4 100644
+--- a/public/ctx-conditions.html
++++ b/public/ctx-conditions.html
+@@ -72,6 +72,7 @@
+       <div id="grid"></div>  <!-- ← contenitore dove il TS inietterà i chip -->
+       <div class="row">
+         <input id="customText" type="text" placeholder="Altre condizioni..." />
++        <input id="conditionTurns" type="number" min="1" step="1" placeholder="Round" style="max-width:72px" />
+         <button id="btnAdd">Aggiungi</button>
+       </div>
+       <div class="footer">
+diff --git a/public/manifest.json b/public/manifest.json
+index 3e22d87..dbe7bc8 100644
+--- a/public/manifest.json
++++ b/public/manifest.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "Take Initiative!",
+   "description": "A sleek, yet intuitive plugin for initiative tracking for Dungeons and Dragons 5E, designed for in-person VTTs",
+-  "version": "1.1.0",
++  "version": "1.1.5",
+   "manifest_version": 1,
+   "action": {
+     "title": "Take Initiative!",
+diff --git a/src/conditions.js b/src/conditions.js
+index 8ebced4..4ceaea1 100644
+--- a/src/conditions.js
++++ b/src/conditions.js
+@@ -1,6 +1,6 @@
+ // src/conditions.js
+ import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
+-import { ID } from "./constants.js";
++import { ID, isOnlyActiveTurnLabelChange } from "./constants.js";
+ 
+ const META_KEY = `${ID}/meta`;
+ const COND_LABEL_META = `${ID}/condLabel`;
+@@ -28,6 +28,49 @@ export const CONDITION_LIST = [
+ 
+ const MAX_CUSTOM_SLOTS = 3;
+ 
++function __durationFrom(value) {
++  const n = Math.floor(Number(value));
++  return Number.isFinite(n) && n > 0 ? n : null;
++}
++
++function __conditionActive(value) {
++  if (value && typeof value === "object") return value.active !== false;
++  return !!value;
++}
++
++function __conditionTurns(value) {
++  if (!value || typeof value !== "object") return null;
++  return __durationFrom(value.turns);
++}
++
++function __conditionName(value) {
++  if (value && typeof value === "object") return String(value.name || "").trim();
++  return String(value || "").trim();
++}
++
++function __conditionLabel(name, value) {
++  const turns = __conditionTurns(value);
++  return turns ? `${name} (${turns})` : name;
++}
++
++function __conditionValue(turns) {
++  const t = __durationFrom(turns);
++  return t ? { active: true, turns: t, timing: "round" } : true;
++}
++
++function __customValue(text, turns) {
++  const name = String(text || "").trim();
++  const t = __durationFrom(turns);
++  return t ? { name, turns: t, timing: "round" } : name;
++}
++
++function __normalizeConditions(cond = {}) {
++  const src = (cond && typeof cond === "object") ? cond : {};
++  const flags = (src.flags && typeof src.flags === "object") ? src.flags : {};
++  const custom = Array.isArray(src.custom) ? src.custom.filter(Boolean) : [];
++  return { flags: { ...flags }, custom: custom.slice(0, MAX_CUSTOM_SLOTS) };
++}
++
+ // Colore bordo per condizione (fallback a PILL_CFG.border)
+ const COND_BORDER = Object.freeze({
+   "Accecato":        "#9b59b6",
+@@ -55,7 +98,8 @@ export function mountConditionsLabelWatcher() {
+   if (__COND_WATCH_MOUNTED) return;
+   __COND_WATCH_MOUNTED = true;
+ 
+-  OBR.scene.items.onChange(async () => {
++  OBR.scene.items.onChange(async (changes = []) => {
++    if (isOnlyActiveTurnLabelChange(changes)) return;
+     try { await refreshConditionLabels(); } catch {}
+   });
+ }
+@@ -63,25 +107,19 @@ export function mountConditionsLabelWatcher() {
+ // === Helpers lettura/scrittura metadati condizione
+ export async function getItemConditions(itemId) {
+   const [it] = await OBR.scene.items.getItems(i => i.id === itemId);
+-  const m = it?.metadata?.[META_KEY]?.conditions || {};
+-  const flags = m.flags && typeof m.flags === "object" ? m.flags : {};
+-  const custom = Array.isArray(m.custom) ? m.custom.filter(Boolean) : [];
+-  return { flags, custom };
++  return __normalizeConditions(it?.metadata?.[META_KEY]?.conditions || {});
+ }
+ 
+ export async function setItemConditions(itemId, next) {
+   await OBR.scene.items.updateItems([itemId], (list) => {
+     const it = list[0]; if (!it) return;
+     const me = { ...(it.metadata?.[META_KEY] || {}) };
+-    me.conditions = {
+-      flags: { ...(next.flags || {}) },
+-      custom: (next.custom || []).filter(Boolean).slice(0, MAX_CUSTOM_SLOTS),
+-    };
++    me.conditions = __normalizeConditions(next);
+     it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+   });
+ }
+ 
+-export async function toggleFlagForItems(itemIds, flagName) {
++export async function toggleFlagForItems(itemIds, flagName, opts = {}) {
+   if (!flagName) return;
+   const ids = (itemIds || []).slice();
+   if (!ids.length) return;
+@@ -90,15 +128,15 @@ export async function toggleFlagForItems(itemIds, flagName) {
+     for (const it of draft) {
+       const me = { ...(it.metadata?.[META_KEY] || {}) };
+       const cond = { flags: {}, custom: [], ...(me.conditions || {}) };
+-      const cur = !!cond.flags[flagName];
+-      cond.flags[flagName] = !cur;
++      const cur = __conditionActive(cond.flags[flagName]);
++      cond.flags[flagName] = cur ? false : __conditionValue(opts.turns);
+       me.conditions = cond;
+       it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
+     }
+   });
+ }
+ 
+-export async function addCustomForItems(itemIds, text) {
++export async function addCustomForItems(itemIds, text, opts = {}) {
+   const t = String(text || "").trim();
+   if (!t) return;
+   const ids = (itemIds || []).slice();
+@@ -109,10 +147,11 @@ export async function addCustomForItems(itemIds, text) {
+       const me = { ...(it.metadata?.[META_KEY] || {}) };
+       const cond = { flags: {}, custom: [], ...(me.conditions || {}) };
+       const arr = Array.isArray(cond.custom) ? cond.custom.slice() : [];
++      const value = __customValue(t, opts.turns);
+       if (arr.length >= MAX_CUSTOM_SLOTS) {
+-        arr[arr.length - 1] = t;
++        arr[arr.length - 1] = value;
+       } else {
+-        arr.push(t);
++        arr.push(value);
+       }
+       cond.custom = arr;
+       me.conditions = cond;
+@@ -121,6 +160,66 @@ export async function addCustomForItems(itemIds, text) {
+   });
+ }
+ 
++
++export async function adjustConditionDurationsForItems(itemIds, delta) {
++  if (!itemIds?.length || !Number.isFinite(delta) || delta === 0) return new Map();
++
++  const items = await OBR.scene.items.getItems(itemIds);
++  const updates = new Map();
++
++  for (const it of items) {
++    const cond = __normalizeConditions(it?.metadata?.[META_KEY]?.conditions || {});
++    let changed = false;
++
++    const nextFlags = {};
++    for (const [name, value] of Object.entries(cond.flags)) {
++      if (!__conditionActive(value)) {
++        nextFlags[name] = value;
++        continue;
++      }
++
++      const turns = __conditionTurns(value);
++      if (!turns) {
++        nextFlags[name] = value;
++        continue;
++      }
++
++      const nextTurns = Math.max(0, turns + delta);
++      changed = true;
++      if (nextTurns > 0) nextFlags[name] = { ...value, active: true, turns: nextTurns };
++    }
++
++    const nextCustom = [];
++    for (const value of cond.custom) {
++      const name = __conditionName(value);
++      if (!name) continue;
++
++      const turns = __conditionTurns(value);
++      if (!turns) {
++        nextCustom.push(value);
++        continue;
++      }
++
++      const nextTurns = Math.max(0, turns + delta);
++      changed = true;
++      if (nextTurns > 0) nextCustom.push({ ...value, name, turns: nextTurns });
++    }
++
++    if (changed) updates.set(it.id, { flags: nextFlags, custom: nextCustom });
++  }
++
++  if (updates.size) {
++    await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
++      for (const it of drafts) {
++        const me = { ...(it.metadata?.[META_KEY] || {}) };
++        me.conditions = updates.get(it.id) || { flags: {}, custom: [] };
++        it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
++      }
++    });
++  }
++
++  return updates;
++}
+ export async function clearAllConditionsForItems(itemIds) {
+   const ids = (itemIds || []).slice();
+   if (!ids.length) return;
+@@ -214,8 +313,16 @@ const COND_WIDGET_KEY_META = `${ID}/condWidgetKey`; // es. "flag:Prono" o "custo
+ 
+ // Ordina le flag secondo la tua UI + custom in coda
+ function __orderedParts(flags = {}, custom = []) {
+-  const on = CONDITION_LIST.filter(k => !!flags[k]);
+-  const extras = (custom || []).filter(Boolean);
++  const on = CONDITION_LIST
++    .filter(k => __conditionActive(flags[k]))
++    .map(k => ({ name: k, label: __conditionLabel(k, flags[k]), key: `flag:${k}` }));
++  const extras = (custom || [])
++    .map(value => {
++      const name = __conditionName(value);
++      if (!name) return null;
++      return { name, label: __conditionLabel(name, value), key: __chipKeyFor(name) };
++    })
++    .filter(Boolean);
+   return [...on, ...extras];
+ }
+ 
+@@ -334,9 +441,9 @@ async function upsertCondWidgetForItem(it) {
+   }
+ 
+   const sizes = parts.map(p => {
+-    const label = p;
++    const label = p.label;
+     const { width, height } = __pillSizeFor(label);
+-    return { label, width, height, key: __chipKeyFor(p) };
++    return { label, name: p.name, width, height, key: p.key };
+   });
+ 
+   const totalWidth = sizes.reduce((acc, s) => acc + s.width, 0) + CHIP_GAP * (sizes.length - 1);
+@@ -370,7 +477,7 @@ async function upsertCondWidgetForItem(it) {
+     const cy = slot.pos.y;
+ 
+     if (!buckets.has(key)) {
+-      const borderCol = COND_BORDER[s.label] || PILL_CFG.border;
++      const borderCol = COND_BORDER[s.name] || PILL_CFG.border;
+       const shapeBuilt = buildShape()
+         .shapeType("RECTANGLE")
+         .position({ x: cx, y: cy })
+@@ -528,7 +635,7 @@ export function buildConditionChips(cond = {}, opts = {}) {
+     const s = document.createElement("span");
+     s.textContent = String(txt);
+ 
+-    const borderCol = COND_BORDER[txt] || "rgba(255, 255, 255, 1)";
++    const borderCol = COND_BORDER[String(txt).replace(/ \(\d+\)$/, "")] || "rgba(255, 255, 255, 1)";
+ 
+     Object.assign(s.style, {
+       fontSize: compact ? "10px" : "11px",
+@@ -547,15 +654,22 @@ export function buildConditionChips(cond = {}, opts = {}) {
+   };
+ 
+   // 1) flag nell’ordine/whitelist di cap
+-  for (const name of cap) if (flags[name]) wrap.appendChild(mk(name));
++  for (const name of cap) {
++    if (__conditionActive(flags[name])) wrap.appendChild(mk(__conditionLabel(name, flags[name])));
++  }
+ 
+   // 2) eventuali flag attive non in cap
+   for (const k of Object.keys(flags)) {
+-    if (!cap.includes(k) && flags[k]) wrap.appendChild(mk(k));
++    if (!cap.includes(k) && __conditionActive(flags[k])) {
++      wrap.appendChild(mk(__conditionLabel(k, flags[k])));
++    }
+   }
+ 
+   // 3) custom
+-  for (const t of custom) if (t != null && String(t).trim()) wrap.appendChild(mk(String(t)));
++  for (const t of custom) {
++    const name = __conditionName(t);
++    if (name) wrap.appendChild(mk(__conditionLabel(name, t)));
++  }
+ 
+   return wrap;
+ }
+diff --git a/src/constants.js b/src/constants.js
+index 7defbc6..92ae641 100644
+--- a/src/constants.js
++++ b/src/constants.js
+@@ -1,2 +1,9 @@
+ // src/constants.js
+-export const ID = "com.thebigpicture.initiative";
+\ No newline at end of file
++export const ID = "com.thebigpicture.initiative";
++export const ACTIVE_TURN_LABEL_META = `${ID}/activeTurnLabel`;
++
++export function isOnlyActiveTurnLabelChange(changes) {
++  return Array.isArray(changes) &&
++    changes.length > 0 &&
++    changes.every((item) => !!item?.metadata?.[ACTIVE_TURN_LABEL_META]);
++}
+diff --git a/src/ctx-conditions.ts b/src/ctx-conditions.ts
+index 394a3f6..e61ebb6 100644
+--- a/src/ctx-conditions.ts
++++ b/src/ctx-conditions.ts
+@@ -34,6 +34,16 @@ function paintChip(chip: HTMLElement, state: "on" | "off" | "mixed") {
+ let __REFRESH_TIMER: any = null;
+ let __CURRENT_IDS: string[] = [];
+ 
++function readDuration(input: HTMLInputElement | null): number | null {
++  const n = Math.floor(Number(input?.value || 0));
++  return Number.isFinite(n) && n > 0 ? n : null;
++}
++
++function durationOpts(input: HTMLInputElement | null) {
++  const turns = readDuration(input);
++  return turns ? { turns } : {};
++}
++
+ function queueRefresh(grid: HTMLElement) {
+   clearTimeout(__REFRESH_TIMER);
+   __REFRESH_TIMER = setTimeout(async () => {
+@@ -132,6 +142,8 @@ async function mount() {
+   grid.style.display = "contents"; // sfrutta la grid del parent
+   wrap.insertBefore(grid, wrap.firstElementChild);
+ 
++  const turnsInput = document.getElementById("conditionTurns") as HTMLInputElement | null;
++
+   // crea chip per ogni condizione
+ CONDITION_LIST.forEach((name) => {
+   const chip = makeChip(name);
+@@ -151,7 +163,7 @@ chip.addEventListener("click", () => {
+     }
+ 
+     // 3) fire‑and‑forget: non bloccare il listener
+-    toggleFlagForItems(ids, name)
++    toggleFlagForItems(ids, name, wasOn ? {} : durationOpts(turnsInput))
+       .then(() => { queueRefresh(grid); })
+       .catch(() => {
+         // in caso di errore: ripristina lo stato visivo precedente
+@@ -167,7 +179,7 @@ chip.addEventListener("click", () => {
+ });
+ 
+   // controlli extra (custom + clear)
+-  const input = document.getElementById("customText");
++  const input = document.getElementById("customText") as HTMLInputElement | null;
+   const btnAdd = document.getElementById("btnAdd");
+   const btnClear = document.getElementById("btnClear");
+ 
+@@ -176,7 +188,7 @@ chip.addEventListener("click", () => {
+     if (!text) return;
+     const ids = await getSelectedIdsSafe();
+     if (!ids.length) return;
+-    await addCustomForItems(ids, text);
++    await addCustomForItems(ids, text, durationOpts(turnsInput));
+     input.value = "";
+     await refreshChipsState(grid, ids);
+   });
+diff --git a/src/hpMemory.js b/src/hpMemory.js
+index 5866718..d56dde3 100644
+--- a/src/hpMemory.js
++++ b/src/hpMemory.js
+@@ -1,6 +1,7 @@
+ // hpMemory.js
+ import OBR from "@owlbear-rodeo/sdk";
+ import { ID } from "./contextMenu";
++import { isOnlyActiveTurnLabelChange } from "./constants.js";
+ 
+ let __attSubMounted = false;        // evita doppie subscribe
+ let __attScanTimer = null;          // debounce per la scansione attitude
+@@ -96,7 +97,8 @@ export async function initHPMemory() {
+   if (!__attSubMounted) {
+     __attSubMounted = true;
+     try {
+-      OBR.scene.items.onChange(() => {
++      OBR.scene.items.onChange((changes = []) => {
++        if (isOnlyActiveTurnLabelChange(changes)) return;
+         scheduleAttitudeRescan(120); // debounce breve: 120ms
+       });
+     } catch (err) {
+@@ -199,4 +201,4 @@ export function scheduleHPMemoryAutofill(delay = 150) {
+   __hpApplyTimer = setTimeout(() => {
+     applyHPMemoryToSceneForMissingHP().catch(() => {});
+   }, delay);
+-}
+\ No newline at end of file
++}
+diff --git a/src/hpbar-items.js b/src/hpbar-items.js
+index faa90c8..e89c0a6 100644
+--- a/src/hpbar-items.js
++++ b/src/hpbar-items.js
+@@ -1,6 +1,7 @@
+ // src/hpbar-items.js
+ import OBR, { buildShape, buildText } from "@owlbear-rodeo/sdk";
+ import { ID } from "./contextMenu";
++import { isOnlyActiveTurnLabelChange } from "./constants.js";
+ 
+ /* ========= Chiavi metadata ========= */
+ const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
+@@ -21,6 +22,9 @@ let   _flushing = false;
+ 
+ // cache dell’ultimo stato applicato (evita update inutili)
+ const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
++const _barRefs = new Map(); // tokenId -> {fgId, inner}
++const _fastFillPending = new Map(); // tokenId -> {hp, hpMax}
++const _fastFillRunning = new Set();
+ 
+ /* ========= Utils ========= */
+ const clamp   = (n, a, b) => Math.max(a, Math.min(b, n));
+@@ -57,6 +61,48 @@ function hpColorByPct(p){
+   return "#dc2626";               // rosso
+ }
+ 
++function queueFastFill(tokenId, hp, hpMax) {
++  _fastFillPending.set(tokenId, {
++    hp: Number(hp) || 0,
++    hpMax: Number(hpMax) || 0,
++  });
++  if (_fastFillRunning.has(tokenId)) return;
++
++  _fastFillRunning.add(tokenId);
++  void (async () => {
++    try {
++      while (_fastFillPending.has(tokenId)) {
++        const next = _fastFillPending.get(tokenId);
++        _fastFillPending.delete(tokenId);
++
++        const ref = _barRefs.get(tokenId);
++        if (!ref) continue;
++
++        const pct = clamp01(next.hpMax > 0 ? next.hp / next.hpMax : 0);
++        const fillW = Math.floor(ref.inner * pct);
++        const color = hpColorByPct(pct);
++
++        try {
++          await OBR.scene.items.updateItems([ref.fgId], (items) => {
++            const fg = items[0];
++            if (!fg) return;
++            fg.width = fillW;
++            fg.style = { ...(fg.style || {}), fillColor: color, fillOpacity: 1 };
++          });
++        } catch {
++          _barRefs.delete(tokenId);
++        }
++      }
++    } finally {
++      _fastFillRunning.delete(tokenId);
++      if (_fastFillPending.has(tokenId)) {
++        const next = _fastFillPending.get(tokenId);
++        queueFastFill(tokenId, next.hp, next.hpMax);
++      }
++    }
++  })();
++}
++
+ // Attende che la scena sia pronta (evita "No scene found")
+ async function waitForSceneReady(timeoutMs = 10000) {
+   const start = Date.now();
+@@ -98,7 +144,7 @@ function computeBarSizeByToken(bbox){
+   return { barW, barH };
+ }
+ 
+-async function computeBarLayout(tokenId){
++async function computeBarLayout(tokenId, tokenSnapshot = null){
+   let b;
+   try { b = await OBR.scene.items.getItemBounds([tokenId]); }
+   catch { return null; }
+@@ -114,7 +160,7 @@ async function computeBarLayout(tokenId){
+   const leftX = Math.round(cx - barW / 2);
+   const topY  = Math.round(b.max.y - overlap + gap);
+ 
+-  const tokenItem = await getItemById(tokenId);
++  const tokenItem = tokenSnapshot || await getItemById(tokenId);
+   const tokenZ    = tokenItem?.zIndex ?? 0;
+ 
+   return { barW, barH, leftX, topY, tokenZ };
+@@ -123,8 +169,8 @@ async function computeBarLayout(tokenId){
+ /* ========= Creazione & ricerca shape ========= */
+ 
+ // Trova la base/riempimento di un token e rimuove eventuali duplicati/ombre
+-async function findHPBars(tokenId){
+-  const items = await OBR.scene.items.getItems();
++async function findHPBars(tokenId, itemsSnapshot = null){
++  const items = itemsSnapshot || await OBR.scene.items.getItems();
+   const ofToken = items.filter(
+     it => it.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId
+   );
+@@ -204,6 +250,7 @@ async function flushQueued(){
+   clearTimeout(_flushT); _flushT = null;
+ 
+   const startedAt = Date.now();
++  const hpTextUpdates = [];
+   try {
+     await waitForSceneReady();
+ 
+@@ -216,6 +263,7 @@ async function flushQueued(){
+ 
+     // mappa: tokenId -> textItem (se esiste)
+     const allItemsNow = await OBR.scene.items.getItems();
++    const itemsById = new Map(allItemsNow.map(it => [it.id, it]));
+     const hptextByToken = new Map();
+     for (const it of allItemsNow) {
+       const m = it.metadata?.[HPTEXT_META_FLAG];
+@@ -224,12 +272,11 @@ async function flushQueued(){
+ 
+     for (const [tokenId, { hp, hpMax }] of entries){
+       // Ricava item+nome (solo per log)
+-      let item = null;
+-      try { const tmp = await OBR.scene.items.getItems([tokenId]); item = tmp?.[0] || null; } catch {}
++      const item = itemsById.get(tokenId) || null;
+       const nameForLog = item?.name || tokenId;
+ 
+       // Layout
+-      const layout = await computeBarLayout(tokenId);
++      const layout = await computeBarLayout(tokenId, item);
+       if (!layout) { continue; }
+ 
+       const { barW, barH, leftX, topY, tokenZ } = layout;
+@@ -248,7 +295,7 @@ async function flushQueued(){
+       }
+ 
+       // Trova o crea le due shape (bg/fg)
+-      let { bg, fg } = await findHPBars(tokenId);
++      let { bg, fg } = await findHPBars(tokenId, allItemsNow);
+       if (!bg || !fg){
+         const created = await createHPBars(tokenId);
+         if (created) ({ bg, fg } = created);
+@@ -258,6 +305,7 @@ async function flushQueued(){
+       // Geometria e fill
+       const inner = Math.max(0, barW - 2);
+       const fillW = Math.floor(inner * pct);
++      _barRefs.set(tokenId, { fgId: fg.id, inner });
+ 
+       // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
+       // Il GM vede comunque anche quando visible=false.
+@@ -292,6 +340,7 @@ async function flushQueued(){
+ 
+       // Memorizza l'ultimo stato
+       _last.set(tokenId, sig);
++      hpTextUpdates.push({ tokenId, hp, hpMax });
+     }
+ 
+     if (idsToUpdate.length) {
+@@ -348,6 +397,14 @@ async function flushQueued(){
+     // silenzioso
+   } finally {
+     _flushing = false;
++    if (_pending.size && !_flushT) {
++      _flushT = setTimeout(flushQueued, 0);
++    }
++  }
++
++  // Il testo segue le barre senza trattenere il lock del batch grafico.
++  for (const { tokenId, hp, hpMax } of hpTextUpdates) {
++    await syncHPTextNow(tokenId, hp, hpMax);
+   }
+ }
+ 
+@@ -382,6 +439,7 @@ export async function mountHPBars(){
+   let itemsChangeTimer = null;
+   OBR.scene.items.onChange((changes = []) => {
+     if (!IS_GM) return;
++    if (isOnlyActiveTurnLabelChange(changes)) return;
+     clearTimeout(itemsChangeTimer);
+     itemsChangeTimer = setTimeout(async () => {
+       const items = await OBR.scene.items.getItems();
+@@ -414,6 +472,7 @@ export async function mountHPBars(){
+ 
+ export function syncHPBarNow(tokenId, hp, hpMax) {
+   try {
++    queueFastFill(tokenId, hp, hpMax);
+     queueToken(tokenId, Number(hp) || 0, Number(hpMax) || 0);
+     setTimeout(flushQueued, 0);
+   } catch {}
+diff --git a/src/initiativeList.js b/src/initiativeList.js
+index 544b9f9..ace58e5 100644
+--- a/src/initiativeList.js
++++ b/src/initiativeList.js
+@@ -1,9 +1,10 @@
+ import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
+ import { ID } from "./contextMenu";
+-import { mountHPBars } from "./hpbar-items.js";
++import { ACTIVE_TURN_LABEL_META, isOnlyActiveTurnLabelChange } from "./constants.js";
++import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
+ import { mountConcentrationWatcher } from "./spells-tag.js";
+ import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
+-import { buildConditionChips, refreshConditionLabels } from "./conditions";
++import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems } from "./conditions";
+ import { buildSpellChips, tickSpellsForItems, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+ 
+   // Configurazione condizioni per tag card
+@@ -77,7 +78,7 @@ function __spellColor(key) {
+   const BADGE_RIGHT = 12; // distanza del badge dal bordo destro (px)
+ 
+   // --- Active Turn Label (ancorata al token attivo)
+-  const ACTIVE_LABEL_META = `${ID}/activeTurnLabel`;
++  const ACTIVE_LABEL_META = ACTIVE_TURN_LABEL_META;
+   const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
+   // offset verticale in celle (negativo = sopra il token)
+   const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
+@@ -147,36 +148,53 @@ function __buildConditionChipsSafe(cond, opts) {
+   return __buildChipsSimple(cond, opts);
+ }
+ 
+-  // --- FIX duplicazione label: ripulisci locale+globale e restituisci (se c'è) l'unica label globale
++let __activeTurnLabel = null;
++let __activeTurnLabelInitialized = false;
++let __activeTurnLabelDpi = null;
++let __activeLabelEntriesById = new Map();
++let __latestInitiativeState = null;
++let __activeTurnLabelDesired = null;
++let __activeTurnLabelPumpRunning = false;
++let __activeTurnLabelTimer = null;
++let __navigationDesiredState = null;
++let __navigationPumpRunning = false;
++let __navigationRevision = 0;
++let __lastNavigationAt = 0;
++const NAVIGATION_STALE_GRACE_MS = 500;
++const ACTIVE_TURN_LABEL_SETTLE_MS = 75;
++
++  // Scansione e deduplicazione una tantum all'avvio.
+ async function __cleanupActiveTurnLabels() {
+-  // 1) elimina eventuali etichette locali legacy
++  // Il fumetto è un feedback UI del singolo client: tenerlo locale evita
++  // round-trip di rete e callback globali su ogni cambio turno.
++  let locals = [];
+   try {
+-    const locals = await OBR.scene.local.getItems(
++    locals = await OBR.scene.local.getItems(
+       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
+     );
+-    if (locals.length) {
+-      await OBR.scene.local.deleteItems(locals.map(i => i.id));
++    if (locals.length > 1) {
++      await OBR.scene.local.deleteItems(locals.slice(1).map((it) => it.id));
++      locals = locals.slice(0, 1);
+     }
+   } catch (e) {
+-    console.warn("[activeLabel] cleanup local failed:", e?.message || e);
++    console.warn("[activeLabel] local init failed:", e?.message || e);
+   }
+ 
+-  // 2) dedupe lato globale e tienine una sola
+-  let globals = [];
++  // Rimuove la vecchia label globale delle build precedenti.
+   try {
+-    globals = await OBR.scene.items.getItems(
++    const globals = await OBR.scene.items.getItems(
+       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
+     );
+-    if (globals.length > 1) {
+-      const keep = globals[0].id;
+-      const junk = globals.slice(1).map(i => i.id);
+-      await OBR.scene.items.deleteItems(junk);
+-      globals = globals.filter(i => i.id === keep);
++    if (globals.length) {
++      await OBR.scene.items.deleteItems(globals.map((it) => it.id));
+     }
+   } catch (e) {
+-    console.warn("[activeLabel] cleanup global failed:", e?.message || e);
++    console.warn("[activeLabel] global cleanup failed:", e?.message || e);
+   }
+-  return globals[0] || null;
++
++  __activeTurnLabel = locals[0] || null;
++  __activeTurnLabelInitialized = true;
++  return __activeTurnLabel;
+ }
+   function isEpicActionId(id) {
+   return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
+@@ -224,6 +242,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
+   let __lastRenderedActiveId = null;
+   let __prevActiveId = null;
+   let __lastRoundSeen = null;
++  let __scrollActiveOnNextRender = false;
+ 
+   function isLairId(id) { return id === LAIR_ID; }
+   function makeLairEntry() {
+@@ -503,17 +522,105 @@ function makeRoundResetBtn() {
+   return b;
+ }
+ 
++function makeClearInitiativeBtn() {
++  const b = document.createElement("button");
++  b.type = "button";
++  b.dataset.clearInitiative = "1";
++  b.title = "Rimuovi tutte le card dall'iniziativa (solo GM)";
++  b.textContent = "×";
++  Object.assign(b.style, {
++    width: "22px",
++    height: "22px",
++    display: "inline-flex",
++    alignItems: "center",
++    justifyContent: "center",
++    border: "1px solid rgba(248,113,113,.55)",
++    background: "rgba(127,29,29,.55)",
++    color: "#fff",
++    fontSize: "16px",
++    fontWeight: "800",
++    lineHeight: "1",
++    borderRadius: "999px",
++    cursor: "pointer",
++    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
++    padding: "0",
++  });
++  b.addEventListener("click", async (e) => {
++    e.stopPropagation();
++    b.disabled = true;
++    try {
++      const items = await OBR.scene.items.getItems(
++        it => it.metadata?.[META_KEY]?.inInitiative === true
++      );
++      const ids = items.map(it => it.id);
++      if (ids.length) {
++        await OBR.scene.items.updateItems(ids, (drafts) => {
++          for (const it of drafts) {
++            const me = { ...(it.metadata?.[META_KEY] || {}) };
++            delete me.inInitiative;
++            it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
++          }
++        });
++      }
++      await resetTrackerState();
++      await renderAll();
++    } catch (err) {
++      console.warn("[initiative-clear] errore svuotamento:", err?.message || err);
++    } finally {
++      b.disabled = false;
++    }
++  });
++  return b;
++}
++
+ // ROW in alto: Turno + Toggle Tana (solo GM)
+ const topRow = document.createElement("div");
+ Object.assign(topRow.style, {
+   alignSelf: "center",
++  width: "100%",
+   display: "flex",
+   alignItems: "center",
++  justifyContent: "center",
+   gap: "8px",
+   flexWrap: "wrap",     // se si stringe, va a capo con grazia
+ });
+ topRow.appendChild(roundPill);
+ 
++// Toggle dello zoom automatico. Il default resta attivo per compatibilità
++// con le scene che non hanno ancora salvato questa preferenza.
++const zoomToggleWrap = document.createElement("label");
++Object.assign(zoomToggleWrap.style, {
++  alignSelf: "center",
++  display: "flex",
++  alignItems: "center",
++  gap: "6px",
++  padding: "2px 8px",
++  background: "rgba(0,0,0,.28)",
++  border: "1px solid rgba(255,255,255,.18)",
++  borderRadius: "999px",
++  boxShadow: "0 1px 4px rgba(0,0,0,.35)",
++  userSelect: "none",
++  cursor: "pointer",
++});
++
++const zoomChk = document.createElement("input");
++zoomChk.type = "checkbox";
++zoomChk.checked = true;
++zoomChk.style.transform = "scale(1.1)";
++zoomChk.style.cursor = "pointer";
++zoomChk.title = "Centra automaticamente la scena sul token attivo";
++
++const zoomLbl = document.createElement("span");
++zoomLbl.textContent = "Zoom";
++Object.assign(zoomLbl.style, {
++  fontSize: "12px",
++  fontWeight: "700",
++  color: "#fff",
++});
++
++zoomToggleWrap.append(zoomChk, zoomLbl);
++topRow.appendChild(zoomToggleWrap);
++
+ // wrapper della lista — l’UNICO che scrolla
+ const trackWrap = document.createElement("div");
+ trackWrap.style.flex = "1 1 auto";        // ← occupa tutto lo spazio rimanente
+@@ -650,6 +757,22 @@ lairChk.addEventListener("change", async (e) => {
+   await renderAll();
+ });
+ 
++zoomChk.addEventListener("change", async (e) => {
++  const enabled = !!e.target.checked;
++  const next = {
++    ...(__latestInitiativeState || {}),
++    ui: {
++      ...(__latestInitiativeState?.ui || {}),
++      autoFocus: enabled,
++    },
++  };
++  __latestInitiativeState = next;
++  await setSceneState(prev => ({
++    ...(prev || {}),
++    ui: { ...(prev?.ui || {}), autoFocus: enabled },
++  }));
++});
++
+ // Inserisci il toggle tra Turno e Lista
+ col.append(btnPrev, topRow, trackWrap, btnNext);
+ 
+@@ -771,9 +894,56 @@ async function centerOnItem(itemId) {
+   }
+ }
+ 
+-async function selectAndFocus(itemId) {
++function isAutoFocusEnabled(state) {
++  return state?.ui?.autoFocus !== false;
++}
++
++async function selectAndFocus(itemId, autoFocus = true) {
+   await selectInScene(itemId, true);
+-  await centerOnItem(itemId);
++  if (autoFocus) await centerOnItem(itemId);
++}
++
++let __selectFocusDesired = null;
++let __selectFocusPumpRunning = false;
++
++function queueSelectAndFocus(itemId, autoFocus = true) {
++  const anchorId = __resolveAnchorForActive(itemId);
++  if (!anchorId) return;
++  __selectFocusDesired = {
++    itemId: anchorId,
++    autoFocus,
++    revision: __navigationRevision,
++  };
++  if (__selectFocusPumpRunning) return;
++
++  __selectFocusPumpRunning = true;
++  void (async () => {
++    try {
++      while (__selectFocusDesired) {
++        const desired = __selectFocusDesired;
++        __selectFocusDesired = null;
++        if (desired.revision !== __navigationRevision) continue;
++
++        await selectInScene(desired.itemId, true);
++        if (
++          desired.autoFocus &&
++          desired.revision === __navigationRevision &&
++          !__selectFocusDesired
++        ) {
++          await centerOnItem(desired.itemId);
++        }
++      }
++    } catch (err) {
++      console.warn("[initiative] select/focus queue error:", err?.message || err);
++    } finally {
++      __selectFocusPumpRunning = false;
++      if (__selectFocusDesired) {
++        const desired = __selectFocusDesired;
++        __selectFocusDesired = null;
++        queueSelectAndFocus(desired.itemId, desired.autoFocus);
++      }
++    }
++  })();
+ }
+ 
+ // Restituisce l'ID del token reale a cui ancorare la label (null se virtuale)
+@@ -787,27 +957,37 @@ function __resolveAnchorForActive(activeId) {
+ 
+ // Trova la label attiva esistente (identificata dal nostro metadata)
+ async function __findExistingActiveLabel() {
++  if (__activeTurnLabelInitialized) return __activeTurnLabel;
+   return await __cleanupActiveTurnLabels();
+ }
+ 
+ let __mutatingActiveLabel = 0;    
++let __activeTurnLabelRequestKey = null;
++
++async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = null) {
++  const textStr = String(displayText ?? "");
++  const requestKey = `${anchorId || ""}\u0000${textStr}`;
++  if (__activeTurnLabelRequestKey === requestKey) return;
+ 
+-async function upsertActiveTurnLabel(anchorId, displayText) {
+   const existing = await __findExistingActiveLabel();
+ 
+   if (!anchorId) {
+-    if (existing) await OBR.scene.items.deleteItems([existing.id]);
++    if (existing) {
++      await OBR.scene.local.deleteItems([existing.id]);
++      __activeTurnLabel = null;
++    }
++    __activeTurnLabelRequestKey = requestKey;
+     return;
+   }
+ 
+-  const dpi = await OBR.scene.grid.getDpi();
+-  const [anchor] = await OBR.scene.items.getItems([anchorId]);
+-  if (!anchor) { if (existing) await OBR.scene.items.deleteItems([existing.id]); return; }
++  const dpi = __activeTurnLabelDpi ?? await OBR.scene.grid.getDpi();
++  __activeTurnLabelDpi = dpi;
++  const anchor = anchorSnapshot ||
++    (await OBR.scene.items.getItems([anchorId]))[0];
++  if (!anchor) { if (existing) await OBR.scene.local.deleteItems([existing.id]); return; }
+ 
+   const offsetPx = { x: 0, y: ACTIVE_LABEL_OFFSET_Y_CELLS * dpi };
+   const pos = { x: anchor.position.x + offsetPx.x, y: anchor.position.y + offsetPx.y };
+-  const textStr = String(displayText ?? "");
+-
+   if (!existing) {
+     __mutatingActiveLabel++;
+     try {
+@@ -830,7 +1010,9 @@ async function upsertActiveTurnLabel(anchorId, displayText) {
+         .metadata({ [ACTIVE_LABEL_META]: { enabled: true } })
+         .name("Turno attuale")
+         .build();
+-      await OBR.scene.items.addItems([item]);
++      await OBR.scene.local.addItems([item]);
++      __activeTurnLabel = item;
++      __activeTurnLabelRequestKey = requestKey;
+     } finally {
+       __mutatingActiveLabel--;
+     }
+@@ -838,11 +1020,14 @@ async function upsertActiveTurnLabel(anchorId, displayText) {
+   // aggiorna solo se serve per evitare update inutili
+   const sameAnchor = existing.attachedTo === anchorId;
+   const sameText   = existing.text?.type === "PLAIN" && existing.text?.plainText === textStr;
+-  if (sameAnchor && sameText) return;
++  if (sameAnchor && sameText) {
++    __activeTurnLabelRequestKey = requestKey;
++    return;
++  }
+ 
+   __mutatingActiveLabel++;
+   try {
+-    await OBR.scene.items.updateItems([existing.id], (list) => {
++    await OBR.scene.local.updateItems([existing.id], (list) => {
+       const it = list[0]; if (!it) return;
+ 
+       it.attachedTo = anchorId;
+@@ -863,12 +1048,116 @@ async function upsertActiveTurnLabel(anchorId, displayText) {
+ 
+       it.layer = "TEXT";
+     });
++    existing.attachedTo = anchorId;
++    existing.position = pos;
++    if (existing.text) existing.text.plainText = textStr;
++    __activeTurnLabel = existing;
++    __activeTurnLabelRequestKey = requestKey;
+     } finally {
+       __mutatingActiveLabel--;
+     }
+   }
+ }
+ 
++async function __pumpActiveTurnLabel() {
++  if (__activeTurnLabelPumpRunning) return;
++
++  const sinceNavigation = Date.now() - __lastNavigationAt;
++  if (
++    __activeTurnLabelDesired &&
++    __lastNavigationAt > 0 &&
++    sinceNavigation < ACTIVE_TURN_LABEL_SETTLE_MS
++  ) {
++    clearTimeout(__activeTurnLabelTimer);
++    __activeTurnLabelTimer = setTimeout(() => {
++      __activeTurnLabelTimer = null;
++      void __pumpActiveTurnLabel();
++    }, Math.max(0, ACTIVE_TURN_LABEL_SETTLE_MS - sinceNavigation));
++    return;
++  }
++
++  __activeTurnLabelPumpRunning = true;
++  try {
++    while (__activeTurnLabelDesired) {
++      const desired = __activeTurnLabelDesired;
++      __activeTurnLabelDesired = null;
++      if (desired.revision !== __navigationRevision) continue;
++
++      await upsertActiveTurnLabel(
++        desired.anchorId,
++        desired.text,
++        desired.anchor
++      );
++    }
++  } catch (err) {
++    console.warn("[active-label] update queue error:", err?.message || err);
++  } finally {
++    __activeTurnLabelPumpRunning = false;
++    if (__activeTurnLabelDesired) void __pumpActiveTurnLabel();
++  }
++}
++
++function syncActiveTurnLabel(activeId) {
++  const anchorId = __resolveAnchorForActive(activeId);
++  const activeEntry =
++    __activeLabelEntriesById.get(activeId) ||
++    __activeLabelEntriesById.get(anchorId);
++  const labelName = activeEntry?.name
++    ? __safeBaseName(activeEntry.name)
++    : "Turno";
++  __activeTurnLabelDesired = {
++    anchorId,
++    text: ACTIVE_LABEL_TEXT_FMT(labelName),
++    anchor: activeEntry?.position ? activeEntry : null,
++    revision: __navigationRevision,
++  };
++
++  if (__activeTurnLabelPumpRunning) return;
++  clearTimeout(__activeTurnLabelTimer);
++  const sinceNavigation = Date.now() - __lastNavigationAt;
++  if (__lastNavigationAt > 0 && sinceNavigation < ACTIVE_TURN_LABEL_SETTLE_MS) {
++    __activeTurnLabelTimer = setTimeout(() => {
++      __activeTurnLabelTimer = null;
++      void __pumpActiveTurnLabel();
++    }, Math.max(0, ACTIVE_TURN_LABEL_SETTLE_MS - sinceNavigation));
++    return;
++  }
++  __activeTurnLabelTimer = null;
++  void __pumpActiveTurnLabel();
++}
++
++function queueNavigationState(next) {
++  __navigationDesiredState = next;
++  if (__navigationPumpRunning) return;
++  __navigationPumpRunning = true;
++  void (async () => {
++    try {
++      while (__navigationDesiredState) {
++        const desired = __navigationDesiredState;
++        __navigationDesiredState = null;
++        await setSceneState(desired);
++      }
++    } catch (err) {
++      console.warn("[initiative] navigation queue error:", err?.message || err);
++    } finally {
++      __navigationPumpRunning = false;
++    }
++  })();
++}
++
++function __activeIdForState(state) {
++  return Array.isArray(state?.order) ? state.order[state.current] : null;
++}
++
++function __isStaleNavigationState(state) {
++  const inNavigationGrace =
++    __lastNavigationAt > 0 &&
++    (Date.now() - __lastNavigationAt) < NAVIGATION_STALE_GRACE_MS;
++  if (!__navigationPumpRunning && !__navigationDesiredState && !inNavigationGrace) return false;
++  const expectedId = __activeIdForState(__latestInitiativeState);
++  const receivedId = __activeIdForState(state);
++  return !!expectedId && receivedId !== expectedId;
++}
+ function handoffFocusToCanvas() {
+   try {
+     // togli il focus da qualunque cosa nel plugin
+@@ -971,6 +1260,7 @@ async function readEntries() {
+       conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
+       id: it.id,
+       name: it.name || "Unnamed",
++      position: it.position ? { x: it.position.x, y: it.position.y } : null,
+       initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
+       portrait: getTokenImageUrl(it),
+       attitude: meta.attitude || "ally",
+@@ -1488,6 +1778,10 @@ async function updateHP(itemId, nextHP, nextHPMax) {
+   const n  = nextHP    === "" ? 0 : Math.floor(Number(nextHP)    || 0);
+   const nm = nextHPMax === "" ? 0 : Math.floor(Number(nextHPMax) || 0);
+ 
++  // Avvia subito l'aggiornamento visivo, senza aspettare il round-trip dei metadata.
++  syncHPBarNow(itemId, n, nm);
++  void syncHPTextNow(itemId, n, nm);
++
+   await OBR.scene.items.updateItems([itemId], (items) => {
+     for (const it of items) {
+       const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
+@@ -1498,16 +1792,6 @@ async function updateHP(itemId, nextHP, nextHPMax) {
+     }
+   });
+ 
+-  // Modifica
+-  // Aggiorna subito BARRE + TESTO sopra le barre (SOLO quando confermi la pill)
+-  // Modifica
+-  try {
+-    const { syncHPBarNow, syncHPTextNow } = await import("./hpbar-items.js");
+-    syncHPBarNow(itemId, n, nm);
+-    syncHPTextNow(itemId, n, nm); // ← aggiorna SOLO alla conferma della pill
+-  } catch (err) {
+-    console.warn("[hpbar/hptext] sync error", err);
+-  }
+ 
+   // NEW: salva nella memoria stanza (cross‑scene) se è un PG
+   try {
+@@ -3421,8 +3705,11 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax :
+ 
+     track.replaceChildren(...nodes.filter(Boolean));
+ 
+-  const active = track.querySelector('[data-active="1"]');
+-  active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
++  if (__scrollActiveOnNextRender) {
++    __scrollActiveOnNextRender = false;
++    const active = track.querySelector('[data-active="1"]');
++    active?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
++  }
+ 
+   __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
+ }
+@@ -3682,6 +3969,9 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
+ async function renderAll() {
+   if (__suspendRenders) return;
+   const stateRaw = await getSceneState();
++  // Gli snapshot intermedi di una raffica di click non devono ridisegnare
++  // lista, fumetto o selezione sopra lo stato ottimistico più recente.
++  if (__isStaleNavigationState(stateRaw)) return;
+   const baseEntries  = await getEntriesWithLair(stateRaw);
+   const entries = expandParagonEntries(baseEntries, stateRaw);
+ 
+@@ -3700,9 +3990,14 @@ async function renderAll() {
+ // byId deve conoscere anche le voci virtuali
+ const entriesWithVirtuals = entries.concat(epicVirtuals);
+ const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
++__activeLabelEntriesById = byId;
+ 
+ 
+   const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
++  if (!__navigationPumpRunning && !__navigationDesiredState) {
++    __latestInitiativeState = stateClean;
++  }
++  zoomChk.checked = isAutoFocusEnabled(stateClean);
+ 
+     try {
+   const lbl = document.getElementById("tbp-round-label");
+@@ -3750,11 +4045,7 @@ const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
+     const activeIdNow = stateClean.order[stateClean.current];
+     // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
+ try {
+-  const anchorId = __resolveAnchorForActive(activeIdNow);
+-  let labelName = "Turno";
+-  const activeEntry = (byId && byId.get && (byId.get(activeIdNow) || byId.get(anchorId)));
+-  if (activeEntry && activeEntry.name) labelName = __safeBaseName(activeEntry.name);
+-  await upsertActiveTurnLabel(anchorId, ACTIVE_LABEL_TEXT_FMT(labelName));
++  syncActiveTurnLabel(activeIdNow);
+ } catch (err) {
+   console.warn("[active-label] upsert error:", err?.message || err);
+ }
+@@ -3776,10 +4067,13 @@ try {
+       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
+ try {
+   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
++  const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
+   if (IS_GM) {
+     if (!hasBtn) roundPill.appendChild(makeRoundResetBtn());
++    if (!hasClearBtn) roundPill.appendChild(makeClearInitiativeBtn());
+   } else {
+     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
++    if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
+   }
+ } catch {}
+ 
+@@ -3830,9 +4124,10 @@ try {
+   let __lastActiveId = null;
+ 
+ OBR.scene.onMetadataChange(async (meta) => {
+-  await renderAll(); // ridisegna UI
+-
+   const st = meta?.[STATE_KEY];
++  if (__isStaleNavigationState(st)) return;
++
++  await renderAll(); // ridisegna UI
+   if (!st || !Array.isArray(st.order) || st.order.length === 0) return;
+ 
+   const activeId = st.order[st.current];
+@@ -3850,10 +4145,11 @@ try {
+     // prendo i token in iniziativa (id base se paragon)
+     const tokenIds = (Array.isArray(st.order) ? st.order : [])
+       .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
+-      .filter(Boolean);
++      .filter(id => id && !isLairId(id) && !isEpicActionId(id));
+     const unique = Array.from(new Set(tokenIds));
+ 
+     await adjustSpellsForItems(unique, delta);
++    await adjustConditionDurationsForItems(unique, delta);
+     __lastRoundSeen = roundNow;
+   }
+ } catch (err) {
+@@ -3869,7 +4165,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
+   try { await resetLegendaryIfAny(activeId); }
+   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
+ 
+-  await selectAndFocus(activeId);
++  queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
+ }
+   try {
+     const roundNow = Math.max(1, Number(st.round || 1));
+@@ -3898,7 +4194,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
+ });
+ 
+   OBR.scene.items.onChange(async (changes = []) => {
+-    if (__mutatingActiveLabel > 0) return;
++    if (__mutatingActiveLabel > 0 || isOnlyActiveTurnLabelChange(changes)) return;
+     await reconcileStateWithItems();
+     await enforceUniqueNamePrefixes();
+     await renderAll();
+@@ -3907,7 +4203,8 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
+   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
+ // (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)
+ try {
+-  OBR.scene.items.onChange(() => {
++  OBR.scene.items.onChange((changes = []) => {
++    if (isOnlyActiveTurnLabelChange(changes)) return;
+     scheduleHPMemoryAutofill(150); // 150ms debounce
+   });
+ } catch (e) {
+@@ -3915,7 +4212,7 @@ try {
+ }
+ 
+     btnPrev.addEventListener("click", async () => {
+-    const st = await getSceneState();
++    const st = __latestInitiativeState || await getSceneState();
+     if (!st || !st.order || st.order.length === 0) return;
+     const len = st.order.length;
+ 
+@@ -3924,23 +4221,32 @@ try {
+     const nextRound = Math.max(1, (st.round || 1) - (wrapped ? 1 : 0));
+ 
+     const next = { ...st, current: prevIdx, round: nextRound };
+-    await setSceneState(next);
++    __latestInitiativeState = next;
++    const activeId = next.order[next.current];
++    const revision = ++__navigationRevision;
++    __lastNavigationAt = Date.now();
++    __scrollActiveOnNextRender = true;
++    syncActiveTurnLabel(activeId);
++    queueNavigationState(next);
+     try { delete document.__tbpZoomStamp; } catch {}
+ 
+     try {
+     const entriesNow = await readEntries();
++    if (revision !== __navigationRevision) return;
+     await __applyAutoCollapse(entriesNow, next);
+     } catch {}
+ 
+-    const activeId = next.order[next.current];
+-    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
++    if (revision !== __navigationRevision) return;
++    if (activeId && !isLairId(activeId)) {
++      queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
++    }
+ 
+     handoffFocusToCanvas?.();
+     armArrowProxy?.();
+   });
+ 
+   btnNext.addEventListener("click", async () => {
+-    const st = await getSceneState();
++    const st = __latestInitiativeState || await getSceneState();
+     if (!st || !st.order || st.order.length === 0) return;
+     const len = st.order.length;
+ 
+@@ -3949,19 +4255,28 @@ try {
+     const nextRound = Math.max(1, (st.round || 1) + (wrapped ? 1 : 0));
+ 
+     const next = { ...st, current: nextIdx, round: nextRound };
+-    await setSceneState(next);
++    __latestInitiativeState = next;
++    const activeId = next.order[next.current];
++    const revision = ++__navigationRevision;
++    __lastNavigationAt = Date.now();
++    __scrollActiveOnNextRender = true;
++    syncActiveTurnLabel(activeId);
++    queueNavigationState(next);
+     try { delete document.__tbpZoomStamp; } catch {}
+ 
+     try {
+     const entriesNow = await readEntries();
++    if (revision !== __navigationRevision) return;
+     await __applyAutoCollapse(entriesNow, next);
+     } catch {}
+ 
+-    const activeId = next.order[next.current];
+-    if (activeId && !isLairId(activeId)) await selectAndFocus(activeId);
++    if (revision !== __navigationRevision) return;
++    if (activeId && !isLairId(activeId)) {
++      queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
++    }
+ 
+     handoffFocusToCanvas?.();
+     armArrowProxy?.();
+   });
+ 
+-} 
+\ No newline at end of file
++}
+diff --git a/src/spells-tag.js b/src/spells-tag.js
+index e2038f0..8d8ae64 100644
+--- a/src/spells-tag.js
++++ b/src/spells-tag.js
+@@ -1,6 +1,7 @@
+   // src/spells-tag.js
+   import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
+   import { ID } from "./contextMenu";
++  import { isOnlyActiveTurnLabelChange } from "./constants.js";
+ 
+   /* ===================== DEBUG ===================== */
+   const DEBUG_CONC = true;
+@@ -761,7 +762,11 @@ async function upsertDotForItem(it) {
+     __mounted = true;
+     dlog("watcher:mounted");
+     refreshConcentrationDots().catch(e => dlog("watcher:init-error", e));
+-    OBR.scene.items.onChange(() => { dlog("onChange"); __scheduleRefresh(); });
++    OBR.scene.items.onChange((changes = []) => {
++      if (isOnlyActiveTurnLabelChange(changes)) return;
++      dlog("onChange");
++      __scheduleRefresh();
++    });
+   }
+ 
+   // montaggio automatico se non lo fai tu altrove

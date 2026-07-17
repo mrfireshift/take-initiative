@@ -105,8 +105,13 @@ async function toggleLegendaryDefault(itemIds) {
       const me = { ...(m[META_KEY] || {}) };
       if (allHave) {
         if (me.legendary) delete me.legendary;
+        if (me.legendaryResistances) delete me.legendaryResistances;
       } else {
         me.legendary = { max: 3, current: 3 };
+        me.legendaryResistances = {
+          max: 3,
+          current: 3,
+        };
       }
       m[META_KEY] = me;
       it.metadata = m;
