@@ -58,7 +58,7 @@
 
   // La prima riga parte sotto il badge C, lungo la dorsale sinistra del token.
   const STACK_DIR = 1;
-  const STACK_TOP_INSET = 14 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
+  const STACK_TOP_INSET = -4 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
   const __stackHeight = (height) => Math.ceil((Number(height) || LABEL_HEIGHT) * STACK_CLEARANCE_SCALE);
   function __visualTokenBox(targetItem, bounds = null) {
     const scaleX = Math.abs(Number(targetItem?.scale?.x)) || 1;
@@ -98,7 +98,7 @@
   const LABEL_GAP     = 6;
 
   // Inset della dorsale rispetto al bordo sinistro visuale del token.
-  const LABEL_OFFSET_X = 0.52;
+  const LABEL_OFFSET_X = 0.42;
   const LABEL_OFFSET_Y = -1;
 
     // === Layer target delle label ===
@@ -143,7 +143,7 @@
     const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : (Number(it?.width) || 70);
     const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : (Number(it?.height) || 70);
     const radius = Math.max(1, Math.min(width, height) / 2);
-    const circleInset = radius * (1 - Math.SQRT1_2);
+    const circleInset = radius * (.9 - Math.SQRT1_2);
     return {
       cx: left + circleInset,
       cy: top + circleInset,

@@ -805,7 +805,7 @@ const CHIP_Z = {
 };
 
 const CHIP_LAYOUT_NUDGE = {
-  x: 0.8,  // dorsale piÃ¹ interna, sovrapposta al token
+  x: 0.42,  // dorsale piÃ¹ interna, sovrapposta al token
   topGap: 48,  // usato anche come baseGap per anchor top/bottom
   rowGap: CHIP_GAP,
 };
@@ -820,7 +820,7 @@ const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`;
 
 // La prima riga parte sotto il badge C, lungo la dorsale sinistra del token.
 const STACK_DIR = 1;
-const STACK_TOP_INSET = 14 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
+const STACK_TOP_INSET = -4 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
 const __stackHeight = (height) => Math.ceil((Number(height) || 27) * STACK_CLEARANCE_SCALE);
 
 function __visualTokenBox(targetItem, bounds = null) {
