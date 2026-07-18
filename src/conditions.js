@@ -1,5 +1,5 @@
 // src/conditions.js
-import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
+import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import {
@@ -394,7 +394,7 @@ function __scheduleConditionLabelRefresh() {
   if (__COND_REFRESH_TIMER) clearTimeout(__COND_REFRESH_TIMER);
   __COND_REFRESH_TIMER = setTimeout(() => {
     __COND_REFRESH_TIMER = null;
-    refreshConditionLabels().catch(() => {});
+    refreshConditionLabels().catch((error) => console.error("[conditions] label refresh", error));
   }, 80);
 }
 
@@ -402,6 +402,11 @@ function __scheduleConditionLabelRefresh() {
 export function mountConditionsLabelWatcher() {
   if (__COND_WATCH_MOUNTED) return;
   __COND_WATCH_MOUNTED = true;
+
+  // Riconcilia anche i widget già presenti al caricamento della room.
+  // Senza questo pass le modifiche di layout si applicano soltanto dopo una
+  // successiva modifica manuale alle condizioni del token.
+  refreshConditionLabels().catch((error) => console.error("[conditions] initial label refresh", error));
 
   subscribeSceneItemChanges(() => {
     __scheduleConditionLabelRefresh();
@@ -754,7 +759,7 @@ function __measureTextPx(text, fontSize = 12, fontFamily = '"Helvetica Neue", He
   try {
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d");
-    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.font = `600 ${fontSize}px ${fontFamily}`;
     const m = ctx.measureText(String(text || ""));
     const w = Math.ceil(m.width);
     const h = Math.ceil(fontSize * 1.25);
@@ -767,16 +772,20 @@ function __measureTextPx(text, fontSize = 12, fontFamily = '"Helvetica Neue", He
 
 // Geometria pill: padding/angoli/stroke
 const PILL_CFG = {
-  fontSize: 16,
-  padX: 4,
+  fontSize: 18,
+  fontWeight: 600,
+  lineHeight: 1,
+  padX: 9,
   padY: 1,
-  stroke: 2,
+  stroke: 1,
+  radius: 7,
   // colori
-  bg: "rgba(0,0,0,0.75)",
+  bg: "#0e131f",
+  bgOpacity: 0.9,
   border: "rgba(255, 0, 0, 1)",
-  textFill: "#ffffff",
-  textStroke: "rgba(0,0,0,.85)",
-  textStrokeW: 2,
+  textFill: "#f8fafc",
+  textStroke: "rgba(2,6,23,.55)",
+  textStrokeW: 1,
 };
 
 // Calcola size pill a partire dal testo
@@ -789,48 +798,58 @@ function __pillSizeFor(text) {
 }
 
 // Margine tra chip e chip
-const CHIP_GAP = 2;
+const CHIP_GAP = 4;
 const CHIP_Z = {
   bg: 100000,
   text: 100001,
 };
 
 const CHIP_LAYOUT_NUDGE = {
-  x: 0,     // sposta tutto il blocco a sinistra (px). Negativo = sinistra
+  x: 0.8,  // dorsale piÃ¹ interna, sovrapposta al token
   topGap: 48,  // usato anche come baseGap per anchor top/bottom
   rowGap: CHIP_GAP,
 };
 
 // === Stack condiviso con spells ===
-const STACK_GAP = 2; // deve combaciare con spells-tag.js
+const STACK_GAP = 1; // deve combaciare con spells-tag.js
+const STACK_CLEARANCE_SCALE = 1.1; // margine anti-overlap allo zoom abituale
+const WIDGET_MAX_VIEW_SCALE = 1.35;
 const CONC_WIDGET_META   = `${ID}/concWidgetOf`;
 const CONC_WIDGET_KEY    = `${ID}/concWidgetKey`;
 const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`;
 
-// === NUOVO: configurazione anchor della colonna (top/bottom/center)
-const STACK_ANCHOR = "center";           // posizione assoluta rispetto al centro del token
-const STACK_DIR    = 1;                     // 1 = giù, -1 = su
-const STACK_BASE_GAP = CHIP_LAYOUT_NUDGE.topGap || 6;
-const STACK_CENTER_OFFSET = -48;
-const ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR = ["SCALE"];
+// La prima riga parte sotto il badge C, lungo la dorsale sinistra del token.
+const STACK_DIR = 1;
+const STACK_TOP_INSET = 14 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
+const __stackHeight = (height) => Math.ceil((Number(height) || 27) * STACK_CLEARANCE_SCALE);
 
-function __keepLabelScaleAbsolute(item) {
-  const disabled = Array.isArray(item.disableAttachmentBehavior)
-    ? item.disableAttachmentBehavior
-    : [];
-  if (!disabled.includes("SCALE")) item.disableAttachmentBehavior = [...disabled, "SCALE"];
+function __visualTokenBox(targetItem, bounds = null) {
+  const scaleX = Math.abs(Number(targetItem?.scale?.x)) || 1;
+  const scaleY = Math.abs(Number(targetItem?.scale?.y)) || 1;
+  const fallbackWidth = (Number(targetItem?.width) || 70) * scaleX;
+  const fallbackHeight = (Number(targetItem?.height) || 70) * scaleY;
+  const left = Number.isFinite(Number(bounds?.min?.x)) ? Number(bounds.min.x) : targetItem.position.x - fallbackWidth / 2;
+  const top = Number.isFinite(Number(bounds?.min?.y)) ? Number(bounds.min.y) : targetItem.position.y - fallbackHeight / 2;
+  const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : fallbackWidth;
+  const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : fallbackHeight;
+  return {
+    left,
+    top,
+    width,
+    height,
+    diameter: Math.max(1, Math.min(width, height)),
+  };
 }
 
-function stackBaseY(targetItem) {
-  if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
-  const h = Number(targetItem.height) || 70;
-  if (STACK_ANCHOR === "top")    return targetItem.position.y - h / 2 - STACK_BASE_GAP;
-  // default: bottom
-  return targetItem.position.y + h / 2 + STACK_BASE_GAP;
+function stackBaseY(targetItem, bounds = null) {
+  const box = __visualTokenBox(targetItem, bounds);
+  return box.top + box.diameter * STACK_TOP_INSET;
 }
 
 // Metadata per identificare ogni chip (oltre al "owner" token)
 const COND_WIDGET_KEY_META = `${ID}/condWidgetKey`; // es. "flag:Prono" o "custom:avvelenato"
+const COND_WIDGET_LAYOUT_META = `${ID}/condWidgetLayout`;
+const COND_WIDGET_LAYOUT_VERSION = 2;
 
 // Ordina le flag secondo la tua UI + custom in coda
 function __orderedParts(cond = {}) {
@@ -860,14 +879,23 @@ function __collectCondWidgetBuckets(items = []) {
 
     const strKey = String(key);
     const bucket = buckets.get(strKey) || { shape: null, text: null, shapes: [], texts: [] };
-    if (item.type === "SHAPE") bucket.shapes.push(item);
-    else if (item.type === "TEXT") bucket.texts.push(item);
+    if (
+      item.type === "LABEL" &&
+      item.metadata?.[COND_WIDGET_LAYOUT_META] === COND_WIDGET_LAYOUT_VERSION
+    ) {
+      bucket.shapes.push(item);
+    } else {
+      // Qualsiasi widget legacy (incluse LABEL di una vecchia versione)
+      // deve essere rimosso. Ignorarlo lo lascia visibile per sempre e può
+      // conservare proprietà di scala non più previste dal layout corrente.
+      removeIds.add(item.id);
+    }
     buckets.set(strKey, bucket);
   }
 
   for (const bucket of buckets.values()) {
     bucket.shape = bucket.shapes[0] || null;
-    bucket.text = bucket.texts[0] || null;
+    bucket.text = null;
     for (const extra of bucket.shapes.slice(1)) removeIds.add(extra.id);
     for (const extra of bucket.texts.slice(1)) removeIds.add(extra.id);
   }
@@ -895,17 +923,23 @@ export async function refreshConditionLabels(itemIds) {
     if (!it) continue;
     if (__COND_UPSERT_LOCK.has(it.id)) continue;
     __COND_UPSERT_LOCK.add(it.id);
-    try { await upsertCondWidgetForItem(it); } catch {} finally { __COND_UPSERT_LOCK.delete(it.id); }
+    try {
+      await upsertCondWidgetForItem(it);
+    } catch (error) {
+      console.error("[conditions] label upsert", it.id, error);
+    } finally {
+      __COND_UPSERT_LOCK.delete(it.id);
+    }
   }
 }
 
 // === Anchor-based stack: calcola la Y per "cond:<key>"
-async function __stackCYForCondition(targetItem, condKey, condHeight) {
+async function __stackCYForCondition(targetItem, condKey, condHeight, targetBounds = null) {
   const tid = targetItem.id;
 
   // 1) SPELL rows presenti su questo target (qualsiasi caster)
   const spellLabels = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE")
+    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL")
        && i.metadata?.[CONC_WIDGET_META] === tid
        && !!i.metadata?.[CONC_WIDGET_CASTER]
   );
@@ -915,20 +949,22 @@ async function __stackCYForCondition(targetItem, condKey, condHeight) {
     const c = (itx.metadata?.[CONC_WIDGET_CASTER] || "").toString();
     if (!k || !c) continue;
     const sig = `${k}|${c}`;
-    const h = itx.type === "SHAPE" ? (Number(itx.height) || condHeight) : null;
+    const h = itx.type === "LABEL"
+      ? (Number(itx.text?.height) || condHeight)
+      : itx.type === "SHAPE" ? (Number(itx.height) || condHeight) : null;
     if (!spellRows.has(sig)) spellRows.set(sig, h || condHeight);
     else if (h) spellRows.set(sig, h);
   }
 
   // 2) COND rows presenti (bg)
   const condShapes = await OBR.scene.items.getItems(
-    (i) => i.type === "SHAPE" && i.metadata?.[COND_WIDGET_META] === tid
+    (i) => (i.type === "LABEL" || i.type === "SHAPE") && i.metadata?.[COND_WIDGET_META] === tid
   );
   const condRows = new Map(); // key -> height
   for (const sh of condShapes) {
     const key = sh.metadata?.[COND_WIDGET_KEY_META];
     if (!key) continue;
-    condRows.set(String(key), Number(sh.height) || condHeight);
+    condRows.set(String(key), Number(sh.text?.height ?? sh.height) || condHeight);
   }
   if (!condRows.has(condKey)) condRows.set(condKey, condHeight);
 
@@ -939,10 +975,10 @@ async function __stackCYForCondition(targetItem, condKey, condHeight) {
   entries.sort((A, B) => (A.group - B.group) || String(A.key).localeCompare(String(B.key)));
 
   // 4) Stack usando l'anchor configurato
-  const baseY = stackBaseY(targetItem);
+  const baseY = stackBaseY(targetItem, targetBounds);
   let cy = baseY, prevH = 0;
   for (let i = 0; i < entries.length; i++) {
-    const h = Number(entries[i].h) || condHeight;
+    const h = __stackHeight(entries[i].h || condHeight);
     if (i === 0) {
       cy = baseY + STACK_DIR * (h / 2);
     } else {
@@ -951,7 +987,7 @@ async function __stackCYForCondition(targetItem, condKey, condHeight) {
     if (entries[i].group === 1 && entries[i].key === condKey) return Math.round(cy);
     prevH = h;
   }
-  return Math.round(baseY + STACK_DIR * (condHeight / 2));
+  return Math.round(baseY + STACK_DIR * (__stackHeight(condHeight) / 2));
 }
 
 // === Versione a widget (SHAPE + TEXT) — multi-chip, una per condizione ===
@@ -961,7 +997,7 @@ async function upsertCondWidgetForItem(it) {
   const wantNone = parts.length === 0;
 
   const existing = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE") && i.metadata?.[COND_WIDGET_META] === it.id
+    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && i.metadata?.[COND_WIDGET_META] === it.id
   );
 
   let { buckets, removeIds } = __collectCondWidgetBuckets(existing);
@@ -986,16 +1022,28 @@ async function upsertCondWidgetForItem(it) {
   const startX = it.position.x - totalWidth;
   const anchorY = tokenTop - 8 - (maxH / 2); // legacy (non usato dal nuovo stack, ma lasciato intatto)
 
-  // === Layout a colonna singola (1 per riga), centrato orizzontalmente al token ===
-  const CENTER_X = it.position.x + CHIP_LAYOUT_NUDGE.x;
+  // === Layout a colonna singola: bordo sinistro stabile a destra del token ===
   const rows = sizes.map(s => [s]);
 
+  let targetBounds = null;
+  try { targetBounds = await OBR.scene.items.getItemBounds([it.id]); } catch {}
+
   const layout = Object.create(null);
+  const tokenBox = __visualTokenBox(it, targetBounds);
   for (let r = 0; r < rows.length; r++) {
     const s = rows[r][0];
-    const cy = await __stackCYForCondition(it, s.key, s.height);
-    const cx = CENTER_X;
-    layout[s.key] = { pos: { x: cx, y: cy }, width: s.width, height: s.height, label: s.label };
+    const cy = await __stackCYForCondition(it, s.key, s.height, targetBounds);
+    const labelLeft = tokenBox.left + tokenBox.diameter * CHIP_LAYOUT_NUDGE.x;
+    // Il punto della LABEL coincide con il bordo sinistro, non con il centro:
+    // così la dorsale resta stabile anche con lo scaling screen-space di OBR.
+    const cx = labelLeft;
+    layout[s.key] = {
+      pos: { x: cx, y: cy },
+      width: s.width,
+      height: s.height,
+      label: s.label,
+      border: COND_BORDER[s.name] || PILL_CFG.border,
+    };
   }
 
   // 1) CREA quelli mancanti
@@ -1009,50 +1057,49 @@ async function upsertCondWidgetForItem(it) {
 
     const pair = buckets.get(key) || {};
     if (!pair.shape) {
-      const borderCol = COND_BORDER[s.name] || PILL_CFG.border;
-      const shapeBuilt = buildShape()
-        .shapeType("RECTANGLE")
+      const shapeBuilt = buildLabel()
+        .plainText(s.label)
         .position({ x: cx, y: cy })
         .attachedTo(it.id)
-        .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
-        .fillColor(PILL_CFG.bg)
-        .strokeColor(borderCol)
-        .strokeWidth(PILL_CFG.stroke)
+        .backgroundColor(PILL_CFG.bg)
+        .backgroundOpacity(PILL_CFG.bgOpacity)
+        .cornerRadius(slot.height / 2)
+        .pointerWidth(0)
+        .pointerHeight(0)
+        .pointerDirection("LEFT")
+        .maxViewScale(WIDGET_MAX_VIEW_SCALE)
+        .padding(0)
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
+        .fontSize(PILL_CFG.fontSize)
+        .fontWeight(PILL_CFG.fontWeight)
+        .lineHeight(PILL_CFG.lineHeight)
+        .textAlign("CENTER")
+        .textAlignVertical("MIDDLE")
+        .fillColor(PILL_CFG.textFill)
+        .strokeColor(PILL_CFG.textStroke)
+        .strokeWidth(PILL_CFG.textStrokeW)
         .width(s.width)
         .height(s.height)
         .layer("TEXT")
         .name(`Condizione: ${s.label} (bg)`)
-        .metadata({ [COND_WIDGET_META]: it.id, [COND_WIDGET_KEY_META]: key })
+        .metadata({
+          [COND_WIDGET_META]: it.id,
+          [COND_WIDGET_KEY_META]: key,
+          [COND_WIDGET_LAYOUT_META]: COND_WIDGET_LAYOUT_VERSION,
+        })
         .build();
-      try { if ("cornerRadius" in shapeBuilt) shapeBuilt.cornerRadius = PILL_CFG.radius; } catch {}
       shapeBuilt.locked = true;
       shapeBuilt.disableHit = true;
       shapeBuilt.zIndex = CHIP_Z.bg;
       toAdd.push(shapeBuilt);
     }
 
-    if (!pair.text) {
-      const textBuilt = buildText()
-        .richText(_mkSlateParagraph(s.label))
-        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-        .position({ x: cx, y: cy })
-        .attachedTo(it.id)
-        .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
-        .layer("TEXT")
-        .name(`Condizione: ${s.label} (testo)`)
-        .metadata({ [COND_WIDGET_META]: it.id, [COND_WIDGET_KEY_META]: key })
-        .build();
-      textBuilt.locked = true;
-      textBuilt.disableHit = true;
-      textBuilt.zIndex = CHIP_Z.text;
-      toAdd.push(textBuilt);
-    }
   }
   if (toAdd.length) {
     await OBR.scene.items.addItems(toAdd);
 
     const fresh = await OBR.scene.items.getItems(
-      (i) => (i.type === "TEXT" || i.type === "SHAPE") && i.metadata?.[COND_WIDGET_META] === it.id
+      (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && i.metadata?.[COND_WIDGET_META] === it.id
     );
     const collected = __collectCondWidgetBuckets(fresh);
     buckets = collected.buckets;
@@ -1064,17 +1111,15 @@ async function upsertCondWidgetForItem(it) {
   for (const s of sizes) {
     const pair = buckets.get(s.key) || {};
     if (pair.shape) idsSet.add(pair.shape.id);
-    if (pair.text)  idsSet.add(pair.text.id);
   }
   const idsToUpdate = Array.from(idsSet);
 
   // 3) CANCELLA extra
   const validKeys = new Set(sizes.map(s => s.key));
   for (const [key, pair] of buckets.entries()) {
-    if (!validKeys.has(key)) {
-      if (pair.shape) removeIds.add(pair.shape.id);
-      if (pair.text)  removeIds.add(pair.text.id);
-    }
+      if (!validKeys.has(key)) {
+        if (pair.shape) removeIds.add(pair.shape.id);
+      }
   }
   const toRemove = Array.from(removeIds);
   if (toRemove.length) await OBR.scene.items.deleteItems(toRemove);
@@ -1090,47 +1135,37 @@ async function upsertCondWidgetForItem(it) {
       if (itx.layer !== "TEXT") itx.layer = "TEXT";
       itx.locked = true;
       itx.disableHit = true;
-      __keepLabelScaleAbsolute(itx);
 
-      if (itx.type === "SHAPE") {
+      if (itx.type === "LABEL") {
         const posChanged = !itx.position || itx.position.x !== slot.pos.x || itx.position.y !== slot.pos.y;
-        const wChanged   = itx.width  !== slot.width  || itx.height !== slot.height;
+        const wChanged   = itx.text?.width !== slot.width || itx.text?.height !== slot.height;
 
         if (posChanged) itx.position = { x: slot.pos.x, y: slot.pos.y };
-        if (wChanged) { itx.width = slot.width; itx.height = slot.height; }
-        if ("cornerRadius" in itx && itx.cornerRadius !== PILL_CFG.radius) itx.cornerRadius = PILL_CFG.radius;
-        if (itx.zIndex !== CHIP_Z.bg) itx.zIndex = CHIP_Z.bg;
-
-      } else if (itx.type === "TEXT") {
-        const posChanged = !itx.position || itx.position.x !== slot.pos.x || itx.position.y !== slot.pos.y;
-        if (posChanged) itx.position = { x: slot.pos.x, y: slot.pos.y };
-        if (itx.zIndex !== CHIP_Z.text) itx.zIndex = CHIP_Z.text;
-
         itx.text = itx.text || {};
-        itx.text.type = "RICH";
-
-        const curLabel =
-          (Array.isArray(itx.text.richText) && itx.text.richText[0]?.children?.[0]?.text) ||
-          itx.text.plainText || "";
-
-        if (curLabel !== slot.label) {
-          itx.text.richText = _mkSlateParagraph(slot.label);
-          if (itx.text.plainText) delete itx.text.plainText;
-        }
-
-        if (itx.text.width !== slot.width)   itx.text.width  = slot.width;
-        if (itx.text.height !== slot.height) itx.text.height = slot.height;
-
-        const st = (itx.text.style = itx.text.style || {});
-        if (st.fontFamily !== '"Helvetica Neue", Helvetica, Arial, sans-serif') {
-          st.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-        }
-        if (st.fillColor !== PILL_CFG.textFill)        st.fillColor = PILL_CFG.textFill;
-        if (st.strokeColor !== PILL_CFG.textStroke)    st.strokeColor = PILL_CFG.textStroke;
-        if (st.strokeWidth !== PILL_CFG.textStrokeW)   st.strokeWidth = PILL_CFG.textStrokeW;
-        if (st.fontSize !== PILL_CFG.fontSize)         st.fontSize = PILL_CFG.fontSize;
-        if (st.textAlign !== "CENTER")                 st.textAlign = "CENTER";
-        if (st.textAlignVertical !== "MIDDLE")         st.textAlignVertical = "MIDDLE";
+        if (wChanged) { itx.text.width = slot.width; itx.text.height = slot.height; }
+        itx.text.type = "PLAIN";
+        itx.text.plainText = slot.label;
+        itx.style = itx.style || {};
+        if (itx.style.backgroundColor !== PILL_CFG.bg) itx.style.backgroundColor = PILL_CFG.bg;
+        if (itx.style.backgroundOpacity !== PILL_CFG.bgOpacity) itx.style.backgroundOpacity = PILL_CFG.bgOpacity;
+        if (itx.style.cornerRadius !== slot.height / 2) itx.style.cornerRadius = slot.height / 2;
+        if (itx.style.maxViewScale !== WIDGET_MAX_VIEW_SCALE) itx.style.maxViewScale = WIDGET_MAX_VIEW_SCALE;
+        itx.style.pointerWidth = 0;
+        itx.style.pointerHeight = 0;
+        itx.style.pointerDirection = "LEFT";
+        itx.text.style = itx.text.style || {};
+        itx.text.style.padding = 0;
+        itx.text.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+        itx.text.style.fontSize = PILL_CFG.fontSize;
+        itx.text.style.fontWeight = PILL_CFG.fontWeight;
+        itx.text.style.lineHeight = PILL_CFG.lineHeight;
+        itx.text.style.textAlign = "CENTER";
+        itx.text.style.textAlignVertical = "MIDDLE";
+        itx.text.style.fillColor = PILL_CFG.textFill;
+        itx.text.style.fillOpacity = 1;
+        itx.text.style.strokeColor = PILL_CFG.textStroke;
+        itx.text.style.strokeWidth = PILL_CFG.textStrokeW;
+        if (itx.zIndex !== CHIP_Z.bg) itx.zIndex = CHIP_Z.bg;
       }
     }
   });

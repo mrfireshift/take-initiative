@@ -1,5 +1,5 @@
   // src/spells-tag.js
-  import OBR, { buildText, buildShape } from "@owlbear-rodeo/sdk";
+  import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
   import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
   import { getSpellDefinition } from "./spells-srd.js";
@@ -17,6 +17,10 @@
   const CONC_WIDGET_KEY    = `${ID}/concWidgetKey`;    // spell key
   const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`; // caster id (per label)
   const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;    // hash label (testo+dimensioni)
+  const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
+  const CONC_DOT_LAYOUT_VERSION = 5;
+  const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
+  const CONC_LABEL_LAYOUT_VERSION = 2;
 
   // Chiavi di root che NON sono spell e vanno ignorate
   const RESERVED_ROOT_KEYS = new Set([
@@ -30,81 +34,83 @@
   ]);
 
   /* ===================== STILE: PALLINO ===================== */
-  const DOT_DIAMETER = 40;
-  const DOT_GAP      = 1;
-  const DOT_FONT     = 24;
-  const Z_DOT_BG     = 100020;
+  const DOT_DIAMETER = 42;
+  const DOT_GAP      = 4;
+  const DOT_FONT     = 23;
   const Z_DOT_TEXT   = 100021;
 
   /* ===================== STILE: LABEL ===================== */
   // Dimensioni/padding
-  const LABEL_FONT    = 16;
+  const LABEL_FONT    = 18;
+  const LABEL_FONT_WEIGHT = 600;
+  const LABEL_LINE_HEIGHT = 1;
   const LABEL_PAD_X   = 12;
-  const LABEL_HEIGHT  = 26;
-  const LABEL_MAX_W   = 180;
+  const LABEL_HEIGHT  = 27;
+  const LABEL_MAX_W   = 190;
+  const WIDGET_MAX_VIEW_SCALE = 1.35;
 
   // === Stack condiviso (spells + condizioni) ===
-  const STACK_GAP = 2;                  // spazio verticale tra righe
+  const STACK_GAP = 1;                  // spazio compatto, calibrato sullo zoom abituale
+  const STACK_CLEARANCE_SCALE = 1.1;    // margine anti-overlap senza amplificare il gap allo zoom vicino
   const COND_META_WIDGET_OF = `${ID}/condWidgetOf`;   // mirror da conditions.js
   const COND_META_WIDGET_KEY = `${ID}/condWidgetKey`; // mirror da conditions.js
-  const COND_STACK_FALLBACK_H = 24;     // se non trovo l'altezza shape condizione
+  const COND_STACK_FALLBACK_H = 27;     // se non trovo l'altezza shape condizione
 
-  // === Anchor della colonna ===
-  // "bottom" | "top" | "center"
-  const STACK_ANCHOR = "center";  // posizione assoluta rispetto al centro del token
-  const STACK_DIR    = 1;            // 1 = cresce verso il basso; -1 = verso l'alto
-  const STACK_BASE_GAP = 48;          // distanza dal token quando anchor top/bottom (usa LABEL_GAP)
-  const STACK_CENTER_OFFSET = -48;   // prima pillola centrata 35 px sopra il centro
-  const ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR = ["SCALE"];
-
-  function __keepLabelScaleAbsolute(item) {
-    const disabled = Array.isArray(item.disableAttachmentBehavior)
-      ? item.disableAttachmentBehavior
-      : [];
-    if (!disabled.includes("SCALE")) item.disableAttachmentBehavior = [...disabled, "SCALE"];
+  // La prima riga parte sotto il badge C, lungo la dorsale sinistra del token.
+  const STACK_DIR = 1;
+  const STACK_TOP_INSET = 14 / 70; // stack leggermente piÃ¹ alto sul riferimento 1x1
+  const __stackHeight = (height) => Math.ceil((Number(height) || LABEL_HEIGHT) * STACK_CLEARANCE_SCALE);
+  function __visualTokenBox(targetItem, bounds = null) {
+    const scaleX = Math.abs(Number(targetItem?.scale?.x)) || 1;
+    const scaleY = Math.abs(Number(targetItem?.scale?.y)) || 1;
+    const fallbackWidth = (Number(targetItem?.width) || 70) * scaleX;
+    const fallbackHeight = (Number(targetItem?.height) || 70) * scaleY;
+    const left = Number.isFinite(Number(bounds?.min?.x)) ? Number(bounds.min.x) : targetItem.position.x - fallbackWidth / 2;
+    const top = Number.isFinite(Number(bounds?.min?.y)) ? Number(bounds.min.y) : targetItem.position.y - fallbackHeight / 2;
+    const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : fallbackWidth;
+    const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : fallbackHeight;
+    return {
+      left,
+      top,
+      width,
+      height,
+      diameter: Math.max(1, Math.min(width, height)),
+    };
   }
 
-  function stackBaseY(targetItem) {
-    if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
-    const h = Number(targetItem.height) || 70;
-    if (STACK_ANCHOR === "top")    return targetItem.position.y - h / 2 - STACK_BASE_GAP;
-    // default "bottom"
-    return targetItem.position.y + h / 2 + STACK_BASE_GAP;
+  function stackBaseY(targetItem, bounds = null) {
+    const box = __visualTokenBox(targetItem, bounds);
+    return box.top + box.diameter * STACK_TOP_INSET;
   }
 
   // === Calcola la Y (centro) della riga in base all'indice (0-based), senza leggere la scena ===
   // Usa la stessa metrica della colonna: LABEL_HEIGHT, STACK_GAP, STACK_DIR e LABEL_OFFSET_Y.
-  function __rowCYForIndex(targetItem, idx) {
-    const baseY = stackBaseY(targetItem);
-    const step  = LABEL_HEIGHT + STACK_GAP;           // distanza centro-centro tra righe
+  function __rowCYForIndex(targetItem, idx, targetBounds = null) {
+    const baseY = stackBaseY(targetItem, targetBounds);
+    const stackH = __stackHeight(LABEL_HEIGHT);
+    const step  = stackH + STACK_GAP;                 // riserva la crescita screen-space massima
     // Prima riga (idx = 0) è a metà LABEL_HEIGHT dal baseY, poi si aggiunge step * idx
-    const cy = baseY + STACK_DIR * (idx * step + LABEL_HEIGHT / 2);
+    const cy = baseY + STACK_DIR * (idx * step + stackH / 2);
     return Math.round(cy + LABEL_OFFSET_Y);
 }
 
   // Distanza dal bordo superiore del token (usata per il calcolo box width/centro X)
   const LABEL_GAP     = 6;
 
-  // Offset globali rispetto al token (positivi: destra/giù)
-  const LABEL_OFFSET_X = 0;
+  // Inset della dorsale rispetto al bordo sinistro visuale del token.
+  const LABEL_OFFSET_X = 0.52;
   const LABEL_OFFSET_Y = -1;
 
-  // micro offset testo (normalmente 0, lasciamo per eventuali fine-tuning)
-  const LABEL_TEXT_DX = 0;
-  const LABEL_TEXT_DY = 0;
-
-    // === Layer target per BG (shape) e TEXT delle label ===
+    // === Layer target delle label ===
   const LAYER_BG   = "TEXT";
   const LAYER_TEXT = "TEXT";
 
   // z-index: testo sopra qualsiasi BG (margine ampio)
   const Z_LABEL_BG   = 220000;    // era 100018
-  const Z_LABEL_TEXT = 230000;    // era 100022
 
   const DOT_BG_NAME     = "Concentrazione (bg)";
   const DOT_TEXT_NAME   = "Concentrazione (C)";
   const LABEL_BG_NAME   = "Concentrazione (label bg)";
-  const LABEL_TEXT_NAME = "Concentrazione (label)";
 
   /* ===================== COLORE (stessa logica della initiativeList) ===================== */
   function spellKey(name) {
@@ -117,7 +123,11 @@
   }
   function spellColorFromKey(key) {
     const hue = hueFromKey(String(key || ""));
-    return { solid: `hsl(${hue}, 70%, 45%)` };
+    return {
+      solid: `hsl(${hue}, 70%, 45%)`,
+      fillOpacity: 0.88,
+      border: `hsla(${hue}, 90%, 72%, .95)`,
+    };
   }
 
   /* ===================== UTIL ===================== */
@@ -126,12 +136,18 @@
   function hash32(str) { let h = 0x811c9dc5; for (let i=0;i<str.length;i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0).toString(16); }
 
   /* ===== Centro pallino ===== */
-  function calcDotCenterFor(it, d = DOT_DIAMETER, gap = DOT_GAP) {
-    const w = Number(it.width)  || 70;
-    const h = Number(it.height) || 70;
-    const left = it.position.x - w / 2;
-    const top  = it.position.y - h / 2;
-    return { cx: left - gap - d / 2, cy: top - gap - d / 2 };
+  function calcDotCenterFor(it, d = DOT_DIAMETER, gap = DOT_GAP, bounds = null) {
+    const fallback = __visualTokenBox(it);
+    const left = Number.isFinite(Number(bounds?.min?.x)) ? Number(bounds.min.x) : fallback.left;
+    const top = Number.isFinite(Number(bounds?.min?.y)) ? Number(bounds.min.y) : fallback.top;
+    const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : (Number(it?.width) || 70);
+    const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : (Number(it?.height) || 70);
+    const radius = Math.max(1, Math.min(width, height) / 2);
+    const circleInset = radius * (1 - Math.SQRT1_2);
+    return {
+      cx: left + circleInset,
+      cy: top + circleInset,
+    };
   }
 
   /* ===== Box label sopra il target (Semplificato) ===== */
@@ -166,7 +182,7 @@
 
     // 1) tutte le label SPELL già presenti su questo target (qualsiasi caster)
     const allSpellWidgets = await OBR.scene.items.getItems(
-      (i) => (i.type === "TEXT" || i.type === "SHAPE")
+      (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL")
         && i.metadata?.[CONC_WIDGET_META] === tid
         && !!i.metadata?.[CONC_WIDGET_CASTER]
     );
@@ -178,20 +194,22 @@
       const c = String(it.metadata?.[CONC_WIDGET_CASTER] || "");
       if (!k || !c) continue;
       const sig = `${k}|${c}`;
-      const h = it.type === "SHAPE" ? (Number(it.height) || LABEL_HEIGHT) : null;
+      const h = it.type === "LABEL"
+        ? (Number(it.text?.height) || LABEL_HEIGHT)
+        : it.type === "SHAPE" ? (Number(it.height) || LABEL_HEIGHT) : null;
       if (!spellRows.has(sig)) spellRows.set(sig, h || LABEL_HEIGHT);
       else if (h) spellRows.set(sig, h);
     }
 
     // 2) COND presenti (per l'altezza basta lo SHAPE bg)
     const condShapes = await OBR.scene.items.getItems(
-      (i) => i.type === "SHAPE" && i.metadata?.[COND_META_WIDGET_OF] === tid
+      (i) => (i.type === "LABEL" || i.type === "SHAPE") && i.metadata?.[COND_META_WIDGET_OF] === tid
     );
     const condRows = new Map();
     for (const sh of condShapes) {
       const key = sh.metadata?.[COND_META_WIDGET_KEY];
       if (!key) continue;
-      condRows.set(String(key), Number(sh.height) || COND_STACK_FALLBACK_H);
+      condRows.set(String(key), Number(sh.text?.height ?? sh.height) || COND_STACK_FALLBACK_H);
     }
 
     // 3) lista ordinata: spells (group 0), poi condizioni (group 1)
@@ -217,7 +235,7 @@
     let cy = baseY;
     let prevH = 0;
     for (let i = 0; i < entries.length; i++) {
-      const h = Number(entries[i].h) || LABEL_HEIGHT;
+      const h = __stackHeight(entries[i].h);
       if (i === 0) {
         cy = baseY + STACK_DIR * (h / 2);
       } else {
@@ -228,7 +246,7 @@
       }
       prevH = h;
     }
-    return Math.round(baseY + STACK_DIR * (LABEL_HEIGHT / 2) + LABEL_OFFSET_Y);
+    return Math.round(baseY + STACK_DIR * (__stackHeight(LABEL_HEIGHT) / 2) + LABEL_OFFSET_Y);
   }
   
   /* ===== Piano da cache esistente (no extra getItems) ===== */
@@ -373,6 +391,64 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     return JSON.stringify(norm);
   }
 
+  async function hasConcentrationWidgetDrift(tokens) {
+    const expectedDots = new Set(tokens.filter((token) => !!readConcKey(token)).map((token) => token.id));
+    const expectedLabels = new Set();
+    for (const caster of tokens) {
+      for (const assignment of extractAssignments(caster)) {
+        const targets = assignment.targets?.length ? assignment.targets : [caster.id];
+        for (const targetId of targets) {
+          expectedLabels.add(`${caster.id}|${spellKey(assignment.key)}|${targetId}`);
+        }
+      }
+    }
+    const widgets = await OBR.scene.items.getItems((item) =>
+      !!item.metadata?.[CONC_WIDGET_META] && (
+        item.name === DOT_BG_NAME || item.name === DOT_TEXT_NAME ||
+        item.name === LABEL_BG_NAME
+      )
+    );
+    const validDots = new Map();
+    const validLabels = new Map();
+
+    for (const widget of widgets) {
+      const ownerId = widget.metadata?.[CONC_WIDGET_META];
+      const isDotLabel =
+        widget.type === "LABEL" &&
+        widget.name === DOT_TEXT_NAME &&
+        widget.text?.type === "PLAIN" &&
+        widget.text?.plainText === "C";
+      if (widget.name === DOT_BG_NAME || widget.name === DOT_TEXT_NAME) {
+        if (
+          !isDotLabel ||
+          !expectedDots.has(ownerId) ||
+          widget.metadata?.[CONC_DOT_LAYOUT_KEY] !== CONC_DOT_LAYOUT_VERSION
+        ) return true;
+        validDots.set(ownerId, (validDots.get(ownerId) || 0) + 1);
+        continue;
+      }
+
+      const casterId = widget.metadata?.[CONC_WIDGET_CASTER];
+      const key = spellKey(widget.metadata?.[CONC_WIDGET_KEY]);
+      const signature = `${casterId}|${key}|${ownerId}`;
+      if (
+        !expectedLabels.has(signature) ||
+        widget.type !== "LABEL" ||
+        widget.name !== LABEL_BG_NAME ||
+        widget.metadata?.[CONC_LABEL_LAYOUT_KEY] !== CONC_LABEL_LAYOUT_VERSION
+      ) return true;
+      validLabels.set(signature, (validLabels.get(signature) || 0) + 1);
+    }
+
+    for (const ownerId of expectedDots) {
+      if (validDots.get(ownerId) !== 1) return true;
+    }
+    for (const signature of expectedLabels) {
+      if (validLabels.get(signature) !== 1) return true;
+    }
+    return false;
+  }
+
 /* ===================== UPSERT PALLINO + LABEL ===================== */
 /* ===================== UPSERT PALLINO + LABEL ===================== */
 async function upsertDotForItem(it) {
@@ -394,7 +470,7 @@ async function upsertDotForItem(it) {
 
   // 1) Tutti i widget SPELL (di QUALSIASI caster) per i target coinvolti
   const allSpellWidgetsForTargets = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE") &&
+    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") &&
            !!i.metadata?.[CONC_WIDGET_CASTER] &&
            targetsUnion.has(i.metadata?.[CONC_WIDGET_META])
   );
@@ -411,9 +487,20 @@ async function upsertDotForItem(it) {
   const targetItemsList = await OBR.scene.items.getItems(i => targetsUnion.has(i.id));
   const tById = new Map(targetItemsList.map(t => [t.id, t]));
 
+  // I bounds reali tengono conto della dimensione/scala visuale del token.
+  // Li riutilizziamo per tutte le label del batch, così la dorsale resta
+  // costante anche tra token 1x1, 2x2 e superiori.
+  const boundsByTarget = new Map();
+  await Promise.all(Array.from(targetsUnion, async (tid) => {
+    try {
+      const bounds = await OBR.scene.items.getItemBounds([tid]);
+      if (bounds) boundsByTarget.set(tid, bounds);
+    } catch {}
+  }));
+
   // 3) Widget di questo caster (dot + sue label)
   const casterOwned = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE") && (
+    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
       i.metadata?.[CONC_WIDGET_META] === it.id ||               // dot e/o testo dot
       i.metadata?.[CONC_WIDGET_CASTER] === it.id                // label create da questo caster
     )
@@ -425,7 +512,6 @@ async function upsertDotForItem(it) {
 
   // Mappe update (UNICO updateItems alla fine)
   const shapeUpdate = new Map(); // id -> spec (x,y,w,h,fill,stroke,sw,z,hash,layer?)
-  const textUpdate  = new Map(); // id -> spec (x,y,w,h,z)
 
   // ===== DOT (solo se c'è concentrazione) =====
   if (!concKey) {
@@ -434,47 +520,55 @@ async function upsertDotForItem(it) {
     const concAssign = assigns.find(a => a.isConc && a.key === concKey);
     const colorKey   = concAssign?.colorKey ?? spellKey(concKey);
     const col        = spellColorFromKey(colorKey);
-    const { cx, cy } = calcDotCenterFor(it, DOT_DIAMETER, DOT_GAP);
-    const tx = cx - DOT_DIAMETER / 2;
-    const ty = cy - DOT_DIAMETER / 2;
+    let casterBounds = null;
+    try { casterBounds = await OBR.scene.items.getItemBounds([it.id]); } catch {}
+    const { cx, cy } = calcDotCenterFor(it, DOT_DIAMETER, DOT_GAP, casterBounds);
+    let dotLabel = casterOwned.find(x =>
+      x.type === "LABEL" && x.name === DOT_TEXT_NAME &&
+      x.metadata?.[CONC_DOT_LAYOUT_KEY] === CONC_DOT_LAYOUT_VERSION
+    );
+    for (const legacyDot of casterOwned.filter(x =>
+      (x.name === DOT_BG_NAME || x.name === DOT_TEXT_NAME) &&
+      x.id !== dotLabel?.id
+    )) toDel.push(legacyDot.id);
 
-    let dotShape = casterOwned.find(x => x.type === "SHAPE" && x.name === DOT_BG_NAME);
-    let dotText  = casterOwned.find(x => x.type === "TEXT"  && x.name === DOT_TEXT_NAME);
+    // Cerchio e lettera sono due attachment distinti: una vecchia coppia può
+    // avere trasformazioni diverse, oppure uno dei due elementi può mancare.
+    // In entrambi i casi li ricreiamo insieme, una sola volta per versione.
 
-    if (!dotShape) {
-      dotShape = buildShape()
-        .shapeType("CIRCLE")
+    if (!dotLabel) {
+      dotLabel = buildLabel()
+        .plainText("C")
         .position({ x: cx, y: cy })
         .width(DOT_DIAMETER).height(DOT_DIAMETER)
-        .fillColor(col.solid).strokeColor("rgba(0,0,0,1)").strokeWidth(2)
+        .padding(0)
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
+        .fontSize(DOT_FONT).fontWeight(700).lineHeight(1)
+        .textAlign("CENTER").textAlignVertical("MIDDLE")
+        .fillColor("#ffffff").strokeColor("rgba(0,0,0,.85)").strokeWidth(2)
+        .backgroundColor(col.solid).backgroundOpacity(1)
+        .cornerRadius(DOT_DIAMETER / 2).pointerWidth(0).pointerHeight(0)
+        .maxViewScale(WIDGET_MAX_VIEW_SCALE)
         .attachedTo(it.id).layer(LAYER_TEXT)
-        .name(DOT_BG_NAME)
-        .metadata({ [CONC_WIDGET_META]: it.id, [CONC_WIDGET_KEY]: concKey })
+        .name(DOT_TEXT_NAME)
+        .metadata({
+          [CONC_WIDGET_META]: it.id,
+          [CONC_WIDGET_KEY]: concKey,
+          [CONC_DOT_LAYOUT_KEY]: CONC_DOT_LAYOUT_VERSION,
+        })
         .build();
-      dotShape.locked = true; dotShape.disableHit = true; dotShape.zIndex = Z_DOT_BG;
-      toAdd.push(dotShape);
+      dotLabel.locked = true; dotLabel.disableHit = true; dotLabel.zIndex = Z_DOT_TEXT;
+      toAdd.push(dotLabel);
     } else {
-      const need = dotShape.style?.fillColor !== col.solid || dotShape.width !== DOT_DIAMETER || dotShape.height !== DOT_DIAMETER;
-      if (need) shapeUpdate.set(dotShape.id, {
+      shapeUpdate.set(dotLabel.id, {
+        x: cx, y: cy,
         w: DOT_DIAMETER, h: DOT_DIAMETER,
-        fill: col.solid, stroke: "rgba(0,0,0,1)", sw: 2,
-        z: Z_DOT_BG, layer: LAYER_TEXT
+        fill: col.solid, fillOpacity: 1, radius: DOT_DIAMETER / 2,
+        text: "C", fontSize: DOT_FONT, fontWeight: 700,
+        z: Z_DOT_TEXT, layer: LAYER_TEXT, maxViewScale: WIDGET_MAX_VIEW_SCALE
       });
     }
 
-    if (!dotText) {
-      const txt = buildText()
-        .position({ x: tx, y: ty }).width(DOT_DIAMETER).height(DOT_DIAMETER)
-        .plainText("C").textType("PLAIN").fontSize(DOT_FONT)
-        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-        .textAlign("CENTER").textAlignVertical("MIDDLE")
-        .fillColor("#ffffff").strokeColor("rgba(0,0,0,.85)").strokeWidth(2)
-        .attachedTo(it.id).layer(LAYER_TEXT).name(DOT_TEXT_NAME)
-        .metadata({ [CONC_WIDGET_META]: it.id, [CONC_WIDGET_KEY]: concKey })
-        .build();
-      txt.locked = true; txt.disableHit = true; txt.zIndex = Z_DOT_TEXT;
-      toAdd.push(txt);
-    }
   }
 
   // ===== LABEL (tutte le assegnazioni) =====
@@ -510,34 +604,57 @@ async function upsertDotForItem(it) {
       const plan = __spellPlanFromExisting(tid, labelsByTarget.get(tid) || [], assigns, it.id);
       const entrySig = `${keyNorm}|${it.id}`;
       const rowIndex = Math.max(0, plan.indexOf(entrySig));
-      const labelCy  = __rowCYForIndex(tgt, rowIndex);
+      const targetBounds = boundsByTarget.get(tid) || null;
+      const labelCy  = __rowCYForIndex(tgt, rowIndex, targetBounds);
 
       // dimensioni/posizione
       const approxW = estimateTextWidthPx(spellTitle, LABEL_FONT);
       const labelW  = Math.min(LABEL_MAX_W, approxW + LABEL_PAD_X * 2);
       const labelH  = LABEL_HEIGHT;
-      const labelCx = Math.round(tgt.position.x + LABEL_OFFSET_X);
+      const targetBox = __visualTokenBox(tgt, targetBounds);
+      const labelLeft = targetBox.left + targetBox.diameter * LABEL_OFFSET_X;
+      // LABEL usa `position` come punto di ancoraggio del pointer. Ancorando
+      // il lato LEFT, tutte le pill condividono la stessa dorsale anche quando
+      // Owlbear le mantiene a dimensione costante nello spazio dello schermo.
+      const labelCx = Math.round(labelLeft);
 
       const labelHash = hash32(`${spellTitle}|${labelW}|${LABEL_FONT}|${LABEL_HEIGHT}`);
 
-      const labelBg  = existingForKey.find(x => x.type === "SHAPE" && x.metadata?.[CONC_WIDGET_META] === tid);
-      const labelTxt = existingForKey.find(x => x.type === "TEXT"  && x.metadata?.[CONC_WIDGET_META] === tid);
+      for (const legacyBg of existingForKey.filter(x =>
+        x.metadata?.[CONC_WIDGET_META] === tid && (
+          x.type !== "LABEL" ||
+          x.metadata?.[CONC_LABEL_LAYOUT_KEY] !== CONC_LABEL_LAYOUT_VERSION
+        )
+      )) toDel.push(legacyBg.id);
+      const labelBg = existingForKey.find(x =>
+        x.type === "LABEL" &&
+        x.metadata?.[CONC_WIDGET_META] === tid &&
+        x.metadata?.[CONC_LABEL_LAYOUT_KEY] === CONC_LABEL_LAYOUT_VERSION
+      );
 
       // --- BG (SHAPE) ---
       if (!labelBg) {
-        const bg = buildShape()
-          .shapeType("RECTANGLE")
+        const bg = buildLabel()
+          .plainText(spellTitle)
           .position({ x: labelCx, y: labelCy })
           .width(labelW).height(labelH)
-          .fillColor(col.solid).strokeColor("rgba(0,0,0,1)").strokeWidth(1)
+          .padding(0)
+          .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
+          .fontSize(LABEL_FONT).fontWeight(LABEL_FONT_WEIGHT).lineHeight(LABEL_LINE_HEIGHT)
+          .textAlign("CENTER").textAlignVertical("MIDDLE")
+          .fillColor("#f8fafc").strokeColor("rgba(2,6,23,.55)").strokeWidth(1)
+          .backgroundColor(col.solid).backgroundOpacity(col.fillOpacity)
+          .cornerRadius(labelH / 2).pointerWidth(0).pointerHeight(0)
+          .pointerDirection("LEFT")
+          .maxViewScale(WIDGET_MAX_VIEW_SCALE)
           .attachedTo(tid).layer(LAYER_BG)
-          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
           .name(LABEL_BG_NAME)
           .metadata({
             [CONC_WIDGET_META]: tid,
             [CONC_WIDGET_KEY]: keyNorm,
             [CONC_WIDGET_CASTER]: it.id,
-            [CONC_LABEL_HASHKEY]: labelHash
+            [CONC_LABEL_HASHKEY]: labelHash,
+            [CONC_LABEL_LAYOUT_KEY]: CONC_LABEL_LAYOUT_VERSION,
           })
           .build();
         bg.locked = true; bg.disableHit = true; bg.zIndex = Z_LABEL_BG;
@@ -545,70 +662,30 @@ async function upsertDotForItem(it) {
       } else {
         const moveShape = Math.abs((labelBg.position?.x ?? 0) - labelCx) > 0.5 ||
                           Math.abs((labelBg.position?.y ?? 0) - labelCy) > 0.5;
-        const needSizeColor = labelBg.style?.fillColor !== col.solid ||
-                              labelBg.width !== labelW || labelBg.height !== labelH ||
+        const needSizeColor = labelBg.style?.backgroundColor !== col.solid ||
+                              labelBg.style?.backgroundOpacity !== col.fillOpacity ||
+                              labelBg.style?.maxViewScale !== WIDGET_MAX_VIEW_SCALE ||
+                              labelBg.style?.pointerDirection !== "LEFT" ||
+                              labelBg.text?.plainText !== spellTitle ||
+                              labelBg.text?.style?.padding !== 0 ||
+                              labelBg.text?.style?.lineHeight !== LABEL_LINE_HEIGHT ||
+                              labelBg.text?.width !== labelW || labelBg.text?.height !== labelH ||
                               labelBg.metadata?.[CONC_LABEL_HASHKEY] !== labelHash;
 
         if (moveShape || needSizeColor) {
           shapeUpdate.set(labelBg.id, {
             x: labelCx, y: labelCy,
             w: labelW, h: labelH,
-            fill: col.solid, stroke: "rgba(0,0,0,1)", sw: 1,
+            fill: col.solid, fillOpacity: col.fillOpacity,
+            text: spellTitle, fontSize: LABEL_FONT, fontWeight: LABEL_FONT_WEIGHT,
             z: Z_LABEL_BG, hash: labelHash,
-            layer: LAYER_BG
+            layer: LAYER_BG, radius: labelH / 2, maxViewScale: WIDGET_MAX_VIEW_SCALE
           });
         } else if (labelBg.layer !== LAYER_BG || labelBg.zIndex !== Z_LABEL_BG) {
           shapeUpdate.set(labelBg.id, { z: Z_LABEL_BG, layer: LAYER_BG });
         }
       }
 
-      // --- TEXT ---
-      if (!labelTxt) {
-        const txt = buildText()
-          .position({ x: labelCx + LABEL_TEXT_DX, y: labelCy + LABEL_TEXT_DY })
-          .width(labelW).height(labelH)
-          .plainText(spellTitle).textType("PLAIN").fontSize(LABEL_FONT)
-          .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-          .textAlign("CENTER").textAlignVertical("MIDDLE")
-          .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
-          .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
-          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
-          .metadata({
-            [CONC_WIDGET_META]: tid,
-            [CONC_WIDGET_KEY]: keyNorm,
-            [CONC_WIDGET_CASTER]: it.id,
-            [CONC_LABEL_HASHKEY]: labelHash
-          })
-          .build();
-        txt.locked = true; txt.disableHit = true; txt.zIndex = Z_LABEL_TEXT;
-        toAdd.push(txt);
-      } else if (labelTxt.metadata?.[CONC_LABEL_HASHKEY] !== labelHash) {
-        toDel.push(labelTxt.id);
-        const txt = buildText()
-          .position({ x: labelCx + LABEL_TEXT_DX, y: labelCy + LABEL_TEXT_DY })
-          .width(labelW).height(labelH)
-          .plainText(spellTitle).textType("PLAIN").fontSize(LABEL_FONT)
-          .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-          .textAlign("CENTER").textAlignVertical("MIDDLE")
-          .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
-          .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
-          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
-          .metadata({
-            [CONC_WIDGET_META]: tid,
-            [CONC_WIDGET_KEY]: keyNorm,
-            [CONC_WIDGET_CASTER]: it.id,
-            [CONC_LABEL_HASHKEY]: labelHash
-          })
-          .build();
-        txt.locked = true; txt.disableHit = true; txt.zIndex = Z_LABEL_TEXT;
-        toAdd.push(txt);
-      } else {
-        textUpdate.set(labelTxt.id, {
-          x: labelCx + LABEL_TEXT_DX,
-          y: labelCy + LABEL_TEXT_DY,
-          w: labelW, h: labelH, z: Z_LABEL_TEXT
-        });
-      }
     }
   }
 
@@ -616,20 +693,14 @@ async function upsertDotForItem(it) {
   if (toDel.length) { dlog("del", toDel.length); await OBR.scene.items.deleteItems(toDel); }
   if (toAdd.length)  { dlog("add", toAdd.map(x => x.name)); await OBR.scene.items.addItems(toAdd); }
 
-  // UNICO updateItems per SHAPE e TEXT
-  const deletedIds = new Set(toDel);
-  const idsToUpd = Array.from(new Set([
-    ...casterOwned.filter((item) => !deletedIds.has(item.id)).map((item) => item.id),
-    ...shapeUpdate.keys(),
-    ...textUpdate.keys(),
-  ]));
+  // Aggiorna soltanto i LABEL che hanno davvero bisogno di riconciliazione.
+  const idsToUpd = Array.from(shapeUpdate.keys());
   if (idsToUpd.length) {
     dlog("upd:mixed", idsToUpd.length);
     await OBR.scene.items.updateItems(idsToUpd, (draft) => {
       for (const itx of draft) {
         itx.locked = true;
         itx.disableHit = true;
-        if (itx.metadata?.[CONC_WIDGET_CASTER]) __keepLabelScaleAbsolute(itx);
         if (itx.type === "SHAPE") {
           const spec = shapeUpdate.get(itx.id);
           if (!spec) continue;
@@ -638,30 +709,55 @@ async function upsertDotForItem(it) {
 
           itx.style = itx.style || {};
           if (spec.fill != null)   itx.style.fillColor   = spec.fill;
+          if (spec.fillOpacity != null) itx.style.fillOpacity = spec.fillOpacity;
           if (spec.stroke != null) itx.style.strokeColor = spec.stroke;
           if (spec.sw != null)     itx.style.strokeWidth = spec.sw;
 
           if (spec.w != null) itx.width  = spec.w;
           if (spec.h != null) itx.height = spec.h;
+          if (spec.radius != null && "cornerRadius" in itx) itx.cornerRadius = spec.radius;
           if (spec.z != null) itx.zIndex = spec.z;
           if (itx.layer !== spec.layer) itx.layer = spec.layer;
 
           if (spec.x != null && spec.y != null) itx.position = { x: Math.round(spec.x), y: Math.round(spec.y) };
           if (spec.hash) itx.metadata = { ...(itx.metadata || {}), [CONC_LABEL_HASHKEY]: spec.hash };
-        } else if (itx.type === "TEXT") {
-          const spec = textUpdate.get(itx.id);
+        } else if (itx.type === "LABEL") {
+          const spec = shapeUpdate.get(itx.id);
           if (!spec) continue;
 
-          if (spec.x != null && spec.y != null) itx.position = { x: Math.round(spec.x), y: Math.round(spec.y) };
+          itx.style = itx.style || {};
+          if (spec.fill != null) itx.style.backgroundColor = spec.fill;
+          if (spec.fillOpacity != null) itx.style.backgroundOpacity = spec.fillOpacity;
+          if (spec.radius != null) itx.style.cornerRadius = spec.radius;
+          if (spec.maxViewScale != null) itx.style.maxViewScale = spec.maxViewScale;
+          itx.style.pointerWidth = 0;
+          itx.style.pointerHeight = 0;
+          itx.style.pointerDirection = "LEFT";
           itx.text = itx.text || {};
-          itx.text.style = {
-            ...(itx.text.style || {}),
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-          };
-          if (spec.w != null) itx.text.width  = spec.w;
+          itx.text.type = "PLAIN";
+          if (spec.text != null) itx.text.plainText = spec.text;
+          itx.text.style = itx.text.style || {};
+          itx.text.style.padding = 0;
+          itx.text.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+          itx.text.style.fontSize = spec.fontSize ?? LABEL_FONT;
+          itx.text.style.fontWeight = spec.fontWeight ?? LABEL_FONT_WEIGHT;
+          itx.text.style.lineHeight = spec.text === "C" ? 1 : LABEL_LINE_HEIGHT;
+          itx.text.style.textAlign = "CENTER";
+          itx.text.style.textAlignVertical = "MIDDLE";
+          itx.text.style.fillColor = "#f8fafc";
+          itx.text.style.fillOpacity = 1;
+          itx.text.style.strokeColor = spec.text === "C" ? "rgba(0,0,0,.85)" : "rgba(2,6,23,.55)";
+          itx.text.style.strokeWidth = spec.text === "C" ? 2 : 1;
+          if (spec.w != null) itx.text.width = spec.w;
           if (spec.h != null) itx.text.height = spec.h;
           if (spec.z != null) itx.zIndex = spec.z;
-          if (itx.layer !== LAYER_TEXT) itx.layer = LAYER_TEXT;
+          if (itx.layer !== spec.layer) itx.layer = spec.layer;
+          if (spec.x != null && spec.y != null) {
+            itx.position = { x: Math.round(spec.x), y: Math.round(spec.y) };
+          }
+          if (spec.hash) {
+            itx.metadata = { ...(itx.metadata || {}), [CONC_LABEL_HASHKEY]: spec.hash };
+          }
         }
       }
     });
@@ -708,6 +804,9 @@ async function upsertDotForItem(it) {
         if (__assignSnapshot.get(t.id) !== dig) { anyChanged = true; break; }
       }
     }
+    if (!anyChanged && __assignSnapshot.size) {
+      anyChanged = await hasConcentrationWidgetDrift(tokens);
+    }
     if (!anyChanged && __assignSnapshot.size) { dlog("refresh:skip(no-change)"); return; }
 
     const should = new Set();
@@ -718,7 +817,7 @@ async function upsertDotForItem(it) {
         // SAFE: pulisco solo ciò che dipende da questo token come CASTER
         // (label con CONC_WIDGET_CASTER === it.id) oppure il DOT attaccato al token.
         const mine = await OBR.scene.items.getItems(
-          (i) => (i.type === "TEXT" || i.type === "SHAPE") && (
+          (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
             // label generate da questo token come caster
             i.metadata?.[CONC_WIDGET_CASTER] === it.id ||
             // dot di concentrazione attaccato a questo token
@@ -752,7 +851,7 @@ async function upsertDotForItem(it) {
 
     // === Cleanup più sicuro: non cancellare label appena create se almeno caster O target sono "attesi"
     const allWidgets = await OBR.scene.items.getItems(
-      (i) => (i.type === "TEXT" || i.type === "SHAPE") && (i.metadata?.[CONC_WIDGET_META] || i.metadata?.[CONC_WIDGET_CASTER])
+      (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (i.metadata?.[CONC_WIDGET_META] || i.metadata?.[CONC_WIDGET_CASTER])
     );
 
     const toRemove = [];

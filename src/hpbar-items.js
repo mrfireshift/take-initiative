@@ -12,6 +12,12 @@ const HPTEXT_META_FLAG = `${ID}/hptext`;  // text item: { targetId }
 // Barra “mini”: sottile, centrata, sotto al bordo, con lieve sovrapposizione
 const OVERLAP_FRAC     = 0.25; // quanto “entra” nel token (in % dell’altezza)
 const GAP_FRAC         = 0.02; // piccolo distacco verso il basso
+const BAR_INSET        = 2;
+const BAR_BG_COLOR     = "#0f172a";
+const BAR_BG_OPACITY   = 0.82;
+const BAR_BORDER_COLOR = "rgba(255,255,255,0.34)";
+const BAR_FILL_OPACITY = 0.96;
+const HP_TEXT_FONT_SIZE = 12;
 let   IS_GM            = false;
 
 /* ========= Throttle/Batch (evita rate limit) ========= */
@@ -89,16 +95,23 @@ function isPlayerVisibleAttitude(att){
 }
 
 function hpColorByPct(p){
-  if (p > 0.66) return "#16a34a"; // verde
-  if (p > 0.33) return "#facc15"; // giallo
-  return "#dc2626";               // rosso
+  if (p > 0.66) return "#22c55e"; // verde
+  if (p > 0.33) return "#f59e0b"; // ambra
+  return "#ef4444";               // rosso
 }
 
 function hpTextValue(hp, hpMax) {
   const nHP  = Math.max(0, Math.floor(Number(hp) || 0));
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-  const pct  = nMax > 0 ? Math.round(Math.min(1, nHP / nMax) * 100) : 0;
-  return `${nHP}/${nMax} (${pct}%)`;
+  return `${nHP}/${nMax}`;
+}
+
+function hpTextPosition(leftX, topY, barW, barH, value) {
+  const estimatedWidth = String(value || "").length * HP_TEXT_FONT_SIZE * 0.58;
+  return {
+    x: Math.round(leftX + Math.max(BAR_INSET, (barW - estimatedWidth) / 2)),
+    y: Math.round(topY + Math.max(0, (barH - HP_TEXT_FONT_SIZE) / 2)),
+  };
 }
 
 function rememberHPTextRef(tokenId, textId) {
@@ -149,7 +162,11 @@ async function flushFastFills() {
         fillColor: hpColorByPct(pct),
       });
       if (ref.textId) {
-        updatesById.set(ref.textId, { plainText: hpTextValue(next.hp, next.hpMax) });
+        const plainText = hpTextValue(next.hp, next.hpMax);
+        updatesById.set(ref.textId, {
+          plainText,
+          position: hpTextPosition(ref.leftX, ref.topY, ref.barW, ref.barH, plainText),
+        });
       }
     }
 
@@ -164,7 +181,7 @@ async function flushFastFills() {
           item.style = {
             ...(item.style || {}),
             fillColor: update.fillColor,
-            fillOpacity: 1,
+            fillOpacity: BAR_FILL_OPACITY,
           };
         }
         if (update.plainText !== undefined) {
@@ -172,6 +189,7 @@ async function flushFastFills() {
           item.text.type = "PLAIN";
           item.text.plainText = update.plainText;
         }
+        if (update.position) item.position = update.position;
       }
     });
   } catch (error) {
@@ -224,10 +242,10 @@ function computeBarSizeByToken(bbox){
   const H = bbox.height;
 
   // Larghezza = 60% della larghezza del token (clamp morbido 45..75%)
-  const barW = Math.round(Math.max(W * 0.45, Math.min(W * 0.80, W * 0.90)));
+  const barW = Math.round(W * 0.86);
 
   // Spessore più corposo: clamp 10..14 px
-  const barH = Math.round(Math.max(14, Math.min(22, H * 0.1)));
+  const barH = Math.round(Math.max(17, Math.min(24, H * 0.11)));
 
   return { barW, barH };
 }
@@ -297,8 +315,8 @@ async function createHPBars(tokenId){
     .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
     .visible(false) // GM-only
     .zIndex(tokenZ + 2)
-    .fillColor("rgba(0, 0, 0, 1)")
-    .strokeColor("rgba(0,0,0,1)").strokeWidth(1)
+    .fillColor(BAR_BG_COLOR).fillOpacity(BAR_BG_OPACITY)
+    .strokeColor(BAR_BORDER_COLOR).strokeWidth(1)
     .metadata({ [HPBAR_META_FLAG]: { kind: "bg", targetId: tokenId } })
     .name("HPBAR_BG")
     .build();
@@ -306,14 +324,14 @@ async function createHPBars(tokenId){
   const fg = buildShape()
     .shapeType("RECTANGLE")
     .width(0) // impostata nel layout
-    .height(barH - 2)
-    .position({ x: leftX + 1, y: topY + 1 })
+    .height(Math.max(1, barH - BAR_INSET * 2))
+    .position({ x: leftX + BAR_INSET, y: topY + BAR_INSET })
     .attachedTo(tokenId).locked(true).disableHit(true)
     .layer("ATTACHMENT")
     .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
     .visible(false)
     .zIndex(tokenZ + 3)
-    .fillColor("#16a34a")
+    .fillColor("#22c55e").fillOpacity(BAR_FILL_OPACITY)
     .strokeColor("transparent").strokeWidth(0)
     .metadata({ [HPBAR_META_FLAG]: { kind: "fg", targetId: tokenId } })
     .name("HPBAR_FG")
@@ -404,7 +422,7 @@ async function flushQueued(){
       }
 
       // Geometria e fill
-      const inner = Math.max(0, barW - 2);
+      const inner = Math.max(0, barW - BAR_INSET * 2);
       const fillW = Math.floor(inner * pct);
 
       // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
@@ -416,13 +434,19 @@ async function flushQueued(){
         width: barW, height: barH,
         position: { x: leftX, y: topY },
         zIndex: tokenZ + 2,
+        fillColor: BAR_BG_COLOR,
+        fillOpacity: BAR_BG_OPACITY,
+        strokeColor: BAR_BORDER_COLOR,
+        strokeWidth: 1,
         visible: playerVisible,
       });
       updatesById.set(fg.id, {
-        width: fillW, height: barH - 2,
-        position: { x: leftX + 1, y: topY + 1 },
+        width: fillW, height: Math.max(1, barH - BAR_INSET * 2),
+        position: { x: leftX + BAR_INSET, y: topY + BAR_INSET },
         zIndex: tokenZ + 3,
-        fillColor: color, fillOpacity: 1,
+        fillColor: color, fillOpacity: BAR_FILL_OPACITY,
+        strokeColor: "transparent",
+        strokeWidth: 0,
         visible: playerVisible,
       });
       idsToUpdate.push(bg.id, fg.id);
@@ -430,11 +454,18 @@ async function flushQueued(){
       // riallinea anche il TEXT se esiste (NO width/height sui TextItem)
       const txt = hptextByToken.get(tokenId);
       if (txt) {
+        const plainText = hpTextValue(hp, hpMax);
         updatesById.set(txt.id, {
-          position: { x: leftX, y: topY },
+          position: hpTextPosition(leftX, topY, barW, barH, plainText),
           zIndex: tokenZ + 1000,
           visible: playerVisible,
-          plainText: hpTextValue(hp, hpMax),
+          plainText,
+          fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+          fontSize: HP_TEXT_FONT_SIZE,
+          fontWeight: 700,
+          fillColor: "#f8fafc",
+          strokeColor: "rgba(2,6,23,0.9)",
+          strokeWidth: 2,
         });
         idsToUpdate.push(txt.id);
       }
@@ -475,12 +506,30 @@ async function flushQueued(){
                 it.style = { ...(it.style || {}) };
                 if (u.fillColor)                 { it.style.fillColor   = u.fillColor; }
                 if (u.fillOpacity !== undefined) { it.style.fillOpacity = u.fillOpacity; }
+                if (u.strokeColor !== undefined) { it.style.strokeColor = u.strokeColor; }
+                if (u.strokeWidth !== undefined) { it.style.strokeWidth = u.strokeWidth; }
               }
             } else {
               // TEXT: solo pos/zIndex/visibilità (no width/height/no fill)
               if (u.position)                   { it.position = u.position; }
               if (u.zIndex      !== undefined) { it.zIndex = u.zIndex; }
               if (u.visible     !== undefined) { it.visible = !!u.visible; }
+              if (u.plainText   !== undefined) {
+                it.text.type = "PLAIN";
+                it.text.plainText = u.plainText;
+              }
+              it.text.style = {
+                ...(it.text.style || {}),
+                fontFamily: u.fontFamily ?? it.text.style?.fontFamily,
+                fontSize: u.fontSize ?? it.text.style?.fontSize,
+                fontWeight: u.fontWeight ?? it.text.style?.fontWeight,
+                lineHeight: 1,
+                textAlign: "CENTER",
+                textAlignVertical: "MIDDLE",
+                fillColor: u.fillColor ?? it.text.style?.fillColor,
+                strokeColor: u.strokeColor ?? it.text.style?.strokeColor,
+                strokeWidth: u.strokeWidth ?? it.text.style?.strokeWidth,
+              };
             }
           }
         });
@@ -498,6 +547,10 @@ async function flushQueued(){
         fgId: candidate.fgId,
         inner: candidate.inner,
         textId: candidate.textId,
+        leftX: candidate.sig.leftX,
+        topY: candidate.sig.topY,
+        barW: candidate.sig.barW,
+        barH: candidate.sig.barH,
       });
       if (!candidate.textId || !updatedIds.has(candidate.textId)) hpTextUpdates.push(candidate);
     }
@@ -646,7 +699,7 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
     const att = getAttitude(token);
     const playerVisible = isPlayerVisibleAttitude(att);
 
-    const pos = { x: leftX, y: topY - 1 };
+    const pos = hpTextPosition(leftX, topY, L.barW, barH, textStr);
     const z   = (Number(tokenZ) || 0) + 1000;
 
     // dedup
@@ -663,11 +716,13 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
         .plainText(textStr)          // ← contenuto testuale
         .textType("PLAIN")           // ← esplicito per evitare ambiguità
         .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-        .fontSize(14)
+        .fontSize(HP_TEXT_FONT_SIZE)
+        .fontWeight(700)
+        .lineHeight(1)
         .textAlign("CENTER")
         .textAlignVertical("MIDDLE")
-        .fillColor("#ffffff")
-        .strokeColor("rgba(0,0,0,0.8)")
+        .fillColor("#f8fafc")
+        .strokeColor("rgba(2,6,23,0.9)")
         .strokeWidth(2)
         .position(pos)
         .layer("ATTACHMENT")
@@ -705,12 +760,14 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
         it.text.style = {
           ...(it.text.style || {}),
           fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-          fontSize:   (it.text.style?.fontSize)   || 14,
+          fontSize:   HP_TEXT_FONT_SIZE,
+          fontWeight: 700,
+          lineHeight: 1,
           textAlign:  "CENTER",
           textAlignVertical: "MIDDLE",
-          fillColor:  (it.text.style?.fillColor)  || "#ffffff",
-          strokeColor: (it.text.style?.strokeColor) || "rgba(0,0,0,0.8)",
-          strokeWidth: (typeof it.text.style?.strokeWidth === "number") ? it.text.style.strokeWidth : 2,
+          fillColor:  "#f8fafc",
+          strokeColor: "rgba(2,6,23,0.9)",
+          strokeWidth: 2,
         };
 
         if (!it.metadata) it.metadata = {};
