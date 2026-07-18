@@ -1228,20 +1228,10 @@ const QUICK_HP_POPUP_ID = `${ID}/quick-hp-modal`;
 globalEffectsButton.setAttribute("aria-pressed", "false");
 globalSpellsButton.setAttribute("aria-pressed", "false");
 globalQuickHPButton.setAttribute("aria-pressed", "false");
-const TRACKED_MOVE_TOOL_ID = ID + "/tracked-move-tool";
-const TRACKED_MOVE_PREVIOUS_TOOL_KEY = ID + "/tracked-move-previous-tool";
 const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed-panel.svg");
 trackedMoveButton.querySelector("[data-toolbar-caption='1']").textContent = "Movimento";
 trackedMoveButton.setAttribute("aria-pressed", "false");
-let trackedMovePreviousToolId = sessionStorage.getItem(TRACKED_MOVE_PREVIOUS_TOOL_KEY) || "";
 let trackedMoveActive = false;
-let trackedMoveSwitching = false;
-
-function rememberTrackedMovePreviousTool(toolId) {
-  if (!toolId || toolId === TRACKED_MOVE_TOOL_ID) return;
-  trackedMovePreviousToolId = toolId;
-  sessionStorage.setItem(TRACKED_MOVE_PREVIOUS_TOOL_KEY, toolId);
-}
 
 function setTrackedMoveButtonActive(active) {
   const classic = !isCompactTrackerLayout();
@@ -1259,25 +1249,8 @@ function setTrackedMoveButtonActive(active) {
     : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
 }
 
-trackedMoveButton.addEventListener("click", async () => {
-  if (trackedMoveSwitching) return;
-  trackedMoveSwitching = true;
-  try {
-    if (trackedMoveActive) {
-      if (!trackedMovePreviousToolId) throw new Error("Missing previous tool");
-      await OBR.tool.activateTool(trackedMovePreviousToolId);
-      setTrackedMoveButtonActive(false);
-    } else {
-      rememberTrackedMovePreviousTool(await OBR.tool.getActiveTool());
-      await OBR.tool.activateTool(TRACKED_MOVE_TOOL_ID);
-      setTrackedMoveButtonActive(true);
-    }
-  } catch {
-    const current = await OBR.tool.getActiveTool().catch(() => "");
-    setTrackedMoveButtonActive(current === TRACKED_MOVE_TOOL_ID);
-  } finally {
-    trackedMoveSwitching = false;
-  }
+trackedMoveButton.addEventListener("click", () => {
+  setTrackedMoveButtonActive(!trackedMoveActive);
 });
 globalEffectsButton.addEventListener("click", () => void openGlobalEffectsPopup());
 globalSpellsButton.addEventListener("click", () => void openGlobalSpellsPopup());
@@ -1737,6 +1710,7 @@ zoomChk.addEventListener("change", async (e) => {
 
 // Inserisci il toggle tra Turno e Lista
 const compactNavigationRow = document.createElement("div");
+const classicNavigationRow = document.createElement("div");
 const compactRoundControls = document.createElement("div");
 const compactAdminMenu = document.createElement("div");
 const compactMoreButton = mkBtn("…");
@@ -2386,22 +2360,43 @@ function applyTrackerLayout() {
       gap: "6px",
       padding: "6px 0",
     });
-    btnPrev.textContent = "▲";
-    btnNext.textContent = "▼";
-    for (const button of [btnPrev, btnNext]) {
+    Object.assign(classicNavigationRow.style, {
+      flex: "0 0 30px",
+      alignSelf: "center",
+      width: "calc(100% - 12px)",
+      height: "30px",
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "4px",
+      padding: "2px",
+      boxSizing: "border-box",
+      border: "1px solid rgba(148,163,184,.20)",
+      borderRadius: "10px",
+      background: "rgba(9,13,21,.44)",
+    });
+    for (const [button, text, label, primary] of [
+      [btnPrev, "▲", "Turno precedente", false],
+      [btnNext, "▼", "Turno successivo", true],
+    ]) {
+      button.textContent = text;
+      button.title = label;
+      button.setAttribute("aria-label", label);
       Object.assign(button.style, {
         flex: "",
         width: "100%",
         minWidth: "",
-        height: "28px",
+        height: "26px",
         minHeight: "",
         padding: "0 6px",
-        border: "none",
-        background: "transparent",
-        boxShadow: "none",
+        border: primary ? "1px solid rgba(96,165,250,.58)" : "1px solid transparent",
+        borderRadius: "8px",
+        background: primary ? "rgba(37,99,235,.34)" : "transparent",
+        boxShadow: primary ? "inset 0 1px 0 rgba(255,255,255,.10)" : "none",
+        fontSize: "15px",
       });
     }
-    col.replaceChildren(btnPrev, topRow, trackWrap, btnNext);
+    classicNavigationRow.replaceChildren(btnPrev, btnNext);
+    col.replaceChildren(topRow, trackWrap, classicNavigationRow);
   }
   applyHeaderLayoutPresentation(compact);
   applyToolbarLayoutPresentation(compact);
@@ -8143,11 +8138,7 @@ try {
     mountConcentrationWarningBroadcast();
     await mountTurnNoticeBroadcast().catch(() => {});
     await mountSpeedWarningBroadcast().catch(() => {});
-    OBR.tool.onToolChange((toolId) => {
-      rememberTrackedMovePreviousTool(toolId);
-      setTrackedMoveButtonActive(toolId === TRACKED_MOVE_TOOL_ID);
-    });
-    setTrackedMoveButtonActive((await OBR.tool.getActiveTool().catch(() => "")) === TRACKED_MOVE_TOOL_ID);
+    setTrackedMoveButtonActive(false);
     try {
       const role =
         (await OBR.player?.getRole?.()) ||

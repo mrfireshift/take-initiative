@@ -45,8 +45,13 @@ function spellDisplayName(value) {
   return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
 }
 
-function factionColor(item) {
+function factionKey(item) {
   const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
+  return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
+}
+
+function factionColor(item) {
+  const attitude = factionKey(item);
   if (attitude === "enemy") return "#ef4444";
   if (attitude === "ally") return "#22c55e";
   if (attitude === "pc") return "#38bdf8";
@@ -161,8 +166,8 @@ async function init() {
   const overviewList = $("spellOverviewList");
   const overviewCount = $("spellOverviewCount");
   const spellTargetList = $("spellTargetList");
-  const spellTargetsAll = $("spellTargetsAll");
-  const spellTargetsNone = $("spellTargetsNone");
+  const spellTargetNameFilter = $("spellTargetNameFilter");
+  const spellFactionButtons = Array.from(document.querySelectorAll("[data-spell-faction]"));
   const sourceId = new URLSearchParams(window.location.search).get("source") || "";
   const isModal = !!sourceId;
 
@@ -195,6 +200,7 @@ async function init() {
     ? await getCardTargetIds(sourceId, allCasters)
     : await getContextOrSelectionIds();
   const spellTargetControls = new Map();
+  const activeSpellFactionFilters = new Set();
   let spellSelectionWriteDepth = 0;
 
   const selectedSpellTargetIds = () => Array.from(spellTargetControls.entries())
@@ -206,6 +212,16 @@ async function init() {
     for (const [id, control] of spellTargetControls) {
       control.checkbox.checked = selected.has(id);
       control.row.classList.toggle("selected", control.checkbox.checked);
+    }
+  };
+
+  const applySpellTargetFilter = () => {
+    const nameQuery = String(spellTargetNameFilter?.value || "").trim().toLocaleLowerCase("it");
+    for (const control of spellTargetControls.values()) {
+      const matchesFaction = activeSpellFactionFilters.size === 0
+        || activeSpellFactionFilters.has(control.faction);
+      const matchesName = !nameQuery || control.name.includes(nameQuery);
+      control.row.style.display = matchesFaction && matchesName ? "flex" : "none";
     }
   };
 
@@ -235,24 +251,31 @@ async function init() {
     label.textContent = item.name || item.id;
     row.append(checkbox, faction, label);
     spellTargetList?.appendChild(row);
-    spellTargetControls.set(item.id, { row, checkbox });
+    spellTargetControls.set(item.id, {
+      row,
+      checkbox,
+      faction: factionKey(item),
+      name: String(item.name || item.id).toLocaleLowerCase("it"),
+    });
     checkbox.addEventListener("change", () => {
       row.classList.toggle("selected", checkbox.checked);
       void writeSpellTargetSelection([item.id], checkbox.checked);
     });
   }
   applySpellTargetSelection(capturedTargetIds);
-
-  spellTargetsAll?.addEventListener("click", () => {
-    const ids = Array.from(spellTargetControls.keys());
-    applySpellTargetSelection(ids);
-    void writeSpellTargetSelection(ids, true, true);
-  });
-  spellTargetsNone?.addEventListener("click", () => {
-    const ids = Array.from(spellTargetControls.keys());
-    applySpellTargetSelection([]);
-    void writeSpellTargetSelection(ids, false);
-  });
+  applySpellTargetFilter();
+  spellTargetNameFilter?.addEventListener("input", applySpellTargetFilter);
+  for (const button of spellFactionButtons) {
+    button.addEventListener("click", () => {
+      const faction = button.dataset.spellFaction;
+      if (activeSpellFactionFilters.has(faction)) activeSpellFactionFilters.delete(faction);
+      else activeSpellFactionFilters.add(faction);
+      const active = activeSpellFactionFilters.has(faction);
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+      applySpellTargetFilter();
+    });
+  }
 
   const refreshSpellTargetSelection = async () => {
     if (spellSelectionWriteDepth > 0) return;

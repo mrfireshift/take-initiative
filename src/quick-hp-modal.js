@@ -39,8 +39,9 @@ const summary = document.getElementById("summary");
 const status = document.getElementById("status");
 const applyButton = document.getElementById("apply");
 const undoButton = document.getElementById("undo");
-const selectAllButton = document.getElementById("selectAll");
-const selectNoneButton = document.getElementById("selectNone");
+const targetNameFilter = document.getElementById("targetNameFilter");
+const factionFilterButtons = Array.from(document.querySelectorAll("[data-hp-faction]"));
+const activeFactionFilters = new Set();
 
 function splitVirtualId(value) {
   const id = String(value || "");
@@ -62,9 +63,13 @@ function hasTrackedHP(item) {
 function displayName(item) {
   return String(item && item.name || "").trim() || "Token";
 }
-function factionColor(item) {
+function factionKey(item) {
   const meta = item && item.metadata && item.metadata[META_KEY] || {};
   const attitude = String(meta.attitude || "neutral").toLowerCase();
+  return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
+}
+function factionColor(item) {
+  const attitude = factionKey(item);
   if (attitude === "enemy") return "#ef4444";
   if (attitude === "ally") return "#22c55e";
   if (attitude === "pc") return "#38bdf8";
@@ -118,8 +123,8 @@ function updateControls() {
   const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
   summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
   applyButton.disabled = busy || currentValue() <= 0 || changes.length === 0;
-  selectAllButton.disabled = busy || !targets.some(hasTrackedHP);
-  selectNoneButton.disabled = busy || selectedIds.size === 0;
+  targetNameFilter.disabled = busy;
+  for (const button of factionFilterButtons) button.disabled = busy;
   amountInput.disabled = busy;
 }
 async function updateSceneSelection(ids, selected, replace) {
@@ -193,7 +198,21 @@ function renderTargets() {
     updateControls();
     return;
   }
-  for (const item of orderedTargets()) {
+  const nameQuery = targetNameFilter.value.trim().toLocaleLowerCase("it");
+  const visibleTargets = orderedTargets().filter((item) => {
+    const matchesFaction = activeFactionFilters.size === 0 || activeFactionFilters.has(factionKey(item));
+    const matchesName = !nameQuery || displayName(item).toLocaleLowerCase("it").includes(nameQuery);
+    return matchesFaction && matchesName;
+  });
+  if (!visibleTargets.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Nessun bersaglio corrisponde ai filtri.";
+    targetList.appendChild(empty);
+    updateControls();
+    return;
+  }
+  for (const item of visibleTargets) {
     const disabled = !hasTrackedHP(item);
     const selected = selectedIds.has(item.id) && !disabled;
     const row = document.createElement("div");
@@ -416,18 +435,18 @@ amountInput.addEventListener("input", () => {
 amountInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !applyButton.disabled) void applyOperation();
 });
-selectAllButton.addEventListener("click", () => {
-  const ids = targets.filter(hasTrackedHP).map((item) => item.id);
-  selectedIds = new Set(ids);
-  renderTargets();
-  void updateSceneSelection(ids, true, true);
-});
-selectNoneButton.addEventListener("click", () => {
-  const ids = Array.from(selectedIds);
-  selectedIds.clear();
-  renderTargets();
-  if (ids.length) void updateSceneSelection(ids, false, false);
-});
+targetNameFilter.addEventListener("input", renderTargets);
+for (const button of factionFilterButtons) {
+  button.addEventListener("click", () => {
+    const faction = button.dataset.hpFaction;
+    if (activeFactionFilters.has(faction)) activeFactionFilters.delete(faction);
+    else activeFactionFilters.add(faction);
+    const active = activeFactionFilters.has(faction);
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+    renderTargets();
+  });
+}
 applyButton.addEventListener("click", () => void applyOperation());
 undoButton.addEventListener("click", () => void undoLastOperation());
 closeButton.addEventListener("click", closePopover);

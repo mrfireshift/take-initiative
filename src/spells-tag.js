@@ -51,15 +51,23 @@
 
   // === Anchor della colonna ===
   // "bottom" | "top" | "center"
-  const STACK_ANCHOR = "top";     // cambia qui per ancorare la colonna
+  const STACK_ANCHOR = "center";  // posizione assoluta rispetto al centro del token
   const STACK_DIR    = 1;            // 1 = cresce verso il basso; -1 = verso l'alto
   const STACK_BASE_GAP = 48;          // distanza dal token quando anchor top/bottom (usa LABEL_GAP)
-  const STACK_CENTER_OFFSET = 0;     // offset extra per anchor "center"
+  const STACK_CENTER_OFFSET = -48;   // prima pillola centrata 35 px sopra il centro
+  const ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR = ["SCALE"];
+
+  function __keepLabelScaleAbsolute(item) {
+    const disabled = Array.isArray(item.disableAttachmentBehavior)
+      ? item.disableAttachmentBehavior
+      : [];
+    if (!disabled.includes("SCALE")) item.disableAttachmentBehavior = [...disabled, "SCALE"];
+  }
 
   function stackBaseY(targetItem) {
+    if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
     const h = Number(targetItem.height) || 70;
     if (STACK_ANCHOR === "top")    return targetItem.position.y - h / 2 - STACK_BASE_GAP;
-    if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
     // default "bottom"
     return targetItem.position.y + h / 2 + STACK_BASE_GAP;
   }
@@ -522,6 +530,7 @@ async function upsertDotForItem(it) {
           .width(labelW).height(labelH)
           .fillColor(col.solid).strokeColor("rgba(0,0,0,1)").strokeWidth(1)
           .attachedTo(tid).layer(LAYER_BG)
+          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
           .name(LABEL_BG_NAME)
           .metadata({
             [CONC_WIDGET_META]: tid,
@@ -561,6 +570,7 @@ async function upsertDotForItem(it) {
           .textAlign("CENTER").textAlignVertical("MIDDLE")
           .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
           .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
+          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
           .metadata({
             [CONC_WIDGET_META]: tid,
             [CONC_WIDGET_KEY]: keyNorm,
@@ -579,6 +589,7 @@ async function upsertDotForItem(it) {
           .textAlign("CENTER").textAlignVertical("MIDDLE")
           .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
           .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
+          .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
           .metadata({
             [CONC_WIDGET_META]: tid,
             [CONC_WIDGET_KEY]: keyNorm,
@@ -615,6 +626,7 @@ async function upsertDotForItem(it) {
       for (const itx of draft) {
         itx.locked = true;
         itx.disableHit = true;
+        if (itx.metadata?.[CONC_WIDGET_CASTER]) __keepLabelScaleAbsolute(itx);
         if (itx.type === "SHAPE") {
           const spec = shapeUpdate.get(itx.id);
           if (!spec) continue;

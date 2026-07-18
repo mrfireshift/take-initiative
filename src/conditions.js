@@ -808,14 +808,23 @@ const CONC_WIDGET_KEY    = `${ID}/concWidgetKey`;
 const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`;
 
 // === NUOVO: configurazione anchor della colonna (top/bottom/center)
-const STACK_ANCHOR = "top";              // "bottom" | "top" | "center"
+const STACK_ANCHOR = "center";           // posizione assoluta rispetto al centro del token
 const STACK_DIR    = 1;                     // 1 = giù, -1 = su
 const STACK_BASE_GAP = CHIP_LAYOUT_NUDGE.topGap || 6;
-const STACK_CENTER_OFFSET = 0;
+const STACK_CENTER_OFFSET = -48;
+const ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR = ["SCALE"];
+
+function __keepLabelScaleAbsolute(item) {
+  const disabled = Array.isArray(item.disableAttachmentBehavior)
+    ? item.disableAttachmentBehavior
+    : [];
+  if (!disabled.includes("SCALE")) item.disableAttachmentBehavior = [...disabled, "SCALE"];
+}
+
 function stackBaseY(targetItem) {
+  if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
   const h = Number(targetItem.height) || 70;
   if (STACK_ANCHOR === "top")    return targetItem.position.y - h / 2 - STACK_BASE_GAP;
-  if (STACK_ANCHOR === "center") return targetItem.position.y + STACK_CENTER_OFFSET;
   // default: bottom
   return targetItem.position.y + h / 2 + STACK_BASE_GAP;
 }
@@ -1005,6 +1014,7 @@ async function upsertCondWidgetForItem(it) {
         .shapeType("RECTANGLE")
         .position({ x: cx, y: cy })
         .attachedTo(it.id)
+        .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
         .fillColor(PILL_CFG.bg)
         .strokeColor(borderCol)
         .strokeWidth(PILL_CFG.stroke)
@@ -1026,6 +1036,7 @@ async function upsertCondWidgetForItem(it) {
         .richText(_mkSlateParagraph(s.label))
         .position({ x: cx, y: cy })
         .attachedTo(it.id)
+        .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
         .layer("TEXT")
         .name(`Condizione: ${s.label} (testo)`)
         .metadata({ [COND_WIDGET_META]: it.id, [COND_WIDGET_KEY_META]: key })
@@ -1078,6 +1089,7 @@ async function upsertCondWidgetForItem(it) {
       if (itx.layer !== "TEXT") itx.layer = "TEXT";
       itx.locked = true;
       itx.disableHit = true;
+      __keepLabelScaleAbsolute(itx);
 
       if (itx.type === "SHAPE") {
         const posChanged = !itx.position || itx.position.x !== slot.pos.x || itx.position.y !== slot.pos.y;

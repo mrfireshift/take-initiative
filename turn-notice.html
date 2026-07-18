@@ -36,12 +36,13 @@
           inset 0 0 0 1px rgba(255, 255, 255, .12),
           inset 0 -28px 44px rgba(0, 0, 0, .25);
         opacity: 0;
-        transform: translate(-50%, -8px) scale(.985);
+        transform: translate(-50%, -8px) scale(.78);
+        transform-origin: top center;
         transition: opacity 180ms ease, transform 220ms ease;
         will-change: opacity, transform;
       }
-      .notice.is-visible { opacity: 1; transform: translate(-50%, 0) scale(1); }
-      .notice.is-leaving { opacity: 0; transform: translate(-50%, 5px) scale(.99); }
+      .notice.is-visible { opacity: 1; transform: translate(-50%, 0) scale(.8); }
+      .notice.is-leaving { opacity: 0; transform: translate(-50%, 5px) scale(.79); }
       .notice[data-attitude="enemy"] {
         --accent: #ef4444;
         --accent-soft: rgba(239, 68, 68, .43);

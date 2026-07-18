@@ -144,27 +144,4 @@ function cancelDrag() {
 OBR.onReady(async () => {
   try { await OBR.tool.removeMode(MODE_ID); } catch {}
   try { await OBR.tool.remove(TOOL_ID); } catch {}
-
-  await OBR.tool.create({
-    id: TOOL_ID,
-    defaultMode: MODE_ID,
-    icons: [{
-      icon: "/speed.svg",
-      label: "Movimento tracciato",
-    }],
-  });
-  await OBR.tool.createMode({
-    id: MODE_ID,
-    icons: [{
-      icon: "/speed.svg",
-      label: "Movimento tracciato",
-      filter: { activeTools: [TOOL_ID] },
-    }],
-    preventDrag: { activeTools: [TOOL_ID] },
-    onToolDragStart: (_, event) => startDrag(event),
-    onToolDragMove: (_, event) => moveDrag(event),
-    onToolDragEnd: (_, event) => endDrag(event),
-    onToolDragCancel: () => cancelDrag(),
-    onDeactivate: () => cancelDrag(),
-  });
 });

@@ -78,8 +78,13 @@ function displayName(name: string) {
   return String(name || "").trim() || "Unnamed";
 }
 
-function factionColor(target: any) {
+function factionKey(target: any) {
   const attitude = String(target?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
+  return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
+}
+
+function factionColor(target: any) {
+  const attitude = factionKey(target);
   if (attitude === "enemy") return "#ef4444";
   if (attitude === "ally") return "#22c55e";
   if (attitude === "pc") return "#38bdf8";
@@ -445,13 +450,47 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   targetTitle.style.margin = "0";
 
   const targetActions = document.createElement("div");
-  Object.assign(targetActions.style, { display: "flex", gap: "6px" });
-  const selectAllButton = commandButton("Tutti");
-  const selectNoneButton = commandButton("Nessuno");
-  for (const button of [selectAllButton, selectNoneButton]) {
-    Object.assign(button.style, { minHeight: "26px", padding: "0 8px", fontSize: "11px" });
+  Object.assign(targetActions.style, {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: "5px",
+  });
+  const targetNameFilter = document.createElement("input");
+  targetNameFilter.type = "search";
+  targetNameFilter.placeholder = "Cerca nome…";
+  targetNameFilter.setAttribute("aria-label", "Filtra bersagli per nome");
+  Object.assign(targetNameFilter.style, {
+    width: "116px",
+    minHeight: "28px",
+    padding: "4px 8px",
+    border: "1px solid rgba(148,163,184,.28)",
+    borderRadius: "8px",
+    background: "rgba(15,23,42,.9)",
+    color: "inherit",
+    font: "inherit",
+    fontSize: "11px",
+    outline: "none",
+  });
+  const activeFactionFilters = new Set<string>();
+  const factionButtons = new Map<string, HTMLButtonElement>();
+  for (const [value, label] of [
+    ["pc", "PG"],
+    ["ally", "Alleati"],
+    ["neutral", "Neutrali"],
+    ["enemy", "Nemici"],
+  ]) {
+    const button = commandButton(label);
+    button.setAttribute("aria-pressed", "false");
+    Object.assign(button.style, {
+      minHeight: "28px",
+      padding: "0 7px",
+      fontSize: "10px",
+    });
+    factionButtons.set(value, button);
   }
-  targetActions.append(selectAllButton, selectNoneButton);
+  targetActions.append(targetNameFilter, ...factionButtons.values());
   targetHeader.append(targetTitle, targetActions);
 
   const targetGrid = document.createElement("div");
@@ -480,7 +519,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     if (!initialTargetIds.length) initialTargetIds = [sourceId];
   }
   const initialIds = new Set(initialTargetIds);
-  const targetControls = new Map<string, { checkbox: HTMLInputElement; row: HTMLLabelElement }>();
+  const targetControls = new Map<string, {
+    checkbox: HTMLInputElement;
+    row: HTMLLabelElement;
+    faction: string;
+    name: string;
+  }>();
 
   for (const target of targets) {
     const row = document.createElement("label");
@@ -527,7 +571,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     });
     row.append(checkbox, faction, name);
     targetGrid.appendChild(row);
-    targetControls.set(target.id, { checkbox, row });
+    targetControls.set(target.id, {
+      checkbox,
+      row,
+      faction: factionKey(target),
+      name: displayName(target.name).toLocaleLowerCase("it"),
+    });
   }
   targetWrap.append(targetHeader, targetGrid);
 
@@ -697,8 +746,14 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   };
 
   const updateTargetSelection = () => {
+    const nameQuery = targetNameFilter.value.trim().toLocaleLowerCase("it");
     for (const control of targetControls.values()) {
       const selected = control.checkbox.checked;
+      const matchesFaction = activeFactionFilters.size === 0 || activeFactionFilters.has(control.faction);
+      const matchesName = !nameQuery || control.name.includes(nameQuery);
+      control.row.style.display = matchesFaction && matchesName
+        ? "flex"
+        : "none";
       control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(255,255,255,.025)";
       control.row.style.borderColor = selected ? "rgba(96,165,250,.62)" : "rgba(148,163,184,.14)";
     }
@@ -713,6 +768,18 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   };
   effectSelect.addEventListener("change", syncEffectControls);
   customEffectInput.addEventListener("input", updateTargetSelection);
+  targetNameFilter.addEventListener("input", updateTargetSelection);
+  for (const [faction, button] of factionButtons) {
+    button.addEventListener("click", () => {
+      if (activeFactionFilters.has(faction)) activeFactionFilters.delete(faction);
+      else activeFactionFilters.add(faction);
+      const active = activeFactionFilters.has(faction);
+      button.setAttribute("aria-pressed", String(active));
+      button.style.background = active ? "rgba(37,99,235,.42)" : "rgba(255,255,255,.055)";
+      button.style.borderColor = active ? "rgba(96,165,250,.72)" : "rgba(148,163,184,.28)";
+      updateTargetSelection();
+    });
+  }
 
   effectsSelectionApply = (ids: string[]) => {
     const selected = new Set(ids);
@@ -726,16 +793,6 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       void updateSceneTargetSelection([id], control.checkbox.checked);
     });
   }
-  selectAllButton.addEventListener("click", () => {
-    for (const control of targetControls.values()) control.checkbox.checked = true;
-    updateTargetSelection();
-    void updateSceneTargetSelection([...targetControls.keys()], true, true);
-  });
-  selectNoneButton.addEventListener("click", () => {
-    for (const control of targetControls.values()) control.checkbox.checked = false;
-    updateTargetSelection();
-    void updateSceneTargetSelection([...targetControls.keys()], false);
-  });
   removeSelectedButton.addEventListener("click", () => {
     const rows = visibleEffectRows.filter((row) => selectedEffectRows.has(`${row.targetId}\u0000${row.id}`));
     void removeRows(rows);

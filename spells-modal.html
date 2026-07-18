@@ -53,10 +53,15 @@
     .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
     .automation-line input { margin-top:2px; }
     .targets { margin-top:10px; }
-    .targets-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+    .targets-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
     .targets-title { color:var(--obrt-muted); font-size:10px; font-weight:700; letter-spacing:.07em; }
-    .target-actions { display:flex; gap:6px; }
-    .target-actions button { min-height:26px; padding:4px 9px; font-size:11px; }
+    .target-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:5px; }
+    .target-name-filter {
+      width:116px; min-height:28px; padding:4px 8px; border:1px solid var(--obrt-line); border-radius:8px;
+      background:rgba(15,23,42,.9); color:inherit; font:inherit; font-size:11px; outline:none;
+    }
+    .faction-toggle { min-height:28px; padding:0 7px; font-size:10px; }
+    .faction-toggle.active { background:rgba(37,99,235,.42); border-color:rgba(96,165,250,.72); }
     .target-list {
       display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px;
       max-height:126px; overflow-y:auto; padding:6px; border-radius:11px;
@@ -155,8 +160,11 @@
       <div class="targets-header">
         <div class="targets-title" id="spellTargetsTitle">BERSAGLI</div>
         <div class="target-actions">
-          <button type="button" id="spellTargetsAll">Tutti</button>
-          <button type="button" id="spellTargetsNone">Nessuno</button>
+          <input class="target-name-filter" id="spellTargetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" />
+          <button class="faction-toggle" type="button" data-spell-faction="pc" aria-pressed="false">PG</button>
+          <button class="faction-toggle" type="button" data-spell-faction="ally" aria-pressed="false">Alleati</button>
+          <button class="faction-toggle" type="button" data-spell-faction="neutral" aria-pressed="false">Neutrali</button>
+          <button class="faction-toggle" type="button" data-spell-faction="enemy" aria-pressed="false">Nemici</button>
         </div>
       </div>
       <div class="target-list" id="spellTargetList"></div>

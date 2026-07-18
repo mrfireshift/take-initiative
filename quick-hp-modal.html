@@ -9,10 +9,10 @@
     :root{--text:#fff;--muted:rgba(255,255,255,.66);--line:rgba(148,163,184,.2)}
     *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
     body{color:var(--text);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px}
-    button,input{font:inherit}.glass-shell{width:100%;height:100%;min-height:0!important;display:flex;overflow:hidden}
+    button,input,select{font:inherit}.glass-shell{width:100%;height:100%;min-height:0!important;display:flex;overflow:hidden}
     .panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px;overflow:hidden}
     .header,.target-header,.bulk-row,.footer,.target-actions,.bulk-actions,.footer-actions{display:flex;align-items:center}
-    .header,.target-header,.bulk-row,.footer{justify-content:space-between;gap:8px}.header{min-height:30px}
+    .header,.target-header,.bulk-row,.footer{justify-content:space-between;gap:8px}.target-header{align-items:flex-start}.header{min-height:30px}
     .title{font-size:16px;font-weight:750;letter-spacing:-.01em}
     .close{width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:inherit;cursor:pointer}
     .close:hover,.small:hover{background:rgba(255,255,255,.1)}
@@ -25,8 +25,10 @@
     .amount-wrap{display:grid;gap:4px}.caption{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
     .amount{width:100%;height:42px;padding:5px 10px;border:1px solid rgba(148,163,184,.28);border-radius:11px;outline:none;background:rgba(0,0,0,.35);color:#fff;font-size:22px;font-weight:750;text-align:center;font-variant-numeric:tabular-nums}
     .amount:focus{border-color:rgba(96,165,250,.7);box-shadow:0 0 0 2px rgba(37,99,235,.18)}
-    .target-section{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:7px}.target-actions,.bulk-actions,.footer-actions{gap:5px}
+    .target-section{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:7px}.target-actions,.bulk-actions,.footer-actions{gap:5px}.target-actions{justify-content:flex-end;flex-wrap:wrap}
     .small{min-height:27px;padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer}
+    .target-name-filter{width:116px;min-height:28px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(15,23,42,.9);color:inherit;outline:none}
+    .faction-toggle{min-height:28px;padding:0 7px;font-size:10px}.faction-toggle.active{background:rgba(37,99,235,.42);border-color:rgba(96,165,250,.72)}
     .target-list{flex:1 1 auto;min-height:0;display:grid;align-content:start;gap:5px;padding:6px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;background:rgba(0,0,0,.2);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.45) transparent}
     .target{display:grid;grid-template-columns:20px minmax(105px,1fr) minmax(104px,auto) minmax(145px,auto);align-items:center;gap:7px;min-height:46px;padding:5px 7px;border:1px solid rgba(148,163,184,.14);border-radius:9px;background:rgba(255,255,255,.025);cursor:pointer}
     .target.selected{border-color:rgba(96,165,250,.62);background:rgba(30,64,175,.24)}.target.disabled{opacity:.46;cursor:default}.target input{accent-color:#2563eb}
@@ -54,7 +56,7 @@
       <label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label>
     </section>
     <section class="target-section">
-      <div class="target-header"><span class="caption">Bersagli</span><div class="target-actions"><button class="small" id="selectAll" type="button">Tutti</button><button class="small" id="selectNone" type="button">Nessuno</button></div></div>
+      <div class="target-header"><span class="caption">Bersagli</span><div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div></div>
       <div class="target-list" id="targetList"></div>
       <div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div>
     </section>
