@@ -4,12 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Incantesimi attivi</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
   <style>
     select:disabled { cursor: not-allowed; opacity: .6; }
     :root{ --obrt-text:#fff; --obrt-hover:rgba(255,255,255,.06); }
     html,body{
       margin:0; padding:0; background:transparent; color:var(--obrt-text);
-      font-family:system-ui, Roboto, Arial, sans-serif; font-size:12px; line-height:1.2;
+      font-size:var(--obrt-type-body); line-height:1.25;
     }
 
     /* 2 colonne: etichetta (120px) + controllo flessibile */
@@ -19,8 +20,8 @@
       align-items:center;
     }
 
-    .muted{ opacity:.75; font-size:11px; }
-    label{ font-weight:400; opacity:.9; }
+    .muted{ opacity:.75; font-size:var(--obrt-type-secondary); }
+    label{ font-weight:var(--obrt-weight-medium); opacity:.9; }
 
     input[type="text"], input[type="number"], select{
       width:100%; min-width:0; padding:6px 8px; border-radius:10px;
@@ -36,7 +37,7 @@
       padding:8px 12px; border-radius:32px;
       border:1px solid rgba(255,255,255,.15);
       background:rgba(255,255,255,.07);
-      color:var(--obrt-text); cursor:pointer; font:inherit; font-weight:400;
+      color:var(--obrt-text); cursor:pointer; font:inherit; font-weight:var(--obrt-weight-semibold);
     }
     button:hover{ background:rgba(255,255,255,.12); }
     .primary{ background:#2563eb; border-color:rgba(255,255,255,.20); }
@@ -60,7 +61,7 @@
       border:1px solid rgba(255,255,255,.12); border-radius:10px;
       background:rgba(0,0,0,.20);
     }
-    .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+    .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:var(--obrt-weight-regular); }
     .automation-line input { margin-top:2px; }
   </style>
 </head>

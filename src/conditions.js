@@ -750,7 +750,7 @@ function _mkSlateParagraph(text) {
 }
 
 // === Stima dimensioni testo (via canvas 2D)
-function __measureTextPx(text, fontSize = 12, fontFamily = "Inter, system-ui, sans-serif") {
+function __measureTextPx(text, fontSize = 12, fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif') {
   try {
     const c = document.createElement("canvas");
     const ctx = c.getContext("2d");
@@ -1034,6 +1034,7 @@ async function upsertCondWidgetForItem(it) {
     if (!pair.text) {
       const textBuilt = buildText()
         .richText(_mkSlateParagraph(s.label))
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
         .position({ x: cx, y: cy })
         .attachedTo(it.id)
         .disableAttachmentBehavior(ABSOLUTE_LABEL_ATTACHMENT_BEHAVIOR)
@@ -1121,6 +1122,9 @@ async function upsertCondWidgetForItem(it) {
         if (itx.text.height !== slot.height) itx.text.height = slot.height;
 
         const st = (itx.text.style = itx.text.style || {});
+        if (st.fontFamily !== '"Helvetica Neue", Helvetica, Arial, sans-serif') {
+          st.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+        }
         if (st.fillColor !== PILL_CFG.textFill)        st.fillColor = PILL_CFG.textFill;
         if (st.strokeColor !== PILL_CFG.textStroke)    st.strokeColor = PILL_CFG.textStroke;
         if (st.strokeWidth !== PILL_CFG.textStrokeW)   st.strokeWidth = PILL_CFG.textStrokeW;

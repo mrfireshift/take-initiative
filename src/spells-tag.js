@@ -466,6 +466,7 @@ async function upsertDotForItem(it) {
       const txt = buildText()
         .position({ x: tx, y: ty }).width(DOT_DIAMETER).height(DOT_DIAMETER)
         .plainText("C").textType("PLAIN").fontSize(DOT_FONT)
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
         .textAlign("CENTER").textAlignVertical("MIDDLE")
         .fillColor("#ffffff").strokeColor("rgba(0,0,0,.85)").strokeWidth(2)
         .attachedTo(it.id).layer(LAYER_TEXT).name(DOT_TEXT_NAME)
@@ -567,6 +568,7 @@ async function upsertDotForItem(it) {
           .position({ x: labelCx + LABEL_TEXT_DX, y: labelCy + LABEL_TEXT_DY })
           .width(labelW).height(labelH)
           .plainText(spellTitle).textType("PLAIN").fontSize(LABEL_FONT)
+          .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
           .textAlign("CENTER").textAlignVertical("MIDDLE")
           .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
           .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
@@ -586,6 +588,7 @@ async function upsertDotForItem(it) {
           .position({ x: labelCx + LABEL_TEXT_DX, y: labelCy + LABEL_TEXT_DY })
           .width(labelW).height(labelH)
           .plainText(spellTitle).textType("PLAIN").fontSize(LABEL_FONT)
+          .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
           .textAlign("CENTER").textAlignVertical("MIDDLE")
           .fillColor("#ffffff").strokeColor("rgba(0,0,0,.7)").strokeWidth(1)
           .attachedTo(tid).layer(LAYER_TEXT).name(LABEL_TEXT_NAME)
@@ -651,6 +654,10 @@ async function upsertDotForItem(it) {
 
           if (spec.x != null && spec.y != null) itx.position = { x: Math.round(spec.x), y: Math.round(spec.y) };
           itx.text = itx.text || {};
+          itx.text.style = {
+            ...(itx.text.style || {}),
+            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+          };
           if (spec.w != null) itx.text.width  = spec.w;
           if (spec.h != null) itx.text.height = spec.h;
           if (spec.z != null) itx.zIndex = spec.z;

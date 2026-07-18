@@ -24,6 +24,7 @@ export default defineConfig({
         spellsModal: path.resolve(process.cwd(), "spells-modal.html"),
         quickHpModal: path.resolve(process.cwd(), "quick-hp-modal.html"),
         historyModal: path.resolve(process.cwd(), "history-modal.html"),
+        clocksModal: path.resolve(process.cwd(), "clocks-modal.html"),
         concentrationWarning: path.resolve(process.cwd(), "concentration-warning.html"),
         speedWarning: path.resolve(process.cwd(), "speed-warning.html"),
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),

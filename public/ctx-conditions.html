@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/ui-typography.css" />
     <style>
       :root {
         --obrt-text: #fff;         /* popolato dal TS con applyTheme */
@@ -11,8 +12,7 @@
       html, body {
         margin: 0; padding: 0;
         background: transparent; color: var(--obrt-text);
-        font-family: system-ui, Roboto, Arial, sans-serif;
-        font-size: 12px; line-height: 1.2;
+        font-size: var(--obrt-type-body); line-height: 1.25;
       }
       .wrap {
         display: grid;
@@ -53,18 +53,16 @@
         padding: 6px 8px; border-radius: 10px;
         border: 1px solid rgba(255,255,255,.15);
         background: rgba(0,0,0,.35); color: var(--obrt-text);
-        font-family: system-ui, Roboto, Arial, sans-serif;
-        font-size: 12px; line-height: 1.2;
+        font-size: var(--obrt-type-body); line-height: 1.25;
       }
       button {
         padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15);
         background: rgba(255,255,255,.07); color: var(--obrt-text); cursor: pointer;
-        font-family: system-ui, Roboto, Arial, sans-serif;
-        font-size: 12px; line-height: 1.2;
+        font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-semibold); line-height: 1.25;
       }
       button:hover { background: rgba(255,255,255,.12); }
       .footer { grid-column: 1 / -1; display:flex; justify-content: space-between; gap:8px; }
-      .muted { opacity: .75; font-size: 11px; }
+      .muted { opacity: .75; font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
     </style>
   </head>
   <body>

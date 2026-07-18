@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { recordCombatUndo, recordHistoryInCombatLog, recordNativeMovementUndo } from "./combatLog.js";
 
 const META_KEY = `${ID}/meta`;
 const HISTORY_KEY = `${ID}/history`;
@@ -86,6 +87,11 @@ async function appendEntryNow(entry) {
     ...md,
     [HISTORY_KEY]: { ...history, version: HISTORY_VERSION, entries },
   });
+  try {
+    await recordHistoryInCombatLog(entry);
+  } catch (err) {
+    console.warn("[combat-log] append:", err?.message || err);
+  }
 }
 
 function appendEntry(entry) {
@@ -265,9 +271,14 @@ export async function mountMovementHistoryWatcher() {
   );
   for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
 
-  subscribeSceneItemChanges(({ items: changes }) => {
+  subscribeSceneItemChanges(async ({ items: changes }) => {
     const now = Date.now();
     let movementChanged = false;
+    let nativeUndoAvailable = false;
+    try {
+      nativeUndoAvailable = await OBR.scene.history.canRedo();
+    } catch {}
+    const nativeUndoCorrections = [];
 
     for (const item of changes) {
       if (!item?.metadata?.[META_KEY]) continue;
@@ -301,6 +312,26 @@ export async function mountMovementHistoryWatcher() {
       }
       if (!previous || samePosition(previous, next)) continue;
 
+      if (nativeUndoAvailable) {
+        notifyMovementSegments([{
+          id: item.id,
+          name: String(item.name || "").trim() || "Token",
+          beforePosition: previous,
+          afterPosition: next,
+          undo: true,
+        }]);
+        const wasPending = __pendingMovements.delete(item.id);
+        if (!wasPending) {
+          nativeUndoCorrections.push({
+            id: item.id,
+            name: String(item.name || "").trim() || "Token",
+            beforePosition: previous,
+            afterPosition: next,
+          });
+        }
+        continue;
+      }
+
       notifyMovementSegments([{
         id: item.id,
         name: String(item.name || "").trim() || "Token",
@@ -323,6 +354,22 @@ export async function mountMovementHistoryWatcher() {
     }
 
     if (movementChanged) scheduleMovementFlush();
+    if (nativeUndoCorrections.length) {
+      let dpi = 1;
+      try {
+        dpi = Math.max(1, Number(await OBR.scene.grid.getDpi()) || 1);
+      } catch {}
+      const corrections = [];
+      for (const correction of nativeUndoCorrections) {
+        const cells = await measuredMovementCells(correction, dpi);
+        if (cells >= 0.01) corrections.push({ ...correction, cells });
+      }
+      try {
+        await recordNativeMovementUndo(corrections);
+      } catch (err) {
+        console.warn("[combat-log] native movement undo:", err?.message || err);
+      }
+    }
   }, { immediate: true, filter: (event) => event.flags.movement });
 }
 
@@ -470,6 +517,11 @@ export async function undoHistoryThrough(entryId) {
     ...latestMd,
     [HISTORY_KEY]: { ...latest, version: HISTORY_VERSION, entries },
   });
+  try {
+    await recordCombatUndo(undoOrder);
+  } catch (err) {
+    console.warn("[combat-log] undo event:", err?.message || err);
+  }
 
   return undoOrder;
 }

@@ -1,0 +1,35 @@
+:root {
+  --obrt-font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --obrt-type-micro: 9px;
+  --obrt-type-caption: 10px;
+  --obrt-type-secondary: 11px;
+  --obrt-type-body: 12px;
+  --obrt-type-card-title: 15px;
+  --obrt-type-panel-title: 16px;
+  --obrt-type-display: 20px;
+  --obrt-weight-regular: 400;
+  --obrt-weight-medium: 500;
+  --obrt-weight-semibold: 600;
+  --obrt-weight-bold: 700;
+
+  font-family: var(--obrt-font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--obrt-font-ui);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

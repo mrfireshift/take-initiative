@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/ui-typography.css" />
   <style>
     :root {
 
@@ -14,9 +15,8 @@
       padding: 0;
       background: transparent;
       color: var(--obrt-text);
-      font-family: system-ui, Roboto, Arial, sans-serif;
-      font-size: 12px;
-      line-height: 1.2;
+      font-size: var(--obrt-type-body);
+      line-height: 1.25;
     }
     #app {
       display: grid;
@@ -42,7 +42,7 @@
       text-align: left;
       cursor: pointer;
       font: inherit;
-      font-weight: 400;
+      font-weight: var(--obrt-weight-medium);
       transition: background-color .12s ease, border-color .12s ease;
     }
     .condition-row:hover {
@@ -56,8 +56,8 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .condition-name { font-weight: 400; }
-    .condition-target { color: rgba(255,255,255,.75); font-size: 11px; }
+    .condition-name { font-weight: var(--obrt-weight-semibold); }
+    .condition-target { color: rgba(255,255,255,.75); font-size: var(--obrt-type-secondary); font-weight: var(--obrt-weight-regular); }
     .empty { padding: 14px 8px; text-align: center; color: rgba(255,255,255,.75); }
   </style>
 </head>

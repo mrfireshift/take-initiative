@@ -4,15 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Incantesimi attivi</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <style>
     :root { --obrt-text:#fff; --obrt-muted:rgba(255,255,255,.66); --obrt-line:rgba(148,163,184,.20); --obrt-hover:rgba(255,255,255,.06); }
     html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; color:var(--obrt-text); }
-    body { font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:12px; line-height:1.2; }
+    body { font-size:var(--obrt-type-body); line-height:1.25; }
     * { box-sizing:border-box; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.55) transparent; }
     .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; }
     .panel { flex:1 1 auto; min-height:0; padding:12px; position:relative; overflow-y:auto; }
-    .title { margin:0 40px 12px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; font-size:16px; font-weight:750; letter-spacing:-.01em; }
+    .title { margin:0 40px 12px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; font-size:var(--obrt-type-panel-title); font-weight:var(--obrt-weight-bold); letter-spacing:-.01em; }
     .close {
       position:fixed; top:9px; right:12px; width:30px; height:30px; padding:0;
       border:1px solid transparent; border-radius:9px; background:transparent; color:inherit;
@@ -20,7 +21,7 @@
     }
     .close:hover { background:rgba(255,255,255,.08); }
     .wrap { display:grid; grid-template-columns:140px minmax(0,1fr); gap:8px; align-items:center; padding:8px; border:1px solid var(--obrt-line); border-radius:11px; background:rgba(3,7,18,.30); }
-    label { font-weight:400; opacity:.9; }
+    label { font-weight:var(--obrt-weight-medium); opacity:.9; }
     input[type="text"], input[type="number"], select {
       width:100%; min-width:0; min-height:32px; padding:6px 8px; border-radius:10px;
       border:1px solid rgba(148,163,184,.28); background:rgba(0,0,0,.35);
@@ -33,10 +34,10 @@
     button {
       min-height:32px; padding:7px 12px; border-radius:9px;
       border:1px solid var(--obrt-line); background:rgba(255,255,255,.055);
-      color:inherit; cursor:pointer; font:inherit; font-weight:400;
+      color:inherit; cursor:pointer; font:inherit; font-weight:var(--obrt-weight-medium);
     }
     button:hover { background:rgba(255,255,255,.12); }
-    .primary { background:#2563eb; border-color:rgba(96,165,250,.55); font-weight:700; }
+    .primary { background:#2563eb; border-color:rgba(96,165,250,.55); font-weight:var(--obrt-weight-bold); }
     .blockbtn { grid-column:1 / -1; width:100%; }
     .row { grid-column:1 / -1; display:flex; gap:6px; align-items:center; }
     .chips { display:flex; flex-wrap:wrap; gap:6px; }
@@ -54,13 +55,13 @@
     .automation-line input { margin-top:2px; }
     .targets { margin-top:10px; }
     .targets-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
-    .targets-title { color:var(--obrt-muted); font-size:10px; font-weight:700; letter-spacing:.07em; }
+    .targets-title { color:var(--obrt-muted); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; }
     .target-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:5px; }
     .target-name-filter {
       width:116px; min-height:28px; padding:4px 8px; border:1px solid var(--obrt-line); border-radius:8px;
       background:rgba(15,23,42,.9); color:inherit; font:inherit; font-size:11px; outline:none;
     }
-    .faction-toggle { min-height:28px; padding:0 7px; font-size:10px; }
+    .faction-toggle { min-height:28px; padding:0 7px; font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-semibold); }
     .faction-toggle.active { background:rgba(37,99,235,.42); border-color:rgba(96,165,250,.72); }
     .target-list {
       display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px;
@@ -75,10 +76,10 @@
     .spell-target.selected { background:rgba(30,64,175,.24); border-color:rgba(96,165,250,.62); }
     .spell-target input { flex:0 0 auto; margin:0; }
     .spell-target-faction { width:8px; height:8px; flex:0 0 8px; border-radius:50%; box-shadow:0 0 8px currentColor; }
-    .spell-target-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:700; letter-spacing:0; }
+    .spell-target-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-body); font-weight:var(--obrt-weight-semibold); letter-spacing:0; }
     .overview { margin-top:10px; }
     .overview-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
-    .overview-title { color:var(--obrt-muted); font-size:10px; font-weight:700; letter-spacing:.07em; }
+    .overview-title { color:var(--obrt-muted); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; }
     .overview-count {
       min-width:22px; padding:3px 7px; border-radius:10px; text-align:center;
       background:rgba(255,255,255,.055); border:1px solid var(--obrt-line);

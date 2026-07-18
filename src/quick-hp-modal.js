@@ -1,6 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
+import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { saveHPToMemoryByItemId } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
 import { QUICK_HP_FACTORS, QUICK_HP_MODES, calculateQuickHPChange } from "./quickHpCore.js";
@@ -369,9 +369,19 @@ async function applyOperation() {
         }
       });
     });
+    // Accoda tutti i bersagli nel batch grafico condiviso: barra e testo HP
+    // esistenti vengono aggiornati insieme da una sola chiamata OBR.
     for (const entry of entries) {
       syncHPBarNow(entry.item.id, entry.change.afterHP, entry.change.hpMax);
-      await syncHPTextNow(entry.item.id, entry.change.afterHP, entry.change.hpMax);
+    }
+    await syncHPTextBatchNow(entries.map((entry) => ({
+      tokenId: entry.item.id,
+      hp: entry.change.afterHP,
+      hpMax: entry.change.hpMax,
+    })));
+
+    // La memoria stanza usa read-modify-write: resta intenzionalmente seriale.
+    for (const entry of entries) {
       try {
         await saveHPToMemoryByItemId(entry.item.id, entry.change.afterHP, entry.change.hpMax);
       } catch (error) {

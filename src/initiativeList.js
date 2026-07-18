@@ -6,6 +6,7 @@ import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMem
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
 import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
+import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
@@ -127,7 +128,7 @@ function __chip(label, compact=true) {
   s.textContent = String(label);
   Object.assign(s.style, {
     fontSize: compact ? "10px" : "11px",
-    fontWeight: "800",
+    fontWeight: "700",
     padding: compact ? "1px 5px" : "2px 6px",
     borderRadius: "999px",
     background: "rgba(0,0,0,.72)",
@@ -461,7 +462,7 @@ const EPIC_TAG_CFG = {
 styleTag.textContent = `
   :root, body { height: 100%; overflow: hidden; }
   .tbp-root {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
     font-feature-settings: "kern" 1, "liga" 1;
   }
   .tbp-root button, .tbp-root input, .tbp-root textarea, .tbp-root select {
@@ -535,8 +536,8 @@ Object.assign(roundPill.style, {
   minHeight: "52px",
   boxSizing: "border-box",
   padding: "8px 12px",
-  fontSize: "14px",
-  fontWeight: "600",
+  fontSize: "12px",
+  fontWeight: "500",
   lineHeight: "1",
   color: "#fff",
   background: "linear-gradient(180deg, rgba(14,19,31,.82), rgba(8,12,21,.76))",
@@ -566,7 +567,7 @@ Object.assign(roundLabel.style, {
   overflow: "visible",
   whiteSpace: "nowrap",
   fontSize: "15px",
-  fontWeight: "750",
+  fontWeight: "700",
 });
 
 const roundResetSlot = document.createElement("div");
@@ -582,6 +583,7 @@ roundStatus.append(roundLabel);
 roundPill.appendChild(roundStatus);
 const trackerDragHandle = document.createElement("button");
 trackerDragHandle.type = "button";
+trackerDragHandle.draggable = true;
 trackerDragHandle.textContent = "\u2630";
 trackerDragHandle.title = "Trascina per spostare il tracker. Doppio click per ricentrare";
 trackerDragHandle.setAttribute("aria-label", trackerDragHandle.title);
@@ -604,20 +606,28 @@ Object.assign(trackerDragHandle.style, {
 });
 
 let __compactDragStart = null;
-trackerDragHandle.addEventListener("pointerdown", (event) => {
-  if (!isCompactTrackerLayout() || event.button !== 0) return;
-  event.preventDefault();
+trackerDragHandle.addEventListener("dragstart", (event) => {
+  if (!isCompactTrackerLayout()) {
+    event.preventDefault();
+    return;
+  }
   event.stopPropagation();
+  const rect = col.getBoundingClientRect();
   __compactDragStart = {
     x: Number.isFinite(event.screenX) ? event.screenX : event.clientX,
     y: Number.isFinite(event.screenY) ? event.screenY : event.clientY,
   };
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", "initiative-tracker");
+  event.dataTransfer.setDragImage(
+    col,
+    Math.max(0, event.clientX - rect.left),
+    Math.max(0, event.clientY - rect.top),
+  );
   trackerDragHandle.style.cursor = "grabbing";
-  trackerDragHandle.setPointerCapture?.(event.pointerId);
 });
-trackerDragHandle.addEventListener("pointerup", (event) => {
+trackerDragHandle.addEventListener("dragend", (event) => {
   if (!__compactDragStart) return;
-  event.preventDefault();
   event.stopPropagation();
   const endX = Number.isFinite(event.screenX) ? event.screenX : event.clientX;
   const endY = Number.isFinite(event.screenY) ? event.screenY : event.clientY;
@@ -625,17 +635,13 @@ trackerDragHandle.addEventListener("pointerup", (event) => {
   const deltaY = endY - __compactDragStart.y;
   __compactDragStart = null;
   trackerDragHandle.style.cursor = "grab";
-  try { trackerDragHandle.releasePointerCapture?.(event.pointerId); } catch {}
+  if (!Number.isFinite(endX) || !Number.isFinite(endY)) return;
   if (Math.abs(deltaX) + Math.abs(deltaY) < 4) return;
   void OBR.broadcast.sendMessage(TRACKER_LAYOUT_CHANNEL, {
     type: "tracker-position-change",
     deltaX,
     deltaY,
   }, { destination: "LOCAL" });
-});
-trackerDragHandle.addEventListener("pointercancel", () => {
-  __compactDragStart = null;
-  trackerDragHandle.style.cursor = "grab";
 });
 trackerDragHandle.addEventListener("dblclick", (event) => {
   if (!isCompactTrackerLayout()) return;
@@ -755,7 +761,7 @@ function makeRoundResetBtn() {
     background: "rgba(0,0,0,.45)",
     color: "#fff",
     fontSize: "12px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     borderRadius: "8px",
     cursor: "pointer",
@@ -790,7 +796,7 @@ function makeAddAllInitiativeBtn() {
     background: "rgba(21,128,61,.62)",
     color: "#fff",
     fontSize: "15px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     borderRadius: "8px",
     cursor: "pointer",
@@ -927,7 +933,7 @@ function makeClearInitiativeBtn() {
     background: "rgba(127,29,29,.55)",
     color: "#fff",
     fontSize: "14px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     borderRadius: "8px",
     cursor: "pointer",
@@ -966,7 +972,7 @@ function makeHistoryBtn() {
   const b = document.createElement("button");
   b.type = "button";
   b.dataset.history = "1";
-  b.title = "Cronologia e Undo (solo GM)";
+  b.title = "Registro combattimento e Undo (solo GM)";
   Object.assign(b.style, {
     width: "24px",
     height: "24px",
@@ -977,7 +983,7 @@ function makeHistoryBtn() {
     background: "rgba(30,64,175,.58)",
     color: "#fff",
     fontSize: "14px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     borderRadius: "8px",
     cursor: "pointer",
@@ -1006,7 +1012,7 @@ function makeHistoryBtn() {
         id: popupId,
         url: "/history-modal.html",
         width: 480,
-        height: 460,
+        height: 640,
         anchorReference: "POSITION",
         anchorPosition,
         anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -1082,7 +1088,7 @@ function makeToolbarSection(title, content) {
     display: "none",
     color: "rgba(255,255,255,.58)",
     fontSize: "9px",
-    fontWeight: "750",
+    fontWeight: "700",
     letterSpacing: ".08em",
     textTransform: "uppercase",
   });
@@ -1281,7 +1287,7 @@ Object.assign(movementReadoutLine.style, {
   alignItems: "center",
   justifyContent: "space-between",
   gap: "10px",
-  fontSize: "10.5px",
+  fontSize: "11px",
 });
 const movementReadoutValue = document.createElement("strong");
 Object.assign(movementReadoutValue.style, {
@@ -1289,7 +1295,7 @@ Object.assign(movementReadoutValue.style, {
   minWidth: "0",
   overflow: "hidden",
   fontSize: "14px",
-  fontWeight: "800",
+  fontWeight: "700",
   fontVariantNumeric: "tabular-nums",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
@@ -2059,7 +2065,7 @@ function applyHeaderLayoutPresentation(compact) {
     background: "linear-gradient(180deg, rgba(37,99,235,.34), rgba(30,64,175,.22))",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.10)",
     color: "#dbeafe",
-    fontSize: "8.5px",
+    fontSize: "9px",
   } : {
     width: "26px",
     minWidth: "26px",
@@ -2076,7 +2082,7 @@ function applyHeaderLayoutPresentation(compact) {
   layoutToggleIcon.style.width = classic ? "16px" : "15px";
   layoutToggleIcon.style.height = classic ? "16px" : "15px";
   layoutToggleCaption.style.display = classic ? "inline" : "none";
-  layoutToggleCaption.style.fontSize = classic ? "8.5px" : "10px";
+  layoutToggleCaption.style.fontSize = classic ? "9px" : "10px";
   if (compact) {
     applyAdminMenuPresentation(true);
   } else {
@@ -4025,7 +4031,7 @@ const MAX_VISIBLE_CHIPS = 3;
 function styleChipPill(el, { compact = true } = {}) {
   Object.assign(el.style, {
     fontSize: compact ? "10px" : "11px",
-    fontWeight: "800",
+    fontWeight: "600",
     padding: compact ? "1px 6px" : "2px 8px",
     borderRadius: "999px",
     background: "rgba(0,0,0,.72)",
@@ -4481,7 +4487,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     WebkitBackdropFilter: "blur(18px) saturate(125%)",
     boxShadow: "0 16px 42px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.07)",
     color: "#fff",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+    fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
     fontSize: "12px",
     zIndex: "100000",
   });
@@ -4495,7 +4501,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     marginBottom: "5px",
     borderBottom: "1px solid rgba(255,255,255,.12)",
     fontSize: "13px",
-    fontWeight: "800",
+    fontWeight: "700",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
@@ -5156,7 +5162,7 @@ function compactStatusBadge(text, title, tone = "neutral") {
     background: colors.background,
     color: "#fff",
     fontSize: "9px",
-    fontWeight: "850",
+    fontWeight: "700",
     lineHeight: "1",
     boxShadow: "0 1px 4px rgba(0,0,0,.55)",
     whiteSpace: "nowrap",
@@ -5297,7 +5303,7 @@ function renderCompactTrack(entries, state) {
         display: "grid",
         placeItems: "center",
         fontSize: "23px",
-        fontWeight: "800",
+        fontWeight: "700",
         background: `linear-gradient(145deg, ${rgba(faction.base, .60)}, rgba(8,12,21,.92))`,
       });
       portrait.appendChild(fallback);
@@ -5346,7 +5352,7 @@ function renderCompactTrack(entries, state) {
       background: "rgba(7,11,18,.96)",
       color: "#fff",
       fontSize: "11px",
-      fontWeight: "800",
+      fontWeight: "700",
       boxShadow: "0 2px 6px rgba(0,0,0,.56)",
       zIndex: "4",
     });
@@ -5426,7 +5432,7 @@ function renderCompactTrack(entries, state) {
       overflow: "hidden",
       color: active ? "#fff" : "rgba(255,255,255,.90)",
       fontSize: "9px",
-      fontWeight: active ? "750" : "650",
+      fontWeight: active ? "700" : "600",
       lineHeight: "14px",
       textAlign: "center",
       textOverflow: "ellipsis",
@@ -5521,7 +5527,7 @@ function renderCompactTrack(entries, state) {
       overflow: "hidden",
       color: knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)",
       fontSize: "8px",
-      fontWeight: "650",
+      fontWeight: "500",
       lineHeight: "11px",
       textAlign: "center",
       textOverflow: "ellipsis",
@@ -5904,7 +5910,7 @@ if (isActive) {
     alignItems: "center",
     justifyContent: "center",
     fontSize: `${F}px`,
-    fontWeight: "900",
+    fontWeight: "700",
     color: "#fff",
     background: c.border,
     boxShadow: "0 2px 6px rgba(0,0,0,.85), 0 0 0 2px rgba(0,0,0,.6)",
@@ -6002,7 +6008,7 @@ if (e.portrait) {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: "800",
+    fontWeight: "700",
     fontSize: "18px",
     background: "rgba(255,255,255,.08)",
     color: "#fff",
@@ -6265,7 +6271,7 @@ if (cardToolsDock && e.__groupCollapsed) {
     background: "rgba(0,0,0,.52)",
     color: "#fff",
     fontSize: "15px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     cursor: "pointer",
     boxShadow: "0 1px 3px rgba(0,0,0,.35)",
@@ -6298,7 +6304,7 @@ if (cardToolsDock && e.__groupCollapsed) {
       background: "rgba(245,158,11,.42)",
       color: "#fff",
       fontSize: "12px",
-      fontWeight: "800",
+      fontWeight: "700",
       textAlign: "center",
       boxShadow: "0 1px 3px rgba(0,0,0,.35)",
     });
@@ -6433,7 +6439,7 @@ if (!e.__groupCollapsed) {
 
   Object.assign(s.style, {
     fontSize: `${cfg.fontSize ?? 11}px`,
-    fontWeight: String(cfg.fontWeight ?? 800),
+    fontWeight: String(cfg.fontWeight ?? 700),
     padding: `${cfg.padY ?? 2}px ${cfg.padX ?? 6}px`,
     borderRadius: `${cfg.radius ?? 999}px`,
     background: cfg.bg || "rgba(147,112,219,.35)",
@@ -6503,7 +6509,7 @@ if (e.__groupCollapsed && e.__groupCount > 1) {
     alignItems: "center",
     justifyContent: "center",
     fontSize: "12px",
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     background: "rgba(0,0,0,.85)",
     border: "1px solid rgba(255,255,255,.22)",
@@ -6691,7 +6697,7 @@ badge.addEventListener("pointerdown", async (ev) => {
   background: "transparent",
   color: "#fff",
   fontSize: "15px",
-  fontWeight: "800",
+  fontWeight: "700",
   textAlign: "center",
   lineHeight: "1",
   appearance: "none",
@@ -6864,7 +6870,7 @@ if (e.__groupCollapsed) {
     alignItems: "center",
     justifyContent: "center",
     fontSize: "14px",
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     background: "rgba(0,0,0,.80)",
     border: "1px solid rgba(255,255,255,.22)",
@@ -6901,7 +6907,7 @@ else if (e.__groupFirst) {
     alignItems: "center",
     justifyContent: "center",
     fontSize: "14px",
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#fff",
     background: "rgba(0,0,0,.80)",
     border: "1px solid rgba(255,255,255,.22)",
@@ -6954,7 +6960,7 @@ if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
       flex: "0 0 auto",
       color: "rgba(255,255,255,.74)",
       fontSize: "7px",
-      fontWeight: "900",
+      fontWeight: "700",
       lineHeight: "1",
       letterSpacing: ".04em",
     });
@@ -7010,7 +7016,7 @@ if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
         background: "rgba(0,0,0,.68)",
         color: "#fff",
         fontSize: "9px",
-        fontWeight: "900",
+        fontWeight: "700",
         lineHeight: "1",
         cursor: "pointer",
       });
@@ -7105,7 +7111,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
       background: "rgba(0, 0, 0, 0.72)",
       color: "#fff",
       fontSize: "12px",
-      fontWeight: "800",
+      fontWeight: "700",
       lineHeight: "1",
       padding: "0",
       cursor: "pointer",
@@ -7146,7 +7152,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
     background: "rgba(0, 0, 0, 0.72)",
     color: "#fff",
     fontSize: "12px",
-    fontWeight: "800",
+    fontWeight: "700",
     lineHeight: "1",
     userSelect: "none",
   });
@@ -7200,7 +7206,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
       alignItems: "center",
       justifyContent: "center",
       fontSize: "10px",
-      fontWeight: "800",
+      fontWeight: "700",
       lineHeight: "1",
       color: "#fff",
       background: col.solid,      // ⟵ colore della spell
@@ -7365,7 +7371,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       background: "rgba(0,0,0,.52)",
       color: "#fff",
       fontSize: "13px",
-      fontWeight: "800",
+      fontWeight: "700",
       lineHeight: "1",
       cursor: "pointer",
       boxShadow: "0 1px 3px rgba(0,0,0,.35)",
@@ -8217,6 +8223,11 @@ try {
   syncSpeedCheckTurn(__latestInitiativeState);
   __lastRoundSeen = Math.max(1, Number(__latestInitiativeState?.round || 1));
   __lastConditionTurnState = __conditionTurnStateSnapshot(__latestInitiativeState);
+  if (IS_GM) {
+    void recordCombatTurn(__latestInitiativeState).catch((err) => {
+      console.warn("[combat-log] initial turn:", err?.message || err);
+    });
+  }
 
   if (IS_GM) {
     try {
@@ -8320,6 +8331,11 @@ try {
   if (!activeId || activeId === __lastActiveId) return;
   const previousActiveId = __lastActiveId;
   __lastActiveId = activeId;
+  if (IS_GM) {
+    void recordCombatTurn(st).catch((err) => {
+      console.warn("[combat-log] turn:", err?.message || err);
+    });
+  }
   if (previousActiveId && IS_GM) {
     void broadcastTurnNotice(st).catch((err) => {
       console.warn("[turn-notice] broadcast error:", err?.message || err);

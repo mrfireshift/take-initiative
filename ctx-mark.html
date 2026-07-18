@@ -3,15 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/ui-typography.css" />
 <style>
-  :root,body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  :root,body{margin:0}
   :root{
     /* valori iniziali (fallback) che il TS aggiornerà via OBR.theme */
     --obrt-text: CanvasText;
     --obrt-hover: rgba(0,0,0,.06);
   }
   html, body { height: 100%; overflow: hidden; background: transparent !important; }
-  body{ color: var(--obrt-text); font-size:14px; line-height:1; }
+  body{ color: var(--obrt-text); font-size:var(--obrt-type-body); font-weight:var(--obrt-weight-medium); line-height:1; }
 
   ul{list-style:none;margin:0;padding:8px}
   li{

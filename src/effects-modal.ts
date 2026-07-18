@@ -140,9 +140,9 @@ function styleBase() {
   document.body.style.margin = "0";
   document.body.style.background = "transparent";
   document.body.style.color = "var(--obrt-text)";
-  document.body.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-  document.body.style.fontSize = "12px";
-  document.body.style.lineHeight = "1.2";
+  document.body.style.fontFamily = 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)';
+  document.body.style.fontSize = "var(--obrt-type-body, 12px)";
+  document.body.style.lineHeight = "1.25";
   const responsive = document.createElement("style");
   responsive.textContent = `
     @media (max-width: 620px) {
@@ -181,8 +181,8 @@ function caption(text: string) {
     display: "block",
     margin: "0 0 4px",
     textAlign: "left",
-    fontSize: "10px",
-    fontWeight: "700",
+    fontSize: "var(--obrt-type-caption, 10px)",
+    fontWeight: "var(--obrt-weight-bold, 700)",
     letterSpacing: ".07em",
     color: "rgba(255,255,255,.66)",
   });
@@ -213,7 +213,7 @@ function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "n
     background: palette.base,
     color: "var(--obrt-text)",
     font: "inherit",
-    fontWeight: "400",
+    fontWeight: "var(--obrt-weight-semibold, 600)",
     cursor: "pointer",
     transition: "background-color .12s ease, border-color .12s ease, opacity .12s ease",
   });
@@ -257,8 +257,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     textAlign: "left",
-    fontSize: "16px",
-    fontWeight: "750",
+    fontSize: "var(--obrt-type-panel-title, 16px)",
+    fontWeight: "var(--obrt-weight-bold, 700)",
     letterSpacing: "-.01em",
     marginBottom: "10px",
   });
@@ -470,7 +470,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     background: "rgba(15,23,42,.9)",
     color: "inherit",
     font: "inherit",
-    fontSize: "11px",
+    fontSize: "var(--obrt-type-secondary, 11px)",
     outline: "none",
   });
   const activeFactionFilters = new Set<string>();
@@ -486,7 +486,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     Object.assign(button.style, {
       minHeight: "28px",
       padding: "0 7px",
-      fontSize: "10px",
+      fontSize: "var(--obrt-type-caption, 10px)",
+      fontWeight: "var(--obrt-weight-semibold, 600)",
     });
     factionButtons.set(value, button);
   }
@@ -565,8 +566,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
-      fontSize: "12px",
-      fontWeight: "700",
+      fontSize: "var(--obrt-type-body, 12px)",
+      fontWeight: "var(--obrt-weight-semibold, 600)",
       letterSpacing: "0",
     });
     row.append(checkbox, faction, name);
@@ -604,7 +605,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     Object.assign(button.style, {
       minHeight: "28px",
       padding: "0 9px",
-      fontSize: "11px",
+      fontSize: "var(--obrt-type-secondary, 11px)",
+      fontWeight: "var(--obrt-weight-semibold, 600)",
     });
   }
   setButtonEnabled(removeAllButton, false);
@@ -669,7 +671,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       Object.assign(empty.style, {
         textAlign: "center",
         color: "rgba(255,255,255,.75)",
-        fontSize: "12px",
+        fontSize: "var(--obrt-type-body, 12px)",
         padding: "10px",
       });
       activeList.appendChild(empty);
@@ -715,7 +717,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        fontSize: "12px",
+        fontSize: "var(--obrt-type-body, 12px)",
       });
       const targetBadge = document.createElement("strong");
       targetBadge.textContent = row.targetName;
@@ -736,7 +738,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         flex: "0 0 auto",
         minHeight: "28px",
         padding: "0 8px",
-        fontSize: "11px",
+        fontSize: "var(--obrt-type-secondary, 11px)",
       });
       removeButton.addEventListener("click", () => removeRows([row]));
       line.append(selectRow);

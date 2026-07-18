@@ -19,12 +19,45 @@ const FLUSH_MS  = 120;                  // aggiorna al massimo ogni 120ms
 const _pending  = new Map();            // tokenId -> {hp, hpMax}
 let   _flushT   = null;
 let   _flushing = false;
+let   _sceneEpoch = 0;
+let   _readyListenerMounted = false;
 
 // cache dell’ultimo stato applicato (evita update inutili)
 const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
-const _barRefs = new Map(); // tokenId -> {fgId, inner}
+const _barRefs = new Map(); // tokenId -> {fgId, inner, textId?}
 const _fastFillPending = new Map(); // tokenId -> {hp, hpMax}
-const _fastFillRunning = new Set();
+let _fastFillScheduled = false;
+let _fastFillFlushing = false;
+const _tokenRevision = new Map(); // tokenId -> ultimo aggiornamento richiesto
+const _textRevision = new Map(); // tokenId -> ultimo testo richiesto
+const _textQueues = new Map(); // tokenId -> coda seriale del testo HP
+
+function nextTokenRevision(tokenId) {
+  const next = (_tokenRevision.get(tokenId) || 0) + 1;
+  _tokenRevision.set(tokenId, next);
+  return next;
+}
+
+function scheduleFlush(delay = FLUSH_MS) {
+  if (_flushing || _flushT) return;
+  _flushT = setTimeout(() => {
+    _flushT = null;
+    void flushQueued();
+  }, Math.max(0, delay));
+}
+
+function resetRuntimeState() {
+  _sceneEpoch += 1;
+  if (_flushT) clearTimeout(_flushT);
+  _flushT = null;
+  _pending.clear();
+  _last.clear();
+  _barRefs.clear();
+  _fastFillPending.clear();
+  _fastFillScheduled = false;
+  _tokenRevision.clear();
+  _textRevision.clear();
+}
 
 /* ========= Utils ========= */
 const clamp   = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -61,46 +94,101 @@ function hpColorByPct(p){
   return "#dc2626";               // rosso
 }
 
+function hpTextValue(hp, hpMax) {
+  const nHP  = Math.max(0, Math.floor(Number(hp) || 0));
+  const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
+  const pct  = nMax > 0 ? Math.round(Math.min(1, nHP / nMax) * 100) : 0;
+  return `${nHP}/${nMax} (${pct}%)`;
+}
+
+function rememberHPTextRef(tokenId, textId) {
+  if (!textId) return;
+  const ref = _barRefs.get(tokenId);
+  if (ref) _barRefs.set(tokenId, { ...ref, textId });
+}
+
+function scheduleFastFill() {
+  if (_fastFillScheduled || _fastFillFlushing) return;
+  _fastFillScheduled = true;
+  setTimeout(() => {
+    _fastFillScheduled = false;
+    void flushFastFills();
+  }, 0);
+}
+
+async function flushFastFills() {
+  if (_fastFillFlushing) return;
+  _fastFillFlushing = true;
+  try {
+    const entries = Array.from(_fastFillPending.entries());
+    _fastFillPending.clear();
+    if (!entries.length) return;
+
+    // Una label può essere stata creata dal fallback dopo la prima cache delle barre.
+    // Risolvi tutti gli eventuali ID mancanti con una sola lettura della scena.
+    const missingTextTargets = new Set(entries
+      .filter(([tokenId, next]) => next.epoch === _sceneEpoch && _barRefs.get(tokenId) && !_barRefs.get(tokenId).textId)
+      .map(([tokenId]) => tokenId));
+    if (missingTextTargets.size) {
+      const sceneItems = await OBR.scene.items.getItems();
+      for (const item of sceneItems) {
+        const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
+        if (missingTextTargets.has(targetId)) rememberHPTextRef(targetId, item.id);
+      }
+    }
+
+    const updatesById = new Map();
+    for (const [tokenId, next] of entries) {
+      if (next.epoch !== _sceneEpoch) continue;
+      const ref = _barRefs.get(tokenId);
+      if (!ref) continue;
+
+      const pct = clamp01(next.hpMax > 0 ? next.hp / next.hpMax : 0);
+      updatesById.set(ref.fgId, {
+        width: Math.floor(ref.inner * pct),
+        fillColor: hpColorByPct(pct),
+      });
+      if (ref.textId) {
+        updatesById.set(ref.textId, { plainText: hpTextValue(next.hp, next.hpMax) });
+      }
+    }
+
+    const ids = Array.from(updatesById.keys());
+    if (!ids.length) return;
+    await OBR.scene.items.updateItems(ids, (items) => {
+      for (const item of items) {
+        const update = updatesById.get(item.id);
+        if (!update) continue;
+        if (update.width !== undefined) {
+          item.width = update.width;
+          item.style = {
+            ...(item.style || {}),
+            fillColor: update.fillColor,
+            fillOpacity: 1,
+          };
+        }
+        if (update.plainText !== undefined) {
+          if (!item.text) item.text = { type: "PLAIN", plainText: update.plainText };
+          item.text.type = "PLAIN";
+          item.text.plainText = update.plainText;
+        }
+      }
+    });
+  } catch (error) {
+    console.warn("[hpbar] fast batch error:", error?.message || error);
+  } finally {
+    _fastFillFlushing = false;
+    if (_fastFillPending.size) scheduleFastFill();
+  }
+}
+
 function queueFastFill(tokenId, hp, hpMax) {
   _fastFillPending.set(tokenId, {
     hp: Number(hp) || 0,
     hpMax: Number(hpMax) || 0,
+    epoch: _sceneEpoch,
   });
-  if (_fastFillRunning.has(tokenId)) return;
-
-  _fastFillRunning.add(tokenId);
-  void (async () => {
-    try {
-      while (_fastFillPending.has(tokenId)) {
-        const next = _fastFillPending.get(tokenId);
-        _fastFillPending.delete(tokenId);
-
-        const ref = _barRefs.get(tokenId);
-        if (!ref) continue;
-
-        const pct = clamp01(next.hpMax > 0 ? next.hp / next.hpMax : 0);
-        const fillW = Math.floor(ref.inner * pct);
-        const color = hpColorByPct(pct);
-
-        try {
-          await OBR.scene.items.updateItems([ref.fgId], (items) => {
-            const fg = items[0];
-            if (!fg) return;
-            fg.width = fillW;
-            fg.style = { ...(fg.style || {}), fillColor: color, fillOpacity: 1 };
-          });
-        } catch {
-          _barRefs.delete(tokenId);
-        }
-      }
-    } finally {
-      _fastFillRunning.delete(tokenId);
-      if (_fastFillPending.has(tokenId)) {
-        const next = _fastFillPending.get(tokenId);
-        queueFastFill(tokenId, next.hp, next.hpMax);
-      }
-    }
-  })();
+  scheduleFastFill();
 }
 
 // Attende che la scena sia pronta (evita "No scene found")
@@ -239,18 +327,21 @@ async function createHPBars(tokenId){
 function queueToken(tokenId, hp, hpMax){
   const nHP  = Number(hp)    || 0;
   const nMax = Number(hpMax) || 0;
-  _pending.set(tokenId, { hp: nHP, hpMax: nMax });
+  const revision = nextTokenRevision(tokenId);
+  _pending.set(tokenId, { hp: nHP, hpMax: nMax, revision, epoch: _sceneEpoch });
 
-  if (!_flushT) _flushT = setTimeout(flushQueued, FLUSH_MS);
+  scheduleFlush(FLUSH_MS);
 }
 
 async function flushQueued(){
-  if (_flushing) return;
+  if (_flushing) {
+    scheduleFlush(0);
+    return;
+  }
   _flushing = true;
-  clearTimeout(_flushT); _flushT = null;
 
-  const startedAt = Date.now();
   const hpTextUpdates = [];
+  const candidates = [];
   try {
     await waitForSceneReady();
 
@@ -265,15 +356,22 @@ async function flushQueued(){
     const allItemsNow = await OBR.scene.items.getItems();
     const itemsById = new Map(allItemsNow.map(it => [it.id, it]));
     const hptextByToken = new Map();
+    const hpbarKindsByToken = new Map();
     for (const it of allItemsNow) {
       const m = it.metadata?.[HPTEXT_META_FLAG];
       if (m?.targetId) hptextByToken.set(m.targetId, it);
+      const barMeta = it.metadata?.[HPBAR_META_FLAG];
+      if (barMeta?.targetId) {
+        if (!hpbarKindsByToken.has(barMeta.targetId)) hpbarKindsByToken.set(barMeta.targetId, new Set());
+        hpbarKindsByToken.get(barMeta.targetId).add(barMeta.kind);
+      }
     }
 
-    for (const [tokenId, { hp, hpMax }] of entries){
+    for (const [tokenId, { hp, hpMax, revision, epoch }] of entries){
+      if (epoch !== _sceneEpoch || _tokenRevision.get(tokenId) !== revision) continue;
       // Ricava item+nome (solo per log)
       const item = itemsById.get(tokenId) || null;
-      const nameForLog = item?.name || tokenId;
+      if (!item) continue;
 
       // Layout
       const layout = await computeBarLayout(tokenId, item);
@@ -289,7 +387,10 @@ async function flushQueued(){
       if (last) {
         const ds = __diffSig(last, sig);
         const keysChanged = Object.keys(ds);
-        if (!keysChanged.length) {
+        const barKinds = hpbarKindsByToken.get(tokenId);
+        const textItem = hptextByToken.get(tokenId);
+        const textIsCurrent = textItem?.text?.plainText === hpTextValue(hp, hpMax);
+        if (!keysChanged.length && barKinds?.has("bg") && barKinds?.has("fg") && textIsCurrent) {
           continue;
         }
       }
@@ -305,7 +406,6 @@ async function flushQueued(){
       // Geometria e fill
       const inner = Math.max(0, barW - 2);
       const fillW = Math.floor(inner * pct);
-      _barRefs.set(tokenId, { fgId: fg.id, inner });
 
       // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
       // Il GM vede comunque anche quando visible=false.
@@ -334,20 +434,20 @@ async function flushQueued(){
           position: { x: leftX, y: topY },
           zIndex: tokenZ + 1000,
           visible: playerVisible,
+          plainText: hpTextValue(hp, hpMax),
         });
         idsToUpdate.push(txt.id);
       }
 
-      // Memorizza l'ultimo stato
-      _last.set(tokenId, sig);
-      hpTextUpdates.push({ tokenId, hp, hpMax });
+      candidates.push({ tokenId, hp, hpMax, revision, epoch, sig, bgId: bg.id, fgId: fg.id, textId: txt?.id || null, inner });
     }
 
+    let updatedIds = new Set();
     if (idsToUpdate.length) {
       // ricontrollo esistenza id prima di aggiornare
       const current = await OBR.scene.items.getItems(idsToUpdate);
       const existing = new Set(current.map(i => i?.id).filter(Boolean));
-      const finalIds = idsToUpdate.filter(id => existing.has(id));
+      const finalIds = Array.from(new Set(idsToUpdate.filter(id => existing.has(id))));
 
       if (finalIds.length) {
         await OBR.scene.items.updateItems(finalIds, (items) => {
@@ -366,6 +466,10 @@ async function flushQueued(){
               if (u.position)                   { it.position = u.position; }
               if (u.zIndex      !== undefined) { it.zIndex = u.zIndex; }
               if (u.visible     !== undefined) { it.visible = !!u.visible; }
+              if (u.plainText   !== undefined) {
+                it.text.type = "PLAIN";
+                it.text.plainText = u.plainText;
+              }
 
               if (u.fillColor || u.fillOpacity !== undefined) {
                 it.style = { ...(it.style || {}) };
@@ -380,7 +484,22 @@ async function flushQueued(){
             }
           }
         });
+        updatedIds = new Set(finalIds);
       }
+    }
+
+    // La cache rappresenta soltanto aggiornamenti confermati da OBR.
+    for (const candidate of candidates) {
+      if (candidate.epoch !== _sceneEpoch) continue;
+      if (_tokenRevision.get(candidate.tokenId) !== candidate.revision) continue;
+      if (!updatedIds.has(candidate.bgId) || !updatedIds.has(candidate.fgId)) continue;
+      _last.set(candidate.tokenId, candidate.sig);
+      _barRefs.set(candidate.tokenId, {
+        fgId: candidate.fgId,
+        inner: candidate.inner,
+        textId: candidate.textId,
+      });
+      if (!candidate.textId || !updatedIds.has(candidate.textId)) hpTextUpdates.push(candidate);
     }
 
     // Pulizia orfani (barre senza token target)
@@ -396,16 +515,15 @@ async function flushQueued(){
     }
 
   } catch (e) {
-    // silenzioso
+    console.warn("[hpbar] flush error:", e?.message || e);
   } finally {
     _flushing = false;
-    if (_pending.size && !_flushT) {
-      _flushT = setTimeout(flushQueued, 0);
-    }
+    if (_pending.size) scheduleFlush(0);
   }
 
   // Il testo segue le barre senza trattenere il lock del batch grafico.
-  for (const { tokenId, hp, hpMax } of hpTextUpdates) {
+  for (const { tokenId, hp, hpMax, revision, epoch } of hpTextUpdates) {
+    if (epoch !== _sceneEpoch || _tokenRevision.get(tokenId) !== revision) continue;
     await syncHPTextNow(tokenId, hp, hpMax);
   }
 }
@@ -415,8 +533,30 @@ function hasCanonicalHP(meta) {
   return !!meta && ((meta.hp ?? null) !== null || (meta.hpMax ?? null) !== null);
 }
 
+async function queueCanonicalHPItems() {
+  const items = await OBR.scene.items.getItems();
+  for (const item of items) {
+    const meta = item.metadata?.[META_KEY];
+    if (!hasCanonicalHP(meta)) continue;
+    queueToken(item.id, Number(meta.hp) || 0, Number(meta.hpMax) || 0);
+  }
+  if (_flushT) clearTimeout(_flushT);
+  _flushT = null;
+  scheduleFlush(0);
+}
+
 export async function removeHPWidgetsNow(tokenId) {
   if (!tokenId) return;
+  _pending.delete(tokenId);
+  _fastFillPending.delete(tokenId);
+  _last.delete(tokenId);
+  _barRefs.delete(tokenId);
+  _tokenRevision.set(tokenId, (_tokenRevision.get(tokenId) || 0) + 1);
+  _textRevision.set(tokenId, (_textRevision.get(tokenId) || 0) + 1);
+  const pendingText = _textQueues.get(tokenId);
+  if (pendingText) {
+    try { await pendingText; } catch {}
+  }
   const widgets = await OBR.scene.items.getItems((item) =>
     item.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId ||
     item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
@@ -441,14 +581,18 @@ export async function mountHPBars(){
       .map(it => it.id);
     if (oldShadows.length) await OBR.scene.items.deleteItems(oldShadows);
 
-    const items = await OBR.scene.items.getItems();
-    for (const it of items){
-      const m = it.metadata?.[META_KEY];
-      if (!hasCanonicalHP(m)) continue;
-      queueToken(it.id, Number(m.hp)||0, Number(m.hpMax)||0);
-    }
+    await queueCanonicalHPItems();
+  }
 
-    setTimeout(flushQueued, 0);
+  if (!_readyListenerMounted) {
+    _readyListenerMounted = true;
+    OBR.scene.onReadyChange((ready) => {
+      resetRuntimeState();
+      if (!ready || !IS_GM) return;
+      void queueCanonicalHPItems().catch((error) => {
+        console.warn("[hpbar] scene ready sync error:", error?.message || error);
+      });
+    });
   }
 
   subscribeSceneItemChanges(({ items }) => {
@@ -466,12 +610,7 @@ export async function mountHPBars(){
     if (!IS_GM) return;
     clearTimeout(metaChangeTimer);
     metaChangeTimer = setTimeout(async () => {
-      const items = await OBR.scene.items.getItems();
-      for (const it of items){
-        const m = it.metadata?.[META_KEY];
-        if (!hasCanonicalHP(m)) continue;
-        queueToken(it.id, Number(m.hp)||0, Number(m.hpMax)||0);
-      }
+      await queueCanonicalHPItems();
     }, 0);
   });
 }
@@ -480,16 +619,19 @@ export function syncHPBarNow(tokenId, hp, hpMax) {
   try {
     queueFastFill(tokenId, hp, hpMax);
     queueToken(tokenId, Number(hp) || 0, Number(hpMax) || 0);
-    setTimeout(flushQueued, 0);
+    if (_flushT) clearTimeout(_flushT);
+    _flushT = null;
+    scheduleFlush(0);
   } catch {}
 }
 
 // Modifica
 // Crea/aggiorna un item di TESTO "(HP/Max - %)" sopra le HPBAR.
 // Usa il TextBuilder correttamente (plainText + metodi stile del builder).
-export async function syncHPTextNow(tokenId, hp, hpMax) {
+async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
   try {
     await waitForSceneReady();
+    if (epoch !== _sceneEpoch || _textRevision.get(tokenId) !== revision) return;
 
     const [token] = await OBR.scene.items.getItems([tokenId]);
     if (!token) return;
@@ -498,10 +640,7 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
     if (!L) return;
     const { leftX, topY, barH, tokenZ } = L;
 
-    const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
-    const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-    const pct  = nMax > 0 ? Math.round(Math.min(1, nHP / nMax) * 100) : 0;
-    const textStr = `${nHP}/${nMax} (${pct}%)`;
+    const textStr = hpTextValue(hp, hpMax);
 
     // Visibilità lato player (GM vede comunque anche se false)
     const att = getAttitude(token);
@@ -512,6 +651,7 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
 
     // dedup
     const all = await OBR.scene.items.getItems();
+    if (epoch !== _sceneEpoch || _textRevision.get(tokenId) !== revision) return;
     let existing = all.find(it => it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId);
     const dups = all
       .filter(it => it.id !== (existing?.id) && it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId)
@@ -522,7 +662,7 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
       const textItem = buildText()
         .plainText(textStr)          // ← contenuto testuale
         .textType("PLAIN")           // ← esplicito per evitare ambiguità
-        .fontFamily("Inter, Arial, sans-serif")
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
         .fontSize(14)
         .textAlign("CENTER")
         .textAlignVertical("MIDDLE")
@@ -542,7 +682,9 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
         .build();
 
       await OBR.scene.items.addItems([textItem]);
+      rememberHPTextRef(tokenId, textItem.id);
     } else {
+      rememberHPTextRef(tokenId, existing.id);
       await OBR.scene.items.updateItems([existing.id], (list) => {
         const it = list[0]; if (!it) return;
         it.layer      = "ATTACHMENT";
@@ -562,7 +704,7 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
         // Qui preserviamo font/align se già presenti.
         it.text.style = {
           ...(it.text.style || {}),
-          fontFamily: (it.text.style?.fontFamily) || "Inter, Arial, sans-serif",
+          fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
           fontSize:   (it.text.style?.fontSize)   || 14,
           textAlign:  "CENTER",
           textAlignVertical: "MIDDLE",
@@ -576,6 +718,80 @@ export async function syncHPTextNow(tokenId, hp, hpMax) {
       });
     }
   } catch (error) {
-    // silenzioso
+    console.warn("[hptext] sync error:", error?.message || error);
   }
+}
+
+export function syncHPTextNow(tokenId, hp, hpMax) {
+  const revision = (_textRevision.get(tokenId) || 0) + 1;
+  const epoch = _sceneEpoch;
+  _textRevision.set(tokenId, revision);
+
+  const previous = _textQueues.get(tokenId) || Promise.resolve();
+  const run = previous
+    .catch(() => {})
+    .then(() => syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch));
+  const tracked = run.finally(() => {
+    if (_textQueues.get(tokenId) === tracked) _textQueues.delete(tokenId);
+  });
+  _textQueues.set(tokenId, tracked);
+  return tracked;
+}
+
+// Aggiornamento affidabile per operazioni multi-target: risolve le label dalla
+// scena corrente e le modifica con un solo batch composto esclusivamente da TextItem.
+export async function syncHPTextBatchNow(updates = []) {
+  const valuesByToken = new Map();
+  for (const update of updates) {
+    const tokenId = String(update?.tokenId || "");
+    if (!tokenId) continue;
+    valuesByToken.set(tokenId, {
+      hp: Number(update.hp) || 0,
+      hpMax: Number(update.hpMax) || 0,
+    });
+  }
+  if (!valuesByToken.size) return;
+
+  const epoch = _sceneEpoch;
+  // Invalida eventuali aggiornamenti testuali più vecchi ancora in coda.
+  for (const tokenId of valuesByToken.keys()) {
+    _textRevision.set(tokenId, (_textRevision.get(tokenId) || 0) + 1);
+  }
+
+  await waitForSceneReady();
+  if (epoch !== _sceneEpoch) return;
+
+  const sceneItems = await OBR.scene.items.getItems();
+  if (epoch !== _sceneEpoch) return;
+
+  const textIds = [];
+  const foundTargets = new Set();
+  for (const item of sceneItems) {
+    const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
+    if (!valuesByToken.has(targetId)) continue;
+    textIds.push(item.id);
+    foundTargets.add(targetId);
+    rememberHPTextRef(targetId, item.id);
+  }
+
+  if (textIds.length) {
+    await OBR.scene.items.updateItems(Array.from(new Set(textIds)), (items) => {
+      for (const item of items) {
+        const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
+        const value = valuesByToken.get(targetId);
+        if (!value) continue;
+        const plainText = hpTextValue(value.hp, value.hpMax);
+        if (!item.text) item.text = { type: "PLAIN", plainText };
+        item.text.type = "PLAIN";
+        item.text.plainText = plainText;
+      }
+    });
+  }
+
+  // Mantiene il fallback esistente soltanto per label realmente mancanti.
+  const missing = Array.from(valuesByToken.entries())
+    .filter(([tokenId]) => !foundTargets.has(tokenId));
+  await Promise.all(missing.map(([tokenId, value]) =>
+    syncHPTextNow(tokenId, value.hp, value.hpMax)
+  ));
 }
