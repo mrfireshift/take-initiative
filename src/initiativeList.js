@@ -4215,6 +4215,10 @@ function mountTrackerPopoverToggleListener() {
     if (data?.type === "closed" && data.id === __openTrackerPopoverId) {
       setOpenTrackerPopoverId();
     }
+    if (data?.type === "resize" && data.id === __openTrackerPopoverId) {
+      const height = Math.max(320, Math.min(560, Math.round(Number(data.height) || 0)));
+      void OBR.popover.setHeight(data.id, height).catch(() => {});
+    }
   });
 }
 
@@ -4341,7 +4345,7 @@ async function openInitiativeCardPopup(sourceEntry) {
       id: popupId,
       url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
       width: 440,
-      height: 500,
+      height: 380,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

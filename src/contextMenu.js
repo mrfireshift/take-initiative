@@ -1,5 +1,6 @@
   // src/contextMenu.js
   import {mountConditionsLabelWatcher} from "./conditions";
+  import { mountElevationLabelWatcher } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
   export { ID }; // re-export per compatibilità con eventuali import esistenti
@@ -18,6 +19,7 @@
   const ICON_REMOVE = ASSET("remove.svg");
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
+  const ICON_ELEVATION = ASSET("elevation.svg");
   
   // ===== DEBUG =====
 const DEBUG_CTX = false;
@@ -199,6 +201,7 @@ async function toggleEpicBossOn(ids) {
     window.__TBP_CTX_MOUNTED = true;
 
     try { mountConditionsLabelWatcher(); } catch {}
+    try { mountElevationLabelWatcher(); } catch {}
 
     /* ======================= “Segna come…” (EMBED) ======================= */
     OBR.contextMenu.create({
@@ -294,6 +297,23 @@ async function toggleEpicBossOn(ids) {
       embed: {
         url: "/ctx-add.html",
         height: EMBED_4ROWS_H,
+      },
+    });
+
+    OBR.contextMenu.create({
+      id: `${ID}/token-elevation`,
+      group: MENU_GROUP,
+      icons: [{
+        icon: ICON_ELEVATION,
+        label: "Imposta quota…",
+        filter: {
+          roles: ["GM"],
+          every: [isCharacter()],
+        },
+      }],
+      embed: {
+        url: "/ctx-elevation.html",
+        height: 44,
       },
     });
 

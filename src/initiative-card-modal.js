@@ -28,6 +28,14 @@ let profile = null;
 let isGM = false;
 let exhaustionSaving = false;
 
+function requestPopoverHeight(height) {
+  void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
+    type: "resize",
+    id: MODAL_ID,
+    height,
+  }, { destination: "LOCAL" }).catch(() => {});
+}
+
 function valueText(value, suffix = "") {
   return value === null || value === undefined ? "-" : `${value}${suffix}`;
 }
@@ -87,6 +95,7 @@ function setEditing(active) {
   $("view").classList.toggle("hidden", active);
   $("form").classList.toggle("active", active);
   $("edit").style.display = isGM && !active ? "inline-block" : "none";
+  requestPopoverHeight(active ? 500 : 380);
   if (!active) return;
   $("armorClassInput").value = profile.armorClass ?? "";
   $("passivePerceptionInput").value = profile.passivePerception ?? "";
@@ -142,6 +151,7 @@ OBR.onReady(async () => {
     renderView();
     $("edit").style.display = isGM ? "inline-block" : "none";
     if (isGM && !hasInitiativeCardValues(profile)) setEditing(true);
+    else requestPopoverHeight(380);
   } catch (err) {
     $("title").textContent = "Scheda non disponibile";
     $("edit").style.display = "none";

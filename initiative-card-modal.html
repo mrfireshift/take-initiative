@@ -14,30 +14,33 @@
     .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; }
     .panel { flex:1 1 auto; min-height:0; padding:14px; position:relative; overflow-y:auto; background:transparent; }
     .panel::before { position:absolute; inset:8px; border:1px solid rgba(96,165,250,.38); border-radius:8px; box-shadow:inset 0 0 22px rgba(96,165,250,.08); content:""; pointer-events:none; }
-    .header { position:relative; display:flex; align-items:center; min-height:76px; gap:12px; margin-bottom:12px; padding:7px 42px 7px 4px; }
-    .portrait { flex:0 0 68px; width:68px; height:68px; overflow:hidden; display:grid; place-items:center; border:2px solid #080b10; border-radius:50%; background:rgba(4,7,11,.85); box-shadow:0 0 0 2px var(--accent),0 0 16px var(--accent-soft); }
+    .header { position:relative; display:flex; align-items:center; min-height:66px; gap:12px; margin-bottom:10px; padding:4px; }
+    .portrait { flex:0 0 60px; width:60px; height:60px; overflow:hidden; display:grid; place-items:center; border:2px solid #080b10; border-radius:50%; background:rgba(4,7,11,.85); box-shadow:0 0 0 2px var(--accent),0 0 16px var(--accent-soft); }
     .portrait img { width:100%; height:100%; display:block; object-fit:cover; }
     .portrait-fallback { display:grid; place-items:center; width:100%; height:100%; font-size:28px; font-weight:var(--obrt-weight-bold); }
     .heading { flex:1; min-width:0; }
     .eyebrow { color:var(--accent); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
-    .title { min-width:0; margin:3px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-display); font-weight:var(--obrt-weight-bold); letter-spacing:-.01em; text-shadow:0 2px 3px rgba(0,0,0,.8); }
+    .title { min-width:0; margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-display); font-weight:var(--obrt-weight-bold); letter-spacing:-.01em; text-shadow:0 2px 3px rgba(0,0,0,.8); }
     button {
       min-height:30px; padding:6px 11px; border-radius:18px; color:#fff; cursor:pointer;
       border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); font:inherit;
     }
     button:hover { background:rgba(255,255,255,.14); }
-    .close { position:fixed; top:9px; right:12px; width:30px; padding:0; border-color:transparent; background:transparent; }
-    .hp { position:relative; display:flex; align-items:baseline; justify-content:space-between; padding:11px 13px; margin-bottom:10px; border-radius:7px; background:linear-gradient(100deg,rgba(96,165,250,.12),rgba(255,255,255,.04)); border:1px solid rgba(96,165,250,.34); box-shadow:inset 3px 0 0 var(--accent); }
+    .header-actions { flex:0 0 auto; display:flex; align-items:center; gap:5px; align-self:flex-start; }
+    .edit { min-height:28px; padding:4px 10px; }
+    .close { width:28px; min-height:28px; padding:0; border-color:transparent; background:transparent; font-size:18px; line-height:1; }
+    .overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .hp { position:relative; grid-column:span 2; display:flex; flex-direction:column; justify-content:center; min-height:70px; padding:10px 13px; border-radius:7px; background:linear-gradient(100deg,rgba(96,165,250,.12),rgba(255,255,255,.04)); border:1px solid rgba(96,165,250,.34); box-shadow:inset 3px 0 0 var(--accent); }
     .hp span { color:rgba(255,255,255,.72); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
-    .hp strong { color:#fff; font-size:22px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
-    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-    .stat { min-width:0; padding:10px; border-radius:7px; text-align:center; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.22); }
+    .hp strong { margin-top:3px; color:#fff; font-size:22px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
+    .stat { min-width:0; min-height:70px; padding:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:7px; text-align:center; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.22); }
+    .stat-wide { grid-column:span 2; }
     .stat span,.section-title { display:block; margin-bottom:5px; color:rgba(255,255,255,.68); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
     .stat strong { font-size:18px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
     .exhaustion-stepper { display:flex; align-items:center; justify-content:center; gap:4px; }
     .exhaustion-stepper button { width:25px; min-height:25px; padding:0; border-radius:8px; font-size:17px; line-height:1; }
     .exhaustion-stepper strong { min-width:18px; }
-    .section-title { margin:14px 0 7px; }
+    .section-title { margin:12px 0 7px; }
     .saves { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
     .save { display:flex; align-items:center; justify-content:space-between; padding:8px 9px; border-radius:7px; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.18); }
     .save span { color:rgba(255,255,255,.7); }
@@ -54,10 +57,11 @@
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
     @media (max-width:420px) {
       .panel { padding:10px; }
-      .grid, .saves, .save-inputs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .overview, .saves, .save-inputs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .hp, .stat-wide { grid-column:span 1; }
       .form-grid { grid-template-columns:1fr; }
-      .header { padding-right:28px; }
-      .portrait { flex-basis:58px; width:58px; height:58px; }
+      .portrait { flex-basis:54px; width:54px; height:54px; }
+      .eyebrow { display:none; }
     }
   </style>
 </head>
@@ -67,16 +71,18 @@
     <header class="header">
       <div class="portrait" id="portrait"><div class="portrait-fallback" id="portraitFallback">?</div></div>
       <div class="heading"><div class="eyebrow">Scheda iniziativa</div><h1 class="title" id="title">Scheda iniziativa</h1></div>
-      <button id="edit" type="button">Modifica</button>
-      <button id="close" class="close" type="button" title="Chiudi">X</button>
+      <div class="header-actions">
+        <button id="edit" class="edit" type="button">Modifica</button>
+        <button id="close" class="close" type="button" aria-label="Chiudi" title="Chiudi">×</button>
+      </div>
     </header>
-    <div class="hp"><span>HP</span><strong id="hp">-</strong></div>
     <section id="view" class="view">
-      <div class="grid">
+      <div class="overview">
+        <div class="hp"><span>Punti ferita</span><strong id="hp">-</strong></div>
         <div class="stat"><span>CA</span><strong id="armorClass">-</strong></div>
-        <div class="stat"><span>Percezione passiva</span><strong id="passivePerception">-</strong></div>
-        <div class="stat"><span>Velocita</span><strong id="speed">-</strong></div>
-        <div class="stat"><span>Indebolimento</span><div class="exhaustion-stepper"><button id="exhaustionDown" type="button" title="Riduci Indebolimento">-</button><strong id="exhaustion">0</strong><button id="exhaustionUp" type="button" title="Aumenta Indebolimento">+</button></div></div>
+        <div class="stat"><span>Velocità</span><strong id="speed">-</strong></div>
+        <div class="stat stat-wide"><span>Percezione passiva</span><strong id="passivePerception">-</strong></div>
+        <div class="stat stat-wide"><span>Indebolimento</span><div class="exhaustion-stepper"><button id="exhaustionDown" type="button" title="Riduci Indebolimento">−</button><strong id="exhaustion">0</strong><button id="exhaustionUp" type="button" title="Aumenta Indebolimento">+</button></div></div>
       </div>
       <span class="section-title">Tiri salvezza</span>
       <div id="saves" class="saves"></div>
@@ -85,7 +91,7 @@
       <div class="form-grid">
         <label>Classe Armatura<input id="armorClassInput" type="number" min="0" max="99" /></label>
         <label>Percezione passiva<input id="passivePerceptionInput" type="number" min="0" max="99" /></label>
-        <label>Velocita (m)<input id="speedInput" type="number" min="0" max="999" step="0.1" inputmode="decimal" /></label>
+        <label>Velocità (m)<input id="speedInput" type="number" min="0" max="999" step="0.1" inputmode="decimal" /></label>
         <label>Indebolimento<input id="exhaustionInput" type="number" min="0" max="5" step="1" inputmode="numeric" /></label>
       </div>
       <span class="section-title">Modificatori tiri salvezza</span>

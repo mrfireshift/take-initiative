@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <style>
+      :root,body{margin:0;background:transparent!important;color:#f8fafc;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+      *{box-sizing:border-box} body{padding:6px 8px;overflow:hidden}
+      .row{display:grid;grid-template-columns:30px minmax(76px,1fr) 30px 82px;gap:6px;align-items:center}
+      button,input{height:32px;border:1px solid rgba(148,163,184,.26);border-radius:9px;background:rgba(15,23,42,.66);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+      button{padding:0;font-size:17px;font-weight:700;cursor:pointer}
+      button:hover{border-color:rgba(148,163,184,.48);background:rgba(30,41,59,.82)}
+      .value{position:relative;min-width:0}.value input{width:100%;padding:0 25px 0 9px;text-align:center;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;outline:none}
+      .value input:focus{border-color:rgba(96,165,250,.68);box-shadow:0 0 0 2px rgba(37,99,235,.16)}
+      .value span{position:absolute;right:9px;top:50%;transform:translateY(-50%);color:rgba(226,232,240,.58);font-size:10px;pointer-events:none}
+      .apply{background:rgba(37,99,235,.88);border-color:rgba(96,165,250,.72);font-size:11px;letter-spacing:.01em}
+      .apply:hover{background:#2563eb;border-color:#93c5fd}
+    </style>
+  </head>
+  <body>
+    <div class="row">
+      <button type="button" data-step="-1" aria-label="Scendi di una casella">−</button>
+      <label class="value"><input id="elevation" type="number" inputmode="decimal" /><span id="unit"></span></label>
+      <button type="button" data-step="1" aria-label="Sali di una casella">+</button>
+      <button type="button" id="apply" class="apply">Applica</button>
+    </div>
+    <script type="module" src="/src/ctx-elevation.js"></script>
+  </body>
+</html>
