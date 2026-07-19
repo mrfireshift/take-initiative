@@ -27,6 +27,7 @@ export default defineConfig({
         historyModal: path.resolve(process.cwd(), "history-modal.html"),
         clocksModal: path.resolve(process.cwd(), "clocks-modal.html"),
         distance3dModal: path.resolve(process.cwd(), "distance-3d-modal.html"),
+        aoeSettings: path.resolve(process.cwd(), "aoe-settings.html"),
         concentrationWarning: path.resolve(process.cwd(), "concentration-warning.html"),
         speedWarning: path.resolve(process.cwd(), "speed-warning.html"),
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
