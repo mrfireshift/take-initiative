@@ -321,7 +321,10 @@ export function formatConditionInstance(instance) {
     ? `${formatConditionName(name)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
     : formatConditionName(name);
   const parts = [conditionLabel];
-  if (instance?.sourceName) parts.push(`fonte: ${instance.sourceName}`);
+  const expiryMode = String(instance?.expiry?.mode || "manual").trim().toLowerCase();
+  if (instance?.sourceName && expiryMode !== "manual" && expiryMode !== "rounds") {
+    parts.push(`fonte: ${instance.sourceName}`);
+  }
   parts.push(__fullExpiryLabel(instance));
   return parts.join(" | ");
 }

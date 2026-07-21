@@ -18,7 +18,7 @@
   const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`; // caster id (per label)
   const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;    // hash label (testo+dimensioni)
   const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
-  const CONC_DOT_LAYOUT_VERSION = 5;
+  const CONC_DOT_LAYOUT_VERSION = 8;
   const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
   const CONC_LABEL_LAYOUT_VERSION = 2;
 
@@ -46,7 +46,7 @@
   const LABEL_LINE_HEIGHT = 1;
   const LABEL_PAD_X   = 12;
   const LABEL_HEIGHT  = 27;
-  const LABEL_MAX_W   = 190;
+  const LABEL_MAX_W   = 300;
   const WIDGET_MAX_VIEW_SCALE = 1.35;
 
   // === Stack condiviso (spells + condizioni) ===
@@ -132,7 +132,17 @@
 
   /* ===================== UTIL ===================== */
   function titleCaseLite(s) { return String(s || "").replace(/\S+/g, w => w[0]?.toUpperCase() + w.slice(1)); }
-  function estimateTextWidthPx(text, fontPx = LABEL_FONT) { return Math.ceil(String(text||"").length * fontPx * 0.58); }
+  let __labelMeasureContext = null;
+  function estimateTextWidthPx(text, fontPx = LABEL_FONT) {
+    try {
+      __labelMeasureContext ||= document.createElement("canvas").getContext("2d");
+      if (__labelMeasureContext) {
+        __labelMeasureContext.font = `${LABEL_FONT_WEIGHT} ${fontPx}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+        return Math.ceil(__labelMeasureContext.measureText(String(text || "")).width);
+      }
+    } catch {}
+    return Math.ceil(String(text || "").length * fontPx * 0.52);
+  }
   function hash32(str) { let h = 0x811c9dc5; for (let i=0;i<str.length;i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0).toString(16); }
 
   /* ===== Centro pallino ===== */
@@ -140,8 +150,8 @@
     const fallback = __visualTokenBox(it);
     const left = Number.isFinite(Number(bounds?.min?.x)) ? Number(bounds.min.x) : fallback.left;
     const top = Number.isFinite(Number(bounds?.min?.y)) ? Number(bounds.min.y) : fallback.top;
-    const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : (Number(it?.width) || 70);
-    const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : (Number(it?.height) || 70);
+    const width = Number.isFinite(Number(bounds?.max?.x)) ? Number(bounds.max.x) - left : fallback.width;
+    const height = Number.isFinite(Number(bounds?.max?.y)) ? Number(bounds.max.y) - top : fallback.height;
     const radius = Math.max(1, Math.min(width, height) / 2);
     const circleInset = radius * (.9 - Math.SQRT1_2);
     return {
@@ -275,6 +285,12 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
 
   /* ===================== LETTURA ASSEGNAZIONI ===================== */
 
+  function readSpellTurns(value) {
+    if (value === undefined || value === null || value === "") return null;
+    const turns = Number(value);
+    return Number.isFinite(turns) ? Math.max(0, Math.floor(turns)) : null;
+  }
+
   // Normalizza qualsiasi forma di META_KEY[SPELLS_META_KEY] in array di {name,id,conc,targets}
   function readSpellsList(it) {
     const meta = it?.metadata?.[META_KEY] || {};
@@ -287,6 +303,9 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         out.push({
           name: (s.name ?? s.key ?? s.id ?? "").toString().trim(),
           id:   (s.id ?? "").toString().trim() || null,
+          instanceId: (s.instanceId ?? "").toString().trim() || null,
+          casterId: (s.casterId ?? "").toString().trim() || null,
+          turns: readSpellTurns(s.turns),
           conc: !!s.conc,
           targets: Array.isArray(s.targets) ? s.targets.filter(Boolean) : undefined,
         });
@@ -297,6 +316,9 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         out.push({
           name,
           id: (v?.id ?? "").toString().trim() || null,
+          instanceId: (v?.instanceId ?? "").toString().trim() || null,
+          casterId: (v?.casterId ?? "").toString().trim() || null,
+          turns: readSpellTurns(v?.turns),
           conc: !!v?.conc,
           targets: Array.isArray(v?.targets) ? v.targets.filter(Boolean) : undefined,
         });
@@ -332,8 +354,6 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     const spells = readSpellsList(it);
 
     // mappa name -> id per ricavare il seed colore coerente con la card
-    const nameToId = new Map(spells.map(s => [s.name?.toLowerCase(), s.id || ""]));
-
     // --- 1) CONCENTRATION ---
     const concObj = meta?.[CONC_META_KEY];
     if (concObj && typeof concObj === "object") {
@@ -341,7 +361,14 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         if (!v || typeof v !== "object") continue;
         const targets = Array.isArray(v.targets) && v.targets.length ? v.targets.filter(Boolean) : [selfId];
         const colorKey = spellKey(name);   // usa il nome normalizzato
-        res.push({ key: String(name), targets, colorKey, isConc: true });
+        res.push({
+          key: String(name),
+          targets,
+          colorKey,
+          isConc: true,
+          instanceId: String(v.instanceId || "").trim() || null,
+          turns: null,
+        });
       }
     }
 
@@ -360,7 +387,14 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     if (!targets.length) continue; // importante: niente assegnazione => niente label
 
     const colorKey = spellKey(s.name);
-    res.push({ key: s.name, targets, colorKey, isConc: false });
+    res.push({
+      key: s.name,
+      targets,
+      colorKey,
+      isConc: false,
+      instanceId: s.instanceId,
+      turns: s.turns,
+    });
   }
 
 
@@ -384,11 +418,18 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
   /** Digest deterministico di tutte le assegnazioni (per gating refresh) */
   function assignmentsDigest(it) {
     const assigns = extractAssignments(it);
-    if (!assigns.length) return "";
     const norm = assigns
-      .map(a => ({ k: a.key.toLowerCase(), t: [...a.targets].sort() }))
+      .map(a => ({ k: a.key.toLowerCase(), t: [...a.targets].sort(), r: a.turns }))
       .sort((A, B) => A.k.localeCompare(B.k));
-    return JSON.stringify(norm);
+    const durations = readSpellsList(it)
+      .map((spell) => ({
+        i: spell.instanceId || "",
+        k: spellKey(spell.name),
+        c: spell.casterId || "",
+        r: spell.turns,
+      }))
+      .sort((A, B) => A.i.localeCompare(B.i) || A.k.localeCompare(B.k));
+    return JSON.stringify({ assignments: norm, durations });
   }
 
   async function hasConcentrationWidgetDrift(tokens) {
@@ -468,6 +509,35 @@ async function upsertDotForItem(it) {
     for (const tid of t) targetsUnion.add(tid);
   }
 
+  // Il badge deve essere misurato prima che i widget prodotti da questo caster
+  // entrino nei bounds del token. La migrazione elimina una sola volta il dot
+  // instabile e le label self, che vengono ricreate nello stesso upsert.
+  let casterOwned = await OBR.scene.items.getItems(
+    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
+      i.metadata?.[CONC_WIDGET_META] === it.id ||
+      i.metadata?.[CONC_WIDGET_CASTER] === it.id
+    )
+  );
+  let dotLabel = casterOwned.find(x =>
+    x.type === "LABEL" && x.name === DOT_TEXT_NAME &&
+    x.metadata?.[CONC_DOT_LAYOUT_KEY] === CONC_DOT_LAYOUT_VERSION
+  );
+  const staleDots = casterOwned.filter(x =>
+    (x.name === DOT_BG_NAME || x.name === DOT_TEXT_NAME) && x.id !== dotLabel?.id
+  );
+  if (concKey && !dotLabel && staleDots.length) {
+    const migrationIds = new Set(staleDots.map(x => x.id));
+    for (const widget of casterOwned) {
+      if (
+        widget.name === LABEL_BG_NAME &&
+        widget.metadata?.[CONC_WIDGET_CASTER] === it.id &&
+        widget.metadata?.[CONC_WIDGET_META] === it.id
+      ) migrationIds.add(widget.id);
+    }
+    await OBR.scene.items.deleteItems(Array.from(migrationIds));
+    casterOwned = casterOwned.filter(widget => !migrationIds.has(widget.id));
+  }
+
   // 1) Tutti i widget SPELL (di QUALSIASI caster) per i target coinvolti
   const allSpellWidgetsForTargets = await OBR.scene.items.getItems(
     (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") &&
@@ -498,14 +568,6 @@ async function upsertDotForItem(it) {
     } catch {}
   }));
 
-  // 3) Widget di questo caster (dot + sue label)
-  const casterOwned = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
-      i.metadata?.[CONC_WIDGET_META] === it.id ||               // dot e/o testo dot
-      i.metadata?.[CONC_WIDGET_CASTER] === it.id                // label create da questo caster
-    )
-  );
-
   const existingAll = casterOwned.filter(x => x.metadata?.[CONC_WIDGET_CASTER] === it.id);
   const toAdd = [];
   const toDel = [];
@@ -520,13 +582,6 @@ async function upsertDotForItem(it) {
     const concAssign = assigns.find(a => a.isConc && a.key === concKey);
     const colorKey   = concAssign?.colorKey ?? spellKey(concKey);
     const col        = spellColorFromKey(colorKey);
-    let casterBounds = null;
-    try { casterBounds = await OBR.scene.items.getItemBounds([it.id]); } catch {}
-    const { cx, cy } = calcDotCenterFor(it, DOT_DIAMETER, DOT_GAP, casterBounds);
-    let dotLabel = casterOwned.find(x =>
-      x.type === "LABEL" && x.name === DOT_TEXT_NAME &&
-      x.metadata?.[CONC_DOT_LAYOUT_KEY] === CONC_DOT_LAYOUT_VERSION
-    );
     for (const legacyDot of casterOwned.filter(x =>
       (x.name === DOT_BG_NAME || x.name === DOT_TEXT_NAME) &&
       x.id !== dotLabel?.id
@@ -537,6 +592,12 @@ async function upsertDotForItem(it) {
     // In entrambi i casi li ricreiamo insieme, una sola volta per versione.
 
     if (!dotLabel) {
+      const { cx, cy } = calcDotCenterFor(
+        it,
+        DOT_DIAMETER,
+        DOT_GAP,
+        null
+      );
       dotLabel = buildLabel()
         .plainText("C")
         .position({ x: cx, y: cy })
@@ -548,6 +609,7 @@ async function upsertDotForItem(it) {
         .fillColor("#ffffff").strokeColor("rgba(0,0,0,.85)").strokeWidth(2)
         .backgroundColor(col.solid).backgroundOpacity(1)
         .cornerRadius(DOT_DIAMETER / 2).pointerWidth(0).pointerHeight(0)
+        .pointerDirection("DOWN")
         .maxViewScale(WIDGET_MAX_VIEW_SCALE)
         .attachedTo(it.id).layer(LAYER_TEXT)
         .name(DOT_TEXT_NAME)
@@ -560,13 +622,16 @@ async function upsertDotForItem(it) {
       dotLabel.locked = true; dotLabel.disableHit = true; dotLabel.zIndex = Z_DOT_TEXT;
       toAdd.push(dotLabel);
     } else {
-      shapeUpdate.set(dotLabel.id, {
-        x: cx, y: cy,
-        w: DOT_DIAMETER, h: DOT_DIAMETER,
-        fill: col.solid, fillOpacity: 1, radius: DOT_DIAMETER / 2,
-        text: "C", fontSize: DOT_FONT, fontWeight: 700,
-        z: Z_DOT_TEXT, layer: LAYER_TEXT, maxViewScale: WIDGET_MAX_VIEW_SCALE
-      });
+      // Non riconciliare stile o dimensioni a ogni refresh: anche un update
+      // apparentemente neutro fa riapplicare a OBR la trasformazione attachment.
+      const dotNeedsUpdate = dotLabel.metadata?.[CONC_WIDGET_KEY] !== concKey;
+      if (dotNeedsUpdate) {
+        shapeUpdate.set(dotLabel.id, {
+          fill: col.solid,
+          fillOpacity: 1,
+          key: concKey,
+        });
+      }
     }
 
   }
@@ -584,7 +649,7 @@ async function upsertDotForItem(it) {
     const keyRaw  = a.key;
     const keyNorm = spellKey(keyRaw);
     const col     = spellColorFromKey(a.colorKey);
-    const spellTitle = getSpellDefinition(keyRaw)?.displayName || titleCaseLite(keyRaw);
+    const spellName = getSpellDefinition(keyRaw)?.displayName || titleCaseLite(keyRaw);
     const targets = a.targets && a.targets.length ? a.targets : [it.id];
 
     // esistenti di questo caster+key
@@ -599,6 +664,15 @@ async function upsertDotForItem(it) {
     for (const tid of targets) {
       const tgt = tById.get(tid);
       if (!tgt) continue;
+
+      const targetSpell = readSpellsList(tgt).find((spell) => {
+        if (a.instanceId && spell.instanceId) return spell.instanceId === a.instanceId;
+        return spellKey(spell.name) === keyNorm && (!spell.casterId || spell.casterId === it.id);
+      });
+      const remainingTurns = Number.isFinite(targetSpell?.turns)
+        ? targetSpell.turns
+        : Number.isFinite(a.turns) ? a.turns : null;
+      const spellTitle = remainingTurns === null ? spellName : `${spellName} (${remainingTurns})`;
 
       // Piano stabile SENZA nuove query
       const plan = __spellPlanFromExisting(tid, labelsByTarget.get(tid) || [], assigns, it.id);
@@ -724,6 +798,7 @@ async function upsertDotForItem(it) {
         } else if (itx.type === "LABEL") {
           const spec = shapeUpdate.get(itx.id);
           if (!spec) continue;
+          const isDotLabel = itx.name === DOT_TEXT_NAME;
 
           itx.style = itx.style || {};
           if (spec.fill != null) itx.style.backgroundColor = spec.fill;
@@ -732,31 +807,34 @@ async function upsertDotForItem(it) {
           if (spec.maxViewScale != null) itx.style.maxViewScale = spec.maxViewScale;
           itx.style.pointerWidth = 0;
           itx.style.pointerHeight = 0;
-          itx.style.pointerDirection = "LEFT";
+          itx.style.pointerDirection = isDotLabel ? "DOWN" : "LEFT";
           itx.text = itx.text || {};
           itx.text.type = "PLAIN";
           if (spec.text != null) itx.text.plainText = spec.text;
           itx.text.style = itx.text.style || {};
           itx.text.style.padding = 0;
           itx.text.style.fontFamily = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-          itx.text.style.fontSize = spec.fontSize ?? LABEL_FONT;
-          itx.text.style.fontWeight = spec.fontWeight ?? LABEL_FONT_WEIGHT;
-          itx.text.style.lineHeight = spec.text === "C" ? 1 : LABEL_LINE_HEIGHT;
+          itx.text.style.fontSize = spec.fontSize ?? (isDotLabel ? DOT_FONT : LABEL_FONT);
+          itx.text.style.fontWeight = spec.fontWeight ?? (isDotLabel ? 700 : LABEL_FONT_WEIGHT);
+          itx.text.style.lineHeight = isDotLabel ? 1 : LABEL_LINE_HEIGHT;
           itx.text.style.textAlign = "CENTER";
           itx.text.style.textAlignVertical = "MIDDLE";
           itx.text.style.fillColor = "#f8fafc";
           itx.text.style.fillOpacity = 1;
-          itx.text.style.strokeColor = spec.text === "C" ? "rgba(0,0,0,.85)" : "rgba(2,6,23,.55)";
-          itx.text.style.strokeWidth = spec.text === "C" ? 2 : 1;
+          itx.text.style.strokeColor = isDotLabel ? "rgba(0,0,0,.85)" : "rgba(2,6,23,.55)";
+          itx.text.style.strokeWidth = isDotLabel ? 2 : 1;
           if (spec.w != null) itx.text.width = spec.w;
           if (spec.h != null) itx.text.height = spec.h;
           if (spec.z != null) itx.zIndex = spec.z;
-          if (itx.layer !== spec.layer) itx.layer = spec.layer;
+          if (spec.layer != null && itx.layer !== spec.layer) itx.layer = spec.layer;
           if (spec.x != null && spec.y != null) {
             itx.position = { x: Math.round(spec.x), y: Math.round(spec.y) };
           }
           if (spec.hash) {
             itx.metadata = { ...(itx.metadata || {}), [CONC_LABEL_HASHKEY]: spec.hash };
+          }
+          if (spec.key) {
+            itx.metadata = { ...(itx.metadata || {}), [CONC_WIDGET_KEY]: spec.key };
           }
         }
       }

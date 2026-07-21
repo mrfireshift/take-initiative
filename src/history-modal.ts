@@ -5,6 +5,7 @@ import {
   addCombatLogNote,
   activateCombatLogSession,
   clearCombatLogSession,
+  deleteCombatLogSession,
   exportCombatLogJSON,
   exportCombatLogText,
   getActiveCombatLogData,
@@ -17,11 +18,19 @@ import { getHistoryEntries, undoHistoryThrough } from "./history.js";
 
 let statusMessage = "";
 let refreshQueued = false;
+let logPanelOpen = true;
+let undoPanelOpen = false;
 
-function button(label: string, tone = "default") {
+function captureAccordionState(app: HTMLElement) {
+  const logPanel = app.querySelector('details[data-panel="log"]');
+  const undoPanel = app.querySelector('details[data-panel="undo"]');
+  if (logPanel instanceof HTMLDetailsElement) logPanelOpen = logPanel.open;
+  if (undoPanel instanceof HTMLDetailsElement) undoPanelOpen = undoPanel.open;
+}
+
+function button(label: string, tone = "default", iconPath = "", iconOnly = false) {
   const control = document.createElement("button");
   control.type = "button";
-  control.textContent = label;
   Object.assign(control.style, {
     minHeight: "32px",
     padding: "0 10px",
@@ -41,8 +50,77 @@ function button(label: string, tone = "default") {
     fontSize: "var(--obrt-type-body, 12px)",
     fontWeight: "var(--obrt-weight-semibold, 600)",
     cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
   });
+  if (iconPath) {
+    const icon = document.createElement("img");
+    icon.src = `${import.meta.env.BASE_URL || "/"}${iconPath}`;
+    icon.alt = "";
+    Object.assign(icon.style, { width: "14px", height: "14px", flex: "0 0 auto", filter: "brightness(0) invert(1)", pointerEvents: "none" });
+    control.appendChild(icon);
+  }
+  const text = document.createElement("span");
+  text.dataset.buttonLabel = "1";
+  text.textContent = label;
+  if (iconOnly) {
+    text.hidden = true;
+    control.setAttribute("aria-label", label);
+    Object.assign(control.style, { width: "34px", minWidth: "34px", padding: "0" });
+  }
+  control.appendChild(text);
   return control;
+}
+
+function setButtonLabel(control: HTMLButtonElement, label: string) {
+  const text = control.querySelector<HTMLElement>("[data-button-label]");
+  if (text) text.textContent = label;
+  else control.textContent = label;
+}
+
+function toolbarMenu(label: string, iconPath: string, controls: HTMLButtonElement[]) {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, { position: "relative", flex: "0 0 auto" });
+  const trigger = button(label, "default", iconPath, true);
+  trigger.title = label;
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "menu");
+  Object.assign(menu.style, {
+    display: "none",
+    position: "absolute",
+    top: "calc(100% + 5px)",
+    right: "0",
+    zIndex: "20",
+    minWidth: "190px",
+    padding: "5px",
+    border: "1px solid rgba(148,163,184,.28)",
+    borderRadius: "9px",
+    background: "rgba(15,23,42,.98)",
+    boxShadow: "0 12px 30px rgba(0,0,0,.38)",
+  });
+  const setOpen = (open: boolean) => {
+    menu.style.display = open ? "grid" : "none";
+    menu.style.gap = open ? "4px" : "";
+    trigger.setAttribute("aria-expanded", String(open));
+  };
+  trigger.addEventListener("click", () => setOpen(menu.style.display === "none"));
+  for (const control of controls) {
+    control.setAttribute("role", "menuitem");
+    Object.assign(control.style, { width: "100%", justifyContent: "flex-start" });
+    control.addEventListener("click", () => setOpen(false));
+    menu.appendChild(control);
+  }
+  wrap.addEventListener("focusout", () => {
+    window.setTimeout(() => {
+      if (!wrap.contains(document.activeElement)) setOpen(false);
+    }, 0);
+  });
+  wrap.append(trigger, menu);
+  return wrap;
 }
 
 function download(name: string, content: string, type: string) {
@@ -72,6 +150,8 @@ function eventTone(kind: string) {
   if (kind === "move") return "#22c55e";
   if (kind === "turn" || kind === "round") return "#3b82f6";
   if (kind === "undo") return "#f59e0b";
+  if (kind === "scene-add" || kind === "initiative-add") return "#14b8a6";
+  if (kind === "scene-remove" || kind === "initiative-remove") return "#fb7185";
   if (kind === "note") return "#eab308";
   return "#94a3b8";
 }
@@ -87,6 +167,10 @@ function kindLabel(kind: string) {
     note: "Nota",
     undo: "Undo",
     resource: "Risorsa",
+    "scene-add": "Token aggiunto",
+    "scene-remove": "Token rimosso",
+    "initiative-add": "Iniziativa +",
+    "initiative-remove": "Iniziativa -",
   };
   return labels[kind] || "Evento";
 }
@@ -153,6 +237,8 @@ function makeEventRow(event: any) {
 
 function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void>) {
   const details = document.createElement("details");
+  details.dataset.panel = "undo";
+  details.open = undoPanelOpen;
   Object.assign(details.style, {
     flex: "0 0 auto",
     border: "1px solid rgba(148,163,184,.18)",
@@ -174,14 +260,14 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
   } else {
     let selectedDepth = 1;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
-    const undo = button("Undo ultima", "primary");
+    const undo = button("Undo ultima", "primary", "history.svg");
     const refresh = () => {
       rows.forEach(({ checkbox, row }, index) => {
         const selected = index < selectedDepth;
         checkbox.checked = selected;
         row.style.background = selected ? "rgba(37,99,235,.18)" : "rgba(255,255,255,.025)";
       });
-      undo.textContent = selectedDepth === 1 ? "Undo ultima" : `Undo ${selectedDepth} azioni`;
+      setButtonLabel(undo, selectedDepth === 1 ? "Undo ultima" : `Undo ${selectedDepth} azioni`);
       undo.disabled = selectedDepth < 1;
     };
     body.appendChild(undo);
@@ -223,6 +309,7 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
 async function render(message = statusMessage) {
   const app = document.getElementById("app");
   if (!app) return;
+  captureAccordionState(app);
   const role = await OBR.player.getRole();
   if (role !== "GM") {
     app.textContent = "Il Registro combattimento è disponibile solo per il GM.";
@@ -250,8 +337,9 @@ async function render(message = statusMessage) {
   });
 
   const header = document.createElement("header");
-  Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" });
+  Object.assign(header.style, { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" });
   const heading = document.createElement("div");
+  Object.assign(heading.style, { minWidth: "180px", flex: "1 1 220px" });
   const title = document.createElement("h1");
   title.textContent = session?.name || "Registro combattimento";
   Object.assign(title.style, { margin: "0", fontSize: "var(--obrt-type-panel-title, 16px)", fontWeight: "var(--obrt-weight-bold, 700)", lineHeight: "1.1", letterSpacing: "-.01em" });
@@ -290,14 +378,21 @@ async function render(message = statusMessage) {
   });
   heading.append(title, subtitle, sessionPicker);
   const headerActions = document.createElement("div");
-  Object.assign(headerActions.style, { display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: "5px" });
-  const exportText = button("TXT");
-  const exportJson = button("JSON");
-  const newSession = button("Nuovo log");
-  const clearLog = button("Cancella log", "danger");
+  Object.assign(headerActions.style, { display: "flex", alignItems: "center", justifyContent: "flex-end", flex: "0 0 auto", gap: "5px" });
+  const exportText = button("Esporta TXT", "default", "log-export.svg");
+  const exportJson = button("Esporta JSON", "default", "log-export.svg");
+  const newSession = button("Nuovo registro", "default", "log-new.svg", true);
+  const clearLog = button("Svuota eventi", "default", "log-clear.svg");
+  const deleteLog = button("Elimina registro", "danger", "log-delete.svg");
+  exportText.title = "Esporta il registro in formato testo";
+  exportJson.title = "Esporta il registro in formato JSON";
+  newSession.title = "Crea un nuovo registro e archivia quello corrente";
+  clearLog.title = "Rimuove gli eventi ma mantiene il registro nella lista";
+  deleteLog.title = "Elimina definitivamente il registro selezionato";
   exportText.disabled = !events.length;
   exportJson.disabled = !events.length;
   clearLog.disabled = !events.length;
+  deleteLog.disabled = !session?.id;
   exportText.addEventListener("click", () => download(
     `${safeFileName(session?.name)}.txt`,
     exportCombatLogText(session, events),
@@ -320,7 +415,6 @@ async function render(message = statusMessage) {
       await render(`Creazione fallita: ${error?.message || error}`);
     }
   });
-  headerActions.append(exportText, exportJson, newSession, clearLog);
   header.append(heading, headerActions);
 
   const clearConfirmation = document.createElement("div");
@@ -359,6 +453,45 @@ async function render(message = statusMessage) {
       await render("Registro cancellato. Il journal Undo non è stato modificato.");
     } catch (error: any) {
       await render(`Cancellazione fallita: ${error?.message || error}`);
+    }
+  });
+
+  const deleteConfirmation = document.createElement("div");
+  Object.assign(deleteConfirmation.style, {
+    display: "none",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    padding: "9px 10px",
+    border: "1px solid rgba(248,113,113,.62)",
+    borderRadius: "9px",
+    background: "rgba(127,29,29,.42)",
+  });
+  const deleteQuestion = document.createElement("strong");
+  deleteQuestion.textContent = "Eliminare definitivamente questo registro dalla lista?";
+  Object.assign(deleteQuestion.style, { fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-semibold, 600)", lineHeight: "1.3" });
+  const deleteActions = document.createElement("div");
+  Object.assign(deleteActions.style, { display: "flex", flex: "0 0 auto", gap: "5px" });
+  const cancelDelete = button("Annulla");
+  const confirmDelete = button("Elimina registro", "danger");
+  deleteActions.append(cancelDelete, confirmDelete);
+  deleteConfirmation.append(deleteQuestion, deleteActions);
+  deleteLog.addEventListener("click", () => {
+    deleteConfirmation.style.display = "flex";
+    deleteLog.disabled = true;
+  });
+  cancelDelete.addEventListener("click", () => {
+    deleteConfirmation.style.display = "none";
+    deleteLog.disabled = false;
+  });
+  confirmDelete.addEventListener("click", async () => {
+    confirmDelete.disabled = true;
+    cancelDelete.disabled = true;
+    try {
+      await deleteCombatLogSession(session?.id);
+      await render("Registro eliminato dalla lista.");
+    } catch (error: any) {
+      await render(`Eliminazione fallita: ${error?.message || error}`);
     }
   });
 
@@ -410,7 +543,7 @@ async function render(message = statusMessage) {
     font: "inherit",
     outline: "none",
   });
-  const addNote = button("Aggiungi nota", "primary");
+  const addNote = button("Aggiungi nota", "primary", "log-note.svg");
   noteForm.append(note, addNote);
   noteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -426,9 +559,9 @@ async function render(message = statusMessage) {
 
   const timeline = document.createElement("section");
   Object.assign(timeline.style, {
-    flex: "0 0 330px",
-    height: "330px",
-    minHeight: "180px",
+    flex: "1 1 auto",
+    height: "min(52vh, 520px)",
+    minHeight: "220px",
     display: "grid",
     alignContent: "start",
     gap: "6px",
@@ -483,7 +616,8 @@ async function render(message = statusMessage) {
   renderTimeline();
 
   const logPanel = document.createElement("details");
-  logPanel.open = true;
+  logPanel.dataset.panel = "log";
+  logPanel.open = logPanelOpen;
   Object.assign(logPanel.style, {
     flex: "0 0 auto",
     border: "1px solid rgba(148,163,184,.18)",
@@ -506,7 +640,12 @@ async function render(message = statusMessage) {
     gap: "9px",
     padding: "0 9px 9px",
   });
-  logBody.append(header, clearConfirmation, filters, noteForm, status, timeline);
+  headerActions.replaceChildren(
+    newSession,
+    toolbarMenu("Esporta registro", "log-export.svg", [exportText, exportJson]),
+    toolbarMenu("Gestisci registro", "log-more.svg", [clearLog, deleteLog]),
+  );
+  logBody.append(header, clearConfirmation, deleteConfirmation, filters, noteForm, status, timeline);
   logPanel.append(logSummary, logBody);
 
   const undoPanel = makeUndoPanel(undoEntries, async (undoMessage) => render(undoMessage));

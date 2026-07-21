@@ -9,13 +9,20 @@ const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const HISTORY_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
+const SCENE_HISTORY_SUPPRESS_MS = 2000;
+const INITIATIVE_HISTORY_FIELDS = ["inInitiative", "initiative", "attitude"];
 
 let __historyWriteQueue = Promise.resolve();
+let __historyActionQueue = Promise.resolve();
 let __movementWatcherMounted = false;
+let __sceneHistoryWatcherMounted = false;
 let __movementFlushTimer = null;
+let __historyRestoreSuppressedUntil = 0;
 const __movementPositions = new Map();
 const __pendingMovements = new Map();
 const __suppressedMovements = new Map();
+const __sceneHistorySnapshot = new Map();
+const __historyRestoreSuppressedIds = new Map();
 const __movementSegmentListeners = new Set();
 
 function cloneValue(value) {
@@ -79,6 +86,153 @@ function samePosition(a, b) {
   return !!a && !!b && a.x === b.x && a.y === b.y;
 }
 
+function markHistoryRestoreSuppressed(ids, requestedUntil = 0) {
+  const until = Math.max(Date.now() + SCENE_HISTORY_SUPPRESS_MS, Number(requestedUntil) || 0);
+  __historyRestoreSuppressedUntil = Math.max(__historyRestoreSuppressedUntil, until);
+  for (const id of ids || []) {
+    if (id) __historyRestoreSuppressedIds.set(id, until);
+  }
+}
+
+function consumeHistoryRestoreSuppression(id) {
+  if (!id) return false;
+  const until = __historyRestoreSuppressedIds.get(id);
+  if (!until) return false;
+  if (until < Date.now()) {
+    __historyRestoreSuppressedIds.delete(id);
+    return false;
+  }
+  __historyRestoreSuppressedIds.delete(id);
+  return true;
+}
+
+function isTrackableSceneToken(item) {
+  return item?.layer === "CHARACTER" && !item?.attachedTo;
+}
+
+function sceneTokenHistoryChange(previous, next) {
+  if (!previous && !isTrackableSceneToken(next)) return null;
+  if (!next && !isTrackableSceneToken(previous)) return null;
+
+  const item = next || previous;
+  const name = String(item?.name || "Token").trim() || "Token";
+  if (!previous) {
+    return {
+      id: item.id,
+      name,
+      kind: "scene-add",
+      label: `Token aggiunto: ${name}`,
+      change: {
+        id: item.id,
+        name,
+        sceneBefore: null,
+        sceneAfter: cloneValue(next),
+      },
+    };
+  }
+  if (!next) {
+    return {
+      id: item.id,
+      name,
+      kind: "scene-remove",
+      label: `Token rimosso: ${name}`,
+      change: {
+        id: item.id,
+        name,
+        sceneBefore: cloneValue(previous),
+        sceneAfter: null,
+      },
+    };
+  }
+
+  const previousMeta = previous.metadata?.[META_KEY] || {};
+  const nextMeta = next.metadata?.[META_KEY] || {};
+  const previousInInitiative = previousMeta.inInitiative === true;
+  const nextInInitiative = nextMeta.inInitiative === true;
+  if (previousInInitiative === nextInInitiative) return null;
+
+  const fields = INITIATIVE_HISTORY_FIELDS.filter((field) =>
+    !sameValues(
+      snapshotFields(previousMeta, [field]),
+      snapshotFields(nextMeta, [field])
+    )
+  );
+  if (!fields.length) return null;
+  return {
+    id: item.id,
+    name,
+    kind: nextInInitiative ? "initiative-add" : "initiative-remove",
+    label: nextInInitiative
+      ? `Aggiunto all'iniziativa: ${name}`
+      : `Rimosso dall'iniziativa: ${name}`,
+    change: {
+      id: item.id,
+      name,
+      before: snapshotFields(previousMeta, fields),
+      after: snapshotFields(nextMeta, fields),
+    },
+  };
+}
+
+async function appendSceneHistoryChanges(changes) {
+  if (!changes.length) return;
+  const labels = changes.map((change) => change.label);
+  const kinds = new Set(changes.map((change) => change.kind));
+  const label = labels.length === 1
+    ? labels[0]
+    : `${labels[0]} (+${labels.length - 1} eventi)`;
+  const entry = {
+    id: createEntryId(),
+    version: HISTORY_VERSION,
+    at: Date.now(),
+    kind: kinds.size === 1 ? [...kinds][0] : "scene",
+    label,
+    changes: changes.map((change) => change.change),
+  };
+  const task = __historyActionQueue.then(
+    () => appendEntry(entry),
+    () => appendEntry(entry),
+  );
+  __historyActionQueue = task.catch(() => {});
+  await task;
+}
+
+export async function mountSceneHistoryWatcher() {
+  if (__sceneHistoryWatcherMounted) return;
+  if (await OBR.player.getRole() !== "GM") return;
+  const initialItems = await OBR.scene.items.getItems();
+  __sceneHistorySnapshot.clear();
+  for (const item of initialItems) {
+    if (item?.id) __sceneHistorySnapshot.set(item.id, cloneValue(item));
+  }
+  __sceneHistoryWatcherMounted = true;
+
+  subscribeSceneItemChanges(async (event) => {
+    const currentItems = Array.isArray(event?.allItems) ? event.allItems : [];
+    const currentById = new Map(currentItems.filter((item) => item?.id).map((item) => [item.id, item]));
+    const pending = [];
+
+    if (Date.now() >= __historyRestoreSuppressedUntil) {
+      for (const item of event?.items || []) {
+        if (consumeHistoryRestoreSuppression(item?.id)) continue;
+        const change = sceneTokenHistoryChange(__sceneHistorySnapshot.get(item?.id), item);
+        if (change) pending.push(change);
+      }
+      for (const item of event?.removedItems || []) {
+        if (consumeHistoryRestoreSuppression(item?.id)) continue;
+        const change = sceneTokenHistoryChange(__sceneHistorySnapshot.get(item?.id) || item, null);
+        if (change) pending.push(change);
+      }
+    }
+
+    __sceneHistorySnapshot.clear();
+    for (const item of currentById.values()) __sceneHistorySnapshot.set(item.id, cloneValue(item));
+    if (pending.length) await appendSceneHistoryChanges(pending);
+  }, {
+    filter: (event) => event.flags.added || event.flags.removed || event.flags.tracker,
+  });
+}
+
 async function appendEntryNow(entry) {
   const md = await OBR.scene.getMetadata();
   const history = normalizeHistory(md?.[HISTORY_KEY]);
@@ -107,50 +261,59 @@ export async function withItemMetaHistory(options, action) {
     return typeof action === "function" ? action() : undefined;
   }
 
-  let before;
-  try {
-    before = await captureItems(itemIds, fields);
-  } catch (err) {
-    console.warn("[history] capture before:", err?.message || err);
-    return action();
-  }
-
-  const result = await action();
-  try {
-    const after = await captureItems(itemIds, fields);
-    const afterById = new Map(after.map((item) => [item.id, item]));
-
-    const changes = before.map((item) => {
-      const next = afterById.get(item.id);
-      if (!next || sameValues(item.values, next.values)) return null;
-      return {
-        id: item.id,
-        name: next.name || item.name,
-        before: item.values,
-        after: next.values,
-      };
-    }).filter(Boolean);
-
-    if (changes.length) {
-      const entry = {
-        id: createEntryId(),
-        version: HISTORY_VERSION,
-        at: Date.now(),
-        kind: String(options?.kind || "change"),
-        label: String(options?.label || "Modifica"),
-        changes,
-      };
-      await appendEntry(entry);
-      if (typeof options?.onRecorded === "function") {
-        try { options.onRecorded(entry); }
-        catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
-      }
+  const run = async () => {
+    let before;
+    try {
+      before = await captureItems(itemIds, fields);
+    } catch (err) {
+      console.warn("[history] capture before:", err?.message || err);
+      return action();
     }
-  } catch (err) {
-    console.warn("[history] record:", err?.message || err);
-  }
 
-  return result;
+    const result = await action();
+    try {
+      const after = await captureItems(itemIds, fields);
+      const afterById = new Map(after.map((item) => [item.id, item]));
+
+      const changes = before.map((item) => {
+        const next = afterById.get(item.id);
+        if (!next || sameValues(item.values, next.values)) return null;
+        return {
+          id: item.id,
+          name: next.name || item.name,
+          before: item.values,
+          after: next.values,
+        };
+      }).filter(Boolean);
+
+      if (changes.length) {
+        const entry = {
+          id: createEntryId(),
+          version: HISTORY_VERSION,
+          at: Date.now(),
+          kind: String(options?.kind || "change"),
+          label: String(options?.label || "Modifica"),
+          changes,
+        };
+        await appendEntry(entry);
+        if (typeof options?.onRecorded === "function") {
+          try { options.onRecorded(entry); }
+          catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
+        }
+      }
+    } catch (err) {
+      console.warn("[history] record:", err?.message || err);
+    }
+
+    return result;
+  };
+
+  // Snapshot, azione e snapshot finale devono essere atomici rispetto alle
+  // altre operazioni del plugin: serializzare solo appendEntry consentiva a
+  // due azioni ravvicinate di catturare lo stesso stato iniziale.
+  const task = __historyActionQueue.then(run, run);
+  __historyActionQueue = task.catch(() => {});
+  return task;
 }
 
 export async function getHistoryEntries() {
@@ -254,9 +417,16 @@ export async function mountMovementHistoryWatcher() {
   if (await OBR.player.getRole() !== "GM") return;
   __movementWatcherMounted = true;
 
+  await mountSceneHistoryWatcher();
+
   OBR.broadcast.onMessage(HISTORY_CONTROL_CHANNEL, (event) => {
     const data = event?.data;
-    if (data?.type !== "suppress-movement" || !Array.isArray(data.ids)) return;
+    if (!Array.isArray(data?.ids)) return;
+    if (data.type === "suppress-scene-history") {
+      markHistoryRestoreSuppressed(data.ids, data.until);
+      return;
+    }
+    if (data.type !== "suppress-movement") return;
     const until = Math.max(Date.now() + 500, Number(data.until) || 0);
     for (const id of data.ids) {
       const positions = Array.isArray(data.positions?.[id])
@@ -378,6 +548,23 @@ async function restoreEntry(entry) {
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
   if (!ids.length) return;
 
+  for (const change of changes) {
+    const hasSceneSnapshot = Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore") &&
+      Object.prototype.hasOwnProperty.call(change || {}, "sceneAfter");
+    if (!hasSceneSnapshot) continue;
+
+    const beforeScene = change.sceneBefore;
+    const afterScene = change.sceneAfter;
+    const existing = await OBR.scene.items.getItems([change.id]);
+    if (beforeScene === null && afterScene) {
+      if (existing.length) await OBR.scene.items.deleteItems([change.id]);
+      continue;
+    }
+    if (beforeScene && afterScene === null && !existing.length) {
+      await OBR.scene.items.addItems([cloneValue(beforeScene)]);
+    }
+  }
+
   const existing = await OBR.scene.items.getItems(ids);
   const existingIds = existing.map((item) => item.id);
   if (!existingIds.length) return;
@@ -471,7 +658,7 @@ async function syncRestoredEntry(entry) {
   }
 }
 
-export async function undoHistoryThrough(entryId) {
+async function undoHistoryThroughNow(entryId) {
   if (await OBR.player.getRole() !== "GM") {
     throw new Error("Solo il GM puo usare Undo.");
   }
@@ -506,6 +693,18 @@ export async function undoHistoryThrough(entryId) {
     }, { destination: "LOCAL" });
   }
 
+  const restoredIds = undoOrder.flatMap((entry) =>
+    (entry?.changes || []).map((change) => change?.id).filter(Boolean)
+  );
+  const sceneHistorySuppressedUntil = Date.now() + SCENE_HISTORY_SUPPRESS_MS;
+  markHistoryRestoreSuppressed(restoredIds, sceneHistorySuppressedUntil);
+  if (restoredIds.length) {
+    await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
+      type: "suppress-scene-history",
+      ids: restoredIds,
+      until: sceneHistorySuppressedUntil,
+    }, { destination: "LOCAL" });
+  }
   for (const entry of undoOrder) await restoreEntry(entry);
   for (const entry of undoOrder) await syncRestoredEntry(entry);
 
@@ -524,6 +723,18 @@ export async function undoHistoryThrough(entryId) {
   }
 
   return undoOrder;
+}
+
+export async function undoHistoryThrough(entryId) {
+  // Anche Undo deve attendere un'eventuale operazione metadata in corso:
+  // altrimenti il suo ripristino può essere seguito dallo snapshot finale
+  // dell'azione e sembrare inefficace fino a un secondo tentativo.
+  const task = __historyActionQueue.then(
+    () => undoHistoryThroughNow(entryId),
+    () => undoHistoryThroughNow(entryId),
+  );
+  __historyActionQueue = task.catch(() => {});
+  return task;
 }
 
 export async function undoLastHistoryEntry() {

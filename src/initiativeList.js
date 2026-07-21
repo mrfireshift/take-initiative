@@ -1,10 +1,10 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
-import { ID, ACTIVE_TURN_LABEL_META } from "./constants.js";
+import { ID, ACTIVE_TURN_LABEL_META, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { mountConcentrationWatcher } from "./spells-tag.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, addOrUpdateConditionForItems, removeConditionFromItems, getConditionInstances } from "./conditions";
-import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, addOrUpdateConditionForItems, removeConditionFromItems, clearAllConditionsForItems, getConditionInstances } from "./conditions";
+import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems, clearSpellsOnItems, breakAllConcentrations } from "./spells.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -15,6 +15,7 @@ import {
   TRACKER_LAYOUT_CLASSIC,
   TRACKER_LAYOUT_COMPACT,
   TRACKER_POPOVER_ID,
+  getCompactTrackerPopoverAnchor,
   getTrackerLayout,
   setTrackerLayout,
 } from "./trackerPopover.js";
@@ -38,6 +39,12 @@ import {
   sanitizeState,
   sortByInitiative,
 } from "./initiativeOrderCore.js";
+import {
+  advanceInitiativeState,
+  createSerialProcessor,
+  initiativeStateDigest,
+  isCurrentRenderRevision,
+} from "./initiativeRenderCore.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -53,6 +60,7 @@ const COND_DOCK_CFG = {
 };
   const STATE_KEY = `${ID}/state`;
   const META_KEY  = `${ID}/meta`;
+  const SPELLS_META_KEY = `${ID}/spells`;
   const CONC_META_KEY = `${ID}/concentration`; // { [spellKey]: { targets: [...] } }
   const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
   const CONCENTRATION_WARNING_MODAL_ID = `${ID}/concentration-warning-modal`;
@@ -116,8 +124,15 @@ function __spellColor(key) {
   // --- Active Turn Label (ancorata al token attivo)
   const ACTIVE_LABEL_META = ACTIVE_TURN_LABEL_META;
   const ACTIVE_LABEL_TEXT_FMT = (nameBase) => `Turno di ${nameBase}`;
-  // offset verticale in celle (negativo = sopra il token)
-  const ACTIVE_LABEL_OFFSET_Y_CELLS = -0.6;
+  const ACTIVE_LABEL_FONT = 22;
+  const ACTIVE_LABEL_HEIGHT = 32;
+  const ACTIVE_LABEL_MAX_WIDTH = 312;
+  const ACTIVE_LABEL_BG = "#b91c1c";
+  const ACTIVE_LABEL_BG_OPACITY = 0.94;
+  const ACTIVE_LABEL_MAX_VIEW_SCALE = 1.35;
+  const ACTIVE_LABEL_GAP_PX = 9;
+  const ACTIVE_LABEL_POINTER_WIDTH = 14;
+  const ACTIVE_LABEL_POINTER_HEIGHT = 10;
 
   // === EPIC ACTIONS (voci virtuali in lista) ===
   const EPIC_ACT_PREFIX = "__EPIC__";
@@ -210,12 +225,20 @@ let __activeLabelEntriesById = new Map();
 let __latestInitiativeState = null;
 let __activeTurnLabelDesired = null;
 let __activeTurnLabelPumpRunning = false;
+let __activeTurnLabelRetryTimer = null;
 let __navigationDesiredState = null;
 let __navigationPumpRunning = false;
 let __navigationFlushTimer = null;
 let __navigationDesiredAt = 0;
 let __navigationRevision = 0;
 let __lastNavigationAt = 0;
+let __renderRequestRevision = 0;
+let __latestAcceptedRenderRevision = 0;
+let __lastInitiativeMetadataDigest;
+let __lastQueuedInitiativeMetadataDigest;
+const __initiativeMetadataProcessor = createSerialProcessor();
+let __initiativeMetadataRevision = 0;
+let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
 let __lastConditionTurnState = null;
 let __conditionNavigationHint = null;
@@ -227,6 +250,70 @@ let __playerSelectionPollTimer = null;
 let __playerSelectionPollBusy = false;
 const NAVIGATION_STALE_GRACE_MS = 500;
 const NAVIGATION_WRITE_SETTLE_MS = 60;
+const INITIATIVE_DIAGNOSTICS_STORAGE_KEY = `${ID}/initiative-diagnostics`;
+const INITIATIVE_DIAGNOSTICS_MAX_EVENTS = 500;
+const __initiativeDiagnosticEvents = [];
+let __initiativeDiagnosticSequence = 0;
+let __initiativeDiagnosticsEnabled = (() => {
+  try { return window.localStorage.getItem(INITIATIVE_DIAGNOSTICS_STORAGE_KEY) === "1"; }
+  catch { return false; }
+})();
+
+function __initiativeDiag(event, detail = {}) {
+  if (!__initiativeDiagnosticsEnabled) return;
+  const entry = {
+    seq: ++__initiativeDiagnosticSequence,
+    ms: Math.round(performance.now()),
+    event,
+    ...detail,
+  };
+  __initiativeDiagnosticEvents.push(entry);
+  if (__initiativeDiagnosticEvents.length > INITIATIVE_DIAGNOSTICS_MAX_EVENTS) {
+    __initiativeDiagnosticEvents.splice(0, __initiativeDiagnosticEvents.length - INITIATIVE_DIAGNOSTICS_MAX_EVENTS);
+  }
+  console.debug("[initiative-diag]", entry);
+}
+
+globalThis.__tbpInitiativeDiagnostics = {
+  enable() {
+    __initiativeDiagnosticsEnabled = true;
+    try { window.localStorage.setItem(INITIATIVE_DIAGNOSTICS_STORAGE_KEY, "1"); } catch {}
+    __initiativeDiag("diagnostics:enabled");
+    return "Diagnostica iniziativa attiva";
+  },
+  disable() {
+    __initiativeDiag("diagnostics:disabled");
+    __initiativeDiagnosticsEnabled = false;
+    try { window.localStorage.removeItem(INITIATIVE_DIAGNOSTICS_STORAGE_KEY); } catch {}
+    return "Diagnostica iniziativa disattivata";
+  },
+  clear() {
+    __initiativeDiagnosticEvents.length = 0;
+    __initiativeDiagnosticSequence = 0;
+    return "Eventi diagnostici cancellati";
+  },
+  dump() {
+    return __initiativeDiagnosticEvents.map((entry) => ({ ...entry }));
+  },
+  summary() {
+    const counts = {};
+    for (const entry of __initiativeDiagnosticEvents) {
+      counts[entry.event] = (counts[entry.event] || 0) + 1;
+    }
+    const first = __initiativeDiagnosticEvents[0];
+    const last = __initiativeDiagnosticEvents[__initiativeDiagnosticEvents.length - 1];
+    return {
+      events: __initiativeDiagnosticEvents.length,
+      durationMs: first && last ? last.ms - first.ms : 0,
+      counts,
+      lastEvent: last ? { ...last } : null,
+    };
+  },
+  table() {
+    console.table(__initiativeDiagnosticEvents);
+    return __initiativeDiagnosticEvents.length;
+  },
+};
 
 
   // Scansione e deduplicazione una tantum all'avvio.
@@ -257,7 +344,10 @@ async function __cleanupActiveTurnLabels() {
       globals = globals.slice(0, 1);
     }
   } catch (e) {
+    __activeTurnLabelInitialized = false;
+    __activeTurnLabel = null;
     console.warn("[activeLabel] global init failed:", e?.message || e);
+    throw e;
   }
 
   __activeTurnLabel = globals[0] || null;
@@ -367,7 +457,7 @@ const ZOOM_CFG = {
 function __applyZoomTransition(el) {
   const dur = ZOOM_CFG.dur;
   // NB: box-shadow un filo più corto, height come prima
-  el.style.transition = `transform ${dur}ms ${ZOOM_CFG.ease}, box-shadow ${Math.max(120, dur - 40)}ms ease, height .15s ease`;
+  el.style.transition = `transform ${dur}ms ${ZOOM_CFG.ease}, scale ${dur}ms ${ZOOM_CFG.ease}, box-shadow ${Math.max(120, dur - 40)}ms ease, height .15s ease`;
 }
 
 // Applica una transform senza animazione, poi ripristina la transition desiderata
@@ -715,6 +805,7 @@ function updateLayoutToggleButton() {
 
 layoutToggleButton.addEventListener("click", (event) => {
   event.stopPropagation();
+  void __closeCompactEffectsPopover();
   __trackerLayout = isCompactTrackerLayout()
     ? TRACKER_LAYOUT_CLASSIC
     : TRACKER_LAYOUT_COMPACT;
@@ -2532,22 +2623,34 @@ async function buildBiasedBBox(bounds, gridDpi, gridSpan = FOCUS_GRID_SPAN, minP
   };
 }
 
-async function centerOnItem(itemId) {
-  if (!itemId) return;
+async function centerOnItem(itemId, expectedNavigationRevision = null) {
+  if (!itemId) return false;
   try {
     const items = await OBR.scene.items.getItems([itemId]);
-    if (!items || items.length === 0) return;
+    if (!items || items.length === 0) return false;
 
     const [raw, gridDpi] = await Promise.all([
       OBR.scene.items.getItemBounds([itemId]),
       OBR.scene.grid.getDpi().catch(() => FOCUS_FALLBACK_DPI),
     ]);
-    if (!raw) return;
+    if (!raw) return false;
 
     const biased = await buildBiasedBBox(raw, gridDpi);
+    if (
+      expectedNavigationRevision !== null &&
+      expectedNavigationRevision !== __navigationRevision
+    ) {
+      __initiativeDiag("viewport:focus-skipped-before-animate", {
+        anchorId: itemId,
+        navigationRevision: expectedNavigationRevision,
+      });
+      return false;
+    }
     await OBR.viewport.animateToBounds(biased);
+    return true;
   } catch (e) {
     console.warn("[initiative] centerOnItem failed:", e?.message || e);
+    return false;
   }
 }
 
@@ -2562,15 +2665,134 @@ async function selectAndFocus(itemId, autoFocus = true) {
 
 let __selectFocusDesired = null;
 let __selectFocusPumpRunning = false;
+let __selectFocusRunningKey = null;
+let __selectFocusCompletedKey = null;
+const VIEWPORT_FOCUS_SETTLE_MS = 220;
+let __viewportFocusDesired = null;
+let __viewportFocusTimer = null;
+let __viewportFocusRunning = false;
+
+function __scheduleViewportFocus(itemId, revision) {
+  __viewportFocusDesired = {
+    itemId,
+    revision,
+    queuedAt: Date.now(),
+  };
+  if (__viewportFocusTimer !== null) {
+    window.clearTimeout(__viewportFocusTimer);
+    __viewportFocusTimer = null;
+  }
+  __initiativeDiag("viewport:focus-queued", {
+    anchorId: itemId,
+    navigationRevision: revision,
+  });
+  if (__viewportFocusRunning) return;
+  __viewportFocusTimer = window.setTimeout(() => {
+    __viewportFocusTimer = null;
+    void __flushViewportFocus();
+  }, VIEWPORT_FOCUS_SETTLE_MS);
+}
+
+async function __flushViewportFocus() {
+  if (__viewportFocusRunning) return;
+  const desired = __viewportFocusDesired;
+  if (!desired) return;
+  const expectedAnchorId = __resolveAnchorForActive(__activeIdForState(__latestInitiativeState));
+  if (desired.revision !== __navigationRevision || desired.itemId !== expectedAnchorId) {
+    if (__viewportFocusDesired === desired) __viewportFocusDesired = null;
+    __initiativeDiag("viewport:focus-skipped-stale", {
+      anchorId: desired.itemId,
+      expectedAnchorId,
+      navigationRevision: desired.revision,
+    });
+    return;
+  }
+
+  __viewportFocusDesired = null;
+  __viewportFocusRunning = true;
+  __initiativeDiag("viewport:focus-start", {
+    anchorId: desired.itemId,
+    navigationRevision: desired.revision,
+  });
+  try {
+    const animated = await centerOnItem(desired.itemId, desired.revision);
+    if (!animated) return;
+    __initiativeDiag(
+      desired.revision === __navigationRevision
+        ? "viewport:focus-complete"
+        : "viewport:focus-complete-stale",
+    {
+      anchorId: desired.itemId,
+      navigationRevision: desired.revision,
+    });
+  } catch (err) {
+    console.warn("[initiative] viewport focus queue error:", err?.message || err);
+  } finally {
+    __viewportFocusRunning = false;
+    if (__viewportFocusDesired) {
+      const elapsed = Date.now() - __viewportFocusDesired.queuedAt;
+      const wait = Math.max(0, VIEWPORT_FOCUS_SETTLE_MS - elapsed);
+      __viewportFocusTimer = window.setTimeout(() => {
+        __viewportFocusTimer = null;
+        void __flushViewportFocus();
+      }, wait);
+    }
+  }
+}
 
 function queueSelectAndFocus(itemId, autoFocus = true) {
+  const expectedActiveId = __activeIdForState(__latestInitiativeState);
+  if (expectedActiveId && itemId !== expectedActiveId) {
+    __initiativeDiag("selection:skipped-stale", {
+      activeId: itemId,
+      expectedActiveId,
+      navigationRevision: __navigationRevision,
+    });
+    return;
+  }
   const anchorId = __resolveAnchorForActive(itemId);
   if (!anchorId) return;
+  const requestKey = `${__navigationRevision}\u0000${anchorId}\u0000${autoFocus ? "1" : "0"}`;
+  if (
+    requestKey === __selectFocusDesired?.key ||
+    requestKey === __selectFocusRunningKey ||
+    requestKey === __selectFocusCompletedKey
+  ) {
+    __initiativeDiag("selection:skipped-duplicate", {
+      activeId: itemId,
+      anchorId,
+      navigationRevision: __navigationRevision,
+    });
+    return;
+  }
   __selectFocusDesired = {
     itemId: anchorId,
     autoFocus,
     revision: __navigationRevision,
+    key: requestKey,
   };
+  __initiativeDiag("selection:queued", {
+    activeId: itemId,
+    anchorId,
+    autoFocus,
+    navigationRevision: __navigationRevision,
+  });
+  if (IS_GM) {
+    __setTrackerSelection([anchorId]);
+    __initiativeDiag("selection:optimistic", {
+      anchorId,
+      navigationRevision: __navigationRevision,
+    });
+  }
+  if (autoFocus) {
+    __scheduleViewportFocus(anchorId, __navigationRevision);
+  } else {
+    __viewportFocusDesired = null;
+    if (__viewportFocusTimer !== null) {
+      window.clearTimeout(__viewportFocusTimer);
+      __viewportFocusTimer = null;
+    }
+  }
   if (__selectFocusPumpRunning) return;
 
   __selectFocusPumpRunning = true;
@@ -2580,19 +2802,27 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
         const desired = __selectFocusDesired;
         __selectFocusDesired = null;
         if (desired.revision !== __navigationRevision) continue;
+        __selectFocusRunningKey = desired.key;
 
+        __initiativeDiag("selection:select-start", {
+          anchorId: desired.itemId,
+          navigationRevision: desired.revision,
+        });
         await selectInScene(desired.itemId, true);
-        if (
-          desired.autoFocus &&
-          desired.revision === __navigationRevision &&
-          !__selectFocusDesired
-        ) {
-          await centerOnItem(desired.itemId);
+        __initiativeDiag("selection:select-complete", {
+          anchorId: desired.itemId,
+          navigationRevision: desired.revision,
+        });
+        if (desired.revision === __navigationRevision) {
+          __selectFocusCompletedKey = desired.key;
         }
+        __selectFocusRunningKey = null;
       }
     } catch (err) {
+      __selectFocusCompletedKey = null;
       console.warn("[initiative] select/focus queue error:", err?.message || err);
     } finally {
+      __selectFocusRunningKey = null;
       __selectFocusPumpRunning = false;
       if (__selectFocusDesired) {
         const desired = __selectFocusDesired;
@@ -2622,14 +2852,63 @@ let __mutatingActiveLabel = 0;
 let __activeTurnLabelRevision = 0;
 let __activeTurnLabelLatestKey = null;
 
+function __activeTurnLabelWidth(text) {
+  return Math.min(
+    ACTIVE_LABEL_MAX_WIDTH,
+    Math.max(72, Math.ceil(String(text ?? "").length * ACTIVE_LABEL_FONT * 0.58 + 24))
+  );
+}
+
+function __activeTurnLabelPosition(anchor, bounds, dpi) {
+  const minX = Number(bounds?.min?.x);
+  const maxX = Number(bounds?.max?.x);
+  const minY = Number(bounds?.min?.y);
+  const centerX = Number.isFinite(minX) && Number.isFinite(maxX)
+    ? (minX + maxX) / 2
+    : Number(anchor?.position?.x) || 0;
+  const topY = Number.isFinite(minY)
+    ? minY
+    : (Number(anchor?.position?.y) || 0) - (Math.max(1, Number(dpi) || 1) / 2);
+  return {
+    x: centerX,
+    y: topY - ACTIVE_LABEL_GAP_PX,
+  };
+}
+
 function __setActiveTurnLabelText(item, text) {
-  const prevStyle =
-    (item.text && typeof item.text === "object" && item.text.style) ||
-    { fillColor: "#ffffff", strokeColor: "rgba(0,0,0,.85)", strokeWidth: 2 };
+  const textValue = String(text ?? "");
+  const width = __activeTurnLabelWidth(textValue);
+  const prevTextStyle =
+    (item.text && typeof item.text === "object" && item.text.style) || {};
   item.text = item.text && typeof item.text === "object" ? item.text : {};
   item.text.type = "PLAIN";
-  item.text.plainText = text;
-  item.text.style = { ...prevStyle };
+  item.text.plainText = textValue;
+  item.text.width = width;
+  item.text.height = ACTIVE_LABEL_HEIGHT;
+  item.text.style = {
+    ...prevTextStyle,
+    padding: 0,
+    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: ACTIVE_LABEL_FONT,
+    fontWeight: 600,
+    lineHeight: 1,
+    textAlign: "CENTER",
+    textAlignVertical: "MIDDLE",
+    fillColor: "#f8fafc",
+    fillOpacity: 1,
+    strokeColor: "rgba(2,6,23,.55)",
+    strokeWidth: 1,
+  };
+  item.style = {
+    ...(item.style || {}),
+    backgroundColor: ACTIVE_LABEL_BG,
+    backgroundOpacity: ACTIVE_LABEL_BG_OPACITY,
+    cornerRadius: ACTIVE_LABEL_HEIGHT / 2,
+    pointerWidth: ACTIVE_LABEL_POINTER_WIDTH,
+    pointerHeight: ACTIVE_LABEL_POINTER_HEIGHT,
+    pointerDirection: "DOWN",
+    maxViewScale: ACTIVE_LABEL_MAX_VIEW_SCALE,
+  };
 }
 
 async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = null, revision = __activeTurnLabelRevision) {
@@ -2662,32 +2941,42 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
     return;
   }
 
-  const pos = {
-    x: anchor.position.x,
-    y: anchor.position.y + ACTIVE_LABEL_OFFSET_Y_CELLS * dpi,
-  };
+  let anchorBounds = null;
+  try { anchorBounds = await OBR.scene.items.getItemBounds([anchorId]); } catch {}
+  const pos = __activeTurnLabelPosition(anchor, anchorBounds, dpi);
 
   if (!existing) {
     if (revision !== __activeTurnLabelRevision) return;
     __mutatingActiveLabel++;
     try {
+      const labelWidth = __activeTurnLabelWidth(textStr);
       const item = buildLabel()
         .plainText(textStr)
-        .fillColor("#ffffffff")
-        .strokeColor("rgba(0,0,0,.85)")
-        .strokeWidth(2)
+        .width(labelWidth)
+        .height(ACTIVE_LABEL_HEIGHT)
+        .padding(0)
+        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
+        .fontSize(ACTIVE_LABEL_FONT)
+        .fontWeight(600)
+        .lineHeight(1)
+        .textAlign("CENTER")
+        .textAlignVertical("MIDDLE")
+        .fillColor("#f8fafc")
+        .strokeColor("rgba(2,6,23,.55)")
+        .strokeWidth(1)
         .layer("TEXT")
         .position(pos)
         .attachedTo(anchorId)
         .locked(true)
         .disableHit(true)
         .style({
-          backgroundColor: "#ff0000a8",
-          backgroundOpacity: 0.75,
-          cornerRadius: 14,
+          backgroundColor: ACTIVE_LABEL_BG,
+          backgroundOpacity: ACTIVE_LABEL_BG_OPACITY,
+          cornerRadius: ACTIVE_LABEL_HEIGHT / 2,
           pointerDirection: "DOWN",
-          pointerWidth: 16,
-          pointerHeight: 12,
+          pointerWidth: ACTIVE_LABEL_POINTER_WIDTH,
+          pointerHeight: ACTIVE_LABEL_POINTER_HEIGHT,
+          maxViewScale: ACTIVE_LABEL_MAX_VIEW_SCALE,
         })
         .metadata({ [ACTIVE_LABEL_META]: { enabled: true } })
         .name("Turno attuale")
@@ -2725,6 +3014,10 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
       .filter((behavior) => behavior !== "POSITION");
     __setActiveTurnLabelText(existing, textStr);
     __activeTurnLabel = existing;
+  } catch (err) {
+    __activeTurnLabelInitialized = false;
+    __activeTurnLabel = null;
+    throw err;
   } finally {
     __mutatingActiveLabel--;
   }
@@ -2732,24 +3025,55 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
 async function __pumpActiveTurnLabel() {
   if (__activeTurnLabelPumpRunning) return;
   __activeTurnLabelPumpRunning = true;
+  let failedDesired = null;
   try {
     while (__activeTurnLabelDesired) {
       const desired = __activeTurnLabelDesired;
       __activeTurnLabelDesired = null;
-      if (desired.revision !== __activeTurnLabelRevision) continue;
+      failedDesired = desired;
+      if (
+        desired.revision !== __activeTurnLabelRevision ||
+        desired.navigationRevision !== __navigationRevision
+      ) {
+        __initiativeDiag("label:skipped-superseded", {
+          anchorId: desired.anchorId,
+          labelRevision: desired.revision,
+          navigationRevision: desired.navigationRevision,
+        });
+        continue;
+      }
+      __initiativeDiag("label:update-start", {
+        anchorId: desired.anchorId,
+        text: desired.text,
+        labelRevision: desired.revision,
+      });
       await upsertActiveTurnLabel(
         desired.anchorId,
         desired.text,
         desired.anchor,
         desired.revision
       );
+      __initiativeDiag("label:update-complete", {
+        anchorId: desired.anchorId,
+        text: desired.text,
+        labelRevision: desired.revision,
+      });
+      failedDesired = null;
     }
   } catch (err) {
     __activeTurnLabelLatestKey = null;
+    if (failedDesired && !__activeTurnLabelDesired) __activeTurnLabelDesired = failedDesired;
     console.warn("[active-label] update queue error:", err?.message || err);
   } finally {
     __activeTurnLabelPumpRunning = false;
-    if (__activeTurnLabelDesired) void __pumpActiveTurnLabel();
+    if (__activeTurnLabelDesired) {
+      if (__activeTurnLabelRetryTimer === null) {
+        __activeTurnLabelRetryTimer = window.setTimeout(() => {
+          __activeTurnLabelRetryTimer = null;
+          void __pumpActiveTurnLabel();
+        }, 250);
+      }
+    }
   }
 }
 
@@ -2773,7 +3097,14 @@ function syncActiveTurnLabel(activeId) {
     text,
     anchor: activeEntry?.position ? activeEntry : null,
     revision,
+    navigationRevision: __navigationRevision,
   };
+  __initiativeDiag("label:queued", {
+    activeId,
+    anchorId,
+    text,
+    labelRevision: revision,
+  });
 
   if (!__activeTurnLabelPumpRunning) void __pumpActiveTurnLabel();
 }
@@ -2794,6 +3125,12 @@ async function __flushNavigationState() {
 
   __navigationDesiredState = null;
   __navigationPumpRunning = true;
+  __initiativeDiag("navigation:flush-start", {
+    activeId: __activeIdForState(desired),
+    round: desired.round,
+    current: desired.current,
+    navigationRevision: __navigationRevision,
+  });
   try {
     await setSceneState(desired);
     const desiredActiveId = __activeIdForState(desired);
@@ -2801,8 +3138,22 @@ async function __flushNavigationState() {
     if (!__navigationDesiredState && desiredActiveId === latestActiveId) {
       syncActiveTurnLabel(desiredActiveId);
     }
+    __initiativeDiag("navigation:flush-complete", {
+      activeId: desiredActiveId,
+      navigationRevision: __navigationRevision,
+    });
   } catch (err) {
     console.warn("[initiative] navigation queue error:", err?.message || err);
+    if (!__navigationDesiredState) {
+      __optimisticNavigationDigest = null;
+      __lastNavigationAt = 0;
+      try {
+        __latestInitiativeState = await getSceneState();
+        await renderAll("navigation-error");
+      } catch (reconcileErr) {
+        console.warn("[initiative] navigation reconcile error:", reconcileErr?.message || reconcileErr);
+      }
+    }
   } finally {
     __navigationPumpRunning = false;
     if (__navigationDesiredState) __scheduleNavigationStateFlush();
@@ -2812,10 +3163,26 @@ async function __flushNavigationState() {
 function queueNavigationState(next) {
   __navigationDesiredState = next;
   __navigationDesiredAt = Date.now();
+  __initiativeDiag("navigation:queued", {
+    activeId: __activeIdForState(next),
+    round: next?.round,
+    current: next?.current,
+    navigationRevision: __navigationRevision,
+  });
   __scheduleNavigationStateFlush();
 }
 function __activeIdForState(state) {
   return Array.isArray(state?.order) ? state.order[state.current] : null;
+}
+
+function __matchesLatestActiveTurn(state) {
+  if (!__latestInitiativeState) return true;
+  return (
+    __activeIdForState(state) === __activeIdForState(__latestInitiativeState) &&
+    Math.floor(Number(state?.current) || 0) === Math.floor(Number(__latestInitiativeState?.current) || 0) &&
+    Math.max(1, Math.floor(Number(state?.round) || 1)) ===
+      Math.max(1, Math.floor(Number(__latestInitiativeState?.round) || 1))
+  );
 }
 
 function __conditionTurnStateSnapshot(state) {
@@ -3050,6 +3417,7 @@ function __applyTrackerSelectionState(card) {
   const fullySelected = ids.length > 0 && selectedCount === ids.length;
   const partlySelected = selectedCount > 0 && !fullySelected;
   card.dataset.selectionState = fullySelected ? "all" : partlySelected ? "partial" : "none";
+  __syncTrackerCardStateClasses(card);
   if (card.__selectionBaseShadow == null) {
     card.__selectionBaseShadow = card.style.boxShadow || "";
   }
@@ -3124,13 +3492,17 @@ async function __mountTrackerSelectionSync() {
   __playerSelectionUnsubscribe = OBR.player.onChange((player) => {
     if (Array.isArray(player?.selection)) __setTrackerSelection(player.selection);
   });
-  __playerSelectionPollTimer = window.setInterval(__refreshTrackerSelectionFromScene, 120);
+  __playerSelectionPollTimer = window.setInterval(__refreshTrackerSelectionFromScene, 1500);
 }
 
 // Collassa TUTTI i gruppi (len>1) tranne quello dell'elemento attivo
 async function __applyAutoCollapse(entries, state) {
   const { collapsed, changed } = __autoCollapseSnapshot(entries, state);
   if (changed) await setSceneState(prev => ({ ...(prev || {}), collapsed }));
+  __initiativeDiag(changed ? "collapse:changed" : "collapse:unchanged", {
+    activeId: __activeIdForState(state),
+  });
+  return changed;
 }
 
 // Slate payload minimale per un'etichetta monoriga
@@ -3502,6 +3874,7 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   // Avvia subito l'aggiornamento visivo, senza aspettare il round-trip dei metadata.
   syncHPBarNow(itemId, n, nm);
   void syncHPTextNow(itemId, n, nm);
+  syncTrackerHPNow(itemId, n, nm);
 
   await OBR.scene.items.updateItems([itemId], (items) => {
     for (const it of items) {
@@ -3655,6 +4028,7 @@ async function updateMultipleHP(updates = []) {
   for (const update of byId.values()) {
     syncHPBarNow(update.itemId, update.hp, update.hpMax);
     void syncHPTextNow(update.itemId, update.hp, update.hpMax);
+    syncTrackerHPNow(update.itemId, update.hp, update.hpMax);
   }
 
   await OBR.scene.items.updateItems([...byId.keys()], (items) => {
@@ -3774,20 +4148,65 @@ async function applyGroupHPMaxDelta(itemId, delta) {
 }
 
 function syncTrackerHPNow(itemId, hp, hpMax) {
-  const pill = document.querySelector(
-    `[data-badge="hp"][data-item-id="${itemId}"]`
-  );
-  if (pill && pill.dataset.hpEditing !== "1") {
-    pill.innerHTML = formatHPHTML(hp, hpMax);
-  }
+  const nHP = Math.max(0, Math.floor(Number(hp) || 0));
+  const nHPMax = Math.max(0, Math.floor(Number(hpMax) || 0));
+  const hasHP = nHPMax > 0;
+  const pct = hasHP ? Math.max(0, Math.min(1, nHP / nHPMax)) : 0;
+  const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"))
+    .filter((card) => card.dataset.itemId === String(itemId) ||
+      card.__selectionItemIds?.includes(String(itemId)));
 
-  const fill = document.querySelector(
-    `[data-hp-fill="1"][data-item-id="${itemId}"]`
-  );
-  if (fill) {
-    const pct = hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : 0;
-    fill.style.width = `${pct * 100}%`;
-    fill.style.background = hpColorByPct(pct);
+  for (const card of cards) {
+    const canSeeHP = card.dataset.hpCanSee === "1";
+    const showHP = canSeeHP && hasHP;
+    const knockedOut = showHP && card.dataset.groupCollapsed !== "1" && nHP <= 0;
+    card.dataset.hpVisible = showHP ? "1" : "0";
+    card.dataset.knockedOut = knockedOut ? "1" : "0";
+    card.style.filter = knockedOut
+      ? "saturate(.42) brightness(.72)"
+      : card.dataset.compactCard === "1" && card.dataset.active === "1"
+        ? "brightness(1.13)"
+        : "none";
+    card.style.opacity = knockedOut ? ".84" : "1";
+
+    const pill = card.querySelector("[data-badge='hp']");
+    if (pill && pill.dataset.hpEditing !== "1") {
+      pill.innerHTML = formatHPHTML(nHP, nHPMax);
+      pill.style.color = knockedOut ? "rgba(255,255,255,.58)" : "#fff";
+    }
+
+    const hpText = card.querySelector("[data-card-hp-text='1']");
+    if (hpText) {
+      hpText.textContent = showHP ? `HP ${nHP} / ${nHPMax}` : "";
+      hpText.style.display = showHP ? "block" : "none";
+      hpText.style.color = knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)";
+    }
+
+    const fill = card.querySelector("[data-hp-fill='1']");
+    if (fill) {
+      fill.style.width = `${pct * 100}%`;
+      fill.style.background = knockedOut ? "#475569" : hpColorByPct(pct);
+      if (fill.parentElement) fill.parentElement.style.display = showHP ? "block" : "none";
+    }
+
+    let koBadge = card.querySelector("[data-card-ko-badge='1']");
+    if (knockedOut && !koBadge) {
+      koBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${nHPMax}`);
+      koBadge.dataset.cardKoBadge = "1";
+      Object.assign(koBadge.style, card.dataset.compactCard === "1" ? {
+        position: "absolute", right: "6px", top: "6px", height: "21px",
+        zIndex: "6", pointerEvents: "none",
+      } : {
+        position: "absolute", left: card.dataset.koBadgeLeft || "42px",
+        top: card.dataset.koBadgeTop || "1px", height: "20px", minWidth: "25px",
+        zIndex: "8", pointerEvents: "none",
+      });
+      card.appendChild(koBadge);
+    } else if (!knockedOut) {
+      koBadge?.remove();
+    } else if (koBadge) {
+      koBadge.title = `Fuori combattimento: 0 / ${nHPMax}`;
+    }
   }
 }
 
@@ -4111,9 +4530,10 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
 
   const more = document.createElement("button");
   more.type = "button";
-  more.textContent = "[...]";
+  more.textContent = `+${hidden.length} ⌄`;
   more.dataset.cardSelectionIgnore = "1";
   more.setAttribute("aria-expanded", "false");
+  more.setAttribute("aria-label", `Mostra altri ${hidden.length} effetti`);
   styleChipPill(more, { compact });
   Object.assign(more.style, {
     minHeight: "20px",
@@ -4131,6 +4551,8 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
     expanded = !expanded;
     row2.style.display = expanded ? "flex" : "none";
     more.setAttribute("aria-expanded", expanded ? "true" : "false");
+    more.setAttribute("aria-label", expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`);
+    more.textContent = expanded ? "− ⌃" : `+${hidden.length} ⌄`;
     more.style.background = expanded ? "rgba(59,130,246,.82)" : "rgba(0,0,0,.72)";
     more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
     if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
@@ -4194,6 +4616,7 @@ const TRACKER_POPOVER_IDS = [
   `${ID}/spells-modal`,
   `${ID}/quick-hp-modal`,
   `${ID}/initiative-card-modal`,
+  `${ID}/compact-effects-popover`,
 ];
 let __openTrackerPopoverId = "";
 
@@ -4220,6 +4643,16 @@ function mountTrackerPopoverToggleListener() {
       void OBR.popover.setHeight(data.id, height).catch(() => {});
     }
   });
+  OBR.broadcast.onMessage(TRACKER_PANEL_REQUEST_CHANNEL, (event) => {
+    const data = event?.data;
+    if (data?.type !== "open") return;
+    if (data.panel === "conditions" && __openTrackerPopoverId !== EFFECTS_POPUP_ID) {
+      void openGlobalEffectsPopup();
+    }
+    if (data.panel === "quick-hp" && __openTrackerPopoverId !== QUICK_HP_POPUP_ID) {
+      void openGlobalQuickHPPopup();
+    }
+  });
 }
 
 async function beginTrackerPopoverToggle(popupId) {
@@ -4229,6 +4662,7 @@ async function beginTrackerPopoverToggle(popupId) {
     return false;
   }
   await Promise.all(TRACKER_POPOVER_IDS.map((id) => OBR.popover.close(id).catch(() => {})));
+  __expandedCompactEffectsId = null;
   setOpenTrackerPopoverId();
   return true;
 }
@@ -4463,6 +4897,66 @@ async function __removeCardFromInitiative(ids) {
   await renderAll();
 }
 
+async function __clearCardConditions(ids) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+  await __selectContextScope(scopeIds);
+  await withItemMetaHistory({
+    kind: "condition",
+    label: scopeIds.length > 1 ? "Rimosse tutte le condizioni (selezione)" : "Rimosse tutte le condizioni",
+    itemIds: scopeIds,
+    fields: ["conditions"],
+  }, () => clearAllConditionsForItems(scopeIds));
+  await refreshConditionLabels(scopeIds);
+}
+
+async function __clearCardSpells(ids) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+  await __selectContextScope(scopeIds);
+  await withItemMetaHistory({
+    kind: "spell",
+    label: scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi",
+    itemIds: scopeIds,
+    fields: [SPELLS_META_KEY, "conditions"],
+  }, () => clearSpellsOnItems(scopeIds));
+  await refreshConditionLabels(scopeIds);
+}
+
+async function __clearCardConcentrations(ids) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length) return;
+
+  const casterItems = await OBR.scene.items.getItems(scopeIds);
+  const concentrationCasters = [];
+  const affectedIds = new Set(scopeIds);
+  for (const item of casterItems) {
+    const concentrations = item.metadata?.[META_KEY]?.[CONC_META_KEY];
+    if (!concentrations || typeof concentrations !== "object" || !Object.keys(concentrations).length) continue;
+    concentrationCasters.push(item.id);
+    for (const concentration of Object.values(concentrations)) {
+      for (const targetId of concentration?.targets || []) {
+        if (targetId) affectedIds.add(targetId);
+      }
+    }
+  }
+  if (!concentrationCasters.length) return;
+
+  await __selectContextScope(scopeIds);
+  const historyIds = [...affectedIds];
+  await withItemMetaHistory({
+    kind: "spell",
+    label: concentrationCasters.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione",
+    itemIds: historyIds,
+    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+  }, async () => {
+    for (const casterId of concentrationCasters) {
+      await breakAllConcentrations(casterId);
+    }
+  });
+  await refreshConditionLabels(historyIds);
+}
+
 function __openInitiativeCardContextMenu(sourceEntry, event) {
   if (!IS_GM || !sourceEntry ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
@@ -4482,8 +4976,9 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     position: "fixed",
     left: `${event.clientX}px`,
     top: `${event.clientY}px`,
-    minWidth: "238px",
-    padding: "7px",
+    minWidth: "216px",
+    maxHeight: "calc(100vh - 16px)",
+    padding: "5px",
     border: "1px solid rgba(255,255,255,.16)",
     borderRadius: "12px",
     background: "rgba(42,47,64,.62)",
@@ -4494,6 +4989,8 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
     fontSize: "12px",
     zIndex: "100000",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
   });
 
   const title = document.createElement("div");
@@ -4501,10 +4998,10 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     ? `${menuTitle || "Azioni"} (${scopeIds.length})`
     : (menuTitle || "Azioni");
   Object.assign(title.style, {
-    padding: "7px 9px 9px",
-    marginBottom: "5px",
+    padding: "5px 7px 7px",
+    marginBottom: "3px",
     borderBottom: "1px solid rgba(255,255,255,.12)",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "700",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -4527,7 +5024,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     image.src = asset(icon);
     image.alt = "";
     Object.assign(image.style, {
-      width: "18px", height: "18px", flex: "0 0 18px",
+      width: "16px", height: "16px", flex: "0 0 16px",
       objectFit: "contain", pointerEvents: "none",
       filter: icon === "conditions-panel.svg" || icon === "spells-panel.svg" || icon === "character-sheet.svg"
         ? "none" : "brightness(0) invert(1)",
@@ -4539,14 +5036,18 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     const button = document.createElement("button");
     button.type = "button";
     button.setAttribute("role", "menuitem");
+    button.disabled = !!options.disabled;
+    button.setAttribute("aria-disabled", String(!!options.disabled));
+    if (options.title) button.title = options.title;
     Object.assign(button.style, {
-      width: "100%", minHeight: "36px", padding: "7px 9px",
-      border: "0", borderRadius: "8px",
+      width: "100%", minHeight: "31px", padding: "5px 7px",
+      border: "0", borderRadius: "7px",
       background: options.current ? "rgba(37,99,235,.30)" : "transparent",
-      color: options.danger ? "#fecaca" : "#fff",
-      fontFamily: "inherit", fontSize: "13px", fontWeight: "600",
-      textAlign: "left", cursor: "pointer",
-      display: "flex", alignItems: "center", gap: "9px",
+      color: options.disabled ? "rgba(255,255,255,.42)" : options.danger ? "#fecaca" : "#fff",
+      fontFamily: "inherit", fontSize: "12px", fontWeight: "600",
+      textAlign: "left", cursor: options.disabled ? "default" : "pointer",
+      display: "flex", alignItems: "center", gap: "7px",
+      opacity: options.disabled ? ".62" : "1",
     });
     button.appendChild(iconNode(icon, options.color));
     const labelNode = document.createElement("span");
@@ -4560,12 +5061,14 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
       button.appendChild(trailing);
     }
     button.addEventListener("pointerenter", () => {
+      if (options.disabled) return;
       button.style.background = "rgba(255,255,255,.12)";
     });
     button.addEventListener("pointerleave", () => {
+      if (options.disabled) return;
       button.style.background = options.current ? "rgba(37,99,235,.30)" : "transparent";
     });
-    if (action) {
+    if (action && !options.disabled) {
       button.addEventListener("click", async (clickEvent) => {
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
@@ -4584,7 +5087,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
     const wrap = document.createElement("div");
     const content = document.createElement("div");
     Object.assign(content.style, {
-      display: "none", margin: "2px 0 5px 27px", padding: "3px",
+      display: "none", margin: "1px 0 3px 23px", padding: "2px",
       borderLeft: "1px solid rgba(255,255,255,.14)",
     });
     const trigger = makeAction(wrap, label, icon, null, { trailing: ">" });
@@ -4605,26 +5108,47 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   const divider = () => {
     const line = document.createElement("div");
     Object.assign(line.style, {
-      height: "1px", margin: "5px 7px",
+      height: "1px", margin: "3px 5px",
       background: "rgba(255,255,255,.12)",
     });
     menu.appendChild(line);
   };
 
+  const expandedTokenMenu = !isCompactTrackerLayout() && !sourceEntry.__groupCollapsed;
+  const hasActiveConcentration = !!sourceEntry.isConcentrating || scopeIds.some((id) =>
+    __activeLabelEntriesById.get(id)?.isConcentrating
+  );
 
   addAction("Condizioni", "conditions-panel.svg", async () => {
     await __selectContextScope(scopeIds);
     await openCardEffectsPopup(sourceEntry);
   });
+  if (expandedTokenMenu) {
+    addAction("Rimuovi condizioni", "conditions-panel.svg",
+      () => __clearCardConditions(scopeIds), { danger: true });
+    divider();
+  }
   addAction("Incantesimi", "spells-panel.svg", async () => {
     await __selectContextScope(scopeIds);
     await openCardSpellsPopup(sourceEntry);
   });
+  if (expandedTokenMenu) {
+    addAction("Termina incantesimi", "spells-panel.svg",
+      () => __clearCardSpells(scopeIds), { danger: true });
+    addAction("Termina concentrazione", "spells-panel.svg",
+      () => __clearCardConcentrations(scopeIds), {
+        danger: true,
+        disabled: !hasActiveConcentration,
+        title: hasActiveConcentration ? "Termina la concentrazione attiva" : "Nessuna concentrazione attiva",
+      });
+    divider();
+  }
   if (!isBulkScope && sourceEntry.attitude === "pc") {
     addAction("Scheda iniziativa", "character-sheet.svg", () => openInitiativeCardPopup(sourceEntry));
+    divider();
+  } else if (!expandedTokenMenu) {
+    divider();
   }
-
-  divider();
   const attitudes = [
     { value: "ally", label: "Alleato", color: "#22c55e" },
     { value: "neutral", label: "Neutrale", color: "#eab308" },
@@ -4722,10 +5246,12 @@ const GROUP_LAYOUT_ANIMATION_MS = 460;
 const GROUP_LAYOUT_STAGGER_MS = 34;
 const GROUP_LAYOUT_MAX_STAGGER_MS = 140;
 const GROUP_LAYOUT_EASING = "cubic-bezier(.45,0,.55,1)";
-const GROUP_CARD_SWAP_FADE_MS = 90;
+const GROUP_CARD_SWAP_FADE_MS = 220;
+const GROUP_CARD_SWAP_EASING = "cubic-bezier(.22,1,.36,1)";
 let __finishGroupLayoutTransition = null;
 let __activeGroupLayoutSignature = null;
 let __afterGroupLayoutTransition = null;
+let __pendingGroupLayoutNodes = null;
 
 function __runAfterGroupLayoutTransition(callback) {
   __afterGroupLayoutTransition = callback;
@@ -4773,6 +5299,123 @@ function __groupLayoutSignature(nodes) {
     .join("|")}`;
 }
 
+function __syncTrackerCardStateClasses(card) {
+  if (!(card instanceof HTMLElement)) return;
+  card.classList.toggle("is-active", card.dataset.active === "1");
+  card.classList.toggle("is-selected", card.dataset.selectionState === "all");
+  card.classList.toggle("is-partially-selected", card.dataset.selectionState === "partial");
+  card.classList.toggle("is-collapsed", card.dataset.groupCollapsed === "1");
+}
+
+function __copyTrackerCardOuterState(liveCard, nextCard) {
+  for (const attribute of Array.from(liveCard.attributes)) {
+    if (!nextCard.hasAttribute(attribute.name)) liveCard.removeAttribute(attribute.name);
+  }
+  for (const attribute of Array.from(nextCard.attributes)) {
+    liveCard.setAttribute(attribute.name, attribute.value);
+  }
+  liveCard.__selectionBaseShadow = nextCard.__selectionBaseShadow ?? nextCard.style.boxShadow ?? "";
+  __syncTrackerCardStateClasses(liveCard);
+}
+
+function __reconcileTrackCardsById(nextNodes) {
+  const nextCards = nextNodes.filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  const liveCards = Array.from(track.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  if (
+    liveCards.length !== nextCards.length ||
+    liveCards.some((card, index) => card.dataset.itemId !== nextCards[index]?.dataset.itemId)
+  ) return false;
+
+  let replaced = 0;
+  for (let index = 0; index < liveCards.length; index++) {
+    const liveCard = liveCards[index];
+    const nextCard = nextCards[index];
+    if (liveCard.innerHTML !== nextCard.innerHTML) {
+      liveCard.replaceWith(nextCard);
+      replaced += 1;
+      continue;
+    }
+    __copyTrackerCardOuterState(liveCard, nextCard);
+  }
+  __initiativeDiag("render:cards-reconciled", {
+    preserved: liveCards.length - replaced,
+    replaced,
+    layout: isCompactTrackerLayout() ? "compact" : "classic",
+  });
+  return true;
+}
+
+const ACTIVE_CARD_VISUAL_PROPERTIES = [
+  "background",
+  "backgroundColor",
+  "border",
+  "borderColor",
+  "boxShadow",
+  "filter",
+  "opacity",
+  "scale",
+  "zIndex",
+];
+
+function __syncActiveCardVisuals(nextNodes) {
+  const nextById = new Map(nextNodes
+    .filter((node) => node instanceof HTMLElement && node.dataset.trackerCard === "1")
+    .map((node) => [node.dataset.itemId, node]));
+  const nextByGroup = new Map();
+  for (const node of nextNodes) {
+    if (!(node instanceof HTMLElement) || node.dataset.trackerCard !== "1") continue;
+    const groupKey = node.dataset.groupKey;
+    if (groupKey && !nextByGroup.has(groupKey)) nextByGroup.set(groupKey, node);
+  }
+  const liveCards = Array.from(track.querySelectorAll("[data-tracker-card='1']"));
+  for (const liveCard of liveCards) {
+    const nextCard = nextById.get(liveCard.dataset.itemId) ||
+      nextByGroup.get(liveCard.dataset.groupKey);
+    if (!nextCard) {
+      delete liveCard.dataset.active;
+      liveCard.style.scale = "1";
+      __syncTrackerCardStateClasses(liveCard);
+      continue;
+    }
+    if (nextCard.dataset.active === "1") liveCard.dataset.active = "1";
+    else delete liveCard.dataset.active;
+    for (const property of ACTIVE_CARD_VISUAL_PROPERTIES) {
+      liveCard.style[property] = nextCard.style[property] || "";
+    }
+    liveCard.__selectionBaseShadow = nextCard.style.boxShadow || "";
+    __applyTrackerSelectionState(liveCard);
+    __syncTrackerCardStateClasses(liveCard);
+  }
+}
+
+function __animateActiveCardEntrance(animateActive, expectedActiveId = null) {
+  if (!animateActive || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+  const card = Array.from(track.querySelectorAll("[data-tracker-card='1'][data-active='1']"))
+    .find((candidate) => !expectedActiveId || candidate.dataset.itemId === String(expectedActiveId));
+  if (!(card instanceof HTMLElement)) {
+    __initiativeDiag("animation:active-skipped-missing", {
+      activeId: expectedActiveId,
+      layout: isCompactTrackerLayout() ? "compact" : "classic",
+    });
+    return;
+  }
+  const targetScale = card.style.scale || String(ZOOM_CFG.scale);
+  const previousTransition = card.style.transition;
+  card.style.transition = "none";
+  card.style.scale = "1";
+  void card.offsetHeight;
+  card.style.transition = previousTransition;
+  card.style.scale = targetScale;
+  __initiativeDiag("animation:active-start", {
+    activeId: card.dataset.itemId,
+    layout: isCompactTrackerLayout() ? "compact" : "classic",
+  });
+}
+
 function __groupAccordionFrames(dx, dy, baseTransform = "none") {
   const compact = isCompactTrackerLayout();
   const axisX = compact ? dx : 0;
@@ -4815,11 +5458,19 @@ function __replaceTrackCardsMagnetic(nodes) {
   const compact = isCompactTrackerLayout();
   const nextNodes = nodes.filter(Boolean);
   const nextSignature = __groupLayoutSignature(nextNodes);
-  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) return;
+  if (__finishGroupLayoutTransition && __activeGroupLayoutSignature === nextSignature) {
+    __pendingGroupLayoutNodes = nextNodes;
+    __syncActiveCardVisuals(nextNodes);
+    __initiativeDiag("animation:group-coalesced", {
+      layout: compact ? "compact" : "classic",
+    });
+    return;
+  }
 
   __finishGroupLayoutTransition?.();
   __finishGroupLayoutTransition = null;
   __activeGroupLayoutSignature = null;
+  __pendingGroupLayoutNodes = null;
 
   const oldCards = Array.from(track.children).filter(
     (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
@@ -4836,7 +5487,13 @@ function __replaceTrackCardsMagnetic(nodes) {
   }
 
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  if (!transitions.length || reducedMotion) {
+  if (!transitions.length) {
+    const currentSignature = __groupLayoutSignature(oldCards);
+    if (currentSignature === nextSignature && __reconcileTrackCardsById(nextNodes)) return;
+    track.replaceChildren(...nextNodes);
+    return;
+  }
+  if (reducedMotion) {
     track.replaceChildren(...nextNodes);
     return;
   }
@@ -4951,10 +5608,15 @@ function __replaceTrackCardsMagnetic(nodes) {
       finalLead.replaceWith(stage);
       oldGroup.forEach(({ card, snapshot }, index) => {
         const visual = card;
+        const activeVisual = visual.dataset.active === "1";
         visual.removeAttribute("id");
         const offset = setAbsoluteCard(visual, snapshot, firstSnapshot, stageWidth, stageHeight);
         visual.style.zIndex = index === 0 ? "1000" : String(900 - index);
-        visual.style.backgroundColor = "rgb(31, 39, 51)";
+        // Le card attive usano il gradiente/opacità della fazione. Un
+        // backgroundColor pieno qui lo copriva durante la chiusura del gruppo
+        // e faceva sparire anche la percezione dello zoom attivo.
+        if (!activeVisual) visual.style.backgroundColor = "rgb(31, 39, 51)";
+        else visual.style.backgroundColor = "";
         stage.appendChild(visual);
         if (index === 0) swapVisual = visual;
         else movingRecords.push({ card: visual, offset, baseTransform: snapshot.baseTransform, index: index - 1, count: oldGroup.length - 1 });
@@ -5046,8 +5708,17 @@ function __replaceTrackCardsMagnetic(nodes) {
       promoted.card.style.willChange = promoted.willChange;
       promoted.card.style.backfaceVisibility = promoted.backfaceVisibility;
     }
+    const pendingNodes = __pendingGroupLayoutNodes;
+    __pendingGroupLayoutNodes = null;
+    if (pendingNodes && !__reconcileTrackCardsById(pendingNodes)) {
+      track.replaceChildren(...pendingNodes);
+    }
     if (__finishGroupLayoutTransition === finish) __finishGroupLayoutTransition = null;
     if (__activeGroupLayoutSignature === nextSignature) __activeGroupLayoutSignature = null;
+    __initiativeDiag("animation:group-finished", {
+      layout: compact ? "compact" : "classic",
+      coalesced: !!pendingNodes,
+    });
     const afterTransition = __afterGroupLayoutTransition;
     __afterGroupLayoutTransition = null;
     if (afterTransition) requestAnimationFrame(() => afterTransition());
@@ -5106,7 +5777,7 @@ function __replaceTrackCardsMagnetic(nodes) {
       if (record.type === "expand") {
         play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
           duration: GROUP_CARD_SWAP_FADE_MS,
-          easing: "ease-out",
+          easing: GROUP_CARD_SWAP_EASING,
           fill: "forwards",
         });
       } else {
@@ -5114,7 +5785,7 @@ function __replaceTrackCardsMagnetic(nodes) {
         play(record.swapVisual, [{ opacity: 1 }, { opacity: 0 }], {
           duration: GROUP_CARD_SWAP_FADE_MS,
           delay: fadeDelay,
-          easing: "ease-out",
+          easing: GROUP_CARD_SWAP_EASING,
           fill: "forwards",
         });
         record.finalLead.style.visibility = "";
@@ -5124,7 +5795,7 @@ function __replaceTrackCardsMagnetic(nodes) {
         ], {
           duration: GROUP_CARD_SWAP_FADE_MS,
           delay: fadeDelay,
-          easing: "ease-out",
+          easing: GROUP_CARD_SWAP_EASING,
           fill: "backwards",
         });
       }
@@ -5170,18 +5841,147 @@ function compactStatusBadge(text, title, tone = "neutral") {
     lineHeight: "1",
     boxShadow: "0 1px 4px rgba(0,0,0,.55)",
     whiteSpace: "nowrap",
+    flex: "0 0 auto",
   });
   return badge;
 }
 
-function compactConditionSymbol(instance) {
+let __expandedCompactEffectsId = null;
+const COMPACT_CARD_WIDTH = 92;
+const COMPACT_CARD_HEIGHT = 120;
+
+function __compactConditionPillLabel(instance) {
   const name = String(instance?.condition || "").trim();
-  const formatted = formatConditionName(name);
-  const symbol = formatted.split(/\s+/)[0];
-  return symbol && symbol !== name ? symbol : "!";
+  let label = formatConditionName(name) || name || "Condizione";
+  if (name === "Indebolimento") {
+    label += ` ${Math.max(1, Math.floor(Number(instance?.level) || 1))}`;
+  }
+  const expiry = instance?.expiry || {};
+  const remaining = Math.max(0, Math.floor(Number(expiry.remaining) || 0));
+  if (expiry.mode === "rounds" && remaining) label += ` (${remaining})`;
+  else if (expiry.mode === "turn-start") label += ` (I${remaining > 1 ? `:${remaining}` : ""})`;
+  else if (expiry.mode === "turn-end") label += ` (F${remaining > 1 ? `:${remaining}` : ""})`;
+  else if (expiry.mode === "concentration") label += " (C)";
+  return label;
 }
 
-function renderCompactTrack(entries, state) {
+function __compactEffectItems(conditionInstances, spells, concentrating) {
+  const effects = conditionInstances.map((instance) => ({
+    kind: "condition",
+    label: __compactConditionPillLabel(instance),
+    title: formatConditionInstance(instance),
+  }));
+  for (const spell of spells) {
+    const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    effects.push({
+      kind: "spell",
+      key: __spellKey(spell?.name),
+      label: `${String(spell?.name || "Incantesimo")} (${turns})`,
+      title: `${String(spell?.name || "Incantesimo")} · ${turns} round rimanenti${spell?.conc ? " · concentrazione" : ""}`,
+    });
+  }
+  if (concentrating && !spells.some((spell) => spell?.conc)) {
+    effects.push({
+      kind: "concentration",
+      label: "Concentrazione",
+      title: "Concentrazione attiva",
+    });
+  }
+  return effects;
+}
+
+function __buildCompactEffectPill(effect, preview = false) {
+  const pill = document.createElement("span");
+  pill.textContent = effect.label;
+  pill.title = effect.title || effect.label;
+  const spellColor = effect.kind === "spell" ? __spellColor(effect.key) : null;
+  const background = effect.kind === "concentration"
+    ? "#2563eb"
+    : spellColor?.solid || "rgba(8,12,21,.94)";
+  const border = effect.kind === "concentration"
+    ? "#93c5fd"
+    : spellColor?.border || "rgba(255,255,255,.38)";
+  Object.assign(pill.style, {
+    minWidth: "0",
+    maxWidth: preview ? "100%" : "196px",
+    height: preview ? "14px" : "17px",
+    padding: "0 5px",
+    display: "inline-flex",
+    alignItems: "center",
+    boxSizing: "border-box",
+    overflow: "hidden",
+    border: `1px solid ${border}`,
+    borderRadius: "999px",
+    background,
+    color: "#fff",
+    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: "8px",
+    fontWeight: "600",
+    lineHeight: "1",
+    justifyContent: "center",
+    textAlign: "center",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    boxShadow: "0 1px 4px rgba(0,0,0,.45)",
+  });
+  return pill;
+}
+
+const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
+const COMPACT_EFFECTS_PAYLOAD_KEY = `${ID}/compact-effects-payload`;
+
+async function __closeCompactEffectsPopover() {
+  __expandedCompactEffectsId = null;
+  await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
+}
+
+async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effects) {
+  if (__expandedCompactEffectsId === entryId) {
+    await __closeCompactEffectsPopover();
+    return false;
+  }
+
+  const remainingEffects = effects.slice(1);
+  if (!remainingEffects.length) return false;
+  localStorage.setItem(COMPACT_EFFECTS_PAYLOAD_KEY, JSON.stringify({ effects: remainingEffects }));
+
+  const trackerAnchor = await getCompactTrackerPopoverAnchor();
+  const cardRect = card.getBoundingClientRect();
+  const effectAnchorRect = effectAnchor.getBoundingClientRect();
+  const trackerLeft = trackerAnchor.left - (window.innerWidth / 2);
+  const trackerTop = trackerAnchor.top - window.innerHeight;
+  const anchorPosition = {
+    left: Math.round(trackerLeft + effectAnchorRect.left + effectAnchorRect.width / 2),
+    top: Math.round(trackerTop + effectAnchorRect.bottom),
+  };
+  const width = Math.max(72, Math.round(cardRect.width));
+  const height = remainingEffects.length * 14 + Math.max(0, remainingEffects.length - 1) + 4;
+
+  await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
+  try {
+    await OBR.popover.open({
+      id: COMPACT_EFFECTS_POPOVER_ID,
+      url: "/compact-effects.html",
+      width,
+      height,
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 0,
+      hidePaper: true,
+    });
+    __expandedCompactEffectsId = entryId;
+    return true;
+  } catch (error) {
+    __expandedCompactEffectsId = null;
+    console.warn("[compact-effects] apertura pannello fallita:", error?.message || error);
+    return false;
+  }
+}
+
+function renderCompactTrack(entries, state, { animateActive = false } = {}) {
   const order = Array.isArray(state?.order) ? state.order : [];
   const activeIndex = Math.max(0, Math.min(order.length - 1, Number(state?.current) || 0));
   const activeId = order[activeIndex] || null;
@@ -5201,7 +6001,7 @@ function renderCompactTrack(entries, state) {
     const virtual = isLairId(entry.id) || isEpicActionId(entry.id);
     const attitude = String(entry.attitude || "").toLowerCase();
     const faction = factionColors(attitude);
-    const cardWidth = 92;
+    const cardWidth = COMPACT_CARD_WIDTH;
     const portraitSize = boss ? 59 : 49;
     const canSeeHP = IS_GM || attitude === "pc";
     const hp = Number(entry.hp);
@@ -5210,7 +6010,17 @@ function renderCompactTrack(entries, state) {
     const showHP = canSeeHP && hasHP;
     const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;
     const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;
-    const knockedOut = showHP && safeHP <= 0;
+    const knockedOut = showHP && !entry.__groupCollapsed && safeHP <= 0;
+    const effectMembers = entry.__groupCollapsed ? [] : members;
+    const conditionInstances = effectMembers.flatMap((member) =>
+      getConditionInstances(member.conditions || {})
+    );
+    const spells = effectMembers.flatMap((member) =>
+      Array.isArray(member.spells) ? member.spells : []
+    );
+    const concentrating = effectMembers.some((member) => member.isConcentrating);
+    const compactEffects = __compactEffectItems(conditionInstances, spells, concentrating);
+    const hasExpandableEffects = compactEffects.length > 1;
 
     const card = document.createElement("article");
     card.dataset.itemId = entry.id;
@@ -5219,6 +6029,10 @@ function renderCompactTrack(entries, state) {
     card.dataset.groupKey = entry.__groupKey || __groupKey(entry);
     card.dataset.trackerCard = "1";
     card.dataset.compactCard = "1";
+    card.dataset.hpCanSee = canSeeHP ? "1" : "0";
+    card.dataset.hpVisible = showHP ? "1" : "0";
+    card.dataset.knockedOut = knockedOut ? "1" : "0";
+    card.dataset.hasEffectOverflow = hasExpandableEffects ? "1" : "0";
     card.dataset.isEpic = entry.isEpic ? "1" : "0";
     card.__selectionItemIds = __selectionIdsForEntry(entry);
     const dragAllowed = !(virtual || entry.isEpic);
@@ -5232,7 +6046,7 @@ function renderCompactTrack(entries, state) {
       flex: `0 0 ${cardWidth}px`,
       width: `${cardWidth}px`,
       minWidth: `${cardWidth}px`,
-      height: "120px",
+      height: `${COMPACT_CARD_HEIGHT}px`,
       padding: "3px 5px 2px",
       boxSizing: "border-box",
       display: "flex",
@@ -5251,9 +6065,10 @@ function renderCompactTrack(entries, state) {
       cursor: card.__selectionItemIds.length ? "pointer" : "default",
       filter: knockedOut ? "saturate(.42) brightness(.72)" : active ? "brightness(1.13)" : "none",
       opacity: knockedOut ? ".84" : "1",
-      transform: active ? "scale(1.035)" : "scale(1)",
+      transform: "translateZ(0)",
+      scale: active ? String(ZOOM_CFG.scale) : "1",
       transformOrigin: "50% 50%",
-      transition: "transform 160ms ease, filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+      transition: "scale 160ms ease, filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
       zIndex: active ? "5" : boss ? "3" : "1",
     });
     card.__selectionBaseShadow = card.style.boxShadow;
@@ -5411,6 +6226,7 @@ function renderCompactTrack(entries, state) {
 
     if (knockedOut) {
       const ko = compactStatusBadge("KO", `Fuori combattimento: 0 / ${hpMax}`);
+      ko.dataset.cardKoBadge = "1";
       Object.assign(ko.style, {
         position: "absolute",
         right: "6px",
@@ -5425,7 +6241,7 @@ function renderCompactTrack(entries, state) {
     const name = document.createElement("div");
     name.textContent = entry.__groupCollapsed
       ? `${entry.__groupBase} (Gruppo)`
-      : __safeBaseName(entry.name);
+      : entry.name;
     name.title = entry.__groupCollapsed
       ? `${entry.__groupBase} (x${entry.__groupCount})`
       : entry.name;
@@ -5497,7 +6313,7 @@ function renderCompactTrack(entries, state) {
               console.warn("[initiative] compact rename token:", error?.message || error);
             }
           }
-          name.textContent = __safeBaseName(displayedName);
+          name.textContent = displayedName;
           name.title = displayedName;
           if (input.isConnected) input.replaceWith(name);
           delete card.dataset.renaming;
@@ -5521,6 +6337,7 @@ function renderCompactTrack(entries, state) {
     }
 
     const hpText = document.createElement("div");
+    hpText.dataset.cardHpText = "1";
     hpText.textContent = showHP
       ? `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`
       : "";
@@ -5551,6 +6368,8 @@ function renderCompactTrack(entries, state) {
       boxSizing: "border-box",
     });
     const hpFill = document.createElement("div");
+    hpFill.dataset.hpFill = "1";
+    hpFill.dataset.itemId = entry.id;
     Object.assign(hpFill.style, {
       width: showHP ? `${hpPercent * 100}%` : "0%",
       height: "100%",
@@ -5559,68 +6378,146 @@ function renderCompactTrack(entries, state) {
     hpTrack.appendChild(hpFill);
 
     const status = document.createElement("div");
+    status.dataset.cardSelectionIgnore = "1";
     Object.assign(status.style, {
       width: "100%",
       height: "14px",
+      flex: "0 0 14px",
       marginTop: "0",
+      padding: "0",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       gap: "2px",
-      overflow: "hidden",
+      overflow: "visible",
+      border: "0",
+      background: "transparent",
+      fontFamily: "inherit",
     });
-    const conditionInstances = members.flatMap((member) =>
-      getConditionInstances(member.conditions || {})
-    );
-    const concentrating = members.some((member) => member.isConcentrating);
-    const spellCount = members.reduce((total, member) =>
-      total + (Array.isArray(member.spells) ? member.spells.length : 0), 0
-    );
     const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
     const legendaryResistances = members.find(
       (member) => Number(member.legendaryResistances?.max) > 0
     )?.legendaryResistances;
 
-    if (concentrating) {
-      status.appendChild(compactStatusBadge("C", "Concentrazione", "concentration"));
+    let previewPill = null;
+    let effectSlot = null;
+    const effectsPopoverOpen = __expandedCompactEffectsId === entry.id;
+    if (compactEffects.length) {
+      effectSlot = document.createElement("div");
+      Object.assign(effectSlot.style, {
+        position: "relative",
+        minWidth: "0",
+        flex: "1 1 auto",
+        height: "14px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "visible",
+      });
+      previewPill = __buildCompactEffectPill(compactEffects[0], true);
+      previewPill.style.flex = "1 1 100%";
+      if (hasExpandableEffects) {
+        previewPill.setAttribute("role", "button");
+        previewPill.setAttribute("tabindex", "0");
+        previewPill.setAttribute("aria-expanded", effectsPopoverOpen ? "true" : "false");
+        previewPill.setAttribute("aria-label", effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
+        previewPill.style.cursor = "pointer";
+      }
+      effectSlot.appendChild(previewPill);
+      status.appendChild(effectSlot);
     }
-    for (const instance of conditionInstances.slice(0, 2)) {
-      status.appendChild(compactStatusBadge(
-        compactConditionSymbol(instance),
-        formatConditionInstance(instance)
-      ));
+
+    let moreEffectsButton = null;
+    if (hasExpandableEffects) {
+      moreEffectsButton = document.createElement("button");
+      moreEffectsButton.type = "button";
+      moreEffectsButton.textContent = "+";
+      moreEffectsButton.dataset.cardSelectionIgnore = "1";
+      moreEffectsButton.setAttribute("aria-expanded", effectsPopoverOpen ? "true" : "false");
+      moreEffectsButton.setAttribute("aria-label", effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
+      moreEffectsButton.title = effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`;
+      Object.assign(moreEffectsButton.style, {
+        position: "absolute",
+        top: "calc(100% + 1px)",
+        left: "50%",
+        width: "16px",
+        height: "16px",
+        padding: "0 0 1px",
+        display: effectsPopoverOpen ? "none" : "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid rgba(255,255,255,.34)",
+        borderRadius: "50%",
+        background: "rgba(8,12,21,.92)",
+        color: "#fff",
+        fontFamily: "inherit",
+        fontSize: "13px",
+        fontWeight: "800",
+        lineHeight: "1",
+        cursor: "pointer",
+        boxShadow: "0 1px 4px rgba(0,0,0,.45)",
+        transform: "translateX(-50%)",
+        zIndex: "22",
+      });
     }
-    if (!conditionInstances.length && spellCount > 0 && !concentrating) {
-      status.appendChild(compactStatusBadge("S", `${spellCount} incantesimi attivi`));
-    }
+
     if (legendary) {
-      status.appendChild(compactStatusBadge(
+      const badge = compactStatusBadge(
         `A${Math.max(0, Number(legendary.current) || 0)}`,
         `Azioni leggendarie: ${Math.max(0, Number(legendary.current) || 0)}/${Math.max(0, Number(legendary.max) || 0)}`,
         "legendary"
-      ));
+      );
+      badge.style.height = "14px";
+      status.appendChild(badge);
     }
     if (legendaryResistances) {
-      status.appendChild(compactStatusBadge(
+      const badge = compactStatusBadge(
         `R${Math.max(0, Number(legendaryResistances.current) || 0)}`,
         `Resistenze leggendarie: ${Math.max(0, Number(legendaryResistances.current) || 0)}/${Math.max(0, Number(legendaryResistances.max) || 0)}`,
         "resistance"
-      ));
-    }
-    const represented = Math.min(2, conditionInstances.length);
-    const hiddenCount = Math.max(0, conditionInstances.length - represented) +
-      Math.max(0, spellCount - (concentrating ? 1 : (!conditionInstances.length && spellCount ? 1 : 0)));
-    if (hiddenCount > 0) {
-      status.appendChild(compactStatusBadge(`+${hiddenCount}`, "Altri effetti attivi"));
+      );
+      badge.style.height = "14px";
+      status.appendChild(badge);
     }
 
     card.append(portrait, name, hpText, hpTrack, status);
+    if (moreEffectsButton) effectSlot.appendChild(moreEffectsButton);
+    if (hasExpandableEffects) {
+      const syncEffectsToggleState = (opened) => {
+        moreEffectsButton.style.display = opened ? "none" : "inline-flex";
+        moreEffectsButton.setAttribute("aria-expanded", opened ? "true" : "false");
+        moreEffectsButton.setAttribute("aria-label", opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
+        moreEffectsButton.title = opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`;
+        previewPill.setAttribute("aria-expanded", opened ? "true" : "false");
+        previewPill.setAttribute("aria-label", opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
+      };
+      const toggleEffects = async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const opened = await __toggleCompactEffectsPopover(card, previewPill, entry.id, compactEffects);
+        syncEffectsToggleState(opened);
+      };
+      moreEffectsButton.addEventListener("pointerdown", (event) => event.stopPropagation());
+      moreEffectsButton.addEventListener("click", toggleEffects);
+      previewPill.addEventListener("pointerdown", (event) => event.stopPropagation());
+      previewPill.addEventListener("click", toggleEffects);
+      previewPill.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        void toggleEffects(event);
+      });
+    }
     if (active) card.dataset.active = "1";
     __applyTrackerSelectionState(card);
     return card;
   });
 
   __replaceTrackCardsAnimated(nodes);
+  __animateActiveCardEntrance(animateActive && activeChanged, activeId);
+  if (__expandedCompactEffectsId && !nodes.some((node) =>
+    node.dataset.itemId === __expandedCompactEffectsId && node.dataset.hasEffectOverflow === "1"
+  )) {
+    void __closeCompactEffectsPopover();
+  }
   resizeCompactTrackerPopover(visibleEntries);
   updateActiveCardMovementIndicator();
   if (__scrollActiveOnNextRender || activeChanged) {
@@ -5634,11 +6531,11 @@ function renderCompactTrack(entries, state) {
 
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
+    const animateActive = !!opts.animateActive;
     if (isCompactTrackerLayout()) {
-      renderCompactTrack(entries, state);
+      renderCompactTrack(entries, state, { animateActive });
       return;
     }
-    const animateActive = !!opts.animateActive;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
     const currentActiveId = len ? state.order[activeIdx] : null;   // <-- AGGIUNTO QUI
@@ -5703,19 +6600,29 @@ for (const e of entries) {
     const HAS_PAR = Number(e.paragonActions) > 1;
     const IS_EPIC = !!e.isEpic;
     const IS_BOSS = HAS_LEG || HAS_PAR || IS_EPIC;
+    const CLASSIC_HP_VALUE = Number.isFinite(Number(e.hp)) ? Number(e.hp) : 0;
+    const CLASSIC_HP_MAX = Number.isFinite(Number(e.hpMax)) ? Number(e.hpMax) : 0;
+    const CLASSIC_HP_VISIBLE = IS_GM || ["ally", "pc"].includes(String(e.attitude || "").toLowerCase());
+    const KNOCKED_OUT = CLASSIC_HP_VISIBLE && !e.__groupCollapsed &&
+      !isLairId(e.id) && !isEpicActionId(e.id) &&
+      CLASSIC_HP_MAX > 0 && CLASSIC_HP_VALUE <= 0;
+    card.dataset.hpCanSee = CLASSIC_HP_VISIBLE ? "1" : "0";
+    card.dataset.hpVisible = CLASSIC_HP_VISIBLE && CLASSIC_HP_MAX > 0 ? "1" : "0";
+    card.dataset.knockedOut = KNOCKED_OUT ? "1" : "0";
     const PLAYER_CARD_HAS_HP = !IS_GM && !e.__groupCollapsed &&
       ["ally", "pc"].includes(String(e.attitude || "").toLowerCase());
     const PLAYER_BOSS_VERTICAL_OFFSET = IS_BOSS && !IS_GM && !PLAYER_CARD_HAS_HP
       ? (HAS_LEG ? 16 : 7)
       : 0;
 
-    const cardEffectData = __safeConditions(e.conditions);
+    const cardEffectData = __safeConditions(e.__groupCollapsed ? null : e.conditions);
     const HAS_CARD_EFFECTS =
+      !e.__groupCollapsed && (
       Object.keys(cardEffectData.flags || {}).length > 0 ||
       (cardEffectData.custom?.length || 0) > 0 ||
       (cardEffectData.instances?.length || 0) > 0 ||
       (Array.isArray(e.spells) && e.spells.length > 0) ||
-      !!e.isConcentrating;
+      !!e.isConcentrating);
 
     const DRAG_OK = !(isLairId(e.id) || isEpicActionId(e.id) || IS_EPIC);
     card.setAttribute("draggable", DRAG_OK ? "true" : "false");
@@ -5836,6 +6743,7 @@ if (HAS_LEG) {
 }
   const baseScale = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
   card.style.transform = `translateZ(0) scale(${baseScale})`;
+  card.style.scale = "1";
   card.style.zIndex = IS_BOSS ? String(LEG_BOSS_CFG.zIndex) : "";
 
     const isActive = e.__groupMembers
@@ -5865,23 +6773,8 @@ const isNext = e.__groupMembers
 
   // --- ZOOM ATTIVO: anima SOLTANTO quando cambia l’attivo ---
   const baseScale   = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
-  const activeScale = baseScale * ZOOM_CFG.scale;
-  const target      = `translateZ(0) scale(${activeScale})`;
-
-      if (animateActive) {
-      __instaTransform(card, `translateZ(0) scale(${baseScale})`);
-      requestAnimationFrame(() => {
-        card.style.transform = target;
-        card.dataset.zoomState = "active";
-      });
-    } else {
-      const prev = card.style.transition;
-      card.style.transition = "none";
-      card.style.transform = target;
-      void card.offsetHeight;
-      card.style.transition = prev || "";
-      card.dataset.zoomState = "active";
-    }
+  card.style.scale = String(ZOOM_CFG.scale);
+  card.dataset.zoomState = "active";
 
     card.style.zIndex = "6";
   }
@@ -5931,6 +6824,11 @@ if (isActive) {
     card.style.boxShadow =
       `0 0 0 1px ${c.glow},
       inset 0 0 0 1px rgba(255,255,255,.28)`;
+  }
+
+  if (KNOCKED_OUT) {
+    card.style.filter = "saturate(.42) brightness(.72)";
+    card.style.opacity = ".84";
   }
 
   // --- header: avatar + name + badge (tutto in riga)
@@ -6022,6 +6920,23 @@ if (e.portrait) {
 }
 
 avatarWrap.appendChild(avatarInner);
+
+let knockedOutBadge = null;
+card.dataset.koBadgeLeft = `${AVATAR_LEFT + AVA - 17}px`;
+card.dataset.koBadgeTop = IS_BOSS ? "2px" : "1px";
+if (KNOCKED_OUT) {
+  knockedOutBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${CLASSIC_HP_MAX}`);
+  knockedOutBadge.dataset.cardKoBadge = "1";
+  Object.assign(knockedOutBadge.style, {
+    position: "absolute",
+    left: `${AVATAR_LEFT + AVA - 17}px`,
+    top: IS_BOSS ? "2px" : "1px",
+    height: "20px",
+    minWidth: "25px",
+    zIndex: "8",
+    pointerEvents: "none",
+  });
+}
 
 let bossPortraitFrame = null;
 if (IS_BOSS) {
@@ -6620,7 +7535,7 @@ if (hasAny) {
 }
 
 // 2) Incantesimi
-if (Array.isArray(e.spells) && e.spells.length) {
+if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
   const fragSp = buildSpellChips(e.spells);
 
   // colore pieno = stesso del badge "C"
@@ -7169,6 +8084,7 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
 }
 
   header.append(avatarWrap);
+  if (knockedOutBadge) header.appendChild(knockedOutBadge);
   if (bossPortraitFrame) header.appendChild(bossPortraitFrame);
   if (bossTopRow) {
     bossTopRow.appendChild(name);
@@ -7178,19 +8094,13 @@ if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
   } else {
     header.append(name, badge);
   }
-// Indicatore concentrazione: pallino con "C" se il caster sta concentrando
-// Se la card è collassata, lo mostriamo se QUALSIASI membro del gruppo sta concentrando.
+// Indicatore concentrazione: pallino con "C" solo sulle card dei singoli token.
 {
-  // ON se il caster (o un membro del gruppo collassato) sta concentrando
-  const concOn = !!(e.isConcentrating ||
-                    (e.__groupCollapsed && Array.isArray(e.__groupMembers) &&
-                     e.__groupMembers.some(m => m.isConcentrating)));
+  // Le card aggregate di gruppo non espongono effetti dei membri.
+  const concOn = !e.__groupCollapsed && !!e.isConcentrating;
   if (concOn) {
-    // Ricava la chiave spell dal caster o, se collassato, dal primo membro che ce l’ha
-    const k = e.concSpellKey ||
-              (e.__groupCollapsed
-                ? (e.__groupMembers?.find(m => m.concSpellKey)?.concSpellKey || null)
-                : null);
+    // Il colore deriva dalla concentrazione del token rappresentato dalla card.
+    const k = e.concSpellKey || null;
     const col = k ? __spellColor(k) : { solid: "rgba(0,0,0,0.80)", border: "rgba(255,255,255,.18)" };
 
     const C_DOT_SIZE = 18;           // diametro pallino
@@ -7269,9 +8179,10 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   pill.style.zIndex = "3";
   pill.style.pointerEvents = "auto";
 
-  const hpVal  = Number.isFinite(e.hp)    ? e.hp    : 0;
-  const hpMaxV = Number.isFinite(e.hpMax) ? e.hpMax : 0;
+  const hpVal  = CLASSIC_HP_VALUE;
+  const hpMaxV = CLASSIC_HP_MAX;
   pill.innerHTML = formatHPHTML(hpVal, hpMaxV);   // <-- usa HTML per colorare cur se temp
+  if (KNOCKED_OUT) pill.style.color = "rgba(255,255,255,.58)";
   pill.dataset.badge  = "hp";
   pill.dataset.itemId = e.id;
 
@@ -7297,7 +8208,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   hpFill.dataset.itemId = e.id;
   hpFill.style.width = (initPct * 100) + "%";
   hpFill.style.height = "100%";
-  hpFill.style.background = initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
+  hpFill.style.background = KNOCKED_OUT
+    ? "#475569"
+    : initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
 
   hpBarWrap.appendChild(hpFill);
 
@@ -7763,7 +8676,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     pill.innerHTML = formatHPHTML(nextHP, nextHPMax);  // <-- HTML con colore per temp
     const pct = nextHPMax > 0 ? Math.max(0, Math.min(1, nextHP / nextHPMax)) : 0;
     hpFill.style.width = (pct * 100) + "%";
-    hpFill.style.background = hpColorByPct(pct);
+    hpFill.style.background = nextHPMax > 0 && nextHP <= 0 ? "#475569" : hpColorByPct(pct);
 
 
     const isMultiTarget = multiUpdates.length > 1;
@@ -7918,6 +8831,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     });
 
     __replaceTrackCardsAnimated(nodes);
+    __animateActiveCardEntrance(animateActive, currentActiveId);
     updateActiveCardMovementIndicator(latestMovementSnapshot);
 
   if (__scrollActiveOnNextRender) {
@@ -8069,13 +8983,66 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
   await _reorderBlockWithinSameInitiative(ids, targetId, placeBefore);
 }
 
-async function renderAll() {
+function __renderOptimisticNavigationState(state) {
+  if (__suspendRenders || __editingInitForId || __editingHPForId) return false;
+  const order = Array.isArray(state?.order) ? state.order : [];
+  if (!order.length) return false;
+  const ordered = order.map((id) => __activeLabelEntriesById.get(id)).filter(Boolean);
+  if (ordered.length !== order.length) {
+    __initiativeDiag("render:optimistic-skipped-missing-entry", {
+      expected: order.length,
+      resolved: ordered.length,
+      activeId: __activeIdForState(state),
+    });
+    return false;
+  }
+
+  const activeId = __activeIdForState(state);
+  const animateActive = activeId !== __prevActiveId;
+  try {
+    const lbl = document.getElementById("tbp-round-label");
+    if (lbl) lbl.textContent = `Round ${Math.max(1, state.round || 1)}`;
+    renderTrack(ordered, state, { animateActive });
+    __prevActiveId = activeId;
+    __optimisticNavigationDigest = initiativeStateDigest(state);
+    __initiativeDiag("render:optimistic-committed", {
+      activeId,
+      animateActive,
+      layout: getTrackerLayout(),
+      navigationRevision: __navigationRevision,
+    });
+    return true;
+  } catch (err) {
+    console.warn("[initiative] optimistic navigation render:", err?.message || err);
+    return false;
+  }
+}
+
+async function renderAll(reason = "unspecified") {
   if (__suspendRenders) return;
+  const renderRevision = ++__renderRequestRevision;
+  __initiativeDiag("render:requested", { renderRevision, reason });
   const stateRaw = await getSceneState();
   // Gli snapshot intermedi di una raffica di click non devono ridisegnare
   // lista, fumetto o selezione sopra lo stato ottimistico più recente.
-  if (__isStaleNavigationState(stateRaw)) return;
+  if (__isStaleNavigationState(stateRaw)) {
+    __initiativeDiag("render:skipped-stale-navigation", {
+      renderRevision,
+      reason,
+      activeId: __activeIdForState(stateRaw),
+    });
+    return;
+  }
+  if (renderRevision < __latestAcceptedRenderRevision) {
+    __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+    return;
+  }
+  __latestAcceptedRenderRevision = renderRevision;
   const baseEntries  = await getEntriesWithLair(stateRaw);
+  if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
+    __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+    return;
+  }
   const entries = expandParagonEntries(baseEntries, stateRaw);
 
   // Costruisci le entry VIRTUALI EPIC corrispondenti all’ordine che inietteremo
@@ -8097,6 +9064,14 @@ __activeLabelEntriesById = byId;
 
 
   const stateClean = sanitizeState(stateRaw ?? { order: [], current: 0 }, byId);
+  if (__isStaleNavigationState(stateClean)) {
+    __initiativeDiag("render:skipped-stale-before-commit", {
+      renderRevision,
+      reason,
+      activeId: __activeIdForState(stateClean),
+    });
+    return;
+  }
   if (!__navigationPumpRunning && !__navigationDesiredState) {
     __latestInitiativeState = stateClean;
   }
@@ -8118,7 +9093,18 @@ __activeLabelEntriesById = byId;
     if (needFix) {
       // N.B. questo triggherà onMetadataChange, ma intanto noi renderizziamo già giusto
       await setSceneState(stateClean);
-
+      if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
+        __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+        return;
+      }
+      if (__isStaleNavigationState(stateClean)) {
+        __initiativeDiag("render:skipped-stale-before-commit", {
+          renderRevision,
+          reason,
+          activeId: __activeIdForState(stateClean),
+        });
+        return;
+      }
     }
     // Evita rimpiazzi DOM mentre c'è un editor aperto o stiamo switchando editor
     if (__suspendRenders) return;
@@ -8135,9 +9121,31 @@ try {
   console.warn("[active-label] upsert error:", err?.message || err);
 }
 
+    const cleanDigest = initiativeStateDigest(stateClean);
+    if (reason === "metadata" && cleanDigest === __optimisticNavigationDigest) {
+      __optimisticNavigationDigest = null;
+      __prevActiveId = activeIdNow;
+      __initiativeDiag("render:optimistic-acknowledged", {
+        renderRevision,
+        activeId: activeIdNow,
+        layout: getTrackerLayout(),
+      });
+      return;
+    }
+    if (reason === "metadata" && !__navigationPumpRunning && !__navigationDesiredState) {
+      __optimisticNavigationDigest = null;
+    }
+
     const animateActive = (activeIdNow !== __prevActiveId);
 
     renderTrack(ordered, stateClean, { animateActive });  // <-- passa il flag
+    __initiativeDiag("render:committed", {
+      renderRevision,
+      reason,
+      activeId: activeIdNow,
+      animateActive,
+      layout: getTrackerLayout(),
+    });
 
     __prevActiveId = activeIdNow; // aggiorna per il prossimo render
   }
@@ -8222,7 +9230,9 @@ try {
   await ensureState();
   await reconcileStateWithItems();
   await enforceUniqueNamePrefixes();
-  await renderAll();
+  await renderAll("boot");
+  __lastInitiativeMetadataDigest = initiativeStateDigest(await getSceneState());
+  __lastQueuedInitiativeMetadataDigest = __lastInitiativeMetadataDigest;
   __lastActiveId = __activeIdForState(__latestInitiativeState);
   syncSpeedCheckTurn(__latestInitiativeState);
   __lastRoundSeen = Math.max(1, Number(__latestInitiativeState?.round || 1));
@@ -8249,9 +9259,21 @@ try {
   }
 });
 
-OBR.scene.onMetadataChange(async (meta) => {
-  const st = meta?.[STATE_KEY];
-  if (__isStaleNavigationState(st)) return;
+async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
+  __lastInitiativeMetadataDigest = stateDigest;
+  if (__isStaleNavigationState(st)) {
+    __initiativeDiag("metadata:skipped-stale-navigation", {
+      activeId: __activeIdForState(st),
+      metadataRevision,
+    });
+    return;
+  }
+  __initiativeDiag("metadata:processing", {
+    activeId: __activeIdForState(st),
+    round: st?.round,
+    current: st?.current,
+    metadataRevision,
+  });
   syncSpeedCheckTurn(st);
 
   let conditionTransition = null;
@@ -8295,7 +9317,7 @@ OBR.scene.onMetadataChange(async (meta) => {
     console.warn("[effects] queue round tick error:", err);
   }
 
-  await renderAll(); // ridisegna UI
+  await renderAll("metadata"); // ridisegna UI
   if (!st || !Array.isArray(st.order) || st.order.length === 0) {
     return;
   }
@@ -8355,13 +9377,48 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
   try {
-    const entriesNow = await readEntries();
-    await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
-    await renderAll();                         // ridisegna per evitare flicker
+    if (__matchesLatestActiveTurn(st)) {
+      const entriesNow = await readEntries();
+      const collapseChanged = await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
+      if (collapseChanged) await renderAll("auto-collapse");
+    } else {
+      __initiativeDiag("collapse:skipped-stale", {
+        activeId,
+        expectedActiveId: __activeIdForState(__latestInitiativeState),
+      });
+    }
   } catch (e) {
     console.warn("[initiative] auto-collapse on turn change:", e?.message || e);
   }
+}
+
+OBR.scene.onMetadataChange((meta) => {
+  const st = meta?.[STATE_KEY];
+  const stateDigest = initiativeStateDigest(st);
+  if (stateDigest === __lastQueuedInitiativeMetadataDigest) {
+    __initiativeDiag("metadata:skipped-unchanged", {
+      activeId: __activeIdForState(st),
+    });
+    return;
+  }
+  __lastQueuedInitiativeMetadataDigest = stateDigest;
+  const metadataRevision = ++__initiativeMetadataRevision;
+  const run = () => __processInitiativeMetadata(st, stateDigest, metadataRevision);
+  void __initiativeMetadataProcessor.enqueue(run).catch((err) => {
+    console.warn("[initiative] metadata queue error:", err?.message || err);
+  });
 });
+
+  subscribeSceneItemChanges(({ items }) => {
+    for (const item of items || []) {
+      const meta = item?.metadata?.[META_KEY];
+      if (!meta || meta.inInitiative !== true) continue;
+      syncTrackerHPNow(item.id, meta.hp, meta.hpMax);
+    }
+  }, {
+    filter: (event) => event.flags.hpBars,
+    immediate: true,
+  });
 
   subscribeSceneItemChanges(async () => {
     if (__mutatingActiveLabel > 0) return;
@@ -8383,13 +9440,9 @@ try {
     btnPrev.addEventListener("click", async () => {
     const st = __latestInitiativeState || await getSceneState();
     if (!st || !st.order || st.order.length === 0) return;
-    const len = st.order.length;
-
-    const prevIdx = (st.current - 1 + len) % len;
-    const wrapped = prevIdx === (len - 1);
-    const nextRound = Math.max(1, (st.round || 1) - (wrapped ? 1 : 0));
-
-    const nextBase = { ...st, current: prevIdx, round: nextRound };
+    const nextBase = advanceInitiativeState(st, -1);
+    const prevIdx = nextBase.current;
+    const nextRound = nextBase.round;
     const cachedEntries = Array.from(__activeLabelEntriesById.values());
     const { collapsed } = __autoCollapseSnapshot(cachedEntries, nextBase);
     const next = { ...nextBase, collapsed };
@@ -8399,6 +9452,15 @@ try {
     const revision = ++__navigationRevision;
     __lastNavigationAt = Date.now();
     __scrollActiveOnNextRender = true;
+    __initiativeDiag("navigation:intent", {
+      direction: -1,
+      activeId,
+      round: nextRound,
+      current: prevIdx,
+      navigationRevision: revision,
+    });
+    syncActiveTurnLabel(activeId);
+    __renderOptimisticNavigationState(next);
 
     queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}
@@ -8413,13 +9475,9 @@ try {
   btnNext.addEventListener("click", async () => {
     const st = __latestInitiativeState || await getSceneState();
     if (!st || !st.order || st.order.length === 0) return;
-    const len = st.order.length;
-
-    const nextIdx = (st.current + 1) % len;
-    const wrapped = nextIdx === 0;
-    const nextRound = Math.max(1, (st.round || 1) + (wrapped ? 1 : 0));
-
-    const nextBase = { ...st, current: nextIdx, round: nextRound };
+    const nextBase = advanceInitiativeState(st, 1);
+    const nextIdx = nextBase.current;
+    const nextRound = nextBase.round;
     const cachedEntries = Array.from(__activeLabelEntriesById.values());
     const { collapsed } = __autoCollapseSnapshot(cachedEntries, nextBase);
     const next = { ...nextBase, collapsed };
@@ -8429,6 +9487,15 @@ try {
     const revision = ++__navigationRevision;
     __lastNavigationAt = Date.now();
     __scrollActiveOnNextRender = true;
+    __initiativeDiag("navigation:intent", {
+      direction: 1,
+      activeId,
+      round: nextRound,
+      current: nextIdx,
+      navigationRevision: revision,
+    });
+    syncActiveTurnLabel(activeId);
+    __renderOptimisticNavigationState(next);
 
     queueNavigationState(next);
     try { delete document.__tbpZoomStamp; } catch {}

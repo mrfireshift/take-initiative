@@ -128,7 +128,10 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     if (previous && previous.contentSignature === next.contentSignature) continue;
     changedItems.push(next.item);
     changedRecords.push({ before: previous || null, after: next });
-    if (!previous) flags.added = true;
+    if (!previous) {
+      flags.added = true;
+      flags.hpMemoryAutofill ||= next?.item?.layer === "CHARACTER" && !next?.item?.attachedTo;
+    }
   }
 
   for (const [id, previous] of before) {

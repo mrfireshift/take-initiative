@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
+const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
 export const TRACKER_LAYOUT_CHANNEL = `${ID}/tracker-layout-change`;
 export const TRACKER_LAYOUT_CLASSIC = "classic";
 export const TRACKER_LAYOUT_COMPACT = "compact";
@@ -78,7 +79,10 @@ export function isTrackerPopoverOpen() {
 export async function openTrackerPopover({ refresh = false } = {}) {
   if (isTrackerPopoverOpen() && !refresh) return;
   if (refresh) {
-    try { await OBR.popover.close(TRACKER_POPOVER_ID); } catch {}
+    await Promise.all([
+      OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
+    ]);
   }
   const layout = getTrackerLayout();
   const compact = layout === TRACKER_LAYOUT_COMPACT;
@@ -115,7 +119,10 @@ export async function openTrackerPopover({ refresh = false } = {}) {
 
 export async function closeTrackerPopover() {
   try {
-    await OBR.popover.close(TRACKER_POPOVER_ID);
+    await Promise.all([
+      OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
+    ]);
   } finally {
     localStorage.setItem(TRACKER_OPEN_KEY, "0");
   }
@@ -124,4 +131,12 @@ export async function closeTrackerPopover() {
 export async function setTrackerPopoverOpen(open, options) {
   if (open) await openTrackerPopover(options);
   else await closeTrackerPopover();
+}
+
+export async function getCompactTrackerPopoverAnchor() {
+  let viewportHeight = 900;
+  let viewportWidth = 1200;
+  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  return compactAnchorPosition(viewportWidth, viewportHeight);
 }

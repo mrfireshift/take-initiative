@@ -100,6 +100,9 @@ export function combatEventDetail(event) {
   if (event?.kind === "turn") return String(event?.payload?.actorName || event?.turn?.name || "");
   if (event?.kind === "note") return String(event?.payload?.text || "");
   if (event?.kind === "undo") return String(event?.payload?.description || "");
+  if (event?.kind === "scene-add" || event?.kind === "scene-remove" || event?.kind === "initiative-add" || event?.kind === "initiative-remove") {
+    return targets.map((target) => target.name).join(", ");
+  }
   const names = targets.slice(0, 4).map((target) => target.name).filter(Boolean);
   return `${names.join(", ")}${targets.length > 4 ? ` +${targets.length - 4}` : ""}`;
 }

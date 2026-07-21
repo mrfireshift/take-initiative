@@ -33,6 +33,7 @@ export default defineConfig({
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
         initiativeCardModal: path.resolve(process.cwd(), "initiative-card-modal.html"),
         factionConfigurator: path.resolve(process.cwd(), "faction-configurator.html"),
+        compactEffects: path.resolve(process.cwd(), "compact-effects.html"),
       },
     },
   },

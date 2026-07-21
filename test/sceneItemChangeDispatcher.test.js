@@ -115,6 +115,13 @@ test("classifies token removal conservatively", () => {
   assert.deepEqual(event.changedIds, ["token-1"]);
 });
 
+test("schedules HP autofill when a new character token enters the scene", () => {
+  const event = classifySceneItemChanges([], [token({ layer: "CHARACTER", metadata: {} })]);
+
+  assert.equal(event.flags.added, true);
+  assert.equal(event.flags.hpMemoryAutofill, true);
+});
+
 test("condition widgets refresh only the concentration stack", () => {
   const conditionWidget = {
     id: "condition-widget-1",

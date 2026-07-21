@@ -1,5 +1,5 @@
 import OBR, { buildPath, buildText, Command } from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
 import {
   areaHitsBounds,
   buildArea,
@@ -27,6 +27,8 @@ const PREVIEW_META_KEY = `${ID}/aoePreview`;
 const AREA_META_KEY = AOE_AREA_META_KEY;
 const STYLE_ACTION_ID = `${ID}/aoe-style-action`;
 const RESELECT_CONTEXT_ID = `${ID}/aoe-reselect-targets`;
+const CONDITIONS_CONTEXT_ID = `${ID}/aoe-select-conditions`;
+const QUICK_HP_CONTEXT_ID = `${ID}/aoe-select-quick-hp`;
 let activeDrag = null;
 let currentStyle = loadAoEStyle();
 let areaSelectionRevision = 0;
@@ -219,9 +221,22 @@ async function findHitTargetIds(area) {
 async function selectAreaTargets(area) {
   const revision = ++areaSelectionRevision;
   const targetIds = await findHitTargetIds(area);
-  if (revision !== areaSelectionRevision) return;
+  if (revision !== areaSelectionRevision) return [];
   if (targetIds.length) await OBR.player.select(targetIds, true);
   else await OBR.player.deselect();
+  return targetIds;
+}
+
+async function selectAreaTargetsAndOpen(area, panel) {
+  const targetIds = await selectAreaTargets(area);
+  if (!targetIds.length) {
+    await OBR.notification.show("Nessun token nell'area.", "INFO");
+    return;
+  }
+  await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
+    type: "open",
+    panel,
+  }, { destination: "LOCAL" });
 }
 
 function persistentAreaMetadata(state) {
@@ -454,6 +469,8 @@ OBR.onReady(async () => {
   try { await OBR.tool.remove(TOOL_ID); } catch {}
   try { await OBR.tool.removeAction(STYLE_ACTION_ID); } catch {}
   try { await OBR.contextMenu.remove(RESELECT_CONTEXT_ID); } catch {}
+  try { await OBR.contextMenu.remove(CONDITIONS_CONTEXT_ID); } catch {}
+  try { await OBR.contextMenu.remove(QUICK_HP_CONTEXT_ID); } catch {}
   await OBR.tool.create({
     id: TOOL_ID,
     icons: [{ icon: "/aoe-target.svg", label: "Targeting area", filter: { roles: ["GM"] } }],
@@ -487,6 +504,48 @@ OBR.onReady(async () => {
       const item = context.items?.find((entry) => entry?.metadata?.[AREA_META_KEY]?.type);
       const area = translatedAreaFromItem(item);
       if (area) void selectAreaTargets(area);
+    },
+  });
+  await OBR.contextMenu.create({
+    id: CONDITIONS_CONTEXT_ID,
+    icons: [{
+      icon: "/conditions-panel.svg",
+      label: "Seleziona e apri Condizioni",
+      filter: {
+        roles: ["GM"],
+        min: 1,
+        every: [{
+          key: ["metadata", AREA_META_KEY, "type"],
+          operator: "!=",
+          value: undefined,
+        }],
+      },
+    }],
+    onClick: (context) => {
+      const item = context.items?.find((entry) => entry?.metadata?.[AREA_META_KEY]?.type);
+      const area = translatedAreaFromItem(item);
+      if (area) void selectAreaTargetsAndOpen(area, "conditions");
+    },
+  });
+  await OBR.contextMenu.create({
+    id: QUICK_HP_CONTEXT_ID,
+    icons: [{
+      icon: "/quick-damage.svg",
+      label: "Seleziona e apri Console HP Rapida",
+      filter: {
+        roles: ["GM"],
+        min: 1,
+        every: [{
+          key: ["metadata", AREA_META_KEY, "type"],
+          operator: "!=",
+          value: undefined,
+        }],
+      },
+    }],
+    onClick: (context) => {
+      const item = context.items?.find((entry) => entry?.metadata?.[AREA_META_KEY]?.type);
+      const area = translatedAreaFromItem(item);
+      if (area) void selectAreaTargetsAndOpen(area, "quick-hp");
     },
   });
 });

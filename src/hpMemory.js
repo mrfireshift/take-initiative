@@ -21,7 +21,7 @@ function baseName(raw) {
 function pcKeyFromItem(item) {
   if (!item) return null;
   const att = item.metadata?.[`${ID}/meta`]?.attitude;
-  if (att !== "pc") return null; // memorizziamo solo i personaggi
+  if (att !== "pc" && att !== "ally") return null; // memorizziamo personaggi e alleati
   const nm = baseName(item.name);
   // portrait robusto (copre le varianti usate nel progetto)
   let url = null;

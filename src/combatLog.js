@@ -392,6 +392,54 @@ export async function clearCombatLogSession(sessionId) {
   });
 }
 
+export async function deleteCombatLogSession(sessionId) {
+  if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM puÃ² eliminare un registro.");
+  if (!sessionId) throw new Error("Registro non valido.");
+  return queueWrite(async () => {
+    const db = await openDatabase();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([SESSION_STORE, EVENT_STORE], "readwrite");
+      const sessions = tx.objectStore(SESSION_STORE);
+      const events = tx.objectStore(EVENT_STORE);
+      sessions.delete(sessionId);
+      const cursorRequest = events.index("sessionId").openCursor(IDBKeyRange.only(sessionId));
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) return;
+        cursor.delete();
+        cursor.continue();
+      };
+      cursorRequest.onerror = () => reject(cursorRequest.error || new Error("Cancellazione eventi fallita."));
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error("Eliminazione registro fallita."));
+      tx.onabort = () => reject(tx.error || new Error("Eliminazione registro annullata."));
+    });
+
+    const state = await getSessionState();
+    if (state?.sessionId === sessionId) {
+      const remaining = await listCombatLogSessions();
+      const next = remaining[0] || null;
+      const metadata = await OBR.scene.getMetadata();
+      if (next) {
+        await OBR.scene.setMetadata({
+          ...metadata,
+          [SESSION_STATE_KEY]: {
+            version: 1,
+            sessionId: next.id,
+            name: next.name,
+            startedAt: next.startedAt,
+          },
+        });
+      } else {
+        const nextMetadata = { ...metadata };
+        delete nextMetadata[SESSION_STATE_KEY];
+        await OBR.scene.setMetadata(nextMetadata);
+      }
+    }
+    await notifyChange("delete", sessionId);
+  });
+}
+
 export async function getActiveCombatLogData() {
   const session = await ensureCombatLogSession();
   if (!session) return { session: null, events: [] };
