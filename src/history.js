@@ -327,6 +327,17 @@ export function subscribeMovementSegments(handler) {
   return () => __movementSegmentListeners.delete(handler);
 }
 
+export function suppressMovementHistory(itemId, expectedPosition, durationMs = 2000) {
+  const id = String(itemId || "");
+  const position = itemPosition({ position: expectedPosition });
+  if (!id || !position) return;
+  __pendingMovements.delete(id);
+  __suppressedMovements.set(id, {
+    until: Date.now() + Math.max(500, Number(durationMs) || 0),
+    positions: [position],
+  });
+}
+
 function notifyMovementSegments(changes) {
   for (const handler of __movementSegmentListeners) {
     try {

@@ -105,7 +105,14 @@ export async function rememberFactionForIds(ids, attitude) {
   const uniqueIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!uniqueIds.length) return readFactionRegistry();
   const items = await OBR.scene.items.getItems(uniqueIds);
-  return registerFactionAssets(attitude, items);
+  const registry = await registerFactionAssets(attitude, items);
+  try {
+    const { reconcileZeroHPConditionsForItems } = await import("./hpConditionAutomation.js");
+    await reconcileZeroHPConditionsForItems(uniqueIds);
+  } catch (error) {
+    console.warn("[factions] zero HP condition sync:", error?.message || error);
+  }
+  return registry;
 }
 
 export { registeredAttitudeForItem };

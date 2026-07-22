@@ -4,9 +4,14 @@ import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { saveHPToMemoryByItemId } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
 import { QUICK_HP_FACTORS, QUICK_HP_MODES, calculateQuickHPChange } from "./quickHpCore.js";
+import {
+  getZeroHPConditionHistoryIds,
+  reconcileZeroHPConditionsForItems,
+} from "./hpConditionAutomation.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
+const SPELLS_KEY = ID + "/spells";
 const CONCENTRATION_KEY = ID + "/concentration";
 const CONCENTRATION_WARNING_CHANNEL = ID + "/concentration-warning";
 const MODAL_ID = ID + "/quick-hp-modal";
@@ -350,11 +355,12 @@ async function applyOperation() {
     }
     let recordedEntry = null;
     const ids = entries.map((entry) => entry.item.id);
+    const historyIds = await getZeroHPConditionHistoryIds(ids);
     await withItemMetaHistory({
       kind: "hp",
       label: modeLabel().charAt(0).toUpperCase() + modeLabel().slice(1) + " rapido: " + currentValue() + " - " + ids.length + " bersagli",
-      itemIds: ids,
-      fields: ["hp", "hpMax"],
+      itemIds: historyIds,
+      fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
       onRecorded: (entry) => { recordedEntry = entry; },
     }, async () => {
       const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
@@ -368,6 +374,7 @@ async function applyOperation() {
           });
         }
       });
+      await reconcileZeroHPConditionsForItems(ids);
     });
     // Accoda tutti i bersagli nel batch grafico condiviso: barra e testo HP
     // esistenti vengono aggiornati insieme da una sola chiamata OBR.

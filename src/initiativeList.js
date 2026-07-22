@@ -1,15 +1,19 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID, ACTIVE_TURN_LABEL_META, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
-import { mountConcentrationWatcher } from "./spells-tag.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, addOrUpdateConditionForItems, removeConditionFromItems, clearAllConditionsForItems, getConditionInstances } from "./conditions";
-import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems, clearSpellsOnItems, breakAllConcentrations } from "./spells.js";
+import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
+import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
-import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  getZeroHPConditionHistoryIds,
+  reconcileZeroHPConditionsForItems,
+} from "./hpConditionAutomation.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
   TRACKER_LAYOUT_CLASSIC,
@@ -172,7 +176,7 @@ function __buildChipsSimple(cond, opts = {}) {
     custom = Object.keys(custom).filter(k => !!custom[k]);
   }
 
-  const instances = getConditionInstances(cond);
+  const instances = getEffectiveConditionInstances(cond);
   if (instances.length) {
     const grouped = new Map();
     for (const instance of instances) {
@@ -546,8 +550,6 @@ const EPIC_TAG_CFG = {
   export function mountInitiativeList(container) {
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
-    mountConcentrationWatcher();
-
     const styleTag = document.createElement("style");
 styleTag.textContent = `
   :root, body { height: 100%; overflow: hidden; }
@@ -1414,7 +1416,29 @@ Object.assign(movementReadoutBar.style, {
   transition: "width 80ms linear, background-color 120ms ease",
 });
 movementReadoutTrack.appendChild(movementReadoutBar);
-movementReadoutLine.append(movementReadoutValue, movementReadoutMeta);
+const movementCompactLimitControl = document.createElement("label");
+movementCompactLimitControl.title = "Limita movimento";
+Object.assign(movementCompactLimitControl.style, {
+  display: "none",
+  flex: "0 0 auto",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "16px",
+  height: "16px",
+  cursor: "pointer",
+});
+const movementCompactLimitCheckbox = document.createElement("input");
+movementCompactLimitCheckbox.type = "checkbox";
+movementCompactLimitCheckbox.setAttribute("aria-label", "Limita movimento alla disponibilità del turno");
+Object.assign(movementCompactLimitCheckbox.style, {
+  width: "13px",
+  height: "13px",
+  margin: "0",
+  accentColor: "#3b82f6",
+  cursor: "pointer",
+});
+movementCompactLimitControl.appendChild(movementCompactLimitCheckbox);
+movementReadoutLine.append(movementReadoutValue, movementReadoutMeta, movementCompactLimitControl);
 const movementDetails = document.createElement("div");
 Object.assign(movementDetails.style, {
   display: "none",
@@ -1532,7 +1556,6 @@ const movementResetButton = document.createElement("button");
 movementResetButton.type = "button";
 movementResetButton.textContent = "Reset movimento";
 Object.assign(movementResetButton.style, {
-  gridColumn: "1 / -1",
   minHeight: "28px",
   border: "1px solid rgba(255,255,255,.2)",
   borderRadius: "999px",
@@ -1543,7 +1566,47 @@ Object.assign(movementResetButton.style, {
   fontWeight: "700",
   cursor: "pointer",
 });
-movementDetails.appendChild(movementResetButton);
+const movementActions = document.createElement("div");
+Object.assign(movementActions.style, {
+  gridColumn: "1 / -1",
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+  alignItems: "stretch",
+  gap: "6px",
+});
+const movementLimitControl = document.createElement("label");
+Object.assign(movementLimitControl.style, {
+  minHeight: "28px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "6px",
+  padding: "0 8px",
+  boxSizing: "border-box",
+  border: "1px solid rgba(255,255,255,.2)",
+  borderRadius: "999px",
+  background: "rgba(255,255,255,.09)",
+  color: "#fff",
+  fontSize: "11px",
+  fontWeight: "700",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+});
+const movementLimitCheckbox = document.createElement("input");
+movementLimitCheckbox.type = "checkbox";
+movementLimitCheckbox.setAttribute("aria-label", "Limita movimento alla disponibilità del turno");
+Object.assign(movementLimitCheckbox.style, {
+  width: "14px",
+  height: "14px",
+  margin: "0",
+  accentColor: "#3b82f6",
+  cursor: "pointer",
+});
+const movementLimitLabel = document.createElement("span");
+movementLimitLabel.textContent = "Limita movimento";
+movementLimitControl.append(movementLimitCheckbox, movementLimitLabel);
+movementActions.append(movementLimitControl, movementResetButton);
+movementDetails.appendChild(movementActions);
 movementReadout.append(movementReadoutLine, movementReadoutTrack, movementDetails);
 topRow.appendChild(movementReadout);
 
@@ -1560,6 +1623,14 @@ movementReadout.addEventListener("click", () => {
 movementResetButton.addEventListener("click", (event) => {
   event.stopPropagation();
   resetSpeedCheckMovement();
+});
+movementLimitControl.addEventListener("click", (event) => event.stopPropagation());
+movementLimitCheckbox.addEventListener("change", () => {
+  setSpeedCheckMovementLimit(movementLimitCheckbox.checked);
+});
+movementCompactLimitControl.addEventListener("click", (event) => event.stopPropagation());
+movementCompactLimitCheckbox.addEventListener("change", () => {
+  setSpeedCheckMovementLimit(movementCompactLimitCheckbox.checked);
 });
 
 let latestMovementSnapshot = null;
@@ -1596,6 +1667,8 @@ subscribeSpeedCheckState((snapshot) => {
 
   movementDashStepper.value.textContent = "Scatto x" + snapshot.dashCount;
   movementBonusStepper.value.textContent = "Bonus " + movementNumber(snapshot.bonusMeters) + " m";
+  movementLimitCheckbox.checked = snapshot.movementLimited === true;
+  movementCompactLimitCheckbox.checked = snapshot.movementLimited === true;
   const percent = Math.max(0, Math.min(100, snapshot.progress * 100));
   movementReadoutBar.style.width = percent + "%";
   movementReadoutBar.style.background = snapshot.blocked || percent >= 99.9 ? "#ef4444" : percent >= 75 ? "#f59e0b" : "#3b82f6";
@@ -2314,6 +2387,7 @@ function applyTrackerLayout() {
     movementDetailsOpen = false;
     movementDetails.style.display = "none";
     movementReadoutValue.style.display = "none";
+    movementCompactLimitControl.style.display = IS_GM ? "inline-flex" : "none";
     movementReadoutMeta.textContent = movementReadoutSummary(latestMovementSnapshot, true);
     movementReadoutLine.style.justifyContent = "center";
     Object.assign(movementReadoutMeta.style, {
@@ -2392,6 +2466,7 @@ function applyTrackerLayout() {
       cursor: "pointer",
     });
     movementReadoutValue.style.display = "block";
+    movementCompactLimitControl.style.display = "none";
     movementReadoutMeta.textContent = movementReadoutSummary(latestMovementSnapshot, false);
     movementReadoutLine.style.justifyContent = "space-between";
     Object.assign(movementReadoutMeta.style, {
@@ -3709,6 +3784,7 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
       it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, hp: nHPclamped, hpMax: nMax } };
     }
   });
+  await reconcileZeroHPConditionsForItems(targetIds);
 
   // Modifica
   // aggiorna subito barre + testo (best-effort)
@@ -3885,6 +3961,7 @@ async function updateHP(itemId, nextHP, nextHPMax) {
       };
     }
   });
+  await reconcileZeroHPConditionsForItems([itemId]);
 
 
   // NEW: salva nella memoria stanza (cross‑scene) se è un PG
@@ -4042,6 +4119,7 @@ async function updateMultipleHP(updates = []) {
       };
     }
   });
+  await reconcileZeroHPConditionsForItems([...byId.keys()]);
 
   for (const update of byId.values()) {
     try {
@@ -4075,11 +4153,14 @@ async function applyGroupHPMaxDelta(itemId, delta) {
   if (updates.length <= 1) return 0;
 
   const groupName = _parseIndexedName(me?.name || "Gruppo").base || "Gruppo";
+  const historyIds = await getZeroHPConditionHistoryIds(
+    updates.map((update) => update.itemId)
+  );
   await withItemMetaHistory({
     kind: "hp",
     label: `Ricalibrazione HP/Max gruppo: ${groupName} (×${updates.length})`,
-    itemIds: updates.map((update) => update.itemId),
-    fields: ["hp", "hpMax"],
+    itemIds: historyIds,
+    fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
   }, () => updateMultipleHP(updates));
 
   return updates.length;
@@ -4901,12 +4982,16 @@ async function __clearCardConditions(ids) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length) return;
   await __selectContextScope(scopeIds);
+  const mutationPlan = await prepareEffectsMutation([{
+    type: "condition:clear",
+    targetIds: scopeIds,
+  }]);
   await withItemMetaHistory({
     kind: "condition",
     label: scopeIds.length > 1 ? "Rimosse tutte le condizioni (selezione)" : "Rimosse tutte le condizioni",
-    itemIds: scopeIds,
+    itemIds: mutationPlan.changedIds,
     fields: ["conditions"],
-  }, () => clearAllConditionsForItems(scopeIds));
+  }, () => commitEffectsMutationPlan(mutationPlan));
   await refreshConditionLabels(scopeIds);
 }
 
@@ -4914,46 +4999,36 @@ async function __clearCardSpells(ids) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length) return;
   await __selectContextScope(scopeIds);
+  const mutationPlan = await prepareEffectsMutation([{
+    type: "spell:clear-non-concentration",
+    targetIds: scopeIds,
+  }]);
   await withItemMetaHistory({
     kind: "spell",
     label: scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi",
-    itemIds: scopeIds,
+    itemIds: mutationPlan.changedIds,
     fields: [SPELLS_META_KEY, "conditions"],
-  }, () => clearSpellsOnItems(scopeIds));
+  }, () => commitEffectsMutationPlan(mutationPlan));
   await refreshConditionLabels(scopeIds);
 }
 
 async function __clearCardConcentrations(ids) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length) return;
-
-  const casterItems = await OBR.scene.items.getItems(scopeIds);
-  const concentrationCasters = [];
-  const affectedIds = new Set(scopeIds);
-  for (const item of casterItems) {
-    const concentrations = item.metadata?.[META_KEY]?.[CONC_META_KEY];
-    if (!concentrations || typeof concentrations !== "object" || !Object.keys(concentrations).length) continue;
-    concentrationCasters.push(item.id);
-    for (const concentration of Object.values(concentrations)) {
-      for (const targetId of concentration?.targets || []) {
-        if (targetId) affectedIds.add(targetId);
-      }
-    }
-  }
-  if (!concentrationCasters.length) return;
+  const mutationPlan = await prepareEffectsMutation([{
+    type: "concentration:break",
+    casterIds: scopeIds,
+  }]);
+  if (!mutationPlan.changedIds.length) return;
 
   await __selectContextScope(scopeIds);
-  const historyIds = [...affectedIds];
+  const historyIds = mutationPlan.changedIds;
   await withItemMetaHistory({
     kind: "spell",
-    label: concentrationCasters.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione",
+    label: scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione",
     itemIds: historyIds,
     fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, async () => {
-    for (const casterId of concentrationCasters) {
-      await breakAllConcentrations(casterId);
-    }
-  });
+  }, () => commitEffectsMutationPlan(mutationPlan));
   await refreshConditionLabels(historyIds);
 }
 
@@ -6013,7 +6088,7 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
     const knockedOut = showHP && !entry.__groupCollapsed && safeHP <= 0;
     const effectMembers = entry.__groupCollapsed ? [] : members;
     const conditionInstances = effectMembers.flatMap((member) =>
-      getConditionInstances(member.conditions || {})
+      getEffectiveConditionInstances(member.conditions || {})
     );
     const spells = effectMembers.flatMap((member) =>
       Array.isArray(member.spells) ? member.spells : []
@@ -8696,6 +8771,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
         historyIds = Array.from(new Set([e.id, ...(group?.members || [])]));
       } catch {}
     }
+    historyIds = await getZeroHPConditionHistoryIds(historyIds);
 
     await withItemMetaHistory({
       kind: "hp",
@@ -8703,7 +8779,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
         ? (recalibratesMax ? "Ricalibrazione HP/Max multitarget" : "Modifica HP multitarget")
         : (recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP"),
       itemIds: historyIds,
-      fields: ["hp", "hpMax"],
+      fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
     }, async () => {
       if (isMultiTarget) {
         await updateMultipleHP(multiUpdates);
@@ -9168,7 +9244,8 @@ try {
       zoomToggleWrap.style.display = IS_GM ? "flex" : "none";
       trackedMoveButton.style.display = IS_GM ? "inline-flex" : "none";
       movementAllowanceControls.style.display = IS_GM ? "grid" : "none";
-      movementResetButton.style.display = IS_GM ? "block" : "none";
+      movementActions.style.display = IS_GM ? "grid" : "none";
+      movementCompactLimitControl.style.display = IS_GM && isCompactTrackerLayout() ? "inline-flex" : "none";
       // Mostra il toggle Tana solo al GM (e nascondilo a tutti gli altri)
 try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');

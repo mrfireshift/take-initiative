@@ -3,10 +3,13 @@ import { ID } from "./constants.js";
 import {
   formatConditionInstance,
   getConditionInstances,
-  removeConditionInstancesFromItems,
   refreshConditionLabels,
 } from "./conditions.js";
 import { withItemMetaHistory } from "./history.js";
+import {
+  commitEffectsMutationPlan,
+  prepareEffectsMutation,
+} from "./effectsMutations.js";
 
 const META_KEY = `${ID}/meta`;
 let currentIds: string[] = [];
@@ -85,14 +88,16 @@ async function render() {
       busy = true;
       app.querySelectorAll<HTMLButtonElement>("button").forEach((entry) => { entry.disabled = true; });
       try {
+        const mutationPlan = await prepareEffectsMutation([{
+          type: "condition:remove-instances",
+          removals: [{ itemId: row.itemId, instanceId: row.instanceId }],
+        }]);
         await withItemMetaHistory({
           kind: "condition",
           label: `Rimossa: ${row.name}`,
-          itemIds: [row.itemId],
+          itemIds: mutationPlan.changedIds,
           fields: ["conditions"],
-        }, () => removeConditionInstancesFromItems([
-          { itemId: row.itemId, instanceId: row.instanceId },
-        ]));
+        }, () => commitEffectsMutationPlan(mutationPlan));
         await refreshConditionLabels([row.itemId]);
       } finally {
         busy = false;

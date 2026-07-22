@@ -1,6 +1,6 @@
 export const SPEED_CHECK_METERS_PER_CELL = 1.5;
 
-export function buildSpeedCheckSnapshot(state, enabled = true) {
+export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited = false) {
   const source = state && typeof state === "object" ? state : {};
   const speedMeters = Math.max(0, Number(source.speedMeters) || 0);
   const baseSpeedMeters = Math.max(0, Number(source.baseSpeedMeters ?? speedMeters) || 0);
@@ -15,6 +15,7 @@ export function buildSpeedCheckSnapshot(state, enabled = true) {
 
   return {
     enabled: !!enabled,
+    movementLimited: !!movementLimited,
     available,
     turnKey: String(source.turnKey || ""),
     itemId: String(source.itemId || ""),
@@ -42,6 +43,19 @@ export function buildSpeedCheckSnapshot(state, enabled = true) {
     cycle: completedCycles + 1,
     progress: available && allowanceMeters > 0 ? Math.min(1, totalMeters / allowanceMeters) : 0,
   };
+}
+
+export function limitedMovementRejection(snapshot, movedCells) {
+  const source = snapshot && typeof snapshot === "object" ? snapshot : {};
+  const movedMeters = Math.max(0, Number(movedCells) || 0) * SPEED_CHECK_METERS_PER_CELL;
+  if (movedMeters <= 0) return null;
+  if (source.blocked || Number(source.speedMeters) <= 0) {
+    return { blocked: true, movedMeters, remainingMeters: 0 };
+  }
+  if (!source.movementLimited) return null;
+  const remainingMeters = Math.max(0, Number(source.remainingMeters) || 0);
+  if (movedMeters <= remainingMeters + 1e-9) return null;
+  return { blocked: false, movedMeters, remainingMeters };
 }
 
 export function countSpeedLimitCrossings(beforeMeters, afterMeters, allowanceMeters, repeatMeters) {

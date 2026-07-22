@@ -1,13 +1,18 @@
 // src/conditions.js
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { effectsDiagnostics } from "./effectsDiagnostics.js";
+import { conditionLabelNeedsUpdate } from "./effectsReconcilerCore.js";
 import {
   EXHAUSTION_CONDITION,
   exhaustionLevelFromInstances,
   normalizeExhaustionLevel,
   reconcileExhaustionInstances,
 } from "./exhaustionCore.js";
+import {
+  getConditionEntryAdditions,
+  getEffectiveConditionInstances as resolveEffectiveConditionInstances,
+} from "./conditionRulesCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -215,6 +220,10 @@ export function getConditionInstances(cond = {}) {
   return __allConditionInstances(cond).map(__cloneConditionInstance);
 }
 
+export function getEffectiveConditionInstances(cond = {}) {
+  return resolveEffectiveConditionInstances(__allConditionInstances(cond));
+}
+
 function __persistableConditionInstance(instance) {
   const next = __cloneConditionInstance(instance);
   delete next.legacy;
@@ -321,16 +330,29 @@ export function formatConditionInstance(instance) {
     ? `${formatConditionName(name)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
     : formatConditionName(name);
   const parts = [conditionLabel];
-  const expiryMode = String(instance?.expiry?.mode || "manual").trim().toLowerCase();
-  if (instance?.sourceName && expiryMode !== "manual" && expiryMode !== "rounds") {
+  if (instance?.sourceName) {
     parts.push(`fonte: ${instance.sourceName}`);
   }
   parts.push(__fullExpiryLabel(instance));
   return parts.join(" | ");
 }
+
+function __withConditionEntryConsequences(previousInstances, nextInstances, targetId) {
+  const next = [...nextInstances];
+  for (const addition of getConditionEntryAdditions(previousInstances, next)) {
+    const trigger = addition.triggeredBy || {};
+    const instance = __buildConditionInstance(addition.condition, {
+      type: "automatic",
+      appliedAt: trigger.appliedAt,
+      expiry: { mode: "manual" },
+    }, targetId);
+    if (instance) next.push(instance);
+  }
+  return next;
+}
 function __groupConditionInstances(cond = {}) {
   const groups = new Map();
-  for (const instance of __allConditionInstances(cond)) {
+  for (const instance of getEffectiveConditionInstances(cond)) {
     const name = __conditionName(instance);
     if (!name) continue;
     const key = name.toLocaleLowerCase();
@@ -388,32 +410,10 @@ const COND_BORDER = Object.freeze({
   "Ira":             "#ff0000",
 });
 
-// Aggiorna automaticamente le pillole quando qualsiasi item cambia.
-// Evita doppie registrazioni in dev/HMR.
-let __COND_WATCH_MOUNTED = false;
-let __COND_REFRESH_TIMER = null;
-
-function __scheduleConditionLabelRefresh() {
-  if (__COND_REFRESH_TIMER) clearTimeout(__COND_REFRESH_TIMER);
-  __COND_REFRESH_TIMER = setTimeout(() => {
-    __COND_REFRESH_TIMER = null;
-    refreshConditionLabels().catch((error) => console.error("[conditions] label refresh", error));
-  }, 80);
-}
-
-
+// Compatibilità per vecchi import: il watcher vive nel coordinatore effetti
+// persistente e questo entry point non deve creare un secondo writer.
 export function mountConditionsLabelWatcher() {
-  if (__COND_WATCH_MOUNTED) return;
-  __COND_WATCH_MOUNTED = true;
-
-  // Riconcilia anche i widget già presenti al caricamento della room.
-  // Senza questo pass le modifiche di layout si applicano soltanto dopo una
-  // successiva modifica manuale alle condizioni del token.
-  refreshConditionLabels().catch((error) => console.error("[conditions] initial label refresh", error));
-
-  subscribeSceneItemChanges(() => {
-    __scheduleConditionLabelRefresh();
-  }, { filter: (event) => event.flags.conditions });
+  return false;
 }
 
 // === Helpers lettura/scrittura metadati condizione
@@ -427,7 +427,14 @@ export async function setItemConditions(itemId, next) {
     const it = list[0];
     if (!it) return;
     const me = { ...(it.metadata?.[META_KEY] || {}) };
-    me.conditions = __conditionsForWrite(next);
+    const previous = __conditionsForWrite(me.conditions || {});
+    const conditions = __conditionsForWrite(next);
+    conditions.instances = __withConditionEntryConsequences(
+      previous.instances,
+      conditions.instances,
+      it.id
+    );
+    me.conditions = conditions;
     it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
   });
 }
@@ -464,10 +471,12 @@ export async function toggleFlagForItems(itemIds, flagName, opts = {}) {
     for (const it of drafts) {
       const me = { ...(it.metadata?.[META_KEY] || {}) };
       const cond = __conditionsForWrite(me.conditions || {});
+      const previousInstances = [...cond.instances];
       const isActive = cond.instances.some((instance) => __sameCondition(instance, name));
       cond.instances = isActive
         ? cond.instances.filter((instance) => !__sameCondition(instance, name))
         : [...cond.instances, __buildConditionInstance(name, opts, it.id)].filter(Boolean);
+      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
       if (cond.instances.length) me.conditions = cond;
       else delete me.conditions;
       it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
@@ -484,6 +493,7 @@ export async function addCustomForItems(itemIds, text, opts = {}) {
     for (const it of drafts) {
       const me = { ...(it.metadata?.[META_KEY] || {}) };
       const cond = __conditionsForWrite(me.conditions || {});
+      const previousInstances = [...cond.instances];
       const customIndexes = cond.instances
         .map((instance, index) => CONDITION_LIST.includes(__conditionName(instance)) ? -1 : index)
         .filter((index) => index >= 0);
@@ -492,6 +502,7 @@ export async function addCustomForItems(itemIds, text, opts = {}) {
       }
       const instance = __buildConditionInstance(name, opts, it.id);
       if (instance) cond.instances.push(instance);
+      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
       me.conditions = cond;
       it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
     }
@@ -630,8 +641,10 @@ export async function addOrUpdateConditionForItems(itemIds, conditionName, opts 
     for (const it of drafts) {
       const me = { ...(it.metadata?.[META_KEY] || {}) };
       const cond = __conditionsForWrite(me.conditions || {});
+      const previousInstances = [...cond.instances];
       const instance = __buildConditionInstance(name, opts, it.id);
       if (instance) cond.instances.push(instance);
+      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
       me.conditions = cond;
       it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
     }
@@ -862,6 +875,11 @@ function __orderedParts(cond = {}) {
     key: __chipKeyFor(group.name),
   }));
 }
+
+// Dati intrinseci delle pill; il writer unificato calcola ordine e coordinate.
+export function getConditionWidgetLayoutParts(cond = {}) {
+  return __orderedParts(cond).map((part) => ({ ...part }));
+}
 // Genera una chiave stabile per ogni parte
 function __chipKeyFor(part) {
   if (CONDITION_LIST.includes(part)) return `flag:${part}`;
@@ -912,40 +930,178 @@ async function upsertCondLabelForItem(it) {
 
 // Lock anti-race: un solo upsert alla volta per token
 const __COND_UPSERT_LOCK = new Set();
+let __COND_RECONCILE_REVISION = 0;
+let __conditionWidgetReconcileRequest = null;
 
-export async function refreshConditionLabels(itemIds) {
-  let items = [];
-  if (Array.isArray(itemIds) && itemIds.length) {
-    const idset = new Set(itemIds.filter(Boolean));
-    items = await OBR.scene.items.getItems(i => idset.has(i.id));
-  } else {
-    items = await OBR.scene.items.getItems(i => !!i.metadata?.[META_KEY]);
-  }
+export function configureConditionWidgetWriter(requester = null) {
+  __conditionWidgetReconcileRequest = typeof requester === "function" ? requester : null;
+}
 
-  for (const it of items) {
-    if (!it) continue;
-    if (__COND_UPSERT_LOCK.has(it.id)) continue;
-    __COND_UPSERT_LOCK.add(it.id);
-    try {
-      await upsertCondWidgetForItem(it);
-    } catch (error) {
-      console.error("[conditions] label upsert", it.id, error);
-    } finally {
-      __COND_UPSERT_LOCK.delete(it.id);
-    }
+async function __conditionGetItems(diagnosticsSession, selector) {
+  effectsDiagnostics.sdkCall(diagnosticsSession, "getItems");
+  try {
+    const items = await OBR.scene.items.getItems(selector);
+    effectsDiagnostics.sdkResult(diagnosticsSession, "getItems", { returnedItems: items.length });
+    return items;
+  } catch (error) {
+    effectsDiagnostics.sdkError(diagnosticsSession, "getItems");
+    throw error;
   }
 }
 
+async function __conditionGetItemBounds(diagnosticsSession, itemIds) {
+  effectsDiagnostics.sdkCall(diagnosticsSession, "getItemBounds", { requestedItems: itemIds.length });
+  try {
+    const bounds = await OBR.scene.items.getItemBounds(itemIds);
+    effectsDiagnostics.sdkResult(diagnosticsSession, "getItemBounds", { returnedItems: bounds ? itemIds.length : 0 });
+    return bounds;
+  } catch (error) {
+    effectsDiagnostics.sdkError(diagnosticsSession, "getItemBounds");
+    throw error;
+  }
+}
+
+async function __conditionAddItems(diagnosticsSession, items) {
+  effectsDiagnostics.sdkCall(diagnosticsSession, "addItems", { requestedItems: items.length });
+  try {
+    await OBR.scene.items.addItems(items);
+    effectsDiagnostics.widgetMutation(diagnosticsSession, "added", items.length);
+  } catch (error) {
+    effectsDiagnostics.sdkError(diagnosticsSession, "addItems");
+    throw error;
+  }
+}
+
+async function __conditionUpdateItems(diagnosticsSession, itemIds, updater) {
+  effectsDiagnostics.sdkCall(diagnosticsSession, "updateItems", { requestedItems: itemIds.length });
+  try {
+    await OBR.scene.items.updateItems(itemIds, updater);
+    effectsDiagnostics.widgetMutation(diagnosticsSession, "updated", itemIds.length);
+  } catch (error) {
+    effectsDiagnostics.sdkError(diagnosticsSession, "updateItems");
+    throw error;
+  }
+}
+
+async function __conditionDeleteItems(diagnosticsSession, itemIds) {
+  effectsDiagnostics.sdkCall(diagnosticsSession, "deleteItems", { requestedItems: itemIds.length });
+  try {
+    await OBR.scene.items.deleteItems(itemIds);
+    effectsDiagnostics.widgetMutation(diagnosticsSession, "deleted", itemIds.length);
+  } catch (error) {
+    effectsDiagnostics.sdkError(diagnosticsSession, "deleteItems");
+    throw error;
+  }
+}
+
+export async function refreshConditionLabels(itemIds) {
+  if (!__conditionWidgetReconcileRequest) {
+    effectsDiagnostics.event("reconcile:ignored-non-writer", {
+      engine: "conditions",
+      requestedTokens: Array.isArray(itemIds) ? itemIds.filter(Boolean).length : 0,
+    });
+    return { outcome: "ignored-non-writer" };
+  }
+  return __conditionWidgetReconcileRequest(itemIds);
+}
+
+export async function reconcileConditionLabels(itemIds) {
+  const revision = ++__COND_RECONCILE_REVISION;
+  const requestedIds = [...new Set(Array.isArray(itemIds) ? itemIds.filter(Boolean) : [])];
+  const diagnosticsSession = effectsDiagnostics.beginReconcile("conditions", {
+    revision,
+    targeted: requestedIds.length > 0,
+    requestedTokens: requestedIds.length,
+  });
+  let items = [];
+  let processedTokens = 0;
+  let errors = 0;
+  let outcome = "completed";
+
+  try {
+    if (requestedIds.length) {
+      const idset = new Set(requestedIds);
+      items = await __conditionGetItems(diagnosticsSession, i => idset.has(i.id));
+      const foundIds = new Set(items.map((item) => item.id));
+      const removedIds = requestedIds.filter((id) => !foundIds.has(id));
+      if (removedIds.length) {
+        const removedSet = new Set(removedIds);
+        const orphanWidgets = await __conditionGetItems(diagnosticsSession,
+          (item) => removedSet.has(item.metadata?.[COND_WIDGET_META])
+        );
+        if (orphanWidgets.length) {
+          await __conditionDeleteItems(diagnosticsSession, orphanWidgets.map((item) => item.id));
+        }
+      }
+    } else {
+      items = await __conditionGetItems(diagnosticsSession, i => !!i.metadata?.[META_KEY]);
+    }
+
+    if (revision !== __COND_RECONCILE_REVISION) {
+      effectsDiagnostics.revisionStale(diagnosticsSession, {
+        stage: "after-token-scan",
+        latestRevision: __COND_RECONCILE_REVISION,
+      });
+    }
+
+    for (const it of items) {
+      if (!it) continue;
+      if (__COND_UPSERT_LOCK.has(it.id)) {
+        effectsDiagnostics.lockSkipped(diagnosticsSession, { tokenId: it.id });
+        continue;
+      }
+      __COND_UPSERT_LOCK.add(it.id);
+      try {
+        await upsertCondWidgetForItem(it, diagnosticsSession);
+        processedTokens += 1;
+      } catch (error) {
+        errors += 1;
+        console.error("[conditions] label upsert", it.id, error);
+      } finally {
+        __COND_UPSERT_LOCK.delete(it.id);
+      }
+    }
+  } catch (error) {
+    outcome = "failed";
+    throw error;
+  } finally {
+    if (revision !== __COND_RECONCILE_REVISION) {
+      effectsDiagnostics.revisionStale(diagnosticsSession, {
+        stage: "complete",
+        latestRevision: __COND_RECONCILE_REVISION,
+      });
+    }
+    effectsDiagnostics.finishReconcile(diagnosticsSession, {
+      outcome,
+      scannedTokens: items.length,
+      processedTokens,
+      errors,
+    });
+  }
+
+  return { outcome, targetIds: requestedIds.length ? requestedIds : items.map((item) => item.id) };
+}
+
 // === Anchor-based stack: calcola la Y per "cond:<key>"
-async function __stackCYForCondition(targetItem, condKey, condHeight, targetBounds = null) {
+async function __stackCYForCondition(
+  targetItem,
+  condKey,
+  condHeight,
+  targetBounds = null,
+  diagnosticsSession = null,
+  plannedConditions = [],
+  prefetchedSpellLabels = null,
+) {
   const tid = targetItem.id;
 
   // 1) SPELL rows presenti su questo target (qualsiasi caster)
-  const spellLabels = await OBR.scene.items.getItems(
-    (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL")
-       && i.metadata?.[CONC_WIDGET_META] === tid
-       && !!i.metadata?.[CONC_WIDGET_CASTER]
-  );
+  const spellLabels = Array.isArray(prefetchedSpellLabels)
+    ? prefetchedSpellLabels
+    : await __conditionGetItems(diagnosticsSession,
+      (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL")
+        && i.metadata?.[CONC_WIDGET_META] === tid
+        && !!i.metadata?.[CONC_WIDGET_CASTER]
+    );
   const spellRows = new Map(); // sig -> height
   for (const itx of spellLabels) {
     const k = (itx.metadata?.[CONC_WIDGET_KEY] || "").toString().toLowerCase();
@@ -960,14 +1116,21 @@ async function __stackCYForCondition(targetItem, condKey, condHeight, targetBoun
   }
 
   // 2) COND rows presenti (bg)
-  const condShapes = await OBR.scene.items.getItems(
-    (i) => (i.type === "LABEL" || i.type === "SHAPE") && i.metadata?.[COND_WIDGET_META] === tid
-  );
   const condRows = new Map(); // key -> height
-  for (const sh of condShapes) {
-    const key = sh.metadata?.[COND_WIDGET_KEY_META];
-    if (!key) continue;
-    condRows.set(String(key), Number(sh.text?.height ?? sh.height) || condHeight);
+  if (plannedConditions.length) {
+    for (const planned of plannedConditions) {
+      if (!planned?.key) continue;
+      condRows.set(String(planned.key), Number(planned.height) || condHeight);
+    }
+  } else {
+    const condShapes = await __conditionGetItems(diagnosticsSession,
+      (i) => (i.type === "LABEL" || i.type === "SHAPE") && i.metadata?.[COND_WIDGET_META] === tid
+    );
+    for (const sh of condShapes) {
+      const key = sh.metadata?.[COND_WIDGET_KEY_META];
+      if (!key) continue;
+      condRows.set(String(key), Number(sh.text?.height ?? sh.height) || condHeight);
+    }
   }
   if (!condRows.has(condKey)) condRows.set(condKey, condHeight);
 
@@ -994,19 +1157,19 @@ async function __stackCYForCondition(targetItem, condKey, condHeight, targetBoun
 }
 
 // === Versione a widget (SHAPE + TEXT) — multi-chip, una per condizione ===
-async function upsertCondWidgetForItem(it) {
+async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
   const cond = it.metadata?.[META_KEY]?.conditions || {};
   const parts = __orderedParts(cond);
   const wantNone = parts.length === 0;
 
-  const existing = await OBR.scene.items.getItems(
+  const existing = await __conditionGetItems(diagnosticsSession,
     (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && i.metadata?.[COND_WIDGET_META] === it.id
   );
 
   let { buckets, removeIds } = __collectCondWidgetBuckets(existing);
 
   if (wantNone) {
-    if (existing.length) await OBR.scene.items.deleteItems(existing.map(x => x.id));
+    if (existing.length) await __conditionDeleteItems(diagnosticsSession, existing.map(x => x.id));
     return;
   }
 
@@ -1029,13 +1192,26 @@ async function upsertCondWidgetForItem(it) {
   const rows = sizes.map(s => [s]);
 
   let targetBounds = null;
-  try { targetBounds = await OBR.scene.items.getItemBounds([it.id]); } catch {}
+  try { targetBounds = await __conditionGetItemBounds(diagnosticsSession, [it.id]); } catch {}
+  const stackSpellLabels = await __conditionGetItems(diagnosticsSession,
+    (item) => (item.type === "TEXT" || item.type === "SHAPE" || item.type === "LABEL")
+      && item.metadata?.[CONC_WIDGET_META] === it.id
+      && !!item.metadata?.[CONC_WIDGET_CASTER]
+  );
 
   const layout = Object.create(null);
   const tokenBox = __visualTokenBox(it, targetBounds);
   for (let r = 0; r < rows.length; r++) {
     const s = rows[r][0];
-    const cy = await __stackCYForCondition(it, s.key, s.height, targetBounds);
+    const cy = await __stackCYForCondition(
+      it,
+      s.key,
+      s.height,
+      targetBounds,
+      diagnosticsSession,
+      sizes,
+      stackSpellLabels,
+    );
     const labelLeft = tokenBox.left + tokenBox.diameter * CHIP_LAYOUT_NUDGE.x;
     // Il punto della LABEL coincide con il bordo sinistro, non con il centro:
     // così la dorsale resta stabile anche con lo scaling screen-space di OBR.
@@ -1099,9 +1275,9 @@ async function upsertCondWidgetForItem(it) {
 
   }
   if (toAdd.length) {
-    await OBR.scene.items.addItems(toAdd);
+    await __conditionAddItems(diagnosticsSession, toAdd);
 
-    const fresh = await OBR.scene.items.getItems(
+    const fresh = await __conditionGetItems(diagnosticsSession,
       (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && i.metadata?.[COND_WIDGET_META] === it.id
     );
     const collected = __collectCondWidgetBuckets(fresh);
@@ -1113,7 +1289,28 @@ async function upsertCondWidgetForItem(it) {
   const idsSet = new Set();
   for (const s of sizes) {
     const pair = buckets.get(s.key) || {};
-    if (pair.shape) idsSet.add(pair.shape.id);
+    const slot = layout[s.key];
+    if (!pair.shape || !slot) continue;
+    const desired = {
+      targetId: it.id,
+      x: slot.pos.x,
+      y: slot.pos.y,
+      width: slot.width,
+      height: slot.height,
+      label: slot.label,
+      backgroundColor: PILL_CFG.bg,
+      backgroundOpacity: PILL_CFG.bgOpacity,
+      maxViewScale: WIDGET_MAX_VIEW_SCALE,
+      fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      fontSize: PILL_CFG.fontSize,
+      fontWeight: PILL_CFG.fontWeight,
+      lineHeight: PILL_CFG.lineHeight,
+      textFill: PILL_CFG.textFill,
+      textStroke: PILL_CFG.textStroke,
+      textStrokeWidth: PILL_CFG.textStrokeW,
+      zIndex: CHIP_Z.bg,
+    };
+    if (conditionLabelNeedsUpdate(pair.shape, desired)) idsSet.add(pair.shape.id);
   }
   const idsToUpdate = Array.from(idsSet);
 
@@ -1125,10 +1322,10 @@ async function upsertCondWidgetForItem(it) {
       }
   }
   const toRemove = Array.from(removeIds);
-  if (toRemove.length) await OBR.scene.items.deleteItems(toRemove);
+  if (toRemove.length) await __conditionDeleteItems(diagnosticsSession, toRemove);
 
   // 4) UPDATE atomico
-  await OBR.scene.items.updateItems(idsToUpdate, (draft) => {
+  if (idsToUpdate.length) await __conditionUpdateItems(diagnosticsSession, idsToUpdate, (draft) => {
     for (const itx of draft) {
       const key  = itx.metadata?.[COND_WIDGET_KEY_META];
       const slot = key ? layout[key] : null;

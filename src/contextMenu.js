@@ -1,5 +1,4 @@
   // src/contextMenu.js
-  import {mountConditionsLabelWatcher} from "./conditions";
   import { mountElevationLabelWatcher } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
@@ -200,7 +199,6 @@ async function toggleEpicBossOn(ids) {
     if (window.__TBP_CTX_MOUNTED) return;
     window.__TBP_CTX_MOUNTED = true;
 
-    try { mountConditionsLabelWatcher(); } catch {}
     try { mountElevationLabelWatcher(); } catch {}
 
     /* ======================= “Segna come…” (EMBED) ======================= */

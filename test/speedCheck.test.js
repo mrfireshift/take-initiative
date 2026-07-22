@@ -4,6 +4,7 @@ import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
+  limitedMovementRejection,
   measureSquareGridCells,
   normalizeSpeedMeters,
   resolveSpeedCheckTurn,
@@ -57,6 +58,35 @@ test("builds an explicit movement readout", () => {
   assert.equal(snapshot.turnKey, "4:2:hero");
 });
 
+test("movement limiting rejects blocked movement and movement beyond the remaining allowance", () => {
+  const blocked = buildSpeedCheckSnapshot({
+    baseSpeedMeters: 9,
+    speedMeters: 0,
+    blocked: true,
+  }, true, true);
+  assert.equal(limitedMovementRejection(blocked, 1)?.blocked, true);
+
+  const almostSpent = buildSpeedCheckSnapshot({
+    speedMeters: 9,
+    cycleMeters: 7.5,
+  }, true, true);
+  assert.equal(limitedMovementRejection(almostSpent, 1), null);
+  assert.equal(limitedMovementRejection(almostSpent, 2)?.remainingMeters, 1.5);
+});
+
+test("the allowance limit is opt-in while speed zero is always enforced", () => {
+  const snapshot = buildSpeedCheckSnapshot({ speedMeters: 9, cycleMeters: 9 }, true, false);
+  assert.equal(snapshot.movementLimited, false);
+  assert.equal(limitedMovementRejection(snapshot, 1), null);
+
+  const blocked = buildSpeedCheckSnapshot({
+    baseSpeedMeters: 9,
+    speedMeters: 0,
+    blocked: true,
+  }, true, false);
+  assert.equal(limitedMovementRejection(blocked, 1)?.blocked, true);
+});
+
 test("readout exposes total movement across cycles", () => {
   const snapshot = buildSpeedCheckSnapshot({ speedMeters: 9, cycle: 2, cycleMeters: 1.5 });
   assert.equal(snapshot.totalMeters, 19.5);
@@ -94,7 +124,7 @@ test("a blocked actor remains visible with speed 0 and ignores speed bonuses", (
   assert.equal(snapshot.conditionSummary, "Afferrato");
 });
 
-test("movement at speed 0 is still tracked and can be undone", () => {
+test("movement arithmetic at speed 0 remains reversible", () => {
   const moved = advanceSpeedCycle(null, 2, 0);
   assert.equal(moved.cycleMeters, 3);
   const undone = retreatSpeedCycle(moved, 1, 0);

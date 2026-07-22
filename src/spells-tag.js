@@ -1,12 +1,69 @@
   // src/spells-tag.js
   import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
-  import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
   import { getSpellDefinition } from "./spells-srd.js";
+  import { effectsDiagnostics } from "./effectsDiagnostics.js";
 
   /* ===================== DEBUG ===================== */
   const DEBUG_CONC = false;
   const dlog = (...a) => { if (DEBUG_CONC) console.debug("[conc]", ...a); };
+
+  async function __concentrationGetItems(diagnosticsSession, selector) {
+    effectsDiagnostics.sdkCall(diagnosticsSession, "getItems");
+    try {
+      const items = await OBR.scene.items.getItems(selector);
+      effectsDiagnostics.sdkResult(diagnosticsSession, "getItems", { returnedItems: items.length });
+      return items;
+    } catch (error) {
+      effectsDiagnostics.sdkError(diagnosticsSession, "getItems");
+      throw error;
+    }
+  }
+
+  async function __concentrationGetItemBounds(diagnosticsSession, itemIds) {
+    effectsDiagnostics.sdkCall(diagnosticsSession, "getItemBounds", { requestedItems: itemIds.length });
+    try {
+      const bounds = await OBR.scene.items.getItemBounds(itemIds);
+      effectsDiagnostics.sdkResult(diagnosticsSession, "getItemBounds", { returnedItems: bounds ? itemIds.length : 0 });
+      return bounds;
+    } catch (error) {
+      effectsDiagnostics.sdkError(diagnosticsSession, "getItemBounds");
+      throw error;
+    }
+  }
+
+  async function __concentrationAddItems(diagnosticsSession, items) {
+    effectsDiagnostics.sdkCall(diagnosticsSession, "addItems", { requestedItems: items.length });
+    try {
+      await OBR.scene.items.addItems(items);
+      effectsDiagnostics.widgetMutation(diagnosticsSession, "added", items.length);
+    } catch (error) {
+      effectsDiagnostics.sdkError(diagnosticsSession, "addItems");
+      throw error;
+    }
+  }
+
+  async function __concentrationUpdateItems(diagnosticsSession, itemIds, updater) {
+    effectsDiagnostics.sdkCall(diagnosticsSession, "updateItems", { requestedItems: itemIds.length });
+    try {
+      await OBR.scene.items.updateItems(itemIds, updater);
+      effectsDiagnostics.widgetMutation(diagnosticsSession, "updated", itemIds.length);
+    } catch (error) {
+      effectsDiagnostics.sdkError(diagnosticsSession, "updateItems");
+      throw error;
+    }
+  }
+
+  async function __concentrationDeleteItems(diagnosticsSession, itemIds) {
+    effectsDiagnostics.sdkCall(diagnosticsSession, "deleteItems", { requestedItems: itemIds.length });
+    try {
+      await OBR.scene.items.deleteItems(itemIds);
+      effectsDiagnostics.widgetMutation(diagnosticsSession, "deleted", itemIds.length);
+    } catch (error) {
+      effectsDiagnostics.sdkError(diagnosticsSession, "deleteItems");
+      throw error;
+    }
+  }
 
   /* ===================== METADATA KEYS ===================== */
   const META_KEY           = `${ID}/meta`;
@@ -18,7 +75,7 @@
   const CONC_WIDGET_CASTER = `${ID}/concWidgetCaster`; // caster id (per label)
   const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;    // hash label (testo+dimensioni)
   const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
-  const CONC_DOT_LAYOUT_VERSION = 8;
+  const CONC_DOT_LAYOUT_VERSION = 9;
   const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
   const CONC_LABEL_LAYOUT_VERSION = 2;
 
@@ -415,6 +472,19 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     return out;
   }
 
+  // Snapshot normalizzato usato dal renderer unificato. Non legge né modifica la scena.
+  export function getSpellWidgetLayoutData(it) {
+    return {
+      concentrationKey: readConcKey(it),
+      spellEntries: readSpellsList(it),
+      assignments: extractAssignments(it).map((assignment) => ({
+        ...assignment,
+        displayName: getSpellDefinition(assignment.key)?.displayName || titleCaseLite(assignment.key),
+        color: spellColorFromKey(assignment.colorKey),
+      })),
+    };
+  }
+
   /** Digest deterministico di tutte le assegnazioni (per gating refresh) */
   function assignmentsDigest(it) {
     const assigns = extractAssignments(it);
@@ -432,7 +502,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     return JSON.stringify({ assignments: norm, durations });
   }
 
-  async function hasConcentrationWidgetDrift(tokens) {
+  async function hasConcentrationWidgetDrift(tokens, diagnosticsSession = null) {
     const expectedDots = new Set(tokens.filter((token) => !!readConcKey(token)).map((token) => token.id));
     const expectedLabels = new Set();
     for (const caster of tokens) {
@@ -443,7 +513,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         }
       }
     }
-    const widgets = await OBR.scene.items.getItems((item) =>
+    const widgets = await __concentrationGetItems(diagnosticsSession, (item) =>
       !!item.metadata?.[CONC_WIDGET_META] && (
         item.name === DOT_BG_NAME || item.name === DOT_TEXT_NAME ||
         item.name === LABEL_BG_NAME
@@ -492,7 +562,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
 
 /* ===================== UPSERT PALLINO + LABEL ===================== */
 /* ===================== UPSERT PALLINO + LABEL ===================== */
-async function upsertDotForItem(it) {
+async function upsertDotForItem(it, diagnosticsSession = null) {
   const concKey = readConcKey(it);
   const assigns = extractAssignments(it);
 
@@ -512,7 +582,7 @@ async function upsertDotForItem(it) {
   // Il badge deve essere misurato prima che i widget prodotti da questo caster
   // entrino nei bounds del token. La migrazione elimina una sola volta il dot
   // instabile e le label self, che vengono ricreate nello stesso upsert.
-  let casterOwned = await OBR.scene.items.getItems(
+  let casterOwned = await __concentrationGetItems(diagnosticsSession,
     (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
       i.metadata?.[CONC_WIDGET_META] === it.id ||
       i.metadata?.[CONC_WIDGET_CASTER] === it.id
@@ -534,12 +604,12 @@ async function upsertDotForItem(it) {
         widget.metadata?.[CONC_WIDGET_META] === it.id
       ) migrationIds.add(widget.id);
     }
-    await OBR.scene.items.deleteItems(Array.from(migrationIds));
+    await __concentrationDeleteItems(diagnosticsSession, Array.from(migrationIds));
     casterOwned = casterOwned.filter(widget => !migrationIds.has(widget.id));
   }
 
   // 1) Tutti i widget SPELL (di QUALSIASI caster) per i target coinvolti
-  const allSpellWidgetsForTargets = await OBR.scene.items.getItems(
+  const allSpellWidgetsForTargets = await __concentrationGetItems(diagnosticsSession,
     (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") &&
            !!i.metadata?.[CONC_WIDGET_CASTER] &&
            targetsUnion.has(i.metadata?.[CONC_WIDGET_META])
@@ -554,7 +624,7 @@ async function upsertDotForItem(it) {
   }
 
   // 2) Oggetti target (token) in una botta sola
-  const targetItemsList = await OBR.scene.items.getItems(i => targetsUnion.has(i.id));
+  const targetItemsList = await __concentrationGetItems(diagnosticsSession, i => targetsUnion.has(i.id));
   const tById = new Map(targetItemsList.map(t => [t.id, t]));
 
   // I bounds reali tengono conto della dimensione/scala visuale del token.
@@ -563,7 +633,7 @@ async function upsertDotForItem(it) {
   const boundsByTarget = new Map();
   await Promise.all(Array.from(targetsUnion, async (tid) => {
     try {
-      const bounds = await OBR.scene.items.getItemBounds([tid]);
+      const bounds = await __concentrationGetItemBounds(diagnosticsSession, [tid]);
       if (bounds) boundsByTarget.set(tid, bounds);
     } catch {}
   }));
@@ -764,14 +834,14 @@ async function upsertDotForItem(it) {
   }
 
   // === Applica cambiamenti ===
-  if (toDel.length) { dlog("del", toDel.length); await OBR.scene.items.deleteItems(toDel); }
-  if (toAdd.length)  { dlog("add", toAdd.map(x => x.name)); await OBR.scene.items.addItems(toAdd); }
+  if (toDel.length) { dlog("del", toDel.length); await __concentrationDeleteItems(diagnosticsSession, toDel); }
+  if (toAdd.length)  { dlog("add", toAdd.map(x => x.name)); await __concentrationAddItems(diagnosticsSession, toAdd); }
 
   // Aggiorna soltanto i LABEL che hanno davvero bisogno di riconciliazione.
   const idsToUpd = Array.from(shapeUpdate.keys());
   if (idsToUpd.length) {
     dlog("upd:mixed", idsToUpd.length);
-    await OBR.scene.items.updateItems(idsToUpd, (draft) => {
+    await __concentrationUpdateItems(diagnosticsSession, idsToUpd, (draft) => {
       for (const itx of draft) {
         itx.locked = true;
         itx.disableHit = true;
@@ -844,8 +914,14 @@ async function upsertDotForItem(it) {
 
   /* ===================== RACE/DEBOUNCE & SNAPSHOT ===================== */
   const __CONC_UPSERT_LOCK = new Set();
+  let __CONC_RECONCILE_REVISION = 0;
+  let __concentrationWidgetReconcileRequest = null;
   let __debounceTimer = null;
   const __assignSnapshot = new Map(); // tokenId -> digest di tutte le assegnazioni
+
+  export function configureConcentrationWidgetWriter(requester = null) {
+    __concentrationWidgetReconcileRequest = typeof requester === "function" ? requester : null;
+  }
 
   function __scheduleRefresh() {
     if (__debounceTimer) return;
@@ -867,34 +943,138 @@ async function upsertDotForItem(it) {
   }
 
   /* ===================== REFRESH GLOBALE ===================== */
-  export async function refreshConcentrationDots() {
+  export async function refreshConcentrationDots(itemIds) {
+    if (!__concentrationWidgetReconcileRequest) {
+      effectsDiagnostics.event("reconcile:ignored-non-writer", {
+        engine: "concentration",
+        requestedTokens: Array.isArray(itemIds) ? itemIds.filter(Boolean).length : 0,
+      });
+      return { outcome: "ignored-non-writer", affectedTargetIds: [] };
+    }
+    return __concentrationWidgetReconcileRequest(itemIds);
+  }
+
+  export async function reconcileConcentrationDots(itemIds) {
+    const revision = ++__CONC_RECONCILE_REVISION;
+    const requestedIds = [...new Set(Array.isArray(itemIds) ? itemIds.filter(Boolean) : [])];
+    const targeted = requestedIds.length > 0;
+    const diagnosticsSession = effectsDiagnostics.beginReconcile("concentration", {
+      revision,
+      targeted,
+      requestedTokens: requestedIds.length,
+    });
+    let tokens = [];
+    let linkedWidgets = [];
+    let castersWithAssignments = 0;
+    let castersWithoutAssignments = 0;
+    let processedCasters = 0;
+    let skippedLockedCasters = 0;
+    let driftChecked = false;
+    let snapshotUpdated = false;
+    let outcome = "completed";
+    const affectedTargetIds = new Set();
+
     dlog("refresh:begin");
 
-    const tokens = await OBR.scene.items.getItems(i => !!i.metadata?.[META_KEY]);
+    try {
+    if (targeted) {
+      const requestedSet = new Set(requestedIds);
+      const seedTokens = await __concentrationGetItems(diagnosticsSession,
+        (item) => requestedSet.has(item.id) && !!item.metadata?.[META_KEY]
+      );
+      const relatedTargets = new Set(requestedIds);
+      const candidateCasterIds = new Set(requestedIds);
+
+      for (const token of seedTokens) {
+        for (const spell of readSpellsList(token)) {
+          if (spell.casterId) candidateCasterIds.add(spell.casterId);
+        }
+        for (const assignment of extractAssignments(token)) {
+          const targets = assignment.targets?.length ? assignment.targets : [token.id];
+          for (const targetId of targets) relatedTargets.add(targetId);
+        }
+      }
+
+      linkedWidgets = await __concentrationGetItems(diagnosticsSession,
+        (item) => (item.type === "TEXT" || item.type === "SHAPE" || item.type === "LABEL") && (
+          relatedTargets.has(item.metadata?.[CONC_WIDGET_META]) ||
+          candidateCasterIds.has(item.metadata?.[CONC_WIDGET_CASTER])
+        )
+      );
+      for (const widget of linkedWidgets) {
+        const targetId = widget.metadata?.[CONC_WIDGET_META];
+        const casterId = widget.metadata?.[CONC_WIDGET_CASTER];
+        if (targetId && casterId) affectedTargetIds.add(targetId);
+        if (casterId) candidateCasterIds.add(casterId);
+      }
+
+      const candidateIds = new Set([...requestedIds, ...candidateCasterIds]);
+      const extraIds = new Set([...candidateIds].filter((id) => !requestedSet.has(id)));
+      const extraTokens = extraIds.size
+        ? await __concentrationGetItems(diagnosticsSession,
+          (item) => extraIds.has(item.id) && !!item.metadata?.[META_KEY]
+        )
+        : [];
+      const byId = new Map([...seedTokens, ...extraTokens].map((item) => [item.id, item]));
+      tokens = [...byId.values()];
+    } else {
+      tokens = await __concentrationGetItems(diagnosticsSession, i => !!i.metadata?.[META_KEY]);
+    }
     dlog("refresh:scan-count", tokens.length);
+
+    if (revision !== __CONC_RECONCILE_REVISION) {
+      effectsDiagnostics.revisionStale(diagnosticsSession, {
+        stage: "after-token-scan",
+        latestRevision: __CONC_RECONCILE_REVISION,
+      });
+    }
 
     let anyChanged = false;
     const currentIds = new Set(tokens.map(t => t.id));
-    for (const oldId of __assignSnapshot.keys()) { if (!currentIds.has(oldId)) { anyChanged = true; break; } }
+    const staleLinkedIds = targeted
+      ? linkedWidgets.filter((widget) => {
+        const targetId = widget.metadata?.[CONC_WIDGET_META];
+        const casterId = widget.metadata?.[CONC_WIDGET_CASTER];
+        return (targetId && requestedIds.includes(targetId) && !currentIds.has(targetId)) ||
+          (casterId && requestedIds.includes(casterId) && !currentIds.has(casterId));
+      }).map((widget) => widget.id)
+      : [];
+    if (staleLinkedIds.length) anyChanged = true;
+    const snapshotIdsToCheck = targeted ? requestedIds : [...__assignSnapshot.keys()];
+    for (const oldId of snapshotIdsToCheck) {
+      if (__assignSnapshot.has(oldId) && !currentIds.has(oldId)) { anyChanged = true; break; }
+    }
     if (!anyChanged) {
       for (const t of tokens) {
         const dig = assignmentsDigest(t);
         if (__assignSnapshot.get(t.id) !== dig) { anyChanged = true; break; }
       }
     }
-    if (!anyChanged && __assignSnapshot.size) {
-      anyChanged = await hasConcentrationWidgetDrift(tokens);
+    if (!targeted && !anyChanged && __assignSnapshot.size) {
+      driftChecked = true;
+      anyChanged = await hasConcentrationWidgetDrift(tokens, diagnosticsSession);
     }
-    if (!anyChanged && __assignSnapshot.size) { dlog("refresh:skip(no-change)"); return; }
+    if (!anyChanged && __assignSnapshot.size) {
+      outcome = "no-change";
+      dlog("refresh:skip(no-change)");
+      return { outcome, affectedTargetIds: [...affectedTargetIds] };
+    }
+
+    if (staleLinkedIds.length) {
+      const staleSet = new Set(staleLinkedIds);
+      await __concentrationDeleteItems(diagnosticsSession, [...staleSet]);
+      linkedWidgets = linkedWidgets.filter((widget) => !staleSet.has(widget.id));
+    }
 
     const should = new Set();
 
     for (const it of tokens) {
       const assigns = extractAssignments(it);
       if (!assigns.length) {
+        castersWithoutAssignments += 1;
         // SAFE: pulisco solo ciò che dipende da questo token come CASTER
         // (label con CONC_WIDGET_CASTER === it.id) oppure il DOT attaccato al token.
-        const mine = await OBR.scene.items.getItems(
+        const mine = await __concentrationGetItems(diagnosticsSession,
           (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (
             // label generate da questo token come caster
             i.metadata?.[CONC_WIDGET_CASTER] === it.id ||
@@ -902,33 +1082,59 @@ async function upsertDotForItem(it) {
             (i.metadata?.[CONC_WIDGET_META] === it.id && (i.name === DOT_BG_NAME || i.name === DOT_TEXT_NAME))
           )
         );
+        for (const widget of mine) {
+          const targetId = widget.metadata?.[CONC_WIDGET_META];
+          if (targetId && widget.metadata?.[CONC_WIDGET_CASTER]) {
+            affectedTargetIds.add(targetId);
+          }
+        }
         if (mine.length) {
           dlog("cleanup(token-safe)", it.name, mine.length);
-          await OBR.scene.items.deleteItems(mine.map(m => m.id));
+          await __concentrationDeleteItems(diagnosticsSession, mine.map(m => m.id));
         }
         continue;
       }
 
+      castersWithAssignments += 1;
+
       // owner validi
       should.add(it.id);
-      for (const a of assigns) for (const tid of (a.targets?.length ? a.targets : [it.id])) should.add(tid);
+      for (const a of assigns) {
+        for (const tid of (a.targets?.length ? a.targets : [it.id])) {
+          should.add(tid);
+          affectedTargetIds.add(tid);
+        }
+      }
 
-      if (__CONC_UPSERT_LOCK.has(it.id)) continue;
+      if (__CONC_UPSERT_LOCK.has(it.id)) {
+        skippedLockedCasters += 1;
+        effectsDiagnostics.lockSkipped(diagnosticsSession, { tokenId: it.id });
+        continue;
+      }
       __CONC_UPSERT_LOCK.add(it.id);
-      try { await upsertDotForItem(it); }
+      try {
+        await upsertDotForItem(it, diagnosticsSession);
+        processedCasters += 1;
+      }
       finally { __CONC_UPSERT_LOCK.delete(it.id); }
     }
 
     // ---- Aggiorna lo snapshot per bloccare loop su onChange dei nostri widget
     try {
-      __assignSnapshot.clear();
+      if (!targeted) __assignSnapshot.clear();
+      else {
+        for (const id of requestedIds) {
+          if (!currentIds.has(id)) __assignSnapshot.delete(id);
+        }
+      }
       for (const t of tokens) {
         __assignSnapshot.set(t.id, assignmentsDigest(t));
       }
+      snapshotUpdated = true;
     } catch {}
 
     // === Cleanup più sicuro: non cancellare label appena create se almeno caster O target sono "attesi"
-    const allWidgets = await OBR.scene.items.getItems(
+    const allWidgets = targeted ? linkedWidgets : await __concentrationGetItems(diagnosticsSession,
       (i) => (i.type === "TEXT" || i.type === "SHAPE" || i.type === "LABEL") && (i.metadata?.[CONC_WIDGET_META] || i.metadata?.[CONC_WIDGET_CASTER])
     );
 
@@ -936,6 +1142,13 @@ async function upsertDotForItem(it) {
     for (const w of allWidgets) {
       const metaTarget = w.metadata?.[CONC_WIDGET_META];      // per DOT = casterId, per LABEL = targetId
       const metaCaster = w.metadata?.[CONC_WIDGET_CASTER] || null;
+
+      if (targeted) {
+        const targetRemoved = metaTarget && requestedIds.includes(metaTarget) && !currentIds.has(metaTarget);
+        const casterRemoved = metaCaster && requestedIds.includes(metaCaster) && !currentIds.has(metaCaster);
+        if (targetRemoved || casterRemoved) toRemove.push(w.id);
+        continue;
+      }
 
       // Regola:
       // - Se è un DOT (non ha caster), deve esistere l'owner (caster) in "should".
@@ -953,22 +1166,34 @@ async function upsertDotForItem(it) {
 
     if (toRemove.length) {
       dlog("cleanup:orphans(safe)", toRemove.length);
-      await OBR.scene.items.deleteItems(toRemove);
+      await __concentrationDeleteItems(diagnosticsSession, [...new Set(toRemove)]);
     }
+    } catch (error) {
+      outcome = "failed";
+      throw error;
+    } finally {
+      if (revision !== __CONC_RECONCILE_REVISION) {
+        effectsDiagnostics.revisionStale(diagnosticsSession, {
+          stage: "complete",
+          latestRevision: __CONC_RECONCILE_REVISION,
+        });
+      }
+      effectsDiagnostics.finishReconcile(diagnosticsSession, {
+        outcome,
+        scannedTokens: tokens.length,
+        castersWithAssignments,
+        castersWithoutAssignments,
+        processedCasters,
+        skippedLockedCasters,
+        driftChecked,
+        snapshotUpdated,
+        snapshotUpdatedAfterLockSkip: snapshotUpdated && skippedLockedCasters > 0,
+      });
+    }
+    return { outcome, affectedTargetIds: [...affectedTargetIds] };
   }
 
-  /* ===================== WATCHER ===================== */
-  let __mounted = false;
+  /* ================ WATCHER LEGACY (NO-OP) ================ */
   export function mountConcentrationWatcher() {
-    if (__mounted) return;
-    __mounted = true;
-    dlog("watcher:mounted");
-    refreshConcentrationDots().catch(e => dlog("watcher:init-error", e));
-    subscribeSceneItemChanges(() => {
-      dlog("onChange");
-      __scheduleRefresh();
-    }, { filter: (event) => event.flags.concentration });
+    return false;
   }
-
-  // montaggio automatico se non lo fai tu altrove
-  try { OBR?.onReady?.(() => mountConcentrationWatcher()); } catch {}

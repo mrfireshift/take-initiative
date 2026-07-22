@@ -8,11 +8,13 @@ import {
   resolveConditionSpeed,
 } from "./conditionSpeedCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { suppressMovementHistory } from "./history.js";
 import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
   measureSquareGridCells,
+  limitedMovementRejection,
   SPEED_CHECK_METERS_PER_CELL,
   resolveSpeedCheckTurn,
   retreatSpeedCycle,
@@ -37,6 +39,7 @@ let currentTurn = null;
 let movementQueue = Promise.resolve();
 let processorEnabled = false;
 let speedCheckEnabled = false;
+let movementLimitEnabled = false;
 let warningLayerPromise = null;
 let speedDragListenerMounted = false;
 let speedStateListenerMounted = false;
@@ -44,6 +47,7 @@ let speedMetadataListenerMounted = false;
 let remoteMovementSnapshot = null;
 let movementPersistQueue = Promise.resolve();
 const trackedDrags = new Map();
+const rejectedMovementRollbacks = new Map();
 const movementStateListeners = new Set();
 
 function emitMovementSnapshot(snapshot) {
@@ -68,7 +72,7 @@ function requestMovementSnapshot(turnKey = currentTurn?.turnKey || "") {
 }
 
 function notifyMovementState() {
-  const snapshot = buildSpeedCheckSnapshot(movementState, speedCheckEnabled);
+  const snapshot = buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled);
   emitMovementSnapshot(snapshot);
   broadcastMovementSnapshot(snapshot);
 }
@@ -76,7 +80,7 @@ function notifyMovementState() {
 export function subscribeSpeedCheckState(listener) {
   if (typeof listener !== "function") return () => {};
   movementStateListeners.add(listener);
-  const local = buildSpeedCheckSnapshot(movementState, speedCheckEnabled);
+  const local = buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled);
   listener(local.available ? local : remoteMovementSnapshot || local);
   return () => movementStateListeners.delete(listener);
 }
@@ -89,7 +93,7 @@ export function mountSpeedCheckStateBroadcast() {
     if (data?.type === "request-speed-state") {
       const requestedTurnKey = String(data.turnKey || "");
       if (processorEnabled && (!requestedTurnKey || requestedTurnKey === currentTurn?.turnKey)) {
-        broadcastMovementSnapshot(buildSpeedCheckSnapshot(movementState, speedCheckEnabled));
+        broadcastMovementSnapshot(buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled));
       }
       return;
     }
@@ -377,7 +381,7 @@ export function syncSpeedCheckTurn(state) {
     }
   } else if (changed) {
     remoteMovementSnapshot = null;
-    emitMovementSnapshot(buildSpeedCheckSnapshot(null, false));
+    emitMovementSnapshot(buildSpeedCheckSnapshot(null, false, movementLimitEnabled));
     requestMovementSnapshot(currentTurn?.turnKey);
   }
 }
@@ -489,6 +493,13 @@ export function setSpeedCheckEnabled(enabled) {
   }
 }
 
+export function setSpeedCheckMovementLimit(enabled) {
+  const next = !!enabled;
+  if (movementLimitEnabled === next) return;
+  movementLimitEnabled = next;
+  notifyMovementState();
+}
+
 async function readSpeedCheckTurn() {
   if (currentTurn?.turnKey) return { ...currentTurn };
   const metadata = await OBR.scene.getMetadata();
@@ -541,7 +552,34 @@ async function processSpeedCheckMovement(movement, turn) {
   }
 
   const chargedCells = conditionMovementCostCells(movedCells, state.movementCostMultiplier);
-  const beforeSnapshot = buildSpeedCheckSnapshot(state, true);
+  const beforeSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
+  const rejection = limitedMovementRejection(beforeSnapshot, chargedCells);
+  if (rejection) {
+    const rollbackPosition = { ...rawBefore };
+    rejectedMovementRollbacks.set(state.itemId, {
+      position: rollbackPosition,
+      until: Date.now() + 2500,
+    });
+    suppressMovementHistory(state.itemId, rollbackPosition, 2500);
+    await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+      for (const item of drafts) item.position = { ...rollbackPosition };
+    });
+    notifyMovementState();
+    if (rejection.blocked) state.blockedWarningSent = true;
+    void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
+      type: "show-speed-warning",
+      blocked: rejection.blocked,
+      reason: rejection.blocked ? state.conditionSummary : "",
+      name: state.name,
+      portrait: state.portrait,
+      speedMeters: rejection.blocked ? 0 : state.speedMeters,
+      limitMeters: beforeSnapshot.allowanceMeters,
+      cycle: beforeSnapshot.cycle,
+      cyclesCrossed: 1,
+      createdAt: Date.now(),
+    }, { destination: "ALL" }).catch(() => {});
+    return;
+  }
   const next = advanceSpeedCycle(state, chargedCells, state.speedMeters);
   Object.assign(state, next);
   state.path.push({
@@ -554,7 +592,7 @@ async function processSpeedCheckMovement(movement, turn) {
   if (state.path.length > MAX_MOVEMENT_SEGMENTS) {
     state.path.splice(0, state.path.length - MAX_MOVEMENT_SEGMENTS);
   }
-  const afterSnapshot = buildSpeedCheckSnapshot(state, true);
+  const afterSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
   if (state.blocked && state.speedMeters <= 0) {
     notifyMovementState();
     const persistTask = sample.toolSynthetic ? null : persistMovementState(state);
@@ -605,6 +643,15 @@ async function processSpeedCheckMovement(movement, turn) {
 export function queueSpeedCheckMovements(changes) {
   if (!processorEnabled || !speedCheckEnabled) return movementQueue;
   for (const movement of Array.isArray(changes) ? changes : []) {
+    const rejectedRollback = rejectedMovementRollbacks.get(movement?.id);
+    if (rejectedRollback) {
+      if (rejectedRollback.until < Date.now()) {
+        rejectedMovementRollbacks.delete(movement.id);
+      } else if (movement?.undo === true && samePosition(movement?.afterPosition, rejectedRollback.position)) {
+        rejectedMovementRollbacks.delete(movement.id);
+        continue;
+      }
+    }
     if (!movement?.toolSynthetic) {
       const tracked = trackedDragFor(movement?.id);
       if (tracked && !passiveMovementIsUndo(tracked, movement)) continue;

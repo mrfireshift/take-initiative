@@ -122,7 +122,7 @@ test("schedules HP autofill when a new character token enters the scene", () => 
   assert.equal(event.flags.hpMemoryAutofill, true);
 });
 
-test("condition widgets refresh only the concentration stack", () => {
+test("i widget derivati non riattivano i renderer degli effetti", () => {
   const conditionWidget = {
     id: "condition-widget-1",
     type: "SHAPE",
@@ -132,9 +132,23 @@ test("condition widgets refresh only the concentration stack", () => {
   const event = classifySceneItemChanges([], [conditionWidget]);
 
   assert.equal(event.flags.widgets, true);
-  assert.equal(event.flags.concentration, true);
+  assert.equal(event.flags.concentration, false);
   assert.equal(event.flags.conditions, false);
   assert.equal(event.flags.tracker, false);
+
+  const concentrationWidget = {
+    id: "concentration-widget-1",
+    type: "LABEL",
+    position: { x: 0, y: 0 },
+    metadata: {
+      [ID + "/concWidgetOf"]: "token-1",
+      [ID + "/concWidgetCaster"]: "caster-1",
+    },
+  };
+  const concentrationEvent = classifySceneItemChanges([], [concentrationWidget]);
+  assert.equal(concentrationEvent.flags.widgets, true);
+  assert.equal(concentrationEvent.flags.concentration, false);
+  assert.equal(concentrationEvent.flags.conditions, false);
 });
 
 test("debounces derived work while immediate subscribers receive every movement", async () => {

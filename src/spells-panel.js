@@ -1,19 +1,15 @@
 import OBR from "@owlbear-rodeo/sdk";
 import {
-  addOrUpdateSpell,
-  removeSpellByInstance,
-  removeSpellByNameAndSource,
   createSpellInstanceId,
-  registerConcentration,
-  breakConcentration,
   getCasterConcentrations,
   getSpellsFromItem,
-  clearSpellsOnItems,
 } from "./spells.js";
+import { refreshConditionLabels } from "./conditions.js";
 import {
-  addOrUpdateConditionForItems,
-  refreshConditionLabels,
-} from "./conditions.js";
+  commitEffectsMutationPlan,
+  prepareEffectsMutation,
+  spellApplicationOperations,
+} from "./effectsMutations.js";
 import {
   getTrackableSpellOptions,
   getSpellDefinition,
@@ -122,21 +118,30 @@ function spellTurnsLabel(turns = []) {
 
 async function terminateSpellGroup(group) {
   const targetIds = Array.from(group.targets.keys());
-  const historyIds = uniqueIds([group.casterId, ...targetIds]);
+  const operations = [];
+  if (group.concentrating && group.casterId) {
+    operations.push({
+      type: "concentration:break",
+      casterIds: [group.casterId],
+      reference: group.concentrationRef,
+    });
+  }
+  operations.push(group.instanceId
+    ? { type: "spell:remove-instance", targetIds, instanceId: group.instanceId }
+    : {
+      type: "spell:remove-name-source",
+      targetIds,
+      name: group.storedName,
+      casterId: group.casterId || null,
+    });
+  const mutationPlan = await prepareEffectsMutation(operations);
+  const historyIds = mutationPlan.changedIds;
   await withItemMetaHistory({
     kind: "spell",
     label: "Terminato incantesimo: " + group.name,
     itemIds: historyIds,
     fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, async () => {
-    if (group.concentrating && group.casterId) {
-      await breakConcentration(group.casterId, group.concentrationRef);
-    }
-    for (const targetId of targetIds) {
-      if (group.instanceId) await removeSpellByInstance(targetId, group.instanceId);
-      else await removeSpellByNameAndSource(targetId, group.storedName, group.casterId || null);
-    }
-  });
+  }, () => commitEffectsMutationPlan(mutationPlan));
   await refreshConditionLabels(targetIds);
 }
 
@@ -496,67 +501,40 @@ async function init() {
       ? getProposedConditions(spell, conditionChoice?.value || "")
       : [];
 
-    let previousConcentration = {};
-    if (wantsConcentration && casterId) {
-      try {
-        previousConcentration = await getCasterConcentrations(casterId);
-      } catch {}
-    }
-    const previousTargetIds = Object.values(previousConcentration || {})
-      .flatMap((entry) => Array.isArray(entry?.targets) ? entry.targets : []);
-    const historyIds = uniqueIds([...targetIds, casterId, ...previousTargetIds]);
-    const appliedAt = await getAppliedAt();
-
     submitButton.disabled = true;
     try {
+      const appliedAt = await getAppliedAt();
+      const expiry = wantsConcentration
+        ? { mode: "concentration" }
+        : { mode: "rounds", remaining: turns };
+      const mutationPlan = await prepareEffectsMutation(spellApplicationOperations({
+        targetIds,
+        casterId,
+        enteredName,
+        name,
+        storedName: spell?.name,
+        turns,
+        concentration: wantsConcentration,
+        instanceId,
+        spellId,
+        proposedConditions,
+        conditionOptions: {
+          sourceId: casterId || "",
+          sourceName: casterName,
+          appliedAt,
+          expiry,
+        },
+      }));
+      const historyIds = mutationPlan.changedIds;
+
       await withItemMetaHistory({
         kind: "spell",
         label: "Incantesimo: " + name,
         itemIds: historyIds,
         fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-      }, async () => {
-        if (wantsConcentration && casterId) {
-          for (const key of Object.keys(previousConcentration || {})) {
-            await breakConcentration(casterId, key);
-          }
-        }
+      }, () => commitEffectsMutationPlan(mutationPlan));
 
-        for (const targetId of targetIds) {
-          const previousNames = new Set([enteredName, name, spell?.name].filter(Boolean));
-          for (const previousName of previousNames) {
-            await removeSpellByNameAndSource(targetId, previousName, casterId);
-          }
-          await addOrUpdateSpell(targetId, name, turns, {
-            conc: wantsConcentration && !!casterId,
-            source: casterId || undefined,
-            instanceId,
-            spellId,
-          });
-        }
-
-        const expiry = wantsConcentration
-          ? { mode: "concentration" }
-          : { mode: "rounds", remaining: turns };
-        for (const condition of proposedConditions) {
-          await addOrUpdateConditionForItems(targetIds, condition, {
-            sourceId: casterId || "",
-            sourceName: casterName,
-            parentEffectId: instanceId,
-            type: "spell",
-            appliedAt,
-            expiry,
-          });
-        }
-
-        if (wantsConcentration && casterId) {
-          await registerConcentration(casterId, name, targetIds, {
-            instanceId,
-            spellId,
-          });
-        }
-      });
-
-      await refreshConditionLabels(uniqueIds([...targetIds, ...previousTargetIds]));
+      await refreshConditionLabels(historyIds);
       await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
       await refreshOverview();
       if (!isModal) {
@@ -572,12 +550,16 @@ async function init() {
   cancelButton?.addEventListener("click", async () => {
     const ids = isModal ? selectedSpellTargetIds() : await getContextOrSelectionIds();
     if (!ids.length) return;
+    const mutationPlan = await prepareEffectsMutation([{
+      type: "spell:clear-non-concentration",
+      targetIds: ids,
+    }]);
     await withItemMetaHistory({
       kind: "spell",
       label: ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi",
-      itemIds: ids,
+      itemIds: mutationPlan.changedIds,
       fields: [SPELLS_META_KEY, "conditions"],
-    }, () => clearSpellsOnItems(ids));
+    }, () => commitEffectsMutationPlan(mutationPlan));
     await refreshConditionLabels(ids);
     await refreshOverview();
     if (!isModal) {
@@ -710,13 +692,18 @@ async function refreshCasterSummary(casterId, wrap, list) {
       button.title = "Interrompi questa concentrazione";
       button.addEventListener("click", async (event) => {
         event.stopPropagation();
-        const ids = uniqueIds([casterId, ...targets]);
+        const mutationPlan = await prepareEffectsMutation([{
+          type: "concentration:break",
+          casterIds: [casterId],
+          reference: info?.instanceId || key,
+        }]);
+        const ids = mutationPlan.changedIds;
         await withItemMetaHistory({
           kind: "spell",
           label: "Concentrazione interrotta: " + nice,
           itemIds: ids,
           fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-        }, () => breakConcentration(casterId, info?.instanceId || key));
+        }, () => commitEffectsMutationPlan(mutationPlan));
         await refreshConditionLabels(targets);
         await refreshCasterSummary(casterId, wrap, list);
       });

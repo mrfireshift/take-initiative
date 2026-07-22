@@ -167,9 +167,8 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     const hpWidgetChanged = !!(previous?.isHPWidget || next?.isHPWidget);
     flags.widgets ||= conditionWidgetChanged || concentrationWidgetChanged || hpWidgetChanged;
 
-    // Le due pile condividono lo spazio: il cambiamento di una riallinea l'altra.
-    flags.concentration ||= conditionWidgetChanged;
-    flags.conditions ||= concentrationWidgetChanged;
+    // I widget sono output derivati. Non devono riattivare i due renderer:
+    // il coordinatore li esegue già in ordine (spell, poi condizioni).
   }
 
   return { flags, items: changedItems, removedItems, allItems, changedIds };

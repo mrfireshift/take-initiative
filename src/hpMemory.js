@@ -2,6 +2,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { reconcileZeroHPConditionsForItems } from "./hpConditionAutomation.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __attScanTimer = null;          // debounce per la scansione attitude
@@ -197,6 +198,7 @@ export async function applyHPMemoryToSceneForMissingHP() {
     };
   }
 });
+    await reconcileZeroHPConditionsForItems(targets.map((target) => target.id));
 
     try {
       const { syncHPBarNow } = await import("./hpbar-items.js");

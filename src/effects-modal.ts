@@ -5,15 +5,19 @@ import {
   formatConditionName,
   formatConditionInstance,
   getConditionInstances,
-  addCustomForItems,
-  addOrUpdateConditionForItems,
-  removeConditionInstancesFromItems,
   refreshConditionLabels,
 } from "./conditions.js";
 import { withItemMetaHistory } from "./history.js";
+import {
+  commitEffectsMutationPlan,
+  conditionMutationOperations,
+  prepareEffectsMutation,
+} from "./effectsMutations.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
+const SPELLS_META_KEY = `${ID}/spells`;
+const CONC_META_KEY = `${ID}/concentration`;
 const MODAL_ID = `${ID}/effects-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 
@@ -343,8 +347,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     expirySelect.appendChild(option);
   }
 
-  let actorId = "";
-  let actorName = "Bersaglio";
+  let actorId = source.id;
+  let actorName = displayName(source.name);
   const actorPicker = document.createElement("div");
   Object.assign(actorPicker.style, { position: "relative", minWidth: "0" });
   actorPicker.addEventListener("pointerdown", (event) => event.stopPropagation());
@@ -412,7 +416,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     actorMenu.appendChild(option);
   };
 
-  addActorOption("", "Bersaglio", "[Bersaglio]");
+  addActorOption("", "Nessuna fonte", "[Nessuna]");
   for (const target of targets) {
     const name = displayName(target.name);
     addActorOption(target.id, name, name);
@@ -425,7 +429,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const actorCell = document.createElement("div");
   actorCell.style.minWidth = "0";
-  actorCell.append(caption("TURNO DI"), actorPicker);
+  actorCell.append(caption("FONTE"), actorPicker);
 
   const addButton = commandButton("Aggiungi", "primary");
   grid.append(
@@ -644,15 +648,17 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     rows = rows.filter((row) => !row.managed);
     if (!rows.length) return;
     const targetIds = selectedTargetIds();
-    const changedIds = Array.from(new Set(rows.map((row) => row.targetId)));
+    const mutationPlan = await prepareEffectsMutation([{
+      type: "condition:remove-instances",
+      removals: rows.map((row) => ({ itemId: row.targetId, instanceId: row.id })),
+    }]);
+    const changedIds = mutationPlan.changedIds;
     await withItemMetaHistory({
       kind: "condition",
       label: rows.length > 1 ? "Rimossi effetti multipli" : `Rimossa: ${rows[0].name}`,
       itemIds: changedIds,
       fields: ["conditions"],
-    }, () => removeConditionInstancesFromItems(
-      rows.map((row) => ({ itemId: row.targetId, instanceId: row.id }))
-    ));
+    }, () => commitEffectsMutationPlan(mutationPlan));
     await refreshConditionLabels(changedIds);
     await render(sourceId, targetIds);
   };
@@ -806,13 +812,11 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   const syncExpiryControls = () => {
     const mode = expirySelect.value;
     const usesDuration = mode === "rounds" || mode === "turn-start" || mode === "turn-end";
-    const usesActor = mode === "turn-start" || mode === "turn-end";
     durationInput.disabled = !usesDuration;
-    actorButton.disabled = !usesActor;
+    actorButton.disabled = false;
     durationInput.style.opacity = usesDuration ? "1" : ".45";
-    actorButton.style.opacity = usesActor ? "1" : ".45";
-    actorButton.style.cursor = usesActor ? "pointer" : "default";
-    if (!usesActor) setActorMenuOpen(false);
+    actorButton.style.opacity = "1";
+    actorButton.style.cursor = "pointer";
   };
   expirySelect.addEventListener("change", syncExpiryControls);
 
@@ -833,7 +837,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       expiry.remaining = Math.max(1, Math.floor(Number(durationInput.value) || 1));
     }
     if (mode === "turn-start" || mode === "turn-end") {
-      expiry.actor = "target";
+      expiry.actor = actorId ? "source" : "target";
       if (actorId) {
         expiry.actorId = actorId;
         expiry.actorName = actorName;
@@ -842,22 +846,29 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
     const order = Array.isArray(state?.order) ? state.order : [];
     const activeId = order[state?.current] || null;
+    const mutationPlan = await prepareEffectsMutation(conditionMutationOperations({
+      targetIds: ids,
+      conditionName: effectName,
+      mode: isCustomEffect ? "custom" : "add",
+      options: {
+        sourceId: actorId,
+        sourceName: actorId ? actorName : "",
+        appliedAt: {
+          round: Math.max(1, Number(state?.round || 1)),
+          actorId: activeId,
+          phase: "turn",
+        },
+        expiry,
+      },
+    }));
+    const historyIds = mutationPlan.changedIds;
     await withItemMetaHistory({
       kind: "condition",
       label: `Applicata: ${effectName}`,
-      itemIds: ids,
-      fields: ["conditions"],
-    }, () => (isCustomEffect ? addCustomForItems : addOrUpdateConditionForItems)(ids, effectName, {
-      sourceId,
-      sourceName: displayName(source.name),
-      appliedAt: {
-        round: Math.max(1, Number(state?.round || 1)),
-        actorId: activeId,
-        phase: "turn",
-      },
-      expiry,
-    }));
-    await refreshConditionLabels(ids);
+      itemIds: historyIds,
+      fields: ["conditions", SPELLS_META_KEY, CONC_META_KEY],
+    }, () => commitEffectsMutationPlan(mutationPlan));
+    await refreshConditionLabels(historyIds);
     await render(sourceId, ids);
   });
 
