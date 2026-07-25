@@ -132,6 +132,10 @@ function classifyExistingWidget(item) {
   };
 }
 
+function isEffectsWidgetItem(item) {
+  return !!item?.metadata?.[COND_WIDGET_META] || !!item?.metadata?.[CONC_WIDGET_META];
+}
+
 function commonLabelNeedsUpdate(item, spec) {
   const text = item.text || {};
   const textStyle = text.style || {};
@@ -299,11 +303,23 @@ async function sdkGetSceneItems(session) {
   }
 }
 
-async function sdkDeleteItems(session, itemIds) {
+async function sdkGetLocalWidgets(session) {
+  effectsDiagnostics.sdkCall(session, "getItems");
+  try {
+    const items = await OBR.scene.local.getItems(isEffectsWidgetItem);
+    effectsDiagnostics.sdkResult(session, "getItems", { returnedItems: items.length });
+    return items;
+  } catch (error) {
+    effectsDiagnostics.sdkError(session, "getItems");
+    throw error;
+  }
+}
+
+async function sdkDeleteLocalItems(session, itemIds) {
   if (!itemIds.length) return;
   effectsDiagnostics.sdkCall(session, "deleteItems", { requestedItems: itemIds.length });
   try {
-    await OBR.scene.items.deleteItems(itemIds);
+    await OBR.scene.local.deleteItems(itemIds);
     effectsDiagnostics.widgetMutation(session, "deleted", itemIds.length);
   } catch (error) {
     effectsDiagnostics.sdkError(session, "deleteItems");
@@ -311,11 +327,11 @@ async function sdkDeleteItems(session, itemIds) {
   }
 }
 
-async function sdkAddItems(session, items) {
+async function sdkAddLocalItems(session, items) {
   if (!items.length) return;
   effectsDiagnostics.sdkCall(session, "addItems", { requestedItems: items.length });
   try {
-    await OBR.scene.items.addItems(items);
+    await OBR.scene.local.addItems(items);
     effectsDiagnostics.widgetMutation(session, "added", items.length);
   } catch (error) {
     effectsDiagnostics.sdkError(session, "addItems");
@@ -323,23 +339,58 @@ async function sdkAddItems(session, items) {
   }
 }
 
-async function sdkUpdateItems(session, updates) {
+async function sdkUpdateLocalItems(session, updates) {
   if (!updates.length) return;
   const specs = new Map(updates.map(({ item, spec }) => [item.id, spec]));
-  const itemIds = [...specs.keys()];
-  effectsDiagnostics.sdkCall(session, "updateItems", { requestedItems: itemIds.length });
+  const items = updates.map(({ item }) => item);
+  effectsDiagnostics.sdkCall(session, "updateItems", { requestedItems: items.length });
   try {
-    await OBR.scene.items.updateItems(itemIds, (draft) => {
+    await OBR.scene.local.updateItems(items, (draft) => {
       for (const item of draft) {
         const spec = specs.get(item.id);
         if (spec) applySpec(item, spec);
       }
     });
-    effectsDiagnostics.widgetMutation(session, "updated", itemIds.length);
+    effectsDiagnostics.widgetMutation(session, "updated", items.length);
   } catch (error) {
     effectsDiagnostics.sdkError(session, "updateItems");
     throw error;
   }
+}
+
+async function sdkDeleteGlobalLegacyWidgets(session, itemIds) {
+  if (!itemIds.length) return;
+  effectsDiagnostics.sdkCall(session, "deleteItems", { requestedItems: itemIds.length });
+  try {
+    await OBR.scene.items.deleteItems(itemIds);
+    effectsDiagnostics.widgetMutation(session, "deleted", itemIds.length);
+    effectsDiagnostics.event("layout:global-legacy-cleanup", {
+      reconcileId: session?.id,
+      deletedWidgets: itemIds.length,
+    });
+  } catch (error) {
+    effectsDiagnostics.sdkError(session, "deleteItems");
+    throw error;
+  }
+}
+
+export async function cleanupLocalEffectsLayout() {
+  const items = await OBR.scene.local.getItems(isEffectsWidgetItem);
+  if (items.length) await OBR.scene.local.deleteItems(items.map((item) => item.id));
+  return items.length;
+}
+
+export async function inspectEffectsLayoutStores() {
+  const [globalWidgets, localWidgets] = await Promise.all([
+    OBR.scene.items.getItems(isEffectsWidgetItem),
+    OBR.scene.local.getItems(isEffectsWidgetItem),
+  ]);
+  return {
+    globalWidgets: globalWidgets.length,
+    localWidgets: localWidgets.length,
+    globalIds: globalWidgets.map((item) => item.id).sort(),
+    localIds: localWidgets.map((item) => item.id).sort(),
+  };
 }
 
 export async function reconcileEffectsLayout(batch = {}, context = {}) {
@@ -356,9 +407,12 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   });
   let outcome = "completed";
   let sceneItems = [];
+  let localWidgets = [];
+  let globalLegacyWidgets = [];
   let tokens = [];
   let desired = [];
   let diff = { additions: [], updates: [], deleteIds: [] };
+  let deletedGlobalWidgets = 0;
   let staleRecorded = false;
 
   const stopIfStale = (stage) => {
@@ -375,22 +429,35 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   };
 
   try {
-    sceneItems = await sdkGetSceneItems(session);
+    [sceneItems, localWidgets] = await Promise.all([
+      sdkGetSceneItems(session),
+      sdkGetLocalWidgets(session),
+    ]);
     tokens = sceneItems.map(normalizeToken).filter(Boolean);
     const sceneDpi = await getEffectsLayoutGridDpi();
     desired = planEffectsLayout({ tokens, sceneDpi, measureText: measureTextWidth });
-    const existing = sceneItems.map(classifyExistingWidget).filter(Boolean);
+    const existing = localWidgets.map(classifyExistingWidget).filter(Boolean);
+    globalLegacyWidgets = sceneItems.map(classifyExistingWidget).filter(Boolean);
     diff = planEffectsWidgetDiff({ desired, existing, needsUpdate: widgetNeedsUpdate });
 
     if (stopIfStale("before-widget-commit")) return { outcome, desiredWidgets: desired.length };
 
-    await sdkDeleteItems(session, diff.deleteIds);
+    if (context.cleanupGlobalWidgets === true) {
+      deletedGlobalWidgets = globalLegacyWidgets.length;
+      await sdkDeleteGlobalLegacyWidgets(
+        session,
+        globalLegacyWidgets.map(({ item }) => item.id)
+      );
+    }
+    if (stopIfStale("after-global-cleanup")) return { outcome, desiredWidgets: desired.length };
+    await sdkDeleteLocalItems(session, diff.deleteIds);
     if (stopIfStale("after-delete")) return { outcome, desiredWidgets: desired.length };
-    await sdkAddItems(session, diff.additions.map(buildWidget));
+    await sdkAddLocalItems(session, diff.additions.map(buildWidget));
     if (stopIfStale("after-add")) return { outcome, desiredWidgets: desired.length };
-    await sdkUpdateItems(session, diff.updates);
+    await sdkUpdateLocalItems(session, diff.updates);
     stopIfStale("after-update");
-    if (!diff.deleteIds.length && !diff.additions.length && !diff.updates.length) {
+    if (!deletedGlobalWidgets && !diff.deleteIds.length &&
+      !diff.additions.length && !diff.updates.length) {
       if (outcome !== "stale") outcome = "no-change";
     }
   } catch (error) {
@@ -400,7 +467,10 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
     effectsDiagnostics.finishReconcile(session, {
       outcome,
       scannedItems: sceneItems.length,
+      scannedLocalWidgets: localWidgets.length,
       scannedTokens: tokens.length,
+      globalLegacyWidgets: globalLegacyWidgets.length,
+      deletedGlobalWidgets,
       plannedWidgets: desired.length,
       addedWidgets: diff.additions.length,
       updatedWidgets: diff.updates.length,

@@ -6,7 +6,12 @@ import {
 import {
   configureConcentrationWidgetWriter,
 } from "./spells-tag.js";
-import { reconcileEffectsLayout, setEffectsLayoutGridDpi } from "./effectsLayout.js";
+import {
+  cleanupLocalEffectsLayout,
+  inspectEffectsLayoutStores,
+  reconcileEffectsLayout,
+  setEffectsLayoutGridDpi,
+} from "./effectsLayout.js";
 import {
   EFFECTS_DIAGNOSTICS_CONTROL_CHANNEL,
   EFFECTS_DIAGNOSTICS_RESPONSE_CHANNEL,
@@ -15,6 +20,7 @@ import {
 import {
   collectEffectsInvalidation,
   createEffectsReconcileQueue,
+  isEffectsLocalRendererRole,
   isEffectsWidgetWriterRole,
 } from "./effectsReconcilerCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
@@ -24,15 +30,31 @@ const SPELLS_META_KEY = `${ID}/spells`;
 
 let mounted = false;
 let writer = false;
+let globalCleanupOwner = false;
 let unsubscribe = null;
 let unsubscribeDiagnostics = null;
 let unsubscribeGrid = null;
+let unsubscribeSceneReady = null;
 
 const queue = createEffectsReconcileQueue({
   async run(batch, context) {
-    await reconcileEffectsLayout(batch, context);
+    await reconcileEffectsLayout(batch, {
+      ...context,
+      cleanupGlobalWidgets: globalCleanupOwner,
+    });
   },
 });
+
+function rendererState() {
+  return {
+    writer,
+    localRenderer: writer,
+    widgetStore: "local",
+    globalCleanupOwner,
+    mounted,
+    ...queue.getState(),
+  };
+}
 
 function requestConditions(itemIds) {
   const request = Array.isArray(itemIds)
@@ -60,7 +82,8 @@ export async function mountEffectsReconciler() {
 
   let role = "PLAYER";
   try { role = await getPlayerRole(); } catch {}
-  writer = isEffectsWidgetWriterRole(role);
+  writer = isEffectsLocalRendererRole(role);
+  globalCleanupOwner = isEffectsWidgetWriterRole(role);
   if (!writer) return false;
 
   configureConditionWidgetWriter(requestConditions);
@@ -76,9 +99,9 @@ export async function mountEffectsReconciler() {
         await new Promise((resolve) => setTimeout(resolve, 200));
         await queue.idle();
         effectsDiagnostics.clear();
-        result = { state: { writer, mounted, ...queue.getState() } };
+        result = { state: rendererState() };
       } else if (data.command === "state") {
-        result = { writer, mounted, ...queue.getState() };
+        result = rendererState();
       } else {
         await new Promise((resolve) => setTimeout(resolve, 150));
         await queue.idle();
@@ -117,9 +140,20 @@ export async function mountEffectsReconciler() {
     });
   });
 
-  queue.request({ full: true }).done.catch((error) => {
-    console.error("[effects] initial reconcile", error);
+  unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
+    if (!ready) return;
+    queue.request({ full: true }).done.catch((error) => {
+      console.error("[effects] scene reconcile", error);
+    });
   });
+
+  let sceneReady = true;
+  try { sceneReady = await OBR.scene.isReady(); } catch {}
+  if (sceneReady) {
+    queue.request({ full: true }).done.catch((error) => {
+      console.error("[effects] initial reconcile", error);
+    });
+  }
   return true;
 }
 
@@ -130,14 +164,19 @@ export function unmountEffectsReconciler() {
   unsubscribeDiagnostics = null;
   unsubscribeGrid?.();
   unsubscribeGrid = null;
+  unsubscribeSceneReady?.();
+  unsubscribeSceneReady = null;
   configureConditionWidgetWriter(null);
   configureConcentrationWidgetWriter(null);
+  void cleanupLocalEffectsLayout().catch(() => {});
   mounted = false;
   writer = false;
+  globalCleanupOwner = false;
 }
 
 globalThis.__tbpEffectsReconciler = {
-  state: () => ({ writer, mounted, ...queue.getState() }),
+  state: () => rendererState(),
+  inspectStores: () => inspectEffectsLayoutStores(),
   idle: () => queue.idle(),
   reconcileAll: () => writer
     ? queue.request({ full: true }).done

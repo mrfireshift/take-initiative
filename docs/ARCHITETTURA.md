@@ -132,14 +132,15 @@ Le larghezze visive delle barre non sono dati persistenti. `src/hpbar-items.js` 
 
 ## Condizioni, incantesimi e widget
 
-Condizioni e incantesimi vivono nel metadata canonico del token. Le label sulla mappa sono elementi derivati con metadata proprietari che ne identificano il token padre. La riconciliazione:
+Condizioni e incantesimi vivono nel metadata canonico del token. Pill e badge sulla mappa sono item locali derivati, ricostruiti indipendentemente da ogni client e collegati tramite `attachedTo` al token globale. La riconciliazione:
 
 1. legge lo stato del token;
 2. calcola pill, posizione e scala;
-3. aggiorna gli elementi esistenti quando possibile;
-4. elimina soltanto gli elementi derivati non più necessari.
+3. confronta il piano con `OBR.scene.local`;
+4. aggiorna gli elementi locali esistenti quando possibile;
+5. elimina soltanto gli elementi derivati non più necessari.
 
-Gli elementi sono bloccati per evitare spostamenti accidentali. La concentrazione è collegata sia all'incantatore sia alle istanze degli incantesimi.
+Gli elementi sono bloccati per evitare spostamenti accidentali. La concentrazione è collegata sia all'incantatore sia alle istanze degli incantesimi. Il GM ripulisce le vecchie label globali create dalle versioni precedenti; barre HP ed etichetta del turno non fanno parte di questa migrazione.
 
 ## Eventi e protezioni da stato stantio
 

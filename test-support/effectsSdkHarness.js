@@ -26,6 +26,7 @@ export class RandomLatencyEffectsSdk {
       effects: new Set(effects),
     }]));
     this.widgets = new Map();
+    this.localWidgets = new Map();
     this.listeners = new Set();
     this.pendingNotifications = new Set();
     this.operationLog = [];
@@ -106,6 +107,58 @@ export class RandomLatencyEffectsSdk {
       .map((widget) => clone(widget)));
   }
 
+  localStore(clientId) {
+    const key = String(clientId || "client");
+    if (!this.localWidgets.has(key)) this.localWidgets.set(key, new Map());
+    return this.localWidgets.get(key);
+  }
+
+  async getLocalWidgets(clientId, tokenId) {
+    return this.runCall(() => [...this.localStore(clientId).values()]
+      .filter((widget) => widget.tokenId === tokenId)
+      .map((widget) => clone(widget)));
+  }
+
+  async addLocalItems(clientId, items) {
+    return this.runCall(() => {
+      const store = this.localStore(clientId);
+      return items.map((item) => {
+        const widget = { ...clone(item), id: `local-${clientId}-${++this.widgetSequence}` };
+        store.set(widget.id, widget);
+        return clone(widget);
+      });
+    });
+  }
+
+  async updateLocalItems(clientId, itemIds, patch) {
+    return this.runCall(() => {
+      const store = this.localStore(clientId);
+      const updated = [];
+      for (const itemId of itemIds) {
+        const current = store.get(itemId);
+        if (!current) continue;
+        const next = { ...current, ...clone(patch) };
+        store.set(itemId, next);
+        updated.push(clone(next));
+      }
+      return updated;
+    });
+  }
+
+  async deleteLocalItems(clientId, itemIds) {
+    return this.runCall(() => {
+      const store = this.localStore(clientId);
+      const removed = [];
+      for (const itemId of itemIds) {
+        const widget = store.get(itemId);
+        if (!widget) continue;
+        removed.push(clone(widget));
+        store.delete(itemId);
+      }
+      return removed;
+    });
+  }
+
   async addItems(items) {
     return this.runCall(() => {
       const added = items.map((item) => {
@@ -168,6 +221,17 @@ export class RandomLatencyEffectsSdk {
     };
   }
 
+  localSnapshot(clientId) {
+    return {
+      tokens: [...this.tokens.values()].map((token) => ({
+        id: token.id,
+        version: token.version,
+        effects: [...token.effects].sort(),
+      })),
+      widgets: [...this.localStore(clientId).values()].map((widget) => clone(widget)),
+    };
+  }
+
   async waitForNotifications() {
     for (let iteration = 0; iteration < 300; iteration++) {
       const pending = [...this.pendingNotifications];
@@ -179,9 +243,10 @@ export class RandomLatencyEffectsSdk {
 }
 
 export class EffectsClientHarness {
-  constructor({ id, sdk }) {
+  constructor({ id, sdk, localWidgets = false }) {
     this.id = id;
     this.sdk = sdk;
+    this.localWidgets = localWidgets === true;
     this.locks = new Set();
     this.revisions = new Map();
     this.pending = new Set();
@@ -192,6 +257,30 @@ export class EffectsClientHarness {
       );
       return Promise.allSettled(tasks);
     });
+  }
+
+  getWidgets(tokenId) {
+    return this.localWidgets
+      ? this.sdk.getLocalWidgets(this.id, tokenId)
+      : this.sdk.getWidgets(tokenId);
+  }
+
+  addWidgets(items) {
+    return this.localWidgets
+      ? this.sdk.addLocalItems(this.id, items)
+      : this.sdk.addItems(items);
+  }
+
+  updateWidgets(itemIds, patch) {
+    return this.localWidgets
+      ? this.sdk.updateLocalItems(this.id, itemIds, patch)
+      : this.sdk.updateItems(itemIds, patch);
+  }
+
+  deleteWidgets(itemIds) {
+    return this.localWidgets
+      ? this.sdk.deleteLocalItems(this.id, itemIds)
+      : this.sdk.deleteItems(itemIds);
   }
 
   track(promise) {
@@ -246,7 +335,7 @@ export class EffectsClientHarness {
     this.locks.add(tokenId);
     try {
       const token = await this.sdkCall(session, "getItems", 1, () => this.sdk.getToken(tokenId));
-      const widgets = await this.sdkCall(session, "getItems", 0, () => this.sdk.getWidgets(tokenId));
+      const widgets = await this.sdkCall(session, "getItems", 0, () => this.getWidgets(tokenId));
       tokenVersion = token?.version ?? null;
       effectsSeen = token?.effects?.length || 0;
       widgetsSeen = widgets.length;
@@ -292,7 +381,7 @@ export class EffectsClientHarness {
           session,
           "deleteItems",
           deleteIds.length,
-          () => this.sdk.deleteItems(deleteIds)
+          () => this.deleteWidgets(deleteIds)
         );
         this.diagnostics.widgetMutation(session, "deleted", removed.length);
       }
@@ -301,7 +390,7 @@ export class EffectsClientHarness {
           session,
           "addItems",
           addItems.length,
-          () => this.sdk.addItems(addItems)
+          () => this.addWidgets(addItems)
         );
         this.diagnostics.widgetMutation(session, "added", added.length);
       }
@@ -310,7 +399,7 @@ export class EffectsClientHarness {
           session,
           "updateItems",
           updateIds.length,
-          () => this.sdk.updateItems(updateIds, { tokenVersion, renderedBy: this.id })
+          () => this.updateWidgets(updateIds, { tokenVersion, renderedBy: this.id })
         );
         this.diagnostics.widgetMutation(session, "updated", updated.length);
       }
@@ -352,8 +441,8 @@ export class EffectsClientHarness {
 }
 
 class CoordinatedEffectsWriterHarness extends EffectsClientHarness {
-  constructor({ id, sdk }) {
-    super({ id, sdk });
+  constructor({ id, sdk, localWidgets = false }) {
+    super({ id, sdk, localWidgets });
     this.unsubscribe?.();
     this.queue = createEffectsReconcileQueue({
       run: async (batch) => {
@@ -550,6 +639,64 @@ export async function runCoordinatedEffectsStressScenario({ seed = 1, mutationCo
     },
     renderedBy: [...new Set(snapshot.widgets.map((widget) => widget.renderedBy).filter(Boolean))],
     queue: writer.queue.getState(),
+  };
+
+  for (const client of clients) client.close();
+  return report;
+}
+
+export async function runLocalEffectsStressScenario({ seed = 1, mutationCount = 16 } = {}) {
+  if (mutationCount < 10 || mutationCount > 20) {
+    throw new RangeError("mutationCount must be between 10 and 20");
+  }
+
+  const random = seededEffectsRandom(seed);
+  const sdk = new RandomLatencyEffectsSdk({
+    random: seededEffectsRandom(seed ^ 0xc2b2ae35),
+  });
+  const clients = [
+    new CoordinatedEffectsWriterHarness({ id: "gm-background", sdk, localWidgets: true }),
+    new CoordinatedEffectsWriterHarness({ id: "player-background", sdk, localWidgets: true }),
+  ];
+  const tokenIds = sdk.tokenIds();
+  const effectIds = [
+    "condition:accecato",
+    "condition:prono",
+    "spell:velocita",
+    "spell:invisibilita",
+  ];
+  const writes = [];
+
+  for (let index = 0; index < mutationCount - 1; index += 1) {
+    const tokenId = tokenIds[Math.floor(random() * tokenIds.length)];
+    const effectId = effectIds[Math.floor(random() * effectIds.length)];
+    const active = index % 4 === 0 ? true : index % 4 === 1 ? false : random() >= 0.45;
+    writes.push(sdk.setEffect(tokenId, effectId, active));
+    if (random() < 0.45) await sdk.pause();
+  }
+  await Promise.all(writes);
+  await sdk.setEffect("token-a", "spell:velocita", true);
+  await settleEffectsSdk(sdk, clients);
+
+  const clientReports = clients.map((client) => {
+    const snapshot = sdk.localSnapshot(client.id);
+    return {
+      id: client.id,
+      finalState: compareEffectsSnapshot(snapshot),
+      renderedBy: [...new Set(snapshot.widgets.map((widget) => widget.renderedBy).filter(Boolean))],
+      widgetIds: snapshot.widgets.map((widget) => widget.id).sort(),
+      diagnostics: client.diagnostics.summary(),
+      queue: client.queue.getState(),
+    };
+  });
+  const [firstIds, secondIds] = clientReports.map((client) => new Set(client.widgetIds));
+  const report = {
+    seed,
+    mutationCount,
+    operationLog: clone(sdk.operationLog),
+    sharedWidgets: sdk.snapshot().widgets.length,
+    storesIsolated: [...firstIds].every((id) => !secondIds.has(id)),
+    clients: clientReports,
   };
 
   for (const client of clients) client.close();

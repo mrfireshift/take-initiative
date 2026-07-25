@@ -4,14 +4,22 @@ import {
   collectEffectsInvalidation,
   conditionLabelNeedsUpdate,
   createEffectsReconcileQueue,
+  isEffectsLocalRendererRole,
   isEffectsWidgetWriterRole,
 } from "../src/effectsReconcilerCore.js";
 
-test("solo il ruolo GM può possedere i widget degli effetti", () => {
+test("solo il ruolo GM può ripulire i widget globali legacy degli effetti", () => {
   assert.equal(isEffectsWidgetWriterRole("GM"), true);
   assert.equal(isEffectsWidgetWriterRole("gm"), true);
   assert.equal(isEffectsWidgetWriterRole("PLAYER"), false);
   assert.equal(isEffectsWidgetWriterRole(undefined), false);
+});
+
+test("GM e player possono renderizzare widget locali isolati", () => {
+  assert.equal(isEffectsLocalRendererRole("GM"), true);
+  assert.equal(isEffectsLocalRendererRole("PLAYER"), true);
+  assert.equal(isEffectsLocalRendererRole("player"), true);
+  assert.equal(isEffectsLocalRendererRole(undefined), false);
 });
 
 test("la coda accorpa gli ID e non sovrappone le riconciliazioni", async () => {

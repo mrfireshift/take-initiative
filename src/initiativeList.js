@@ -477,7 +477,7 @@ function __instaTransform(el, value) {
 
   // ===== Legendary UI (2 gruppi indipendenti) =====
   const LEG_PIPS_CFG = {
-  gap: 1,                    // tra i singoli pips
+  gap: 2,                    // tra i singoli pips
   paddingX: 0,
   paddingY: 0,
   size: 7,                  // lato del diamante/circolo
@@ -4458,7 +4458,7 @@ function mkLegendaryResourcePips(resource, onSet, attitude = "enemy", kind = "ac
 
   const ON = (() => {
     if (isResistance) return { bg: "#3b82f6", glow: "drop-shadow(0 0 4px rgba(96,165,250,.88))" };
-    if (attitude === "enemy")   return { bg: "#dc2626", glow: "0 0 8px rgba(220,38,38,.70)" };
+    if (attitude === "enemy")   return { bg: "#eee8e6", glow: "0 0 8px rgba(255, 61, 61, 0.7)" };
     if (attitude === "neutral") return { bg: "#a16207", glow: "0 0 7px rgba(161,98,7,.60)"  };
     return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" };
   })();
@@ -7032,8 +7032,6 @@ if (IS_BOSS) {
     transform: "translateY(-50%)",
     pointerEvents: "none",
     filter: "drop-shadow(0 2px 5px rgba(0,0,0,.78))",
-    WebkitMaskImage: BOSS_PORTRAIT_FRAME_MASK,
-    maskImage: BOSS_PORTRAIT_FRAME_MASK,
     zIndex: "7",
   });
 }

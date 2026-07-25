@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   runCoordinatedEffectsStressScenario,
   runEffectsStressScenario,
+  runLocalEffectsStressScenario,
   seededEffectsRandom,
 } from "../test-support/effectsSdkHarness.js";
 
@@ -54,5 +55,25 @@ test("writer GM seriale: due client convergono senza sweep o scritture del playe
     assert.ok(report.observer.widgetEvents > 0, context);
     assert.equal(report.queue.running, false, context);
     assert.equal(report.queue.latestRevision, report.queue.completedRevision, context);
+  }
+});
+
+test("renderer locali: GM e player convergono senza widget nella scena condivisa", async () => {
+  for (let seed = 1; seed <= 8; seed += 1) {
+    const random = seededEffectsRandom(seed ^ 0x165667b1);
+    const mutationCount = 10 + Math.floor(random() * 11);
+    const report = await runLocalEffectsStressScenario({ seed, mutationCount });
+    const context = `seed=${seed}, mutations=${mutationCount}`;
+
+    assert.equal(report.operationLog.length, mutationCount, context);
+    assert.equal(report.sharedWidgets, 0, context);
+    assert.equal(report.storesIsolated, true, context);
+    assert.ok(report.clients.every((client) => client.finalState.consistent), context);
+    for (const client of report.clients) {
+      assert.deepEqual(client.renderedBy, [client.id], context);
+      assert.equal(client.queue.running, false, context);
+      assert.equal(client.queue.latestRevision, client.queue.completedRevision, context);
+      assert.equal(client.diagnostics.failed, 0, context);
+    }
   }
 });

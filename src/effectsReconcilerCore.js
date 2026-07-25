@@ -20,6 +20,11 @@ export function isEffectsWidgetWriterRole(role) {
   return String(role || "").trim().toUpperCase() === "GM";
 }
 
+export function isEffectsLocalRendererRole(role) {
+  const normalized = String(role || "").trim().toUpperCase();
+  return normalized === "GM" || normalized === "PLAYER";
+}
+
 export function createEffectsReconcileQueue({
   run,
   scheduleTask = (callback) => queueMicrotask(callback),

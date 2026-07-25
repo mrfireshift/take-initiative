@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createEffectsDiagnostics } from "./effectsDiagnosticsCore.js";
+import { installEffectsLocalItemsProbe } from "./effectsLocalItemsProbe.js";
 
 const STORAGE_KEY = `${ID}/effects-diagnostics`;
 export const EFFECTS_DIAGNOSTICS_CONTROL_CHANNEL = `${ID}/effects-diagnostics-control`;
@@ -115,3 +116,5 @@ globalThis.__tbpEffectsDiagnostics = {
     disable: "__tbpEffectsDiagnostics.disable()",
   }),
 };
+
+installEffectsLocalItemsProbe();
