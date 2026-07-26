@@ -7,52 +7,103 @@
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <style>
-    :root { --accent:#60a5fa; --accent-soft:rgba(96,165,250,.38); background:transparent !important; }
+    :root {
+      --faction-rgb:96,165,250;
+      --accent:#60a5fa;
+      --accent-bright:#93c5fd;
+      --accent-deep:#2563eb;
+      --accent-soft:rgba(var(--faction-rgb),.38);
+      --accent-faint:rgba(var(--faction-rgb),.09);
+      background:transparent !important;
+    }
+    :root[data-faction="ally"] {
+      --faction-rgb:34,197,94;
+      --accent:#4ade80;
+      --accent-bright:#86efac;
+      --accent-deep:#16a34a;
+    }
+    :root[data-faction="neutral"] {
+      --faction-rgb:234,179,8;
+      --accent:#facc15;
+      --accent-bright:#fde047;
+      --accent-deep:#ca8a04;
+    }
+    :root[data-faction="enemy"] {
+      --faction-rgb:239,68,68;
+      --accent:#f87171;
+      --accent-bright:#fca5a5;
+      --accent-deep:#dc2626;
+    }
     * { box-sizing:border-box; }
     html,body { margin:0; width:100%; height:100%; overflow:hidden; color:#fff; background:transparent !important; }
     body { font-size:var(--obrt-type-body); line-height:1.25; }
     .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; }
-    .panel { flex:1 1 auto; min-height:0; padding:14px; position:relative; overflow-y:auto; background:transparent; }
-    .panel::before { position:absolute; inset:8px; border:1px solid rgba(96,165,250,.38); border-radius:8px; box-shadow:inset 0 0 22px rgba(96,165,250,.08); content:""; pointer-events:none; }
+    .panel {
+      flex:1 1 auto; min-height:0; padding:14px; position:relative; overflow-y:auto;
+      background:
+        radial-gradient(circle at 8% 4%, rgba(var(--faction-rgb),.17), transparent 34%),
+        linear-gradient(145deg, rgba(var(--faction-rgb),.045), transparent 48%);
+    }
+    .panel::before {
+      position:absolute; inset:8px; border:1px solid rgba(var(--faction-rgb),.42); border-radius:8px;
+      background:linear-gradient(135deg,rgba(var(--faction-rgb),.045),transparent 35%);
+      box-shadow:inset 0 0 24px var(--accent-faint),0 0 18px rgba(var(--faction-rgb),.06);
+      content:""; pointer-events:none;
+    }
     .header { position:relative; display:flex; align-items:center; min-height:66px; gap:12px; margin-bottom:10px; padding:4px; }
-    .portrait { flex:0 0 60px; width:60px; height:60px; overflow:hidden; display:grid; place-items:center; border:2px solid #080b10; border-radius:50%; background:rgba(4,7,11,.85); box-shadow:0 0 0 2px var(--accent),0 0 16px var(--accent-soft); }
+    .portrait {
+      flex:0 0 60px; width:60px; height:60px; overflow:hidden; display:grid; place-items:center;
+      border:2px solid #080b10; border-radius:50%;
+      background:linear-gradient(145deg,rgba(var(--faction-rgb),.22),rgba(4,7,11,.92));
+      box-shadow:0 0 0 2px var(--accent),0 0 18px var(--accent-soft),inset 0 0 12px rgba(var(--faction-rgb),.12);
+    }
     .portrait img { width:100%; height:100%; display:block; object-fit:cover; }
-    .portrait-fallback { display:grid; place-items:center; width:100%; height:100%; font-size:28px; font-weight:var(--obrt-weight-bold); }
+    .portrait-fallback { display:grid; place-items:center; width:100%; height:100%; color:var(--accent-bright); font-size:28px; font-weight:var(--obrt-weight-bold); text-shadow:0 0 12px var(--accent-soft); }
     .heading { flex:1; min-width:0; }
-    .eyebrow { color:var(--accent); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
+    .eyebrow { color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
+    .eyebrow::before { display:inline-block; width:6px; height:6px; margin:0 6px 1px 0; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent-soft); content:""; }
     .title { min-width:0; margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-display); font-weight:var(--obrt-weight-bold); letter-spacing:-.01em; text-shadow:0 2px 3px rgba(0,0,0,.8); }
     button {
       min-height:30px; padding:6px 11px; border-radius:18px; color:#fff; cursor:pointer;
       border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); font:inherit;
     }
-    button:hover { background:rgba(255,255,255,.14); }
+    button:hover { border-color:rgba(var(--faction-rgb),.52); background:rgba(var(--faction-rgb),.15); }
+    button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
     .header-actions { flex:0 0 auto; display:flex; align-items:center; gap:5px; align-self:flex-start; }
-    .edit { min-height:28px; padding:4px 10px; }
+    .edit { min-height:28px; padding:4px 10px; border-color:rgba(var(--faction-rgb),.38); background:rgba(var(--faction-rgb),.10); }
     .close { width:28px; min-height:28px; padding:0; border-color:transparent; background:transparent; font-size:18px; line-height:1; }
     .overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-    .hp { position:relative; grid-column:span 2; display:flex; flex-direction:column; justify-content:center; min-height:70px; padding:10px 13px; border-radius:7px; background:linear-gradient(100deg,rgba(96,165,250,.12),rgba(255,255,255,.04)); border:1px solid rgba(96,165,250,.34); box-shadow:inset 3px 0 0 var(--accent); }
+    .hp { position:relative; grid-column:span 2; display:flex; flex-direction:column; justify-content:center; min-height:70px; padding:10px 13px; border-radius:7px; background:linear-gradient(100deg,rgba(var(--faction-rgb),.16),rgba(255,255,255,.035)); border:1px solid rgba(var(--faction-rgb),.38); box-shadow:inset 3px 0 0 var(--accent),inset 0 1px 0 rgba(255,255,255,.04); }
     .hp span { color:rgba(255,255,255,.72); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
     .hp strong { margin-top:3px; color:#fff; font-size:22px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
-    .stat { min-width:0; min-height:70px; padding:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:7px; text-align:center; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.22); }
+    .stat { min-width:0; min-height:70px; padding:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:7px; text-align:center; background:linear-gradient(160deg,rgba(var(--faction-rgb),.075),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.24); box-shadow:inset 0 1px 0 rgba(255,255,255,.035); }
     .stat-wide { grid-column:span 2; }
     .stat span,.section-title { display:block; margin-bottom:5px; color:rgba(255,255,255,.68); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
-    .stat strong { font-size:18px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
+    .stat strong { color:#fff; font-size:18px; font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; text-shadow:0 0 12px rgba(var(--faction-rgb),.16); }
     .exhaustion-stepper { display:flex; align-items:center; justify-content:center; gap:4px; }
     .exhaustion-stepper button { width:25px; min-height:25px; padding:0; border-radius:8px; font-size:17px; line-height:1; }
     .exhaustion-stepper strong { min-width:18px; }
-    .section-title { margin:12px 0 7px; }
+    .section-title { margin:12px 0 7px; color:var(--accent-bright); }
     .saves { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
-    .save { display:flex; align-items:center; justify-content:space-between; padding:8px 9px; border-radius:7px; background:rgba(7,12,19,.25); border:1px solid rgba(96,165,250,.18); }
+    .save { display:flex; align-items:center; justify-content:space-between; padding:8px 9px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .save strong { color:var(--accent-bright); font-variant-numeric:tabular-nums; }
+    .notes { margin-top:8px; padding:9px 11px; border-radius:7px; background:linear-gradient(145deg,rgba(var(--faction-rgb),.065),rgba(7,12,19,.28)); border:1px solid rgba(var(--faction-rgb),.20); }
+    .notes[hidden] { display:none; }
+    .notes span { display:block; margin-bottom:4px; color:var(--accent-bright); font-size:var(--obrt-type-caption); font-weight:var(--obrt-weight-bold); letter-spacing:.07em; text-transform:uppercase; }
+    .notes p { margin:0; color:rgba(255,255,255,.86); font-size:var(--obrt-type-secondary); line-height:1.35; white-space:pre-wrap; overflow-wrap:anywhere; }
     .save span { color:rgba(255,255,255,.7); }
     .actions { display:flex; justify-content:flex-end; gap:7px; margin-top:14px; }
-    .primary { background:#2563eb; }
-    .primary:hover { background:#3472eb; }
+    .primary { border-color:rgba(var(--faction-rgb),.7); background:var(--accent-deep); box-shadow:0 4px 14px rgba(var(--faction-rgb),.18); }
+    .primary:hover { background:var(--accent); }
     form { display:none; }
     form.active { display:block; }
     .view.hidden { display:none; }
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .label-wide { grid-column:1 / -1; }
     label { display:grid; gap:4px; color:rgba(255,255,255,.76); font-size:var(--obrt-type-secondary); font-weight:var(--obrt-weight-medium); }
-    input { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
+    input,textarea { width:100%; min-height:32px; padding:6px 8px; border-radius:10px; border:1px solid rgba(var(--faction-rgb),.22); background:rgba(0,0,0,.35); color:#fff; font:inherit; }
+    textarea { min-height:58px; resize:none; line-height:1.35; }
+    input:focus,textarea:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 2px rgba(var(--faction-rgb),.14); }
     .save-inputs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
     .status { min-height:16px; margin-top:8px; color:#fca5a5; font-size:11px; }
     @media (max-width:420px) {
@@ -66,7 +117,7 @@
   </style>
 </head>
 <body>
-  <div class="glass-shell" data-glass-popover="1">
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/initiative-card-modal">
   <main class="panel">
     <header class="header">
       <div class="portrait" id="portrait"><div class="portrait-fallback" id="portraitFallback">?</div></div>
@@ -83,9 +134,12 @@
         <div class="stat"><span>Velocità</span><strong id="speed">-</strong></div>
         <div class="stat stat-wide"><span>Percezione passiva</span><strong id="passivePerception">-</strong></div>
         <div class="stat stat-wide"><span>Indebolimento</span><div class="exhaustion-stepper"><button id="exhaustionDown" type="button" title="Riduci Indebolimento">−</button><strong id="exhaustion">0</strong><button id="exhaustionUp" type="button" title="Aumenta Indebolimento">+</button></div></div>
+        <div class="stat stat-wide"><span>CD incantesimi</span><strong id="spellSaveDC">-</strong></div>
+        <div class="stat stat-wide"><span>Attacco incantesimi</span><strong id="spellAttackBonus">-</strong></div>
       </div>
       <span class="section-title">Tiri salvezza</span>
       <div id="saves" class="saves"></div>
+      <div id="notesBlock" class="notes" hidden><span>Note</span><p id="notes"></p></div>
     </section>
     <form id="form" autocomplete="off">
       <div class="form-grid">
@@ -93,6 +147,9 @@
         <label>Percezione passiva<input id="passivePerceptionInput" type="number" min="0" max="99" /></label>
         <label>Velocità (m)<input id="speedInput" type="number" min="0" max="999" step="0.1" inputmode="decimal" /></label>
         <label>Indebolimento<input id="exhaustionInput" type="number" min="0" max="5" step="1" inputmode="numeric" /></label>
+        <label>CD incantesimi<input id="spellSaveDCInput" type="number" min="0" max="99" inputmode="numeric" /></label>
+        <label>Bonus attacco incantesimi<input id="spellAttackBonusInput" type="number" min="-99" max="99" inputmode="numeric" /></label>
+        <label class="label-wide">Note brevi<textarea id="notesInput" maxlength="280" rows="2"></textarea></label>
       </div>
       <span class="section-title">Modificatori tiri salvezza</span>
       <div id="saveInputs" class="save-inputs"></div>
@@ -104,6 +161,7 @@
     </form>
   </main>
   </div>
+  <script type="module" src="/src/popoverDrag.js"></script>
   <script type="module" src="/src/initiative-card-modal.js"></script>
 </body>
 </html>

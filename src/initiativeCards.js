@@ -37,6 +37,13 @@ function optionalInteger(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(number)));
 }
 
+function shortText(value, maxLength = 280) {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .slice(0, maxLength);
+}
+
 export function sanitizeInitiativeCard(value) {
   const source = value && typeof value === "object" ? value : {};
   const saves = source.savingThrows && typeof source.savingThrows === "object"
@@ -46,6 +53,9 @@ export function sanitizeInitiativeCard(value) {
     armorClass: optionalInteger(source.armorClass, 0, 99),
     passivePerception: optionalInteger(source.passivePerception, 0, 99),
     speed: normalizeSpeedMeters(source.speed),
+    spellSaveDC: optionalInteger(source.spellSaveDC, 0, 99),
+    spellAttackBonus: optionalInteger(source.spellAttackBonus, -99, 99),
+    notes: shortText(source.notes),
     exhaustion: optionalInteger(source.exhaustion, 0, 5) ?? 0,
     savingThrows: Object.fromEntries(
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
@@ -70,6 +80,13 @@ function mergeProfile(base, value) {
       ? cleanValue.passivePerception
       : cleanBase.passivePerception,
     speed: value.speed !== undefined ? cleanValue.speed : cleanBase.speed,
+    spellSaveDC: value.spellSaveDC !== undefined
+      ? cleanValue.spellSaveDC
+      : cleanBase.spellSaveDC,
+    spellAttackBonus: value.spellAttackBonus !== undefined
+      ? cleanValue.spellAttackBonus
+      : cleanBase.spellAttackBonus,
+    notes: value.notes !== undefined ? cleanValue.notes : cleanBase.notes,
     exhaustion: value.exhaustion !== undefined ? cleanValue.exhaustion : cleanBase.exhaustion,
     savingThrows: Object.fromEntries(SAVE_KEYS.map((key) => [
       key,
@@ -273,6 +290,9 @@ export function hasInitiativeCardValues(profile) {
   return profile?.armorClass !== null ||
     profile?.passivePerception !== null ||
     profile?.speed !== null ||
+    profile?.spellSaveDC !== null ||
+    profile?.spellAttackBonus !== null ||
+    Boolean(profile?.notes) ||
     Number(profile?.exhaustion) > 0 ||
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }

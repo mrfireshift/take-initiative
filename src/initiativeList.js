@@ -1,10 +1,14 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID, ACTIVE_TURN_LABEL_META, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, advanceConditionTurnBoundariesForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
+import { buildConditionChips, buildSpellEffectChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
-import { commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
+import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
+import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
+import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -249,6 +253,7 @@ let __conditionNavigationHint = null;
 let __conditionTurnQueue = Promise.resolve();
 let __roundEffectQueue = Promise.resolve();
 let __selectedSceneItemIds = new Set();
+let __trackerSelectionAnchorId = null;
 let __playerSelectionUnsubscribe = null;
 let __playerSelectionPollTimer = null;
 let __playerSelectionPollBusy = false;
@@ -539,6 +544,8 @@ const EPIC_TAG_CFG = {
   let __editingInitForId = null; // già presente dal fix precedente
   let __editingHPForId   = null; // nuovo: lock per pill HP
   let __suspendRenders   = false; // nuovo: sospende render durante lo switch di editor
+  let __initiativeFillMode = false;
+  let __initiativeFillSession = null;
   let IS_GM = false;
   let __trackerLayout = getTrackerLayout();
 
@@ -752,6 +759,8 @@ layoutToggleButton.type = "button";
 layoutToggleButton.dataset.layoutToggle = "1";
 Object.assign(layoutToggleButton.style, {
   flex: "0 0 auto",
+  marginLeft: "4px",
+  marginRight: "4px",
   width: "28px",
   height: "28px",
   display: "inline-flex",
@@ -777,18 +786,7 @@ Object.assign(layoutToggleIcon.style, {
   objectFit: "contain",
   pointerEvents: "none",
 });
-const layoutToggleCaption = document.createElement("span");
-layoutToggleCaption.dataset.layoutToggleCaption = "1";
-layoutToggleCaption.setAttribute("aria-hidden", "true");
-Object.assign(layoutToggleCaption.style, {
-  display: "inline",
-  pointerEvents: "none",
-  whiteSpace: "nowrap",
-  fontSize: "10px",
-  fontWeight: "700",
-  lineHeight: "1",
-});
-layoutToggleButton.append(layoutToggleIcon, layoutToggleCaption);
+layoutToggleButton.append(layoutToggleIcon);
 
 function updateLayoutToggleButton() {
   const compact = isCompactTrackerLayout();
@@ -801,8 +799,6 @@ function updateLayoutToggleButton() {
     : "Passa alla modalità compatta";
   layoutToggleButton.setAttribute("aria-label", layoutToggleButton.title);
   layoutToggleButton.setAttribute("aria-pressed", String(compact));
-  layoutToggleCaption.textContent = compact ? "Estesa" : "Compatta";
-  layoutToggleCaption.style.display = compact ? "none" : "inline";
 }
 
 layoutToggleButton.addEventListener("click", (event) => {
@@ -827,14 +823,24 @@ Object.assign(roundActions.style, {
   display: "inline-flex",
   alignItems: "center",
   gap: "3px",
+  padding: "2px",
+  border: "1px solid rgba(96,165,250,.26)",
+  borderRadius: "10px",
+  background: "rgba(30,64,175,.12)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
 });
 
 const roundHistorySlot = document.createElement("div");
 Object.assign(roundHistorySlot.style, {
   display: "inline-flex",
   alignItems: "center",
-  paddingLeft: "7px",
-  borderLeft: "1px solid rgba(148,163,184,.22)",
+  gap: "3px",
+  padding: "2px",
+  marginLeft: "1px",
+  border: "1px solid rgba(167,139,250,.28)",
+  borderRadius: "10px",
+  background: "rgba(91,33,182,.10)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
 });
 
 // ⬇️ NUOVO: bottone reset turno (solo GM)
@@ -900,6 +906,11 @@ function makeAddAllInitiativeBtn() {
     event.stopPropagation();
     b.disabled = true;
     try {
+      if (__initiativeFillMode) {
+        await closeOpenEditors();
+        await finishInitiativeFillMode();
+      }
+
       const items = await OBR.scene.items.getItems((item) => (
         item.layer === "CHARACTER" && !item.attachedTo
       ));
@@ -936,6 +947,7 @@ function makeAddAllInitiativeBtn() {
       await reconcileStateWithItems();
       await enforceUniqueNamePrefixes();
       await renderAll();
+      await startInitiativeFillMode({ silent: true });
       await OBR.notification.show(
         `${ids.length} token aggiunti all'iniziativa.${unknownCount ? ` ${unknownCount} non riconosciuti: ostili.` : ""}`,
         "SUCCESS"
@@ -989,7 +1001,7 @@ function makeFactionConfiguratorBtn() {
         fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
       ]);
       await OBR.popover.close(FACTION_CONFIGURATOR_ID).catch(() => {});
-      await OBR.popover.open({
+      await openTrackedPopover({
         id: FACTION_CONFIGURATOR_ID,
         url: popupUrl,
         width: 420,
@@ -1101,7 +1113,7 @@ function makeHistoryBtn() {
       const anchorPosition = await getTrackerPopoverAnchor();
       await OBR.modal.close(popupId).catch(() => {});
       await OBR.popover.close(popupId).catch(() => {});
-      await OBR.popover.open({
+      await openTrackedPopover({
         id: popupId,
         url: "/history-modal.html",
         width: 480,
@@ -1317,8 +1329,8 @@ Object.assign(globalPanelsWrap.style, {
   alignItems: "center",
   gap: "2px",
 });
-const globalEffectsButton = makeGlobalPanelButton("Condizioni", "conditions-panel.svg");
-const globalSpellsButton = makeGlobalPanelButton("Incantesimi", "spells-panel.svg");
+const globalEffectsButton = makeGlobalPanelButton("Conditions", "conditions-panel.svg");
+const globalSpellsButton = makeGlobalPanelButton("Spells", "spells-panel.svg");
 const globalQuickHPButton = makeGlobalPanelButton("Danno rapido", "quick-damage.svg");
 globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Danno";
 const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
@@ -2111,7 +2123,8 @@ function applyAdminMenuPresentation(compact) {
     [roundResetSlot.querySelector("button"), "Reset round", false],
     ...(compact ? [[roundHistorySlot.querySelector("button"), "Cronologia", false]] : []),
     [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
-    [roundActions.querySelector("[data-faction-configurator='1']"), "Configura fazioni", false],
+    [roundActions.querySelector("[data-fill-initiative='1']"), "Compila iniziativa", false],
+    [roundHistorySlot.querySelector("[data-faction-configurator='1']"), "Configura fazioni", false],
     [roundActions.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
   ];
 
@@ -2189,8 +2202,8 @@ function applyHeaderLayoutPresentation(compact) {
   });
   Object.assign(roundHistorySlot.style, {
     display: compact ? "contents" : "inline-flex",
-    paddingLeft: classic ? "2px" : "0",
-    borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
+    paddingLeft: compact ? "0" : "2px",
+    borderLeft: "none",
   });
 
   roundPill.querySelectorAll("button").forEach((button) => {
@@ -2219,11 +2232,11 @@ function applyHeaderLayoutPresentation(compact) {
     padding: "0",
   });
   Object.assign(layoutToggleButton.style, classic ? {
-    width: "66px",
-    minWidth: "66px",
+    width: "28px",
+    minWidth: "28px",
     height: "28px",
-    padding: "0 5px",
-    gap: "4px",
+    padding: "0",
+    gap: "0",
     justifyContent: "center",
     border: "1px solid rgba(96,165,250,.52)",
     background: "linear-gradient(180deg, rgba(37,99,235,.34), rgba(30,64,175,.22))",
@@ -2245,8 +2258,6 @@ function applyHeaderLayoutPresentation(compact) {
   });
   layoutToggleIcon.style.width = classic ? "16px" : "15px";
   layoutToggleIcon.style.height = classic ? "16px" : "15px";
-  layoutToggleCaption.style.display = classic ? "inline" : "none";
-  layoutToggleCaption.style.fontSize = classic ? "9px" : "10px";
   if (compact) {
     applyAdminMenuPresentation(true);
   } else {
@@ -2642,7 +2653,10 @@ trackWrap.addEventListener("wheel", (event) => {
   }
   markCompactCarouselScrolling();
 }, { passive: false });
-trackWrap.addEventListener("scroll", markCompactCarouselScrolling, { passive: true });
+trackWrap.addEventListener("scroll", () => {
+  if (__expandedCompactEffectsId) void __closeCompactEffectsPopover();
+  markCompactCarouselScrolling();
+}, { passive: true });
 
 
     // ===== Stato scena
@@ -3288,8 +3302,20 @@ function __forwardConditionTurnBoundaries(previous, next, directionHint = 0) {
   for (let ordinal = previousOrdinal; ordinal < nextOrdinal; ordinal += 1) {
     const endingActorId = __conditionActorId(next.order[ordinal % length]);
     const startingActorId = __conditionActorId(next.order[(ordinal + 1) % length]);
-    if (endingActorId) boundaries.push({ phase: "end", actorId: endingActorId });
-    if (startingActorId) boundaries.push({ phase: "start", actorId: startingActorId });
+    if (endingActorId) {
+      boundaries.push({
+        phase: "end",
+        actorId: endingActorId,
+        turnKey: initiativeTurnKeyAtOrdinal(next.order, ordinal),
+      });
+    }
+    if (startingActorId) {
+      boundaries.push({
+        phase: "start",
+        actorId: startingActorId,
+        turnKey: initiativeTurnKeyAtOrdinal(next.order, ordinal + 1),
+      });
+    }
   }
   return boundaries;
 }
@@ -3419,6 +3445,7 @@ async function readEntries() {
       name: it.name || "Unnamed",
       position: it.position ? { x: it.position.x, y: it.position.y } : null,
       initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
+      initTouched: meta.initTouched === true,
       portrait: getTokenImageUrl(it),
       attitude: meta.attitude || "ally",
       hp: (meta.hp ?? null),
@@ -3537,12 +3564,37 @@ async function __refreshTrackerSelectionFromScene() {
 async function __selectTrackerEntry(entry, event) {
   const ids = __selectionIdsForEntry(entry);
   if (!ids.length) return;
-  const additive = !!(event?.ctrlKey || event?.metaKey || event?.shiftKey);
+  const targetCardId = event?.currentTarget?.dataset?.itemId || entry.id;
+  const additive = !!(event?.ctrlKey || event?.metaKey);
+  const rangeRequested = !!event?.shiftKey;
 
   try {
+    if (rangeRequested && __trackerSelectionAnchorId) {
+      const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"));
+      const anchorIndex = cards.findIndex((card) => card.dataset.itemId === __trackerSelectionAnchorId);
+      const targetIndex = cards.findIndex((card) => card.dataset.itemId === targetCardId);
+      if (anchorIndex >= 0 && targetIndex >= 0) {
+        const start = Math.min(anchorIndex, targetIndex);
+        const end = Math.max(anchorIndex, targetIndex);
+        const rangeIds = Array.from(new Set(cards
+          .slice(start, end + 1)
+          .flatMap((card) => Array.isArray(card.__selectionItemIds) ? card.__selectionItemIds : [])
+          .filter(Boolean)));
+        if (rangeIds.length) {
+          const next = additive
+            ? new Set([...__selectedSceneItemIds, ...rangeIds])
+            : new Set(rangeIds);
+          __setTrackerSelection([...next]);
+          await OBR.player.select(rangeIds, !additive);
+          return;
+        }
+      }
+    }
+
     if (!additive) {
       __setTrackerSelection(ids);
       await OBR.player.select(ids, true);
+      __trackerSelectionAnchorId = targetCardId;
       return;
     }
 
@@ -3555,6 +3607,7 @@ async function __selectTrackerEntry(entry, event) {
     __setTrackerSelection([...next]);
     if (allSelected) await OBR.player.deselect(ids);
     else await OBR.player.select(ids, false);
+    __trackerSelectionAnchorId = targetCardId;
   } catch (err) {
     console.warn("[initiative] tracker selection error:", err?.message || err);
     try { __setTrackerSelection(await OBR.player.getSelection()); } catch {}
@@ -3699,7 +3752,7 @@ async function __backfillInitiativeForSeededGroups() {
 }
 
 // Propagazione iniziativa al gruppo (prima volta + backfill per nuovi membri)
-async function trySeedGroupInitiative(itemId, value) {
+async function trySeedGroupInitiative(itemId, value, options = {}) {
   const st = await getSceneState();
   const { key, members } = await _getGroupForItemId(itemId);
   if (!key || members.length <= 1) return;
@@ -3716,7 +3769,7 @@ async function trySeedGroupInitiative(itemId, value) {
   // - prima volta: tutti i non-epic
   // - backfill: solo i non-epic con initiative mancante O zero e NON "toccati" (initTouched !== true)
   let targetIds;
-  if (!already) {
+  if (options.forceAll === true || !already) {
     targetIds = items.filter(notEpic).map(it => it.id);
   } else {
   targetIds = items
@@ -3749,8 +3802,10 @@ async function trySeedGroupInitiative(itemId, value) {
     }));
   }
 
-  await reconcileStateWithItems();
-  await renderAll();
+  if (!options.deferRender) {
+    await reconcileStateWithItems();
+    await renderAll();
+  }
 }
 
 // Propagazione HP/HPMax al gruppo con backfill per nuovi membri
@@ -4318,6 +4373,228 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
   }
 }
 
+function updateInitiativeFillButton() {
+  const button = roundPill.querySelector('[data-fill-initiative="1"]');
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(__initiativeFillMode));
+  button.title = __initiativeFillMode
+    ? "Esci dalla compilazione iniziativa"
+    : "Compila iniziativa: inserisci i valori senza riordinare le card";
+  button.style.background = __initiativeFillMode ? "rgba(161,98,7,.72)" : "rgba(161,98,7,.42)";
+  button.style.borderColor = __initiativeFillMode ? "rgba(250,204,21,.92)" : "rgba(250,204,21,.58)";
+}
+
+function initiativeFillGroupEntries(entries, groupKey) {
+  return entries.filter((entry) => _groupKeyFromEntry(entry) === groupKey);
+}
+
+async function collectInitiativeFillCandidates() {
+  const entries = await readEntries();
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const candidates = [];
+  const seenGroups = new Set();
+  for (const badge of Array.from(document.querySelectorAll('[data-badge="init"][data-item-id]'))) {
+    const card = badge.closest("[data-item-id]");
+    const itemId = badge.dataset.itemId;
+    const entry = byId.get(itemId) || byId.get(splitParagonId(itemId).baseId);
+    if (!card || !entry || entry.isEpic || isEpicActionId(itemId)) continue;
+    const collapsed = card.dataset.groupCollapsed === "1";
+    const groupKey = card.dataset.groupKey || _groupKeyFromEntry(entry);
+    if (collapsed) {
+      if (seenGroups.has(groupKey)) continue;
+      seenGroups.add(groupKey);
+      const members = initiativeFillGroupEntries(entries, groupKey);
+      if (members.some((member) => member.initTouched !== true)) candidates.push(itemId);
+    } else if (entry.initTouched !== true) {
+      candidates.push(itemId);
+    }
+  }
+  return candidates;
+}
+
+function refreshInitiativeFillVisuals() {
+  const session = __initiativeFillSession;
+  const pendingIds = new Set(session?.ids || []);
+  const completedIds = session?.completed || new Set();
+  for (const badge of Array.from(document.querySelectorAll('[data-badge="init"][data-item-id]'))) {
+    const pending = __initiativeFillMode
+      && pendingIds.has(badge.dataset.itemId)
+      && !completedIds.has(badge.dataset.itemId)
+      && !badge.dataset.editing;
+    badge.dataset.initPending = pending ? "1" : "0";
+    badge.style.border = pending ? "2px dashed rgba(250,204,21,.95)" : (badge.__initNormalBorder || badge.style.border);
+    badge.style.boxShadow = pending
+      ? "0 0 0 2px rgba(250,204,21,.18), 0 4px 12px rgba(0,0,0,.42)"
+      : (badge.__initNormalShadow || badge.style.boxShadow);
+  }
+}
+
+async function openInitiativeFillCandidate(itemId) {
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  const badge = document.querySelector(`[data-badge="init"][data-item-id="${itemId}"]`);
+  if (!badge) return false;
+  badge.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  badge.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
+  return true;
+}
+
+async function finishInitiativeFillMode() {
+  if (!__initiativeFillMode) return;
+  __initiativeFillMode = false;
+  __initiativeFillSession = null;
+  __suspendRenders = false;
+  updateInitiativeFillButton();
+  refreshInitiativeFillVisuals();
+  await reconcileStateWithItems();
+  await renderAll("initiative-fill-complete");
+}
+
+async function startInitiativeFillMode(options = {}) {
+  if (__initiativeFillMode) return;
+  await closeOpenEditors();
+  const ids = await collectInitiativeFillCandidates();
+  if (!ids.length) {
+    if (options.silent !== true) await OBR.notification.show("Non ci sono iniziative da compilare.", "INFO");
+    return;
+  }
+  __initiativeFillMode = true;
+  __initiativeFillSession = { ids, completed: new Set() };
+  __suspendRenders = true;
+  updateInitiativeFillButton();
+  refreshInitiativeFillVisuals();
+  await openInitiativeFillCandidate(ids[0]);
+}
+
+async function interruptInitiativeFillForRemovedActor(event) {
+  if (!__initiativeFillMode) return false;
+  const removedActorIds = new Set((event?.changedRecords || [])
+    .filter(({ before, after }) => {
+      const item = before?.item;
+      return !after
+        && item?.layer === "CHARACTER"
+        && !item?.attachedTo
+        && item?.metadata?.[META_KEY]?.inInitiative === true;
+    })
+    .map(({ before }) => before.item.id));
+  if (!removedActorIds.size) return false;
+
+  const openInit = document.querySelector('[data-init-editing="1"]');
+  const openItemId = openInit?.dataset?.itemId || openInit?.closest("[data-item-id]")?.dataset?.itemId;
+  const openItemWasRemoved = openItemId
+    ? removedActorIds.has(splitParagonId(openItemId).baseId)
+    : false;
+  if (openInit && !openItemWasRemoved && typeof openInit.__commitFn === "function") {
+    try {
+      await openInit.__commitFn();
+    } catch (error) {
+      console.warn("[initiative-fill] commit before removal:", error?.message || error);
+    }
+  }
+
+  __initiativeFillMode = false;
+  __initiativeFillSession = null;
+  __suspendRenders = false;
+  updateInitiativeFillButton();
+
+  if (openInit?.dataset?.initEditing === "1" && typeof openInit.__cancelFn === "function") {
+    await openInit.__cancelFn({ deferRender: true });
+  }
+  __editingInitForId = null;
+  refreshInitiativeFillVisuals();
+  return true;
+}
+
+function sceneItemEventAddsInitiative(event) {
+  return (event?.changedRecords || []).some(({ before, after }) => {
+    const beforeMeta = before?.item?.metadata?.[META_KEY];
+    const afterItem = after?.item;
+    const afterMeta = afterItem?.metadata?.[META_KEY];
+    return !!before
+      && afterItem?.layer === "CHARACTER"
+      && !afterItem?.attachedTo
+      && afterMeta?.inInitiative === true
+      && afterMeta?.initTouched !== true
+      && beforeMeta?.inInitiative !== true;
+  });
+}
+
+function initiativeFillShowsAddedActors(event) {
+  const addedIds = (event?.changedRecords || [])
+    .filter(({ before, after }) => {
+      const beforeMeta = before?.item?.metadata?.[META_KEY];
+      const afterItem = after?.item;
+      const afterMeta = afterItem?.metadata?.[META_KEY];
+      return !!before
+        && afterItem?.layer === "CHARACTER"
+        && !afterItem?.attachedTo
+        && afterMeta?.inInitiative === true
+        && afterMeta?.initTouched !== true
+        && beforeMeta?.inInitiative !== true;
+    })
+    .map(({ after }) => after.item.id);
+  if (!addedIds.length) return false;
+
+  const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"));
+  return addedIds.every((id) => cards.some((card) =>
+    card.dataset.itemId === id || card.__selectionItemIds?.includes(id)
+  ));
+}
+
+async function toggleInitiativeFillMode() {
+  if (__initiativeFillMode) {
+    await closeOpenEditors();
+    await finishInitiativeFillMode();
+  } else {
+    await startInitiativeFillMode();
+  }
+}
+
+async function openInitiativeFillNeighbor(currentId, goPrev = false) {
+  const session = __initiativeFillSession;
+  if (!__initiativeFillMode || !session) return;
+  const currentIndex = session.ids.indexOf(currentId);
+  const direction = goPrev ? -1 : 1;
+  const targetIndex = currentIndex + direction;
+  if (targetIndex < 0 || targetIndex >= session.ids.length) {
+    if (!goPrev) await finishInitiativeFillMode();
+    return;
+  }
+  await openInitiativeFillCandidate(session.ids[targetIndex]);
+}
+
+function makeInitiativeFillBtn() {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.fillInitiative = "1";
+  b.textContent = "\u270e";
+  Object.assign(b.style, {
+    width: "24px",
+    height: "24px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(250,204,21,.58)",
+    background: "rgba(161,98,7,.42)",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: "700",
+    lineHeight: "1",
+    borderRadius: "8px",
+    cursor: "pointer",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    padding: "0",
+  });
+  b.setAttribute("aria-label", "Compila iniziativa");
+  b.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void toggleInitiativeFillMode().catch((error) => {
+      console.warn("[initiative-fill] errore modalità compilazione:", error?.message || error);
+    });
+  });
+  updateInitiativeFillButton();
+  return b;
+}
+
 // ===== Legendary helpers =====
 
 async function setParagonActions(baseId, nextActions) {
@@ -4458,7 +4735,7 @@ function mkLegendaryResourcePips(resource, onSet, attitude = "enemy", kind = "ac
 
   const ON = (() => {
     if (isResistance) return { bg: "#3b82f6", glow: "drop-shadow(0 0 4px rgba(96,165,250,.88))" };
-    if (attitude === "enemy")   return { bg: "#eee8e6", glow: "0 0 8px rgba(255, 61, 61, 0.7)" };
+    if (attitude === "enemy")   return { bg: "#ff0000", glow: "0 0 8px rgba(255, 61, 61, 0.7)" };
     if (attitude === "neutral") return { bg: "#a16207", glow: "0 0 7px rgba(161,98,7,.60)"  };
     return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" };
   })();
@@ -4562,6 +4839,9 @@ function __collectChipsDeep(frag) {
   // 2) fallback robusto: tutti i leaf elements significativi (span/div senza figli)
   const leaves = tmp.querySelectorAll("span, div");
   leaves.forEach(el => {
+    for (const explicit of seen) {
+      if (explicit !== el && explicit.contains?.(el)) return;
+    }
     if (el.children.length === 0 && !seen.has(el)) {
       // escludi micro-elementi vuoti/spaziatori
       const txt = (el.textContent || "").trim();
@@ -4593,9 +4873,12 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
     display: "none",
     flexDirection: "column",
     alignItems: "flex-start",
-    gap: CHIP_GAP_PX + "px",
-    paddingTop: "2px",
+    gap: "0px",
+    paddingTop: "0px",
+    position: "relative",
+    zIndex: "1",
   });
+  dock.style.rowGap = "0px";
 
   if (chips.length <= limit) {
     row1.append(...chips);
@@ -4611,21 +4894,22 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
 
   const more = document.createElement("button");
   more.type = "button";
-  more.textContent = `+${hidden.length} ⌄`;
+  more.textContent = `+${hidden.length}`;
   more.dataset.cardSelectionIgnore = "1";
   more.setAttribute("aria-expanded", "false");
   more.setAttribute("aria-label", `Mostra altri ${hidden.length} effetti`);
   styleChipPill(more, { compact });
   Object.assign(more.style, {
-    minHeight: "20px",
-    height: "18px",
-    padding: "0 6px 2px",
+    minHeight: "16px",
+    height: "16px",
+    padding: "0 4px",
+    fontSize: "10px",
     fontFamily: "inherit",
+    borderColor: "rgba(255,255,255,.24)",
+    boxShadow: "none",
   });
   more.title = `Mostra altri ${hidden.length} effetti`;
   let expanded = false;
-  const ownerCard = dock.closest('[data-tracker-card="1"]');
-  const ownerZIndex = ownerCard?.style.zIndex || "";
 
   more.addEventListener("click", (ev) => {
     ev.stopPropagation();
@@ -4633,14 +4917,39 @@ function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBL
     row2.style.display = expanded ? "flex" : "none";
     more.setAttribute("aria-expanded", expanded ? "true" : "false");
     more.setAttribute("aria-label", expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`);
-    more.textContent = expanded ? "− ⌃" : `+${hidden.length} ⌄`;
-    more.style.background = expanded ? "rgba(59,130,246,.82)" : "rgba(0,0,0,.72)";
+    more.textContent = expanded ? "\u2212" : `+${hidden.length}`;
+    more.style.background = expanded ? "rgba(59,130,246,.64)" : "rgba(0,0,0,.72)";
     more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
+    const ownerCard = dock.closest('[data-tracker-card="1"]');
+    const ownerZIndex = ownerCard?.style.zIndex || "";
     if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
   });
 
   row1.appendChild(more);
   dock.append(row1, row2);
+}
+
+function bindReferenceChips(dock) {
+  for (const chip of dock.querySelectorAll("[data-reference-entry]")) {
+    const hasNestedAction = !!chip.querySelector("button");
+    chip.dataset.cardSelectionIgnore = "1";
+    chip.setAttribute("role", hasNestedAction ? "group" : "button");
+    chip.setAttribute("tabindex", "0");
+    chip.title = `${chip.title ? `${chip.title} · ` : ""}Apri nell'Enciclopedia DM`;
+    const open = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void openReferencePopover({
+        tab: chip.dataset.referenceType === "spells" ? "spells" : "conditions",
+        entry: chip.dataset.referenceEntry || "",
+      });
+    };
+    chip.addEventListener("click", open);
+    chip.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      open(event);
+    });
+  }
 }
 
 
@@ -4686,6 +4995,19 @@ async function openGlobalSpellsPopup() {
   if (sourceEntry) await openCardSpellsPopup(sourceEntry);
 }
 
+async function openReferencePopup() {
+  const popupId = REFERENCE_POPUP_ID;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  const anchorPosition = await getTrackerPopoverAnchor();
+  try {
+    await openReferencePopover({ anchorPosition });
+    setOpenTrackerPopoverId(popupId);
+  } catch (err) {
+    setOpenTrackerPopoverId();
+    console.warn("[reference] popover open error:", err?.message || err);
+  }
+}
+
 async function openGlobalQuickHPPopup() {
   await openQuickHPPopup();
 }
@@ -4695,6 +5017,7 @@ const TRACKER_POPOVER_IDS = [
   `${ID}/history-modal`,
   `${ID}/effects-modal`,
   `${ID}/spells-modal`,
+  `${ID}/reference-modal`,
   `${ID}/quick-hp-modal`,
   `${ID}/initiative-card-modal`,
   `${ID}/compact-effects-popover`,
@@ -4716,6 +5039,9 @@ function setOpenTrackerPopoverId(popupId = "") {
 function mountTrackerPopoverToggleListener() {
   OBR.broadcast.onMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, (event) => {
     const data = event?.data;
+    if (data?.type === "opened" && data.id === REFERENCE_POPUP_ID) {
+      setOpenTrackerPopoverId(REFERENCE_POPUP_ID);
+    }
     if (data?.type === "closed" && data.id === __openTrackerPopoverId) {
       setOpenTrackerPopoverId();
     }
@@ -4729,6 +5055,12 @@ function mountTrackerPopoverToggleListener() {
     if (data?.type !== "open") return;
     if (data.panel === "conditions" && __openTrackerPopoverId !== EFFECTS_POPUP_ID) {
       void openGlobalEffectsPopup();
+    }
+    if (data.panel === "spells" && __openTrackerPopoverId !== SPELLS_POPUP_ID) {
+      void openGlobalSpellsPopup();
+    }
+    if (data.panel === "reference" && __openTrackerPopoverId !== REFERENCE_POPUP_ID) {
+      void openReferencePopup();
     }
     if (data.panel === "quick-hp" && __openTrackerPopoverId !== QUICK_HP_POPUP_ID) {
       void openGlobalQuickHPPopup();
@@ -4755,11 +5087,11 @@ async function openQuickHPPopup() {
   try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
   try {
-    await OBR.popover.open({
+    await openTrackedPopover({
       id: popupId,
       url: "/quick-hp-modal.html",
-      width: 620,
-      height: 590,
+      width: 560,
+      height: 760,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -4787,7 +5119,7 @@ async function openCardEffectsPopup(sourceEntry, entries) {
   try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
   try {
-    await OBR.popover.open({
+    await openTrackedPopover({
       id: popupId,
       url: `/effects-modal.html?source=${encodeURIComponent(sourceId)}`,
       width: 560,
@@ -4823,7 +5155,7 @@ async function openCardSpellsPopup(sourceEntry) {
   try { await OBR.modal.close(popupId); } catch {}
   try { await OBR.popover.close(popupId); } catch {}
   try {
-    await OBR.popover.open({
+    await openTrackedPopover({
       id: popupId,
       url: popupUrl,
       width: 560,
@@ -4844,7 +5176,7 @@ async function openCardSpellsPopup(sourceEntry) {
 }
 
 async function openInitiativeCardPopup(sourceEntry) {
-  if (!sourceEntry || sourceEntry.__groupCollapsed || sourceEntry.attitude !== "pc" ||
+  if (!sourceEntry || sourceEntry.__groupCollapsed || !["pc", "ally"].includes(sourceEntry.attitude) ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
@@ -4856,11 +5188,11 @@ async function openInitiativeCardPopup(sourceEntry) {
   try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
   try {
-    await OBR.popover.open({
+    await openTrackedPopover({
       id: popupId,
       url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
       width: 440,
-      height: 380,
+      height: 460,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -4993,6 +5325,43 @@ async function __clearCardConditions(ids) {
     fields: ["conditions"],
   }, () => commitEffectsMutationPlan(mutationPlan));
   await refreshConditionLabels(scopeIds);
+}
+
+async function __terminateSpellOnTrackerCard(itemId, spell) {
+  if (!IS_GM || !itemId || !spell) return;
+
+  const instanceId = String(spell?.instanceId || "").trim();
+  const spellName = String(spell?.name || "").trim();
+  const casterId = String(spell?.casterId || "").trim();
+  if (!instanceId && !spellName) return;
+
+  const operations = [];
+  if (spell?.conc && casterId) {
+    operations.push({
+      type: "concentration:break-targets",
+      casterIds: [casterId],
+      reference: instanceId || spellName,
+      targetIds: [itemId],
+    });
+  }
+  operations.push(instanceId
+    ? { type: "spell:remove-instance", targetIds: [itemId], instanceId }
+    : {
+      type: "spell:remove-name-source",
+      targetIds: [itemId],
+      name: spellName,
+      casterId: casterId || null,
+    });
+
+  const mutationPlan = await prepareEffectsMutation(operations);
+  if (!mutationPlan.changedIds.length) return;
+  await withItemMetaHistory({
+    kind: "spell",
+    label: `Terminato: ${spellName || "Incantesimo"}`,
+    itemIds: mutationPlan.changedIds,
+    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+  }, () => commitEffectsMutationPlan(mutationPlan));
+  await refreshConditionLabels([itemId]);
 }
 
 async function __clearCardSpells(ids) {
@@ -5218,7 +5587,7 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
       });
     divider();
   }
-  if (!isBulkScope && sourceEntry.attitude === "pc") {
+  if (!isBulkScope && ["pc", "ally"].includes(sourceEntry.attitude)) {
     addAction("Scheda iniziativa", "character-sheet.svg", () => openInitiativeCardPopup(sourceEntry));
     divider();
   } else if (!expandedTokenMenu) {
@@ -5941,19 +6310,31 @@ function __compactConditionPillLabel(instance) {
 }
 
 function __compactEffectItems(conditionInstances, spells, concentrating) {
-  const effects = conditionInstances.map((instance) => ({
+  const spellEffects = conditionInstances.filter((instance) =>
+    instance?.effectKind === "buff" || instance?.effectKind === "debuff"
+  );
+  const effects = conditionInstances.filter((instance) => !spellEffects.includes(instance)).map((instance) => ({
     kind: "condition",
     label: __compactConditionPillLabel(instance),
     title: formatConditionInstance(instance),
   }));
   for (const spell of spells) {
-    const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    const counter = spellExpiryCounter(spell);
     effects.push({
       kind: "spell",
       key: __spellKey(spell?.name),
-      label: `${String(spell?.name || "Incantesimo")} (${turns})`,
-      title: `${String(spell?.name || "Incantesimo")} · ${turns} round rimanenti${spell?.conc ? " · concentrazione" : ""}`,
+      label: `${String(spell?.name || "Incantesimo")} (${counter})`,
+      title: `${String(spell?.name || "Incantesimo")} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
     });
+    for (const instance of spellEffects.filter((effect) =>
+      String(effect?.parentEffectId || "") === String(spell?.instanceId || "")
+    )) {
+      effects.push({
+        kind: instance.effectKind,
+        label: String(instance.condition || "Effetto"),
+        title: formatConditionInstance(instance),
+      });
+    }
   }
   if (concentrating && !spells.some((spell) => spell?.conc)) {
     effects.push({
@@ -5970,10 +6351,18 @@ function __buildCompactEffectPill(effect, preview = false) {
   pill.textContent = effect.label;
   pill.title = effect.title || effect.label;
   const spellColor = effect.kind === "spell" ? __spellColor(effect.key) : null;
-  const background = effect.kind === "concentration"
+  const background = effect.kind === "buff"
+    ? "#15803d"
+    : effect.kind === "debuff"
+      ? "#b91c1c"
+      : effect.kind === "concentration"
     ? "#2563eb"
     : spellColor?.solid || "rgba(8,12,21,.94)";
-  const border = effect.kind === "concentration"
+  const border = effect.kind === "buff"
+    ? "#86efac"
+    : effect.kind === "debuff"
+      ? "#fca5a5"
+      : effect.kind === "concentration"
     ? "#93c5fd"
     : spellColor?.border || "rgba(255,255,255,.38)";
   Object.assign(pill.style, {
@@ -6010,6 +6399,22 @@ async function __closeCompactEffectsPopover() {
   await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
 }
 
+function __compactTrackerFrameOrigin(trackerAnchor) {
+  try {
+    const frameRect = window.frameElement?.getBoundingClientRect?.();
+    if (frameRect && Number.isFinite(frameRect.left) && Number.isFinite(frameRect.top)) {
+      return { left: frameRect.left, top: frameRect.top };
+    }
+  } catch {}
+
+  const frameWidth = Number(document.documentElement?.clientWidth) || window.innerWidth;
+  const frameHeight = Number(document.documentElement?.clientHeight) || window.innerHeight;
+  return {
+    left: trackerAnchor.left - frameWidth / 2,
+    top: trackerAnchor.top - frameHeight,
+  };
+}
+
 async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effects) {
   if (__expandedCompactEffectsId === entryId) {
     await __closeCompactEffectsPopover();
@@ -6023,18 +6428,17 @@ async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effect
   const trackerAnchor = await getCompactTrackerPopoverAnchor();
   const cardRect = card.getBoundingClientRect();
   const effectAnchorRect = effectAnchor.getBoundingClientRect();
-  const trackerLeft = trackerAnchor.left - (window.innerWidth / 2);
-  const trackerTop = trackerAnchor.top - window.innerHeight;
+  const trackerOrigin = __compactTrackerFrameOrigin(trackerAnchor);
   const anchorPosition = {
-    left: Math.round(trackerLeft + effectAnchorRect.left + effectAnchorRect.width / 2),
-    top: Math.round(trackerTop + effectAnchorRect.bottom),
+    left: Math.round(trackerOrigin.left + effectAnchorRect.left + effectAnchorRect.width / 2),
+    top: Math.round(trackerOrigin.top + effectAnchorRect.bottom),
   };
   const width = Math.max(72, Math.round(cardRect.width));
   const height = remainingEffects.length * 14 + Math.max(0, remainingEffects.length - 1) + 4;
 
   await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
   try {
-    await OBR.popover.open({
+    await openTrackedPopover({
       id: COMPACT_EFFECTS_POPOVER_ID,
       url: "/compact-effects.html",
       width,
@@ -6536,24 +6940,40 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
       });
     }
 
-    if (legendary) {
-      const badge = compactStatusBadge(
-        `A${Math.max(0, Number(legendary.current) || 0)}`,
-        `Azioni leggendarie: ${Math.max(0, Number(legendary.current) || 0)}/${Math.max(0, Number(legendary.max) || 0)}`,
-        "legendary"
-      );
-      badge.style.height = "14px";
-      status.appendChild(badge);
-    }
-    if (legendaryResistances) {
-      const badge = compactStatusBadge(
-        `R${Math.max(0, Number(legendaryResistances.current) || 0)}`,
-        `Resistenze leggendarie: ${Math.max(0, Number(legendaryResistances.current) || 0)}/${Math.max(0, Number(legendaryResistances.max) || 0)}`,
-        "resistance"
-      );
-      badge.style.height = "14px";
-      status.appendChild(badge);
-    }
+    const appendCompactLegendaryResource = (resource, kind, onSet, label) => {
+      if (!resource || Number(resource.max) <= 0) return;
+      const current = Math.max(0, Math.min(
+        Number(resource.max) || 0,
+        Number(resource.current) || 0,
+      ));
+      const pips = kind === "resistance"
+        ? mkLegendaryResistancePips(resource, onSet)
+        : mkLegendaryPips(resource, onSet, entry.attitude || "enemy");
+      pips.style.gap = "1px";
+      pips.style.flex = "0 0 auto";
+      pips.setAttribute("role", "group");
+      pips.setAttribute("aria-label", `${label}: ${current}/${Number(resource.max) || 0}`);
+      pips.title = `${label}: ${current}/${Number(resource.max) || 0}`;
+      status.appendChild(pips);
+    };
+    appendCompactLegendaryResource(
+      legendary,
+      "action",
+      async (nextCurrent) => {
+        if (!IS_GM) return;
+        try { await setLegendaryCurrent(entry.id, nextCurrent); } catch {}
+      },
+      "Azioni leggendarie",
+    );
+    appendCompactLegendaryResource(
+      legendaryResistances,
+      "resistance",
+      async (nextCurrent) => {
+        if (!IS_GM) return;
+        try { await setLegendaryResistanceCurrent(entry.id, nextCurrent); } catch {}
+      },
+      "Resistenze leggendarie",
+    );
 
     card.append(portrait, name, hpText, hpTrack, status);
     if (moreEffectsButton) effectSlot.appendChild(moreEffectsButton);
@@ -7609,38 +8029,53 @@ if (hasAny) {
 
 // 2) Incantesimi
 if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
-  const fragSp = buildSpellChips(e.spells);
+  const canTerminate = IS_GM && !isLairId(e.id) && !isEpicActionId(e.id);
+  for (const spell of e.spells) {
+    const fragSp = buildSpellChips([spell], canTerminate
+      ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
+      : {});
 
   // colore pieno = stesso del badge "C"
     const chips = Array.from(fragSp.childNodes).filter(n => n.nodeType === 1);
-  for (let i = 0; i < chips.length && i < e.spells.length; i++) {
-    const k   = __spellKey(e.spells[i]?.name);
-    const col = __spellColor(k);
-    const el  = chips[i];
+    for (let i = 0; i < chips.length; i++) {
+      const k   = __spellKey(spell?.name);
+      const col = __spellColor(k);
+      const el  = chips[i];
     el.style.background = col.solid; // ⟵ colore pieno, no alpha
     // NON toccare font/padding/radius/border/shadow: gestiscili in spells.js
   }
 
-  fragAll.appendChild(fragSp);
+    fragAll.appendChild(fragSp);
+    if (spell?.instanceId) {
+      fragAll.appendChild(buildSpellEffectChips(condData, {
+        compact: true,
+        parentEffectId: spell.instanceId,
+      }));
+    }
+    }
 }
 
 // 3) Monta TUTTO assieme: 3 visibili in totale, poi +N
 condDock.style.gap = CHIP_GAP_PX + "px";
 mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 2 });
+bindReferenceChips(condDock);
 
 if (e.__groupCollapsed) {
-  // Sulla card collassata l’iniziativa è solo informativa
-  badge.title = "Espandi il gruppo per modificare le iniziative";
-  badge.style.cursor = "default";
+  // Sulla card collassata l’iniziativa modifica l’intero gruppo
+  badge.title = "Click per modificare l'iniziativa del gruppo";
+  badge.style.cursor = "text";
 }
 
-badge.style.userSelect = "none";
-badge.dataset.badge  = "init";
-badge.dataset.itemId = e.id;
+  badge.style.userSelect = "none";
+  badge.dataset.badge  = "init";
+  badge.dataset.itemId = e.id;
+  badge.dataset.initTouched = e.initTouched === true ? "1" : "0";
+  badge.__initNormalBorder = badge.style.border;
+  badge.__initNormalShadow = badge.style.boxShadow;
 
 badge.addEventListener("pointerdown", async (ev) => {
   // se è già in editing, non fare nulla
-  if (e.__groupCollapsed || e.isEpic || e.isEpicAction) { ev.preventDefault(); ev.stopPropagation(); return; }
+  if (e.isEpic || e.isEpicAction) { ev.preventDefault(); ev.stopPropagation(); return; }
   if (badge.dataset.editing === "1") return;
 
   ev.stopImmediatePropagation();
@@ -7676,7 +8111,7 @@ badge.addEventListener("pointerdown", async (ev) => {
   input.value = String(prefillInit);
 
   // 3) l'editor è stabile → sblocca i render nel prossimo tick
-  setTimeout(() => { __suspendRenders = false; }, 0);
+  setTimeout(() => { if (!__initiativeFillMode) __suspendRenders = false; }, 0);
 
   Object.assign(input.style, {
   width: "100%",           // riempi il cerchio
@@ -7752,9 +8187,20 @@ badge.addEventListener("pointerdown", async (ev) => {
   badge.textContent = normalized;
 
   await updateInitiative(e.id, normalized);
-  try { await trySeedGroupInitiative(e.id, normalized); } catch (err) { console.warn(err); }
+  try {
+    await trySeedGroupInitiative(e.id, normalized, {
+      deferRender: __initiativeFillMode,
+      forceAll: e.__groupCollapsed === true,
+    });
+  } catch (err) { console.warn(err); }
 
   cleanup();
+
+  if (__initiativeFillMode) {
+    __initiativeFillSession?.completed?.add(e.id);
+    refreshInitiativeFillVisuals();
+    return;
+  }
 
   // 🔧 NEW: riordina SUBITO e ridisegna
   await reconcileStateWithItems();
@@ -7767,13 +8213,15 @@ badge.addEventListener("pointerdown", async (ev) => {
   });
 };
 
-  const cancel = () => {
+  const cancel = async (options = {}) => {
     if (committed) return;
     committed = true;
     try { badge.removeChild(input); } catch {}
     badge.textContent = old;
     cleanup();
-    renderAll();
+    if (options.deferRender === true) return;
+    if (__initiativeFillMode) await finishInitiativeFillMode();
+    else await renderAll();
   };
 
   // salva i puntatori per closeOpenEditors()
@@ -7835,9 +8283,26 @@ badge.addEventListener("pointerdown", async (ev) => {
 
   // tastiera: Enter = solo commit; Tab = commit + vai giù (Shift+Tab su)
   input.addEventListener("keydown", async (ke) => {
-    if (ke.key === "Enter")  { ke.preventDefault(); await commit(); return; }
-    if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
-    if (ke.key === "Tab")    { ke.preventDefault(); await commitAndOpenNeighbor(ke.shiftKey); return; }
+    if (ke.key === "Enter")  {
+      ke.preventDefault();
+      if (ke.ctrlKey || ke.metaKey) {
+        await commit();
+        if (__initiativeFillMode) await finishInitiativeFillMode();
+      } else if (__initiativeFillMode) {
+        await commit();
+        await openInitiativeFillNeighbor(e.id, ke.shiftKey);
+      } else await commitAndOpenNeighbor(ke.shiftKey);
+      return;
+    }
+    if (ke.key === "Escape") { ke.preventDefault(); await cancel(); return; }
+    if (ke.key === "Tab")    {
+      ke.preventDefault();
+      if (__initiativeFillMode) {
+        await commit();
+        await openInitiativeFillNeighbor(e.id, ke.shiftKey);
+      } else await commitAndOpenNeighbor(ke.shiftKey);
+      return;
+    }
   });
 
   // su blur, commit normale (ma non durante il jump via TAB)
@@ -8300,7 +8765,7 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   };
 
   let initiativeCardButton = null;
-  if (e.attitude === "pc") {
+  if (["pc", "ally"].includes(e.attitude)) {
     initiativeCardButton = document.createElement("button");
     initiativeCardButton.type = "button";
     initiativeCardButton.title = "Apri scheda iniziativa";
@@ -8340,7 +8805,8 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
       event.preventDefault();
       void openInitiativeCardPopup(e);
     });
-  } else if (IS_GM) {
+  }
+  if (IS_GM && e.attitude !== "pc") {
     hpDeltaButton = document.createElement("button");
     hpDeltaButton.type = "button";
     hpDeltaButton.textContent = "±";
@@ -8709,38 +9175,10 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     let nextHPMax = parseInlineMath(vMax, hpMaxV);
 
     const hpDelta = parseRelativeHPDelta(vHP);
-    const hpMaxDelta = parseRelativeHPDelta(vMax);
-    let multiUpdates = [];
-    if (!linkedHPMaxDelta && (hpDelta !== null || hpMaxDelta !== null)) {
-      try {
-        const selected = await OBR.player.getSelection();
-        const selectedIds = Array.from(new Set(Array.isArray(selected) ? selected : []));
-        if (selectedIds.length > 1 && selectedIds.includes(e.id)) {
-          const selectedItems = await OBR.scene.items.getItems(selectedIds);
-          const trackedItems = selectedItems.filter((item) =>
-            item.metadata?.[META_KEY]?.inInitiative === true
-          );
-          if (trackedItems.length > 1 && trackedItems.some((item) => item.id === e.id)) {
-            multiUpdates = trackedItems.map((item) => {
-              const meta = item.metadata?.[META_KEY] || {};
-              const baseHP = Math.max(0, Math.floor(Number(meta.hp) || 0));
-              const baseHPMax = Math.max(0, Math.floor(Number(meta.hpMax) || 0));
-              return {
-                itemId: item.id,
-                hp: hpDelta === null ? baseHP : Math.max(0, baseHP + hpDelta),
-                hpMax: hpMaxDelta === null ? baseHPMax : Math.max(0, baseHPMax + hpMaxDelta),
-              };
-            });
-            const sourceUpdate = multiUpdates.find((update) => update.itemId === e.id);
-            if (sourceUpdate) {
-              nextHP = sourceUpdate.hp;
-              nextHPMax = sourceUpdate.hpMax;
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("[hp] multi selection error:", err?.message || err);
-      }
+    const hpMaxWasInvalid = !Number.isFinite(hpMaxV) || hpMaxV <= 0;
+    const isSingleAbsoluteHP = /^\d+$/.test(vHP);
+    if (hpMaxWasInvalid && isSingleAbsoluteHP && vMax === String(hpMaxV)) {
+      nextHPMax = nextHP;
     }
 
     // ⬇️ NIENTE CLAMP: consentiamo HP > HP Max per modellare i Temp HP
@@ -8752,40 +9190,29 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
     hpFill.style.background = nextHPMax > 0 && nextHP <= 0 ? "#475569" : hpColorByPct(pct);
 
 
-    const isMultiTarget = multiUpdates.length > 1;
     const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
     const concentrationDamage = hpDelta !== null && hpDelta < 0
       ? Math.abs(hpDelta)
       : Math.max(0, hpVal - nextHP);
     const concentrationDamageChanges = recalibratesMax || concentrationDamage <= 0
       ? []
-      : (isMultiTarget
-          ? multiUpdates.map((update) => ({ itemId: update.itemId, damage: concentrationDamage }))
-          : [{ itemId: e.id, damage: concentrationDamage }]);
-    let historyIds = isMultiTarget ? multiUpdates.map((update) => update.itemId) : [e.id];
-    if (!isMultiTarget) {
-      try {
-        const group = await _getGroupForItemId(e.id);
-        historyIds = Array.from(new Set([e.id, ...(group?.members || [])]));
-      } catch {}
-    }
+      : [{ itemId: e.id, damage: concentrationDamage }];
+    let historyIds = [e.id];
+    try {
+      const group = await _getGroupForItemId(e.id);
+      historyIds = Array.from(new Set([e.id, ...(group?.members || [])]));
+    } catch {}
     historyIds = await getZeroHPConditionHistoryIds(historyIds);
 
     await withItemMetaHistory({
       kind: "hp",
-      label: isMultiTarget
-        ? (recalibratesMax ? "Ricalibrazione HP/Max multitarget" : "Modifica HP multitarget")
-        : (recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP"),
+      label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
       itemIds: historyIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
     }, async () => {
-      if (isMultiTarget) {
-        await updateMultipleHP(multiUpdates);
-      } else {
-        await updateHP(e.id, nextHP, nextHPMax);
-        try { await trySeedGroupHP(e.id, nextHP, nextHPMax); }
-        catch (err) { console.warn("[hp] group seed error:", err?.message || err); }
-      }
+      await updateHP(e.id, nextHP, nextHPMax);
+      try { await trySeedGroupHP(e.id, nextHP, nextHPMax); }
+      catch (err) { console.warn("[hp] group seed error:", err?.message || err); }
     });
 
     cleanup();
@@ -9248,6 +9675,7 @@ try {
 try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
   const hasAddAllBtn = !!roundPill.querySelector('[data-add-all-initiative="1"]');
+  const hasFillBtn = !!roundPill.querySelector('[data-fill-initiative="1"]');
   const hasFactionConfiguratorBtn = !!roundPill.querySelector('[data-faction-configurator="1"]');
   const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
   const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
@@ -9257,12 +9685,14 @@ try {
     if (!roundHistorySlot.isConnected) roundPill.appendChild(roundHistorySlot);
     if (!hasBtn) roundResetSlot.appendChild(makeRoundResetBtn());
     if (!hasAddAllBtn) roundActions.appendChild(makeAddAllInitiativeBtn());
+    if (!hasFillBtn) roundActions.appendChild(makeInitiativeFillBtn());
     if (!hasClearBtn) roundActions.appendChild(makeClearInitiativeBtn());
-    if (!hasFactionConfiguratorBtn) roundActions.appendChild(makeFactionConfiguratorBtn());
+    if (!hasFactionConfiguratorBtn) roundHistorySlot.appendChild(makeFactionConfiguratorBtn());
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
     if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();
+    if (hasFillBtn) roundPill.querySelector('[data-fill-initiative="1"]').remove();
     if (hasFactionConfiguratorBtn) roundPill.querySelector('[data-faction-configurator="1"]').remove();
     if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
     if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();
@@ -9380,8 +9810,7 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
             .filter(id => id && !isLairId(id) && !isEpicActionId(id));
           const unique = Array.from(new Set(tokenIds));
           const run = async () => {
-            await adjustSpellsForItems(unique, delta);
-            await adjustConditionDurationsForItems(unique, delta);
+            await tickRoundEffects(unique, delta);
           };
           __roundEffectQueue = __roundEffectQueue.then(run, run);
           roundEffectAdjustment = __roundEffectQueue;
@@ -9416,11 +9845,11 @@ try {
           .filter(Boolean)
       ));
       await withItemMetaHistory({
-        kind: "condition",
-        label: "Scadenza condizioni di turno",
+        kind: "spell",
+        label: "Scadenza effetti di turno",
         itemIds: tokenIds,
-        fields: ["conditions"],
-      }, () => advanceConditionTurnBoundariesForItems(tokenIds, boundaries));
+        fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+      }, () => advanceTurnBoundaryEffects(tokenIds, boundaries));
     };
     __conditionTurnQueue = __conditionTurnQueue.then(run, run);
     await __conditionTurnQueue;
@@ -9495,11 +9924,20 @@ OBR.scene.onMetadataChange((meta) => {
     immediate: true,
   });
 
-  subscribeSceneItemChanges(async () => {
+  subscribeSceneItemChanges(async (event) => {
     if (__mutatingActiveLabel > 0) return;
+    const fillInterrupted = await interruptInitiativeFillForRemovedActor(event);
+    const addedInitiativeActors = IS_GM && sceneItemEventAddsInitiative(event);
+    if (__initiativeFillMode && addedInitiativeActors && !initiativeFillShowsAddedActors(event)) {
+      await closeOpenEditors();
+      await finishInitiativeFillMode();
+    }
     await reconcileStateWithItems();
     await enforceUniqueNamePrefixes();
-    await renderAll();
+    await renderAll(fillInterrupted ? "initiative-fill-item-removed" : "items");
+    if (addedInitiativeActors) {
+      await startInitiativeFillMode({ silent: true });
+    }
   }, { filter: (event) => event.flags.tracker });
 
   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena

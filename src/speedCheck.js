@@ -23,6 +23,7 @@ import {
 } from "./speedCheckCore.js";
 
 const META_KEY = ID + "/meta";
+const SPELLS_META_KEY = ID + "/spells";
 const STATE_KEY = ID + "/state";
 const SPEED_WARNING_CHANNEL = ID + "/speed-warning";
 const SPEED_WARNING_MODAL_ID = ID + "/speed-warning-modal";
@@ -131,9 +132,17 @@ function movementTotalMeters(state) {
     + Math.max(0, Number(state?.cycleMeters) || 0);
 }
 
+function parseSpeedMeters(rawSpeed) {
+  const num = Number(rawSpeed);
+  if (!Number.isFinite(num) || num <= 0) return 0;
+  return Math.round(num * 10) / 10;
+}
+
 function conditionSpeedForItem(item, baseSpeedMeters) {
-  const conditions = item?.metadata?.[META_KEY]?.conditions || {};
-  return resolveConditionSpeed(baseSpeedMeters, getConditionInstances(conditions));
+  const meta = item?.metadata?.[META_KEY] || {};
+  const conditions = meta.conditions || {};
+  const spells = meta[SPELLS_META_KEY] || [];
+  return resolveConditionSpeed(baseSpeedMeters, getConditionInstances(conditions), spells);
 }
 
 async function applyConditionSpeedItem(item) {
@@ -190,6 +199,8 @@ function persistedMovementPayload(state) {
     turnKey: String(state?.turnKey || ""),
     totalMeters: Math.round(movementTotalMeters(state) * 1000) / 1000,
     lastCell: validPoint(state?.lastCell),
+    startPosition: validPoint(state?.startPosition),
+    startCell: validPoint(state?.startCell),
   };
 }
 
@@ -200,6 +211,10 @@ function persistedMovementSignature(payload) {
     Math.round(Math.max(0, Number(payload?.totalMeters) || 0) * 1000) / 1000,
     lastCell?.x ?? "",
     lastCell?.y ?? "",
+    validPoint(payload?.startPosition)?.x ?? "",
+    validPoint(payload?.startPosition)?.y ?? "",
+    validPoint(payload?.startCell)?.x ?? "",
+    validPoint(payload?.startCell)?.y ?? "",
   ].join("|");
 }
 
@@ -233,6 +248,8 @@ function applyPersistedMovementItem(item) {
     ? Math.max(0, totalMeters - (movementState.cycle * speed))
     : totalMeters;
   movementState.lastCell = validPoint(payload.lastCell) || movementState.lastCell;
+  movementState.startPosition = validPoint(payload.startPosition) || movementState.startPosition;
+  movementState.startCell = validPoint(payload.startCell) || movementState.startCell;
   movementState.persistedSignature = signature;
   notifyMovementState();
 }
@@ -314,6 +331,12 @@ async function loadMovementState(turn) {
 
   const persisted = meta?.[SPEED_CHECK_META_FIELD];
   const persistedMatches = String(persisted?.turnKey || "") === turnKey;
+  const initialPosition = validPoint(item.position);
+  const persistedStartPosition = persistedMatches ? validPoint(persisted.startPosition) : null;
+  const startPosition = persistedStartPosition || initialPosition;
+  const startCell = persistedMatches
+    ? validPoint(persisted.startCell) || (persistedStartPosition ? await snapToGridCell(startPosition) : lastCell)
+    : lastCell;
   const totalMeters = persistedMatches ? Math.max(0, Number(persisted.totalMeters) || 0) : 0;
   const cycle = speedMeters > 0 ? Math.floor((totalMeters + 1e-9) / speedMeters) : 0;
   return {
@@ -336,10 +359,12 @@ async function loadMovementState(turn) {
     bonusMeters: 0,
     name: String(item.name || "Personaggio").trim() || "Personaggio",
     portrait: portraitUrl(item),
+    startPosition,
+    startCell,
     lastCell: persistedMatches ? validPoint(persisted.lastCell) || lastCell : lastCell,
     path: [],
     persistedSignature: persistedMatches ? persistedMovementSignature(persisted) : "",
-    needsBaselinePersist: !persistedMatches,
+    needsBaselinePersist: !persistedMatches || !persistedStartPosition || !validPoint(persisted.startCell),
   };
 }
 
@@ -683,22 +708,36 @@ export function adjustSpeedCheckBonus(deltaMeters) {
 export function resetSpeedCheckMovement() {
   movementStatePromise = null;
   trackedDrags.clear();
-  if (movementState && !movementState.disabled) {
-    movementState.cycle = 0;
-    movementState.cycleMeters = 0;
-    movementState.dashCount = 0;
-    movementState.bonusMeters = 0;
-    movementState.path = [];
-    notifyMovementState();
-    void persistMovementState(movementState).catch(() => {});
-    return;
-  }
+  const reset = async () => {
+    if (movementState && !movementState.disabled) {
+      const state = movementState;
+      state.cycle = 0;
+      state.cycleMeters = 0;
+      state.dashCount = 0;
+      state.bonusMeters = 0;
+      state.path = [];
+      state.lastCell = validPoint(state.startCell) || state.lastCell;
 
-  movementState = null;
-  notifyMovementState();
-  if (processorEnabled && speedCheckEnabled && currentTurn) {
-    void ensureMovementState({ ...currentTurn }).catch(() => {});
-  }
+      const startPosition = validPoint(state.startPosition);
+      if (startPosition) {
+        suppressMovementHistory(state.itemId, startPosition);
+        await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+          for (const item of drafts) item.position = { ...startPosition };
+        });
+      }
+      notifyMovementState();
+      await persistMovementState(state);
+      return;
+    }
+
+    movementState = null;
+    notifyMovementState();
+    if (processorEnabled && speedCheckEnabled && currentTurn) {
+      await ensureMovementState({ ...currentTurn });
+    }
+  };
+  movementQueue = movementQueue.then(reset, reset);
+  void movementQueue.catch((error) => console.warn("[speed-check] reset movement:", error?.message || error));
 }
 
 export function mountSpeedWarningBroadcast() {

@@ -13,10 +13,17 @@ import {
 import {
   getTrackableSpellOptions,
   getSpellDefinition,
+  getSpellChoiceTiming,
   getProposedConditions,
+  getSpellEffectChoices,
+  getSpellEffects,
 } from "./spells-srd.js";
+import { spellExpiryCounter } from "./spellExpiryCore.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { withItemMetaHistory } from "./history.js";
 import { ID } from "./constants.js";
+import { openReferencePopover } from "./referencePopover.js";
+import { makeReferenceButton } from "./referenceButton.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -78,12 +85,14 @@ function spellOverviewGroups(items = []) {
           concentrationRef: instanceId || storedName,
           targets: new Map(),
           turns: [],
+          counters: [],
         };
         groups.set(key, group);
       }
       group.concentrating = group.concentrating || !!spell?.conc;
       group.targets.set(target.id, target.name || target.id);
       group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
+      group.counters.push(spellExpiryCounter(spell));
     }
   }
 
@@ -108,7 +117,9 @@ function spellOverviewGroups(items = []) {
   );
 }
 
-function spellTurnsLabel(turns = []) {
+function spellTurnsLabel(turns = [], counters = []) {
+  const exact = Array.from(new Set(counters.filter((value) => /[IF]\s[CB]/.test(value))));
+  if (exact.length) return exact.join(" / ");
   const values = turns.filter(Number.isFinite);
   if (!values.length) return "Durata non indicata";
   const min = Math.min(...values);
@@ -116,14 +127,19 @@ function spellTurnsLabel(turns = []) {
   return min === max ? min + " round" : min + "-" + max + " round";
 }
 
-async function terminateSpellGroup(group) {
-  const targetIds = Array.from(group.targets.keys());
+async function terminateSpellGroup(group, requestedTargetIds = null) {
+  const scoped = Array.isArray(requestedTargetIds);
+  const targetIds = scoped
+    ? uniqueIds(requestedTargetIds)
+    : Array.from(group.targets.keys());
+  if (!targetIds.length) return;
   const operations = [];
   if (group.concentrating && group.casterId) {
     operations.push({
-      type: "concentration:break",
+      type: scoped ? "concentration:break-targets" : "concentration:break",
       casterIds: [group.casterId],
       reference: group.concentrationRef,
+      ...(scoped ? { targetIds } : {}),
     });
   }
   operations.push(group.instanceId
@@ -312,7 +328,7 @@ async function init() {
   }
 
   const refreshCasterEnabled = () => {
-    const enabled = !!concentrationInput.checked && allCasters.length > 0;
+    const enabled = allCasters.length > 0;
     casterSelect.disabled = !enabled;
     casterSelect.style.opacity = enabled ? "1" : ".6";
   };
@@ -339,13 +355,40 @@ async function init() {
         + (spell.defaultTurns ? "" : " Imposta i round manualmente.")
       : "";
     const automation = spell.automation;
+    const effectChoices = getSpellEffectChoices(spell);
+    const previousChoice = automationSpellId === spell.id ? conditionChoice.value : "";
+    conditionChoice.replaceChildren();
+
+    if (automation?.mode === "choice") {
+      for (const choice of automation.choices || []) {
+        const option = document.createElement("option");
+        option.value = choice;
+        option.textContent = choice;
+        conditionChoice.appendChild(option);
+      }
+    } else {
+      for (const choice of effectChoices) {
+        const option = document.createElement("option");
+        option.value = choice.value;
+        option.textContent = choice.label;
+        conditionChoice.appendChild(option);
+      }
+    }
+    if (previousChoice && Array.from(conditionChoice.options).some((option) => option.value === previousChoice)) {
+      conditionChoice.value = previousChoice;
+    }
+    const spellEffects = getSpellEffects(spell, conditionChoice.value);
+    const effectsLabel = spellEffects.length
+      ? " Pill effetto: " + spellEffects.map((effect) => effect.label).join(", ") + "."
+      : "";
 
     if (!automation) {
       applyConditionsInput.checked = false;
       applyConditionsInput.disabled = true;
       applyConditionsInput.style.display = "none";
-      conditionChoice.style.display = "none";
-      automationText.textContent = "Solo tracciamento. Bersaglio: " + targetLabel + "." + durationLabel;
+      conditionChoice.style.display = effectChoices.length ? "" : "none";
+      automationText.textContent = (spellEffects.length ? "Tracciamento con effetti." : "Solo tracciamento.")
+        + " Bersaglio: " + targetLabel + "." + effectsLabel + durationLabel;
       automationSpellId = spell.id;
       return;
     }
@@ -353,36 +396,38 @@ async function init() {
     applyConditionsInput.disabled = false;
     applyConditionsInput.style.display = "";
     if (automationSpellId !== spell.id) applyConditionsInput.checked = true;
-    conditionChoice.replaceChildren();
-
     if (automation.mode === "choice") {
-      for (const choice of automation.choices || []) {
-        const option = document.createElement("option");
-        option.value = choice;
-        option.textContent = choice;
-        conditionChoice.appendChild(option);
-      }
       conditionChoice.style.display = "";
-      automationText.textContent = "Scegli condizione; bersaglio: " + targetLabel + "." + durationLabel;
+      automationText.textContent = "Scegli condizione; bersaglio: " + targetLabel + "."
+        + effectsLabel + durationLabel;
     } else {
-      conditionChoice.style.display = "none";
+      conditionChoice.style.display = effectChoices.length ? "" : "none";
       const conditions = (automation.conditions || []).join(", ");
       const prefix = automation.mode === "automatic"
         ? "Applica automaticamente: "
         : "Dopo gli esiti, applica: ";
-      automationText.textContent = prefix + conditions + ". Bersaglio: " + targetLabel + "." + durationLabel;
+      automationText.textContent = prefix + conditions + ". Bersaglio: " + targetLabel + "."
+        + effectsLabel + durationLabel;
     }
     automationSpellId = spell.id;
   };
+  conditionChoice?.addEventListener("change", () => {
+    const spell = getSpellDefinition(nameInput.value);
+    renderAutomation(spell);
+    const timing = getSpellChoiceTiming(spell, conditionChoice.value);
+    if (timing?.defaultTurns) durationInput.value = String(timing.defaultTurns);
+  });
 
   const syncCatalogSelection = (applyDefaults) => {
     const spell = getSpellDefinition(nameInput.value);
+    renderAutomation(spell);
     if (spell && applyDefaults) {
-      durationInput.value = spell.defaultTurns ? String(spell.defaultTurns) : "";
+      const timing = getSpellChoiceTiming(spell, conditionChoice.value);
+      const defaultTurns = timing?.defaultTurns ?? spell.defaultTurns;
+      durationInput.value = defaultTurns ? String(defaultTurns) : "";
       concentrationInput.checked = !!spell.concentration;
       refreshCasterEnabled();
     }
-    renderAutomation(spell);
     return spell;
   };
 
@@ -417,10 +462,17 @@ async function init() {
       heading.className = "spell-overview-heading";
       const name = document.createElement("strong");
       name.textContent = group.name;
+      const referenceButton = makeReferenceButton(`Apri Enciclopedia: ${group.name}`, () => {
+        void openReferencePopover({
+          tab: "spells",
+          entry: group.name,
+          closeId: MODAL_ID,
+        }).catch((error) => console.warn("[spells] reference open error:", error?.message || error));
+      });
       const duration = document.createElement("span");
       duration.className = "overview-badge";
-      duration.textContent = spellTurnsLabel(group.turns);
-      heading.append(name, duration);
+      duration.textContent = spellTurnsLabel(group.turns, group.counters);
+      heading.append(name, referenceButton, duration);
       if (group.concentrating) {
         const concentration = document.createElement("span");
         concentration.className = "overview-badge concentration";
@@ -434,8 +486,40 @@ async function init() {
       caster.textContent = (group.concentrating ? "Concentrazione: " : "Caster: ") + group.casterName;
       const targets = document.createElement("div");
       targets.className = "spell-overview-targets";
-      targets.textContent = "Bersagli: " + Array.from(group.targets.values()).join(", ");
-      targets.title = targets.textContent;
+      targets.appendChild(document.createTextNode("Bersagli: "));
+      for (const [targetId, targetName] of group.targets) {
+        const target = document.createElement("span");
+        target.className = "spell-overview-target";
+        target.title = `Termina ${group.name} su ${targetName || targetId}`;
+
+        const label = document.createElement("span");
+        label.textContent = targetName || targetId;
+        const terminateTarget = document.createElement("button");
+        terminateTarget.type = "button";
+        terminateTarget.className = "terminate-spell-target";
+        terminateTarget.textContent = "×";
+        terminateTarget.title = target.title;
+        terminateTarget.setAttribute("aria-label", target.title);
+        terminateTarget.addEventListener("click", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          terminateTarget.disabled = true;
+          try {
+            await terminateSpellGroup(group, [targetId]);
+            await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+            await refreshOverview();
+          } catch (err) {
+            console.warn("[spell-panel] terminate target spell:", err?.message || err);
+            terminateTarget.disabled = false;
+          }
+        });
+        target.append(label, terminateTarget);
+        targets.appendChild(target);
+        if (targetId !== Array.from(group.targets.keys()).at(-1)) {
+          targets.appendChild(document.createTextNode(", "));
+        }
+      }
+      targets.title = `Bersagli: ${Array.from(group.targets.values()).join(", ")}`;
       content.append(heading, caster, targets);
 
       const terminate = document.createElement("button");
@@ -497,16 +581,22 @@ async function init() {
     const casterName = caster?.name || "";
     const instanceId = createSpellInstanceId();
     const spellId = spell?.id || "";
+    const selectedChoice = conditionChoice?.value || "";
     const proposedConditions = applyConditionsInput?.checked
-      ? getProposedConditions(spell, conditionChoice?.value || "")
+      ? getProposedConditions(spell, selectedChoice)
       : [];
+    const proposedEffects = getSpellEffects(spell, selectedChoice);
+    const choiceTiming = getSpellChoiceTiming(spell, selectedChoice);
 
     submitButton.disabled = true;
     try {
       const appliedAt = await getAppliedAt();
-      const expiry = wantsConcentration
+      const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(choiceTiming, "spellExpiry")
+        ? choiceTiming.spellExpiry
+        : spell?.expiry ? { ...spell.expiry } : null;
+      const expiry = spellExpiry || (wantsConcentration
         ? { mode: "concentration" }
-        : { mode: "rounds", remaining: turns };
+        : { mode: "rounds", remaining: turns });
       const mutationPlan = await prepareEffectsMutation(spellApplicationOperations({
         targetIds,
         casterId,
@@ -517,7 +607,10 @@ async function init() {
         concentration: wantsConcentration,
         instanceId,
         spellId,
+        spellExpiry,
+        appliedAt,
         proposedConditions,
+        proposedEffects,
         conditionOptions: {
           sourceId: casterId || "",
           sourceName: casterName,
@@ -656,6 +749,7 @@ async function getAppliedAt() {
       round: Math.max(1, Number(state.round || 1)),
       actorId: order[state.current] || null,
       phase: "turn",
+      turnKey: currentInitiativeTurnKey(state),
     };
   } catch {
     return null;

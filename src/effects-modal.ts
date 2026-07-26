@@ -13,6 +13,9 @@ import {
   conditionMutationOperations,
   prepareEffectsMutation,
 } from "./effectsMutations.js";
+import { openReferencePopover } from "./referencePopover.js";
+import { makeReferenceButton } from "./referenceButton.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -255,6 +258,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const title = document.createElement("div");
   title.textContent = `Effetti: ${displayName(source.name)}`;
+  title.dataset.dragHandle = "1";
+  title.draggable = true;
   Object.assign(title.style, {
     paddingRight: "40px",
     overflow: "hidden",
@@ -739,6 +744,14 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       }
       selectRow.append(checkbox, text);
 
+      const referenceButton = makeReferenceButton(`Apri Enciclopedia: ${row.name}`, () => {
+        void openReferencePopover({
+          tab: "conditions",
+          entry: row.name,
+          closeId: MODAL_ID,
+        }).catch((error) => console.warn("[effects] reference open error:", error?.message || error));
+      });
+
       const removeButton = commandButton("Rimuovi", "danger");
       Object.assign(removeButton.style, {
         flex: "0 0 auto",
@@ -747,7 +760,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         fontSize: "var(--obrt-type-secondary, 11px)",
       });
       removeButton.addEventListener("click", () => removeRows([row]));
-      line.append(selectRow);
+      line.append(selectRow, referenceButton);
       if (!row.managed) line.append(removeButton);
       activeList.appendChild(line);
     }
@@ -857,6 +870,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
           round: Math.max(1, Number(state?.round || 1)),
           actorId: activeId,
           phase: "turn",
+          turnKey: currentInitiativeTurnKey(state),
         },
         expiry,
       },

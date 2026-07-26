@@ -62,6 +62,50 @@ test("il planner unificato ordina spell e condizioni nello stesso stack", () => 
   assert.deepEqual(rows.map((entry) => entry.y), [75, 106, 138, 169]);
 });
 
+test("le pill buff e debuff precedono lo stack senza cambiare il colore della spell", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Benedizione",
+          displayName: "Benedizione",
+          targets: ["target"],
+          color: { solid: "#6d28d9", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [
+          {
+            key: "spell-effect:buff-1",
+            label: "+1d4 Att/TS",
+            kind: "spell-effect",
+            tone: "buff",
+          },
+          {
+            key: "spell-effect:debuff-1",
+            label: "-1d4 Att/TS",
+            kind: "spell-effect",
+            tone: "debuff",
+          },
+          { key: "flag:Prono", label: "Prono", kind: "condition" },
+        ],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "+1d4 Att/TS",
+    "-1d4 Att/TS",
+    "Benedizione",
+    "Prono",
+  ]);
+  assert.equal(rows[0].backgroundColor, "#15803d");
+  assert.equal(rows[1].backgroundColor, "#b91c1c");
+  assert.equal(rows[2].backgroundColor, "#6d28d9");
+});
+
 test("durata, larghezza e badge concentrazione sono calcolati nello stesso piano", () => {
   const tokens = [
     token("caster", {
@@ -93,6 +137,34 @@ test("durata, larghezza e badge concentrazione sono calcolati nello stesso piano
   assert.equal(dot.backgroundColor, "#663399");
   assert.equal(spell.text, "Trama Ipnotica (8)");
   assert.equal(spell.width, 204);
+});
+
+test("il layout espone la scadenza esatta legata al turno", () => {
+  const desired = planEffectsLayout({
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Scudo",
+          displayName: "Scudo",
+          instanceId: "shield",
+          targets: ["target"],
+          color: { solid: "#663399", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        spellEntries: [{
+          name: "Scudo",
+          instanceId: "shield",
+          casterId: "caster",
+          turns: 1,
+          expiry: { mode: "turn-start", actor: "source", remaining: 1 },
+        }],
+      }),
+    ],
+    measureText,
+  });
+
+  assert.equal(desired.find((entry) => entry.kind === "spell").text, "Scudo (I C)");
 });
 
 test("il layout usa le dimensioni IMAGE quando width e height non sono esposte alla radice", () => {

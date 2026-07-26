@@ -113,6 +113,9 @@ test("classifies token removal conservatively", () => {
   assert.equal(event.flags.conditions, true);
   assert.equal(event.flags.concentration, true);
   assert.deepEqual(event.changedIds, ["token-1"]);
+  assert.equal(event.changedRecords.length, 1);
+  assert.equal(event.changedRecords[0].before.item.id, "token-1");
+  assert.equal(event.changedRecords[0].after, null);
 });
 
 test("schedules HP autofill when a new character token enters the scene", () => {
@@ -120,6 +123,31 @@ test("schedules HP autofill when a new character token enters the scene", () => 
 
   assert.equal(event.flags.added, true);
   assert.equal(event.flags.hpMemoryAutofill, true);
+  assert.equal(event.changedRecords.length, 1);
+  assert.equal(event.changedRecords[0].before, null);
+  assert.equal(event.changedRecords[0].after.item.id, "token-1");
+});
+
+test("exposes the exact transition when an existing token enters initiative", () => {
+  const before = token({ layer: "CHARACTER" });
+  const after = token({
+    layer: "CHARACTER",
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        attitude: "enemy",
+        initiative: 10,
+        inInitiative: true,
+      },
+    },
+  });
+  const event = classifySceneItemChanges([before], [after]);
+
+  assert.equal(event.flags.added, false);
+  assert.equal(event.flags.tracker, true);
+  assert.equal(event.changedRecords[0].before.item.metadata[META_KEY].inInitiative, undefined);
+  assert.equal(event.changedRecords[0].after.item.metadata[META_KEY].inInitiative, true);
 });
 
 test("i widget derivati non riattivano i renderer degli effetti", () => {

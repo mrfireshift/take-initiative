@@ -45,6 +45,16 @@ function signedText(value) {
   return value >= 0 ? `+${value}` : String(value);
 }
 
+function applyFactionTheme() {
+  const meta = item?.metadata?.[META_KEY] || {};
+  const attitude = String(meta.attitude || (meta.inInitiative === true ? "ally" : "neutral"))
+    .trim()
+    .toLowerCase();
+  document.documentElement.dataset.faction = ["pc", "ally", "neutral", "enemy"].includes(attitude)
+    ? attitude
+    : "neutral";
+}
+
 function renderPortrait() {
   const portrait = $("portrait");
   const fallback = $("portraitFallback");
@@ -70,6 +80,10 @@ function renderView() {
   $("armorClass").textContent = valueText(profile.armorClass);
   $("passivePerception").textContent = valueText(profile.passivePerception);
   $("speed").textContent = valueText(profile.speed, profile.speed === null ? "" : " m");
+  $("spellSaveDC").textContent = valueText(profile.spellSaveDC);
+  $("spellAttackBonus").textContent = signedText(profile.spellAttackBonus);
+  $("notes").textContent = profile.notes || "";
+  $("notesBlock").hidden = !profile.notes;
   $("exhaustion").textContent = String(profile.exhaustion || 0);
   for (const [id, disabled] of [
     ["exhaustionDown", exhaustionSaving || !isGM || profile.exhaustion <= 0],
@@ -95,12 +109,15 @@ function setEditing(active) {
   $("view").classList.toggle("hidden", active);
   $("form").classList.toggle("active", active);
   $("edit").style.display = isGM && !active ? "inline-block" : "none";
-  requestPopoverHeight(active ? 500 : 380);
+  requestPopoverHeight(active ? 560 : 460);
   if (!active) return;
   $("armorClassInput").value = profile.armorClass ?? "";
   $("passivePerceptionInput").value = profile.passivePerception ?? "";
   $("speedInput").value = profile.speed ?? "";
   $("exhaustionInput").value = profile.exhaustion ?? 0;
+  $("spellSaveDCInput").value = profile.spellSaveDC ?? "";
+  $("spellAttackBonusInput").value = profile.spellAttackBonus ?? "";
+  $("notesInput").value = profile.notes ?? "";
   for (const key of SAVE_KEYS) $(`save-${key}`).value = profile.savingThrows[key] ?? "";
   $("status").textContent = "";
 }
@@ -146,12 +163,13 @@ OBR.onReady(async () => {
     item = items[0] || null;
     isGM = role === "GM";
     if (!item) throw new Error("Token non trovato");
+    applyFactionTheme();
     profile = await loadInitiativeCard(item, { hydrate: isGM });
     buildSaveInputs();
     renderView();
     $("edit").style.display = isGM ? "inline-block" : "none";
     if (isGM && !hasInitiativeCardValues(profile)) setEditing(true);
-    else requestPopoverHeight(380);
+    else requestPopoverHeight(460);
   } catch (err) {
     $("title").textContent = "Scheda non disponibile";
     $("edit").style.display = "none";
@@ -177,6 +195,9 @@ $("form").addEventListener("submit", async (event) => {
       passivePerception: $("passivePerceptionInput").value,
       speed: $("speedInput").value,
       exhaustion: $("exhaustionInput").value,
+      spellSaveDC: $("spellSaveDCInput").value,
+      spellAttackBonus: $("spellAttackBonusInput").value,
+      notes: $("notesInput").value,
       savingThrows,
     });
     [item] = await OBR.scene.items.getItems([item.id]);

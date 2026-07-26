@@ -71,3 +71,25 @@ test("la velocità 0 prevale sul dimezzamento e le condizioni duplicate non si a
   assert.equal(result.speedMeters, 0);
   assert.deepEqual(result.reasons, ["Afferrato"]);
 });
+
+test("gli incantesimi SRD modificano la velocità (Passo Veloce, Raggio di Gelo, Velocità, Lentezza)", () => {
+  // Passo Veloce (+3m)
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Passo Veloce" }]).speedMeters, 12);
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Longstrider" }]).speedMeters, 12);
+
+  // Raggio di Gelo (-3m)
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Raggio di Gelo" }]).speedMeters, 6);
+
+  // Velocità (x2)
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Velocità" }]).speedMeters, 18);
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Haste" }]).speedMeters, 18);
+
+  // Lentezza (dimezzata)
+  assert.equal(resolveConditionSpeed(9, [], [{ name: "Lentezza" }]).speedMeters, 4.5);
+
+  // Combinazione Passo Veloce + Velocità
+  const combo = resolveConditionSpeed(9, [], [{ name: "Passo Veloce" }, { name: "Velocità" }]);
+  assert.equal(combo.speedMeters, 24); // (9 + 3) * 2 = 24m
+  assert.ok(combo.summary.includes("Passo Veloce (+3m)"));
+  assert.ok(combo.summary.includes("Velocità (×2)"));
+});

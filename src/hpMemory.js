@@ -8,8 +8,11 @@ let __attSubMounted = false;        // evita doppie subscribe
 let __attScanTimer = null;          // debounce per la scansione attitude
 let __hpApplyTimer = null;
 let __hpApplyBusy = false; // evita loop quando noi stessi scriviamo hp
+let __roomHPWriteQueue = Promise.resolve();
+let __roomHPFallbackWarned = false;
 
 const ROOM_HP_KEY = `${ID}/hpMemory`; // mappa: { "<name>||<portrait>": { hp, hpMax, t } }
+const LOCAL_HP_KEY = `${ID}/hpMemory/local`;
 const META_KEY = `${ID}/meta`;      // stesso namespace usato nel plugin
 
 // ——— helper: normalizza il "nome base" rimuovendo tutti i prefissi "(n) "
@@ -19,30 +22,157 @@ function baseName(raw) {
 }
 
 // ——— chiave stabile per un PG: baseName + portrait url
+function portraitUrlFromItem(item) {
+  return String(
+    item?.image?.url ||
+    item?.image?.src ||
+    item?.image?.href ||
+    item?.asset?.image?.url ||
+    item?.asset?.image?.src ||
+    item?.asset?.image?.href ||
+    item?.asset?.url ||
+    item?.asset?.src ||
+    item?.data?.src ||
+    item?.src ||
+    ""
+  ).trim();
+}
+
+function memoryKeyFromItem(item) {
+  return `${baseName(item?.name)}||${portraitUrlFromItem(item)}`;
+}
+
 function pcKeyFromItem(item) {
   if (!item) return null;
-  const att = item.metadata?.[`${ID}/meta`]?.attitude;
+  const meta = item.metadata?.[META_KEY] || {};
+  // Il tracker tratta un token in iniziativa senza attitude esplicita come Ally.
+  // Manteniamo lo stesso fallback anche per la memoria HP; le attitude esplicite
+  // (enemy/neutral) continuano invece a essere escluse.
+  const att = String(meta.attitude || (meta.inInitiative === true ? "ally" : ""))
+    .trim()
+    .toLowerCase();
   if (att !== "pc" && att !== "ally") return null; // memorizziamo personaggi e alleati
-  const nm = baseName(item.name);
-  // portrait robusto (copre le varianti usate nel progetto)
-  let url = null;
-  const img = item.image || item;
-  url = img?.url || img?.src || img?.href || item?.data?.src || null;
-  return `${nm}||${url || ""}`;
+  return memoryKeyFromItem(item);
+}
+
+function normalizeHPMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!key || !entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    normalized[key] = { ...entry };
+  }
+  return normalized;
+}
+
+function hpMemoryTimestamp(entry) {
+  return Math.max(
+    Math.max(0, Number(entry?.t) || 0),
+    Math.max(0, Number(entry?.tAtt) || 0)
+  );
+}
+
+function mergeHPMaps(...sources) {
+  const merged = {};
+  for (const source of sources) {
+    for (const [key, entry] of Object.entries(normalizeHPMap(source))) {
+      const current = merged[key];
+      if (!current || hpMemoryTimestamp(entry) >= hpMemoryTimestamp(current)) {
+        merged[key] = entry;
+      }
+    }
+  }
+  return merged;
+}
+
+function readLocalHPMap() {
+  try {
+    if (typeof localStorage === "undefined") return {};
+    return normalizeHPMap(JSON.parse(localStorage.getItem(LOCAL_HP_KEY) || "{}"));
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalHPMap(map) {
+  try {
+    if (typeof localStorage === "undefined") return false;
+    localStorage.setItem(LOCAL_HP_KEY, JSON.stringify(normalizeHPMap(map)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ——— lettura/scrittura su Room metadata
 async function readRoomHPMap() {
-  const md = await OBR.room.getMetadata();
-  const obj = md?.[ROOM_HP_KEY];
-  return (obj && typeof obj === "object") ? obj : {};
+  const md = await OBR.room.getMetadata().catch(() => ({}));
+  return mergeHPMaps(readLocalHPMap(), md?.[ROOM_HP_KEY]);
 }
 async function writeRoomHPMap(updater) {
-  const md = await OBR.room.getMetadata();
-  const prev = (md?.[ROOM_HP_KEY] && typeof md[ROOM_HP_KEY] === "object") ? md[ROOM_HP_KEY] : {};
-  const next = (typeof updater === "function") ? updater({ ...prev }) : { ...prev, ...(updater || {}) };
-  await OBR.room.setMetadata({ ...md, [ROOM_HP_KEY]: next });
-  return next;
+  const write = async () => {
+    const md = await OBR.room.getMetadata().catch(() => ({}));
+    const prev = mergeHPMaps(readLocalHPMap(), md?.[ROOM_HP_KEY]);
+    const next = (typeof updater === "function") ? updater({ ...prev }) : { ...prev, ...(updater || {}) };
+    const normalizedNext = normalizeHPMap(next);
+    const localWritten = writeLocalHPMap(normalizedNext);
+    try {
+      // setMetadata fa già merge con gli altri metadata della Room.
+      await OBR.room.setMetadata({ [ROOM_HP_KEY]: normalizedNext });
+      __roomHPFallbackWarned = false;
+    } catch (error) {
+      if (!localWritten) throw error;
+      if (!__roomHPFallbackWarned) {
+        __roomHPFallbackWarned = true;
+        console.warn("[hpMemory] Room metadata unavailable or full; using local fallback:", error?.message || error);
+      }
+    }
+    return normalizedNext;
+  };
+
+  // La scansione attitude e il salvataggio HP possono partire quasi insieme.
+  // Serializzare il read-modify-write evita di perdere uno dei due aggiornamenti.
+  const result = __roomHPWriteQueue.then(write, write);
+  __roomHPWriteQueue = result.catch(() => {});
+  return result;
+}
+
+async function persistRemovedHPItems(items = []) {
+  const snapshots = [];
+  for (const item of items) {
+    const key = pcKeyFromItem(item);
+    if (!key) continue;
+
+    const meta = item.metadata?.[META_KEY] || {};
+    const hp = Number(meta.hp);
+    const hpMax = Number(meta.hpMax);
+    if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) continue;
+
+    snapshots.push({
+      key,
+      hp: Math.max(0, Math.floor(hp)),
+      hpMax: Math.max(0, Math.floor(hpMax)),
+      attitude: meta.attitude || null,
+    });
+  }
+  if (!snapshots.length) return;
+
+  await writeRoomHPMap((map) => {
+    const savedAt = Date.now();
+    for (const snapshot of snapshots) {
+      const previous = map[snapshot.key] && typeof map[snapshot.key] === "object"
+        ? map[snapshot.key]
+        : {};
+      map[snapshot.key] = {
+        ...previous,
+        hp: snapshot.hp,
+        hpMax: snapshot.hpMax,
+        attitude: snapshot.attitude,
+        t: savedAt,
+      };
+    }
+    return map;
+  });
 }
 
 // Debounce per la scansione delle attitude correnti in scena
@@ -65,9 +195,7 @@ async function rescanAndPersistAttitudes() {
     if (!att || typeof att !== "string" || !att.trim()) continue;
 
     // Chiave per identità visiva (nome base + portrait) — non filtriamo per "pc":
-    const nm = String(it.name || "").trim().replace(/^(\(\d+\)\s*)+/, "").trim();
-    const url = it?.image?.url || it?.image?.src || it?.image?.href || it?.data?.src || "";
-    const key = `${nm}||${url}`;
+    const key = memoryKeyFromItem(it);
 
     if (!key) continue;
     updates.set(key, { attitude: att.trim() });
@@ -81,7 +209,7 @@ async function rescanAndPersistAttitudes() {
       // preserva hp/hpMax se già memorizzati; aggiorna SEMPRE attitude e timestamp dedicato
       m[key] = {
         ...prev,
-        attitude: payload.attitude,
+        attitude: String(payload.attitude || "").trim().toLowerCase(),
         tAtt: Date.now(),
       };
     }
@@ -98,7 +226,12 @@ export async function initHPMemory() {
   if (!__attSubMounted) {
     __attSubMounted = true;
     try {
-      subscribeSceneItemChanges(() => {
+      subscribeSceneItemChanges(async (event) => {
+        try {
+          await persistRemovedHPItems(event.removedItems);
+        } catch (err) {
+          console.warn("[hpMemory] removed item save failed:", err?.message || err);
+        }
         scheduleAttitudeRescan(120); // debounce breve: 120ms
       }, { filter: (event) => event.flags.hpMemory });
     } catch (err) {
@@ -119,10 +252,11 @@ export async function saveHPToMemoryByItemId(itemId, hp, hpMax) {
 
   const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-  const att  = item.metadata?.[`${ID}/meta`]?.attitude || null;
+  const att  = String(item.metadata?.[META_KEY]?.attitude || "").trim().toLowerCase() || null;
 
   await writeRoomHPMap((m) => {
-    m[key] = { hp: nHP, hpMax: nMax, attitude: att, t: Date.now() };
+    const previous = m[key] && typeof m[key] === "object" ? m[key] : {};
+    m[key] = { ...previous, hp: nHP, hpMax: nMax, attitude: att, t: Date.now() };
     return m;
   });
 }
@@ -155,18 +289,14 @@ export async function applyHPMemoryToSceneForMissingHP() {
       const hasHP = (meta.hp ?? null) != null || (meta.hpMax ?? null) != null;
       if (hasHP) continue;
 
-      const nm = String(it.name || "").trim().replace(/^(\(\d+\)\s*)+/, "").trim();
-      let url = it?.image?.url || it?.image?.src || it?.image?.href || it?.data?.src || "";
-      const key = `${nm}||${url}`;
+      const key = memoryKeyFromItem(it);
 
       const memo = map[key];
       if (!memo) continue;
 
       const nHP  = Math.max(0, Math.floor(Number(memo.hp)    || 0));
       const nMax = Math.max(0, Math.floor(Number(memo.hpMax) || 0));
-      const clampedHP = (nMax > 0) ? Math.min(nHP, nMax) : nHP;
-
-      targets.push({ id: it.id, hp: clampedHP, hpMax: nMax, attitude: memo.attitude });
+      targets.push({ id: it.id, hp: nHP, hpMax: nMax, attitude: memo.attitude });
     }
 
     if (!targets.length) return;

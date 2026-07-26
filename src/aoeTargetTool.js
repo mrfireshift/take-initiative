@@ -1,5 +1,6 @@
 import OBR, { buildPath, buildText, Command } from "@owlbear-rodeo/sdk";
 import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import {
   areaHitsBounds,
   buildArea,
@@ -28,6 +29,7 @@ const AREA_META_KEY = AOE_AREA_META_KEY;
 const STYLE_ACTION_ID = `${ID}/aoe-style-action`;
 const RESELECT_CONTEXT_ID = `${ID}/aoe-reselect-targets`;
 const CONDITIONS_CONTEXT_ID = `${ID}/aoe-select-conditions`;
+const SPELLS_CONTEXT_ID = `${ID}/aoe-select-spells`;
 const QUICK_HP_CONTEXT_ID = `${ID}/aoe-select-quick-hp`;
 let activeDrag = null;
 let currentStyle = loadAoEStyle();
@@ -322,7 +324,7 @@ async function openStyleSettings() {
   let viewportWidth = 1200;
   try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
   await OBR.popover.close(AOE_SETTINGS_POPOVER_ID).catch(() => {});
-  await OBR.popover.open({
+  await openTrackedPopover({
     id: AOE_SETTINGS_POPOVER_ID,
     url: "/aoe-settings.html",
     width: 312,
@@ -470,6 +472,7 @@ OBR.onReady(async () => {
   try { await OBR.tool.removeAction(STYLE_ACTION_ID); } catch {}
   try { await OBR.contextMenu.remove(RESELECT_CONTEXT_ID); } catch {}
   try { await OBR.contextMenu.remove(CONDITIONS_CONTEXT_ID); } catch {}
+  try { await OBR.contextMenu.remove(SPELLS_CONTEXT_ID); } catch {}
   try { await OBR.contextMenu.remove(QUICK_HP_CONTEXT_ID); } catch {}
   await OBR.tool.create({
     id: TOOL_ID,
@@ -525,6 +528,27 @@ OBR.onReady(async () => {
       const item = context.items?.find((entry) => entry?.metadata?.[AREA_META_KEY]?.type);
       const area = translatedAreaFromItem(item);
       if (area) void selectAreaTargetsAndOpen(area, "conditions");
+    },
+  });
+  await OBR.contextMenu.create({
+    id: SPELLS_CONTEXT_ID,
+    icons: [{
+      icon: "/spells-panel.svg",
+      label: "Seleziona e apri Incantesimi",
+      filter: {
+        roles: ["GM"],
+        min: 1,
+        every: [{
+          key: ["metadata", AREA_META_KEY, "type"],
+          operator: "!=",
+          value: undefined,
+        }],
+      },
+    }],
+    onClick: (context) => {
+      const item = context.items?.find((entry) => entry?.metadata?.[AREA_META_KEY]?.type);
+      const area = translatedAreaFromItem(item);
+      if (area) void selectAreaTargetsAndOpen(area, "spells");
     },
   });
   await OBR.contextMenu.create({

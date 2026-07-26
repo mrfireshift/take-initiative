@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
 const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
@@ -97,7 +98,7 @@ export async function openTrackerPopover({ refresh = false } = {}) {
     ? Math.min(COMPACT_HEIGHT, Math.max(150, Math.floor(viewportHeight - 32)))
     : Math.max(360, Math.floor(viewportHeight - 124));
   const compactAnchor = compactAnchorPosition(viewportWidth, viewportHeight);
-  await OBR.popover.open({
+  await openTrackedPopover({
     id: TRACKER_POPOVER_ID,
     url: "/?surface=tracker",
     width,

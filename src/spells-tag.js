@@ -2,6 +2,7 @@
   import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
   import { getSpellDefinition } from "./spells-srd.js";
+  import { spellExpiryCounter } from "./spellExpiryCore.js";
   import { effectsDiagnostics } from "./effectsDiagnostics.js";
 
   /* ===================== DEBUG ===================== */
@@ -363,6 +364,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           instanceId: (s.instanceId ?? "").toString().trim() || null,
           casterId: (s.casterId ?? "").toString().trim() || null,
           turns: readSpellTurns(s.turns),
+          expiry: s.expiry && typeof s.expiry === "object" ? { ...s.expiry } : null,
           conc: !!s.conc,
           targets: Array.isArray(s.targets) ? s.targets.filter(Boolean) : undefined,
         });
@@ -376,6 +378,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           instanceId: (v?.instanceId ?? "").toString().trim() || null,
           casterId: (v?.casterId ?? "").toString().trim() || null,
           turns: readSpellTurns(v?.turns),
+          expiry: v?.expiry && typeof v.expiry === "object" ? { ...v.expiry } : null,
           conc: !!v?.conc,
           targets: Array.isArray(v?.targets) ? v.targets.filter(Boolean) : undefined,
         });
@@ -451,6 +454,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
       isConc: false,
       instanceId: s.instanceId,
       turns: s.turns,
+      expiry: s.expiry,
     });
   }
 
@@ -489,7 +493,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
   function assignmentsDigest(it) {
     const assigns = extractAssignments(it);
     const norm = assigns
-      .map(a => ({ k: a.key.toLowerCase(), t: [...a.targets].sort(), r: a.turns }))
+      .map(a => ({ k: a.key.toLowerCase(), t: [...a.targets].sort(), r: a.turns, e: a.expiry }))
       .sort((A, B) => A.k.localeCompare(B.k));
     const durations = readSpellsList(it)
       .map((spell) => ({
@@ -497,6 +501,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         k: spellKey(spell.name),
         c: spell.casterId || "",
         r: spell.turns,
+        e: spell.expiry || null,
       }))
       .sort((A, B) => A.i.localeCompare(B.i) || A.k.localeCompare(B.k));
     return JSON.stringify({ assignments: norm, durations });
@@ -739,10 +744,12 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
         if (a.instanceId && spell.instanceId) return spell.instanceId === a.instanceId;
         return spellKey(spell.name) === keyNorm && (!spell.casterId || spell.casterId === it.id);
       });
-      const remainingTurns = Number.isFinite(targetSpell?.turns)
-        ? targetSpell.turns
-        : Number.isFinite(a.turns) ? a.turns : null;
-      const spellTitle = remainingTurns === null ? spellName : `${spellName} (${remainingTurns})`;
+      const displayedSpell = targetSpell || (
+        Number.isFinite(a.turns) || a.expiry ? { turns: a.turns, expiry: a.expiry } : null
+      );
+      const spellTitle = displayedSpell === null
+        ? spellName
+        : `${spellName} (${spellExpiryCounter(displayedSpell)})`;
 
       // Piano stabile SENZA nuove query
       const plan = __spellPlanFromExisting(tid, labelsByTarget.get(tid) || [], assigns, it.id);

@@ -13,6 +13,7 @@ import {
   getConditionEntryAdditions,
   getEffectiveConditionInstances as resolveEffectiveConditionInstances,
 } from "./conditionRulesCore.js";
+import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -152,6 +153,12 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.targetId) instance.targetId = String(value.targetId);
   if (value.parentEffectId) instance.parentEffectId = String(value.parentEffectId);
   if (value.type) instance.type = String(value.type);
+  if (value.effectId) instance.effectId = String(value.effectId);
+  if (value.effectKind === "buff" || value.effectKind === "debuff") {
+    instance.effectKind = value.effectKind;
+  }
+  if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
+  if (value.manualRemoval === true) instance.manualRemoval = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = value.level === undefined || value.level === null || value.level === ""
       ? 1
@@ -162,7 +169,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   const createdAt = Number(value.createdAt);
   if (Number.isFinite(createdAt) && createdAt > 0) instance.createdAt = createdAt;
   if (value.legacy === true) instance.legacy = true;
-  return instance;
+  return preserveConditionTimingMetadata(instance, value);
 }
 
 function __legacyInstance(name, value, id) {
@@ -286,6 +293,12 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
   if (opts.sourceName) instance.sourceName = String(opts.sourceName);
   if (opts.parentEffectId) instance.parentEffectId = String(opts.parentEffectId);
   if (opts.type || opts.effectType) instance.type = String(opts.type || opts.effectType);
+  if (opts.effectId) instance.effectId = String(opts.effectId);
+  if (opts.effectKind === "buff" || opts.effectKind === "debuff") {
+    instance.effectKind = opts.effectKind;
+  }
+  if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
+  if (opts.manualRemoval === true) instance.manualRemoval = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(opts.level || 1));
   }
@@ -333,6 +346,7 @@ export function formatConditionInstance(instance) {
   if (instance?.sourceName) {
     parts.push(`fonte: ${instance.sourceName}`);
   }
+  if (instance?.effectDetail) parts.push(String(instance.effectDetail));
   parts.push(__fullExpiryLabel(instance));
   return parts.join(" | ");
 }
@@ -355,14 +369,26 @@ function __groupConditionInstances(cond = {}) {
   for (const instance of getEffectiveConditionInstances(cond)) {
     const name = __conditionName(instance);
     if (!name) continue;
-    const key = name.toLocaleLowerCase();
-    const group = groups.get(key) || { name, instances: [] };
+    const effectKind = instance.effectKind === "buff" || instance.effectKind === "debuff"
+      ? instance.effectKind
+      : "";
+    const key = effectKind
+      ? `spell-effect:${String(instance.id || instance.effectId || name)}`
+      : name.toLocaleLowerCase();
+    const group = groups.get(key) || {
+      name,
+      instances: [],
+      effectKind,
+      effectId: String(instance.effectId || ""),
+      parentEffectId: String(instance.parentEffectId || ""),
+    };
     group.instances.push(instance);
     groups.set(key, group);
   }
 
   const ordered = Array.from(groups.values());
   ordered.sort((a, b) => {
+    if (!!a.effectKind !== !!b.effectKind) return a.effectKind ? -1 : 1;
     const ai = CONDITION_LIST.indexOf(a.name);
     const bi = CONDITION_LIST.indexOf(b.name);
     if (ai >= 0 || bi >= 0) {
@@ -375,7 +401,9 @@ function __groupConditionInstances(cond = {}) {
 
   return ordered.map((group) => ({
     ...group,
-    label: group.name === EXHAUSTION_CONDITION
+    label: group.effectKind
+      ? group.name
+      : group.name === EXHAUSTION_CONDITION
       ? `${formatConditionName(group.name)} ${exhaustionLevelFromInstances(group.instances)}`
       : group.instances.length > 1
       ? `${formatConditionName(group.name)} x${group.instances.length}`
@@ -872,7 +900,11 @@ function __orderedParts(cond = {}) {
   return __groupConditionInstances(cond).map((group) => ({
     name: group.name,
     label: group.label,
-    key: __chipKeyFor(group.name),
+    key: group.effectKind
+      ? `spell-effect:${String(group.instances[0]?.id || group.effectId || group.name)}`
+      : __chipKeyFor(group.name),
+    kind: group.effectKind ? "spell-effect" : "condition",
+    tone: group.effectKind || "",
   }));
 }
 
@@ -1384,7 +1416,7 @@ export async function __cleanupLegacyConditionLabels() {
 export function buildConditionChips(cond = {}, opts = {}) {
   const cap = Array.isArray(opts.cap) ? opts.cap : [];
   const compact = !!opts.compact;
-  const groups = __groupConditionInstances(cond);
+  const groups = __groupConditionInstances(cond).filter((group) => !group.effectKind);
   const pending = groups.slice();
   const ordered = [];
 
@@ -1393,18 +1425,21 @@ export function buildConditionChips(cond = {}, opts = {}) {
     if (index >= 0) ordered.push(...pending.splice(index, 1));
   }
   ordered.push(...pending);
+  if (!ordered.length) return document.createDocumentFragment();
 
   const wrap = document.createElement("div");
   Object.assign(wrap.style, {
     display: "inline-flex",
     gap: "6px",
     alignItems: "center",
-    pointerEvents: "none",
+    pointerEvents: "auto",
   });
 
   for (const group of ordered) {
     const chip = document.createElement("span");
     chip.textContent = group.label;
+    chip.dataset.referenceType = "conditions";
+    chip.dataset.referenceEntry = group.name;
     const borderCol = COND_BORDER[group.name] || "rgba(255, 255, 255, 1)";
     Object.assign(chip.style, {
       fontSize: compact ? "10px" : "11px",
@@ -1417,10 +1452,52 @@ export function buildConditionChips(cond = {}, opts = {}) {
       lineHeight: "1",
       whiteSpace: "nowrap",
       userSelect: "none",
-      pointerEvents: "none",
+      pointerEvents: "auto",
+      cursor: "pointer",
     });
     wrap.appendChild(chip);
   }
 
   return wrap;
+}
+
+export function buildSpellEffectChips(cond = {}, opts = {}) {
+  const compact = !!opts.compact;
+  const parentEffectId = String(opts.parentEffectId || "").trim();
+  const groups = __groupConditionInstances(cond).filter((group) =>
+    !!group.effectKind &&
+    (!parentEffectId || group.parentEffectId === parentEffectId)
+  );
+  const frag = document.createDocumentFragment();
+
+  for (const group of groups) {
+    const instance = group.instances[0] || {};
+    const chip = document.createElement("span");
+    chip.className = "chip spell-effect-chip";
+    chip.textContent = group.label;
+    chip.title = formatConditionInstance(instance);
+    chip.dataset.conditionInstanceId = String(instance.id || "");
+    chip.dataset.spellEffectKind = group.effectKind;
+    const buff = group.effectKind === "buff";
+    Object.assign(chip.style, {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: compact ? "2px 6px" : "4px 8px",
+      borderRadius: "999px",
+      background: buff ? "rgba(21,128,61,.88)" : "rgba(185,28,28,.88)",
+      color: "#fff",
+      border: `2px solid ${buff ? "#86efac" : "#fca5a5"}`,
+      boxShadow: "0 1px 0 rgba(0,0,0,.35)",
+      fontSize: compact ? "10px" : "11px",
+      fontWeight: "600",
+      lineHeight: "1",
+      whiteSpace: "nowrap",
+      userSelect: "none",
+      pointerEvents: "auto",
+      cursor: "default",
+    });
+    frag.appendChild(chip);
+  }
+
+  return frag;
 }

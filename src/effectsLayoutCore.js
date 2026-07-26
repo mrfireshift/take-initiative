@@ -1,3 +1,5 @@
+import { spellExpiryCounter } from "./spellExpiryCore.js";
+
 const DEFAULT_FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
@@ -12,6 +14,8 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   conditionStroke: 1,
   conditionBackground: "#0e131f",
   conditionBackgroundOpacity: 0.9,
+  buffBackground: "#15803d",
+  debuffBackground: "#b91c1c",
   textFill: "#f8fafc",
   textStroke: "rgba(2,6,23,.55)",
   textStrokeWidth: 1,
@@ -68,7 +72,7 @@ function spellWidth(label, measureText, config) {
   );
 }
 
-function findRemainingTurns(target, assignment) {
+function findSpellEntry(target, assignment) {
   const entries = Array.isArray(target?.spellEntries) ? target.spellEntries : [];
   const match = entries.find((spell) => {
     if (assignment.instanceId && spell.instanceId) {
@@ -77,8 +81,11 @@ function findRemainingTurns(target, assignment) {
     return normalizedKey(spell.name) === normalizedKey(assignment.key) &&
       (!spell.casterId || spell.casterId === assignment.casterId);
   });
-  if (Number.isFinite(match?.turns)) return match.turns;
-  return Number.isFinite(assignment.turns) ? assignment.turns : null;
+  if (match) return match;
+  if (Number.isFinite(assignment.turns) || assignment.expiry) {
+    return { turns: assignment.turns, expiry: assignment.expiry };
+  }
+  return null;
 }
 
 function planDot(token, assignments, config, sceneDpi) {
@@ -149,9 +156,9 @@ export function planEffectsLayout({
       for (const targetId of new Set(targets.filter(Boolean))) {
         const target = tokenById.get(targetId);
         if (!target) continue;
-        const remainingTurns = findRemainingTurns(target, { ...assignment, casterId: caster.id });
+        const spellEntry = findSpellEntry(target, { ...assignment, casterId: caster.id });
         const title = String(assignment.displayName || assignment.key || "").trim();
-        const text = remainingTurns === null ? title : `${title} (${remainingTurns})`;
+        const text = spellEntry === null ? title : `${title} (${spellExpiryCounter(spellEntry)})`;
         appendRow(targetId, {
           identity: `spell|${targetId}|${caster.id}|${key}`,
           kind: "spell",
@@ -185,16 +192,23 @@ export function planEffectsLayout({
       const key = String(condition?.key || "").trim();
       const text = String(condition?.label || "").trim();
       if (!key || !text) continue;
+      const spellEffect = condition?.kind === "spell-effect";
+      const buff = spellEffect && condition?.tone === "buff";
+      const debuff = spellEffect && condition?.tone === "debuff";
       appendRow(token.id, {
         identity: `condition|${token.id}|${key}`,
-        kind: "condition",
+        kind: spellEffect ? "spell-effect" : "condition",
         targetId: token.id,
         casterId: null,
         key,
         text,
         width: conditionWidth(text, measureText, config),
         height: config.labelHeight,
-        backgroundColor: config.conditionBackground,
+        backgroundColor: buff
+          ? config.buffBackground
+          : debuff
+            ? config.debuffBackground
+            : config.conditionBackground,
         backgroundOpacity: config.conditionBackgroundOpacity,
         pointerDirection: "LEFT",
         fontFamily: config.fontFamily,
@@ -206,7 +220,7 @@ export function planEffectsLayout({
         textStrokeWidth: config.textStrokeWidth,
         maxViewScale: config.maxViewScale,
         zIndex: config.conditionZIndex,
-        sortKey: `1|${key}`,
+        sortKey: `${spellEffect ? "-1" : "1"}|${key}`,
         offsetY: 0,
       });
     }

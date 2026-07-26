@@ -4,6 +4,7 @@ import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
   calculateQuickHPChange,
+  failedQuickHPTargetIds,
   scaledQuickHPAmount,
 } from "../src/quickHpCore.js";
 
@@ -35,4 +36,16 @@ test("temporary HP replace only a smaller existing surplus", () => {
 
 test("temporary HP add effective health without restoring missing normal HP", () => {
   assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 30, hpMax: 50 }).afterHP, 40);
+});
+
+test("seleziona soltanto i bersagli falliti dagli esiti TS", () => {
+  const outcomes = new Map([
+    ["passed", "passed"],
+    ["failed", "failed"],
+    ["immune", "immune"],
+  ]);
+  assert.deepEqual(
+    failedQuickHPTargetIds([{ id: "passed" }, { id: "failed" }, { id: "immune" }], outcomes),
+    ["failed"],
+  );
 });

@@ -58,6 +58,7 @@ function normalizedExpiry(value, legacyTurns = null, legacyTiming = "rounds") {
   if (actor === "source" || actor === "target") expiry.actor = actor;
   if (raw.actorId) expiry.actorId = String(raw.actorId);
   if (raw.actorName) expiry.actorName = String(raw.actorName);
+  if (raw.anchor === "next-turn") expiry.anchor = "next-turn";
   return expiry;
 }
 
@@ -68,7 +69,16 @@ function normalizedAppliedAt(value) {
   if (Number.isFinite(round)) result.round = round;
   if (value.actorId) result.actorId = String(value.actorId);
   if (value.phase) result.phase = String(value.phase);
+  if (value.turnKey) result.turnKey = String(value.turnKey);
   return Object.keys(result).length ? result : null;
+}
+
+function boundaryMatchCount(expiry, actorId, appliedAt, boundaries) {
+  return boundaries.filter((boundary) => {
+    if (boundary.mode !== expiry.mode || boundary.actorId !== actorId) return false;
+    if (expiry.anchor !== "next-turn" || !appliedAt?.turnKey || !boundary.turnKey) return true;
+    return boundary.turnKey !== appliedAt.turnKey;
+  }).length;
 }
 
 function conditionInstance(operation, targetId, instanceId, conditionName, overrides = {}) {
@@ -86,6 +96,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     expiry.actor = expiry.actor === "source" ? "source" : "target";
     if (!expiry.actorId) expiry.actorId = expiry.actor === "source" ? sourceId : targetId;
   }
+  const appliedAt = normalizedAppliedAt(options.appliedAt);
 
   const instance = {
     id: String(instanceId),
@@ -99,10 +110,16 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.sourceName) instance.sourceName = String(options.sourceName);
   if (options.parentEffectId) instance.parentEffectId = String(options.parentEffectId);
   if (options.type || options.effectType) instance.type = String(options.type || options.effectType);
+  if (options.effectId) instance.effectId = String(options.effectId);
+  if (options.effectKind === "buff" || options.effectKind === "debuff") {
+    instance.effectKind = options.effectKind;
+  }
+  if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
+  if (options.manualRemoval === true) instance.manualRemoval = true;
+  if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(options.level || 1));
   }
-  const appliedAt = normalizedAppliedAt(options.appliedAt);
   if (appliedAt) instance.appliedAt = appliedAt;
   return instance;
 }
@@ -203,6 +220,39 @@ function breakConcentration(states, casterId, reference = null) {
   }
 }
 
+function breakConcentrationOnTargets(states, casterId, reference, targetIds = []) {
+  const caster = states.get(String(casterId || "").trim());
+  const wanted = String(reference || "").trim();
+  const scopedTargets = new Set(uniqueIds(targetIds));
+  if (!caster || !wanted || !scopedTargets.size) return;
+
+  const matchedKey = Object.keys(caster.concentrations || {})
+    .find((key) => spellKey(key) === spellKey(wanted) ||
+      String(caster.concentrations[key]?.instanceId || "") === wanted);
+  if (!matchedKey) return;
+
+  const entry = caster.concentrations[matchedKey] || {};
+  const currentTargets = uniqueIds(entry.targets);
+  const removedTargets = currentTargets.filter((targetId) => scopedTargets.has(targetId));
+  if (!removedTargets.length) return;
+
+  const instanceId = String(entry.instanceId || "").trim();
+  const spellName = String(entry.name || matchedKey).trim();
+  for (const targetId of removedTargets) {
+    const target = states.get(targetId);
+    if (!target) continue;
+    if (instanceId) removeSpellByInstance(target, instanceId);
+    else removeSpellByNameAndSource(target, spellName, caster.id);
+  }
+
+  const remainingTargets = currentTargets.filter((targetId) => !scopedTargets.has(targetId));
+  if (remainingTargets.length) {
+    caster.concentrations[matchedKey] = { ...entry, targets: remainingTargets };
+  } else {
+    delete caster.concentrations[matchedKey];
+  }
+}
+
 function applySpellUpsert(state, operation) {
   const sourceId = String(operation?.source || "").trim();
   for (const previousName of uniqueIds(operation?.replaceNames)) {
@@ -224,6 +274,16 @@ function applySpellUpsert(state, operation) {
   if (operation?.conc != null) extra.conc = operation.conc === true;
   if (instanceId) extra.instanceId = instanceId;
   if (spellId) extra.spellId = spellId;
+  const appliedAt = normalizedAppliedAt(operation?.appliedAt);
+  if (appliedAt) extra.appliedAt = appliedAt;
+  const expiry = normalizedExpiry(operation?.expiry);
+  if (operation?.expiry && expiry.mode !== "rounds") {
+    if (expiry.mode === "turn-start" || expiry.mode === "turn-end") {
+      expiry.actor = expiry.actor === "target" ? "target" : "source";
+      if (!expiry.actorId) expiry.actorId = expiry.actor === "target" ? state.id : sourceId;
+    }
+    extra.expiry = expiry;
+  }
   const turns = Math.max(1, Math.floor(Number(operation?.turns) || 1));
 
   if (index >= 0) {
@@ -246,6 +306,14 @@ function applySpellAdjustment(states, operation) {
     const next = [];
     const removed = [];
     for (const spell of state.spells) {
+      if (
+        spell?.expiry?.mode === "manual" ||
+        spell?.expiry?.mode === "turn-start" ||
+        spell?.expiry?.mode === "turn-end"
+      ) {
+        next.push(spell);
+        continue;
+      }
       const current = Math.max(0, Number(spell?.turns || 0));
       const turns = Math.max(0, current + Number(operation?.delta || 0));
       if (turns > 0) next.push({ ...spell, turns });
@@ -266,6 +334,115 @@ function applySpellAdjustment(states, operation) {
     if (!casterId || !reference || seen.has(signature)) continue;
     seen.add(signature);
     breakConcentration(states, casterId, reference);
+  }
+}
+
+function normalizedBoundaries(boundaries = []) {
+  return (Array.isArray(boundaries) ? boundaries : []).map((boundary) => ({
+    mode: boundary?.phase === "start" ? "turn-start"
+      : boundary?.phase === "end" ? "turn-end"
+      : "",
+    actorId: String(boundary?.actorId || "").trim(),
+    turnKey: String(boundary?.turnKey || "").trim(),
+  })).filter((boundary) => boundary.mode && boundary.actorId);
+}
+
+function finishExpiredConcentrations(states, spells = []) {
+  const seen = new Set();
+  for (const spell of spells) {
+    const casterId = String(spell?.casterId || "").trim();
+    const reference = String(spell?.instanceId || spell?.name || "").trim();
+    const signature = `${casterId}|${reference}`;
+    if (!casterId || !reference || seen.has(signature)) continue;
+    seen.add(signature);
+    breakConcentration(states, casterId, reference);
+  }
+}
+
+function applySpellBoundaryAdjustment(states, operation) {
+  const boundaries = normalizedBoundaries(operation?.boundaries);
+  if (!boundaries.length) return;
+  const expiredConcentrations = [];
+  for (const targetId of uniqueIds(operation?.targetIds)) {
+    const state = states.get(targetId);
+    if (!state?.spells.length) continue;
+    const next = [];
+    const removed = [];
+    for (const spell of state.spells) {
+      const expiry = spell?.expiry || {};
+      if (expiry.mode !== "turn-start" && expiry.mode !== "turn-end") {
+        next.push(spell);
+        continue;
+      }
+      const actorId = String(expiry.actorId || (
+        expiry.actor === "target" ? state.id : spell?.casterId
+      ) || "").trim();
+      const matches = boundaryMatchCount(expiry, actorId, spell?.appliedAt, boundaries);
+      const remaining = Math.max(1, Math.floor(Number(expiry.remaining) || 1));
+      const nextRemaining = remaining - matches;
+      if (nextRemaining > 0) {
+        next.push({ ...spell, expiry: { ...expiry, remaining: nextRemaining } });
+      } else {
+        removed.push(spell);
+        if (spell?.conc) expiredConcentrations.push(spell);
+      }
+    }
+    state.spells = next;
+    removeLinkedConditions(state, removed);
+  }
+  finishExpiredConcentrations(states, expiredConcentrations);
+}
+
+function applyConditionBoundaryAdjustment(states, operation) {
+  const boundaries = normalizedBoundaries(operation?.boundaries);
+  if (!boundaries.length) return;
+  for (const targetId of uniqueIds(operation?.targetIds)) {
+    const state = states.get(targetId);
+    if (!state?.conditions.length) continue;
+    state.conditions = state.conditions.flatMap((instance) => {
+      const expiry = instance?.expiry || {};
+      if (expiry.mode !== "turn-start" && expiry.mode !== "turn-end") return [instance];
+      const actorId = String(expiry.actorId || (
+        expiry.actor === "source" ? instance?.sourceId : state.id
+      ) || "").trim();
+      const matches = boundaryMatchCount(expiry, actorId, instance?.appliedAt, boundaries);
+      const remaining = Math.max(1, Math.floor(Number(expiry.remaining) || 1));
+      const nextRemaining = remaining - matches;
+      return nextRemaining > 0
+        ? [{ ...instance, expiry: { ...expiry, remaining: nextRemaining } }]
+        : [];
+    });
+  }
+}
+
+function applyConditionAdjustment(states, operation) {
+  const delta = Number(operation?.delta || 0);
+  if (!Number.isFinite(delta) || delta === 0) return;
+  for (const targetId of uniqueIds(operation?.targetIds)) {
+    const state = states.get(targetId);
+    if (!state?.conditions.length) continue;
+    const next = [];
+    for (const instance of state.conditions) {
+      const expiry = instance.expiry || { mode: "manual" };
+      const mode = String(expiry.mode || "").trim().toLocaleLowerCase("it");
+      const duration = (input) => {
+        const parsed = Math.floor(Number(input));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      };
+      const remaining = duration(expiry.remaining);
+      if (mode !== "rounds" || !remaining) {
+        next.push(instance);
+        continue;
+      }
+      const nextRemaining = Math.max(0, remaining + delta);
+      if (nextRemaining > 0) {
+        next.push({
+          ...instance,
+          expiry: { ...expiry, remaining: nextRemaining },
+        });
+      }
+    }
+    state.conditions = next;
   }
 }
 
@@ -324,6 +501,14 @@ function applyOperation(states, operation, options) {
     case "spell:adjust":
       applySpellAdjustment(states, operation);
       break;
+    case "effects:tick-round":
+      applySpellAdjustment(states, operation);
+      applyConditionAdjustment(states, operation);
+      break;
+    case "effects:tick-boundaries":
+      applySpellBoundaryAdjustment(states, operation);
+      applyConditionBoundaryAdjustment(states, operation);
+      break;
     case "concentration:register": {
       const caster = states.get(String(operation.casterId || "").trim());
       const key = spellKey(operation.name);
@@ -344,6 +529,16 @@ function applyOperation(states, operation, options) {
     case "concentration:break":
       for (const casterId of uniqueIds(operation.casterIds || [operation.casterId])) {
         breakConcentration(states, casterId, operation.reference ?? null);
+      }
+      break;
+    case "concentration:break-targets":
+      for (const casterId of uniqueIds(operation.casterIds || [operation.casterId])) {
+        breakConcentrationOnTargets(
+          states,
+          casterId,
+          operation.reference ?? null,
+          targetIds
+        );
       }
       break;
     case "condition:add":
@@ -396,9 +591,22 @@ function applyOperation(states, operation, options) {
       }
       for (const [itemId, instanceIds] of byItem) {
         const state = states.get(itemId);
-        if (state) state.conditions = state.conditions.filter((instance) =>
+        if (!state) continue;
+        const parentIds = new Set(state.conditions
+          .filter((instance) =>
+            instanceIds.has(String(instance?.id || "")) &&
+            instance?.endsParentOnRemoval === true
+          )
+          .map((instance) => String(instance?.parentEffectId || "").trim())
+          .filter(Boolean));
+        state.conditions = state.conditions.filter((instance) =>
           !instanceIds.has(String(instance?.id || ""))
         );
+        const removedSpells = [];
+        for (const parentId of parentIds) {
+          removedSpells.push(...removeSpellByInstance(state, parentId));
+        }
+        finishExpiredConcentrations(states, removedSpells.filter((spell) => spell?.conc));
       }
       break;
     }

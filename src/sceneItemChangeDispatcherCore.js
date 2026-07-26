@@ -148,14 +148,14 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     .filter(Boolean);
 
   if (!flags.any) {
-    return { flags, items: [], removedItems: [], allItems, changedIds: [] };
+    return { flags, items: [], removedItems: [], allItems, changedIds: [], changedRecords: [] };
   }
 
   flags.activeTurnLabelOnly = changedRecords.every(({ before: previous, after: next }) =>
     !!(next?.isActiveTurnLabel || previous?.isActiveTurnLabel)
   );
   if (flags.activeTurnLabelOnly) {
-    return { flags, items: changedItems, removedItems, allItems, changedIds };
+    return { flags, items: changedItems, removedItems, allItems, changedIds, changedRecords };
   }
 
   for (const { before: previous, after: next } of changedRecords) {
@@ -171,7 +171,7 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     // il coordinatore li esegue già in ordine (spell, poi condizioni).
   }
 
-  return { flags, items: changedItems, removedItems, allItems, changedIds };
+  return { flags, items: changedItems, removedItems, allItems, changedIds, changedRecords };
 }
 
 export function classifySceneItemChanges(beforeItems = [], afterItems = []) {

@@ -102,7 +102,12 @@
       border-radius:50%; font-weight:700; background:rgba(14,165,233,.48);
     }
     .spell-overview-meta { color:rgba(255,255,255,.82); }
-    .spell-overview-targets { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.68); }
+    .spell-overview-targets { display:flex; align-items:center; gap:3px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.68); }
+    .spell-overview-target { display:inline-flex; align-items:center; gap:2px; min-width:0; }
+    .spell-overview-target > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .terminate-spell-target { min-height:18px; padding:0 4px; border-radius:5px; color:rgba(248,113,113,.95); border-color:rgba(248,113,113,.34); font-size:11px; line-height:1; }
+    .terminate-spell-target:hover { background:rgba(220,38,38,.32); }
+    .terminate-spell-target:disabled { opacity:.55; cursor:default; }
     .terminate-spell {
       flex:0 0 auto; min-height:28px; padding:5px 10px; border-radius:8px;
       background:rgba(220,38,38,.28); border-color:rgba(248,113,113,.42);
@@ -121,7 +126,7 @@
   </style>
 </head>
 <body>
-  <div class="glass-shell" data-glass-popover="1">
+  <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/spells-modal">
   <main class="panel">
     <div class="title" id="modalTitle">Incantesimi</div>
     <button class="close" type="button" id="modalClose" title="Chiudi">X</button>
@@ -144,7 +149,7 @@
           <input id="applyConditions" type="checkbox" />
           <span id="automationText"></span>
         </label>
-        <select id="conditionChoice" aria-label="Condizione da applicare" style="display:none"></select>
+        <select id="conditionChoice" aria-label="Variante dell'incantesimo" style="display:none"></select>
       </div>
 
       <button class="blockbtn" type="button" id="cancel">Termina incantesimi</button>
@@ -179,6 +184,7 @@
     </section>
   </main>
   </div>
+  <script type="module" src="/src/popoverDrag.js"></script>
   <script type="module" src="/src/spells-panel.js"></script>
 </body>
 </html>

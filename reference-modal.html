@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enciclopedia</title>
+  <link rel="stylesheet" href="/ui-typography.css" />
+  <link rel="stylesheet" href="/popover-glass.css" />
+  <style>
+    :root { --muted:rgba(255,255,255,.66); --line:rgba(148,163,184,.20); }
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; color:#fff; }
+    body { font:var(--obrt-type-body, 12px)/1.3 var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif); }
+    * { box-sizing:border-box; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.55) transparent; }
+    .shell { width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; }
+    .panel { min-height:0; flex:1 1 auto; display:flex; flex-direction:column; gap:9px; padding:12px; overflow:hidden; }
+    .heading { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-right:34px; }
+    h1 { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--obrt-type-panel-title, 15px); }
+    .close { position:fixed; top:8px; right:10px; width:30px; height:30px; padding:0; border:1px solid transparent; border-radius:9px; background:transparent; color:inherit; font:inherit; font-size:15px; cursor:pointer; }
+    .close:hover { background:rgba(255,255,255,.08); }
+    .tabs { display:flex; gap:5px; }
+    button, input { font:inherit; color:inherit; }
+    button { min-height:30px; padding:6px 10px; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.055); cursor:pointer; }
+    button:hover { background:rgba(255,255,255,.12); }
+    button.active { background:rgba(37,99,235,.42); border-color:rgba(96,165,250,.72); }
+    input { width:100%; min-height:32px; padding:6px 9px; border:1px solid rgba(148,163,184,.28); border-radius:9px; outline:none; background:rgba(0,0,0,.35); }
+    .content { min-height:0; flex:1 1 auto; display:grid; grid-template-columns:190px minmax(0,1fr); gap:8px; }
+    .results, .detail { min-height:0; overflow-y:auto; padding:6px; border:1px solid var(--line); border-radius:11px; background:rgba(0,0,0,.20); }
+    .results { display:flex; flex-direction:column; gap:4px; }
+    .result { width:100%; min-height:34px; padding:7px 8px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .result small { display:block; color:var(--muted); font-size:10px; }
+    .empty { padding:16px 8px; text-align:center; color:var(--muted); }
+    .detail { padding:12px; }
+    .detail h2 { margin:0 0 6px; font-size:18px; }
+    .summary { margin:0 0 12px; color:rgba(255,255,255,.78); font-size:13px; }
+    .badges { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+    .badge { padding:4px 7px; border:1px solid var(--line); border-radius:8px; background:rgba(255,255,255,.055); font-size:11px; }
+    .section-title { margin:12px 0 5px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.07em; }
+    .text { margin:0; white-space:pre-wrap; color:rgba(255,255,255,.88); }
+    .source-note { margin:14px 0 0; color:var(--muted); font-size:10px; }
+    @media (max-width:520px) { .content { grid-template-columns:1fr; grid-template-rows:150px minmax(0,1fr); } }
+  </style>
+</head>
+<body>
+  <div class="shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/reference-modal">
+    <main class="panel">
+      <header class="heading" data-drag-handle draggable="true" title="Trascina per spostare"><h1>Enciclopedia DM</h1></header>
+      <button class="close" id="close" type="button" title="Chiudi">×</button>
+      <div class="tabs" role="tablist" aria-label="Tipo di riferimento">
+        <button type="button" data-tab="conditions" class="active" aria-selected="true">Condizioni</button>
+        <button type="button" data-tab="spells" aria-selected="false">Incantesimi</button>
+      </div>
+      <input id="search" type="search" placeholder="Cerca una voce…" aria-label="Cerca nell'enciclopedia" autocomplete="off" />
+      <div class="content">
+        <section id="results" class="results" aria-label="Risultati"></section>
+        <article id="detail" class="detail" aria-live="polite"></article>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="/src/popoverDrag.js"></script>
+  <script type="module" src="/src/reference-modal.js"></script>
+</body>
+</html>

@@ -3,11 +3,23 @@ import { ID } from "./constants.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { saveHPToMemoryByItemId } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
-import { QUICK_HP_FACTORS, QUICK_HP_MODES, calculateQuickHPChange } from "./quickHpCore.js";
+import {
+  QUICK_HP_FACTORS,
+  QUICK_HP_MODES,
+  calculateQuickHPChange,
+  failedQuickHPTargetIds,
+} from "./quickHpCore.js";
+import { APPLICABLE_CONDITION_LIST } from "./conditions.js";
+import {
+  commitEffectsMutationPlan,
+  conditionMutationOperations,
+  prepareEffectsMutation,
+} from "./effectsMutations.js";
 import {
   getZeroHPConditionHistoryIds,
   reconcileZeroHPConditionsForItems,
 } from "./hpConditionAutomation.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -24,11 +36,18 @@ const factorOptions = [
   { value: QUICK_HP_FACTORS.HALF, label: "\u00bd", title: "Meta" },
   { value: QUICK_HP_FACTORS.QUARTER, label: "\u00bc", title: "Quarto" },
 ];
+const SAVE_OUTCOMES = Object.freeze({ PASSED: "passed", FAILED: "failed", IMMUNE: "immune" });
+const outcomeOptions = [
+  { value: SAVE_OUTCOMES.PASSED, label: "Superato", shortLabel: "Superato" },
+  { value: SAVE_OUTCOMES.FAILED, label: "Fallito", shortLabel: "Fallito" },
+  { value: SAVE_OUTCOMES.IMMUNE, label: "Immune", shortLabel: "Immune" },
+];
 
 let mode = QUICK_HP_MODES.DAMAGE;
 let targets = [];
 let selectedIds = new Set();
 let factors = new Map();
+let saveOutcomes = new Map();
 let selectionWriteDepth = 0;
 let selectionPollBusy = false;
 let selectionUnsubscribe = null;
@@ -45,8 +64,25 @@ const status = document.getElementById("status");
 const applyButton = document.getElementById("apply");
 const undoButton = document.getElementById("undo");
 const targetNameFilter = document.getElementById("targetNameFilter");
+const saveOptions = document.getElementById("saveOptions");
+const conditionSelect = document.getElementById("conditionSelect");
+const conditionDetails = document.getElementById("conditionDetails");
+const conditionSourceSelect = document.getElementById("conditionSource");
+const conditionExpirySelect = document.getElementById("conditionExpiry");
+const conditionActorWrap = document.getElementById("conditionActorWrap");
+const conditionActorSelect = document.getElementById("conditionActor");
+const conditionDurationWrap = document.getElementById("conditionDurationWrap");
+const conditionDurationCaption = document.getElementById("conditionDurationCaption");
+const conditionDurationInput = document.getElementById("conditionDuration");
 const factionFilterButtons = Array.from(document.querySelectorAll("[data-hp-faction]"));
 const activeFactionFilters = new Set();
+
+for (const conditionName of APPLICABLE_CONDITION_LIST) {
+  const option = document.createElement("option");
+  option.value = conditionName;
+  option.textContent = conditionName;
+  conditionSelect.appendChild(option);
+}
 
 function splitVirtualId(value) {
   const id = String(value || "");
@@ -55,6 +91,86 @@ function splitVirtualId(value) {
 }
 function isRealTokenId(id) {
   return !!id && id !== LAIR_ID && !id.startsWith(EPIC_PREFIX);
+}
+function itemForId(id) {
+  return targets.find((item) => item.id === id) || null;
+}
+async function currentInitiativeActorId() {
+  try {
+    const metadata = await OBR.scene.getMetadata();
+    const state = metadata && metadata[STATE_KEY] || {};
+    const order = Array.isArray(state.order) ? state.order : [];
+    const activeId = splitVirtualId(order[state.current]);
+    return isRealTokenId(activeId) && itemForId(activeId) ? activeId : "";
+  } catch {
+    return "";
+  }
+}
+function conditionExpiry() {
+  const mode = conditionExpirySelect.value || "manual";
+  const expiry = { mode };
+  if (["rounds", "turn-start", "turn-end"].includes(mode)) {
+    expiry.remaining = Math.max(1, Math.floor(Number(conditionDurationInput.value) || 1));
+  }
+  if (mode === "turn-start" || mode === "turn-end") {
+    const sourceId = conditionSourceSelect.value.trim();
+    const actor = conditionActorSelect.value === "source" && sourceId ? "source" : "target";
+    expiry.actor = actor;
+    if (actor === "source") {
+      expiry.actorId = sourceId;
+      const source = itemForId(sourceId);
+      if (source) expiry.actorName = displayName(source);
+    }
+  }
+  return expiry;
+}
+function conditionOptions(appliedAt) {
+  const sourceId = conditionSourceSelect.value.trim();
+  const source = itemForId(sourceId);
+  return {
+    sourceId,
+    sourceName: sourceId && source ? displayName(source) : "",
+    appliedAt,
+    expiry: conditionExpiry(),
+  };
+}
+function conditionExpirySummary() {
+  const mode = conditionExpirySelect.value || "manual";
+  if (mode === "rounds") return `per ${Math.max(1, Math.floor(Number(conditionDurationInput.value) || 1))} round`;
+  if (mode === "turn-start" || mode === "turn-end") {
+    const boundary = mode === "turn-start" ? "inizio" : "fine";
+    const actor = conditionActorSelect.value === "source" && conditionSourceSelect.value.trim()
+      ? "della fonte"
+      : "dei bersagli";
+    return `fino a ${boundary} turno ${actor}`;
+  }
+  return "rimozione manuale";
+}
+function syncConditionDetailControls() {
+  const hasCondition = mode === QUICK_HP_MODES.SAVE && !!conditionSelect.value.trim();
+  conditionDetails.hidden = !hasCondition;
+  const expiryMode = conditionExpirySelect.value || "manual";
+  const hasDuration = ["rounds", "turn-start", "turn-end"].includes(expiryMode);
+  const hasActor = expiryMode === "turn-start" || expiryMode === "turn-end";
+  conditionActorWrap.hidden = !hasActor;
+  conditionDurationWrap.hidden = !hasDuration;
+  conditionDurationCaption.textContent = expiryMode === "rounds" ? "Round" : "Occorrenze";
+  const sourceId = conditionSourceSelect.value.trim();
+  if (!sourceId && conditionActorSelect.value === "source") conditionActorSelect.value = "target";
+  conditionSourceSelect.disabled = busy || !hasCondition;
+  conditionExpirySelect.disabled = busy || !hasCondition;
+  conditionActorSelect.disabled = busy || !hasCondition || !sourceId;
+  conditionDurationInput.disabled = busy || !hasCondition || !hasDuration;
+}
+async function refreshConditionSourceOptions() {
+  const previous = conditionSourceSelect.value.trim();
+  const activeId = await currentInitiativeActorId();
+  conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
+  for (const item of targets) conditionSourceSelect.appendChild(new Option(displayName(item), item.id));
+  const next = previous && itemForId(previous) ? previous : activeId;
+  conditionSourceSelect.value = next || "";
+  if (!next) conditionActorSelect.value = "target";
+  syncConditionDetailControls();
 }
 function hasTrackedHP(item) {
   const meta = item && item.metadata && item.metadata[META_KEY];
@@ -86,9 +202,21 @@ function currentValue() {
 function factorFor(id) {
   return factors.get(id) || QUICK_HP_FACTORS.FULL;
 }
+function factorForOutcome(outcome) {
+  if (outcome === SAVE_OUTCOMES.PASSED) return QUICK_HP_FACTORS.HALF;
+  return QUICK_HP_FACTORS.FULL;
+}
 function previewFor(item) {
   const meta = item.metadata[META_KEY] || {};
-  return calculateQuickHPChange({ mode, value: currentValue(), factor: factorFor(item.id), hp: meta.hp, hpMax: meta.hpMax });
+  if (mode === QUICK_HP_MODES.SAVE && !saveOutcomes.has(item.id)) return null;
+  const outcome = saveOutcomes.get(item.id);
+  return calculateQuickHPChange({
+    mode: mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode,
+    value: mode === QUICK_HP_MODES.SAVE && outcome === SAVE_OUTCOMES.IMMUNE ? 0 : currentValue(),
+    factor: mode === QUICK_HP_MODES.SAVE ? factorForOutcome(outcome) : factorFor(item.id),
+    hp: meta.hp,
+    hpMax: meta.hpMax,
+  });
 }
 function selectedTargetItems() {
   return targets.filter((item) => selectedIds.has(item.id) && hasTrackedHP(item));
@@ -108,7 +236,7 @@ function orderedTargets() {
   return selected.concat(unselected);
 }
 function activeChanges() {
-  return selectedTargetItems().map((item) => ({ item, change: previewFor(item) })).filter((entry) => entry.change.changed);
+  return selectedTargetItems().map((item) => ({ item, change: previewFor(item) })).filter((entry) => entry.change?.changed);
 }
 function signed(value) {
   const number = Math.floor(Number(value) || 0);
@@ -117,20 +245,44 @@ function signed(value) {
 function modeLabel() {
   if (mode === QUICK_HP_MODES.HEAL) return "cura";
   if (mode === QUICK_HP_MODES.TEMP) return "HP temporanei";
+  if (mode === QUICK_HP_MODES.SAVE) return "esiti TS";
   return "danno";
 }
 function updateControls() {
   document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
-  applyButton.className = "apply " + mode;
-  applyButton.textContent = mode === QUICK_HP_MODES.HEAL ? "Applica cura" : mode === QUICK_HP_MODES.TEMP ? "Applica HP temp." : "Applica danno";
+  applyButton.className = "apply " + (mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode);
+  applyButton.textContent = mode === QUICK_HP_MODES.HEAL
+    ? "Applica cura"
+    : mode === QUICK_HP_MODES.TEMP
+      ? "Applica HP temp."
+      : mode === QUICK_HP_MODES.SAVE
+        ? "Risolvi TS"
+        : "Applica danno";
   const selected = selectedTargetItems();
   const changes = activeChanges();
   const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
-  summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
-  applyButton.disabled = busy || currentValue() <= 0 || changes.length === 0;
+  saveOptions.hidden = mode !== QUICK_HP_MODES.SAVE;
+  conditionSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
+  syncConditionDetailControls();
+  if (mode === QUICK_HP_MODES.SAVE && selected.length) {
+    const counts = outcomeOptions.map((option) => selected.filter((item) => saveOutcomes.get(item.id) === option.value).length);
+    const missing = selected.length - counts.reduce((sum, count) => sum + count, 0);
+    const condition = conditionSelect.value.trim();
+    summary.textContent = `${selected.length} bersagli - Superati ${counts[0]} - Falliti ${counts[1]} - Immune ${counts[2]}${missing ? ` - ${missing} senza esito` : ""}${condition && counts[1] ? ` · ${condition}, ${conditionExpirySummary()}` : ""}`;
+  } else {
+    summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
+  }
+  const outcomesComplete = mode !== QUICK_HP_MODES.SAVE
+    || (selected.length > 0 && selected.every((item) => saveOutcomes.has(item.id)));
+  const failedWithCondition = mode === QUICK_HP_MODES.SAVE
+    && conditionSelect.value.trim()
+    && selected.some((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED);
+  applyButton.disabled = busy || currentValue() <= 0 || !outcomesComplete
+    || (changes.length === 0 && !failedWithCondition);
   targetNameFilter.disabled = busy;
   for (const button of factionFilterButtons) button.disabled = busy;
   amountInput.disabled = busy;
+  renderBulkActions();
 }
 async function updateSceneSelection(ids, selected, replace) {
   selectionWriteDepth += 1;
@@ -193,6 +345,33 @@ function renderFactorButtons(item, disabled) {
   }
   return group;
 }
+function renderOutcomeButtons(item, disabled) {
+  const group = document.createElement("div");
+  group.className = "outcome-group";
+  const current = saveOutcomes.get(item.id);
+  for (const option of outcomeOptions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outcome" + (current === option.value ? " active" : "");
+    button.textContent = option.shortLabel;
+    button.title = option.label;
+    button.dataset.outcome = option.value;
+    button.disabled = disabled || busy;
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (disabled || busy) return;
+      saveOutcomes.set(item.id, option.value);
+      if (option.value !== SAVE_OUTCOMES.IMMUNE) factors.set(item.id, factorForOutcome(option.value));
+      if (!selectedIds.has(item.id)) {
+        selectedIds.add(item.id);
+        renderTargets();
+        void updateSceneSelection([item.id], true, false);
+      } else renderTargets();
+    });
+    group.appendChild(button);
+  }
+  return group;
+}
 function renderTargets() {
   targetList.replaceChildren();
   if (!targets.length) {
@@ -221,7 +400,10 @@ function renderTargets() {
     const disabled = !hasTrackedHP(item);
     const selected = selectedIds.has(item.id) && !disabled;
     const row = document.createElement("div");
-    row.className = "target" + (selected ? " selected" : "") + (disabled ? " disabled" : "");
+    row.className = "target"
+      + (mode === QUICK_HP_MODES.SAVE ? " save-target" : "")
+      + (selected ? " selected" : "")
+      + (disabled ? " disabled" : "");
     row.dataset.itemId = item.id;
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -242,6 +424,24 @@ function renderTargets() {
     preview.className = "hp-preview";
     if (disabled) {
       preview.textContent = "HP non tracciati";
+    } else if (mode === QUICK_HP_MODES.SAVE) {
+      const outcome = saveOutcomes.get(item.id);
+      const result = previewFor(item);
+      if (!outcome) {
+        preview.textContent = "Esito mancante";
+      } else if (outcome === SAVE_OUTCOMES.IMMUNE) {
+        preview.textContent = "Immune · nessun danno";
+      } else {
+        const before = document.createElement("span");
+        before.className = "before";
+        before.textContent = result.hp + "/" + result.hpMax + " -> ";
+        const after = document.createElement("strong");
+        after.textContent = result.afterHP;
+        const delta = document.createElement("span");
+        delta.className = "delta damage";
+        delta.textContent = " (" + (outcome === SAVE_OUTCOMES.PASSED ? "½" : "1") + ")";
+        preview.append(before, after, delta);
+      }
     } else {
       const result = previewFor(item);
       const before = document.createElement("span");
@@ -254,7 +454,12 @@ function renderTargets() {
       delta.textContent = " (" + signed(result.delta) + ")";
       preview.append(before, after, delta);
     }
-    row.append(checkbox, identity, preview, renderFactorButtons(item, disabled));
+    row.append(
+      checkbox,
+      identity,
+      preview,
+      mode === QUICK_HP_MODES.SAVE ? renderOutcomeButtons(item, disabled) : renderFactorButtons(item, disabled),
+    );
     const toggle = () => {
       if (disabled || busy) return;
       const next = !selectedIds.has(item.id);
@@ -268,7 +473,7 @@ function renderTargets() {
       toggle();
     });
     row.addEventListener("click", (event) => {
-      if (event.target.closest("[data-factor]")) return;
+      if (event.target.closest("[data-factor], [data-outcome]")) return;
       toggle();
     });
     targetList.appendChild(row);
@@ -277,14 +482,20 @@ function renderTargets() {
 }
 function renderBulkActions() {
   bulkActions.replaceChildren();
-  for (const option of factorOptions) {
+  const options = mode === QUICK_HP_MODES.SAVE ? outcomeOptions : factorOptions;
+  for (const option of options) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "small";
-    button.textContent = option.title;
-    button.title = "Imposta " + option.title.toLowerCase() + " sui bersagli selezionati";
+    button.textContent = mode === QUICK_HP_MODES.SAVE ? option.label : option.title;
+    button.title = "Imposta " + (mode === QUICK_HP_MODES.SAVE ? option.label.toLowerCase() : option.title.toLowerCase()) + " sui bersagli selezionati";
     button.addEventListener("click", () => {
-      for (const item of selectedTargetItems()) factors.set(item.id, option.value);
+      for (const item of selectedTargetItems()) {
+        if (mode === QUICK_HP_MODES.SAVE) {
+          saveOutcomes.set(item.id, option.value);
+          if (option.value !== SAVE_OUTCOMES.IMMUNE) factors.set(item.id, factorForOutcome(option.value));
+        } else factors.set(item.id, option.value);
+      }
       renderTargets();
     });
     bulkActions.appendChild(button);
@@ -312,7 +523,7 @@ function portraitUrl(item) {
   return String(item && item.image && (item.image.url || item.image.src) || item && item.asset && item.asset.image && item.asset.image.url || "");
 }
 async function showConcentrationWarnings(entries) {
-  if (mode !== QUICK_HP_MODES.DAMAGE) return;
+  if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
   const warnings = entries.filter((entry) => {
     const concentration = entry.item.metadata && entry.item.metadata[META_KEY] && entry.item.metadata[META_KEY][CONCENTRATION_KEY];
     return entry.change.requested > 0 && concentration && typeof concentration === "object" && Object.keys(concentration).length > 0;
@@ -335,8 +546,13 @@ function setBusy(next) {
 }
 async function applyOperation() {
   if (busy) return;
-  const candidateIds = selectedTargetItems().map((item) => item.id);
+  const selectedItems = selectedTargetItems();
+  const candidateIds = selectedItems.map((item) => item.id);
   if (!candidateIds.length || currentValue() <= 0) return;
+  if (mode === QUICK_HP_MODES.SAVE && !selectedItems.every((item) => saveOutcomes.has(item.id))) {
+    status.textContent = "Imposta un esito per ogni bersaglio.";
+    return;
+  }
   setBusy(true);
   status.textContent = "";
   try {
@@ -345,36 +561,75 @@ async function applyOperation() {
     const entries = liveItems.filter(hasTrackedHP).map((item) => {
       const meta = item.metadata[META_KEY] || {};
       const change = calculateQuickHPChange({
-        mode, value: currentValue(), factor: factorSnapshot.get(item.id) || QUICK_HP_FACTORS.FULL, hp: meta.hp, hpMax: meta.hpMax,
+        mode: mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode,
+        value: mode === QUICK_HP_MODES.SAVE && saveOutcomes.get(item.id) === SAVE_OUTCOMES.IMMUNE ? 0 : currentValue(),
+        factor: mode === QUICK_HP_MODES.SAVE
+          ? factorForOutcome(saveOutcomes.get(item.id))
+          : factorSnapshot.get(item.id) || QUICK_HP_FACTORS.FULL,
+        hp: meta.hp,
+        hpMax: meta.hpMax,
       });
       return { item, change };
     }).filter((entry) => entry.change.changed);
-    if (!entries.length) {
+    const conditionName = mode === QUICK_HP_MODES.SAVE ? conditionSelect.value.trim() : "";
+    const failedIds = mode === QUICK_HP_MODES.SAVE && conditionName
+      ? failedQuickHPTargetIds(liveItems.filter(hasTrackedHP), saveOutcomes)
+      : [];
+    if (!entries.length && !failedIds.length) {
       status.textContent = "Nessuna modifica da applicare.";
       return;
     }
     let recordedEntry = null;
     const ids = entries.map((entry) => entry.item.id);
-    const historyIds = await getZeroHPConditionHistoryIds(ids);
+    const historyIds = Array.from(new Set([
+      ...ids,
+      ...failedIds,
+      ...await getZeroHPConditionHistoryIds(Array.from(new Set([...ids, ...failedIds]))),
+    ]));
+    const initiativeState = mode === QUICK_HP_MODES.SAVE && failedIds.length
+      ? (await OBR.scene.getMetadata())?.[STATE_KEY] || {}
+      : null;
+    const appliedAt = initiativeState
+      ? {
+        round: Math.max(1, Number(initiativeState.round || 1)),
+        actorId: await currentInitiativeActorId() || null,
+        phase: "turn",
+        turnKey: currentInitiativeTurnKey(initiativeState),
+      }
+      : null;
+    const selectedConditionOptions = appliedAt ? conditionOptions(appliedAt) : null;
     await withItemMetaHistory({
-      kind: "hp",
-      label: modeLabel().charAt(0).toUpperCase() + modeLabel().slice(1) + " rapido: " + currentValue() + " - " + ids.length + " bersagli",
+      kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
+      label: mode === QUICK_HP_MODES.SAVE
+        ? "Risoluzione TS: " + currentValue() + " - " + new Set([...ids, ...failedIds]).size + " bersagli"
+        : modeLabel().charAt(0).toUpperCase() + modeLabel().slice(1) + " rapido: " + currentValue() + " - " + ids.length + " bersagli",
       itemIds: historyIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
       onRecorded: (entry) => { recordedEntry = entry; },
     }, async () => {
-      const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
-      await OBR.scene.items.updateItems(ids, (drafts) => {
-        for (const item of drafts) {
-          const update = updates.get(item.id);
-          if (!update) continue;
-          const previous = item.metadata && item.metadata[META_KEY] || {};
-          item.metadata = Object.assign({}, item.metadata || {}, {
-            [META_KEY]: Object.assign({}, previous, { hp: update.afterHP, hpMax: update.hpMax }),
-          });
-        }
-      });
-      await reconcileZeroHPConditionsForItems(ids);
+      if (entries.length) {
+        const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
+        await OBR.scene.items.updateItems(ids, (drafts) => {
+          for (const item of drafts) {
+            const update = updates.get(item.id);
+            if (!update) continue;
+            const previous = item.metadata && item.metadata[META_KEY] || {};
+            item.metadata = Object.assign({}, item.metadata || {}, {
+              [META_KEY]: Object.assign({}, previous, { hp: update.afterHP, hpMax: update.hpMax }),
+            });
+          }
+        });
+        await reconcileZeroHPConditionsForItems(ids);
+      }
+      if (failedIds.length) {
+        const conditionPlan = await prepareEffectsMutation(conditionMutationOperations({
+          targetIds: failedIds,
+          conditionName,
+          options: selectedConditionOptions,
+          automate: true,
+        }));
+        await commitEffectsMutationPlan(conditionPlan);
+      }
     });
     // Accoda tutti i bersagli nel batch grafico condiviso: barra e testo HP
     // esistenti vengono aggiornati insieme da una sola chiamata OBR.
@@ -398,8 +653,12 @@ async function applyOperation() {
     await showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error));
     lastEntryId = recordedEntry && recordedEntry.id || "";
     undoButton.hidden = !lastEntryId;
-    status.textContent = "Applicato a " + entries.length + " bersagli.";
+    const affectedCount = new Set([...ids, ...failedIds]).size;
+    status.textContent = mode === QUICK_HP_MODES.SAVE
+      ? "Risoluzione applicata a " + affectedCount + " bersagli."
+      : "Applicato a " + entries.length + " bersagli.";
     await loadTargets();
+    await refreshConditionSourceOptions();
   } catch (error) {
     console.error("[quick-hp] apply:", error);
     status.textContent = "Applicazione non riuscita.";
@@ -444,6 +703,17 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     renderTargets();
   });
 });
+conditionSelect.addEventListener("change", () => {
+  status.textContent = "";
+  renderTargets();
+});
+conditionSourceSelect.addEventListener("change", () => {
+  conditionActorSelect.value = conditionSourceSelect.value.trim() ? "source" : "target";
+  renderTargets();
+});
+conditionExpirySelect.addEventListener("change", renderTargets);
+conditionActorSelect.addEventListener("change", renderTargets);
+conditionDurationInput.addEventListener("input", renderTargets);
 amountInput.addEventListener("input", () => {
   amountInput.value = String(amountInput.value || "").replace(/\D+/g, "").slice(0, 5);
   status.textContent = "";
@@ -479,6 +749,7 @@ OBR.onReady(async () => {
   renderBulkActions();
   mountSelectionSync();
   await loadTargets();
+  await refreshConditionSourceOptions();
   renderTargets();
   await refreshSelectionFromScene();
   amountInput.focus();

@@ -35,7 +35,7 @@
     </style>
   </head>
   <body>
-    <main class="shell" data-glass-popover="1">
+    <main class="shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/faction-configurator">
       <div class="header">
         <h1>Fazioni automatiche</h1>
         <button class="close" type="button" data-close aria-label="Chiudi">x</button>
@@ -61,6 +61,7 @@
         <button class="danger" type="button" data-clear>Reset registro</button>
       </div>
     </main>
+    <script type="module" src="/src/popoverDrag.js"></script>
     <script type="module" src="/src/faction-configurator.ts"></script>
   </body>
 </html>

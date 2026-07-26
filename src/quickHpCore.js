@@ -2,6 +2,7 @@ export const QUICK_HP_MODES = Object.freeze({
   DAMAGE: "damage",
   HEAL: "heal",
   TEMP: "temp",
+  SAVE: "save",
 });
 
 export const QUICK_HP_FACTORS = Object.freeze({
@@ -62,4 +63,13 @@ export function calculateQuickHPChange({
     delta,
     changed: delta !== 0,
   };
+}
+
+export function failedQuickHPTargetIds(items = [], outcomes = new Map()) {
+  const readOutcome = typeof outcomes?.get === "function"
+    ? (id) => outcomes.get(id)
+    : (id) => outcomes?.[id];
+  return (Array.isArray(items) ? items : [])
+    .map((item) => item?.id)
+    .filter((id) => id && readOutcome(id) === "failed");
 }

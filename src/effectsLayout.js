@@ -189,8 +189,12 @@ function widgetNeedsUpdate(item, spec) {
   return spec.kind === "spell" && item.metadata?.[CONC_LABEL_HASHKEY] !== spellLabelHash(spec);
 }
 
+function isConditionLikeSpec(spec) {
+  return spec.kind === "condition" || spec.kind === "spell-effect";
+}
+
 function metadataForSpec(spec) {
-  if (spec.kind === "condition") {
+  if (isConditionLikeSpec(spec)) {
     return {
       [COND_WIDGET_META]: spec.targetId,
       [COND_WIDGET_KEY_META]: spec.key,
@@ -214,7 +218,9 @@ function metadataForSpec(spec) {
 }
 
 function nameForSpec(spec) {
-  if (spec.kind === "condition") return `Condizione: ${spec.text} (bg)`;
+  if (isConditionLikeSpec(spec)) {
+    return `${spec.kind === "spell-effect" ? "Effetto spell" : "Condizione"}: ${spec.text} (bg)`;
+  }
   if (spec.kind === "dot") return DOT_TEXT_NAME;
   return LABEL_BG_NAME;
 }

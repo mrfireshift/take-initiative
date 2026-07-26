@@ -10,6 +10,12 @@ function hueFromKey(key) {
 }
 
 function effectTone(effect) {
+  if (effect.kind === "buff") {
+    return { background: "#15803d", border: "#86efac" };
+  }
+  if (effect.kind === "debuff") {
+    return { background: "#b91c1c", border: "#fca5a5" };
+  }
   if (effect.kind === "concentration") {
     return { background: "#2563eb", border: "#93c5fd" };
   }

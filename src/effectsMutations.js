@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
+import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   buildEffectsMutationPlan,
   EFFECTS_MUTATION_CONDITION_VERSION,
@@ -202,6 +203,40 @@ export async function runEffectsMutation(operations = []) {
   return plan;
 }
 
+export async function tickRoundEffects(itemIds, delta) {
+  if (!itemIds?.length || !Number.isFinite(delta) || delta === 0) return new Map();
+  const ids = uniqueIds(itemIds);
+  const plan = await runEffectsMutation([{
+    type: "effects:tick-round",
+    targetIds: ids,
+    delta,
+  }]);
+  const updates = new Map();
+  const scope = new Set(ids);
+  for (const change of plan.changes) {
+    if (scope.has(change.id)) {
+      updates.set(change.id, change.after);
+    }
+  }
+  return updates;
+}
+
+export async function advanceTurnBoundaryEffects(itemIds, boundaries = []) {
+  if (!itemIds?.length || !boundaries?.length) return new Map();
+  const ids = uniqueIds(itemIds);
+  const plan = await runEffectsMutation([{
+    type: "effects:tick-boundaries",
+    targetIds: ids,
+    boundaries,
+  }]);
+  const updates = new Map();
+  const scope = new Set(ids);
+  for (const change of plan.changes) {
+    if (scope.has(change.id)) updates.set(change.id, change.after);
+  }
+  return updates;
+}
+
 export function conditionMutationOperations({
   targetIds = [],
   conditionName = "",
@@ -230,7 +265,10 @@ export function spellApplicationOperations({
   concentration = false,
   instanceId = "",
   spellId = "",
+  spellExpiry = null,
+  appliedAt = null,
   proposedConditions = [],
+  proposedEffects = [],
   conditionOptions = {},
 } = {}) {
   const targets = uniqueIds(targetIds);
@@ -248,9 +286,18 @@ export function spellApplicationOperations({
     source: caster,
     instanceId,
     spellId,
+    ...(spellExpiry ? { expiry: spellExpiry } : {}),
+    ...(appliedAt ? { appliedAt } : {}),
     replaceNames: uniqueIds([enteredName, name, storedName]),
   });
-  for (const conditionName of proposedConditions || []) {
+  for (const proposedCondition of proposedConditions || []) {
+    const conditionName = typeof proposedCondition === "string"
+      ? proposedCondition
+      : String(proposedCondition?.name || "").trim();
+    if (!conditionName) continue;
+    const proposedOptions = proposedCondition && typeof proposedCondition === "object"
+      ? proposedCondition.options || {}
+      : {};
     operations.push({
       type: "condition:add",
       targetIds: targets,
@@ -259,7 +306,21 @@ export function spellApplicationOperations({
         ...conditionOptions,
         parentEffectId: instanceId,
         type: "spell",
+        ...proposedOptions,
       },
+    });
+  }
+  for (const effect of proposedEffects || []) {
+    const effectLabel = String(effect?.label || "").trim();
+    const effectKind = effect?.kind === "buff" || effect?.kind === "debuff"
+      ? effect.kind
+      : "";
+    if (!effectLabel || !effectKind) continue;
+    operations.push({
+      type: "condition:add",
+      targetIds: targets,
+      conditionName: effectLabel,
+      options: spellEffectConditionOptions(effect, conditionOptions, instanceId),
     });
   }
   if (concentration && caster) {
