@@ -2,8 +2,13 @@
 
 **Take Initiative!** è un'estensione per [Owlbear Rodeo](https://www.owlbear.rodeo/) dedicata a D&D 5e 2014 e progettata soprattutto per il gioco **in presenza**: il Dungeon Master usa Owlbear Rodeo dal proprio computer, mentre una seconda finestra player-side viene proiettata su uno schermo orizzontale appoggiato sul tavolo.
 
-La release stabile corrente è **v1.2.0**. Il branch di stabilizzazione prepara
-**v1.3.0** e usa la versione prerelease `1.3.0-dev.0` fino alla candidata.
+La release stabile corrente è **v1.3.0**, pensata per D&D 5e 2014 e per l'uso
+in presenza con una seconda vista player proiettata sul tavolo.
+
+La release include il tracker con rendering incrementale e diagnostica, la
+console HP multi-bersaglio con Undo, la gestione degli effetti locali sulla
+mappa, il targeting geometrico delle aree e il catalogo degli incantesimi dei
+supplementi 2014.
 
 ## Cosa fa
 

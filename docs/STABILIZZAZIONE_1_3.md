@@ -4,12 +4,12 @@
 
 - Baseline: commit `4ad6caf`.
 - Branch di lavoro: `codex/v1.3-stabilization`.
-- Versione di sviluppo: `1.3.0-dev.0`.
-- Release stabile pubblicata: `v1.2.0`.
+- Versione rilasciata: `1.3.0`.
+- Release stabile pubblicata: `v1.3.0` (26 luglio 2026).
 - Inizio feature freeze: 26 luglio 2026.
 
-Il branch di stabilizzazione prepara la candidata 1.3 senza cambiare le chiavi
-metadata, il formato canonico degli HP o l'architettura del plugin.
+La stabilizzazione ha prodotto la release 1.3 senza cambiare le chiavi metadata,
+il formato canonico degli HP o l'architettura del plugin.
 
 ## Feature freeze
 
@@ -32,9 +32,9 @@ Restano fuori dal perimetro:
 
 Ogni eccezione deve essere isolata, motivata e verificata separatamente.
 
-## Gate della candidata
+## Gate della release
 
-Una candidata può essere prodotta soltanto da un worktree pulito e deve superare:
+Una release può essere prodotta soltanto da un worktree pulito e deve superare:
 
 ```bash
 npm ci
@@ -52,9 +52,9 @@ deterministica del commit. `dist/checksums.sha256` identifica ogni file consegna
 Il workflow manuale `Release artifact` ripete l'intero gate e pubblica un artifact
 GitHub nominato con versione e SHA breve. Non esegue automaticamente il deploy.
 
-## Verifiche manuali obbligatorie
+## Verifiche manuali della release
 
-Prima del tag:
+Prima del tag di una release:
 
 1. aprire una room separata da quelle di gioco;
 2. verificare tracker esteso, compatto e vista player;

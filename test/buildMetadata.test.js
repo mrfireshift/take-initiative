@@ -9,14 +9,14 @@ test("build metadata usa commit e timestamp Git come identita deterministica", (
     ["show -s --format=%ct abcdef1234567890", "1720000000"],
   ]);
   const metadata = createBuildMetadata({
-    version: "1.3.0-dev.0",
+    version: "1.3.0",
     env: {},
     runGit: (args) => responses.get(args.join(" ")) || "",
   });
 
   assert.deepEqual(metadata, {
     schemaVersion: 1,
-    version: "1.3.0-dev.0",
+    version: "1.3.0",
     commit: "abcdef1234567890",
     shortCommit: "abcdef123456",
     dirty: false,
@@ -27,7 +27,7 @@ test("build metadata usa commit e timestamp Git come identita deterministica", (
 
 test("build metadata accetta override CI e segnala una build dirty", () => {
   const metadata = createBuildMetadata({
-    version: "1.3.0-dev.0",
+    version: "1.3.0",
     env: {
       TAKE_INITIATIVE_BUILD_SHA: "1234567890abcdef",
       TAKE_INITIATIVE_BUILD_DIRTY: "true",
