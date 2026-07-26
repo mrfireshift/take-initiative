@@ -73,3 +73,18 @@ export function failedQuickHPTargetIds(items = [], outcomes = new Map()) {
     .map((item) => item?.id)
     .filter((id) => id && readOutcome(id) === "failed");
 }
+
+export function shouldHandleQuickHPUndoShortcut({
+  key = "",
+  ctrlKey = false,
+  metaKey = false,
+  shiftKey = false,
+  busy = false,
+  hasHistoryEntry = false,
+} = {}) {
+  return String(key).toLocaleLowerCase() === "z"
+    && (ctrlKey === true || metaKey === true)
+    && shiftKey !== true
+    && busy !== true
+    && hasHistoryEntry === true;
+}

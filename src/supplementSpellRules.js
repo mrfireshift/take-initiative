@@ -7,6 +7,7 @@ const nextTurn = (mode, actor = "source") => Object.freeze({
 
 const rounds = (remaining) => Object.freeze({ mode: "rounds", remaining });
 const manual = Object.freeze({ mode: "manual" });
+const concentration = Object.freeze({ mode: "concentration" });
 
 export const SUPPLEMENT_TRACKING = Object.freeze({
   "xanathar-cerimonia": Object.freeze({ trackable: true, defaultTurns: 14400 }),
@@ -76,6 +77,32 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
   "tasha-sogno-del-velo-celeste": Object.freeze({
     mode: "automatic",
     conditions: Object.freeze(["Privo di sensi"]),
+  }),
+});
+
+export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
+  "xanathar-drago-illusorio": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Spaventato",
+      expiry: rounds(10),
+      options: Object.freeze({ parentEffectId: "" }),
+    })]),
+  }),
+  "xanathar-muro-di-luce": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Accecato",
+      expiry: rounds(10),
+      options: Object.freeze({ parentEffectId: "" }),
+    })]),
+  }),
+  "xanathar-sfera-acquea": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Trattenuto",
+      expiry: concentration,
+    })]),
   }),
 });
 

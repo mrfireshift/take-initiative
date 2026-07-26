@@ -2,10 +2,15 @@ import catalogData from "./spells-srd-5.1.json" with { type: "json" };
 import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
 import {
+  AREA_SAVE_EFFECT_RULES,
+  AREA_SAVE_SPELL_ID_SET,
+} from "./areaSaveSpellRules.js";
+import {
   SUPPLEMENT_AUTOMATION,
   SUPPLEMENT_EFFECT_CHOICES,
   SUPPLEMENT_EFFECTS,
   SUPPLEMENT_EXPIRY,
+  SUPPLEMENT_SAVE_AUTOMATION,
   SUPPLEMENT_TRACKING,
 } from "./supplementSpellRules.js";
 
@@ -70,6 +75,48 @@ const AUTOMATION = Object.freeze({
   "sleep": { mode: "confirm", conditions: ["Privo di sensi"], targetMode: "area" },
   "web": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
   ...SUPPLEMENT_AUTOMATION,
+});
+
+const CONCENTRATION_EXPIRY = Object.freeze({ mode: "concentration" });
+const SAVE_AUTOMATION = Object.freeze({
+  "entangle": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Trattenuto",
+      expiry: CONCENTRATION_EXPIRY,
+    })]),
+  }),
+  "fear": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Spaventato",
+      expiry: CONCENTRATION_EXPIRY,
+    })]),
+  }),
+  "hypnotic-pattern": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([
+      Object.freeze({
+        condition: "Affascinato",
+        expiry: CONCENTRATION_EXPIRY,
+      }),
+      Object.freeze({
+        condition: "Incapacitato",
+        expiry: CONCENTRATION_EXPIRY,
+      }),
+    ]),
+  }),
+  "slow": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+  }),
+  "web": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Trattenuto",
+      expiry: CONCENTRATION_EXPIRY,
+    })]),
+  }),
+  ...SUPPLEMENT_SAVE_AUTOMATION,
 });
 
 const SPELL_EXPIRY = Object.freeze({
@@ -588,6 +635,51 @@ if (MISSING_ITALIAN_NAMES.length) {
     + MISSING_ITALIAN_NAMES.map((spell) => spell.id).join(", ")
   );
 }
+
+function effectSaveRule(effect, spell) {
+  const expiry = effect?.expiry
+    || (spell?.concentration ? CONCENTRATION_EXPIRY : spell?.expiry)
+    || null;
+  return Object.freeze({
+    condition: String(effect?.label || "").trim(),
+    effectId: String(effect?.id || "").trim(),
+    effectKind: effect?.kind,
+    effectDetail: String(effect?.detail || "").trim(),
+    ...(effect?.manualRemoval === true ? { manualRemoval: true } : {}),
+    ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
+    ...(expiry ? { expiry } : {}),
+  });
+}
+
+function areaSaveAutomationForSpell(spell, choiceValue = "") {
+  if (!spell) return null;
+  const base = SAVE_AUTOMATION[spell.id] || null;
+  const effectRule = AREA_SAVE_EFFECT_RULES[spell.id] || null;
+  const failedEffectIds = new Set(effectRule?.failedEffectIds || []);
+  const selectedChoiceId = effectRule?.choiceId || choiceValue;
+  const fixedEffects = SPELL_EFFECTS[spell.id] || [];
+  const choices = SPELL_EFFECT_CHOICES[spell.id] || [];
+  const selectedChoice = choices.find((choice) => choice.id === selectedChoiceId) || null;
+  const failedEffects = [...fixedEffects, ...(selectedChoice?.effects || [])]
+    .filter((effect) => failedEffectIds.has(effect.id))
+    .map((effect) => effectSaveRule(effect, spell))
+    .filter((rule) => rule.condition && rule.effectKind);
+
+  if (!base && !failedEffects.length) return null;
+  const trackOutcomes = Array.from(new Set([
+    ...(base?.trackOutcomes || []),
+    ...(failedEffects.length ? ["failed"] : []),
+  ]));
+  return Object.freeze({
+    ...(base || {}),
+    trackOutcomes: Object.freeze(trackOutcomes),
+    failed: Object.freeze([
+      ...(base?.failed || []),
+      ...failedEffects,
+    ]),
+  });
+}
+
 const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map((spell) => {
   const italianName = String(ITALIAN_NAMES[spell.id] || "").trim();
   const aliases = Array.from(new Set([
@@ -596,7 +688,7 @@ const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map(
   ].filter(Boolean)));
   const automation = AUTOMATION[spell.id] || null;
   const exactSelf = String(spell.range || "").trim().toLocaleLowerCase() === "self";
-  return Object.freeze({
+  const normalizedSpell = {
     ...spell,
     aliases: Object.freeze([...aliases]),
     displayName: italianName || aliases[0] || spell.name,
@@ -606,6 +698,10 @@ const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map(
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
     expiry: SPELL_EXPIRY[spell.id] || null,
+  };
+  return Object.freeze({
+    ...normalizedSpell,
+    saveAutomation: areaSaveAutomationForSpell(normalizedSpell),
   });
 });
 
@@ -634,12 +730,30 @@ export function getTrackableSpellOptions() {
   }));
 }
 
+export function getAreaSaveSpellOptions() {
+  return ALL_SPELLS
+    .filter((spell) => AREA_SAVE_SPELL_ID_SET.has(spell.id))
+    .map((spell) => ({
+      id: spell.id,
+      value: spell.catalogLabel || spell.displayName,
+      label: spell.catalogLabel || spell.displayName,
+      level: spell.level,
+      concentration: spell.concentration === true,
+      automated: !!spell.saveAutomation,
+    }));
+}
+
 export function getSpellCatalog() {
   return ALL_SPELLS.map((spell) => ({ ...spell }));
 }
 
 export function getSpellDefinition(value) {
   return BY_LOOKUP.get(normalizeLookup(value)) || null;
+}
+
+export function getAreaSaveAutomation(value, choiceValue = "") {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  return areaSaveAutomationForSpell(spell, choiceValue);
 }
 
 export function getSpellEffectChoices(value) {

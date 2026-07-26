@@ -3,6 +3,7 @@ import { ID } from "./constants.js";
 import { CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
 import { spellEffectConditionOptions } from "./spellEffectCore.js";
+import { saveSpellResolutionOperations } from "./saveSpellOperationsCore.js";
 import {
   buildEffectsMutationPlan,
   EFFECTS_MUTATION_CONDITION_VERSION,
@@ -338,6 +339,8 @@ export function spellApplicationOperations({
   }
   return operations;
 }
+
+export { saveSpellResolutionOperations };
 
 globalThis.__tbpEffectsMutations = {
   reset: resetEffectsMutationDiagnostics,

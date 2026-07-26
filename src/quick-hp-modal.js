@@ -8,18 +8,27 @@ import {
   QUICK_HP_MODES,
   calculateQuickHPChange,
   failedQuickHPTargetIds,
+  shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST } from "./conditions.js";
 import {
   commitEffectsMutationPlan,
   conditionMutationOperations,
   prepareEffectsMutation,
+  saveSpellResolutionOperations,
 } from "./effectsMutations.js";
 import {
   getZeroHPConditionHistoryIds,
   reconcileZeroHPConditionsForItems,
 } from "./hpConditionAutomation.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { createSpellInstanceId } from "./spells.js";
+import {
+  getAreaSaveAutomation,
+  getAreaSaveSpellOptions,
+  getSpellDefinition,
+} from "./spells-srd.js";
+import { normalizeSaveSpellAutomation, resolveSaveSpellResolution } from "./saveSpellCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -65,10 +74,20 @@ const applyButton = document.getElementById("apply");
 const undoButton = document.getElementById("undo");
 const targetNameFilter = document.getElementById("targetNameFilter");
 const saveOptions = document.getElementById("saveOptions");
+const spellSelect = document.getElementById("spellSelect");
+const spellSearch = document.getElementById("spellSearch");
+const spellMenuToggle = document.getElementById("spellMenuToggle");
+const spellMenu = document.getElementById("spellMenu");
+const spellRuleSummary = document.getElementById("spellRuleSummary");
+const manualConditionWrap = document.getElementById("manualConditionWrap");
 const conditionSelect = document.getElementById("conditionSelect");
 const conditionDetails = document.getElementById("conditionDetails");
+const concentrationNotice = document.getElementById("concentrationNotice");
+const conditionSourceWrap = document.getElementById("conditionSourceWrap");
 const conditionSourceSelect = document.getElementById("conditionSource");
+const conditionExpiryWrap = document.getElementById("conditionExpiryWrap");
 const conditionExpirySelect = document.getElementById("conditionExpiry");
+const conditionConcentrationExpiryOption = conditionExpirySelect.querySelector("[value='concentration']");
 const conditionActorWrap = document.getElementById("conditionActorWrap");
 const conditionActorSelect = document.getElementById("conditionActor");
 const conditionDurationWrap = document.getElementById("conditionDurationWrap");
@@ -76,12 +95,35 @@ const conditionDurationCaption = document.getElementById("conditionDurationCapti
 const conditionDurationInput = document.getElementById("conditionDuration");
 const factionFilterButtons = Array.from(document.querySelectorAll("[data-hp-faction]"));
 const activeFactionFilters = new Set();
+const spellIdsBySearchLabel = new Map();
+const spellSearchEntries = [];
 
 for (const conditionName of APPLICABLE_CONDITION_LIST) {
   const option = document.createElement("option");
   option.value = conditionName;
   option.textContent = conditionName;
   conditionSelect.appendChild(option);
+}
+const areaSaveSpells = getAreaSaveSpellOptions();
+const spellsByLevel = new Map();
+for (const spell of areaSaveSpells) {
+  const level = Math.max(0, Math.floor(Number(spell.level) || 0));
+  if (!spellsByLevel.has(level)) spellsByLevel.set(level, []);
+  spellsByLevel.get(level).push(spell);
+}
+for (const [level, spells] of [...spellsByLevel.entries()].sort((a, b) => a[0] - b[0])) {
+  const group = document.createElement("optgroup");
+  group.label = level === 0 ? "Trucchetti" : `Livello ${level}`;
+  for (const spell of spells) {
+    const markers = [spell.concentration ? "C" : "", spell.automated ? "auto" : ""].filter(Boolean);
+    const option = document.createElement("option");
+    option.value = spell.id;
+    option.textContent = `${spell.label}${markers.length ? ` (${markers.join(", ")})` : ""}`;
+    group.appendChild(option);
+    spellSearchEntries.push({ id: spell.id, label: option.textContent, level });
+    spellIdsBySearchLabel.set(option.textContent.trim().toLocaleLowerCase("it"), spell.id);
+  }
+  spellSelect.appendChild(group);
 }
 
 function splitVirtualId(value) {
@@ -105,6 +147,70 @@ async function currentInitiativeActorId() {
   } catch {
     return "";
   }
+}
+function selectedAreaSpell() {
+  return getSpellDefinition(spellSelect.value) || null;
+}
+function closeSpellMenu() {
+  spellMenu.hidden = true;
+  spellSearch.setAttribute("aria-expanded", "false");
+  spellMenuToggle.setAttribute("aria-expanded", "false");
+}
+function openSpellMenu(query = "") {
+  const normalizedQuery = query.trim().toLocaleLowerCase("it");
+  const matches = spellSearchEntries.filter((entry) =>
+    !normalizedQuery || entry.label.toLocaleLowerCase("it").includes(normalizedQuery)
+  );
+  spellMenu.replaceChildren();
+  const entriesByLevel = new Map();
+  for (const entry of matches) {
+    if (!entriesByLevel.has(entry.level)) entriesByLevel.set(entry.level, []);
+    entriesByLevel.get(entry.level).push(entry);
+  }
+  for (const [level, entries] of entriesByLevel) {
+    const group = document.createElement("div");
+    group.className = "spell-menu-group";
+    const heading = document.createElement("div");
+    heading.className = "spell-menu-level";
+    heading.textContent = level === 0 ? "Trucchetti" : `Livello ${level}`;
+    group.appendChild(heading);
+    for (const entry of entries) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "spell-menu-option" + (spellSelect.value === entry.id ? " active" : "");
+      button.textContent = entry.label;
+      button.title = entry.label;
+      button.dataset.spellId = entry.id;
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", String(spellSelect.value === entry.id));
+      button.addEventListener("click", () => {
+        spellSearch.value = entry.label;
+        spellSelect.value = entry.id;
+        closeSpellMenu();
+        spellSelect.dispatchEvent(new Event("change"));
+        spellSearch.focus();
+      });
+      group.appendChild(button);
+    }
+    spellMenu.appendChild(group);
+  }
+  if (!matches.length) {
+    const empty = document.createElement("div");
+    empty.className = "spell-menu-empty";
+    empty.textContent = "Nessun incantesimo trovato.";
+    spellMenu.appendChild(empty);
+  }
+  spellMenu.hidden = false;
+  spellSearch.setAttribute("aria-expanded", "true");
+  spellMenuToggle.setAttribute("aria-expanded", "true");
+}
+function syncSpellSelectionFromSearch(settle = false) {
+  const searchLabel = spellSearch.value.trim().toLocaleLowerCase("it");
+  const nextId = searchLabel ? spellIdsBySearchLabel.get(searchLabel) || "" : "";
+  if (settle && searchLabel && !nextId) spellSearch.value = "";
+  if (spellSelect.value === nextId) return;
+  spellSelect.value = nextId;
+  spellSelect.dispatchEvent(new Event("change"));
 }
 function conditionExpiry() {
   const mode = conditionExpirySelect.value || "manual";
@@ -134,38 +240,120 @@ function conditionOptions(appliedAt) {
     expiry: conditionExpiry(),
   };
 }
-function conditionExpirySummary() {
-  const mode = conditionExpirySelect.value || "manual";
-  if (mode === "rounds") return `per ${Math.max(1, Math.floor(Number(conditionDurationInput.value) || 1))} round`;
+function expirySummary(expiry = {}) {
+  const mode = String(expiry?.mode || "manual");
+  const remaining = Math.max(1, Math.floor(Number(expiry?.remaining) || 1));
+  if (mode === "concentration") return "fino a fine concentrazione";
+  if (mode === "rounds") return `per ${remaining} round`;
   if (mode === "turn-start" || mode === "turn-end") {
     const boundary = mode === "turn-start" ? "inizio" : "fine";
-    const actor = conditionActorSelect.value === "source" && conditionSourceSelect.value.trim()
-      ? "della fonte"
-      : "dei bersagli";
+    const actor = expiry?.actor === "source" ? "della fonte" : "del bersaglio";
     return `fino a ${boundary} turno ${actor}`;
   }
   return "rimozione manuale";
 }
+function conditionExpirySummary() {
+  return expirySummary(conditionExpiry()).replace("del bersaglio", "dei bersagli");
+}
+function currentSaveAutomation(spell) {
+  const catalogAutomation = getAreaSaveAutomation(spell);
+  if (catalogAutomation) return catalogAutomation;
+  const conditionName = conditionSelect.value.trim();
+  return {
+    trackOutcomes: conditionName ? [SAVE_OUTCOMES.FAILED] : [],
+    failed: conditionName ? [{ condition: conditionName, expiry: conditionExpiry() }] : [],
+  };
+}
+function updateSpellRuleSummary() {
+  const spell = selectedAreaSpell();
+  const automation = getAreaSaveAutomation(spell);
+  if (!automation) {
+    spellRuleSummary.hidden = true;
+    spellRuleSummary.textContent = "";
+    return;
+  }
+  const normalized = normalizeSaveSpellAutomation(automation);
+  const labels = {
+    [SAVE_OUTCOMES.PASSED]: "Superato",
+    [SAVE_OUTCOMES.FAILED]: "Fallito",
+    [SAVE_OUTCOMES.IMMUNE]: "Immune",
+  };
+  const lines = [];
+  for (const outcome of Object.values(SAVE_OUTCOMES)) {
+    const rules = normalized.rulesByOutcome[outcome] || [];
+    if (!rules.length) continue;
+    lines.push(`${labels[outcome]}: ${rules.map((rule) => {
+      const duration = rule.options?.expiry ? ` (${expirySummary(rule.options.expiry)})` : "";
+      return rule.conditionName + duration;
+    }).join(", ")}`);
+  }
+  spellRuleSummary.hidden = !lines.length;
+  spellRuleSummary.textContent = lines.length ? lines.join("\n") : "";
+}
+function updateConcentrationNotice() {
+  const spell = selectedAreaSpell();
+  if (!spell?.concentration || mode !== QUICK_HP_MODES.SAVE) {
+    concentrationNotice.hidden = true;
+    concentrationNotice.textContent = "";
+    return;
+  }
+  concentrationNotice.hidden = false;
+  const casterId = conditionSourceSelect.value.trim();
+  const caster = itemForId(casterId);
+  if (!casterId || !caster) {
+    concentrationNotice.textContent = "Seleziona il caster: è necessario per registrare la concentrazione.";
+    return;
+  }
+  const concentration = caster.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
+  const names = concentration && typeof concentration === "object"
+    ? Array.from(new Set(Object.entries(concentration).map(([key, entry]) =>
+      String(entry?.name || key || "").trim()
+    ).filter(Boolean)))
+    : [];
+  concentrationNotice.textContent = names.length
+    ? `${displayName(caster)} interromperà la concentrazione su ${names.join(", ")}.`
+    : `La concentrazione verrà registrata su ${displayName(caster)}.`;
+}
 function syncConditionDetailControls() {
-  const hasCondition = mode === QUICK_HP_MODES.SAVE && !!conditionSelect.value.trim();
-  conditionDetails.hidden = !hasCondition;
+  const spell = selectedAreaSpell();
+  const hasCatalogRules = !!getAreaSaveAutomation(spell);
+  const hasManualCondition = mode === QUICK_HP_MODES.SAVE
+    && !hasCatalogRules
+    && !!conditionSelect.value.trim();
+  const needsSource = mode === QUICK_HP_MODES.SAVE && (!!spell || hasManualCondition);
+  manualConditionWrap.hidden = hasCatalogRules;
+  conditionDetails.hidden = !needsSource;
+  conditionSourceWrap.hidden = !needsSource;
+  conditionExpiryWrap.hidden = !hasManualCondition;
+  conditionConcentrationExpiryOption.hidden = !spell?.concentration;
+  conditionConcentrationExpiryOption.disabled = !spell?.concentration;
+  if (!spell?.concentration && conditionExpirySelect.value === "concentration") {
+    conditionExpirySelect.value = "manual";
+  }
   const expiryMode = conditionExpirySelect.value || "manual";
-  const hasDuration = ["rounds", "turn-start", "turn-end"].includes(expiryMode);
-  const hasActor = expiryMode === "turn-start" || expiryMode === "turn-end";
+  const hasDuration = hasManualCondition && ["rounds", "turn-start", "turn-end"].includes(expiryMode);
+  const hasActor = hasManualCondition && (expiryMode === "turn-start" || expiryMode === "turn-end");
   conditionActorWrap.hidden = !hasActor;
   conditionDurationWrap.hidden = !hasDuration;
   conditionDurationCaption.textContent = expiryMode === "rounds" ? "Round" : "Occorrenze";
   const sourceId = conditionSourceSelect.value.trim();
   if (!sourceId && conditionActorSelect.value === "source") conditionActorSelect.value = "target";
-  conditionSourceSelect.disabled = busy || !hasCondition;
-  conditionExpirySelect.disabled = busy || !hasCondition;
-  conditionActorSelect.disabled = busy || !hasCondition || !sourceId;
-  conditionDurationInput.disabled = busy || !hasCondition || !hasDuration;
+  spellSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
+  spellSearch.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
+  spellMenuToggle.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
+  if (spellSearch.disabled) closeSpellMenu();
+  conditionSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE || hasCatalogRules;
+  conditionSourceSelect.disabled = busy || !needsSource;
+  conditionExpirySelect.disabled = busy || !hasManualCondition;
+  conditionActorSelect.disabled = busy || !hasActor || !sourceId;
+  conditionDurationInput.disabled = busy || !hasDuration;
+  updateSpellRuleSummary();
+  updateConcentrationNotice();
 }
 async function refreshConditionSourceOptions() {
   const previous = conditionSourceSelect.value.trim();
   const activeId = await currentInitiativeActorId();
-  conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
+  conditionSourceSelect.replaceChildren(new Option("Nessun caster / fonte", ""));
   for (const item of targets) conditionSourceSelect.appendChild(new Option(displayName(item), item.id));
   const next = previous && itemForId(previous) ? previous : activeId;
   conditionSourceSelect.value = next || "";
@@ -218,8 +406,11 @@ function previewFor(item) {
     hpMax: meta.hpMax,
   });
 }
+function targetSelectable(item) {
+  return mode === QUICK_HP_MODES.SAVE || hasTrackedHP(item);
+}
 function selectedTargetItems() {
-  return targets.filter((item) => selectedIds.has(item.id) && hasTrackedHP(item));
+  return targets.filter((item) => selectedIds.has(item.id) && targetSelectable(item));
 }
 function sameSelection(nextIds) {
   if (nextIds.size !== selectedIds.size) return false;
@@ -230,13 +421,16 @@ function orderedTargets() {
   const selected = [];
   const unselected = [];
   for (const item of targets) {
-    if (selectedIds.has(item.id) && hasTrackedHP(item)) selected.push(item);
+    if (selectedIds.has(item.id) && targetSelectable(item)) selected.push(item);
     else unselected.push(item);
   }
   return selected.concat(unselected);
 }
 function activeChanges() {
-  return selectedTargetItems().map((item) => ({ item, change: previewFor(item) })).filter((entry) => entry.change?.changed);
+  return selectedTargetItems()
+    .filter(hasTrackedHP)
+    .map((item) => ({ item, change: previewFor(item) }))
+    .filter((entry) => entry.change?.changed);
 }
 function signed(value) {
   const number = Math.floor(Number(value) || 0);
@@ -247,6 +441,17 @@ function modeLabel() {
   if (mode === QUICK_HP_MODES.TEMP) return "HP temporanei";
   if (mode === QUICK_HP_MODES.SAVE) return "esiti TS";
   return "danno";
+}
+function currentSpellResolution(selected) {
+  const spell = selectedAreaSpell();
+  if (!spell) return null;
+  return resolveSaveSpellResolution({
+    spell,
+    casterId: conditionSourceSelect.value.trim(),
+    targetIds: selected.map((item) => item.id),
+    outcomes: saveOutcomes,
+    automation: currentSaveAutomation(spell),
+  });
 }
 function updateControls() {
   document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
@@ -262,23 +467,33 @@ function updateControls() {
   const changes = activeChanges();
   const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
   saveOptions.hidden = mode !== QUICK_HP_MODES.SAVE;
-  conditionSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
   syncConditionDetailControls();
+  const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
+  const spellResolution = spell ? currentSpellResolution(selected) : null;
   if (mode === QUICK_HP_MODES.SAVE && selected.length) {
     const counts = outcomeOptions.map((option) => selected.filter((item) => saveOutcomes.get(item.id) === option.value).length);
     const missing = selected.length - counts.reduce((sum, count) => sum + count, 0);
-    const condition = conditionSelect.value.trim();
+    const condition = !getAreaSaveAutomation(spell) ? conditionSelect.value.trim() : "";
     summary.textContent = `${selected.length} bersagli - Superati ${counts[0]} - Falliti ${counts[1]} - Immune ${counts[2]}${missing ? ` - ${missing} senza esito` : ""}${condition && counts[1] ? ` · ${condition}, ${conditionExpirySummary()}` : ""}`;
   } else {
     summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
   }
   const outcomesComplete = mode !== QUICK_HP_MODES.SAVE
     || (selected.length > 0 && selected.every((item) => saveOutcomes.has(item.id)));
-  const failedWithCondition = mode === QUICK_HP_MODES.SAVE
+  const failedWithManualCondition = mode === QUICK_HP_MODES.SAVE
+    && !spell
     && conditionSelect.value.trim()
     && selected.some((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED);
-  applyButton.disabled = busy || currentValue() <= 0 || !outcomesComplete
-    || (changes.length === 0 && !failedWithCondition);
+  const hasSpellEffect = !!spellResolution?.valid
+    && (spellResolution.spellTargetIds.length > 0 || spellResolution.conditionApplications.length > 0);
+  const hasSaveEffect = failedWithManualCondition || hasSpellEffect;
+  const casterMissing = !!spell?.concentration && !conditionSourceSelect.value.trim();
+  applyButton.disabled = busy
+    || !outcomesComplete
+    || casterMissing
+    || (mode === QUICK_HP_MODES.SAVE
+      ? (changes.length === 0 && !hasSaveEffect) || (currentValue() <= 0 && !hasSaveEffect)
+      : currentValue() <= 0 || changes.length === 0);
   targetNameFilter.disabled = busy;
   for (const button of factionFilterButtons) button.disabled = busy;
   amountInput.disabled = busy;
@@ -298,6 +513,7 @@ function setSelectedFromScene(ids) {
   const available = new Set(targets.map((item) => item.id));
   const nextIds = new Set((Array.isArray(ids) ? ids : []).map(splitVirtualId).filter((id) => available.has(id)));
   if (sameSelection(nextIds)) return;
+  for (const id of selectedIds) if (!nextIds.has(id)) saveOutcomes.delete(id);
   selectedIds = nextIds;
   renderTargets();
 }
@@ -397,7 +613,8 @@ function renderTargets() {
     return;
   }
   for (const item of visibleTargets) {
-    const disabled = !hasTrackedHP(item);
+    const trackedHP = hasTrackedHP(item);
+    const disabled = mode !== QUICK_HP_MODES.SAVE && !trackedHP;
     const selected = selectedIds.has(item.id) && !disabled;
     const row = document.createElement("div");
     row.className = "target"
@@ -422,8 +639,10 @@ function renderTargets() {
     identity.append(faction, name);
     const preview = document.createElement("div");
     preview.className = "hp-preview";
-    if (disabled) {
-      preview.textContent = "HP non tracciati";
+    if (!trackedHP) {
+      preview.textContent = mode === QUICK_HP_MODES.SAVE
+        ? "HP non tracciati · solo effetti"
+        : "HP non tracciati";
     } else if (mode === QUICK_HP_MODES.SAVE) {
       const outcome = saveOutcomes.get(item.id);
       const result = previewFor(item);
@@ -463,7 +682,11 @@ function renderTargets() {
     const toggle = () => {
       if (disabled || busy) return;
       const next = !selectedIds.has(item.id);
-      if (next) selectedIds.add(item.id); else selectedIds.delete(item.id);
+      if (next) selectedIds.add(item.id);
+      else {
+        selectedIds.delete(item.id);
+        saveOutcomes.delete(item.id);
+      }
       renderTargets();
       void updateSceneSelection([item.id], next, false);
     };
@@ -548,7 +771,7 @@ async function applyOperation() {
   if (busy) return;
   const selectedItems = selectedTargetItems();
   const candidateIds = selectedItems.map((item) => item.id);
-  if (!candidateIds.length || currentValue() <= 0) return;
+  if (!candidateIds.length) return;
   if (mode === QUICK_HP_MODES.SAVE && !selectedItems.every((item) => saveOutcomes.has(item.id))) {
     status.textContent = "Imposta un esito per ogni bersaglio.";
     return;
@@ -571,22 +794,11 @@ async function applyOperation() {
       });
       return { item, change };
     }).filter((entry) => entry.change.changed);
-    const conditionName = mode === QUICK_HP_MODES.SAVE ? conditionSelect.value.trim() : "";
-    const failedIds = mode === QUICK_HP_MODES.SAVE && conditionName
-      ? failedQuickHPTargetIds(liveItems.filter(hasTrackedHP), saveOutcomes)
-      : [];
-    if (!entries.length && !failedIds.length) {
-      status.textContent = "Nessuna modifica da applicare.";
-      return;
-    }
-    let recordedEntry = null;
-    const ids = entries.map((entry) => entry.item.id);
-    const historyIds = Array.from(new Set([
-      ...ids,
-      ...failedIds,
-      ...await getZeroHPConditionHistoryIds(Array.from(new Set([...ids, ...failedIds]))),
-    ]));
-    const initiativeState = mode === QUICK_HP_MODES.SAVE && failedIds.length
+    const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
+    const conditionName = mode === QUICK_HP_MODES.SAVE && !getAreaSaveAutomation(spell)
+      ? conditionSelect.value.trim()
+      : "";
+    const initiativeState = mode === QUICK_HP_MODES.SAVE
       ? (await OBR.scene.getMetadata())?.[STATE_KEY] || {}
       : null;
     const appliedAt = initiativeState
@@ -597,11 +809,67 @@ async function applyOperation() {
         turnKey: currentInitiativeTurnKey(initiativeState),
       }
       : null;
-    const selectedConditionOptions = appliedAt ? conditionOptions(appliedAt) : null;
+    let effectOperations = [];
+    let effectSubjectIds = [];
+    if (mode === QUICK_HP_MODES.SAVE && spell) {
+      const resolution = resolveSaveSpellResolution({
+        spell,
+        casterId: conditionSourceSelect.value.trim(),
+        targetIds: liveItems.map((item) => item.id),
+        outcomes: saveOutcomes,
+        automation: currentSaveAutomation(spell),
+      });
+      if (!resolution.valid) {
+        status.textContent = resolution.errors.includes("caster-required")
+          ? "Seleziona il caster dello spell concentrato."
+          : resolution.errors.includes("outcomes-incomplete")
+            ? "Imposta un esito per ogni bersaglio."
+            : "La configurazione dello spell non è completa.";
+        return;
+      }
+      effectSubjectIds = Array.from(new Set([
+        ...resolution.spellTargetIds,
+        ...resolution.conditionApplications.flatMap((application) => application.targetIds),
+      ]));
+      const caster = itemForId(resolution.casterId);
+      effectOperations = saveSpellResolutionOperations({
+        resolution,
+        instanceId: createSpellInstanceId(),
+        casterName: caster ? displayName(caster) : "",
+        turns: spell.defaultTurns || 1,
+        spellExpiry: spell.concentration ? { mode: "concentration" } : spell.expiry || null,
+        appliedAt,
+      });
+    } else if (mode === QUICK_HP_MODES.SAVE && conditionName) {
+      effectSubjectIds = failedQuickHPTargetIds(liveItems, saveOutcomes);
+      if (effectSubjectIds.length) {
+        effectOperations = conditionMutationOperations({
+          targetIds: effectSubjectIds,
+          conditionName,
+          options: conditionOptions(appliedAt),
+          automate: true,
+        });
+      }
+    }
+    const previewEffectPlan = effectOperations.length
+      ? await prepareEffectsMutation(effectOperations)
+      : null;
+    if (!entries.length && !previewEffectPlan?.changedIds?.length) {
+      status.textContent = "Nessuna modifica da applicare.";
+      return;
+    }
+    let recordedEntry = null;
+    const ids = entries.map((entry) => entry.item.id);
+    const affectedIds = Array.from(new Set([...ids, ...effectSubjectIds]));
+    const historyIds = Array.from(new Set([
+      ...ids,
+      ...(previewEffectPlan?.changedIds || []),
+      ...await getZeroHPConditionHistoryIds(ids),
+    ]));
     await withItemMetaHistory({
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
-        ? "Risoluzione TS: " + currentValue() + " - " + new Set([...ids, ...failedIds]).size + " bersagli"
+        ? "Risoluzione TS: " + currentValue() + (spell ? " · " + spell.displayName : "") + " - " + affectedIds.length + " bersagli"
         : modeLabel().charAt(0).toUpperCase() + modeLabel().slice(1) + " rapido: " + currentValue() + " - " + ids.length + " bersagli",
       itemIds: historyIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
@@ -621,14 +889,11 @@ async function applyOperation() {
         });
         await reconcileZeroHPConditionsForItems(ids);
       }
-      if (failedIds.length) {
-        const conditionPlan = await prepareEffectsMutation(conditionMutationOperations({
-          targetIds: failedIds,
-          conditionName,
-          options: selectedConditionOptions,
-          automate: true,
-        }));
-        await commitEffectsMutationPlan(conditionPlan);
+      if (effectOperations.length) {
+        // Ricalcola sullo stato post-HP senza cambiare gli ID preparati usati
+        // per delimitare la history (lo zero HP può aggiungere condizioni).
+        const effectPlan = await prepareEffectsMutation(previewEffectPlan?.operations || effectOperations);
+        await commitEffectsMutationPlan(effectPlan);
       }
     });
     // Accoda tutti i bersagli nel batch grafico condiviso: barra e testo HP
@@ -653,7 +918,7 @@ async function applyOperation() {
     await showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error));
     lastEntryId = recordedEntry && recordedEntry.id || "";
     undoButton.hidden = !lastEntryId;
-    const affectedCount = new Set([...ids, ...failedIds]).size;
+    const affectedCount = affectedIds.length;
     status.textContent = mode === QUICK_HP_MODES.SAVE
       ? "Risoluzione applicata a " + affectedCount + " bersagli."
       : "Applicato a " + entries.length + " bersagli.";
@@ -703,6 +968,31 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     renderTargets();
   });
 });
+spellSelect.addEventListener("change", () => {
+  status.textContent = "";
+  renderTargets();
+});
+spellSearch.addEventListener("input", () => {
+  syncSpellSelectionFromSearch(false);
+  openSpellMenu(spellSearch.value);
+});
+spellSearch.addEventListener("change", () => syncSpellSelectionFromSearch(true));
+spellSearch.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeSpellMenu();
+  else if (event.key === "ArrowDown" && spellMenu.hidden) {
+    event.preventDefault();
+    openSpellMenu(spellSearch.value);
+  }
+});
+spellMenuToggle.addEventListener("click", () => {
+  if (spellMenu.hidden) {
+    openSpellMenu("");
+    spellSearch.focus();
+  } else closeSpellMenu();
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".spell-combobox")) closeSpellMenu();
+});
 conditionSelect.addEventListener("change", () => {
   status.textContent = "";
   renderTargets();
@@ -722,6 +1012,19 @@ amountInput.addEventListener("input", () => {
 amountInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !applyButton.disabled) void applyOperation();
 });
+window.addEventListener("keydown", (event) => {
+  if (!shouldHandleQuickHPUndoShortcut({
+    key: event.key,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    shiftKey: event.shiftKey,
+    busy,
+    hasHistoryEntry: !!lastEntryId,
+  })) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  void undoLastOperation();
+}, true);
 targetNameFilter.addEventListener("input", renderTargets);
 for (const button of factionFilterButtons) {
   button.addEventListener("click", () => {

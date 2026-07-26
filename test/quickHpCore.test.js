@@ -6,6 +6,7 @@ import {
   calculateQuickHPChange,
   failedQuickHPTargetIds,
   scaledQuickHPAmount,
+  shouldHandleQuickHPUndoShortcut,
 } from "../src/quickHpCore.js";
 
 test("rounds half damage down", () => {
@@ -48,4 +49,29 @@ test("seleziona soltanto i bersagli falliti dagli esiti TS", () => {
     failedQuickHPTargetIds([{ id: "passed" }, { id: "failed" }, { id: "immune" }], outcomes),
     ["failed"],
   );
+});
+
+test("Ctrl+Z usa l'undo atomico della Console HP solo quando disponibile", () => {
+  assert.equal(shouldHandleQuickHPUndoShortcut({
+    key: "z",
+    ctrlKey: true,
+    hasHistoryEntry: true,
+  }), true);
+  assert.equal(shouldHandleQuickHPUndoShortcut({
+    key: "Z",
+    metaKey: true,
+    hasHistoryEntry: true,
+  }), true);
+  assert.equal(shouldHandleQuickHPUndoShortcut({
+    key: "z",
+    ctrlKey: true,
+    shiftKey: true,
+    hasHistoryEntry: true,
+  }), false);
+  assert.equal(shouldHandleQuickHPUndoShortcut({
+    key: "z",
+    ctrlKey: true,
+    busy: true,
+    hasHistoryEntry: true,
+  }), false);
 });
