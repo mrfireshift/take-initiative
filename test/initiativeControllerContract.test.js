@@ -34,7 +34,7 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
   ]);
 });
 
-test("HP immediati e refresh globale restano due percorsi separati", () => {
+test("HP immediati e rendering incrementale restano separati dal fallback globale", () => {
   const hpSection = sourceSection(
     "subscribeSceneItemChanges(({ items }) => {",
     "subscribeSceneItemChanges(async (event) => {"
@@ -47,9 +47,25 @@ test("HP immediati e refresh globale restano due percorsi separati", () => {
     "// \u2014\u2014\u2014 Auto-ripristino HP"
   );
   assertOrdered(trackerSection, [
+    "const renderPlan = planIncrementalTrackerItemRender(event);",
+    "__renderIncrementalTrackerItems(event, renderPlan, \"items\")",
     "await reconcileStateWithItems();",
     "await enforceUniqueNamePrefixes();",
     "await renderAll(",
+  ]);
+});
+
+test("il rendering incrementale aggiorna la cache e conserva il fallback strutturale", () => {
+  const section = sourceSection(
+    "function __cachedEntriesForIncrementalItems(items, state) {",
+    "async function renderAll(reason = \"unspecified\") {"
+  );
+  assertOrdered(section, [
+    "entryFromSceneItem(item)",
+    "expandParagonEntries([entry], state)",
+    "renderTrack(cached.ordered, state",
+    "__activeLabelEntriesById = cached.nextById;",
+    "__initiativeDiag(\"render:incremental-committed\"",
   ]);
 });
 

@@ -52,6 +52,7 @@ import {
   initiativeStateDigest,
   isCurrentRenderRevision,
 } from "./initiativeRenderCore.js";
+import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
 import {
   applyClassicCardFrame,
@@ -275,6 +276,8 @@ let __navigationRevision = 0;
 let __lastNavigationAt = 0;
 let __renderRequestRevision = 0;
 let __latestAcceptedRenderRevision = 0;
+let __pendingIncrementalRenderTimer = null;
+const __pendingIncrementalTrackerItemIds = new Set();
 let __lastInitiativeMetadataDigest;
 let __lastQueuedInitiativeMetadataDigest;
 const __initiativeMetadataProcessor = createSerialProcessor();
@@ -3219,7 +3222,53 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       return null;
     }
 
-// ===== Leggi token tracciati (senza ordinare qui)
+function entryFromSceneItem(it) {
+  const meta = it?.metadata?.[META_KEY];
+  if (!it?.id || !meta || meta.inInitiative !== true) return null;
+  return {
+    conditions: __safeConditions(meta.conditions),
+    id: it.id,
+    name: it.name || "Unnamed",
+    position: it.position ? { x: it.position.x, y: it.position.y } : null,
+    initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
+    initTouched: meta.initTouched === true,
+    portrait: getTokenImageUrl(it),
+    attitude: meta.attitude || "ally",
+    hp: (meta.hp ?? null),
+    hpMax: (meta.hpMax ?? null),
+    isEpic: !!meta.epic,
+    paragonActions:
+      (meta.paragon && Number(meta.paragon.actions) > 0)
+        ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
+        : 0,
+    legendary:
+      (meta.legendary && typeof meta.legendary === "object")
+        ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
+        : { max: 0, current: 0 },
+    legendaryResistances: (() => {
+      if (!meta.legendary || Number(meta.legendary.max) <= 0) return { max: 0, current: 0 };
+      const stored = meta.legendaryResistances;
+      const max = stored && typeof stored === "object"
+        ? Math.max(0, Math.floor(Number(stored.max) || 0))
+        : DEFAULT_LEGENDARY_RESISTANCES;
+      const current = stored && typeof stored === "object"
+        ? Math.max(0, Math.min(max, Math.floor(Number(stored.current) || 0)))
+        : max;
+      return { max, current };
+    })(),
+    spells: getSpellsFromItem(it),
+    isConcentrating: !!(meta[CONC_META_KEY] &&
+                        typeof meta[CONC_META_KEY] === "object" &&
+                        Object.keys(meta[CONC_META_KEY]).length > 0),
+    concSpellKey: (() => {
+      const conc = meta[CONC_META_KEY];
+      if (!conc || typeof conc !== "object") return null;
+      const keys = Object.keys(conc);
+      return keys.length ? keys[0] : null;
+    })(),
+  };
+}
+
 // ===== Leggi token tracciati (senza ordinare qui)
 async function readEntries() {
   const items = await OBR.scene.items.getItems();
@@ -3227,64 +3276,11 @@ async function readEntries() {
   const seen = new Set();
 
   for (const it of items) {
-    const meta = it.metadata && it.metadata[META_KEY];
-    if (!meta) continue;
-
-    // ⬅️⬅️ PATCH: mostra SOLO i token marcati esplicitamente in iniziativa
-    if (meta.inInitiative !== true) continue;
-
-    if (seen.has(it.id)) continue;
+    if (seen.has(it?.id)) continue;
+    const entry = entryFromSceneItem(it);
+    if (!entry) continue;
     seen.add(it.id);
-
-    // Concentrazione: presente SOLO sul caster, come oggetto non vuoto
-    const concObj = it.metadata?.[META_KEY]?.[CONC_META_KEY] || null;
-    const isConcentrating =
-      !!(concObj && typeof concObj === "object" && Object.keys(concObj).length > 0);
-
-    out.push({
-      conditions: __safeConditions(it.metadata?.[META_KEY]?.conditions),
-      id: it.id,
-      name: it.name || "Unnamed",
-      position: it.position ? { x: it.position.x, y: it.position.y } : null,
-      initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
-      initTouched: meta.initTouched === true,
-      portrait: getTokenImageUrl(it),
-      attitude: meta.attitude || "ally",
-      hp: (meta.hp ?? null),
-      hpMax: (meta.hpMax ?? null),
-      isEpic: !!meta.epic,
-      paragonActions:
-        (meta.paragon && Number(meta.paragon.actions) > 0)
-          ? Math.max(1, Math.floor(Number(meta.paragon.actions)))
-          : 0,
-      legendary:
-        (meta.legendary && typeof meta.legendary === "object")
-          ? { max: Number(meta.legendary.max) || 0, current: Math.max(0, Number(meta.legendary.current) || 0) }
-          : { max: 0, current: 0 },
-      legendaryResistances: (() => {
-        if (!meta.legendary || Number(meta.legendary.max) <= 0) return { max: 0, current: 0 };
-        const stored = meta.legendaryResistances;
-        const max = stored && typeof stored === "object"
-          ? Math.max(0, Math.floor(Number(stored.max) || 0))
-          : DEFAULT_LEGENDARY_RESISTANCES;
-        const current = stored && typeof stored === "object"
-          ? Math.max(0, Math.min(max, Math.floor(Number(stored.current) || 0)))
-          : max;
-        return { max, current };
-      })(),
-      spells: getSpellsFromItem(it),
-
-      // Flag concentrazione + chiave spell
-      isConcentrating: !!(it.metadata?.[META_KEY]?.[CONC_META_KEY] &&
-                          typeof it.metadata?.[META_KEY]?.[CONC_META_KEY] === "object" &&
-                          Object.keys(it.metadata?.[META_KEY]?.[CONC_META_KEY]).length > 0),
-      concSpellKey: (() => {
-        const conc = it.metadata?.[META_KEY]?.[CONC_META_KEY];
-        if (!conc || typeof conc !== "object") return null;
-        const keys = Object.keys(conc);
-        return keys.length ? keys[0] : null;   // per design: una sola concentrazione per caster
-      })(),
-    });
+    out.push(entry);
   }
   return out;
 }
@@ -3666,8 +3662,6 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
       }
     }));
   }
-
-  await renderAll();
 }
 
 /**
@@ -5564,6 +5558,63 @@ function __copyTrackerCardOuterState(liveCard, nextCard) {
   __syncTrackerCardStateClasses(liveCard);
 }
 
+function __entryMatchesTrackerItemIds(entry, itemIds) {
+  if (!(itemIds instanceof Set) || itemIds.size === 0) return true;
+  if (entry?.epicBossId && itemIds.has(entry.epicBossId)) return true;
+  return __selectionIdsForEntry(entry).some((id) => itemIds.has(id));
+}
+
+function __trackerCardHasOpenEditor(card) {
+  if (!(card instanceof HTMLElement)) return false;
+  if (card.dataset.renaming === "1") return true;
+  if (card.querySelector("[data-init-editing='1'], [data-hp-editing='1']")) return true;
+  const editingIds = [__editingInitForId, __editingHPForId]
+    .filter(Boolean)
+    .map((id) => splitParagonId(id).baseId);
+  return editingIds.some((id) => card.__selectionItemIds?.includes(id));
+}
+
+function __replaceTrackCardsIncremental(nextNodes) {
+  const liveCards = Array.from(track.children).filter(
+    (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
+  );
+  const replacements = [];
+  for (const nextCard of nextNodes) {
+    if (!(nextCard instanceof HTMLElement) || nextCard.dataset.trackerCard !== "1") continue;
+    const liveCard = liveCards.find((candidate) =>
+      candidate.dataset.itemId === nextCard.dataset.itemId
+    );
+    if (!liveCard) return false;
+    replacements.push({ liveCard, nextCard });
+  }
+  if (!replacements.length) return false;
+
+  const scrollLeftBefore = trackWrap.scrollLeft;
+  const scrollTopBefore = trackWrap.scrollTop;
+  let replaced = 0;
+  let skippedEditors = 0;
+  for (const { liveCard, nextCard } of replacements) {
+    if (__trackerCardHasOpenEditor(liveCard)) {
+      skippedEditors += 1;
+      continue;
+    }
+    if (__expandedCompactEffectsId === liveCard.dataset.itemId) {
+      void __closeCompactEffectsPopover();
+    }
+    liveCard.replaceWith(nextCard);
+    replaced += 1;
+  }
+  trackWrap.scrollLeft = scrollLeftBefore;
+  trackWrap.scrollTop = scrollTopBefore;
+  __initiativeDiag("render:cards-incremental", {
+    requested: replacements.length,
+    replaced,
+    skippedEditors,
+    layout: isCompactTrackerLayout() ? "compact" : "classic",
+  });
+  return true;
+}
+
 function __reconcileTrackCardsById(nextNodes) {
   const nextCards = nextNodes.filter(
     (node) => node instanceof HTMLElement && node.dataset.trackerCard === "1"
@@ -6130,15 +6181,21 @@ async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effect
   }
 }
 
-function renderCompactTrack(entries, state, { animateActive = false } = {}) {
+function renderCompactTrack(entries, state, { animateActive = false, itemIds = null } = {}) {
   const order = Array.isArray(state?.order) ? state.order : [];
   const activeIndex = Math.max(0, Math.min(order.length - 1, Number(state?.current) || 0));
   const activeId = order[activeIndex] || null;
   const activeChanged = !!activeId && activeId !== __lastRenderedActiveId;
   const visibleEntries = compactEntriesForRender(entries, state);
+  const incrementalItemIds = Array.isArray(itemIds) && itemIds.length
+    ? new Set(itemIds)
+    : null;
+  const entriesToRender = incrementalItemIds
+    ? visibleEntries.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
+    : visibleEntries;
 
   track.style.justifyContent = "safe center";
-  const nodes = visibleEntries.map((entry) => {
+  const nodes = entriesToRender.map((entry) => {
     const virtual = isLairId(entry.id) || isEpicActionId(entry.id);
     const {
       members,
@@ -6320,6 +6377,14 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
     return card;
   });
 
+  if (incrementalItemIds) {
+    if (!__replaceTrackCardsIncremental(nodes)) return false;
+    resizeCompactTrackerPopover(visibleEntries);
+    updateActiveCardMovementIndicator();
+    __lastRenderedActiveId = activeId;
+    return true;
+  }
+
   __replaceTrackCardsAnimated(nodes);
   __animateActiveCardEntrance(animateActive && activeChanged, activeId);
   if (__expandedCompactEffectsId && !nodes.some((node) =>
@@ -6336,14 +6401,17 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
     });
   }
   __lastRenderedActiveId = activeId;
+  return true;
 }
 
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
     const animateActive = !!opts.animateActive;
     if (isCompactTrackerLayout()) {
-      renderCompactTrack(entries, state, { animateActive });
-      return;
+      return renderCompactTrack(entries, state, {
+        animateActive,
+        itemIds: opts.itemIds,
+      });
     }
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
@@ -6384,7 +6452,13 @@ for (const e of entries) {
     entriesForRender.push(e);
   }
 }
-    const nodes = entriesForRender.map((e) => {
+    const incrementalItemIds = Array.isArray(opts.itemIds) && opts.itemIds.length
+      ? new Set(opts.itemIds)
+      : null;
+    const renderEntries = incrementalItemIds
+      ? entriesForRender.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
+      : entriesForRender;
+    const nodes = renderEntries.map((e) => {
     const c = factionColors(e.attitude);
     const cardEffectData = __safeConditions(e.__groupCollapsed ? null : e.conditions);
     const {
@@ -6928,7 +7002,6 @@ if (cardToolsDock && e.__groupCollapsed) {
       } finally {
         __suspendRenders = wasSuspended;
         restore();
-        await renderAll();
       }
     };
 
@@ -8482,6 +8555,13 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
       return card;
     });
 
+    if (incrementalItemIds) {
+      if (!__replaceTrackCardsIncremental(nodes)) return false;
+      updateActiveCardMovementIndicator(latestMovementSnapshot);
+      __lastRenderedActiveId = currentActiveId;
+      return true;
+    }
+
     __replaceTrackCardsAnimated(nodes);
     __animateActiveCardEntrance(animateActive, currentActiveId);
     updateActiveCardMovementIndicator(latestMovementSnapshot);
@@ -8494,6 +8574,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
   }
 
   __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
+  return true;
 }
 
 async function ensureState() {
@@ -8668,6 +8749,120 @@ function __renderOptimisticNavigationState(state) {
     console.warn("[initiative] optimistic navigation render:", err?.message || err);
     return false;
   }
+}
+
+function __cachedEntriesForIncrementalItems(items, state) {
+  if (!Array.isArray(state?.order) || !state.order.length || !__activeLabelEntriesById.size) {
+    return null;
+  }
+  const nextById = new Map(__activeLabelEntriesById);
+
+  for (const item of items || []) {
+    const entry = entryFromSceneItem(item);
+    if (!entry) return null;
+    const baseId = entry.id;
+    const expanded = expandParagonEntries([entry], state);
+    const expectedIds = expanded.map((candidate) => candidate.id);
+    const orderedIds = state.order.filter((id) =>
+      !isEpicActionId(id) && splitParagonId(id).baseId === baseId
+    );
+    if (expectedIds.length !== orderedIds.length ||
+        expectedIds.some((id) => !orderedIds.includes(id))) return null;
+    for (const candidate of expanded) nextById.set(candidate.id, candidate);
+
+    for (const [id, candidate] of nextById) {
+      if (!candidate?.isEpicAction || candidate.epicBossId !== baseId) continue;
+      const pcEntry = nextById.get(candidate.epicAfterPCId);
+      if (!pcEntry) return null;
+      nextById.set(id, makeEpicActionEntry(entry, pcEntry));
+    }
+  }
+
+  const ordered = state.order.map((id) => nextById.get(id)).filter(Boolean);
+  if (ordered.length !== state.order.length) return null;
+  return { nextById, ordered };
+}
+
+function __schedulePendingIncrementalTrackerItems(itemIds) {
+  for (const id of itemIds || []) {
+    if (id) __pendingIncrementalTrackerItemIds.add(id);
+  }
+  if (__pendingIncrementalRenderTimer || !__pendingIncrementalTrackerItemIds.size) return;
+
+  const flush = async () => {
+    __pendingIncrementalRenderTimer = null;
+    if (__initiativeFillMode) {
+      __pendingIncrementalTrackerItemIds.clear();
+      return;
+    }
+    if (__suspendRenders) {
+      __pendingIncrementalRenderTimer = window.setTimeout(() => void flush(), 25);
+      return;
+    }
+
+    const ids = [...__pendingIncrementalTrackerItemIds];
+    __pendingIncrementalTrackerItemIds.clear();
+    try {
+      if (!await __renderIncrementalTrackerItemIdsFromScene(ids, "items-resumed")) {
+        await renderAll("items-resumed-fallback");
+      }
+    } catch (error) {
+      console.warn("[initiative] resumed incremental render:", error?.message || error);
+      await renderAll("items-resumed-error");
+    }
+  };
+
+  __pendingIncrementalRenderTimer = window.setTimeout(() => void flush(), 0);
+}
+
+function __renderIncrementalTrackerItems(event, plan, reason = "items") {
+  if (plan?.mode === "none") return true;
+  if (plan?.mode !== "cards") return false;
+  if (__suspendRenders) {
+    if (!__initiativeFillMode) __schedulePendingIncrementalTrackerItems(plan.itemIds);
+    __initiativeDiag("render:incremental-skipped-suspended", { reason });
+    return true;
+  }
+  if (__navigationPumpRunning || __navigationDesiredState) return false;
+
+  const state = __latestInitiativeState;
+  const changedItems = (event?.items || []).filter((item) =>
+    plan.itemIds.includes(item?.id)
+  );
+  if (changedItems.length !== plan.itemIds.length) return false;
+  const cached = __cachedEntriesForIncrementalItems(changedItems, state);
+  if (!cached) return false;
+
+  const renderStartedAt = performance.now();
+  const renderRevision = ++__renderRequestRevision;
+  __latestAcceptedRenderRevision = renderRevision;
+  const committed = renderTrack(cached.ordered, state, {
+    itemIds: plan.itemIds,
+    animateActive: false,
+  });
+  if (!committed) return false;
+
+  __activeLabelEntriesById = cached.nextById;
+  __initiativeDiag("render:incremental-committed", {
+    renderRevision,
+    reason,
+    itemIds: plan.itemIds,
+    durationMs: Math.round((performance.now() - renderStartedAt) * 100) / 100,
+    layout: getTrackerLayout(),
+  });
+  return true;
+}
+
+async function __renderIncrementalTrackerItemIdsFromScene(itemIds, reason) {
+  const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
+  if (!ids.length) return true;
+  const items = await OBR.scene.items.getItems(ids);
+  if (items.length !== ids.length) return false;
+  return __renderIncrementalTrackerItems(
+    { items },
+    { mode: "cards", itemIds: ids },
+    reason,
+  );
 }
 
 async function renderAll(reason = "unspecified") {
@@ -9110,15 +9305,24 @@ OBR.scene.onMetadataChange((meta) => {
 
   subscribeSceneItemChanges(async (event) => {
     if (__mutatingActiveLabel > 0) return;
+    const renderPlan = planIncrementalTrackerItemRender(event);
     const fillInterrupted = await interruptInitiativeFillForRemovedActor(event);
     const addedInitiativeActors = IS_GM && sceneItemEventAddsInitiative(event);
     if (__initiativeFillMode && addedInitiativeActors && !initiativeFillShowsAddedActors(event)) {
       await closeOpenEditors();
       await finishInitiativeFillMode();
     }
+    if (renderPlan.mode === "none") return;
+    if (!fillInterrupted && renderPlan.mode === "cards") {
+      try {
+        if (__renderIncrementalTrackerItems(event, renderPlan, "items")) return;
+      } catch (error) {
+        console.warn("[initiative] incremental item render:", error?.message || error);
+      }
+    }
     await reconcileStateWithItems();
     await enforceUniqueNamePrefixes();
-    await renderAll(fillInterrupted ? "initiative-fill-item-removed" : "items");
+    await renderAll(fillInterrupted ? "initiative-fill-item-removed" : "items-fallback");
     if (addedInitiativeActors) {
       await startInitiativeFillMode({ silent: true });
     }

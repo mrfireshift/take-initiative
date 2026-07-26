@@ -30,16 +30,26 @@ export function summarizeInitiativeDiagnostics(events = []) {
   const last = rows[rows.length - 1];
   const renderRows = rows.filter((entry) => String(entry.event || "").startsWith("render:"));
   const committedRows = renderRows.filter((entry) => entry.event === "render:committed");
+  const incrementalRows = renderRows.filter(
+    (entry) => entry.event === "render:incremental-committed"
+  );
   const skippedRows = renderRows.filter((entry) => entry.event.includes("skipped"));
   const byReason = {};
+  const incrementalByReason = {};
 
   for (const entry of committedRows) {
     const reason = String(entry.reason || "unspecified");
     if (!byReason[reason]) byReason[reason] = [];
     byReason[reason].push(entry);
   }
+  for (const entry of incrementalRows) {
+    const reason = String(entry.reason || "unspecified");
+    if (!incrementalByReason[reason]) incrementalByReason[reason] = [];
+    incrementalByReason[reason].push(entry);
+  }
 
   const reconciliations = rows.filter((entry) => entry.event === "render:cards-reconciled");
+  const incrementalCards = rows.filter((entry) => entry.event === "render:cards-incremental");
   const preservedCards = reconciliations.reduce(
     (sum, entry) => sum + Math.max(0, Number(entry.preserved) || 0),
     0
@@ -69,6 +79,31 @@ export function summarizeInitiativeDiagnostics(events = []) {
         reconciliations: reconciliations.length,
         preserved: preservedCards,
         replaced: replacedCards,
+      },
+      incremental: {
+        committed: incrementalRows.length,
+        timing: summarizeDurations(incrementalRows),
+        byReason: Object.fromEntries(
+          Object.entries(incrementalByReason).map(([reason, entries]) => [
+            reason,
+            { count: entries.length, ...summarizeDurations(entries) },
+          ])
+        ),
+        cards: {
+          batches: incrementalCards.length,
+          requested: incrementalCards.reduce(
+            (sum, entry) => sum + Math.max(0, Number(entry.requested) || 0),
+            0
+          ),
+          replaced: incrementalCards.reduce(
+            (sum, entry) => sum + Math.max(0, Number(entry.replaced) || 0),
+            0
+          ),
+          skippedEditors: incrementalCards.reduce(
+            (sum, entry) => sum + Math.max(0, Number(entry.skippedEditors) || 0),
+            0
+          ),
+        },
       },
     },
   };
