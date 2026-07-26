@@ -2,8 +2,11 @@
 
 ## Preparazione
 
+Usa la versione di Node indicata in `.node-version`. Sono supportati Node
+`20.19.x` oppure `22.12.0` e successivi; la CI usa Node `24.15.0`.
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -17,6 +20,9 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run build` | Build di produzione in `dist/` |
 | `npm run preview` | Anteprima locale della build |
 | `npm test` | Suite Node Test Runner |
+| `npm run verify:version` | Verifica che package, lockfile e manifest abbiano la stessa versione |
+| `npm run verify:dist` | Verifica versione e identità della build in `dist/` |
+| `npm run artifact:checksums` | Genera gli SHA-256 dei file di `dist/` |
 | `npm run check:spells` | Verifica integrità del catalogo incantesimi |
 | `npm run generate:spells` | Rigenera il catalogo SRD |
 | `npm run generate:spell-translations` | Rigenera le traduzioni del catalogo |
@@ -97,14 +103,18 @@ Moduli da individuare prima di una modifica:
 
 ## Checklist di release
 
-1. Aggiorna la versione in `package.json` e `public/manifest.json`.
+1. Aggiorna la versione in `package.json`, `package-lock.json` e `public/manifest.json`.
 2. Controlla `git status` e separa cambiamenti estranei.
 3. Esegui:
 
    ```bash
+   npm ci
+   npm run verify:version
    npm test
    npm run check:spells
    npm run build
+   npm run artifact:checksums
+   npm run verify:dist
    ```
 
 4. Verifica manualmente caricamento room, tracker, popup e strumenti toolbar.
@@ -112,6 +122,10 @@ Moduli da individuare prima di una modifica:
 6. Crea commit e tag annotato della release.
 7. Pubblica branch e tag.
 8. Distribuisci l'intero contenuto di `dist/`.
+
+La CI esegue lo stesso gate su push e pull request. Il workflow manuale
+`Release artifact` genera un artifact immutabile nominato con versione e SHA,
+ma non esegue il deploy.
 
 ## Catalogo incantesimi e attribuzioni
 

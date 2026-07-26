@@ -1,0 +1,70 @@
+name: Release artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit, tag, or branch to package
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Resolve artifact identity
+        id: identity
+        shell: bash
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version identity
+        run: npm run verify:version
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check spell catalogs
+        run: npm run check:spells
+
+      - name: Build production bundle
+        env:
+          TAKE_INITIATIVE_BUILD_SHA: ${{ steps.identity.outputs.sha }}
+          TAKE_INITIATIVE_BUILD_DIRTY: "false"
+        run: npm run build
+
+      - name: Write artifact checksums
+        run: npm run artifact:checksums
+
+      - name: Verify production artifact
+        run: npm run verify:dist
+
+      - name: Upload immutable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: take-initiative-${{ steps.identity.outputs.version }}-${{ steps.identity.outputs.short_sha }}
+          path: dist/
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 30

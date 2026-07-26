@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import "./buildInfo.js";
 import { setupContextMenu } from "./contextMenu";
 import { mountInitiativeList } from "./initiativeList";
 import { initHPMemory } from "./hpMemory.js";

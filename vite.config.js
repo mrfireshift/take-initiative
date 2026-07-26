@@ -1,9 +1,31 @@
 // vite.config.js
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+import { createBuildMetadata } from "./scripts/build-metadata.mjs";
 import path from "node:path";   // 👈 usa path cross-platform (Windows ok)
 
-export default defineConfig({
+const packageJson = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+
+export default defineConfig(() => {
+  const buildInfo = createBuildMetadata({ version: packageJson.version });
+
+  return {
   base: "/", // (se userai GitHub Pages con sottocartella, poi lo cambiamo)
+
+  define: {
+    __TAKE_INITIATIVE_BUILD_INFO__: JSON.stringify(buildInfo),
+  },
+
+  plugins: [{
+    name: "take-initiative-build-info",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "build-info.json",
+        source: `${JSON.stringify(buildInfo, null, 2)}\n`,
+      });
+    },
+  }],
 
   server: {
     cors: { origin: "https://www.owlbear.rodeo" },
@@ -38,4 +60,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

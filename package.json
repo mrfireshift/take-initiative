@@ -1,12 +1,15 @@
 {
   "name": "obr-initiative",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0-dev.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "test": "node --test",
+    "verify:version": "node scripts/check-version-sync.mjs",
+    "verify:dist": "node scripts/check-version-sync.mjs --dist",
+    "artifact:checksums": "node scripts/write-dist-checksums.mjs",
     "generate:spells": "node scripts/generate-spell-catalog.mjs",
     "generate:spell-translations": "node scripts/generate-spell-translations.mjs",
     "generate:supplement-spells": "node scripts/generate-supplement-spell-catalog.mjs",
@@ -18,6 +21,9 @@
   },
   "dependencies": {
     "@owlbear-rodeo/sdk": "^3.1.0"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   },
   "description": "",
   "main": "vite.config.js",

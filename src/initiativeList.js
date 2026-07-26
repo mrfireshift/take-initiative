@@ -5,7 +5,6 @@ import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, buildSpellEffectChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
-import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
@@ -53,6 +52,40 @@ import {
   initiativeStateDigest,
   isCurrentRenderRevision,
 } from "./initiativeRenderCore.js";
+import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
+import {
+  applyClassicCardFrame,
+  buildClassicCardShell,
+  deriveClassicCardPresentation,
+} from "./initiativeCardClassic.js";
+import {
+  enableClassicCardRename,
+  normalizeInitiativeInput,
+  normalizeSignedIntegerInput,
+  parseInlineMath,
+} from "./initiativeEditors.js";
+import {
+  applyToolbarLayoutPresentation as applyToolbarLayoutPresentationView,
+  buildGlobalPanelButton,
+  buildToolbarButton,
+  buildToolbarSection,
+  decorateToolbarControl as decorateToolbarControlView,
+  setToolbarToggleVisual,
+} from "./initiativeToolbar.js";
+import {
+  __compactEffectItems,
+  bindCompactEffectsToggle,
+  buildCompactCardHP,
+  buildCompactCardIndicators,
+  buildCompactCardName,
+  buildCompactCardPortrait,
+  buildCompactCardShell,
+  buildCompactCardStatus,
+  buildCompactLegendaryResourcePips,
+  compactStatusBadge,
+  deriveCompactCardPresentation,
+  enableCompactCardRename,
+} from "./initiativeCardCompact.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -305,17 +338,9 @@ globalThis.__tbpInitiativeDiagnostics = {
     return __initiativeDiagnosticEvents.map((entry) => ({ ...entry }));
   },
   summary() {
-    const counts = {};
-    for (const entry of __initiativeDiagnosticEvents) {
-      counts[entry.event] = (counts[entry.event] || 0) + 1;
-    }
-    const first = __initiativeDiagnosticEvents[0];
-    const last = __initiativeDiagnosticEvents[__initiativeDiagnosticEvents.length - 1];
     return {
-      events: __initiativeDiagnosticEvents.length,
-      durationMs: first && last ? last.ms - first.ms : 0,
-      counts,
-      lastEvent: last ? { ...last } : null,
+      ...summarizeInitiativeDiagnostics(__initiativeDiagnosticEvents),
+      build: globalThis.__tbpBuildInfo || null,
     };
   },
   table() {
@@ -601,25 +626,7 @@ col.style.overflow = "hidden";
 container.replaceChildren(col);
 
 function mkBtn(txt) {
-  const b = document.createElement("button");
-  b.textContent = txt;
-  b.style.width = "100%";
-  b.style.height = "28px";
-  b.style.padding = "0 6px";
-  b.style.border = "none";
-  b.style.borderRadius = "6px";
-  b.style.cursor = "pointer";
-  b.style.background = "transparent";
-  b.style.color = "white";
-  b.style.fontSize = "18px";
-  b.style.userSelect = "none";
-  b.type = "button";
-  b.tabIndex = -1;
-  b.addEventListener("mousedown", (event) => event.preventDefault());
-  b.style.outline = "none";
-  b.onmouseenter = () => (b.style.background = "rgba(255,255,255,0.08)");
-  b.onmouseleave = () => (b.style.background = "transparent");
-  return b;
+  return buildToolbarButton(txt);
 }
 
 const btnPrev = mkBtn("\u25B2");
@@ -1180,46 +1187,11 @@ Object.assign(toolOptionsGroup.style, {
   borderLeft: "1px solid rgba(148,163,184,.2)",
 });
 function makeToolbarSection(title, content) {
-  const section = document.createElement("section");
-  const heading = document.createElement("div");
-  heading.textContent = title;
-  heading.dataset.toolbarHeading = "1";
-  Object.assign(section.style, {
-    minWidth: "0",
-    display: "flex",
-    alignItems: "center",
-  });
-  Object.assign(heading.style, {
-    display: "none",
-    color: "rgba(255,255,255,.58)",
-    fontSize: "9px",
-    fontWeight: "700",
-    letterSpacing: ".08em",
-    textTransform: "uppercase",
-  });
-  section.append(heading, content);
-  return { section, heading };
+  return buildToolbarSection(title, content);
 }
 
 function decorateToolbarControl(control, label) {
-  control.dataset.toolbarControl = "1";
-  const caption = document.createElement("span");
-  caption.dataset.toolbarCaption = "1";
-  caption.textContent = label;
-  Object.assign(caption.style, {
-    display: "none",
-    maxWidth: "100%",
-    overflow: "hidden",
-    color: "rgba(255,255,255,.88)",
-    fontSize: "10px",
-    fontWeight: "600",
-    lineHeight: "1.1",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    pointerEvents: "none",
-  });
-  control.appendChild(caption);
-  return control;
+  return decorateToolbarControlView(control, label);
 }
 
 const encounterToolbar = makeToolbarSection("Incontro", sceneOptionsGroup);
@@ -1268,17 +1240,9 @@ Object.assign(zoomLbl.style, {
 });
 
 function setCompactToggleVisual(wrap, active) {
-  const classic = !isCompactTrackerLayout();
-  wrap.setAttribute("aria-pressed", active ? "true" : "false");
-  wrap.style.background = active
-    ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
-    : classic ? "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))" : "transparent";
-  wrap.style.borderColor = active
-    ? "rgba(147,197,253,.8)"
-    : classic ? "rgba(148,163,184,.24)" : "transparent";
-  wrap.style.boxShadow = active
-    ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
-    : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
+  setToolbarToggleVisual(wrap, active, {
+    compact: isCompactTrackerLayout(),
+  });
 }
 
 zoomToggleWrap.append(zoomChk, zoomLbl);
@@ -1289,38 +1253,10 @@ setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
 sceneOptionsGroup.appendChild(zoomToggleWrap);
 
 function makeGlobalPanelButton(title, iconPath, invert = false) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.title = title;
-  button.setAttribute("aria-label", title);
-  Object.assign(button.style, {
-    width: "28px",
-    minWidth: "28px",
-    height: "28px",
-    padding: "0",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "8px",
-    border: "1px solid transparent",
-    background: "transparent",
-    boxShadow: "none",
-    cursor: "pointer",
+  return buildGlobalPanelButton(title, iconPath, {
+    invert,
+    baseUrl: import.meta.env.BASE_URL || "/",
   });
-  const icon = document.createElement("img");
-  icon.src = `${import.meta.env.BASE_URL || "/"}${iconPath}`;
-  icon.alt = "";
-  Object.assign(icon.style, {
-    width: "15px",
-    height: "15px",
-    display: "block",
-    objectFit: "contain",
-    filter: invert ? "brightness(0) invert(1)" : "none",
-    pointerEvents: "none",
-  });
-  button.appendChild(icon);
-  decorateToolbarControl(button, title);
-  return button;
 }
 
 const globalPanelsWrap = document.createElement("div");
@@ -1925,148 +1861,14 @@ compactAdminMenu.addEventListener("click", (event) => {
 });
 
 function applyToolbarLayoutPresentation(compact) {
-  if (!IS_GM) {
-    viewOptionsRow.style.display = "none";
-    return;
-  }
-  const classic = !compact;
-
-  Object.assign(viewOptionsRow.style, classic ? {
-    display: "grid",
-    flex: "0 0 auto",
-    width: "100%",
-    maxWidth: "none",
-    height: "auto",
-    minHeight: "68px",
-    gridTemplateColumns: "minmax(88px, 2fr) minmax(0, 4fr)",
-    gridAutoRows: "auto",
-    alignItems: "stretch",
-    justifyItems: "stretch",
-    alignContent: "normal",
-    justifyContent: "stretch",
-    gap: "6px",
-    padding: "5px",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    border: "1px solid rgba(148,163,184,.22)",
-    borderRadius: "14px",
-    background: "linear-gradient(180deg, rgba(16,21,31,.78), rgba(7,11,18,.72))",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
-  } : {
-    display: "grid",
-    flex: "0 0 98px",
-    width: "98px",
-    maxWidth: "98px",
-    height: "100%",
-    minHeight: "0",
-    gridTemplateColumns: "repeat(2, 40px)",
-    gridAutoRows: "38px",
-    alignItems: "center",
-    justifyItems: "center",
-    alignContent: "center",
-    justifyContent: "center",
-    gap: "4px",
-    padding: "5px",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    border: "1px solid rgba(148,163,184,.24)",
-    borderRadius: "14px",
-    background: "linear-gradient(180deg, rgba(31,39,51,.82), rgba(18,24,34,.78))",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,.07), 0 8px 20px rgba(0,0,0,.22)",
-  });
-
-  for (const toolbar of [encounterToolbar, trackersToolbar]) {
-    Object.assign(toolbar.section.style, {
-      display: classic ? "flex" : "contents",
-      flex: classic ? "1 1 0" : "0 0 auto",
-      width: classic ? "100%" : "auto",
-      minWidth: "0",
-      flexDirection: "column",
-      alignItems: "stretch",
-      gap: classic ? "4px" : "0",
-      overflow: classic ? "hidden" : "visible",
-    });
-    toolbar.heading.style.display = classic ? "block" : "none";
-    toolbar.heading.style.textAlign = "center";
-  }
-
-  Object.assign(sceneOptionsGroup.style, {
-    width: classic ? "100%" : "auto",
-    minWidth: "0",
-    display: classic ? "grid" : "contents",
-    gridTemplateColumns: classic ? "repeat(2, minmax(0, 1fr))" : "none",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: classic ? "3px" : "0",
-  });
-  Object.assign(toolOptionsGroup.style, {
-    width: classic ? "100%" : "auto",
-    minWidth: "0",
-    display: classic ? "grid" : "contents",
-    gridTemplateColumns: classic ? "repeat(4, minmax(0, 1fr))" : "none",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: classic ? "3px" : "0",
-    paddingLeft: classic ? "7px" : "0",
-    paddingTop: "0",
-    boxSizing: "border-box",
-    borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
-    borderTop: "none",
-  });
-  Object.assign(globalPanelsWrap.style, {
-    display: classic ? "contents" : "contents",
-    width: "auto",
-    minWidth: "0",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: "0",
-  });
-
-  viewOptionsRow.querySelectorAll("[data-toolbar-control='1']").forEach((control) => {
-    const active = control.getAttribute("aria-pressed") === "true";
-    Object.assign(control.style, {
-      width: classic ? "100%" : "40px",
-      minWidth: "0",
-      maxWidth: classic ? "100%" : "40px",
-      boxSizing: "border-box",
-      height: classic ? "46px" : "36px",
-      minHeight: classic ? "46px" : "36px",
-      flexDirection: classic ? "column" : "row",
-      justifyContent: "center",
-      gap: classic ? "3px" : "0",
-      padding: "0 2px",
-      overflow: "hidden",
-      borderRadius: classic ? "10px" : "9px",
-      border: active
-        ? "1px solid rgba(147,197,253,.8)"
-        : "1px solid rgba(148,163,184,.24)",
-      background: active
-        ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
-        : "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
-      boxShadow: active
-        ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
-        : "inset 0 1px 0 rgba(255,255,255,.04)",
-    });
-    const icon = control.querySelector("img");
-    if (icon) {
-      icon.style.width = classic ? "18px" : "18px";
-      icon.style.height = classic ? "18px" : "18px";
-      icon.style.flex = "0 0 auto";
-    }
-    const caption = control.querySelector("[data-toolbar-caption='1']");
-    if (caption) {
-      caption.style.display = classic ? "block" : "none";
-      caption.style.width = "100%";
-      caption.style.maxWidth = "100%";
-      caption.style.fontSize = "8px";
-      caption.style.lineHeight = "1";
-      caption.style.letterSpacing = "-.01em";
-      caption.style.whiteSpace = "nowrap";
-      caption.style.overflow = "hidden";
-      caption.style.textOverflow = "clip";
-      caption.style.textAlign = "center";
-    }
+  applyToolbarLayoutPresentationView(compact, {
+    isGM: IS_GM,
+    viewOptionsRow,
+    encounterToolbar,
+    trackersToolbar,
+    sceneOptionsGroup,
+    toolOptionsGroup,
+    globalPanelsWrap,
   });
 }
 
@@ -6257,139 +6059,7 @@ function __replaceTrackCardsAnimated(nodes) {
   __replaceTrackCardsMagnetic(nodes);
 }
 
-function compactStatusBadge(text, title, tone = "neutral") {
-  const badge = document.createElement("span");
-  badge.textContent = text;
-  badge.title = title;
-  const colors = tone === "concentration"
-    ? { background: "#2563eb", border: "#93c5fd" }
-    : tone === "resistance"
-      ? { background: "#1e3a8a", border: "#93c5fd" }
-    : tone === "legendary"
-      ? { background: "#991b1b", border: "#fca5a5" }
-      : { background: "rgba(8,12,21,.92)", border: "rgba(255,255,255,.34)" };
-  Object.assign(badge.style, {
-    minWidth: "17px",
-    height: "17px",
-    boxSizing: "border-box",
-    padding: "0 4px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: `1px solid ${colors.border}`,
-    borderRadius: "999px",
-    background: colors.background,
-    color: "#fff",
-    fontSize: "9px",
-    fontWeight: "700",
-    lineHeight: "1",
-    boxShadow: "0 1px 4px rgba(0,0,0,.55)",
-    whiteSpace: "nowrap",
-    flex: "0 0 auto",
-  });
-  return badge;
-}
-
 let __expandedCompactEffectsId = null;
-const COMPACT_CARD_WIDTH = 92;
-const COMPACT_CARD_HEIGHT = 120;
-
-function __compactConditionPillLabel(instance) {
-  const name = String(instance?.condition || "").trim();
-  let label = formatConditionName(name) || name || "Condizione";
-  if (name === "Indebolimento") {
-    label += ` ${Math.max(1, Math.floor(Number(instance?.level) || 1))}`;
-  }
-  const expiry = instance?.expiry || {};
-  const remaining = Math.max(0, Math.floor(Number(expiry.remaining) || 0));
-  if (expiry.mode === "rounds" && remaining) label += ` (${remaining})`;
-  else if (expiry.mode === "turn-start") label += ` (I${remaining > 1 ? `:${remaining}` : ""})`;
-  else if (expiry.mode === "turn-end") label += ` (F${remaining > 1 ? `:${remaining}` : ""})`;
-  else if (expiry.mode === "concentration") label += " (C)";
-  return label;
-}
-
-function __compactEffectItems(conditionInstances, spells, concentrating) {
-  const spellEffects = conditionInstances.filter((instance) =>
-    instance?.effectKind === "buff" || instance?.effectKind === "debuff"
-  );
-  const effects = conditionInstances.filter((instance) => !spellEffects.includes(instance)).map((instance) => ({
-    kind: "condition",
-    label: __compactConditionPillLabel(instance),
-    title: formatConditionInstance(instance),
-  }));
-  for (const spell of spells) {
-    const counter = spellExpiryCounter(spell);
-    effects.push({
-      kind: "spell",
-      key: __spellKey(spell?.name),
-      label: `${String(spell?.name || "Incantesimo")} (${counter})`,
-      title: `${String(spell?.name || "Incantesimo")} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
-    });
-    for (const instance of spellEffects.filter((effect) =>
-      String(effect?.parentEffectId || "") === String(spell?.instanceId || "")
-    )) {
-      effects.push({
-        kind: instance.effectKind,
-        label: String(instance.condition || "Effetto"),
-        title: formatConditionInstance(instance),
-      });
-    }
-  }
-  if (concentrating && !spells.some((spell) => spell?.conc)) {
-    effects.push({
-      kind: "concentration",
-      label: "Concentrazione",
-      title: "Concentrazione attiva",
-    });
-  }
-  return effects;
-}
-
-function __buildCompactEffectPill(effect, preview = false) {
-  const pill = document.createElement("span");
-  pill.textContent = effect.label;
-  pill.title = effect.title || effect.label;
-  const spellColor = effect.kind === "spell" ? __spellColor(effect.key) : null;
-  const background = effect.kind === "buff"
-    ? "#15803d"
-    : effect.kind === "debuff"
-      ? "#b91c1c"
-      : effect.kind === "concentration"
-    ? "#2563eb"
-    : spellColor?.solid || "rgba(8,12,21,.94)";
-  const border = effect.kind === "buff"
-    ? "#86efac"
-    : effect.kind === "debuff"
-      ? "#fca5a5"
-      : effect.kind === "concentration"
-    ? "#93c5fd"
-    : spellColor?.border || "rgba(255,255,255,.38)";
-  Object.assign(pill.style, {
-    minWidth: "0",
-    maxWidth: preview ? "100%" : "196px",
-    height: preview ? "14px" : "17px",
-    padding: "0 5px",
-    display: "inline-flex",
-    alignItems: "center",
-    boxSizing: "border-box",
-    overflow: "hidden",
-    border: `1px solid ${border}`,
-    borderRadius: "999px",
-    background,
-    color: "#fff",
-    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: "8px",
-    fontWeight: "600",
-    lineHeight: "1",
-    justifyContent: "center",
-    textAlign: "center",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    boxShadow: "0 1px 4px rgba(0,0,0,.45)",
-  });
-  return pill;
-}
 
 const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
 const COMPACT_EFFECTS_PAYLOAD_KEY = `${ID}/compact-effects-payload`;
@@ -6469,28 +6139,23 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
 
   track.style.justifyContent = "safe center";
   const nodes = visibleEntries.map((entry) => {
-    const members = Array.isArray(entry.__groupMembers) && entry.__groupMembers.length
-      ? entry.__groupMembers
-      : [entry];
-    const memberIds = new Set(members.map((member) => member.id));
-    const active = memberIds.has(activeId);
-    const boss = !!entry.isEpic ||
-      Number(entry.paragonActions) > 1 ||
-      Number(entry.legendary?.max) > 0;
     const virtual = isLairId(entry.id) || isEpicActionId(entry.id);
-    const attitude = String(entry.attitude || "").toLowerCase();
+    const {
+      members,
+      active,
+      boss,
+      attitude,
+      portraitSize,
+      canSeeHP,
+      hp,
+      hpMax,
+      showHP,
+      safeHP,
+      hpPercent,
+      knockedOut,
+      effectMembers,
+    } = deriveCompactCardPresentation(entry, activeId, { isGM: IS_GM, virtual });
     const faction = factionColors(attitude);
-    const cardWidth = COMPACT_CARD_WIDTH;
-    const portraitSize = boss ? 59 : 49;
-    const canSeeHP = IS_GM || attitude === "pc";
-    const hp = Number(entry.hp);
-    const hpMax = Number(entry.hpMax);
-    const hasHP = !virtual && Number.isFinite(hpMax) && hpMax > 0;
-    const showHP = canSeeHP && hasHP;
-    const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;
-    const hpPercent = hasHP ? Math.max(0, Math.min(1, safeHP / hpMax)) : 0;
-    const knockedOut = showHP && !entry.__groupCollapsed && safeHP <= 0;
-    const effectMembers = entry.__groupCollapsed ? [] : members;
     const conditionInstances = effectMembers.flatMap((member) =>
       getEffectiveConditionInstances(member.conditions || {})
     );
@@ -6498,59 +6163,29 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
       Array.isArray(member.spells) ? member.spells : []
     );
     const concentrating = effectMembers.some((member) => member.isConcentrating);
-    const compactEffects = __compactEffectItems(conditionInstances, spells, concentrating);
+    const compactEffects = __compactEffectItems(conditionInstances, spells, concentrating, {
+      formatConditionName,
+      formatConditionInstance,
+      spellKey: __spellKey,
+    });
     const hasExpandableEffects = compactEffects.length > 1;
 
-    const card = document.createElement("article");
-    card.dataset.itemId = entry.id;
-    card.dataset.initiative = String(entry.initiative || 0);
-    card.dataset.groupCollapsed = entry.__groupCollapsed ? "1" : "0";
-    card.dataset.groupKey = entry.__groupKey || __groupKey(entry);
-    card.dataset.trackerCard = "1";
-    card.dataset.compactCard = "1";
-    card.dataset.hpCanSee = canSeeHP ? "1" : "0";
-    card.dataset.hpVisible = showHP ? "1" : "0";
-    card.dataset.knockedOut = knockedOut ? "1" : "0";
-    card.dataset.hasEffectOverflow = hasExpandableEffects ? "1" : "0";
-    card.dataset.isEpic = entry.isEpic ? "1" : "0";
-    card.__selectionItemIds = __selectionIdsForEntry(entry);
     const dragAllowed = !(virtual || entry.isEpic);
-    card.setAttribute("draggable", dragAllowed ? "true" : "false");
-    card.setAttribute("aria-label", `${entry.name || "Creatura"}, iniziativa ${entry.initiative ?? 0}`);
-    card.title = virtual
-      ? entry.name
-      : "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
-    Object.assign(card.style, {
-      position: "relative",
-      flex: `0 0 ${cardWidth}px`,
-      width: `${cardWidth}px`,
-      minWidth: `${cardWidth}px`,
-      height: `${COMPACT_CARD_HEIGHT}px`,
-      padding: "3px 5px 2px",
-      boxSizing: "border-box",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "flex-start",
-      color: "#fff",
-      border: `${active ? 2 : 1}px solid ${rgba(faction.border, active ? .98 : .78)}`,
-      borderRadius: "11px",
-      background: active
-        ? `linear-gradient(155deg, ${rgba(faction.base, .86)}, ${rgba(faction.base, .60)} 56%, rgba(24,31,41,.96))`
-        : `linear-gradient(155deg, ${rgba(faction.base, .50)}, ${rgba(faction.base, .30)} 54%, rgba(20,27,37,.95))`,
-      boxShadow: active
-        ? `0 0 0 2px ${rgba(faction.border, .92)}, 0 0 16px 3px ${rgba(faction.border, .48)}, inset 0 1px 0 rgba(255,255,255,.18)`
-        : `0 4px 10px rgba(0,0,0,.28), inset 0 0 0 1px ${rgba(faction.border, .12)}`,
-      cursor: card.__selectionItemIds.length ? "pointer" : "default",
-      filter: knockedOut ? "saturate(.42) brightness(.72)" : active ? "brightness(1.13)" : "none",
-      opacity: knockedOut ? ".84" : "1",
-      transform: "translateZ(0)",
-      scale: active ? String(ZOOM_CFG.scale) : "1",
-      transformOrigin: "50% 50%",
-      transition: "scale 160ms ease, filter 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
-      zIndex: active ? "5" : boss ? "3" : "1",
+    const card = buildCompactCardShell(entry, {
+      active,
+      boss,
+      virtual,
+      faction,
+      rgba,
+      canSeeHP,
+      showHP,
+      knockedOut,
+      hasExpandableEffects,
+      groupKey: entry.__groupKey || __groupKey(entry),
+      selectionItemIds: __selectionIdsForEntry(entry),
+      dragAllowed,
+      zoomScale: ZOOM_CFG.scale,
     });
-    card.__selectionBaseShadow = card.style.boxShadow;
 
     card.addEventListener("click", (event) => {
       if (event.target.closest("button, [role='button']")) return;
@@ -6561,400 +6196,91 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
       __openInitiativeCardContextMenu(entry, event);
     });
 
-    const portrait = document.createElement("div");
-    Object.assign(portrait.style, {
-      position: "relative",
-      width: `${portraitSize}px`,
-      height: `${portraitSize}px`,
-      flex: `0 0 ${portraitSize}px`,
-      marginTop: boss ? "6px" : "4px",
-      overflow: "hidden",
-      border: `2px solid ${faction.border}`,
-      borderRadius: "50%",
-      boxSizing: "border-box",
-      background: `linear-gradient(145deg, ${rgba(faction.base, .42)}, rgba(31,39,51,.94))`,
-      boxShadow: active
-        ? `0 0 0 1px ${rgba(faction.border, .92)}, 0 0 9px ${rgba(faction.border, .36)}, 0 3px 9px rgba(0,0,0,.38)`
-        : "0 3px 9px rgba(0,0,0,.38)",
-      zIndex: "2",
+    const { portrait, bossFrame } = buildCompactCardPortrait(entry, {
+      active,
+      boss,
+      portraitSize,
+      faction,
+      rgba,
+      bossFrameSrc: BOSS_PORTRAIT_FRAME_SRC,
+      bossFrameScale: BOSS_PORTRAIT_FRAME_SCALE_COMPACT,
+      bossFrameMask: BOSS_PORTRAIT_FRAME_MASK,
     });
+    if (bossFrame) card.appendChild(bossFrame);
 
-    if (entry.portrait) {
-      const image = document.createElement("img");
-      image.src = entry.portrait;
-      image.alt = "";
-      Object.assign(image.style, {
-        width: "100%",
-        height: "100%",
-        display: "block",
-        objectFit: "cover",
-        objectPosition: "50% 50%",
-        transform: "scale(1.04)",
-      });
-      portrait.appendChild(image);
-    } else {
-      const fallback = document.createElement("div");
-      fallback.textContent = String(entry.name || "?").slice(0, 1).toUpperCase();
-      Object.assign(fallback.style, {
-        width: "100%",
-        height: "100%",
-        display: "grid",
-        placeItems: "center",
-        fontSize: "23px",
-        fontWeight: "700",
-        background: `linear-gradient(145deg, ${rgba(faction.base, .60)}, rgba(8,12,21,.92))`,
-      });
-      portrait.appendChild(fallback);
-    }
-
-    if (boss) {
-      const bossFrame = document.createElement("img");
-      const bossFrameSize = Math.round(portraitSize * BOSS_PORTRAIT_FRAME_SCALE_COMPACT);
-      bossFrame.src = BOSS_PORTRAIT_FRAME_SRC;
-      bossFrame.alt = "";
-      bossFrame.setAttribute("aria-hidden", "true");
-      bossFrame.draggable = false;
-      Object.assign(bossFrame.style, {
-        position: "absolute",
-        left: "50%",
-        top: `${3 + (boss ? 6 : 4) + (portraitSize / 2)}px`,
-        width: `${bossFrameSize}px`,
-        height: `${bossFrameSize}px`,
-        objectFit: "contain",
-        transform: "translate(-50%, -50%)",
-        pointerEvents: "none",
-        filter: "drop-shadow(0 2px 4px rgba(0,0,0,.72))",
-        WebkitMaskImage: BOSS_PORTRAIT_FRAME_MASK,
-        maskImage: BOSS_PORTRAIT_FRAME_MASK,
-        zIndex: "3",
-      });
-      card.appendChild(bossFrame);
-    }
-
-    const initiative = document.createElement("span");
-    initiative.textContent = String(entry.initiative ?? 0);
-    initiative.title = "Iniziativa";
-    Object.assign(initiative.style, {
-      position: "absolute",
-      left: "6px",
-      top: "6px",
-      minWidth: "25px",
-      height: "25px",
-      padding: "0 4px",
-      boxSizing: "border-box",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      border: `1px solid ${rgba(faction.border, active ? .98 : .78)}`,
-      borderRadius: "999px",
-      background: "rgba(7,11,18,.96)",
-      color: "#fff",
-      fontSize: "11px",
-      fontWeight: "700",
-      boxShadow: "0 2px 6px rgba(0,0,0,.56)",
-      zIndex: "4",
+    const {
+      initiativeBadge,
+      statusBadge,
+      activeMarker,
+    } = buildCompactCardIndicators(entry, {
+      active,
+      isLair: isLairId(entry.id),
+      faction,
+      rgba,
     });
-    card.appendChild(initiative);
+    card.appendChild(initiativeBadge);
+    if (statusBadge) card.appendChild(statusBadge);
+    if (activeMarker) card.appendChild(activeMarker);
 
-    if (entry.__groupCollapsed && entry.__groupCount > 1) {
-      const count = compactStatusBadge(`x${entry.__groupCount}`, "Gruppo collassato");
-      Object.assign(count.style, {
-        position: "absolute",
-        right: "6px",
-        top: "6px",
-        height: "24px",
-        minWidth: "27px",
-        zIndex: "5",
-      });
-      card.appendChild(count);
-    } else if (entry.isEpicAction || entry.isEpic || isLairId(entry.id)) {
-      const label = compactStatusBadge(
-        entry.isEpicAction ? "EP" : entry.isEpic ? "E" : "L",
-        entry.isEpicAction ? "Azione Epica" : entry.isEpic ? "Boss Epico" : "Azione di Tana",
-        entry.isEpicAction || entry.isEpic ? "legendary" : "neutral"
-      );
-      Object.assign(label.style, {
-        position: "absolute",
-        right: "6px",
-        top: "6px",
-        height: "24px",
-        minWidth: "27px",
-        zIndex: "5",
-      });
-      card.appendChild(label);
-    }
-
-    if (active) {
-      const activeMarker = document.createElement("span");
-      activeMarker.title = "Turno attivo";
-      activeMarker.setAttribute("aria-label", activeMarker.title);
-      Object.assign(activeMarker.style, {
-        position: "absolute",
-        top: "2px",
-        left: "50%",
-        width: "0",
-        height: "0",
-        transform: "translateX(-50%)",
-        borderLeft: "5px solid transparent",
-        borderRight: "5px solid transparent",
-        borderTop: `7px solid ${faction.border}`,
-        zIndex: "6",
-      });
-      card.appendChild(activeMarker);
-    }
-
-    if (knockedOut) {
-      const ko = compactStatusBadge("KO", `Fuori combattimento: 0 / ${hpMax}`);
-      ko.dataset.cardKoBadge = "1";
-      Object.assign(ko.style, {
-        position: "absolute",
-        right: "6px",
-        top: entry.__groupCollapsed && entry.__groupCount > 1 ? "34px" : "6px",
-        height: "21px",
-        zIndex: "6",
-      });
-      card.appendChild(ko);
-    }
-
-
-    const name = document.createElement("div");
-    name.textContent = entry.__groupCollapsed
-      ? `${entry.__groupBase} (Gruppo)`
-      : entry.name;
-    name.title = entry.__groupCollapsed
-      ? `${entry.__groupBase} (x${entry.__groupCount})`
-      : entry.name;
-    Object.assign(name.style, {
-      width: "100%",
-      height: "14px",
-      marginTop: "1px",
-      overflow: "hidden",
-      color: active ? "#fff" : "rgba(255,255,255,.90)",
-      fontSize: "9px",
-      fontWeight: active ? "700" : "600",
-      lineHeight: "14px",
-      textAlign: "center",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      textShadow: "0 1px 3px #000",
+    const {
+      hpText,
+      hpTrack,
+      knockedOutBadge,
+    } = buildCompactCardHP(entry, {
+      showHP,
+      safeHP,
+      hpMax,
+      hpPercent,
+      knockedOut,
+      hpColorByPct,
     });
+    if (knockedOutBadge) card.appendChild(knockedOutBadge);
+
+    const name = buildCompactCardName(entry, { active });
     if (IS_GM && !virtual && !entry.__groupCollapsed) {
-      name.title = "Doppio clic per rinominare il token";
-      name.style.cursor = "text";
-      name.addEventListener("dblclick", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (card.dataset.renaming === "1") return;
-
-        const originalName = String(entry.name || "").trim();
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = originalName;
-        input.maxLength = 120;
-        input.autocomplete = "off";
-        input.spellcheck = false;
-        Object.assign(input.style, {
-          width: "100%",
-          height: "20px",
-          marginTop: "0",
-          padding: "1px 4px",
-          border: `1px solid ${faction.border}`,
-          borderRadius: "5px",
-          background: "rgba(5,9,15,.97)",
-          color: "#fff",
-          fontSize: "9px",
-          fontWeight: "700",
-          textAlign: "center",
-          outline: "none",
-        });
-
-        card.dataset.renaming = "1";
-        card.draggable = false;
-        name.replaceWith(input);
-        input.focus();
-        input.select();
-
-        let finished = false;
-        const finish = async (save) => {
-          if (finished) return;
-          finished = true;
-          const nextName = input.value.trim();
-          let displayedName = originalName;
-          if (save && nextName && nextName !== originalName) {
-            try {
-              await OBR.scene.items.updateItems([entry.id], (items) => {
-                const item = items[0];
-                __setSceneTokenDisplayName(item, nextName);
-              });
-              displayedName = nextName;
-              entry.name = nextName;
-            } catch (error) {
-              console.warn("[initiative] compact rename token:", error?.message || error);
-            }
-          }
-          name.textContent = displayedName;
-          name.title = displayedName;
-          if (input.isConnected) input.replaceWith(name);
-          delete card.dataset.renaming;
-          card.draggable = dragAllowed;
-        };
-
-        input.addEventListener("pointerdown", (event) => event.stopPropagation());
-        input.addEventListener("click", (event) => event.stopPropagation());
-        input.addEventListener("dblclick", (event) => event.stopPropagation());
-        input.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            void finish(true);
-          } else if (event.key === "Escape") {
-            event.preventDefault();
-            void finish(false);
-          }
-        });
-        input.addEventListener("blur", () => void finish(true));
+      enableCompactCardRename({
+        card,
+        name,
+        getOriginalName: () => entry.name,
+        borderColor: faction.border,
+        dragAllowed,
+        saveName: async (nextName) => {
+          await OBR.scene.items.updateItems([entry.id], (items) => {
+            const item = items[0];
+            __setSceneTokenDisplayName(item, nextName);
+          });
+          entry.name = nextName;
+        },
+        onError: (error) => {
+          console.warn("[initiative] compact rename token:", error?.message || error);
+        },
       });
     }
 
-    const hpText = document.createElement("div");
-    hpText.dataset.cardHpText = "1";
-    hpText.textContent = showHP
-      ? `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`
-      : "";
-    Object.assign(hpText.style, {
-      display: showHP ? "block" : "none",
-      width: "100%",
-      height: "11px",
-      overflow: "hidden",
-      color: knockedOut ? "rgba(255,255,255,.58)" : "rgba(226,232,240,.82)",
-      fontSize: "8px",
-      fontWeight: "500",
-      lineHeight: "11px",
-      textAlign: "center",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    });
-
-    const hpTrack = document.createElement("div");
-    Object.assign(hpTrack.style, {
-      display: showHP ? "block" : "none",
-      width: "calc(100% - 8px)",
-      height: "5px",
-      marginTop: "1px",
-      overflow: "hidden",
-      border: "1px solid rgba(0,0,0,.76)",
-      borderRadius: "999px",
-      background: "rgba(0,0,0,.64)",
-      boxSizing: "border-box",
-    });
-    const hpFill = document.createElement("div");
-    hpFill.dataset.hpFill = "1";
-    hpFill.dataset.itemId = entry.id;
-    Object.assign(hpFill.style, {
-      width: showHP ? `${hpPercent * 100}%` : "0%",
-      height: "100%",
-      background: knockedOut ? "#475569" : hpColorByPct(hpPercent),
-    });
-    hpTrack.appendChild(hpFill);
-
-    const status = document.createElement("div");
-    status.dataset.cardSelectionIgnore = "1";
-    Object.assign(status.style, {
-      width: "100%",
-      height: "14px",
-      flex: "0 0 14px",
-      marginTop: "0",
-      padding: "0",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "2px",
-      overflow: "visible",
-      border: "0",
-      background: "transparent",
-      fontFamily: "inherit",
-    });
     const legendary = members.find((member) => Number(member.legendary?.max) > 0)?.legendary;
     const legendaryResistances = members.find(
       (member) => Number(member.legendaryResistances?.max) > 0
     )?.legendaryResistances;
 
-    let previewPill = null;
-    let effectSlot = null;
     const effectsPopoverOpen = __expandedCompactEffectsId === entry.id;
-    if (compactEffects.length) {
-      effectSlot = document.createElement("div");
-      Object.assign(effectSlot.style, {
-        position: "relative",
-        minWidth: "0",
-        flex: "1 1 auto",
-        height: "14px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "visible",
-      });
-      previewPill = __buildCompactEffectPill(compactEffects[0], true);
-      previewPill.style.flex = "1 1 100%";
-      if (hasExpandableEffects) {
-        previewPill.setAttribute("role", "button");
-        previewPill.setAttribute("tabindex", "0");
-        previewPill.setAttribute("aria-expanded", effectsPopoverOpen ? "true" : "false");
-        previewPill.setAttribute("aria-label", effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
-        previewPill.style.cursor = "pointer";
-      }
-      effectSlot.appendChild(previewPill);
-      status.appendChild(effectSlot);
-    }
-
-    let moreEffectsButton = null;
-    if (hasExpandableEffects) {
-      moreEffectsButton = document.createElement("button");
-      moreEffectsButton.type = "button";
-      moreEffectsButton.textContent = "+";
-      moreEffectsButton.dataset.cardSelectionIgnore = "1";
-      moreEffectsButton.setAttribute("aria-expanded", effectsPopoverOpen ? "true" : "false");
-      moreEffectsButton.setAttribute("aria-label", effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
-      moreEffectsButton.title = effectsPopoverOpen ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`;
-      Object.assign(moreEffectsButton.style, {
-        position: "absolute",
-        top: "calc(100% + 1px)",
-        left: "50%",
-        width: "16px",
-        height: "16px",
-        padding: "0 0 1px",
-        display: effectsPopoverOpen ? "none" : "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "1px solid rgba(255,255,255,.34)",
-        borderRadius: "50%",
-        background: "rgba(8,12,21,.92)",
-        color: "#fff",
-        fontFamily: "inherit",
-        fontSize: "13px",
-        fontWeight: "800",
-        lineHeight: "1",
-        cursor: "pointer",
-        boxShadow: "0 1px 4px rgba(0,0,0,.45)",
-        transform: "translateX(-50%)",
-        zIndex: "22",
-      });
-    }
+    const {
+      status,
+      previewPill,
+      moreEffectsButton,
+    } = buildCompactCardStatus(compactEffects, {
+      hasExpandableEffects,
+      effectsPopoverOpen,
+      spellColor: __spellColor,
+    });
 
     const appendCompactLegendaryResource = (resource, kind, onSet, label) => {
-      if (!resource || Number(resource.max) <= 0) return;
-      const current = Math.max(0, Math.min(
-        Number(resource.max) || 0,
-        Number(resource.current) || 0,
-      ));
-      const pips = kind === "resistance"
-        ? mkLegendaryResistancePips(resource, onSet)
-        : mkLegendaryPips(resource, onSet, entry.attitude || "enemy");
-      pips.style.gap = "1px";
-      pips.style.flex = "0 0 auto";
-      pips.setAttribute("role", "group");
-      pips.setAttribute("aria-label", `${label}: ${current}/${Number(resource.max) || 0}`);
-      pips.title = `${label}: ${current}/${Number(resource.max) || 0}`;
-      status.appendChild(pips);
+      const pips = buildCompactLegendaryResourcePips(resource, {
+        label,
+        buildPips: () => kind === "resistance"
+          ? mkLegendaryResistancePips(resource, onSet)
+          : mkLegendaryPips(resource, onSet, entry.attitude || "enemy"),
+      });
+      if (pips) status.appendChild(pips);
     };
     appendCompactLegendaryResource(
       legendary,
@@ -6976,29 +6302,17 @@ function renderCompactTrack(entries, state, { animateActive = false } = {}) {
     );
 
     card.append(portrait, name, hpText, hpTrack, status);
-    if (moreEffectsButton) effectSlot.appendChild(moreEffectsButton);
     if (hasExpandableEffects) {
-      const syncEffectsToggleState = (opened) => {
-        moreEffectsButton.style.display = opened ? "none" : "inline-flex";
-        moreEffectsButton.setAttribute("aria-expanded", opened ? "true" : "false");
-        moreEffectsButton.setAttribute("aria-label", opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
-        moreEffectsButton.title = opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`;
-        previewPill.setAttribute("aria-expanded", opened ? "true" : "false");
-        previewPill.setAttribute("aria-label", opened ? "Nascondi gli altri effetti" : `Mostra altri ${compactEffects.length - 1} effetti`);
-      };
-      const toggleEffects = async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const opened = await __toggleCompactEffectsPopover(card, previewPill, entry.id, compactEffects);
-        syncEffectsToggleState(opened);
-      };
-      moreEffectsButton.addEventListener("pointerdown", (event) => event.stopPropagation());
-      moreEffectsButton.addEventListener("click", toggleEffects);
-      previewPill.addEventListener("pointerdown", (event) => event.stopPropagation());
-      previewPill.addEventListener("click", toggleEffects);
-      previewPill.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        void toggleEffects(event);
+      bindCompactEffectsToggle({
+        previewPill,
+        moreEffectsButton,
+        effectsCount: compactEffects.length,
+        requestToggle: () => __toggleCompactEffectsPopover(
+          card,
+          previewPill,
+          entry.id,
+          compactEffects,
+        ),
       });
     }
     if (active) card.dataset.active = "1";
@@ -7072,16 +6386,34 @@ for (const e of entries) {
 }
     const nodes = entriesForRender.map((e) => {
     const c = factionColors(e.attitude);
-    const card = document.createElement("div");
-
-    card.dataset.itemId     = e.id;
-    card.dataset.initiative = String(e.initiative || 0);
-    card.dataset.groupCollapsed = e.__groupCollapsed ? "1" : "0";
-    card.dataset.groupKey = e.__groupKey || __groupKey(e);
-    card.dataset.trackerCard = "1";
-    card.__selectionItemIds = __selectionIdsForEntry(e);
-    card.title = "Click: seleziona token. Ctrl/Shift+click: selezione multipla. Click destro: azioni";
-    card.style.cursor = card.__selectionItemIds.length ? "pointer" : "default";
+    const cardEffectData = __safeConditions(e.__groupCollapsed ? null : e.conditions);
+    const {
+      hasLegendary: HAS_LEG,
+      hasParagon: HAS_PAR,
+      isEpic: IS_EPIC,
+      isBoss: IS_BOSS,
+      hpValue: CLASSIC_HP_VALUE,
+      hpMax: CLASSIC_HP_MAX,
+      hpVisible: CLASSIC_HP_VISIBLE,
+      knockedOut: KNOCKED_OUT,
+      playerCardHasHP: PLAYER_CARD_HAS_HP,
+      playerBossVerticalOffset: PLAYER_BOSS_VERTICAL_OFFSET,
+      hasCardEffects: HAS_CARD_EFFECTS,
+      dragAllowed: DRAG_OK,
+    } = deriveClassicCardPresentation(e, {
+      isGM: IS_GM,
+      isLair: isLairId(e.id),
+      isEpicAction: isEpicActionId(e.id),
+      cardEffectData,
+    });
+    const card = buildClassicCardShell(e, {
+      groupKey: e.__groupKey || __groupKey(e),
+      selectionItemIds: __selectionIdsForEntry(e),
+      hpVisible: CLASSIC_HP_VISIBLE,
+      hpMax: CLASSIC_HP_MAX,
+      knockedOut: KNOCKED_OUT,
+      dragAllowed: DRAG_OK,
+    });
     card.addEventListener("click", (event) => {
       if (event.target.closest("button, input, select, textarea, [contenteditable='true'], [role='button'], [data-badge], [data-card-selection-ignore]")) return;
       event.stopPropagation();
@@ -7090,112 +6422,6 @@ for (const e of entries) {
     card.addEventListener("contextmenu", (event) => {
       __openInitiativeCardContextMenu(e, event);
     });
-
-    const HAS_LEG = !!(e.legendary && Number(e.legendary.max) > 0);
-    const HAS_PAR = Number(e.paragonActions) > 1;
-    const IS_EPIC = !!e.isEpic;
-    const IS_BOSS = HAS_LEG || HAS_PAR || IS_EPIC;
-    const CLASSIC_HP_VALUE = Number.isFinite(Number(e.hp)) ? Number(e.hp) : 0;
-    const CLASSIC_HP_MAX = Number.isFinite(Number(e.hpMax)) ? Number(e.hpMax) : 0;
-    const CLASSIC_HP_VISIBLE = IS_GM || ["ally", "pc"].includes(String(e.attitude || "").toLowerCase());
-    const KNOCKED_OUT = CLASSIC_HP_VISIBLE && !e.__groupCollapsed &&
-      !isLairId(e.id) && !isEpicActionId(e.id) &&
-      CLASSIC_HP_MAX > 0 && CLASSIC_HP_VALUE <= 0;
-    card.dataset.hpCanSee = CLASSIC_HP_VISIBLE ? "1" : "0";
-    card.dataset.hpVisible = CLASSIC_HP_VISIBLE && CLASSIC_HP_MAX > 0 ? "1" : "0";
-    card.dataset.knockedOut = KNOCKED_OUT ? "1" : "0";
-    const PLAYER_CARD_HAS_HP = !IS_GM && !e.__groupCollapsed &&
-      ["ally", "pc"].includes(String(e.attitude || "").toLowerCase());
-    const PLAYER_BOSS_VERTICAL_OFFSET = IS_BOSS && !IS_GM && !PLAYER_CARD_HAS_HP
-      ? (HAS_LEG ? 16 : 7)
-      : 0;
-
-    const cardEffectData = __safeConditions(e.__groupCollapsed ? null : e.conditions);
-    const HAS_CARD_EFFECTS =
-      !e.__groupCollapsed && (
-      Object.keys(cardEffectData.flags || {}).length > 0 ||
-      (cardEffectData.custom?.length || 0) > 0 ||
-      (cardEffectData.instances?.length || 0) > 0 ||
-      (Array.isArray(e.spells) && e.spells.length > 0) ||
-      !!e.isConcentrating);
-
-    const DRAG_OK = !(isLairId(e.id) || isEpicActionId(e.id) || IS_EPIC);
-    card.setAttribute("draggable", DRAG_OK ? "true" : "false");
-    card.dataset.isEpicAction = e.isEpicAction ? "1" : "0";
-
-
-    function applyBG3Frame(card, c, opts = {}) {
-    const OUTLINE_W = opts.outlineW ?? 2;   // bordo nero
-    const FRAME_W   = opts.frameW   ?? 4;   // spessore anello
-    const R_OUTER   = opts.rOuter   ?? 12;  // esterno (SPIGOLO: teniamolo 0 sugli strati)
-    const R_INNER   = opts.rInner   ?? 12;  // raggio interno ARROTONDATO
-    const EPS = 0.5;
-
-    // base card (tuo background neutro)
-    card.style.position = "relative";
-    card.style.marginLeft = "20px"; // spazio per il ritratto e i controlli radiali
-    card.style.background = `linear-gradient(105deg, ${rgba(c.base, .38)} 0%, ${rgba(c.base, .16)} 58%, rgba(31,39,51,.94) 100%)`;
-    card.style.border = "none";
-    card.style.borderRadius = `${R_INNER}px`;
-    card.style.overflow = "visible";
-
-    // 1) Outline nero esterno — SHARP
-    const outline = document.createElement("div");
-    Object.assign(outline.style, {
-      position: "absolute",
-      inset: "0",
-      border: `${OUTLINE_W}px solid ${rgba(c.border, .72)}`,
-      borderRadius: `${R_OUTER}px`,
-      pointerEvents: "none",
-      zIndex: "0",
-    });
-
-    // 2a) FONDO COLORATO dell’anello (esterno squadrato)
-    const ringFill = document.createElement("div");
-    Object.assign(ringFill.style, {
-      position: "absolute",
-      inset: `${OUTLINE_W}px`,
-      border: `1px solid ${rgba(c.base, .22)}`,
-      background: "transparent",
-      borderRadius: `${Math.max(0, R_OUTER - OUTLINE_W)}px`,
-      pointerEvents: "none",
-      zIndex: "0",
-    });
-
-    // 2b) “TAPPO” centrale che crea il buco arrotondato
-    const ringHole = document.createElement("div");
-    Object.assign(ringHole.style, {
-      position: "absolute",
-      inset: `${OUTLINE_W + FRAME_W}px`,
-      borderRadius: `${R_INNER}px`,
-      background: "transparent",
-      pointerEvents: "none",
-      zIndex: "0",
-    });
-
-    // (opzionale) lieve sheen che segue l’anello
-    const sheen = document.createElement("div");
-    Object.assign(sheen.style, {
-      position: "absolute",
-      inset: `${OUTLINE_W}px`,
-      background: "linear-gradient(135deg, rgba(255,255,255,.10), transparent 42%)",
-      borderRadius: `${Math.max(0, R_OUTER - OUTLINE_W)}px`,
-      pointerEvents: "none",
-      zIndex: "0",
-    });
-
-    card.append(outline, ringFill, ringHole, sheen);
-
-    // --- RESET base per tutte le card ---
-    const baseScale = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
-    const wantBase  = `translateZ(0) scale(${baseScale})`;
-    if (card.dataset.zoomState !== "base") {
-      __instaTransform(card, wantBase);
-      card.dataset.zoomState = "base";
-  }
-  card.style.zIndex = IS_BOSS ? String(LEG_BOSS_CFG.zIndex) : "";
-
-}
 
 // base card
 card.style.minWidth = "284px";
@@ -7216,7 +6442,11 @@ const CARD_H = MAIN_CARD_H + EFFECT_ROW_H;
 card.style.height = CARD_H + "px";
 
 // applica cornice stile BG3 (come prima)
-applyBG3Frame(card, c, {
+applyClassicCardFrame(card, c, {
+  isBoss: IS_BOSS,
+  bossConfig: LEG_BOSS_CFG,
+  rgba,
+  instaTransform: __instaTransform,
   outlineW: 1.5,
   frameW: 2,
   rOuter: 16,
@@ -7533,79 +6763,23 @@ Object.assign(nameLabel.style, {
   textOverflow: "ellipsis",
 });
 if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
-  nameLabel.title = "Doppio clic per rinominare il token";
-  nameLabel.style.cursor = "text";
-  nameLabel.addEventListener("dblclick", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (card.dataset.renaming === "1") return;
-
-    const originalName = String(e.name || "").trim();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = originalName;
-    input.maxLength = 120;
-    input.autocomplete = "off";
-    input.spellcheck = false;
-    input.dataset.cardSelectionIgnore = "1";
-    Object.assign(input.style, {
-      flex: "1 1 auto",
-      minWidth: "0",
-      height: "28px",
-      padding: "2px 7px",
-      border: `1px solid ${c.border}`,
-      borderRadius: "7px",
-      background: "rgba(5,9,15,.96)",
-      color: "#fff",
-      font: "inherit",
-      fontSize: "14px",
-      fontWeight: "700",
-      outline: "none",
-    });
-
-    card.dataset.renaming = "1";
-    card.draggable = false;
-    nameLabel.replaceWith(input);
-    input.focus();
-    input.select();
-
-    let finished = false;
-    const finish = async (save) => {
-      if (finished) return;
-      finished = true;
-      const nextName = input.value.trim();
-      let displayedName = originalName;
-      if (save && nextName && nextName !== originalName) {
-        try {
-          await OBR.scene.items.updateItems([e.id], (items) => {
-            const item = items[0];
-            __setSceneTokenDisplayName(item, nextName);
-          });
-          displayedName = nextName;
-          e.name = nextName;
-        } catch (error) {
-          console.warn("[initiative] rename token:", error?.message || error);
-        }
-      }
-      nameLabel.textContent = displayedName;
-      name.title = displayedName;
-      if (input.isConnected) input.replaceWith(nameLabel);
-      delete card.dataset.renaming;
-      card.draggable = DRAG_OK;
-    };
-
-    input.addEventListener("pointerdown", (event) => event.stopPropagation());
-    input.addEventListener("click", (event) => event.stopPropagation());
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        void finish(true);
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        void finish(false);
-      }
-    });
-    input.addEventListener("blur", () => void finish(true));
+  enableClassicCardRename({
+    card,
+    name,
+    nameLabel,
+    getOriginalName: () => e.name,
+    borderColor: c.border,
+    dragAllowed: DRAG_OK,
+    saveName: async (nextName) => {
+      await OBR.scene.items.updateItems([e.id], (items) => {
+        const item = items[0];
+        __setSceneTokenDisplayName(item, nextName);
+      });
+      e.name = nextName;
+    },
+    onError: (error) => {
+      console.warn("[initiative] rename token:", error?.message || error);
+    },
   });
 }
 name.appendChild(nameLabel);
@@ -7761,10 +6935,7 @@ if (cardToolsDock && e.__groupCollapsed) {
     input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
     input.addEventListener("click", (ev) => ev.stopPropagation());
     input.addEventListener("input", () => {
-      let value = String(input.value || "").replace(/\s+/g, "");
-      value = value.replace(/(?!^)[+\-]/g, "");
-      value = value.replace(/(?!^[+\-])\D+/g, "");
-      input.value = value;
+      input.value = normalizeSignedIntegerInput(input.value);
     });
     input.addEventListener("keydown", (keyEvent) => {
       if (keyEvent.key === "Enter") {
@@ -8155,9 +7326,7 @@ badge.addEventListener("pointerdown", async (ev) => {
     if (ke.key === "ArrowUp" || ke.key === "ArrowDown") ke.preventDefault();
   });
   input.addEventListener("input", () => {
-    let v = input.value.replace(/[^\d-]/g, "");
-    if (v.indexOf("-") > 0) v = "-" + v.replace(/-/g, "");
-    input.value = v;
+    input.value = normalizeInitiativeInput(input.value);
   });
   input.addEventListener("pointerdown", (e2) => { e2.stopPropagation(); });
 
@@ -8995,21 +8164,6 @@ pill.addEventListener("pointerdown", async (ev) => {
   // Parser inline, prefill, costruzione wrap + input iHP/iMax, stile, ecc...
   // --- INIZIO: blocco invariato dal tuo codice ---
 
-  // 3) Parser inline (+N/-N o assoluti)
-  function parseInlineMath(input, baseValue) {
-    const s = String(input || "").trim();
-    if (s === "") return baseValue;
-    const m = /^([+\-])(\d+)$/.exec(s);
-    if (m) {
-      const sign = m[1] === "-" ? -1 : 1;
-      const n = parseInt(m[2], 10);
-      return Math.max(0, (baseValue || 0) + sign * n);
-    }
-    const abs = parseInt(s, 10);
-    if (!Number.isNaN(abs)) return Math.max(0, abs);
-    return baseValue;
-  }
-
   // 4) PREFILL ROBUSTO + LIVE (autofill immediato quando si passa alla successiva)
 let liveHP = null, liveMax = null;
 try {
@@ -9063,10 +8217,7 @@ const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 
       if (ke.key === "ArrowUp" || ke.key === "ArrowDown") ke.preventDefault();
     });
     inp.addEventListener("input", () => {
-      let v = (inp.value || "").replace(/\s+/g, "");
-      v = v.replace(/(?!^)[+\-]/g, "");
-      v = v.replace(/(?!^[+\-])\D+/g, "");
-      inp.value = v;
+      inp.value = normalizeSignedIntegerInput(inp.value);
     });
     inp.addEventListener("click", (e2) => e2.stopPropagation());
   }
@@ -9521,6 +8672,8 @@ function __renderOptimisticNavigationState(state) {
 
 async function renderAll(reason = "unspecified") {
   if (__suspendRenders) return;
+  const renderStartedAt = performance.now();
+  const renderDurationMs = () => Math.round((performance.now() - renderStartedAt) * 100) / 100;
   const renderRevision = ++__renderRequestRevision;
   __initiativeDiag("render:requested", { renderRevision, reason });
   const stateRaw = await getSceneState();
@@ -9531,17 +8684,26 @@ async function renderAll(reason = "unspecified") {
       renderRevision,
       reason,
       activeId: __activeIdForState(stateRaw),
+      durationMs: renderDurationMs(),
     });
     return;
   }
   if (renderRevision < __latestAcceptedRenderRevision) {
-    __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+    __initiativeDiag("render:skipped-superseded", {
+      renderRevision,
+      reason,
+      durationMs: renderDurationMs(),
+    });
     return;
   }
   __latestAcceptedRenderRevision = renderRevision;
   const baseEntries  = await getEntriesWithLair(stateRaw);
   if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
-    __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+    __initiativeDiag("render:skipped-superseded", {
+      renderRevision,
+      reason,
+      durationMs: renderDurationMs(),
+    });
     return;
   }
   const entries = expandParagonEntries(baseEntries, stateRaw);
@@ -9570,6 +8732,7 @@ __activeLabelEntriesById = byId;
       renderRevision,
       reason,
       activeId: __activeIdForState(stateClean),
+      durationMs: renderDurationMs(),
     });
     return;
   }
@@ -9595,7 +8758,11 @@ __activeLabelEntriesById = byId;
       // N.B. questo triggherà onMetadataChange, ma intanto noi renderizziamo già giusto
       await setSceneState(stateClean);
       if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
-        __initiativeDiag("render:skipped-superseded", { renderRevision, reason });
+        __initiativeDiag("render:skipped-superseded", {
+          renderRevision,
+          reason,
+          durationMs: renderDurationMs(),
+        });
         return;
       }
       if (__isStaleNavigationState(stateClean)) {
@@ -9603,15 +8770,28 @@ __activeLabelEntriesById = byId;
           renderRevision,
           reason,
           activeId: __activeIdForState(stateClean),
+          durationMs: renderDurationMs(),
         });
         return;
       }
     }
     // Evita rimpiazzi DOM mentre c'è un editor aperto o stiamo switchando editor
-    if (__suspendRenders) return;
+    if (__suspendRenders) {
+      __initiativeDiag("render:skipped-suspended", {
+        renderRevision,
+        reason,
+        durationMs: renderDurationMs(),
+      });
+      return;
+    }
     if (__editingInitForId || __editingHPForId) {
-    return;
-}
+      __initiativeDiag("render:skipped-editor", {
+        renderRevision,
+        reason,
+        durationMs: renderDurationMs(),
+      });
+      return;
+    }
     // costruisci la lista rispettando l’ordine pulito
     const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
@@ -9630,6 +8810,7 @@ try {
         renderRevision,
         activeId: activeIdNow,
         layout: getTrackerLayout(),
+        durationMs: renderDurationMs(),
       });
       return;
     }
@@ -9646,6 +8827,9 @@ try {
       activeId: activeIdNow,
       animateActive,
       layout: getTrackerLayout(),
+      durationMs: renderDurationMs(),
+      entries: ordered.length,
+      cards: track.querySelectorAll("[data-tracker-card='1']").length,
     });
 
     __prevActiveId = activeIdNow; // aggiorna per il prossimo render

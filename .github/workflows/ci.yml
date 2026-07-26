@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify version identity
+        run: npm run verify:version
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check spell catalogs
+        run: npm run check:spells
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Write artifact checksums
+        run: npm run artifact:checksums
+
+      - name: Verify production artifact
+        run: npm run verify:dist
