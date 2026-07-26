@@ -2,7 +2,9 @@ import catalogData from "./spells-srd-5.1.json" with { type: "json" };
 import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
 import {
+  AREA_SAVE_AUTOMATION_RULES,
   AREA_SAVE_EFFECT_RULES,
+  AREA_SAVE_RULE_CHOICES,
   AREA_SAVE_SPELL_ID_SET,
 } from "./areaSaveSpellRules.js";
 import {
@@ -84,6 +86,8 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       expiry: CONCENTRATION_EXPIRY,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
     })]),
   }),
   "fear": Object.freeze({
@@ -91,6 +95,8 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Spaventato",
       expiry: CONCENTRATION_EXPIRY,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
     })]),
   }),
   "hypnotic-pattern": Object.freeze({
@@ -99,10 +105,14 @@ const SAVE_AUTOMATION = Object.freeze({
       Object.freeze({
         condition: "Affascinato",
         expiry: CONCENTRATION_EXPIRY,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
       }),
       Object.freeze({
         condition: "Incapacitato",
         expiry: CONCENTRATION_EXPIRY,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
       }),
     ]),
   }),
@@ -114,6 +124,8 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       expiry: CONCENTRATION_EXPIRY,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
     })]),
   }),
   ...SUPPLEMENT_SAVE_AUTOMATION,
@@ -183,7 +195,7 @@ const SPELL_EFFECTS = Object.freeze({
       id: "incoming-attack-advantage",
       kind: "debuff",
       label: "Attacchi contro: vant.",
-      detail: "Gli attacchi contro il bersaglio dispongono di vantaggio se l'attaccante può vederlo.",
+      detail: "Gli attacchi contro il bersaglio dispongono di vantaggio se l'attaccante può vederlo; il bersaglio non beneficia dell'invisibilità.",
     }),
   ]),
   "guidance": Object.freeze([
@@ -653,7 +665,16 @@ function effectSaveRule(effect, spell) {
 
 function areaSaveAutomationForSpell(spell, choiceValue = "") {
   if (!spell) return null;
-  const base = SAVE_AUTOMATION[spell.id] || null;
+  const areaChoices = AREA_SAVE_RULE_CHOICES[spell.id] || [];
+  const selectedAreaChoice = areaChoices.find((choice) => choice.id === choiceValue)
+    || areaChoices[0]
+    || null;
+  const base = selectedAreaChoice?.replaceBase === true
+    ? null
+    : SAVE_AUTOMATION[spell.id] || null;
+  const declared = selectedAreaChoice
+    ? selectedAreaChoice.automation || null
+    : AREA_SAVE_AUTOMATION_RULES[spell.id] || null;
   const effectRule = AREA_SAVE_EFFECT_RULES[spell.id] || null;
   const failedEffectIds = new Set(effectRule?.failedEffectIds || []);
   const selectedChoiceId = effectRule?.choiceId || choiceValue;
@@ -665,19 +686,31 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
     .map((effect) => effectSaveRule(effect, spell))
     .filter((rule) => rule.condition && rule.effectKind);
 
-  if (!base && !failedEffects.length) return null;
+  if (!base && !declared && !failedEffects.length) return null;
+  const automationSources = [base, declared].filter(Boolean);
+  const hasExplicitTrackOutcomes = automationSources.some((source) =>
+    Object.prototype.hasOwnProperty.call(source, "trackOutcomes")
+  );
   const trackOutcomes = Array.from(new Set([
-    ...(base?.trackOutcomes || []),
+    ...automationSources.flatMap((source) => source.trackOutcomes || []),
     ...(failedEffects.length ? ["failed"] : []),
   ]));
-  return Object.freeze({
-    ...(base || {}),
-    trackOutcomes: Object.freeze(trackOutcomes),
-    failed: Object.freeze([
-      ...(base?.failed || []),
-      ...failedEffects,
-    ]),
-  });
+  const merged = {};
+  const concentrationAction = [...automationSources].reverse()
+    .map((source) => String(source.concentrationAction || "").trim())
+    .find((value) => ["replace", "dismiss"].includes(value));
+  if (concentrationAction) merged.concentrationAction = concentrationAction;
+  for (const outcome of ["passed", "failed", "immune"]) {
+    const rules = [
+      ...automationSources.flatMap((source) => source[outcome] || []),
+      ...(outcome === "failed" ? failedEffects : []),
+    ];
+    if (rules.length) merged[outcome] = Object.freeze(rules);
+  }
+  if (hasExplicitTrackOutcomes || failedEffects.length) {
+    merged.trackOutcomes = Object.freeze(trackOutcomes);
+  }
+  return Object.freeze(merged);
 }
 
 const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map((spell) => {
@@ -754,6 +787,12 @@ export function getSpellDefinition(value) {
 export function getAreaSaveAutomation(value, choiceValue = "") {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
   return areaSaveAutomationForSpell(spell, choiceValue);
+}
+
+export function getAreaSaveRuleChoices(value) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  const choices = AREA_SAVE_RULE_CHOICES[spell?.id] || [];
+  return choices.map((choice) => ({ value: choice.id, label: choice.label }));
 }
 
 export function getSpellEffectChoices(value) {

@@ -117,6 +117,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
   if (options.manualRemoval === true) instance.manualRemoval = true;
   if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
+  if (options.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(options.level || 1));
   }
@@ -129,6 +130,25 @@ function appendCondition(state, operation, targetId) {
   const instance = conditionInstance(operation, targetId, instanceId, operation.conditionName);
   if (!instance) return;
   if (state.conditions.some((entry) => String(entry?.id || "") === instance.id)) return;
+  const parentEffectId = String(instance.parentEffectId || "").trim();
+  const matchingIndex = instance.exhaustionContribution === true || !parentEffectId
+    ? -1
+    : state.conditions.findIndex((entry) =>
+      conditionKey(entry) === conditionKey(instance)
+      && String(entry?.parentEffectId || "").trim() === parentEffectId
+      && String(entry?.sourceId || "").trim() === String(instance.sourceId || "").trim()
+      && String(entry?.effectId || "").trim() === String(instance.effectId || "").trim()
+    );
+  if (matchingIndex >= 0) {
+    const existing = state.conditions[matchingIndex];
+    state.conditions[matchingIndex] = {
+      ...existing,
+      ...instance,
+      id: existing.id,
+      createdAt: existing.createdAt,
+    };
+    return;
+  }
 
   const previous = clone(state.conditions);
   const next = [...state.conditions, instance];

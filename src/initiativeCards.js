@@ -4,6 +4,7 @@ import { ID } from "./constants.js";
 import { withItemMetaHistory } from "./history.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
 import {
+  getExhaustionContributionLevel,
   getExhaustionLevel,
   reconcileExhaustionCondition,
   refreshConditionLabels,
@@ -120,10 +121,27 @@ function readLocalInitiativeCards() {
 
 function profileWithConditionFallback(name, value, conditions) {
   const profile = profileWithDefaults(name, value);
-  if (!Object.prototype.hasOwnProperty.call(value || {}, "exhaustion")) {
+  const hasStoredExhaustion = Object.prototype.hasOwnProperty.call(value || {}, "exhaustion");
+  if (!hasStoredExhaustion) {
     profile.exhaustion = getExhaustionLevel(conditions);
+  } else {
+    profile.exhaustion = Math.min(
+      5,
+      Math.max(0, Number(profile.exhaustion) || 0) + getExhaustionContributionLevel(conditions),
+    );
   }
   return profile;
+}
+
+function profileForStorage(name, value, conditions) {
+  const profile = profileWithConditionFallback(name, value, conditions);
+  return {
+    ...profile,
+    exhaustion: Math.max(
+      0,
+      Number(profile.exhaustion || 0) - getExhaustionContributionLevel(conditions),
+    ),
+  };
 }
 
 function writeLocalInitiativeCards(registry) {
@@ -254,10 +272,9 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
       if (hasTokenProfile) await removeTokenProfile(item.id);
       return profile;
     }
-    const cleanWinner = {
-      ...sanitizeInitiativeCard(winner),
-      exhaustion: profile.exhaustion,
-    };
+    const cleanWinner = sanitizeInitiativeCard(
+      profileForStorage(item?.name, winner, tokenConditions)
+    );
     const storedProfile = { ...cleanWinner, updatedAt };
     const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt ||
       JSON.stringify(sanitizeInitiativeCard(tokenRaw)) !== JSON.stringify(cleanWinner);
@@ -300,11 +317,18 @@ export function hasInitiativeCardValues(profile) {
 export async function saveInitiativeCard(itemId, name, value) {
   const profile = sanitizeInitiativeCard(value);
   const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
+  const contributionLevel = getExhaustionContributionLevel(
+    sourceItem?.metadata?.[META_KEY]?.conditions
+  );
+  const storedBaseProfile = {
+    ...profile,
+    exhaustion: Math.max(0, Number(profile.exhaustion || 0) - contributionLevel),
+  };
   const identity = sourceItem || { name };
   const keys = initiativeCardRegistryKeys(identity);
   if (!keys.length) throw new Error("Identità del personaggio non valida");
   const updatedAt = Date.now();
-  const storedProfile = { ...profile, updatedAt };
+  const storedProfile = { ...storedBaseProfile, updatedAt };
 
   await withItemMetaHistory({
     kind: "initiative-card",
@@ -313,7 +337,11 @@ export async function saveInitiativeCard(itemId, name, value) {
     fields: [INITIATIVE_CARD_FIELD, "conditions"],
   }, async () => {
     await updateRoomCards((next) => {
-      const entry = { name: String(sourceItem?.name || name || ""), profile, updatedAt };
+      const entry = {
+        name: String(sourceItem?.name || name || ""),
+        profile: storedBaseProfile,
+        updatedAt,
+      };
       for (const key of keys) next[key] = entry;
       return next;
     });
@@ -345,7 +373,7 @@ export async function syncInitiativeCardRegistryFromItems(itemIds) {
         continue;
       }
       const updatedAt = Date.now() + offset++;
-      const profile = profileWithConditionFallback(
+      const profile = profileForStorage(
         item.name,
         raw,
         item.metadata?.[META_KEY]?.conditions

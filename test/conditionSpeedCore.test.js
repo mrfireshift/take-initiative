@@ -93,3 +93,10 @@ test("gli incantesimi SRD modificano la velocità (Passo Veloce, Raggio di Gelo,
   assert.ok(combo.summary.includes("Passo Veloce (+3m)"));
   assert.ok(combo.summary.includes("Velocità (×2)"));
 });
+
+test("Trama Ipnotica imposta a 0 la velocità dei bersagli affetti", () => {
+  const result = resolveConditionSpeed(9, [], [{ name: "Trama Ipnotica" }]);
+  assert.equal(result.speedMeters, 0);
+  assert.equal(result.blocked, true);
+  assert.ok(result.reasons.includes("Trama Ipnotica"));
+});

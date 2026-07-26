@@ -5,6 +5,7 @@ import { effectsDiagnostics } from "./effectsDiagnostics.js";
 import { conditionLabelNeedsUpdate } from "./effectsReconcilerCore.js";
 import {
   EXHAUSTION_CONDITION,
+  exhaustionContributionLevelFromInstances,
   exhaustionLevelFromInstances,
   normalizeExhaustionLevel,
   reconcileExhaustionInstances,
@@ -159,6 +160,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   }
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
   if (value.manualRemoval === true) instance.manualRemoval = true;
+  if (value.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = value.level === undefined || value.level === null || value.level === ""
       ? 1
@@ -299,6 +301,7 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
   }
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
   if (opts.manualRemoval === true) instance.manualRemoval = true;
+  if (opts.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(opts.level || 1));
   }
@@ -469,6 +472,10 @@ export async function setItemConditions(itemId, next) {
 
 export function getExhaustionLevel(cond = {}) {
   return exhaustionLevelFromInstances(__allConditionInstances(cond));
+}
+
+export function getExhaustionContributionLevel(cond = {}) {
+  return exhaustionContributionLevelFromInstances(__allConditionInstances(cond));
 }
 
 export function reconcileExhaustionCondition(cond = {}, level, targetId = "") {

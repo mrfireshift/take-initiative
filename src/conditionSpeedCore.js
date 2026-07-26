@@ -48,6 +48,9 @@ export function resolveConditionSpeed(baseSpeedMeters, instances = [], spells = 
     if (names.has(key)) reasons.push(label);
   }
   if (exhaustionLevel >= 5) reasons.push(`Indebolimento ${exhaustionLevel}`);
+  const hasHypnoticPattern = spellKeys.has("hypnotic pattern")
+    || spellKeys.has("trama ipnotica");
+  if (hasHypnoticPattern) reasons.push("Trama Ipnotica");
 
   const blocked = reasons.length > 0;
 

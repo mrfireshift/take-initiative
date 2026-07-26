@@ -47,6 +47,7 @@ function normalizeConditionRule(value) {
   if (rule.effectDetail) options.effectDetail = String(rule.effectDetail);
   if (rule.manualRemoval === true) options.manualRemoval = true;
   if (rule.endsParentOnRemoval === true) options.endsParentOnRemoval = true;
+  if (rule.exhaustionContribution === true) options.exhaustionContribution = true;
 
   return { conditionName, options };
 }
@@ -60,10 +61,11 @@ export function normalizeSaveSpellAutomation(value = {}) {
       .filter(Boolean);
   }
 
+  const hasExplicitTrackOutcomes = Array.isArray(source.trackOutcomes);
   const explicitTrackOutcomes = uniqueIds(source.trackOutcomes)
     .map((outcome) => outcome.toLocaleLowerCase("it"))
     .filter((outcome) => OUTCOME_SET.has(outcome));
-  const trackOutcomes = explicitTrackOutcomes.length
+  const trackOutcomes = hasExplicitTrackOutcomes
     ? explicitTrackOutcomes
     : OUTCOME_KEYS.filter((outcome) => rulesByOutcome[outcome].length > 0);
 

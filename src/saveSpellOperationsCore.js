@@ -17,6 +17,7 @@ export function saveSpellResolutionOperations({
   turns = 1,
   spellExpiry = null,
   appliedAt = null,
+  concentrationAction = "replace",
 } = {}) {
   if (!resolution?.valid) {
     const reasons = Array.isArray(resolution?.errors) ? resolution.errors.join(", ") : "invalid-resolution";
@@ -29,9 +30,12 @@ export function saveSpellResolutionOperations({
   const targetIds = uniqueIds(resolution.spellTargetIds);
   const casterId = String(resolution.casterId || "").trim();
   const concentration = resolution.concentration === true;
+  const concentrationMode = ["dismiss", "extend"].includes(concentrationAction)
+    ? concentrationAction
+    : "replace";
   const operations = [];
 
-  if (concentration && casterId) {
+  if (concentrationMode !== "extend" && concentration && casterId) {
     operations.push({ type: "concentration:break", casterIds: [casterId] });
   }
   if (targetIds.length) {
@@ -40,13 +44,15 @@ export function saveSpellResolutionOperations({
       targetIds,
       name: resolution.spellName,
       turns: Math.max(1, Math.floor(Number(turns) || 1)),
-      conc: concentration && !!casterId,
+      conc: concentrationMode !== "dismiss" && concentration && !!casterId,
       source: casterId,
       instanceId: spellInstanceId,
       spellId: resolution.spellId,
       ...(spellExpiry ? { expiry: clone(spellExpiry) } : {}),
       ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
-      replaceNames: uniqueIds([resolution.spellName]),
+      ...(concentrationMode === "extend"
+        ? {}
+        : { replaceNames: uniqueIds([resolution.spellName]) }),
     });
   }
 
@@ -73,7 +79,7 @@ export function saveSpellResolutionOperations({
     });
   }
 
-  if (concentration && casterId) {
+  if (concentrationMode !== "dismiss" && concentration && casterId) {
     operations.push({
       type: "concentration:register",
       casterId,

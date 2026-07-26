@@ -25,6 +25,7 @@ import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import {
   getAreaSaveAutomation,
+  getAreaSaveRuleChoices,
   getAreaSaveSpellOptions,
   getSpellDefinition,
 } from "./spells-srd.js";
@@ -78,6 +79,8 @@ const spellSelect = document.getElementById("spellSelect");
 const spellSearch = document.getElementById("spellSearch");
 const spellMenuToggle = document.getElementById("spellMenuToggle");
 const spellMenu = document.getElementById("spellMenu");
+const spellRuleChoiceWrap = document.getElementById("spellRuleChoiceWrap");
+const spellRuleChoice = document.getElementById("spellRuleChoice");
 const spellRuleSummary = document.getElementById("spellRuleSummary");
 const manualConditionWrap = document.getElementById("manualConditionWrap");
 const conditionSelect = document.getElementById("conditionSelect");
@@ -150,6 +153,24 @@ async function currentInitiativeActorId() {
 }
 function selectedAreaSpell() {
   return getSpellDefinition(spellSelect.value) || null;
+}
+function selectedSaveRuleChoice() {
+  return spellRuleChoice.value.trim();
+}
+function catalogSaveAutomation(spell) {
+  return getAreaSaveAutomation(spell, selectedSaveRuleChoice());
+}
+function refreshSpellRuleChoices() {
+  const choices = getAreaSaveRuleChoices(selectedAreaSpell());
+  const previous = selectedSaveRuleChoice();
+  spellRuleChoice.replaceChildren();
+  for (const choice of choices) {
+    spellRuleChoice.appendChild(new Option(choice.label, choice.value));
+  }
+  if (choices.some((choice) => choice.value === previous)) {
+    spellRuleChoice.value = previous;
+  }
+  spellRuleChoiceWrap.hidden = !choices.length;
 }
 function closeSpellMenu() {
   spellMenu.hidden = true;
@@ -252,11 +273,27 @@ function expirySummary(expiry = {}) {
   }
   return "rimozione manuale";
 }
+function activeConcentrationForSpell(caster, spell) {
+  const concentrations = caster?.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
+  if (!spell || !concentrations || typeof concentrations !== "object") return null;
+  const names = new Set([
+    spell.id,
+    spell.name,
+    spell.displayName,
+    spell.catalogLabel,
+  ].map((value) => String(value || "").trim().toLocaleLowerCase("it")).filter(Boolean));
+  return Object.entries(concentrations)
+    .map(([key, entry]) => ({ key, ...(entry && typeof entry === "object" ? entry : {}) }))
+    .find((entry) =>
+      String(entry.spellId || "").trim() === spell.id
+      || names.has(String(entry.name || entry.key || "").trim().toLocaleLowerCase("it"))
+    ) || null;
+}
 function conditionExpirySummary() {
   return expirySummary(conditionExpiry()).replace("del bersaglio", "dei bersagli");
 }
 function currentSaveAutomation(spell) {
-  const catalogAutomation = getAreaSaveAutomation(spell);
+  const catalogAutomation = catalogSaveAutomation(spell);
   if (catalogAutomation) return catalogAutomation;
   const conditionName = conditionSelect.value.trim();
   return {
@@ -266,7 +303,7 @@ function currentSaveAutomation(spell) {
 }
 function updateSpellRuleSummary() {
   const spell = selectedAreaSpell();
-  const automation = getAreaSaveAutomation(spell);
+  const automation = catalogSaveAutomation(spell);
   if (!automation) {
     spellRuleSummary.hidden = true;
     spellRuleSummary.textContent = "";
@@ -310,13 +347,26 @@ function updateConcentrationNotice() {
       String(entry?.name || key || "").trim()
     ).filter(Boolean)))
     : [];
+  const concentrationAction = catalogSaveAutomation(spell)?.concentrationAction;
+  if (concentrationAction === "dismiss") {
+    concentrationNotice.textContent = names.length
+      ? `L'effetto interromperà la concentrazione di ${displayName(caster)} su ${names.join(", ")}.`
+      : `L'effetto conclusivo non registrerà una nuova concentrazione su ${displayName(caster)}.`;
+    return;
+  }
+  const activeSpellConcentration = activeConcentrationForSpell(caster, spell);
+  if (activeSpellConcentration?.instanceId) {
+    concentrationNotice.textContent =
+      `Verrà aggiornata la concentrazione già attiva di ${displayName(caster)} su ${spell.displayName}.`;
+    return;
+  }
   concentrationNotice.textContent = names.length
     ? `${displayName(caster)} interromperà la concentrazione su ${names.join(", ")}.`
     : `La concentrazione verrà registrata su ${displayName(caster)}.`;
 }
 function syncConditionDetailControls() {
   const spell = selectedAreaSpell();
-  const hasCatalogRules = !!getAreaSaveAutomation(spell);
+  const hasCatalogRules = !!catalogSaveAutomation(spell);
   const hasManualCondition = mode === QUICK_HP_MODES.SAVE
     && !hasCatalogRules
     && !!conditionSelect.value.trim();
@@ -341,6 +391,7 @@ function syncConditionDetailControls() {
   spellSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
   spellSearch.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
   spellMenuToggle.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
+  spellRuleChoice.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
   if (spellSearch.disabled) closeSpellMenu();
   conditionSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE || hasCatalogRules;
   conditionSourceSelect.disabled = busy || !needsSource;
@@ -473,7 +524,7 @@ function updateControls() {
   if (mode === QUICK_HP_MODES.SAVE && selected.length) {
     const counts = outcomeOptions.map((option) => selected.filter((item) => saveOutcomes.get(item.id) === option.value).length);
     const missing = selected.length - counts.reduce((sum, count) => sum + count, 0);
-    const condition = !getAreaSaveAutomation(spell) ? conditionSelect.value.trim() : "";
+    const condition = !catalogSaveAutomation(spell) ? conditionSelect.value.trim() : "";
     summary.textContent = `${selected.length} bersagli - Superati ${counts[0]} - Falliti ${counts[1]} - Immune ${counts[2]}${missing ? ` - ${missing} senza esito` : ""}${condition && counts[1] ? ` · ${condition}, ${conditionExpirySummary()}` : ""}`;
   } else {
     summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
@@ -795,7 +846,7 @@ async function applyOperation() {
       return { item, change };
     }).filter((entry) => entry.change.changed);
     const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
-    const conditionName = mode === QUICK_HP_MODES.SAVE && !getAreaSaveAutomation(spell)
+    const conditionName = mode === QUICK_HP_MODES.SAVE && !catalogSaveAutomation(spell)
       ? conditionSelect.value.trim()
       : "";
     const initiativeState = mode === QUICK_HP_MODES.SAVE
@@ -812,12 +863,13 @@ async function applyOperation() {
     let effectOperations = [];
     let effectSubjectIds = [];
     if (mode === QUICK_HP_MODES.SAVE && spell) {
+      const automation = currentSaveAutomation(spell);
       const resolution = resolveSaveSpellResolution({
         spell,
         casterId: conditionSourceSelect.value.trim(),
         targetIds: liveItems.map((item) => item.id),
         outcomes: saveOutcomes,
-        automation: currentSaveAutomation(spell),
+        automation,
       });
       if (!resolution.valid) {
         status.textContent = resolution.errors.includes("caster-required")
@@ -832,13 +884,23 @@ async function applyOperation() {
         ...resolution.conditionApplications.flatMap((application) => application.targetIds),
       ]));
       const caster = itemForId(resolution.casterId);
+      const activeSpellConcentration = activeConcentrationForSpell(caster, spell);
+      const concentrationAction = automation?.concentrationAction === "dismiss"
+        ? "dismiss"
+        : activeSpellConcentration?.instanceId
+          ? "extend"
+          : "replace";
+      const spellInstanceId = concentrationAction === "extend"
+        ? String(activeSpellConcentration.instanceId)
+        : createSpellInstanceId();
       effectOperations = saveSpellResolutionOperations({
         resolution,
-        instanceId: createSpellInstanceId(),
+        instanceId: spellInstanceId,
         casterName: caster ? displayName(caster) : "",
         turns: spell.defaultTurns || 1,
         spellExpiry: spell.concentration ? { mode: "concentration" } : spell.expiry || null,
         appliedAt,
+        concentrationAction,
       });
     } else if (mode === QUICK_HP_MODES.SAVE && conditionName) {
       effectSubjectIds = failedQuickHPTargetIds(liveItems, saveOutcomes);
@@ -969,6 +1031,11 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
   });
 });
 spellSelect.addEventListener("change", () => {
+  status.textContent = "";
+  refreshSpellRuleChoices();
+  renderTargets();
+});
+spellRuleChoice.addEventListener("change", () => {
   status.textContent = "";
   renderTargets();
 });

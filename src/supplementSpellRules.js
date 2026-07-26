@@ -102,6 +102,8 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       expiry: concentration,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
     })]),
   }),
 });

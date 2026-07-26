@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  exhaustionContributionLevelFromInstances,
   exhaustionLevelFromInstances,
   normalizeExhaustionLevel,
   reconcileExhaustionInstances,
@@ -46,4 +47,33 @@ test("livello 0 rimuove solo Indebolimento", () => {
     { id: "remove", condition: "Indebolimento", active: true, level: 2 },
   ], 0);
   assert.deepEqual(next, [{ id: "keep", condition: "Prono", active: true }]);
+});
+
+test("i contributi temporanei si sommano al livello base e restano separati", () => {
+  const instances = [
+    { id: "base", condition: "Indebolimento", active: true, level: 2 },
+    {
+      id: "radiance-1",
+      condition: "Indebolimento",
+      active: true,
+      level: 1,
+      exhaustionContribution: true,
+      parentEffectId: "spell",
+    },
+    {
+      id: "radiance-2",
+      condition: "Indebolimento",
+      active: true,
+      level: 1,
+      exhaustionContribution: true,
+      parentEffectId: "spell",
+    },
+  ];
+
+  assert.equal(exhaustionContributionLevelFromInstances(instances), 2);
+  assert.equal(exhaustionLevelFromInstances(instances), 4);
+  assert.deepEqual(
+    reconcileExhaustionInstances(instances, 0).map((instance) => instance.id),
+    ["radiance-1", "radiance-2"],
+  );
 });
