@@ -3,13 +3,21 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+const classicBuilderSource = readFileSync(
+  new URL("../src/initiativeCardClassicBuilder.js", import.meta.url),
+  "utf8"
+);
 
-function sourceSection(startMarker, endMarker) {
-  const start = source.indexOf(startMarker);
-  const end = source.indexOf(endMarker, start + startMarker.length);
+function sourceSectionIn(sourceText, startMarker, endMarker) {
+  const start = sourceText.indexOf(startMarker);
+  const end = sourceText.indexOf(endMarker, start + startMarker.length);
   assert.ok(start >= 0, `marker iniziale assente: ${startMarker}`);
   assert.ok(end > start, `marker finale assente: ${endMarker}`);
-  return source.slice(start, end);
+  return sourceText.slice(start, end);
+}
+
+function sourceSection(startMarker, endMarker) {
+  return sourceSectionIn(source, startMarker, endMarker);
 }
 
 function assertOrdered(section, markers) {
@@ -88,11 +96,26 @@ test("il render reale conserva revisioni stale e guard degli editor", () => {
 });
 
 test("la card classica non monta le pill buff e debuff dello spell", () => {
-  const section = sourceSection(
+  const section = sourceSectionIn(
+    classicBuilderSource,
     "// 2) Incantesimi",
     "// 3) Monta TUTTO assieme"
   );
 
   assert.doesNotMatch(section, /buildSpellEffectChips/);
   assert.match(section, /fragAll\.appendChild\(fragSp\)/);
+});
+
+test("il renderer classico delega la costruzione completa al builder estratto", () => {
+  const adapter = sourceSection(
+    "function buildClassicTrackerCardForRender(entry, state, nextId) {",
+    "function renderTrack(entries, state, opts = {}) {"
+  );
+  const render = sourceSection(
+    "function renderTrack(entries, state, opts = {}) {",
+    "async function ensureState() {"
+  );
+
+  assert.match(adapter, /return buildClassicTrackerCard\(entry,\s*\{/);
+  assert.match(render, /buildClassicTrackerCardForRender\(entry,\s*state,\s*nextId\)/);
 });

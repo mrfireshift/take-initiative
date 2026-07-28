@@ -56,22 +56,22 @@ import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderC
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
 import {
   createMenuRequestId,
-  isAllowedCompactAdminMenuAction,
   isAllowedInitiativeCardMenuAction,
   isMenuMessageForRequest,
   removeStoredMenuPayload,
   writeStoredMenuPayload,
 } from "./menuPopoverProtocolCore.js";
 import {
-  applyClassicCardFrame,
-  buildClassicCardShell,
-  deriveClassicCardPresentation,
-} from "./initiativeCardClassic.js";
+  buildInitiativeCardContextMenuPayload,
+  deriveInitiativeCardBossMode,
+  resolveCompactAdminMenuAction,
+  routeInitiativeCardContextMenuAction,
+} from "./initiativeMenuActionsCore.js";
+import { buildLegendaryResourcePips } from "./initiativeCardBossClassic.js";
+import { buildClassicTrackerCard } from "./initiativeCardClassicBuilder.js";
 import {
-  enableClassicCardRename,
-  normalizeInitiativeInput,
-  normalizeSignedIntegerInput,
-  parseInlineMath,
+  bindClassicHPEditor,
+  bindClassicInitiativeEditor,
 } from "./initiativeEditors.js";
 import {
   applyToolbarLayoutPresentation as applyToolbarLayoutPresentationView,
@@ -1951,18 +1951,10 @@ function mountCompactAdminMenuListener() {
       void __closeCompactAdminMenu();
       return;
     }
-    if (data.type !== "action" || !isAllowedCompactAdminMenuAction(data.action)) return;
+    const route = resolveCompactAdminMenuAction(data);
+    if (!route) return;
 
-    const selectors = {
-      "reset-round": "[data-reset-round='1']",
-      history: "[data-history='1']",
-      "add-all": "[data-add-all-initiative='1']",
-      "fill-initiative": "[data-fill-initiative='1']",
-      factions: "[data-faction-configurator='1']",
-      "clear-initiative": "[data-clear-initiative='1']",
-    };
-    const selector = selectors[data.action];
-    const control = selector ? compactAdminMenu.querySelector(selector) : null;
+    const control = compactAdminMenu.querySelector(route.selector);
     const closePromise = __closeCompactAdminMenu();
     if (control instanceof HTMLButtonElement) {
       void closePromise.then(() => control.click());
@@ -4134,6 +4126,20 @@ async function applyGroupHPMaxDelta(itemId, delta) {
   return updates.length;
 }
 
+async function applyGroupHPMaxDeltaWithRenderLock(itemId, delta) {
+  const wasSuspended = __suspendRenders;
+  __suspendRenders = true;
+  try {
+    return await applyGroupHPMaxDelta(itemId, delta);
+  } finally {
+    __suspendRenders = wasSuspended;
+  }
+}
+
+function getEditingHPForId() {
+  return __editingHPForId;
+}
+
     // ===== Colori fazione (border/glow + base per i gradienti)
   function factionColors(att) {
   switch (att) {
@@ -4284,6 +4290,318 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
       }
     });
   }
+}
+
+function bindInitiativeEditorForEntry(badge, entry) {
+  bindClassicInitiativeEditor({
+    badge,
+    isEditable: () => !entry.isEpic && !entry.isEpicAction,
+    armClickIgnore: armDocClickIgnore,
+    beginEdit: async () => {
+      __suspendRenders = true;
+      __editingInitForId = entry.id;
+      await closeOpenEditors();
+    },
+    readValue: async () => {
+      let liveInitiative = null;
+      try {
+        const [live] = await OBR.scene.items.getItems([entry.id]);
+        const meta = live?.metadata?.[META_KEY] || {};
+        if (Number.isFinite(meta.initiative)) {
+          liveInitiative = Math.floor(Number(meta.initiative));
+        }
+      } catch {}
+      return liveInitiative ??
+        (Number.isFinite(entry.initiative)
+          ? Math.floor(Number(entry.initiative))
+          : 0);
+    },
+    editorReady: () => {
+      if (!__initiativeFillMode) __suspendRenders = false;
+    },
+    cleanupEdit: () => {
+      __editingInitForId = null;
+    },
+    saveValue: async (normalized) => {
+      await updateInitiative(entry.id, normalized);
+      try {
+        await trySeedGroupInitiative(entry.id, normalized, {
+          deferRender: __initiativeFillMode,
+          forceAll: entry.__groupCollapsed === true,
+        });
+      } catch (error) {
+        console.warn(error);
+      }
+    },
+    afterCommit: async () => {
+      if (__initiativeFillMode) {
+        __initiativeFillSession?.completed?.add(entry.id);
+        refreshInitiativeFillVisuals();
+        return;
+      }
+      await reconcileStateWithItems();
+      await renderAll();
+      requestAnimationFrame(() => {
+        const currentCard = document.querySelector(
+          `[data-item-id="${entry.id}"]`
+        );
+        currentCard?.scrollIntoView?.({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      });
+    },
+    afterCancel: async (options = {}) => {
+      if (options.deferRender === true) return;
+      if (__initiativeFillMode) await finishInitiativeFillMode();
+      else await renderAll();
+    },
+    isFillMode: () => __initiativeFillMode,
+    finishFillMode: finishInitiativeFillMode,
+    openFillNeighbor: (goPrev) =>
+      openInitiativeFillNeighbor(entry.id, goPrev),
+    commitAndOpenNeighbor: async ({ goPrev, commit }) => {
+      let preOrder = [];
+      try {
+        const state = await getSceneState();
+        preOrder = Array.isArray(state?.order) ? [...state.order] : [];
+      } catch {}
+
+      await commit();
+      const direction = goPrev ? -1 : 1;
+      const index = preOrder.indexOf(entry.id);
+      let targetId = null;
+      for (
+        let cursor = index + direction;
+        index >= 0 && cursor >= 0 && cursor < preOrder.length;
+        cursor += direction
+      ) {
+        const candidateId = preOrder[cursor];
+        const candidateCard = document.querySelector(
+          `[data-item-id="${candidateId}"]`
+        );
+        const candidateBadge = document.querySelector(
+          `[data-badge="init"][data-item-id="${candidateId}"]`
+        );
+        const editable = !!candidateBadge &&
+          candidateCard?.dataset.groupCollapsed !== "1" &&
+          candidateCard?.dataset.isEpic !== "1" &&
+          !isEpicActionId(candidateId);
+        if (editable) {
+          targetId = candidateId;
+          break;
+        }
+      }
+
+      if (!targetId) return;
+      requestAnimationFrame(() => {
+        const nextBadge = document.querySelector(
+          `[data-badge="init"][data-item-id="${targetId}"]`
+        );
+        if (!nextBadge) return;
+        nextBadge.dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true,
+        }));
+        nextBadge.scrollIntoView?.({
+          block: "center",
+          inline: "nearest",
+          behavior: "smooth",
+        });
+        const nextInput = nextBadge.querySelector("input");
+        if (nextInput) {
+          try {
+            nextInput.focus({ preventScroll: true });
+            nextInput.select();
+          } catch {}
+        }
+      });
+    },
+  });
+}
+
+function bindHPEditorForEntry(
+  pill,
+  hpFill,
+  setHPDeltaButtonActive,
+  entry,
+) {
+  bindClassicHPEditor({
+    pill,
+    itemId: entry.id,
+    snapshotHP: entry.hp,
+    snapshotHPMax: entry.hpMax,
+    hpFill,
+    getEditingItemId: () => __editingHPForId,
+    isCurrentEditor: () => __editingHPForId === entry.id,
+    armClickIgnore: armDocClickIgnore,
+    handoffEditor: async () => {
+      __suspendRenders = true;
+      try {
+        await closeOpenEditors();
+      } catch {}
+      requestAnimationFrame(() => {
+        armDocClickIgnore(250);
+        const nextPill = document.querySelector(
+          `[data-badge="hp"][data-item-id="${entry.id}"]`
+        );
+        nextPill?.dispatchEvent(new PointerEvent("pointerdown", {
+          bubbles: true,
+        }));
+        __suspendRenders = false;
+      });
+    },
+    beginEdit: async () => {
+      __suspendRenders = true;
+      __editingHPForId = entry.id;
+      await closeOpenEditors();
+    },
+    readLiveValues: async () => {
+      const values = {};
+      try {
+        const [live] = await OBR.scene.items.getItems([entry.id]);
+        const meta = live?.metadata?.[META_KEY] || {};
+        if (Number.isFinite(meta.hp)) values.hp = meta.hp;
+        if (Number.isFinite(meta.hpMax)) values.hpMax = meta.hpMax;
+      } catch {}
+      return values;
+    },
+    editorReady: () => {
+      __suspendRenders = false;
+    },
+    cleanupEdit: () => {
+      __editingHPForId = null;
+    },
+    parseRelativeDelta: parseRelativeHPDelta,
+    setDeltaButtonActive: setHPDeltaButtonActive,
+    shouldIgnoreDocumentClick: () => Date.now() < __ignoreDocClickUntil,
+    formatHP: formatHPHTML,
+    hpColorByPct,
+    saveValues: async ({
+      nextHP,
+      nextHPMax,
+      recalibratesMax,
+    }) => {
+      let historyIds = [entry.id];
+      try {
+        const group = await _getGroupForItemId(entry.id);
+        historyIds = Array.from(new Set([
+          entry.id,
+          ...(group?.members || []),
+        ]));
+      } catch {}
+      historyIds = await getZeroHPConditionHistoryIds(historyIds);
+
+      await withItemMetaHistory({
+        kind: "hp",
+        label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
+        itemIds: historyIds,
+        fields: [
+          "hp",
+          "hpMax",
+          "conditions",
+          SPELLS_META_KEY,
+          CONC_META_KEY,
+        ],
+      }, async () => {
+        await updateHP(entry.id, nextHP, nextHPMax);
+        try {
+          await trySeedGroupHP(entry.id, nextHP, nextHPMax);
+        } catch (error) {
+          console.warn("[hp] group seed error:", error?.message || error);
+        }
+      });
+    },
+    afterCommit: async ({
+      recalibratesMax,
+      concentrationDamage,
+    }) => {
+      if (recalibratesMax || concentrationDamage <= 0) return;
+      try {
+        await showConcentrationDamageWarning([{
+          itemId: entry.id,
+          damage: concentrationDamage,
+        }]);
+      } catch (error) {
+        console.warn(
+          "[concentration] damage warning error:",
+          error?.message || error
+        );
+      }
+    },
+    commitAndOpenNeighbor: async ({ goPrev, commit }) => {
+      const direction = goPrev ? -1 : 1;
+      let targetId = null;
+      __suspendRenders = true;
+      try {
+        let preOrder = [];
+        try {
+          const state = await getSceneState();
+          preOrder = Array.isArray(state?.order) ? [...state.order] : [];
+        } catch {}
+
+        await commit();
+        const index = preOrder.indexOf(entry.id);
+        for (
+          let cursor = index + direction;
+          index >= 0 && cursor >= 0 && cursor < preOrder.length;
+          cursor += direction
+        ) {
+          const candidateId = preOrder[cursor];
+          const candidateCard = document.querySelector(
+            `[data-item-id="${candidateId}"]`
+          );
+          const candidatePill = document.querySelector(
+            `[data-badge="hp"][data-item-id="${candidateId}"]`
+          );
+          const editable = !!candidatePill &&
+            candidateCard?.dataset.groupCollapsed !== "1" &&
+            !isEpicActionId(candidateId);
+          if (editable) {
+            targetId = candidateId;
+            break;
+          }
+        }
+
+        if (!targetId) {
+          __suspendRenders = false;
+          return;
+        }
+        requestAnimationFrame(() => {
+          const nextPill = document.querySelector(
+            `[data-badge="hp"][data-item-id="${targetId}"]`
+          );
+          if (!nextPill) {
+            __suspendRenders = false;
+            return;
+          }
+          armDocClickIgnore(250);
+          nextPill.dispatchEvent(new PointerEvent("pointerdown", {
+            bubbles: true,
+          }));
+          nextPill.scrollIntoView?.({
+            block: "center",
+            inline: "nearest",
+            behavior: "smooth",
+          });
+          requestAnimationFrame(() => {
+            __suspendRenders = false;
+          });
+        });
+      } catch (error) {
+        __suspendRenders = false;
+        throw error;
+      }
+    },
+  });
+}
+
+async function saveClassicTrackerEntryName(entry, nextName) {
+  await OBR.scene.items.updateItems([entry.id], (items) => {
+    const item = items[0];
+    __setSceneTokenDisplayName(item, nextName);
+  });
+  entry.name = nextName;
 }
 
 function updateInitiativeFillButton() {
@@ -4632,78 +4950,12 @@ async function setLegendaryMax(itemId, nextMax) {
 
 // ===== Legendary UI helpers: diamanti per le azioni, scudi per le resistenze =====
 function mkLegendaryResourcePips(resource, onSet, attitude = "enemy", kind = "action") {
-  const wrap = document.createElement("div");
-  Object.assign(wrap.style, {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: `${LEG_PIPS_CFG.gap}px`,
-    flexDirection: "row",
-    justifyContent: "flex-start",
+  return buildLegendaryResourcePips(resource, onSet, {
+    isGM: IS_GM,
+    attitude,
+    kind,
+    config: LEG_PIPS_CFG,
   });
-
-  const max = Math.max(0, Number(resource?.max) || 0);
-  const cur = Math.max(0, Math.min(max, Number(resource?.current) || 0));
-  const isResistance = kind === "resistance";
-
-  const ON = (() => {
-    if (isResistance) return { bg: "#3b82f6", glow: "drop-shadow(0 0 4px rgba(96,165,250,.88))" };
-    if (attitude === "enemy")   return { bg: "#ff0000", glow: "0 0 8px rgba(255, 61, 61, 0.7)" };
-    if (attitude === "neutral") return { bg: "#a16207", glow: "0 0 7px rgba(161,98,7,.60)"  };
-    return { bg: "#7f1d1d", glow: "0 0 6px rgba(127,29,29,.55)" };
-  })();
-
-  for (let i = 1; i <= max; i++) {
-    const pip = document.createElement("button");
-    pip.type = "button";
-    const size = isResistance ? LEG_PIPS_CFG.size + 1 : LEG_PIPS_CFG.size;
-    const baseTransform = isResistance ? "none" : "rotate(45deg)";
-    Object.assign(pip.style, {
-      width: `${size}px`,
-      minWidth: `${size}px`,
-      height: `${size}px`,
-      minHeight: `${size}px`,
-      padding: "0",
-      transform: baseTransform,
-      clipPath: isResistance
-        ? "polygon(50% 0, 94% 18%, 82% 72%, 50% 100%, 18% 72%, 6% 18%)"
-        : "none",
-      borderRadius: isResistance ? "0" : "1px",
-      border: isResistance ? "none" : "1px solid rgba(255,255,255,.28)",
-      background: isResistance ? "rgba(15,23,42,.92)" : "rgba(0,0,0,.58)",
-      boxShadow: isResistance ? "none" : "inset 0 0 0 1px rgba(0,0,0,.5)",
-      filter: isResistance ? "drop-shadow(0 0 1px rgba(147,197,253,.85))" : "none",
-      opacity: "1",
-      cursor: IS_GM ? "pointer" : "default",
-      transition: "transform .12s ease, opacity .12s ease, box-shadow .12s ease, filter .12s ease, background-color .12s ease",
-    });
-    if (i <= cur) {
-      pip.style.background = ON.bg;
-      if (isResistance) pip.style.filter = ON.glow;
-      else pip.style.boxShadow = `${ON.glow}, inset 0 0 1px rgba(0,0,0,.6)`;
-    }
-    const label = isResistance ? "Resistenza leggendaria" : "Azione leggendaria";
-    pip.title = `${label}: ${cur}/${max}`;
-    pip.setAttribute("aria-label", `${label} ${i} di ${max}`);
-    pip.setAttribute("aria-pressed", i <= cur ? "true" : "false");
-    pip.addEventListener("mouseenter", () => {
-      pip.style.transform = `${baseTransform === "none" ? "" : `${baseTransform} `}scale(1.12)`;
-      pip.style.opacity = "1";
-    });
-    pip.addEventListener("mouseleave", () => {
-      pip.style.transform = baseTransform;
-      pip.style.opacity = ".9";
-    });
-    pip.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      if (!IS_GM) return;
-      const next = i <= cur ? i - 1 : i;
-      onSet(next);
-    });
-
-    wrap.appendChild(pip);
-  }
-  return wrap;
 }
 
 function mkLegendaryPips(legendary, onSet, attitude = "enemy") {
@@ -5150,10 +5402,7 @@ function __closeInitiativeCardContextMenu() {
 }
 
 function __cardBossMode(entry) {
-  if (entry?.isEpic) return "epic";
-  if (Number(entry?.paragonActions) > 1) return "paragon";
-  if (Number(entry?.legendary?.max) > 0) return "legendary";
-  return "none";
+  return deriveInitiativeCardBossMode(entry);
 }
 
 function __contextScopeIds(entry) {
@@ -5397,32 +5646,18 @@ async function __getInitiativeCardContextMenuPlacement(event) {
 }
 
 async function __handleInitiativeCardContextMenuAction(context, data) {
-  const action = String(data?.action || "");
-  const value = String(data?.value || "");
-  if (!isAllowedInitiativeCardMenuAction(action, value)) return;
-  const { sourceEntry, scopeIds } = context;
-
-  if (action === "conditions") {
-    await __selectContextScope(scopeIds);
-    await openCardEffectsPopup(sourceEntry);
-  } else if (action === "clear-conditions") {
-    await __clearCardConditions(scopeIds);
-  } else if (action === "spells") {
-    await __selectContextScope(scopeIds);
-    await openCardSpellsPopup(sourceEntry);
-  } else if (action === "clear-spells") {
-    await __clearCardSpells(scopeIds);
-  } else if (action === "clear-concentration") {
-    await __clearCardConcentrations(scopeIds, sourceEntry);
-  } else if (action === "initiative-card") {
-    await openInitiativeCardPopup(sourceEntry);
-  } else if (action === "attitude" && ["ally", "neutral", "pc", "enemy"].includes(value)) {
-    await __setCardAttitude(scopeIds, value);
-  } else if (action === "boss-mode" && ["none", "legendary", "paragon", "epic"].includes(value)) {
-    await __setCardBossMode(sourceEntry, value);
-  } else if (action === "remove") {
-    await __removeCardFromInitiative(scopeIds);
-  }
+  return routeInitiativeCardContextMenuAction(context, data, {
+    selectScope: __selectContextScope,
+    openConditions: openCardEffectsPopup,
+    clearConditions: __clearCardConditions,
+    openSpells: openCardSpellsPopup,
+    clearSpells: __clearCardSpells,
+    clearConcentrations: __clearCardConcentrations,
+    openInitiativeCard: openInitiativeCardPopup,
+    setAttitude: __setCardAttitude,
+    setBossMode: __setCardBossMode,
+    removeFromInitiative: __removeCardFromInitiative,
+  });
 }
 
 function mountInitiativeCardContextMenuListener() {
@@ -5465,28 +5700,16 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   const closePromise = __closeInitiativeCardContextMenu();
   const openRevision = __initiativeCardContextMenuRevision;
   const scopeIds = __contextScopeIds(sourceEntry);
-  const isBulkScope = scopeIds.length > 1;
-  const menuTitle = sourceEntry.__groupCollapsed
-    ? sourceEntry.__groupBase
-    : sourceEntry.name;
-  const expandedTokenMenu = !sourceEntry.__groupCollapsed;
   const hasActiveConcentration = !!sourceEntry.isConcentrating || scopeIds.some((id) =>
     __activeLabelEntriesById.get(id)?.isConcentrating
   );
 
   const requestId = createMenuRequestId();
-  const payload = {
-    title: isBulkScope ? `${menuTitle || "Azioni"} (${scopeIds.length})` : (menuTitle || "Azioni"),
-    isBulkScope,
-    scopeCount: scopeIds.length,
-    expandedTokenMenu,
+  const payload = buildInitiativeCardContextMenuPayload({
+    sourceEntry,
+    scopeIds,
     hasActiveConcentration,
-    attitude: sourceEntry.attitude,
-    activeMode: __cardBossMode(sourceEntry),
-    groupCollapsed: !!sourceEntry.__groupCollapsed,
-    showInitiativeCard: !isBulkScope && ["pc", "ally"].includes(sourceEntry.attitude),
-    showBossMenu: !isBulkScope && sourceEntry.attitude === "enemy",
-  };
+  });
   if (!writeStoredMenuPayload(
     localStorage,
     INITIATIVE_CARD_CONTEXT_MENU_PAYLOAD_PREFIX,
@@ -6481,6 +6704,66 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
   return true;
 }
 
+function buildClassicTrackerCardForRender(entry, state, nextId) {
+  return buildClassicTrackerCard(entry, {
+    state,
+    nextId,
+    isGM: IS_GM,
+    constants: {
+      BADGE_RIGHT,
+      BADGE_SIZE,
+      BOSS_PORTRAIT_FRAME_SCALE,
+      BOSS_PORTRAIT_FRAME_SRC,
+      CHIP_GAP_PX,
+      CONDITIONS,
+      DEFAULT_LEGENDARY_RESISTANCES,
+      EPIC_TAG_CFG,
+      LEG_BOSS_CFG,
+      LEG_PIPS_CFG,
+      LEG_RESOURCE_CFG,
+      PAR_CTRL_CFG,
+      ZOOM_CFG,
+    },
+    operations: {
+      __applyTrackerSelectionState,
+      __bindInitiativeCardContextMenu,
+      __buildConditionChipsSafe,
+      __groupKey,
+      __instaTransform,
+      __safeConditions,
+      __selectTrackerEntry,
+      __selectionIdsForEntry,
+      __spellColor,
+      __spellKey,
+      __terminateSpellOnTrackerCard,
+      applyGroupHPMaxDeltaWithRenderLock,
+      armDocClickIgnore,
+      bindHPEditorForEntry,
+      bindInitiativeEditorForEntry,
+      bindReferenceChips,
+      closeOpenEditors,
+      factionColors,
+      formatHPHTML,
+      getEditingHPForId,
+      isEpicActionId,
+      isLairId,
+      mountChipsWithOverflow,
+      openInitiativeCardPopup,
+      parseRelativeHPDelta,
+      reconcileStateWithItems,
+      renderAll,
+      rgba,
+      saveClassicTrackerEntryName,
+      setLegendaryCurrent,
+      setLegendaryMax,
+      setLegendaryResistanceCurrent,
+      setLegendaryResistanceMax,
+      setParagonActions,
+      setSceneState,
+    },
+  });
+}
+
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
     const animateActive = !!opts.animateActive;
@@ -6535,2094 +6818,9 @@ for (const e of entries) {
     const renderEntries = incrementalItemIds
       ? entriesForRender.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
       : entriesForRender;
-    const nodes = renderEntries.map((e) => {
-    const c = factionColors(e.attitude);
-    const cardEffectData = __safeConditions(e.__groupCollapsed ? null : e.conditions);
-    const {
-      hasLegendary: HAS_LEG,
-      hasParagon: HAS_PAR,
-      isEpic: IS_EPIC,
-      isBoss: IS_BOSS,
-      hpValue: CLASSIC_HP_VALUE,
-      hpMax: CLASSIC_HP_MAX,
-      hpVisible: CLASSIC_HP_VISIBLE,
-      knockedOut: KNOCKED_OUT,
-      playerCardHasHP: PLAYER_CARD_HAS_HP,
-      playerBossVerticalOffset: PLAYER_BOSS_VERTICAL_OFFSET,
-      hasCardEffects: HAS_CARD_EFFECTS,
-      dragAllowed: DRAG_OK,
-    } = deriveClassicCardPresentation(e, {
-      isGM: IS_GM,
-      isLair: isLairId(e.id),
-      isEpicAction: isEpicActionId(e.id),
-      cardEffectData,
-    });
-    const card = buildClassicCardShell(e, {
-      groupKey: e.__groupKey || __groupKey(e),
-      selectionItemIds: __selectionIdsForEntry(e),
-      hpVisible: CLASSIC_HP_VISIBLE,
-      hpMax: CLASSIC_HP_MAX,
-      knockedOut: KNOCKED_OUT,
-      dragAllowed: DRAG_OK,
-    });
-    card.addEventListener("click", (event) => {
-      if (event.target.closest("button, input, select, textarea, [contenteditable='true'], [role='button'], [data-badge], [data-card-selection-ignore]")) return;
-      event.stopPropagation();
-      void __selectTrackerEntry(e, event);
-    });
-    __bindInitiativeCardContextMenu(card, e);
-
-// base card
-card.style.minWidth = "284px";
-card.style.maxWidth = "284px";
-card.style.padding  = "0px 0px 0px";
-card.style.boxSizing = "border-box";
-card.style.color = "#fff";
-card.style.display = "flex";
-card.style.flexDirection = "column";
-card.style.alignItems = "stretch";
-card.style.gap = "0";
-
-// altezza base + boost se boss
-const BASE_CARD_H = 60;
-const MAIN_CARD_H = IS_BOSS ? (BASE_CARD_H + LEG_BOSS_CFG.extraHeight) : BASE_CARD_H;
-const EFFECT_ROW_H = HAS_CARD_EFFECTS ? 14 : 0;
-const CARD_H = MAIN_CARD_H + EFFECT_ROW_H;
-card.style.height = CARD_H + "px";
-
-// applica cornice stile BG3 (come prima)
-applyClassicCardFrame(card, c, {
-  isBoss: IS_BOSS,
-  bossConfig: LEG_BOSS_CFG,
-  rgba,
-  instaTransform: __instaTransform,
-  outlineW: 1.5,
-  frameW: 2,
-  rOuter: 16,
-  rInner: 14
-});
-
-// sostituisci l'assegnazione fissa dell'altezza:
-card.style.height = CARD_H + "px";
-;
-if (HAS_LEG) {
-  card.style.transform = `scale(${LEG_BOSS_CFG.scale})`;
-  card.style.zIndex = String(LEG_BOSS_CFG.zIndex);
-  
-  // aggiungi un alone dorato soft senza togliere le ombre esistenti
-  const prev = card.style.boxShadow || "";
-  card.style.boxShadow = (prev ? (prev + ", ") : "") + LEG_BOSS_CFG.shadow;
-} else {
-  card.style.transform = "none";
-}
-  const baseScale = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
-  card.style.transform = `translateZ(0) scale(${baseScale})`;
-  card.style.scale = "1";
-  card.style.zIndex = IS_BOSS ? String(LEG_BOSS_CFG.zIndex) : "";
-
-    const isActive = e.__groupMembers
-  ? e.__groupMembers.some(m => m.id === state.order[state.current])
-  : (state.order[state.current] === e.id);
-
-const isNext = e.__groupMembers
-  ? e.__groupMembers.some(m => m.id === nextId)
-  : (nextId === e.id);
-
-  if (isActive) {
-    // gradiente “tintato” col colore di fazione
-    card.style.background =
-      `linear-gradient(105deg,
-        ${rgba(c.base, .94)} 0%,
-        ${rgba(c.base, .80)} 52%,
-        rgba(40,51,68,.86) 100%
-      )`;
-
-    card.style.boxShadow =
-      `0 0 0 2px ${c.border},
-      0 0 20px 4px ${rgba(c.base, .58)},
-      inset 0 0 0 2px rgba(255,255,255,.48)`;
-
-    card.dataset.active = "1";
-{
-
-  // --- ZOOM ATTIVO: anima SOLTANTO quando cambia l’attivo ---
-  const baseScale   = IS_BOSS ? (LEG_BOSS_CFG?.scale ?? 1) : 1;
-  card.style.scale = String(ZOOM_CFG.scale);
-  card.dataset.zoomState = "active";
-
-    card.style.zIndex = "6";
-  }
-
-  // Badge "turno attivo" (⚔) dimensionato in proporzione alla card/boss
-if (isActive) {
-  // Fattore di scala: i boss usano avatar 1.5× (vedi AVA = AVA_BASE * 1.5)
-  const K = IS_BOSS ? 1.3 : 1;
-
-  const BADGE_BASE_SIZE = 18;  // size standard
-  const BADGE_BASE_LEFT = -15;  // offset standard
-  const BADGE_BASE_FONT = 12;  // font standard
-
-  const S = Math.round(BADGE_BASE_SIZE * K);  // diametro badge
-  const L = Math.round(BADGE_BASE_LEFT * K);  // distanza da sinistra
-  const F = Math.round(BADGE_BASE_FONT * K);  // font-size
-
-  const activeBadge = document.createElement("div");
-  activeBadge.textContent = "⚔";
-  Object.assign(activeBadge.style, {
-    position: "absolute",
-    left: IS_BOSS ? "-8px" : `${L}px`,
-    top: IS_BOSS ? "auto" : "50%",
-    bottom: IS_BOSS ? "0px" : "auto",
-    transform: IS_BOSS ? "none" : "translateY(55%)",
-    width: `${S}px`,
-    height: `${S}px`,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: `${F}px`,
-    fontWeight: "700",
-    color: "#fff",
-    background: c.border,
-    boxShadow: "0 2px 6px rgba(0,0,0,.85), 0 0 0 2px rgba(0,0,0,.6)",
-    zIndex: IS_BOSS ? "8" : "4",
-    pointerEvents: "none",
-  });
-  card.appendChild(activeBadge);
-}
-  }
-
-  if (isNext && !isActive) {
-    // stessa tinta ma molto più soft
-    card.dataset.next = "1";
-    card.style.boxShadow =
-      `0 0 0 1px ${c.glow},
-      inset 0 0 0 1px rgba(255,255,255,.28)`;
-  }
-
-  if (KNOCKED_OUT) {
-    card.style.filter = "saturate(.42) brightness(.72)";
-    card.style.opacity = ".84";
-  }
-
-  // --- header: avatar + name + badge (tutto in riga)
-
-  // --- costanti avatar/overlap ---
-  const AVA_BASE  = 58;                 // diametro avatar “normale”
-  const OVER_BASE = 12;                 // sporgenza normale
-
-// Se ha azioni leggendarie, avatar più grande e un filo più “sporgente”
-  const AVA  = IS_BOSS ? 72 : AVA_BASE;
-  const OVER = IS_BOSS ? 0 : OVER_BASE;
-  const AVATAR_LEFT = IS_BOSS ? -12 : -OVER;
-
-  // header: avatar + name + badge
-  const header = document.createElement("div");
-  const CONTENT_LEFT = IS_BOSS ? 76 : (AVA - OVER + 12);
-  const BOSS_CONTENT_OFFSET = IS_BOSS
-    ? Math.round((MAIN_CARD_H - BASE_CARD_H) / 2)
-    : 0;
-  const BOSS_HP_ROW_TOP = HAS_LEG ? 49 : 43;
-  const BOSS_HP_BAR_BOTTOM = HAS_LEG ? 8 : 14;
-  const CENTER_SINGLE_LINE_NAME = !!e.__groupCollapsed || !!e.isEpicAction || isEpicActionId(e.id);
-  Object.assign(header.style, {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    height: `${MAIN_CARD_H}px`,
-    flex: `0 0 ${MAIN_CARD_H}px`,
-    width: "100%",
-    padding: "0",
-    paddingLeft: `${CONTENT_LEFT}px`,      // spazio per il testo (riusa la costante)
-    paddingRight: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-    boxSizing: "border-box",
-  });
-
-  // Wrapper + img: clip perfetto e cover affidabile
-const AVATAR_ZOOM = 1.20; // ↑ porta a 1.08/1.12 se alcuni ritratti hanno “cornici” interne
-
-const avatarWrap = document.createElement("div"); // contiene e clippa
-Object.assign(avatarWrap.style, {
-  position: "absolute",
-  left: `${AVATAR_LEFT}px`,
-  top: "50%",
-  transform: "translateY(-50%)",
-  width: `${AVA}px`,
-  height: `${AVA}px`,
-  borderRadius: "50%",
-  overflow: "hidden",
-  zIndex: IS_BOSS ? "3" : "2",
-  boxShadow: `
-    0 0 0 2px ${c.base},
-    0 0 0 4px black,
-    0 0 10px ${c.glow}
-  `,
-  transition: "width .15s ease, height .15s ease, left .15s ease"
-});
-
-let avatarInner;
-if (e.portrait) {
-  avatarInner = document.createElement("img");
-  avatarInner.src = e.portrait;
-  avatarInner.alt = e.name;
-  Object.assign(avatarInner.style, {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",           // << riempi sempre il cerchio
-    objectPosition: "50% 50%",
-    display: "block",
-    transform: `scale(${AVATAR_ZOOM})`, // << micro-zoom opzionale
-    transformOrigin: "50% 50%",
-  });
-} else {
-  avatarInner = document.createElement("div"); // fallback con iniziale
-  avatarInner.textContent = e.name.slice(0,1).toUpperCase();
-  Object.assign(avatarInner.style, {
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "700",
-    fontSize: "18px",
-    background: "rgba(255,255,255,.08)",
-    color: "#fff",
-    transform: `scale(${AVATAR_ZOOM})`,
-    transformOrigin: "50% 50%",
-  });
-}
-
-avatarWrap.appendChild(avatarInner);
-
-let knockedOutBadge = null;
-card.dataset.koBadgeLeft = `${AVATAR_LEFT + AVA - 17}px`;
-card.dataset.koBadgeTop = IS_BOSS ? "2px" : "1px";
-if (KNOCKED_OUT) {
-  knockedOutBadge = compactStatusBadge("KO", `Fuori combattimento: 0 / ${CLASSIC_HP_MAX}`);
-  knockedOutBadge.dataset.cardKoBadge = "1";
-  Object.assign(knockedOutBadge.style, {
-    position: "absolute",
-    left: `${AVATAR_LEFT + AVA - 17}px`,
-    top: IS_BOSS ? "2px" : "1px",
-    height: "20px",
-    minWidth: "25px",
-    zIndex: "8",
-    pointerEvents: "none",
-  });
-}
-
-let bossPortraitFrame = null;
-if (IS_BOSS) {
-  const frameSize = Math.round(AVA * BOSS_PORTRAIT_FRAME_SCALE);
-  const frameOutset = Math.round((frameSize - AVA) / 2);
-  bossPortraitFrame = document.createElement("img");
-  bossPortraitFrame.src = BOSS_PORTRAIT_FRAME_SRC;
-  bossPortraitFrame.alt = "";
-  bossPortraitFrame.setAttribute("aria-hidden", "true");
-  bossPortraitFrame.draggable = false;
-  Object.assign(bossPortraitFrame.style, {
-    position: "absolute",
-    left: `${AVATAR_LEFT - frameOutset}px`,
-    top: "50%",
-    width: `${frameSize}px`,
-    height: `${frameSize}px`,
-    objectFit: "contain",
-    transform: "translateY(-50%)",
-    pointerEvents: "none",
-    filter: "drop-shadow(0 2px 5px rgba(0,0,0,.78))",
-    zIndex: "7",
-  });
-}
-
-  const bossTopRow = IS_BOSS && !e.__groupCollapsed
-    ? document.createElement("div")
-    : null;
-  if (bossTopRow) {
-    Object.assign(bossTopRow.style, {
-      position: "absolute",
-      top: HAS_LEG
-        ? `${8 + PLAYER_BOSS_VERTICAL_OFFSET}px`
-        : `${IS_GM ? 21 : (Math.round((MAIN_CARD_H - 20) / 2) - 7 + PLAYER_BOSS_VERTICAL_OFFSET)}px`,
-      left: `${CONTENT_LEFT}px`,
-      right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-      height: "20px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "flex-start",
-      gap: "3px",
-      minWidth: "0",
-      overflow: "hidden",
-      zIndex: "5",
-    });
-  }
-
-  // Ogni boss usa una riga HP dedicata: mai affiancata al nome.
-  const legendaryHPRow = IS_BOSS && !e.__groupCollapsed
-    ? document.createElement("div")
-    : null;
-  if (legendaryHPRow) {
-    Object.assign(legendaryHPRow.style, {
-      position: "absolute",
-      top: `${BOSS_HP_ROW_TOP}px`,
-      left: `${CONTENT_LEFT}px`,
-      right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-      height: "20px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "flex-start",
-      gap: "3px",
-      minWidth: "0",
-      zIndex: "5",
-    });
-  }
-
-  // nome (parte subito a destra dell’avatar)
-  const name = document.createElement("div");
-  name.title = e.__groupCollapsed ? `${e.__groupBase} (${e.__groupCount})` : e.name;
-
-
-  Object.assign(name.style, {
-  flex: "1 1 auto",
-  minWidth: "0",
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-});
-if (HAS_LEG && !e.__groupCollapsed) {
-  Object.assign(name.style, {
-    position: "absolute",
-    top: "15px",
-    left: `${CONTENT_LEFT}px`,
-    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-  });
-}
-
-const nameLabel = document.createElement("span");
-nameLabel.textContent = e.__groupCollapsed ? `${e.__groupBase} (Gruppo)` : e.name;
-Object.assign(nameLabel.style, {
-  flex: "1 1 auto",
-  minWidth: "0",
-  textAlign: "left",
-  fontSize: "15px",
-  fontWeight: "700",
-  letterSpacing: "-.01em",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-});
-if (IS_GM && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
-  enableClassicCardRename({
-    card,
-    name,
-    nameLabel,
-    getOriginalName: () => e.name,
-    borderColor: c.border,
-    dragAllowed: DRAG_OK,
-    saveName: async (nextName) => {
-      await OBR.scene.items.updateItems([e.id], (items) => {
-        const item = items[0];
-        __setSceneTokenDisplayName(item, nextName);
-      });
-      e.name = nextName;
-    },
-    onError: (error) => {
-      console.warn("[initiative] rename token:", error?.message || error);
-    },
-  });
-}
-name.appendChild(nameLabel);
-
-
-let cardToolsDock = null;
-let placeCardToolInRadialSlot = null;
-if (IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)) {
-  cardToolsDock = document.createElement("div");
-  if (e.__groupCollapsed) {
-    Object.assign(cardToolsDock.style, {
-      position: "absolute",
-      top: "calc(50% + 9px)",
-      left: `${AVA - OVER + 18}px`,
-      right: "auto",
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      zIndex: "12",
-      pointerEvents: "auto",
-    });
-  } else {
-    Object.assign(cardToolsDock.style, {
-      position: "absolute",
-      left: `-${OVER}px`,
-      top: "50%",
-      transform: "translateY(-50%)",
-      width: `${AVA}px`,
-      height: `${AVA}px`,
-      zIndex: "12",
-      pointerEvents: "none",
-    });
-
-    const radialAngles = IS_BOSS ? [212, 180, 132] : [228, 180, 132];
-    const radialButtonSize = 20;
-    const radialRadius = (AVA / 2) - 2;
-    const radialLeftOffset = IS_BOSS ? -8 : -4;
-    placeCardToolInRadialSlot = (button, slot) => {
-      const angle = (radialAngles[slot] ?? 0) * (Math.PI / 180);
-      const center = AVA / 2;
-      const left = center + (Math.cos(angle) * radialRadius) - (radialButtonSize / 2) + radialLeftOffset;
-      const top = center + (Math.sin(angle) * radialRadius) - (radialButtonSize / 2);
-      Object.assign(button.style, {
-        position: "absolute",
-        left: `${Math.round(left)}px`,
-        top: `${Math.round(top)}px`,
-        width: `${radialButtonSize}px`,
-        minWidth: `${radialButtonSize}px`,
-        height: `${radialButtonSize}px`,
-        padding: "0",
-        pointerEvents: "auto",
-      });
-    };
-  }
-  header.appendChild(cardToolsDock);
-}
-
-if (cardToolsDock && e.__groupCollapsed) {
-  const groupDeltaButton = document.createElement("button");
-  groupDeltaButton.type = "button";
-  groupDeltaButton.textContent = "±";
-  groupDeltaButton.title = "Ricalibra HP correnti e massimi di tutto il gruppo";
-  groupDeltaButton.setAttribute("aria-label", groupDeltaButton.title);
-  Object.assign(groupDeltaButton.style, {
-    flex: "0 0 auto",
-    minWidth: "24px",
-    width: "24px",
-    height: "20px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "0",
-    borderRadius: "999px",
-    border: "1px solid rgba(255,255,255,.22)",
-    background: "rgba(0,0,0,.52)",
-    color: "#fff",
-    fontSize: "15px",
-    fontWeight: "700",
-    lineHeight: "1",
-    cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-  });
-  groupDeltaButton.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
-    event.preventDefault();
-    armDocClickIgnore(350);
-  });
-  groupDeltaButton.addEventListener("click", async (event) => {
-    event.stopPropagation();
-    event.preventDefault();
-    armDocClickIgnore(350);
-    await closeOpenEditors();
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.inputMode = "numeric";
-    input.placeholder = "+/-";
-    input.pattern = "[+\\-]?\\d*";
-    input.dataset.groupHpDeltaEditor = "1";
-    Object.assign(input.style, {
-      width: "52px",
-      height: "20px",
-      boxSizing: "border-box",
-      padding: "0 4px",
-      borderRadius: "999px",
-      border: "1px solid rgba(251,191,36,.82)",
-      outline: "none",
-      background: "rgba(245,158,11,.42)",
-      color: "#fff",
-      fontSize: "12px",
-      fontWeight: "700",
-      textAlign: "center",
-      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-    });
-
-    const previousDraggable = card.getAttribute("draggable");
-    card.setAttribute("draggable", "false");
-    groupDeltaButton.replaceWith(input);
-
-    let finished = false;
-    const restore = () => {
-      if (input.isConnected) input.replaceWith(groupDeltaButton);
-      if (previousDraggable === null) card.removeAttribute("draggable");
-      else card.setAttribute("draggable", previousDraggable);
-    };
-    const cancel = () => {
-      if (finished) return;
-      finished = true;
-      restore();
-    };
-    const commit = async () => {
-      if (finished) return;
-      const delta = parseRelativeHPDelta(input.value);
-      if (delta === null || delta === 0) {
-        cancel();
-        return;
-      }
-      finished = true;
-      input.disabled = true;
-      const wasSuspended = __suspendRenders;
-      __suspendRenders = true;
-      try {
-        await applyGroupHPMaxDelta(e.id, delta);
-      } catch (err) {
-        console.warn("[hp] group delta error:", err?.message || err);
-      } finally {
-        __suspendRenders = wasSuspended;
-        restore();
-      }
-    };
-
-    input.addEventListener("pointerdown", (ev) => ev.stopPropagation());
-    input.addEventListener("click", (ev) => ev.stopPropagation());
-    input.addEventListener("input", () => {
-      input.value = normalizeSignedIntegerInput(input.value);
-    });
-    input.addEventListener("keydown", (keyEvent) => {
-      if (keyEvent.key === "Enter") {
-        keyEvent.preventDefault();
-        void commit();
-      } else if (keyEvent.key === "Escape") {
-        keyEvent.preventDefault();
-        cancel();
-      }
-    });
-    input.addEventListener("blur", () => void commit());
-    requestAnimationFrame(() => {
-      input.focus({ preventScroll: true });
-      input.select();
-    });
-  });
-  cardToolsDock.appendChild(groupDeltaButton);
-}
-
-  // ---- TAGs spostabili (posizione salvata in scena)
-  const tagsDock = document.createElement("div");
-  tagsDock.dataset.cardSelectionIgnore = "1";
-  Object.assign(tagsDock.style, {
-    position: "absolute",
-    display: "flex",
-    gap: "6px",
-    alignItems: "center",
-    transform: "translate(-50%, -50%)",
-    pointerEvents: "auto",
-    zIndex: "5",
-  });
-  // posizione percentuale (left/top) letta dallo stato
-  (function setTagsDockPosFromState(){
-    const tp = (state?.ui?.tagsDock) || { x: 0.72, y: 0.50 };
-    tagsDock.style.left = (tp.x * 100) + "%";
-    tagsDock.style.top  = (tp.y * 100) + "%";
-  })();
-
-  // Drag dei tag (solo GM): trascina l’intero dock
-  if (IS_GM) {
-    tagsDock.style.cursor = "grab";
-    let dragging = false, rect = null, pid = 0;
-    const onMove = async (ev) => {
-      if (!dragging || !rect) return;
-      const x = (ev.clientX - rect.left) / rect.width;
-      const y = (ev.clientY - rect.top)  / rect.height;
-      const nx = Math.max(0.05, Math.min(0.95, x));
-      const ny = Math.max(0.10, Math.min(0.90, y));
-      tagsDock.style.left = (nx * 100) + "%";
-      tagsDock.style.top  = (ny * 100) + "%";
-      await setSceneState(prev => ({
-        ...(prev || {}),
-        ui: { ...(prev?.ui || {}), tagsDock: { x: nx, y: ny } }
-      }));
-    };
-    const onUp = () => {
-      dragging = false;
-      tagsDock.releasePointerCapture?.(pid);
-      document.removeEventListener("pointermove", onMove, true);
-      document.removeEventListener("pointerup", onUp, true);
-      tagsDock.style.cursor = "grab";
-    };
-    tagsDock.addEventListener("pointerdown", (ev) => {
-      if (!IS_GM) return;
-      ev.stopPropagation();
-      pid = ev.pointerId || 0;
-      dragging = true;
-      tagsDock.setPointerCapture?.(pid);
-      rect = header.getBoundingClientRect();
-      tagsDock.style.cursor = "grabbing";
-      document.addEventListener("pointermove", onMove, true);
-      document.addEventListener("pointerup", onUp, true);
-    });
-  }
-
-// --- Tag Dock (EPIC e AZIONE EPICA) separati: non draggabili ---
-if (!e.__groupCollapsed) {
-  const mkPill = (cfg) => {
-  const s = document.createElement("span");
-  s.textContent = cfg.label || "";
-
-  // letter-spacing sicuro: usa valore numerico → "Npx", altrimenti default "0.5px"
-  const ls = Number.isFinite(cfg?.letterSpacing) ? `${cfg.letterSpacing}px` : "0.5px";
-
-  Object.assign(s.style, {
-    fontSize: `${cfg.fontSize ?? 11}px`,
-    fontWeight: String(cfg.fontWeight ?? 700),
-    padding: `${cfg.padY ?? 2}px ${cfg.padX ?? 6}px`,
-    borderRadius: `${cfg.radius ?? 999}px`,
-    background: cfg.bg || "rgba(147,112,219,.35)",
-    color: cfg.color || "#fff",
-    border: cfg.border || "1px solid rgba(255,255,255,.18)",
-    letterSpacing: ls,
-    whiteSpace: "nowrap", 
-    userSelect: "none",
-    pointerEvents: "none",
-  });
-
-  return s;
-};
-
-  // Boss Epico
-  if (IS_EPIC) {
-    const pos = EPIC_TAG_CFG.posBoss;
-    const dockBoss = document.createElement("div");
-    Object.assign(dockBoss.style, {
-      position: "absolute",
-      top: `${pos.top}px`,
-      right: `${__rightPxFrom(pos)}px`,
-      display: "flex",
-      alignItems: "center",
-      gap: `${pos.gap || 6}px`,
-      zIndex: "5",
-      pointerEvents: "none"
-    });
-    dockBoss.appendChild(mkPill(EPIC_TAG_CFG.epic));
-    header.appendChild(dockBoss);
-  }
-
-  // Azione Epica (entry virtuale)
-  if (e.isEpicAction) {
-    const pos = EPIC_TAG_CFG.posAction;
-    const dockAct = document.createElement("div");
-    Object.assign(dockAct.style, {
-      position: "absolute",
-      top: `${pos.top}px`,
-      right: `${__rightPxFrom(pos)}px`,
-      display: "flex",
-      alignItems: "center",
-      gap: `${pos.gap || 6}px`,
-      zIndex: "5",
-      pointerEvents: "none"
-    });
-    dockAct.appendChild(mkPill(EPIC_TAG_CFG.action));
-    header.appendChild(dockAct);
-  }
-}
-
-// --- CHIP ×N SULL'AVATAR (solo se collassato) ---
-if (e.__groupCollapsed && e.__groupCount > 1) {
-  const CHIP = 32;            // diametro chip (regola qui)
-  const OFFSET = 7;           // quanto rientra dall'angolo
-
-  const cnt = document.createElement("div");
-  cnt.textContent = `×${e.__groupCount}`;
-  Object.assign(cnt.style, {
-    position: "absolute",
-    left:  (AVA - OVER - (CHIP / 2)) + "px",               // AVA - OVER - CHIP/2
-    top:   `calc(50% + ${(AVA / 2) - (CHIP / 2) - OFFSET}px)`, // 50% + AVA/2 - CHIP/2 - offset
-    width:  CHIP + "px",
-    height: CHIP + "px",
-    borderRadius: "999px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontWeight: "700",
-    color: "#fff",
-    background: "rgba(0,0,0,.85)",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.55)",
-    zIndex: "6",
-    pointerEvents: "none",
-  });
-  header.appendChild(cnt);
-}
-
-  Object.assign(name.style, {
-    position: "absolute",
-    top: HAS_LEG
-      ? "8px"
-      : `${((!IS_GM && !PLAYER_CARD_HAS_HP && !IS_BOSS) || CENTER_SINGLE_LINE_NAME)
-        ? Math.round((MAIN_CARD_H - 22) / 2)
-        : (8 + BOSS_CONTENT_OFFSET)}px`,
-    left: `${CONTENT_LEFT}px`,
-    right: `${BADGE_RIGHT + BADGE_SIZE + (HAS_LEG ? 102 : 10)}px`,
-    height: HAS_LEG ? "20px" : "22px",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    flex: "1 1 auto",
-    minWidth: "0",                 // necessario per ellissi in flex
-    fontSize: "15px",
-    fontWeight: "700",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    zIndex: "4",
-  });
-  if (bossTopRow) {
-    Object.assign(name.style, {
-      position: "relative",
-      top: "auto",
-      left: "auto",
-      right: "auto",
-      width: "auto",
-      maxWidth: "100%",
-      height: "20px",
-      flex: "0 1 auto",
-      justifyContent: "flex-start",
-      textAlign: "left",
-      zIndex: "1",
-    });
-  }
-  if (!IS_GM && !bossTopRow) {
-    name.style.justifyContent = "flex-start";
-    name.style.textAlign = "left";
-  }
-
-  // badge iniziativa (ancorato a destra, centrato verticalmente)
-  const badge = document.createElement("div");
-  badge.textContent = String(e.initiative);
-  badge.title = "Click per modificare l'iniziativa";
-  Object.assign(badge.style, {
-  position: "absolute",
-  right: BADGE_RIGHT + "px",
-  top: `${MAIN_CARD_H / 2}px`,
-  transform: "translateY(-50%)",
-  width: BADGE_SIZE + "px",
-  height: BADGE_SIZE + "px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "0",
-  fontSize: "16px",
-  fontWeight: "700",
-  lineHeight: "1",
-  color: "#fff",
-  background: "rgba(24,32,44,.84)",
-  border: `1px solid ${rgba(c.border, .88)}`,
-  borderRadius: "50%",
-  boxShadow: `0 4px 12px rgba(0,0,0,.42), inset 0 0 0 1px ${rgba(c.base, .18)}`,
-  cursor: "text",
-});
-
-// --- Dock per condizioni
-const condDock = document.createElement("div");
-condDock.style.position = "absolute";
-condDock.style.top = `${MAIN_CARD_H - 5}px`;
-condDock.style.left = `${CONTENT_LEFT}px`;
-condDock.style.right = "10px";
-condDock.style.minHeight = "18px";
-condDock.style.zIndex = "10";
-condDock.style.overflow = "visible"; // importantissimo per far “uscire” l’overlay
-condDock.style.display = "flex";
-condDock.style.flexDirection = "row";
-condDock.style.alignItems = "center";   // ancora a sinistra
-condDock.style.gap = CHIP_GAP_PX + "px";
-header.appendChild(condDock);
-
-// --- CHIPS: condizioni + incantesimi in un unico gruppo con overflow condiviso ---
-const fragAll = document.createDocumentFragment();
-
-// 1) Condizioni
-const condData = cardEffectData;
-const hasAny = (Object.keys(condData.flags).length > 0) || (condData.custom && condData.custom.length > 0) || condData.instances.length > 0;
-if (hasAny) {
-  const fragCond = __buildConditionChipsSafe(condData, { cap: CONDITIONS, compact: true });
-  if (fragCond) fragAll.appendChild(fragCond);
-}
-
-// 2) Incantesimi
-if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
-  const canTerminate = IS_GM && !isLairId(e.id) && !isEpicActionId(e.id);
-  for (const spell of e.spells) {
-    const fragSp = buildSpellChips([spell], canTerminate
-      ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
-      : {});
-
-  // colore pieno = stesso del badge "C"
-    const chips = Array.from(fragSp.childNodes).filter(n => n.nodeType === 1);
-    for (let i = 0; i < chips.length; i++) {
-      const k   = __spellKey(spell?.name);
-      const col = __spellColor(k);
-      const el  = chips[i];
-    el.style.background = col.solid; // ⟵ colore pieno, no alpha
-    // NON toccare font/padding/radius/border/shadow: gestiscili in spells.js
-  }
-
-    fragAll.appendChild(fragSp);
-    }
-}
-
-// 3) Monta TUTTO assieme: 3 visibili in totale, poi +N
-condDock.style.gap = CHIP_GAP_PX + "px";
-mountChipsWithOverflow(condDock, fragAll, { compact: true, limit: 2 });
-bindReferenceChips(condDock);
-
-if (e.__groupCollapsed) {
-  // Sulla card collassata l’iniziativa modifica l’intero gruppo
-  badge.title = "Click per modificare l'iniziativa del gruppo";
-  badge.style.cursor = "text";
-}
-
-  badge.style.userSelect = "none";
-  badge.dataset.badge  = "init";
-  badge.dataset.itemId = e.id;
-  badge.dataset.initTouched = e.initTouched === true ? "1" : "0";
-  badge.__initNormalBorder = badge.style.border;
-  badge.__initNormalShadow = badge.style.boxShadow;
-
-badge.addEventListener("pointerdown", async (ev) => {
-  // se è già in editing, non fare nulla
-  if (e.isEpic || e.isEpicAction) { ev.preventDefault(); ev.stopPropagation(); return; }
-  if (badge.dataset.editing === "1") return;
-
-  ev.stopImmediatePropagation();
-  ev.preventDefault();
-  armDocClickIgnore(350);                           // un filo più lunga
-  const onPU = () => {                              // estendi un attimo dopo il pointerup
-    armDocClickIgnore(150);
-    document.removeEventListener("pointerup", onPU, true);
-  };
-  document.addEventListener("pointerup", onPU, true);
-
-  // 1) blocca subito i render e marca l'ID che sta per entrare in edit
-  __suspendRenders = true;
-  __editingInitForId = e.id;
-
-  // 2) chiudi QUALSIASI altro editor già aperto
-  await closeOpenEditors(); 
-
-  const input = document.createElement("input");
-  input.type = "text";                // niente spinner
-  input.inputMode = "numeric";
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  input.pattern = "-?\\d*";
-
-  let liveInit = null;
-  try {
-  const [live] = await OBR.scene.items.getItems([e.id]);
-  const mm = live?.metadata?.[META_KEY] || {};
-  if (Number.isFinite(mm.initiative)) liveInit = Math.floor(Number(mm.initiative));
-  } catch {}
-  const prefillInit = (liveInit ?? (Number.isFinite(e.initiative) ? Math.floor(Number(e.initiative)) : 0));
-  input.value = String(prefillInit);
-
-  // 3) l'editor è stabile → sblocca i render nel prossimo tick
-  setTimeout(() => { if (!__initiativeFillMode) __suspendRenders = false; }, 0);
-
-  Object.assign(input.style, {
-  width: "100%",           // riempi il cerchio
-  height: "100%",
-  boxSizing: "border-box",
-  margin: "0",
-  padding: "0",
-  border: "none",
-  outline: "none",
-  background: "transparent",
-  color: "#fff",
-  fontSize: "15px",
-  fontWeight: "700",
-  textAlign: "center",
-  lineHeight: "1",
-  appearance: "none",
-});
-
-  if (e.isEpic) {
-  badge.title = "Un Epic Boss agisce sempre su iniziativa 20.";
-  badge.style.cursor = "default";
-}
-  const old = badge.textContent;
-  badge.textContent = "";
-  badge.appendChild(input);
-  badge.dataset.editing = "1";
-  badge.dataset.initEditing = "1";    // ← per closeOpenEditors()
-
-  // inghiotte il PRIMO click di coda
-  const swallowFirstClick = (evt) => {
-    if (badge.contains(evt.target)) {
-      evt.stopPropagation();
-      evt.preventDefault();
-    }
-  };
-  document.addEventListener("click", swallowFirstClick, { capture: true, once: true });
-
-  // filtri input
-  input.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
-  input.addEventListener("keydown", (ke) => {
-    if (ke.key === "ArrowUp" || ke.key === "ArrowDown") ke.preventDefault();
-  });
-  input.addEventListener("input", () => {
-    input.value = normalizeInitiativeInput(input.value);
-  });
-  input.addEventListener("pointerdown", (e2) => { e2.stopPropagation(); });
-
-  // focus SINCRONO
-  input.focus({ preventScroll: true });
-  input.select();
-
-  // ---- commit/cancel con guard anti-doppio commit ----
-  let committed = false;
-  let tabbing = false;
-
-  const cleanup = () => {
-    delete badge.dataset.editing;
-    delete badge.dataset.initEditing;
-    __editingInitForId = null;        // sblocca re-render
-    delete badge.__commitFn;
-    delete badge.__cancelFn;
-  };
-
-  const commit = async () => {
-  if (committed) return;
-  committed = true;
-
-  const v = input.value.trim();
-  try { badge.removeChild(input); } catch {}
-  const normalized = v === "" ? old : String(Math.floor(Number(v) || 0));
-  badge.textContent = normalized;
-
-  await updateInitiative(e.id, normalized);
-  try {
-    await trySeedGroupInitiative(e.id, normalized, {
-      deferRender: __initiativeFillMode,
-      forceAll: e.__groupCollapsed === true,
-    });
-  } catch (err) { console.warn(err); }
-
-  cleanup();
-
-  if (__initiativeFillMode) {
-    __initiativeFillSession?.completed?.add(e.id);
-    refreshInitiativeFillVisuals();
-    return;
-  }
-
-  // 🔧 NEW: riordina SUBITO e ridisegna
-  await reconcileStateWithItems();
-  await renderAll();
-
-  // (senza TAB) centra la card nella sua nuova posizione
-  requestAnimationFrame(() => {
-    const me = document.querySelector(`[data-item-id="${e.id}"]`);
-    me?.scrollIntoView?.({ behavior: "smooth", block: "center", inline: "nearest" });
-  });
-};
-
-  const cancel = async (options = {}) => {
-    if (committed) return;
-    committed = true;
-    try { badge.removeChild(input); } catch {}
-    badge.textContent = old;
-    cleanup();
-    if (options.deferRender === true) return;
-    if (__initiativeFillMode) await finishInitiativeFillMode();
-    else await renderAll();
-  };
-
-  // salva i puntatori per closeOpenEditors()
-  badge.__commitFn = commit;
-  badge.__cancelFn = cancel;
-
-  // helper: conferma e apre la pill adiacente (sotto/ sopra) in base a goPrev
-  const commitAndOpenNeighbor = async (goPrev = false) => {
-  tabbing = true;
-
-  // 📸 fotografiamo l'ordine PRIMA del riordino
-  let preOrder = [];
-  try {
-    const st = await getSceneState();
-    preOrder = Array.isArray(st?.order) ? [...st.order] : [];
-  } catch {}
-
-  await commit();   // aggiorna, riordina, renderizza
-  tabbing = false;
-
-  let targetId = null;
-  const direction = goPrev ? -1 : 1;
-
-  // 🔍 cerchiamo il vicino basandoci su preOrder (quello originale)
-  const idx = preOrder.indexOf(e.id);
-  if (idx >= 0) {
-    let i = idx + direction;
-    while (i >= 0 && i < preOrder.length) {
-      const candId = preOrder[i];
-
-      // escludiamo pill non editabili
-      const cardEl  = document.querySelector(`[data-item-id="${candId}"]`);
-      const badgeEl = document.querySelector(`[data-badge="init"][data-item-id="${candId}"]`);
-      const collapsed  = cardEl?.dataset.groupCollapsed === "1";
-      const isEpicBoss = cardEl?.dataset.isEpic === "1";
-      const isEpicAct  = typeof isEpicActionId === "function" ? isEpicActionId(candId) : false;
-
-      const editable = !!badgeEl && !collapsed && !isEpicBoss && !isEpicAct;
-      if (editable) { targetId = candId; break; }
-
-      i += direction;
-    }
-  }
-
-  if (targetId) {
-    requestAnimationFrame(() => {
-      const nextEl = document.querySelector(
-        `[data-badge="init"][data-item-id="${targetId}"]`
-      );
-      if (nextEl) {
-        nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-        nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
-        const nxt = nextEl.querySelector("input");
-        if (nxt) { try { nxt.focus({ preventScroll: true }); nxt.select(); } catch {} }
-      }
-    });
-  }
-};
-
-  // tastiera: Enter = solo commit; Tab = commit + vai giù (Shift+Tab su)
-  input.addEventListener("keydown", async (ke) => {
-    if (ke.key === "Enter")  {
-      ke.preventDefault();
-      if (ke.ctrlKey || ke.metaKey) {
-        await commit();
-        if (__initiativeFillMode) await finishInitiativeFillMode();
-      } else if (__initiativeFillMode) {
-        await commit();
-        await openInitiativeFillNeighbor(e.id, ke.shiftKey);
-      } else await commitAndOpenNeighbor(ke.shiftKey);
-      return;
-    }
-    if (ke.key === "Escape") { ke.preventDefault(); await cancel(); return; }
-    if (ke.key === "Tab")    {
-      ke.preventDefault();
-      if (__initiativeFillMode) {
-        await commit();
-        await openInitiativeFillNeighbor(e.id, ke.shiftKey);
-      } else await commitAndOpenNeighbor(ke.shiftKey);
-      return;
-    }
-  });
-
-  // su blur, commit normale (ma non durante il jump via TAB)
-  input.addEventListener("blur", () => {
-    if (!tabbing) requestAnimationFrame(() => commit());
-  });
-});
-
-if (e.__groupCollapsed) {
-  const chev = document.createElement("div");
-  chev.dataset.cardSelectionIgnore = "1";
-  chev.textContent = "▸";
-  Object.assign(chev.style, {
-    position: "absolute",
-    left: "2px",                   // ← a sinistra del badge ⚔ (che sta a ~24px)
-    top: "50%",
-    transform: "translateY(30%)",  // stessa verticale del badge ⚔
-    width: "22px",                 // stessa taglia del badge ⚔
-    height: "22px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#fff",
-    background: "rgba(0,0,0,.80)",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.55)",
-    cursor: "pointer",
-    userSelect: "none",
-    zIndex: "6",
-  });
-  chev.title = `Espandi gruppo “${e.__groupBase}”`;
-  chev.addEventListener("click", async (ev) => {
-    ev.stopPropagation();
-    await setSceneState(prev => {
-      const c = { ...(prev.collapsed || {}) };
-      delete c[e.__groupKey];
-      return { ...prev, collapsed: c };
-    });
-  });
-  header.appendChild(chev);
-}
-
-else if (e.__groupFirst) {
-  const chev = document.createElement("div");
-  chev.dataset.cardSelectionIgnore = "1";
-  chev.textContent = "▾";
-  Object.assign(chev.style, {
-    position: "absolute",
-    left: "24px",
-    top: "50%",
-    transform: "translateY(30%)",
-    width: "22px",
-    height: "22px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#fff",
-    background: "rgba(0,0,0,.80)",
-    border: "1px solid rgba(255,255,255,.22)",
-    boxShadow: "0 2px 6px rgba(0,0,0,.55)",
-    cursor: "pointer",
-    userSelect: "none",
-    zIndex: "6",
-  });
-  chev.title = `Comprimi gruppo “${e.__groupBase}”`;
-  chev.addEventListener("click", async (ev) => {
-    ev.stopPropagation();
-    await setSceneState(prev => {
-      const c = { ...(prev.collapsed || {}) };
-      c[e.__groupKey] = true;
-      return { ...prev, collapsed: c };
-    });
-  });
-  header.appendChild(chev);
-}
-// ===== 2 DOCKS INDIPENDENTI: PIPS e CONTROLLI (+/-) =====
-function __rightPxFrom(cfg) {
-  // Se cfg.right è numerico → assoluto; altrimenti calcola dal bordo destro oltre il badge
-  if (Number.isFinite(cfg.right)) return Number(cfg.right);
-  return BADGE_RIGHT + BADGE_SIZE + Number(cfg.rightFromBadge || 0);
-}
-
-// --- FASCIA RISORSE LEGGENDARIE: fuori dal nome e dalla riga HP ---
-if (!e.__groupCollapsed && e.legendary && Number(e.legendary.max) > 0) {
-  const resourceDock = document.createElement("div");
-  Object.assign(resourceDock.style, {
-    position: "absolute",
-    top: `${(IS_GM ? 29 : LEG_RESOURCE_CFG.top) + PLAYER_BOSS_VERTICAL_OFFSET}px`,
-    left: `${CONTENT_LEFT}px`,
-    right: `${BADGE_RIGHT + BADGE_SIZE + 8}px`,
-    minHeight: "18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: `${LEG_RESOURCE_CFG.clusterGap}px`,
-    overflow: "hidden",
-    zIndex: "5",
-    pointerEvents: "auto",
-  });
-
-  const makeResourceLabel = (text, title) => {
-    const label = document.createElement("span");
-    label.textContent = text;
-    label.title = title;
-    Object.assign(label.style, {
-      flex: "0 0 auto",
-      color: "rgba(255,255,255,.74)",
-      fontSize: "7px",
-      fontWeight: "700",
-      lineHeight: "1",
-      letterSpacing: ".04em",
-    });
-    return label;
-  };
-
-  const actionsCluster = document.createElement("div");
-  Object.assign(actionsCluster.style, {
-    display: "flex",
-    alignItems: "center",
-    gap: "3px",
-    minWidth: "0",
-    flex: "0 0 auto",
-  });
-  actionsCluster.append(
-    makeResourceLabel("A", "Azioni leggendarie"),
-    mkLegendaryPips(
-      e.legendary,
-      async (nextCurrent) => {
-        if (!IS_GM) return;
-        try { await setLegendaryCurrent(e.id, nextCurrent); } catch {}
-      },
-      e.attitude || "enemy",
-    ),
-  );
-
-  const makeMaxControls = (resourceName, currentMax, onChange) => {
-    const maxControls = document.createElement("div");
-    Object.assign(maxControls.style, {
-      display: "grid",
-      gridTemplateRows: `repeat(2, ${LEG_RESOURCE_CFG.controlHeight}px)`,
-      alignItems: "center",
-      gap: "0",
-      width: `${LEG_RESOURCE_CFG.controlWidth}px`,
-      height: `${LEG_RESOURCE_CFG.controlHeight * 2}px`,
-      flex: "0 0 auto",
-    });
-    const makeMaxButton = (text, delta) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = text;
-      button.title = delta < 0
-        ? `Riduci ${resourceName} massime`
-        : `Aumenta ${resourceName} massime`;
-      Object.assign(button.style, {
-        width: `${LEG_RESOURCE_CFG.controlWidth}px`,
-        minWidth: `${LEG_RESOURCE_CFG.controlWidth}px`,
-        height: `${LEG_RESOURCE_CFG.controlHeight}px`,
-        minHeight: `${LEG_RESOURCE_CFG.controlHeight}px`,
-        padding: "0",
-        borderRadius: delta < 0 ? "4px 4px 1px 1px" : "1px 1px 4px 4px",
-        border: "1px solid rgba(255,255,255,.18)",
-        background: "rgba(0,0,0,.68)",
-        color: "#fff",
-        fontSize: "9px",
-        fontWeight: "700",
-        lineHeight: "1",
-        cursor: "pointer",
-      });
-      button.addEventListener("click", async (event) => {
-        event.stopPropagation();
-        const nextMax = Math.max(1, Math.min(5, Number(currentMax) + delta));
-        try { await onChange(nextMax); } catch {}
-      });
-      return button;
-    };
-    maxControls.append(makeMaxButton("+", 1), makeMaxButton("−", -1));
-    return maxControls;
-  };
-
-  if (IS_GM) {
-    actionsCluster.appendChild(makeMaxControls(
-      "azioni leggendarie",
-      e.legendary.max,
-      (nextMax) => setLegendaryMax(e.id, nextMax),
-    ));
-  }
-
-  const divider = document.createElement("span");
-  Object.assign(divider.style, {
-    width: "1px",
-    height: "12px",
-    flex: "0 0 1px",
-    background: "rgba(255,255,255,.18)",
-  });
-
-  const resistances = e.legendaryResistances || {
-    max: DEFAULT_LEGENDARY_RESISTANCES,
-    current: DEFAULT_LEGENDARY_RESISTANCES,
-  };
-  const resistanceCluster = document.createElement("div");
-  Object.assign(resistanceCluster.style, {
-    display: "flex",
-    alignItems: "center",
-    gap: "3px",
-    minWidth: "0",
-    flex: "0 0 auto",
-  });
-  resistanceCluster.append(
-    makeResourceLabel("R", "Resistenze leggendarie"),
-    mkLegendaryResistancePips(
-      resistances,
-      async (nextCurrent) => {
-        if (!IS_GM) return;
-        try { await setLegendaryResistanceCurrent(e.id, nextCurrent); } catch {}
-      },
-    ),
-  );
-  if (IS_GM) {
-    resistanceCluster.appendChild(makeMaxControls(
-      "resistenze leggendarie",
-      resistances.max,
-      (nextMax) => setLegendaryResistanceMax(e.id, nextMax),
-    ));
-  }
-
-  resourceDock.append(actionsCluster, divider, resistanceCluster);
-  header.appendChild(resourceDock);
-}
-
-// --- DOCK PARAGON (+ / −) --- (solo GM, attivo solo se Legendary assente/0)
-if (!e.__groupCollapsed && IS_GM && Number(e.paragonActions) > 0 &&
-    (!e.legendary || Number(e.legendary.max) === 0)) {
-  const dockPar = document.createElement("div");
-  Object.assign(dockPar.style, {
-    position: "absolute",
-    top: `${PAR_CTRL_CFG.top}px`,
-    right: `${__rightPxFrom(PAR_CTRL_CFG)}px`,
-    display: "flex",
-    alignItems: "center",
-    gap: `${PAR_CTRL_CFG.gap}px`,
-    padding: `${PAR_CTRL_CFG.paddingY}px ${PAR_CTRL_CFG.paddingX}px`,
-    borderRadius: `${PAR_CTRL_CFG.dockRadius || 0}px`,
-    background: PAR_CTRL_CFG.dockBg || "transparent",
-    border: PAR_CTRL_CFG.dockBorder || "none",
-    zIndex: "5",
-    pointerEvents: "auto",
-  });
-
-  const mkParBtn = (txt, delta) => {
-    const b = document.createElement("button");
-    b.type = "button";
-      Object.assign(b.style, {
-      width: `${PAR_CTRL_CFG.btnSize}px`,
-      height: `${PAR_CTRL_CFG.btnSize}px`,
-      borderRadius: `${PAR_CTRL_CFG.btnRadius}px`,
-      border: "1px solid rgba(255,255,255,.18)",
-      background: "rgba(0, 0, 0, 0.72)",
-      color: "#fff",
-      fontSize: "12px",
-      fontWeight: "700",
-      lineHeight: "1",
-      padding: "0",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,.4)",
-      transition: "transform .12s ease, background-color .12s ease, border-color .12s ease",
-    });
-    b.textContent = txt;
-    b.addEventListener("mouseenter", () => { b.style.transform = "translateY(-1px)"; });
-    b.addEventListener("mouseleave", () => { b.style.transform = "translateY(0)"; });
-    b.addEventListener("click", async (ev) => {
-      ev.stopPropagation();
-      const baseId = e.__paragonBaseId || e.id;
-      const cur = Math.max(1, Math.floor(Number(e.paragonActions) || 1));
-      const next = Math.max(1, Math.min(10, cur + delta));
-      try {
-        await setParagonActions(baseId, next);
-        await reconcileStateWithItems();
-        await renderAll();
-      } catch (err) {
-        console.warn("[paragon] set actions error:", err?.message || err);
-      }
-    });
-    return b;
-  };
-
-  const lab = document.createElement("div");
-  lab.textContent = String(e.paragonActions);
-  Object.assign(lab.style, {
-    width: `${PAR_CTRL_CFG.btnSize}px`,
-    height: `${PAR_CTRL_CFG.btnSize}px`,
-    minWidth: `${PAR_CTRL_CFG.btnSize}px`,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxSizing: "border-box",
-    borderRadius: `${PAR_CTRL_CFG.btnRadius}px`,
-    border: "1px solid rgba(255,255,255,.18)",
-    background: "rgba(0, 0, 0, 0.72)",
-    color: "#fff",
-    fontSize: "12px",
-    fontWeight: "700",
-    lineHeight: "1",
-    userSelect: "none",
-  });
-  
-  const btnMinus = mkParBtn("−", -1);
-  const btnPlus  = mkParBtn("+", +1);
-
-  dockPar.append(btnMinus, btnPlus, lab);
-  header.appendChild(dockPar);
-}
-
-  header.append(avatarWrap);
-  if (knockedOutBadge) header.appendChild(knockedOutBadge);
-  if (bossPortraitFrame) header.appendChild(bossPortraitFrame);
-  if (bossTopRow) {
-    bossTopRow.appendChild(name);
-    header.appendChild(bossTopRow);
-    if (legendaryHPRow) header.appendChild(legendaryHPRow);
-    header.appendChild(badge);
-  } else {
-    header.append(name, badge);
-  }
-// Indicatore concentrazione: pallino con "C" solo sulle card dei singoli token.
-{
-  // Le card aggregate di gruppo non espongono effetti dei membri.
-  const concOn = !e.__groupCollapsed && !!e.isConcentrating;
-  if (concOn) {
-    // Il colore deriva dalla concentrazione del token rappresentato dalla card.
-    const k = e.concSpellKey || null;
-    const col = k ? __spellColor(k) : { solid: "rgba(0,0,0,0.80)", border: "rgba(255,255,255,.18)" };
-
-    const C_DOT_SIZE = 18;           // diametro pallino
-    const cDot = document.createElement("div");
-    cDot.textContent = "C";
-    cDot.title = k
-      ? `Concentrazione: ${k[0].toUpperCase() + k.slice(1)}`
-      : "Concentrazione attiva";
-
-    Object.assign(cDot.style, {
-      boxSizing: "border-box",
-      flex: "0 0 auto",
-      width: C_DOT_SIZE + "px",
-      height: C_DOT_SIZE + "px",
-      borderRadius: "50%",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "10px",
-      fontWeight: "700",
-      lineHeight: "1",
-      color: "#fff",
-      background: col.solid,      // ⟵ colore della spell
-      border: `2px solid rgba(0,0,0,1)`,
-      boxShadow: "0 0 0 1px rgba(0, 0, 0, 0.5)",
-      zIndex: "6",
-      pointerEvents: "none"
-    });
-    const chipRow = condDock.firstElementChild;
-    if (chipRow) chipRow.prepend(cDot);
-    else condDock.appendChild(cDot);
-  }
-}
-
-
-  card.appendChild(header);
-
-// === HP pill (solo GM)
-// === HP pill (GM sempre; Player solo per ally/pc)
-const _att = String(e.attitude || "").toLowerCase();
-const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
-const _playerCanSeeHP = PLAYER_VISIBLE_ATTITUDES.includes(_att);
-
-if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
-  const hpControlsRow = document.createElement("div");
-  Object.assign(hpControlsRow.style, {
-    position: "absolute",
-    top: IS_BOSS ? "0px" : `${MAIN_CARD_H - 32}px`,
-    left: `${CONTENT_LEFT}px`,
-    right: `${BADGE_RIGHT + BADGE_SIZE + 10}px`,
-    height: IS_BOSS ? `${MAIN_CARD_H - 4}px` : "25px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: "4px",
-    paddingBottom: IS_BOSS ? "0" : "6px",
-    boxSizing: "border-box",
-    zIndex: "3",
-    pointerEvents: IS_BOSS ? "none" : "auto",
-  });
-
-  const pill = document.createElement("div");
-  pill.title = "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi";
-  pill.style.position = "relative";
-  pill.style.marginRight = "0";
-  pill.style.padding = "0";
-  pill.style.fontSize = "12px";
-  pill.style.fontWeight = "700";
-  pill.style.lineHeight = "13px";
-  pill.style.color = "#fff";
-  pill.style.background = "transparent";
-  pill.style.border = "none";
-  pill.style.borderRadius = "0";
-  pill.style.boxShadow = "none";
-  pill.style.cursor = "text";
-  pill.style.zIndex = "3";
-  pill.style.pointerEvents = "auto";
-
-  const hpVal  = CLASSIC_HP_VALUE;
-  const hpMaxV = CLASSIC_HP_MAX;
-  pill.innerHTML = formatHPHTML(hpVal, hpMaxV);   // <-- usa HTML per colorare cur se temp
-  if (KNOCKED_OUT) pill.style.color = "rgba(255,255,255,.58)";
-  pill.dataset.badge  = "hp";
-  pill.dataset.itemId = e.id;
-
-  // === Barra HP visuale accanto alla pill ===
-  const hpBarWrap = document.createElement("div");
-  hpBarWrap.style.position = "absolute";
-  hpBarWrap.style.left = "0";
-  hpBarWrap.style.right = "0";
-  hpBarWrap.style.bottom = IS_BOSS ? `${BOSS_HP_BAR_BOTTOM}px` : "0";
-  hpBarWrap.style.width = "auto";
-  hpBarWrap.style.height = "6px";
-  hpBarWrap.style.boxSizing = "border-box";
-  hpBarWrap.style.background = "rgba(0,0,0,.68)";
-  hpBarWrap.style.border = "1px solid rgba(0,0,0,.85)";
-  hpBarWrap.style.borderRadius = "999px";
-  hpBarWrap.style.overflow = "hidden";
-  hpBarWrap.style.zIndex = "3";
-  hpBarWrap.style.boxShadow = "inset 0 1px 2px rgba(0,0,0,.65)";
-
-  const initPct = hpMaxV > 0 ? Math.max(0, Math.min(1, hpVal / hpMaxV)) : 0;
-  const hpFill = document.createElement("div");
-  hpFill.dataset.hpFill = "1";
-  hpFill.dataset.itemId = e.id;
-  hpFill.style.width = (initPct * 100) + "%";
-  hpFill.style.height = "100%";
-  hpFill.style.background = KNOCKED_OUT
-    ? "#475569"
-    : initPct > 0.66 ? "#16a34a" : initPct > 0.33 ? "#facc15" : "#dc2626";
-
-  hpBarWrap.appendChild(hpFill);
-
-  let hpDeltaButton = null;
-  const setHPDeltaButtonActive = (active) => {
-    if (!hpDeltaButton) return;
-    hpDeltaButton.setAttribute("aria-pressed", String(!!active));
-    hpDeltaButton.style.background = active
-      ? "rgba(245,158,11,.42)"
-      : "rgba(0,0,0,.52)";
-    hpDeltaButton.style.borderColor = active
-      ? "rgba(251,191,36,.82)"
-      : "rgba(255,255,255,.22)";
-  };
-
-  let initiativeCardButton = null;
-  if (["pc", "ally"].includes(e.attitude)) {
-    initiativeCardButton = document.createElement("button");
-    initiativeCardButton.type = "button";
-    initiativeCardButton.title = "Apri scheda iniziativa";
-    initiativeCardButton.setAttribute("aria-label", initiativeCardButton.title);
-    Object.assign(initiativeCardButton.style, {
-      flex: "0 0 auto",
-      minWidth: "18px",
-      width: "18px",
-      height: "18px",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "0",
-      borderRadius: "999px",
-      border: "1px solid rgba(255,255,255,.22)",
-      background: "rgba(0,0,0,.52)",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-      pointerEvents: "auto",
-    });
-    const initiativeCardIcon = document.createElement("img");
-    initiativeCardIcon.src = `${import.meta.env.BASE_URL || "/"}character-sheet.svg`;
-    initiativeCardIcon.alt = "";
-    Object.assign(initiativeCardIcon.style, {
-      width: "13px",
-      height: "13px",
-      display: "block",
-      pointerEvents: "none",
-    });
-    initiativeCardButton.appendChild(initiativeCardIcon);
-    initiativeCardButton.addEventListener("pointerdown", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-    });
-    initiativeCardButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      void openInitiativeCardPopup(e);
-    });
-  }
-  if (IS_GM && e.attitude !== "pc") {
-    hpDeltaButton = document.createElement("button");
-    hpDeltaButton.type = "button";
-    hpDeltaButton.textContent = "±";
-    hpDeltaButton.title = "Ricalibra HP correnti e massimi dello stesso +N/-N";
-    hpDeltaButton.setAttribute("aria-label", hpDeltaButton.title);
-    hpDeltaButton.setAttribute("aria-pressed", "false");
-    Object.assign(hpDeltaButton.style, {
-      flex: "0 0 auto",
-      minWidth: "18px",
-      width: "18px",
-      height: "18px",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "0",
-      borderRadius: "999px",
-      border: "1px solid rgba(255,255,255,.22)",
-      background: "rgba(0,0,0,.52)",
-      color: "#fff",
-      fontSize: "13px",
-      fontWeight: "700",
-      lineHeight: "1",
-      cursor: "pointer",
-      boxShadow: "0 1px 3px rgba(0,0,0,.35)",
-      pointerEvents: "auto",
-    });
-    hpDeltaButton.addEventListener("pointerdown", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      armDocClickIgnore(350);
-    });
-    hpDeltaButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      armDocClickIgnore(350);
-
-      if (
-        pill.dataset.hpEditing === "1" &&
-        __editingHPForId === e.id &&
-        typeof pill.__setLinkedHPMaxDelta === "function"
-      ) {
-        pill.__setLinkedHPMaxDelta(!pill.__linkedHPMaxDelta);
-        pill.__iHP?.focus({ preventScroll: true });
-        pill.__iHP?.select();
-        return;
-      }
-
-      pill.dataset.hpOpenLinkedDelta = "1";
-      const rect = pill.getBoundingClientRect();
-      pill.dispatchEvent(new PointerEvent("pointerdown", {
-        bubbles: true,
-        clientX: rect.left + 1,
-        clientY: rect.top + (rect.height / 2),
-      }));
-    });
-    hpDeltaButton.style.fontSize = "13px";
-  }
-
-  const hpCaption = document.createElement("span");
-  hpCaption.textContent = "HP";
-  Object.assign(hpCaption.style, {
-    color: "rgba(255,255,255,.62)",
-    fontSize: "11px",
-    fontWeight: "700",
-    lineHeight: "13px",
-    pointerEvents: "none",
-  });
-
-  if (legendaryHPRow) {
-    hpCaption.style.fontSize = "9px";
-    hpCaption.style.lineHeight = "11px";
-    const legendaryHPButton = initiativeCardButton || hpDeltaButton;
-    if (legendaryHPButton) {
-      legendaryHPButton.style.width = "18px";
-      legendaryHPButton.style.minWidth = "18px";
-      legendaryHPButton.style.height = "18px";
-    }
-    legendaryHPRow.append(hpCaption, pill);
-    if (initiativeCardButton) legendaryHPRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) legendaryHPRow.appendChild(hpDeltaButton);
-    hpControlsRow.appendChild(hpBarWrap);
-  } else if (bossTopRow) {
-    hpCaption.style.fontSize = "9px";
-    hpCaption.style.lineHeight = "11px";
-    const bossHPButton = initiativeCardButton || hpDeltaButton;
-    if (bossHPButton) {
-      bossHPButton.style.width = "18px";
-      bossHPButton.style.minWidth = "18px";
-      bossHPButton.style.height = "18px";
-    }
-    bossTopRow.append(hpCaption, pill);
-    if (initiativeCardButton) bossTopRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) bossTopRow.appendChild(hpDeltaButton);
-    hpControlsRow.appendChild(hpBarWrap);
-  } else {
-    hpControlsRow.appendChild(hpCaption);
-    hpControlsRow.appendChild(pill);
-    if (initiativeCardButton) hpControlsRow.appendChild(initiativeCardButton);
-    if (hpDeltaButton) hpControlsRow.appendChild(hpDeltaButton);
-    hpControlsRow.appendChild(hpBarWrap);
-  }
-  card.appendChild(hpControlsRow);
-
-// === apertura editor HP su pointerdown (con handoff robusto) ===
-
-if (IS_GM) {
-pill.addEventListener("pointerdown", async (ev) => {
-  ev.stopImmediatePropagation();
-  ev.preventDefault();
-
-    // --- Se questa pill è già in edit: NON rebootare l'editor, cambia solo focus ---
-  if (pill.dataset.hpEditing === "1" && __editingHPForId === e.id) {
-    // ignora i click di scia per evitare il commit del doc-click handler
-    armDocClickIgnore(200);
-
-    // calcolo metà rispetto alla pill (non al target interno)
-    const r = pill.getBoundingClientRect();
-    const clickedRightHalf = (ev.clientX - r.left) > (r.width / 2);
-
-    // referenze agli input già esistenti (memorizzate su pill in fase di bootstrap)
-    const iHP  = pill.__iHP;
-    const iMax = pill.__iMax;
-
-    if (clickedRightHalf && iMax) {
-      iMax.focus({ preventScroll: true });
-      iMax.select();
-    } else if (iHP) {
-      iHP.focus({ preventScroll: true });
-      iHP.select();
-    }
-    return; // ⬅️ importantissimo: NON proseguire con il bootstrap (evita flicker)
-  }
-
-  // ⬅︎⬅︎ NEW — HANDOFF: se c'è già una pill HP in edit e NON è questa,
-  // chiudi prima quella e rilancia questo pointerdown al prossimo frame.
-  if (__editingHPForId && __editingHPForId !== e.id) {
-    const targetId = e.id;
-    __suspendRenders = true;                 // niente rimpiazzi DOM durante il passaggio
-    try { await closeOpenEditors(); } catch {}
-    requestAnimationFrame(() => {
-      // ignora eventuali click di scia generati dal commit della prima pill
-      armDocClickIgnore(250);
-      const nextEl = document.querySelector(
-        `[data-badge="hp"][data-item-id="${targetId}"]`
-      );
-      if (nextEl) {
-        nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-      }
-      __suspendRenders = false;
-    });
-    return; // ← importantissimo: NON proseguire con il bootstrap dell’editor adesso
-  }
-
-  // Da qui in giù: comportamento normale di apertura editor per questa pill
-
-  // Estendi la finestra di ignore per il click di coda generato da questo pointerdown
-  armDocClickIgnore(350);
-  const onPU = () => {
-    armDocClickIgnore(150); // un filo in più appena dopo il pointerup
-    document.removeEventListener("pointerup", onPU, true);
-  };
-  document.addEventListener("pointerup", onPU, true);
-
-  // Inghiotte il PRIMO click di coda (solo se cade dentro la pill aperta)
-  const swallowFirstClick = (evt) => {
-    if (pill.contains(evt.target)) { evt.stopPropagation(); evt.preventDefault(); }
-  };
-  document.addEventListener("click", swallowFirstClick, { capture: true, once: true });
-
-  // 🔒 Congela subito e marca l’ID in edit (evita che un render distrugga il DOM appena creato)
-  __suspendRenders = true;
-  __editingHPForId = e.id;
-
-  // Chiudi eventuali altri editor (qui NON entriamo più nel caso HP→HP grazie all’handoff sopra)
-  await closeOpenEditors();
-
-  // Flag locale per questa pill
-  pill.dataset.hpEditing = "1";
-
-  // Disabilita drag sulla card finché editi
-  const cardEl = pill.closest('[data-item-id]');
-  const prevDraggable = cardEl ? cardEl.getAttribute("draggable") : null;
-  if (cardEl) cardEl.setAttribute("draggable", "false");
-
-  // ====== (tutto il resto del tuo bootstrap editor rimane uguale) ======
-  // Parser inline, prefill, costruzione wrap + input iHP/iMax, stile, ecc...
-  // --- INIZIO: blocco invariato dal tuo codice ---
-
-  // 4) PREFILL ROBUSTO + LIVE (autofill immediato quando si passa alla successiva)
-let liveHP = null, liveMax = null;
-try {
-  const [live] = await OBR.scene.items.getItems([e.id]);
-  const mm = live?.metadata?.[META_KEY] || {};
-  if (Number.isFinite(mm.hp))   liveHP = mm.hp;
-  if (Number.isFinite(mm.hpMax)) liveMax = mm.hpMax;
-} catch {}
-
-const pillTxt = (pill.textContent || "").trim();
-let fromPillHP = null, fromPillMax = null;
-{
-  const m = /^(\d+)\s*\/\s*(\d+)$/.exec(pillTxt);
-  if (m) { fromPillHP = parseInt(m[1], 10); fromPillMax = parseInt(m[2], 10); }
-}
-
-// Priorità: valori live dei metadata (post-seed) → testo pill → snapshot `e`
-const hpVal  = (liveHP  ?? fromPillHP ?? (Number.isFinite(e.hp)    ? e.hp    : 0));
-const hpMaxV = (liveMax ?? fromPillMax ?? (Number.isFinite(e.hpMax) ? e.hpMax : 0));
-
-
-  // editor: due input "text" (niente spinner)
-  const wrap = document.createElement("div");
-  wrap.style.display = "flex";
-  wrap.style.alignItems = "center";
-  wrap.style.gap = "4px";
-
-  const iHP  = document.createElement("input");
-  const iMax = document.createElement("input");
-  for (const inp of [iHP, iMax]) {
-    inp.type = "text";
-    inp.inputMode = "numeric";
-    inp.autocomplete = "off";
-    inp.spellcheck = false;
-    inp.pattern = "[+\\-]?\\d*";
-    // stile
-    inp.style.width = "22px";
-    inp.style.border = "none";
-    inp.style.outline = "none";
-    inp.style.background = "transparent";
-    inp.style.color = "#fff";
-    inp.style.fontFamily = "inherit";
-    inp.style.fontSize = pill.style.fontSize || "12px";
-    inp.style.fontWeight = pill.style.fontWeight || "700";
-    inp.style.lineHeight = pill.style.lineHeight || "13px";
-    inp.style.padding = "0";
-    inp.style.textAlign = "center";
-    // filters
-    inp.addEventListener("wheel", (e2) => e2.preventDefault(), { passive: false });
-    inp.addEventListener("keydown", (ke) => {
-      if (ke.key === "ArrowUp" || ke.key === "ArrowDown") ke.preventDefault();
-    });
-    inp.addEventListener("input", () => {
-      inp.value = normalizeSignedIntegerInput(inp.value);
-    });
-    inp.addEventListener("click", (e2) => e2.stopPropagation());
-  }
-  iHP.value  = String(Number.isFinite(hpVal)  ? hpVal  : 0);
-  iMax.value = String(Number.isFinite(hpMaxV) ? hpMaxV : 0);
-
-  let linkedHPMaxDelta = false;
-  const syncLinkedHPMaxDelta = () => {
-    if (!linkedHPMaxDelta) return;
-    const relative = parseRelativeHPDelta(iHP.value);
-    iMax.value = relative === null ? String(hpMaxV) : iHP.value.trim();
-  };
-  const setLinkedHPMaxDelta = (enabled) => {
-    linkedHPMaxDelta = !!enabled;
-    pill.__linkedHPMaxDelta = linkedHPMaxDelta;
-    setHPDeltaButtonActive(linkedHPMaxDelta);
-    iMax.readOnly = linkedHPMaxDelta;
-    iMax.style.opacity = linkedHPMaxDelta ? ".72" : "1";
-    if (linkedHPMaxDelta) syncLinkedHPMaxDelta();
-    else iMax.value = String(hpMaxV);
-  };
-  iHP.addEventListener("input", syncLinkedHPMaxDelta);
-
-  const slash = document.createElement("span");
-
-    // --- NEW: select-all anche quando clicco direttamente dentro gli input ---
-  // Se l'editor è aperto e clicco nell'input, impedisco il posizionamento del caret
-  // e forzo focus+select: così "+5" / "-3" sostituiscono il valore intero.
-  for (const inp of [iHP, iMax]) {
-    inp.addEventListener("pointerdown", (pe) => {
-      if (pill.dataset.hpEditing === "1" && __editingHPForId === e.id) {
-        pe.preventDefault(); // evita che il browser posizioni il caret dove clicco
-        // ignora eventuale click di scia che potrebbe far scattare il commit globale
-        armDocClickIgnore(200);
-        // seleziona tutto al frame successivo
-        setTimeout(() => {
-          try { inp.focus({ preventScroll: true }); inp.select(); } catch {}
-        }, 0);
-      }
-      // NB: manteniamo lo stopPropagation già presente più sotto sugli input click
-    }, { capture: true });
-  }
-
-  slash.textContent = "/";
-  slash.style.opacity = ".8";
-  slash.addEventListener("click", (e2) => e2.stopPropagation());
-
-  const oldHTML = pill.innerHTML;
-  pill.textContent = "";
-  wrap.append(iHP, slash, iMax);
-  pill.appendChild(wrap);
-
-  pill.__iHP  = iHP;
-  pill.__iMax = iMax;
-  pill.__setLinkedHPMaxDelta = setLinkedHPMaxDelta;
-  if (pill.dataset.hpOpenLinkedDelta === "1") {
-    delete pill.dataset.hpOpenLinkedDelta;
-    setLinkedHPMaxDelta(true);
-  }
-
-  // Commit se esci dalla pill (ma non quando vai tra iHP/iMax)
-  wrap.addEventListener("focusout", () => {
-    setTimeout(async () => {
-      const ae = document.activeElement;
-      if (!pill.contains(ae)) { await commit(); }
-    }, 0);
-  });
-
-  // Focus SINCRONO su metà cliccata
-  const r = pill.getBoundingClientRect();
-  const clickedRightHalf = (ev.clientX - r.left) > (r.width / 2);
-  (clickedRightHalf ? iMax : iHP).focus({ preventScroll: true });
-  (clickedRightHalf ? iMax : iHP).select();
-
-  // ✅ ora l’editor è stabile: sblocca i render
-  setTimeout(() => { __suspendRenders = false; }, 0);
-
-  // ---- commit/cancel + export verso closeOpenEditors()
-  let committed = false;
-
-  function cleanup() {
-    try { document.removeEventListener("click", onDocClick, true); } catch {}
-    __editingHPForId = null;
-    delete pill.dataset.hpEditing;
-        delete pill.__iHP;
-    delete pill.__iMax;
-    delete pill.__setLinkedHPMaxDelta;
-    delete pill.__linkedHPMaxDelta;
-    delete pill.__commitFn;
-    delete pill.__cancelFn;
-    setHPDeltaButtonActive(false);
-    if (cardEl) {
-      if (prevDraggable === null) cardEl.removeAttribute("draggable");
-      else cardEl.setAttribute("draggable", prevDraggable);
-    }
-  }
-
-  const commit = async () => {
-    if (committed) return;
-    committed = true;
-
-    const vHP  = iHP.value.trim();
-    const vMax = iMax.value.trim();
-
-    let nextHP    = parseInlineMath(vHP,  hpVal);
-    let nextHPMax = parseInlineMath(vMax, hpMaxV);
-
-    const hpDelta = parseRelativeHPDelta(vHP);
-    const hpMaxWasInvalid = !Number.isFinite(hpMaxV) || hpMaxV <= 0;
-    const isSingleAbsoluteHP = /^\d+$/.test(vHP);
-    if (hpMaxWasInvalid && isSingleAbsoluteHP && vMax === String(hpMaxV)) {
-      nextHPMax = nextHP;
-    }
-
-    // ⬇️ NIENTE CLAMP: consentiamo HP > HP Max per modellare i Temp HP
-    // (la barra resta clampata a 100% tramite pct)
-
-    pill.innerHTML = formatHPHTML(nextHP, nextHPMax);  // <-- HTML con colore per temp
-    const pct = nextHPMax > 0 ? Math.max(0, Math.min(1, nextHP / nextHPMax)) : 0;
-    hpFill.style.width = (pct * 100) + "%";
-    hpFill.style.background = nextHPMax > 0 && nextHP <= 0 ? "#475569" : hpColorByPct(pct);
-
-
-    const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
-    const concentrationDamage = hpDelta !== null && hpDelta < 0
-      ? Math.abs(hpDelta)
-      : Math.max(0, hpVal - nextHP);
-    const concentrationDamageChanges = recalibratesMax || concentrationDamage <= 0
-      ? []
-      : [{ itemId: e.id, damage: concentrationDamage }];
-    let historyIds = [e.id];
-    try {
-      const group = await _getGroupForItemId(e.id);
-      historyIds = Array.from(new Set([e.id, ...(group?.members || [])]));
-    } catch {}
-    historyIds = await getZeroHPConditionHistoryIds(historyIds);
-
-    await withItemMetaHistory({
-      kind: "hp",
-      label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
-      itemIds: historyIds,
-      fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
-    }, async () => {
-      await updateHP(e.id, nextHP, nextHPMax);
-      try { await trySeedGroupHP(e.id, nextHP, nextHPMax); }
-      catch (err) { console.warn("[hp] group seed error:", err?.message || err); }
-    });
-
-    cleanup();
-    if (concentrationDamageChanges.length) {
-      try {
-        await showConcentrationDamageWarning(concentrationDamageChanges);
-      } catch (err) {
-        console.warn("[concentration] damage warning error:", err?.message || err);
-      }
-    }
-  };
-
-  const cancel = () => {
-    if (committed) return;
-    committed = true;
-    pill.innerHTML = oldHTML;
-    cleanup();
-  };
-
-  const onDocClick = async (evt) => {
-    if (Date.now() < __ignoreDocClickUntil) return; // 👈 ignora click di scia
-    if (pill.contains(evt.target)) return;
-    await commit();
-  };
-  document.addEventListener("click", onDocClick, true);
-
-  pill.__commitFn = commit;
-  pill.__cancelFn = cancel;
-
-  // Commit e passa alla pill vicina (come nel tuo codice)
-  const commitAndOpenNeighbor = async (goPrev = false) => {
-    let targetId = null;
-    const direction = goPrev ? -1 : 1;
-
-    __suspendRenders = true;
-    try {
-      // fotografa ordine prima del commit
-      let preOrder = [];
-      try {
-        const st = await getSceneState();
-        preOrder = Array.isArray(st?.order) ? [...st.order] : [];
-      } catch {}
-
-      await commit();
-
-      // trova vicino editabile
-      const idx = preOrder.indexOf(e.id);
-      if (idx >= 0) {
-        let i = idx + direction;
-        while (i >= 0 && i < preOrder.length) {
-          const candId = preOrder[i];
-          const cardEl2  = document.querySelector(`[data-item-id="${candId}"]`);
-          const badgeEl2 = document.querySelector(`[data-badge="hp"][data-item-id="${candId}"]`);
-          const collapsed = cardEl2?.dataset.groupCollapsed === "1";
-          const isEpicAct = typeof isEpicActionId === "function" ? isEpicActionId(candId) : false;
-          if (badgeEl2 && !collapsed && !isEpicAct) { targetId = candId; break; }
-          i += direction;
-        }
-      }
-
-      if (targetId) {
-        requestAnimationFrame(() => {
-          const nextEl = document.querySelector(
-            `[data-badge="hp"][data-item-id="${targetId}"]`
-          );
-          if (nextEl) {
-            // ignora il click che nasce dal nostro dispatch
-            armDocClickIgnore(250);
-            nextEl.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-            nextEl.scrollIntoView?.({ block: "center", inline: "nearest", behavior: "smooth" });
-            requestAnimationFrame(() => { __suspendRenders = false; });
-          } else {
-            __suspendRenders = false;
-          }
-        });
-      } else {
-        __suspendRenders = false;
-      }
-    } catch (err) {
-      __suspendRenders = false;
-      throw err;
-    }
-  };
-
-  // keymap
-  const onKeyHP = async (ke) => {
-    if (ke.key === "Enter")  {
-      ke.preventDefault();
-      if (ke.altKey) setLinkedHPMaxDelta(true);
-      await commit();
-      return;
-    }
-    if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
-    if (ke.key === "Tab") {
-      ke.preventDefault();
-      if (ke.shiftKey) { await commitAndOpenNeighbor(true); }
-      else { iMax.focus({ preventScroll: true }); iMax.select(); }
-    }
-  };
-  const onKeyMax = async (ke) => {
-    if (ke.key === "Enter")  { ke.preventDefault(); await commit(); return; }
-    if (ke.key === "Escape") { ke.preventDefault();  cancel();     return; }
-    if (ke.key === "Tab") {
-      ke.preventDefault();
-      if (ke.shiftKey) { iHP.focus({ preventScroll: true }); iHP.select(); }
-      else { await commitAndOpenNeighbor(false); }
-    }
-  };
-
-  iHP.addEventListener("keydown", onKeyHP);
-  iMax.addEventListener("keydown", onKeyMax);
-});
-}
-}
-      __applyTrackerSelectionState(card);
-      return card;
-    });
+    const nodes = renderEntries.map((entry) =>
+      buildClassicTrackerCardForRender(entry, state, nextId)
+    );
 
     if (incrementalItemIds) {
       if (!__replaceTrackCardsIncremental(nodes)) return false;

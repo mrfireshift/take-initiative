@@ -2,41 +2,47 @@ import OBR from "@owlbear-rodeo/sdk";
 import {
   createSpellInstanceId,
   getCasterConcentrations,
-  getSpellsFromItem,
 } from "./spells.js";
 import { refreshConditionLabels } from "./conditions.js";
 import {
   commitEffectsMutationPlan,
   prepareEffectsMutation,
-  spellApplicationOperations,
 } from "./effectsMutations.js";
 import {
   getTrackableSpellOptions,
   getSpellDefinition,
-  getAreaSaveAutomation,
-  getAreaSaveRuleChoices,
   getSpellChoiceTiming,
-  getProposedConditions,
-  getSpellEffectChoices,
-  getSpellEffects,
 } from "./spells-srd.js";
-import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
 import {
-  resolveSpellConcentration,
   resolveSpellSlotLevel,
-  resolveSpellSubjectIds,
 } from "./spellCastContextCore.js";
 import {
   getSpellCastPhasePlan,
-  isPreparedSpellCast,
-  withSpellPhaseTransitionOperations,
 } from "./spellCastPhaseCore.js";
-import { spellExpiryCounter } from "./spellExpiryCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { withItemMetaHistory } from "./history.js";
 import { ID } from "./constants.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
+import { buildSpellAutomationViewModel } from "./spellsPanelAutomationViewCore.js";
+import { createSpellCatalogMenuController } from "./spellsPanelCatalogMenu.js";
+import {
+  createSpellTargetPicker,
+  spellResolveActionPresentation,
+  spellSubmitActionLabel,
+  spellTargetCountLabel,
+} from "./spellsPanelTargetPicker.js";
+import {
+  getTrackerBaseItemId,
+  spellOverviewGroups,
+} from "./spellsPanelViewCore.js";
+import { renderSpellOverview } from "./spellsPanelOverviewView.js";
+import { renderCasterConcentrationSummary } from "./spellsPanelCasterSummaryView.js";
+import { wireSpellPanelFormWorkflow } from "./spellsPanelFormWorkflow.js";
+import {
+  buildSpellApplicationIntent,
+  buildSpellApplicationPlan,
+} from "./spellApplicationPlanCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -55,99 +61,6 @@ function closeSpellsPopover() {
 
 const $ = (id) => document.getElementById(id);
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
-
-function spellDisplayName(value) {
-  const raw = String(value || "").trim();
-  return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
-}
-
-function factionKey(item) {
-  const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
-  return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
-}
-
-function factionColor(item) {
-  const attitude = factionKey(item);
-  if (attitude === "enemy") return "#ef4444";
-  if (attitude === "ally") return "#22c55e";
-  if (attitude === "pc") return "#38bdf8";
-  return "#eab308";
-}
-
-function spellOverviewGroups(items = []) {
-  const byId = new Map(items.map((item) => [item.id, item]));
-  const groups = new Map();
-
-  for (const target of items) {
-    for (const spell of getSpellsFromItem(target)) {
-      const instanceId = String(spell?.instanceId || "").trim();
-      const casterId = String(spell?.casterId || "").trim();
-      const storedName = String(spell?.name || "").trim();
-      const fallbackKey = casterId + "\u0000" + storedName.toLocaleLowerCase("it");
-      const key = instanceId ? "instance:" + instanceId : "legacy:" + fallbackKey;
-      let group = groups.get(key);
-      if (!group) {
-        group = {
-          key,
-          instanceId,
-          storedName,
-          spellId: String(spell?.spellId || "").trim(),
-          castContext: spell?.castContext && typeof spell.castContext === "object"
-            ? { ...spell.castContext }
-            : null,
-          name: spellDisplayName(spell?.spellId || storedName),
-          casterId,
-          casterName: byId.get(casterId)?.name || "Non indicato",
-          concentrating: !!spell?.conc,
-          concentrationRef: instanceId || storedName,
-          targets: new Map(),
-          turns: [],
-          counters: [],
-        };
-        groups.set(key, group);
-      }
-      group.concentrating = group.concentrating || !!spell?.conc;
-      if (!group.spellId && spell?.spellId) group.spellId = String(spell.spellId);
-      if (!group.castContext && spell?.castContext && typeof spell.castContext === "object") {
-        group.castContext = { ...spell.castContext };
-      }
-      group.targets.set(target.id, target.name || target.id);
-      group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
-      group.counters.push(spellExpiryCounter(spell));
-    }
-  }
-
-  for (const caster of items) {
-    const concentrations = caster?.metadata?.[META_KEY]?.[CONC_META_KEY] || {};
-    for (const [key, info] of Object.entries(concentrations)) {
-      const instanceId = String(info?.instanceId || "").trim();
-      const storedName = String(info?.name || key).trim();
-      const exactKey = instanceId ? "instance:" + instanceId : "";
-      const legacyKey = "legacy:" + caster.id + "\u0000" + storedName.toLocaleLowerCase("it");
-      const group = (exactKey && groups.get(exactKey)) || groups.get(legacyKey);
-      if (!group) continue;
-      group.concentrating = true;
-      group.casterId = caster.id;
-      group.casterName = caster.name || caster.id;
-      group.concentrationRef = instanceId || key;
-      if (!group.spellId && info?.spellId) group.spellId = String(info.spellId);
-    }
-  }
-
-  return Array.from(groups.values()).sort((a, b) =>
-    a.name.localeCompare(b.name, "it") || a.casterName.localeCompare(b.casterName, "it")
-  );
-}
-
-function spellTurnsLabel(turns = [], counters = []) {
-  const exact = Array.from(new Set(counters.filter((value) => /[IF]\s[CB]/.test(value))));
-  if (exact.length) return exact.join(" / ");
-  const values = turns.filter(Number.isFinite);
-  if (!values.length) return "Durata non indicata";
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  return min === max ? min + " round" : min + "-" + max + " round";
-}
 
 async function terminateSpellGroup(group, requestedTargetIds = null) {
   const scoped = Array.isArray(requestedTargetIds);
@@ -234,108 +147,35 @@ async function init() {
     nameInput.focus();
   } catch {}
 
-  const spellSearchEntries = getTrackableSpellOptions();
-  let activeSpellCatalogFilter = "all";
-  const closeSpellMenu = () => {
-    if (!spellMenu || !spellMenuToggle) return;
-    spellMenu.hidden = true;
-    nameInput.setAttribute("aria-expanded", "false");
-    spellMenuToggle.setAttribute("aria-expanded", "false");
-  };
-  const openSpellMenu = (query = "") => {
-    if (!spellMenu || !spellMenuToggle) return;
-    const normalizedQuery = String(query || "").trim().toLocaleLowerCase("it");
-    const matchesFilter = (entry) => ({
-      concentration: entry.concentration,
-      area: entry.area,
-      automated: entry.automated,
-    })[activeSpellCatalogFilter] ?? true;
-    const matches = spellSearchEntries.filter((entry) =>
-      matchesFilter(entry)
-      && (!normalizedQuery || entry.label.toLocaleLowerCase("it").includes(normalizedQuery))
-    );
-    const selectedId = getSpellDefinition(nameInput.value)?.id || "";
-    spellMenu.replaceChildren();
-    const filters = document.createElement("div");
-    filters.className = "spell-menu-filters";
-    filters.setAttribute("role", "group");
-    filters.setAttribute("aria-label", "Filtra catalogo incantesimi");
-    for (const [value, label] of [
-      ["all", "Tutti"],
-      ["concentration", "Concentrazione"],
-      ["area", "Area/TS"],
-      ["automated", "Effetti"],
-    ]) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "spell-menu-filter" + (activeSpellCatalogFilter === value ? " active" : "");
-      button.textContent = label;
-      button.setAttribute("aria-pressed", String(activeSpellCatalogFilter === value));
-      button.addEventListener("click", () => {
-        activeSpellCatalogFilter = value;
-        openSpellMenu(query);
-      });
-      filters.appendChild(button);
-    }
-    spellMenu.appendChild(filters);
-    const entriesByLevel = new Map();
-    for (const entry of matches) {
-      const level = Math.max(0, Math.floor(Number(entry.level) || 0));
-      if (!entriesByLevel.has(level)) entriesByLevel.set(level, []);
-      entriesByLevel.get(level).push(entry);
-    }
-    for (const [level, entries] of [...entriesByLevel.entries()].sort((a, b) => a[0] - b[0])) {
-      const group = document.createElement("div");
-      group.className = "spell-menu-group";
-      const heading = document.createElement("div");
-      heading.className = "spell-menu-level";
-      heading.textContent = level === 0 ? "Trucchetti" : `Livello ${level}`;
-      group.appendChild(heading);
-      for (const entry of entries) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "spell-menu-option" + (selectedId === entry.id ? " active" : "");
-        button.textContent = entry.label;
-        button.title = entry.label;
-        button.setAttribute("role", "option");
-        button.setAttribute("aria-selected", String(selectedId === entry.id));
-        button.addEventListener("click", () => {
-          nameInput.value = entry.value;
-          closeSpellMenu();
-          syncCatalogSelection(true);
-          nameInput.focus();
-        });
-        group.appendChild(button);
-      }
-      spellMenu.appendChild(group);
-    }
-    if (!matches.length) {
-      const empty = document.createElement("div");
-      empty.className = "spell-menu-empty";
-      empty.textContent = "Nessun incantesimo trovato.";
-      spellMenu.appendChild(empty);
-    }
-    spellMenu.hidden = false;
-    nameInput.setAttribute("aria-expanded", "true");
-    spellMenuToggle.setAttribute("aria-expanded", "true");
-  };
+  const {
+    closeSpellMenu,
+    openSpellMenu,
+  } = createSpellCatalogMenuController({
+    document,
+    input: nameInput,
+    toggle: spellMenuToggle,
+    menu: spellMenu,
+    entries: getTrackableSpellOptions(),
+    getSelectedId: () => getSpellDefinition(nameInput.value)?.id || "",
+    onSelect: () => syncCatalogSelection(true),
+  });
 
   const allCasters = await getAllInitiativeCharacters(sourceId);
   const capturedTargetIds = isModal
     ? await getCardTargetIds(sourceId, allCasters)
     : await getContextOrSelectionIds();
-  const spellTargetControls = new Map();
-  const activeSpellFactionFilters = new Set();
   let spellSelectionWriteDepth = 0;
+  let spellTargetPicker = null;
 
-  const selectedSpellTargetIds = () => Array.from(spellTargetControls.entries())
-    .filter(([, control]) => control.checkbox.checked)
-    .map(([id]) => id);
+  const selectedSpellTargetIds = () =>
+    spellTargetPicker?.selectedSpellTargetIds() || [];
 
-  const refreshSpellTargetCount = () => {
-    const count = selectedSpellTargetIds().length;
+  const refreshSpellTargetCount = (requestedCount = null) => {
+    const count = Number.isInteger(requestedCount)
+      ? requestedCount
+      : selectedSpellTargetIds().length;
     if (spellTargetSelectionCount) {
-      spellTargetSelectionCount.textContent = count === 1 ? "1 selezionato" : `${count} selezionati`;
+      spellTargetSelectionCount.textContent = spellTargetCountLabel(count);
     }
     if (submitButton) {
       const spell = getSpellDefinition(nameInput.value);
@@ -345,42 +185,18 @@ async function init() {
         { slotLevel: resolveSpellSlotLevel(spell, slotLevelInput?.value) },
       );
       const subjectMode = phasePlan.subjectMode || spell?.targetMode;
-      if (phasePlan.phase === "prepare") {
-        submitButton.textContent = "Prepara sul caster";
-      } else if (subjectMode === "self" || subjectMode === "caster") {
-        submitButton.textContent = "Applica al caster";
-      } else {
-        submitButton.textContent = count === 1
-          ? "Applica a 1 bersaglio"
-          : `Applica a ${count} bersagli`;
-      }
+      submitButton.textContent = spellSubmitActionLabel({
+        count,
+        phase: phasePlan.phase,
+        subjectMode,
+      });
     }
     overviewList?.querySelectorAll("[data-resolve-spell='1']").forEach((button) => {
-      button.disabled = count === 0;
-      button.textContent = count > 0 ? `Risolvi (${count})` : "Risolvi";
-      button.title = count > 0
-        ? `Risolvi sui ${count} bersagli selezionati`
-        : "Seleziona almeno un bersaglio";
+      const presentation = spellResolveActionPresentation(count);
+      button.disabled = presentation.disabled;
+      button.textContent = presentation.text;
+      button.title = presentation.title;
     });
-  };
-
-  const applySpellTargetSelection = (ids) => {
-    const selected = new Set(Array.isArray(ids) ? ids : []);
-    for (const [id, control] of spellTargetControls) {
-      control.checkbox.checked = selected.has(id);
-      control.row.classList.toggle("selected", control.checkbox.checked);
-    }
-    refreshSpellTargetCount();
-  };
-
-  const applySpellTargetFilter = () => {
-    const nameQuery = String(spellTargetNameFilter?.value || "").trim().toLocaleLowerCase("it");
-    for (const control of spellTargetControls.values()) {
-      const matchesFaction = activeSpellFactionFilters.size === 0
-        || activeSpellFactionFilters.has(control.faction);
-      const matchesName = !nameQuery || control.name.includes(nameQuery);
-      control.row.style.display = matchesFaction && matchesName ? "flex" : "none";
-    }
   };
 
   const writeSpellTargetSelection = async (ids, selected, replace = false) => {
@@ -393,48 +209,18 @@ async function init() {
     }
   };
 
-  for (const item of allCasters) {
-    const row = document.createElement("label");
-    row.className = "spell-target";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = item.id;
-    checkbox.style.accentColor = "#2563eb";
-    const faction = document.createElement("span");
-    faction.className = "spell-target-faction";
-    faction.style.background = factionColor(item);
-    faction.style.color = factionColor(item);
-    const label = document.createElement("span");
-    label.className = "spell-target-name";
-    label.textContent = item.name || item.id;
-    row.append(checkbox, faction, label);
-    spellTargetList?.appendChild(row);
-    spellTargetControls.set(item.id, {
-      row,
-      checkbox,
-      faction: factionKey(item),
-      name: String(item.name || item.id).toLocaleLowerCase("it"),
-    });
-    checkbox.addEventListener("change", () => {
-      row.classList.toggle("selected", checkbox.checked);
-      refreshSpellTargetCount();
-      void writeSpellTargetSelection([item.id], checkbox.checked);
-    });
-  }
+  spellTargetPicker = createSpellTargetPicker({
+    document,
+    items: allCasters,
+    list: spellTargetList,
+    nameFilter: spellTargetNameFilter,
+    factionButtons: spellFactionButtons,
+    onSelectionChange: writeSpellTargetSelection,
+    onSelectionCountChange: refreshSpellTargetCount,
+  });
+  const applySpellTargetSelection = (ids) =>
+    spellTargetPicker.applySpellTargetSelection(ids);
   applySpellTargetSelection(capturedTargetIds);
-  applySpellTargetFilter();
-  spellTargetNameFilter?.addEventListener("input", applySpellTargetFilter);
-  for (const button of spellFactionButtons) {
-    button.addEventListener("click", () => {
-      const faction = button.dataset.spellFaction;
-      if (activeSpellFactionFilters.has(faction)) activeSpellFactionFilters.delete(faction);
-      else activeSpellFactionFilters.add(faction);
-      const active = activeSpellFactionFilters.has(faction);
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-      applySpellTargetFilter();
-    });
-  }
 
   const refreshSpellTargetSelection = async () => {
     if (spellSelectionWriteDepth > 0) return;
@@ -488,90 +274,29 @@ async function init() {
       return;
     }
 
-    automationWrap.style.display = "";
-    const phasePlan = getSpellCastPhasePlan(
-      spell,
-      "",
-      currentCastContext(spell),
-    );
-    const durationLabel = spell.duration
-      ? " Durata da catalogo: " + spell.duration + "."
-        + (spell.defaultTurns ? "" : " Imposta i round manualmente.")
-      : "";
-    const automation = spell.automation;
-    const areaRuleChoices = getAreaSaveRuleChoices(spell);
-    const effectChoices = getSpellEffectChoices(spell);
     const previousChoice = automationSpellId === spell.id ? conditionChoice.value : "";
+    const viewModel = buildSpellAutomationViewModel({
+      spell,
+      castContext: currentCastContext(spell),
+      previousChoice,
+    });
+
+    automationWrap.style.display = "";
     conditionChoice.replaceChildren();
-
-    if (automation?.mode === "choice") {
-      for (const choice of automation.choices || []) {
-        const option = document.createElement("option");
-        option.value = choice;
-        option.textContent = choice;
-        conditionChoice.appendChild(option);
-      }
-    } else if (areaRuleChoices.length) {
-      for (const choice of areaRuleChoices) {
-        const option = document.createElement("option");
-        option.value = choice.value;
-        option.textContent = choice.label;
-        conditionChoice.appendChild(option);
-      }
-    } else {
-      for (const choice of effectChoices) {
-        const option = document.createElement("option");
-        option.value = choice.value;
-        option.textContent = choice.label;
-        conditionChoice.appendChild(option);
-      }
+    for (const choice of viewModel.choices) {
+      const option = document.createElement("option");
+      option.value = choice.value;
+      option.textContent = choice.label;
+      conditionChoice.appendChild(option);
     }
-    if (previousChoice && Array.from(conditionChoice.options).some((option) => option.value === previousChoice)) {
-      conditionChoice.value = previousChoice;
-    }
-    const selectedChoice = conditionChoice.value;
-    const catalogEffects = getSpellEffects(spell, selectedChoice, currentCastContext(spell));
-    const phaseEffects = phasePlan.effects === null ? catalogEffects : phasePlan.effects;
-    const previewPlan = phasePlan.useCatalogAutomation
-      ? buildSpellCastAutomationPlan({
-        proposedConditions: getProposedConditions(spell, selectedChoice),
-        proposedEffects: phaseEffects,
-        saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
-        applyAutomatedConditions: true,
-        hasEffectChoices: effectChoices.length > 0,
-      })
-      : {
-        conditions: [],
-        effects: phaseEffects,
-        usedSaveAutomation: false,
-      };
-    const targetMode = phasePlan.subjectMode || spell.targetMode;
-    const targetLabel = targetMode === "self" || targetMode === "caster"
-      ? "caster"
-      : previewPlan.usedSaveAutomation
-        ? "token selezionati con esito configurato"
-        : "token selezionati";
-    const conditionLabels = previewPlan.conditions.map((condition) =>
-      typeof condition === "string" ? condition : condition.name
-    );
-    const effectLabels = previewPlan.effects.map((effect) => effect.label);
-    const effectsLabel = effectLabels.length
-      ? " Pill effetto: " + effectLabels.join(", ") + "."
-      : "";
-    const hasAutomatedConditions = conditionLabels.length > 0;
-    const hasChoices = phasePlan.useCatalogAutomation && (
-      automation?.mode === "choice"
-      || areaRuleChoices.length > 0
-      || effectChoices.length > 0
-    );
+    if (viewModel.selectedChoice) conditionChoice.value = viewModel.selectedChoice;
+    conditionChoice.style.display = viewModel.showChoice ? "" : "none";
+    automationText.textContent = viewModel.text;
 
-    if (!hasAutomatedConditions) {
+    if (!viewModel.hasAutomatedConditions) {
       applyConditionsInput.checked = false;
       applyConditionsInput.disabled = true;
       applyConditionsInput.style.display = "none";
-      conditionChoice.style.display = hasChoices ? "" : "none";
-      automationText.textContent = (effectLabels.length ? "Tracciamento con effetti." : "Solo tracciamento.")
-        + " Bersaglio: " + targetLabel + "." + effectsLabel + durationLabel;
       automationSpellId = spell.id;
       refreshSpellTargetCount();
       return;
@@ -581,23 +306,6 @@ async function init() {
     applyConditionsInput.style.display = "";
     if (automationSpellId !== spell.id || wasAutomationDisabled) {
       applyConditionsInput.checked = true;
-    }
-    if (automation?.mode === "choice") {
-      conditionChoice.style.display = "";
-      automationText.textContent = "Scegli condizione; bersaglio: " + targetLabel + "."
-        + effectsLabel + durationLabel;
-    } else if (areaRuleChoices.length) {
-      conditionChoice.style.display = "";
-      automationText.textContent = "Ai bersagli selezionati con TS fallito applica: "
-        + conditionLabels.join(", ") + "." + effectsLabel + durationLabel;
-    } else {
-      conditionChoice.style.display = effectChoices.length ? "" : "none";
-      const prefix = automation?.mode === "automatic"
-        ? "Applica automaticamente: "
-        : "Dopo gli esiti, applica: ";
-      automationText.textContent = prefix + conditionLabels.join(", ")
-        + ". Bersaglio: " + targetLabel + "."
-        + effectsLabel + durationLabel;
     }
     automationSpellId = spell.id;
     refreshSpellTargetCount();
@@ -698,97 +406,36 @@ async function init() {
     historyLabel = "",
     requestedConcentration = false,
   } = {}) => {
-    const subjects = uniqueIds(targetIds);
-    if (!subjects.length) return [];
-    const name = spell?.displayName || enteredName;
-    const resolvedPhasePlan = phasePlan || getSpellCastPhasePlan(spell, "", castContext);
-    const wantsConcentration = resolveSpellConcentration(spell, requestedConcentration);
-    const persistedCastContext = {
-      ...(castContext && typeof castContext === "object" ? castContext : {}),
-      phase: resolvedPhasePlan.phase,
-      choice: String(selectedChoice || ""),
-      applyAutomatedConditions: applyAutomatedConditions !== false,
-    };
-    const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
-    const phaseEffects = resolvedPhasePlan.effects === null
-      ? catalogEffects
-      : resolvedPhasePlan.effects;
-    const castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
-      ? buildSpellCastAutomationPlan({
-        proposedConditions: getProposedConditions(spell, selectedChoice),
-        proposedEffects: phaseEffects,
-        saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
-        applyAutomatedConditions,
-        hasEffectChoices: getSpellEffectChoices(spell).length > 0,
-      })
-      : {
-        conditions: [],
-        effects: phaseEffects,
-        usedSaveAutomation: false,
-      };
-    const choiceTiming = getSpellChoiceTiming(spell, selectedChoice, persistedCastContext);
-    let concentrationAction = castAutomationPlan.concentrationAction
-      || choiceTiming?.concentrationAction
-      || resolvedPhasePlan.concentrationAction
-      || "replace";
-    if (
-      resolvedPhasePlan.phase === "resolve"
-      && concentrationAction === "extend"
-      && !activeConcentration?.instanceId
-    ) {
-      throw new Error("prepared-instance-required");
-    }
+    const intent = buildSpellApplicationIntent({
+      spell,
+      enteredName,
+      turns,
+      casterId,
+      targetIds,
+      castContext,
+      selectedChoice,
+      phasePlan,
+      applyAutomatedConditions,
+      activeConcentration,
+      historyLabel,
+      requestedConcentration,
+    });
+    if (!intent) return [];
     const instanceId = String(activeConcentration?.instanceId || "").trim()
       || createSpellInstanceId();
     const appliedAt = await getAppliedAt();
-    const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(choiceTiming, "spellExpiry")
-      ? choiceTiming.spellExpiry
-      : spell?.expiry ? { ...spell.expiry } : null;
-    const expiry = spellExpiry || (wantsConcentration
-      ? { mode: "concentration" }
-      : { mode: "rounds", remaining: turns });
     const caster = allCasters.find((item) => item.id === casterId) || null;
-    const lifecycleOperations = spellApplicationOperations({
-      targetIds: subjects,
-      casterId,
-      enteredName,
-      name,
-      storedName: spell?.name,
-      turns,
-      concentration: wantsConcentration,
+    const applicationPlan = buildSpellApplicationPlan({
+      intent,
       instanceId,
-      spellId: spell?.id || "",
-      spellExpiry,
       appliedAt,
-      castContext: persistedCastContext,
-      proposedConditions: castAutomationPlan.conditions,
-      proposedEffects: castAutomationPlan.effects,
-      conditionOptions: {
-        sourceId: casterId || "",
-        sourceName: caster?.name || "",
-        appliedAt,
-        expiry,
-      },
-      concentrationAction,
+      casterName: caster?.name || "",
     });
-    const operations = withSpellPhaseTransitionOperations({
-      operations: lifecycleOperations,
-      phasePlan: resolvedPhasePlan,
-      concentrationAction,
-      activeConcentration,
-      casterId,
-    });
-    const mutationPlan = await prepareEffectsMutation(operations);
+    const mutationPlan = await prepareEffectsMutation(applicationPlan.operations);
     const historyIds = mutationPlan.changedIds;
     await withItemMetaHistory({
       kind: "spell",
-      label: historyLabel || (
-        resolvedPhasePlan.phase === "prepare"
-          ? "Preparazione: " + name
-          : resolvedPhasePlan.phase === "resolve"
-            ? "Risoluzione: " + name
-            : "Incantesimo: " + name
-      ),
+      label: applicationPlan.historyLabel,
       itemIds: historyIds,
       fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
     }, () => commitEffectsMutationPlan(mutationPlan));
@@ -804,179 +451,66 @@ async function init() {
     const groups = spellOverviewGroups(items);
     if (revision !== overviewRevision) return;
 
-    overviewList.replaceChildren();
-    if (overviewCount) overviewCount.textContent = String(groups.length);
-    if (!groups.length) {
-      const empty = document.createElement("div");
-      empty.className = "overview-empty";
-      empty.textContent = "Nessun incantesimo attivo sul campo.";
-      overviewList.appendChild(empty);
-      return;
-    }
-
-    for (const group of groups) {
-      const groupSpell = getSpellDefinition(group.spellId || group.storedName);
-      const prepared = isPreparedSpellCast({
-        spell: groupSpell,
-        castContext: group.castContext,
-        casterId: group.casterId,
-        targetIds: Array.from(group.targets.keys()),
-      });
-      const row = document.createElement("article");
-      row.className = "spell-overview-row";
-      const content = document.createElement("div");
-      content.className = "spell-overview-content";
-      const heading = document.createElement("div");
-      heading.className = "spell-overview-heading";
-      const name = document.createElement("strong");
-      name.textContent = group.name;
-      const referenceButton = makeReferenceButton(`Apri Enciclopedia: ${group.name}`, () => {
+    renderSpellOverview({
+      document,
+      overviewList,
+      overviewCount,
+      groups,
+      createReferenceButton: makeReferenceButton,
+      getSelectedTargetIds: selectedSpellTargetIds,
+      onOpenReference(group) {
         void openReferencePopover({
           tab: "spells",
           entry: group.name,
           closeId: MODAL_ID,
         }).catch((error) => console.warn("[spells] reference open error:", error?.message || error));
-      });
-      const duration = document.createElement("span");
-      duration.className = "overview-badge";
-      duration.textContent = spellTurnsLabel(group.turns, group.counters);
-      heading.append(name, referenceButton, duration);
-      if (group.concentrating) {
-        const concentration = document.createElement("span");
-        concentration.className = "overview-badge concentration";
-        concentration.textContent = "C";
-        concentration.title = "Concentrazione";
-        heading.appendChild(concentration);
-      }
-
-      const caster = document.createElement("div");
-      caster.className = "spell-overview-meta";
-      caster.textContent = (group.concentrating ? "Concentrazione: " : "Caster: ") + group.casterName;
-      const targets = document.createElement("div");
-      targets.className = "spell-overview-targets";
-      targets.appendChild(document.createTextNode(prepared ? "Preparato su: " : "Bersagli: "));
-      for (const [targetId, targetName] of group.targets) {
-        const target = document.createElement("span");
-        target.className = "spell-overview-target";
-        target.title = `Termina ${group.name} su ${targetName || targetId}`;
-
-        const label = document.createElement("span");
-        label.textContent = targetName || targetId;
-        const terminateTarget = document.createElement("button");
-        terminateTarget.type = "button";
-        terminateTarget.className = "terminate-spell-target";
-        terminateTarget.textContent = "×";
-        terminateTarget.title = target.title;
-        terminateTarget.setAttribute("aria-label", target.title);
-        terminateTarget.addEventListener("click", async (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          terminateTarget.disabled = true;
-          try {
-            await terminateSpellGroup(group, [targetId]);
-            await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
-            await refreshOverview();
-          } catch (err) {
-            console.warn("[spell-panel] terminate target spell:", err?.message || err);
-            terminateTarget.disabled = false;
-          }
+      },
+      async onTerminateTarget(group, targetId) {
+        await terminateSpellGroup(group, [targetId]);
+        await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+        await refreshOverview();
+      },
+      async onResolve({
+        group,
+        spell,
+        targetIds,
+        selectedChoice,
+      }) {
+        const castContext = {
+          ...(group.castContext || {}),
+          phase: "resolve",
+        };
+        await commitSpellApplication({
+          spell,
+          enteredName: group.storedName,
+          turns: Math.max(1, ...group.turns),
+          casterId: group.casterId,
+          targetIds,
+          castContext,
+          selectedChoice,
+          phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+          applyAutomatedConditions: group.castContext?.applyAutomatedConditions !== false,
+          activeConcentration: {
+            instanceId: group.instanceId,
+            spellId: group.spellId,
+            name: group.storedName,
+            targets: Array.from(group.targets.keys()),
+          },
+          historyLabel: "Risoluzione: " + group.name,
         });
-        target.append(label, terminateTarget);
-        targets.appendChild(target);
-        if (targetId !== Array.from(group.targets.keys()).at(-1)) {
-          targets.appendChild(document.createTextNode(", "));
-        }
-      }
-      targets.title = `${prepared ? "Preparato su" : "Bersagli"}: ${Array.from(group.targets.values()).join(", ")}`;
-      content.append(heading, caster, targets);
-
-      const actions = document.createElement("div");
-      actions.className = "spell-overview-actions";
-      let resolutionChoice = null;
-      if (prepared && groupSpell) {
-        const choices = getSpellEffectChoices(groupSpell);
-        if (choices.length > 1) {
-          resolutionChoice = document.createElement("select");
-          resolutionChoice.className = "active-spell-choice";
-          resolutionChoice.setAttribute("aria-label", `Variante per ${group.name}`);
-          for (const choice of choices) {
-            const option = document.createElement("option");
-            option.value = choice.value;
-            option.textContent = choice.label;
-            resolutionChoice.appendChild(option);
-          }
-          const storedChoice = String(group.castContext?.choice || "");
-          if (storedChoice && choices.some((choice) => choice.value === storedChoice)) {
-            resolutionChoice.value = storedChoice;
-          }
-          actions.appendChild(resolutionChoice);
-        }
-
-        const resolve = document.createElement("button");
-        resolve.type = "button";
-        resolve.className = "resolve-spell";
-        resolve.dataset.resolveSpell = "1";
-        resolve.textContent = "Risolvi";
-        resolve.addEventListener("click", async () => {
-          const targetIds = selectedSpellTargetIds();
-          if (!targetIds.length) return;
-          resolve.disabled = true;
-          if (resolutionChoice) resolutionChoice.disabled = true;
-          try {
-            const castContext = {
-              ...(group.castContext || {}),
-              phase: "resolve",
-            };
-            const selectedChoice = resolutionChoice?.value
-              || String(group.castContext?.choice || "");
-            await commitSpellApplication({
-              spell: groupSpell,
-              enteredName: group.storedName,
-              turns: Math.max(1, ...group.turns),
-              casterId: group.casterId,
-              targetIds,
-              castContext,
-              selectedChoice,
-              phasePlan: getSpellCastPhasePlan(groupSpell, "resolve", castContext),
-              applyAutomatedConditions: group.castContext?.applyAutomatedConditions !== false,
-              activeConcentration: {
-                instanceId: group.instanceId,
-                spellId: group.spellId,
-                name: group.storedName,
-                targets: Array.from(group.targets.keys()),
-              },
-              historyLabel: "Risoluzione: " + group.name,
-            });
-            await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
-            await refreshOverview();
-          } catch (err) {
-            console.warn("[spell-panel] resolve overview spell:", err?.message || err);
-            resolve.disabled = false;
-            if (resolutionChoice) resolutionChoice.disabled = false;
-          }
-        });
-        actions.appendChild(resolve);
-      }
-
-      const terminate = document.createElement("button");
-      terminate.type = "button";
-      terminate.className = "terminate-spell";
-      terminate.textContent = "Termina";
-      terminate.addEventListener("click", async () => {
-        terminate.disabled = true;
-        try {
-          await terminateSpellGroup(group);
-          await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
-          await refreshOverview();
-        } catch (err) {
-          console.warn("[spell-panel] terminate overview spell:", err?.message || err);
-          terminate.disabled = false;
-        }
-      });
-      actions.appendChild(terminate);
-      row.append(content, actions);
-      overviewList.appendChild(row);
-    }
+        await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+        await refreshOverview();
+      },
+      async onTerminate(group) {
+        await terminateSpellGroup(group);
+        await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+        await refreshOverview();
+      },
+      onActionError(action, error) {
+        console.warn(`[spell-panel] ${action}:`, error?.message || error);
+      },
+    });
+    if (!groups.length) return;
     refreshSpellTargetCount();
   };
 
@@ -990,90 +524,49 @@ async function init() {
     });
   }
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const enteredName = String(nameInput.value || "").trim();
-    if (!enteredName) {
-      nameInput.focus();
-      return;
-    }
-
-    const spell = getSpellDefinition(enteredName);
-    const rawTurns = Number(durationInput.value);
-    if (!Number.isFinite(rawTurns) || rawTurns < 1) {
-      durationInput.focus();
-      return;
-    }
-    const turns = Math.floor(rawTurns);
-    const wantsConcentration = resolveSpellConcentration(
-      spell,
-      !!concentrationInput.checked,
-    );
-    let casterId = casterSelect.value || defaultCasterId || sourceId || null;
-    if (wantsConcentration && !casterId && allCasters.length) casterId = allCasters[0].id;
-
-    const castContext = currentCastContext(spell);
-    const phasePlan = getSpellCastPhasePlan(spell, "", castContext);
-    const targetIds = resolveSpellSubjectIds({
-      spell,
-      casterId,
-      selectedIds: selectedSpellTargetIds(),
-      subjectMode: phasePlan.subjectMode,
-    });
-    if (!targetIds.length) return;
-
-    const selectedChoice = conditionChoice?.value || "";
-    submitButton.disabled = true;
-    try {
-      await commitSpellApplication({
-        spell,
-        enteredName,
-        turns,
-        casterId,
-        targetIds,
-        castContext,
-        selectedChoice,
-        phasePlan,
-        applyAutomatedConditions: phasePlan.phase === "prepare"
-          ? true
-          : !!applyConditionsInput?.checked,
-        requestedConcentration: !!concentrationInput.checked,
-      });
+  wireSpellPanelFormWorkflow({
+    form,
+    nameInput,
+    durationInput,
+    concentrationInput,
+    casterSelect,
+    conditionChoice,
+    applyConditionsInput,
+    submitButton,
+    cancelButton,
+    endButton,
+    defaultCasterId,
+    sourceId,
+    allCasters,
+    isModal,
+    getCurrentCastContext: currentCastContext,
+    getSelectedTargetIds: selectedSpellTargetIds,
+    getFallbackTargetIds: getContextOrSelectionIds,
+    onCommit: commitSpellApplication,
+    async onClearNonConcentration(ids) {
+      const mutationPlan = await prepareEffectsMutation([{
+        type: "spell:clear-non-concentration",
+        targetIds: ids,
+      }]);
+      await withItemMetaHistory({
+        kind: "spell",
+        label: ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi",
+        itemIds: mutationPlan.changedIds,
+        fields: [SPELLS_META_KEY, "conditions"],
+      }, () => commitEffectsMutationPlan(mutationPlan));
+      await refreshConditionLabels(ids);
+    },
+    async onAfterSubmit() {
       await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
       await refreshOverview();
-      if (!isModal) {
-        try {
-          await OBR.contextMenu.close?.();
-        } catch {}
-      }
-    } finally {
-      submitButton.disabled = false;
-    }
-  });
-
-  cancelButton?.addEventListener("click", async () => {
-    const ids = isModal ? selectedSpellTargetIds() : await getContextOrSelectionIds();
-    if (!ids.length) return;
-    const mutationPlan = await prepareEffectsMutation([{
-      type: "spell:clear-non-concentration",
-      targetIds: ids,
-    }]);
-    await withItemMetaHistory({
-      kind: "spell",
-      label: ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi",
-      itemIds: mutationPlan.changedIds,
-      fields: [SPELLS_META_KEY, "conditions"],
-    }, () => commitEffectsMutationPlan(mutationPlan));
-    await refreshConditionLabels(ids);
-    await refreshOverview();
-    if (!isModal) {
+    },
+    onAfterClear: refreshOverview,
+    async onClose() {
       try {
         await OBR.contextMenu.close?.();
       } catch {}
-    }
+    },
   });
-
-  endButton?.addEventListener("click", () => cancelButton?.click());
 }
 
 async function getContextOrSelectionIds() {
@@ -1105,12 +598,6 @@ async function getCardTargetIds(sourceId, initiativeCharacters = []) {
 async function deduceContextSingleId() {
   const ids = await getContextOrSelectionIds();
   return ids.length === 1 ? ids[0] : null;
-}
-
-function getTrackerBaseItemId(value) {
-  const id = String(value || "").trim();
-  if (!id || id === "__LAIR__" || id.startsWith("__EPIC__")) return "";
-  return id.replace(/::p\d+$/, "");
 }
 
 async function getAllInitiativeCharacters(sourceId = "") {
@@ -1176,28 +663,17 @@ async function refreshCasterSummary(casterId, wrap, list) {
   }
   try {
     const concentrations = await getCasterConcentrations(casterId);
-    const entries = Object.entries(concentrations || {});
-    if (!entries.length) {
-      wrap.style.display = "none";
-      return;
-    }
-    wrap.style.display = "";
-
-    for (const [key, info] of entries) {
-      const storedName = String(info?.name || key);
-      const nice = getSpellDefinition(storedName)?.displayName || storedName;
-      const targets = Array.isArray(info?.targets) ? info.targets : [];
-      const chip = document.createElement("span");
-      chip.className = "chip";
-      chip.textContent = nice + " (" + targets.length + ")";
-
-      const button = document.createElement("button");
-      button.className = "iconbtn";
-      button.type = "button";
-      button.textContent = "X";
-      button.title = "Interrompi questa concentrazione";
-      button.addEventListener("click", async (event) => {
-        event.stopPropagation();
+    renderCasterConcentrationSummary({
+      document,
+      wrap,
+      list,
+      concentrations,
+      async onBreak({
+        key,
+        info,
+        displayName,
+        targetIds,
+      }) {
         const mutationPlan = await prepareEffectsMutation([{
           type: "concentration:break",
           casterIds: [casterId],
@@ -1206,19 +682,14 @@ async function refreshCasterSummary(casterId, wrap, list) {
         const ids = mutationPlan.changedIds;
         await withItemMetaHistory({
           kind: "spell",
-          label: "Concentrazione interrotta: " + nice,
+          label: "Concentrazione interrotta: " + displayName,
           itemIds: ids,
           fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
         }, () => commitEffectsMutationPlan(mutationPlan));
-        await refreshConditionLabels(targets);
+        await refreshConditionLabels(targetIds);
         await refreshCasterSummary(casterId, wrap, list);
-      });
-
-      const row = document.createElement("span");
-      row.className = "row";
-      row.append(chip, button);
-      list.append(row);
-    }
+      },
+    });
   } catch {
     wrap.style.display = "none";
   }
