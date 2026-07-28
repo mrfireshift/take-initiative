@@ -35,7 +35,7 @@ assert.equal(new Set(phb2014.approvedIds).size, 40);
 assert.deepEqual(phb2014.approvedIds, phb2014.spells.map((spell) => spell.id));
 assert.equal(fullCatalog.length, 477);
 assert.equal(fullCatalog.filter((spell) => spell.source === "phb2014").length, 40);
-assert.equal(options.length, 355);
+assert.equal(options.length, 356);
 assert.equal(SPELLS_5E_SRD.length, options.length);
 assert.equal(new Set(options.map((option) => option.id)).size, options.length);
 assert.equal(new Set(options.map((option) => option.value)).size, options.length);

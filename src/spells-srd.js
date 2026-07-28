@@ -157,6 +157,7 @@ const SPELL_EXPIRY = Object.freeze({
   "command": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
   "guiding-bolt": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "message": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+  "ray-of-frost": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "sending": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "shield": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "teleportation-circle": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -744,6 +745,9 @@ function durationToRounds(duration) {
 }
 
 const RAW_SPELLS = Array.isArray(catalogData?.spells) ? catalogData.spells : [];
+const SPELL_TRACKING_OVERRIDES = Object.freeze({
+  "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
+});
 const ITALIAN_NAMES = italianData?.names && typeof italianData.names === "object"
   ? italianData.names
   : {};
@@ -853,6 +857,7 @@ const ALL_SPELLS = [
   ...SUPPLEMENT_RUNTIME,
   ...PHB2014_EXTRA_RUNTIME,
 ].map((spell) => {
+  const tracking = SPELL_TRACKING_OVERRIDES[spell.id] || null;
   const italianName = String(ITALIAN_NAMES[spell.id] || "").trim();
   const aliases = Array.from(new Set([
     italianName,
@@ -864,7 +869,8 @@ const ALL_SPELLS = [
     ...spell,
     aliases: Object.freeze([...aliases]),
     displayName: italianName || aliases[0] || spell.name,
-    defaultTurns: spell.defaultTurns ?? durationToRounds(spell.duration),
+    defaultTurns: tracking?.defaultTurns ?? spell.defaultTurns ?? durationToRounds(spell.duration),
+    trackable: tracking?.trackable === true || spell.trackable === true,
     targetMode: TARGET_MODE_OVERRIDES[spell.id]
       || automation?.targetMode
       || spell.targetModeCandidate

@@ -30,15 +30,55 @@ function activeSpellKeys(spells) {
   const keys = new Set();
   for (const entry of Array.isArray(spells) ? spells : []) {
     if (!entry) continue;
-    const name = String(typeof entry === "string" ? entry : entry.name || "").trim().toLocaleLowerCase("it");
-    if (name) keys.add(name);
+    const values = typeof entry === "string"
+      ? [entry]
+      : [entry.spellId, entry.name];
+    for (const value of values) {
+      const key = String(value || "").trim().toLocaleLowerCase("it");
+      if (key) keys.add(key);
+    }
   }
   return keys;
+}
+
+function activeMovementMechanics(instances) {
+  const seen = new Set();
+  let addMeters = 0;
+  let maximumMeters = Infinity;
+  let setMeters = null;
+  const reasons = [];
+
+  for (const instance of Array.isArray(instances) ? instances : []) {
+    if (!instance || instance.active === false) continue;
+    const movement = instance.mechanics?.movement;
+    if (!movement || typeof movement !== "object") continue;
+    const identity = String(
+      instance.effectId || instance.condition || instance.name || instance.id || ""
+    ).trim().toLocaleLowerCase("it");
+    if (identity && seen.has(identity)) continue;
+    if (identity) seen.add(identity);
+
+    const addition = Number(movement.addMeters);
+    if (Number.isFinite(addition)) addMeters += addition;
+    const maximum = Number(movement.maximumMeters);
+    if (Number.isFinite(maximum) && maximum >= 0) {
+      maximumMeters = Math.min(maximumMeters, maximum);
+    }
+    const fixed = Number(movement.setMeters);
+    if (Number.isFinite(fixed) && fixed >= 0) {
+      setMeters = setMeters == null ? fixed : Math.min(setMeters, fixed);
+    }
+    const label = String(movement.label || "").trim();
+    if (label) reasons.push(label);
+  }
+
+  return { addMeters, maximumMeters, setMeters, reasons };
 }
 
 export function resolveConditionSpeed(baseSpeedMeters, instances = [], spells = []) {
   const baseSpeed = Math.max(0, Number(baseSpeedMeters) || 0);
   const names = activeConditionNames(instances);
+  const movement = activeMovementMechanics(instances);
   const spellKeys = activeSpellKeys(spells);
   const exhaustionLevel = exhaustionLevelFromInstances(instances);
   const prone = names.has("prono");
@@ -48,19 +88,25 @@ export function resolveConditionSpeed(baseSpeedMeters, instances = [], spells = 
     if (names.has(key)) reasons.push(label);
   }
   if (exhaustionLevel >= 5) reasons.push(`Indebolimento ${exhaustionLevel}`);
-  const hasHypnoticPattern = spellKeys.has("hypnotic pattern")
+  const hasHypnoticPattern = spellKeys.has("hypnotic-pattern")
+    || spellKeys.has("hypnotic pattern")
     || spellKeys.has("trama ipnotica");
   if (hasHypnoticPattern) reasons.push("Trama Ipnotica");
+  if (movement.setMeters === 0) reasons.push(...movement.reasons);
 
-  const blocked = reasons.length > 0;
+  const blocked = reasons.length > 0 || movement.setMeters === 0;
 
   const hasLongstrider = spellKeys.has("longstrider") || spellKeys.has("passo veloce") || spellKeys.has("passo lunare");
-  const hasRayOfFrost = spellKeys.has("ray of frost") || spellKeys.has("raggio di gelo");
+  const hasRayOfFrost = spellKeys.has("ray-of-frost") || spellKeys.has("ray of frost") || spellKeys.has("raggio di gelo");
   const hasHaste = spellKeys.has("haste") || spellKeys.has("velocita") || spellKeys.has("velocità");
   const hasSlow = spellKeys.has("slow") || spellKeys.has("lentezza");
 
   let modifiedBase = baseSpeed;
   if (!blocked) {
+    if (movement.addMeters) {
+      modifiedBase = Math.max(0, modifiedBase + movement.addMeters);
+      reasons.push(...movement.reasons);
+    }
     if (hasLongstrider) {
       modifiedBase += 3;
       reasons.push("Passo Veloce (+3m)");
@@ -85,6 +131,11 @@ export function resolveConditionSpeed(baseSpeedMeters, instances = [], spells = 
     let speed = modifiedBase;
     if (hasHaste) speed = speed * 2;
     if (halved) speed = halvedSpeedInWholeCells(speed);
+    if (Number.isFinite(movement.maximumMeters)) {
+      speed = Math.min(speed, movement.maximumMeters);
+      if (!movement.addMeters) reasons.push(...movement.reasons);
+    }
+    if (movement.setMeters != null) speed = movement.setMeters;
     speedMeters = Math.max(0, speed);
   }
 

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getSpellDefinition,
   getSpellEffects,
+  getTrackableSpellOptions,
 } from "../src/spells-srd.js";
 
 const NEXT_TURN_EXPIRIES = Object.freeze({
@@ -13,6 +14,7 @@ const NEXT_TURN_EXPIRIES = Object.freeze({
   "Comando": ["turn-end", "target"],
   "Dardo tracciante": ["turn-end", "source"],
   "Messaggio": ["turn-start", "source"],
+  "Raggio di gelo": ["turn-start", "source"],
   "Inviare": ["turn-start", "source"],
   "Scudo": ["turn-start", "source"],
   "Cerchio di teletrasporto": ["turn-end", "source"],
@@ -34,6 +36,13 @@ test("le spell revisionate dichiarano esplicitamente il turno successivo", () =>
       anchor: "next-turn",
     }, name);
   }
+});
+
+test("Raggio di gelo è tracciabile per il solo effetto residuo", () => {
+  const spell = getSpellDefinition("Raggio di gelo");
+  assert.equal(spell.trackable, true);
+  assert.equal(spell.defaultTurns, 1);
+  assert.equal(getTrackableSpellOptions().some((option) => option.id === spell.id), true);
 });
 
 test("Scheggia della Mente dura fino alla fine del turno successivo o al prossimo TS", () => {

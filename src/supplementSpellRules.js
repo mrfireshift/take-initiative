@@ -216,6 +216,12 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Vel. max 3m · svantaggi · rischio spell",
     detail: "Velocità massima 3 metri, svantaggio ad attacchi, prove e TS non-Cos; TS Cos per lanciare incantesimi. TS Cos a fine turno per terminare.",
+    mechanics: Object.freeze({
+      movement: Object.freeze({
+        maximumMeters: 3,
+        label: "Parola del Potere Dolore (max 3m)",
+      }),
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: manual,
@@ -330,6 +336,12 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Bestia: +3m · scurovisione · vant. For · +1d6",
         detail: "Velocità aumentata, scurovisione, vantaggio agli attacchi basati su Forza e danni da forza extra.",
+        mechanics: Object.freeze({
+          movement: Object.freeze({
+            addMeters: 3,
+            label: "Guardiano della Natura (+3m)",
+          }),
+        }),
       })]),
     }),
     Object.freeze({

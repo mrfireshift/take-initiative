@@ -371,6 +371,12 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. danni tranne psichici / velocità 0",
     detail: "Resistenza a tutti i danni tranne gli psichici, velocità 0; malattie e veleno restano sospesi.",
+    mechanics: Object.freeze({
+      movement: Object.freeze({
+        setMeters: 0,
+        label: "Morte Apparente",
+      }),
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: rounds(600),

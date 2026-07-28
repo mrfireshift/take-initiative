@@ -5,8 +5,13 @@ import {
   proneStandingCostMeters,
   resolveConditionSpeed,
 } from "../src/conditionSpeedCore.js";
+import { getSpellEffects } from "../src/spells-srd.js";
 
 const condition = (name, extra = {}) => ({ condition: name, active: true, ...extra });
+const effectCondition = (effect) => condition(effect.label, {
+  effectId: effect.id,
+  mechanics: effect.mechanics,
+});
 
 test("le condizioni 2014 che impediscono il movimento portano la velocità a 0", () => {
   for (const name of [
@@ -99,4 +104,30 @@ test("Trama Ipnotica imposta a 0 la velocità dei bersagli affetti", () => {
   assert.equal(result.speedMeters, 0);
   assert.equal(result.blocked, true);
   assert.ok(result.reasons.includes("Trama Ipnotica"));
+});
+
+test("gli effetti numerici del catalogo modificano la velocità tramite mechanics", () => {
+  const primalBeast = effectCondition(
+    getSpellEffects("Guardiano della Natura", "primal-beast")[0]
+  );
+  const powerWordPain = effectCondition(
+    getSpellEffects("Parola del Potere Dolore")[0]
+  );
+  const feignDeath = effectCondition(
+    getSpellEffects("Morte Apparente")[0]
+  );
+
+  assert.equal(resolveConditionSpeed(9, [primalBeast]).speedMeters, 12);
+  assert.equal(resolveConditionSpeed(9, [powerWordPain]).speedMeters, 3);
+  assert.equal(resolveConditionSpeed(9, [powerWordPain], [{ spellId: "haste" }]).speedMeters, 3);
+  assert.equal(resolveConditionSpeed(9, [feignDeath]).speedMeters, 0);
+  assert.equal(resolveConditionSpeed(9, [feignDeath]).blocksSpeedBonuses, true);
+});
+
+test("gli spellId persistiti sono riconosciuti senza dipendere dal nome localizzato", () => {
+  assert.equal(resolveConditionSpeed(9, [], [{ spellId: "longstrider" }]).speedMeters, 12);
+  assert.equal(resolveConditionSpeed(9, [], [{ spellId: "ray-of-frost" }]).speedMeters, 6);
+  assert.equal(resolveConditionSpeed(9, [], [{ spellId: "haste" }]).speedMeters, 18);
+  assert.equal(resolveConditionSpeed(9, [], [{ spellId: "slow" }]).speedMeters, 4.5);
+  assert.equal(resolveConditionSpeed(9, [], [{ spellId: "hypnotic-pattern" }]).speedMeters, 0);
 });
