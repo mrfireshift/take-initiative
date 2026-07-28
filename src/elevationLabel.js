@@ -5,8 +5,10 @@ import { readElevation } from "./distance3d.js";
 
 const LABEL_OWNER_META = `${ID}/elevationLabelOf`;
 const LABEL_LAYOUT_META = `${ID}/elevationLabelLayout`;
-const LABEL_LAYOUT_VERSION = 4;
+const HP_BAR_META = `${ID}/hpbar`;
+const LABEL_LAYOUT_VERSION = 5;
 const LABEL_HEIGHT = 21;
+const LABEL_BAR_GAP = 3;
 const MAX_VIEW_SCALE = 1.35;
 let mounted = false;
 let running = false;
@@ -19,8 +21,17 @@ function labelText(elevation, unit) {
   return `${arrow} ${formatDistance(Math.abs(elevation), 2)}${suffix}`;
 }
 
-function labelSpec(token, elevation, unit) {
+function labelSpec(token, elevation, unit, hpBar) {
   const width = Math.max(54, Math.min(118, 26 + labelText(elevation, unit).length * 6.5));
+  if (hpBar) {
+    return {
+      text: labelText(elevation, unit),
+      width,
+      x: Math.round(Number(hpBar.position?.x) || 0),
+      y: Math.round((Number(hpBar.position?.y) || 0) - LABEL_HEIGHT - LABEL_BAR_GAP),
+      color: "#111827",
+    };
+  }
   const scaleX = Math.abs(Number(token.scale?.x)) || 1;
   const scaleY = Math.abs(Number(token.scale?.y)) || 1;
   const tokenWidth = Math.max(1, (Number(token.width) || 70) * scaleX);
@@ -64,6 +75,9 @@ async function reconcileElevationLabels() {
     const tokensById = new Map(tokens.map((item) => [item.id, item]));
     const labels = items.filter((item) => item.type === "LABEL" && item.metadata?.[LABEL_OWNER_META]);
     const labelsByOwner = new Map(labels.map((item) => [item.metadata[LABEL_OWNER_META], item]));
+    const hpBarsByOwner = new Map(items
+      .filter((item) => item.metadata?.[HP_BAR_META]?.kind === "bg")
+      .map((item) => [item.metadata[HP_BAR_META].targetId, item]));
     const removeIds = [];
     const addItems = [];
     const updates = new Map();
@@ -76,7 +90,7 @@ async function reconcileElevationLabels() {
     for (const token of tokens) {
       const elevation = readElevation(token);
       if (elevation === 0) continue;
-      const spec = labelSpec(token, elevation, unit);
+      const spec = labelSpec(token, elevation, unit, hpBarsByOwner.get(token.id));
       const current = labelsByOwner.get(token.id);
       if (!current) {
         const label = buildLabel()

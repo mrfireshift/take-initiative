@@ -216,8 +216,12 @@ OBR.onReady(() => {
     renderResults();
   }
 
+  const refreshSearchResults = () => renderResults();
   for (const tab of tabs) tab.addEventListener("click", () => setTab(tab.dataset.tab));
-  search.addEventListener("input", renderResults);
+  search.addEventListener("input", refreshSearchResults);
+  search.addEventListener("search", refreshSearchResults);
+  search.addEventListener("keyup", refreshSearchResults);
+  search.addEventListener("compositionend", refreshSearchResults);
   close?.addEventListener("click", closeReferencePopover);
   for (const tab of tabs) {
     const active = tab.dataset.tab === activeTab;

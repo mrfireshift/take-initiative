@@ -1,0 +1,74 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  resolveSpellEffect,
+  resolveSpellMechanics,
+  spellMechanicsLabel,
+} from "../src/spellMechanicsCore.js";
+
+test("risolve valori meccanici scalabili dal livello dello slot", () => {
+  const mechanics = resolveSpellMechanics({
+    deriveLabel: true,
+    tempHp: {
+      amount: { base: 5, baseSlot: 1, perSlotAbove: 5 },
+    },
+    retaliationDamage: {
+      amount: { base: 5, baseSlot: 1, perSlotAbove: 5 },
+      type: "freddo",
+    },
+  }, { slotLevel: 4 });
+
+  assert.equal(mechanics.tempHp.amount, 20);
+  assert.equal(mechanics.retaliationDamage.amount, 20);
+  assert.equal(
+    spellMechanicsLabel(mechanics),
+    "20 PF temp. / 20 freddo a chi colpisce in mischia",
+  );
+});
+
+test("deriva una label compatta da bonus misurabili", () => {
+  const effect = resolveSpellEffect({
+    label: "fallback",
+    mechanics: {
+      deriveLabel: true,
+      attackRoll: { modifierDice: "1d4" },
+      savingThrow: { modifierDice: "1d4" },
+    },
+  });
+
+  assert.equal(effect.label, "+1d4 Att/TS");
+});
+
+test("scala bonus al colpire e dadi di danno dagli slot dispari", () => {
+  const effect = resolveSpellEffect({
+    label: "fallback",
+    mechanics: {
+      deriveLabel: true,
+      attackRoll: {
+        bonus: { base: 1, baseSlot: 3, perSlotAbove: 1, step: 2, max: 3 },
+      },
+      damageBonus: {
+        dice: {
+          count: { base: 1, baseSlot: 3, perSlotAbove: 1, step: 2, max: 3 },
+          sides: 4,
+        },
+        type: "fuoco",
+      },
+    },
+  }, { slotLevel: 5 });
+
+  assert.equal(effect.mechanics.attackRoll.bonus, 2);
+  assert.equal(effect.mechanics.damageBonus.dice, "2d4");
+  assert.equal(effect.label, "+2 Att / +2d4 fuoco");
+});
+
+test("le meccaniche non dichiarate per la derivazione conservano la label curata", () => {
+  assert.equal(
+    resolveSpellEffect({
+      label: "Vant. TS magia / 0 danni su TS riuscito",
+      mechanics: { savingThrow: { advantage: true } },
+    }).label,
+    "Vant. TS magia / 0 danni su TS riuscito",
+  );
+});

@@ -57,6 +57,8 @@ export default defineConfig(() => {
         initiativeCardModal: path.resolve(process.cwd(), "initiative-card-modal.html"),
         factionConfigurator: path.resolve(process.cwd(), "faction-configurator.html"),
         compactEffects: path.resolve(process.cwd(), "compact-effects.html"),
+        initiativeCardContextMenu: path.resolve(process.cwd(), "initiative-card-context-menu.html"),
+        compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
       },
     },
   },

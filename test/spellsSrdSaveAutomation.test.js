@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import spellReferenceData from "../src/spell-reference-it.json" with { type: "json" };
 import {
   getAreaSaveAutomation,
   getAreaSaveRuleChoices,
@@ -98,6 +99,8 @@ test("Tentacoli Neri, Bagliore Solare e Confusione applicano gli effetti mancant
   assert.equal(tentacles.failed[0].endsParentOnRemoval, true);
 
   assert.equal(sunbeam.failed[0].condition, "Accecato");
+  assert.equal(spellReferenceData.spells.sunbeam.description.includes("6d8 danni radiosi"), true);
+  assert.equal(spellReferenceData.spells.sunbeam.components.includes("una lente"), true);
   assert.deepEqual(sunbeam.failed[0].expiry, {
     mode: "turn-start",
     actor: "source",

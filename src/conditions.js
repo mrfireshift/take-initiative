@@ -15,6 +15,7 @@ import {
   getEffectiveConditionInstances as resolveEffectiveConditionInstances,
 } from "./conditionRulesCore.js";
 import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
+import { compactSpellEffectLabel } from "./effectLabelCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -159,7 +160,13 @@ function __normalizeConditionInstance(value, fallbackId) {
     instance.effectKind = value.effectKind;
   }
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
+  if (value.mechanics && typeof value.mechanics === "object") {
+    instance.mechanics = { ...value.mechanics };
+  }
   if (value.manualRemoval === true) instance.manualRemoval = true;
+  if (value.parentRemoval === "target" || value.parentRemoval === "spell") {
+    instance.parentRemoval = value.parentRemoval;
+  }
   if (value.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = value.level === undefined || value.level === null || value.level === ""
@@ -300,7 +307,13 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
     instance.effectKind = opts.effectKind;
   }
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
+  if (opts.mechanics && typeof opts.mechanics === "object") {
+    instance.mechanics = { ...opts.mechanics };
+  }
   if (opts.manualRemoval === true) instance.manualRemoval = true;
+  if (opts.parentRemoval === "target" || opts.parentRemoval === "spell") {
+    instance.parentRemoval = opts.parentRemoval;
+  }
   if (opts.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(opts.level || 1));
@@ -405,7 +418,7 @@ function __groupConditionInstances(cond = {}) {
   return ordered.map((group) => ({
     ...group,
     label: group.effectKind
-      ? group.name
+      ? compactSpellEffectLabel(group.name)
       : group.name === EXHAUSTION_CONDITION
       ? `${formatConditionName(group.name)} ${exhaustionLevelFromInstances(group.instances)}`
       : group.instances.length > 1

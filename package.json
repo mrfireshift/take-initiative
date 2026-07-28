@@ -13,6 +13,7 @@
     "generate:spells": "node scripts/generate-spell-catalog.mjs",
     "generate:spell-translations": "node scripts/generate-spell-translations.mjs",
     "generate:supplement-spells": "node scripts/generate-supplement-spell-catalog.mjs",
+    "generate:phb2014-extra": "node scripts/generate-phb2014-extra-catalog.mjs",
     "check:spells": "node scripts/check-spell-catalog.mjs",
     "preview": "vite preview"
   },

@@ -2,16 +2,19 @@ import assert from "node:assert/strict";
 
 import catalog from "../src/spells-srd-5.1.json" with { type: "json" };
 import italian from "../src/spells-it-2014.json" with { type: "json" };
+import phb2014 from "../src/spells-phb2014-extra.json" with { type: "json" };
 import {
   SPELLS_5E_SRD,
   durationToRounds,
   getProposedConditions,
   getSpellEffectChoices,
   getSpellEffects,
+  getSpellCatalog,
   getSpellDefinition,
   getTrackableSpellOptions,
 } from "../src/spells-srd.js";
 
+const fullCatalog = getSpellCatalog();
 const options = getTrackableSpellOptions();
 const nonInstantaneous = catalog.spells.filter(
   (spell) => spell.duration !== "Instantaneous"
@@ -25,7 +28,14 @@ assert.equal(catalog.spells.length, 319);
 assert.equal(italianNames.length, 319);
 assert.equal(new Set(italianNames.map(([, name]) => name)).size, 319);
 assert.equal(nonInstantaneous.length, 232);
-assert.equal(options.length, 323);
+assert.equal(phb2014.schemaVersion, 1);
+assert.equal(phb2014.source.id, "phb2014");
+assert.equal(phb2014.spells.length, 40);
+assert.equal(new Set(phb2014.approvedIds).size, 40);
+assert.deepEqual(phb2014.approvedIds, phb2014.spells.map((spell) => spell.id));
+assert.equal(fullCatalog.length, 477);
+assert.equal(fullCatalog.filter((spell) => spell.source === "phb2014").length, 40);
+assert.equal(options.length, 355);
 assert.equal(SPELLS_5E_SRD.length, options.length);
 assert.equal(new Set(options.map((option) => option.id)).size, options.length);
 assert.equal(new Set(options.map((option) => option.value)).size, options.length);
@@ -104,6 +114,8 @@ assert.equal(manualDuration.length, 14);
 console.log(JSON.stringify({
   catalog: catalog.spells.length,
   italianNames: italianNames.length,
+  fullCatalog: fullCatalog.length,
+  phb2014: phb2014.spells.length,
   trackable: options.length,
   nonInstantaneous: nonInstantaneous.length,
   manualDuration: manualDuration.length,

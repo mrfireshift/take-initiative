@@ -211,7 +211,7 @@ test("le etichette compatte conservano livello e scadenza della condizione", () 
   );
 });
 
-test("gli effetti compatti mantengono ordine, spell parent e concentrazione", () => {
+test("gli effetti compatti mantengono condizioni e spell ma escludono buff e debuff", () => {
   const condition = {
     condition: "Prono",
     source: "manual",
@@ -247,12 +247,32 @@ test("gli effetti compatti mantengono ordine, spell parent e concentrazione", ()
   assert.deepEqual(effects.map(({ kind, label }) => ({ kind, label })), [
     { kind: "condition", label: "Prono (2)" },
     { kind: "spell", label: "Velocità (F C)" },
-    { kind: "buff", label: "Velocità" },
   ]);
   assert.equal(effects[1].key, "velocità");
   assert.match(effects[1].title, /concentrazione$/);
+  assert.equal(effects.some((effect) => effect.kind === "buff"), false);
+  assert.equal(effects.some((effect) => effect.kind === "debuff"), false);
   assert.equal(effects.some((effect) => effect.label === "Lentezza"), false);
   assert.equal(effects.some((effect) => effect.kind === "concentration"), false);
+});
+
+test("una card compatta non mostra pill buff o debuff collegate alla spell", () => {
+  const instance = {
+    condition: "Lentezza: -2 CA/TS Des · no reazioni",
+    effectKind: "debuff",
+    parentEffectId: "spell-1",
+  };
+  const [spell, effect] = __compactEffectItems(
+    [instance],
+    [{ name: "Lentezza", instanceId: "spell-1", turns: 1 }],
+    false,
+    {
+      formatConditionInstance: (value) => value.condition,
+    },
+  );
+
+  assert.equal(spell.kind, "spell");
+  assert.equal(effect, undefined);
 });
 
 test("la concentrazione senza spell tracciata resta un effetto autonomo", () => {

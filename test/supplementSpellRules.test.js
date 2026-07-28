@@ -11,8 +11,8 @@ import {
 } from "../src/spells-srd.js";
 
 test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano escluse dal tracker", () => {
-  assert.equal(getSpellCatalog().length, 437);
-  assert.equal(getTrackableSpellOptions().length, 323);
+  assert.equal(getSpellCatalog().length, 477);
+  assert.equal(getTrackableSpellOptions().length, 355);
   assert.equal(getSpellDefinition("Catapulta").trackable, false);
   assert.equal(getSpellDefinition("Morsa del Gelo").trackable, true);
 });

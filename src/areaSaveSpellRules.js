@@ -1,3 +1,5 @@
+import { PHB2014_AREA_SAVE_SPELL_IDS } from "./phb2014SpellRules.js";
+
 // Catalogo esplicito per la Console HP: include soltanto incantesimi che
 // producono davvero un tiro salvezza su più creature o in un'area.
 // Non usare areaCandidate come fonte di verità: può descrivere anche luce,
@@ -84,6 +86,7 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-vampa-di-aganazzar",
   "tasha-miscela-caustica-di-tasha",
   "tasha-turbine-di-spade",
+  ...PHB2014_AREA_SAVE_SPELL_IDS,
 ]);
 
 export const AREA_SAVE_SPELL_ID_SET = new Set(AREA_SAVE_SPELL_IDS);

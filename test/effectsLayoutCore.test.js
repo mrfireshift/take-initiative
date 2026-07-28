@@ -59,7 +59,7 @@ test("il planner unificato ordina spell e condizioni nello stesso stack", () => 
     "Prono",
   ]);
   assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
-  assert.deepEqual(rows.map((entry) => entry.y), [75, 106, 138, 169]);
+  assert.deepEqual(rows.map((entry) => entry.y), [74, 102, 131, 159]);
 });
 
 test("le pill buff e debuff precedono lo stack senza cambiare il colore della spell", () => {
@@ -182,7 +182,7 @@ test("il layout usa le dimensioni IMAGE quando width e height non sono esposte a
 
   const condition = desired.find((entry) => entry.kind === "condition");
   assert.equal(condition.x, 89);
-  assert.equal(condition.y, 37);
+  assert.equal(condition.y, 36);
 });
 
 test("un token IMAGE da una casella ancora pill e badge al suo ingombro di scena", () => {
@@ -211,8 +211,24 @@ test("un token IMAGE da una casella ancora pill e badge al suo ingombro di scena
   const condition = desired.find((entry) => entry.kind === "condition");
   assert.ok(Math.abs(dot.x - 71.75) < 0.01);
   assert.ok(Math.abs(dot.y - 71.75) < 0.01);
-  assert.deepEqual({ x: spell.x, y: spell.y }, { x: 94, y: 75 });
-  assert.deepEqual({ x: condition.x, y: condition.y }, { x: 94, y: 107 });
+  assert.deepEqual({ x: spell.x, y: spell.y }, { x: 94, y: 74 });
+  assert.deepEqual({ x: condition.x, y: condition.y }, { x: 94, y: 103 });
+});
+
+test("le pill effetto molto lunghe hanno una larghezza massima", () => {
+  const desired = planEffectsLayout({
+    measureText,
+    tokens: [token("target", {
+      conditionParts: [{
+        key: "spell-effect:long",
+        label: "Effetto meccanico molto lungo / con più modificatori / e una durata",
+        kind: "spell-effect",
+        tone: "buff",
+      }],
+    })],
+  });
+
+  assert.equal(desired.find((entry) => entry.kind === "spell-effect").width, 300);
 });
 
 test("il diff puro conserva un solo widget per identità e raccoglie un batch finale", () => {

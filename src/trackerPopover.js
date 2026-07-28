@@ -4,6 +4,7 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
 const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
+const COMPACT_ADMIN_MENU_POPOVER_ID = `${ID}/compact-admin-menu`;
 export const TRACKER_LAYOUT_CHANNEL = `${ID}/tracker-layout-change`;
 export const TRACKER_LAYOUT_CLASSIC = "classic";
 export const TRACKER_LAYOUT_COMPACT = "compact";
@@ -83,6 +84,7 @@ export async function openTrackerPopover({ refresh = false } = {}) {
     await Promise.all([
       OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_ADMIN_MENU_POPOVER_ID).catch(() => {}),
     ]);
   }
   const layout = getTrackerLayout();
@@ -123,6 +125,7 @@ export async function closeTrackerPopover() {
     await Promise.all([
       OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_ADMIN_MENU_POPOVER_ID).catch(() => {}),
     ]);
   } finally {
     localStorage.setItem(TRACKER_OPEN_KEY, "0");

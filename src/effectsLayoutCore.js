@@ -12,6 +12,7 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   spellMaxWidth: 300,
   conditionPadX: 9,
   conditionStroke: 1,
+  conditionMaxWidth: 300,
   conditionBackground: "#0e131f",
   conditionBackgroundOpacity: 0.9,
   buffBackground: "#15803d",
@@ -21,7 +22,7 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   textStrokeWidth: 1,
   maxViewScale: 1.35,
   stackGap: 1,
-  stackClearanceScale: 1.1,
+  stackClearanceScale: 1,
   stackTopInset: -4 / 70,
   stackOffsetY: -1,
   labelOffsetX: 0.42,
@@ -61,8 +62,12 @@ function visualTokenBox(token, sceneDpi) {
 }
 
 function conditionWidth(label, measureText, config) {
-  return Math.ceil(measureText(label, config.fontSize, config.fontWeight)) +
-    config.conditionPadX * 2 + config.conditionStroke * 4;
+  return Math.min(
+    config.conditionMaxWidth,
+    Math.ceil(measureText(label, config.fontSize, config.fontWeight))
+      + config.conditionPadX * 2
+      + config.conditionStroke * 4,
+  );
 }
 
 function spellWidth(label, measureText, config) {

@@ -17,6 +17,9 @@ export function preserveConditionTimingMetadata(instance, storedValue) {
   if (raw.endsParentOnRemoval === true) {
     next.endsParentOnRemoval = true;
   }
+  if (raw.parentRemoval === "target" || raw.parentRemoval === "spell") {
+    next.parentRemoval = raw.parentRemoval;
+  }
 
   return next;
 }

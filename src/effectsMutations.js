@@ -2,8 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
-import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import { saveSpellResolutionOperations } from "./saveSpellOperationsCore.js";
+import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import {
   buildEffectsMutationPlan,
   EFFECTS_MUTATION_CONDITION_VERSION,
@@ -268,76 +268,30 @@ export function spellApplicationOperations({
   spellId = "",
   spellExpiry = null,
   appliedAt = null,
+  castContext = null,
   proposedConditions = [],
   proposedEffects = [],
   conditionOptions = {},
+  concentrationAction = "replace",
 } = {}) {
-  const targets = uniqueIds(targetIds);
-  const caster = String(casterId || "").trim();
-  const operations = [];
-  if (concentration && caster) {
-    operations.push({ type: "concentration:break", casterIds: [caster] });
-  }
-  operations.push({
-    type: "spell:upsert",
-    targetIds: targets,
+  return catalogSpellApplicationOperations({
+    targetIds,
+    casterId,
+    enteredName,
     name,
+    storedName,
     turns,
-    conc: concentration && !!caster,
-    source: caster,
+    concentration,
     instanceId,
     spellId,
-    ...(spellExpiry ? { expiry: spellExpiry } : {}),
-    ...(appliedAt ? { appliedAt } : {}),
-    replaceNames: uniqueIds([enteredName, name, storedName]),
+    spellExpiry,
+    appliedAt,
+    castContext,
+    proposedConditions,
+    proposedEffects,
+    conditionOptions,
+    concentrationAction,
   });
-  for (const proposedCondition of proposedConditions || []) {
-    const conditionName = typeof proposedCondition === "string"
-      ? proposedCondition
-      : String(proposedCondition?.name || "").trim();
-    if (!conditionName) continue;
-    const proposedOptions = proposedCondition && typeof proposedCondition === "object"
-      ? proposedCondition.options || {}
-      : {};
-    operations.push({
-      type: "condition:add",
-      targetIds: targets,
-      conditionName,
-      options: {
-        ...conditionOptions,
-        parentEffectId: instanceId,
-        type: "spell",
-        ...proposedOptions,
-      },
-    });
-  }
-  for (const effect of proposedEffects || []) {
-    const effectLabel = String(effect?.label || "").trim();
-    const effectKind = effect?.kind === "buff" || effect?.kind === "debuff"
-      ? effect.kind
-      : "";
-    if (!effectLabel || !effectKind) continue;
-    operations.push({
-      type: "condition:add",
-      targetIds: targets,
-      conditionName: effectLabel,
-      options: spellEffectConditionOptions(effect, conditionOptions, instanceId),
-    });
-  }
-  if (concentration && caster) {
-    operations.push({
-      type: "concentration:register",
-      casterId: caster,
-      targetIds: targets,
-      name,
-      instanceId,
-      spellId,
-    });
-  }
-  if (proposedConditions?.length) {
-    operations.push({ type: "condition:automate", subjectIds: targets });
-  }
-  return operations;
 }
 
 export { saveSpellResolutionOperations };

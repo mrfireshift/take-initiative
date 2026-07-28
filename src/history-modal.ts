@@ -16,10 +16,21 @@ import {
 } from "./combatLog.js";
 import { getHistoryEntries, undoHistoryThrough } from "./history.js";
 
+const MODAL_ID = `${ID}/history-modal`;
+const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
+
 let statusMessage = "";
 let refreshQueued = false;
 let logPanelOpen = true;
 let undoPanelOpen = false;
+
+function closeHistoryPopover() {
+  void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
+    type: "closed",
+    id: MODAL_ID,
+  }, { destination: "LOCAL" }).catch(() => {});
+  void OBR.popover.close(MODAL_ID);
+}
 
 function captureAccordionState(app: HTMLElement) {
   const logPanel = app.querySelector('details[data-panel="log"]');
@@ -41,10 +52,10 @@ function button(label: string, tone = "default", iconPath = "", iconOnly = false
         : "1px solid rgba(148,163,184,.24)",
     borderRadius: "8px",
     background: tone === "primary"
-      ? "rgba(37,99,235,.36)"
+      ? "#2563eb"
       : tone === "danger"
         ? "rgba(153,27,27,.42)"
-        : "rgba(255,255,255,.055)",
+        : "#0f172a",
     color: "#fff",
     font: "inherit",
     fontSize: "var(--obrt-type-body, 12px)",
@@ -185,7 +196,7 @@ function makeEventRow(event: any) {
     padding: "8px 9px 8px 0",
     border: "1px solid rgba(148,163,184,.14)",
     borderRadius: "9px",
-    background: "rgba(255,255,255,.025)",
+    background: "rgba(15,23,42,.72)",
   });
   const rail = document.createElement("div");
   Object.assign(rail.style, { borderRadius: "9px", background: tone, boxShadow: `0 0 10px ${tone}` });
@@ -224,7 +235,7 @@ function makeEventRow(event: any) {
     padding: "2px 6px",
     borderRadius: "999px",
     color: tone,
-    background: "rgba(0,0,0,.28)",
+    background: "#0f172a",
     fontSize: "var(--obrt-type-micro, 9px)",
     fontWeight: "var(--obrt-weight-bold, 700)",
     letterSpacing: ".05em",
@@ -242,8 +253,8 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
   Object.assign(details.style, {
     flex: "0 0 auto",
     border: "1px solid rgba(148,163,184,.18)",
-    borderRadius: "10px",
-    background: "rgba(0,0,0,.2)",
+    borderRadius: "11px",
+    background: "rgba(15,23,42,.58)",
   });
   const summary = document.createElement("summary");
   summary.textContent = `Cronologia e Undo (${entries.length})`;
@@ -265,7 +276,7 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
       rows.forEach(({ checkbox, row }, index) => {
         const selected = index < selectedDepth;
         checkbox.checked = selected;
-        row.style.background = selected ? "rgba(37,99,235,.18)" : "rgba(255,255,255,.025)";
+        row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(15,23,42,.72)";
       });
       setButtonLabel(undo, selectedDepth === 1 ? "Undo ultima" : `Undo ${selectedDepth} azioni`);
       undo.disabled = selectedDepth < 1;
@@ -276,6 +287,7 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
       Object.assign(row.style, { display: "flex", alignItems: "center", gap: "7px", padding: "6px 8px", borderRadius: "7px", cursor: "pointer" });
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
+      checkbox.style.accentColor = "#2563eb";
       const text = document.createElement("span");
       text.textContent = String(entry?.label || "Modifica");
       Object.assign(text.style, { fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-medium, 500)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
@@ -330,14 +342,36 @@ async function render(message = statusMessage) {
     gap: "9px",
     padding: "12px",
     overflowY: "auto",
-    background: "linear-gradient(145deg, rgba(28,35,48,.97), rgba(36,27,34,.94))",
+    background: "transparent",
     color: "#fff",
     fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
     fontSize: "var(--obrt-type-body, 12px)",
   });
 
   const header = document.createElement("header");
-  Object.assign(header.style, { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" });
+  Object.assign(header.style, { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", paddingRight: "38px", flexWrap: "wrap" });
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "X";
+  close.title = "Chiudi";
+  close.setAttribute("aria-label", "Chiudi");
+  Object.assign(close.style, {
+    position: "fixed",
+    right: "12px",
+    top: "9px",
+    width: "30px",
+    height: "30px",
+    padding: "0",
+    border: "1px solid transparent",
+    borderRadius: "9px",
+    background: "transparent",
+    color: "inherit",
+    font: "inherit",
+    fontSize: "15px",
+    cursor: "pointer",
+    zIndex: "30",
+  });
+  close.addEventListener("click", closeHistoryPopover);
   const heading = document.createElement("div");
   Object.assign(heading.style, { minWidth: "180px", flex: "1 1 220px" });
   const title = document.createElement("h1");
@@ -350,12 +384,12 @@ async function render(message = statusMessage) {
   sessionPicker.title = "Apri o riprendi un registro archiviato";
   Object.assign(sessionPicker.style, {
     maxWidth: "220px",
-    minHeight: "24px",
+    minHeight: "32px",
     marginTop: "5px",
-    padding: "2px 6px",
-    border: "1px solid rgba(148,163,184,.2)",
-    borderRadius: "7px",
-    background: "rgba(0,0,0,.24)",
+    padding: "6px 8px",
+    border: "1px solid rgba(148,163,184,.28)",
+    borderRadius: "10px",
+    background: "#0f172a",
     color: "rgba(255,255,255,.8)",
     font: "inherit",
     fontSize: "10px",
@@ -365,7 +399,7 @@ async function render(message = statusMessage) {
     option.value = candidate.id;
     option.textContent = candidate.name;
     option.selected = candidate.id === session?.id;
-    Object.assign(option.style, { background: "#111827", color: "#fff" });
+    Object.assign(option.style, { background: "#0f172a", color: "#fff" });
     sessionPicker.appendChild(option);
   }
   sessionPicker.addEventListener("change", async () => {
@@ -517,14 +551,14 @@ async function render(message = statusMessage) {
       minWidth: "0",
       padding: "5px 9px",
       border: "1px solid rgba(148,163,184,.24)",
-      borderRadius: "8px",
-      background: "rgba(0,0,0,.28)",
+      borderRadius: "10px",
+      background: "#0f172a",
       color: "#fff",
       font: "inherit",
       outline: "none",
     });
   }
-  kind.querySelectorAll("option").forEach((option) => Object.assign((option as HTMLOptionElement).style, { background: "#111827", color: "#fff" }));
+  kind.querySelectorAll("option").forEach((option) => Object.assign((option as HTMLOptionElement).style, { background: "#0f172a", color: "#fff" }));
   filters.append(search, kind);
 
   const noteForm = document.createElement("form");
@@ -537,8 +571,8 @@ async function render(message = statusMessage) {
     minHeight: "32px",
     padding: "5px 9px",
     border: "1px solid rgba(148,163,184,.24)",
-    borderRadius: "8px",
-    background: "rgba(0,0,0,.28)",
+    borderRadius: "10px",
+    background: "#0f172a",
     color: "#fff",
     font: "inherit",
     outline: "none",
@@ -621,8 +655,8 @@ async function render(message = statusMessage) {
   Object.assign(logPanel.style, {
     flex: "0 0 auto",
     border: "1px solid rgba(148,163,184,.18)",
-    borderRadius: "10px",
-    background: "rgba(0,0,0,.16)",
+    borderRadius: "11px",
+    background: "rgba(15,23,42,.58)",
     overflow: "hidden",
   });
   const logSummary = document.createElement("summary");
@@ -649,7 +683,7 @@ async function render(message = statusMessage) {
   logPanel.append(logSummary, logBody);
 
   const undoPanel = makeUndoPanel(undoEntries, async (undoMessage) => render(undoMessage));
-  panel.append(logPanel, undoPanel);
+  panel.append(close, logPanel, undoPanel);
   app.replaceChildren(panel);
 }
 

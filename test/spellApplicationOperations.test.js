@@ -41,3 +41,18 @@ test("le pill di una spell possono avere scadenze diverse dal parent", () => {
   assert.equal(chargedHit.manualRemoval, true);
   assert.equal(chargedHit.endsParentOnRemoval, true);
 });
+
+test("una pill può dichiararsi indipendente dal parent spell", () => {
+  const independent = spellEffectConditionOptions({
+    id: "banished-home",
+    kind: "debuff",
+    label: "Esiliato",
+    parentEffectId: "",
+    expiry: { mode: "manual" },
+  }, {
+    expiry: { mode: "concentration" },
+  }, "banishing-smite");
+
+  assert.equal(independent.parentEffectId, "");
+  assert.deepEqual(independent.expiry, { mode: "manual" });
+});

@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <style>
-    :root{--text:#fff;--muted:rgba(255,255,255,.66);--line:rgba(148,163,184,.2)}
+    :root{--text:#fff;--muted:rgba(255,255,255,.66);--line:rgba(148,163,184,.2);--surface:#0f172a;--surface-soft:rgba(15,23,42,.58);--surface-row:rgba(15,23,42,.72);--disabled:#374151}
     *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
     body{color:var(--text);font-size:var(--obrt-type-body);line-height:1.25}
     button,input,select{font:inherit}.glass-shell{width:100%;height:100%;min-height:0!important;display:flex;overflow:hidden}
@@ -97,11 +97,37 @@
       .footer{align-items:center;flex-direction:row;min-height:42px;padding-top:9px;gap:8px}.summary{width:auto;flex:1 1 auto;white-space:nowrap;font-size:var(--obrt-type-body)}.footer-actions{width:auto;flex:0 0 auto;gap:5px}.footer-actions .small{min-height:36px;padding:7px 12px;font-size:var(--obrt-type-body)}.apply{min-width:150px;min-height:36px;padding:7px 14px;font-size:var(--obrt-type-body)}
     }
     @media(max-width:520px){.save-options{grid-template-columns:1fr}.condition-card{min-height:0}.condition-details{grid-template-columns:1fr}.condition-details label{border-right:0!important;border-bottom:1px solid rgba(148,163,184,.18)!important}.condition-details label:last-child{border-bottom:0!important}}
+
+    /* Tema condiviso con Spells e Condizioni; la struttura del layout resta invariata. */
+    .close{border-radius:9px}
+    .mode-group{border-color:var(--line);border-radius:11px;background:var(--surface-row)}
+    .amount,.target-name-filter,.spell-search,.condition-details input{background:var(--surface)}
+    .save-options,.target-list,.bulk-panel{padding:8px;border:1px solid var(--line);border-radius:11px;background:var(--surface-soft)}
+    .save-options{gap:8px}
+    .condition-card,.effect-card{padding:8px;border-color:rgba(148,163,184,.14);border-radius:9px;background:var(--surface-row)}
+    .condition-card,.effect-card{gap:8px}
+    .spell-rule-summary{background:var(--surface-soft)}
+    .condition-details{border-color:var(--line);border-radius:11px;background:var(--surface-soft)}
+    .condition-details label{border-color:rgba(148,163,184,.14)}
+    .target-list{gap:5px}
+    .target{padding:6px 8px;border-color:rgba(148,163,184,.14);border-radius:9px;background:var(--surface-row)}
+    .target.disabled{background:var(--disabled)}
+    .small,.faction-toggle,.bulk-actions .small{border-color:var(--line);border-radius:8px;background:var(--surface)}
+    .factor-group,.outcome-group{border-color:var(--line);border-radius:9px;background:var(--surface-soft)}
+    .factor,.outcome{border-color:rgba(148,163,184,.18);background:transparent}
+    .bulk-panel{padding:0}
+    .bulk-row{padding:8px}
+    .bulk-panel>.status{padding:8px;border-color:rgba(148,163,184,.14)}
+    .footer{gap:8px;border-color:var(--line)}
+    .footer-actions{gap:5px}
+    .footer-actions .small,.apply{border-radius:9px}
+    .apply:disabled,.small:disabled{border-color:rgba(148,163,184,.28);background:var(--disabled);color:rgba(255,255,255,.62);filter:none}
+    input:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
   </style>
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/quick-hp-modal"><main class="panel">
-    <header class="header"><div class="title">Console HP rapida</div><button class="close" id="close" type="button" title="Chiudi">×</button></header>
+    <header class="header"><div class="title">Console HP rapida</div><button class="close" id="close" type="button" title="Chiudi">X</button></header>
     <section class="controls">
       <div class="mode-group" aria-label="Modalita">
         <button class="mode active" data-mode="damage" type="button">Danno</button>
@@ -117,7 +143,7 @@
         <label class="select-field">
           <div class="spell-combobox">
             <input class="spell-search" id="spellSearch" type="text" placeholder="Cerca incantesimo..." role="combobox" aria-autocomplete="list" aria-controls="spellMenu" aria-expanded="false" aria-label="Cerca o seleziona un incantesimo ad area" autocomplete="off" />
-            <button class="spell-menu-toggle" id="spellMenuToggle" type="button" aria-label="Mostra tutti gli incantesimi ad area" aria-controls="spellMenu" aria-expanded="false">▾</button>
+            <button class="spell-menu-toggle obrt-select-caret-toggle" id="spellMenuToggle" type="button" aria-label="Mostra tutti gli incantesimi ad area" aria-controls="spellMenu" aria-expanded="false">▾</button>
             <div class="spell-menu" id="spellMenu" role="listbox" hidden></div>
           </div>
           <select id="spellSelect" aria-hidden="true" tabindex="-1" hidden><option value="">Configurazione manuale</option></select>

@@ -115,8 +115,14 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     instance.effectKind = options.effectKind;
   }
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
+  if (options.mechanics && typeof options.mechanics === "object") {
+    instance.mechanics = clone(options.mechanics);
+  }
   if (options.manualRemoval === true) instance.manualRemoval = true;
   if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
+  if (options.parentRemoval === "target" || options.parentRemoval === "spell") {
+    instance.parentRemoval = options.parentRemoval;
+  }
   if (options.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
     instance.level = Math.max(1, normalizeExhaustionLevel(options.level || 1));
@@ -296,6 +302,9 @@ function applySpellUpsert(state, operation) {
   if (spellId) extra.spellId = spellId;
   const appliedAt = normalizedAppliedAt(operation?.appliedAt);
   if (appliedAt) extra.appliedAt = appliedAt;
+  if (operation?.castContext && typeof operation.castContext === "object") {
+    extra.castContext = clone(operation.castContext);
+  }
   const expiry = normalizedExpiry(operation?.expiry);
   if (operation?.expiry && expiry.mode !== "rounds") {
     if (expiry.mode === "turn-start" || expiry.mode === "turn-end") {
@@ -377,6 +386,13 @@ function finishExpiredConcentrations(states, spells = []) {
     seen.add(signature);
     breakConcentration(states, casterId, reference);
   }
+}
+
+function conditionParentRemoval(instance) {
+  if (instance?.parentRemoval === "target" || instance?.parentRemoval === "spell") {
+    return instance.parentRemoval;
+  }
+  return instance?.endsParentOnRemoval === true ? "spell" : "";
 }
 
 function applySpellBoundaryAdjustment(states, operation) {
@@ -612,21 +628,43 @@ function applyOperation(states, operation, options) {
       for (const [itemId, instanceIds] of byItem) {
         const state = states.get(itemId);
         if (!state) continue;
-        const parentIds = new Set(state.conditions
-          .filter((instance) =>
-            instanceIds.has(String(instance?.id || "")) &&
-            instance?.endsParentOnRemoval === true
-          )
-          .map((instance) => String(instance?.parentEffectId || "").trim())
-          .filter(Boolean));
+        const parentActions = new Map();
+        for (const instance of state.conditions) {
+          if (!instanceIds.has(String(instance?.id || ""))) continue;
+          const parentId = String(instance?.parentEffectId || "").trim();
+          const policy = conditionParentRemoval(instance);
+          if (!parentId || !policy) continue;
+          const previous = parentActions.get(parentId);
+          parentActions.set(parentId, {
+            parentId,
+            policy: previous?.policy === "spell" || policy === "spell" ? "spell" : "target",
+            sourceId: String(instance?.sourceId || previous?.sourceId || "").trim(),
+          });
+        }
         state.conditions = state.conditions.filter((instance) =>
           !instanceIds.has(String(instance?.id || ""))
         );
-        const removedSpells = [];
-        for (const parentId of parentIds) {
-          removedSpells.push(...removeSpellByInstance(state, parentId));
+        const globallyRemovedSpells = [];
+        for (const action of parentActions.values()) {
+          const removedSpells = removeSpellByInstance(state, action.parentId);
+          if (action.policy === "target") {
+            const concentrationSpell = removedSpells.find((spell) => spell?.conc);
+            const casterId = String(
+              concentrationSpell?.casterId || action.sourceId || ""
+            ).trim();
+            if (casterId) {
+              breakConcentrationOnTargets(
+                states,
+                casterId,
+                action.parentId,
+                [itemId],
+              );
+            }
+          } else {
+            globallyRemovedSpells.push(...removedSpells.filter((spell) => spell?.conc));
+          }
         }
-        finishExpiredConcentrations(states, removedSpells.filter((spell) => spell?.conc));
+        finishExpiredConcentrations(states, globallyRemovedSpells);
       }
       break;
     }

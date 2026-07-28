@@ -11,6 +11,8 @@
   --obrt-weight-medium: 500;
   --obrt-weight-semibold: 600;
   --obrt-weight-bold: 700;
+  --obrt-select-bg: #0f172a;
+  --obrt-select-caret-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2 6 6 10 2' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   font-family: var(--obrt-font-ui);
   font-synthesis: none;
@@ -32,4 +34,53 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px !important;
+  background-color: var(--obrt-select-bg) !important;
+  background-image: var(--obrt-select-caret-image) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 11px center !important;
+  background-size: 12px 8px !important;
+  color: #fff;
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: var(--obrt-select-bg);
+  color: #fff;
+}
+
+select:disabled {
+  background-color: #374151 !important;
+  color: rgba(255,255,255,.62);
+}
+
+.obrt-select-caret {
+  display: block;
+  width: 12px;
+  height: 8px;
+  background-image: var(--obrt-select-caret-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px 8px;
+}
+
+.obrt-select-caret-toggle::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 50% !important;
+  right: 10px !important;
+  width: 12px !important;
+  height: 8px !important;
+  border: 0 !important;
+  background-image: var(--obrt-select-caret-image) !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 12px 8px !important;
+  transform: translateY(-50%) !important;
 }

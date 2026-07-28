@@ -45,10 +45,9 @@ export function __compactEffectItems(
   const spellKey = typeof formatting.spellKey === "function"
     ? formatting.spellKey
     : compactSpellKey;
-  const spellEffects = conditionInstances.filter((instance) =>
-    instance?.effectKind === "buff" || instance?.effectKind === "debuff"
-  );
-  const effects = conditionInstances.filter((instance) => !spellEffects.includes(instance)).map((instance) => ({
+  const effects = conditionInstances.filter((instance) =>
+    instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
+  ).map((instance) => ({
     kind: "condition",
     label: __compactConditionPillLabel(instance, formatting),
     title: formatConditionInstance(instance),
@@ -61,15 +60,6 @@ export function __compactEffectItems(
       label: `${String(spell?.name || "Incantesimo")} (${counter})`,
       title: `${String(spell?.name || "Incantesimo")} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
     });
-    for (const instance of spellEffects.filter((effect) =>
-      String(effect?.parentEffectId || "") === String(spell?.instanceId || "")
-    )) {
-      effects.push({
-        kind: instance.effectKind,
-        label: String(instance.condition || "Effetto"),
-        title: formatConditionInstance(instance),
-      });
-    }
   }
   if (concentrating && !spells.some((spell) => spell?.conc)) {
     effects.push({

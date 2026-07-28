@@ -3,7 +3,7 @@ import { ID, ACTIVE_TURN_LABEL_META, TRACKER_PANEL_REQUEST_CHANNEL } from "./con
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, buildSpellEffectChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
+import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
@@ -54,6 +54,14 @@ import {
 } from "./initiativeRenderCore.js";
 import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
+import {
+  createMenuRequestId,
+  isAllowedCompactAdminMenuAction,
+  isAllowedInitiativeCardMenuAction,
+  isMenuMessageForRequest,
+  removeStoredMenuPayload,
+  writeStoredMenuPayload,
+} from "./menuPopoverProtocolCore.js";
 import {
   applyClassicCardFrame,
   buildClassicCardShell,
@@ -1835,6 +1843,13 @@ const classicNavigationRow = document.createElement("div");
 const compactRoundControls = document.createElement("div");
 const compactAdminMenu = document.createElement("div");
 const compactMoreButton = mkBtn("…");
+const COMPACT_ADMIN_MENU_ID = `${ID}/compact-admin-menu`;
+const COMPACT_ADMIN_MENU_CHANNEL = `${ID}/compact-admin-menu`;
+const COMPACT_ADMIN_MENU_WIDTH = 216;
+const COMPACT_ADMIN_MENU_HEIGHT = 220;
+let __compactAdminMenuOpen = false;
+let __compactAdminMenuRequestId = "";
+let __compactAdminMenuRevision = 0;
 
 compactMoreButton.title = "Altre azioni del tracker";
 compactMoreButton.setAttribute("aria-label", compactMoreButton.title);
@@ -1844,10 +1859,78 @@ compactAdminMenu.setAttribute("role", "menu");
 compactAdminMenu.setAttribute("aria-label", "Altre azioni del tracker");
 compactAdminMenu.style.display = "none";
 
+function __closeCompactAdminMenu() {
+  __compactAdminMenuRevision += 1;
+  __compactAdminMenuOpen = false;
+  __compactAdminMenuRequestId = "";
+  compactAdminMenu.style.display = "none";
+  compactMoreButton.setAttribute("aria-expanded", "false");
+  return OBR.popover.close(COMPACT_ADMIN_MENU_ID).catch(() => {});
+}
+
+async function __getCompactAdminMenuPlacement() {
+  let viewportWidth = 1200;
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  const trackerAnchor = await getCompactTrackerPopoverAnchor();
+  const trackerOrigin = __compactTrackerFrameOrigin(trackerAnchor);
+  const buttonRect = compactMoreButton.getBoundingClientRect();
+  const buttonLeft = trackerOrigin.left + buttonRect.left;
+  const buttonRight = trackerOrigin.left + buttonRect.right;
+  const buttonBottom = trackerOrigin.top + buttonRect.bottom;
+  const openRight = buttonRight + 8 + COMPACT_ADMIN_MENU_WIDTH <= viewportWidth - 12;
+
+  return {
+    anchorPosition: {
+      left: Math.round(openRight ? buttonRight + 8 : buttonLeft - 8),
+      top: Math.round(buttonBottom),
+    },
+    anchorOrigin: {
+      horizontal: openRight ? "LEFT" : "RIGHT",
+      vertical: "BOTTOM",
+    },
+    transformOrigin: {
+      horizontal: openRight ? "LEFT" : "RIGHT",
+      vertical: "BOTTOM",
+    },
+  };
+}
+
+function __openCompactAdminMenu() {
+  if (!IS_GM || !isCompactTrackerLayout()) return;
+  const closePromise = __closeCompactAdminMenu();
+  const openRevision = __compactAdminMenuRevision;
+  const requestId = createMenuRequestId();
+  __compactAdminMenuRequestId = requestId;
+
+  void (async () => {
+    await closePromise;
+    if (__compactAdminMenuRevision !== openRevision ||
+        __compactAdminMenuRequestId !== requestId) return;
+    const placement = await __getCompactAdminMenuPlacement();
+    if (__compactAdminMenuRequestId !== requestId) return;
+    await OBR.popover.open({
+      id: COMPACT_ADMIN_MENU_ID,
+      url: `/compact-admin-menu.html?request=${encodeURIComponent(requestId)}`,
+      width: COMPACT_ADMIN_MENU_WIDTH,
+      height: COMPACT_ADMIN_MENU_HEIGHT,
+      anchorReference: "POSITION",
+      ...placement,
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __compactAdminMenuOpen = true;
+    compactMoreButton.setAttribute("aria-expanded", "true");
+  })().catch((error) => {
+    console.warn("[compact-admin-menu] apertura fallita:", error?.message || error);
+    __closeCompactAdminMenu();
+  });
+}
+
 function setCompactAdminMenuOpen(open) {
   const visible = !!open && isCompactTrackerLayout();
-  compactAdminMenu.style.display = visible ? "grid" : "none";
-  compactMoreButton.setAttribute("aria-expanded", visible ? "true" : "false");
+  if (visible) __openCompactAdminMenu();
+  else void __closeCompactAdminMenu();
 }
 
 compactMoreButton.addEventListener("click", (event) => {
@@ -1855,13 +1938,37 @@ compactMoreButton.addEventListener("click", (event) => {
   setCompactAdminMenuOpen(compactMoreButton.getAttribute("aria-expanded") !== "true");
 });
 document.addEventListener("pointerdown", (event) => {
-  if (compactMoreButton.getAttribute("aria-expanded") === "true" && !roundPill.contains(event.target)) {
+  if (__compactAdminMenuOpen && !compactMoreButton.contains(event.target)) {
     setCompactAdminMenuOpen(false);
   }
 });
-compactAdminMenu.addEventListener("click", (event) => {
-  if (event.target.closest("button")) window.setTimeout(() => setCompactAdminMenuOpen(false), 0);
-});
+
+function mountCompactAdminMenuListener() {
+  OBR.broadcast.onMessage(COMPACT_ADMIN_MENU_CHANNEL, (event) => {
+    const data = event?.data;
+    if (!isMenuMessageForRequest(data, __compactAdminMenuRequestId)) return;
+    if (data.type === "close") {
+      void __closeCompactAdminMenu();
+      return;
+    }
+    if (data.type !== "action" || !isAllowedCompactAdminMenuAction(data.action)) return;
+
+    const selectors = {
+      "reset-round": "[data-reset-round='1']",
+      history: "[data-history='1']",
+      "add-all": "[data-add-all-initiative='1']",
+      "fill-initiative": "[data-fill-initiative='1']",
+      factions: "[data-faction-configurator='1']",
+      "clear-initiative": "[data-clear-initiative='1']",
+    };
+    const selector = selectors[data.action];
+    const control = selector ? compactAdminMenu.querySelector(selector) : null;
+    const closePromise = __closeCompactAdminMenu();
+    if (control instanceof HTMLButtonElement) {
+      void closePromise.then(() => control.click());
+    }
+  });
+}
 
 function applyToolbarLayoutPresentation(compact) {
   applyToolbarLayoutPresentationView(compact, {
@@ -2028,6 +2135,16 @@ function applyHeaderLayoutPresentation(compact) {
     button.tabIndex = primary || admin ? 0 : button.tabIndex;
   });
 
+  for (const button of [trackerDragHandle, layoutToggleButton, compactMoreButton]) {
+    Object.assign(button.style, {
+      marginLeft: compact ? "0" : (button === layoutToggleButton ? "4px" : "0"),
+      marginRight: compact ? "0" : (button === layoutToggleButton ? "4px" : "0"),
+      alignSelf: "center",
+      justifySelf: "center",
+      boxSizing: "border-box",
+    });
+  }
+
   Object.assign(trackerDragHandle.style, {
     display: compact ? "flex" : "none",
     width: compact ? "26px" : "",
@@ -2166,7 +2283,7 @@ function applyTrackerLayout() {
       width: "100%",
       display: "grid",
       gridTemplateColumns: "26px",
-      alignItems: "center",
+      placeItems: "center",
       justifyContent: "center",
       gap: "3px",
     });
@@ -4817,6 +4934,7 @@ const TRACKER_POPOVER_IDS = [
   `${ID}/quick-hp-modal`,
   `${ID}/initiative-card-modal`,
   `${ID}/compact-effects-popover`,
+  COMPACT_ADMIN_MENU_ID,
 ];
 let __openTrackerPopoverId = "";
 
@@ -4919,7 +5037,7 @@ async function openCardEffectsPopup(sourceEntry, entries) {
       id: popupId,
       url: `/effects-modal.html?source=${encodeURIComponent(sourceId)}`,
       width: 560,
-      height: 560,
+      height: 760,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -4955,7 +5073,7 @@ async function openCardSpellsPopup(sourceEntry) {
       id: popupId,
       url: popupUrl,
       width: 560,
-      height: 560,
+      height: 760,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -5004,14 +5122,31 @@ async function openInitiativeCardPopup(sourceEntry) {
   }
 }
 
+const INITIATIVE_CARD_CONTEXT_MENU_ID = `${ID}/initiative-card-context-menu`;
+const INITIATIVE_CARD_CONTEXT_MENU_CHANNEL = `${ID}/initiative-card-context-menu`;
+const INITIATIVE_CARD_CONTEXT_MENU_PAYLOAD_PREFIX = `${ID}/initiative-card-context-menu/`;
+const INITIATIVE_CARD_CONTEXT_MENU_WIDTH = 252;
+const INITIATIVE_CARD_CONTEXT_MENU_INITIAL_HEIGHT = 336;
+
 let __initiativeCardContextMenu = null;
-let __initiativeCardContextMenuAbort = null;
+let __initiativeCardContextMenuRequestId = "";
+let __initiativeCardContextMenuContext = null;
+let __initiativeCardContextMenuRevision = 0;
 
 function __closeInitiativeCardContextMenu() {
-  __initiativeCardContextMenuAbort?.abort();
-  __initiativeCardContextMenuAbort = null;
-  __initiativeCardContextMenu?.remove();
+  if (__initiativeCardContextMenuRequestId) {
+    removeStoredMenuPayload(
+      localStorage,
+      INITIATIVE_CARD_CONTEXT_MENU_PAYLOAD_PREFIX,
+      __initiativeCardContextMenuRequestId
+    );
+  }
+  const closePromise = OBR.popover.close(INITIATIVE_CARD_CONTEXT_MENU_ID).catch(() => {});
   __initiativeCardContextMenu = null;
+  __initiativeCardContextMenuRequestId = "";
+  __initiativeCardContextMenuContext = null;
+  __initiativeCardContextMenuRevision += 1;
+  return closePromise;
 }
 
 function __cardBossMode(entry) {
@@ -5177,8 +5312,11 @@ async function __clearCardSpells(ids) {
   await refreshConditionLabels(scopeIds);
 }
 
-async function __clearCardConcentrations(ids) {
-  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+async function __clearCardConcentrations(ids, sourceEntry = null) {
+  const scopeIds = Array.from(new Set([
+    ...(ids || []),
+    ...__selectionIdsForEntry(sourceEntry),
+  ].filter(Boolean)));
   if (!scopeIds.length) return;
   const mutationPlan = await prepareEffectsMutation([{
     type: "concentration:break",
@@ -5197,261 +5335,202 @@ async function __clearCardConcentrations(ids) {
   await refreshConditionLabels(historyIds);
 }
 
+async function __getInitiativeCardContextMenuPlacement(event) {
+  let viewportWidth = 1200;
+  let viewportHeight = 800;
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+
+  const width = Math.max(232, Math.min(INITIATIVE_CARD_CONTEXT_MENU_WIDTH, viewportWidth - 24));
+  const height = Math.max(220, Math.min(INITIATIVE_CARD_CONTEXT_MENU_INITIAL_HEIGHT, viewportHeight - 24));
+
+  let frameLeft = 0;
+  let frameTop = 0;
+  if (isCompactTrackerLayout()) {
+    const fallbackTrackerWidth = Math.max(260, Math.min(1180, Math.floor(viewportWidth - 32)));
+    const [trackerAnchor, trackerWidth, trackerHeight] = await Promise.all([
+      getCompactTrackerPopoverAnchor(),
+      OBR.popover.getWidth(TRACKER_POPOVER_ID).catch(() => undefined),
+      OBR.popover.getHeight(TRACKER_POPOVER_ID).catch(() => undefined),
+    ]);
+    const actualTrackerWidth = Number(trackerWidth) || fallbackTrackerWidth;
+    const actualTrackerHeight = Number(trackerHeight) || 156;
+    frameLeft = Math.max(
+      12,
+      Math.min(
+        Number(trackerAnchor?.left) - actualTrackerWidth / 2,
+        viewportWidth - actualTrackerWidth - 12
+      )
+    );
+    frameTop = Math.max(
+      12,
+      Math.min(
+        Number(trackerAnchor?.top) - actualTrackerHeight,
+        viewportHeight - actualTrackerHeight - 12
+      )
+    );
+  } else {
+    try {
+      const frameRect = window.frameElement?.getBoundingClientRect?.();
+      frameLeft = Number(frameRect?.left) || 0;
+      frameTop = Number(frameRect?.top) || 0;
+    } catch {}
+  }
+
+  const left = frameLeft + Number(event.clientX || 0);
+  const top = frameTop + Number(event.clientY || 0);
+  const margin = 12;
+  const horizontal = left + width > viewportWidth - margin
+    ? "RIGHT"
+    : "LEFT";
+  const vertical = top + height > viewportHeight - margin
+    ? "BOTTOM"
+    : "TOP";
+
+  return {
+    width,
+    height,
+    anchorPosition: { left: Math.round(left), top: Math.round(top) },
+    anchorOrigin: { horizontal, vertical },
+    transformOrigin: { horizontal, vertical },
+  };
+}
+
+async function __handleInitiativeCardContextMenuAction(context, data) {
+  const action = String(data?.action || "");
+  const value = String(data?.value || "");
+  if (!isAllowedInitiativeCardMenuAction(action, value)) return;
+  const { sourceEntry, scopeIds } = context;
+
+  if (action === "conditions") {
+    await __selectContextScope(scopeIds);
+    await openCardEffectsPopup(sourceEntry);
+  } else if (action === "clear-conditions") {
+    await __clearCardConditions(scopeIds);
+  } else if (action === "spells") {
+    await __selectContextScope(scopeIds);
+    await openCardSpellsPopup(sourceEntry);
+  } else if (action === "clear-spells") {
+    await __clearCardSpells(scopeIds);
+  } else if (action === "clear-concentration") {
+    await __clearCardConcentrations(scopeIds, sourceEntry);
+  } else if (action === "initiative-card") {
+    await openInitiativeCardPopup(sourceEntry);
+  } else if (action === "attitude" && ["ally", "neutral", "pc", "enemy"].includes(value)) {
+    await __setCardAttitude(scopeIds, value);
+  } else if (action === "boss-mode" && ["none", "legendary", "paragon", "epic"].includes(value)) {
+    await __setCardBossMode(sourceEntry, value);
+  } else if (action === "remove") {
+    await __removeCardFromInitiative(scopeIds);
+  }
+}
+
+function mountInitiativeCardContextMenuListener() {
+  OBR.broadcast.onMessage(INITIATIVE_CARD_CONTEXT_MENU_CHANNEL, (event) => {
+    const data = event?.data;
+    if (!isMenuMessageForRequest(data, __initiativeCardContextMenuRequestId)) return;
+
+    if (data.type === "close") {
+      __closeInitiativeCardContextMenu();
+      return;
+    }
+    if (data.type === "resize") {
+      const height = Math.max(120, Math.round(Number(data.height) || 0));
+      void OBR.popover.setHeight(INITIATIVE_CARD_CONTEXT_MENU_ID, height).catch(() => {});
+      return;
+    }
+    if (data.type !== "action" ||
+        !__initiativeCardContextMenuContext ||
+        !isAllowedInitiativeCardMenuAction(data.action, data.value)) return;
+
+    const context = __initiativeCardContextMenuContext;
+    __closeInitiativeCardContextMenu();
+    void __handleInitiativeCardContextMenuAction(context, data).catch((error) => {
+      console.warn("[initiative-card-context-menu] action error:", error?.message || error);
+    });
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !__initiativeCardContextMenu) return;
+    void __closeInitiativeCardContextMenu();
+  }, { capture: true });
+}
+
 function __openInitiativeCardContextMenu(sourceEntry, event) {
   if (!IS_GM || !sourceEntry ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   event.preventDefault();
   event.stopPropagation();
-  __closeInitiativeCardContextMenu();
+  const closePromise = __closeInitiativeCardContextMenu();
+  const openRevision = __initiativeCardContextMenuRevision;
   const scopeIds = __contextScopeIds(sourceEntry);
   const isBulkScope = scopeIds.length > 1;
   const menuTitle = sourceEntry.__groupCollapsed
     ? sourceEntry.__groupBase
     : sourceEntry.name;
-
-  const menu = document.createElement("div");
-  menu.setAttribute("role", "menu");
-  Object.assign(menu.style, {
-    position: "fixed",
-    left: `${event.clientX}px`,
-    top: `${event.clientY}px`,
-    minWidth: "216px",
-    maxHeight: "calc(100vh - 16px)",
-    padding: "5px",
-    border: "1px solid rgba(255,255,255,.16)",
-    borderRadius: "12px",
-    background: "rgba(42,47,64,.62)",
-    backdropFilter: "blur(18px) saturate(125%)",
-    WebkitBackdropFilter: "blur(18px) saturate(125%)",
-    boxShadow: "0 16px 42px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.07)",
-    color: "#fff",
-    fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
-    fontSize: "12px",
-    zIndex: "100000",
-    overflowY: "auto",
-    overscrollBehavior: "contain",
-  });
-
-  const title = document.createElement("div");
-  title.textContent = isBulkScope
-    ? `${menuTitle || "Azioni"} (${scopeIds.length})`
-    : (menuTitle || "Azioni");
-  Object.assign(title.style, {
-    padding: "5px 7px 7px",
-    marginBottom: "3px",
-    borderBottom: "1px solid rgba(255,255,255,.12)",
-    fontSize: "12px",
-    fontWeight: "700",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  });
-  menu.appendChild(title);
-
-  const asset = (name) => `${import.meta.env.BASE_URL || "/"}${name}`;
-  const iconNode = (icon, color) => {
-    if (color) {
-      const dot = document.createElement("span");
-      Object.assign(dot.style, {
-        width: "11px", height: "11px", flex: "0 0 11px",
-        borderRadius: "999px", background: color,
-        border: "1px solid rgba(255,255,255,.55)",
-      });
-      return dot;
-    }
-    const image = document.createElement("img");
-    image.src = asset(icon);
-    image.alt = "";
-    Object.assign(image.style, {
-      width: "16px", height: "16px", flex: "0 0 16px",
-      objectFit: "contain", pointerEvents: "none",
-      filter: icon === "conditions-panel.svg" || icon === "spells-panel.svg" || icon === "character-sheet.svg"
-        ? "none" : "brightness(0) invert(1)",
-    });
-    return image;
-  };
-
-  const makeAction = (parent, label, icon, action, options = {}) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("role", "menuitem");
-    button.disabled = !!options.disabled;
-    button.setAttribute("aria-disabled", String(!!options.disabled));
-    if (options.title) button.title = options.title;
-    Object.assign(button.style, {
-      width: "100%", minHeight: "31px", padding: "5px 7px",
-      border: "0", borderRadius: "7px",
-      background: options.current ? "rgba(37,99,235,.30)" : "transparent",
-      color: options.disabled ? "rgba(255,255,255,.42)" : options.danger ? "#fecaca" : "#fff",
-      fontFamily: "inherit", fontSize: "12px", fontWeight: "600",
-      textAlign: "left", cursor: options.disabled ? "default" : "pointer",
-      display: "flex", alignItems: "center", gap: "7px",
-      opacity: options.disabled ? ".62" : "1",
-    });
-    button.appendChild(iconNode(icon, options.color));
-    const labelNode = document.createElement("span");
-    labelNode.textContent = label;
-    labelNode.style.flex = "1 1 auto";
-    button.appendChild(labelNode);
-    if (options.trailing) {
-      const trailing = document.createElement("span");
-      trailing.textContent = options.trailing;
-      trailing.style.opacity = ".72";
-      button.appendChild(trailing);
-    }
-    button.addEventListener("pointerenter", () => {
-      if (options.disabled) return;
-      button.style.background = "rgba(255,255,255,.12)";
-    });
-    button.addEventListener("pointerleave", () => {
-      if (options.disabled) return;
-      button.style.background = options.current ? "rgba(37,99,235,.30)" : "transparent";
-    });
-    if (action && !options.disabled) {
-      button.addEventListener("click", async (clickEvent) => {
-        clickEvent.preventDefault();
-        clickEvent.stopPropagation();
-        __closeInitiativeCardContextMenu();
-        await action();
-      });
-    }
-    parent.appendChild(button);
-    return button;
-  };
-
-  const addAction = (label, icon, action, options) =>
-    makeAction(menu, label, icon, action, options);
-  let openSubmenu = null;
-  const addSubmenu = (label, icon, entries) => {
-    const wrap = document.createElement("div");
-    const content = document.createElement("div");
-    Object.assign(content.style, {
-      display: "none", margin: "1px 0 3px 23px", padding: "2px",
-      borderLeft: "1px solid rgba(255,255,255,.14)",
-    });
-    const trigger = makeAction(wrap, label, icon, null, { trailing: ">" });
-    trigger.addEventListener("click", (clickEvent) => {
-      clickEvent.preventDefault();
-      clickEvent.stopPropagation();
-      if (openSubmenu && openSubmenu !== content) openSubmenu.style.display = "none";
-      const show = content.style.display === "none";
-      content.style.display = show ? "block" : "none";
-      openSubmenu = show ? content : null;
-    });
-    for (const entry of entries) {
-      makeAction(content, entry.label, entry.icon, entry.action, entry.options);
-    }
-    wrap.appendChild(content);
-    menu.appendChild(wrap);
-  };
-  const divider = () => {
-    const line = document.createElement("div");
-    Object.assign(line.style, {
-      height: "1px", margin: "3px 5px",
-      background: "rgba(255,255,255,.12)",
-    });
-    menu.appendChild(line);
-  };
-
-  const expandedTokenMenu = !isCompactTrackerLayout() && !sourceEntry.__groupCollapsed;
+  const expandedTokenMenu = !sourceEntry.__groupCollapsed;
   const hasActiveConcentration = !!sourceEntry.isConcentrating || scopeIds.some((id) =>
     __activeLabelEntriesById.get(id)?.isConcentrating
   );
 
-  addAction("Condizioni", "conditions-panel.svg", async () => {
-    await __selectContextScope(scopeIds);
-    await openCardEffectsPopup(sourceEntry);
-  });
-  if (expandedTokenMenu) {
-    addAction("Rimuovi condizioni", "conditions-panel.svg",
-      () => __clearCardConditions(scopeIds), { danger: true });
-    divider();
-  }
-  addAction("Incantesimi", "spells-panel.svg", async () => {
-    await __selectContextScope(scopeIds);
-    await openCardSpellsPopup(sourceEntry);
-  });
-  if (expandedTokenMenu) {
-    addAction("Termina incantesimi", "spells-panel.svg",
-      () => __clearCardSpells(scopeIds), { danger: true });
-    addAction("Termina concentrazione", "spells-panel.svg",
-      () => __clearCardConcentrations(scopeIds), {
-        danger: true,
-        disabled: !hasActiveConcentration,
-        title: hasActiveConcentration ? "Termina la concentrazione attiva" : "Nessuna concentrazione attiva",
-      });
-    divider();
-  }
-  if (!isBulkScope && ["pc", "ally"].includes(sourceEntry.attitude)) {
-    addAction("Scheda iniziativa", "character-sheet.svg", () => openInitiativeCardPopup(sourceEntry));
-    divider();
-  } else if (!expandedTokenMenu) {
-    divider();
-  }
-  const attitudes = [
-    { value: "ally", label: "Alleato", color: "#22c55e" },
-    { value: "neutral", label: "Neutrale", color: "#eab308" },
-    { value: "pc", label: "Personaggio", color: "#3b82f6" },
-    { value: "enemy", label: "Nemico", color: "#ef4444" },
-  ];
-  addSubmenu("Cambia fazione", "mark.svg", attitudes.map((item) => ({
-    label: item.label,
-    icon: "mark.svg",
-    action: () => __setCardAttitude(scopeIds, item.value),
-    options: {
-      color: item.color,
-      current: (!isBulkScope || sourceEntry.__groupCollapsed) && sourceEntry.attitude === item.value,
-      trailing: (!isBulkScope || sourceEntry.__groupCollapsed) && sourceEntry.attitude === item.value ? "Attiva" : "",
-    },
-  })));
-
-  if (!isBulkScope && sourceEntry.attitude === "enemy") {
-    const activeMode = __cardBossMode(sourceEntry);
-    const modes = [
-      { value: "none", label: "Nessuno", icon: "boss-remove.svg" },
-      { value: "legendary", label: "Azioni Leggendarie", icon: "boss.svg" },
-      { value: "paragon", label: "Paragon Boss", icon: "boss.svg" },
-      { value: "epic", label: "Epic Boss", icon: "boss.svg" },
-    ];
-    addSubmenu("Tipo di Boss", "boss.svg", modes.map((item) => ({
-      label: item.label,
-      icon: item.icon,
-      action: () => __setCardBossMode(sourceEntry, item.value),
-      options: {
-        current: activeMode === item.value,
-        trailing: activeMode === item.value ? "Attivo" : "",
-      },
-    })));
+  const requestId = createMenuRequestId();
+  const payload = {
+    title: isBulkScope ? `${menuTitle || "Azioni"} (${scopeIds.length})` : (menuTitle || "Azioni"),
+    isBulkScope,
+    scopeCount: scopeIds.length,
+    expandedTokenMenu,
+    hasActiveConcentration,
+    attitude: sourceEntry.attitude,
+    activeMode: __cardBossMode(sourceEntry),
+    groupCollapsed: !!sourceEntry.__groupCollapsed,
+    showInitiativeCard: !isBulkScope && ["pc", "ally"].includes(sourceEntry.attitude),
+    showBossMenu: !isBulkScope && sourceEntry.attitude === "enemy",
+  };
+  if (!writeStoredMenuPayload(
+    localStorage,
+    INITIATIVE_CARD_CONTEXT_MENU_PAYLOAD_PREFIX,
+    requestId,
+    payload
+  )) {
+    console.warn("[initiative-card-context-menu] payload error");
+    return;
   }
 
-
-  divider();
-  addAction("Rimuovi dall'iniziativa", "remove.svg",
-    () => __removeCardFromInitiative(scopeIds), {
-      danger: true,
-      trailing: isBulkScope ? String(scopeIds.length) : "",
+  __initiativeCardContextMenuRequestId = requestId;
+  __initiativeCardContextMenuContext = { sourceEntry, scopeIds };
+  void (async () => {
+    await closePromise;
+    if (__initiativeCardContextMenuRevision !== openRevision) return;
+    const placement = await __getInitiativeCardContextMenuPlacement(event);
+    if (__initiativeCardContextMenuRequestId !== requestId) return;
+    await OBR.popover.open({
+      id: INITIATIVE_CARD_CONTEXT_MENU_ID,
+      url: `/initiative-card-context-menu.html?request=${encodeURIComponent(requestId)}`,
+      width: placement.width,
+      height: placement.height,
+      anchorReference: "POSITION",
+      ...placement,
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
     });
-
-  document.body.appendChild(menu);
-  __initiativeCardContextMenu = menu;
-  const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
-  menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8))}px`;
-
-  const abort = new AbortController();
-  __initiativeCardContextMenuAbort = abort;
-  document.addEventListener("pointerdown", (outsideEvent) => {
-    if (!menu.contains(outsideEvent.target)) __closeInitiativeCardContextMenu();
-  }, { capture: true, signal: abort.signal });
-  document.addEventListener("keydown", (keyEvent) => {
-    if (keyEvent.key === "Escape") __closeInitiativeCardContextMenu();
-  }, { signal: abort.signal });
-  document.addEventListener("scroll", __closeInitiativeCardContextMenu, {
-    capture: true, signal: abort.signal,
+    __initiativeCardContextMenu = true;
+  })().catch((error) => {
+    console.warn("[initiative-card-context-menu] popover open error:", error?.message || error);
+    __closeInitiativeCardContextMenu();
   });
-  window.addEventListener("blur", __closeInitiativeCardContextMenu, { signal: abort.signal });
 }
+
+function __bindInitiativeCardContextMenu(card, sourceEntry) {
+  card.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    __openInitiativeCardContextMenu(sourceEntry, event);
+  }, { capture: true });
+}
+
     // ===== Render card
 let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
@@ -6249,9 +6328,7 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
       event.stopPropagation();
       void __selectTrackerEntry(entry, event);
     });
-    card.addEventListener("contextmenu", (event) => {
-      __openInitiativeCardContextMenu(entry, event);
-    });
+    __bindInitiativeCardContextMenu(card, entry);
 
     const { portrait, bossFrame } = buildCompactCardPortrait(entry, {
       active,
@@ -6493,9 +6570,7 @@ for (const e of entries) {
       event.stopPropagation();
       void __selectTrackerEntry(e, event);
     });
-    card.addEventListener("contextmenu", (event) => {
-      __openInitiativeCardContextMenu(e, event);
-    });
+    __bindInitiativeCardContextMenu(card, e);
 
 // base card
 card.style.minWidth = "284px";
@@ -6557,15 +6632,15 @@ const isNext = e.__groupMembers
     // gradiente “tintato” col colore di fazione
     card.style.background =
       `linear-gradient(105deg,
-        ${rgba(c.base, .82)} 0%,
-        ${rgba(c.base, .52)} 52%,
-        rgba(34,43,56,.96) 100%
+        ${rgba(c.base, .94)} 0%,
+        ${rgba(c.base, .80)} 52%,
+        rgba(40,51,68,.86) 100%
       )`;
 
     card.style.boxShadow =
       `0 0 0 2px ${c.border},
-      0 0 16px 3px ${rgba(c.base, .42)},
-      inset 0 0 0 1px rgba(255,255,255,.38)`;
+      0 0 20px 4px ${rgba(c.base, .58)},
+      inset 0 0 0 2px rgba(255,255,255,.48)`;
 
     card.dataset.active = "1";
 {
@@ -7290,12 +7365,6 @@ if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
   }
 
     fragAll.appendChild(fragSp);
-    if (spell?.instanceId) {
-      fragAll.appendChild(buildSpellEffectChips(condData, {
-        compact: true,
-        parentEffectId: spell.instanceId,
-      }));
-    }
     }
 }
 
@@ -9030,9 +9099,11 @@ try {
     __prevActiveId = activeIdNow; // aggiorna per il prossimo render
   }
 
-  OBR.onReady(async () => {
-    mountTrackerPopoverToggleListener();
-    mountSpeedCheckStateBroadcast();
+    OBR.onReady(async () => {
+      mountTrackerPopoverToggleListener();
+      mountInitiativeCardContextMenuListener();
+      mountCompactAdminMenuListener();
+      mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();
     await mountTurnNoticeBroadcast().catch(() => {});
     await mountSpeedWarningBroadcast().catch(() => {});

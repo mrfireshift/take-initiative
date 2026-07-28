@@ -45,8 +45,14 @@ function normalizeConditionRule(value) {
     options.effectKind = rule.effectKind;
   }
   if (rule.effectDetail) options.effectDetail = String(rule.effectDetail);
+  if (rule.mechanics && typeof rule.mechanics === "object") {
+    options.mechanics = clone(rule.mechanics);
+  }
   if (rule.manualRemoval === true) options.manualRemoval = true;
   if (rule.endsParentOnRemoval === true) options.endsParentOnRemoval = true;
+  if (rule.parentRemoval === "target" || rule.parentRemoval === "spell") {
+    options.parentRemoval = rule.parentRemoval;
+  }
   if (rule.exhaustionContribution === true) options.exhaustionContribution = true;
 
   return { conditionName, options };

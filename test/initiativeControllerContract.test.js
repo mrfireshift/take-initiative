@@ -86,3 +86,13 @@ test("il render reale conserva revisioni stale e guard degli editor", () => {
     /__initiativeDiag\("render:committed",\s*\{[\s\S]*?durationMs:\s*renderDurationMs\(\)/
   );
 });
+
+test("la card classica non monta le pill buff e debuff dello spell", () => {
+  const section = sourceSection(
+    "// 2) Incantesimi",
+    "// 3) Monta TUTTO assieme"
+  );
+
+  assert.doesNotMatch(section, /buildSpellEffectChips/);
+  assert.match(section, /fragAll\.appendChild\(fragSp\)/);
+});

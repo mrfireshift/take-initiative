@@ -158,6 +158,7 @@ function styleBase() {
     }
     @media (max-width: 420px) {
       [data-effects-form-grid] { grid-template-columns: 1fr !important; }
+      [data-effects-field] { grid-template-columns: 1fr !important; }
       [data-effects-target-grid] { grid-template-columns: 1fr !important; }
     }
   `;
@@ -172,7 +173,7 @@ function field<T extends HTMLElement>(el: T) {
     padding: "6px 8px",
     borderRadius: "10px",
     border: "1px solid rgba(148,163,184,.28)",
-    background: "rgba(0,0,0,.35)",
+    background: "#0f172a",
     color: "var(--obrt-text)",
     font: "inherit",
     lineHeight: "1.2",
@@ -198,8 +199,17 @@ function caption(text: string) {
 
 function cell(label: string, el: HTMLElement) {
   const wrap = document.createElement("div");
-  wrap.style.minWidth = "0";
-  wrap.append(caption(label), field(el));
+  wrap.dataset.effectsField = "1";
+  Object.assign(wrap.style, {
+    display: "grid",
+    gridTemplateColumns: "86px minmax(0, 1fr)",
+    gap: "8px",
+    alignItems: "center",
+    minWidth: "0",
+  });
+  const labelElement = caption(label);
+  labelElement.style.margin = "0";
+  wrap.append(labelElement, field(el));
   return wrap;
 }
 
@@ -211,7 +221,7 @@ function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "n
     ? { base: "#2563eb", hover: "#1d4ed8", border: "rgba(255,255,255,.20)" }
     : tone === "danger"
       ? { base: "rgba(220,38,38,.28)", hover: "rgba(220,38,38,.46)", border: "rgba(248,113,113,.42)" }
-      : { base: "rgba(255,255,255,.07)", hover: "rgba(255,255,255,.12)", border: "rgba(255,255,255,.15)" };
+      : { base: "#0f172a", hover: "#1e293b", border: "rgba(148,163,184,.28)" };
   Object.assign(button.style, {
     minHeight: "32px",
     padding: "8px 12px",
@@ -234,6 +244,7 @@ function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "n
 function setButtonEnabled(button: HTMLButtonElement, enabled: boolean) {
   button.disabled = !enabled;
   button.style.opacity = enabled ? "1" : ".6";
+  button.style.filter = enabled ? "none" : "grayscale(.7)";
   button.style.cursor = enabled ? "pointer" : "default";
 }
 
@@ -298,13 +309,13 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   grid.dataset.effectsFormGrid = "1";
   Object.assign(grid.style, {
     display: "grid",
-    gridTemplateColumns: "minmax(170px,1.35fr) 82px 125px minmax(150px,1fr) auto",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "6px",
     alignItems: "end",
     padding: "8px",
     border: "1px solid rgba(148,163,184,.20)",
     borderRadius: "11px",
-    background: "rgba(3,7,18,.30)",
+    background: "rgba(15,23,42,.72)",
   });
 
   const effectSelect = document.createElement("select");
@@ -330,8 +341,18 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   customEffectInput.style.marginTop = "6px";
 
   const effectCell = document.createElement("div");
-  effectCell.style.minWidth = "0";
-  effectCell.append(caption("CONDIZIONE"), field(effectSelect), field(customEffectInput));
+  effectCell.dataset.effectsField = "1";
+  Object.assign(effectCell.style, {
+    display: "grid",
+    gridTemplateColumns: "86px minmax(0, 1fr)",
+    gap: "8px",
+    alignItems: "center",
+    minWidth: "0",
+  });
+  const effectCaption = caption("CONDIZIONE");
+  effectCaption.style.margin = "0";
+  customEffectInput.style.gridColumn = "2";
+  effectCell.append(effectCaption, field(effectSelect), field(customEffectInput));
 
   const durationInput = document.createElement("input");
   durationInput.type = "number";
@@ -365,10 +386,22 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   actorButton.setAttribute("aria-expanded", "false");
   Object.assign(actorButton.style, {
     textAlign: "left",
+    paddingRight: "30px",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
     cursor: "pointer",
+  });
+
+  const actorCaret = document.createElement("span");
+  actorCaret.className = "obrt-select-caret";
+  actorCaret.setAttribute("aria-hidden", "true");
+  Object.assign(actorCaret.style, {
+    position: "absolute",
+    top: "50%",
+    right: "11px",
+    pointerEvents: "none",
+    transform: "translateY(-50%)",
   });
 
   const actorMenu = document.createElement("div");
@@ -429,14 +462,24 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   actorButton.addEventListener("click", () => {
     if (!actorButton.disabled) setActorMenuOpen(actorMenu.style.display === "none");
   });
-  actorPicker.append(actorButton, actorMenu);
+  actorPicker.append(actorButton, actorCaret, actorMenu);
   panel.addEventListener("pointerdown", () => setActorMenuOpen(false));
 
   const actorCell = document.createElement("div");
-  actorCell.style.minWidth = "0";
-  actorCell.append(caption("FONTE"), actorPicker);
+  actorCell.dataset.effectsField = "1";
+  Object.assign(actorCell.style, {
+    display: "grid",
+    gridTemplateColumns: "86px minmax(0, 1fr)",
+    gap: "8px",
+    alignItems: "center",
+    minWidth: "0",
+  });
+  const actorCaption = caption("FONTE");
+  actorCaption.style.margin = "0";
+  actorCell.append(actorCaption, actorPicker);
 
   const addButton = commandButton("Aggiungi", "primary");
+  addButton.style.gridColumn = "1 / -1";
   grid.append(
     effectCell,
     cell("DURATA", durationInput),
@@ -450,20 +493,26 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const targetHeader = document.createElement("div");
   Object.assign(targetHeader.style, {
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: "7px 8px",
     marginBottom: "7px",
   });
   const targetTitle = caption("BERSAGLI");
   targetTitle.style.margin = "0";
+  const targetSelectionCount = document.createElement("div");
+  Object.assign(targetSelectionCount.style, {
+    color: "#60a5fa",
+    fontSize: "var(--obrt-type-body, 12px)",
+  });
 
   const targetActions = document.createElement("div");
   Object.assign(targetActions.style, {
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
+    gridColumn: "1 / -1",
+    width: "100%",
     gap: "5px",
   });
   const targetNameFilter = document.createElement("input");
@@ -471,7 +520,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   targetNameFilter.placeholder = "Cerca nome…";
   targetNameFilter.setAttribute("aria-label", "Filtra bersagli per nome");
   Object.assign(targetNameFilter.style, {
-    width: "116px",
+    width: "auto",
+    minWidth: "0",
+    flex: "1 1 auto",
     minHeight: "28px",
     padding: "4px 8px",
     border: "1px solid rgba(148,163,184,.28)",
@@ -501,20 +552,23 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     factionButtons.set(value, button);
   }
   targetActions.append(targetNameFilter, ...factionButtons.values());
-  targetHeader.append(targetTitle, targetActions);
+  targetHeader.append(targetTitle, targetSelectionCount, targetActions);
 
   const targetGrid = document.createElement("div");
   targetGrid.dataset.effectsTargetGrid = "1";
   Object.assign(targetGrid.style, {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridAutoRows: "32px",
     gap: "5px",
-    maxHeight: "150px",
+    height: "194px",
+    maxHeight: "194px",
+    boxSizing: "border-box",
     overflowY: "auto",
     padding: "6px",
     border: "1px solid rgba(148,163,184,.20)",
     borderRadius: "11px",
-    background: "rgba(0,0,0,.20)",
+    background: "rgba(15,23,42,.58)",
   });
 
   let initialTargetIds = preservedTargetIds === null
@@ -548,7 +602,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       boxSizing: "border-box",
       border: "1px solid rgba(148,163,184,.14)",
       borderRadius: "9px",
-      background: "rgba(255,255,255,.025)",
+      background: "rgba(15,23,42,.72)",
       cursor: "pointer",
     });
     const checkbox = document.createElement("input");
@@ -631,7 +685,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     padding: "6px",
     border: "1px solid rgba(148,163,184,.20)",
     borderRadius: "11px",
-    background: "rgba(0,0,0,.20)",
+    background: "rgba(15,23,42,.58)",
   });
   activeWrap.append(activeHeader, activeList);
 
@@ -699,7 +753,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         minWidth: "0",
         padding: "6px 8px",
         borderRadius: "9px",
-        background: "rgba(255,255,255,.025)",
+        background: "rgba(15,23,42,.72)",
         border: "1px solid rgba(148,163,184,.14)",
       });
 
@@ -768,6 +822,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const updateTargetSelection = () => {
     const nameQuery = targetNameFilter.value.trim().toLocaleLowerCase("it");
+    const selectedCount = selectedTargetIds().length;
+    targetSelectionCount.textContent = selectedCount === 1 ? "1 selezionato" : `${selectedCount} selezionati`;
     for (const control of targetControls.values()) {
       const selected = control.checkbox.checked;
       const matchesFaction = activeFactionFilters.size === 0 || activeFactionFilters.has(control.faction);
@@ -775,7 +831,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       control.row.style.display = matchesFaction && matchesName
         ? "flex"
         : "none";
-      control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(255,255,255,.025)";
+      control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(15,23,42,.72)";
       control.row.style.borderColor = selected ? "rgba(96,165,250,.62)" : "rgba(148,163,184,.14)";
     }
     setButtonEnabled(addButton, selectedTargetIds().length > 0 && selectedEffectName().length > 0);
@@ -796,7 +852,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       else activeFactionFilters.add(faction);
       const active = activeFactionFilters.has(faction);
       button.setAttribute("aria-pressed", String(active));
-      button.style.background = active ? "rgba(37,99,235,.42)" : "rgba(255,255,255,.055)";
+      button.style.background = active ? "rgba(37,99,235,.42)" : "#0f172a";
       button.style.borderColor = active ? "rgba(96,165,250,.72)" : "rgba(148,163,184,.28)";
       updateTargetSelection();
     });
@@ -828,6 +884,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     durationInput.disabled = !usesDuration;
     actorButton.disabled = false;
     durationInput.style.opacity = usesDuration ? "1" : ".45";
+    durationInput.style.background = usesDuration ? "#0f172a" : "#374151";
     actorButton.style.opacity = "1";
     actorButton.style.cursor = "pointer";
   };

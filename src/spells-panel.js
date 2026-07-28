@@ -13,11 +13,24 @@ import {
 import {
   getTrackableSpellOptions,
   getSpellDefinition,
+  getAreaSaveAutomation,
+  getAreaSaveRuleChoices,
   getSpellChoiceTiming,
   getProposedConditions,
   getSpellEffectChoices,
   getSpellEffects,
 } from "./spells-srd.js";
+import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
+import {
+  resolveSpellConcentration,
+  resolveSpellSlotLevel,
+  resolveSpellSubjectIds,
+} from "./spellCastContextCore.js";
+import {
+  getSpellCastPhasePlan,
+  isPreparedSpellCast,
+  withSpellPhaseTransitionOperations,
+} from "./spellCastPhaseCore.js";
 import { spellExpiryCounter } from "./spellExpiryCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { withItemMetaHistory } from "./history.js";
@@ -78,6 +91,10 @@ function spellOverviewGroups(items = []) {
           key,
           instanceId,
           storedName,
+          spellId: String(spell?.spellId || "").trim(),
+          castContext: spell?.castContext && typeof spell.castContext === "object"
+            ? { ...spell.castContext }
+            : null,
           name: spellDisplayName(spell?.spellId || storedName),
           casterId,
           casterName: byId.get(casterId)?.name || "Non indicato",
@@ -90,6 +107,10 @@ function spellOverviewGroups(items = []) {
         groups.set(key, group);
       }
       group.concentrating = group.concentrating || !!spell?.conc;
+      if (!group.spellId && spell?.spellId) group.spellId = String(spell.spellId);
+      if (!group.castContext && spell?.castContext && typeof spell.castContext === "object") {
+        group.castContext = { ...spell.castContext };
+      }
       group.targets.set(target.id, target.name || target.id);
       group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
       group.counters.push(spellExpiryCounter(spell));
@@ -109,6 +130,7 @@ function spellOverviewGroups(items = []) {
       group.casterId = caster.id;
       group.casterName = caster.name || caster.id;
       group.concentrationRef = instanceId || key;
+      if (!group.spellId && info?.spellId) group.spellId = String(info.spellId);
     }
   }
 
@@ -170,7 +192,11 @@ OBR.onReady(() => {
 async function init() {
   const form = $("f");
   const nameInput = $("name");
+  const spellMenuToggle = $("spellMenuToggle");
+  const spellMenu = $("spellMenu");
   const durationInput = $("dur");
+  const slotLevelInput = $("slotLevel");
+  const slotLevelLabel = $("slotLevelLabel");
   const concentrationInput = $("conc");
   const casterSelect = $("caster");
   const endButton = $("end");
@@ -188,6 +214,7 @@ async function init() {
   const overviewCount = $("spellOverviewCount");
   const spellTargetList = $("spellTargetList");
   const spellTargetNameFilter = $("spellTargetNameFilter");
+  const spellTargetSelectionCount = $("spellTargetSelectionCount");
   const spellFactionButtons = Array.from(document.querySelectorAll("[data-spell-faction]"));
   const sourceId = new URLSearchParams(window.location.search).get("source") || "";
   const isModal = !!sourceId;
@@ -207,14 +234,91 @@ async function init() {
     nameInput.focus();
   } catch {}
 
-  const dataList = $("spell-list");
-  for (const entry of getTrackableSpellOptions()) {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.label = entry.label;
-    option.dataset.spellId = entry.id;
-    dataList?.appendChild(option);
-  }
+  const spellSearchEntries = getTrackableSpellOptions();
+  let activeSpellCatalogFilter = "all";
+  const closeSpellMenu = () => {
+    if (!spellMenu || !spellMenuToggle) return;
+    spellMenu.hidden = true;
+    nameInput.setAttribute("aria-expanded", "false");
+    spellMenuToggle.setAttribute("aria-expanded", "false");
+  };
+  const openSpellMenu = (query = "") => {
+    if (!spellMenu || !spellMenuToggle) return;
+    const normalizedQuery = String(query || "").trim().toLocaleLowerCase("it");
+    const matchesFilter = (entry) => ({
+      concentration: entry.concentration,
+      area: entry.area,
+      automated: entry.automated,
+    })[activeSpellCatalogFilter] ?? true;
+    const matches = spellSearchEntries.filter((entry) =>
+      matchesFilter(entry)
+      && (!normalizedQuery || entry.label.toLocaleLowerCase("it").includes(normalizedQuery))
+    );
+    const selectedId = getSpellDefinition(nameInput.value)?.id || "";
+    spellMenu.replaceChildren();
+    const filters = document.createElement("div");
+    filters.className = "spell-menu-filters";
+    filters.setAttribute("role", "group");
+    filters.setAttribute("aria-label", "Filtra catalogo incantesimi");
+    for (const [value, label] of [
+      ["all", "Tutti"],
+      ["concentration", "Concentrazione"],
+      ["area", "Area/TS"],
+      ["automated", "Effetti"],
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "spell-menu-filter" + (activeSpellCatalogFilter === value ? " active" : "");
+      button.textContent = label;
+      button.setAttribute("aria-pressed", String(activeSpellCatalogFilter === value));
+      button.addEventListener("click", () => {
+        activeSpellCatalogFilter = value;
+        openSpellMenu(query);
+      });
+      filters.appendChild(button);
+    }
+    spellMenu.appendChild(filters);
+    const entriesByLevel = new Map();
+    for (const entry of matches) {
+      const level = Math.max(0, Math.floor(Number(entry.level) || 0));
+      if (!entriesByLevel.has(level)) entriesByLevel.set(level, []);
+      entriesByLevel.get(level).push(entry);
+    }
+    for (const [level, entries] of [...entriesByLevel.entries()].sort((a, b) => a[0] - b[0])) {
+      const group = document.createElement("div");
+      group.className = "spell-menu-group";
+      const heading = document.createElement("div");
+      heading.className = "spell-menu-level";
+      heading.textContent = level === 0 ? "Trucchetti" : `Livello ${level}`;
+      group.appendChild(heading);
+      for (const entry of entries) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "spell-menu-option" + (selectedId === entry.id ? " active" : "");
+        button.textContent = entry.label;
+        button.title = entry.label;
+        button.setAttribute("role", "option");
+        button.setAttribute("aria-selected", String(selectedId === entry.id));
+        button.addEventListener("click", () => {
+          nameInput.value = entry.value;
+          closeSpellMenu();
+          syncCatalogSelection(true);
+          nameInput.focus();
+        });
+        group.appendChild(button);
+      }
+      spellMenu.appendChild(group);
+    }
+    if (!matches.length) {
+      const empty = document.createElement("div");
+      empty.className = "spell-menu-empty";
+      empty.textContent = "Nessun incantesimo trovato.";
+      spellMenu.appendChild(empty);
+    }
+    spellMenu.hidden = false;
+    nameInput.setAttribute("aria-expanded", "true");
+    spellMenuToggle.setAttribute("aria-expanded", "true");
+  };
 
   const allCasters = await getAllInitiativeCharacters(sourceId);
   const capturedTargetIds = isModal
@@ -228,12 +332,45 @@ async function init() {
     .filter(([, control]) => control.checkbox.checked)
     .map(([id]) => id);
 
+  const refreshSpellTargetCount = () => {
+    const count = selectedSpellTargetIds().length;
+    if (spellTargetSelectionCount) {
+      spellTargetSelectionCount.textContent = count === 1 ? "1 selezionato" : `${count} selezionati`;
+    }
+    if (submitButton) {
+      const spell = getSpellDefinition(nameInput.value);
+      const phasePlan = getSpellCastPhasePlan(
+        spell,
+        "",
+        { slotLevel: resolveSpellSlotLevel(spell, slotLevelInput?.value) },
+      );
+      const subjectMode = phasePlan.subjectMode || spell?.targetMode;
+      if (phasePlan.phase === "prepare") {
+        submitButton.textContent = "Prepara sul caster";
+      } else if (subjectMode === "self" || subjectMode === "caster") {
+        submitButton.textContent = "Applica al caster";
+      } else {
+        submitButton.textContent = count === 1
+          ? "Applica a 1 bersaglio"
+          : `Applica a ${count} bersagli`;
+      }
+    }
+    overviewList?.querySelectorAll("[data-resolve-spell='1']").forEach((button) => {
+      button.disabled = count === 0;
+      button.textContent = count > 0 ? `Risolvi (${count})` : "Risolvi";
+      button.title = count > 0
+        ? `Risolvi sui ${count} bersagli selezionati`
+        : "Seleziona almeno un bersaglio";
+    });
+  };
+
   const applySpellTargetSelection = (ids) => {
     const selected = new Set(Array.isArray(ids) ? ids : []);
     for (const [id, control] of spellTargetControls) {
       control.checkbox.checked = selected.has(id);
       control.row.classList.toggle("selected", control.checkbox.checked);
     }
+    refreshSpellTargetCount();
   };
 
   const applySpellTargetFilter = () => {
@@ -280,6 +417,7 @@ async function init() {
     });
     checkbox.addEventListener("change", () => {
       row.classList.toggle("selected", checkbox.checked);
+      refreshSpellTargetCount();
       void writeSpellTargetSelection([item.id], checkbox.checked);
     });
   }
@@ -335,26 +473,33 @@ async function init() {
   concentrationInput.addEventListener("change", refreshCasterEnabled);
   refreshCasterEnabled();
 
+  const currentCastContext = (spell) => ({
+    slotLevel: resolveSpellSlotLevel(spell, slotLevelInput?.value),
+  });
+
   let automationSpellId = "";
   const renderAutomation = (spell) => {
     if (!automationWrap || !automationText || !applyConditionsInput || !conditionChoice) return;
+    const wasAutomationDisabled = applyConditionsInput.disabled;
     if (!spell) {
       automationWrap.style.display = "none";
       automationSpellId = "";
+      refreshSpellTargetCount();
       return;
     }
 
     automationWrap.style.display = "";
-    const targetLabel = spell.targetMode === "self"
-      ? "caster"
-      : spell.targetMode === "area"
-        ? "token selezionati dopo gli esiti"
-        : "token selezionati";
+    const phasePlan = getSpellCastPhasePlan(
+      spell,
+      "",
+      currentCastContext(spell),
+    );
     const durationLabel = spell.duration
-      ? " Durata SRD: " + spell.duration + "."
+      ? " Durata da catalogo: " + spell.duration + "."
         + (spell.defaultTurns ? "" : " Imposta i round manualmente.")
       : "";
     const automation = spell.automation;
+    const areaRuleChoices = getAreaSaveRuleChoices(spell);
     const effectChoices = getSpellEffectChoices(spell);
     const previousChoice = automationSpellId === spell.id ? conditionChoice.value : "";
     conditionChoice.replaceChildren();
@@ -364,6 +509,13 @@ async function init() {
         const option = document.createElement("option");
         option.value = choice;
         option.textContent = choice;
+        conditionChoice.appendChild(option);
+      }
+    } else if (areaRuleChoices.length) {
+      for (const choice of areaRuleChoices) {
+        const option = document.createElement("option");
+        option.value = choice.value;
+        option.textContent = choice.label;
         conditionChoice.appendChild(option);
       }
     } else {
@@ -377,64 +529,273 @@ async function init() {
     if (previousChoice && Array.from(conditionChoice.options).some((option) => option.value === previousChoice)) {
       conditionChoice.value = previousChoice;
     }
-    const spellEffects = getSpellEffects(spell, conditionChoice.value);
-    const effectsLabel = spellEffects.length
-      ? " Pill effetto: " + spellEffects.map((effect) => effect.label).join(", ") + "."
+    const selectedChoice = conditionChoice.value;
+    const catalogEffects = getSpellEffects(spell, selectedChoice, currentCastContext(spell));
+    const phaseEffects = phasePlan.effects === null ? catalogEffects : phasePlan.effects;
+    const previewPlan = phasePlan.useCatalogAutomation
+      ? buildSpellCastAutomationPlan({
+        proposedConditions: getProposedConditions(spell, selectedChoice),
+        proposedEffects: phaseEffects,
+        saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
+        applyAutomatedConditions: true,
+        hasEffectChoices: effectChoices.length > 0,
+      })
+      : {
+        conditions: [],
+        effects: phaseEffects,
+        usedSaveAutomation: false,
+      };
+    const targetMode = phasePlan.subjectMode || spell.targetMode;
+    const targetLabel = targetMode === "self" || targetMode === "caster"
+      ? "caster"
+      : previewPlan.usedSaveAutomation
+        ? "token selezionati con esito configurato"
+        : "token selezionati";
+    const conditionLabels = previewPlan.conditions.map((condition) =>
+      typeof condition === "string" ? condition : condition.name
+    );
+    const effectLabels = previewPlan.effects.map((effect) => effect.label);
+    const effectsLabel = effectLabels.length
+      ? " Pill effetto: " + effectLabels.join(", ") + "."
       : "";
+    const hasAutomatedConditions = conditionLabels.length > 0;
+    const hasChoices = phasePlan.useCatalogAutomation && (
+      automation?.mode === "choice"
+      || areaRuleChoices.length > 0
+      || effectChoices.length > 0
+    );
 
-    if (!automation) {
+    if (!hasAutomatedConditions) {
       applyConditionsInput.checked = false;
       applyConditionsInput.disabled = true;
       applyConditionsInput.style.display = "none";
-      conditionChoice.style.display = effectChoices.length ? "" : "none";
-      automationText.textContent = (spellEffects.length ? "Tracciamento con effetti." : "Solo tracciamento.")
+      conditionChoice.style.display = hasChoices ? "" : "none";
+      automationText.textContent = (effectLabels.length ? "Tracciamento con effetti." : "Solo tracciamento.")
         + " Bersaglio: " + targetLabel + "." + effectsLabel + durationLabel;
       automationSpellId = spell.id;
+      refreshSpellTargetCount();
       return;
     }
 
     applyConditionsInput.disabled = false;
     applyConditionsInput.style.display = "";
-    if (automationSpellId !== spell.id) applyConditionsInput.checked = true;
-    if (automation.mode === "choice") {
+    if (automationSpellId !== spell.id || wasAutomationDisabled) {
+      applyConditionsInput.checked = true;
+    }
+    if (automation?.mode === "choice") {
       conditionChoice.style.display = "";
       automationText.textContent = "Scegli condizione; bersaglio: " + targetLabel + "."
         + effectsLabel + durationLabel;
+    } else if (areaRuleChoices.length) {
+      conditionChoice.style.display = "";
+      automationText.textContent = "Ai bersagli selezionati con TS fallito applica: "
+        + conditionLabels.join(", ") + "." + effectsLabel + durationLabel;
     } else {
       conditionChoice.style.display = effectChoices.length ? "" : "none";
-      const conditions = (automation.conditions || []).join(", ");
-      const prefix = automation.mode === "automatic"
+      const prefix = automation?.mode === "automatic"
         ? "Applica automaticamente: "
         : "Dopo gli esiti, applica: ";
-      automationText.textContent = prefix + conditions + ". Bersaglio: " + targetLabel + "."
+      automationText.textContent = prefix + conditionLabels.join(", ")
+        + ". Bersaglio: " + targetLabel + "."
         + effectsLabel + durationLabel;
     }
     automationSpellId = spell.id;
+    refreshSpellTargetCount();
   };
   conditionChoice?.addEventListener("change", () => {
     const spell = getSpellDefinition(nameInput.value);
     renderAutomation(spell);
-    const timing = getSpellChoiceTiming(spell, conditionChoice.value);
+    const timing = getSpellChoiceTiming(
+      spell,
+      conditionChoice.value,
+      currentCastContext(spell),
+    );
     if (timing?.defaultTurns) durationInput.value = String(timing.defaultTurns);
+  });
+  slotLevelInput?.addEventListener("change", () => {
+    const spell = getSpellDefinition(nameInput.value);
+    const resolvedLevel = resolveSpellSlotLevel(spell, slotLevelInput.value);
+    slotLevelInput.value = String(resolvedLevel);
+    const timing = getSpellChoiceTiming(
+      spell,
+      conditionChoice?.value || "",
+      currentCastContext(spell),
+    );
+    if (timing?.defaultTurns) durationInput.value = String(timing.defaultTurns);
+    renderAutomation(spell);
   });
 
   const syncCatalogSelection = (applyDefaults) => {
     const spell = getSpellDefinition(nameInput.value);
     renderAutomation(spell);
+    concentrationInput.disabled = !!spell;
+    concentrationInput.title = spell
+      ? "Valore definito dal catalogo dell'incantesimo"
+      : "Imposta la concentrazione per una spell personalizzata";
+    concentrationInput.style.opacity = spell ? ".72" : "1";
+    if (spell) concentrationInput.checked = spell.concentration === true;
+    const usesSlot = !!spell && Number(spell.level) > 0;
+    if (slotLevelInput && slotLevelLabel) {
+      slotLevelInput.style.display = usesSlot ? "" : "none";
+      slotLevelLabel.style.display = usesSlot ? "" : "none";
+      slotLevelInput.disabled = !usesSlot;
+      if (usesSlot) {
+        slotLevelInput.min = String(spell.level);
+        slotLevelInput.max = "9";
+        if (applyDefaults) slotLevelInput.value = String(spell.level);
+      }
+    }
     if (spell && applyDefaults) {
-      const timing = getSpellChoiceTiming(spell, conditionChoice.value);
+      const timing = getSpellChoiceTiming(
+        spell,
+        conditionChoice.value,
+        currentCastContext(spell),
+      );
       const defaultTurns = timing?.defaultTurns ?? spell.defaultTurns;
       durationInput.value = defaultTurns ? String(defaultTurns) : "";
-      concentrationInput.checked = !!spell.concentration;
       refreshCasterEnabled();
+      renderAutomation(spell);
     }
     return spell;
   };
 
-  nameInput.addEventListener("input", () => syncCatalogSelection(false));
+  nameInput.addEventListener("input", () => {
+    syncCatalogSelection(false);
+    openSpellMenu(nameInput.value);
+  });
   nameInput.addEventListener("change", () => syncCatalogSelection(true));
+  nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSpellMenu();
+    else if (event.key === "ArrowDown" && spellMenu?.hidden) {
+      event.preventDefault();
+      openSpellMenu(nameInput.value);
+    }
+  });
+  spellMenuToggle?.addEventListener("click", () => {
+    if (spellMenu?.hidden) {
+      openSpellMenu("");
+      nameInput.focus();
+    } else {
+      closeSpellMenu();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".spell-combobox")) closeSpellMenu();
+  });
 
   const contextCasterId = isModal ? sourceId : await deduceContextSingleId();
+  const commitSpellApplication = async ({
+    spell,
+    enteredName = "",
+    turns = 1,
+    casterId = "",
+    targetIds = [],
+    castContext = {},
+    selectedChoice = "",
+    phasePlan = null,
+    applyAutomatedConditions = true,
+    activeConcentration = null,
+    historyLabel = "",
+    requestedConcentration = false,
+  } = {}) => {
+    const subjects = uniqueIds(targetIds);
+    if (!subjects.length) return [];
+    const name = spell?.displayName || enteredName;
+    const resolvedPhasePlan = phasePlan || getSpellCastPhasePlan(spell, "", castContext);
+    const wantsConcentration = resolveSpellConcentration(spell, requestedConcentration);
+    const persistedCastContext = {
+      ...(castContext && typeof castContext === "object" ? castContext : {}),
+      phase: resolvedPhasePlan.phase,
+      choice: String(selectedChoice || ""),
+      applyAutomatedConditions: applyAutomatedConditions !== false,
+    };
+    const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
+    const phaseEffects = resolvedPhasePlan.effects === null
+      ? catalogEffects
+      : resolvedPhasePlan.effects;
+    const castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
+      ? buildSpellCastAutomationPlan({
+        proposedConditions: getProposedConditions(spell, selectedChoice),
+        proposedEffects: phaseEffects,
+        saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
+        applyAutomatedConditions,
+        hasEffectChoices: getSpellEffectChoices(spell).length > 0,
+      })
+      : {
+        conditions: [],
+        effects: phaseEffects,
+        usedSaveAutomation: false,
+      };
+    const choiceTiming = getSpellChoiceTiming(spell, selectedChoice, persistedCastContext);
+    let concentrationAction = castAutomationPlan.concentrationAction
+      || choiceTiming?.concentrationAction
+      || resolvedPhasePlan.concentrationAction
+      || "replace";
+    if (
+      resolvedPhasePlan.phase === "resolve"
+      && concentrationAction === "extend"
+      && !activeConcentration?.instanceId
+    ) {
+      throw new Error("prepared-instance-required");
+    }
+    const instanceId = String(activeConcentration?.instanceId || "").trim()
+      || createSpellInstanceId();
+    const appliedAt = await getAppliedAt();
+    const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(choiceTiming, "spellExpiry")
+      ? choiceTiming.spellExpiry
+      : spell?.expiry ? { ...spell.expiry } : null;
+    const expiry = spellExpiry || (wantsConcentration
+      ? { mode: "concentration" }
+      : { mode: "rounds", remaining: turns });
+    const caster = allCasters.find((item) => item.id === casterId) || null;
+    const lifecycleOperations = spellApplicationOperations({
+      targetIds: subjects,
+      casterId,
+      enteredName,
+      name,
+      storedName: spell?.name,
+      turns,
+      concentration: wantsConcentration,
+      instanceId,
+      spellId: spell?.id || "",
+      spellExpiry,
+      appliedAt,
+      castContext: persistedCastContext,
+      proposedConditions: castAutomationPlan.conditions,
+      proposedEffects: castAutomationPlan.effects,
+      conditionOptions: {
+        sourceId: casterId || "",
+        sourceName: caster?.name || "",
+        appliedAt,
+        expiry,
+      },
+      concentrationAction,
+    });
+    const operations = withSpellPhaseTransitionOperations({
+      operations: lifecycleOperations,
+      phasePlan: resolvedPhasePlan,
+      concentrationAction,
+      activeConcentration,
+      casterId,
+    });
+    const mutationPlan = await prepareEffectsMutation(operations);
+    const historyIds = mutationPlan.changedIds;
+    await withItemMetaHistory({
+      kind: "spell",
+      label: historyLabel || (
+        resolvedPhasePlan.phase === "prepare"
+          ? "Preparazione: " + name
+          : resolvedPhasePlan.phase === "resolve"
+            ? "Risoluzione: " + name
+            : "Incantesimo: " + name
+      ),
+      itemIds: historyIds,
+      fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
+    }, () => commitEffectsMutationPlan(mutationPlan));
+    await refreshConditionLabels(historyIds);
+    return historyIds;
+  };
+
   let overviewRevision = 0;
   const refreshOverview = async () => {
     if (!overviewList) return;
@@ -454,6 +815,13 @@ async function init() {
     }
 
     for (const group of groups) {
+      const groupSpell = getSpellDefinition(group.spellId || group.storedName);
+      const prepared = isPreparedSpellCast({
+        spell: groupSpell,
+        castContext: group.castContext,
+        casterId: group.casterId,
+        targetIds: Array.from(group.targets.keys()),
+      });
       const row = document.createElement("article");
       row.className = "spell-overview-row";
       const content = document.createElement("div");
@@ -486,7 +854,7 @@ async function init() {
       caster.textContent = (group.concentrating ? "Concentrazione: " : "Caster: ") + group.casterName;
       const targets = document.createElement("div");
       targets.className = "spell-overview-targets";
-      targets.appendChild(document.createTextNode("Bersagli: "));
+      targets.appendChild(document.createTextNode(prepared ? "Preparato su: " : "Bersagli: "));
       for (const [targetId, targetName] of group.targets) {
         const target = document.createElement("span");
         target.className = "spell-overview-target";
@@ -519,8 +887,76 @@ async function init() {
           targets.appendChild(document.createTextNode(", "));
         }
       }
-      targets.title = `Bersagli: ${Array.from(group.targets.values()).join(", ")}`;
+      targets.title = `${prepared ? "Preparato su" : "Bersagli"}: ${Array.from(group.targets.values()).join(", ")}`;
       content.append(heading, caster, targets);
+
+      const actions = document.createElement("div");
+      actions.className = "spell-overview-actions";
+      let resolutionChoice = null;
+      if (prepared && groupSpell) {
+        const choices = getSpellEffectChoices(groupSpell);
+        if (choices.length > 1) {
+          resolutionChoice = document.createElement("select");
+          resolutionChoice.className = "active-spell-choice";
+          resolutionChoice.setAttribute("aria-label", `Variante per ${group.name}`);
+          for (const choice of choices) {
+            const option = document.createElement("option");
+            option.value = choice.value;
+            option.textContent = choice.label;
+            resolutionChoice.appendChild(option);
+          }
+          const storedChoice = String(group.castContext?.choice || "");
+          if (storedChoice && choices.some((choice) => choice.value === storedChoice)) {
+            resolutionChoice.value = storedChoice;
+          }
+          actions.appendChild(resolutionChoice);
+        }
+
+        const resolve = document.createElement("button");
+        resolve.type = "button";
+        resolve.className = "resolve-spell";
+        resolve.dataset.resolveSpell = "1";
+        resolve.textContent = "Risolvi";
+        resolve.addEventListener("click", async () => {
+          const targetIds = selectedSpellTargetIds();
+          if (!targetIds.length) return;
+          resolve.disabled = true;
+          if (resolutionChoice) resolutionChoice.disabled = true;
+          try {
+            const castContext = {
+              ...(group.castContext || {}),
+              phase: "resolve",
+            };
+            const selectedChoice = resolutionChoice?.value
+              || String(group.castContext?.choice || "");
+            await commitSpellApplication({
+              spell: groupSpell,
+              enteredName: group.storedName,
+              turns: Math.max(1, ...group.turns),
+              casterId: group.casterId,
+              targetIds,
+              castContext,
+              selectedChoice,
+              phasePlan: getSpellCastPhasePlan(groupSpell, "resolve", castContext),
+              applyAutomatedConditions: group.castContext?.applyAutomatedConditions !== false,
+              activeConcentration: {
+                instanceId: group.instanceId,
+                spellId: group.spellId,
+                name: group.storedName,
+                targets: Array.from(group.targets.keys()),
+              },
+              historyLabel: "Risoluzione: " + group.name,
+            });
+            await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+            await refreshOverview();
+          } catch (err) {
+            console.warn("[spell-panel] resolve overview spell:", err?.message || err);
+            resolve.disabled = false;
+            if (resolutionChoice) resolutionChoice.disabled = false;
+          }
+        });
+        actions.appendChild(resolve);
+      }
 
       const terminate = document.createElement("button");
       terminate.type = "button";
@@ -537,9 +973,11 @@ async function init() {
           terminate.disabled = false;
         }
       });
-      row.append(content, terminate);
+      actions.appendChild(terminate);
+      row.append(content, actions);
       overviewList.appendChild(row);
     }
+    refreshSpellTargetCount();
   };
 
   await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
@@ -561,73 +999,46 @@ async function init() {
     }
 
     const spell = getSpellDefinition(enteredName);
-    const name = spell?.displayName || enteredName;
     const rawTurns = Number(durationInput.value);
     if (!Number.isFinite(rawTurns) || rawTurns < 1) {
       durationInput.focus();
       return;
     }
     const turns = Math.floor(rawTurns);
-    const wantsConcentration = !!concentrationInput.checked;
+    const wantsConcentration = resolveSpellConcentration(
+      spell,
+      !!concentrationInput.checked,
+    );
     let casterId = casterSelect.value || defaultCasterId || sourceId || null;
     if (wantsConcentration && !casterId && allCasters.length) casterId = allCasters[0].id;
 
-    const targetIds = uniqueIds(
-      spell?.targetMode === "self" && casterId ? [casterId] : selectedSpellTargetIds()
-    );
+    const castContext = currentCastContext(spell);
+    const phasePlan = getSpellCastPhasePlan(spell, "", castContext);
+    const targetIds = resolveSpellSubjectIds({
+      spell,
+      casterId,
+      selectedIds: selectedSpellTargetIds(),
+      subjectMode: phasePlan.subjectMode,
+    });
     if (!targetIds.length) return;
 
-    const caster = allCasters.find((item) => item.id === casterId) || null;
-    const casterName = caster?.name || "";
-    const instanceId = createSpellInstanceId();
-    const spellId = spell?.id || "";
     const selectedChoice = conditionChoice?.value || "";
-    const proposedConditions = applyConditionsInput?.checked
-      ? getProposedConditions(spell, selectedChoice)
-      : [];
-    const proposedEffects = getSpellEffects(spell, selectedChoice);
-    const choiceTiming = getSpellChoiceTiming(spell, selectedChoice);
-
     submitButton.disabled = true;
     try {
-      const appliedAt = await getAppliedAt();
-      const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(choiceTiming, "spellExpiry")
-        ? choiceTiming.spellExpiry
-        : spell?.expiry ? { ...spell.expiry } : null;
-      const expiry = spellExpiry || (wantsConcentration
-        ? { mode: "concentration" }
-        : { mode: "rounds", remaining: turns });
-      const mutationPlan = await prepareEffectsMutation(spellApplicationOperations({
-        targetIds,
-        casterId,
+      await commitSpellApplication({
+        spell,
         enteredName,
-        name,
-        storedName: spell?.name,
         turns,
-        concentration: wantsConcentration,
-        instanceId,
-        spellId,
-        spellExpiry,
-        appliedAt,
-        proposedConditions,
-        proposedEffects,
-        conditionOptions: {
-          sourceId: casterId || "",
-          sourceName: casterName,
-          appliedAt,
-          expiry,
-        },
-      }));
-      const historyIds = mutationPlan.changedIds;
-
-      await withItemMetaHistory({
-        kind: "spell",
-        label: "Incantesimo: " + name,
-        itemIds: historyIds,
-        fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-      }, () => commitEffectsMutationPlan(mutationPlan));
-
-      await refreshConditionLabels(historyIds);
+        casterId,
+        targetIds,
+        castContext,
+        selectedChoice,
+        phasePlan,
+        applyAutomatedConditions: phasePlan.phase === "prepare"
+          ? true
+          : !!applyConditionsInput?.checked,
+        requestedConcentration: !!concentrationInput.checked,
+      });
       await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
       await refreshOverview();
       if (!isModal) {
@@ -757,6 +1168,7 @@ async function getAppliedAt() {
 }
 
 async function refreshCasterSummary(casterId, wrap, list) {
+  if (!wrap || !list) return;
   list.replaceChildren();
   if (!casterId) {
     wrap.style.display = "none";

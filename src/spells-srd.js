@@ -1,6 +1,7 @@
 import catalogData from "./spells-srd-5.1.json" with { type: "json" };
 import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
+import phb2014ExtraData from "./spells-phb2014-extra.json" with { type: "json" };
 import {
   AREA_SAVE_AUTOMATION_RULES,
   AREA_SAVE_EFFECT_RULES,
@@ -15,6 +16,15 @@ import {
   SUPPLEMENT_SAVE_AUTOMATION,
   SUPPLEMENT_TRACKING,
 } from "./supplementSpellRules.js";
+import {
+  PHB2014_AUTOMATION,
+  PHB2014_EFFECT_CHOICES,
+  PHB2014_EFFECTS,
+  PHB2014_EXPIRY,
+  PHB2014_SAVE_AUTOMATION,
+  PHB2014_TRACKING,
+} from "./phb2014SpellRules.js";
+import { resolveSpellEffect } from "./spellMechanicsCore.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -77,6 +87,14 @@ const AUTOMATION = Object.freeze({
   "sleep": { mode: "confirm", conditions: ["Privo di sensi"], targetMode: "area" },
   "web": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
   ...SUPPLEMENT_AUTOMATION,
+  ...PHB2014_AUTOMATION,
+});
+
+const TARGET_MODE_OVERRIDES = Object.freeze({
+  "sunbeam": "selected",
+  "phb2014-punizione-collerica": "selected",
+  "phb2014-punizione-tonante": "selected",
+  "phb2014-allucinazione-di-forza": "selected",
 });
 
 const CONCENTRATION_EXPIRY = Object.freeze({ mode: "concentration" });
@@ -129,6 +147,7 @@ const SAVE_AUTOMATION = Object.freeze({
     })]),
   }),
   ...SUPPLEMENT_SAVE_AUTOMATION,
+  ...PHB2014_SAVE_AUTOMATION,
 });
 
 const SPELL_EXPIRY = Object.freeze({
@@ -147,6 +166,7 @@ const SPELL_EXPIRY = Object.freeze({
   "tasha-scheggia-della-mente": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "legacy-tashas-mind-whip": Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
   ...SUPPLEMENT_EXPIRY,
+  ...PHB2014_EXPIRY,
 });
 
 const SPELL_EFFECTS = Object.freeze({
@@ -156,6 +176,11 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "-1d4 Att/TS",
       detail: "Sottrae 1d4 ai tiri per colpire e ai tiri salvezza.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        attackRoll: Object.freeze({ modifierDice: "-1d4" }),
+        savingThrow: Object.freeze({ modifierDice: "-1d4" }),
+      }),
     }),
   ]),
   "bless": Object.freeze([
@@ -164,6 +189,11 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 Att/TS",
       detail: "Aggiunge 1d4 ai tiri per colpire e ai tiri salvezza.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        attackRoll: Object.freeze({ modifierDice: "1d4" }),
+        savingThrow: Object.freeze({ modifierDice: "1d4" }),
+      }),
     }),
   ]),
   "blur": Object.freeze([
@@ -188,6 +218,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 danni radiosi",
       detail: "Gli attacchi con arma infliggono 1d4 danni radiosi extra.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        damageBonus: Object.freeze({ dice: "1d4", type: "danni radiosi" }),
+      }),
     }),
   ]),
   "faerie-fire": Object.freeze([
@@ -205,6 +239,10 @@ const SPELL_EFFECTS = Object.freeze({
       label: "+1d4 prova",
       detail: "Aggiunge 1d4 a una prova di caratteristica; rimuovere la pill dopo l'uso.",
       manualRemoval: true,
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        abilityCheck: Object.freeze({ modifierDice: "1d4" }),
+      }),
     }),
   ]),
   "guiding-bolt": Object.freeze([
@@ -223,6 +261,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "+1d6 danni dal caster",
       detail: "Il caster infligge 1d6 danni extra al bersaglio quando lo colpisce con un attacco con arma.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        damageBonus: Object.freeze({ dice: "1d6", type: "danni", sourceOnly: true }),
+      }),
     }),
   ]),
   "pass-without-trace": Object.freeze([
@@ -231,6 +273,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+10 Furtività",
       detail: "Aggiunge 10 alle prove di Destrezza (Furtività).",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        abilityCheck: Object.freeze({ bonus: 10, skill: "Furtività" }),
+      }),
     }),
   ]),
   "resistance": Object.freeze([
@@ -240,6 +286,10 @@ const SPELL_EFFECTS = Object.freeze({
       label: "+1d4 TS",
       detail: "Aggiunge 1d4 a un tiro salvezza; rimuovere la pill dopo l'uso.",
       manualRemoval: true,
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        savingThrow: Object.freeze({ modifierDice: "1d4" }),
+      }),
     }),
   ]),
   "shield": Object.freeze([
@@ -248,6 +298,11 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+5 CA",
       detail: "Aggiunge 5 alla Classe Armatura e protegge da Dardo Incantato.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        armorClass: Object.freeze({ bonus: 5 }),
+        immunities: Object.freeze(["magic-missile"]),
+      }),
     }),
   ]),
   "shield-of-faith": Object.freeze([
@@ -256,6 +311,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+2 CA",
       detail: "Aggiunge 2 alla Classe Armatura.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        armorClass: Object.freeze({ bonus: 2 }),
+      }),
     }),
   ]),
   "true-strike": Object.freeze([
@@ -300,6 +359,7 @@ const SPELL_EFFECTS = Object.freeze({
     }),
   ]),
   ...SUPPLEMENT_EFFECTS,
+  ...PHB2014_EFFECTS,
 });
 
 const SPELL_EFFECT_CHOICES = Object.freeze({
@@ -517,6 +577,7 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
     })),
   ]),
   ...SUPPLEMENT_EFFECT_CHOICES,
+  ...PHB2014_EFFECT_CHOICES,
 });
 
 const SUPPLEMENT_BY_ID = new Map(
@@ -569,6 +630,52 @@ const SUPPLEMENT_RUNTIME = Object.freeze([
     .filter((id) => id !== "tasha-scudiscio-mentale-di-tasha")
     .map(supplementRuntimeSpell),
 ]);
+
+const PHB2014_EXTRA_BY_ID = new Map(
+  (Array.isArray(phb2014ExtraData?.spells) ? phb2014ExtraData.spells : [])
+    .map((spell) => [spell.id, spell])
+);
+
+function phb2014ExtraRuntimeSpell(id) {
+  const spell = PHB2014_EXTRA_BY_ID.get(id);
+  if (!spell) throw new Error(`Missing normalized PHB 2014 spell: ${id}`);
+  const tracking = PHB2014_TRACKING[id] || null;
+  return Object.freeze({
+    id: spell.id,
+    name: spell.name,
+    level: spell.level,
+    duration: spell.duration,
+    defaultTurns: tracking?.defaultTurns ?? spell.defaultTurns,
+    concentration: spell.concentration,
+    trackable: tracking?.trackable === true,
+    catalogLabel: spell.name,
+    range: spell.range,
+    area: spell.areaCandidate,
+    targetModeCandidate: spell.targetModeCandidate,
+    source: spell.source,
+    sourceTitle: spell.sourceTitle,
+    italianReference: Object.freeze({
+      id: spell.id,
+      name: spell.name,
+      level: spell.level,
+      school: spell.school,
+      ritual: spell.ritual,
+      castingTime: spell.castingTime,
+      range: spell.range,
+      components: spell.components,
+      duration: spell.duration,
+      concentration: spell.concentration,
+      description: spell.description,
+      higherLevels: spell.higherLevels,
+      sourceTitle: spell.sourceTitle,
+      sourcePageRange: spell.sourcePageRange,
+    }),
+  });
+}
+
+const PHB2014_EXTRA_RUNTIME = Object.freeze(
+  Array.from(PHB2014_EXTRA_BY_ID.keys()).map(phb2014ExtraRuntimeSpell)
+);
 
 const TASHAS_MIND_WHIP = supplementRuntimeSpell("tasha-scudiscio-mentale-di-tasha");
 
@@ -657,10 +764,30 @@ function effectSaveRule(effect, spell) {
     effectId: String(effect?.id || "").trim(),
     effectKind: effect?.kind,
     effectDetail: String(effect?.detail || "").trim(),
+    ...(effect?.mechanics && typeof effect.mechanics === "object"
+      ? { mechanics: effect.mechanics }
+      : {}),
     ...(effect?.manualRemoval === true ? { manualRemoval: true } : {}),
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
+    ...(effect?.parentRemoval === "target" || effect?.parentRemoval === "spell"
+      ? { parentRemoval: effect.parentRemoval }
+      : {}),
     ...(expiry ? { expiry } : {}),
   });
+}
+
+function scopedParentRemovalRule(rule, spell) {
+  if (
+    !AREA_SAVE_SPELL_ID_SET.has(spell?.id)
+    || spell?.concentration !== true
+    || rule?.endsParentOnRemoval !== true
+    || rule?.options?.parentEffectId === ""
+    || rule?.parentRemoval === "target"
+    || rule?.parentRemoval === "spell"
+  ) {
+    return rule;
+  }
+  return Object.freeze({ ...rule, parentRemoval: "target" });
 }
 
 function areaSaveAutomationForSpell(spell, choiceValue = "") {
@@ -700,12 +827,19 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
     .map((source) => String(source.concentrationAction || "").trim())
     .find((value) => ["replace", "dismiss"].includes(value));
   if (concentrationAction) merged.concentrationAction = concentrationAction;
+  if (automationSources.some((source) => source.applyOnSpellCast === true)) {
+    merged.applyOnSpellCast = true;
+  }
   for (const outcome of ["passed", "failed", "immune"]) {
     const rules = [
       ...automationSources.flatMap((source) => source[outcome] || []),
       ...(outcome === "failed" ? failedEffects : []),
     ];
-    if (rules.length) merged[outcome] = Object.freeze(rules);
+    if (rules.length) {
+      merged[outcome] = Object.freeze(
+        rules.map((rule) => scopedParentRemovalRule(rule, spell))
+      );
+    }
   }
   if (hasExplicitTrackOutcomes || failedEffects.length) {
     merged.trackOutcomes = Object.freeze(trackOutcomes);
@@ -713,7 +847,12 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
   return Object.freeze(merged);
 }
 
-const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map((spell) => {
+const ALL_SPELLS = [
+  ...RAW_SPELLS,
+  ...LEGACY_MANUAL,
+  ...SUPPLEMENT_RUNTIME,
+  ...PHB2014_EXTRA_RUNTIME,
+].map((spell) => {
   const italianName = String(ITALIAN_NAMES[spell.id] || "").trim();
   const aliases = Array.from(new Set([
     italianName,
@@ -726,7 +865,10 @@ const ALL_SPELLS = [...RAW_SPELLS, ...LEGACY_MANUAL, ...SUPPLEMENT_RUNTIME].map(
     aliases: Object.freeze([...aliases]),
     displayName: italianName || aliases[0] || spell.name,
     defaultTurns: spell.defaultTurns ?? durationToRounds(spell.duration),
-    targetMode: automation?.targetMode || spell.targetModeCandidate || (exactSelf ? "self" : "selected"),
+    targetMode: TARGET_MODE_OVERRIDES[spell.id]
+      || automation?.targetMode
+      || spell.targetModeCandidate
+      || (exactSelf ? "self" : "selected"),
     automation,
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
@@ -760,6 +902,15 @@ export function getTrackableSpellOptions() {
     value: spell.catalogLabel || spell.displayName,
     label: spell.catalogLabel || spell.displayName,
     level: spell.level,
+    source: spell.source || "",
+    concentration: spell.concentration === true,
+    area: AREA_SAVE_SPELL_ID_SET.has(spell.id),
+    automated: !!(
+      spell.automation
+      || spell.saveAutomation
+      || spell.effects?.length
+      || spell.effectChoices?.length
+    ),
   }));
 }
 
@@ -802,27 +953,38 @@ export function getSpellEffectChoices(value) {
     : [];
 }
 
-export function getSpellChoiceTiming(value, choiceValue = "") {
+export function getSpellChoiceTiming(value, choiceValue = "", castContext = {}) {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
   const choices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
   const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
-  if (!selected) return null;
   const timing = {};
-  if (Number.isFinite(Number(selected.defaultTurns)) && Number(selected.defaultTurns) > 0) {
+  if (Number.isFinite(Number(selected?.defaultTurns)) && Number(selected.defaultTurns) > 0) {
     timing.defaultTurns = Math.floor(Number(selected.defaultTurns));
   }
-  if (Object.prototype.hasOwnProperty.call(selected, "spellExpiry")) {
+  if (selected && Object.prototype.hasOwnProperty.call(selected, "spellExpiry")) {
     timing.spellExpiry = selected.spellExpiry ? { ...selected.spellExpiry } : null;
+  }
+  if (selected?.concentrationAction === "dismiss") {
+    timing.concentrationAction = "dismiss";
+  }
+  if (spell?.id === "phb2014-sortilegio") {
+    const baseLevel = Math.max(1, Math.floor(Number(spell.level) || 1));
+    const requestedLevel = Math.floor(Number(castContext?.slotLevel));
+    const slotLevel = Number.isFinite(requestedLevel)
+      ? Math.max(baseLevel, Math.min(9, requestedLevel))
+      : baseLevel;
+    timing.defaultTurns = slotLevel >= 5 ? 14400 : slotLevel >= 3 ? 4800 : 600;
   }
   return Object.keys(timing).length ? timing : null;
 }
 
-export function getSpellEffects(value, choiceValue = "") {
+export function getSpellEffects(value, choiceValue = "", castContext = {}) {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
   const fixed = Array.isArray(spell?.effects) ? spell.effects : [];
   const choices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
   const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
-  return [...fixed, ...(selected?.effects || [])].map((effect) => ({ ...effect }));
+  return [...fixed, ...(selected?.effects || [])]
+    .map((effect) => resolveSpellEffect(effect, castContext));
 }
 
 export function getProposedConditions(spell, choice = "") {

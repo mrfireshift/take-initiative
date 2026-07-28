@@ -6,9 +6,25 @@
     <title>Registro combattimento</title>
     <link rel="stylesheet" href="/popover-glass.css" />
     <link rel="stylesheet" href="/ui-typography.css" />
+    <style>
+      html, body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; }
+      #app { width:100%; height:100%; overflow:hidden; }
+      button:not(:disabled):hover { filter:brightness(1.14); }
+      button:disabled {
+        background:#374151 !important;
+        border-color:rgba(148,163,184,.28) !important;
+        color:rgba(255,255,255,.62) !important;
+        opacity:.6;
+        cursor:default !important;
+      }
+      input:focus, select:focus {
+        border-color:rgba(96,165,250,.7) !important;
+        box-shadow:0 0 0 2px rgba(37,99,235,.18);
+      }
+    </style>
   </head>
   <body>
-    <div id="app" data-popover-id="com.thebigpicture.initiative/history-modal"></div>
+    <div id="app" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/history-modal"></div>
     <script type="module" src="/src/popoverDrag.js"></script>
     <script type="module" src="/src/history-modal.ts"></script>
   </body>

@@ -330,6 +330,56 @@ test("terminare una concentrazione su un bersaglio lascia attivi gli altri bersa
   assert.deepEqual(state(plan, "b").conditions, [linked("b")]);
 });
 
+test("rimuovere una condizione target-linked conserva la concentrazione sugli altri bersagli", () => {
+  const spell = (id) => ({
+    id: `entry-${id}`,
+    name: "Trama Ipnotica",
+    turns: 10,
+    conc: true,
+    casterId: "caster",
+    instanceId: "hypnotic-pattern",
+  });
+  const linked = (id) => ({
+    id: `condition-${id}`,
+    condition: "Incapacitato",
+    active: true,
+    type: "spell",
+    sourceId: "caster",
+    parentEffectId: "hypnotic-pattern",
+    endsParentOnRemoval: true,
+    parentRemoval: "target",
+    expiry: { mode: "concentration" },
+  });
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        "trama ipnotica": {
+          name: "Trama Ipnotica",
+          instanceId: "hypnotic-pattern",
+          targets: ["a", "b"],
+        },
+      },
+    }),
+    token("a", { spells: [spell("a")], conditions: [linked("a")] }),
+    token("b", { spells: [spell("b")], conditions: [linked("b")] }),
+  ], [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "a", instanceId: "condition-a" }],
+  }]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {
+    "trama ipnotica": {
+      name: "Trama Ipnotica",
+      instanceId: "hypnotic-pattern",
+      targets: ["b"],
+    },
+  });
+  assert.deepEqual(state(plan, "a").spells, []);
+  assert.deepEqual(state(plan, "a").conditions, []);
+  assert.equal(state(plan, "b").spells[0].instanceId, "hypnotic-pattern");
+  assert.deepEqual(state(plan, "b").conditions, [linked("b")]);
+});
+
 test("le opzioni di fonte e durata vengono materializzate nel piano, non durante la commit", () => {
   const plan = buildEffectsMutationPlan([token("target")], [{
     type: "condition:add",
