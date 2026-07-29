@@ -172,9 +172,15 @@ export function collectEffectsInvalidation(event, {
     }
   }
 
-  const effectsFlagged = !!(event?.flags?.conditions || event?.flags?.concentration);
+  const movementChanged = event?.flags?.movement === true;
+  const effectsFlagged = !!(
+    movementChanged
+    || event?.flags?.conditions
+    || event?.flags?.concentration
+  );
   return {
-    full: effectsFlagged && conditions.size === 0 && concentration.size === 0,
+    full: movementChanged
+      || (effectsFlagged && conditions.size === 0 && concentration.size === 0),
     conditions: [...conditions],
     concentration: [...concentration],
   };

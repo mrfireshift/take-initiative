@@ -196,6 +196,91 @@ test("la preparazione espone la risoluzione solo con bersagli selezionati", asyn
   assert.equal(resolutions[0].selectedChoice, "");
 });
 
+test("Colpo dello Zefiro mostra e consuma l'azione direttamente nella scheda", async () => {
+  const documentRef = createTestDocument();
+  const overviewList = documentRef.createElement("div");
+  const spell = getSpellDefinition("Colpo dello Zefiro");
+  const group = overviewGroup({
+    storedName: spell.displayName,
+    spellId: spell.id,
+    name: spell.displayName,
+    casterId: "caster",
+    casterName: "Ranger",
+    targets: new Map([["caster", "Ranger"]]),
+    effectInstances: [{
+      itemId: "caster",
+      instanceId: "zephyr-ready",
+      effectId: "zephyr-strike",
+    }],
+  });
+  const activations = [];
+
+  renderSpellOverview({
+    document: documentRef,
+    overviewList,
+    groups: [group],
+    createReferenceButton: (title, onClick) => (
+      createReferenceButton(documentRef, title, onClick)
+    ),
+    async onActivate(payload) {
+      activations.push(payload);
+    },
+  });
+
+  const action = overviewList.children[0].children[1].children[0];
+  assert.equal(action.className, "activate-spell");
+  assert.equal(action.textContent, "Usa colpo");
+  assert.equal(action.disabled, false);
+
+  await action.dispatch("click");
+
+  assert.equal(activations.length, 1);
+  assert.equal(activations[0].action.id, "zephyr-strike-attack");
+  assert.deepEqual(activations[0].targetIds, []);
+});
+
+test("Investitura del Ghiaccio conta i falliti selezionati nell'azione", async () => {
+  const documentRef = createTestDocument();
+  const overviewList = documentRef.createElement("div");
+  const spell = getSpellDefinition("Investitura del Ghiaccio");
+  const group = overviewGroup({
+    storedName: spell.displayName,
+    spellId: spell.id,
+    name: spell.displayName,
+    casterId: "caster",
+    casterName: "Druido",
+    targets: new Map([["caster", "Druido"]]),
+  });
+  let selectedTargetIds = [];
+  const activations = [];
+
+  renderSpellOverview({
+    document: documentRef,
+    overviewList,
+    groups: [group],
+    createReferenceButton: (title, onClick) => (
+      createReferenceButton(documentRef, title, onClick)
+    ),
+    getSelectedTargetIds: () => selectedTargetIds,
+    async onActivate(payload) {
+      activations.push(payload);
+    },
+  });
+
+  const action = overviewList.children[0].children[1].children[0];
+  assert.equal(action.textContent, "Cono gelido · 0 falliti");
+  assert.equal(action.disabled, true);
+
+  await action.dispatch("click");
+  assert.equal(activations.length, 0);
+
+  selectedTargetIds = ["enemy-a", "enemy-b"];
+  action.disabled = false;
+  await action.dispatch("click");
+  assert.equal(activations.length, 1);
+  assert.deepEqual(activations[0].targetIds, ["enemy-a", "enemy-b"]);
+});
+
 test("un errore d'azione riabilita il controllo e mantiene il messaggio", async () => {
   const documentRef = createTestDocument();
   const overviewList = documentRef.createElement("div");

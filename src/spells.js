@@ -276,5 +276,6 @@ function formatSpellChip(name, spell) {
   const short = normalizedName.length > 10
     ? normalizedName.slice(0, 9) + "…"
     : normalizedName;
-  return short + " (" + spellExpiryCounter(spell) + ")";
+  const counter = spellExpiryCounter(spell);
+  return counter ? short + " (" + counter + ")" : short;
 }

@@ -2,7 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
-import { saveSpellResolutionOperations } from "./saveSpellOperationsCore.js";
+import {
+  saveSpellResolutionOperations,
+  saveSpellTriggerResolutionOperations,
+} from "./saveSpellOperationsCore.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import {
   buildEffectsMutationPlan,
@@ -294,7 +297,10 @@ export function spellApplicationOperations({
   });
 }
 
-export { saveSpellResolutionOperations };
+export {
+  saveSpellResolutionOperations,
+  saveSpellTriggerResolutionOperations,
+};
 
 globalThis.__tbpEffectsMutations = {
   reset: resetEffectsMutationDiagnostics,

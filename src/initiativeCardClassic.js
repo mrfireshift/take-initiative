@@ -5,6 +5,44 @@ function classicDocument(documentRef) {
   return documentRef;
 }
 
+function hasVisibleCardConditions(cardEffectData = {}) {
+  const instances = Array.isArray(cardEffectData.instances)
+    ? cardEffectData.instances
+    : [];
+  if (instances.some((instance) =>
+    instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
+  )) {
+    return true;
+  }
+
+  const hiddenEffectNames = new Set(instances
+    .filter((instance) =>
+      instance?.effectKind === "buff" || instance?.effectKind === "debuff"
+    )
+    .map((instance) =>
+      String(instance?.condition || instance?.name || "")
+        .trim()
+        .toLocaleLowerCase("it")
+    )
+    .filter(Boolean));
+  const visibleFlags = Object.entries(cardEffectData.flags || {}).some(
+    ([name, active]) =>
+      active !== false
+      && !hiddenEffectNames.has(String(name).trim().toLocaleLowerCase("it"))
+  );
+  const visibleCustom = (Array.isArray(cardEffectData.custom)
+    ? cardEffectData.custom
+    : []
+  ).some((entry) => {
+    const name = typeof entry === "string"
+      ? entry
+      : entry?.condition || entry?.name;
+    const key = String(name || "").trim().toLocaleLowerCase("it");
+    return !!key && !hiddenEffectNames.has(key);
+  });
+  return visibleFlags || visibleCustom;
+}
+
 export function deriveClassicCardPresentation(
   entry,
   {
@@ -35,9 +73,7 @@ export function deriveClassicCardPresentation(
     ? (hasLegendary ? 16 : 7)
     : 0;
   const hasCardEffects = !entry?.__groupCollapsed && (
-    Object.keys(cardEffectData.flags || {}).length > 0
-    || (cardEffectData.custom?.length || 0) > 0
-    || (cardEffectData.instances?.length || 0) > 0
+    hasVisibleCardConditions(cardEffectData)
     || (Array.isArray(entry?.spells) && entry.spells.length > 0)
     || !!entry?.isConcentrating
   );

@@ -14,6 +14,20 @@ import {
   loadAoEStyle,
   normalizeAoEStyle,
 } from "./aoeStyle.js";
+import {
+  SPELL_AREA_PLACEMENT_CHANNEL,
+  completeSpellAreaPlacement as completePlacementSession,
+  constrainedSpellAreaEnd,
+  createSpellAreaPlacementSession,
+  nearestGridCellCenter,
+  nearestGridCorner,
+  reviewSpellAreaPlacement,
+  spellAreaGridCells,
+  spellAreaOriginAdjacentToCaster,
+  spellAreaOriginWithinRange,
+} from "./spellAreaPlacementCore.js";
+import { getSpellAreaRuleById } from "./spellAreaRules.js";
+import { spellAreaStyle } from "./spellAreaStyleCore.js";
 
 const TOOL_ID = `${ID}/aoe-target-tool`;
 const MODE_IDS = {
@@ -31,7 +45,11 @@ const RESELECT_CONTEXT_ID = `${ID}/aoe-reselect-targets`;
 const CONDITIONS_CONTEXT_ID = `${ID}/aoe-select-conditions`;
 const SPELLS_CONTEXT_ID = `${ID}/aoe-select-spells`;
 const QUICK_HP_CONTEXT_ID = `${ID}/aoe-select-quick-hp`;
+const SPELL_PLACEMENT_META_KEY = `${ID}/spellAreaPlacement`;
+const SPELL_PLACEMENT_CONFIRM_ACTION_ID = `${ID}/spell-area-confirm`;
+const SPELL_PLACEMENT_CANCEL_ACTION_ID = `${ID}/spell-area-cancel`;
 let activeDrag = null;
+let spellPlacementSession = null;
 let currentStyle = loadAoEStyle();
 let areaSelectionRevision = 0;
 let areaSelectionTimer = null;
@@ -42,6 +60,151 @@ function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+async function setSpellPlacementToolState(active) {
+  await OBR.tool.setMetadata(TOOL_ID, {
+    [SPELL_PLACEMENT_META_KEY]: active === true,
+  }).catch(() => {});
+}
+
+async function sendSpellPlacementResult(payload) {
+  await OBR.broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    { type: "result", ...payload },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
+async function casterGeometry(casterId) {
+  if (!casterId) return null;
+  try {
+    const bounds = await OBR.scene.items.getItemBounds([casterId]);
+    const min = point(bounds?.min);
+    const max = point(bounds?.max);
+    const center = point(bounds?.center)
+      || (min && max ? {
+        x: (Number(bounds.min.x) + Number(bounds.max.x)) / 2,
+        y: (Number(bounds.min.y) + Number(bounds.max.y)) / 2,
+      } : null);
+    if (center && min && max) return { center, bounds: { min, max } };
+  } catch {}
+  return null;
+}
+
+async function restoreSpellPlacementTool(previousTool) {
+  const toolId = String(previousTool?.id || "");
+  const modeId = String(previousTool?.modeId || "");
+  if (!toolId) return;
+  await OBR.tool.activateTool(toolId).catch(() => {});
+  if (modeId) await OBR.tool.activateMode(toolId, modeId).catch(() => {});
+}
+
+async function closeSpellPlacement(status, {
+  error = "",
+  reason = "",
+  restoreTool = true,
+} = {}) {
+  const runtime = spellPlacementSession;
+  if (!runtime) return;
+  cancelDrag();
+  spellPlacementSession = null;
+  const completed = completePlacementSession(runtime.session, status, error);
+  await setSpellPlacementToolState(false);
+  await sendSpellPlacementResult({
+    requestId: completed.requestId,
+    ruleId: completed.ruleId,
+    spellId: completed.spellId,
+    casterId: completed.casterId,
+    status: completed.phase,
+    preview: completed.preview,
+    ...(completed.error ? { error: completed.error } : {}),
+    ...(reason ? { reason } : {}),
+  });
+  if (restoreTool) await restoreSpellPlacementTool(completed.previousTool);
+}
+
+async function beginSpellPlacement(data) {
+  const requestId = String(data?.requestId || "").trim();
+  const ruleId = String(data?.ruleId || "").trim();
+  const casterId = String(data?.casterId || "").trim();
+  if (!requestId || !ruleId) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-request-invalid",
+    });
+    return;
+  }
+  if (spellPlacementSession) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-session-busy",
+    });
+    return;
+  }
+  const rule = getSpellAreaRuleById(ruleId);
+  if (!rule) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-rule-unknown",
+    });
+    return;
+  }
+  const needsCaster = ["caster", "caster-adjacent"].includes(rule.placement.origin)
+    || !!rule.placement.range;
+  const caster = needsCaster ? await casterGeometry(casterId) : null;
+  if (needsCaster && !caster) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-caster-unavailable",
+    });
+    return;
+  }
+
+  const [previousToolId, previousModeId] = await Promise.all([
+    OBR.tool.getActiveTool().catch(() => ""),
+    OBR.tool.getActiveToolMode().catch(() => ""),
+  ]);
+  const previousTool = {
+    id: previousToolId,
+    modeId: previousModeId,
+  };
+  try {
+    spellPlacementSession = {
+      session: createSpellAreaPlacementSession({
+        requestId,
+        rule,
+        casterId,
+        previousToolId,
+        previousModeId,
+      }),
+      rule,
+      casterOrigin: caster?.center || null,
+      casterBounds: caster?.bounds || null,
+    };
+    await setSpellPlacementToolState(true);
+    await OBR.tool.activateTool(TOOL_ID);
+    await OBR.tool.activateMode(TOOL_ID, MODE_IDS[rule.geometry.shape]);
+  } catch (error) {
+    const message = String(error?.message || error || "placement-start-failed");
+    spellPlacementSession = null;
+    await setSpellPlacementToolState(false);
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: message,
+    });
+    await restoreSpellPlacementTool(previousTool);
+  }
 }
 
 function boundaryCommands(cells) {
@@ -145,6 +308,15 @@ function areaLabelPosition(area) {
 
 function renderDrag(state) {
   if (!state?.ready || !state.interaction || !state.start || !state.end) return null;
+  if (state.spellPlacementRequestId) {
+    state.end = constrainedSpellAreaEnd({
+      shape: state.type,
+      start: state.start,
+      pointer: state.rawEnd,
+      dpi: state.dpi,
+      sizeCells: state.sizeCells,
+    });
+  }
   const area = buildArea(state.type, state.start, state.end, state.dpi, state.gridOrigin);
   state.area = area;
   const [update] = state.interaction;
@@ -153,7 +325,8 @@ function renderDrag(state) {
     if (items[1]) items[1].commands = geometryCommands(area);
     if (items[2]) {
       const worldDistance = area.squares * state.multiplier;
-      items[2].text.plainText = `${formatMeasure(worldDistance)} ${state.unit}`.trim();
+      items[2].text.plainText = state.measureLabel
+        || `${formatMeasure(worldDistance)} ${state.unit}`.trim();
       const center = areaLabelPosition(area);
       const width = Number(items[2].text?.width) || Math.max(120, state.dpi * 2.4);
       const height = Number(items[2].text?.height) || Math.max(44, state.dpi * 0.48);
@@ -175,10 +348,55 @@ async function prepareDrag(state) {
     state.multiplier = Math.max(0, Number(scale?.parsed?.multiplier) || 1.5);
     state.unit = String(scale?.parsed?.unit || "m").trim();
     const corner = point(cornerStart) || state.rawStart;
-    const snapped = nearestGridSnap(state.rawStart, corner, state.dpi);
+    const snapped = state.rule?.placement?.origin === "caster-adjacent"
+      ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
+      : state.spellPlacementRequestId && state.type === "square"
+        ? nearestGridCorner(state.rawStart, corner, state.dpi)
+        : nearestGridSnap(state.rawStart, corner, state.dpi);
     state.start = snapped?.position || corner;
     state.gridOrigin = snapped?.gridOrigin || corner;
-    state.style = { ...currentStyle };
+    if (state.spellPlacementRequestId) {
+      state.sizeCells = spellAreaGridCells(state.rule.geometry.size, {
+        multiplier: state.multiplier,
+        unit: state.unit,
+      });
+      state.measureLabel = `${formatMeasure(state.rule.geometry.size.value)} m`;
+      if (
+        state.rule.placement.origin === "caster-adjacent"
+        && !spellAreaOriginAdjacentToCaster({
+          origin: state.start,
+          casterBounds: state.casterBounds,
+          dpi: state.dpi,
+        })
+      ) {
+        state.cancelled = true;
+        if (activeDrag === state) activeDrag = null;
+        await OBR.notification.show(
+          "Scegli una casella adiacente al caster come origine.",
+          "WARNING",
+        );
+        return;
+      }
+      const inRange = spellAreaOriginWithinRange({
+        origin: state.start,
+        casterOrigin: state.casterOrigin,
+        range: state.rule.placement.range,
+        dpi: state.dpi,
+        scale: {
+          multiplier: state.multiplier,
+          unit: state.unit,
+        },
+      });
+      if (!inRange) {
+        state.cancelled = true;
+        if (activeDrag === state) activeDrag = null;
+        await OBR.notification.show("Il punto scelto supera la portata dell'incantesimo.", "WARNING");
+        return;
+      }
+    }
+    state.style = state.spellPlacementRequestId
+      ? spellAreaStyle(state.rule?.spellId, currentStyle)
+      : { ...currentStyle };
     const outlineWidth = Math.max(2, state.dpi * 0.035 * state.style.strokeWidth);
     state.interaction = await OBR.interaction.startItemInteraction([
       previewPath("Area sagomata", state.style.fillOpacity, 0.95, outlineWidth, state.style.fillColor, state.style.strokeColor),
@@ -384,6 +602,23 @@ async function finishDrag(state) {
   if (activeDrag !== state || state.finishing || !state.ready) return;
   state.finishing = true;
   const area = renderDrag(state);
+  if (
+    area
+    && state.spellPlacementRequestId
+    && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
+  ) {
+    spellPlacementSession.session = reviewSpellAreaPlacement(
+      spellPlacementSession.session,
+      {
+        type: state.type,
+        start: state.start,
+        end: state.end,
+        dpi: state.dpi,
+        gridOrigin: state.gridOrigin,
+      },
+    );
+    return;
+  }
   state.interaction?.[1]?.();
   activeDrag = null;
   if (!area) return;
@@ -408,9 +643,16 @@ function startDrag(type, event) {
   cancelDrag();
   const pointer = point(event?.pointerPosition);
   if (!pointer) return;
+  const placement = spellPlacementSession;
+  const constrained = !!placement;
+  const effectiveType = constrained ? placement.rule.geometry.shape : type;
+  const rawStart = constrained && placement.rule.placement.origin === "caster"
+    ? placement.casterOrigin
+    : pointer;
   const state = {
-    type,
-    rawStart: pointer,
+    type: effectiveType,
+    rawStart,
+    rawEnd: pointer,
     start: null,
     end: pointer,
     dpi: 150,
@@ -424,6 +666,12 @@ function startDrag(type, event) {
     finishing: false,
     interaction: null,
     area: null,
+    spellPlacementRequestId: constrained ? placement.session.requestId : "",
+    rule: constrained ? placement.rule : null,
+    casterOrigin: constrained ? placement.casterOrigin : null,
+    casterBounds: constrained ? placement.casterBounds : null,
+    sizeCells: 0,
+    measureLabel: "",
   };
   activeDrag = state;
   void prepareDrag(state);
@@ -432,6 +680,7 @@ function startDrag(type, event) {
 function moveDrag(event) {
   const pointer = point(event?.pointerPosition);
   if (!activeDrag || !pointer) return;
+  activeDrag.rawEnd = pointer;
   activeDrag.end = pointer;
   renderDrag(activeDrag);
 }
@@ -439,9 +688,39 @@ function moveDrag(event) {
 function endDrag(event) {
   const state = activeDrag;
   if (!state) return;
-  state.end = point(event?.pointerPosition) || state.end;
+  const pointer = point(event?.pointerPosition);
+  state.rawEnd = pointer || state.rawEnd;
+  state.end = pointer || state.end;
   state.ended = true;
   if (state.ready) void finishDrag(state);
+}
+
+async function confirmSpellPlacement() {
+  const runtime = spellPlacementSession;
+  const state = activeDrag;
+  if (
+    !runtime
+    || !state?.ended
+    || !state?.area
+    || state.spellPlacementRequestId !== runtime.session.requestId
+  ) {
+    await OBR.notification.show("Posiziona prima la sagoma dell'incantesimo.", "WARNING");
+    return;
+  }
+  const area = renderDrag(state);
+  const hitTargetIds = await findHitTargetIds(area);
+  const targetIds = runtime.rule.targeting.includeCaster
+    ? hitTargetIds
+    : hitTargetIds.filter((id) => id !== runtime.session.casterId);
+  runtime.session = reviewSpellAreaPlacement(runtime.session, {
+    type: state.type,
+    start: state.start,
+    end: state.end,
+    dpi: state.dpi,
+    gridOrigin: state.gridOrigin,
+    targetIds,
+  });
+  await closeSpellPlacement("confirmed");
 }
 
 function modeDefinition(type, label, icon) {
@@ -454,6 +733,11 @@ function modeDefinition(type, label, icon) {
     onToolDragEnd: (_context, event) => endDrag(event),
     onToolDragCancel: () => cancelDrag(),
     onDeactivate: () => cancelDrag(),
+    onKeyDown: (_context, event) => {
+      if (event?.key === "Escape" && spellPlacementSession) {
+        void closeSpellPlacement("cancelled", { reason: "escape" });
+      }
+    },
   };
 }
 
@@ -470,6 +754,8 @@ OBR.onReady(async () => {
   }
   try { await OBR.tool.remove(TOOL_ID); } catch {}
   try { await OBR.tool.removeAction(STYLE_ACTION_ID); } catch {}
+  try { await OBR.tool.removeAction(SPELL_PLACEMENT_CONFIRM_ACTION_ID); } catch {}
+  try { await OBR.tool.removeAction(SPELL_PLACEMENT_CANCEL_ACTION_ID); } catch {}
   try { await OBR.contextMenu.remove(RESELECT_CONTEXT_ID); } catch {}
   try { await OBR.contextMenu.remove(CONDITIONS_CONTEXT_ID); } catch {}
   try { await OBR.contextMenu.remove(SPELLS_CONTEXT_ID); } catch {}
@@ -478,6 +764,9 @@ OBR.onReady(async () => {
     id: TOOL_ID,
     icons: [{ icon: "/aoe-target.svg", label: "Targeting area", filter: { roles: ["GM"] } }],
     defaultMode: MODE_IDS.circle,
+    defaultMetadata: {
+      [SPELL_PLACEMENT_META_KEY]: false,
+    },
   });
   await OBR.tool.createMode(modeDefinition("circle", "Cerchio", "/aoe-circle.svg"));
   await OBR.tool.createMode(modeDefinition("square", "Quadrato", "/aoe-square.svg"));
@@ -487,6 +776,64 @@ OBR.onReady(async () => {
     id: STYLE_ACTION_ID,
     icons: [{ icon: "/aoe-style.svg", label: "Aspetto area", filter: { activeTools: [TOOL_ID], roles: ["GM"] } }],
     onClick: () => void openStyleSettings(),
+  });
+  await OBR.tool.createAction({
+    id: SPELL_PLACEMENT_CONFIRM_ACTION_ID,
+    icons: [{
+      icon: "/aoe-confirm.svg",
+      label: "Conferma sagoma",
+      filter: {
+        activeTools: [TOOL_ID],
+        roles: ["GM"],
+        metadata: [{
+          key: SPELL_PLACEMENT_META_KEY,
+          operator: "==",
+          value: true,
+        }],
+      },
+    }],
+    onClick: () => void confirmSpellPlacement(),
+  });
+  await OBR.tool.createAction({
+    id: SPELL_PLACEMENT_CANCEL_ACTION_ID,
+    icons: [{
+      icon: "/aoe-cancel.svg",
+      label: "Annulla sagoma",
+      filter: {
+        activeTools: [TOOL_ID],
+        roles: ["GM"],
+        metadata: [{
+          key: SPELL_PLACEMENT_META_KEY,
+          operator: "==",
+          value: true,
+        }],
+      },
+    }],
+    onClick: () => void closeSpellPlacement("cancelled", { reason: "action" }),
+  });
+  OBR.tool.onToolChange((toolId) => {
+    if (spellPlacementSession && toolId !== TOOL_ID) {
+      void closeSpellPlacement("cancelled", {
+        reason: "tool-changed",
+        restoreTool: false,
+      });
+    }
+  });
+  OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, (event) => {
+    const data = event?.data || {};
+    if (data.type === "start") void beginSpellPlacement(data);
+    if (
+      data.type === "cancel"
+      && spellPlacementSession?.session?.requestId === String(data.requestId || "")
+    ) {
+      void closeSpellPlacement("cancelled", { reason: "request" });
+    }
+    if (
+      data.type === "confirm"
+      && spellPlacementSession?.session?.requestId === String(data.requestId || "")
+    ) {
+      void confirmSpellPlacement();
+    }
   });
   await OBR.contextMenu.create({
     id: RESELECT_CONTEXT_ID,
@@ -555,7 +902,7 @@ OBR.onReady(async () => {
     id: QUICK_HP_CONTEXT_ID,
     icons: [{
       icon: "/quick-damage.svg",
-      label: "Seleziona e apri Console HP Rapida",
+      label: "Seleziona e apri Console effetti ad area",
       filter: {
         roles: ["GM"],
         min: 1,

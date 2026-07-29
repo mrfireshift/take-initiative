@@ -98,6 +98,46 @@ test("un unico piano sostituisce concentrazione, bersagli, spell e condizioni fi
   assert.equal(state(plan, "new-target").conditions[0].parentEffectId, "new-instance");
 });
 
+test("interrompere la concentrazione rimuove effetti figli anche fuori dai bersagli iniziali", () => {
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        investitura: {
+          name: "Investitura del Ghiaccio",
+          instanceId: "ice-instance",
+          targets: ["caster"],
+        },
+      },
+      spells: [{
+        id: "ice-entry",
+        name: "Investitura del Ghiaccio",
+        turns: 100,
+        conc: true,
+        casterId: "caster",
+        instanceId: "ice-instance",
+      }],
+    }),
+    token("external-target", {
+      conditions: [{
+        id: "ice-slow",
+        condition: "Velocità dimezzata",
+        active: true,
+        type: "spell",
+        parentEffectId: "ice-instance",
+      }],
+    }),
+  ], [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "ice-instance",
+  }]);
+
+  assert.deepEqual(state(plan, "caster").spells, []);
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "external-target").conditions, []);
+  assert.deepEqual(new Set(plan.changedIds), new Set(["caster", "external-target"]));
+});
+
 test("una pill buff collegata alla spell conserva semantica e rimozione manuale indipendente", () => {
   const applied = buildEffectsMutationPlan([token("target")], [
     {

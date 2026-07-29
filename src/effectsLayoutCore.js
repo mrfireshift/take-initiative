@@ -1,4 +1,5 @@
 import { spellExpiryCounter } from "./spellExpiryCore.js";
+import { compactLinkedSpellEffectLabel } from "./effectLabelCore.js";
 
 const DEFAULT_FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -140,11 +141,66 @@ export function planEffectsLayout({
 } = {}) {
   const tokenById = new Map(tokens.filter((token) => token?.id).map((token) => [token.id, token]));
   const rowsByTarget = new Map();
+  const spellContextByTarget = new Map();
+  const spellContextByInstance = new Map();
+  const spellRowIdentities = new Set();
   const desired = [];
 
   const appendRow = (targetId, row) => {
     if (!rowsByTarget.has(targetId)) rowsByTarget.set(targetId, []);
     rowsByTarget.get(targetId).push(row);
+  };
+
+  const appendSpellRow = ({ caster, target, assignment, key, title }) => {
+    const targetId = target.id;
+    const identity = `spell|${targetId}|${caster.id}|${key}`;
+    const spellEntry = findSpellEntry(
+      target,
+      { ...assignment, casterId: caster.id },
+    ) || findSpellEntry(
+      caster,
+      { ...assignment, casterId: caster.id },
+    );
+    const counter = spellEntry === null ? "" : spellExpiryCounter(spellEntry);
+    const text = counter ? `${title} (${counter})` : title;
+    const sortPrefix = `0|${key}|${caster.id}`;
+    const context = {
+      title,
+      sortPrefix,
+      backgroundColor: assignment.color?.solid || "hsl(0, 70%, 45%)",
+      backgroundOpacity: assignment.color?.fillOpacity ?? 0.88,
+    };
+    const instanceId = String(assignment.instanceId || "").trim();
+    if (instanceId) {
+      spellContextByTarget.set(`${targetId}|${instanceId}`, context);
+    }
+    if (spellRowIdentities.has(identity)) return context;
+    spellRowIdentities.add(identity);
+    appendRow(targetId, {
+      identity,
+      kind: "spell",
+      targetId,
+      casterId: caster.id,
+      key,
+      text,
+      width: spellWidth(text, measureText, config),
+      height: config.labelHeight,
+      backgroundColor: context.backgroundColor,
+      backgroundOpacity: context.backgroundOpacity,
+      pointerDirection: "LEFT",
+      fontFamily: config.fontFamily,
+      fontSize: config.fontSize,
+      fontWeight: config.fontWeight,
+      lineHeight: config.lineHeight,
+      textFill: config.textFill,
+      textStroke: config.textStroke,
+      textStrokeWidth: config.textStrokeWidth,
+      maxViewScale: config.maxViewScale,
+      zIndex: config.spellZIndex,
+      sortKey: `${sortPrefix}|0`,
+      offsetY: config.stackOffsetY,
+    });
+    return context;
   };
 
   for (const caster of tokens) {
@@ -155,39 +211,25 @@ export function planEffectsLayout({
     for (const assignment of assignments) {
       const key = normalizedKey(assignment.key);
       if (!key) continue;
+      const title = String(
+        assignment.displayName || assignment.key || ""
+      ).trim();
+      const instanceId = String(assignment.instanceId || "").trim();
+      if (instanceId) {
+        spellContextByInstance.set(instanceId, {
+          caster,
+          assignment,
+          key,
+          title,
+        });
+      }
       const targets = Array.isArray(assignment.targets) && assignment.targets.length
         ? assignment.targets
         : [caster.id];
       for (const targetId of new Set(targets.filter(Boolean))) {
         const target = tokenById.get(targetId);
         if (!target) continue;
-        const spellEntry = findSpellEntry(target, { ...assignment, casterId: caster.id });
-        const title = String(assignment.displayName || assignment.key || "").trim();
-        const text = spellEntry === null ? title : `${title} (${spellExpiryCounter(spellEntry)})`;
-        appendRow(targetId, {
-          identity: `spell|${targetId}|${caster.id}|${key}`,
-          kind: "spell",
-          targetId,
-          casterId: caster.id,
-          key,
-          text,
-          width: spellWidth(text, measureText, config),
-          height: config.labelHeight,
-          backgroundColor: assignment.color?.solid || "hsl(0, 70%, 45%)",
-          backgroundOpacity: assignment.color?.fillOpacity ?? 0.88,
-          pointerDirection: "LEFT",
-          fontFamily: config.fontFamily,
-          fontSize: config.fontSize,
-          fontWeight: config.fontWeight,
-          lineHeight: config.lineHeight,
-          textFill: config.textFill,
-          textStroke: config.textStroke,
-          textStrokeWidth: config.textStrokeWidth,
-          maxViewScale: config.maxViewScale,
-          zIndex: config.spellZIndex,
-          sortKey: `0|${key}|${caster.id}`,
-          offsetY: config.stackOffsetY,
-        });
+        appendSpellRow({ caster, target, assignment, key, title });
       }
     }
   }
@@ -195,11 +237,31 @@ export function planEffectsLayout({
   for (const token of tokens) {
     for (const condition of Array.isArray(token.conditionParts) ? token.conditionParts : []) {
       const key = String(condition?.key || "").trim();
-      const text = String(condition?.label || "").trim();
-      if (!key || !text) continue;
+      const rawText = String(condition?.label || "").trim();
+      if (!key || !rawText) continue;
       const spellEffect = condition?.kind === "spell-effect";
       const buff = spellEffect && condition?.tone === "buff";
       const debuff = spellEffect && condition?.tone === "debuff";
+      const parentEffectId = String(condition?.parentEffectId || "").trim();
+      let spellContext = parentEffectId
+        ? spellContextByTarget.get(`${token.id}|${parentEffectId}`)
+        : null;
+      if (!spellContext && parentEffectId) {
+        const source = spellContextByInstance.get(parentEffectId);
+        if (source) {
+          spellContext = appendSpellRow({
+            caster: source.caster,
+            target: token,
+            assignment: source.assignment,
+            key: source.key,
+            title: source.title,
+          });
+        }
+      }
+      const linkedToSpell = !!spellContext;
+      const text = linkedToSpell
+        ? compactLinkedSpellEffectLabel(rawText, spellContext.title)
+        : rawText;
       appendRow(token.id, {
         identity: `condition|${token.id}|${key}`,
         kind: spellEffect ? "spell-effect" : "condition",
@@ -209,12 +271,16 @@ export function planEffectsLayout({
         text,
         width: conditionWidth(text, measureText, config),
         height: config.labelHeight,
-        backgroundColor: buff
-          ? config.buffBackground
-          : debuff
-            ? config.debuffBackground
-            : config.conditionBackground,
-        backgroundOpacity: config.conditionBackgroundOpacity,
+        backgroundColor: linkedToSpell
+          ? spellContext.backgroundColor
+          : buff
+            ? config.buffBackground
+            : debuff
+              ? config.debuffBackground
+              : config.conditionBackground,
+        backgroundOpacity: linkedToSpell
+          ? spellContext.backgroundOpacity
+          : config.conditionBackgroundOpacity,
         pointerDirection: "LEFT",
         fontFamily: config.fontFamily,
         fontSize: config.fontSize,
@@ -225,7 +291,9 @@ export function planEffectsLayout({
         textStrokeWidth: config.textStrokeWidth,
         maxViewScale: config.maxViewScale,
         zIndex: config.conditionZIndex,
-        sortKey: `${spellEffect ? "-1" : "1"}|${key}`,
+        sortKey: linkedToSpell
+          ? `${spellContext.sortPrefix}|1|${key}`
+          : `${spellEffect ? "-1" : "1"}|${key}`,
         offsetY: 0,
       });
     }

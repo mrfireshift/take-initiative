@@ -13,6 +13,7 @@ import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
+  elevationMovementCells,
   measureSquareGridCells,
   limitedMovementRejection,
   SPEED_CHECK_METERS_PER_CELL,
@@ -21,6 +22,7 @@ import {
   reversedPathStart,
   shouldRetreatSpeedMovement,
 } from "./speedCheckCore.js";
+import { normalizeElevation } from "./distance3dCore.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
@@ -30,7 +32,8 @@ const SPEED_WARNING_MODAL_ID = ID + "/speed-warning-modal";
 const SPEED_DRAG_CHANNEL = ID + "/speed-drag";
 const SPEED_STATE_CHANNEL = ID + "/speed-state";
 const SPEED_CHECK_META_FIELD = "speedCheckMovement";
-const SPEED_CHECK_META_VERSION = 1;
+const ELEVATION_META_FIELD = "elevation";
+const SPEED_CHECK_META_VERSION = 2;
 const MAX_MOVEMENT_SEGMENTS = 500;
 
 
@@ -49,6 +52,7 @@ let remoteMovementSnapshot = null;
 let movementPersistQueue = Promise.resolve();
 const trackedDrags = new Map();
 const rejectedMovementRollbacks = new Map();
+const rejectedElevationRollbacks = new Map();
 const movementStateListeners = new Set();
 
 function emitMovementSnapshot(snapshot) {
@@ -138,28 +142,42 @@ function parseSpeedMeters(rawSpeed) {
   return Math.round(num * 10) / 10;
 }
 
-function conditionSpeedForItem(item, baseSpeedMeters) {
+function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk") {
   const meta = item?.metadata?.[META_KEY] || {};
   const conditions = meta.conditions || {};
   const spells = meta[SPELLS_META_KEY] || [];
-  return resolveConditionSpeed(baseSpeedMeters, getConditionInstances(conditions), spells);
+  return resolveConditionSpeed(
+    baseSpeedMeters,
+    getConditionInstances(conditions),
+    spells,
+    preferredMode,
+  );
 }
 
-async function applyConditionSpeedItem(item) {
-  if (!movementState || item?.id !== movementState.itemId || movementState.disabled) return;
-  const totalMeters = movementTotalMeters(movementState);
-  const wasProne = movementState.prone === true;
-  const resolved = conditionSpeedForItem(item, movementState.baseSpeedMeters);
-  const previousSignature = [
-    movementState.speedMeters,
-    movementState.blocked,
-    movementState.conditionSummary,
-    movementState.prone,
-  ].join("|");
-  const nextSignature = [resolved.speedMeters, resolved.blocked, resolved.summary, resolved.prone].join("|");
-  if (previousSignature === nextSignature) return;
+function movementResolutionSignature(source) {
+  return JSON.stringify({
+    activeMode: source?.activeMode,
+    speedMeters: source?.speedMeters,
+    blocked: source?.blocked,
+    conditionSummary: source?.conditionSummary ?? source?.summary,
+    prone: source?.prone,
+    movementModes: (source?.movementModes || []).map((entry) => [
+      entry.id,
+      entry.baseSpeedMeters,
+      entry.speedMeters,
+      entry.blocked,
+      entry.summary,
+    ]),
+  });
+}
 
-  Object.assign(movementState, {
+function applyResolvedMovementState(state, resolved, totalMeters) {
+  Object.assign(state, {
+    activeMode: resolved.activeMode,
+    activeModeLabel: resolved.activeModeLabel,
+    movementModes: resolved.movementModes,
+    hasMovementModes: resolved.hasMovementModes,
+    modeBaseSpeedMeters: resolved.modeBaseSpeedMeters,
     speedMeters: resolved.speedMeters,
     blocked: resolved.blocked,
     blocksSpeedBonuses: resolved.blocksSpeedBonuses,
@@ -169,12 +187,29 @@ async function applyConditionSpeedItem(item) {
     movementCostMultiplier: resolved.movementCostMultiplier,
     blockedWarningSent: false,
   });
-  movementState.cycle = resolved.speedMeters > 0
+  state.cycle = resolved.speedMeters > 0
     ? Math.floor((totalMeters + 1e-9) / resolved.speedMeters)
     : 0;
-  movementState.cycleMeters = resolved.speedMeters > 0
-    ? Math.max(0, totalMeters - (movementState.cycle * resolved.speedMeters))
+  state.cycleMeters = resolved.speedMeters > 0
+    ? Math.max(0, totalMeters - (state.cycle * resolved.speedMeters))
     : totalMeters;
+}
+
+async function applyConditionSpeedItem(item) {
+  if (!movementState || item?.id !== movementState.itemId || movementState.disabled) return;
+  const totalMeters = movementTotalMeters(movementState);
+  const wasProne = movementState.prone === true;
+  const previousMode = movementState.activeMode;
+  const resolved = conditionSpeedForItem(
+    item,
+    movementState.baseSpeedMeters,
+    movementState.activeMode,
+  );
+  const previousSignature = movementResolutionSignature(movementState);
+  const nextSignature = movementResolutionSignature(resolved);
+  if (previousSignature === nextSignature) return;
+
+  applyResolvedMovementState(movementState, resolved, totalMeters);
 
   const standingCostMeters = wasProne && !resolved.prone
     ? proneStandingCostMeters(resolved.speedMeters)
@@ -190,7 +225,9 @@ async function applyConditionSpeedItem(item) {
     );
   }
   notifyMovementState();
-  if (standingCostMeters > 0) await persistMovementState(movementState);
+  if (standingCostMeters > 0 || previousMode !== resolved.activeMode) {
+    await persistMovementState(movementState);
+  }
 }
 
 function persistedMovementPayload(state) {
@@ -198,6 +235,7 @@ function persistedMovementPayload(state) {
     version: SPEED_CHECK_META_VERSION,
     turnKey: String(state?.turnKey || ""),
     totalMeters: Math.round(movementTotalMeters(state) * 1000) / 1000,
+    activeMode: String(state?.activeMode || "walk"),
     lastCell: validPoint(state?.lastCell),
     startPosition: validPoint(state?.startPosition),
     startCell: validPoint(state?.startCell),
@@ -209,6 +247,7 @@ function persistedMovementSignature(payload) {
   return [
     String(payload?.turnKey || ""),
     Math.round(Math.max(0, Number(payload?.totalMeters) || 0) * 1000) / 1000,
+    String(payload?.activeMode || "walk"),
     lastCell?.x ?? "",
     lastCell?.y ?? "",
     validPoint(payload?.startPosition)?.x ?? "",
@@ -242,11 +281,12 @@ function applyPersistedMovementItem(item) {
 
   const totalMeters = Math.max(0, Number(payload.totalMeters) || 0);
   trimMovementPathToTotal(movementState, totalMeters);
-  const speed = Math.max(0, Number(movementState.speedMeters) || 0);
-  movementState.cycle = speed > 0 ? Math.floor((totalMeters + 1e-9) / speed) : 0;
-  movementState.cycleMeters = speed > 0
-    ? Math.max(0, totalMeters - (movementState.cycle * speed))
-    : totalMeters;
+  const resolved = conditionSpeedForItem(
+    item,
+    movementState.baseSpeedMeters,
+    payload.activeMode || movementState.activeMode,
+  );
+  applyResolvedMovementState(movementState, resolved, totalMeters);
   movementState.lastCell = validPoint(payload.lastCell) || movementState.lastCell;
   movementState.startPosition = validPoint(payload.startPosition) || movementState.startPosition;
   movementState.startCell = validPoint(payload.startCell) || movementState.startCell;
@@ -271,6 +311,10 @@ function persistMovementState(state) {
   return movementPersistQueue;
 }
 
+function snapshotElevation(snapshot) {
+  return normalizeElevation(snapshot?.item?.metadata?.[META_KEY]?.[ELEVATION_META_FIELD]);
+}
+
 function mountSpeedMetadataListener() {
   if (speedMetadataListenerMounted) return;
   speedMetadataListenerMounted = true;
@@ -279,7 +323,33 @@ function mountSpeedMetadataListener() {
     const item = event.items.find((candidate) => candidate?.id === movementState.itemId);
     if (!item) return;
     if (event.flags.speedCheck) applyPersistedMovementItem(item);
-    if (event.flags.conditions) void applyConditionSpeedItem(item).catch(() => {});
+    if (event.flags.conditions || event.flags.concentration) {
+      void applyConditionSpeedItem(item).catch(() => {});
+    }
+    for (const record of event.changedRecords || []) {
+      const itemId = record?.after?.id || record?.before?.id;
+      if (itemId !== movementState.itemId || !record?.before || !record?.after) continue;
+      const beforeElevation = snapshotElevation(record.before);
+      const afterElevation = snapshotElevation(record.after);
+      if (Math.abs(afterElevation - beforeElevation) < 0.001) continue;
+
+      const rollback = rejectedElevationRollbacks.get(itemId);
+      if (rollback?.until <= Date.now()) {
+        rejectedElevationRollbacks.delete(itemId);
+      } else if (rollback && Math.abs(afterElevation - rollback.elevation) < 0.001) {
+        rejectedElevationRollbacks.delete(itemId);
+        continue;
+      }
+      if (movementState.activeMode !== "fly") continue;
+      queueSpeedCheckElevationChange({
+        id: itemId,
+        name: String(record.after.item?.name || movementState.name || "Personaggio"),
+        position: validPoint(record.after.item?.position) || validPoint(movementState.lastCell),
+        beforeElevation,
+        afterElevation,
+        activeMode: movementState.activeMode,
+      });
+    }
   }, { immediate: true });
 }
 
@@ -323,14 +393,17 @@ async function loadMovementState(turn) {
     snapToGridCell(item.position),
   ]);
   const baseSpeedMeters = Math.max(0, Number(profile?.speed) || 0);
-  if (baseSpeedMeters <= 0) {
-    return { turnKey, itemId: actorId, disabled: true, path: [] };
-  }
-  const resolvedSpeed = conditionSpeedForItem(item, baseSpeedMeters);
-  const speedMeters = resolvedSpeed.speedMeters;
-
   const persisted = meta?.[SPEED_CHECK_META_FIELD];
   const persistedMatches = String(persisted?.turnKey || "") === turnKey;
+  const resolvedSpeed = conditionSpeedForItem(
+    item,
+    baseSpeedMeters,
+    persistedMatches ? persisted.activeMode : "walk",
+  );
+  if (!resolvedSpeed.hasMovementModes) {
+    return { turnKey, itemId: actorId, disabled: true, path: [] };
+  }
+  const speedMeters = resolvedSpeed.speedMeters;
   const initialPosition = validPoint(item.position);
   const persistedStartPosition = persistedMatches ? validPoint(persisted.startPosition) : null;
   const startPosition = persistedStartPosition || initialPosition;
@@ -344,7 +417,12 @@ async function loadMovementState(turn) {
     itemId: actorId,
     disabled: false,
     baseSpeedMeters,
+    modeBaseSpeedMeters: resolvedSpeed.modeBaseSpeedMeters,
     speedMeters,
+    activeMode: resolvedSpeed.activeMode,
+    activeModeLabel: resolvedSpeed.activeModeLabel,
+    movementModes: resolvedSpeed.movementModes,
+    hasMovementModes: resolvedSpeed.hasMovementModes,
     blocked: resolvedSpeed.blocked,
     blocksSpeedBonuses: resolvedSpeed.blocksSpeedBonuses,
     conditionSummary: resolvedSpeed.summary,
@@ -542,28 +620,37 @@ async function processSpeedCheckMovement(movement, turn) {
   const state = await ensureMovementState(turn);
   if (!state || state.disabled || currentTurn?.turnKey !== turnKey) return;
 
+  const verticalMovement = movement?.kind === "elevation"
+    && Number(movement?.verticalCells) > 0;
+  if (verticalMovement && (movement.activeMode !== "fly" || state.activeMode !== "fly")) return;
   const beforeCell = state.lastCell || movement?.beforeCell;
-  const afterCell = movement?.afterCell;
+  const afterCell = verticalMovement ? beforeCell : movement?.afterCell;
   const rawBefore = validPoint(movement?.beforePosition);
-  const rawAfter = validPoint(movement?.afterPosition);
+  const rawAfter = verticalMovement ? rawBefore : validPoint(movement?.afterPosition);
   if (!beforeCell || !afterCell || !rawBefore || !rawAfter) return;
 
   const sample = { ...movement, beforeCell, afterCell };
   let movedCells;
-  try {
-    const measured = await OBR.scene.grid.getDistance(beforeCell, afterCell);
-    movedCells = Number.isFinite(measured) && measured >= 0
-      ? Number(measured)
-      : measureSquareGridCells(beforeCell, afterCell, state.gridDpi);
-  } catch {
-    movedCells = measureSquareGridCells(beforeCell, afterCell, state.gridDpi);
+  if (verticalMovement) {
+    movedCells = Math.max(0, Number(movement.verticalCells) || 0);
+  } else {
+    try {
+      const measured = await OBR.scene.grid.getDistance(beforeCell, afterCell);
+      movedCells = Number.isFinite(measured) && measured >= 0
+        ? Number(measured)
+        : measureSquareGridCells(beforeCell, afterCell, state.gridDpi);
+    } catch {
+      movedCells = measureSquareGridCells(beforeCell, afterCell, state.gridDpi);
+    }
   }
   if (movedCells < 0.001) return;
 
   const toolUndoIndex = movement?.undo === true && movement?.toolDragId
     ? state.path.findIndex((segment) => segment.toolDragId === movement.toolDragId)
     : -1;
-  const reverseIndex = toolUndoIndex >= 0 ? toolUndoIndex : reversedPathStart(state.path, sample);
+  const reverseIndex = verticalMovement
+    ? -1
+    : toolUndoIndex >= 0 ? toolUndoIndex : reversedPathStart(state.path, sample);
   if (shouldRetreatSpeedMovement(reverseIndex, sample)) {
     const reverted = reverseIndex >= 0 ? state.path.splice(reverseIndex) : [];
     const revertedCells = reverted.length
@@ -580,15 +667,32 @@ async function processSpeedCheckMovement(movement, turn) {
   const beforeSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
   const rejection = limitedMovementRejection(beforeSnapshot, chargedCells);
   if (rejection) {
-    const rollbackPosition = { ...rawBefore };
-    rejectedMovementRollbacks.set(state.itemId, {
-      position: rollbackPosition,
-      until: Date.now() + 2500,
-    });
-    suppressMovementHistory(state.itemId, rollbackPosition, 2500);
-    await OBR.scene.items.updateItems([state.itemId], (drafts) => {
-      for (const item of drafts) item.position = { ...rollbackPosition };
-    });
+    if (verticalMovement) {
+      const rollbackElevation = normalizeElevation(movement.beforeElevation);
+      rejectedElevationRollbacks.set(state.itemId, {
+        elevation: rollbackElevation,
+        until: Date.now() + 2500,
+      });
+      await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        for (const item of drafts) {
+          const previous = { ...(item.metadata?.[META_KEY] || {}) };
+          item.metadata = {
+            ...(item.metadata || {}),
+            [META_KEY]: { ...previous, [ELEVATION_META_FIELD]: rollbackElevation },
+          };
+        }
+      });
+    } else {
+      const rollbackPosition = { ...rawBefore };
+      rejectedMovementRollbacks.set(state.itemId, {
+        position: rollbackPosition,
+        until: Date.now() + 2500,
+      });
+      suppressMovementHistory(state.itemId, rollbackPosition, 2500);
+      await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        for (const item of drafts) item.position = { ...rollbackPosition };
+      });
+    }
     notifyMovementState();
     if (rejection.blocked) state.blockedWarningSent = true;
     void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
@@ -607,13 +711,15 @@ async function processSpeedCheckMovement(movement, turn) {
   }
   const next = advanceSpeedCycle(state, chargedCells, state.speedMeters);
   Object.assign(state, next);
-  state.path.push({
-    beforeCell: { ...beforeCell },
-    afterCell: { ...afterCell },
-    cells: chargedCells,
-    toolDragId: movement?.toolDragId || "",
-  });
-  state.lastCell = afterCell;
+  if (!verticalMovement) {
+    state.path.push({
+      beforeCell: { ...beforeCell },
+      afterCell: { ...afterCell },
+      cells: chargedCells,
+      toolDragId: movement?.toolDragId || "",
+    });
+    state.lastCell = afterCell;
+  }
   if (state.path.length > MAX_MOVEMENT_SEGMENTS) {
     state.path.splice(0, state.path.length - MAX_MOVEMENT_SEGMENTS);
   }
@@ -691,6 +797,44 @@ export function queueSpeedCheckMovements(changes) {
   return movementQueue;
 }
 
+function queueSpeedCheckElevationChange(change) {
+  if (!processorEnabled || !speedCheckEnabled) return movementQueue;
+  const turnPromise = currentTurn?.turnKey
+    ? Promise.resolve({ ...currentTurn })
+    : readSpeedCheckTurn();
+  const run = async () => {
+    const turn = await turnPromise;
+    const state = await ensureMovementState(turn);
+    if (!state || state.disabled || state.activeMode !== "fly" || change.activeMode !== "fly") return;
+    const scale = await OBR.scene.grid.getScale()
+      .catch(() => ({ parsed: { multiplier: SPEED_CHECK_METERS_PER_CELL } }));
+    const verticalCells = elevationMovementCells(
+      change.beforeElevation,
+      change.afterElevation,
+      scale?.parsed?.multiplier,
+      change.activeMode,
+    );
+    if (verticalCells < 0.001) return;
+    const position = validPoint(change.position) || validPoint(state.lastCell);
+    if (!position) return;
+    await processSpeedCheckMovement({
+      id: change.id,
+      name: change.name,
+      kind: "elevation",
+      activeMode: change.activeMode,
+      verticalCells,
+      beforeElevation: change.beforeElevation,
+      afterElevation: change.afterElevation,
+      beforePosition: position,
+      afterPosition: position,
+      beforeCell: state.lastCell || position,
+      afterCell: state.lastCell || position,
+    }, turn);
+  };
+  movementQueue = movementQueue.then(run, run);
+  return movementQueue;
+}
+
 export function adjustSpeedCheckDash(delta) {
   if (!movementState || movementState.disabled) return;
   const amount = Math.trunc(Number(delta) || 0);
@@ -703,6 +847,41 @@ export function adjustSpeedCheckBonus(deltaMeters) {
   const next = (Number(movementState.bonusMeters) || 0) + (Number(deltaMeters) || 0);
   movementState.bonusMeters = Math.max(0, Math.min(999, Math.round(next * 10) / 10));
   notifyMovementState();
+}
+
+export function setSpeedCheckMovementMode(mode) {
+  const requestedMode = String(mode || "").trim().toLocaleLowerCase("it");
+  const changeMode = async () => {
+    const state = movementState;
+    if (!state || state.disabled || state.activeMode === requestedMode) return;
+    const selected = state.movementModes?.find((entry) => entry.id === requestedMode);
+    if (!selected) return;
+
+    const totalMeters = movementTotalMeters(state);
+    Object.assign(state, {
+      activeMode: selected.id,
+      activeModeLabel: selected.label,
+      modeBaseSpeedMeters: selected.baseSpeedMeters,
+      speedMeters: selected.speedMeters,
+      blocked: selected.blocked,
+      blocksSpeedBonuses: selected.blocksSpeedBonuses,
+      conditionSummary: selected.summary,
+      conditionReasons: selected.reasons,
+      blockedWarningSent: false,
+    });
+    state.cycle = selected.speedMeters > 0
+      ? Math.floor((totalMeters + 1e-9) / selected.speedMeters)
+      : 0;
+    state.cycleMeters = selected.speedMeters > 0
+      ? Math.max(0, totalMeters - (state.cycle * selected.speedMeters))
+      : totalMeters;
+    notifyMovementState();
+    await persistMovementState(state);
+  };
+  movementQueue = movementQueue.then(changeMode, changeMode);
+  void movementQueue.catch((error) =>
+    console.warn("[speed-check] movement mode:", error?.message || error)
+  );
 }
 
 export function resetSpeedCheckMovement() {

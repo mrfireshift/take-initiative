@@ -4,6 +4,7 @@ import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
+  elevationMovementCells,
   limitedMovementRejection,
   measureSquareGridCells,
   normalizeSpeedMeters,
@@ -40,6 +41,18 @@ test("uses 1.5 meters per grid cell", () => {
   });
 });
 
+test("quota in salita e discesa consuma la modalità Volare in caselle di griglia", () => {
+  assert.equal(elevationMovementCells(0, 4.5, 1.5, "fly"), 3);
+  assert.equal(elevationMovementCells(4.5, 1.5, 1.5, "fly"), 2);
+  assert.equal(elevationMovementCells(0, 15, 5, "fly"), 3);
+});
+
+test("la quota non consuma movimento quando la modalità attiva non è Volare", () => {
+  assert.equal(elevationMovementCells(0, 4.5, 1.5, "walk"), 0);
+  assert.equal(elevationMovementCells(0, 4.5, 1.5, "swim"), 0);
+  assert.equal(elevationMovementCells(0, 4.5, 0, "fly"), 0);
+});
+
 test("builds an explicit movement readout", () => {
   const snapshot = buildSpeedCheckSnapshot({
     turnKey: "4:2:hero",
@@ -56,6 +69,25 @@ test("builds an explicit movement readout", () => {
   assert.equal(snapshot.cycle, 1);
   assert.equal(snapshot.progress, 6 / 10.5);
   assert.equal(snapshot.turnKey, "4:2:hero");
+});
+
+test("the movement snapshot exposes the active mode and available alternatives", () => {
+  const snapshot = buildSpeedCheckSnapshot({
+    baseSpeedMeters: 9,
+    modeBaseSpeedMeters: 18,
+    speedMeters: 18,
+    activeMode: "fly",
+    activeModeLabel: "Volare",
+    movementModes: [
+      { id: "walk", label: "Camminare", baseSpeedMeters: 9, speedMeters: 9 },
+      { id: "fly", label: "Volare", baseSpeedMeters: 18, speedMeters: 18 },
+    ],
+  });
+
+  assert.equal(snapshot.activeMode, "fly");
+  assert.equal(snapshot.activeModeLabel, "Volare");
+  assert.equal(snapshot.modeBaseSpeedMeters, 18);
+  assert.deepEqual(snapshot.movementModes.map(({ id }) => id), ["walk", "fly"]);
 });
 
 test("movement limiting rejects blocked movement and movement beyond the remaining allowance", () => {

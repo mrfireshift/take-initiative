@@ -747,9 +747,10 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
       const displayedSpell = targetSpell || (
         Number.isFinite(a.turns) || a.expiry ? { turns: a.turns, expiry: a.expiry } : null
       );
-      const spellTitle = displayedSpell === null
-        ? spellName
-        : `${spellName} (${spellExpiryCounter(displayedSpell)})`;
+      const counter = displayedSpell === null
+        ? ""
+        : spellExpiryCounter(displayedSpell);
+      const spellTitle = counter ? `${spellName} (${counter})` : spellName;
 
       // Piano stabile SENZA nuove query
       const plan = __spellPlanFromExisting(tid, labelsByTarget.get(tid) || [], assigns, it.id);

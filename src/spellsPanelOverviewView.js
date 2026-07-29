@@ -2,7 +2,10 @@ import {
   getSpellDefinition,
   getSpellEffectChoices,
 } from "./spells-srd.js";
-import { isPreparedSpellCast } from "./spellCastPhaseCore.js";
+import {
+  getSpellOverviewActions,
+  spellActiveActionPresentation,
+} from "./spellActiveActionCore.js";
 import { spellTurnsLabel } from "./spellsPanelViewCore.js";
 
 export function renderSpellOverview({
@@ -15,6 +18,7 @@ export function renderSpellOverview({
   onOpenReference = () => {},
   onTerminateTarget = async () => {},
   onResolve = async () => {},
+  onActivate = async () => {},
   onTerminate = async () => {},
   onActionError = () => {},
 } = {}) {
@@ -34,12 +38,14 @@ export function renderSpellOverview({
     const groupSpell = getSpellDefinition(group.spellId || group.storedName);
     const targetEntries = Array.from(group.targets);
     const targetIds = targetEntries.map(([targetId]) => targetId);
-    const prepared = isPreparedSpellCast({
+    const overviewActions = getSpellOverviewActions({
       spell: groupSpell,
       castContext: group.castContext,
       casterId: group.casterId,
       targetIds,
+      effectInstances: group.effectInstances,
     });
+    const prepared = overviewActions.some((action) => action.type === "resolve");
 
     const row = documentRef.createElement("article");
     row.className = "spell-overview-row";
@@ -56,7 +62,8 @@ export function renderSpellOverview({
     const duration = documentRef.createElement("span");
     duration.className = "overview-badge";
     duration.textContent = spellTurnsLabel(group.turns, group.counters);
-    heading.append(name, referenceButton, duration);
+    heading.append(name, referenceButton);
+    if (duration.textContent) heading.appendChild(duration);
     if (group.concentrating) {
       const concentration = documentRef.createElement("span");
       concentration.className = "overview-badge concentration";
@@ -110,7 +117,8 @@ export function renderSpellOverview({
     const actions = documentRef.createElement("div");
     actions.className = "spell-overview-actions";
     let resolutionChoice = null;
-    if (prepared && groupSpell) {
+    const resolveAction = overviewActions.find((action) => action.type === "resolve");
+    if (resolveAction && groupSpell) {
       const choices = getSpellEffectChoices(groupSpell);
       if (choices.length > 1) {
         resolutionChoice = documentRef.createElement("select");
@@ -154,6 +162,46 @@ export function renderSpellOverview({
         }
       });
       actions.appendChild(resolve);
+    }
+
+    for (const action of overviewActions.filter((candidate) => candidate.type === "manual")) {
+      const activate = documentRef.createElement("button");
+      activate.type = "button";
+      activate.className = "activate-spell";
+      activate.dataset.activeSpellAction = "1";
+      activate.dataset.actionSubjectMode = action.subjectMode;
+      activate.dataset.actionLabel = String(action.buttonLabel || action.label || "Attiva");
+      activate.dataset.actionDetail = String(action.detail || "");
+      activate.dataset.actionEmptySelectionTitle = String(action.emptySelectionTitle || "");
+      activate.dataset.actionCountLabelSingular = String(action.countLabelSingular || "bersaglio");
+      activate.dataset.actionCountLabelPlural = String(action.countLabelPlural || "bersagli");
+      const updatePresentation = () => {
+        const presentation = spellActiveActionPresentation(
+          action,
+          getSelectedTargetIds().length,
+        );
+        activate.disabled = presentation.disabled;
+        activate.textContent = presentation.text;
+        activate.title = presentation.title;
+      };
+      updatePresentation();
+      activate.addEventListener("click", async () => {
+        const selectedTargetIds = getSelectedTargetIds();
+        if (action.requiresTargets && !selectedTargetIds.length) return;
+        activate.disabled = true;
+        try {
+          await onActivate({
+            group,
+            spell: groupSpell,
+            action,
+            targetIds: selectedTargetIds,
+          });
+        } catch (error) {
+          onActionError("activate overview spell", error);
+          updatePresentation();
+        }
+      });
+      actions.appendChild(activate);
     }
 
     const terminate = documentRef.createElement("button");

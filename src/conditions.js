@@ -925,6 +925,8 @@ function __orderedParts(cond = {}) {
       : __chipKeyFor(group.name),
     kind: group.effectKind ? "spell-effect" : "condition",
     tone: group.effectKind || "",
+    parentEffectId: group.parentEffectId,
+    sourceId: String(group.instances[0]?.sourceId || ""),
   }));
 }
 

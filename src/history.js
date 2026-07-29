@@ -72,6 +72,17 @@ async function captureItems(itemIds, fields) {
   }).filter(Boolean);
 }
 
+async function captureSceneItems(itemIds) {
+  const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
+  if (!ids.length) return [];
+  const items = await OBR.scene.items.getItems(ids);
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return ids.map((id) => ({
+    id,
+    item: byId.has(id) ? cloneValue(byId.get(id)) : null,
+  }));
+}
+
 function sameValues(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -257,14 +268,20 @@ function appendEntry(entry) {
 export async function withItemMetaHistory(options, action) {
   const itemIds = Array.from(new Set((options?.itemIds || []).filter(Boolean)));
   const fields = Array.from(new Set((options?.fields || []).filter(Boolean)));
-  if (!itemIds.length || !fields.length || typeof action !== "function") {
+  const sceneItemIds = Array.from(new Set((options?.sceneItemIds || []).filter(Boolean)));
+  const captureMetadata = itemIds.length > 0 && fields.length > 0;
+  if ((!captureMetadata && !sceneItemIds.length) || typeof action !== "function") {
     return typeof action === "function" ? action() : undefined;
   }
 
   const run = async () => {
-    let before;
+    let before = [];
+    let sceneBefore = [];
     try {
-      before = await captureItems(itemIds, fields);
+      [before, sceneBefore] = await Promise.all([
+        captureMetadata ? captureItems(itemIds, fields) : [],
+        captureSceneItems(sceneItemIds),
+      ]);
     } catch (err) {
       console.warn("[history] capture before:", err?.message || err);
       return action();
@@ -272,7 +289,10 @@ export async function withItemMetaHistory(options, action) {
 
     const result = await action();
     try {
-      const after = await captureItems(itemIds, fields);
+      const [after, sceneAfter] = await Promise.all([
+        captureMetadata ? captureItems(itemIds, fields) : [],
+        captureSceneItems(sceneItemIds),
+      ]);
       const afterById = new Map(after.map((item) => [item.id, item]));
 
       const changes = before.map((item) => {
@@ -285,6 +305,18 @@ export async function withItemMetaHistory(options, action) {
           after: next.values,
         };
       }).filter(Boolean);
+      const sceneAfterById = new Map(sceneAfter.map((entry) => [entry.id, entry.item]));
+      for (const entry of sceneBefore) {
+        const previous = entry.item;
+        const next = sceneAfterById.get(entry.id) ?? null;
+        if ((!previous && !next) || (previous && next)) continue;
+        changes.push({
+          id: entry.id,
+          name: String(next?.name || previous?.name || "Elemento scena").trim() || "Elemento scena",
+          sceneBefore: previous,
+          sceneAfter: next,
+        });
+      }
 
       if (changes.length) {
         const entry = {
@@ -559,6 +591,8 @@ async function restoreEntry(entry) {
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
   if (!ids.length) return;
 
+  const sceneDeleteIds = [];
+  const sceneAdditions = [];
   for (const change of changes) {
     const hasSceneSnapshot = Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore") &&
       Object.prototype.hasOwnProperty.call(change || {}, "sceneAfter");
@@ -568,42 +602,44 @@ async function restoreEntry(entry) {
     const afterScene = change.sceneAfter;
     const existing = await OBR.scene.items.getItems([change.id]);
     if (beforeScene === null && afterScene) {
-      if (existing.length) await OBR.scene.items.deleteItems([change.id]);
+      if (existing.length) sceneDeleteIds.push(change.id);
       continue;
     }
     if (beforeScene && afterScene === null && !existing.length) {
-      await OBR.scene.items.addItems([cloneValue(beforeScene)]);
+      sceneAdditions.push(cloneValue(beforeScene));
     }
   }
+  if (sceneDeleteIds.length) await OBR.scene.items.deleteItems(sceneDeleteIds);
 
   const existing = await OBR.scene.items.getItems(ids);
   const existingIds = existing.map((item) => item.id);
-  if (!existingIds.length) return;
+  if (existingIds.length) {
+    const byId = new Map(changes.map((change) => [change.id, change]));
+    await OBR.scene.items.updateItems(existingIds, (drafts) => {
+      for (const item of drafts) {
+        const change = byId.get(item.id);
+        if (!change) continue;
 
-  const byId = new Map(changes.map((change) => [change.id, change]));
-  await OBR.scene.items.updateItems(existingIds, (drafts) => {
-    for (const item of drafts) {
-      const change = byId.get(item.id);
-      if (!change) continue;
-
-      if (change.beforePosition) {
-        item.position = {
-          x: Number(change.beforePosition.x) || 0,
-          y: Number(change.beforePosition.y) || 0,
-        };
-      }
-
-      const fields = Object.entries(change.before || {});
-      if (fields.length) {
-        const meta = { ...(item.metadata?.[META_KEY] || {}) };
-        for (const [field, snapshot] of fields) {
-          if (snapshot?.present) meta[field] = cloneValue(snapshot.value);
-          else delete meta[field];
+        if (change.beforePosition) {
+          item.position = {
+            x: Number(change.beforePosition.x) || 0,
+            y: Number(change.beforePosition.y) || 0,
+          };
         }
-        item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+
+        const fields = Object.entries(change.before || {});
+        if (fields.length) {
+          const meta = { ...(item.metadata?.[META_KEY] || {}) };
+          for (const [field, snapshot] of fields) {
+            if (snapshot?.present) meta[field] = cloneValue(snapshot.value);
+            else delete meta[field];
+          }
+          item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+        }
       }
-    }
-  });
+    });
+  }
+  if (sceneAdditions.length) await OBR.scene.items.addItems(sceneAdditions);
 }
 
 async function syncRestoredEntry(entry) {

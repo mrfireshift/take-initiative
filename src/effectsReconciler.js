@@ -130,7 +130,11 @@ export async function mountEffectsReconciler() {
       console.error("[effects] reconcile", error);
     });
   }, {
-    filter: (event) => !!(event.flags.conditions || event.flags.concentration),
+    filter: (event) => !!(
+      event.flags.movement
+      || event.flags.conditions
+      || event.flags.concentration
+    ),
   });
 
   unsubscribeGrid = OBR.scene.grid.onChange((grid) => {

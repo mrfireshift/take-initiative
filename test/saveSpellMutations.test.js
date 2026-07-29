@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
 import { exhaustionLevelFromInstances } from "../src/exhaustionCore.js";
 import { resolveSaveSpellResolution } from "../src/saveSpellCore.js";
-import { saveSpellResolutionOperations } from "../src/saveSpellOperationsCore.js";
+import {
+  saveSpellResolutionOperations,
+  saveSpellTriggerResolutionOperations,
+} from "../src/saveSpellOperationsCore.js";
 
 function resolutionFor(spell, outcomes = { failed: "failed", passed: "passed" }) {
   return resolveSaveSpellResolution({
@@ -464,6 +467,93 @@ test("il lifecycle completo sostituisce e poi interrompe la concentrazione con g
   }]);
 
   assert.deepEqual(state(interrupted, "caster").concentrations, {});
+  assert.deepEqual(state(interrupted, "target").spells, []);
+  assert.deepEqual(state(interrupted, "target").conditions, []);
+});
+
+test("la risoluzione di un trigger collega la vittima senza rilanciare la spell", () => {
+  const resolution = resolutionFor({
+    id: "web",
+    name: "Web",
+    displayName: "Ragnatela",
+    concentration: true,
+    saveAutomation: {
+      failed: [{ condition: "Trattenuto", expiry: { mode: "concentration" } }],
+    },
+  }, { target: "failed" });
+  const operations = saveSpellTriggerResolutionOperations({
+    resolution,
+    instanceId: "existing-web",
+    casterName: "Mago",
+    turns: 580,
+    spellExpiry: { mode: "concentration" },
+  });
+
+  assert.deepEqual(
+    operations.map((operation) => operation.type),
+    [
+      "spell:upsert",
+      "condition:add",
+      "concentration:register",
+      "condition:automate",
+    ],
+  );
+  assert.deepEqual(operations[0].targetIds, ["target"]);
+  assert.equal(operations[0].instanceId, "existing-web");
+  assert.equal(operations[0].turns, 580);
+  assert.deepEqual(operations[0].expiry, { mode: "concentration" });
+  assert.equal(operations[1].options.parentEffectId, "existing-web");
+  assert.equal(operations[1].options.sourceId, "caster");
+  assert.deepEqual(operations[2].targetIds, ["target"]);
+  assert.equal(
+    operations.some((operation) =>
+      operation.type === "concentration:break"
+    ),
+    false,
+  );
+
+  const applied = buildEffectsMutationPlan([
+    {
+      id: "caster",
+      concentrations: {
+        ragnatela: {
+          name: "Ragnatela",
+          spellId: "web",
+          instanceId: "existing-web",
+          targets: ["first-target"],
+        },
+      },
+      spells: [],
+      conditions: [],
+    },
+    {
+      id: "first-target",
+      concentrations: {},
+      spells: [],
+      conditions: [],
+    },
+    {
+      id: "target",
+      concentrations: {},
+      spells: [],
+      conditions: [],
+    },
+  ], preparedOperations(operations, "zone-trigger"));
+
+  assert.equal(state(applied, "target").spells[0].instanceId, "existing-web");
+  assert.equal(
+    state(applied, "target").conditions[0].parentEffectId,
+    "existing-web",
+  );
+  assert.deepEqual(
+    state(applied, "caster").concentrations.ragnatela.targets,
+    ["first-target", "target"],
+  );
+
+  const interrupted = buildEffectsMutationPlan(applied.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+  }]);
   assert.deepEqual(state(interrupted, "target").spells, []);
   assert.deepEqual(state(interrupted, "target").conditions, []);
 });

@@ -109,6 +109,23 @@ test("l'invalidazione usa solo token e include il caster indicato dalla spell", 
   });
 });
 
+test("il movimento invalida l'intero stack per correggere pill create durante il drag", () => {
+  const metaKey = "plugin/meta";
+  const spellsKey = "plugin/spells";
+  assert.deepEqual(collectEffectsInvalidation({
+    flags: { movement: true, conditions: false, concentration: false },
+    items: [{
+      id: "target",
+      metadata: { [metaKey]: {} },
+    }],
+    removedItems: [],
+  }, { metaKey, spellsKey }), {
+    full: true,
+    conditions: [],
+    concentration: [],
+  });
+});
+
 test("un widget condizione conforme non richiede update", () => {
   const desired = {
     targetId: "token",

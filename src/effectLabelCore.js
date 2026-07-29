@@ -46,3 +46,24 @@ export function compactSpellEffectLabel(value) {
   const label = String(value || "").trim();
   return (COMPACT_EFFECT_LABELS[label] || label).replace(/\s*·\s*/gu, " / ");
 }
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function compactLinkedSpellEffectLabel(value, spellName) {
+  const label = compactSpellEffectLabel(value);
+  const title = String(spellName || "").trim();
+  if (!label || !title) return label;
+
+  const escapedTitle = escapeRegExp(title);
+  const withoutPrefix = label.replace(
+    new RegExp(`^\\s*${escapedTitle}\\s*(?:[:/–—-])\\s*`, "iu"),
+    "",
+  );
+  const withoutSuffix = withoutPrefix.replace(
+    new RegExp(`\\s*(?:[/–—-]\\s*|\\(\\s*)${escapedTitle}\\s*\\)?\\s*$`, "iu"),
+    "",
+  ).trim();
+  return withoutSuffix || label;
+}

@@ -3,12 +3,14 @@ import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
 import phb2014ExtraData from "./spells-phb2014-extra.json" with { type: "json" };
 import {
+  AREA_POPOVER_SPELL_ID_SET,
   AREA_SAVE_AUTOMATION_RULES,
   AREA_SAVE_EFFECT_RULES,
   AREA_SAVE_RULE_CHOICES,
   AREA_SAVE_SPELL_ID_SET,
 } from "./areaSaveSpellRules.js";
 import {
+  SUPPLEMENT_ACTIVE_ACTIONS,
   SUPPLEMENT_AUTOMATION,
   SUPPLEMENT_EFFECT_CHOICES,
   SUPPLEMENT_EFFECTS,
@@ -171,6 +173,73 @@ const SPELL_EXPIRY = Object.freeze({
 });
 
 const SPELL_EFFECTS = Object.freeze({
+  "fly": Object.freeze([
+    Object.freeze({
+      id: "flying-speed-18",
+      kind: "buff",
+      label: "Velocità di volare: 18 m",
+      detail: "Concede una velocità di volare di 18 metri.",
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          modes: Object.freeze({
+            fly: Object.freeze({ grantMeters: 18 }),
+          }),
+          label: "Volare: 18 m",
+        }),
+      }),
+    }),
+  ]),
+  "gaseous-form": Object.freeze([
+    Object.freeze({
+      id: "gaseous-form-movement",
+      kind: "buff",
+      label: "Forma gassosa · solo volo 3 m",
+      detail: "La velocità di volare di 3 metri è l'unico metodo di movimento.",
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          modes: Object.freeze({
+            fly: Object.freeze({ grantMeters: 3 }),
+          }),
+          exclusiveModes: Object.freeze(["fly"]),
+          label: "Forma Gassosa: solo volo 3 m",
+        }),
+      }),
+    }),
+  ]),
+  "spider-climb": Object.freeze([
+    Object.freeze({
+      id: "spider-climb-speed",
+      kind: "buff",
+      label: "Scalare = velocità base",
+      detail: "Concede una velocità di scalare pari alla velocità base sul terreno.",
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          modes: Object.freeze({
+            climb: Object.freeze({ copyFrom: "walk" }),
+          }),
+          label: "Movimenti del Ragno",
+        }),
+      }),
+    }),
+  ]),
+  "wind-walk": Object.freeze([
+    Object.freeze({
+      id: "wind-walk-form",
+      kind: "buff",
+      label: "Forma del vento · solo volo 90 m",
+      detail: "In forma gassosa, volare 90 metri è l'unico metodo di movimento. Rimuovere questa pill quando si torna alla forma normale.",
+      manualRemoval: true,
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          modes: Object.freeze({
+            fly: Object.freeze({ grantMeters: 90 }),
+          }),
+          exclusiveModes: Object.freeze(["fly"]),
+          label: "Camminare nel Vento: solo volo 90 m",
+        }),
+      }),
+    }),
+  ]),
   "bane": Object.freeze([
     Object.freeze({
       id: "attack-save-penalty",
@@ -364,6 +433,46 @@ const SPELL_EFFECTS = Object.freeze({
 });
 
 const SPELL_EFFECT_CHOICES = Object.freeze({
+  "alter-self": Object.freeze([
+    Object.freeze({
+      id: "aquatic-adaptation",
+      label: "Adattamento acquatico",
+      effects: Object.freeze([Object.freeze({
+        id: "aquatic-adaptation",
+        kind: "buff",
+        label: "Respirare sott'acqua · nuotare = base",
+        detail: "Concede respirazione subacquea e una velocità di nuotare pari alla velocità base.",
+        mechanics: Object.freeze({
+          movement: Object.freeze({
+            modes: Object.freeze({
+              swim: Object.freeze({ copyFrom: "walk" }),
+            }),
+            label: "Alterare sé stesso: nuotare",
+          }),
+        }),
+      })]),
+    }),
+    Object.freeze({
+      id: "natural-weapons",
+      label: "Armi naturali",
+      effects: Object.freeze([Object.freeze({
+        id: "alter-self-natural-weapons",
+        kind: "buff",
+        label: "Armi naturali magiche · +1",
+        detail: "Concede un'arma naturale magica, competenza e +1 ai tiri per colpire e per i danni.",
+      })]),
+    }),
+    Object.freeze({
+      id: "change-appearance",
+      label: "Cambiare aspetto",
+      effects: Object.freeze([Object.freeze({
+        id: "alter-self-appearance",
+        kind: "buff",
+        label: "Aspetto alterato",
+        detail: "L'aspetto fisico è alterato senza modificare le statistiche.",
+      })]),
+    }),
+  ]),
   "xanathar-assorbire-elementi": Object.freeze([
     ...["acido", "freddo", "fulmine", "fuoco", "tuono"].map((type) => Object.freeze({
       id: type,
@@ -876,6 +985,7 @@ const ALL_SPELLS = [
       || spell.targetModeCandidate
       || (exactSelf ? "self" : "selected"),
     automation,
+    activeActions: SUPPLEMENT_ACTIVE_ACTIONS[spell.id] || Object.freeze([]),
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
     expiry: SPELL_EXPIRY[spell.id] || null,
@@ -910,10 +1020,11 @@ export function getTrackableSpellOptions() {
     level: spell.level,
     source: spell.source || "",
     concentration: spell.concentration === true,
-    area: AREA_SAVE_SPELL_ID_SET.has(spell.id),
+    area: AREA_POPOVER_SPELL_ID_SET.has(spell.id),
     automated: !!(
       spell.automation
       || spell.saveAutomation
+      || spell.activeActions?.length
       || spell.effects?.length
       || spell.effectChoices?.length
     ),
@@ -922,7 +1033,7 @@ export function getTrackableSpellOptions() {
 
 export function getAreaSaveSpellOptions() {
   return ALL_SPELLS
-    .filter((spell) => AREA_SAVE_SPELL_ID_SET.has(spell.id))
+    .filter((spell) => AREA_POPOVER_SPELL_ID_SET.has(spell.id))
     .map((spell) => ({
       id: spell.id,
       value: spell.catalogLabel || spell.displayName,

@@ -3,6 +3,8 @@ function positiveInteger(value, fallback = 1) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+export const MAX_VISIBLE_SPELL_ROUNDS = 10;
+
 export function isSpellTurnBoundaryExpiry(value) {
   return value?.mode === "turn-start" || value?.mode === "turn-end";
 }
@@ -11,7 +13,8 @@ export function spellExpiryCounter(spell = {}) {
   const expiry = spell?.expiry || {};
   if (expiry.mode === "manual") return "M";
   if (!isSpellTurnBoundaryExpiry(expiry)) {
-    return String(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
+    const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    return turns > MAX_VISIBLE_SPELL_ROUNDS ? "" : String(turns);
   }
   const phase = expiry.mode === "turn-start" ? "I" : "F";
   const actor = expiry.actor === "target" ? "B" : "C";
@@ -24,6 +27,7 @@ export function spellExpiryDescription(spell = {}) {
   if (expiry.mode === "manual") return "rimozione manuale";
   if (!isSpellTurnBoundaryExpiry(expiry)) {
     const turns = Math.max(0, Math.floor(Number(spell?.turns) || 0));
+    if (turns > MAX_VISIBLE_SPELL_ROUNDS) return "durata estesa";
     return `${turns} round rimanenti`;
   }
   const phase = expiry.mode === "turn-start" ? "all'inizio" : "alla fine";

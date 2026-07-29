@@ -104,6 +104,7 @@ export function resolveSaveSpellResolution({
   targetIds = [],
   outcomes = new Map(),
   automation = null,
+  allowEmptyTargets = false,
 } = {}) {
   const targets = uniqueIds(targetIds);
   const caster = String(casterId || "").trim();
@@ -139,7 +140,7 @@ export function resolveSaveSpellResolution({
   ));
   const errors = [];
   if (!spellId || !spellName) errors.push("spell-required");
-  if (!targets.length) errors.push("targets-required");
+  if (!targets.length && !allowEmptyTargets) errors.push("targets-required");
   if (partitions.missingIds.length) errors.push("outcomes-incomplete");
   if (concentration && !caster) errors.push("caster-required");
 

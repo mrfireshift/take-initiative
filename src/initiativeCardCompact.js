@@ -54,11 +54,12 @@ export function __compactEffectItems(
   }));
   for (const spell of spells) {
     const counter = spellExpiryCounter(spell);
+    const spellName = String(spell?.name || "Incantesimo");
     effects.push({
       kind: "spell",
       key: spellKey(spell?.name),
-      label: `${String(spell?.name || "Incantesimo")} (${counter})`,
-      title: `${String(spell?.name || "Incantesimo")} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
+      label: counter ? `${spellName} (${counter})` : spellName,
+      title: `${spellName} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
     });
   }
   if (concentrating && !spells.some((spell) => spell?.conc)) {

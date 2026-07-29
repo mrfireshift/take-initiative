@@ -190,6 +190,17 @@ function removeLinkedConditions(state, removedSpells) {
   );
 }
 
+function removeLinkedConditionsFromAllStates(states, parentEffectId) {
+  const parentId = String(parentEffectId || "").trim();
+  if (!parentId) return;
+  for (const state of states.values()) {
+    state.conditions = state.conditions.filter((instance) =>
+      String(instance?.type || "") !== "spell"
+      || String(instance?.parentEffectId || "") !== parentId
+    );
+  }
+}
+
 function removeSpells(state, predicate) {
   const removed = [];
   const next = [];
@@ -242,6 +253,7 @@ function breakConcentration(states, casterId, reference = null) {
       if (instanceId) removeSpellByInstance(target, instanceId);
       else removeSpellByNameAndSource(target, spellName, caster.id);
     }
+    if (instanceId) removeLinkedConditionsFromAllStates(states, instanceId);
     delete caster.concentrations[matchedKey];
   }
 }

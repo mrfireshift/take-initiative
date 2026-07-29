@@ -256,6 +256,17 @@ test("gli effetti compatti mantengono condizioni e spell ma escludono buff e deb
   assert.equal(effects.some((effect) => effect.kind === "concentration"), false);
 });
 
+test("una spell oltre dieci round non mostra il contatore nella card compatta", () => {
+  const effects = __compactEffectItems([], [{
+    name: "Ragnatela",
+    instanceId: "web-zone",
+    turns: 600,
+  }], false);
+
+  assert.equal(effects[0].label, "Ragnatela");
+  assert.match(effects[0].title, /durata estesa/);
+});
+
 test("una card compatta non mostra pill buff o debuff collegate alla spell", () => {
   const instance = {
     condition: "Lentezza: -2 CA/TS Des · no reazioni",

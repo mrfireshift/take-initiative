@@ -56,6 +56,7 @@ test("le etichette durata privilegiano il confine esatto e poi il range round", 
   assert.equal(spellTurnsLabel([4, 3], ["F B", "F B"]), "F B");
   assert.equal(spellTurnsLabel([4, 3], ["4", "3"]), "3-4 round");
   assert.equal(spellTurnsLabel([2, 2], ["2", "2"]), "2 round");
+  assert.equal(spellTurnsLabel([600], [""]), "");
   assert.equal(spellTurnsLabel([], []), "Durata non indicata");
 });
 
@@ -125,4 +126,42 @@ test("le spell legacy si raggruppano per caster e nome senza collisioni", () => 
     "caster-a",
     "caster-b",
   ]);
+});
+
+test("la panoramica raccoglie anche gli effetti figli su token esterni", () => {
+  const spell = {
+    instanceId: "ice-cast",
+    spellId: "xanathar-investitura-del-ghiaccio",
+    name: "Investitura del Ghiaccio",
+    casterId: "caster",
+    conc: true,
+    turns: 100,
+  };
+  const items = [
+    character("caster", "Druido", {
+      [SPELLS_META_KEY]: [spell],
+    }),
+    character("target", "Goblin", {
+      conditions: {
+        version: 2,
+        instances: [{
+          id: "slow-instance",
+          condition: "Velocità dimezzata",
+          active: true,
+          type: "spell",
+          parentEffectId: "ice-cast",
+          effectId: "ice-investiture-slow",
+        }],
+      },
+    }),
+  ];
+
+  const [group] = spellOverviewGroups(items);
+
+  assert.deepEqual(group.effectInstances, [{
+    itemId: "target",
+    instanceId: "slow-instance",
+    effectId: "ice-investiture-slow",
+    active: true,
+  }]);
 });

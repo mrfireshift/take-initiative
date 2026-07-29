@@ -82,6 +82,45 @@ test("gruppi e ID virtuali conservano i vincoli della card classica", () => {
   assert.equal(virtual.knockedOut, false);
 });
 
+test("buff e debuff nascosti non riservano spazio nella card classica", () => {
+  const hiddenOnly = deriveClassicCardPresentation(
+    { id: "target", attitude: "enemy", hp: 10, hpMax: 10 },
+    {
+      isGM: true,
+      cardEffectData: {
+        flags: {},
+        custom: [],
+        instances: [{
+          id: "spell-effect-1",
+          condition: "Terreno difficile / Ragnatela",
+          effectKind: "debuff",
+        }],
+      },
+    },
+  );
+  const withCondition = deriveClassicCardPresentation(
+    { id: "target", attitude: "enemy", hp: 10, hpMax: 10 },
+    {
+      isGM: true,
+      cardEffectData: {
+        flags: {},
+        custom: [],
+        instances: [
+          {
+            id: "spell-effect-1",
+            condition: "Terreno difficile / Ragnatela",
+            effectKind: "debuff",
+          },
+          { id: "condition-1", condition: "Prono" },
+        ],
+      },
+    },
+  );
+
+  assert.equal(hiddenOnly.hasCardEffects, false);
+  assert.equal(withCondition.hasCardEffects, true);
+});
+
 test("la shell classica conserva dataset, selezione e draggable", () => {
   const selectionItemIds = ["enemy-1", "enemy-2"];
   const card = buildClassicCardShell(

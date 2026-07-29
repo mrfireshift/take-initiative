@@ -106,6 +106,125 @@ test("le pill buff e debuff precedono lo stack senza cambiare il colore della sp
   assert.equal(rows[2].backgroundColor, "#6d28d9");
 });
 
+test("gli effetti collegati seguono la spell, ne usano il colore e accorciano la label", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Crescita di Spine",
+          displayName: "Crescita di Spine",
+          instanceId: "spell-1",
+          targets: ["target"],
+          color: { solid: "#6d28d9", fillOpacity: 0.82 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [
+          {
+            key: "spell-effect:difficult-terrain",
+            label: "Terreno difficile / Crescita di Spine",
+            kind: "spell-effect",
+            tone: "debuff",
+            parentEffectId: "spell-1",
+          },
+          {
+            key: "flag:Assordato",
+            label: "Assordato",
+            kind: "condition",
+            parentEffectId: "spell-1",
+          },
+          { key: "flag:Prono", label: "Prono", kind: "condition" },
+        ],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Crescita di Spine",
+    "Assordato",
+    "Terreno difficile",
+    "Prono",
+  ]);
+  assert.deepEqual(
+    rows.slice(0, 3).map((entry) => entry.backgroundColor),
+    ["#6d28d9", "#6d28d9", "#6d28d9"],
+  );
+  assert.equal(rows[1].backgroundOpacity, 0.82);
+});
+
+test("l'ingresso in una zona ricostruisce la pill spell prima dell'effetto collegato", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        spellEntries: [{
+          name: "Ragnatela",
+          instanceId: "web-zone",
+          casterId: "caster",
+          turns: 9,
+        }],
+        assignments: [{
+          key: "Ragnatela",
+          displayName: "Ragnatela",
+          instanceId: "web-zone",
+          targets: ["caster"],
+          color: { solid: "#7e22ce", fillOpacity: 0.84 },
+        }],
+      }),
+      token("entrant", {
+        conditionParts: [{
+          key: "spell-effect:web-terrain",
+          label: "Terreno difficile / Ragnatela",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "web-zone",
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "entrant" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Ragnatela (9)",
+    "Terreno difficile",
+  ]);
+  assert.deepEqual(
+    rows.map((entry) => entry.backgroundColor),
+    ["#7e22ce", "#7e22ce"],
+  );
+});
+
+test("le pill mappa nascondono i contatori superiori a dieci round", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        spellEntries: [{
+          name: "Ragnatela",
+          instanceId: "web-zone",
+          casterId: "caster",
+          turns: 600,
+        }],
+        assignments: [{
+          key: "Ragnatela",
+          displayName: "Ragnatela",
+          instanceId: "web-zone",
+          targets: ["target"],
+          color: { solid: "#7e22ce", fillOpacity: 0.84 },
+        }],
+      }),
+      token("target"),
+    ],
+  });
+
+  assert.equal(
+    rows.find((entry) => entry.kind === "spell" && entry.targetId === "target").text,
+    "Ragnatela",
+  );
+});
+
 test("durata, larghezza e badge concentrazione sono calcolati nello stesso piano", () => {
   const tokens = [
     token("caster", {

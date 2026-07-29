@@ -100,6 +100,20 @@ test("un incantesimo a concentrazione richiede un caster", () => {
   assert.deepEqual(result.errors, ["caster-required"]);
 });
 
+test("una zona o aura può creare il proprio lifecycle senza bersagli iniziali", () => {
+  const result = resolveSaveSpellResolution({
+    spell: areaSpell({ concentration: true }),
+    casterId: "caster",
+    targetIds: [],
+    outcomes: {},
+    allowEmptyTargets: true,
+  });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.targetIds, []);
+  assert.deepEqual(result.spellTargetIds, []);
+});
+
 test("trackOutcomes esplicito può mantenere lo spell anche sui bersagli che superano", () => {
   const result = resolveSaveSpellResolution({
     spell: areaSpell({

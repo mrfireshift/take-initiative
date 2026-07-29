@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Console HP rapida</title>
+  <title>Console effetti ad area</title>
   <link rel="stylesheet" href="/ui-typography.css" />
   <link rel="stylesheet" href="/popover-glass.css" />
   <style>
@@ -12,7 +12,7 @@
     body{color:var(--text);font-size:var(--obrt-type-body);line-height:1.25}
     button,input,select{font:inherit}.glass-shell{width:100%;height:100%;min-height:0!important;display:flex;overflow:hidden}
     .panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px;overflow:hidden}
-    .header,.target-header,.bulk-row,.footer,.target-actions,.bulk-actions,.footer-actions{display:flex;align-items:center}
+    .header,.target-header,.target-heading,.bulk-row,.footer,.target-actions,.bulk-actions,.footer-actions{display:flex;align-items:center}
     .header,.target-header,.bulk-row,.footer{justify-content:space-between;gap:8px}.target-header{align-items:flex-start}.header{min-height:30px}
     .title{font-size:var(--obrt-type-panel-title);font-weight:var(--obrt-weight-bold);letter-spacing:-.01em}
     .close{width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:inherit;cursor:pointer}
@@ -27,15 +27,16 @@
     .amount-wrap{display:grid;gap:4px}.caption{color:var(--muted);font-size:var(--obrt-type-caption);font-weight:var(--obrt-weight-bold);letter-spacing:.07em;text-transform:uppercase}
     .amount{width:100%;height:42px;padding:5px 10px;border:1px solid rgba(148,163,184,.28);border-radius:11px;outline:none;background:rgba(0,0,0,.35);color:#fff;font-size:22px;font-weight:var(--obrt-weight-bold);text-align:center;font-variant-numeric:tabular-nums}
     .amount:focus{border-color:rgba(96,165,250,.7);box-shadow:0 0 0 2px rgba(37,99,235,.18)}
-    .target-section{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:7px}.target-actions,.bulk-actions,.footer-actions{gap:5px}.target-actions{justify-content:flex-end;flex-wrap:wrap}
+    .target-section{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:7px;overflow:hidden}.target-actions,.bulk-actions,.footer-actions{gap:5px}.target-actions{justify-content:flex-end;flex-wrap:wrap}
     .small{min-height:27px;padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.055);color:inherit;cursor:pointer}
     .target-name-filter{width:116px;min-height:28px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(15,23,42,.9);color:inherit;outline:none}
+    .target-heading{gap:7px}.target-lock{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:2px 7px;border:1px solid rgba(96,165,250,.4);border-radius:999px;background:rgba(30,64,175,.2);color:#bfdbfe;font-size:var(--obrt-type-caption);white-space:nowrap}.target-lock[hidden]{display:none}.target-lock button{min-height:20px;padding:0 5px;border:0;border-radius:999px;background:rgba(96,165,250,.16);color:inherit;font:inherit;cursor:pointer}.target-lock button:hover{background:rgba(96,165,250,.28)}
     .save-options{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid rgba(250,204,21,.25);border-radius:10px;background:rgba(161,98,7,.12)}.save-options label{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}.save-options select{min-width:190px;min-height:30px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:rgba(15,23,42,.9);color:inherit;outline:none}
     .condition-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px;padding-top:7px;border-top:1px solid rgba(250,204,21,.18)}.condition-details label{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}.condition-details .caption{flex:0 0 auto}.condition-details select,.condition-details input{min-width:0;min-height:28px;width:100%;padding:4px 7px;border:1px solid var(--line);border-radius:8px;background:rgba(15,23,42,.9);color:inherit;outline:none}.condition-details label[hidden]{display:none}
     .faction-toggle{min-height:28px;padding:0 7px;font-size:var(--obrt-type-caption);font-weight:var(--obrt-weight-semibold)}.faction-toggle.active{background:rgba(37,99,235,.42);border-color:rgba(96,165,250,.72)}
-    .target-list{flex:1 1 auto;min-height:0;display:grid;align-content:start;gap:5px;padding:6px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;background:rgba(0,0,0,.2);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.45) transparent}
+    .target-list{flex:1 1 0;min-height:0;display:grid;align-content:start;gap:5px;padding:6px;overflow-y:auto;border:1px solid var(--line);border-radius:11px;background:rgba(0,0,0,.2);scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.45) transparent}
     .target{display:grid;grid-template-columns:20px minmax(105px,1fr) minmax(104px,auto) minmax(145px,auto);align-items:center;gap:7px;min-height:46px;padding:5px 7px;border:1px solid rgba(148,163,184,.14);border-radius:9px;background:rgba(255,255,255,.025);cursor:pointer}
-    .target.selected{border-color:rgba(96,165,250,.62);background:rgba(30,64,175,.24)}.target.disabled{opacity:.46;cursor:default}.target input{accent-color:#2563eb}
+    .target.selected{border-color:rgba(96,165,250,.62);background:rgba(30,64,175,.24)}.target.disabled{opacity:.46;cursor:default}.target.selection-locked{cursor:default}.target input{accent-color:#2563eb}
     .identity{min-width:0;display:flex;align-items:center;gap:7px}.faction{width:8px;height:8px;flex:0 0 auto;border-radius:50%;background:#94a3b8;box-shadow:0 0 8px currentColor}
     .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--obrt-weight-semibold)}.hp-preview{min-width:104px;text-align:right;font-weight:var(--obrt-weight-medium);font-variant-numeric:tabular-nums;white-space:nowrap}
     .before{color:var(--muted)}.delta.damage{color:#fca5a5}.delta.heal{color:#86efac}.delta.temp{color:#93c5fd}
@@ -69,7 +70,7 @@
     .condition-details label{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-width:0;padding:10px 12px;border-right:1px solid rgba(148,163,184,.18);border-bottom:1px solid rgba(148,163,184,.18)}
     .condition-details label:nth-child(2n){border-right:0}.condition-details label:nth-last-child(-n+2){border-bottom:0}
     .condition-details select,.condition-details input{min-height:40px;padding:6px 10px;background:rgba(15,23,42,.62);font-size:15px}
-    .target-section{gap:10px}.target-header{align-items:center;padding:0 6px}.target-header>.caption{font-size:16px}.target-actions{align-items:center;gap:8px}
+    .target-section{gap:10px}.target-header{align-items:center;padding:0 6px}.target-heading>.caption{font-size:16px}.target-actions{align-items:center;gap:8px}
     .target-name-filter{width:220px;min-height:42px;padding:7px 12px;border-radius:11px;background:rgba(15,23,42,.56);font-size:15px}
     .faction-toggle{min-height:42px;padding:0 15px;border-radius:11px;font-size:15px}
     .target-list{gap:4px;padding:0;border:0;background:transparent;overflow-y:auto}
@@ -90,8 +91,8 @@
       .controls{grid-template-columns:minmax(0,1fr) 94px;gap:8px}.mode{min-height:38px;padding:5px 6px;font-size:var(--obrt-type-body)}.amount-wrap{gap:4px}.amount-wrap .caption{padding-left:0}.amount{height:42px;padding:5px 8px;font-size:22px}
       .save-options{align-items:start;grid-template-columns:minmax(0,.76fr) minmax(0,1.24fr);gap:6px;padding:6px;border-radius:12px}.condition-card,.effect-card{padding:7px;border-radius:10px}.condition-card{min-height:0;gap:6px}.effect-card{gap:5px}.section-title{font-size:var(--obrt-type-caption)}
       .select-field.with-caption{gap:3px}.select-field select,.spell-search{min-height:32px;padding:4px 7px;font-size:var(--obrt-type-body)}.spell-search{padding-right:48px}.spell-rule-summary,.concentration-note{padding:5px 7px}.condition-details{grid-template-columns:repeat(2,minmax(0,1fr))}.condition-details label{gap:3px;padding:5px 6px}.condition-details select,.condition-details input{min-height:28px;padding:3px 6px;font-size:var(--obrt-type-body)}
-      .target-section{gap:7px}.target-header{align-items:center;flex-direction:row;padding:0 2px}.target-header>.caption{flex:0 0 auto;font-size:var(--obrt-type-caption)}.target-actions{width:auto;flex:1 1 auto;flex-wrap:nowrap;gap:5px}.target-name-filter{width:auto;min-width:0;min-height:28px;flex:1 1 auto;padding:4px 8px;font-size:var(--obrt-type-body)}.faction-toggle{flex:0 0 auto;min-height:28px;padding:0 7px;font-size:var(--obrt-type-caption)}
-      .target-list{min-height:260px}
+      .target-section{gap:7px}.target-header{align-items:center;flex-direction:row;padding:0 2px}.target-heading>.caption{flex:0 0 auto;font-size:var(--obrt-type-caption)}.target-actions{width:auto;flex:1 1 auto;flex-wrap:nowrap;gap:5px}.target-name-filter{width:auto;min-width:0;min-height:28px;flex:1 1 auto;padding:4px 8px;font-size:var(--obrt-type-body)}.faction-toggle{flex:0 0 auto;min-height:28px;padding:0 7px;font-size:var(--obrt-type-caption)}
+      .target-list{min-height:0}
       .target{gap:4px 7px;padding:5px 7px;border-radius:9px}.target input{width:auto;height:auto}.identity{grid-column:2;grid-row:1;gap:7px}.faction{width:8px;height:8px}.name{font-size:var(--obrt-type-body)}.hp-preview{grid-column:3;grid-row:1;min-width:0;font-size:var(--obrt-type-body)}.target:not(.save-target){grid-template-columns:20px minmax(80px,1fr) minmax(98px,auto) minmax(190px,auto);grid-template-rows:auto;min-height:46px}.target:not(.save-target) .factor-group{grid-column:4;grid-row:1;justify-self:stretch}.outcome-group{grid-column:2/-1;grid-row:2}.target.save-target{grid-template-columns:20px minmax(80px,1fr) minmax(106px,auto) minmax(180px,auto);grid-template-rows:auto;min-height:46px;gap:7px}.target.save-target .identity{grid-column:2;grid-row:1}.target.save-target .hp-preview{grid-column:3;grid-row:1}.target.save-target .outcome-group{grid-column:4;grid-row:1}.outcome{min-height:28px;font-size:var(--obrt-type-caption)}
       .bulk-panel{border-radius:11px}.bulk-row{align-items:center;flex-direction:row;min-height:42px;padding:7px 9px}.bulk-row>.caption{flex:0 0 auto;font-size:var(--obrt-type-caption)}.bulk-actions{width:auto;flex-wrap:nowrap;margin-left:auto;gap:5px}.bulk-actions .small{min-width:0;min-height:27px;padding:4px 9px;font-size:var(--obrt-type-caption)}.bulk-panel>.status{min-height:32px;padding:8px 9px;font-size:var(--obrt-type-body)}
       .footer{align-items:center;flex-direction:row;min-height:42px;padding-top:9px;gap:8px}.summary{width:auto;flex:1 1 auto;white-space:nowrap;font-size:var(--obrt-type-body)}.footer-actions{width:auto;flex:0 0 auto;gap:5px}.footer-actions .small{min-height:36px;padding:7px 12px;font-size:var(--obrt-type-body)}.apply{min-width:150px;min-height:36px;padding:7px 14px;font-size:var(--obrt-type-body)}
@@ -123,48 +124,113 @@
     .footer-actions .small,.apply{border-radius:9px}
     .apply:disabled,.small:disabled{border-color:rgba(148,163,184,.28);background:var(--disabled);color:rgba(255,255,255,.62);filter:none}
     input:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
+    .area-placement{width:100%;min-height:36px;border-color:rgba(96,165,250,.62);background:#2563eb;font-weight:var(--obrt-weight-bold)}
+    .area-placement:hover{background:#1d4ed8}
+
+    /* Effetti ad area: due sezioni richiudibili, senza un pannello contenitore annidato. */
+    .controls{align-items:end}
+    .mode-group{height:62px}
+    .save-options{display:grid;grid-template-columns:1fr;gap:8px;padding:0;border:0;border-radius:0;background:transparent}
+    .area-accordion{min-width:0;border:1px solid rgba(148,163,184,.22);border-radius:12px;background:rgba(15,23,42,.28)}
+    .area-accordion>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:34px;padding:7px 12px;color:var(--muted);cursor:pointer;font-size:12px;font-weight:var(--obrt-weight-bold);letter-spacing:.055em;text-transform:uppercase;list-style:none}
+    .area-accordion>summary::-webkit-details-marker{display:none}
+    .area-accordion>summary::after{width:7px;height:7px;flex:0 0 auto;border-right:2px solid currentColor;border-bottom:2px solid currentColor;content:"";transform:translateY(-2px) rotate(45deg);transition:transform .16s ease}
+    .area-accordion:not([open])>summary::after{transform:translateY(2px) rotate(-45deg)}
+    .area-accordion[open]>summary{border-bottom:1px solid rgba(148,163,184,.16)}
+    .area-accordion-content{display:grid;gap:8px;padding:10px 12px 12px}
+    .area-accordion-content .caption{font-size:10px;letter-spacing:.055em}
+    .area-spell-row{display:flex;align-items:flex-end}
+    .area-spell-field,.area-spell-row .select-field,.area-condition-row label{display:grid;min-width:0;gap:6px}
+    .area-spell-row .select-field{align-items:stretch;justify-content:stretch}
+    .area-spell-field{width:auto;flex:1 1 300px}
+    #spellCasterWrap{width:190px;flex:0 0 190px}
+    .area-spell-row select,.area-condition-row select,.area-condition-row input{width:100%;min-width:0;min-height:48px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:inherit;outline:none}
+    .area-placement{width:auto;height:48px;min-width:150px;min-height:48px;flex:0 1 225px;margin-left:32px}
+    .area-condition-row{display:grid;grid-template-columns:minmax(190px,1.45fr) minmax(130px,1fr) minmax(120px,.9fr) minmax(105px,.8fr) minmax(90px,.7fr);align-items:end;gap:8px}
+    .area-feedback{display:grid;gap:6px}
+    .area-condition-row select:disabled,.area-condition-row input:disabled,.area-spell-row select:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
+    @media(max-width:760px){
+      .mode-group,.mode,.amount{height:42px;min-height:42px}
+      .area-accordion>summary{min-height:34px;padding:6px 9px}
+      .area-accordion-content{padding:7px 9px 9px}
+      .area-condition-row{grid-template-columns:minmax(150px,1.4fr) repeat(4,minmax(80px,1fr))}
+      .area-spell-row select,.area-condition-row select,.area-condition-row input,.area-placement{height:32px;min-height:32px;padding:4px 7px}
+      .area-placement{width:auto;margin-left:24px}
+    }
+    @media(max-width:520px){
+      .area-spell-row{display:grid;grid-template-columns:1fr;row-gap:8px}
+      .area-condition-row{grid-template-columns:1fr}
+      .area-spell-field,#spellCasterWrap{width:100%}
+      .area-placement{width:100%;margin-left:0}
+    }
+    .outcome-group.area-inside-group{grid-template-columns:minmax(0,1fr)}
+    .outcome.area-inside{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#bfdbfe;
+      border-color:rgba(96,165,250,.58);
+      background:rgba(30,64,175,.28);
+      box-shadow:inset 0 0 0 1px rgba(96,165,250,.2);
+      cursor:default;
+      text-align:center;
+    }
   </style>
 </head>
 <body>
   <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/quick-hp-modal"><main class="panel">
-    <header class="header"><div class="title">Console HP rapida</div><button class="close" id="close" type="button" title="Chiudi">X</button></header>
+    <header class="header"><div class="title">Console effetti ad area</div><button class="close" id="close" type="button" title="Chiudi">X</button></header>
     <section class="controls">
       <div class="mode-group" aria-label="Modalita">
         <button class="mode active" data-mode="damage" type="button">Danno</button>
         <button class="mode" data-mode="heal" type="button">Cura</button>
         <button class="mode" data-mode="temp" type="button">HP temp.</button>
-        <button class="mode" data-mode="save" type="button">Esiti TS</button>
+        <button class="mode" data-mode="save" type="button">Effetti ad area</button>
       </div>
       <label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label>
     </section>
     <section class="save-options" id="saveOptions" hidden>
-      <div class="condition-card">
-        <span class="section-title">Incantesimo ad area</span>
-        <label class="select-field">
-          <div class="spell-combobox">
-            <input class="spell-search" id="spellSearch" type="text" placeholder="Cerca incantesimo..." role="combobox" aria-autocomplete="list" aria-controls="spellMenu" aria-expanded="false" aria-label="Cerca o seleziona un incantesimo ad area" autocomplete="off" />
-            <button class="spell-menu-toggle obrt-select-caret-toggle" id="spellMenuToggle" type="button" aria-label="Mostra tutti gli incantesimi ad area" aria-controls="spellMenu" aria-expanded="false">▾</button>
-            <div class="spell-menu" id="spellMenu" role="listbox" hidden></div>
+      <details class="area-accordion" open>
+        <summary>Incantesimo ad area</summary>
+        <div class="area-accordion-content">
+          <div class="area-spell-row">
+            <div class="area-spell-field">
+              <span class="caption">Incantesimi</span>
+              <label class="select-field">
+                <div class="spell-combobox">
+                  <input class="spell-search" id="spellSearch" type="text" placeholder="Cerca incantesimo..." role="combobox" aria-autocomplete="list" aria-controls="spellMenu" aria-expanded="false" aria-label="Cerca o seleziona un incantesimo ad area" autocomplete="off" />
+                  <button class="spell-menu-toggle obrt-select-caret-toggle" id="spellMenuToggle" type="button" aria-label="Mostra tutti gli incantesimi ad area" aria-controls="spellMenu" aria-expanded="false">▾</button>
+                  <div class="spell-menu" id="spellMenu" role="listbox" hidden></div>
+                </div>
+                <select id="spellSelect" aria-hidden="true" tabindex="-1" hidden><option value="">Configurazione manuale</option></select>
+              </label>
+            </div>
+            <label class="select-field with-caption" id="spellCasterWrap"><span class="caption">Caster</span><select id="spellCaster" aria-label="Caster dell'incantesimo"><option value="">Nessun caster</option></select></label>
+            <button class="small area-placement" id="areaPlacement" type="button" hidden>Posiziona area</button>
           </div>
-          <select id="spellSelect" aria-hidden="true" tabindex="-1" hidden><option value="">Configurazione manuale</option></select>
-        </label>
-        <label class="select-field with-caption" id="spellRuleChoiceWrap" hidden><span class="caption">Effetto / variante</span><select id="spellRuleChoice" aria-label="Effetto o variante dell'incantesimo"></select></label>
-        <div class="spell-rule-summary" id="spellRuleSummary" hidden></div>
-        <label class="select-field with-caption" id="manualConditionWrap"><span class="caption">Condizione manuale ai falliti</span><select id="conditionSelect" aria-label="Condizione da applicare ai falliti"><option value="">Nessuna condizione</option></select></label>
-      </div>
-      <div class="effect-card">
-        <span class="section-title">Dettagli effetto</span>
-        <div class="concentration-note" id="concentrationNotice" hidden></div>
-        <div class="condition-details" id="conditionDetails" hidden>
-          <label id="conditionSourceWrap"><span class="caption">Caster / fonte</span><select id="conditionSource" aria-label="Caster o fonte della condizione"><option value="">Nessun caster / fonte</option></select></label>
-          <label id="conditionExpiryWrap"><span class="caption">Scadenza</span><select id="conditionExpiry" aria-label="Scadenza della condizione"><option value="manual">Manuale</option><option value="rounds">N round</option><option value="turn-start">Inizio turno</option><option value="turn-end">Fine turno</option><option value="concentration">Fine concentrazione</option></select></label>
-          <label id="conditionActorWrap" hidden><span class="caption">Turno di</span><select id="conditionActor" aria-label="Turno di bersaglio o fonte"><option value="target">Bersaglio</option><option value="source">Fonte</option></select></label>
-          <label id="conditionDurationWrap" hidden><span class="caption" id="conditionDurationCaption">Durata</span><input id="conditionDuration" type="number" min="1" step="1" value="1" inputmode="numeric" /></label>
+          <div class="area-feedback">
+            <label class="select-field with-caption" id="spellRuleChoiceWrap" hidden><span class="caption">Effetto / variante</span><select id="spellRuleChoice" aria-label="Effetto o variante dell'incantesimo"></select></label>
+            <div class="spell-rule-summary" id="spellRuleSummary" hidden></div>
+            <div class="concentration-note" id="concentrationNotice" hidden></div>
+          </div>
         </div>
-      </div>
+      </details>
+      <details class="area-accordion" id="conditionDetails" open>
+        <summary>Condizione su fallimento TS</summary>
+        <div class="area-accordion-content">
+          <div class="area-condition-row">
+            <label id="manualConditionWrap"><span class="caption">Condizioni</span><select id="conditionSelect" aria-label="Condizione da applicare ai falliti"><option value="">Nessuna condizione</option></select></label>
+            <label id="conditionSourceWrap"><span class="caption">Fonte</span><select id="conditionSource" aria-label="Fonte della condizione"><option value="">Nessuna fonte</option></select></label>
+            <label id="conditionExpiryWrap"><span class="caption">Scadenza</span><select id="conditionExpiry" aria-label="Scadenza della condizione"><option value="manual">Manuale</option><option value="rounds">N round</option><option value="turn-start">Inizio turno</option><option value="turn-end">Fine turno</option><option value="concentration">Fine concentrazione</option></select></label>
+            <label id="conditionActorWrap"><span class="caption">Turno di</span><select id="conditionActor" aria-label="Turno di bersaglio o fonte"><option value="target">Bersaglio</option><option value="source">Fonte</option></select></label>
+            <label id="conditionDurationWrap"><span class="caption" id="conditionDurationCaption">Occorrenze</span><input id="conditionDuration" type="number" min="1" step="1" value="1" inputmode="numeric" /></label>
+          </div>
+        </div>
+      </details>
     </section>
     <section class="target-section">
-      <div class="target-header"><span class="caption">Bersagli</span><div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div></div>
+      <div class="target-header"><div class="target-heading"><span class="caption">Bersagli</span><span class="target-lock" id="targetLock" hidden>Selezione da sagoma <button id="unlockTargets" type="button" title="Consenti la modifica manuale dei bersagli">Sblocca</button></span></div><div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div></div>
       <div class="target-list" id="targetList"></div>
       <div class="bulk-panel"><div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div><div class="status" id="status" role="status"></div></div>
     </section>

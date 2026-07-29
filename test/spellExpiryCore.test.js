@@ -22,6 +22,13 @@ test("le durate a round mantengono il contatore numerico precedente", () => {
   assert.equal(spellExpiryDescription({ turns: 7 }), "7 round rimanenti");
 });
 
+test("le durate superiori a dieci round non vengono mostrate", () => {
+  assert.equal(spellExpiryCounter({ turns: 10 }), "10");
+  assert.equal(spellExpiryCounter({ turns: 11 }), "");
+  assert.equal(spellExpiryCounter({ turns: 600 }), "");
+  assert.equal(spellExpiryDescription({ turns: 600 }), "durata estesa");
+});
+
 test("le spell senza durata determinabile mostrano la rimozione manuale", () => {
   const spell = { turns: 1, expiry: { mode: "manual" } };
   assert.equal(spellExpiryCounter(spell), "M");

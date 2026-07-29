@@ -18,12 +18,81 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("fireball"), true);
   assert.equal(ids.has("xanathar-muro-di-luce"), true);
   assert.equal(ids.has("xanathar-scossa-tellurica"), true);
-  assert.equal(ids.has("alarm"), false);
+  assert.equal(ids.has("glyph-of-warding"), true);
+  assert.equal(ids.has("compulsion"), true);
+  assert.equal(ids.has("divine-word"), true);
+  assert.equal(ids.has("spirit-guardians"), true);
+  assert.equal(ids.has("xanathar-investitura-del-ghiaccio"), true);
+  assert.equal(ids.has("xanathar-investitura-del-vento"), true);
+  assert.equal(ids.has("xanathar-investitura-della-fiamma"), true);
+  assert.equal(ids.has("xanathar-investitura-della-pietra"), true);
+  assert.equal(ids.has("xanathar-trabocchetto"), true);
+  assert.equal(ids.has("phb2014-cordone-di-frecce"), true);
+  assert.equal(ids.has("alarm"), true);
+  assert.equal(ids.has("darkness"), true);
+  assert.equal(ids.has("fog-cloud"), true);
+  assert.equal(ids.has("silence"), true);
+  assert.equal(ids.has("spike-growth"), true);
+  assert.equal(ids.has("phb2014-nube-di-pugnali"), true);
+  assert.equal(ids.has("phb2014-aura-di-purezza"), true);
+  assert.equal(ids.has("color-spray"), true);
+  assert.equal(ids.has("holy-aura"), true);
+  assert.equal(ids.has("mass-cure-wounds"), true);
+  assert.equal(ids.has("sleep"), true);
   assert.equal(ids.has("disintegrate"), false);
-  assert.equal(ids.has("sleep"), false);
   assert.equal(ids.has("xanathar-immolazione"), false);
   assert.equal(ids.has("tasha-lenza-elettrizzante"), false);
   assert.equal(options.find((option) => option.id === "hypnotic-pattern")?.automated, true);
+});
+
+test("le nuove aree collegano condizioni e casi senza effetto persistente", () => {
+  assert.equal(
+    getAreaSaveAutomation("color-spray").failed[0].condition,
+    "Accecato",
+  );
+  assert.equal(
+    getAreaSaveAutomation("holy-aura").failed[0].effectKind,
+    "buff",
+  );
+  assert.deepEqual(
+    getAreaSaveAutomation("mass-cure-wounds").trackOutcomes,
+    [],
+  );
+  assert.equal(
+    getAreaSaveAutomation("sleep").failed[0].condition,
+    "Privo di sensi",
+  );
+  assert.equal(
+    getAreaSaveAutomation("compulsion").failed[0].effectId,
+    "compulsion-forced-movement",
+  );
+  assert.deepEqual(
+    getAreaSaveAutomation("divine-word").trackOutcomes,
+    [],
+  );
+  assert.equal(
+    getAreaSaveAutomation("xanathar-investitura-del-ghiaccio")
+      .failed[0].effectId,
+    "ice-investiture-slow",
+  );
+  assert.equal(
+    getAreaSaveAutomation("xanathar-investitura-della-pietra")
+      .failed[0].condition,
+    "Prono",
+  );
+  assert.equal(
+    getAreaSaveAutomation("xanathar-trabocchetto")
+      .failed[0].condition,
+    "Trattenuto",
+  );
+  assert.deepEqual(
+    getAreaSaveAutomation("glyph-of-warding").trackOutcomes,
+    [],
+  );
+  assert.deepEqual(
+    getAreaSaveAutomation("phb2014-cordone-di-frecce").trackOutcomes,
+    [],
+  );
 });
 
 test("Trama Ipnotica descrive due condizioni solo per i falliti", () => {

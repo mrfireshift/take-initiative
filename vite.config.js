@@ -54,6 +54,7 @@ export default defineConfig(() => {
         concentrationWarning: path.resolve(process.cwd(), "concentration-warning.html"),
         speedWarning: path.resolve(process.cwd(), "speed-warning.html"),
         turnNotice: path.resolve(process.cwd(), "turn-notice.html"),
+        zoneTriggerNotice: path.resolve(process.cwd(), "zone-trigger-notice.html"),
         initiativeCardModal: path.resolve(process.cwd(), "initiative-card-modal.html"),
         factionConfigurator: path.resolve(process.cwd(), "faction-configurator.html"),
         compactEffects: path.resolve(process.cwd(), "compact-effects.html"),

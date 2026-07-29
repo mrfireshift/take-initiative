@@ -1,5 +1,9 @@
 import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
-import { ID, ACTIVE_TURN_LABEL_META, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+import {
+  ID,
+  ACTIVE_TURN_LABEL_META,
+  TRACKER_PANEL_REQUEST_CHANNEL,
+} from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
@@ -10,9 +14,14 @@ import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js"
 import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
-import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  commitWithStaticSpellZoneRemoval,
+  getStaticSpellZoneItems,
+} from "./spellStaticZone.js";
+import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
 import {
   getZeroHPConditionHistoryIds,
   reconcileZeroHPConditionsForItems,
@@ -1352,6 +1361,52 @@ Object.assign(movementReadoutValue.style, {
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 });
+const movementModeTrigger = document.createElement("button");
+movementModeTrigger.type = "button";
+movementModeTrigger.setAttribute("aria-label", "Scegli modalità di movimento");
+movementModeTrigger.setAttribute("aria-haspopup", "listbox");
+movementModeTrigger.setAttribute("aria-expanded", "false");
+Object.assign(movementModeTrigger.style, {
+  display: "none",
+  position: "absolute",
+  inset: "0",
+  width: "100%",
+  height: "100%",
+  margin: "0",
+  padding: "0",
+  border: "0",
+  outline: "none",
+  background: "transparent",
+  color: "inherit",
+  cursor: "pointer",
+  zIndex: "2",
+});
+const movementModeCaret = document.createElement("span");
+movementModeCaret.className = "obrt-select-caret";
+Object.assign(movementModeCaret.style, {
+  position: "absolute",
+  right: "9px",
+  bottom: "9px",
+  pointerEvents: "none",
+});
+movementModeTrigger.appendChild(movementModeCaret);
+const movementModeMenu = document.createElement("div");
+movementModeMenu.setAttribute("role", "listbox");
+movementModeMenu.setAttribute("aria-label", "Modalità di movimento");
+Object.assign(movementModeMenu.style, {
+  display: "none",
+  position: "absolute",
+  top: "calc(100% + 4px)",
+  left: "0",
+  right: "0",
+  zIndex: "30",
+  overflow: "hidden",
+  padding: "4px",
+  border: "1px solid rgba(148,163,184,.34)",
+  borderRadius: "8px",
+  background: "var(--obrt-select-bg, #0f172a)",
+  boxShadow: "0 10px 24px rgba(0,0,0,.42)",
+});
 const movementReadoutMeta = document.createElement("span");
 Object.assign(movementReadoutMeta.style, {
   flex: "0 0 auto",
@@ -1397,7 +1452,11 @@ Object.assign(movementCompactLimitCheckbox.style, {
   cursor: "pointer",
 });
 movementCompactLimitControl.appendChild(movementCompactLimitCheckbox);
-movementReadoutLine.append(movementReadoutValue, movementReadoutMeta, movementCompactLimitControl);
+movementReadoutLine.append(
+  movementReadoutValue,
+  movementReadoutMeta,
+  movementCompactLimitControl,
+);
 const movementDetails = document.createElement("div");
 Object.assign(movementDetails.style, {
   display: "none",
@@ -1407,6 +1466,7 @@ Object.assign(movementDetails.style, {
   borderTop: "1px solid rgba(255,255,255,.12)",
 });
 const movementDetailValues = {};
+let movementSpeedCell = null;
 for (const [key, label] of [
   ["speed", "Velocit\u00e0"],
   ["allowance", "Disponibile"],
@@ -1438,7 +1498,14 @@ for (const [key, label] of [
     whiteSpace: "nowrap",
   });
   movementDetailValues[key] = value;
-  cell.append(caption, value);
+  if (key === "speed") {
+    movementSpeedCell = cell;
+    cell.style.position = "relative";
+    value.style.paddingRight = "18px";
+    cell.append(caption, value, movementModeTrigger, movementModeMenu);
+  } else {
+    cell.append(caption, value);
+  }
   movementDetails.appendChild(cell);
 }
 const movementAllowanceControls = document.createElement("div");
@@ -1591,6 +1658,60 @@ movementCompactLimitControl.addEventListener("click", (event) => event.stopPropa
 movementCompactLimitCheckbox.addEventListener("change", () => {
   setSpeedCheckMovementLimit(movementCompactLimitCheckbox.checked);
 });
+let movementModeMenuOpen = false;
+function setMovementModeMenuOpen(open, focusOption = false) {
+  movementModeMenuOpen = open === true && movementModeMenu.childElementCount > 0;
+  movementModeMenu.style.display = movementModeMenuOpen ? "block" : "none";
+  movementModeTrigger.setAttribute("aria-expanded", movementModeMenuOpen ? "true" : "false");
+  if (movementSpeedCell) {
+    movementSpeedCell.style.borderColor = movementModeMenuOpen
+      ? "rgba(96,165,250,.75)"
+      : "rgba(255,255,255,.11)";
+  }
+  if (movementModeMenuOpen && focusOption) {
+    const selected = movementModeMenu.querySelector("[aria-selected='true']");
+    (selected || movementModeMenu.querySelector("[role='option']"))?.focus();
+  }
+}
+movementModeTrigger.addEventListener("click", (event) => {
+  event.stopPropagation();
+  setMovementModeMenuOpen(!movementModeMenuOpen);
+});
+movementModeTrigger.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  event.preventDefault();
+  event.stopPropagation();
+  setMovementModeMenuOpen(true, true);
+});
+movementModeTrigger.addEventListener("focus", () => {
+  if (movementSpeedCell) movementSpeedCell.style.borderColor = "rgba(96,165,250,.75)";
+});
+movementModeTrigger.addEventListener("blur", () => {
+  if (!movementModeMenuOpen && movementSpeedCell) {
+    movementSpeedCell.style.borderColor = "rgba(255,255,255,.11)";
+  }
+});
+movementModeMenu.addEventListener("click", (event) => event.stopPropagation());
+movementModeMenu.addEventListener("keydown", (event) => {
+  const options = Array.from(movementModeMenu.querySelectorAll("[role='option']"));
+  const currentIndex = options.indexOf(document.activeElement);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setMovementModeMenuOpen(false);
+    movementModeTrigger.focus();
+    return;
+  }
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  event.preventDefault();
+  const offset = event.key === "ArrowDown" ? 1 : -1;
+  const nextIndex = (Math.max(0, currentIndex) + offset + options.length) % options.length;
+  options[nextIndex]?.focus();
+});
+document.addEventListener("click", (event) => {
+  if (movementModeMenuOpen && !movementSpeedCell?.contains(event.target)) {
+    setMovementModeMenuOpen(false);
+  }
+});
 
 let latestMovementSnapshot = null;
 
@@ -1605,6 +1726,57 @@ function movementReadoutSummary(snapshot, compact = isCompactTrackerLayout()) {
     : movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
 }
 
+function syncMovementModeSelect(snapshot) {
+  const modes = Array.isArray(snapshot?.movementModes) ? snapshot.movementModes : [];
+  const selectable = modes.length > 1;
+  movementModeTrigger.style.display = selectable ? "block" : "none";
+  if (movementSpeedCell) movementSpeedCell.style.cursor = selectable ? "pointer" : "default";
+  if (modes.length <= 1) {
+    setMovementModeMenuOpen(false);
+    return;
+  }
+  const signature = modes
+    .map((mode) => `${mode.id}:${mode.speedMeters}:${mode.blocked}`)
+    .join("|");
+  if (movementModeMenu.dataset.signature !== signature) {
+    movementModeMenu.dataset.signature = signature;
+    movementModeMenu.replaceChildren(...modes.map((mode) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.setAttribute("role", "option");
+      option.dataset.mode = mode.id;
+      option.textContent = `${mode.label} · ${movementNumber(mode.speedMeters)} m`;
+      Object.assign(option.style, {
+        width: "100%",
+        minHeight: "28px",
+        display: "block",
+        padding: "5px 7px",
+        border: "0",
+        borderRadius: "5px",
+        background: "transparent",
+        color: "#fff",
+        fontSize: "11px",
+        fontWeight: "700",
+        textAlign: "left",
+        cursor: "pointer",
+      });
+      option.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setMovementModeMenuOpen(false);
+        setSpeedCheckMovementMode(mode.id);
+        movementModeTrigger.focus();
+      });
+      return option;
+    }));
+  }
+  for (const option of movementModeMenu.querySelectorAll("[role='option']")) {
+    const selected = option.dataset.mode === snapshot.activeMode;
+    option.setAttribute("aria-selected", selected ? "true" : "false");
+    option.style.background = selected ? "rgba(37,99,235,.42)" : "transparent";
+  }
+  movementModeTrigger.title = `Modalità attiva: ${snapshot.activeModeLabel}`;
+}
+
 subscribeSpeedCheckState((snapshot) => {
   latestMovementSnapshot = snapshot;
   queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
@@ -1613,12 +1785,14 @@ subscribeSpeedCheckState((snapshot) => {
   if (!visible) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
   movementReadoutMeta.textContent = movementReadoutSummary(snapshot);
+  syncMovementModeSelect(snapshot);
   movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile"
+    + "; modalità " + snapshot.activeModeLabel
     + (snapshot.conditionSummary ? "; " + snapshot.conditionSummary : "");
 
-  movementDetailValues.speed.textContent = movementNumber(snapshot.speedMeters) + " m"
-    + (snapshot.baseSpeedMeters !== snapshot.speedMeters
-      ? " (base " + movementNumber(snapshot.baseSpeedMeters) + " m)"
+  movementDetailValues.speed.textContent = snapshot.activeModeLabel + " · " + movementNumber(snapshot.speedMeters) + " m"
+    + (snapshot.modeBaseSpeedMeters !== snapshot.speedMeters
+      ? " (base " + movementNumber(snapshot.modeBaseSpeedMeters) + " m)"
       : "");
   movementDetailValues.allowance.textContent = movementNumber(snapshot.allowanceMeters) + " m";
   movementDetailValues.total.textContent = movementNumber(snapshot.totalMeters) + " m";
@@ -5535,12 +5709,24 @@ async function __terminateSpellOnTrackerCard(itemId, spell) {
 
   const mutationPlan = await prepareEffectsMutation(operations);
   if (!mutationPlan.changedIds.length) return;
+  const staticZoneCandidates = instanceId
+    && (spell?.conc || spell?.castContext?.staticZoneOwner === true)
+    ? await getStaticSpellZoneItems({ instanceId })
+    : [];
+  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
+    staticZoneCandidates,
+    mutationPlan,
+  );
   await withItemMetaHistory({
     kind: "spell",
     label: `Terminato: ${spellName || "Incantesimo"}`,
     itemIds: mutationPlan.changedIds,
+    sceneItemIds: staticZoneItems.map((item) => item.id),
     fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitEffectsMutationPlan(mutationPlan));
+  }, () => commitWithStaticSpellZoneRemoval(
+    staticZoneItems,
+    () => commitEffectsMutationPlan(mutationPlan),
+  ));
   await refreshConditionLabels([itemId]);
 }
 
@@ -5552,12 +5738,28 @@ async function __clearCardSpells(ids) {
     type: "spell:clear-non-concentration",
     targetIds: scopeIds,
   }]);
+  const staticZoneCandidates = Array.from(new Map(
+    (await Promise.all(scopeIds.map((casterId) =>
+      getStaticSpellZoneItems({ casterId })
+    )))
+      .flat()
+      .filter((item) => item?.id)
+      .map((item) => [item.id, item])
+  ).values());
+  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
+    staticZoneCandidates,
+    mutationPlan,
+  );
   await withItemMetaHistory({
     kind: "spell",
     label: scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi",
     itemIds: mutationPlan.changedIds,
+    sceneItemIds: staticZoneItems.map((item) => item.id),
     fields: [SPELLS_META_KEY, "conditions"],
-  }, () => commitEffectsMutationPlan(mutationPlan));
+  }, () => commitWithStaticSpellZoneRemoval(
+    staticZoneItems,
+    () => commitEffectsMutationPlan(mutationPlan),
+  ));
   await refreshConditionLabels(scopeIds);
 }
 
@@ -5572,6 +5774,14 @@ async function __clearCardConcentrations(ids, sourceEntry = null) {
     casterIds: scopeIds,
   }]);
   if (!mutationPlan.changedIds.length) return;
+  const staticZoneItems = Array.from(new Map(
+    (await Promise.all(scopeIds.map((casterId) =>
+      getStaticSpellZoneItems({ casterId })
+    )))
+      .flat()
+      .filter((item) => item?.id)
+      .map((item) => [item.id, item])
+  ).values());
 
   await __selectContextScope(scopeIds);
   const historyIds = mutationPlan.changedIds;
@@ -5579,8 +5789,12 @@ async function __clearCardConcentrations(ids, sourceEntry = null) {
     kind: "spell",
     label: scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione",
     itemIds: historyIds,
+    sceneItemIds: staticZoneItems.map((item) => item.id),
     fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitEffectsMutationPlan(mutationPlan));
+  }, () => commitWithStaticSpellZoneRemoval(
+    staticZoneItems,
+    () => commitEffectsMutationPlan(mutationPlan),
+  ));
   await refreshConditionLabels(historyIds);
 }
 

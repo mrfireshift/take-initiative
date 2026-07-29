@@ -11,6 +11,16 @@ function getSpellsFromItem(item) {
   return Array.isArray(spells) ? spells : [];
 }
 
+function getEffectInstancesFromItem(item) {
+  const conditions = item?.metadata?.[META_KEY]?.conditions;
+  const instances = Array.isArray(conditions)
+    ? conditions
+    : Array.isArray(conditions?.instances)
+      ? conditions.instances
+      : [];
+  return instances.filter((instance) => instance && instance.active !== false);
+}
+
 function spellDisplayName(value) {
   const raw = String(value || "").trim();
   return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
@@ -58,6 +68,7 @@ export function spellOverviewGroups(items = []) {
           targets: new Map(),
           turns: [],
           counters: [],
+          effectInstances: [],
         };
         groups.set(key, group);
       }
@@ -89,6 +100,22 @@ export function spellOverviewGroups(items = []) {
     }
   }
 
+  for (const item of items) {
+    for (const instance of getEffectInstancesFromItem(item)) {
+      const parentEffectId = String(instance?.parentEffectId || "").trim();
+      const instanceId = String(instance?.id || "").trim();
+      if (!parentEffectId || !instanceId) continue;
+      const group = groups.get("instance:" + parentEffectId);
+      if (!group) continue;
+      group.effectInstances.push({
+        itemId: item.id,
+        instanceId,
+        effectId: String(instance?.effectId || "").trim(),
+        active: instance.active !== false,
+      });
+    }
+  }
+
   return Array.from(groups.values()).sort((a, b) =>
     a.name.localeCompare(b.name, "it") || a.casterName.localeCompare(b.casterName, "it")
   );
@@ -99,6 +126,7 @@ export function spellTurnsLabel(turns = [], counters = []) {
   if (exact.length) return exact.join(" / ");
   const values = turns.filter(Number.isFinite);
   if (!values.length) return "Durata non indicata";
+  if (values.some((value) => value > 10)) return "";
   const min = Math.min(...values);
   const max = Math.max(...values);
   return min === max ? min + " round" : min + "-" + max + " round";

@@ -1,5 +1,21 @@
 export const SPEED_CHECK_METERS_PER_CELL = 1.5;
 
+export function elevationMovementCells(
+  beforeElevation,
+  afterElevation,
+  gridScaleMultiplier,
+  activeMode,
+) {
+  if (String(activeMode || "").trim().toLocaleLowerCase("it") !== "fly") return 0;
+  const before = Number(beforeElevation);
+  const after = Number(afterElevation);
+  const scale = Math.abs(Number(gridScaleMultiplier));
+  if (!Number.isFinite(before) || !Number.isFinite(after) || !Number.isFinite(scale) || scale <= 0) {
+    return 0;
+  }
+  return Math.abs(after - before) / scale;
+}
+
 export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited = false) {
   const source = state && typeof state === "object" ? state : {};
   const speedMeters = Math.max(0, Number(source.speedMeters) || 0);
@@ -9,7 +25,28 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
   const dashCount = Math.max(0, Math.floor(Number(source.dashCount) || 0));
   const bonusMeters = Math.max(0, Number(source.bonusMeters) || 0);
   const effectiveBonusMeters = source.blocksSpeedBonuses ? 0 : bonusMeters;
-  const available = !!enabled && !source.disabled && baseSpeedMeters > 0;
+  const movementModes = (Array.isArray(source.movementModes) ? source.movementModes : [])
+    .map((entry) => ({
+      id: String(entry?.id || ""),
+      label: String(entry?.label || ""),
+      baseSpeedMeters: Math.max(0, Number(entry?.baseSpeedMeters) || 0),
+      speedMeters: Math.max(0, Number(entry?.speedMeters) || 0),
+      blocked: entry?.blocked === true,
+      blocksSpeedBonuses: entry?.blocksSpeedBonuses === true,
+      reasons: Array.isArray(entry?.reasons) ? [...entry.reasons] : [],
+      summary: String(entry?.summary || ""),
+    }))
+    .filter((entry) => entry.id);
+  const activeMode = String(source.activeMode || movementModes[0]?.id || "walk");
+  const activeModeEntry = movementModes.find((entry) => entry.id === activeMode);
+  const modeBaseSpeedMeters = Math.max(
+    0,
+    Number(source.modeBaseSpeedMeters ?? activeModeEntry?.baseSpeedMeters ?? baseSpeedMeters) || 0
+  );
+  const hasMovementModes = source.hasMovementModes === true
+    || movementModes.some((entry) => entry.baseSpeedMeters > 0)
+    || baseSpeedMeters > 0;
+  const available = !!enabled && !source.disabled && hasMovementModes;
   const totalMeters = (completedCycles * speedMeters) + usedMeters;
   const allowanceMeters = speedMeters * (1 + dashCount) + effectiveBonusMeters;
 
@@ -21,7 +58,14 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     itemId: String(source.itemId || ""),
     name: String(source.name || ""),
     baseSpeedMeters,
+    modeBaseSpeedMeters,
     speedMeters,
+    activeMode,
+    activeModeLabel: String(
+      source.activeModeLabel || activeModeEntry?.label || "Camminare"
+    ),
+    movementModes,
+    hasMovementModes,
     usedMeters,
     remainingMeters: available ? Math.max(0, allowanceMeters - totalMeters) : 0,
     totalMeters,

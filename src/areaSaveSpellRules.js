@@ -13,10 +13,12 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "calm-emotions",
   "circle-of-death",
   "cloudkill",
+  "compulsion",
   "cone-of-cold",
   "confusion",
   "control-water",
   "delayed-blast-fireball",
+  "divine-word",
   "earthquake",
   "entangle",
   "faerie-fire",
@@ -28,6 +30,7 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "grease",
   "guardian-of-faith",
   "gust-of-wind",
+  "glyph-of-warding",
   "hypnotic-pattern",
   "ice-storm",
   "incendiary-cloud",
@@ -41,6 +44,7 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "shatter",
   "sleet-storm",
   "slow",
+  "spirit-guardians",
   "stinking-cloud",
   "storm-of-vengeance",
   "sunbeam",
@@ -64,6 +68,10 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-drago-illusorio",
   "xanathar-eruzione-terrestre",
   "xanathar-fulgore-nauseante",
+  "xanathar-investitura-del-ghiaccio",
+  "xanathar-investitura-del-vento",
+  "xanathar-investitura-della-fiamma",
+  "xanathar-investitura-della-pietra",
   "xanathar-maelstrom",
   "xanathar-minuscole-meteore-di-melf",
   "xanathar-muro-di-luce",
@@ -81,15 +89,104 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-sfera-al-vetriolo",
   "xanathar-sfera-della-tempesta",
   "xanathar-soffio-del-drago",
+  "xanathar-trabocchetto",
   "xanathar-trasmutare-roccia",
   "xanathar-turbine",
   "xanathar-vampa-di-aganazzar",
   "tasha-miscela-caustica-di-tasha",
   "tasha-turbine-di-spade",
+  "phb2014-cordone-di-frecce",
   ...PHB2014_AREA_SAVE_SPELL_IDS,
 ]);
 
 export const AREA_SAVE_SPELL_ID_SET = new Set(AREA_SAVE_SPELL_IDS);
+
+// Zone e aure reali che non richiedono un TS al momento del lancio, ma che
+// devono comunque poter essere posizionate e mantenute sulla mappa. Restano
+// separate da AREA_SAVE_SPELL_IDS per non inventare esiti o condizioni.
+export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
+  "alarm",
+  "antilife-shell",
+  "antimagic-field",
+  "color-spray",
+  "darkness",
+  "daylight",
+  "fog-cloud",
+  "forcecage",
+  "globe-of-invulnerability",
+  "hallow",
+  "hallucinatory-terrain",
+  "holy-aura",
+  "magic-circle",
+  "mass-cure-wounds",
+  "mirage-arcane",
+  "move-earth",
+  "private-sanctum",
+  "silence",
+  "sleep",
+  "speak-with-plants",
+  "spike-growth",
+  "teleportation-circle",
+  "tiny-hut",
+  "xanathar-boschetto-druidico",
+  "xanathar-spirito-guaritore",
+  "xanathar-tempio-degli-dei",
+  "xanathar-vento-di-interdizione",
+  "phb2014-nube-di-pugnali",
+  "phb2014-aura-di-purezza",
+  "phb2014-aura-di-vita",
+  "phb2014-cerchio-di-potere",
+]);
+
+export const AREA_PLACEMENT_ONLY_SPELL_ID_SET = new Set(
+  AREA_PLACEMENT_ONLY_SPELL_IDS,
+);
+
+export const AREA_HEALING_SPELL_ID_SET = new Set([
+  "mass-cure-wounds",
+]);
+
+export const AREA_POPOVER_SPELL_IDS = Object.freeze(
+  Array.from(new Set([
+    ...AREA_SAVE_SPELL_IDS,
+    ...AREA_PLACEMENT_ONLY_SPELL_IDS,
+  ])),
+);
+
+export const AREA_POPOVER_SPELL_ID_SET = new Set(AREA_POPOVER_SPELL_IDS);
+
+// Audit esplicito dei record che possiedono un campo `area`, ma nei quali la
+// misura non rappresenta una sagoma di effetto risolvibile dal popover.
+// Mantenerli classificati evita che euristiche future li aggiungano per errore.
+export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
+  "arcane-eye": "sensory-radius",
+  "conjure-elemental": "summon-source-volume",
+  "create-or-destroy-water": "environment-volume",
+  "creation": "created-object-volume",
+  "detect-evil-and-good": "sensory-radius",
+  "detect-magic": "sensory-radius",
+  "detect-poison-and-disease": "sensory-radius",
+  "disintegrate": "single-object-size",
+  "fire-shield": "light-radius",
+  "forbiddance": "complex-footprint",
+  "guards-and-wards": "complex-footprint",
+  "magnificent-mansion": "created-portal-volume",
+  "programmed-illusion": "illusion-volume",
+  "silent-image": "illusion-volume",
+  "telekinesis": "single-target-reach",
+  "teleport": "caster-proximity-selection",
+  "word-of-recall": "caster-proximity-selection",
+  "xanathar-controllare-fiamme": "manipulated-object-volume",
+  "xanathar-immolazione": "single-target-light-radius",
+  "xanathar-modellare-acqua": "manipulated-object-volume",
+  "xanathar-modellare-terra": "manipulated-object-volume",
+  "tasha-lama-del-disastro": "created-object-reach",
+  "tasha-lama-roboante": "single-target-reach",
+  "tasha-lama-verdefiamma": "single-target-reach",
+  "tasha-lenza-elettrizzante": "single-target-reach",
+  "tasha-sudario-spirituale": "attack-bonus-radius",
+  "phb2014-allucinazione-di-forza": "illusion-volume",
+});
 
 // Sono gli effetti già presenti nel catalogo generale che appartengono ai
 // bersagli del TS. Gli altri effetti dello stesso spell possono appartenere
@@ -171,6 +268,41 @@ const noPersistentEffect = Object.freeze({
 // track=false mantiene condizioni istantanee (es. Prono) indipendenti da una
 // pill spell di un round, che altrimenti le rimuoverebbe troppo presto.
 export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
+  "color-spray": failedAutomation([
+    conditionRule("Accecato", {
+      expiry: nextTurn("turn-end", "source"),
+      independent: true,
+      manualRemoval: true,
+    }),
+  ], { track: false }),
+  "holy-aura": failedAutomation([
+    conditionRule("Aura Sacra", {
+      expiry: concentration,
+      effectId: "holy-aura-protection",
+      effectKind: "buff",
+      effectDetail: "Vantaggio ai TS; gli attacchi contro il bersaglio hanno svantaggio.",
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  "mass-cure-wounds": noPersistentEffect,
+  "sleep": failedAutomation([
+    conditionRule("Privo di sensi", {
+      expiry: rounds(10),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  "compulsion": failedAutomation([
+    debuffRule(
+      "Compulsione: movimento imposto",
+      "compulsion-forced-movement",
+      "Nel proprio turno deve usare il movimento nella direzione indicata dal caster.",
+      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+    ),
+  ]),
+  "divine-word": noPersistentEffect,
+  "glyph-of-warding": noPersistentEffect,
   "black-tentacles": failedAutomation([
     conditionRule("Trattenuto", {
       expiry: concentration,
@@ -216,6 +348,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
     ),
   ]),
+  "spirit-guardians": failedAutomation([]),
   "stinking-cloud": failedAutomation([
     debuffRule(
       "Conati: azione persa",
@@ -272,6 +405,19 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       { expiry: concentration },
     ),
   ]),
+  "xanathar-investitura-del-ghiaccio": failedAutomation([
+    debuffRule(
+      "Velocità dimezzata",
+      "ice-investiture-slow",
+      "Velocità dimezzata fino all'inizio del turno successivo del caster.",
+      { expiry: nextTurn("turn-start", "source"), independent: true },
+    ),
+  ], { track: false }),
+  "xanathar-investitura-del-vento": noPersistentEffect,
+  "xanathar-investitura-della-fiamma": noPersistentEffect,
+  "xanathar-investitura-della-pietra": failedAutomation([
+    conditionRule("Prono", { expiry: manual, independent: true }),
+  ], { track: false }),
   "xanathar-onda-di-marea": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),
   ], { track: false }),
@@ -297,6 +443,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       manualRemoval: true,
     }),
   ], { track: false }),
+  "xanathar-trabocchetto": failedAutomation([
+    conditionRule("Trattenuto", {
+      expiry: manual,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  "phb2014-cordone-di-frecce": noPersistentEffect,
 });
 
 // Varianti in cui lo stesso incantesimo usa TS diversi o produce risultati

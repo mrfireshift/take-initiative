@@ -100,6 +100,7 @@
       background:rgba(15,23,42,.58);
     }
     .automation-line { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+    .automation-line[hidden] { display:none; }
     .automation-line input { margin-top:2px; }
     .targets { margin-top:10px; }
     .targets-header { display:grid; grid-template-columns:1fr auto; gap:7px 8px; align-items:center; margin-bottom:7px; }
@@ -169,12 +170,15 @@
     .terminate-spell:hover { background:rgba(220,38,38,.46); }
     .terminate-spell:disabled { opacity:.55; cursor:default; }
     .spell-overview-actions { flex:0 0 auto; display:flex; gap:5px; align-items:center; }
-    .resolve-spell {
+    .resolve-spell,
+    .activate-spell {
       min-height:28px; padding:5px 10px; border-radius:8px;
       background:rgba(37,99,235,.38); border-color:rgba(96,165,250,.58);
     }
-    .resolve-spell:hover { background:rgba(37,99,235,.56); }
-    .resolve-spell:disabled { opacity:.48; cursor:not-allowed; }
+    .resolve-spell:hover,
+    .activate-spell:hover { background:rgba(37,99,235,.56); }
+    .resolve-spell:disabled,
+    .activate-spell:disabled { opacity:.48; cursor:not-allowed; }
     .active-spell-choice { width:auto; max-width:132px; min-height:28px; padding:4px 7px; }
     .overview-empty { padding:18px 10px; text-align:center; color:rgba(255,255,255,.68); }
     @media (max-width:520px) {
@@ -222,6 +226,10 @@
         <label class="automation-line">
           <input id="applyConditions" type="checkbox" />
           <span id="automationText"></span>
+        </label>
+        <label class="automation-line" id="mobileAuraWrap" hidden>
+          <input id="createMobileAura" type="checkbox" checked />
+          <span>Crea e collega l'aura mobile al caster</span>
         </label>
         <select id="conditionChoice" aria-label="Variante dell'incantesimo" style="display:none"></select>
       </div>

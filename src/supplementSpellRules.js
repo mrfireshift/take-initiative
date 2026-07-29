@@ -108,6 +108,54 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
   }),
 });
 
+export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
+  "xanathar-colpo-dello-zefiro": Object.freeze([Object.freeze({
+    id: "zephyr-strike-attack",
+    label: "Colpo dello Zefiro",
+    buttonLabel: "Usa colpo",
+    detail: "Consuma il vantaggio e il +1d8 forza; applica +9 m alla velocità base sul terreno fino alla fine del turno.",
+    subjectMode: "caster",
+    consumesEffectIds: Object.freeze(["zephyr-strike"]),
+    effects: Object.freeze([Object.freeze({
+      id: "zephyr-strike-speed",
+      kind: "buff",
+      label: "Velocità base +9 m",
+      detail: "La velocità base sul terreno aumenta di 9 metri fino alla fine del turno.",
+      expiry: Object.freeze({ mode: "turn-end", actor: "source", remaining: 1 }),
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          addMeters: 9,
+          appliesTo: Object.freeze(["walk"]),
+          label: "Colpo dello Zefiro (+9 m)",
+        }),
+      }),
+    })]),
+  })]),
+  "xanathar-investitura-del-ghiaccio": Object.freeze([Object.freeze({
+    id: "ice-investiture-cone",
+    label: "Cono gelido",
+    buttonLabel: "Cono gelido",
+    detail: "Applica velocità dimezzata ai bersagli selezionati che hanno fallito il TS; i danni restano manuali.",
+    emptySelectionTitle: "Seleziona i bersagli che hanno fallito il TS su Costituzione.",
+    subjectMode: "selected",
+    countLabelSingular: "fallito",
+    countLabelPlural: "falliti",
+    effects: Object.freeze([Object.freeze({
+      id: "ice-investiture-slow",
+      kind: "debuff",
+      label: "Velocità dimezzata",
+      detail: "Velocità dimezzata fino all'inizio del turno successivo del caster.",
+      expiry: nextTurn("turn-start", "source"),
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          multiplier: 0.5,
+          label: "Investitura del Ghiaccio: velocità dimezzata",
+        }),
+      }),
+    })]),
+  })]),
+});
+
 export const SUPPLEMENT_EXPIRY = Object.freeze({
   "xanathar-morsa-del-gelo": nextTurn("turn-end", "target"),
   "xanathar-parola-del-potere-dolore": manual,
@@ -171,6 +219,14 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Volo · attacchi distanza svant.",
     detail: "Velocità di volare e svantaggio agli attacchi con arma a distanza contro il caster.",
+    mechanics: Object.freeze({
+      movement: Object.freeze({
+        modes: Object.freeze({
+          fly: Object.freeze({ grantMeters: 18 }),
+        }),
+        label: "Investitura del Vento: volo 18 m",
+      }),
+    }),
   })]),
   "xanathar-investitura-della-fiamma": Object.freeze([Object.freeze({
     id: "flame-investiture",
@@ -252,6 +308,14 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Velocità di volare: 0",
     detail: "La velocità di volare del bersaglio è ridotta a 0.",
+    mechanics: Object.freeze({
+      movement: Object.freeze({
+        modes: Object.freeze({
+          fly: Object.freeze({ maximumMeters: 0 }),
+        }),
+        label: "Vincolo della Terra: volo 0",
+      }),
+    }),
   })]),
   "tasha-fortezza-della-mente": Object.freeze([Object.freeze({
     id: "intellect-fortress",
@@ -339,6 +403,7 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         mechanics: Object.freeze({
           movement: Object.freeze({
             addMeters: 3,
+            appliesTo: Object.freeze(["walk"]),
             label: "Guardiano della Natura (+3m)",
           }),
         }),
@@ -393,6 +458,14 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+2 CA · volo · Imm. fuoco/veleno",
         detail: "Bonus di 2 alla CA, volo, immunità al fuoco o veleno e alla condizione avvelenato, attacchi magici e attacco extra.",
+        mechanics: Object.freeze({
+          movement: Object.freeze({
+            modes: Object.freeze({
+              fly: Object.freeze({ grantMeters: 12 }),
+            }),
+            label: "Abito Ultraterreno: volo 12 m",
+          }),
+        }),
       })]),
     }),
     Object.freeze({
@@ -403,6 +476,14 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+2 CA · volo · Imm. radiosi/necrotici",
         detail: "Bonus di 2 alla CA, volo, immunità ai radiosi o necrotici e alla condizione affascinato, attacchi magici e attacco extra.",
+        mechanics: Object.freeze({
+          movement: Object.freeze({
+            modes: Object.freeze({
+              fly: Object.freeze({ grantMeters: 12 }),
+            }),
+            label: "Abito Ultraterreno: volo 12 m",
+          }),
+        }),
       })]),
     }),
   ]),

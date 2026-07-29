@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compactSpellEffectLabel } from "../src/effectLabelCore.js";
+import {
+  compactLinkedSpellEffectLabel,
+  compactSpellEffectLabel,
+} from "../src/effectLabelCore.js";
 import { getSpellCatalog } from "../src/spells-srd.js";
 
 test("le pill note usano un'etichetta semantica più corta", () => {
@@ -21,6 +24,20 @@ test("le pill note usano un'etichetta semantica più corta", () => {
 test("le etichette non catalogate restano invariate", () => {
   assert.equal(compactSpellEffectLabel("Effetto personalizzato"), "Effetto personalizzato");
   assert.equal(compactSpellEffectLabel(""), "");
+});
+
+test("un effetto collegato non ripete il nome della spell", () => {
+  assert.equal(
+    compactLinkedSpellEffectLabel(
+      "Terreno difficile / Crescita di Spine",
+      "Crescita di Spine",
+    ),
+    "Terreno difficile",
+  );
+  assert.equal(
+    compactLinkedSpellEffectLabel("Silenzio: Assordato", "Silenzio"),
+    "Assordato",
+  );
 });
 
 test("ogni separatore a punto viene normalizzato con lo slash", () => {

@@ -72,3 +72,88 @@ export function saveSpellResolutionOperations({
     concentrationAction,
   });
 }
+
+export function saveSpellTriggerResolutionOperations({
+  resolution = null,
+  instanceId = "",
+  casterName = "",
+  turns = 1,
+  spellExpiry = null,
+  appliedAt = null,
+} = {}) {
+  if (!resolution?.valid) {
+    const reasons = Array.isArray(resolution?.errors)
+      ? resolution.errors.join(", ")
+      : "invalid-resolution";
+    throw new Error(`Invalid save spell trigger resolution: ${reasons}`);
+  }
+  const parentEffectId = String(instanceId || "").trim();
+  if (!parentEffectId) {
+    throw new Error("Invalid save spell trigger resolution: instance-required");
+  }
+  const sourceId = String(resolution.casterId || "").trim();
+  const spellTargetIds = Array.from(new Set(
+    (resolution.spellTargetIds || [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+  ));
+  const concentration = resolution.concentration === true && !!sourceId;
+  const operations = [];
+  const automatedIds = new Set();
+  if (spellTargetIds.length) {
+    operations.push({
+      type: "spell:upsert",
+      targetIds: spellTargetIds,
+      name: resolution.spellName,
+      turns: Math.max(1, Math.floor(Number(turns) || 1)),
+      conc: concentration,
+      source: sourceId,
+      instanceId: parentEffectId,
+      spellId: resolution.spellId,
+      ...(spellExpiry ? { expiry: clone(spellExpiry) } : {}),
+      ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
+    });
+  }
+  for (const application of resolution.conditionApplications || []) {
+    const targetIds = Array.from(new Set(
+      (application?.targetIds || [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    ));
+    const conditionName = String(application?.conditionName || "").trim();
+    if (!targetIds.length || !conditionName) continue;
+    operations.push({
+      type: "condition:add",
+      targetIds,
+      conditionName,
+      options: {
+        sourceId,
+        sourceName: String(casterName || "").trim(),
+        ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
+        parentEffectId,
+        type: "spell",
+        ...(application.options && typeof application.options === "object"
+          ? clone(application.options)
+          : {}),
+      },
+    });
+    for (const targetId of targetIds) automatedIds.add(targetId);
+  }
+  if (concentration && spellTargetIds.length) {
+    operations.push({
+      type: "concentration:register",
+      casterId: sourceId,
+      targetIds: spellTargetIds,
+      name: resolution.spellName,
+      instanceId: parentEffectId,
+      spellId: resolution.spellId,
+    });
+  }
+  if (automatedIds.size) {
+    operations.push({
+      type: "condition:automate",
+      subjectIds: [...automatedIds],
+    });
+  }
+  return operations;
+}

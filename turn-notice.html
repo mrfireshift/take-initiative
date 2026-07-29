@@ -175,18 +175,193 @@
         transform-origin: left;
         animation: expire 4.5s linear forwards;
       }
+      #zone-app {
+        position: absolute;
+        top: calc(9vh + 148px);
+        left: 50%;
+        width: min(620px, calc(100vw - 32px));
+        display: grid;
+        gap: 0;
+        transform: translateX(-50%);
+      }
+      .zone-notice {
+        --accent: #fb923c;
+        --accent-soft: rgba(251, 146, 60, .42);
+        --accent-deep: rgba(104, 39, 20, .95);
+        position: relative;
+        width: 100%;
+        min-height: 126px;
+        margin-bottom: -14px;
+        padding: 15px 68px 14px 104px;
+        border: 2px solid #080b10;
+        border-radius: 8px;
+        background:
+          linear-gradient(115deg, var(--accent-deep) 0%, rgba(27, 20, 18, .97) 48%, rgba(10, 11, 14, .98) 100%);
+        box-shadow:
+          0 0 0 2px var(--accent),
+          0 0 22px 5px var(--accent-soft),
+          0 18px 48px rgba(0,0,0,.68),
+          inset 0 0 0 1px rgba(255,255,255,.12),
+          inset 0 -28px 44px rgba(0,0,0,.25);
+        transform: scale(.8);
+        transform-origin: top center;
+      }
+      .zone-notice::before {
+        position: absolute;
+        inset: 8px 10px;
+        border: 1px solid rgba(255,255,255,.10);
+        border-radius: 4px;
+        content: "";
+      }
+      .zone-portrait {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+        width: 78px;
+        height: 78px;
+        overflow: hidden;
+        border: 3px solid #080b10;
+        border-radius: 50%;
+        background: rgba(4,7,11,.96);
+        box-shadow:
+          0 0 0 3px var(--accent),
+          0 0 18px 4px var(--accent-soft),
+          inset 0 0 0 1px rgba(255,255,255,.18);
+        transform: translateY(-50%);
+      }
+      .zone-portrait img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+      .zone-portrait-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 34px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px #000;
+      }
+      .zone-copy { position: relative; min-width: 0; z-index: 1; }
+      .zone-eyebrow {
+        color: var(--accent);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+      }
+      .zone-title {
+        margin-top: 3px;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(19px, 3vw, 24px);
+        font-weight: 800;
+        line-height: 1.05;
+        text-overflow: ellipsis;
+        text-shadow: 0 2px 3px rgba(0,0,0,.9);
+        white-space: nowrap;
+      }
+      .zone-target-badge {
+        position: absolute;
+        top: 14px;
+        right: 15px;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #080b10;
+        border-radius: 50%;
+        background: rgba(5,9,14,.88);
+        box-shadow: 0 0 0 1px var(--accent), inset 0 0 12px var(--accent-soft);
+        line-height: 1;
+        z-index: 1;
+      }
+      .zone-target-badge span {
+        color: var(--accent);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .5px;
+      }
+      .zone-target-badge strong {
+        margin-top: 2px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 16px;
+      }
+      .zone-detail {
+        position: relative;
+        display: grid;
+        gap: 3px;
+        margin-top: 12px;
+        padding-top: 8px;
+        border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+        z-index: 1;
+      }
+      .zone-detail strong {
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .zone-detail span {
+        color: rgba(255,255,255,.72);
+        font-size: 12px;
+      }
+      .zone-timer {
+        position: absolute;
+        right: 0;
+        bottom: -2px;
+        left: 0;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 0 0 6px 6px;
+        background: rgba(255,255,255,.07);
+      }
+      .zone-timer::after {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        content: "";
+        transform-origin: left;
+        animation: zone-expire 6.5s linear forwards;
+      }
       @keyframes expire { to { transform: scaleX(0); } }
+      @keyframes zone-expire { to { transform: scaleX(0); } }
       @media (max-width: 520px) {
         .notice { padding: 16px 64px 15px 104px; min-height: 140px; }
         .portrait { left: 13px; width: 78px; height: 78px; }
         .title { font-size: 21px; }
         .round-badge { top: 15px; right: 14px; width: 42px; height: 42px; }
         .next { margin-top: 15px; }
+        #zone-app { top: calc(9vh + 126px); }
+        .zone-notice {
+          min-height: 112px;
+          padding: 13px 58px 12px 88px;
+        }
+        .zone-portrait { left: 12px; width: 64px; height: 64px; }
+        .zone-title { font-size: 19px; }
+        .zone-target-badge {
+          top: 12px;
+          right: 12px;
+          width: 38px;
+          height: 38px;
+        }
       }
     </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="zone-app"></div>
     <script type="module" src="/src/turn-notice.ts"></script>
   </body>
 </html>
