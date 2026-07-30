@@ -22,7 +22,7 @@ function planFor(spellId, choice = "") {
   });
 }
 
-test("il cast da Spells eredita le condizioni ai TS falliti senza duplicarle", () => {
+test("il cast da Spells eredita solo le condizioni che si risolvono al lancio", () => {
   const entangle = planFor("entangle");
   const tentacles = planFor("black-tentacles");
   const confusion = planFor("confusion");
@@ -34,9 +34,8 @@ test("il cast da Spells eredita le condizioni ai TS falliti senza duplicarle", (
     ["Trattenuto"],
   );
   assert.deepEqual(entangle.conditions[0].options.expiry, { mode: "concentration" });
-  assert.equal(tentacles.conditions[0].name, "Trattenuto");
-  assert.equal(tentacles.conditions[0].options.endsParentOnRemoval, true);
-  assert.equal(tentacles.conditions[0].options.parentRemoval, "target");
+  assert.deepEqual(tentacles.conditions, []);
+  assert.equal(tentacles.usedSaveAutomation, false);
   assert.equal(confusion.conditions[0].options.effectId, "confusion-random-turn");
   assert.equal(confusion.conditions[0].options.effectKind, "debuff");
 });

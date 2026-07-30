@@ -38,7 +38,7 @@ test("cerchio e quadrato mantengono la dimensione indipendentemente dal trascina
   }), { x: -500, y: 700 });
 });
 
-test("coni e linee conservano direzione libera e lunghezza vincolata", () => {
+test("coni, linee e rettangoli conservano direzione libera e lunghezza vincolata", () => {
   const cone = constrainedSpellAreaEnd({
     shape: "cone",
     start: { x: 0, y: 0 },
@@ -56,6 +56,15 @@ test("coni e linee conservano direzione libera e lunghezza vincolata", () => {
     sizeCells: 5,
   });
   assert.deepEqual(line, { x: 30, y: 40 });
+
+  const rectangle = constrainedSpellAreaEnd({
+    shape: "rectangle",
+    start: { x: 0, y: 0 },
+    pointer: { x: 3, y: 4 },
+    dpi: 10,
+    sizeCells: 12,
+  });
+  assert.deepEqual(rectangle, { x: 72, y: 96 });
 
   assert.deepEqual(constrainedSpellAreaEnd({
     shape: "cone",
@@ -153,10 +162,12 @@ test("la sessione passa da posizionamento a revisione e conclusione", () => {
     end: { x: 450, y: 0 },
     gridOrigin: { x: 0, y: 0 },
     dpi: 150,
+    widthSquares: 2,
     targetIds: ["a", "a", "b"],
   });
   assert.equal(review.phase, "review");
   assert.deepEqual(review.preview.targetIds, ["a", "b"]);
+  assert.equal(review.preview.widthSquares, 2);
   assert.equal(completeSpellAreaPlacement(review, "confirmed").phase, "confirmed");
 });
 

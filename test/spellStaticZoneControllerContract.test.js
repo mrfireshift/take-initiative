@@ -32,7 +32,7 @@ test("il controller consegna al reconcile l'ultimo snapshot metadata ricevuto", 
   );
 });
 
-test("il controller mantiene membership e zone ma non pianifica reminder periodici", () => {
+test("il controller pianifica i reminder dopo aver riconciliato la membership", () => {
   assert.match(
     source,
     /if \(!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED\) continue;/,
@@ -43,6 +43,30 @@ test("il controller mantiene membership e zone ma non pianifica reminder periodi
   );
   assert.ok(
     source.indexOf("if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) continue;")
-      < source.indexOf("planSpellZoneTriggers({"),
+      < source.indexOf("planStaticSpellZoneReminder({"),
+  );
+});
+
+test("una scansione bounds incompleta rinvia membership e reminder senza corromperli", () => {
+  assert.match(source, /const boundsResult = await sceneItemBounds\.load\(boundedItems\);/);
+  assert.match(source, /if \(!boundsResult\.complete\) \{[\s\S]*return;[\s\S]*\}/);
+  assert.ok(
+    source.indexOf("if (!boundsResult.complete)")
+      < source.indexOf("const candidates = creatures.map"),
+  );
+});
+
+test("i trigger condizionali filtrano concentrazione e condizioni attive", () => {
+  assert.match(source, /const CONCENTRATION_KEY = `\$\{ID\}\/concentration`;/);
+  assert.match(
+    source,
+    /requiresConcentration && !itemIsConcentrating\(item\)/,
+  );
+  assert.match(source, /trigger\?\.requireConditions/);
+  assert.match(source, /requiredNames\.size > 0/);
+  assert.match(source, /const conditionNames = new Set/);
+  assert.ok(
+    source.indexOf("suppressedTriggerTargets(")
+      < source.indexOf("planStaticSpellZoneReminder({"),
   );
 });

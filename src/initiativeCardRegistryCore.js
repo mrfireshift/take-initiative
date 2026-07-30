@@ -1,4 +1,5 @@
 import { canonicalImageUrl, normalizedItemName } from "./factionRegistryCore.js";
+import { sanitizeQuickActions } from "./quickActionsCore.js";
 
 export function initiativeCardRegistryKeys(item) {
   const imageKey = canonicalImageUrl(item);
@@ -42,4 +43,34 @@ export function findInitiativeCardRegistryEntry(registry, item) {
     }
   }
   return winner;
+}
+
+export function initiativeCardQuickActionMemoryCandidates(
+  items,
+  registry,
+  {
+    metadataKey,
+    profileField = "initiativeCard",
+  } = {},
+) {
+  if (!metadataKey) return [];
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    if (
+      !item?.id
+      || item.layer !== "CHARACTER"
+      || item.attachedTo
+      || item.metadata?.[metadataKey]?.inInitiative !== true
+    ) {
+      return false;
+    }
+    const tokenProfile = item.metadata?.[metadataKey]?.[profileField];
+    if (tokenProfile && typeof tokenProfile === "object") return false;
+
+    const roomEntry = findInitiativeCardRegistryEntry(registry, item);
+    if (!roomEntry || roomEntry.deleted === true) return false;
+    const roomProfile = roomEntry.profile && typeof roomEntry.profile === "object"
+      ? roomEntry.profile
+      : roomEntry;
+    return sanitizeQuickActions(roomProfile.quickActions).length > 0;
+  });
 }

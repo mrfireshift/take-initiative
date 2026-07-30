@@ -65,6 +65,7 @@ test("le quattro geometrie pilota hanno misure e vincoli espliciti", () => {
   assert.equal(web.lifecycle.persistence, "spell");
   assert.equal(web.effectPolicy.mode, "manual-trigger");
   assert.equal(web.zonePolicy.placementOptional, true);
+  assert.equal(web.zonePolicy.initialResolution, "none");
   assert.equal(web.zonePolicy.membershipTargeting.includeCaster, true);
   assert.equal(web.zonePolicy.membershipEffects[0].mechanics.movement.costMultiplier, 2);
 
@@ -74,6 +75,28 @@ test("le quattro geometrie pilota hanno misure e vincoli espliciti", () => {
   assert.equal(entangle.placement.range.value, 27);
   assert.equal(entangle.zonePolicy.owner, "caster");
   assert.equal(entangle.zonePolicy.movement, "fixed");
+  assert.equal(entangle.zonePolicy.initialResolution, "manual-save");
+});
+
+test("le aree ostili includono il caster salvo immunità esplicite", () => {
+  assert.equal(
+    getSpellAreaRuleById("fireball:cast").targeting.includeCaster,
+    true,
+  );
+  assert.equal(
+    getSpellAreaRuleById("meteor-swarm:cast").targeting.includeCaster,
+    true,
+  );
+  assert.equal(
+    getSpellAreaRuleById("xanathar-rombo-di-tuono:cast")
+      .targeting.includeCaster,
+    false,
+  );
+  assert.equal(
+    getSpellAreaRuleById("xanathar-scossa-tellurica:cast")
+      .targeting.includeCaster,
+    false,
+  );
 });
 
 test("il validatore rifiuta lifecycle incoerenti senza correggerli implicitamente", () => {
@@ -149,7 +172,10 @@ test("l'origine adiacente al caster è usata solo da coni e linee emessi dal cas
   for (const rule of SPELL_AREA_RULES.filter((entry) =>
     entry.placement.origin === "caster-adjacent"
   )) {
-    assert.ok(["cone", "line"].includes(rule.geometry.shape), rule.id);
+    assert.ok(
+      ["cone", "line", "rectangle"].includes(rule.geometry.shape),
+      rule.id,
+    );
   }
   assert.equal(
     getSpellAreaRuleById("blade-barrier:cast").placement.origin,
@@ -202,6 +228,7 @@ test("il contratto delle zone valida trigger futuri senza attivarli implicitamen
         event: "movement",
         frequency: "sometimes",
         resolution: "automatic-damage",
+        failureEffect: "",
       }],
     },
   });
@@ -211,6 +238,56 @@ test("il contratto delle zone valida trigger futuri senza attivarli implicitamen
   assert.ok(invalid.errors.includes("zone-trigger-event-invalid"));
   assert.ok(invalid.errors.includes("zone-trigger-frequency-invalid"));
   assert.ok(invalid.errors.includes("zone-trigger-resolution-invalid"));
+  assert.ok(invalid.errors.includes("zone-trigger-failure-effect-invalid"));
+
+  const invalidInitialResolution = validateSpellAreaRule({
+    ...web,
+    id: "test:invalid-initial-resolution",
+    zonePolicy: {
+      ...web.zonePolicy,
+      initialResolution: "automatic",
+    },
+  });
+  assert.equal(invalidInitialResolution.valid, false);
+  assert.ok(
+    invalidInitialResolution.errors.includes("zone-initial-resolution-invalid")
+  );
+
+  const invalidConcentrationFilter = validateSpellAreaRule({
+    ...web,
+    id: "test:invalid-concentration-filter",
+    zonePolicy: {
+      ...web.zonePolicy,
+      triggers: [{
+        ...web.zonePolicy.triggers[0],
+        requiresConcentration: "yes",
+      }],
+    },
+  });
+  assert.equal(invalidConcentrationFilter.valid, false);
+  assert.ok(
+    invalidConcentrationFilter.errors.includes(
+      "zone-trigger-concentration-invalid"
+    )
+  );
+
+  const invalidRequiredConditionFilter = validateSpellAreaRule({
+    ...web,
+    id: "test:invalid-required-condition-filter",
+    zonePolicy: {
+      ...web.zonePolicy,
+      triggers: [{
+        ...web.zonePolicy.triggers[0],
+        requireConditions: ["Trattenuto", ""],
+      }],
+    },
+  });
+  assert.equal(invalidRequiredConditionFilter.valid, false);
+  assert.ok(
+    invalidRequiredConditionFilter.errors.includes(
+      "zone-trigger-require-conditions-invalid"
+    )
+  );
 });
 
 test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
@@ -222,17 +299,326 @@ test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
     ["enter", "turn-start"],
   );
   assert.ok(web.zonePolicy.triggers.every((trigger) => trigger.group === "web-save"));
+  assert.ok(web.zonePolicy.triggers.every(
+    (trigger) => trigger.failureEffect === "Trattenuto dalla Ragnatela."
+  ));
   assert.equal(moonbeam.geometry.size.value, 1.5);
   assert.equal(moonbeam.zonePolicy.movement, "manual");
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.dice, "2d10");
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.onSave, "half");
-  assert.equal(SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED, false);
+  assert.equal(
+    moonbeam.zonePolicy.triggers[0].failureEffect,
+    "Danni radiosi della spell (metà se superato).",
+  );
+  assert.equal(SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED, true);
+});
+
+test("il primo gruppo di zone dichiara confine, TS ed effetto del fallimento", () => {
+  const expected = {
+    "xanathar-alba": {
+      event: "turn-end",
+      label: "TS Costituzione a fine turno in Alba",
+      failureEffect: "4d10 danni radiosi (metà se superato).",
+    },
+    "xanathar-oscurita-della-follia": {
+      event: "turn-start",
+      label: "TS Saggezza a inizio turno nell'Oscurità della Follia",
+      failureEffect: "8d8 danni psichici (metà se superato).",
+    },
+    "xanathar-diavoletto-di-polvere": {
+      event: "turn-end",
+      label: "TS Forza a fine turno vicino al Diavoletto di Polvere",
+      failureEffect: "Danni contundenti e spinta di 3 m (metà danni e nessuna spinta se superato).",
+    },
+    "xanathar-sfera-della-tempesta": {
+      event: "turn-end",
+      label: "TS Forza a fine turno nella Sfera della Tempesta",
+      failureEffect: "2d6 danni contundenti (nessun danno se superato).",
+    },
+  };
+
+  for (const [spellId, values] of Object.entries(expected)) {
+    const [trigger] = getSpellAreaRuleById(`${spellId}:cast`)
+      .zonePolicy.triggers;
+    assert.equal(trigger.event, values.event, spellId);
+    assert.equal(trigger.frequency, "once-per-turn", spellId);
+    assert.equal(trigger.resolution, "manual-save", spellId);
+    assert.equal(trigger.label, values.label, spellId);
+    assert.equal(trigger.failureEffect, values.failureEffect, spellId);
+    assert.equal(trigger.damage, undefined, spellId);
+  }
+});
+
+test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", () => {
+  const expected = {
+    "flaming-sphere": ["turn-end:manual-save"],
+    "incendiary-cloud": ["enter:manual-save", "turn-end:manual-save"],
+    "insect-plague": ["enter:manual-save", "turn-end:manual-save"],
+    "wall-of-fire": ["enter:informational", "turn-end:informational"],
+    "wall-of-thorns": ["enter:manual-save", "turn-end:manual-save"],
+    "xanathar-creare-falo": ["enter:manual-save", "turn-end:manual-save"],
+    "xanathar-muro-di-luce": ["turn-end:informational"],
+    "phb2014-cordone-di-frecce": [
+      "enter:manual-save",
+      "turn-end:manual-save",
+    ],
+    "phb2014-fame-di-hadar": [
+      "turn-start:informational",
+      "turn-end:manual-save",
+    ],
+  };
+
+  for (const [spellId, triggerContracts] of Object.entries(expected)) {
+    const rule = getSpellAreaRuleById(`${spellId}:cast`);
+    assert.equal(rule.kind, "zone", spellId);
+    assert.deepEqual(
+      rule.zonePolicy.triggers.map((trigger) =>
+        `${trigger.event}:${trigger.resolution}`
+      ),
+      triggerContracts,
+      spellId,
+    );
+    assert.ok(
+      rule.zonePolicy.triggers.every((trigger) => trigger.damage?.dice),
+      spellId,
+    );
+  }
+
+  const flamingSphere = getSpellAreaRuleById("flaming-sphere:cast");
+  assert.equal(flamingSphere.geometry.shape, "circle");
+  assert.equal(flamingSphere.geometry.size.value, 1.5);
+  assert.equal(flamingSphere.zonePolicy.movement, "manual");
+  assert.equal(
+    getSpellAreaRuleById("phb2014-cordone-di-frecce:cast")
+      .zonePolicy.membershipTargeting.includeCaster,
+    false,
+  );
+});
+
+test("il lotto standard di inizio turno dichiara ingresso, TS e danni", () => {
+  const expected = {
+    "blade-barrier": [
+      "enter:manual-save:6d10",
+      "turn-start:manual-save:6d10",
+    ],
+    "cloudkill": [
+      "enter:manual-save:5d8",
+      "turn-start:manual-save:5d8",
+    ],
+    "xanathar-fulgore-nauseante": [
+      "enter:manual-save:4d10",
+      "turn-start:manual-save:4d10",
+    ],
+    "xanathar-maelstrom": [
+      "turn-start:manual-save:6d6",
+    ],
+  };
+
+  for (const [spellId, triggerContracts] of Object.entries(expected)) {
+    const rule = getSpellAreaRuleById(`${spellId}:cast`);
+    assert.deepEqual(
+      rule.zonePolicy.triggers.map((trigger) =>
+        `${trigger.event}:${trigger.resolution}:${trigger.damage.dice}`
+      ),
+      triggerContracts,
+      spellId,
+    );
+    assert.ok(
+      rule.zonePolicy.triggers.every((trigger) =>
+        trigger.failureEffect && trigger.frequency === "once-per-turn"
+      ),
+      spellId,
+    );
+  }
+
+  assert.match(
+    getSpellAreaRuleById("xanathar-fulgore-nauseante:cast")
+      .zonePolicy.triggers[0].failureEffect,
+    /livello di Indebolimento/,
+  );
+});
+
+test("il lotto delle zone differite dichiara TS, danni automatici e concentrazione", () => {
+  const expected = {
+    "black-tentacles": [
+      "enter:manual-save",
+      "turn-start:manual-save",
+      "turn-start:informational",
+    ],
+    grease: [
+      "enter:manual-save",
+      "turn-end:manual-save",
+    ],
+    "stinking-cloud": [
+      "turn-start:manual-save",
+    ],
+    "phb2014-nube-di-pugnali": [
+      "enter:informational",
+      "turn-start:informational",
+    ],
+  };
+  for (const [spellId, contracts] of Object.entries(expected)) {
+    const rule = getSpellAreaRuleById(`${spellId}:cast`);
+    assert.deepEqual(
+      rule.zonePolicy.triggers.map((trigger) =>
+        `${trigger.event}:${trigger.resolution}`
+      ),
+      contracts,
+      spellId,
+    );
+  }
+
+  const daggers = getSpellAreaRuleById(
+    "phb2014-nube-di-pugnali:cast"
+  ).zonePolicy.triggers;
+  assert.ok(daggers.every((trigger) =>
+    trigger.damage?.dice === "4d4"
+    && trigger.damage?.type === "taglienti"
+  ));
+
+  const tentacles = getSpellAreaRuleById(
+    "black-tentacles:cast"
+  ).zonePolicy.triggers;
+  assert.deepEqual(tentacles[1].skipConditions, ["Trattenuto"]);
+  assert.deepEqual(tentacles[2].requireConditions, ["Trattenuto"]);
+  assert.equal(tentacles[2].damage.dice, "3d6");
+  assert.match(tentacles[2].label, /prova di Forza o Destrezza/);
+
+  const sleet = getSpellAreaRuleById("sleet-storm:cast");
+  assert.deepEqual(
+    sleet.zonePolicy.triggers.map((trigger) =>
+      `${trigger.event}:${trigger.resolution}`
+    ),
+    [
+      "enter:manual-save",
+      "turn-start:manual-save",
+      "cast:informational",
+      "enter:informational",
+      "turn-start:informational",
+    ],
+  );
+  assert.ok(
+    sleet.zonePolicy.triggers
+      .filter((trigger) => trigger.resolution === "informational")
+      .every((trigger) => trigger.requiresConcentration === true)
+  );
+});
+
+test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trigger RAW", () => {
+  const gust = getSpellAreaRuleById("gust-of-wind:cast");
+  assert.equal(gust.kind, "zone");
+  assert.equal(gust.geometry.shape, "rectangle");
+  assert.equal(gust.geometry.size.value, 18);
+  assert.equal(gust.geometry.width.value, 3);
+  assert.equal(gust.zonePolicy.movement, "manual");
+  assert.equal(gust.zonePolicy.initialResolution, "none");
+  assert.deepEqual(
+    gust.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["turn-start"],
+  );
+  assert.equal(
+    gust.zonePolicy.membershipEffects[0].mechanics,
+    undefined,
+  );
+  assert.equal(
+    gust.zonePolicy.membershipEffects[0].label,
+    "Movimento verso il caster ×2",
+  );
+  assert.match(
+    gust.zonePolicy.membershipEffects[0].detail,
+    /movimento verso il caster costa due metri/,
+  );
+
+  const guardian = getSpellAreaRuleById("guardian-of-faith:cast");
+  assert.equal(guardian.zonePolicy.initialResolution, "none");
+  assert.equal(guardian.zonePolicy.membershipTargeting.filter, "hostile");
+  assert.deepEqual(
+    guardian.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "move"],
+  );
+  assert.ok(guardian.zonePolicy.triggers.every((trigger) =>
+    trigger.group === "guardian-of-faith-approach"
+  ));
+  assert.equal(guardian.zonePolicy.triggers[0].damage.dice, "20");
+  assert.equal(guardian.zonePolicy.triggers[0].damage.onSave, "half");
+  assert.match(guardian.zonePolicy.triggers[0].failureEffect, /60 danni/);
+
+  const spirits = getSpellAreaRuleById("spirit-guardians:aura");
+  assert.deepEqual(
+    spirits.triggerPolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "turn-start"],
+  );
+  assert.ok(spirits.triggerPolicy.triggers.every((trigger) =>
+    trigger.damage.dice === "3d8"
+    && trigger.damage.onSave === "half"
+  ));
+
+  const winds = getSpellAreaRuleById("xanathar-controllare-venti:cast");
+  assert.equal(winds.zonePolicy.initialResolution, "none");
+  assert.deepEqual(
+    winds.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "turn-start"],
+  );
+  assert.ok(winds.zonePolicy.triggers.every((trigger) =>
+    trigger.ruleChoice === "downdraft"
+    && trigger.requiresRuleChoices.includes("downdraft")
+  ));
+});
+
+test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio tracciano movimento e attraversamento", () => {
+  const waterySphere = getSpellAreaRuleById("xanathar-sfera-acquea:cast");
+  assert.equal(waterySphere.zonePolicy.movement, "manual");
+  assert.equal(waterySphere.zonePolicy.triggers.length, 1);
+  assert.equal(waterySphere.zonePolicy.triggers[0].event, "enter");
+  assert.equal(waterySphere.zonePolicy.triggers[0].requiresAreaMove, true);
+  assert.equal(waterySphere.zonePolicy.triggers[0].triggerOnAreaMove, true);
+  assert.equal(waterySphere.zonePolicy.triggers[0].persistsAfterExit, true);
+
+  const healingSpirit = getSpellAreaRuleById("xanathar-spirito-guaritore:cast");
+  assert.deepEqual(
+    healingSpirit.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "turn-start"],
+  );
+  assert.ok(healingSpirit.zonePolicy.triggers.every((trigger) =>
+    trigger.resolution === "informational"
+    && trigger.group === "healing-spirit-heal"
+  ));
+  assert.equal(healingSpirit.zonePolicy.triggers[0].triggerOnAreaMove, false);
+
+  const spikeGrowth = getSpellAreaRuleById("spike-growth:cast");
+  assert.deepEqual(
+    spikeGrowth.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "move", "leave"],
+  );
+  assert.ok(spikeGrowth.zonePolicy.triggers.every((trigger) =>
+    trigger.resolution === "informational"
+    && trigger.group === "spike-growth-movement-damage"
+  ));
+
+  const wallOfIce = getSpellAreaRuleById("wall-of-ice:cast");
+  assert.equal(wallOfIce.geometry.shape, "line");
+  assert.equal(wallOfIce.geometry.size.value, 30);
+  assert.equal(wallOfIce.geometry.width.value, 1.5);
+  assert.deepEqual(
+    wallOfIce.zonePolicy.triggers.map((trigger) => trigger.event),
+    ["enter", "move", "leave"],
+  );
+  assert.ok(wallOfIce.zonePolicy.triggers.every((trigger) =>
+    trigger.damage.dice === "5d6"
+    && trigger.damage.onSave === "half"
+    && trigger.persistsAfterExit === true
+  ));
 });
 
 test("ogni incantesimo del popover Effetti ad Area ha una sagoma di lancio", () => {
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 99);
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 31);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 130);
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 98);
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 34);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 132);
+  assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
+  assert.equal(
+    AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),
+    true,
+  );
   for (const spellId of AREA_POPOVER_SPELL_IDS) {
     const rules = getSpellAreaRules(spellId);
     assert.ok(
@@ -266,6 +652,7 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
   const darkness = getSpellAreaRuleById("darkness:cast");
   const spikeGrowth = getSpellAreaRuleById("spike-growth:cast");
   const purityAura = getSpellAreaRuleById("phb2014-aura-di-purezza:cast");
+  const vitalityAura = getSpellAreaRuleById("phb2014-aura-di-vitalita:cast");
 
   assert.equal(darkness.kind, "zone");
   assert.equal(darkness.geometry.size.value, 4.5);
@@ -279,6 +666,15 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
   assert.equal(purityAura.kind, "aura");
   assert.equal(purityAura.placement.anchor, "caster");
   assert.equal(purityAura.effectPolicy.effect.id, "aura-of-purity-zone");
+  assert.equal(vitalityAura.kind, "aura");
+  assert.deepEqual(vitalityAura.geometry.size, {
+    value: 9,
+    unit: "m",
+    measure: "radius",
+  });
+  assert.equal(vitalityAura.placement.origin, "caster");
+  assert.equal(vitalityAura.lifecycle.persistence, "spell");
+  assert.equal(vitalityAura.effectPolicy.mode, "manual-trigger");
 });
 
 test("l'audit delle zone usa condizioni reali e meccaniche di movimento certe", () => {
@@ -313,6 +709,7 @@ test("l'audit delle zone usa condizioni reali e meccaniche di movimento certe", 
   );
   for (const spellId of [
     "black-tentacles",
+    "blade-barrier",
     "earthquake",
     "grease",
     "insect-plague",
@@ -320,6 +717,7 @@ test("l'audit delle zone usa condizioni reali e meccaniche di movimento certe", 
     "spike-growth",
     "xanathar-collera-della-natura",
     "xanathar-maelstrom",
+    "xanathar-sfera-della-tempesta",
     "phb2014-fame-di-hadar",
   ]) {
     assert.equal(
@@ -336,5 +734,55 @@ test("l'audit delle zone usa condizioni reali e meccaniche di movimento certe", 
     getSpellAreaRuleById("xanathar-collera-della-natura:cast")
       .zonePolicy.membershipTargeting.filter,
     "hostile",
+  );
+});
+
+test("le tre zone con varianti separano le modalita dagli effetti concorrenti", () => {
+  const water = getSpellAreaRuleById("control-water:cast");
+  assert.equal(water.zonePolicy.initialResolution, "none");
+  assert.deepEqual(
+    water.zonePolicy.triggers.map((trigger) => [
+      trigger.event,
+      trigger.ruleChoice,
+    ]),
+    [
+      ["enter", "whirlpool"],
+      ["turn-start", "whirlpool"],
+    ],
+  );
+  assert.ok(water.zonePolicy.triggers.every((trigger) =>
+    trigger.requiresRuleChoices.includes("whirlpool")
+  ));
+
+  const earthquake = getSpellAreaRuleById("earthquake:cast");
+  assert.equal(earthquake.zonePolicy.initialResolution, "manual-save");
+  assert.deepEqual(
+    earthquake.zonePolicy.triggers.map((trigger) => trigger.id),
+    [
+      "earthquake-concentration-save-on-cast",
+      "earthquake-structure-damage-on-cast",
+      "earthquake-fissures-on-source-turn-start",
+      "earthquake-structure-damage-on-source-turn-start",
+      "earthquake-ground-save-on-source-turn-end",
+    ],
+  );
+  assert.equal(earthquake.zonePolicy.triggers.at(-1).targetMode, "members");
+  assert.deepEqual(
+    earthquake.zonePolicy.triggers.at(-1).skipConditions,
+    ["Prono"],
+  );
+
+  const wrath = getSpellAreaRuleById("xanathar-collera-della-natura:cast");
+  assert.equal(wrath.zonePolicy.initialResolution, "none");
+  assert.deepEqual(
+    wrath.zonePolicy.triggers.map((trigger) => [
+      trigger.event,
+      trigger.requiresSourceTurn,
+      trigger.targetMode,
+    ]),
+    [
+      ["turn-start", true, "caster"],
+      ["turn-end", true, "caster"],
+    ],
   );
 });

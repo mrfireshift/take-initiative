@@ -22,6 +22,29 @@ export function getQuickHpPlaceableAreaRule(spellId) {
     || null;
 }
 
+export function quickHpSpellUsesSaveOutcomes({
+  spellId = "",
+  castSaveSpellIds = [],
+  activeZoneTrigger = null,
+} = {}) {
+  const normalizedSpellId = String(spellId || "").trim();
+  if (!normalizedSpellId) return false;
+  const matchingZoneTrigger =
+    String(activeZoneTrigger?.spellId || "").trim() === normalizedSpellId;
+  if (matchingZoneTrigger) {
+    return activeZoneTrigger?.resolution === "manual-save";
+  }
+  const placementRule = getQuickHpPlaceableAreaRule(normalizedSpellId);
+  if (placementRule?.kind === "zone") {
+    return placementRule.zonePolicy?.initialResolution === "manual-save";
+  }
+  if (placementRule?.kind === "aura") return false;
+  const castRequiresSave = castSaveSpellIds instanceof Set
+    ? castSaveSpellIds.has(normalizedSpellId)
+    : uniqueIds(castSaveSpellIds).includes(normalizedSpellId);
+  return castRequiresSave;
+}
+
 export function quickHpAreaPlacementPresentation({
   spellId = "",
   casterId = "",

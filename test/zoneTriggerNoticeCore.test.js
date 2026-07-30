@@ -3,8 +3,14 @@ import assert from "node:assert/strict";
 import {
   normalizeZoneTriggerNotice,
   planZoneTriggerNoticeDelivery,
+  shouldClearZoneNoticeAtTurn,
+  zoneTriggerNoticeDetail,
   zoneTriggerNoticeFromActivation,
 } from "../src/zoneTriggerNoticeCore.js";
+import { ID } from "../src/constants.js";
+import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
+
+const META_KEY = `${ID}/meta`;
 
 function validNotice(activationId, targetId = "target-1") {
   return {
@@ -79,8 +85,10 @@ test("una notice invalida non viene marcata e resta recuperabile", () => {
 test("normalizza i target, scarta quelli senza ID e applica i fallback", () => {
   const notice = normalizeZoneTriggerNotice({
     activationId: "  activation-normalized  ",
+    event: "turn-start",
     spellName: "   ",
     label: "",
+    failureEffect: "  Trattenuto dalla Ragnatela.  ",
     targets: [
       {
         id: "  target-valid  ",
@@ -97,8 +105,10 @@ test("normalizza i target, scarta quelli senza ID e applica i fallback", () => {
 
   assert.deepEqual(notice, {
     activationId: "activation-normalized",
+    timing: "turn-start",
     spellName: "Incantesimo",
     label: "Tiro salvezza richiesto",
+    failureEffect: "Trattenuto dalla Ragnatela.",
     targets: [{
       id: "target-valid",
       name: "Token",
@@ -109,7 +119,20 @@ test("normalizza i target, scarta quelli senza ID e applica i fallback", () => {
 
 test("costruisce una notice persistita usando zona e token correnti", () => {
   const itemsById = new Map([
-    ["zone", { id: "zone", name: "Zona: Ragnatela" }],
+    ["zone", {
+      id: "zone",
+      name: "Zona: Ragnatela",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      name: "Lavera",
+      metadata: {
+        [META_KEY]: { initiativeCard: { spellSaveDC: 19 } },
+      },
+    }],
     ["target", {
       id: "target",
       name: "(6) Nothic",
@@ -119,15 +142,123 @@ test("costruisce una notice persistita usando zona e token correnti", () => {
   const notice = zoneTriggerNoticeFromActivation({
     id: "activation-2",
     zoneItemId: "zone",
+    turnKey: "2:1:target",
+    noticeTurnKey: "2:2:next",
+    event: "turn-start",
     label: "TS Destrezza a inizio turno",
+    failureEffect: "Trattenuto dalla Ragnatela.",
     targetIds: ["target"],
   }, itemsById);
 
   assert.equal(notice.activationId, "activation-2");
+  assert.equal(notice.turnKey, "2:2:next");
+  assert.equal(notice.timing, "turn-start");
   assert.equal(notice.spellName, "Ragnatela");
+  assert.equal(notice.dc, 19);
+  assert.equal(notice.casterName, "Lavera");
+  assert.equal(notice.failureEffect, "Trattenuto dalla Ragnatela.");
   assert.equal(notice.targets[0].name, "(6) Nothic");
   assert.equal(
     notice.targets[0].portrait,
     "https://example.test/nothic.png",
+  );
+
+  itemsById.get("caster").metadata[META_KEY]
+    .initiativeCard.spellSaveDC = 14;
+  const updatedNotice = zoneTriggerNoticeFromActivation({
+    id: "activation-3",
+    zoneItemId: "zone",
+    label: "TS Destrezza a inizio turno",
+    targetIds: ["target"],
+  }, itemsById);
+  assert.equal(updatedNotice.dc, 14);
+});
+
+test("compone TS, CD e nome del caster su una sola riga", () => {
+  const notice = {
+    ...validNotice("activation-detail"),
+    label: "TS Destrezza a inizio turno nella Ragnatela",
+    failureEffect: "Trattenuto dalla Ragnatela.",
+    casterName: "Lavera",
+    targets: [{
+      id: "nothic",
+      name: "Nothic",
+      portrait: "",
+    }],
+  };
+  assert.equal(
+    zoneTriggerNoticeDetail({ ...notice, dc: 19 }),
+    "TS Destrezza CD 19 (Lavera) — Fallimento: Trattenuto dalla Ragnatela.",
+  );
+  assert.equal(
+    zoneTriggerNoticeDetail(notice),
+    "TS Destrezza (Lavera) — Fallimento: Trattenuto dalla Ragnatela.",
+  );
+});
+
+test("un danno automatico produce una notice informativa senza TS o CD", () => {
+  const itemsById = new Map([
+    ["zone", {
+      id: "zone",
+      name: "Zona: Muro di Luce",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      name: "Lavera",
+      metadata: {
+        [META_KEY]: { initiativeCard: { spellSaveDC: 19 } },
+      },
+    }],
+    ["target", {
+      id: "target",
+      name: "Nothic",
+    }],
+  ]);
+  const notice = zoneTriggerNoticeFromActivation({
+    id: "automatic-damage",
+    zoneItemId: "zone",
+    event: "turn-end",
+    resolution: "informational",
+    label: "4d8 danni radiosi automatici a fine turno nel Muro di Luce.",
+    targetIds: ["target"],
+  }, itemsById);
+
+  assert.equal(notice.kind, "zone-effect");
+  assert.equal(
+    zoneTriggerNoticeDetail(notice),
+    "4d8 danni radiosi automatici a fine turno nel Muro di Luce.",
+  );
+});
+
+test("un TS informativo conserva istruzione, CD e caster", () => {
+  const notice = {
+    ...validNotice("concentration-save"),
+    kind: "zone-effect",
+    label: "TS Costituzione per mantenere la concentrazione; se fallisce, la perde.",
+    dc: 18,
+    casterName: "Lavera",
+  };
+
+  assert.equal(
+    zoneTriggerNoticeDetail(notice),
+    "TS Costituzione CD 18 (Lavera) per mantenere la concentrazione; se fallisce, la perde.",
+  );
+});
+
+test("il cambio turno conserva un reminder già arrivato per lo stesso turno", () => {
+  assert.equal(
+    shouldClearZoneNoticeAtTurn("2:1:nothic", "2:1:nothic"),
+    false,
+  );
+  assert.equal(
+    shouldClearZoneNoticeAtTurn("2:0:lavera", "2:1:nothic"),
+    true,
+  );
+  assert.equal(
+    shouldClearZoneNoticeAtTurn("", "2:1:nothic"),
+    true,
   );
 });

@@ -15,6 +15,7 @@ import {
   enableClassicCardRename,
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
+import { openReferencePopover } from "./referencePopover.js";
 
 export function buildClassicTrackerCard(e, context) {
   const {
@@ -60,6 +61,7 @@ export function buildClassicTrackerCard(e, context) {
       isEpicActionId,
       isLairId,
       mountChipsWithOverflow,
+      mountTrackerQuickActions,
       openInitiativeCardPopup,
       parseRelativeHPDelta,
       reconcileStateWithItems,
@@ -902,8 +904,26 @@ if (paragonDock) header.appendChild(paragonDock);
       border: `2px solid rgba(0,0,0,1)`,
       boxShadow: "0 0 0 1px rgba(0, 0, 0, 0.5)",
       zIndex: "6",
-      pointerEvents: "none"
+      cursor: k ? "pointer" : "default",
+      pointerEvents: k ? "auto" : "none"
     });
+    if (k) {
+      cDot.dataset.referenceType = "spells";
+      cDot.dataset.referenceEntry = k;
+      cDot.dataset.cardSelectionIgnore = "1";
+      cDot.setAttribute("role", "button");
+      cDot.setAttribute("tabindex", "0");
+      const openReference = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void openReferencePopover({ tab: "spells", entry: k });
+      };
+      cDot.addEventListener("click", openReference);
+      cDot.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        openReference(event);
+      });
+    }
     const chipRow = condDock.firstElementChild;
     if (chipRow) chipRow.prepend(cDot);
     else condDock.appendChild(cDot);
@@ -1153,6 +1173,7 @@ if (IS_GM) {
   bindHPEditorForEntry(pill, hpFill, setHPDeltaButtonActive, e);
 }
 }
+      mountTrackerQuickActions?.(card, e);
       __applyTrackerSelectionState(card);
       return card;
 }

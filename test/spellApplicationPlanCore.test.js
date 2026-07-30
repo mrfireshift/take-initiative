@@ -175,3 +175,36 @@ test("la risoluzione dismiss interrompe senza ricreare spell o concentrazione", 
   assert.equal(operationTypes.includes("concentration:register"), false);
   assert.equal(plan.historyLabel, "Colpo tonante risolto");
 });
+
+test("Parola del potere stordire persiste il TS ricorrente senza TS iniziale", () => {
+  const intent = intentFor("Parola del potere stordire", {
+    turns: 1,
+    requestedConcentration: false,
+  });
+  const plan = planFor(intent);
+  const operationTypes = plan.operations.map((operation) => operation.type);
+  const spellUpsert = plan.operations.find((operation) => operation.type === "spell:upsert");
+  const condition = plan.operations.find((operation) => operation.type === "condition:add");
+
+  assert.equal(intent.castAutomationPlan.usedSaveAutomation, false);
+  assert.deepEqual(operationTypes, [
+    "spell:upsert",
+    "condition:add",
+    "condition:automate",
+  ]);
+  assert.deepEqual(spellUpsert.expiry, { mode: "manual" });
+  assert.equal(condition.conditionName, "Stordito");
+  assert.equal(condition.options.sourceId, "caster");
+  assert.equal(condition.options.sourceName, "Chierico");
+  assert.equal(condition.options.parentEffectId, "spell-instance");
+  assert.deepEqual(condition.options.expiry, { mode: "manual" });
+  assert.equal(condition.options.manualRemoval, true);
+  assert.equal(condition.options.endsParentOnRemoval, true);
+  assert.equal(condition.options.parentRemoval, "target");
+  assert.deepEqual(condition.options.saveReminder, {
+    ability: "con",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    label: "Se supera il TS, termina Stordito su di sé.",
+  });
+});

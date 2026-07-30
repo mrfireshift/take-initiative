@@ -16,6 +16,9 @@ import {
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { getInitiativeCard } from "./initiativeCards.js";
+import { findQuickAction } from "./quickActionsCore.js";
+import { executeConditionApplication } from "./conditionApplicationExecutor.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -23,6 +26,7 @@ const SPELLS_META_KEY = `${ID}/spells`;
 const CONC_META_KEY = `${ID}/concentration`;
 const MODAL_ID = `${ID}/effects-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
+const QUICK_ACTION_ID = new URLSearchParams(window.location.search).get("quickAction") || "";
 
 function closeEffectsPopover() {
   void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
@@ -257,6 +261,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     app.textContent = "Token non trovato.";
     return;
   }
+  const quickActionPreset = preservedTargetIds === null
+    ? findQuickAction(getInitiativeCard(source), QUICK_ACTION_ID)
+    : null;
+  const conditionPreset = quickActionPreset?.kind === "condition"
+    ? quickActionPreset
+    : null;
 
   const panel = document.createElement("div");
 
@@ -575,11 +585,15 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     ? []
     : preservedTargetIds.filter((id) => targets.some((target) => target.id === id));
   if (preservedTargetIds === null) {
-    try {
-      const selected = await OBR.player.getSelection();
-      initialTargetIds = (Array.isArray(selected) ? selected : [])
-        .filter((id) => targets.some((target) => target.id === id));
-    } catch {}
+    if (conditionPreset?.targetMode === "self") {
+      initialTargetIds = [sourceId];
+    } else {
+      try {
+        const selected = await OBR.player.getSelection();
+        initialTargetIds = (Array.isArray(selected) ? selected : [])
+          .filter((id) => targets.some((target) => target.id === id));
+      } catch {}
+    }
     if (!initialTargetIds.length) initialTargetIds = [sourceId];
   }
   const initialIds = new Set(initialTargetIds);
@@ -916,35 +930,39 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
     const order = Array.isArray(state?.order) ? state.order : [];
     const activeId = order[state?.current] || null;
-    const mutationPlan = await prepareEffectsMutation(conditionMutationOperations({
-      targetIds: ids,
+    await executeConditionApplication({
       conditionName: effectName,
-      mode: isCustomEffect ? "custom" : "add",
-      options: {
-        sourceId: actorId,
-        sourceName: actorId ? actorName : "",
-        appliedAt: {
-          round: Math.max(1, Number(state?.round || 1)),
-          actorId: activeId,
-          phase: "turn",
-          turnKey: currentInitiativeTurnKey(state),
-        },
-        expiry,
+      targetIds: ids,
+      conditionMode: isCustomEffect ? "custom" : "add",
+      sourceId: actorId,
+      sourceName: actorId ? actorName : "",
+      appliedAt: {
+        round: Math.max(1, Number(state?.round || 1)),
+        actorId: activeId,
+        phase: "turn",
+        turnKey: currentInitiativeTurnKey(state),
       },
-    }));
-    const historyIds = mutationPlan.changedIds;
-    await withItemMetaHistory({
-      kind: "condition",
-      label: `Applicata: ${effectName}`,
-      itemIds: historyIds,
-      fields: ["conditions", SPELLS_META_KEY, CONC_META_KEY],
-    }, () => commitEffectsMutationPlan(mutationPlan));
-    await refreshConditionLabels(historyIds);
+      expiry,
+    });
     await render(sourceId, ids);
   });
 
   panel.append(close, title, grid, targetWrap, activeWrap);
   app.replaceChildren(panel);
+  if (conditionPreset) {
+    const knownCondition = Array.from(effectSelect.options)
+      .some((option) => option.value === conditionPreset.conditionName);
+    if (knownCondition) {
+      effectSelect.value = conditionPreset.conditionName;
+    } else {
+      effectSelect.value = CUSTOM_EFFECT_VALUE;
+      customEffectInput.value = conditionPreset.conditionName;
+    }
+    expirySelect.value = conditionPreset.expiryMode;
+    if (conditionPreset.duration) {
+      durationInput.value = String(conditionPreset.duration);
+    }
+  }
   syncExpiryControls();
   syncEffectControls();
   renderActiveRows();

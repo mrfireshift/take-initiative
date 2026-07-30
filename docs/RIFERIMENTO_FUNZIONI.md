@@ -7,6 +7,9 @@
 | Vedere ordine, round e turno attivo | Sì | Sì |
 | Toolbar Incontro/Tracker | Sì | No |
 | Modificare HP, condizioni e incantesimi | Sì | No |
+| Usare azioni rapide delle card | Sì | No |
+| Vedere reminder di turno, TS ed effetti | Sì | Sì |
+| Gestire il registro degli incantesimi attivi | Sì | No |
 | Vedere HP dei PG | Sì | Sì |
 | Vedere HP degli alleati | Sì | Sì nell'estesa; nascosti nella compatta |
 | Vedere HP di neutrali/nemici | Sì | No |
@@ -54,6 +57,10 @@ L'indebolimento è riconosciuto dal catalogo ma viene modificato dalla scheda in
 
 ## Interazioni condizioni/velocità
 
+Modalità risolte: camminare, volare, nuotare e scalare. La velocità di
+camminata viene dalla scheda; le altre modalità devono essere concesse o
+copiate da un effetto.
+
 | Condizione | Effetto automatico |
 | --- | --- |
 | Afferrato | Velocità 0 |
@@ -65,6 +72,10 @@ L'indebolimento è riconosciuto dal catalogo ma viene modificato dalla scheda in
 | Indebolimento 2–4 | Velocità dimezzata, caselle arrotondate per difetto |
 | Indebolimento 5 | Velocità 0 |
 | Prono | Rialzarsi costa metà movimento; movimento prono ×2 |
+
+Le zone possono aggiungere un moltiplicatore di costo, per esempio `×2` per il
+terreno difficile. Più costi dichiarativi usano il valore più alto; il costo
+direzionale di Folata di Vento non è ancora incluso.
 
 ## Console HP rapida
 
@@ -85,6 +96,94 @@ Condizioni, Incantesimi e Console HP condividono la stessa logica:
 - nessun toggle attivo equivale a nessun filtro di fazione;
 - più toggle attivi producono l'unione delle categorie;
 - la selezione della lista è sincronizzata con la selezione sulla mappa.
+
+## Incantesimi
+
+### Composizione del catalogo
+
+| Provenienza | Definizioni |
+| --- | ---: |
+| Base SRD 5.1 | 319 |
+| Xanathar | 95 |
+| Tasha | 20 |
+| Integrazioni PHB 2014 | 41 |
+| Alias legacy | 2 |
+| **Totale runtime** | **477** |
+
+Sono tracciabili nel pannello Incantesimi 357 definizioni. Il catalogo
+comprende inoltre 133 regole di area, 71 definizioni con automazioni esplicite
+per il tiro salvezza e 7 definizioni con azioni attive. La presenza di una
+geometria non implica che ogni clausola RAW dell'incantesimo sia già
+automatizzata.
+
+### Registro e ciclo di vita
+
+| Funzione | Comportamento |
+| --- | --- |
+| Registro globale | Aggrega le istanze create da Incantesimi e dalla Console effetti ad area. |
+| Durata | Avanza con round e turni secondo la definizione. |
+| Concentrazione | Vive sul caster e collega spell, effetti figli, zone e aure. |
+| Fine naturale | Termina l'istanza e ripulisce gli elementi collegati. |
+| Interruzione | Esegue la stessa pulizia quando viene rimossa la concentrazione. |
+| Preparazione | Conserva l'istanza sul caster e la risolve in seguito sui bersagli scelti. |
+| Azione attiva | Applica una fase successiva senza ricreare l'incantesimo. |
+
+### Reminder di tiro salvezza
+
+| Regola | Comportamento |
+| --- | --- |
+| Timing | Etichetta esplicita **INIZIO TURNO** o **FINE TURNO**. |
+| Identità | Mostra token, effetto e nome del caster. |
+| CD | Legge la CD dalla scheda del caster, se disponibile. |
+| Concorrenti | Più reminder nello stesso momento vengono aggregati. |
+| Navigazione | Il nuovo turno sostituisce il reminder precedente. |
+| Nessun evento | Se il nuovo attore non è coinvolto, il reminder scompare. |
+| Esito | Il GM tira al tavolo e dichiara Superato, Fallito o Immune. |
+| Conseguenze | Danni e condizioni sono informativi finché il GM non risolve l'esito. |
+
+### Eventi delle zone
+
+| Evento | Uso |
+| --- | --- |
+| `cast` | Effetti informativi o immediati al posizionamento. |
+| `enter` | Prima entrata valida nella zona. |
+| `move` | Movimento all'interno o attivazione per spostamento. |
+| `leave` | Attraversamento o uscita dalla geometria. |
+| `turn-start` | Permanenza nella zona all'inizio del proprio turno. |
+| `turn-end` | Permanenza nella zona alla fine del proprio turno. |
+
+Ogni trigger può essere un semplice reminder, un tiro salvezza oppure un
+effetto condizionato da condizioni già presenti. Il sistema mantiene separati
+i trigger concorrenti dello stesso incantesimo.
+
+### Azioni attive
+
+| Incantesimo | Azioni |
+| --- | --- |
+| Controllare Acqua | Vortice, Inondazione, Devia corrente, Separa acque |
+| Sguardo penetrante | Superato, Sonno, Panico, Nausea |
+| Riscaldare il metallo | Ripeti calore |
+| Collera della Natura | Liane Trattenuto, Rocce Prono |
+| Colpo dello Zefiro | Usa colpo |
+| Controllare Venti | Folate, Discendente, Ascendente, Sospendi venti |
+| Investitura del Ghiaccio | Cono gelido |
+
+Il dettaglio del catalogo, dei casi speciali e della copertura residua è in
+[Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
+
+## Azioni rapide
+
+| Proprietà | Valori |
+| --- | --- |
+| Massimo per profilo | 12 |
+| Tipi | Incantesimo, condizione |
+| Bersaglio | Caster oppure selezione |
+| Workflow spell | Pannello Incantesimi oppure Console effetti ad area |
+| Scadenza condizione | Manuale, round, inizio turno, fine turno |
+| Persistenza | Profilo della card tra scene |
+
+Un'azione sul caster o su un solo bersaglio può essere eseguita direttamente;
+negli altri casi apre il pannello corretto con i dati precompilati.
 
 ## Risorse boss
 
@@ -124,15 +223,23 @@ La distanza planare non è centro-centro: viene calcolata tra le caselle occupat
 | Quadrato | lato | Caselle comprese nel quadrato |
 | Cono | lunghezza | Template di Xanathar, rotazione libera |
 | Linea | lunghezza | Caselle attraversate dalla linea |
+| Rettangolo | lunghezza × larghezza | Soglia prossima al 50% per le geometrie spell dedicate |
 
 La selezione considera l'intersezione tra l'area e l'ingombro del token, inclusi i token grandi. Ogni area persistente conserva geometria e stile nei propri metadata.
+
+Le aree generiche possono essere usate soltanto per selezionare bersagli. Le
+zone e le aure degli incantesimi aggiungono invece appartenenza, terreno
+difficile, trigger turnali, attraversamento e pulizia legata all'istanza.
 
 ## Persistenza funzionale
 
 | Dato | Ambito |
 | --- | --- |
 | HP, iniziativa, fazione, condizioni, incantesimi, boss, quota | Token |
+| Azioni rapide | Profilo card nella room, con fallback locale |
 | Ordine, turno, round, gruppi, turni virtuali | Scena |
+| Registro incantesimi attivi | Derivato dalle istanze sui token |
+| Zone statiche e aure mobili | Item della scena collegati all'istanza |
 | Clock | Scena |
 | Cronologia Undo e log di combattimento | Scena |
 | Memoria persistente dei PG e card | Room, con fallback locale |

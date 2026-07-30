@@ -149,6 +149,38 @@ test("la riga conserva contenuto, riferimenti e azioni di terminazione", async (
   assert.deepEqual(terminatedGroups, [group]);
 });
 
+test("una concentrazione senza bersagli resta visibile e terminabile", async () => {
+  const documentRef = createTestDocument();
+  const overviewList = documentRef.createElement("div");
+  const terminatedGroups = [];
+  const group = overviewGroup({
+    targets: new Map(),
+    turns: [],
+  });
+
+  renderSpellOverview({
+    document: documentRef,
+    overviewList,
+    groups: [group],
+    createReferenceButton: (title, onClick) => (
+      createReferenceButton(documentRef, title, onClick)
+    ),
+    async onTerminate(currentGroup) {
+      terminatedGroups.push(currentGroup);
+    },
+  });
+
+  const row = overviewList.children[0];
+  const targets = row.children[0].children[2];
+  const terminate = row.children[1].children[0];
+  assert.equal(targets.children[1].textContent, "nessuno registrato");
+  assert.equal(targets.title, "Nessun bersaglio registrato");
+
+  await terminate.dispatch("click");
+
+  assert.deepEqual(terminatedGroups, [group]);
+});
+
 test("la preparazione espone la risoluzione solo con bersagli selezionati", async () => {
   const documentRef = createTestDocument();
   const overviewList = documentRef.createElement("div");
@@ -279,6 +311,49 @@ test("Investitura del Ghiaccio conta i falliti selezionati nell'azione", async (
   await action.dispatch("click");
   assert.equal(activations.length, 1);
   assert.deepEqual(activations[0].targetIds, ["enemy-a", "enemy-b"]);
+});
+
+test("Sguardo Penetrante dispone i quattro esiti in una card compatta", () => {
+  const documentRef = createTestDocument();
+  const overviewList = documentRef.createElement("div");
+  const spell = getSpellDefinition("eyebite");
+  const group = overviewGroup({
+    storedName: spell.displayName,
+    spellId: spell.id,
+    name: spell.displayName,
+    casterId: "caster",
+    casterName: "Lavera",
+    targets: new Map([["caster", "Lavera"]]),
+    turns: [10],
+  });
+
+  renderSpellOverview({
+    document: documentRef,
+    overviewList,
+    groups: [group],
+    createReferenceButton: (title, onClick) => (
+      createReferenceButton(documentRef, title, onClick)
+    ),
+  });
+
+  const row = overviewList.children[0];
+  const content = row.children[0];
+  const actions = row.children[1];
+  assert.equal(
+    row.className,
+    "spell-overview-row spell-overview-row--multi-action",
+  );
+  assert.equal(content.children[1].textContent, "Caster: Lavera");
+  assert.equal(
+    actions.className,
+    "spell-overview-actions spell-overview-actions--grid",
+  );
+  assert.equal(actions.attributes["aria-label"], `Esiti di ${spell.displayName}`);
+  assert.deepEqual(
+    actions.children.slice(0, 4).map((button) => button.className),
+    ["activate-spell", "activate-spell", "activate-spell", "activate-spell"],
+  );
+  assert.equal(actions.children[4].className, "terminate-spell");
 });
 
 test("un errore d'azione riabilita il controllo e mantiene il messaggio", async () => {

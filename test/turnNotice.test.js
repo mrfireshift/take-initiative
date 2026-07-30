@@ -15,6 +15,7 @@ test("builds current and next turn names", () => {
     currentPortrait: "anya.png",
     currentAttitude: "pc",
     round: 3,
+    turnKey: "3:0:anya",
   });
 });
 

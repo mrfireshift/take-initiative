@@ -67,6 +67,7 @@ export function __compactEffectItems(
       kind: "concentration",
       label: "Concentrazione",
       title: "Concentrazione attiva",
+      referenceEntry: formatting.concentrationSpellKey || "",
     });
   }
   return effects;
@@ -128,6 +129,10 @@ export function __buildCompactEffectPill(
   const pill = compactDocument(documentRef).createElement("span");
   pill.textContent = effect.label;
   pill.title = effect.title || effect.label;
+  if (effect.kind === "concentration" && effect.referenceEntry) {
+    pill.dataset.referenceType = "spells";
+    pill.dataset.referenceEntry = effect.referenceEntry;
+  }
   const resolvedSpellColor = effect.kind === "spell" && typeof spellColor === "function"
     ? spellColor(effect.key)
     : null;

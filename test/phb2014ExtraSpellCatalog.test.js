@@ -31,13 +31,13 @@ function customSaveEffects(definition) {
   );
 }
 
-test("il catalogo PHB 2014 conserva le 40 voci ripulite con ID univoci", () => {
+test("il catalogo PHB 2014 conserva le 41 voci ripulite con ID univoci", () => {
   assert.equal(catalog.schemaVersion, 1);
   assert.equal(catalog.source.id, "phb2014");
   assert.equal(catalog.source.title, "Manuale del Giocatore 2014");
   assert.deepEqual(catalog.source.pageRange, { from: 211, to: 289 });
-  assert.equal(catalog.spells.length, 40);
-  assert.equal(new Set(catalog.approvedIds).size, 40);
+  assert.equal(catalog.spells.length, 41);
+  assert.equal(new Set(catalog.approvedIds).size, 41);
   assert.deepEqual(catalog.approvedIds, catalog.spells.map((entry) => entry.id));
   assert.ok(catalog.spells.every((entry) =>
     entry.id.startsWith(PHB2014_PREFIX)
@@ -53,12 +53,12 @@ test("il catalogo PHB 2014 conserva le 40 voci ripulite con ID univoci", () => {
   assert.equal(/[ÃÂ]/u.test(serialized), false);
 });
 
-test("tutte le 40 spell sono ricercabili e mostrano il riferimento italiano completo", () => {
+test("tutte le 41 spell sono ricercabili e mostrano il riferimento italiano completo", () => {
   const fullCatalog = getSpellCatalog();
   const phbEntries = fullCatalog.filter((entry) => entry.source === "phb2014");
 
   assert.equal(fullCatalog.length, 477);
-  assert.equal(phbEntries.length, 40);
+  assert.equal(phbEntries.length, 41);
   for (const entry of catalog.spells) {
     const definition = spell(entry.name);
     assert.equal(definition.id, entry.id);
@@ -72,7 +72,7 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   const trackableIds = new Set(getTrackableSpellOptions().map((option) => option.id));
   const instantaneous = catalog.spells.filter((entry) => entry.durationKind === "instantaneous");
 
-  assert.equal(getTrackableSpellOptions().length, 356);
+  assert.equal(getTrackableSpellOptions().length, 357);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;
@@ -84,7 +84,7 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   assert.equal(spell("Tsunami").defaultTurns, 6);
 });
 
-test("HP rapidi riceve le 13 spell PHB con area o trigger spaziale", () => {
+test("HP rapidi riceve le 14 spell PHB con area o trigger spaziale", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
@@ -98,6 +98,7 @@ test("HP rapidi riceve le 13 spell PHB con area o trigger spaziale", () => {
     "phb2014-fame-di-hadar",
     "phb2014-freccia-folgorante",
     "phb2014-aura-di-purezza",
+    "phb2014-aura-di-vitalita",
     "phb2014-aura-di-vita",
     "phb2014-cerchio-di-potere",
     "phb2014-evoca-pioggia-di-armi",
@@ -133,9 +134,9 @@ test("le condizioni standard mancanti sono cablate con la durata corretta", () =
   assert.equal(ensnaring.failed[0].condition, "Trattenuto");
   assert.deepEqual(ensnaring.failed[0].expiry, { mode: "concentration" });
   assert.equal(crown.failed.some((rule) => rule.condition === "Affascinato"), true);
-  assert.equal(hunger.passed[0].condition, "Accecato");
-  assert.equal(hunger.failed[0].condition, "Accecato");
-  assert.deepEqual(hunger.trackOutcomes, ["passed", "failed"]);
+  assert.equal(hunger.failed, undefined);
+  assert.equal(hunger.passed, undefined);
+  assert.deepEqual(hunger.trackOutcomes, []);
   assert.equal(wave.failed[0].condition, "Prono");
   assert.deepEqual(wave.failed[0].options, { parentEffectId: "" });
 

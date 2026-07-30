@@ -12,6 +12,7 @@ import {
   staticSpellZoneMetadata,
 } from "../src/spellStaticZoneCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
+import { getSpellDefinition } from "../src/spells-srd.js";
 
 const META = "meta";
 const SPELLS = "spells";
@@ -111,7 +112,7 @@ test("una zona non concentrata registra sul caster un marker di lifecycle", () =
   assert.equal(operation.type, "spell:upsert");
   assert.deepEqual(operation.targetIds, ["caster"]);
   assert.equal(operation.turns, 10);
-  assert.deepEqual(operation.expiry, { mode: "manual" });
+  assert.equal(operation.expiry, undefined);
   assert.equal(operation.castContext.staticZoneOwner, true);
   assert.equal(operation.castContext.staticZoneRuleId, rule.id);
 
@@ -121,6 +122,52 @@ test("una zona non concentrata registra sul caster un marker di lifecycle", () =
     instanceId: "concentrated",
     casterId: "caster",
   }), null);
+});
+
+test("una zona senza durata finita resta a rimozione manuale", () => {
+  const rule = {
+    ...getSpellAreaRuleById("entangle:cast"),
+    spellId: "symbol",
+  };
+  const operation = staticSpellZoneOwnerOperation({
+    rule,
+    spell: {
+      id: "symbol",
+      displayName: "Simbolo",
+      concentration: false,
+      defaultTurns: null,
+    },
+    instanceId: "symbol-instance",
+    casterId: "caster",
+  });
+
+  assert.equal(operation.turns, 1);
+  assert.deepEqual(operation.expiry, { mode: "manual" });
+});
+
+test("una zona concentrata senza altri effetti conserva la durata sul caster", () => {
+  const rule = getSpellAreaRuleById("incendiary-cloud:cast");
+  const operation = staticSpellZoneOwnerOperation({
+    rule,
+    spell: {
+      id: "incendiary-cloud",
+      displayName: "Nube incendiaria",
+      concentration: true,
+      defaultTurns: 10,
+    },
+    instanceId: "incendiary-cloud-instance",
+    casterId: "caster",
+    appliedAt: { round: 3, actorId: "caster", phase: "turn" },
+    trackConcentration: true,
+  });
+
+  assert.equal(operation.type, "spell:upsert");
+  assert.deepEqual(operation.targetIds, ["caster"]);
+  assert.equal(operation.turns, 10);
+  assert.equal(operation.conc, true);
+  assert.deepEqual(operation.expiry, { mode: "concentration" });
+  assert.equal(operation.castContext.staticZoneOwner, true);
+  assert.equal(operation.castContext.staticZoneRuleId, rule.id);
 });
 
 test("il piano di terminazione distingue una zona conclusa da una ancora attiva", () => {
@@ -146,4 +193,25 @@ test("il piano di terminazione distingue una zona conclusa da una ancora attiva"
   });
   assert.deepEqual(ended.map((item) => item.id), ["ended-root"]);
   assert.deepEqual(staticSpellZoneItemsEndedByPlan(items, { changes: [] }), []);
+});
+
+test("la zona conserva la variante di regola scelta e la registra nel contesto del caster", () => {
+  const metadata = staticSpellZoneMetadata({
+    instanceId: "winds-1",
+    ruleId: "xanathar-controllare-venti:cast",
+    spellId: "xanathar-controllare-venti",
+    casterId: "caster",
+    ruleChoice: "downdraft",
+  });
+  assert.equal(metadata.ruleChoice, "downdraft");
+
+  const operation = staticSpellZoneOwnerOperation({
+    rule: getSpellAreaRuleById("xanathar-controllare-venti:cast"),
+    spell: getSpellDefinition("xanathar-controllare-venti"),
+    instanceId: "winds-1",
+    casterId: "caster",
+    trackConcentration: true,
+    ruleChoice: "downdraft",
+  });
+  assert.equal(operation.castContext.choice, "downdraft");
 });

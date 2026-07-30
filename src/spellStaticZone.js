@@ -19,15 +19,19 @@ import {
 } from "./spellStaticZoneCore.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
-  mergePlannedSpellZoneTriggerRuntime,
-  normalizeSpellZoneTriggerRuntime,
-  planSpellZoneTriggers,
 } from "./spellZoneTriggerCore.js";
+import {
+  mergeStaticSpellZoneReminderMetadata,
+  planStaticSpellZoneReminder,
+} from "./spellStaticZoneReminderCore.js";
+import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 1000;
+const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
+const CONCENTRATION_KEY = `${ID}/concentration`;
 
 let mounted = false;
 let running = false;
@@ -38,6 +42,10 @@ let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
 let queuedSceneMetadata = null;
+const sceneItemBounds = createSceneItemBoundsCache(
+  (itemId) => OBR.scene.items.getItemBounds([itemId]),
+  { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
+);
 
 function boundaryCommands(cells) {
   const commands = [];
@@ -81,6 +89,19 @@ function point(value) {
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
+function boundsCenter(bounds) {
+  const center = point(bounds?.center);
+  if (center) return center;
+  const min = point(bounds?.min);
+  const max = point(bounds?.max);
+  return min && max
+    ? {
+      x: (min.x + max.x) / 2,
+      y: (min.y + max.y) / 2,
+    }
+    : null;
+}
+
 function translatedZoneArea(item) {
   const metadata = item?.metadata?.[AOE_AREA_META_KEY];
   if (!metadata?.type || !metadata?.start || !metadata?.end) return null;
@@ -97,6 +118,7 @@ function translatedZoneArea(item) {
     translate(metadata.end),
     metadata.dpi,
     translate(metadata.gridOrigin || metadata.start),
+    { widthSquares: metadata.widthSquares },
   );
 }
 
@@ -113,50 +135,82 @@ function conditionInstances(item) {
   return Array.isArray(conditions?.instances) ? conditions.instances : [];
 }
 
-function itemPortrait(item) {
-  return String(
-    item?.image?.url
-    || item?.image?.src
-    || item?.asset?.image?.url
-    || ""
-  ).trim().slice(0, 2048);
+function itemIsConcentrating(item) {
+  const concentration = item?.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
+  return !!concentration
+    && typeof concentration === "object"
+    && Object.keys(concentration).length > 0;
 }
 
 function suppressedTriggerTargets(rule, instanceId, candidates) {
   const suppressedByTrigger = {};
   for (const trigger of rule?.zonePolicy?.triggers || []) {
-    const names = new Set(
+    const skippedNames = new Set(
       (Array.isArray(trigger?.skipLinkedConditions)
         ? trigger.skipLinkedConditions
         : [])
         .map((name) => String(name || "").trim().toLocaleLowerCase("it"))
         .filter(Boolean)
     );
-    if (!names.size) continue;
+    const skippedConditionNames = new Set(
+      (Array.isArray(trigger?.skipConditions)
+        ? trigger.skipConditions
+        : [])
+        .map((name) => String(name || "").trim().toLocaleLowerCase("it"))
+        .filter(Boolean)
+    );
+    const requiredNames = new Set(
+      (Array.isArray(trigger?.requireConditions)
+        ? trigger.requireConditions
+        : [])
+        .map((name) => String(name || "").trim().toLocaleLowerCase("it"))
+        .filter(Boolean)
+    );
+    const requiresConcentration = trigger?.requiresConcentration === true;
+    if (
+      !skippedNames.size
+      && !skippedConditionNames.size
+      && !requiredNames.size
+      && !requiresConcentration
+    ) {
+      continue;
+    }
     suppressedByTrigger[trigger.id] = candidates
-      .filter(({ item }) => conditionInstances(item).some((condition) =>
-        condition?.active !== false
-        && String(condition?.parentEffectId || "") === String(instanceId || "")
-        && names.has(
-          String(condition?.name || condition?.condition || "")
-            .trim()
-            .toLocaleLowerCase("it")
-        )
-      ))
+      .filter(({ item }) => {
+        const conditionNames = new Set(
+          conditionInstances(item)
+            .filter((condition) => condition?.active !== false)
+            .map((condition) =>
+              String(condition?.name || condition?.condition || "")
+                .trim()
+                .toLocaleLowerCase("it")
+            )
+            .filter(Boolean)
+        );
+        const linkedConditionNames = new Set(
+          conditionInstances(item)
+            .filter((condition) =>
+              condition?.active !== false
+              && String(condition?.parentEffectId || "") === String(instanceId || "")
+            )
+            .map((condition) =>
+              String(condition?.name || condition?.condition || "")
+                .trim()
+                .toLocaleLowerCase("it")
+            )
+            .filter(Boolean)
+        );
+        return (requiresConcentration && !itemIsConcentrating(item))
+          || [...skippedNames].some((name) => linkedConditionNames.has(name))
+          || [...skippedConditionNames].some((name) => conditionNames.has(name))
+          || (
+            requiredNames.size > 0
+            && ![...requiredNames].some((name) => conditionNames.has(name))
+          );
+      })
       .map(({ item }) => item.id);
   }
   return suppressedByTrigger;
-}
-
-async function itemBounds(items) {
-  const entries = await Promise.all(items.map(async (item) => {
-    try {
-      return [item.id, await OBR.scene.items.getItemBounds([item.id])];
-    } catch {
-      return [item.id, null];
-    }
-  }));
-  return new Map(entries);
 }
 
 function buildZonePath({
@@ -194,6 +248,7 @@ export function buildStaticSpellZoneItems({
   spellName = "",
   preview = null,
   style = null,
+  ruleChoice = "",
 } = {}) {
   const rule = getSpellAreaRuleById(ruleId);
   if (!isStaticSpellZoneRule(rule)) throw new Error("static-zone-rule-invalid");
@@ -214,7 +269,14 @@ export function buildStaticSpellZoneItems({
   }
   const dpi = Math.max(1, rawDpi);
 
-  const area = buildArea(type, start, end, dpi, gridOrigin);
+  const area = buildArea(
+    type,
+    start,
+    end,
+    dpi,
+    gridOrigin,
+    { widthSquares: preview?.widthSquares },
+  );
   const resolvedStyle = spellAreaStyle(
     rule.spellId,
     normalizeAoEStyle(style || loadAoEStyle()),
@@ -225,6 +287,7 @@ export function buildStaticSpellZoneItems({
     ruleId: rule.id,
     spellId: rule.spellId,
     casterId,
+    ruleChoice,
   });
   const rootAreaMetadata = {
     version: 2,
@@ -236,6 +299,14 @@ export function buildStaticSpellZoneItems({
     gridOrigin,
     basePosition: { x: 0, y: 0 },
     style: resolvedStyle,
+    ...(Number(preview?.widthSquares) > 0
+      ? {
+        widthSquares: Math.max(
+          1,
+          Math.round(Number(preview.widthSquares)),
+        ),
+      }
+      : {}),
   };
   const label = String(spellName || rule.spellId || "Incantesimo").trim();
   const root = buildZonePath({
@@ -272,6 +343,7 @@ export function buildStaticSpellZoneItems({
         casterId,
         role: "geometry",
         parentId: root.id,
+        ruleChoice,
       }),
     },
     locked: true,
@@ -287,6 +359,39 @@ export async function getStaticSpellZoneItems({
 } = {}) {
   const items = await OBR.scene.items.getItems();
   return staticSpellZoneItems(items, { instanceId, casterId });
+}
+
+export async function setStaticSpellZoneRuleChoice(
+  zoneItems = [],
+  ruleChoice = "",
+) {
+  const ids = (Array.isArray(zoneItems) ? zoneItems : [])
+    .map((item) => item?.id)
+    .filter(Boolean);
+  const choice = String(ruleChoice || "").trim();
+  if (!ids.length || !choice) return false;
+  await OBR.scene.items.updateItems(ids, (drafts) => {
+    for (const item of drafts) {
+      const metadata = item.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      if (!metadata) continue;
+      const triggerRuntime = metadata.triggerRuntime
+        && typeof metadata.triggerRuntime === "object"
+        ? {
+          ...metadata.triggerRuntime,
+          pending: [],
+        }
+        : metadata.triggerRuntime;
+      item.metadata = {
+        ...(item.metadata || {}),
+        [SPELL_STATIC_ZONE_META_KEY]: {
+          ...metadata,
+          ruleChoice: choice,
+          ...(triggerRuntime ? { triggerRuntime } : {}),
+        },
+      };
+    }
+  });
+  return true;
 }
 
 export async function commitWithStaticSpellZoneRemoval(zoneItems = [], action) {
@@ -353,10 +458,19 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   const boundedItems = [...requiredIds]
     .map((id) => byId.get(id))
     .filter(Boolean);
-  const boundsById = await itemBounds(boundedItems);
+  const boundsResult = await sceneItemBounds.load(boundedItems);
+  if (!boundsResult.complete) {
+    console.warn(
+      "[spell-static-zone] bounds incompleti, reconcile rinviato:",
+      boundsResult.missingIds,
+    );
+    return;
+  }
+  const boundsById = boundsResult.boundsById;
   const candidates = creatures.map((item) => ({
     item,
     bounds: boundsById.get(item.id),
+    center: boundsCenter(boundsById.get(item.id)),
   }));
   const operations = [];
   const triggerRuntimeUpdates = new Map();
@@ -388,55 +502,34 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       defaultExpiry: { mode: "manual" },
     }).operations);
     if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) continue;
-    const previousRuntime = normalizeSpellZoneTriggerRuntime(
-      zoneMetadata.triggerRuntime
-    );
-    const triggerPlan = planSpellZoneTriggers({
+    const triggerPlan = planStaticSpellZoneReminder({
+      zoneItem: item,
       rule,
-      zoneMetadata,
-      runtime: previousRuntime,
-      currentTargetIds: desiredTargetIds,
+      desiredTargetIds,
+      currentTargetPositions: Object.fromEntries(
+        candidates
+          .filter(({ item: candidate, center }) =>
+            desiredTargetIds.includes(candidate.id) && center
+          )
+          .map(({ item: candidate, center }) => [candidate.id, center])
+      ),
       initiativeState,
       suppressedTargetIdsByTrigger: suppressedTriggerTargets(
         rule,
         zoneMetadata.instanceId,
         candidates,
       ),
-      areaPosition: item.position,
+      itemsById: byId,
     });
-    if (
-      JSON.stringify(previousRuntime) !== JSON.stringify(triggerPlan.runtime)
-    ) {
+    if (triggerPlan.changed) {
       triggerRuntimeUpdates.set(item.id, {
-        baseRuntime: previousRuntime,
+        baseRuntime: triggerPlan.baseRuntime,
         runtime: triggerPlan.runtime,
         newActivations: triggerPlan.newActivations,
       });
     }
     newTriggerActivations.push(...triggerPlan.newActivations);
-    for (const activation of triggerPlan.newActivations) {
-      const targets = activation.targetIds
-        .map((targetId) => byId.get(targetId))
-        .filter(Boolean)
-        .map((target) => ({
-          id: target.id,
-          name: String(target.name || "Token").trim().slice(0, 100)
-            || "Token",
-          portrait: itemPortrait(target),
-        }));
-      if (!targets.length) continue;
-      newTriggerNotices.push({
-        activationId: activation.id,
-        spellName: String(item.name || "Incantesimo")
-          .replace(/^Zona:\s*/i, "")
-          .trim()
-          .slice(0, 100) || "Incantesimo",
-        label: String(
-          activation.label || "Tiro salvezza richiesto"
-        ).trim().slice(0, 160) || "Tiro salvezza richiesto",
-        targets,
-      });
-    }
+    newTriggerNotices.push(...triggerPlan.notices);
   }
 
   const activeInstanceIds = zoneRoots
@@ -472,15 +565,10 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
           const metadata = item.metadata?.[SPELL_STATIC_ZONE_META_KEY] || {};
           item.metadata = {
             ...(item.metadata || {}),
-            [SPELL_STATIC_ZONE_META_KEY]: {
-              ...metadata,
-              triggerRuntime: mergePlannedSpellZoneTriggerRuntime(
-                metadata.triggerRuntime,
-                update.runtime,
-                update.newActivations,
-                update.baseRuntime,
-              ),
-            },
+            [SPELL_STATIC_ZONE_META_KEY]: mergeStaticSpellZoneReminderMetadata(
+              metadata,
+              update,
+            ),
           };
         }
       },
@@ -551,6 +639,7 @@ export async function mountStaticSpellZoneController() {
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
       queuedSceneMetadata = null;
+      sceneItemBounds.clear();
       return;
     }
     requestStaticSpellZoneReconcile();
@@ -579,6 +668,7 @@ export function unmountStaticSpellZoneController() {
   if (timer) clearTimeout(timer);
   timer = null;
   queuedSceneMetadata = null;
+  sceneItemBounds.clear();
   requested = false;
   mounted = false;
 }

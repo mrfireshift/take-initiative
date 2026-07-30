@@ -6,6 +6,7 @@ import {
   buildCellBoundaryLoops,
   buildConeArea,
   buildLineArea,
+  buildRectangleArea,
   buildSquareArea,
   nearestGridSnap,
   snappedAreaLength,
@@ -118,6 +119,42 @@ test("la linea e larga una casella e segue la direzione", () => {
   const area = buildLineArea({ x: 0, y: 0 }, { x: 600, y: 0 }, 150);
   assert.ok(area.cells.some((cell) => cell.column === 3 && cell.row === 0));
   assert.ok(!area.cells.some((cell) => cell.column === 3 && cell.row === 1));
+});
+
+test("il rettangolo 12x2 occupa esattamente ventiquattro caselle cardinali", () => {
+  const area = buildRectangleArea(
+    { x: 75, y: 75 },
+    { x: 1875, y: 75 },
+    150,
+    { x: 0, y: 0 },
+    2,
+  );
+  assert.equal(area.squares, 12);
+  assert.equal(area.widthSquares, 2);
+  assert.equal(area.cells.length, 24);
+  assert.deepEqual(
+    [...new Set(area.cells.map((cell) => cell.row))],
+    [0, 1],
+  );
+  assert.equal(Math.min(...area.cells.map((cell) => cell.column)), 0);
+  assert.equal(Math.max(...area.cells.map((cell) => cell.column)), 11);
+});
+
+test("il rettangolo ignora le caselle marginali coperte per meno della metà", () => {
+  const area = buildRectangleArea(
+    { x: 75, y: 75 },
+    { x: 50, y: 1875 },
+    150,
+    { x: 0, y: 0 },
+    2,
+  );
+  assert.equal(area.cells.length, 24);
+  assert.deepEqual(
+    [...new Set(area.cells.map((cell) => cell.column))],
+    [-1, 0],
+  );
+  assert.equal(Math.min(...area.cells.map((cell) => cell.row)), 0);
+  assert.equal(Math.max(...area.cells.map((cell) => cell.row)), 11);
 });
 
 test("un'origine al centro usa comunque celle allineate alla griglia", () => {

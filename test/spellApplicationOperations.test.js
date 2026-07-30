@@ -56,3 +56,24 @@ test("una pill può dichiararsi indipendente dal parent spell", () => {
   assert.equal(independent.parentEffectId, "");
   assert.deepEqual(independent.expiry, { mode: "manual" });
 });
+
+test("una pill spell trasferisce il contratto del reminder TS", () => {
+  const saveReminder = {
+    ability: "con",
+    timing: "turn-start",
+    dcSource: "source-spell",
+    success: "remove-effect",
+  };
+  const options = spellEffectConditionOptions({
+    id: "burning",
+    kind: "debuff",
+    label: "In fiamme",
+    saveReminder,
+  }, {
+    sourceId: "caster",
+  }, "spell-instance");
+
+  assert.equal(options.saveReminder, saveReminder);
+  assert.equal(options.sourceId, "caster");
+  assert.equal(options.parentEffectId, "spell-instance");
+});

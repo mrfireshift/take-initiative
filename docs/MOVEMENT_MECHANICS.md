@@ -1,8 +1,9 @@
 # Contratto delle meccaniche di movimento
 
 Questo documento definisce il comportamento del profilo di movimento usato
-dallo Speed Tracker. Il contratto riguarda la fase multimodale; le aree,
-le aure e le attivazioni secondarie restano sistemi indipendenti.
+dallo Speed Tracker. Zone, aure e attivazioni secondarie hanno controller
+indipendenti, ma i loro effetti di appartenenza possono contribuire al profilo
+di movimento tramite lo stesso contratto.
 
 ## Modalità supportate
 
@@ -29,6 +30,7 @@ I campi scalari già esistenti restano validi:
 movement: {
   addMeters: 3,
   multiplier: 0.5,
+  costMultiplier: 2,
   maximumMeters: 9,
   setMeters: 0,
   appliesTo: ["walk"],
@@ -40,6 +42,8 @@ Senza `appliesTo`, i campi scalari si applicano a tutte le modalità
 disponibili. `appliesTo` limita invece quei campi alle modalità elencate.
 `multiplier` applica un moltiplicatore dopo i modificatori additivi,
 mantenendo l'arrotondamento per difetto a caselle intere.
+`costMultiplier` non cambia la velocità disponibile: moltiplica invece il costo
+delle caselle percorse, come nel terreno difficile.
 
 Le modalità aggiuntive sono dichiarate in `modes`:
 
@@ -82,6 +86,10 @@ Per ogni modalità il resolver applica:
 5. valori imposti;
 6. condizioni che impediscono completamente il movimento.
 
+Il costo delle caselle viene risolto separatamente. Se più effetti dichiarano
+`costMultiplier`, viene usato il valore più alto invece di moltiplicarli tra
+loro. Prono conserva la propria regola di costo nel conteggio del movimento.
+
 I dimezzamenti vengono arrotondati per difetto a caselle intere da 1,5 metri,
 conservando il comportamento precedente.
 
@@ -96,7 +104,8 @@ Nel campo turnale `speedCheckMovement` vengono conservati soltanto:
 - movimento consumato;
 - ultima casella;
 - posizione iniziale;
-- modalità attiva.
+- modalità attiva;
+- stato necessario a ricostruire il costo del movimento del turno.
 
 La modalità selezionata vale quindi per il turno corrente e viene abbandonata
 automaticamente se l'effetto che la concedeva termina.
@@ -116,6 +125,12 @@ la quota precedente viene ripristinata.
 - Il resolver non determina se il token si trovi in aria, acqua o su una
   parete: la modalità viene scelta dal DM.
 - La caduta e la discesa forzata non vengono automatizzate.
-- Aree, terreno difficile e aure non fanno parte di questo contratto.
+- Le zone supportate possono dichiarare terreno difficile tramite un effetto
+  di appartenenza. Il profilo lo riceve come `costMultiplier`.
+- Un costo che dipende dalla direzione del singolo segmento non è ancora
+  supportato. Folata di Vento, per esempio, non raddoppia automaticamente
+  soltanto il movimento verso il caster.
 - Le trasformazioni che consentono di alternare forma normale e speciale
   richiederanno un'azione esplicita in una fase successiva.
+
+I casi ancora aperti sono tracciati nel [Backlog](../BACKLOG.md).

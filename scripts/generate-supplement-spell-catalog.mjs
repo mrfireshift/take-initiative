@@ -20,7 +20,6 @@ const SOURCES = Object.freeze({
 });
 
 const LEGACY_NAMES = Object.freeze([
-  "Aura di Vitalità",
   "Manto del Crociato",
   "Scudiscio Mentale di Tasha",
 ]);

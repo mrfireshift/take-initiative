@@ -31,7 +31,7 @@ test("il lock è visibile, reversibile e ignora la selezione esterna", () => {
   );
 });
 
-test("zone vuote e aure conservano il lifecycle senza riattivare i reminder", () => {
+test("zone vuote e aure conservano il lifecycle con reminder governati dal feature flag", () => {
   assert.match(
     source,
     /if \(!candidateIds\.length && !staticZonePlacement && !mobileAuraPlacement\) return;/,

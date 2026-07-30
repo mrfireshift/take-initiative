@@ -30,12 +30,12 @@ assert.equal(new Set(italianNames.map(([, name]) => name)).size, 319);
 assert.equal(nonInstantaneous.length, 232);
 assert.equal(phb2014.schemaVersion, 1);
 assert.equal(phb2014.source.id, "phb2014");
-assert.equal(phb2014.spells.length, 40);
-assert.equal(new Set(phb2014.approvedIds).size, 40);
+assert.equal(phb2014.spells.length, 41);
+assert.equal(new Set(phb2014.approvedIds).size, 41);
 assert.deepEqual(phb2014.approvedIds, phb2014.spells.map((spell) => spell.id));
 assert.equal(fullCatalog.length, 477);
-assert.equal(fullCatalog.filter((spell) => spell.source === "phb2014").length, 40);
-assert.equal(options.length, 356);
+assert.equal(fullCatalog.filter((spell) => spell.source === "phb2014").length, 41);
+assert.equal(options.length, 357);
 assert.equal(SPELLS_5E_SRD.length, options.length);
 assert.equal(new Set(options.map((option) => option.id)).size, options.length);
 assert.equal(new Set(options.map((option) => option.value)).size, options.length);
@@ -101,7 +101,10 @@ assert.equal(getSpellDefinition("command").expiry.actor, "target");
 assert.equal(getSpellDefinition("fear").targetMode, "area");
 assert.equal(getSpellDefinition("invisibility").automation.mode, "automatic");
 assert.deepEqual(
-  getProposedConditions(getSpellDefinition("blindness-deafness"), "Assordato"),
+  getProposedConditions(
+    getSpellDefinition("blindness-deafness"),
+    "Assordato",
+  ).map((entry) => typeof entry === "string" ? entry : entry.name),
   ["Assordato"]
 );
 assert.equal(durationToRounds("1 round"), 1);

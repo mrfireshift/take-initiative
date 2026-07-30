@@ -1,5 +1,9 @@
 # Migrazione delle label degli effetti a `OBR.scene.local`
 
+> **Documento di implementazione completata.** Conserva le evidenze e le
+> decisioni della migrazione. L'architettura corrente è riassunta in
+> [Architettura e dati](ARCHITETTURA.md).
+
 ## Obiettivo
 
 Verificare sperimentalmente se una label locale può essere collegata tramite `attachedTo` a un token globale e, dopo la validazione, spostare nello store locale pill condizioni, pill incantesimi e badge concentrazione.

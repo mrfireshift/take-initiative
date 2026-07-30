@@ -4,6 +4,9 @@ import {
   staleAreaMembershipEffectRemovals,
 } from "./spellAreaMembershipCore.js";
 import { getSpellAreaRules } from "./spellAreaRules.js";
+import { ID } from "./constants.js";
+
+export const SPELL_AURA_META_KEY = `${ID}/spellAura`;
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -32,6 +35,7 @@ export function collectActiveMobileAuras(items = [], {
       auras.set(instanceId, {
         instanceId,
         spellId: String(spell.spellId || "").trim(),
+        spellName: String(spell.name || spell.spellName || "").trim(),
         casterId,
         rule,
       });

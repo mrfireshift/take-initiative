@@ -12,15 +12,18 @@ import {
 import { shouldRoomInitiativeCardWin } from "./initiativeCardConflict.js";
 import {
   findInitiativeCardRegistryEntry,
+  initiativeCardQuickActionMemoryCandidates,
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
   normalizeInitiativeCardRegistry,
 } from "./initiativeCardRegistryCore.js";
+import { sanitizeQuickActions } from "./quickActionsCore.js";
 
 const META_KEY = `${ID}/meta`;
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
 const LOCAL_CARD_KEY = `${ID}/initiativeCards/local`;
 let initiativeCardWriteQueue = Promise.resolve();
+let initiativeCardHydrationQueue = Promise.resolve();
 export const INITIATIVE_CARD_FIELD = "initiativeCard";
 export const SAVE_KEYS = ["str", "dex", "con", "int", "wis", "cha"];
 
@@ -58,6 +61,7 @@ export function sanitizeInitiativeCard(value) {
     spellAttackBonus: optionalInteger(source.spellAttackBonus, -99, 99),
     notes: shortText(source.notes),
     exhaustion: optionalInteger(source.exhaustion, 0, 5) ?? 0,
+    quickActions: sanitizeQuickActions(source.quickActions),
     savingThrows: Object.fromEntries(
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
     ),
@@ -89,6 +93,9 @@ function mergeProfile(base, value) {
       : cleanBase.spellAttackBonus,
     notes: value.notes !== undefined ? cleanValue.notes : cleanBase.notes,
     exhaustion: value.exhaustion !== undefined ? cleanValue.exhaustion : cleanBase.exhaustion,
+    quickActions: value.quickActions !== undefined
+      ? cleanValue.quickActions
+      : cleanBase.quickActions,
     savingThrows: Object.fromEntries(SAVE_KEYS.map((key) => [
       key,
       value.savingThrows?.[key] !== undefined
@@ -303,6 +310,30 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
   return profile;
 }
 
+export function restoreInitiativeCardQuickActionsFromMemory(itemIds) {
+  const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
+  if (!ids.length) return Promise.resolve([]);
+
+  const restore = async () => {
+    const items = await OBR.scene.items.getItems(ids);
+    if (!items.length) return [];
+    const { registry } = await readInitiativeCardRegistry();
+    const candidates = initiativeCardQuickActionMemoryCandidates(items, registry, {
+      metadataKey: META_KEY,
+      profileField: INITIATIVE_CARD_FIELD,
+    });
+    const restoredIds = [];
+    for (const item of candidates) {
+      const profile = await loadInitiativeCard(item, { hydrate: true });
+      if (profile.quickActions.length) restoredIds.push(item.id);
+    }
+    return restoredIds;
+  };
+
+  initiativeCardHydrationQueue = initiativeCardHydrationQueue.then(restore, restore);
+  return initiativeCardHydrationQueue;
+}
+
 export function hasInitiativeCardValues(profile) {
   return profile?.armorClass !== null ||
     profile?.passivePerception !== null ||
@@ -311,6 +342,7 @@ export function hasInitiativeCardValues(profile) {
     profile?.spellAttackBonus !== null ||
     Boolean(profile?.notes) ||
     Number(profile?.exhaustion) > 0 ||
+    Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }
 

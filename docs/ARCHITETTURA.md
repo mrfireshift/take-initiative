@@ -17,8 +17,15 @@ Il progetto evita un backend proprio: la sincronizzazione avviene tramite metada
 | `src/trackerPopover.js` | Apertura, layout e dimensionamento del popover tracker. |
 | `src/contextMenu.js` | Comandi contestuali su token. |
 | `src/effects-modal.ts` | Popup Condizioni. |
-| `src/spells-panel.js` | Popup Incantesimi e concentrazione. |
-| `src/quick-hp-modal.js` | Console HP multi-bersaglio. |
+| `src/spells-panel.js` | Popup Incantesimi, registro globale, preparazione e azioni attive. |
+| `src/quick-hp-modal.js` | Console HP multi-bersaglio e Console effetti ad area. |
+| `src/spellAreaCatalog.js` / `src/spellAreaRules.js` | Geometrie e comportamento dichiarativo delle spell ad area. |
+| `src/spellStaticZone.js` | Ciclo di vita, appartenenza e pulizia delle zone persistenti. |
+| `src/spellAuraController.js` | Riconciliazione delle aure mobili. |
+| `src/spellZoneTriggerCore.js` | Pianificazione dei trigger di ingresso, movimento e turno. |
+| `src/effectSaveReminderController.js` | Reminder da condizioni e spell applicate ai token. |
+| `src/preparedSpellResolutionController.js` | Risoluzione differita delle spell preparate. |
+| `src/quickActionsCore.js` | Contratto delle azioni rapide delle card. |
 | `src/history-modal.ts` | Cronologia Undo e log di combattimento. |
 | `src/clocksTool.js` / `src/clocks-modal.js` | Strumento e interfaccia Clock. |
 | `src/distance3dTool.js` / `src/distance3d-modal.js` | Strumento e interfaccia Distanza 3D. |
@@ -57,6 +64,11 @@ Contiene i dati specifici della creatura, tra cui:
 
 Gli aggiornamenti devono sempre fondere il nuovo contenuto con il metadata esistente. Sostituire l'intero oggetto può cancellare HP, condizioni o risorse indipendenti.
 
+Le istanze in `com.thebigpicture.initiative/spells` contengono l'identità
+dell'incantesimo, la durata, il caster, il contesto di lancio e i collegamenti
+agli effetti figli. Il registro Incantesimi è una vista derivata dall'insieme
+di queste istanze: non esiste una seconda copia canonica del registro.
+
 ### Metadata della scena
 
 Chiave canonica dello stato tracker:
@@ -75,6 +87,17 @@ Altre chiavi di scena:
 | `com.thebigpicture.initiative/history` | Journal delle azioni annullabili |
 | `com.thebigpicture.initiative/combat-log-state` | Sessione corrente del log |
 
+Le geometrie persistenti sono item della scena con metadata dedicati:
+
+| Chiave item | Scopo |
+| --- | --- |
+| `com.thebigpicture.initiative/aoeArea` | Area geometrica generica |
+| `com.thebigpicture.initiative/spellStaticZone` | Zona persistente collegata a un'istanza |
+| `com.thebigpicture.initiative/spellAura` | Aura mobile collegata a una sorgente |
+
+`instanceId`, `spellId`, `casterId` e i riferimenti alla sorgente consentono di
+riconciliare e pulire questi item senza dedurre la relazione dal nome visibile.
+
 ### Metadata della room
 
 | Chiave | Scopo |
@@ -83,6 +106,9 @@ Altre chiavi di scena:
 | `com.thebigpicture.initiative/initiativeCards` | Registry delle schede tra scene |
 
 Il registry locale `com.thebigpicture.initiative/initiativeCards/local` offre un fallback nel browser.
+
+Le azioni rapide sono memorizzate nel profilo della card. Il formato viene
+sanificato da `src/quickActionsCore.js` e non costituisce metadata turnale.
 
 ### Preferenze locali
 
@@ -142,6 +168,55 @@ Condizioni e incantesimi vivono nel metadata canonico del token. Pill e badge su
 
 Gli elementi sono bloccati per evitare spostamenti accidentali. La concentrazione è collegata sia all'incantatore sia alle istanze degli incantesimi. Il GM ripulisce le vecchie label globali create dalle versioni precedenti; barre HP ed etichetta del turno non fanno parte di questa migrazione.
 
+## Pipeline degli incantesimi
+
+```text
+pannello Incantesimi / Console effetti ad area / azione rapida
+                              ↓
+                  piano applicativo della spell
+              ↙               ↓                 ↘
+ istanze sui token       zona o aura        effetti figli
+              ↘               ↓                 ↙
+                 registro globale derivato
+                              ↓
+      turni, appartenenza, movimento e azioni attive
+                              ↓
+             reminder aggregato o pulizia finale
+```
+
+Le definizioni del catalogo descrivono separatamente:
+
+- fase del lancio e risoluzione preparata;
+- condizione o effetto applicabile;
+- geometria, persistenza e movimento dell'area;
+- trigger `cast`, `enter`, `move`, `leave`, `turn-start` e `turn-end`;
+- risoluzione manuale, tiro salvezza e testo informativo;
+- azioni attive successive al lancio.
+
+`src/spellApplicationExecutor.js` applica i piani senza sostituire il metadata
+canonico del token. `src/spellStaticZone.js` e
+`src/spellAuraController.js` riconciliano gli item di scena con le istanze
+ancora attive. La rimozione della concentrazione o la scadenza naturale
+producono un piano di fine che include gli item collegati.
+
+### Reminder concorrenti
+
+I reminder di zona e quelli derivati da condizioni usano canali distinti:
+
+```text
+com.thebigpicture.initiative/spell-zone-trigger-notice
+com.thebigpicture.initiative/effect-save-reminder-notice
+```
+
+I controller calcolano il reminder dal turno corrente e lo sostituiscono a ogni
+transizione. L'assenza di eventi per il nuovo attore equivale a una richiesta
+di chiusura. Il payload aggrega le righe valide per evitare che due condizioni
+o due momenti dello stesso incantesimo si sovrascrivano.
+
+La CD non viene cercata sul bersaglio: viene letta dal profilo del caster
+collegato all'istanza. Per questo nemici e neutrali possono restare privi di
+scheda.
+
 ## Eventi e protezioni da stato stantio
 
 Il tracker e gli attachment ricevono cambiamenti asincroni dalla scena. Le parti più sensibili usano code, revisioni e filtri per evitare che una risposta vecchia sovrascriva uno stato più recente.
@@ -152,6 +227,10 @@ In particolare:
 - la navigazione del turno serializza le transizioni;
 - gli aggiornamenti HP multi-target vengono consolidati;
 - il dispatcher distingue modifiche HP, condizioni, incantesimi, velocità e layout;
+- i controller di zone e reminder riconciliano il turno corrente prima di
+  pubblicare o chiudere un avviso;
+- le risoluzioni preparate verificano che l'istanza originaria sia ancora
+  attiva;
 - gli Undo del movimento non vengono reinterpretati come nuovo movimento.
 
 ## Aree AoE
@@ -163,6 +242,16 @@ com.thebigpicture.initiative/aoeArea
 ```
 
 Il metadata contiene tipo, origine, geometria, DPI/griglia e stile. La visualizzazione comprende un path sagomato unico per il contorno delle caselle e una silhouette geometrica interna. La riselezione ricalcola l'intersezione con l'ingombro corrente dei token.
+
+Le aree spell usano lo stesso livello geometrico ma aggiungono una regola
+dichiarativa in `src/spellAreaRules.js`. Una regola distingue effetti
+istantanei, zone statiche, aure ed emissioni e può dichiarare appartenenza,
+terreno difficile, drift, spostamento manuale e trigger.
+
+L'appartenenza genera effetti figli con identificatori stabili. La
+riconciliazione rimuove soltanto gli effetti creati dalla specifica zona;
+condizioni manuali omonime o appartenenti a un'altra istanza devono restare
+intatte.
 
 ## Compatibilità dei dati
 
@@ -181,5 +270,13 @@ Le funzioni di normalizzazione accettano alcuni formati legacy, ma il codice nuo
 - Le transizioni dei gruppi dipendono da misure DOM e compensazione dello scroll.
 - HP multi-target e attachment sulla mappa richiedono batching coerente.
 - Lo spell ticking può essere invocato da più percorsi vicini al cambio round.
+- Il registro degli incantesimi è derivato da istanze distribuite sui token:
+  non aggiungere una seconda fonte di verità.
+- Trigger di zona, reminder da effetti e navigazione del turno condividono il
+  momento di riconciliazione: preservare aggregazione e chiusura esplicita.
+- Condizioni figlie e zone devono essere rimosse per `instanceId`/`sourceId`,
+  non per il solo nome visibile.
+- Una spell preparata deve estendere l'istanza esistente, non creare una
+  concentrazione concorrente.
 - Gli attachment della mappa non devono essere eliminati o ricreati indiscriminatamente.
 - Gli ID virtuali non devono essere trattati come token reali.

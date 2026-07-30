@@ -2,21 +2,27 @@ import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import {
   ID,
   ACTIVE_TURN_LABEL_META,
+  EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
-import { buildSpellChips, getSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
+import { spellColorFor } from "./spellColorCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
-import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
+import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  effectSaveReminderNoticesForDamage,
+  effectSaveReminderSourceIds,
+} from "./effectSaveReminderCore.js";
 import {
   commitWithStaticSpellZoneRemoval,
   getStaticSpellZoneItems,
@@ -78,6 +84,16 @@ import {
 } from "./initiativeMenuActionsCore.js";
 import { buildLegendaryResourcePips } from "./initiativeCardBossClassic.js";
 import { buildClassicTrackerCard } from "./initiativeCardClassicBuilder.js";
+import {
+  getInitiativeCard,
+  restoreInitiativeCardQuickActionsFromMemory,
+} from "./initiativeCards.js";
+import {
+  quickActionPanel,
+  sanitizeQuickActions,
+} from "./quickActionsCore.js";
+import { executeDirectQuickAction } from "./quickActionExecution.js";
+import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
 import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
@@ -153,18 +169,8 @@ function __spellKey(name) {
   return String(name || "").trim().toLowerCase();
 }
 // Hash → hue (0..359) e palette leggibile
-function __hueFromKey(key) {
-  let h = 0;
-  for (let i = 0; i < String(key).length; i++) h = (h * 31 + String(key).charCodeAt(i)) >>> 0;
-  return h % 360;
-}
 function __spellColor(key) {
-  const hue = __hueFromKey(String(key || ""));
-  return {
-    bgSoft:  `hsla(${hue}, 70%, 45%, .28)`,
-    border:  `hsla(${hue}, 80%, 55%, .55)`,
-    solid:   `hsl(${hue}, 70%, 45%)`,
-  };
+  return spellColorFor(key);
 }
   
   const FOCUS_MIN_PAD_PX = 64;
@@ -2680,17 +2686,17 @@ function injectScrollbarStyles() {
   const s = document.createElement("style");
   s.id = "tbp-scrollbar-style";
   s.textContent = `
-  .tbp-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .tbp-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
   .tbp-scroll::-webkit-scrollbar-track { background: transparent; }
   .tbp-scroll::-webkit-scrollbar-thumb {
-    background-color: rgba(148,163,184,0.35);
-    border-radius: 8px;
+    background-color: rgba(148,163,184,0.38);
+    border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
-  .tbp-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,0.55); }
-  .tbp-scroll::-webkit-scrollbar-thumb:active { background-color: rgba(148,163,184,0.75); }
-  .tbp-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.55) transparent; }
+  .tbp-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,0.58); }
+  .tbp-scroll::-webkit-scrollbar-thumb:active { background-color: rgba(148,163,184,0.76); }
+  .tbp-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.38) transparent; }
   .tbp-scroll[data-compact-scroll="1"]::-webkit-scrollbar { height: 4px; }
   .tbp-scroll[data-compact-scroll="1"]::-webkit-scrollbar-thumb { background-color: rgba(148,163,184,.42); border-width: 1px; }
   .tbp-scroll[data-compact-scroll="1"]:hover::-webkit-scrollbar-thumb,
@@ -3539,7 +3545,8 @@ function entryFromSceneItem(it) {
         : max;
       return { max, current };
     })(),
-    spells: getSpellsFromItem(it),
+    quickActions: getInitiativeCard(it).quickActions,
+    spells: getVisibleSpellsFromItem(it),
     isConcentrating: !!(meta[CONC_META_KEY] &&
                         typeof meta[CONC_META_KEY] === "object" &&
                         Object.keys(meta[CONC_META_KEY]).length > 0),
@@ -4164,6 +4171,7 @@ function mountConcentrationWarningBroadcast() {
 
 let __turnNoticeListenerMounted = false;
 let __turnNoticeSequence = 0;
+let __effectSaveDamageSequence = 0;
 
 async function mountTurnNoticeBroadcast() {
   if (__turnNoticeListenerMounted) return;
@@ -4201,6 +4209,11 @@ async function showConcentrationDamageWarning(changes = []) {
   if (!damageById.size) return;
 
   const items = await OBR.scene.items.getItems([...damageById.keys()]);
+  const missingSourceIds = effectSaveReminderSourceIds(items)
+    .filter((itemId) => !damageById.has(itemId));
+  const reminderItems = missingSourceIds.length
+    ? items.concat(await OBR.scene.items.getItems(missingSourceIds))
+    : items;
   const warnings = [];
   for (const item of items) {
     const concentration = item.metadata?.[META_KEY]?.[CONC_META_KEY];
@@ -4214,13 +4227,26 @@ async function showConcentrationDamageWarning(changes = []) {
       attitude: item.metadata?.[META_KEY]?.attitude || "neutral",
     });
   }
-  if (!warnings.length) return;
-
-  await OBR.broadcast.sendMessage(CONCENTRATION_WARNING_CHANNEL, {
-    type: "show-concentration-warning",
-    warnings,
-    createdAt: Date.now(),
-  }, { destination: "ALL" });
+  const effectNotices = effectSaveReminderNoticesForDamage({
+    items: reminderItems,
+    damageById,
+    eventId: `${Date.now()}-${++__effectSaveDamageSequence}`,
+  });
+  const broadcasts = [];
+  if (warnings.length) {
+    broadcasts.push(OBR.broadcast.sendMessage(CONCENTRATION_WARNING_CHANNEL, {
+      type: "show-concentration-warning",
+      warnings,
+      createdAt: Date.now(),
+    }, { destination: "ALL" }));
+  }
+  if (effectNotices.length) {
+    broadcasts.push(OBR.broadcast.sendMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
+      type: "show-effect-save-notices",
+      notices: effectNotices,
+    }, { destination: "ALL" }));
+  }
+  await Promise.all(broadcasts);
 }
 
 async function updateMultipleHP(updates = []) {
@@ -5347,8 +5373,8 @@ async function openReferencePopup() {
   }
 }
 
-async function openGlobalQuickHPPopup() {
-  await openQuickHPPopup();
+async function openGlobalQuickHPPopup(options = {}) {
+  await openQuickHPPopup(options);
 }
 
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
@@ -5386,24 +5412,32 @@ function mountTrackerPopoverToggleListener() {
       setOpenTrackerPopoverId();
     }
     if (data?.type === "resize" && data.id === __openTrackerPopoverId) {
-      const height = Math.max(320, Math.min(560, Math.round(Number(data.height) || 0)));
+      const maxHeight = data.id === `${ID}/initiative-card-modal` ? 680 : 560;
+      const height = Math.max(320, Math.min(maxHeight, Math.round(Number(data.height) || 0)));
       void OBR.popover.setHeight(data.id, height).catch(() => {});
     }
   });
   OBR.broadcast.onMessage(TRACKER_PANEL_REQUEST_CHANNEL, (event) => {
     const data = event?.data;
     if (data?.type !== "open") return;
+    const sourceId = String(data.sourceId || "").trim();
+    const quickActionId = String(data.quickActionId || "").trim();
+    const requestedSource = sourceId ? { id: sourceId } : null;
     if (data.panel === "conditions" && __openTrackerPopoverId !== EFFECTS_POPUP_ID) {
-      void openGlobalEffectsPopup();
+      void (requestedSource
+        ? openCardEffectsPopup(requestedSource, undefined, { quickActionId })
+        : openGlobalEffectsPopup());
     }
     if (data.panel === "spells" && __openTrackerPopoverId !== SPELLS_POPUP_ID) {
-      void openGlobalSpellsPopup();
+      void (requestedSource
+        ? openCardSpellsPopup(requestedSource, { quickActionId })
+        : openGlobalSpellsPopup());
     }
     if (data.panel === "reference" && __openTrackerPopoverId !== REFERENCE_POPUP_ID) {
       void openReferencePopup();
     }
     if (data.panel === "quick-hp" && __openTrackerPopoverId !== QUICK_HP_POPUP_ID) {
-      void openGlobalQuickHPPopup();
+      void openGlobalQuickHPPopup({ sourceId, quickActionId });
     }
   });
 }
@@ -5420,16 +5454,23 @@ async function beginTrackerPopoverToggle(popupId) {
   return true;
 }
 
-async function openQuickHPPopup() {
+async function openQuickHPPopup({
+  sourceId = "",
+  quickActionId = "",
+} = {}) {
   const popupId = QUICK_HP_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
   try { await OBR.modal.close(popupId); } catch {}
   try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
+  const popupQuery = new URLSearchParams();
+  if (sourceId) popupQuery.set("source", sourceId);
+  if (quickActionId) popupQuery.set("quickAction", quickActionId);
+  const popupUrl = `/quick-hp-modal.html${popupQuery.size ? `?${popupQuery}` : ""}`;
   try {
     await openTrackedPopover({
       id: popupId,
-      url: "/quick-hp-modal.html",
+      url: popupUrl,
       width: 560,
       height: 760,
       anchorReference: "POSITION",
@@ -5447,7 +5488,9 @@ async function openQuickHPPopup() {
   }
 }
 
-async function openCardEffectsPopup(sourceEntry, entries) {
+async function openCardEffectsPopup(sourceEntry, entries, {
+  quickActionId = "",
+} = {}) {
   if (!sourceEntry || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
@@ -5458,10 +5501,12 @@ async function openCardEffectsPopup(sourceEntry, entries) {
   try { await OBR.modal.close(popupId); } catch {}
   try { await OBR.popover.close(popupId); } catch {}
   const anchorPosition = await getTrackerPopoverAnchor();
+  const popupQuery = new URLSearchParams({ source: sourceId });
+  if (quickActionId) popupQuery.set("quickAction", quickActionId);
   try {
     await openTrackedPopover({
       id: popupId,
-      url: `/effects-modal.html?source=${encodeURIComponent(sourceId)}`,
+      url: `/effects-modal.html?${popupQuery}`,
       width: 560,
       height: 760,
       anchorReference: "POSITION",
@@ -5479,7 +5524,9 @@ async function openCardEffectsPopup(sourceEntry, entries) {
   }
 }
 
-async function openCardSpellsPopup(sourceEntry) {
+async function openCardSpellsPopup(sourceEntry, {
+  quickActionId = "",
+} = {}) {
   if (!sourceEntry || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   const sourceId = splitParagonId(sourceEntry.id).baseId;
@@ -5487,7 +5534,9 @@ async function openCardSpellsPopup(sourceEntry) {
 
   const popupId = SPELLS_POPUP_ID;
   if (!await beginTrackerPopoverToggle(popupId)) return;
-  const popupUrl = `/spells-modal.html?source=${encodeURIComponent(sourceId)}`;
+  const popupQuery = new URLSearchParams({ source: sourceId });
+  if (quickActionId) popupQuery.set("quickAction", quickActionId);
+  const popupUrl = `/spells-modal.html?${popupQuery}`;
   const [anchorPosition] = await Promise.all([
     getTrackerPopoverAnchor(),
     fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
@@ -5532,7 +5581,7 @@ async function openInitiativeCardPopup(sourceEntry) {
       id: popupId,
       url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
       width: 440,
-      height: 460,
+      height: 560,
       anchorReference: "POSITION",
       anchorPosition,
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
@@ -5553,11 +5602,22 @@ const INITIATIVE_CARD_CONTEXT_MENU_CHANNEL = `${ID}/initiative-card-context-menu
 const INITIATIVE_CARD_CONTEXT_MENU_PAYLOAD_PREFIX = `${ID}/initiative-card-context-menu/`;
 const INITIATIVE_CARD_CONTEXT_MENU_WIDTH = 252;
 const INITIATIVE_CARD_CONTEXT_MENU_INITIAL_HEIGHT = 336;
+const TRACKER_QUICK_ACTIONS_POPOVER_ID = `${ID}/tracker-quick-actions`;
+const TRACKER_QUICK_ACTIONS_CHANNEL = `${ID}/tracker-quick-actions`;
+const TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX = `${ID}/tracker-quick-actions/`;
+const TRACKER_QUICK_ACTIONS_WIDTH = 248;
+const TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT = 220;
 
 let __initiativeCardContextMenu = null;
 let __initiativeCardContextMenuRequestId = "";
 let __initiativeCardContextMenuContext = null;
 let __initiativeCardContextMenuRevision = 0;
+let __trackerQuickActionsPopover = null;
+let __trackerQuickActionsRequestId = "";
+let __trackerQuickActionsContext = null;
+let __trackerQuickActionsSourceId = "";
+let __trackerQuickActionsButton = null;
+let __trackerQuickActionsRevision = 0;
 
 function __closeInitiativeCardContextMenu() {
   if (__initiativeCardContextMenuRequestId) {
@@ -5572,6 +5632,27 @@ function __closeInitiativeCardContextMenu() {
   __initiativeCardContextMenuRequestId = "";
   __initiativeCardContextMenuContext = null;
   __initiativeCardContextMenuRevision += 1;
+  return closePromise;
+}
+
+function __closeTrackerQuickActionsPopover() {
+  if (__trackerQuickActionsRequestId) {
+    removeStoredMenuPayload(
+      localStorage,
+      TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
+      __trackerQuickActionsRequestId,
+    );
+  }
+  if (__trackerQuickActionsButton) {
+    __trackerQuickActionsButton.setAttribute("aria-expanded", "false");
+  }
+  const closePromise = OBR.popover.close(TRACKER_QUICK_ACTIONS_POPOVER_ID).catch(() => {});
+  __trackerQuickActionsPopover = null;
+  __trackerQuickActionsRequestId = "";
+  __trackerQuickActionsContext = null;
+  __trackerQuickActionsSourceId = "";
+  __trackerQuickActionsButton = null;
+  __trackerQuickActionsRevision += 1;
   return closePromise;
 }
 
@@ -5728,6 +5809,55 @@ async function __terminateSpellOnTrackerCard(itemId, spell) {
     () => commitEffectsMutationPlan(mutationPlan),
   ));
   await refreshConditionLabels([itemId]);
+}
+
+async function __runTrackerQuickAction(sourceEntry, action) {
+  const sourceId = splitParagonId(sourceEntry?.id).baseId;
+  if (!sourceId) throw new Error("quick-action-source-missing");
+  const result = await executeDirectQuickAction({
+    action,
+    sourceItem: { id: sourceId, name: sourceEntry?.name || "" },
+    confirmConcentration: (message) => window.confirm(message),
+  });
+  if (result.mode !== "review") return result;
+
+  const quickActionId = String(action?.id || "").trim();
+  const panel = quickActionPanel(action);
+  if (panel === "conditions") {
+    await openCardEffectsPopup(sourceEntry, undefined, { quickActionId });
+  } else if (panel === "spells") {
+    await openCardSpellsPopup(sourceEntry, { quickActionId });
+  } else if (panel === "quick-hp") {
+    await openQuickHPPopup({ sourceId, quickActionId });
+  }
+  return result;
+}
+
+function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {}) {
+  if (
+    !card
+    || !sourceEntry
+    || sourceEntry.__groupCollapsed
+    || isLairId(sourceEntry.id)
+    || isEpicActionId(sourceEntry.id)
+  ) {
+    return;
+  }
+  const sourceId = splitParagonId(sourceEntry.id).baseId;
+  const expanded = !!__trackerQuickActionsRequestId
+    && __trackerQuickActionsSourceId === sourceId;
+  const launcher = buildTrackerQuickActionLauncher({
+    actions: sourceEntry.quickActions,
+    compact,
+    expanded,
+    onToggle: (button, event) => {
+      void __toggleTrackerQuickActionsPopover(sourceEntry, button, event);
+    },
+  });
+  if (launcher) {
+    if (expanded) __trackerQuickActionsButton = launcher.__quickActionToggle;
+    card.appendChild(launcher);
+  }
 }
 
 async function __clearCardSpells(ids) {
@@ -5905,12 +6035,108 @@ function mountInitiativeCardContextMenuListener() {
   }, { capture: true });
 }
 
+function mountTrackerQuickActionsPopoverListener() {
+  OBR.broadcast.onMessage(TRACKER_QUICK_ACTIONS_CHANNEL, (event) => {
+    const data = event?.data;
+    if (!isMenuMessageForRequest(data, __trackerQuickActionsRequestId)) return;
+    if (data.type === "close") {
+      __closeTrackerQuickActionsPopover();
+      return;
+    }
+    if (data.type === "resize") {
+      const height = Math.max(88, Math.round(Number(data.height) || 0));
+      void OBR.popover.setHeight(TRACKER_QUICK_ACTIONS_POPOVER_ID, height).catch(() => {});
+      return;
+    }
+    if (data.type !== "action" || !__trackerQuickActionsContext) return;
+
+    const actionId = String(data.actionId || "").trim();
+    const action = sanitizeQuickActions(
+      __trackerQuickActionsContext.sourceEntry?.quickActions,
+    ).find((entry) => entry.id === actionId);
+    if (!action) return;
+    const { sourceEntry } = __trackerQuickActionsContext;
+    __closeTrackerQuickActionsPopover();
+    void __runTrackerQuickAction(sourceEntry, action).catch((error) => {
+      console.warn("[tracker-quick-actions] action error:", error?.message || error);
+    });
+  });
+}
+
+function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
+  const sourceId = splitParagonId(sourceEntry?.id).baseId;
+  if (!sourceId) return;
+  if (__trackerQuickActionsRequestId && __trackerQuickActionsSourceId === sourceId) {
+    void __closeTrackerQuickActionsPopover();
+    return;
+  }
+
+  const closePromises = [
+    __closeTrackerQuickActionsPopover(),
+    __closeInitiativeCardContextMenu(),
+  ];
+  const openRevision = __trackerQuickActionsRevision;
+  const requestId = createMenuRequestId();
+  const actions = sanitizeQuickActions(sourceEntry.quickActions);
+  if (!actions.length || !writeStoredMenuPayload(
+    localStorage,
+    TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
+    requestId,
+    {
+      title: `${sourceEntry.name || "Personaggio"} · Azioni rapide`,
+      sourceId,
+      actions,
+    },
+  )) {
+    console.warn("[tracker-quick-actions] payload error");
+    return;
+  }
+
+  __trackerQuickActionsRequestId = requestId;
+  __trackerQuickActionsContext = { sourceEntry };
+  __trackerQuickActionsSourceId = sourceId;
+  __trackerQuickActionsButton = button;
+  button.setAttribute("aria-expanded", "true");
+  void (async () => {
+    await Promise.all(closePromises);
+    if (
+      __trackerQuickActionsRevision !== openRevision
+      || __trackerQuickActionsRequestId !== requestId
+    ) {
+      return;
+    }
+    const basePlacement = await __getInitiativeCardContextMenuPlacement(event);
+    if (__trackerQuickActionsRequestId !== requestId) return;
+    await OBR.popover.open({
+      id: TRACKER_QUICK_ACTIONS_POPOVER_ID,
+      url: `/tracker-quick-actions.html?request=${encodeURIComponent(requestId)}`,
+      width: TRACKER_QUICK_ACTIONS_WIDTH,
+      height: Math.min(
+        TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT,
+        54 + (actions.length * 38),
+      ),
+      anchorReference: "POSITION",
+      anchorPosition: basePlacement.anchorPosition,
+      anchorOrigin: basePlacement.anchorOrigin,
+      transformOrigin: basePlacement.transformOrigin,
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    __trackerQuickActionsPopover = true;
+  })().catch((error) => {
+    console.warn("[tracker-quick-actions] popover open error:", error?.message || error);
+    __closeTrackerQuickActionsPopover();
+  });
+}
+
 function __openInitiativeCardContextMenu(sourceEntry, event) {
   if (!IS_GM || !sourceEntry ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
   event.preventDefault();
   event.stopPropagation();
+  void __closeTrackerQuickActionsPopover();
   const closePromise = __closeInitiativeCardContextMenu();
   const openRevision = __initiativeCardContextMenuRevision;
   const scopeIds = __contextScopeIds(sourceEntry);
@@ -6740,6 +6966,7 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
       formatConditionName,
       formatConditionInstance,
       spellKey: __spellKey,
+      concentrationSpellKey: entry.concSpellKey,
     });
     const hasExpandableEffects = compactEffects.length > 1;
 
@@ -6844,6 +7071,8 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
       spellColor: __spellColor,
     });
 
+    bindReferenceChips(status);
+
     const appendCompactLegendaryResource = (resource, kind, onSet, label) => {
       const pips = buildCompactLegendaryResourcePips(resource, {
         label,
@@ -6873,7 +7102,8 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
     );
 
     card.append(portrait, name, hpText, hpTrack, status);
-    if (hasExpandableEffects) {
+    __mountTrackerQuickActions(card, entry, { compact: true });
+    if (hasExpandableEffects && !previewPill?.dataset.referenceEntry) {
       bindCompactEffectsToggle({
         previewPill,
         moreEffectsButton,
@@ -6962,6 +7192,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       isEpicActionId,
       isLairId,
       mountChipsWithOverflow,
+      mountTrackerQuickActions: __mountTrackerQuickActions,
       openInitiativeCardPopup,
       parseRelativeHPDelta,
       reconcileStateWithItems,
@@ -7514,6 +7745,7 @@ try {
     OBR.onReady(async () => {
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();
+      mountTrackerQuickActionsPopoverListener();
       mountCompactAdminMenuListener();
       mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();
@@ -7593,6 +7825,18 @@ try {
     enableSpeedCheckProcessor();
     subscribeMovementSegments(queueSpeedCheckMovements);
     await mountMovementHistoryWatcher();
+    try {
+      const initiativeCardItems = await OBR.scene.items.getItems((item) => (
+        item.layer === "CHARACTER"
+        && !item.attachedTo
+        && item.metadata?.[META_KEY]?.inInitiative === true
+      ));
+      await restoreInitiativeCardQuickActionsFromMemory(
+        initiativeCardItems.map((item) => item.id),
+      );
+    } catch (error) {
+      console.warn("[initiative-card] quick action memory boot:", error?.message || error);
+    }
   }
   await ensureState();
   await reconcileStateWithItems();
@@ -7672,7 +7916,19 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
             .filter(id => id && !isLairId(id) && !isEpicActionId(id));
           const unique = Array.from(new Set(tokenIds));
           const run = async () => {
-            await tickRoundEffects(unique, delta);
+            const mutationPlan = await prepareEffectsMutation([{
+              type: "effects:tick-round",
+              targetIds: unique,
+              delta,
+            }]);
+            const staticZoneItems = staticSpellZoneItemsEndedByPlan(
+              await getStaticSpellZoneItems(),
+              mutationPlan,
+            );
+            await commitWithStaticSpellZoneRemoval(
+              staticZoneItems,
+              () => commitEffectsMutationPlan(mutationPlan),
+            );
           };
           __roundEffectQueue = __roundEffectQueue.then(run, run);
           roundEffectAdjustment = __roundEffectQueue;
@@ -7783,6 +8039,22 @@ OBR.scene.onMetadataChange((meta) => {
     }
   }, {
     filter: (event) => event.flags.hpBars,
+    immediate: true,
+  });
+
+  subscribeSceneItemChanges((event) => {
+    if (!IS_GM) return null;
+    const candidateIds = (event.items || [])
+      .filter((item) => (
+        item?.layer === "CHARACTER"
+        && !item.attachedTo
+        && item.metadata?.[META_KEY]?.inInitiative === true
+      ))
+      .map((item) => item.id);
+    if (!candidateIds.length) return null;
+    return restoreInitiativeCardQuickActionsFromMemory(candidateIds);
+  }, {
+    filter: (event) => event.flags.hpMemoryAutofill,
     immediate: true,
   });
 

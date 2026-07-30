@@ -331,10 +331,108 @@ export function buildLineArea(start, end, dpi, gridOrigin = start) {
   return { type: "line", origin, squares, cells, points };
 }
 
-export function buildArea(type, start, end, dpi, gridOrigin = start) {
+export function buildRectangleArea(
+  start,
+  end,
+  dpi,
+  gridOrigin = start,
+  widthSquares = 1,
+) {
+  const origin = finitePoint(start);
+  const cellsOrigin = finitePoint(gridOrigin);
+  const pointer = finitePoint(end);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const squares = snappedAreaLength(start, end, safeDpi);
+  const safeWidthSquares = Math.max(
+    1,
+    Math.round(Number(widthSquares) || 1),
+  );
+  const distance = squares * safeDpi;
+  const raw = { x: pointer.x - origin.x, y: pointer.y - origin.y };
+  const rawLength = length(raw) || 1;
+  const direction = { x: raw.x / rawLength, y: raw.y / rawLength };
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const alignmentOffset = safeWidthSquares % 2 === 0 ? safeDpi / 2 : 0;
+  const centerStart = {
+    x: origin.x - direction.x * safeDpi / 2
+      + perpendicular.x * alignmentOffset,
+    y: origin.y - direction.y * safeDpi / 2
+      + perpendicular.y * alignmentOffset,
+  };
+  const centerEnd = {
+    x: centerStart.x + direction.x * distance,
+    y: centerStart.y + direction.y * distance,
+  };
+  const halfWidth = safeWidthSquares * safeDpi / 2;
+  const points = [
+    {
+      x: centerStart.x + perpendicular.x * halfWidth,
+      y: centerStart.y + perpendicular.y * halfWidth,
+    },
+    {
+      x: centerEnd.x + perpendicular.x * halfWidth,
+      y: centerEnd.y + perpendicular.y * halfWidth,
+    },
+    {
+      x: centerEnd.x - perpendicular.x * halfWidth,
+      y: centerEnd.y - perpendicular.y * halfWidth,
+    },
+    {
+      x: centerStart.x - perpendicular.x * halfWidth,
+      y: centerStart.y - perpendicular.y * halfWidth,
+    },
+  ];
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  const minColumn = Math.floor((minX - cellsOrigin.x) / safeDpi) - 1;
+  const maxColumn = Math.ceil((maxX - cellsOrigin.x) / safeDpi) + 1;
+  const minRow = Math.floor((minY - cellsOrigin.y) / safeDpi) - 1;
+  const maxRow = Math.ceil((maxY - cellsOrigin.y) / safeDpi) + 1;
+  const cells = [];
+  const minimumOverlap = safeDpi * safeDpi * 0.5;
+  for (let column = minColumn; column <= maxColumn; column += 1) {
+    for (let row = minRow; row <= maxRow; row += 1) {
+      const cell = cellRect(cellsOrigin, column, row, safeDpi);
+      if (
+        polygonCellOverlapArea(points, cell)
+        >= minimumOverlap - EPSILON
+      ) {
+        cells.push(cell);
+      }
+    }
+  }
+  return {
+    type: "rectangle",
+    origin,
+    squares,
+    widthSquares: safeWidthSquares,
+    cells,
+    points,
+  };
+}
+
+export function buildArea(
+  type,
+  start,
+  end,
+  dpi,
+  gridOrigin = start,
+  options = {},
+) {
   if (type === "square") return buildSquareArea(start, end, dpi, gridOrigin);
   if (type === "cone") return buildConeArea(start, end, dpi, gridOrigin);
   if (type === "line") return buildLineArea(start, end, dpi, gridOrigin);
+  if (type === "rectangle") {
+    return buildRectangleArea(
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      options?.widthSquares,
+    );
+  }
   return buildCircleArea(start, end, dpi, gridOrigin);
 }
 

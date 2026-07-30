@@ -4,6 +4,7 @@ import {
   hasEffectiveCondition,
 } from "./conditionRulesCore.js";
 import { normalizeExhaustionLevel } from "./exhaustionCore.js";
+import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 
 const CONDITION_SCHEMA_VERSION = 2;
 const EXHAUSTION_CONDITION = "Indebolimento";
@@ -115,6 +116,12 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     instance.effectKind = options.effectKind;
   }
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
+  const saveReminders = normalizeEffectSaveReminders(options.saveReminder);
+  if (saveReminders.length) {
+    instance.saveReminder = saveReminders.length === 1
+      ? saveReminders[0]
+      : saveReminders;
+  }
   if (options.mechanics && typeof options.mechanics === "object") {
     instance.mechanics = clone(options.mechanics);
   }
@@ -122,6 +129,13 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
   if (options.parentRemoval === "target" || options.parentRemoval === "spell") {
     instance.parentRemoval = options.parentRemoval;
+  }
+  if (
+    options.parentEndCondition
+    && typeof options.parentEndCondition === "object"
+    && String(options.parentEndCondition.condition || "").trim()
+  ) {
+    instance.parentEndCondition = clone(options.parentEndCondition);
   }
   if (options.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
@@ -201,6 +215,50 @@ function removeLinkedConditionsFromAllStates(states, parentEffectId) {
   }
 }
 
+function applyParentEndConditions(state, parentEffectIds = []) {
+  const parentIds = new Set(uniqueIds(parentEffectIds));
+  if (!parentIds.size) return;
+  const linked = state.conditions.filter((instance) =>
+    parentIds.has(String(instance?.parentEffectId || "").trim())
+    && instance?.parentEndCondition
+    && typeof instance.parentEndCondition === "object"
+  );
+  for (const instance of linked) {
+    const consequence = instance.parentEndCondition;
+    const conditionName = String(consequence.condition || "").trim();
+    const key = conditionKey(conditionName);
+    if (
+      !conditionName
+      || state.conditions.some((entry) =>
+        entry?.active !== false && conditionKey(entry) === key
+      )
+    ) {
+      continue;
+    }
+    appendCondition(state, {
+      createdAt: Number(instance.createdAt) || Date.now(),
+      conditionName,
+      instanceIds: {
+        [state.id]: `${instance.id}:parent-end:${key}`,
+      },
+      options: {
+        type: "automatic",
+        expiry: consequence.expiry && typeof consequence.expiry === "object"
+          ? clone(consequence.expiry)
+          : { mode: "manual" },
+      },
+    }, state.id);
+  }
+}
+
+function applyParentEndConditionsToAllStates(states, parentEffectId) {
+  const parentId = String(parentEffectId || "").trim();
+  if (!parentId) return;
+  for (const state of states.values()) {
+    applyParentEndConditions(state, [parentId]);
+  }
+}
+
 function removeSpells(state, predicate) {
   const removed = [];
   const next = [];
@@ -247,12 +305,15 @@ function breakConcentration(states, casterId, reference = null) {
     const entry = caster.concentrations[matchedKey] || {};
     const instanceId = String(entry.instanceId || "").trim();
     const spellName = String(entry.name || matchedKey).trim();
+    if (instanceId) applyParentEndConditionsToAllStates(states, instanceId);
     for (const targetId of uniqueIds(entry.targets)) {
       const target = states.get(targetId);
       if (!target) continue;
       if (instanceId) removeSpellByInstance(target, instanceId);
       else removeSpellByNameAndSource(target, spellName, caster.id);
     }
+    if (instanceId) removeSpellByInstance(caster, instanceId);
+    else removeSpellByNameAndSource(caster, spellName, caster.id);
     if (instanceId) removeLinkedConditionsFromAllStates(states, instanceId);
     delete caster.concentrations[matchedKey];
   }
@@ -364,6 +425,12 @@ function applySpellAdjustment(states, operation) {
       }
     }
     state.spells = next;
+    applyParentEndConditions(
+      state,
+      removed
+        .filter((spell) => spell?.conc === true)
+        .map((spell) => spell?.instanceId),
+    );
     removeLinkedConditions(state, removed);
   }
 
@@ -436,6 +503,12 @@ function applySpellBoundaryAdjustment(states, operation) {
       }
     }
     state.spells = next;
+    applyParentEndConditions(
+      state,
+      removed
+        .filter((spell) => spell?.conc === true)
+        .map((spell) => spell?.instanceId),
+    );
     removeLinkedConditions(state, removed);
   }
   finishExpiredConcentrations(states, expiredConcentrations);
@@ -571,6 +644,8 @@ function applyOperation(states, operation, options) {
       };
       if (operation.instanceId) entry.instanceId = String(operation.instanceId);
       if (operation.spellId) entry.spellId = String(operation.spellId);
+      const appliedAt = normalizedAppliedAt(operation.appliedAt);
+      if (appliedAt) entry.appliedAt = appliedAt;
       caster.concentrations[key] = entry;
       break;
     }

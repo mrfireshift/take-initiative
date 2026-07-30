@@ -32,12 +32,29 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
       Spaventato: Object.freeze({
         expiry: rounds(10),
         parentEffectId: "",
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "TS solo senza linea di vista sull'illusione; se supera, termina l'effetto.",
+        }),
       }),
     }),
   }),
   "xanathar-incuti-paura": Object.freeze({
     mode: "confirm",
     conditions: Object.freeze(["Spaventato"]),
+    conditionOptions: Object.freeze({
+      Spaventato: Object.freeze({
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          success: "remove-effect",
+          label: "Se supera il TS, termina Spaventato su di sé.",
+        }),
+      }),
+    }),
   }),
   "xanathar-muro-di-luce": Object.freeze({
     mode: "confirm",
@@ -47,6 +64,12 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
       Accecato: Object.freeze({
         expiry: rounds(10),
         parentEffectId: "",
+        saveReminder: Object.freeze({
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Accecato su di sé.",
+        }),
       }),
     }),
   }),
@@ -58,6 +81,16 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     mode: "confirm",
     conditions: Object.freeze(["Trattenuto"]),
     targetMode: "area",
+    conditionOptions: Object.freeze({
+      Trattenuto: Object.freeze({
+        saveReminder: Object.freeze({
+          ability: "str",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, esce dalla sfera e termina Trattenuto.",
+        }),
+      }),
+    }),
   }),
   "xanathar-sonnellino": Object.freeze({
     mode: "automatic",
@@ -71,7 +104,15 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     mode: "confirm",
     conditions: Object.freeze(["Stordito"]),
     conditionOptions: Object.freeze({
-      Stordito: Object.freeze({ expiry: manual }),
+      Stordito: Object.freeze({
+        expiry: manual,
+        saveReminder: Object.freeze({
+          ability: "int",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Stordito su di sé.",
+        }),
+      }),
     }),
   }),
   "tasha-sogno-del-velo-celeste": Object.freeze({
@@ -87,6 +128,12 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       condition: "Spaventato",
       expiry: rounds(10),
       options: Object.freeze({ parentEffectId: "" }),
+      saveReminder: Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "TS solo senza linea di vista sull'illusione; se supera, termina l'effetto.",
+      }),
     })]),
   }),
   "xanathar-muro-di-luce": Object.freeze({
@@ -95,6 +142,12 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       condition: "Accecato",
       expiry: rounds(10),
       options: Object.freeze({ parentEffectId: "" }),
+      saveReminder: Object.freeze({
+        ability: "con",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Accecato su di sé.",
+      }),
     })]),
   }),
   "xanathar-sfera-acquea": Object.freeze({
@@ -102,13 +155,102 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
       expiry: concentration,
+      saveReminder: Object.freeze({
+        ability: "str",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, esce dalla sfera e termina Trattenuto.",
+      }),
       manualRemoval: true,
       endsParentOnRemoval: true,
+      parentRemoval: "target",
+      parentEndCondition: Object.freeze({
+        condition: "Prono",
+        expiry: manual,
+      }),
     })]),
   }),
 });
 
 export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
+  "xanathar-collera-della-natura": Object.freeze([
+    Object.freeze({
+      id: "wrath-of-nature-vines-failed",
+      label: "Liane: TS fallito",
+      buttonLabel: "Liane: Trattenuto",
+      detail: "Dopo il TS Forza fallito, applica Trattenuto alla creatura a terra scelta nella zona.",
+      emptySelectionTitle: "Seleziona la creatura che ha fallito il TS delle liane.",
+      tooManySelectionTitle: "Le liane possono trattenere una sola creatura per attivazione.",
+      subjectMode: "selected",
+      maxTargets: 1,
+      rememberTargets: true,
+      effects: Object.freeze([Object.freeze({
+        id: "wrath-of-nature-vines-restrained",
+        kind: "debuff",
+        label: "Trattenuto",
+        detail: "Può usare un'azione per effettuare una prova di Forza (Atletica) contro la CD della spell e liberarsi.",
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+      })]),
+    }),
+    Object.freeze({
+      id: "wrath-of-nature-rocks-failed",
+      label: "Rocce: colpito e TS fallito",
+      buttonLabel: "Rocce: Prono",
+      detail: "Dopo l'attacco con incantesimo a distanza colpito, infliggi 3d8 contundenti non magici; se fallisce anche il TS Forza, applica Prono.",
+      emptySelectionTitle: "Seleziona la creatura colpita che ha fallito il TS delle rocce.",
+      tooManySelectionTitle: "Le rocce possono rendere Prona una sola creatura per attivazione.",
+      subjectMode: "selected",
+      maxTargets: 1,
+      effects: Object.freeze([Object.freeze({
+        id: "wrath-of-nature-rocks-prone",
+        kind: "debuff",
+        label: "Prono",
+        detail: "Caduto Prono dopo l'attacco delle rocce.",
+        parentEffectId: "",
+        manualRemoval: true,
+      })]),
+    }),
+  ]),
+  "xanathar-controllare-venti": Object.freeze([
+    Object.freeze({
+      id: "control-winds-gusts",
+      label: "Passa a Folate",
+      buttonLabel: "Folate",
+      detail: "Usa l'azione per attivare Folate. Il vento moderato o forte impone svantaggio agli attacchi con armi a distanza; il vento forte raddoppia il costo del movimento controvento.",
+      subjectMode: "caster",
+      zoneRuleChoice: "gusts",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-winds-downdraft",
+      label: "Passa a Corrente Discendente",
+      buttonLabel: "Discendente",
+      detail: "Usa l'azione per attivare Corrente Discendente. Le creature in volo effettuano il TS entrando o a inizio turno.",
+      subjectMode: "caster",
+      zoneRuleChoice: "downdraft",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-winds-updraft",
+      label: "Passa a Corrente Ascendente",
+      buttonLabel: "Ascendente",
+      detail: "Usa l'azione per attivare Corrente Ascendente: metà danni da caduta e salti in alto fino a 3 m aggiuntivi.",
+      subjectMode: "caster",
+      zoneRuleChoice: "updraft",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-winds-pause",
+      label: "Interrompi temporaneamente",
+      buttonLabel: "Sospendi venti",
+      detail: "Usa l'azione per interrompere temporaneamente l'effetto dei venti senza terminare la concentrazione.",
+      subjectMode: "caster",
+      zoneRuleChoice: "paused",
+      effects: Object.freeze([]),
+    }),
+  ]),
   "xanathar-colpo-dello-zefiro": Object.freeze([Object.freeze({
     id: "zephyr-strike-attack",
     label: "Colpo dello Zefiro",
@@ -202,6 +344,21 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     label: "Debilitazione: danni e cura",
     detail: "Il caster può ripetere i danni necrotici e recupera metà dei danni inflitti.",
   })]),
+  "xanathar-immolazione": Object.freeze([Object.freeze({
+    id: "immolation-burning",
+    kind: "debuff",
+    label: "In fiamme · 4d6 a fine turno",
+    detail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+    saveReminder: Object.freeze({
+      ability: "dex",
+      timing: "turn-end",
+      dcSource: "source-spell",
+      success: "remove-effect",
+      label: "4d6 fuoco se fallisce; se supera, termina la spell.",
+    }),
+    manualRemoval: true,
+    endsParentOnRemoval: true,
+  })]),
   "xanathar-interdizione-primordiale": Object.freeze([Object.freeze({
     id: "elemental-resistances",
     kind: "buff",
@@ -260,6 +417,13 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Tutti considerati nemici",
     detail: "Il bersaglio non distingue alleati e nemici; può ripetere il TS ogni volta che subisce danni.",
+    saveReminder: Object.freeze({
+      ability: "int",
+      timing: "damage",
+      dcSource: "source-spell",
+      success: "remove-effect",
+      label: "Se supera il TS, termina l'effetto su di sé.",
+    }),
   })]),
   "xanathar-ombra-di-moil": Object.freeze([Object.freeze({
     id: "shadow-of-moil",
@@ -278,6 +442,13 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
         label: "Parola del Potere Dolore (max 3m)",
       }),
     }),
+    saveReminder: Object.freeze({
+      ability: "con",
+      timing: "turn-end",
+      dcSource: "source-spell",
+      success: "remove-effect",
+      label: "Se supera il TS, termina Parola del Potere Dolore.",
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: manual,
@@ -287,6 +458,13 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "-1d6 Att/prove/TS concentrazione",
     detail: "Sottrae 1d6 ad attacchi, prove e TS Costituzione per mantenere concentrazione; TS Int a fine turno per terminare.",
+    saveReminder: Object.freeze({
+      ability: "int",
+      timing: "turn-end",
+      dcSource: "source-spell",
+      success: "remove-effect",
+      label: "Se supera il TS, termina la penalità.",
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: rounds(10),

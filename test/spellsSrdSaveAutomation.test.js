@@ -157,15 +157,55 @@ test("Pirotecnica applica solo la variante con tiro salvezza", () => {
   });
 });
 
-test("Tentacoli Neri, Bagliore Solare e Confusione applicano gli effetti mancanti", () => {
+test("Nube Maleodorante collega Conati alla zona fino alla fine del turno corrente", () => {
+  const automation = getAreaSaveAutomation("stinking-cloud");
+  const [rule] = automation.failed;
+
+  assert.equal(rule.condition, "Conati: azione persa");
+  assert.deepEqual(rule.expiry, {
+    mode: "turn-end",
+    actor: "target",
+    remaining: 1,
+  });
+  assert.equal(rule.options?.parentEffectId, undefined);
+  assert.deepEqual(automation.trackOutcomes, []);
+});
+
+test("Tempesta di Nevischio lascia Prono alla risoluzione manuale del master", () => {
+  const automation = getAreaSaveAutomation("sleet-storm");
+
+  assert.deepEqual(automation.trackOutcomes, []);
+  assert.equal(automation.failed, undefined);
+});
+
+test("le varianti persistenti distinguono modalita esclusive ed effetti concorrenti", () => {
+  assert.deepEqual(
+    getAreaSaveRuleChoices("control-water").map((choice) => choice.value),
+    ["whirlpool", "flood", "redirect", "part"],
+  );
+  assert.deepEqual(getAreaSaveRuleChoices("earthquake"), []);
+  assert.deepEqual(
+    getAreaSaveAutomation("earthquake").failed.map((rule) => rule.condition),
+    ["Prono"],
+  );
+  assert.deepEqual(
+    getAreaSaveRuleChoices("xanathar-collera-della-natura"),
+    [],
+  );
+  assert.deepEqual(
+    getAreaSaveAutomation("xanathar-collera-della-natura").trackOutcomes,
+    [],
+  );
+});
+
+test("Tentacoli Neri lascia Trattenuto al GM; Bagliore Solare e Confusione applicano gli effetti", () => {
   const tentacles = getAreaSaveAutomation("black-tentacles");
   const sunbeam = getAreaSaveAutomation("sunbeam");
   const sunburst = getAreaSaveAutomation("sunburst");
   const confusion = getAreaSaveAutomation("confusion");
 
-  assert.equal(tentacles.failed[0].condition, "Trattenuto");
-  assert.deepEqual(tentacles.failed[0].expiry, { mode: "concentration" });
-  assert.equal(tentacles.failed[0].endsParentOnRemoval, true);
+  assert.deepEqual(tentacles.trackOutcomes, []);
+  assert.equal(tentacles.failed, undefined);
 
   assert.equal(sunbeam.failed[0].condition, "Accecato");
   assert.equal(spellReferenceData.spells.sunbeam.description.includes("6d8 danni radiosi"), true);
@@ -202,7 +242,6 @@ test("Paura, Trama Ipnotica e Luminescenza includono le regole specifiche dello 
 test("gli effetti istantanei restano indipendenti dalla pill tecnica dello spell", () => {
   for (const id of [
     "grease",
-    "sleet-storm",
     "sunbeam",
     "sunburst",
     "xanathar-onda-di-marea",
@@ -282,4 +321,13 @@ test("Fulgore Nauseante separa Indebolimento additivo e blocco dell'invisibilitÃ
   assert.deepEqual(exhaustion.expiry, { mode: "concentration" });
   assert.equal(visibility.effectKind, "debuff");
   assert.deepEqual(visibility.expiry, { mode: "concentration" });
+});
+
+test("Controllare Venti lascia al GM l'applicazione di Prono dopo il TS al tavolo", () => {
+  const automation = getAreaSaveAutomation(
+    "xanathar-controllare-venti",
+    "downdraft",
+  );
+  assert.deepEqual(automation.trackOutcomes, []);
+  assert.equal(automation.failed, undefined);
 });

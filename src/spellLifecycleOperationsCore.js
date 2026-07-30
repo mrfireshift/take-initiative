@@ -81,6 +81,7 @@ export function spellLifecycleOperations({
       name,
       instanceId,
       spellId,
+      ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
     });
   }
   if (automatedSubjectIds.length) {

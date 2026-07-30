@@ -111,6 +111,7 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "color-spray",
   "darkness",
   "daylight",
+  "flaming-sphere",
   "fog-cloud",
   "forcecage",
   "globe-of-invulnerability",
@@ -132,9 +133,11 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "xanathar-spirito-guaritore",
   "xanathar-tempio-degli-dei",
   "xanathar-vento-di-interdizione",
+  "phb2014-fame-di-hadar",
   "phb2014-nube-di-pugnali",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
+  "phb2014-aura-di-vitalita",
   "phb2014-cerchio-di-potere",
 ]);
 
@@ -144,6 +147,7 @@ export const AREA_PLACEMENT_ONLY_SPELL_ID_SET = new Set(
 
 export const AREA_HEALING_SPELL_ID_SET = new Set([
   "mass-cure-wounds",
+  "phb2014-aura-di-vitalita",
 ]);
 
 export const AREA_POPOVER_SPELL_IDS = Object.freeze(
@@ -226,6 +230,7 @@ function conditionRule(condition, {
   effectKind = "",
   effectDetail = "",
   exhaustionContribution = false,
+  saveReminder = null,
 } = {}) {
   const ruleOptions = {
     ...(independent ? { parentEffectId: "" } : {}),
@@ -240,6 +245,7 @@ function conditionRule(condition, {
     ...(effectId ? { effectId } : {}),
     ...(effectKind ? { effectKind } : {}),
     ...(effectDetail ? { effectDetail } : {}),
+    ...(saveReminder ? { saveReminder } : {}),
   });
 }
 
@@ -298,24 +304,43 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Compulsione: movimento imposto",
       "compulsion-forced-movement",
       "Nel proprio turno deve usare il movimento nella direzione indicata dal caster.",
-      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: concentration,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Dopo il movimento imposto, se supera il TS termina l'effetto.",
+        }),
+      },
     ),
   ]),
   "divine-word": noPersistentEffect,
   "glyph-of-warding": noPersistentEffect,
-  "black-tentacles": failedAutomation([
-    conditionRule("Trattenuto", {
-      expiry: concentration,
-      manualRemoval: true,
-      endsParentOnRemoval: true,
-    }),
-  ]),
+  "guardian-of-faith": noPersistentEffect,
+  "gust-of-wind": noPersistentEffect,
+  "black-tentacles": noPersistentEffect,
+  "earthquake": failedAutomation([
+    conditionRule("Prono", { expiry: manual, independent: true }),
+  ], { track: false }),
   "confusion": failedAutomation([
     debuffRule(
       "Confusione: azioni e movimento casuali",
       "confusion-random-turn",
       "All'inizio del turno determina casualmente movimento e azione; TS Saggezza a fine turno per terminare.",
-      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: concentration,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Confusione su di sé.",
+        }),
+      },
     ),
   ]),
   "fear": failedAutomation([
@@ -323,7 +348,11 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Paura: deve fuggire",
       "fear-forced-flight",
       "Nel proprio turno deve Scattare e allontanarsi dal caster lungo il percorso più sicuro.",
-      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: concentration,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+      },
     ),
   ]),
   "grease": failedAutomation([
@@ -337,24 +366,35 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
     ),
   ]),
-  "sleet-storm": failedAutomation([
-    conditionRule("Prono", { expiry: manual, independent: true }),
-  ], { track: false }),
+  "sleet-storm": noPersistentEffect,
   "slow": failedAutomation([
     debuffRule(
       "Lentezza: -2 CA/TS Des · no reazioni",
       "slow-penalty",
       "Velocità dimezzata, -2 a CA e TS Destrezza, niente reazioni e scelta limitata tra azione e azione bonus.",
-      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: concentration,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Lentezza su di sé.",
+        }),
+      },
     ),
   ]),
-  "spirit-guardians": failedAutomation([]),
+  "spirit-guardians": noPersistentEffect,
   "stinking-cloud": failedAutomation([
     debuffRule(
       "Conati: azione persa",
       "stinking-cloud-lost-action",
       "Spende l'azione del turno a vomitare; rimuovere la pill a fine turno.",
-      { expiry: manual, independent: true, manualRemoval: true },
+      {
+        expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1 }),
+        manualRemoval: true,
+      },
     ),
   ], { track: false }),
   "sunbeam": failedAutomation([
@@ -369,6 +409,12 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: rounds(10),
       independent: true,
       manualRemoval: true,
+      saveReminder: Object.freeze({
+        ability: "con",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Accecato su di sé.",
+      }),
     }),
   ], { track: false }),
   "weird": failedAutomation([
@@ -376,6 +422,12 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: concentration,
       manualRemoval: true,
       endsParentOnRemoval: true,
+      saveReminder: Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "4d10 psichici se fallisce; se supera, termina la spell.",
+      }),
     }),
   ]),
   "zone-of-truth": failedAutomation([
@@ -391,6 +443,12 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: rounds(10),
       independent: true,
       manualRemoval: true,
+      saveReminder: Object.freeze({
+        ability: "con",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Accecato su di sé.",
+      }),
     }),
   ], { track: false, concentrationAction: "dismiss" }),
   "xanathar-fulgore-nauseante": failedAutomation([
@@ -418,6 +476,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
   "xanathar-investitura-della-pietra": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),
   ], { track: false }),
+  "xanathar-collera-della-natura": noPersistentEffect,
   "xanathar-onda-di-marea": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),
   ], { track: false }),
@@ -448,6 +507,12 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: manual,
       manualRemoval: true,
       endsParentOnRemoval: true,
+      saveReminder: Object.freeze({
+        ability: "dex",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Trattenuto su di sé.",
+      }),
     }),
   ]),
   "phb2014-cordone-di-frecce": noPersistentEffect,
@@ -522,23 +587,20 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
       ]),
     }),
     Object.freeze({
-      id: "other",
-      label: "Inondazione / deviazione",
+      id: "flood",
+      label: "Inondazione",
       automation: noPersistentEffect,
       replaceBase: true,
     }),
-  ]),
-  "earthquake": Object.freeze([
     Object.freeze({
-      id: "ground",
-      label: "Scossa a terra: Prono",
-      automation: failedAutomation([
-        conditionRule("Prono", { expiry: manual, independent: true }),
-      ], { track: false }),
+      id: "redirect",
+      label: "Deviare corrente",
+      automation: noPersistentEffect,
+      replaceBase: true,
     }),
     Object.freeze({
-      id: "fissure",
-      label: "Fessura / concentrazione",
+      id: "part",
+      label: "Separare le acque",
       automation: noPersistentEffect,
       replaceBase: true,
     }),
@@ -748,43 +810,27 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
       replaceBase: true,
     }),
   ]),
-  "xanathar-collera-della-natura": Object.freeze([
-    Object.freeze({
-      id: "vines",
-      label: "Liane: Trattenuto",
-      automation: failedAutomation([
-        conditionRule("Trattenuto", {
-          expiry: concentration,
-          manualRemoval: true,
-          endsParentOnRemoval: true,
-        }),
-      ]),
-    }),
-    Object.freeze({
-      id: "rocks",
-      label: "Rocce: Prono",
-      automation: failedAutomation([
-        conditionRule("Prono", { expiry: manual, independent: true }),
-      ], { track: false }),
-    }),
-    Object.freeze({
-      id: "trees",
-      label: "Alberi: solo danno",
-      automation: noPersistentEffect,
-      replaceBase: true,
-    }),
-  ]),
   "xanathar-controllare-venti": Object.freeze([
     Object.freeze({
       id: "downdraft",
-      label: "Corrente discendente: Prono",
-      automation: failedAutomation([
-        conditionRule("Prono", { expiry: manual, independent: true }),
-      ], { track: false }),
+      label: "Corrente discendente",
+      automation: noPersistentEffect,
     }),
     Object.freeze({
-      id: "other",
-      label: "Altra configurazione",
+      id: "gusts",
+      label: "Folate",
+      automation: noPersistentEffect,
+      replaceBase: true,
+    }),
+    Object.freeze({
+      id: "updraft",
+      label: "Corrente ascendente",
+      automation: noPersistentEffect,
+      replaceBase: true,
+    }),
+    Object.freeze({
+      id: "paused",
+      label: "Effetto sospeso",
       automation: noPersistentEffect,
       replaceBase: true,
     }),

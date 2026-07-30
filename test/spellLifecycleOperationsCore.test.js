@@ -30,6 +30,13 @@ test("replace, extend e dismiss condividono lo stesso lifecycle", () => {
   assert.deepEqual(
     spellLifecycleOperations({
       ...base,
+      appliedAt: { round: 2, actorId: "caster", turnKey: "2:0:caster" },
+    }).find((operation) => operation.type === "concentration:register").appliedAt,
+    { round: 2, actorId: "caster", turnKey: "2:0:caster" },
+  );
+  assert.deepEqual(
+    spellLifecycleOperations({
+      ...base,
       concentrationAction: "extend",
     }).map((operation) => operation.type),
     ["spell:upsert", "concentration:register"],

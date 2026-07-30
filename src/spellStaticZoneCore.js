@@ -11,6 +11,7 @@ export function staticSpellZoneMetadata({
   casterId = "",
   role = "root",
   parentId = "",
+  ruleChoice = "",
 } = {}) {
   const metadata = {
     version: 1,
@@ -22,6 +23,8 @@ export function staticSpellZoneMetadata({
   };
   const normalizedParentId = normalizedId(parentId);
   if (normalizedParentId) metadata.parentId = normalizedParentId;
+  const normalizedRuleChoice = normalizedId(ruleChoice);
+  if (normalizedRuleChoice) metadata.ruleChoice = normalizedRuleChoice;
   return metadata;
 }
 
@@ -37,12 +40,15 @@ export function staticSpellZoneOwnerOperation({
   instanceId = "",
   casterId = "",
   appliedAt = null,
+  trackConcentration = false,
+  ruleChoice = "",
 } = {}) {
   const normalizedInstanceId = normalizedId(instanceId);
   const normalizedCasterId = normalizedId(casterId);
+  const concentration = spell?.concentration === true;
   if (
     !isStaticSpellZoneRule(rule)
-    || spell?.concentration === true
+    || (concentration && trackConcentration !== true)
     || !normalizedInstanceId
     || !normalizedCasterId
   ) {
@@ -51,22 +57,31 @@ export function staticSpellZoneOwnerOperation({
   const name = String(spell?.displayName || spell?.name || "").trim();
   const spellId = normalizedId(spell?.id || rule.spellId);
   if (!name || !spellId) return null;
+  const defaultTurns = Math.floor(Number(spell?.defaultTurns));
+  const hasFiniteDuration = Number.isFinite(defaultTurns) && defaultTurns > 0;
   return {
     type: "spell:upsert",
     targetIds: [normalizedCasterId],
     name,
-    turns: Math.max(1, Math.floor(Number(spell?.defaultTurns) || 1)),
-    conc: false,
+    turns: hasFiniteDuration ? defaultTurns : 1,
+    conc: concentration,
     source: normalizedCasterId,
     instanceId: normalizedInstanceId,
     spellId,
-    expiry: spell?.expiry && typeof spell.expiry === "object"
-      ? { ...spell.expiry }
-      : { mode: "manual" },
+    ...(concentration
+      ? { expiry: { mode: "concentration" } }
+      : spell?.expiry && typeof spell.expiry === "object"
+        ? { expiry: { ...spell.expiry } }
+        : hasFiniteDuration
+          ? {}
+          : { expiry: { mode: "manual" } }),
     ...(appliedAt ? { appliedAt: { ...appliedAt } } : {}),
     castContext: {
       staticZoneOwner: true,
       staticZoneRuleId: rule.id,
+      ...(normalizedId(ruleChoice)
+        ? { choice: normalizedId(ruleChoice) }
+        : {}),
     },
     replaceNames: [name],
   };

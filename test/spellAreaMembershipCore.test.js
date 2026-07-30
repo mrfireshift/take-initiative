@@ -65,11 +65,11 @@ test("la membership di zona usa geometria, fazione e inclusione caster", () => {
   }), ["enemy"]);
 });
 
-test("il filtro membership può includere il caster escluso dal TS iniziale", () => {
+test("il caster nell'area resta incluso anche nella membership persistente", () => {
   const rule = getSpellAreaRuleById("web:cast");
   const caster = token("caster", { attitude: "pc" });
   const area = { cells: [{ x: 0, y: 0, width: 200, height: 200 }] };
-  assert.equal(rule.targeting.includeCaster, false);
+  assert.equal(rule.targeting.includeCaster, true);
   assert.equal(rule.zonePolicy.membershipTargeting.includeCaster, true);
   assert.deepEqual(areaMembershipTargetIds({
     sourceId: "caster",
@@ -165,6 +165,36 @@ test("una zona semantica applica una condizione reale senza marcarla come debuff
   assert.equal(plan.operations[0].options.effectId, "darkness-obscured");
   assert.equal(plan.operations[0].options.parentEffectId, "spell-darkness");
   assert.equal("effectKind" in plan.operations[0].options, false);
+});
+
+test("Vento di Interdizione applica insieme Assordato e terreno difficile", () => {
+  const rule = getSpellAreaRuleById("xanathar-vento-di-interdizione:cast");
+  assert.deepEqual(
+    areaMembershipEffects(rule).map((effect) => effect.id),
+    [
+      "warding-wind-deafened",
+      "warding-wind-difficult-terrain",
+    ],
+  );
+
+  const plan = areaMembershipPlan({
+    instanceId: "warding-wind-instance",
+    sourceId: "caster",
+    rule,
+    desiredTargetIds: ["target"],
+    items: [],
+    metaKey: META,
+    sourceName: "Lavera",
+  });
+  const additions = plan.operations.filter(
+    (operation) => operation.type === "condition:add"
+  );
+  assert.equal(additions.length, 2);
+  assert.equal(additions[0].conditionName, "Assordato");
+  assert.equal(
+    additions[1].options.mechanics.movement.costMultiplier,
+    2,
+  );
 });
 
 test("la riconciliazione migra una vecchia label generica alla condizione reale", () => {

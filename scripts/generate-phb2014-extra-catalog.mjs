@@ -3,7 +3,7 @@ import path from "node:path";
 
 const OUTPUT_PATH = "src/spells-phb2014-extra.json";
 const SCHEMA_VERSION = 1;
-const EXPECTED_SPELL_COUNT = 40;
+const EXPECTED_SPELL_COUNT = 41;
 const SOURCE = Object.freeze({
   id: "phb2014",
   title: "Manuale del Giocatore 2014",

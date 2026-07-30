@@ -44,9 +44,11 @@ Per provare il comportamento GM/player sullo stesso computer:
 ## Build di produzione
 
 ```bash
+npm run verify:version
 npm test
 npm run check:spells
 npm run build
+npm run verify:dist
 ```
 
 L'output viene scritto in `dist/`. Prima della pubblicazione verifica:
@@ -55,6 +57,7 @@ L'output viene scritto in `dist/`. Prima della pubblicazione verifica:
 - che `package.json` riporti la stessa versione;
 - che `dist/manifest.json` sia presente;
 - che icone, immagini e pagine HTML siano state copiate;
+- che le pagine dei reminder e della risoluzione preparata siano incluse;
 - che la room carichi correttamente sia il background sia il lister.
 
 ## Aggiornamento

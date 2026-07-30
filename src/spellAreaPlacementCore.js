@@ -150,7 +150,7 @@ export function constrainedSpellAreaEnd({
       y: origin.y + raw.y * extent / denominator,
     };
   }
-  if (shape === "line") {
+  if (["line", "rectangle"].includes(shape)) {
     const denominator = Math.hypot(raw.x, raw.y) || 1;
     if (raw.x === 0 && raw.y === 0) {
       return { x: origin.x + extent, y: origin.y };
@@ -235,6 +235,14 @@ export function reviewSpellAreaPlacement(session, preview) {
       end: finitePoint(preview.end),
       gridOrigin: finitePoint(preview.gridOrigin),
       dpi: Math.max(1, Number(preview.dpi) || 1),
+      ...(Number(preview.widthSquares) > 0
+        ? {
+          widthSquares: Math.max(
+            1,
+            Math.round(Number(preview.widthSquares)),
+          ),
+        }
+        : {}),
       targetIds: Array.from(new Set(
         (Array.isArray(preview.targetIds) ? preview.targetIds : [])
           .map((id) => String(id || "").trim())

@@ -27,10 +27,12 @@ const PERSISTENT_ZONE_SPELL_IDS = new Set([
   "daylight",
   "earthquake",
   "entangle",
+  "flaming-sphere",
   "fog-cloud",
   "forcecage",
   "grease",
   "guardian-of-faith",
+  "gust-of-wind",
   "glyph-of-warding",
   "hallow",
   "hallucinatory-terrain",
@@ -88,6 +90,7 @@ const MOBILE_AURA_SPELL_IDS = new Set([
   "xanathar-vento-di-interdizione",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
+  "phb2014-aura-di-vitalita",
   "phb2014-cerchio-di-potere",
 ]);
 
@@ -97,6 +100,8 @@ const MOVABLE_ZONE_SPELL_IDS = new Set([
   "daylight",
   "incendiary-cloud",
   "moonbeam",
+  "flaming-sphere",
+  "gust-of-wind",
   "xanathar-alba",
   "xanathar-diavoletto-di-polvere",
   "xanathar-sfera-acquea",
@@ -136,9 +141,21 @@ const AREA_OVERRIDES = Object.freeze({
     shape: "circle",
     sizeMeters: 3,
   },
+  "flaming-sphere": {
+    shape: "circle",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 18,
+  },
   "guardian-of-faith": {
     shape: "circle",
     sizeMeters: 3,
+  },
+  "gust-of-wind": {
+    shape: "rectangle",
+    sizeMeters: 18,
+    widthMeters: 3,
+    origin: "caster-adjacent",
   },
   "glyph-of-warding": {
     shape: "circle",
@@ -157,6 +174,14 @@ const AREA_OVERRIDES = Object.freeze({
   },
   "mass-cure-wounds": {
     note: "L'incantesimo può curare al massimo sei creature",
+  },
+  "wall-of-ice": {
+    shape: "line",
+    sizeMeters: 30,
+    widthMeters: 1.5,
+    origin: "point",
+    rangeMeters: 36,
+    note: "La sagoma rappresenta fino a dieci pannelli contigui in linea; cupola, sfera e singole sezioni distrutte restano da gestire manualmente.",
   },
   "move-earth": {
     shape: "square",
@@ -346,7 +371,9 @@ function selfRange(value) {
 
 function defaultOrigin(shape, spellRange) {
   if (!selfRange(spellRange)) return "point";
-  return ["cone", "line"].includes(shape) ? "caster-adjacent" : "caster";
+  return ["cone", "line", "rectangle"].includes(shape)
+    ? "caster-adjacent"
+    : "caster";
 }
 
 function catalogSpec(spell) {
@@ -362,7 +389,7 @@ function catalogSpec(spell) {
     spellId: spell.id,
     shape,
     sizeMeters,
-    ...(shape === "line"
+    ...(["line", "rectangle"].includes(shape)
       ? { widthMeters: override.widthMeters || 1.5 }
       : {}),
     origin,

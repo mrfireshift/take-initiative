@@ -3,7 +3,6 @@ import { SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 
 const AUTO_CLOSE_MS = 6500;
-const MAX_VISIBLE_NOTICES = 3;
 const PENDING_SYNC_INTERVAL_MS = 500;
 
 type NoticeTarget = {
@@ -122,29 +121,16 @@ function renderNotice(notice: ZoneTriggerNotice) {
   title.textContent = notice.spellName;
   copy.append(eyebrow, title);
 
-  const badge = document.createElement("div");
-  badge.className = "target-badge";
-  const badgeLabel = document.createElement("span");
-  badgeLabel.textContent = "TS";
-  const badgeValue = document.createElement("strong");
-  badgeValue.textContent = String(notice.targets.length);
-  badge.append(badgeLabel, badgeValue);
-
   const detail = document.createElement("div");
   detail.className = "detail";
-  const target = document.createElement("strong");
-  target.textContent = targetSummary(notice.targets);
   const instruction = document.createElement("span");
-  instruction.textContent = `${notice.label}. Apri Effetti ad Area per risolvere.`;
-  detail.append(target, instruction);
+  instruction.textContent = `${notice.label} (${targetSummary(notice.targets)})`;
+  detail.append(instruction);
 
   const timer = document.createElement("div");
   timer.className = "timer";
-  panel.append(portrait, copy, badge, detail, timer);
-  app.appendChild(panel);
-  while (app.childElementCount > MAX_VISIBLE_NOTICES) {
-    app.firstElementChild?.remove();
-  }
+  panel.append(portrait, copy, detail, timer);
+  app.replaceChildren(panel);
   window.setTimeout(() => panel.remove(), AUTO_CLOSE_MS);
 }
 

@@ -16,6 +16,7 @@ import {
 } from "./conditionRulesCore.js";
 import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
 import { compactSpellEffectLabel } from "./effectLabelCore.js";
+import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -307,6 +308,12 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
     instance.effectKind = opts.effectKind;
   }
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
+  const saveReminders = normalizeEffectSaveReminders(opts.saveReminder);
+  if (saveReminders.length) {
+    instance.saveReminder = saveReminders.length === 1
+      ? saveReminders[0]
+      : saveReminders;
+  }
   if (opts.mechanics && typeof opts.mechanics === "object") {
     instance.mechanics = { ...opts.mechanics };
   }

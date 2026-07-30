@@ -6,6 +6,7 @@ import {
   getQuickHpInstantAreaRule,
   getQuickHpPlaceableAreaRule,
   quickHpAreaPlacementPresentation,
+  quickHpSpellUsesSaveOutcomes,
 } from "../src/quickHpAreaWorkflowCore.js";
 
 test("espone il posizionamento per le sagome supportate", () => {
@@ -47,4 +48,77 @@ test("normalizza i bersagli confermati contro quelli disponibili", () => {
     status: "cancelled",
     preview: { targetIds: ["a"] },
   }, ["a"]), []);
+});
+
+test("Fame di Hadar richiede esiti solo quando si risolve il trigger finale", () => {
+  assert.equal(quickHpSpellUsesSaveOutcomes({
+    spellId: "phb2014-fame-di-hadar",
+    castSaveSpellIds: new Set(["fireball"]),
+  }), false);
+  assert.equal(quickHpSpellUsesSaveOutcomes({
+    spellId: "phb2014-fame-di-hadar",
+    castSaveSpellIds: new Set(["fireball"]),
+    activeZoneTrigger: {
+      spellId: "phb2014-fame-di-hadar",
+      resolution: "manual-save",
+    },
+  }), true);
+  assert.equal(quickHpSpellUsesSaveOutcomes({
+    spellId: "phb2014-fame-di-hadar",
+    castSaveSpellIds: new Set(["fireball"]),
+    activeZoneTrigger: {
+      spellId: "phb2014-fame-di-hadar",
+      resolution: "informational",
+    },
+  }), false);
+});
+
+test("le zone ritardate non mostrano esiti al lancio, quelle immediate si", () => {
+  const legacySaveSet = new Set([
+    "web",
+    "xanathar-maelstrom",
+    "sleet-storm",
+    "stinking-cloud",
+    "entangle",
+    "grease",
+    "xanathar-sfera-della-tempesta",
+  ]);
+
+  for (const spellId of [
+    "black-tentacles",
+    "web",
+    "xanathar-maelstrom",
+    "sleet-storm",
+    "stinking-cloud",
+    "phb2014-nube-di-pugnali",
+    "control-water",
+    "xanathar-collera-della-natura",
+  ]) {
+    assert.equal(quickHpSpellUsesSaveOutcomes({
+      spellId,
+      castSaveSpellIds: legacySaveSet,
+    }), false, spellId);
+  }
+  for (const spellId of [
+    "entangle",
+    "grease",
+    "xanathar-sfera-della-tempesta",
+  ]) {
+    assert.equal(quickHpSpellUsesSaveOutcomes({
+      spellId,
+      castSaveSpellIds: legacySaveSet,
+    }), true, spellId);
+  }
+  assert.equal(quickHpSpellUsesSaveOutcomes({
+    spellId: "wall-of-fire",
+    castSaveSpellIds: legacySaveSet,
+    activeZoneTrigger: {
+      spellId: "wall-of-fire",
+      resolution: "informational",
+    },
+  }), false);
+  assert.equal(quickHpSpellUsesSaveOutcomes({
+    spellId: "spirit-guardians",
+    castSaveSpellIds: new Set(["spirit-guardians"]),
+  }), false);
 });

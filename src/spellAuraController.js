@@ -1,5 +1,5 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { queueSpellAreaEffectsMutation } from "./spellAreaMutationQueue.js";
@@ -7,16 +7,22 @@ import {
   collectActiveMobileAuras,
   mobileAuraMembershipPlan,
   mobileAuraTargetIds,
+  SPELL_AURA_META_KEY,
   staleMobileAuraEffectRemovals,
 } from "./spellAuraCore.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
 import { SPELL_AREA_RULES } from "./spellAreaRules.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
+import {
+  mergeMobileAuraReminderMetadata,
+  planMobileAuraReminder,
+} from "./spellAuraReminderCore.js";
+
+export { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const STATE_KEY = `${ID}/state`;
-export const SPELL_AURA_META_KEY = `${ID}/spellAura`;
 const RECONCILE_DELAY_MS = 60;
 
 let mounted = false;
@@ -26,6 +32,7 @@ let timer = null;
 let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
+let unsubscribeSceneMetadata = null;
 
 function point(value) {
   const x = Number(value?.x);
@@ -70,9 +77,20 @@ function auraVisualMetadata(aura, dpi, sizeCells, style) {
   };
 }
 
-function buildAuraVisual({ aura, center, caster, dpi, sizeCells }) {
+function buildAuraVisual({
+  aura,
+  center,
+  caster,
+  dpi,
+  sizeCells,
+  reminderUpdate = null,
+}) {
   const style = spellAreaStyle(aura.spellId, loadAoEStyle());
   const radius = sizeCells * dpi;
+  const metadata = mergeMobileAuraReminderMetadata(
+    auraVisualMetadata(aura, dpi, sizeCells, style),
+    reminderUpdate,
+  );
   return buildPath()
     .commands(circleCommands(radius))
     .fillRule("evenodd")
@@ -90,12 +108,7 @@ function buildAuraVisual({ aura, center, caster, dpi, sizeCells }) {
     .visible(true)
     .zIndex((Number(caster?.zIndex) || 0) - 1)
     .metadata({
-      [SPELL_AURA_META_KEY]: auraVisualMetadata(
-        aura,
-        dpi,
-        sizeCells,
-        style,
-      ),
+      [SPELL_AURA_META_KEY]: metadata,
     })
     .name(`Aura mobile: ${aura.spellId}`)
     .build();
@@ -133,6 +146,7 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
   const desiredIds = new Set(desiredVisuals.map((entry) => entry.aura.instanceId));
   const deleteIds = [];
   const additions = [];
+  const metadataUpdates = new Map();
   for (const item of existing) {
     const instanceId = String(
       item.metadata[SPELL_AURA_META_KEY]?.instanceId || ""
@@ -159,11 +173,30 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
     });
     deleteIds.push(...matches.filter((item) => item !== keeper).map((item) => item.id));
     if (!keeper) additions.push(buildAuraVisual(desired));
+    else if (desired.reminderUpdate?.changed) {
+      metadataUpdates.set(keeper.id, desired.reminderUpdate);
+    }
   }
 
   const uniqueDeleteIds = [...new Set(deleteIds.filter(Boolean))];
   if (uniqueDeleteIds.length) await OBR.scene.items.deleteItems(uniqueDeleteIds);
   if (additions.length) await OBR.scene.items.addItems(additions);
+  if (metadataUpdates.size) {
+    await OBR.scene.items.updateItems([...metadataUpdates.keys()], (drafts) => {
+      for (const item of drafts) {
+        const update = metadataUpdates.get(item.id);
+        const metadata = item.metadata?.[SPELL_AURA_META_KEY];
+        if (!update || !metadata) continue;
+        item.metadata = {
+          ...(item.metadata || {}),
+          [SPELL_AURA_META_KEY]: mergeMobileAuraReminderMetadata(
+            metadata,
+            update,
+          ),
+        };
+      }
+    });
+  }
 }
 
 async function reconcileSpellAuras() {
@@ -203,6 +236,15 @@ async function reconcileSpellAuras() {
   };
   const operations = [];
   const desiredVisuals = [];
+  const existingAuraVisualByInstance = new Map(
+    items
+      .filter((item) => item?.metadata?.[SPELL_AURA_META_KEY]?.instanceId)
+      .map((item) => [
+        String(item.metadata[SPELL_AURA_META_KEY].instanceId),
+        item,
+      ]),
+  );
+  const newTriggerNotices = [];
 
   for (const aura of auras) {
     const caster = byId.get(aura.casterId);
@@ -234,7 +276,23 @@ async function reconcileSpellAuras() {
       metaKey: META_KEY,
       sourceName: caster.name || "",
     }).operations);
-    desiredVisuals.push({ aura, center, caster, dpi, sizeCells });
+    const reminderUpdate = planMobileAuraReminder({
+      aura,
+      auraItem: existingAuraVisualByInstance.get(aura.instanceId) || null,
+      desiredTargetIds,
+      initiativeState: sceneMetadata?.[STATE_KEY] || {},
+      itemsById: byId,
+      areaPosition: center,
+    });
+    newTriggerNotices.push(...reminderUpdate.notices);
+    desiredVisuals.push({
+      aura,
+      center,
+      caster,
+      dpi,
+      sizeCells,
+      reminderUpdate,
+    });
   }
 
   const activeInstanceIds = auras.map((aura) => aura.instanceId);
@@ -255,6 +313,19 @@ async function reconcileSpellAuras() {
   }
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
   await reconcileAuraVisuals(items, desiredVisuals);
+  if (newTriggerNotices.length) {
+    void OBR.broadcast.sendMessage(
+      SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
+      {
+        type: "show-zone-trigger-notices",
+        activationIds: newTriggerNotices.map((notice) => notice.activationId),
+        notices: newTriggerNotices,
+      },
+      { destination: "ALL" },
+    ).catch((error) => {
+      console.warn("[spell-aura] trigger notice:", error?.message || error);
+    });
+  }
 }
 
 async function pump() {
@@ -293,6 +364,9 @@ export async function mountSpellAuraController() {
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (ready) requestSpellAuraReconcile();
   });
+  unsubscribeSceneMetadata = OBR.scene.onMetadataChange(
+    requestSpellAuraReconcile,
+  );
   requestSpellAuraReconcile();
   return true;
 }
@@ -304,6 +378,8 @@ export function unmountSpellAuraController() {
   unsubscribeGrid = null;
   unsubscribeSceneReady?.();
   unsubscribeSceneReady = null;
+  unsubscribeSceneMetadata?.();
+  unsubscribeSceneMetadata = null;
   if (timer) clearTimeout(timer);
   timer = null;
   requested = false;

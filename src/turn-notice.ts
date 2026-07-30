@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import {
+  EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
@@ -9,13 +10,19 @@ import {
 } from "./spellZoneTriggerCore.js";
 import {
   planZoneTriggerNoticeDelivery,
+  shouldClearZoneNoticeAtTurn,
+  zoneTriggerNoticeDetail,
   zoneTriggerNoticeFromActivation,
 } from "./zoneTriggerNoticeCore.js";
+import {
+  mergeSaveReminderNoticeBatch,
+  saveReminderNoticeBatchPresentation,
+} from "./saveReminderNoticeCore.js";
 
 const CHANNEL = ID + "/turn-notice";
 const AUTO_CLOSE_MS = 4500;
 const ZONE_AUTO_CLOSE_MS = 6500;
-const MAX_VISIBLE_ZONE_NOTICES = 3;
+const SAVE_REMINDER_AGGREGATION_MS = 90;
 const FADE_MS = 220;
 const ATTITUDES = new Set(["pc", "ally", "enemy", "neutral"]);
 
@@ -26,6 +33,7 @@ type TurnNotice = {
   currentAttitude: string;
   round: number;
   noticeId: number;
+  turnKey: string;
 };
 
 type ZoneNoticeTarget = {
@@ -36,9 +44,17 @@ type ZoneNoticeTarget = {
 
 type ZoneTriggerNotice = {
   activationId: string;
+  turnKey?: string;
+  timing?: "turn-start" | "turn-end" | "damage" | "enter" | "leave";
   spellName: string;
   label: string;
+  failureEffect?: string;
+  dc?: number;
+  casterName?: string;
   targets: ZoneNoticeTarget[];
+  kind?: "zone" | "zone-effect" | "effect-save" | "effect-reminder";
+  eyebrow?: string;
+  instruction?: string;
 };
 
 function normalizeNotice(parsed: any): TurnNotice | null {
@@ -54,19 +70,28 @@ function normalizeNotice(parsed: any): TurnNotice | null {
     currentAttitude: ATTITUDES.has(attitude) ? attitude : "neutral",
     round: Math.max(1, Math.floor(Number(parsed?.round) || 1)),
     noticeId: Math.max(0, Math.floor(Number(parsed?.noticeId) || 0)),
+    turnKey: String(parsed?.turnKey || "").trim().slice(0, 300),
   };
 }
 
 let currentPanel: HTMLElement | null = null;
 let hideTimer = 0;
+let currentZonePanel: HTMLElement | null = null;
+let zoneHideTimer = 0;
+let currentZoneTurnKey = "";
+let currentSaveReminderBatch: any = null;
+let pendingSaveReminderNotices: ZoneTriggerNotice[] = [];
+let saveReminderAggregationTimer = 0;
 let lastNoticeId = 0;
 const announcedZoneActivationIds = new Set<string>();
+const announcedEffectActivationIds = new Set<string>();
 let zonePendingBaselineReady = false;
 let zonePendingSyncRequested = false;
 let zonePendingSyncRunning = false;
 let unsubscribeZoneItems: (() => void) | null = null;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
 let unsubscribeZoneBroadcast: (() => void) | null = null;
+let unsubscribeEffectSaveBroadcast: (() => void) | null = null;
 
 function buildPanel(notice: TurnNotice) {
   const panel = document.createElement("section");
@@ -131,6 +156,22 @@ function hideCurrent() {
   window.setTimeout(() => leaving.remove(), FADE_MS);
 }
 
+function clearZoneNotice() {
+  window.clearTimeout(zoneHideTimer);
+  zoneHideTimer = 0;
+  currentZonePanel?.remove();
+  currentZonePanel = null;
+  currentZoneTurnKey = "";
+  currentSaveReminderBatch = null;
+  document.getElementById("zone-app")?.replaceChildren();
+}
+
+function clearPendingSaveReminderNotices() {
+  window.clearTimeout(saveReminderAggregationTimer);
+  saveReminderAggregationTimer = 0;
+  pendingSaveReminderNotices = [];
+}
+
 function showNotice(raw: any) {
   const app = document.getElementById("app");
   const notice = normalizeNotice(raw);
@@ -138,6 +179,12 @@ function showNotice(raw: any) {
   if (notice.noticeId && notice.noticeId <= lastNoticeId) return;
   if (notice.noticeId) lastNoticeId = notice.noticeId;
 
+  if (
+    currentZonePanel
+    && shouldClearZoneNoticeAtTurn(currentZoneTurnKey, notice.turnKey)
+  ) {
+    clearZoneNotice();
+  }
   window.clearTimeout(hideTimer);
   const previous = currentPanel;
   const nextPanel = buildPanel(notice);
@@ -152,26 +199,17 @@ function showNotice(raw: any) {
   hideTimer = window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
 }
 
-function zoneTargetSummary(targets: ZoneNoticeTarget[]) {
-  if (targets.length === 1) return targets[0].name;
-  if (targets.length === 2) return `${targets[0].name} e ${targets[1].name}`;
-  return `${targets[0].name}, ${targets[1].name} e altri ${targets.length - 2}`;
-}
-
-function renderZoneNotice(notice: ZoneTriggerNotice) {
+function renderSaveReminderBatch(batch: any) {
   const app = document.getElementById("zone-app");
-  if (!app || app.querySelector(
-    `.zone-notice[data-activation-id="${CSS.escape(notice.activationId)}"]`
-  )) return false;
-  const primary = notice.targets[0];
+  const presentation = saveReminderNoticeBatchPresentation(batch);
+  if (!app || !presentation) return false;
+  const primary = presentation.primaryTarget;
   const panel = document.createElement("section");
   panel.className = "zone-notice";
-  panel.dataset.activationId = notice.activationId;
+  panel.dataset.kind = presentation.kind;
+  panel.dataset.activationId = batch.activationIds.join(" ");
   panel.setAttribute("role", "status");
-  panel.setAttribute(
-    "aria-label",
-    `${notice.spellName}: tiro salvezza richiesto per ${zoneTargetSummary(notice.targets)}`,
-  );
+  panel.setAttribute("aria-label", presentation.ariaLabel);
 
   const portrait = document.createElement("div");
   portrait.className = "zone-portrait";
@@ -192,37 +230,127 @@ function renderZoneNotice(notice: ZoneTriggerNotice) {
   copy.className = "zone-copy";
   const eyebrow = document.createElement("div");
   eyebrow.className = "zone-eyebrow";
-  eyebrow.textContent = "Effetto di zona";
+  eyebrow.textContent = presentation.eyebrow;
   const title = document.createElement("div");
   title.className = "zone-title";
-  title.textContent = notice.spellName;
+  title.textContent = presentation.title;
   copy.append(eyebrow, title);
-
-  const badge = document.createElement("div");
-  badge.className = "zone-target-badge";
-  const badgeLabel = document.createElement("span");
-  badgeLabel.textContent = "TS";
-  const badgeValue = document.createElement("strong");
-  badgeValue.textContent = String(notice.targets.length);
-  badge.append(badgeLabel, badgeValue);
 
   const detail = document.createElement("div");
   detail.className = "zone-detail";
-  const target = document.createElement("strong");
-  target.textContent = zoneTargetSummary(notice.targets);
-  const instruction = document.createElement("span");
-  instruction.textContent = `${notice.label}. Apri Effetti ad Area per risolvere.`;
-  detail.append(target, instruction);
+  detail.dataset.multiple = presentation.rows.length > 1 ? "true" : "false";
+  for (const row of presentation.rows) {
+    const line = document.createElement("div");
+    line.className = "zone-detail-row";
+    line.dataset.activationId = row.activationId;
+    if (row.title) {
+      const rowTitle = document.createElement("strong");
+      rowTitle.textContent = row.title;
+      line.append(rowTitle);
+    }
+    const instruction = document.createElement("span");
+    instruction.textContent = row.detail;
+    line.append(instruction);
+    detail.append(line);
+  }
 
   const timer = document.createElement("div");
   timer.className = "zone-timer";
-  panel.append(portrait, copy, badge, detail, timer);
-  app.appendChild(panel);
-  while (app.childElementCount > MAX_VISIBLE_ZONE_NOTICES) {
-    app.firstElementChild?.remove();
-  }
-  window.setTimeout(() => panel.remove(), ZONE_AUTO_CLOSE_MS);
+  panel.append(portrait, copy, detail, timer);
+  window.clearTimeout(zoneHideTimer);
+  app.replaceChildren(panel);
+  currentZonePanel = panel;
+  currentZoneTurnKey = String(batch.turnKey || "").trim();
+  zoneHideTimer = window.setTimeout(() => {
+    if (currentZonePanel === panel) {
+      currentZonePanel = null;
+      currentZoneTurnKey = "";
+      currentSaveReminderBatch = null;
+      zoneHideTimer = 0;
+    }
+    panel.remove();
+  }, ZONE_AUTO_CLOSE_MS);
   return true;
+}
+
+function flushSaveReminderNotices() {
+  saveReminderAggregationTimer = 0;
+  const values = pendingSaveReminderNotices;
+  pendingSaveReminderNotices = [];
+  if (!values.length) return;
+  const baseBatch = currentZonePanel ? currentSaveReminderBatch : null;
+  const batch = mergeSaveReminderNoticeBatch(baseBatch, values);
+  if (!batch || !renderSaveReminderBatch(batch)) return;
+  currentSaveReminderBatch = batch;
+}
+
+function queueSaveReminderNotices(values: ZoneTriggerNotice[]) {
+  const notices = Array.isArray(values) ? values.filter(Boolean) : [];
+  if (!notices.length) return false;
+  pendingSaveReminderNotices.push(...notices.map((notice) => ({
+    ...notice,
+    instruction: notice.instruction || zoneTriggerNoticeDetail(notice),
+  })));
+  window.clearTimeout(saveReminderAggregationTimer);
+  saveReminderAggregationTimer = window.setTimeout(
+    flushSaveReminderNotices,
+    SAVE_REMINDER_AGGREGATION_MS,
+  );
+  return true;
+}
+
+function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
+  const activationId = String(raw?.activationId || "").trim();
+  const effectName = String(raw?.effectName || "").trim().slice(0, 100);
+  const saveLabel = String(raw?.saveLabel || "").trim().slice(0, 160);
+  const targetId = String(raw?.target?.id || "").trim();
+  if (!activationId || !effectName || !saveLabel || !targetId) return null;
+  const targetName = String(raw?.target?.name || "Token").trim().slice(0, 100)
+    || "Token";
+  const casterName = String(raw?.sourceName || "").trim().slice(0, 100);
+  const informational = raw?.kind === "effect-reminder";
+  return {
+    activationId,
+    turnKey: String(raw?.turnKey || "").trim().slice(0, 300) || undefined,
+    timing: (
+      raw?.timing === "turn-start"
+      || raw?.timing === "turn-end"
+      || raw?.timing === "damage"
+    ) ? raw.timing : undefined,
+    spellName: effectName,
+    label: saveLabel,
+    kind: informational ? "effect-reminder" : "effect-save",
+    eyebrow: informational
+      ? String(raw?.eyebrow || "Promemoria").trim().slice(0, 80)
+      : "Tiro salvezza",
+    instruction: informational
+      ? String(raw?.instruction || saveLabel).trim()
+      : `${saveLabel}${casterName ? ` (${casterName})` : ""}. ${
+        String(raw?.instruction || "Risolvi il tiro salvezza.").trim()
+      }`,
+    targets: [{
+      id: targetId,
+      name: targetName,
+      portrait: String(raw?.target?.portrait || "").trim().slice(0, 2048),
+    }],
+  };
+}
+
+function showEffectSaveNotices(raw: any) {
+  const values = Array.isArray(raw?.notices) ? raw.notices : [];
+  const notices: ZoneTriggerNotice[] = [];
+  for (const value of values) {
+    const notice = effectSaveNotice(value);
+    if (
+      !notice
+      || announcedEffectActivationIds.has(notice.activationId)
+    ) {
+      continue;
+    }
+    notices.push(notice);
+    announcedEffectActivationIds.add(notice.activationId);
+  }
+  queueSaveReminderNotices(notices);
 }
 
 function showZoneNotices(raw: any, { baseline = false } = {}) {
@@ -237,9 +365,9 @@ function showZoneNotices(raw: any, { baseline = false } = {}) {
     }
     return;
   }
-  for (const notice of plan.notices as ZoneTriggerNotice[]) {
-    if (renderZoneNotice(notice)) {
-      announcedZoneActivationIds.add(notice.activationId);
+  if (queueSaveReminderNotices(plan.notices as ZoneTriggerNotice[])) {
+    for (const activationId of plan.announcedIds) {
+      announcedZoneActivationIds.add(activationId);
     }
   }
 }
@@ -248,7 +376,8 @@ async function syncPendingZoneNotices() {
   if (!await OBR.scene.isReady().catch(() => false)) {
     zonePendingBaselineReady = false;
     announcedZoneActivationIds.clear();
-    document.getElementById("zone-app")?.replaceChildren();
+    clearPendingSaveReminderNotices();
+    clearZoneNotice();
     return;
   }
   const items = await OBR.scene.items.getItems();
@@ -295,6 +424,14 @@ OBR.onReady(() => {
   OBR.broadcast.onMessage(CHANNEL, (event) => {
     if (event?.data?.type === "show-turn-notice") showNotice(event.data);
   });
+  unsubscribeEffectSaveBroadcast = OBR.broadcast.onMessage(
+    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+    (event) => {
+      if (event?.data?.type === "show-effect-save-notices") {
+        showEffectSaveNotices(event.data);
+      }
+    },
+  );
   if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
   unsubscribeZoneItems = OBR.scene.items.onChange(
     requestPendingZoneNoticeSync,
@@ -303,7 +440,8 @@ OBR.onReady(() => {
     if (!ready) {
       zonePendingBaselineReady = false;
       announcedZoneActivationIds.clear();
-      document.getElementById("zone-app")?.replaceChildren();
+      clearPendingSaveReminderNotices();
+      clearZoneNotice();
       return;
     }
     requestPendingZoneNoticeSync();
@@ -320,7 +458,9 @@ OBR.onReady(() => {
 });
 
 window.addEventListener("beforeunload", () => {
+  clearPendingSaveReminderNotices();
   unsubscribeZoneItems?.();
   unsubscribeZoneSceneReady?.();
   unsubscribeZoneBroadcast?.();
+  unsubscribeEffectSaveBroadcast?.();
 });

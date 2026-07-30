@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Effetto di zona</title>
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
     <style>
       html, body { width: 100%; height: 100%; margin: 0; background: transparent; }
       * { box-sizing: border-box; }
@@ -31,7 +32,7 @@
         width: 100%;
         min-height: 126px;
         margin-bottom: -14px;
-        padding: 15px 68px 14px 104px;
+        padding: 15px 18px 14px 104px;
         border: 2px solid #080b10;
         border-radius: 8px;
         background: linear-gradient(115deg, var(--accent-deep) 0%, rgba(27, 20, 18, .97) 48%, rgba(10, 11, 14, .98) 100%);
@@ -100,25 +101,6 @@
         text-shadow: 0 2px 3px rgba(0,0,0,.9);
         white-space: nowrap;
       }
-      .target-badge {
-        position: absolute;
-        top: 14px;
-        right: 15px;
-        width: 42px;
-        height: 42px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid #080b10;
-        border-radius: 50%;
-        background: rgba(5,9,14,.88);
-        box-shadow: 0 0 0 1px var(--accent), inset 0 0 12px var(--accent-soft);
-        line-height: 1;
-        z-index: 1;
-      }
-      .target-badge span { color: var(--accent); font-size: 8px; font-weight: 900; letter-spacing: .5px; }
-      .target-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; }
       .detail {
         position: relative;
         display: grid;
@@ -161,11 +143,10 @@
         #app { top: calc(9vh + 126px); }
         .notice {
           min-height: 112px;
-          padding: 13px 58px 12px 88px;
+          padding: 13px 16px 12px 88px;
         }
         .portrait { left: 12px; width: 64px; height: 64px; }
         .title { font-size: 19px; }
-        .target-badge { top: 12px; right: 12px; width: 38px; height: 38px; }
       }
     </style>
   </head>

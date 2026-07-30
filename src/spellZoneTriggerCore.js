@@ -1,9 +1,8 @@
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 
-// Fase reminder sospesa: il planner resta disponibile per la riattivazione
-// futura, ma nessun controller deve produrre o consumare attivazioni.
-export const SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED = false;
+export const SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED = true;
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -14,7 +13,12 @@ const uniqueIds = (values = []) => Array.from(new Set(
 const clone = (value) => {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === "function") {
-    return globalThis.structuredClone(value);
+    try {
+      return globalThis.structuredClone(value);
+    } catch {
+      // OBR.updateItems espone metadata come draft Immer (Proxy), che
+      // structuredClone non accetta pur contenendo esclusivamente dati JSON.
+    }
   }
   return JSON.parse(JSON.stringify(value));
 };
@@ -28,6 +32,20 @@ function normalizedPoint(value) {
 function samePoint(left, right) {
   return (!left && !right)
     || (!!left && !!right && left.x === right.x && left.y === right.y);
+}
+
+function normalizedMemberPositions(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const entries = Array.isArray(source)
+    ? source.map((entry) => [entry?.id, entry])
+    : Object.entries(source);
+  const positions = {};
+  for (const [rawId, rawPoint] of entries) {
+    const id = String(rawId || "").trim();
+    const position = normalizedPoint(rawPoint);
+    if (id && position) positions[id] = position;
+  }
+  return positions;
 }
 
 function initiativeActorId(state) {
@@ -62,6 +80,7 @@ export function normalizeSpellZoneTriggerRuntime(value = {}) {
     version: 1,
     initialized: source.initialized === true,
     memberIds: uniqueIds(source.memberIds),
+    memberPositions: normalizedMemberPositions(source.memberPositions),
     evaluatedTurnKey: String(source.evaluatedTurnKey || "").trim(),
     evaluatedActorId: String(source.evaluatedActorId || "").trim(),
     areaPosition: normalizedPoint(source.areaPosition),
@@ -82,16 +101,26 @@ function frequencyKey(trigger, targetId, turnKey) {
 
 function activationTargets({
   trigger,
+  casterId,
   initialized,
   zoneMoved,
   entering,
   leaving,
+  moving,
   currentMembers,
   previousMembers,
   turnChanged,
   activeActorId,
   previousActorId,
 }) {
+  if (trigger.requiresAreaMove === true && !zoneMoved) return [];
+  const targetMode = String(trigger?.targetMode || "actor").trim();
+  if (trigger.event === "cast") {
+    if (initialized) return [];
+    return targetMode === "caster" && casterId
+      ? [casterId]
+      : [...currentMembers];
+  }
   if (trigger.event === "enter") {
     if (!initialized || (zoneMoved && trigger.triggerOnAreaMove !== true)) return [];
     return trigger.requiresOwnTurn === true
@@ -104,12 +133,42 @@ function activationTargets({
       ? leaving.filter((targetId) => targetId === activeActorId)
       : leaving;
   }
+  if (trigger.event === "move") {
+    if (!initialized || (zoneMoved && trigger.triggerOnAreaMove !== true)) return [];
+    return trigger.requiresOwnTurn === true
+      ? moving.filter((targetId) => targetId === activeActorId)
+      : moving;
+  }
   if (trigger.event === "turn-start") {
+    if (
+      trigger.requiresSourceTurn === true
+      && (!casterId || activeActorId !== casterId)
+    ) {
+      return [];
+    }
+    if (turnChanged && targetMode === "caster") {
+      return casterId ? [casterId] : [];
+    }
+    if (turnChanged && targetMode === "members") {
+      return [...currentMembers];
+    }
     return turnChanged && activeActorId && currentMembers.has(activeActorId)
       ? [activeActorId]
       : [];
   }
   if (trigger.event === "turn-end") {
+    if (
+      trigger.requiresSourceTurn === true
+      && (!casterId || previousActorId !== casterId)
+    ) {
+      return [];
+    }
+    if (turnChanged && targetMode === "caster") {
+      return casterId ? [casterId] : [];
+    }
+    if (turnChanged && targetMode === "members") {
+      return [...previousMembers];
+    }
     return turnChanged && previousActorId && previousMembers.has(previousActorId)
       ? [previousActorId]
       : [];
@@ -126,6 +185,7 @@ export function planSpellZoneTriggers({
   zoneMetadata = null,
   runtime = null,
   currentTargetIds = [],
+  currentTargetPositions = {},
   initiativeState = null,
   suppressedTargetIdsByTrigger = {},
   areaPosition = null,
@@ -137,6 +197,26 @@ export function planSpellZoneTriggers({
   const previousMembers = new Set(previous.memberIds);
   const entering = currentIds.filter((targetId) => !previousMembers.has(targetId));
   const leaving = previous.memberIds.filter((targetId) => !currentMembers.has(targetId));
+  const normalizedCurrentPositions = normalizedMemberPositions(
+    currentTargetPositions,
+  );
+  const currentMemberPositions = Object.fromEntries(
+    currentIds
+      .filter((targetId) => normalizedCurrentPositions[targetId])
+      .map((targetId) => [
+        targetId,
+        normalizedCurrentPositions[targetId],
+      ])
+  );
+  const moving = currentIds.filter((targetId) =>
+    previousMembers.has(targetId)
+    && !!previous.memberPositions[targetId]
+    && !!currentMemberPositions[targetId]
+    && !samePoint(
+      previous.memberPositions[targetId],
+      currentMemberPositions[targetId],
+    )
+  );
   const currentTurnKey = currentInitiativeTurnKey(initiativeState);
   const activeActorId = initiativeActorId(initiativeState);
   const turnChanged = previous.initialized
@@ -148,7 +228,10 @@ export function planSpellZoneTriggers({
     && !samePoint(previous.areaPosition, nextAreaPosition);
   const triggers = Array.isArray(rule?.zonePolicy?.triggers)
     ? rule.zonePolicy.triggers
-    : [];
+    : Array.isArray(rule?.triggerPolicy?.triggers)
+      ? rule.triggerPolicy.triggers
+      : [];
+  const activeRuleChoice = String(zoneMetadata?.ruleChoice || "").trim();
   const triggersById = new Map(
     triggers.map((trigger) => [String(trigger?.id || "").trim(), trigger])
   );
@@ -157,8 +240,12 @@ export function planSpellZoneTriggers({
     const trigger = triggersById.get(String(entry.triggerId || "").trim());
     if (!trigger) return entry;
     const eventUsesCurrentMembership =
-      trigger.event === "enter"
-      || trigger.event === "turn-start";
+      trigger.persistsAfterExit !== true
+      && (
+        trigger.event === "enter"
+        || trigger.event === "move"
+        || trigger.event === "turn-start"
+      );
     if (
       eventUsesCurrentMembership
       && entry.turnKey
@@ -193,6 +280,13 @@ export function planSpellZoneTriggers({
   let sequence = previous.sequence;
 
   for (const trigger of triggers) {
+    const requiredRuleChoices = uniqueIds(trigger?.requiresRuleChoices);
+    if (
+      requiredRuleChoices.length
+      && !requiredRuleChoices.includes(activeRuleChoice)
+    ) {
+      continue;
+    }
     const turnKey = activationTurnKey(
       trigger,
       currentTurnKey,
@@ -203,10 +297,12 @@ export function planSpellZoneTriggers({
     ));
     const candidates = activationTargets({
       trigger,
+      casterId: String(zoneMetadata?.casterId || "").trim(),
       initialized: previous.initialized,
       zoneMoved,
       entering,
       leaving,
+      moving,
       currentMembers,
       previousMembers,
       turnChanged,
@@ -237,8 +333,12 @@ export function planSpellZoneTriggers({
       event: String(trigger.event || "").trim(),
       resolution: String(trigger.resolution || "").trim(),
       label: String(trigger.label || "").trim(),
+      ...(String(trigger.failureEffect || "").trim()
+        ? { failureEffect: String(trigger.failureEffect).trim() }
+        : {}),
       targetIds: eligible,
       turnKey,
+      noticeTurnKey: currentTurnKey || turnKey,
       createdAt: Math.max(0, Math.floor(Number(now) || Date.now())),
       ...(String(trigger.ruleChoice || "").trim()
         ? { ruleChoice: String(trigger.ruleChoice).trim() }
@@ -247,8 +347,10 @@ export function planSpellZoneTriggers({
         ? { damage: clone(trigger.damage) }
         : {}),
     };
-    pending.push(activation);
-    pendingIds.add(activationId);
+    if (activation.resolution !== "informational") {
+      pending.push(activation);
+      pendingIds.add(activationId);
+    }
     newActivations.push(activation);
     for (const targetId of eligible) {
       const key = frequencyKey(trigger, targetId, turnKey);
@@ -267,11 +369,13 @@ export function planSpellZoneTriggers({
   return {
     entering,
     leaving,
+    moving,
     newActivations,
     runtime: {
       version: 1,
       initialized: true,
       memberIds: currentIds,
+      memberPositions: currentMemberPositions,
       evaluatedTurnKey: currentTurnKey,
       evaluatedActorId: activeActorId,
       areaPosition: nextAreaPosition,
@@ -316,7 +420,12 @@ export function mergePlannedSpellZoneTriggerRuntime(
   });
   const pendingIds = new Set(pending.map((entry) => entry.id));
   for (const activation of normalizedPending(newActivations)) {
-    if (pendingIds.has(activation.id)) continue;
+    if (
+      activation.resolution === "informational"
+      || pendingIds.has(activation.id)
+    ) {
+      continue;
+    }
     pending.push(activation);
     pendingIds.add(activation.id);
   }
@@ -334,8 +443,12 @@ export function mergePlannedSpellZoneTriggerRuntime(
 export function pendingSpellZoneTriggerActivations(items = []) {
   const pending = [];
   for (const item of Array.isArray(items) ? items : []) {
-    const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
-    if (metadata?.role !== "root") continue;
+    const staticMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    const auraMetadata = item?.metadata?.[SPELL_AURA_META_KEY];
+    const metadata = staticMetadata?.role === "root"
+      ? staticMetadata
+      : auraMetadata;
+    if (!metadata) continue;
     const runtime = normalizeSpellZoneTriggerRuntime(metadata.triggerRuntime);
     for (const activation of runtime.pending) {
       pending.push({

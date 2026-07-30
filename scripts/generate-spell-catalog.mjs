@@ -28,6 +28,8 @@ const compact = spells
     duration: String(spell.duration || ""),
     concentration: !!spell.concentration,
     range: String(spell.range || ""),
+    school: String(spell.school?.index || spell.school?.name || ""),
+    damageType: String(spell.damage?.damage_type?.index || ""),
     area: spell.area_of_effect
       ? { type: spell.area_of_effect.type, size: spell.area_of_effect.size }
       : null,

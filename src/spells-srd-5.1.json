@@ -4,7 +4,7 @@
   "source": "https://www.dnd5eapi.co/api/2014/spells",
   "upstream": "https://github.com/5e-bits/5e-database",
   "license": "CC-BY-4.0",
-  "generatedAt": "2026-07-13",
+  "generatedAt": "2026-07-29",
   "spells": [
     {
       "id": "acid-arrow",
@@ -13,6 +13,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "90 feet",
+      "school": "evocation",
+      "damageType": "acid",
       "area": null
     },
     {
@@ -22,6 +24,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "acid",
       "area": null
     },
     {
@@ -31,6 +35,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -40,6 +46,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 20
@@ -52,6 +60,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -61,6 +71,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -70,6 +82,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -79,6 +93,8 @@
       "duration": "Up to 24 hours",
       "concentration": true,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -88,6 +104,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -97,6 +115,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -106,6 +126,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -118,6 +140,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -130,6 +154,8 @@
       "duration": "10 days",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 200
@@ -142,6 +168,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "30 feet",
+      "school": "divination",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -154,6 +182,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -163,6 +193,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -172,6 +204,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "force",
       "area": null
     },
     {
@@ -181,6 +215,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -190,6 +226,8 @@
       "duration": "Special",
       "concentration": false,
       "range": "10 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -199,6 +237,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -208,6 +248,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -217,6 +259,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -226,6 +270,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -235,6 +281,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -244,6 +292,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -253,6 +303,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -262,6 +314,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "bludgeoning",
       "area": {
         "type": "cube",
         "size": 20
@@ -274,6 +328,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "90 feet",
+      "school": "evocation",
+      "damageType": "slashing",
       "area": {
         "type": "line",
         "size": 100
@@ -286,6 +342,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -295,6 +353,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -304,6 +364,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "30 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -313,6 +375,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -322,6 +386,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -331,6 +397,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": null
     },
     {
@@ -340,6 +408,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "cone",
         "size": 15
@@ -352,6 +422,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "conjuration",
+      "damageType": "lightning",
       "area": {
         "type": "sphere",
         "size": 5
@@ -364,6 +436,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 20
@@ -376,6 +450,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "evocation",
+      "damageType": "lightning",
       "area": null
     },
     {
@@ -385,6 +461,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -394,6 +472,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "120 feet",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -403,6 +483,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": {
         "type": "sphere",
         "size": 60
@@ -415,6 +497,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "1 mile",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -424,6 +508,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -433,6 +519,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "conjuration",
+      "damageType": "poison",
       "area": {
         "type": "sphere",
         "size": 20
@@ -445,6 +533,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cone",
         "size": 15
@@ -457,6 +547,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -466,6 +558,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -475,6 +569,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -484,6 +580,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -493,6 +591,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -502,6 +602,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "cold",
       "area": {
         "type": "cone",
         "size": 60
@@ -514,6 +616,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "90 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -526,6 +630,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -535,6 +641,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -544,6 +652,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 10
@@ -556,6 +666,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -565,6 +677,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -574,6 +688,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -583,6 +699,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -592,6 +710,8 @@
       "duration": "7 days",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -601,6 +721,8 @@
       "duration": "10 days",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -610,6 +732,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -619,6 +743,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "300 feet",
+      "school": "transmutation",
+      "damageType": "bludgeoning",
       "area": {
         "type": "cube",
         "size": 100
@@ -631,6 +757,8 @@
       "duration": "Up to 8 hours",
       "concentration": true,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -640,6 +768,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -649,6 +779,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -658,6 +790,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 30
@@ -670,6 +804,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -679,6 +815,8 @@
       "duration": "Special",
       "concentration": false,
       "range": "30 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 5
@@ -691,6 +829,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -700,6 +840,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -709,6 +851,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 15
@@ -721,6 +865,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -730,6 +876,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 60
@@ -742,6 +890,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -751,6 +901,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "150 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "sphere",
         "size": 20
@@ -763,6 +915,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -772,6 +926,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -784,6 +940,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -796,6 +954,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -808,6 +968,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -817,6 +979,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "500 feet",
+      "school": "conjuration",
+      "damageType": "force",
       "area": null
     },
     {
@@ -826,6 +990,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -835,6 +1001,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "force",
       "area": {
         "type": "cube",
         "size": 10
@@ -847,6 +1015,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -856,6 +1026,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -865,6 +1037,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -874,6 +1048,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": null
     },
     {
@@ -883,6 +1059,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -892,6 +1070,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -901,6 +1081,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -910,6 +1092,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -919,6 +1103,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Special",
+      "school": "illusion",
+      "damageType": "psychic",
       "area": null
     },
     {
@@ -928,6 +1114,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -937,6 +1125,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "500 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 100
@@ -949,6 +1139,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "force",
       "area": null
     },
     {
@@ -958,6 +1150,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -967,6 +1161,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -976,6 +1172,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 20
@@ -988,6 +1186,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -997,6 +1197,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1006,6 +1208,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1015,6 +1219,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -1024,6 +1230,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1033,6 +1241,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 20
@@ -1045,6 +1255,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "piercing",
       "area": null
     },
     {
@@ -1054,6 +1266,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Self",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -1063,6 +1277,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cone",
         "size": 30
@@ -1075,6 +1291,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1084,6 +1302,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "enchantment",
+      "damageType": "psychic",
       "area": null
     },
     {
@@ -1093,6 +1313,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1102,6 +1324,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1111,6 +1335,8 @@
       "duration": "Up to 24 hours",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1120,6 +1346,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1129,6 +1357,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -1138,6 +1368,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -1147,6 +1379,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "sphere",
         "size": 5
@@ -1159,6 +1393,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "cube",
         "size": 100
@@ -1171,6 +1407,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "sphere",
         "size": 20
@@ -1183,6 +1421,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -1192,6 +1432,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "cylinder",
         "size": 40
@@ -1204,6 +1446,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -1213,6 +1457,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1222,6 +1468,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1231,6 +1479,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1240,6 +1490,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "120 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 20
@@ -1252,6 +1504,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 40000
@@ -1264,6 +1518,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "100 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 20
@@ -1276,6 +1532,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1285,6 +1543,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1294,6 +1554,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "300 feet",
+      "school": "evocation",
+      "damageType": "cold",
       "area": {
         "type": "sphere",
         "size": 60
@@ -1306,6 +1568,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1315,6 +1579,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1324,6 +1590,8 @@
       "duration": "30 days",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1333,6 +1601,8 @@
       "duration": "10 days",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -1342,6 +1612,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1351,6 +1623,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1360,6 +1634,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -1372,6 +1648,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1381,6 +1659,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1390,6 +1670,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 10
@@ -1402,6 +1684,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Touch",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1411,6 +1695,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1420,6 +1706,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "radiant",
       "area": {
         "type": "cylinder",
         "size": 10
@@ -1432,6 +1720,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 2500
@@ -1444,6 +1734,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Touch",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1453,6 +1745,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": null
     },
     {
@@ -1462,6 +1756,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "line",
         "size": 60
@@ -1474,6 +1770,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 60
@@ -1486,6 +1784,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "300 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 150
@@ -1498,6 +1798,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -1507,6 +1809,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1516,6 +1820,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1525,6 +1831,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1534,6 +1842,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -1543,6 +1853,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -1552,6 +1864,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1561,6 +1875,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Touch",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1570,6 +1886,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1579,6 +1897,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "90 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1588,6 +1908,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1597,6 +1919,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -1609,6 +1933,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "90 feet",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1618,6 +1944,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1627,6 +1955,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "300 feet",
+      "school": "evocation",
+      "damageType": "bludgeoning",
       "area": {
         "type": "cylinder",
         "size": 20
@@ -1639,6 +1969,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1648,6 +1980,8 @@
       "duration": "10 days",
       "concentration": false,
       "range": "Touch",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1657,6 +1991,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "30 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1666,6 +2002,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "150 feet",
+      "school": "conjuration",
+      "damageType": "fire",
       "area": {
         "type": "sphere",
         "size": 20
@@ -1678,6 +2016,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -1687,6 +2027,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "300 feet",
+      "school": "conjuration",
+      "damageType": "piercing",
       "area": {
         "type": "sphere",
         "size": 20
@@ -1699,6 +2041,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1708,6 +2052,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1717,6 +2063,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1726,6 +2074,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1735,6 +2085,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1744,6 +2096,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1753,6 +2107,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1762,6 +2118,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1771,6 +2129,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1780,6 +2140,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "lightning",
       "area": {
         "type": "line",
         "size": 100
@@ -1792,6 +2154,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1801,6 +2165,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1810,6 +2176,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -1819,6 +2187,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1828,6 +2198,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1837,6 +2209,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "30 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1846,6 +2220,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "10 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cylinder",
         "size": 10
@@ -1858,6 +2234,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Self",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -1867,6 +2245,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "force",
       "area": null
     },
     {
@@ -1876,6 +2256,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "30 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1885,6 +2267,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1894,6 +2278,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "300 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 5
@@ -1906,6 +2292,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -1915,6 +2303,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -1927,6 +2317,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1936,6 +2328,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1945,6 +2339,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -1954,6 +2350,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -1963,6 +2361,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1972,6 +2372,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1981,6 +2383,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "120 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -1990,6 +2394,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "1 mile",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "sphere",
         "size": 40
@@ -2002,6 +2408,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2011,6 +2419,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "30 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2020,6 +2430,8 @@
       "duration": "10 days",
       "concentration": false,
       "range": "Sight",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 5280
@@ -2032,6 +2444,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2041,6 +2455,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2050,6 +2466,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2059,6 +2477,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -2068,6 +2488,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": {
         "type": "cylinder",
         "size": 5
@@ -2080,6 +2502,8 @@
       "duration": "Up to 2 hours",
       "concentration": true,
       "range": "120 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "cone",
         "size": 40
@@ -2092,6 +2516,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2101,6 +2527,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2110,6 +2538,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2119,6 +2549,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "psychic",
       "area": null
     },
     {
@@ -2128,6 +2560,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2137,6 +2571,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2146,6 +2582,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "60 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2155,6 +2593,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2164,6 +2604,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2173,6 +2615,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "conjuration",
+      "damageType": "poison",
       "area": null
     },
     {
@@ -2182,6 +2626,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2191,6 +2637,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -2200,6 +2648,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -2209,6 +2659,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "30 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2218,6 +2670,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "10 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2227,6 +2681,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "cone",
         "size": 60
@@ -2239,6 +2695,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "60 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "line",
         "size": 90
@@ -2251,6 +2709,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "120 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 100
@@ -2263,6 +2723,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "Self",
+      "school": "conjuration",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -2272,6 +2734,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 30
@@ -2284,6 +2748,8 @@
       "duration": "Up to 24 hours",
       "concentration": true,
       "range": "500 miles",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2293,6 +2759,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2302,6 +2770,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2311,6 +2781,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2320,6 +2792,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2329,6 +2803,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2338,6 +2814,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "60 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2347,6 +2825,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "cold",
       "area": null
     },
     {
@@ -2356,6 +2836,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2365,6 +2847,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2374,6 +2858,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2383,6 +2869,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "30 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2392,6 +2880,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2401,6 +2891,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2410,6 +2902,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "100 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "cylinder",
         "size": 50
@@ -2422,6 +2916,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2431,6 +2927,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2440,6 +2938,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": null
     },
     {
@@ -2449,6 +2949,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "30 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2458,6 +2960,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": null
     },
     {
@@ -2467,6 +2971,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2476,6 +2982,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2485,6 +2993,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2494,6 +3004,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2503,6 +3015,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "Unlimited",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2512,6 +3026,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2521,6 +3037,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2530,6 +3048,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "thunder",
       "area": {
         "type": "sphere",
         "size": 10
@@ -2542,6 +3062,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "Self",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2551,6 +3073,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2560,6 +3084,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2569,6 +3095,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "evocation",
+      "damageType": "lightning",
       "area": null
     },
     {
@@ -2578,6 +3106,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 20
@@ -2590,6 +3120,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 15
@@ -2602,6 +3134,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "illusion",
+      "damageType": "",
       "area": null
     },
     {
@@ -2611,6 +3145,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "90 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 20
@@ -2623,6 +3159,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "150 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cylinder",
         "size": 40
@@ -2635,6 +3173,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 40
@@ -2647,6 +3187,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2656,6 +3198,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "Self",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2665,6 +3209,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "10 feet",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2674,6 +3220,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -2686,6 +3234,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2695,6 +3245,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "150 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "cylinder",
         "size": 20
@@ -2707,6 +3259,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "Self",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2716,6 +3270,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "60 feet",
+      "school": "evocation",
+      "damageType": "force",
       "area": null
     },
     {
@@ -2725,6 +3281,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "90 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 20
@@ -2737,6 +3295,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2746,6 +3306,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2755,6 +3317,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Sight",
+      "school": "conjuration",
+      "damageType": "thunder",
       "area": {
         "type": "sphere",
         "size": 360
@@ -2767,6 +3331,8 @@
       "duration": "Up to 8 hours",
       "concentration": true,
       "range": "30 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": null
     },
     {
@@ -2776,6 +3342,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": {
         "type": "line",
         "size": 60
@@ -2788,6 +3356,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "150 feet",
+      "school": "evocation",
+      "damageType": "radiant",
       "area": {
         "type": "cylinder",
         "size": 60
@@ -2800,6 +3370,8 @@
       "duration": "Until dispelled",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 10
@@ -2812,6 +3384,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "60 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -2824,6 +3398,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2833,6 +3409,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "10 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 10
@@ -2845,6 +3423,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "10 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -2857,6 +3437,8 @@
       "duration": "1 minute",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2866,6 +3448,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "thunder",
       "area": {
         "type": "cube",
         "size": 15
@@ -2878,6 +3462,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2887,6 +3473,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "Self",
+      "school": "evocation",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 10
@@ -2899,6 +3487,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2908,6 +3498,8 @@
       "duration": "1 round",
       "concentration": false,
       "range": "10 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2917,6 +3509,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2926,6 +3520,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -2935,6 +3531,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Touch",
+      "school": "necromancy",
+      "damageType": "",
       "area": null
     },
     {
@@ -2944,6 +3542,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2953,6 +3553,8 @@
       "duration": "Up to 1 round",
       "concentration": true,
       "range": "30 feet",
+      "school": "divination",
+      "damageType": "",
       "area": null
     },
     {
@@ -2962,6 +3564,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -2971,6 +3575,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "Self",
+      "school": "necromancy",
+      "damageType": "necrotic",
       "area": null
     },
     {
@@ -2980,6 +3586,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "psychic",
       "area": null
     },
     {
@@ -2989,6 +3597,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "fire",
       "area": {
         "type": "line",
         "size": 60
@@ -3001,6 +3611,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -3010,6 +3622,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "cold",
       "area": {
         "type": "sphere",
         "size": 10
@@ -3022,6 +3636,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "",
       "area": null
     },
     {
@@ -3031,6 +3647,8 @@
       "duration": "Up to 10 minutes",
       "concentration": true,
       "range": "120 feet",
+      "school": "conjuration",
+      "damageType": "piercing",
       "area": {
         "type": "line",
         "size": 60
@@ -3043,6 +3661,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "Touch",
+      "school": "abjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -3052,6 +3672,8 @@
       "duration": "24 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -3061,6 +3683,8 @@
       "duration": "1 hour",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -3070,6 +3694,8 @@
       "duration": "Up to 1 hour",
       "concentration": true,
       "range": "60 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "cube",
         "size": 20
@@ -3082,6 +3708,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "illusion",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 30
@@ -3094,6 +3722,8 @@
       "duration": "8 hours",
       "concentration": false,
       "range": "30 feet",
+      "school": "transmutation",
+      "damageType": "",
       "area": null
     },
     {
@@ -3103,6 +3733,8 @@
       "duration": "Up to 1 minute",
       "concentration": true,
       "range": "120 feet",
+      "school": "evocation",
+      "damageType": "bludgeoning",
       "area": {
         "type": "line",
         "size": 50
@@ -3115,6 +3747,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "Self",
+      "school": "conjuration",
+      "damageType": "",
       "area": null
     },
     {
@@ -3124,6 +3758,8 @@
       "duration": "Instantaneous",
       "concentration": false,
       "range": "5 feet",
+      "school": "conjuration",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 5
@@ -3136,6 +3772,8 @@
       "duration": "10 minutes",
       "concentration": false,
       "range": "60 feet",
+      "school": "enchantment",
+      "damageType": "",
       "area": {
         "type": "sphere",
         "size": 15

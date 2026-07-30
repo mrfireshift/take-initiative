@@ -1,5 +1,10 @@
 # Stabilizzazione 1.3
 
+> **Documento storico.** Questa pagina descrive il gate della release 1.3 e
+> non viene aggiornata con le funzioni sviluppate in seguito. Parti da
+> [README](../README.md) e
+> [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md) per lo stato corrente.
+
 ## Stato
 
 - Baseline: commit `4ad6caf`.

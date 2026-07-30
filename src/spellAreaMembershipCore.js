@@ -25,6 +25,9 @@ export function areaMembershipEffects(rule) {
   if (Array.isArray(rule?.zonePolicy?.membershipEffects)) {
     return rule.zonePolicy.membershipEffects;
   }
+  if (Array.isArray(rule?.effectPolicy?.effects)) {
+    return rule.effectPolicy.effects;
+  }
   const auraEffect = rule?.effectPolicy?.mode === "while-inside"
     ? rule.effectPolicy.effect
     : null;

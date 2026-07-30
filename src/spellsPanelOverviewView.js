@@ -45,10 +45,16 @@ export function renderSpellOverview({
       targetIds,
       effectInstances: group.effectInstances,
     });
+    const manualActions = overviewActions.filter(
+      (candidate) => candidate.type === "manual",
+    );
+    const hasMultipleActions = manualActions.length >= 3;
     const prepared = overviewActions.some((action) => action.type === "resolve");
 
     const row = documentRef.createElement("article");
-    row.className = "spell-overview-row";
+    row.className = hasMultipleActions
+      ? "spell-overview-row spell-overview-row--multi-action"
+      : "spell-overview-row";
     const content = documentRef.createElement("div");
     content.className = "spell-overview-content";
     const heading = documentRef.createElement("div");
@@ -74,11 +80,13 @@ export function renderSpellOverview({
 
     const caster = documentRef.createElement("div");
     caster.className = "spell-overview-meta";
-    caster.textContent = (group.concentrating ? "Concentrazione: " : "Caster: ")
-      + group.casterName;
+    caster.textContent = "Caster: " + group.casterName;
     const targets = documentRef.createElement("div");
     targets.className = "spell-overview-targets";
     targets.appendChild(documentRef.createTextNode(prepared ? "Preparato su: " : "Bersagli: "));
+    if (!targetEntries.length) {
+      targets.appendChild(documentRef.createTextNode("nessuno registrato"));
+    }
     targetEntries.forEach(([targetId, targetName], index) => {
       const target = documentRef.createElement("span");
       target.className = "spell-overview-target";
@@ -109,13 +117,20 @@ export function renderSpellOverview({
         targets.appendChild(documentRef.createTextNode(", "));
       }
     });
-    targets.title = `${prepared ? "Preparato su" : "Bersagli"}: ${targetEntries
-      .map(([, targetName]) => targetName)
-      .join(", ")}`;
+    targets.title = targetEntries.length
+      ? `${prepared ? "Preparato su" : "Bersagli"}: ${targetEntries
+        .map(([, targetName]) => targetName)
+        .join(", ")}`
+      : "Nessun bersaglio registrato";
     content.append(heading, caster, targets);
 
     const actions = documentRef.createElement("div");
-    actions.className = "spell-overview-actions";
+    actions.className = hasMultipleActions
+      ? "spell-overview-actions spell-overview-actions--grid"
+      : "spell-overview-actions";
+    if (hasMultipleActions) {
+      actions.setAttribute("aria-label", `Esiti di ${group.name}`);
+    }
     let resolutionChoice = null;
     const resolveAction = overviewActions.find((action) => action.type === "resolve");
     if (resolveAction && groupSpell) {
@@ -164,7 +179,7 @@ export function renderSpellOverview({
       actions.appendChild(resolve);
     }
 
-    for (const action of overviewActions.filter((candidate) => candidate.type === "manual")) {
+    for (const action of manualActions) {
       const activate = documentRef.createElement("button");
       activate.type = "button";
       activate.className = "activate-spell";
@@ -173,12 +188,20 @@ export function renderSpellOverview({
       activate.dataset.actionLabel = String(action.buttonLabel || action.label || "Attiva");
       activate.dataset.actionDetail = String(action.detail || "");
       activate.dataset.actionEmptySelectionTitle = String(action.emptySelectionTitle || "");
+      activate.dataset.actionTooManySelectionTitle = String(action.tooManySelectionTitle || "");
+      activate.dataset.actionUnavailableSelectionTitle = String(
+        action.unavailableSelectionTitle || "",
+      );
+      activate.dataset.actionUnavailableTargetIds = JSON.stringify(
+        action.unavailableTargetIds || [],
+      );
+      activate.dataset.actionMaxTargets = String(action.maxTargets || "");
       activate.dataset.actionCountLabelSingular = String(action.countLabelSingular || "bersaglio");
       activate.dataset.actionCountLabelPlural = String(action.countLabelPlural || "bersagli");
       const updatePresentation = () => {
         const presentation = spellActiveActionPresentation(
           action,
-          getSelectedTargetIds().length,
+          getSelectedTargetIds(),
         );
         activate.disabled = presentation.disabled;
         activate.textContent = presentation.text;

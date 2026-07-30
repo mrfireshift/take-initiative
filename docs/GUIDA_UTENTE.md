@@ -50,6 +50,18 @@ Ogni card può contenere:
 - dati di movimento;
 - risorse boss, quando applicabili.
 
+La scheda della card include anche la sezione **Azioni rapide**. Puoi
+configurare fino a 12 scorciatoie per:
+
+- lanciare o precompilare un incantesimo;
+- aprire una spell nella Console effetti ad area;
+- applicare una condizione al caster o ai token selezionati;
+- conservare slot, durata, scadenza e automazioni più usati.
+
+Le azioni semplici sul caster o su un solo bersaglio possono essere eseguite
+direttamente; negli altri casi la scorciatoia apre il pannello corretto con i
+campi già compilati.
+
 Fai doppio clic sul nome per rinominare rapidamente il token. Il nuovo nome viene sincronizzato anche sotto il token sulla battlemap.
 
 Il controllo accanto agli HP apre la modifica rapida o la scheda iniziativa, a seconda del tipo di attore. La dimensione dell'editor HP corrisponde al testo mostrato nella card.
@@ -116,22 +128,77 @@ L'indebolimento è gestito direttamente nella scheda iniziativa con un controllo
 
 ## 7. Incantesimi e concentrazione
 
-Apri **Incantesimi** dalla toolbar. Puoi:
+Apri **Incantesimi** dalla toolbar. Il catalogo runtime contiene 477
+definizioni tratte dal catalogo base SRD 5.1 e dalle integrazioni 2014; 357
+sono tracciabili dal pannello, mentre gli istantanei senza stato persistente
+restano soprattutto nel riferimento o nei workflow ad area.
 
-- scegliere o cercare un incantesimo del catalogo SRD;
-- indicare durata, incantatore e bersagli;
+Dal pannello puoi:
+
+- scegliere o cercare un incantesimo;
+- indicare incantatore, slot, durata e bersagli;
 - combinare filtri di fazione e ricerca per nome;
-- segnare la concentrazione;
-- applicare automaticamente una condizione associata quando prevista;
-- visualizzare e terminare gli incantesimi attivi sul campo.
+- usare le varianti e le automazioni disponibili;
+- preparare un incantesimo che verrà risolto in seguito;
+- visualizzare, attivare e terminare gli incantesimi presenti sul campo.
 
-Il catalogo integrato contiene 319 incantesimi SRD 5.1. Le durate avanzano con il combattimento e le scadenze sono collegate al turno appropriato. Un incantatore in concentrazione mostra una `C` sulla card e sul token.
+### Registro degli incantesimi attivi
 
-Le pill degli incantesimi conservano il colore assegnato e vengono renderizzate sulla mappa insieme alle condizioni, senza diventare oggetti trascinabili accidentalmente.
+Il registro raccoglie le istanze attive indipendentemente dal punto in cui sono
+state create. Una spell lanciata dalla **Console effetti ad area** compare
+quindi nello stesso registro di una lanciata dal pannello Incantesimi.
+
+La card dell'istanza mostra durata, incantatore, concentrazione, bersagli ed
+eventuali azioni disponibili. Alcuni incantesimi consentono di applicare
+un'attivazione successiva, per esempio ripetere Riscaldare il metallo, scegliere
+una variante di Controllare Venti o applicare un esito di Sguardo penetrante.
+
+Gli incantesimi preparati restano sul caster. Quando devono essere risolti, il
+plugin chiede bersagli e variante senza creare una seconda concentrazione.
+
+### Concentrazione e pulizia
+
+Un incantatore in concentrazione mostra una `C` sulla card e sul token.
+Interrompere la concentrazione termina l'istanza collegata e rimuove le zone,
+le aure, le pill e le condizioni figlie che dipendono da essa. La stessa
+pulizia avviene quando termina la durata naturale.
+
+Le pill conservano il colore assegnato e vengono renderizzate sulla mappa
+insieme alle condizioni, senza diventare oggetti trascinabili accidentalmente.
+
+### Reminder e tiri fisici
+
+Il plugin non tira i dadi. Quando un effetto richiede un tiro salvezza a inizio
+o fine turno, compare un reminder compatto con:
+
+- token e condizione coinvolti;
+- caratteristica del tiro;
+- CD della scheda del caster, se presente;
+- nome del caster;
+- conseguenza informativa.
+
+I reminder concorrenti vengono aggregati. Avanzando l'iniziativa, il nuovo
+reminder sostituisce il precedente; se l'attore successivo non è coinvolto,
+l'avviso scompare.
+
+Il GM effettua il tiro al tavolo e dichiara l'esito. Nella Console effetti ad
+area i controlli **Superato**, **Fallito** e **Immune** compaiono soltanto
+quando esiste un effetto immediato da risolvere. Le condizioni dipendenti dal
+fallimento, come Prono per Tempesta di Nevischio o Trattenuto per Tentacoli
+Neri, devono essere applicate dopo il risultato reale.
+
+Per geometrie, trigger supportati, azioni attive e copertura residua consulta
+[Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
 
 ## 8. Movimento e condizioni di D&D 2014
 
-Il tracker movimento usa la velocità salvata nella scheda dell'attore e conta le caselle percorse nel turno. Il pulsante Movimento nella vista compatta mostra solo il riepilogo; l'interfaccia completa resta nel layout esteso.
+Il tracker movimento usa la velocità salvata nella scheda dell'attore e conta
+le caselle percorse nel turno. Il profilo supporta camminare, volare, nuotare e
+scalare quando una condizione o un incantesimo concede la modalità. Cambiare
+modalità non azzera la distanza già consumata.
+
+Il pulsante Movimento nella vista compatta mostra solo il riepilogo;
+l'interfaccia completa resta nel layout esteso.
 
 Le seguenti condizioni modificano automaticamente la velocità:
 
@@ -141,6 +208,14 @@ Le seguenti condizioni modificano automaticamente la velocità:
 - **Prono**: rialzarsi consuma metà del movimento disponibile; finché il token resta prono, ogni casella percorsa costa due caselle.
 
 Quando una velocità dimezzata produce mezze caselle, il numero di caselle viene arrotondato per difetto. Una velocità di 7 caselle diventa quindi 3 caselle.
+
+Le zone supportate possono dichiarare terreno difficile. In quel caso lo Speed
+Tracker aumenta il costo delle caselle mentre l'effetto di appartenenza è
+attivo. I costi dipendenti dalla direzione, come il tratto percorso verso il
+caster dentro Folata di Vento, non sono ancora automatizzati.
+
+In modalità volo, una variazione manuale di quota consuma movimento. Le altre
+modalità non deducono automaticamente movimento da un cambio di quota.
 
 Gli spostamenti vengono aggregati nel log di combattimento. Un movimento annullato con Ctrl+Z non viene conteggiato come nuovo movimento.
 
@@ -211,11 +286,22 @@ Lo strumento **Targeting area** è disponibile al GM nella toolbar destra e incl
 - cerchio;
 - quadrato;
 - cono;
-- linea.
+- linea;
+- rettangolo per le spell che lo richiedono.
 
 Durante il trascinamento compare la misura in metri. Origine e dimensioni possono agganciarsi al centro o ai vertici delle caselle. Le forme restano sulla scena dopo la creazione e continuano a selezionare i token intersecati quando vengono spostate.
 
 Il cerchio e il cono usano il metodo **Template** di Xanathar: una casella è inclusa quando il modello la copre anche solo parzialmente. La forma sagomata segue quindi il contorno delle caselle incluse, mentre una silhouette geometrica interna rende leggibile la geometria originaria.
+
+Le geometrie rettangolari specifiche degli incantesimi usano invece una soglia
+di copertura prossima alla metà della casella. Folata di Vento produce così un
+rettangolo da 18 × 3 metri senza estensioni oltre i suoi bordi.
+
+Le zone persistenti degli incantesimi aggiungono al disegno una logica di
+appartenenza e attraversamento. Possono generare reminder all'ingresso, durante
+il movimento, all'uscita, a inizio turno o a fine turno e possono dichiarare
+terreno difficile. Una zona mobile o un'aura mantiene il collegamento con la
+propria sorgente.
 
 **Aspetto area** permette di scegliere colore del riempimento, colore del contorno, opacità e spessore. Lo stile è una preferenza locale usata per le nuove aree. Dal menu contestuale di un'area puoi scegliere **Riseleziona bersagli**.
 
@@ -245,13 +331,18 @@ Prima della sessione:
 Durante il combattimento:
 
 1. usa le frecce del lister per avanzare;
-2. applica incantesimi e condizioni dai popup dedicati;
-3. usa il targeting AoE per selezionare geometricamente i bersagli;
-4. applica il risultato con la Console HP o con Condizioni;
-5. aggiungi note al log solo per eventi narrativi non rilevati automaticamente.
+2. usa le azioni rapide oppure applica incantesimi e condizioni dai pannelli
+   dedicati;
+3. per le spell ad area, posiziona la zona dalla Console effetti ad area e
+   verifica che l'istanza compaia nel registro;
+4. avanza l'iniziativa e usa i reminder per sapere quali tiri effettuare al
+   tavolo;
+5. dichiara gli esiti e applica danni o condizioni con le console appropriate;
+6. aggiungi note al log solo per eventi narrativi non rilevati automaticamente.
 
 Dopo il combattimento:
 
 1. esporta il log in TXT per una lettura rapida o JSON per analisi successive;
 2. conserva o azzera i clock secondo la scena;
-3. termina gli effetti non più validi.
+3. termina gli effetti non più validi e verifica che zone, aure e condizioni
+   collegate siano state ripulite.

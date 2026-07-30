@@ -56,6 +56,10 @@ let areaSelectionTimer = null;
 let pendingMovedArea = null;
 const areaTransforms = new Map();
 
+function areaModeId(shape) {
+  return MODE_IDS[shape === "rectangle" ? "line" : shape];
+}
+
 function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
@@ -192,7 +196,7 @@ async function beginSpellPlacement(data) {
     };
     await setSpellPlacementToolState(true);
     await OBR.tool.activateTool(TOOL_ID);
-    await OBR.tool.activateMode(TOOL_ID, MODE_IDS[rule.geometry.shape]);
+    await OBR.tool.activateMode(TOOL_ID, areaModeId(rule.geometry.shape));
   } catch (error) {
     const message = String(error?.message || error || "placement-start-failed");
     spellPlacementSession = null;
@@ -317,7 +321,14 @@ function renderDrag(state) {
       sizeCells: state.sizeCells,
     });
   }
-  const area = buildArea(state.type, state.start, state.end, state.dpi, state.gridOrigin);
+  const area = buildArea(
+    state.type,
+    state.start,
+    state.end,
+    state.dpi,
+    state.gridOrigin,
+    { widthSquares: state.widthCells },
+  );
   state.area = area;
   const [update] = state.interaction;
   update((items) => {
@@ -357,6 +368,10 @@ async function prepareDrag(state) {
     state.gridOrigin = snapped?.gridOrigin || corner;
     if (state.spellPlacementRequestId) {
       state.sizeCells = spellAreaGridCells(state.rule.geometry.size, {
+        multiplier: state.multiplier,
+        unit: state.unit,
+      });
+      state.widthCells = spellAreaGridCells(state.rule.geometry.width, {
         multiplier: state.multiplier,
         unit: state.unit,
       });
@@ -470,6 +485,7 @@ function persistentAreaMetadata(state) {
     gridOrigin: state.gridOrigin,
     basePosition: { x: 0, y: 0 },
     style: state.style,
+    ...(state.widthCells > 0 ? { widthSquares: state.widthCells } : {}),
   };
 }
 
@@ -504,6 +520,7 @@ function translatedAreaFromItem(item) {
     translate(metadata.end),
     metadata.dpi,
     translate(metadata.gridOrigin || metadata.start),
+    { widthSquares: metadata.widthSquares },
   );
 }
 
@@ -615,6 +632,7 @@ async function finishDrag(state) {
         end: state.end,
         dpi: state.dpi,
         gridOrigin: state.gridOrigin,
+        widthSquares: state.widthCells,
       },
     );
     return;
@@ -671,6 +689,7 @@ function startDrag(type, event) {
     casterOrigin: constrained ? placement.casterOrigin : null,
     casterBounds: constrained ? placement.casterBounds : null,
     sizeCells: 0,
+    widthCells: 0,
     measureLabel: "",
   };
   activeDrag = state;
@@ -718,6 +737,7 @@ async function confirmSpellPlacement() {
     end: state.end,
     dpi: state.dpi,
     gridOrigin: state.gridOrigin,
+    widthSquares: state.widthCells,
     targetIds,
   });
   await closeSpellPlacement("confirmed");

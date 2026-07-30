@@ -57,6 +57,30 @@ test("normalizza regole diverse per superati e falliti", () => {
   ]);
 });
 
+test("trasferisce la conseguenza dichiarata per la fine della spell", () => {
+  const automation = normalizeSaveSpellAutomation({
+    failed: [{
+      condition: "Trattenuto",
+      parentRemoval: "target",
+      parentEndCondition: {
+        condition: "Prono",
+        expiry: { mode: "manual" },
+      },
+    }],
+  });
+
+  assert.deepEqual(automation.rulesByOutcome.failed[0], {
+    conditionName: "Trattenuto",
+    options: {
+      parentRemoval: "target",
+      parentEndCondition: {
+        condition: "Prono",
+        expiry: { mode: "manual" },
+      },
+    },
+  });
+});
+
 test("produce applicazioni separate per outcome e traccia solo gli outcome configurati", () => {
   const result = resolveSaveSpellResolution({
     spell: areaSpell({
@@ -135,4 +159,26 @@ test("trackOutcomes esplicito può mantenere lo spell anche sui bersagli che sup
   assert.equal(result.valid, true);
   assert.deepEqual(result.spellTargetIds, ["passed", "failed"]);
   assert.deepEqual(result.conditionApplications.map((entry) => entry.targetIds), [["failed"]]);
+});
+
+test("trasferisce il reminder TS dichiarato da una regola di condizione", () => {
+  const automation = normalizeSaveSpellAutomation({
+    failed: [{
+      condition: "Spaventato",
+      saveReminder: {
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+      },
+    }],
+  });
+
+  assert.deepEqual(
+    automation.rulesByOutcome.failed[0].options.saveReminder,
+    {
+      ability: "wis",
+      timing: "turn-end",
+      dcSource: "source-spell",
+    },
+  );
 });

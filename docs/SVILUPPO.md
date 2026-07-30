@@ -26,6 +26,8 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run check:spells` | Verifica integrità del catalogo incantesimi |
 | `npm run generate:spells` | Rigenera il catalogo SRD |
 | `npm run generate:spell-translations` | Rigenera le traduzioni del catalogo |
+| `npm run generate:supplement-spells` | Rigenera le definizioni di Tasha e Xanathar |
+| `npm run generate:phb2014-extra` | Rigenera le integrazioni PHB 2014 |
 
 ## Struttura del progetto
 
@@ -46,7 +48,23 @@ Moduli da individuare prima di una modifica:
 - HP sulla mappa: `src/hpbar-items.js`;
 - memoria HP: `src/hpMemory.js`;
 - condizioni: `src/conditions.js`, `src/effects-modal.ts`;
-- incantesimi: `src/spells.js`, `src/spells-panel.js`, `src/spells-tag.js`;
+- incantesimi e registro: `src/spells.js`, `src/spells-panel.js`,
+  `src/spellsPanelViewCore.js`, `src/spells-tag.js`;
+- catalogo e automazioni: `src/spells-srd.js`,
+  `src/supplementSpellRules.js`, `src/phb2014SpellRules.js`,
+  `src/spellEffectCore.js`;
+- aree spell: `src/spellAreaCatalog.js`, `src/spellAreaRules.js`,
+  `src/spellAreaPlacementCore.js`;
+- zone e membership: `src/spellStaticZone.js`,
+  `src/spellStaticZoneCore.js`, `src/spellAreaMembershipCore.js`,
+  `src/spellZoneTriggerCore.js`;
+- aure: `src/spellAuraCore.js`, `src/spellAuraController.js`;
+- reminder: `src/effectSaveReminderCore.js`,
+  `src/effectSaveReminderController.js`, `src/zoneTriggerNoticeCore.js`;
+- preparazione e azioni attive: `src/preparedSpellResolutionCore.js`,
+  `src/preparedSpellResolutionController.js`, `src/spellActiveActionCore.js`;
+- azioni rapide: `src/quickActionsCore.js`,
+  `src/quickActionExecution.js`;
 - movimento: `src/speedCheck.js`, `src/speedCheckCore.js`;
 - log e Undo: `src/combatLog.js`, `src/history.js`, `src/history-modal.ts`;
 - clock: `src/clocks*.js`;
@@ -88,9 +106,28 @@ Moduli da individuare prima di una modifica:
 - più istanze con durate diverse;
 - scadenza a inizio/fine turno e cambio round;
 - interruzione della concentrazione;
+- fine naturale della durata con pulizia di zone, aure ed effetti figli;
 - pill a diversi livelli di zoom;
 - condizioni che bloccano o dimezzano il movimento;
 - Prono: rialzata e costo doppio.
+
+### Registro, zone e reminder
+
+- lanciare la stessa spell dal pannello Incantesimi e dalla Console effetti ad
+  area, verificando un solo modello di registro;
+- almeno quattro token validi consecutivi e un token non coinvolto;
+- reminder sul primo e sul secondo token e ricomparsa nei round successivi;
+- aggregazione di più reminder sullo stesso attore;
+- chiusura del reminder quando il nuovo attore non ha eventi;
+- trigger distinti a inizio e fine turno, per esempio Fame di Hadar;
+- ingresso, movimento, attraversamento, uscita e permanenza nella zona;
+- nessuna applicazione automatica di condizioni subordinate a un tiro fisico;
+- lettura della CD dal caster e fallback leggibile quando manca;
+- risoluzione preparata senza una seconda istanza di concentrazione;
+- azione attiva dal registro e rifiuto di bersagli già usati, quando previsto;
+- pulizia al termine della concentrazione e alla scadenza naturale;
+- zone sovrapposte con effetti figli indipendenti;
+- geometria rettangolare su direzioni cardinali e diagonali.
 
 ### Strumenti mappa
 
@@ -99,6 +136,7 @@ Moduli da individuare prima di una modifica:
 - AoE da centro e vertice della casella;
 - rotazione libera del cono;
 - spostamento di un'area persistente e riselezione;
+- appartenenza e terreno difficile di zone statiche e aure mobili;
 - visibilità GM/player dei clock.
 
 ## Checklist di release
@@ -129,6 +167,23 @@ ma non esegue il deploy.
 
 ## Catalogo incantesimi e attribuzioni
 
-Il catalogo è generato da dati SRD 5.1. Non modificare manualmente un file generato senza aggiornare anche lo script sorgente. Dopo qualsiasi intervento esegui `npm run check:spells`.
+Il catalogo runtime unisce SRD 5.1, Xanathar, Tasha, integrazioni PHB 2014 e
+alias legacy. Non modificare manualmente un file generato senza aggiornare
+anche lo script sorgente. Dopo qualsiasi intervento esegui
+`npm run check:spells`.
+
+Le automazioni curate non devono essere dedotte automaticamente dalla sola
+descrizione. Ogni nuova regola deve dichiarare in modo verificabile:
+
+- momento del trigger;
+- frequenza;
+- tipo di risoluzione;
+- caratteristica del tiro salvezza;
+- effetto informativo o condizione figlia;
+- legame con concentrazione e fine dell'istanza;
+- geometria e politica di membership, quando applicabili.
+
+Per il comportamento atteso consulta
+[Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
 
 Le attribuzioni richieste sono in `THIRD_PARTY_NOTICES.md` e devono accompagnare le distribuzioni del plugin.

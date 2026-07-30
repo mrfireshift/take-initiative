@@ -17,6 +17,7 @@ function conditionRule(condition, {
   effectId = "",
   effectKind = "",
   effectDetail = "",
+  saveReminder = null,
 } = {}) {
   const options = independent ? Object.freeze({ parentEffectId: "" }) : null;
   return Object.freeze({
@@ -28,6 +29,7 @@ function conditionRule(condition, {
     ...(effectId ? { effectId } : {}),
     ...(effectKind ? { effectKind } : {}),
     ...(effectDetail ? { effectDetail } : {}),
+    ...(saveReminder ? { saveReminder } : {}),
   });
 }
 
@@ -55,10 +57,11 @@ function saveAutomation(rules, {
   });
 }
 
-const concentrationCondition = (condition) => conditionRule(condition, {
+const concentrationCondition = (condition, saveReminder = null) => conditionRule(condition, {
   expiry: concentration,
   manualRemoval: true,
   endsParentOnRemoval: true,
+  saveReminder,
 });
 
 const concentrationDebuff = (condition, effectId, effectDetail) => debuffRule(
@@ -76,7 +79,6 @@ export const PHB2014_AREA_SAVE_SPELL_IDS = Object.freeze([
   "phb2014-braccia-di-hadar",
   "phb2014-raffica-di-spine",
   "phb2014-evoca-raffica",
-  "phb2014-fame-di-hadar",
   "phb2014-freccia-folgorante",
   "phb2014-evoca-pioggia-di-armi",
   "phb2014-onda-distruttiva",
@@ -214,31 +216,32 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
     ),
   ]),
   "phb2014-corona-di-follia": saveAutomation([
-    concentrationCondition("Affascinato"),
+    concentrationCondition("Affascinato", Object.freeze({
+      ability: "wis",
+      timing: "turn-end",
+      dcSource: "source-spell",
+      label: "Se supera il TS, termina Corona di Follia.",
+    })),
     concentrationDebuff(
       "Azione: attacco imposto",
       "crown-of-madness-commanded-attack",
       "Il caster può imporre un attacco in mischia nel turno del bersaglio e deve usare l'azione per mantenere il controllo.",
     ),
   ]),
-  "phb2014-fame-di-hadar": saveAutomation([
-    conditionRule("Accecato", {
-      expiry: concentration,
-      manualRemoval: true,
-    }),
-  ], {
-    passed: [conditionRule("Accecato", {
-      expiry: concentration,
-      manualRemoval: true,
-    })],
-    trackOutcomes: ["passed", "failed"],
+  "phb2014-fame-di-hadar": saveAutomation([], {
+    trackOutcomes: [],
   }),
   "phb2014-freccia-folgorante": saveAutomation([], {
     trackOutcomes: [],
     concentrationAction: "dismiss",
   }),
   "phb2014-punizione-accecante": saveAutomation([
-    concentrationCondition("Accecato"),
+    concentrationCondition("Accecato", Object.freeze({
+      ability: "con",
+      timing: "turn-end",
+      dcSource: "source-spell",
+      label: "Se supera il TS, termina Accecato su di sé.",
+    })),
   ]),
   "phb2014-punizione-demoralizzante": saveAutomation([
     debuffRule(
@@ -339,6 +342,13 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "1d6 fuoco a inizio turno",
     detail: "All'inizio del turno effettua un TS Costituzione: 1d6 fuoco se fallisce, fine dello spell se supera. Un'azione può estinguere le fiamme.",
+    saveReminder: Object.freeze({
+      ability: "con",
+      timing: "turn-start",
+      dcSource: "source-spell",
+      success: "remove-effect",
+      label: "1d6 fuoco se fallisce; se supera, termina la spell.",
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),

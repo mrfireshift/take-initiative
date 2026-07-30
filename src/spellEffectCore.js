@@ -12,6 +12,9 @@ export function spellEffectConditionOptions(effect, conditionOptions = {}, paren
     ...(effect?.mechanics && typeof effect.mechanics === "object"
       ? { mechanics: effect.mechanics }
       : {}),
+    ...(effect?.saveReminder && typeof effect.saveReminder === "object"
+      ? { saveReminder: effect.saveReminder }
+      : {}),
     manualRemoval: effect?.manualRemoval === true,
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
     ...(effect?.parentRemoval === "target" || effect?.parentRemoval === "spell"

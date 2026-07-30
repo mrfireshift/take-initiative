@@ -28,6 +28,7 @@ export function buildTurnNoticePayload(state, entriesById) {
   const nextId = order[(current + 1) % order.length];
   const currentEntry = entryForId(currentId, entriesById);
   const portrait = String(currentEntry?.portrait || "").trim();
+  const round = Math.max(1, Math.floor(Number(state?.round) || 1));
   return {
     currentId,
     nextId,
@@ -35,6 +36,7 @@ export function buildTurnNoticePayload(state, entriesById) {
     nextName: entryName(nextId, entriesById),
     currentPortrait: portrait.length <= 2048 ? portrait : "",
     currentAttitude: String(currentEntry?.attitude || "neutral").trim().toLowerCase(),
-    round: Math.max(1, Math.floor(Number(state?.round) || 1)),
+    round,
+    turnKey: `${round}:${current}:${currentId}`,
   };
 }

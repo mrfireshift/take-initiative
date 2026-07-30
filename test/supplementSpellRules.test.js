@@ -12,7 +12,7 @@ import {
 
 test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano escluse dal tracker", () => {
   assert.equal(getSpellCatalog().length, 477);
-  assert.equal(getTrackableSpellOptions().length, 356);
+  assert.equal(getTrackableSpellOptions().length, 357);
   assert.equal(getSpellDefinition("Catapulta").trackable, false);
   assert.equal(getSpellDefinition("Morsa del Gelo").trackable, true);
 });
@@ -30,6 +30,12 @@ test("le condizioni indipendenti dal parent conservano la propria durata", () =>
     options: {
       expiry: { mode: "rounds", remaining: 10 },
       parentEffectId: "",
+      saveReminder: {
+        ability: "con",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Accecato su di sé.",
+      },
     },
   }]);
   assert.deepEqual(getProposedConditions(getSpellDefinition("Sonnellino")), ["Privo di sensi"]);
@@ -65,5 +71,32 @@ test("gli effetti persistenti istantanei dichiarano consumo e scadenza", () => {
   assert.deepEqual(getSpellEffects("Scossa Sinaptica")[0].expiry, {
     mode: "rounds",
     remaining: 10,
+  });
+});
+
+test("l'audit iniziale dichiara i reminder TS ricorrenti nelle regole spell", () => {
+  const fear = getProposedConditions(getSpellDefinition("Incuti Paura"))[0];
+  const enemies = getSpellEffects("Nemici in Abbondanza")[0];
+  const synaptic = getSpellEffects("Scossa Sinaptica")[0];
+  const searing = getSpellEffects("Punizione Incandescente")[0];
+
+  assert.deepEqual(fear.options.saveReminder, {
+    ability: "wis",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    success: "remove-effect",
+    label: "Se supera il TS, termina Spaventato su di sé.",
+  });
+  assert.equal(enemies.saveReminder.timing, "damage");
+  assert.equal(synaptic.saveReminder.timing, "turn-end");
+  assert.equal(searing.saveReminder.timing, "turn-start");
+});
+
+test("Sfera Acquea sgancia il singolo bersaglio e lo rende Prono solo alla fine della spell", () => {
+  const restrained = getSpellDefinition("Sfera Acquea").saveAutomation.failed[0];
+  assert.equal(restrained.parentRemoval, "target");
+  assert.deepEqual(restrained.parentEndCondition, {
+    condition: "Prono",
+    expiry: { mode: "manual" },
   });
 });

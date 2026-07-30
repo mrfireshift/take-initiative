@@ -33,7 +33,6 @@ export const SPELL_CATALOG_VERSION = 1;
 const ITALIAN_ALIASES = Object.freeze({
   "animal-friendship": ["Amicizia con gli Animali"],
   "animate-objects": ["Animare Oggetti"],
-  "aura-of-vitality": ["Aura di Vitalità"],
   "bane": ["Anatema"],
   "bless": ["Benedizione"],
   "blindness-deafness": ["Cecità/Sordità"],
@@ -69,27 +68,391 @@ const ITALIAN_ALIASES = Object.freeze({
 
 const AUTOMATION = Object.freeze({
   "animal-friendship": { mode: "confirm", conditions: ["Affascinato"] },
-  "blindness-deafness": { mode: "choice", choices: ["Accecato", "Assordato"] },
+  "blindness-deafness": {
+    mode: "choice",
+    choices: ["Accecato", "Assordato"],
+    conditionOptions: {
+      Accecato: {
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina l'effetto su di sé.",
+        },
+      },
+      Assordato: {
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina l'effetto su di sé.",
+        },
+      },
+    },
+  },
   "charm-person": { mode: "confirm", conditions: ["Affascinato"] },
-  "dominate-beast": { mode: "confirm", conditions: ["Affascinato"] },
-  "dominate-monster": { mode: "confirm", conditions: ["Affascinato"] },
-  "dominate-person": { mode: "confirm", conditions: ["Affascinato"] },
+  "dominate-beast": {
+    mode: "confirm",
+    conditions: ["Affascinato"],
+    conditionOptions: {
+      Affascinato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "damage",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Dominare Bestie.",
+        },
+      },
+    },
+  },
+  "dominate-monster": {
+    mode: "confirm",
+    conditions: ["Affascinato"],
+    conditionOptions: {
+      Affascinato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "damage",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Dominare Mostri.",
+        },
+      },
+    },
+  },
+  "dominate-person": {
+    mode: "confirm",
+    conditions: ["Affascinato"],
+    conditionOptions: {
+      Affascinato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "damage",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Dominare Persone.",
+        },
+      },
+    },
+  },
   "entangle": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
-  "fear": { mode: "confirm", conditions: ["Spaventato"], targetMode: "area" },
+  "fear": {
+    mode: "confirm",
+    conditions: ["Spaventato"],
+    targetMode: "area",
+    conditionOptions: {
+      Spaventato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "TS solo se il caster non è in vista; se supera, termina l'effetto.",
+        },
+      },
+    },
+  },
   "greater-invisibility": { mode: "automatic", conditions: ["Invisibile"] },
-  "hideous-laughter": { mode: "confirm", conditions: ["Prono", "Incapacitato"] },
-  "hold-monster": { mode: "confirm", conditions: ["Paralizzato"] },
-  "hold-person": { mode: "confirm", conditions: ["Paralizzato"] },
+  "hideous-laughter": {
+    mode: "confirm",
+    conditions: ["Prono", "Incapacitato"],
+    conditionOptions: {
+      Incapacitato: {
+        saveReminder: [
+          {
+            ability: "wis",
+            timing: "turn-end",
+            dcSource: "source-spell",
+            label: "Se supera il TS, termina Risata Incontenibile.",
+          },
+          {
+            ability: "wis",
+            timing: "damage",
+            dcSource: "source-spell",
+            label: "TS con vantaggio; se supera, termina Risata Incontenibile.",
+          },
+        ],
+      },
+    },
+  },
+  "hold-monster": {
+    mode: "confirm",
+    conditions: ["Paralizzato"],
+    conditionOptions: {
+      Paralizzato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Blocca Mostri.",
+        },
+      },
+    },
+  },
+  "hold-person": {
+    mode: "confirm",
+    conditions: ["Paralizzato"],
+    conditionOptions: {
+      Paralizzato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Blocca Persone.",
+        },
+      },
+    },
+  },
+  "heat-metal": {
+    mode: "confirm",
+    conditions: ["Metallo rovente"],
+    conditionOptions: {
+      "Metallo rovente": {
+        effectId: "heat-metal-heated-object",
+        effectKind: "debuff",
+        effectDetail: "Il caster può usare un'azione bonus nei propri turni per infliggere di nuovo 2d8 danni da fuoco. Chi stringe o indossa l'oggetto effettua un TS Costituzione e, se fallisce, lo lascia cadere se può.",
+      },
+    },
+  },
   "hypnotic-pattern": {
     mode: "confirm",
     conditions: ["Affascinato", "Incapacitato"],
     targetMode: "area",
   },
   "invisibility": { mode: "automatic", conditions: ["Invisibile"] },
+  "irresistible-dance": {
+    mode: "confirm",
+    conditions: ["Danza: sul posto · svant. TS DES/att. · attacchi contro con vant."],
+    conditionOptions: {
+      "Danza: sul posto · svant. TS DES/att. · attacchi contro con vant.": {
+        effectId: "irresistible-dance",
+        effectKind: "debuff",
+        effectDetail: "Usa tutto il movimento per danzare; ha svantaggio ai TS Destrezza e ai tiri per colpire, mentre gli attacchi contro di lui hanno vantaggio.",
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+        saveReminder: {
+          ability: "wis",
+          timing: "turn-start",
+          dcSource: "source-spell",
+          label: "Può usare un'azione per effettuare il TS Saggezza; se supera, termina Danza Irresistibile su di sé.",
+        },
+      },
+    },
+  },
+  "phantasmal-killer": {
+    mode: "confirm",
+    conditions: ["Spaventato"],
+    conditionOptions: {
+      Spaventato: {
+        saveReminder: {
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "4d10 psichici se fallisce; se supera, termina la spell.",
+        },
+      },
+    },
+  },
+  "power-word-stun": {
+    mode: "confirm",
+    conditions: ["Stordito"],
+    conditionOptions: {
+      Stordito: {
+        expiry: { mode: "manual" },
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Stordito su di sé.",
+        },
+      },
+    },
+  },
+  "ray-of-enfeeblement": {
+    mode: "confirm",
+    conditions: ["Danni da Forza dimezzati"],
+    conditionOptions: {
+      "Danni da Forza dimezzati": {
+        effectId: "ray-of-enfeeblement-penalty",
+        effectKind: "debuff",
+        effectDetail: "Gli attacchi con arma basati su Forza infliggono metà danni.",
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Raggio di Affaticamento.",
+        },
+      },
+    },
+  },
   "sleep": { mode: "confirm", conditions: ["Privo di sensi"], targetMode: "area" },
   "web": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
   ...SUPPLEMENT_AUTOMATION,
   ...PHB2014_AUTOMATION,
+});
+
+const EYEBITE_EFFECT_IDS = Object.freeze([
+  "eyebite-asleep",
+  "eyebite-panicked",
+  "eyebite-sickened",
+]);
+
+const EYEBITE_ACTION_TRACKING = Object.freeze({
+  subjectMode: "selected",
+  maxTargets: 1,
+  rejectRememberedTargets: true,
+  forbidCasterTarget: true,
+  emptySelectionTitle: "Seleziona una creatura entro 18 m che possa vedere il caster.",
+  tooManySelectionTitle: "Sguardo Penetrante può bersagliare una sola creatura per azione.",
+  unavailableSelectionTitle: "Seleziona una creatura diversa dal caster e non ancora bersagliata da questo lancio.",
+  countLabelSingular: "creatura",
+  countLabelPlural: "creature",
+});
+
+const SRD_ACTIVE_ACTIONS = Object.freeze({
+  "control-water": Object.freeze([
+    Object.freeze({
+      id: "control-water-whirlpool",
+      label: "Passa a Vortice",
+      buttonLabel: "Vortice",
+      detail: "Usa l'azione per creare il vortice. I reminder restano condizionali alla sua area effettiva di raggio 7,5 m.",
+      subjectMode: "caster",
+      zoneRuleChoice: "whirlpool",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-water-flood",
+      label: "Passa a Inondazione",
+      buttonLabel: "Inondazione",
+      detail: "Usa l'azione per attivare Inondazione.",
+      subjectMode: "caster",
+      zoneRuleChoice: "flood",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-water-redirect",
+      label: "Passa a Deviare corrente",
+      buttonLabel: "Devia corrente",
+      detail: "Usa l'azione per far scorrere l'acqua nella direzione scelta.",
+      subjectMode: "caster",
+      zoneRuleChoice: "redirect",
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      id: "control-water-part",
+      label: "Passa a Separare le acque",
+      buttonLabel: "Separa acque",
+      detail: "Usa l'azione per creare un varco nell'acqua.",
+      subjectMode: "caster",
+      zoneRuleChoice: "part",
+      effects: Object.freeze([]),
+    }),
+  ]),
+  "heat-metal": Object.freeze([Object.freeze({
+    id: "heat-metal-repeat",
+    label: "Riscaldare di nuovo",
+    buttonLabel: "Ripeti calore",
+    detail: "Infliggi manualmente 2d8 danni da fuoco. Seleziona il bersaglio che, dopo il TS, non lascia o non può lasciare l'oggetto per applicare lo svantaggio.",
+    emptySelectionTitle: "Seleziona il bersaglio che non lascia o non può lasciare l'oggetto.",
+    tooManySelectionTitle: "Riscaldare il Metallo può interessare un solo portatore alla volta.",
+    subjectMode: "selected",
+    maxTargets: 1,
+    countLabelSingular: "penalizzato",
+    countLabelPlural: "penalizzati",
+    effects: Object.freeze([Object.freeze({
+      id: "heat-metal-penalty",
+      kind: "debuff",
+      label: "Svant. attacchi e prove",
+      detail: "Svantaggio ai tiri per colpire e alle prove di caratteristica fino all'inizio del turno successivo del caster.",
+      expiry: Object.freeze({
+        mode: "turn-start",
+        actor: "source",
+        remaining: 1,
+        anchor: "next-turn",
+      }),
+    })]),
+  })]),
+  "eyebite": Object.freeze([
+    Object.freeze({
+      ...EYEBITE_ACTION_TRACKING,
+      id: "eyebite-saved",
+      label: "Sguardo: TS superato",
+      buttonLabel: "Segna Superato",
+      detail: "Registra la creatura che ha superato il TS Saggezza: questo lancio di Sguardo Penetrante non potrà bersagliarla di nuovo.",
+      rememberTargets: true,
+      effects: Object.freeze([]),
+    }),
+    Object.freeze({
+      ...EYEBITE_ACTION_TRACKING,
+      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
+      id: "eyebite-asleep",
+      label: "Sguardo: Addormentato",
+      buttonLabel: "Fallito: Sonno",
+      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio diventa Privo di sensi finché subisce danni, viene svegliato con un'azione o termina la spell.",
+      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
+      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
+      subjectMode: "selected",
+      maxTargets: 1,
+      countLabelSingular: "fallito",
+      countLabelPlural: "falliti",
+      effects: Object.freeze([Object.freeze({
+        id: "eyebite-asleep",
+        kind: "debuff",
+        label: "Privo di sensi",
+        detail: "Si risveglia se subisce danni o se un'altra creatura usa un'azione per scuoterlo.",
+        manualRemoval: true,
+      })]),
+    }),
+    Object.freeze({
+      ...EYEBITE_ACTION_TRACKING,
+      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
+      id: "eyebite-panicked",
+      label: "Sguardo: In preda al panico",
+      buttonLabel: "Fallito: Panico",
+      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio è Spaventato e deve Scattare per allontanarsi dal caster.",
+      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
+      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
+      subjectMode: "selected",
+      maxTargets: 1,
+      countLabelSingular: "fallito",
+      countLabelPlural: "falliti",
+      effects: Object.freeze([Object.freeze({
+        id: "eyebite-panicked",
+        kind: "debuff",
+        label: "Spaventato",
+        detail: "Deve usare Scatto e allontanarsi lungo il percorso più sicuro. L'effetto termina oltre 18 m dal caster e senza linea di vista.",
+        manualRemoval: true,
+      })]),
+    }),
+    Object.freeze({
+      ...EYEBITE_ACTION_TRACKING,
+      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
+      id: "eyebite-sickened",
+      label: "Sguardo: Nauseato",
+      buttonLabel: "Fallito: Nausea",
+      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio subisce svantaggio ad attacchi e prove e ripete il TS a fine turno.",
+      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
+      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
+      subjectMode: "selected",
+      maxTargets: 1,
+      countLabelSingular: "fallito",
+      countLabelPlural: "falliti",
+      effects: Object.freeze([Object.freeze({
+        id: "eyebite-sickened",
+        kind: "debuff",
+        label: "Nauseato: svant. attacchi/prove",
+        detail: "Svantaggio ai tiri per colpire e alle prove di caratteristica.",
+        manualRemoval: true,
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, usa «Segna Superato» nel registro e rimuovi Nauseato.",
+        }),
+      })]),
+    }),
+  ]),
 });
 
 const TARGET_MODE_OVERRIDES = Object.freeze({
@@ -115,6 +478,12 @@ const SAVE_AUTOMATION = Object.freeze({
     failed: Object.freeze([Object.freeze({
       condition: "Spaventato",
       expiry: CONCENTRATION_EXPIRY,
+      saveReminder: Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "TS solo se il caster non è in vista; se supera, termina l'effetto.",
+      }),
       manualRemoval: true,
       endsParentOnRemoval: true,
     })]),
@@ -162,6 +531,7 @@ const SPELL_EXPIRY = Object.freeze({
   "ray-of-frost": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "sending": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "shield": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
+  "power-word-stun": Object.freeze({ mode: "manual" }),
   "teleportation-circle": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
   "transport-via-plants": Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
   "true-strike": Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -576,6 +946,13 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "TS Sag o perde azione",
         detail: "All'inizio del turno effettua un TS Saggezza; se fallisce, spreca l'azione.",
+        saveReminder: Object.freeze({
+          ability: "wis",
+          timing: "turn-start",
+          dcSource: "source-spell",
+          success: "keep-effect",
+          label: "Se fallisce, spreca l'azione; la maledizione permane.",
+        }),
         manualRemoval: true,
       })]),
     }),
@@ -791,16 +1168,6 @@ const TASHAS_MIND_WHIP = supplementRuntimeSpell("tasha-scudiscio-mentale-di-tash
 
 const LEGACY_MANUAL = Object.freeze([
   {
-    id: "legacy-aura-of-vitality",
-    name: "Aura di Vitalità",
-    level: 3,
-    duration: "Up to 1 minute",
-    concentration: true,
-    range: "Self",
-    area: null,
-    source: "legacy",
-  },
-  {
     id: "legacy-crusaders-mantle",
     name: "Manto del Crociato",
     level: 3,
@@ -855,6 +1222,7 @@ function durationToRounds(duration) {
 
 const RAW_SPELLS = Array.isArray(catalogData?.spells) ? catalogData.spells : [];
 const SPELL_TRACKING_OVERRIDES = Object.freeze({
+  "power-word-stun": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
 });
 const ITALIAN_NAMES = italianData?.names && typeof italianData.names === "object"
@@ -879,6 +1247,9 @@ function effectSaveRule(effect, spell) {
     effectDetail: String(effect?.detail || "").trim(),
     ...(effect?.mechanics && typeof effect.mechanics === "object"
       ? { mechanics: effect.mechanics }
+      : {}),
+    ...(effect?.saveReminder && typeof effect.saveReminder === "object"
+      ? { saveReminder: effect.saveReminder }
       : {}),
     ...(effect?.manualRemoval === true ? { manualRemoval: true } : {}),
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
@@ -985,7 +1356,9 @@ const ALL_SPELLS = [
       || spell.targetModeCandidate
       || (exactSelf ? "self" : "selected"),
     automation,
-    activeActions: SUPPLEMENT_ACTIVE_ACTIONS[spell.id] || Object.freeze([]),
+    activeActions: SRD_ACTIVE_ACTIONS[spell.id]
+      || SUPPLEMENT_ACTIVE_ACTIONS[spell.id]
+      || Object.freeze([]),
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
     expiry: SPELL_EXPIRY[spell.id] || null,
@@ -1029,6 +1402,31 @@ export function getTrackableSpellOptions() {
       || spell.effectChoices?.length
     ),
   }));
+}
+
+export function getQuickActionSpellOptions() {
+  const trackableIds = new Set(TRACKABLE_SPELLS.map((spell) => spell.id));
+  return ALL_SPELLS
+    .filter((spell) => (
+      trackableIds.has(spell.id)
+      || AREA_POPOVER_SPELL_ID_SET.has(spell.id)
+    ))
+    .map((spell) => ({
+      id: spell.id,
+      value: spell.catalogLabel || spell.displayName,
+      label: spell.catalogLabel || spell.displayName,
+      level: spell.level,
+      source: spell.source || "",
+      concentration: spell.concentration === true,
+      area: AREA_POPOVER_SPELL_ID_SET.has(spell.id),
+      automated: !!(
+        spell.automation
+        || spell.saveAutomation
+        || spell.activeActions?.length
+        || spell.effects?.length
+        || spell.effectChoices?.length
+      ),
+    }));
 }
 
 export function getAreaSaveSpellOptions() {

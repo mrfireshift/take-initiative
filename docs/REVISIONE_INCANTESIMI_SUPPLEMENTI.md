@@ -1,5 +1,10 @@
 # Revisione incantesimi dei supplementi
 
+> **Documento storico.** I conteggi e le decisioni qui riportati appartengono
+> alla revisione iniziale del catalogo. Lo stato runtime e le automazioni
+> correnti sono documentati in
+> [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
+
 Catalogo generato il 2026-07-26. Tutte le voci sono abilitate nel catalogo runtime; le automazioni restano limitate ai casi revisionati esplicitamente.
 
 ## Fonti

@@ -1,5 +1,10 @@
 # Audit delle scadenze — Tasha e Xanathar
 
+> **Documento storico.** Questo audit fotografa la fase di importazione dei
+> supplementi e non descrive il motore corrente di zone e reminder. Per il
+> comportamento operativo consulta
+> [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
+
 ## Copertura
 
 - 116 incantesimi importati dai due JSON.

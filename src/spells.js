@@ -3,6 +3,7 @@ import { ID } from "./constants.js";
 import { runEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
+import { spellColorFor } from "./spellColorCore.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
@@ -25,6 +26,12 @@ export function getSpellsFromItem(item) {
   const meta = item?.metadata?.[META_KEY] || {};
   const list = meta[SPELLS_META_KEY];
   return Array.isArray(list) ? list : [];
+}
+
+export function getVisibleSpellsFromItem(item) {
+  return getSpellsFromItem(item).filter(
+    (spell) => spell?.castContext?.staticZoneOwner !== true
+  );
 }
 
 export function getSpellFromItemByName(item, spellName) {
@@ -208,14 +215,15 @@ export function buildSpellChips(spells, options = {}) {
     label.textContent = formatSpellChip(displayName, spell);
     chip.appendChild(label);
     chip.title = displayName + " — " + spellExpiryDescription(spell);
+    const color = spellColorFor(spell?.spellId || displayName);
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
       gap: onTerminate ? "3px" : "0",
       padding: "2px 6px",
       borderRadius: "999px",
-      background: "rgba(90, 140, 255, 0.25)",
-      border: "2px solid rgba(32, 32, 32, 0.94)",
+      background: color.solid,
+      border: `2px solid ${color.border}`,
       boxShadow: "0 1px 0 rgba(0,0,0,0.35)",
       fontSize: "10px",
       fontWeight: "500",

@@ -53,6 +53,88 @@ Non correggere il problema scrivendo direttamente larghezza o testo dell'attachm
 
 La `C` di concentrazione dipende dai metadata dell'incantatore, non dalla sola presenza di una pill sul bersaglio.
 
+## Un incantesimo non compare nel registro
+
+Il registro viene derivato dalle istanze presenti sui token, anche per le spell
+lanciate dalla Console effetti ad area.
+
+1. Verifica che l'applicazione o il posizionamento siano stati confermati.
+2. Controlla la card del caster e quella degli eventuali bersagli.
+3. Chiudi e riapri il pannello Incantesimi per forzare una nuova lettura.
+4. Verifica che il caster non sia stato rimosso dalla scena durante il
+   posizionamento.
+5. Cerca in console errori con prefisso `[spell-panel]` o `[quick-hp]`.
+
+Non aggiungere manualmente una seconda copia nel registro: non è una fonte di
+verità separata.
+
+## Un reminder di tiro salvezza non compare
+
+Prima di considerarlo un errore, verifica che il trigger RAW sia valido in quel
+momento. Alcune spell si attivano soltanto all'ingresso, altre a inizio o fine
+turno e altre ancora richiedono una condizione già applicata.
+
+Per una riproduzione affidabile:
+
+1. usa almeno due token validi e uno non coinvolto;
+2. posiziona o applica la spell;
+3. avanza fino al primo token, poi al secondo;
+4. completa un round e torna sui due token;
+5. controlla che la zona o la condizione siano ancora attive.
+
+In console cerca:
+
+- `[effect-save-reminder]` per i reminder derivati da condizioni;
+- `[spell-static-zone]` per le zone persistenti;
+- `[spell-aura]` per le aure mobili;
+- errori di posizionamento `[quick-hp]`.
+
+Il reminder precedente deve scomparire quando il nuovo attore non ha eventi.
+Se resta visibile o se compare soltanto sul primo token, annota ordine
+d'iniziativa, token corrente, `instanceId` dell'effetto e i messaggi di
+riconciliazione.
+
+## Il reminder mostra una CD o un nome inattesi
+
+La CD e il nome tra parentesi appartengono al **caster**, non al bersaglio.
+
+- Verifica che l'istanza conservi il caster corretto.
+- Apri la scheda del caster e controlla la CD del tiro salvezza degli
+  incantesimi.
+- Se il caster non ha una scheda o una CD, il reminder resta valido ma non può
+  inventare il valore.
+- Nemici e neutrali bersaglio non richiedono una scheda completa.
+
+## Una condizione non viene rimossa con la concentrazione
+
+Una condizione figlia deve conservare il collegamento all'istanza che l'ha
+creata.
+
+1. Controlla se la condizione è stata applicata automaticamente o manualmente.
+2. Termina l'istanza dal registro e verifica nuovamente.
+3. Controlla se esistono due istanze omonime o due zone sovrapposte.
+4. Cerca errori di riconciliazione delle zone o delle aure.
+
+Una condizione manuale omonima non deve essere rimossa solo perché termina una
+spell. Se l'effetto è figlio della spell, segnala `instanceId`, `sourceId` e
+nome della condizione.
+
+## Una zona resta dopo la fine dell'incantesimo
+
+La fine naturale e l'interruzione della concentrazione devono entrambe
+eliminare le geometrie collegate.
+
+1. Verifica che la durata abbia realmente raggiunto zero.
+2. Controlla che l'istanza sia scomparsa dal registro.
+3. Se era a concentrazione, verifica che la `C` sia stata rimossa dal caster.
+4. Controlla in console `[spell-static-zone] reconcile` o
+   `[spell-aura] reconcile`.
+5. Annota se l'area è una zona spell oppure un'area AoE generica: un'area
+   generica non ha un ciclo di vita legato a una spell.
+
+Non eliminare in massa gli attachment della scena: barre HP, etichette e altre
+zone potrebbero usare lo stesso store.
+
 ## I filtri non mostrano bersagli
 
 I toggle di fazione sono combinabili. Se uno o più toggle sono attivi, compaiono soltanto quelle fazioni. Disattiva tutti i toggle per mostrare ogni fazione e cancella il testo della ricerca per nome.
@@ -97,6 +179,10 @@ Per token grandi la misura parte dal bordo occupato più vicino. Un token visiva
 
 Il metodo Template include ogni casella coperta anche parzialmente. Perciò il risultato può essere più ampio di un metodo basato sul centro della casella.
 
+I rettangoli specifici degli incantesimi, come Folata di Vento, usano una
+soglia prossima al 50% della casella. Se il rettangolo straborda, annota anche
+larghezza, direzione, DPI della griglia e unità della scena.
+
 Per isolare il problema:
 
 1. usa una griglia vuota;
@@ -132,6 +218,8 @@ Prima di segnalare un bug raccogli:
 - passaggi minimi di riproduzione;
 - screenshot o registrazione;
 - errori della console;
+- spell, caster, bersagli, `instanceId` e momento del trigger, se il problema
+  riguarda zone o reminder;
 - risultato di `npm test`, `npm run check:spells` e `npm run build`.
 
 Evita di includere URL di invito privati o dati sensibili della room.

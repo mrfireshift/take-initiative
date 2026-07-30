@@ -48,10 +48,16 @@ function normalizeConditionRule(value) {
   if (rule.mechanics && typeof rule.mechanics === "object") {
     options.mechanics = clone(rule.mechanics);
   }
+  if (rule.saveReminder && typeof rule.saveReminder === "object") {
+    options.saveReminder = clone(rule.saveReminder);
+  }
   if (rule.manualRemoval === true) options.manualRemoval = true;
   if (rule.endsParentOnRemoval === true) options.endsParentOnRemoval = true;
   if (rule.parentRemoval === "target" || rule.parentRemoval === "spell") {
     options.parentRemoval = rule.parentRemoval;
+  }
+  if (rule.parentEndCondition && typeof rule.parentEndCondition === "object") {
+    options.parentEndCondition = clone(rule.parentEndCondition);
   }
   if (rule.exhaustionContribution === true) options.exhaustionContribution = true;
 

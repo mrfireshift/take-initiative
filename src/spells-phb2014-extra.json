@@ -11,8 +11,8 @@
       "from": 211,
       "to": 289
     },
-    "inputFile": "incantesimi_phb2014_mancanti_40_puliti.json",
-    "spellCount": 40
+    "inputFile": "incantesimi_phb2014_mancanti_41_puliti.json",
+    "spellCount": 41
   },
   "approvedIds": [
     "phb2014-amicizia",
@@ -43,6 +43,7 @@
     "phb2014-morte-apparente",
     "phb2014-punizione-accecante",
     "phb2014-aura-di-purezza",
+    "phb2014-aura-di-vitalita",
     "phb2014-aura-di-vita",
     "phb2014-punizione-demoralizzante",
     "phb2014-rampicante-afferrante",
@@ -739,6 +740,34 @@
       "durationKind": "concentration",
       "defaultTurns": 100,
       "description": "L'incantatore emana un'aura di energia purificatrice entro un raggio di 9 metri. Finché l'incantesimo non termina, l'aura si muove assieme a lui ed è centrata su di lui. Ogni creatura non ostile entro l'aura (incluso l'incantatore) non può diventare malata, è dotata di resistenza ai danni da veleno e dispone di vantaggio ai tiri salvezza contro gli effetti che provocano qualsiasi condizione tra le seguenti: accecato, affascinato, assordato, avvelenato, paralizzato, spaventato e stordito.",
+      "higherLevels": "",
+      "source": "phb2014",
+      "sourceTitle": "Manuale del Giocatore 2014",
+      "sourcePageRange": {
+        "from": 211,
+        "to": 289
+      },
+      "targetModeCandidate": "area",
+      "areaCandidate": {
+        "type": "radius",
+        "sizeText": "9 metri",
+        "confidence": "candidate"
+      }
+    },
+    {
+      "id": "phb2014-aura-di-vitalita",
+      "name": "Aura di Vitalità",
+      "level": 3,
+      "school": "Invocazione",
+      "ritual": false,
+      "castingTime": "1 azione",
+      "range": "Incantatore (raggio di 9 metri)",
+      "components": "V",
+      "duration": "Concentrazione, fino a 1 minuto",
+      "concentration": true,
+      "durationKind": "concentration",
+      "defaultTurns": 10,
+      "description": "L'incantatore emana un'aura di energia curativa entro un raggio di 9 metri. Finché l'incantesimo non termina, l'aura si muove assieme a lui ed è centrata su di lui. L'incantatore può usare un'azione bonus per far sì che una creatura entro l'aura (incluso l'incantatore) recuperi 2d6 punti ferita.",
       "higherLevels": "",
       "source": "phb2014",
       "sourceTitle": "Manuale del Giocatore 2014",

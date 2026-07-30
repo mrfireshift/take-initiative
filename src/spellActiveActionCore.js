@@ -30,6 +30,23 @@ function consumedEffectIds(action) {
   return uniqueIds(action?.consumesEffectIds);
 }
 
+function rejectedActiveEffectIds(action) {
+  return new Set(uniqueIds(action?.rejectActiveEffectIds));
+}
+
+function maximumTargets(action) {
+  const value = Math.floor(Number(action?.maxTargets) || 0);
+  return value > 0 ? value : 0;
+}
+
+function groupTargetIds(group) {
+  const targets = group?.targets;
+  if (targets instanceof Map) return uniqueIds([...targets.keys()]);
+  if (Array.isArray(targets)) return uniqueIds(targets);
+  if (targets && typeof targets === "object") return uniqueIds(Object.keys(targets));
+  return [];
+}
+
 export function getSpellOverviewActions({
   spell = null,
   castContext = null,
@@ -60,27 +77,70 @@ export function getSpellOverviewActions({
     if (consumedIds.length && !consumedIds.every((id) => availableEffectIds.has(id))) {
       continue;
     }
+    const unavailableTargetIds = [];
+    if (action.rejectRememberedTargets === true) {
+      unavailableTargetIds.push(
+        ...uniqueIds(targetIds).filter((targetId) => targetId !== casterId),
+      );
+    }
+    const activeEffectIds = rejectedActiveEffectIds(action);
+    if (activeEffectIds.size) {
+      unavailableTargetIds.push(...(Array.isArray(effectInstances) ? effectInstances : [])
+        .filter((entry) => (
+          entry?.active !== false
+          && activeEffectIds.has(String(entry?.effectId || "").trim())
+        ))
+        .map((entry) => entry?.itemId));
+    }
+    if (action.forbidCasterTarget === true && casterId) {
+      unavailableTargetIds.push(casterId);
+    }
     actions.push({
       ...action,
       type: "manual",
       subjectMode: action.subjectMode === "caster" ? "caster" : "selected",
       requiresTargets: action.subjectMode !== "caster",
+      unavailableTargetIds: uniqueIds(unavailableTargetIds),
     });
   }
   return actions;
 }
 
-export function spellActiveActionPresentation(action, selectedCount = 0) {
-  const count = Math.max(0, Math.floor(Number(selectedCount) || 0));
+export function spellActiveActionPresentation(action, selectedTargets = 0) {
+  const selectedTargetIds = Array.isArray(selectedTargets)
+    ? uniqueIds(selectedTargets)
+    : [];
+  const count = selectedTargetIds.length || Math.max(
+    0,
+    Math.floor(Number(selectedTargets) || 0),
+  );
   const label = String(action?.buttonLabel || action?.label || "Attiva").trim() || "Attiva";
   const needsTargets = action?.subjectMode !== "caster";
+  const maxTargets = maximumTargets(action);
+  const tooManyTargets = needsTargets && maxTargets > 0 && count > maxTargets;
+  const unavailableTargets = new Set(uniqueIds(action?.unavailableTargetIds));
+  const hasUnavailableTarget = selectedTargetIds.some((targetId) =>
+    unavailableTargets.has(targetId)
+  );
   const singular = String(action?.countLabelSingular || "bersaglio").trim();
   const plural = String(action?.countLabelPlural || "bersagli").trim();
   return {
-    disabled: needsTargets && count < 1,
+    disabled: needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget),
     text: needsTargets ? `${label} · ${count} ${count === 1 ? singular : plural}` : label,
-    title: needsTargets && count < 1
-      ? String(action?.emptySelectionTitle || "Seleziona almeno un bersaglio.").trim()
+    title: needsTargets
+      ? count < 1
+        ? String(action?.emptySelectionTitle || "Seleziona almeno un bersaglio.").trim()
+        : tooManyTargets
+          ? String(
+            action?.tooManySelectionTitle
+            || `Seleziona al massimo ${maxTargets} bersagli.`
+          ).trim()
+          : hasUnavailableTarget
+            ? String(
+              action?.unavailableSelectionTitle
+              || "La selezione contiene un bersaglio non disponibile."
+            ).trim()
+          : String(action?.detail || label).trim()
       : String(action?.detail || label).trim(),
   };
 }
@@ -105,10 +165,42 @@ export function buildSpellActiveActionPlan({
   if (!casterId) errors.push("caster-required");
   if (!parentInstanceId) errors.push("instance-required");
   if (!subjectIds.length) errors.push("targets-required");
+  const maxTargets = maximumTargets(action);
+  if (maxTargets > 0 && subjectIds.length > maxTargets) {
+    errors.push(`targets-maximum:${maxTargets}`);
+  }
+  const rememberedTargetIds = new Set(
+    action?.rejectRememberedTargets === true
+      ? groupTargetIds(group).filter((targetId) => targetId !== casterId)
+      : [],
+  );
+  const reusedTargetIds = subjectIds.filter((targetId) =>
+    rememberedTargetIds.has(targetId)
+  );
+  if (reusedTargetIds.length) {
+    errors.push(`targets-already-used:${reusedTargetIds.join(",")}`);
+  }
+  if (action?.forbidCasterTarget === true && subjectIds.includes(casterId)) {
+    errors.push("targets-caster-forbidden");
+  }
 
   const effectInstances = Array.isArray(group?.effectInstances)
     ? group.effectInstances
     : [];
+  const activeEffectIds = rejectedActiveEffectIds(action);
+  const activeEffectTargetIds = new Set(effectInstances
+    .filter((entry) => (
+      entry?.active !== false
+      && activeEffectIds.has(String(entry?.effectId || "").trim())
+    ))
+    .map((entry) => String(entry?.itemId || "").trim())
+    .filter(Boolean));
+  const activeTargetIds = subjectIds.filter((targetId) =>
+    activeEffectTargetIds.has(targetId)
+  );
+  if (activeTargetIds.length) {
+    errors.push(`targets-active-effect:${activeTargetIds.join(",")}`);
+  }
   const removals = [];
   for (const effectId of consumedEffectIds(action)) {
     const matches = effectInstances.filter((entry) =>
@@ -166,15 +258,28 @@ export function buildSpellActiveActionPlan({
       subjectIds,
     });
   }
+  if (action.rememberTargets === true) {
+    operations.push({
+      type: "concentration:register",
+      casterId,
+      targetIds: subjectIds,
+      name: String(group?.name || spell?.displayName || spell?.name || "").trim(),
+      instanceId: parentInstanceId,
+      spellId: String(spell?.id || "").trim(),
+    });
+  }
 
   const spellName = String(spell?.displayName || spell?.name || group?.name || "Incantesimo");
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione");
+  const zoneRuleChoice = String(action.zoneRuleChoice || "").trim();
+  const hasAction = operations.length > 0 || !!zoneRuleChoice;
   return {
-    valid: operations.length > 0,
-    errors: operations.length ? [] : ["operations-required"],
+    valid: hasAction,
+    errors: hasAction ? [] : ["operations-required"],
     action,
     operations,
     subjectIds,
+    ...(zoneRuleChoice ? { zoneRuleChoice } : {}),
     historyLabel: `Attivazione: ${spellName} · ${actionLabel}`,
   };
 }

@@ -77,7 +77,9 @@ export function spellOverviewGroups(items = []) {
       if (!group.castContext && spell?.castContext && typeof spell.castContext === "object") {
         group.castContext = { ...spell.castContext };
       }
-      group.targets.set(target.id, target.name || target.id);
+      if (spell?.castContext?.staticZoneOwner !== true) {
+        group.targets.set(target.id, target.name || target.id);
+      }
       group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
       group.counters.push(spellExpiryCounter(spell));
     }
@@ -90,13 +92,40 @@ export function spellOverviewGroups(items = []) {
       const storedName = String(info?.name || key).trim();
       const exactKey = instanceId ? "instance:" + instanceId : "";
       const legacyKey = "legacy:" + caster.id + "\u0000" + storedName.toLocaleLowerCase("it");
-      const group = (exactKey && groups.get(exactKey)) || groups.get(legacyKey);
-      if (!group) continue;
+      const groupKey = exactKey || legacyKey;
+      let group = (exactKey && groups.get(exactKey)) || groups.get(legacyKey);
+      if (!group) {
+        const spellId = String(info?.spellId || "").trim();
+        group = {
+          key: groupKey,
+          instanceId,
+          storedName,
+          spellId,
+          castContext: null,
+          name: spellDisplayName(spellId || storedName),
+          casterId: caster.id,
+          casterName: caster.name || caster.id,
+          concentrating: true,
+          concentrationRef: instanceId || key,
+          targets: new Map(),
+          turns: [],
+          counters: [],
+          effectInstances: [],
+        };
+        groups.set(groupKey, group);
+      }
       group.concentrating = true;
       group.casterId = caster.id;
       group.casterName = caster.name || caster.id;
       group.concentrationRef = instanceId || key;
       if (!group.spellId && info?.spellId) group.spellId = String(info.spellId);
+      for (const targetId of Array.from(new Set(
+        (Array.isArray(info?.targets) ? info.targets : [])
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      ))) {
+        group.targets.set(targetId, byId.get(targetId)?.name || targetId);
+      }
     }
   }
 
@@ -119,6 +148,12 @@ export function spellOverviewGroups(items = []) {
   return Array.from(groups.values()).sort((a, b) =>
     a.name.localeCompare(b.name, "it") || a.casterName.localeCompare(b.casterName, "it")
   );
+}
+
+export function spellOverviewGroupCanTerminate(group, staticZoneCount = 0) {
+  return (group?.targets instanceof Map && group.targets.size > 0)
+    || Math.max(0, Math.floor(Number(staticZoneCount) || 0)) > 0
+    || (!!group?.concentrating && !!String(group?.casterId || "").trim());
 }
 
 export function spellTurnsLabel(turns = [], counters = []) {

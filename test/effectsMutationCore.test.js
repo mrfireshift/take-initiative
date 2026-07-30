@@ -81,6 +81,7 @@ test("un unico piano sostituisce concentrazione, bersagli, spell e condizioni fi
       targetIds: ["new-target"],
       name: "Nuova",
       instanceId: "new-instance",
+      appliedAt: { round: 2, actorId: "caster", turnKey: "2:0:caster" },
     },
   ]);
 
@@ -90,6 +91,7 @@ test("un unico piano sostituisce concentrazione, bersagli, spell e condizioni fi
       name: "Nuova",
       instanceId: "new-instance",
       targets: ["new-target"],
+      appliedAt: { round: 2, actorId: "caster", turnKey: "2:0:caster" },
     },
   });
   assert.deepEqual(state(plan, "old-target").spells, []);
@@ -136,6 +138,36 @@ test("interrompere la concentrazione rimuove effetti figli anche fuori dai bersa
   assert.deepEqual(state(plan, "caster").concentrations, {});
   assert.deepEqual(state(plan, "external-target").conditions, []);
   assert.deepEqual(new Set(plan.changedIds), new Set(["caster", "external-target"]));
+});
+
+test("interrompere una zona senza bersagli rimuove il record tecnico dal caster", () => {
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        maelstrom: {
+          name: "Maelstrom",
+          instanceId: "maelstrom-instance",
+          targets: [],
+        },
+      },
+      spells: [{
+        id: "maelstrom-owner",
+        name: "Maelstrom",
+        turns: 10,
+        conc: true,
+        casterId: "caster",
+        instanceId: "maelstrom-instance",
+        castContext: { staticZoneOwner: true },
+      }],
+    }),
+  ], [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "maelstrom-instance",
+  }]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "caster").spells, []);
 });
 
 test("una pill buff collegata alla spell conserva semantica e rimozione manuale indipendente", () => {
@@ -418,6 +450,122 @@ test("rimuovere una condizione target-linked conserva la concentrazione sugli al
   assert.deepEqual(state(plan, "a").conditions, []);
   assert.equal(state(plan, "b").spells[0].instanceId, "hypnotic-pattern");
   assert.deepEqual(state(plan, "b").conditions, [linked("b")]);
+});
+
+test("Sfera Acquea applica Prono solo ai bersagli ancora trattenuti quando termina", () => {
+  const sphereSpell = (id) => ({
+    id: `sphere-${id}`,
+    name: "Sfera Acquea",
+    turns: 10,
+    conc: true,
+    casterId: "caster",
+    instanceId: "sphere-instance",
+  });
+  const restrained = (id) => ({
+    id: `restrained-${id}`,
+    condition: "Trattenuto",
+    active: true,
+    targetId: id,
+    type: "spell",
+    sourceId: "caster",
+    parentEffectId: "sphere-instance",
+    parentRemoval: "target",
+    parentEndCondition: {
+      condition: "Prono",
+      expiry: { mode: "manual" },
+    },
+    expiry: { mode: "concentration" },
+  });
+  const items = [
+    token("caster", {
+      concentrations: {
+        "sfera acquea": {
+          name: "Sfera Acquea",
+          instanceId: "sphere-instance",
+          targets: ["a", "b"],
+        },
+      },
+    }),
+    token("a", {
+      spells: [sphereSpell("a")],
+      conditions: [restrained("a")],
+    }),
+    token("b", {
+      spells: [sphereSpell("b")],
+      conditions: [restrained("b")],
+    }),
+  ];
+
+  const escaped = buildEffectsMutationPlan(items, [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "a", instanceId: "restrained-a" }],
+  }]);
+  assert.deepEqual(state(escaped, "a").conditions, []);
+  assert.deepEqual(
+    state(escaped, "caster").concentrations["sfera acquea"].targets,
+    ["b"],
+  );
+
+  const ended = buildEffectsMutationPlan(escaped.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "sphere-instance",
+  }]);
+  assert.deepEqual(state(ended, "a").conditions, []);
+  assert.deepEqual(
+    state(ended, "b").conditions.map((entry) => entry.condition),
+    ["Prono"],
+  );
+  assert.deepEqual(state(ended, "b").conditions[0].expiry, { mode: "manual" });
+});
+
+test("la scadenza naturale di Sfera Acquea applica la stessa caduta Prono", () => {
+  const linked = {
+    id: "restrained-target",
+    condition: "Trattenuto",
+    active: true,
+    targetId: "target",
+    type: "spell",
+    parentEffectId: "sphere-instance",
+    parentEndCondition: {
+      condition: "Prono",
+      expiry: { mode: "manual" },
+    },
+    expiry: { mode: "concentration" },
+  };
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        "sfera acquea": {
+          name: "Sfera Acquea",
+          instanceId: "sphere-instance",
+          targets: ["target"],
+        },
+      },
+    }),
+    token("target", {
+      spells: [{
+        id: "sphere-target",
+        name: "Sfera Acquea",
+        turns: 1,
+        conc: true,
+        casterId: "caster",
+        instanceId: "sphere-instance",
+      }],
+      conditions: [linked],
+    }),
+  ], [{
+    type: "effects:tick-round",
+    targetIds: ["target"],
+    delta: -1,
+  }]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "target").spells, []);
+  assert.deepEqual(
+    state(plan, "target").conditions.map((entry) => entry.condition),
+    ["Prono"],
+  );
 });
 
 test("le opzioni di fonte e durata vengono materializzate nel piano, non durante la commit", () => {
@@ -792,4 +940,57 @@ test("un salto di iniziativa ignora solo la fine del turno di applicazione", () 
     ],
   }]);
   assert.deepEqual(state(jumped, "caster").spells, []);
+});
+
+test("una condizione persiste il contratto normalizzato del reminder TS", () => {
+  const plan = buildEffectsMutationPlan([token("target")], [{
+    type: "condition:add",
+    operationId: "save-reminder",
+    createdAt: 100,
+    targetIds: ["target"],
+    instanceIds: { target: "save-reminder-instance" },
+    conditionName: "Spaventato",
+    options: {
+      sourceId: "caster",
+      saveReminder: {
+        ability: "Saggezza",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        success: "remove-effect",
+        label: "Se supera, termina l'effetto.",
+      },
+    },
+  }]);
+
+  assert.deepEqual(state(plan, "target").conditions[0].saveReminder, {
+    ability: "wis",
+    timing: "turn-end",
+    actor: "target",
+    success: "remove-effect",
+    dcSource: "source-spell",
+    label: "Se supera, termina l'effetto.",
+  });
+});
+
+test("una condizione può persistere reminder distinti per fine turno e danno", () => {
+  const plan = buildEffectsMutationPlan([token("target")], [{
+    type: "condition:add",
+    operationId: "multi-save-reminder",
+    createdAt: 100,
+    targetIds: ["target"],
+    instanceIds: { target: "multi-save-reminder-instance" },
+    conditionName: "Incapacitato",
+    options: {
+      saveReminder: [
+        { ability: "wis", timing: "turn-end" },
+        { ability: "wis", timing: "damage" },
+      ],
+    },
+  }]);
+
+  assert.deepEqual(
+    state(plan, "target").conditions[0].saveReminder
+      .map((reminder) => reminder.timing),
+    ["turn-end", "damage"],
+  );
 });

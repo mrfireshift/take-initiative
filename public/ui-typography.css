@@ -1,3 +1,5 @@
+@import url("/ui-scrollbars.css");
+
 :root {
   --obrt-font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
   --obrt-type-micro: 9px;

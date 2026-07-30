@@ -3,6 +3,7 @@
   import { ID } from "./constants.js";
   import { getSpellDefinition } from "./spells-srd.js";
   import { spellExpiryCounter } from "./spellExpiryCore.js";
+  import { spellColorFor } from "./spellColorCore.js";
   import { effectsDiagnostics } from "./effectsDiagnostics.js";
 
   /* ===================== DEBUG ===================== */
@@ -174,17 +175,12 @@
   function spellKey(name) {
     return String(name || "").trim().toLowerCase();
   }
-  function hueFromKey(key) {
-    let h = 0; const s = String(key || "");
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h % 360;
-  }
   function spellColorFromKey(key) {
-    const hue = hueFromKey(String(key || ""));
+    const color = spellColorFor(key);
     return {
-      solid: `hsl(${hue}, 70%, 45%)`,
+      solid: color.solid,
       fillOpacity: 0.88,
-      border: `hsla(${hue}, 90%, 72%, .95)`,
+      border: color.border,
     };
   }
 
@@ -333,7 +329,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
 
   // 2) che stiamo per creare noi (solo se includono questo tid)
   for (const a of assigns) {
-    const t = (a.targets && a.targets.length) ? a.targets : [casterId];
+    const t = Array.isArray(a.targets) ? a.targets : [casterId];
     if (t.includes(tid)) sigs.add(`${spellKey(a.key)}|${casterId}`);
   }
 
@@ -419,7 +415,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     if (concObj && typeof concObj === "object") {
       for (const [name, v] of Object.entries(concObj)) {
         if (!v || typeof v !== "object") continue;
-        const targets = Array.isArray(v.targets) && v.targets.length ? v.targets.filter(Boolean) : [selfId];
+        const targets = Array.isArray(v.targets) ? v.targets.filter(Boolean) : [selfId];
         const colorKey = spellKey(name);   // usa il nome normalizzato
         res.push({
           key: String(name),
@@ -512,7 +508,9 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     const expectedLabels = new Set();
     for (const caster of tokens) {
       for (const assignment of extractAssignments(caster)) {
-        const targets = assignment.targets?.length ? assignment.targets : [caster.id];
+        const targets = Array.isArray(assignment.targets)
+          ? assignment.targets
+          : [caster.id];
         for (const targetId of targets) {
           expectedLabels.add(`${caster.id}|${spellKey(assignment.key)}|${targetId}`);
         }
@@ -580,7 +578,7 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
   // Unica lista di target coinvolti (di default il caster stesso)
   const targetsUnion = new Set();
   for (const a of assigns) {
-    const t = (a.targets && a.targets.length) ? a.targets : [it.id];
+    const t = Array.isArray(a.targets) ? a.targets : [it.id];
     for (const tid of t) targetsUnion.add(tid);
   }
 
@@ -725,7 +723,7 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
     const keyNorm = spellKey(keyRaw);
     const col     = spellColorFromKey(a.colorKey);
     const spellName = getSpellDefinition(keyRaw)?.displayName || titleCaseLite(keyRaw);
-    const targets = a.targets && a.targets.length ? a.targets : [it.id];
+    const targets = Array.isArray(a.targets) ? a.targets : [it.id];
 
     // esistenti di questo caster+key
     const existingForKey = existingAll.filter(e => spellKey(e.metadata?.[CONC_WIDGET_KEY]) === keyNorm);
@@ -998,7 +996,9 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
           if (spell.casterId) candidateCasterIds.add(spell.casterId);
         }
         for (const assignment of extractAssignments(token)) {
-          const targets = assignment.targets?.length ? assignment.targets : [token.id];
+          const targets = Array.isArray(assignment.targets)
+            ? assignment.targets
+            : [token.id];
           for (const targetId of targets) relatedTargets.add(targetId);
         }
       }
@@ -1108,7 +1108,7 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
       // owner validi
       should.add(it.id);
       for (const a of assigns) {
-        for (const tid of (a.targets?.length ? a.targets : [it.id])) {
+        for (const tid of (Array.isArray(a.targets) ? a.targets : [it.id])) {
           should.add(tid);
           affectedTargetIds.add(tid);
         }

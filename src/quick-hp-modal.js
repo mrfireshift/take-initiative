@@ -1,5 +1,9 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID, TRACKER_PANEL_REQUEST_CHANNEL } from "./constants.js";
+import {
+  EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+  ID,
+  TRACKER_PANEL_REQUEST_CHANNEL,
+} from "./constants.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { saveHPToMemoryByItemId } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
@@ -38,6 +42,7 @@ import { normalizeSaveSpellAutomation, resolveSaveSpellResolution } from "./save
 import {
   confirmedSpellAreaTargetIds,
   quickHpAreaPlacementPresentation,
+  quickHpSpellUsesSaveOutcomes,
 } from "./quickHpAreaWorkflowCore.js";
 import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
 import {
@@ -45,6 +50,7 @@ import {
   getStaticSpellZoneItems,
 } from "./spellStaticZone.js";
 import { areaMembershipPlan } from "./spellAreaMembershipCore.js";
+import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
   staticSpellZoneOwnerOperation,
@@ -54,6 +60,10 @@ import {
   consumeSpellZoneTrigger,
   pendingSpellZoneTriggerActivations,
 } from "./spellZoneTriggerCore.js";
+import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js";
+import { spellColorFor } from "./spellColorCore.js";
+import { getInitiativeCard } from "./initiativeCards.js";
+import { findQuickAction } from "./quickActionsCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -62,6 +72,9 @@ const CONCENTRATION_KEY = ID + "/concentration";
 const CONCENTRATION_WARNING_CHANNEL = ID + "/concentration-warning";
 const MODAL_ID = ID + "/quick-hp-modal";
 const TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
+const QUICK_ACTION_QUERY = new URLSearchParams(window.location.search);
+const QUICK_ACTION_SOURCE_ID = QUICK_ACTION_QUERY.get("source") || "";
+const QUICK_ACTION_ID = QUICK_ACTION_QUERY.get("quickAction") || "";
 const LAIR_ID = "__LAIR__";
 const EPIC_PREFIX = "__EPIC__";
 const factorOptions = [
@@ -78,6 +91,8 @@ const outcomeOptions = [
 ];
 
 let mode = QUICK_HP_MODES.DAMAGE;
+let areaEffectTab = "spell";
+let effectSaveDamageSequence = 0;
 let targets = [];
 let selectedIds = new Set();
 let factors = new Map();
@@ -106,6 +121,8 @@ const targetNameFilter = document.getElementById("targetNameFilter");
 const targetLock = document.getElementById("targetLock");
 const unlockTargetsButton = document.getElementById("unlockTargets");
 const saveOptions = document.getElementById("saveOptions");
+const areaEffectTabButtons = Array.from(document.querySelectorAll("[data-area-effect-tab]"));
+const areaSpellPanel = document.getElementById("areaSpellPanel");
 const spellSelect = document.getElementById("spellSelect");
 const spellSearch = document.getElementById("spellSearch");
 const spellMenuToggle = document.getElementById("spellMenuToggle");
@@ -186,10 +203,15 @@ async function currentInitiativeActorId() {
   }
 }
 function selectedAreaSpell() {
+  if (areaEffectTab !== "spell") return null;
   return getSpellDefinition(spellSelect.value) || null;
 }
 function spellUsesSaveOutcomes(spell = selectedAreaSpell()) {
-  return !!spell && AREA_SAVE_SPELL_ID_SET.has(spell.id);
+  return quickHpSpellUsesSaveOutcomes({
+    spellId: spell?.id,
+    castSaveSpellIds: AREA_SAVE_SPELL_ID_SET,
+    activeZoneTrigger,
+  });
 }
 function spellUsesAreaHealing(spell = selectedAreaSpell()) {
   return !!spell && AREA_HEALING_SPELL_ID_SET.has(spell.id);
@@ -211,6 +233,7 @@ function selectedSaveRuleChoice() {
   return spellRuleChoice.value.trim();
 }
 function catalogSaveAutomation(spell) {
+  if (!spellUsesSaveOutcomes(spell)) return null;
   return getAreaSaveAutomation(spell, selectedSaveRuleChoice());
 }
 function refreshSpellRuleChoices() {
@@ -396,22 +419,28 @@ function updateSpellRuleSummary() {
 }
 function updateConcentrationNotice() {
   const spell = selectedAreaSpell();
-  if (activeZoneTrigger && spell && mode === QUICK_HP_MODES.SAVE) {
-    concentrationNotice.hidden = false;
-    concentrationNotice.textContent =
-      "Risoluzione della zona attiva: la concentrazione esistente non verrà rilanciata o estesa.";
-    return;
-  }
   if (!spell?.concentration || mode !== QUICK_HP_MODES.SAVE) {
     concentrationNotice.hidden = true;
     concentrationNotice.textContent = "";
+    concentrationNotice.title = "";
     return;
   }
   concentrationNotice.hidden = false;
+  concentrationNotice.textContent = "C";
+  concentrationNotice.style.background = spellColorFor(spell).solid;
+  let title = "Incantesimo a concentrazione";
+  if (activeZoneTrigger) {
+    title = "Zona a concentrazione già attiva: la risoluzione non la rilancia";
+    concentrationNotice.title = title;
+    concentrationNotice.setAttribute("aria-label", title);
+    return;
+  }
   const casterId = spellCasterSelect.value.trim();
   const caster = itemForId(casterId);
   if (!casterId || !caster) {
-    concentrationNotice.textContent = "Seleziona il caster: è necessario per registrare la concentrazione.";
+    title = "Incantesimo a concentrazione: seleziona il caster";
+    concentrationNotice.title = title;
+    concentrationNotice.setAttribute("aria-label", title);
     return;
   }
   const concentration = caster.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
@@ -422,20 +451,17 @@ function updateConcentrationNotice() {
     : [];
   const concentrationAction = catalogSaveAutomation(spell)?.concentrationAction;
   if (concentrationAction === "dismiss") {
-    concentrationNotice.textContent = names.length
+    title = names.length
       ? `L'effetto interromperà la concentrazione di ${displayName(caster)} su ${names.join(", ")}.`
       : `L'effetto conclusivo non registrerà una nuova concentrazione su ${displayName(caster)}.`;
-    return;
-  }
-  const activeSpellConcentration = activeConcentrationForSpell(caster, spell);
-  if (activeSpellConcentration?.instanceId) {
-    concentrationNotice.textContent =
+  } else if (activeConcentrationForSpell(caster, spell)?.instanceId) {
+    title =
       `Verrà aggiornata la concentrazione già attiva di ${displayName(caster)} su ${spell.displayName}.`;
-    return;
+  } else if (names.length) {
+    title = `${displayName(caster)} interromperà la concentrazione su ${names.join(", ")}.`;
   }
-  concentrationNotice.textContent = names.length
-    ? `${displayName(caster)} interromperà la concentrazione su ${names.join(", ")}.`
-    : `La concentrazione verrà registrata su ${displayName(caster)}.`;
+  concentrationNotice.title = title;
+  concentrationNotice.setAttribute("aria-label", title);
 }
 function syncConditionDetailControls() {
   const spell = selectedAreaSpell();
@@ -444,7 +470,14 @@ function syncConditionDetailControls() {
     && !hasCatalogRules
     && !!conditionSelect.value.trim();
   manualConditionWrap.hidden = false;
-  conditionDetails.hidden = false;
+  for (const button of areaEffectTabButtons) {
+    const active = button.dataset.areaEffectTab === areaEffectTab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.disabled = busy;
+  }
+  areaSpellPanel.hidden = areaEffectTab !== "spell";
+  conditionDetails.hidden = areaEffectTab !== "condition";
   spellCasterWrap.hidden = false;
   conditionSourceWrap.hidden = false;
   conditionExpiryWrap.hidden = false;
@@ -991,6 +1024,7 @@ async function loadPendingZoneTriggerPreset(
   if (busy && !allowBusy) return false;
   const zoneItems = await OBR.scene.items.getItems((item) =>
     item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
+    || !!item?.metadata?.[SPELL_AURA_META_KEY]
   );
   const pending = pendingSpellZoneTriggerActivations(zoneItems);
   const preferred = String(preferredActivationId || "").trim();
@@ -1009,6 +1043,7 @@ async function loadPendingZoneTriggerPreset(
   activeZoneTrigger = activation;
   pendingSpellAreaPlacement = null;
   mode = QUICK_HP_MODES.SAVE;
+  areaEffectTab = "spell";
   spellSelect.value = spell.id;
   const searchEntry = spellSearchEntries.find((entry) => entry.id === spell.id);
   spellSearch.value = searchEntry?.label || spell.displayName || spell.name || "";
@@ -1028,6 +1063,39 @@ async function loadPendingZoneTriggerPreset(
   renderTargets();
   await updateSceneSelection(targetIds, true, true);
   status.textContent = `${activation.label}. Imposta gli esiti del tiro salvezza.${zoneTriggerDamageSummary(activation)}`;
+  amountInput.focus();
+  amountInput.select();
+  return true;
+}
+
+async function loadQuickActionPreset() {
+  if (!QUICK_ACTION_SOURCE_ID || !QUICK_ACTION_ID) return false;
+  const [source] = await OBR.scene.items.getItems([QUICK_ACTION_SOURCE_ID]).catch(() => []);
+  if (!source) return false;
+  const action = findQuickAction(getInitiativeCard(source), QUICK_ACTION_ID);
+  if (action?.kind !== "spell" || action.workflow !== "area") return false;
+  const spell = getSpellDefinition(action.spellId);
+  if (!spell || !areaSaveSpells.some((entry) => entry.id === spell.id)) return false;
+
+  activeZoneTrigger = null;
+  pendingSpellAreaPlacement = null;
+  targetSelectionLocked = false;
+  mode = QUICK_HP_MODES.SAVE;
+  areaEffectTab = "spell";
+  spellSelect.value = spell.id;
+  const searchEntry = spellSearchEntries.find((entry) => entry.id === spell.id);
+  spellSearch.value = searchEntry?.label || spell.displayName || spell.name || "";
+  refreshSpellRuleChoices();
+  if ([...spellCasterSelect.options].some((option) => option.value === source.id)) {
+    spellCasterSelect.value = source.id;
+  }
+  if (action.targetMode === "self" && itemForId(source.id)) {
+    selectedIds = new Set([source.id]);
+  }
+  saveOutcomes.clear();
+  amountInput.value = "0";
+  status.textContent = `Azione rapida: ${action.label}. Verifica bersagli, danno ed esiti.`;
+  renderTargets();
   amountInput.focus();
   amountInput.select();
   return true;
@@ -1056,11 +1124,16 @@ async function zoneTriggerRootItems(activation) {
 async function consumeZoneTriggerActivation(activation) {
   await OBR.scene.items.updateItems([activation.zoneItemId], (drafts) => {
     for (const item of drafts) {
-      const metadata = item.metadata?.[SPELL_STATIC_ZONE_META_KEY];
-      if (!metadata) continue;
+      const metadataKey = item.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+        ? SPELL_STATIC_ZONE_META_KEY
+        : item.metadata?.[SPELL_AURA_META_KEY]
+          ? SPELL_AURA_META_KEY
+          : "";
+      const metadata = item.metadata?.[metadataKey];
+      if (!metadataKey || !metadata) continue;
       item.metadata = {
         ...(item.metadata || {}),
-        [SPELL_STATIC_ZONE_META_KEY]: {
+        [metadataKey]: {
           ...metadata,
           triggerRuntime: consumeSpellZoneTrigger(
             metadata.triggerRuntime,
@@ -1077,11 +1150,16 @@ async function restoreZoneTriggerRoot(snapshot) {
   await OBR.scene.items.updateItems([snapshot.id], (drafts) => {
     for (const item of drafts) {
       if (item.id !== snapshot.id) continue;
-      const metadata = snapshot.metadata?.[SPELL_STATIC_ZONE_META_KEY];
-      if (!metadata) continue;
+      const metadataKey = snapshot.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+        ? SPELL_STATIC_ZONE_META_KEY
+        : snapshot.metadata?.[SPELL_AURA_META_KEY]
+          ? SPELL_AURA_META_KEY
+          : "";
+      const metadata = snapshot.metadata?.[metadataKey];
+      if (!metadataKey || !metadata) continue;
       item.metadata = {
         ...(item.metadata || {}),
-        [SPELL_STATIC_ZONE_META_KEY]: metadata,
+        [metadataKey]: metadata,
       };
     }
   });
@@ -1108,6 +1186,26 @@ async function showConcentrationWarnings(entries) {
       type: "show-concentration-warning", warnings, createdAt: Date.now(),
     }, { destination: "ALL" });
   }
+}
+async function showEffectSaveDamageWarnings(entries) {
+  if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
+  if (mode === QUICK_HP_MODES.SAVE && spellUsesAreaHealing()) return;
+  const damageById = new Map(entries
+    .filter((entry) => entry.change.requested > 0)
+    .map((entry) => [entry.item.id, entry.change.requested]));
+  if (!damageById.size) return;
+  const itemsById = new Map(targets.map((item) => [item.id, item]));
+  for (const entry of entries) itemsById.set(entry.item.id, entry.item);
+  const notices = effectSaveReminderNoticesForDamage({
+    items: [...itemsById.values()],
+    damageById,
+    eventId: `${Date.now()}-${++effectSaveDamageSequence}`,
+  });
+  if (!notices.length) return;
+  await OBR.broadcast.sendMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
+    type: "show-effect-save-notices",
+    notices,
+  }, { destination: "ALL" });
 }
 function setBusy(next) {
   busy = !!next;
@@ -1337,12 +1435,18 @@ async function applyOperation() {
       }
     }
     if (staticZonePlacement) {
+      const hasTrackedSpellInstance = effectOperations.some(
+        (operation) => operation?.type === "spell:upsert"
+          && String(operation?.instanceId || "").trim() === spellInstanceId
+      );
       const ownerOperation = staticSpellZoneOwnerOperation({
         rule: placementRule,
         spell,
         instanceId: spellInstanceId,
         casterId: spellCasterSelect.value.trim(),
         appliedAt,
+        trackConcentration: spell?.concentration === true && !hasTrackedSpellInstance,
+        ruleChoice: selectedSaveRuleChoice(),
       });
       if (ownerOperation) effectOperations.push(ownerOperation);
       const passiveTargetIds = confirmedSpellAreaTargetIds({
@@ -1383,6 +1487,7 @@ async function applyOperation() {
         casterId: spellCasterSelect.value.trim(),
         spellName: spell?.displayName || spell?.name,
         preview: staticZonePlacement.preview,
+        ruleChoice: selectedSaveRuleChoice(),
       })
       : [];
     const previewEffectPlan = effectOperations.length
@@ -1495,6 +1600,7 @@ async function applyOperation() {
       }
     }
     await showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error));
+    await showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error));
     lastEntryId = recordedEntry && recordedEntry.id || "";
     lastZoneTriggerActivationId = requestedZoneTrigger?.id || "";
     if (requestedZoneTrigger) activeZoneTrigger = null;
@@ -1566,6 +1672,14 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     renderTargets();
   });
 });
+for (const button of areaEffectTabButtons) {
+  button.addEventListener("click", () => {
+    if (busy) return;
+    areaEffectTab = button.dataset.areaEffectTab;
+    status.textContent = "";
+    renderTargets();
+  });
+}
 areaPlacementButton.addEventListener("click", () => void placeSelectedSpellArea());
 spellSelect.addEventListener("change", () => {
   activeZoneTrigger = null;
@@ -1676,6 +1790,7 @@ OBR.onReady(async () => {
   await refreshConditionSourceOptions();
   renderTargets();
   await refreshSelectionFromScene();
+  if (await loadQuickActionPreset()) return;
   if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) {
     zoneTriggerRequestUnsubscribe = OBR.broadcast.onMessage(
       TRACKER_PANEL_REQUEST_CHANNEL,

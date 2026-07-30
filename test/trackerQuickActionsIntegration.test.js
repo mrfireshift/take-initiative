@@ -1,0 +1,85 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const initiativeSource = readFileSync(
+  new URL("../src/initiativeList.js", import.meta.url),
+  "utf8",
+);
+const popoverSource = readFileSync(
+  new URL("../src/tracker-quick-actions.js", import.meta.url),
+  "utf8",
+);
+const popoverHtml = readFileSync(
+  new URL("../tracker-quick-actions.html", import.meta.url),
+  "utf8",
+);
+const viteSource = readFileSync(
+  new URL("../vite.config.js", import.meta.url),
+  "utf8",
+);
+const initiativeCardsSource = readFileSync(
+  new URL("../src/initiativeCards.js", import.meta.url),
+  "utf8",
+);
+
+test("il tracker legge le azioni dalla scheda canonica del token", () => {
+  assert.match(
+    initiativeSource,
+    /quickActions:\s*getInitiativeCard\(it\)\.quickActions/,
+  );
+});
+
+test("il launcher viene montato sia sulle card classiche sia su quelle compatte", () => {
+  assert.match(
+    initiativeSource,
+    /__mountTrackerQuickActions\(card,\s*entry,\s*\{\s*compact:\s*true\s*\}\)/,
+  );
+  assert.match(
+    initiativeSource,
+    /mountTrackerQuickActions:\s*__mountTrackerQuickActions/,
+  );
+});
+
+test("il fallback conserva i pannelli esistenti per le azioni non dirette", () => {
+  assert.match(initiativeSource, /result\.mode !== "review"/);
+  assert.match(initiativeSource, /openCardEffectsPopup\(sourceEntry/);
+  assert.match(initiativeSource, /openCardSpellsPopup\(sourceEntry/);
+  assert.match(initiativeSource, /openQuickHPPopup\(\{\s*sourceId,\s*quickActionId\s*\}\)/);
+});
+
+test("il pulsante apre e richiude un popover dedicato alle macro", () => {
+  assert.match(
+    initiativeSource,
+    /if\s*\(__trackerQuickActionsRequestId\s*&&\s*__trackerQuickActionsSourceId\s*===\s*sourceId\)/,
+  );
+  assert.match(initiativeSource, /OBR\.popover\.open\(\{\s*id:\s*TRACKER_QUICK_ACTIONS_POPOVER_ID/);
+  assert.match(initiativeSource, /url:\s*`\/tracker-quick-actions\.html\?request=/);
+  assert.match(initiativeSource, /mountTrackerQuickActionsPopoverListener\(\)/);
+});
+
+test("il popover usa il protocollo isolato e restituisce solo l'id azione", () => {
+  assert.match(popoverSource, /readStoredMenuPayload\(localStorage,\s*PAYLOAD_PREFIX,\s*requestId\)/);
+  assert.match(popoverSource, /send\("action",\s*\{\s*actionId:\s*action\.id\s*\}\)/);
+  assert.match(popoverHtml, /id="menu"\s+role="menu"/);
+  assert.match(viteSource, /trackerQuickActions:\s*path\.resolve\(process\.cwd\(\),\s*"tracker-quick-actions\.html"\)/);
+});
+
+test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda", () => {
+  assert.match(
+    initiativeCardsSource,
+    /export function restoreInitiativeCardQuickActionsFromMemory\(itemIds\)/,
+  );
+  assert.match(
+    initiativeCardsSource,
+    /loadInitiativeCard\(item,\s*\{\s*hydrate:\s*true\s*\}\)/,
+  );
+  assert.match(
+    initiativeSource,
+    /await restoreInitiativeCardQuickActionsFromMemory\(/,
+  );
+  assert.match(
+    initiativeSource,
+    /filter:\s*\(event\) => event\.flags\.hpMemoryAutofill,\s*immediate:\s*true/,
+  );
+});

@@ -46,7 +46,21 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
   ]);
 });
 
-test("i reminder di zona restano scollegati mentre il layer del turno continua a funzionare", () => {
+test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {
+  const section = sourceSection(
+    "const run = async () => {\n            const mutationPlan",
+    "__roundEffectQueue = __roundEffectQueue.then(run, run);"
+  );
+  assertOrdered(section, [
+    'type: "effects:tick-round"',
+    "staticSpellZoneItemsEndedByPlan(",
+    "await getStaticSpellZoneItems()",
+    "commitWithStaticSpellZoneRemoval(",
+    "() => commitEffectsMutationPlan(mutationPlan)",
+  ]);
+});
+
+test("i reminder di zona usano il layer persistente del turno senza un secondo popover", () => {
   for (const marker of [
     "ZONE_TRIGGER_NOTICE_MODAL_ID",
     "reopenZoneTriggerNoticeLayer",
@@ -70,6 +84,17 @@ test("i reminder di zona restano scollegati mentre il layer del turno continua a
       < turnNoticeSource.indexOf("unsubscribeZoneItems ="),
   );
   assert.doesNotMatch(turnNoticeSource, /PENDING_SYNC_INTERVAL_MS|setInterval/);
+  assert.match(turnNoticeSource, /app\.replaceChildren\(panel\)/);
+  assert.match(turnNoticeSource, /function clearZoneNotice\(\)/);
+  assert.match(turnNoticeSource, /mergeSaveReminderNoticeBatch/);
+  assert.match(turnNoticeSource, /SAVE_REMINDER_AGGREGATION_MS/);
+  assert.match(turnNoticeSource, /function queueSaveReminderNotices/);
+  assert.ok(
+    turnNoticeSource.indexOf("clearZoneNotice();")
+      < turnNoticeSource.indexOf("window.clearTimeout(hideTimer);"),
+  );
+  assert.doesNotMatch(turnNoticeSource, /Apri Effetti ad Area per risolvere/);
+  assert.doesNotMatch(turnNoticeSource, /zone-target-badge/);
 });
 
 test("HP immediati e rendering incrementale restano separati dal fallback globale", () => {

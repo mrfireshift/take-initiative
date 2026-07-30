@@ -1,6 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
 import {
-  createSpellInstanceId,
   getCasterConcentrations,
 } from "./spells.js";
 import { refreshConditionLabels } from "./conditions.js";
@@ -34,18 +33,16 @@ import {
 } from "./spellsPanelTargetPicker.js";
 import {
   getTrackerBaseItemId,
+  spellOverviewGroupCanTerminate,
   spellOverviewGroups,
 } from "./spellsPanelViewCore.js";
 import { renderSpellOverview } from "./spellsPanelOverviewView.js";
 import { renderCasterConcentrationSummary } from "./spellsPanelCasterSummaryView.js";
 import { wireSpellPanelFormWorkflow } from "./spellsPanelFormWorkflow.js";
 import {
-  buildSpellApplicationIntent,
-  buildSpellApplicationPlan,
-} from "./spellApplicationPlanCore.js";
-import {
   commitWithStaticSpellZoneRemoval,
   getStaticSpellZoneItems,
+  setStaticSpellZoneRuleChoice,
 } from "./spellStaticZone.js";
 import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
 import {
@@ -53,6 +50,10 @@ import {
   spellActiveActionPresentation,
 } from "./spellActiveActionCore.js";
 import { getMobileAuraRule } from "./spellAuraCore.js";
+import { getInitiativeCard } from "./initiativeCards.js";
+import { findQuickAction } from "./quickActionsCore.js";
+import { executeSpellApplication } from "./spellApplicationExecutor.js";
+import { buildPreparedSpellResolutionRequest } from "./preparedSpellResolutionCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -90,7 +91,7 @@ async function terminateSpellGroup(group, requestedTargetIds = null) {
   const staticZoneItems = terminatingWholeGroup && group.instanceId
     ? await getStaticSpellZoneItems({ instanceId: group.instanceId })
     : [];
-  if (!targetIds.length && !staticZoneItems.length) return;
+  if (!spellOverviewGroupCanTerminate(group, staticZoneItems.length)) return;
   const operations = [];
   if (group.concentrating && group.casterId) {
     operations.push({
@@ -168,14 +169,21 @@ async function init() {
   const spellTargetNameFilter = $("spellTargetNameFilter");
   const spellTargetSelectionCount = $("spellTargetSelectionCount");
   const spellFactionButtons = Array.from(document.querySelectorAll("[data-spell-faction]"));
-  const sourceId = new URLSearchParams(window.location.search).get("source") || "";
+  const query = new URLSearchParams(window.location.search);
+  const sourceId = query.get("source") || "";
+  const quickActionId = query.get("quickAction") || "";
   const isModal = !!sourceId;
+  let quickActionPreset = null;
 
   if (isModal) {
     let sourceName = "Token";
     try {
       const [source] = await OBR.scene.items.getItems([sourceId]);
       sourceName = source?.name || sourceName;
+      const candidate = findQuickAction(getInitiativeCard(source), quickActionId);
+      if (candidate?.kind === "spell" && candidate.workflow === "spell") {
+        quickActionPreset = candidate;
+      }
     } catch {}
     if (modalTitle) modalTitle.textContent = "Incantesimi: " + sourceName;
     modalClose?.addEventListener("click", closeSpellsPopover);
@@ -201,7 +209,9 @@ async function init() {
 
   const allCasters = await getAllInitiativeCharacters(sourceId);
   const capturedTargetIds = isModal
-    ? await getCardTargetIds(sourceId, allCasters)
+    ? quickActionPreset?.targetMode === "self"
+      ? [sourceId]
+      : await getCardTargetIds(sourceId, allCasters)
     : await getContextOrSelectionIds();
   let spellSelectionWriteDepth = 0;
   let spellTargetPicker = null;
@@ -210,9 +220,10 @@ async function init() {
     spellTargetPicker?.selectedSpellTargetIds() || [];
 
   const refreshSpellTargetCount = (requestedCount = null) => {
+    const selectedIds = selectedSpellTargetIds();
     const count = Number.isInteger(requestedCount)
       ? requestedCount
-      : selectedSpellTargetIds().length;
+      : selectedIds.length;
     if (spellTargetSelectionCount) {
       spellTargetSelectionCount.textContent = spellTargetCountLabel(count);
     }
@@ -237,14 +248,23 @@ async function init() {
       button.title = presentation.title;
     });
     overviewList?.querySelectorAll("[data-active-spell-action='1']").forEach((button) => {
+      let unavailableTargetIds = [];
+      try {
+        const parsed = JSON.parse(button.dataset.actionUnavailableTargetIds || "[]");
+        if (Array.isArray(parsed)) unavailableTargetIds = parsed;
+      } catch {}
       const presentation = spellActiveActionPresentation({
         subjectMode: button.dataset.actionSubjectMode,
         buttonLabel: button.dataset.actionLabel,
         detail: button.dataset.actionDetail,
         emptySelectionTitle: button.dataset.actionEmptySelectionTitle,
+        tooManySelectionTitle: button.dataset.actionTooManySelectionTitle,
+        unavailableSelectionTitle: button.dataset.actionUnavailableSelectionTitle,
+        unavailableTargetIds,
+        maxTargets: button.dataset.actionMaxTargets,
         countLabelSingular: button.dataset.actionCountLabelSingular,
         countLabelPlural: button.dataset.actionCountLabelPlural,
-      }, count);
+      }, selectedIds);
       button.disabled = presentation.disabled;
       button.textContent = presentation.text;
       button.title = presentation.title;
@@ -450,65 +470,38 @@ async function init() {
     if (!event.target.closest(".spell-combobox")) closeSpellMenu();
   });
 
+  if (quickActionPreset) {
+    const spell = getSpellDefinition(quickActionPreset.spellId);
+    if (spell) {
+      nameInput.value = spell.catalogLabel || spell.displayName || spell.name;
+      syncCatalogSelection(true);
+      if (quickActionPreset.slotLevel !== null && slotLevelInput) {
+        slotLevelInput.value = String(resolveSpellSlotLevel(
+          spell,
+          quickActionPreset.slotLevel,
+        ));
+      }
+      if (quickActionPreset.turns !== null) {
+        durationInput.value = String(quickActionPreset.turns);
+      }
+      renderAutomation(spell);
+      if (applyConditionsInput && !applyConditionsInput.disabled) {
+        applyConditionsInput.checked = quickActionPreset.applyAutomations !== false;
+      }
+      refreshSpellTargetCount();
+    }
+  }
+
   const contextCasterId = isModal ? sourceId : await deduceContextSingleId();
-  const commitSpellApplication = async ({
-    spell,
-    enteredName = "",
-    turns = 1,
-    casterId = "",
-    targetIds = [],
-    castContext = {},
-    selectedChoice = "",
-    phasePlan = null,
-    applyAutomatedConditions = true,
-    activeConcentration = null,
-    historyLabel = "",
-    requestedConcentration = false,
-  } = {}) => {
-    const intent = buildSpellApplicationIntent({
-      spell,
-      enteredName,
-      turns,
-      casterId,
-      targetIds,
-      castContext,
-      selectedChoice,
-      phasePlan,
-      applyAutomatedConditions,
-      activeConcentration,
-      historyLabel,
-      requestedConcentration,
-    });
-    if (!intent) return [];
-    const instanceId = String(activeConcentration?.instanceId || "").trim()
-      || createSpellInstanceId();
+  const commitSpellApplication = async (request = {}) => {
+    const casterId = String(request.casterId || "").trim();
     const appliedAt = await getAppliedAt();
     const caster = allCasters.find((item) => item.id === casterId) || null;
-    const applicationPlan = buildSpellApplicationPlan({
-      intent,
-      instanceId,
+    return executeSpellApplication({
+      ...request,
       appliedAt,
       casterName: caster?.name || "",
     });
-    const replacedStaticZoneItems = intent.wantsConcentration
-      && applicationPlan.concentrationAction === "replace"
-      && casterId
-      ? await getStaticSpellZoneItems({ casterId })
-      : [];
-    const mutationPlan = await prepareEffectsMutation(applicationPlan.operations);
-    const historyIds = mutationPlan.changedIds;
-    await withItemMetaHistory({
-      kind: "spell",
-      label: applicationPlan.historyLabel,
-      itemIds: historyIds,
-      sceneItemIds: replacedStaticZoneItems.map((item) => item.id),
-      fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-    }, () => commitMutationRemovingStaticZones(
-      mutationPlan,
-      replacedStaticZoneItems,
-    ));
-    await refreshConditionLabels(historyIds);
-    return historyIds;
   };
 
   let overviewRevision = 0;
@@ -540,32 +533,14 @@ async function init() {
       },
       async onResolve({
         group,
-        spell,
         targetIds,
         selectedChoice,
       }) {
-        const castContext = {
-          ...(group.castContext || {}),
-          phase: "resolve",
-        };
-        await commitSpellApplication({
-          spell,
-          enteredName: group.storedName,
-          turns: Math.max(1, ...group.turns),
-          casterId: group.casterId,
+        await commitSpellApplication(buildPreparedSpellResolutionRequest({
+          group,
           targetIds,
-          castContext,
           selectedChoice,
-          phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
-          applyAutomatedConditions: group.castContext?.applyAutomatedConditions !== false,
-          activeConcentration: {
-            instanceId: group.instanceId,
-            spellId: group.spellId,
-            name: group.storedName,
-            targets: Array.from(group.targets.keys()),
-          },
-          historyLabel: "Risoluzione: " + group.name,
-        });
+        }));
         await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
         await refreshOverview();
       },
@@ -586,14 +561,29 @@ async function init() {
         if (!actionPlan.valid) {
           throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
         }
+        const zoneItems = actionPlan.zoneRuleChoice
+          ? await getStaticSpellZoneItems({ instanceId: group.instanceId })
+          : [];
+        if (actionPlan.zoneRuleChoice && !zoneItems.length) {
+          throw new Error("La zona dell'incantesimo non è più presente sulla scena.");
+        }
         const mutationPlan = await prepareEffectsMutation(actionPlan.operations);
         const historyIds = mutationPlan.changedIds;
         await withItemMetaHistory({
           kind: "spell",
           label: actionPlan.historyLabel,
           itemIds: historyIds,
+          sceneItemIds: zoneItems.map((item) => item.id),
           fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-        }, () => commitEffectsMutationPlan(mutationPlan));
+        }, async () => {
+          await commitEffectsMutationPlan(mutationPlan);
+          if (actionPlan.zoneRuleChoice) {
+            await setStaticSpellZoneRuleChoice(
+              zoneItems,
+              actionPlan.zoneRuleChoice,
+            );
+          }
+        });
         await refreshConditionLabels(historyIds);
         await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
         await refreshOverview();
