@@ -67,7 +67,9 @@ export function __compactEffectItems(
       kind: "concentration",
       label: "Concentrazione",
       title: "Concentrazione attiva",
-      referenceEntry: formatting.concentrationSpellKey || "",
+      ...(formatting.concentrationSpellKey
+        ? { referenceEntry: formatting.concentrationSpellKey }
+        : {}),
     });
   }
   return effects;
