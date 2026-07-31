@@ -120,6 +120,11 @@ import {
   deriveCompactCardPresentation,
   enableCompactCardRename,
 } from "./initiativeCardCompact.js";
+import {
+  compactTrackerGroupProgress,
+  compactTrackerResizeWidth,
+  compactTrackerWidth,
+} from "./trackerCompactSizingCore.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -6197,10 +6202,50 @@ function __bindInitiativeCardContextMenu(card, sourceEntry) {
     // ===== Render card
 let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
+const COMPACT_TRACKER_RESIZE_DURATION_MS = 240;
 
-function resizeCompactTrackerPopover(entries) {
-  void entries;
-  const requestedWidth = 1180;
+async function __animateCompactTrackerPopoverWidth(
+  targetWidth,
+  revision,
+  { syncProgress = null, duration = COMPACT_TRACKER_RESIZE_DURATION_MS } = {},
+) {
+  const currentWidth = Number(
+    await OBR.popover.getWidth(TRACKER_POPOVER_ID).catch(() => targetWidth)
+  ) || targetWidth;
+  if (revision !== __compactPopoverResizeRevision || !isCompactTrackerLayout()) return;
+
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reducedMotion || Math.abs(targetWidth - currentWidth) < 2) {
+    await OBR.popover.setWidth(TRACKER_POPOVER_ID, targetWidth);
+    return;
+  }
+
+  const startedAt = performance.now();
+  let lastWidth = Math.round(currentWidth);
+  while (revision === __compactPopoverResizeRevision && isCompactTrackerLayout()) {
+    const frameTime = await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (revision !== __compactPopoverResizeRevision || !isCompactTrackerLayout()) return;
+
+    const syncedProgress = Number(syncProgress?.());
+    const progress = Number.isFinite(syncedProgress)
+      ? Math.max(0, Math.min(1, syncedProgress))
+      : Math.min(1, (frameTime - startedAt) / duration);
+    const nextWidth = Number.isFinite(syncedProgress)
+      ? Math.round(currentWidth + (targetWidth - currentWidth) * progress)
+      : compactTrackerResizeWidth(currentWidth, targetWidth, progress);
+    if (nextWidth !== lastWidth) {
+      await OBR.popover.setWidth(TRACKER_POPOVER_ID, nextWidth);
+      lastWidth = nextWidth;
+    }
+    if (progress >= 1) return;
+  }
+}
+
+function resizeCompactTrackerPopover(
+  entries,
+  { syncProgress = null, duration = COMPACT_TRACKER_RESIZE_DURATION_MS } = {},
+) {
+  const requestedWidth = compactTrackerWidth(entries?.length, { showToolbar: IS_GM });
   const requestedHeight = 156;
   const requestKey = `${requestedWidth}x${requestedHeight}`;
   if (__lastCompactPopoverSize === requestKey) return;
@@ -6214,7 +6259,7 @@ function resizeCompactTrackerPopover(entries) {
     const width = Math.max(260, Math.min(requestedWidth, Math.floor(viewportWidth - 32)));
     try {
       await Promise.all([
-        OBR.popover.setWidth(TRACKER_POPOVER_ID, width),
+        __animateCompactTrackerPopoverWidth(width, revision, { syncProgress, duration }),
         OBR.popover.setHeight(TRACKER_POPOVER_ID, requestedHeight),
       ]);
     } catch (error) {
@@ -6493,7 +6538,7 @@ function __captureTransitionCard(card) {
   };
 }
 
-function __replaceTrackCardsMagnetic(nodes) {
+function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = {}) {
   const compact = isCompactTrackerLayout();
   const nextNodes = nodes.filter(Boolean);
   const nextSignature = __groupLayoutSignature(nextNodes);
@@ -6503,7 +6548,7 @@ function __replaceTrackCardsMagnetic(nodes) {
     __initiativeDiag("animation:group-coalesced", {
       layout: compact ? "compact" : "classic",
     });
-    return;
+    return true;
   }
 
   __finishGroupLayoutTransition?.();
@@ -6528,13 +6573,13 @@ function __replaceTrackCardsMagnetic(nodes) {
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (!transitions.length) {
     const currentSignature = __groupLayoutSignature(oldCards);
-    if (currentSignature === nextSignature && __reconcileTrackCardsById(nextNodes)) return;
+    if (currentSignature === nextSignature && __reconcileTrackCardsById(nextNodes)) return false;
     track.replaceChildren(...nextNodes);
-    return;
+    return false;
   }
   if (reducedMotion) {
     track.replaceChildren(...nextNodes);
-    return;
+    return false;
   }
 
   const scrollLeftBefore = trackWrap.scrollLeft;
@@ -6844,12 +6889,26 @@ function __replaceTrackCardsMagnetic(nodes) {
       (maximum, record) => Math.max(maximum, record.transitionDuration),
       GROUP_LAYOUT_ANIMATION_MS
     );
+    const initialStageSizes = stages.map((record) => record.initialSize);
+    const finalStageSizes = stages.map((record) => record.finalSize);
+    onGroupTransitionStart?.({
+      duration: totalDuration,
+      measureProgress: () => compactTrackerGroupProgress(
+        initialStageSizes,
+        finalStageSizes,
+        stages.map((record) => {
+          const rect = record.stage.getBoundingClientRect();
+          return compact ? rect.width : rect.height;
+        }),
+      ),
+    });
     window.setTimeout(finish, totalDuration + 80);
   });
+  return true;
 }
 
-function __replaceTrackCardsAnimated(nodes) {
-  __replaceTrackCardsMagnetic(nodes);
+function __replaceTrackCardsAnimated(nodes, options) {
+  return __replaceTrackCardsMagnetic(nodes, options);
 }
 
 let __expandedCompactEffectsId = null;
@@ -7129,14 +7188,21 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
     return true;
   }
 
-  __replaceTrackCardsAnimated(nodes);
+  const groupResizeScheduled = __replaceTrackCardsAnimated(nodes, {
+    onGroupTransitionStart: ({ measureProgress, duration }) => {
+      resizeCompactTrackerPopover(visibleEntries, {
+        syncProgress: measureProgress,
+        duration,
+      });
+    },
+  });
   __animateActiveCardEntrance(animateActive && activeChanged, activeId);
   if (__expandedCompactEffectsId && !nodes.some((node) =>
     node.dataset.itemId === __expandedCompactEffectsId && node.dataset.hasEffectOverflow === "1"
   )) {
     void __closeCompactEffectsPopover();
   }
-  resizeCompactTrackerPopover(visibleEntries);
+  if (!groupResizeScheduled) resizeCompactTrackerPopover(visibleEntries);
   updateActiveCardMovementIndicator();
   if (__scrollActiveOnNextRender || activeChanged) {
     __scrollActiveOnNextRender = false;
