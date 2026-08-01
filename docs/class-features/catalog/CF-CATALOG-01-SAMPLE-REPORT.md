@@ -1,159 +1,199 @@
-# CF-CATALOG-01 — Report del campione
+# CF-CATALOG-01 — Report della fase campione revisionata
 
 ## Snapshot e perimetro
 
-- `snapshotCommit`: `890223e517e2ed27c40bdeb7c4cf9701a6d62d79`
-- campione: 36 feature;
-- organizzazione: firma meccanica cross-class, non classe;
+- `snapshotCommit`: `890223e517e2ed27c40bdeb7c4cf9701a6d62d79`;
+- campione invariato: 36 feature, 36 `featureId` univoci;
+- organizzazione: firma meccanica cross-class, non classificazione per classe;
 - fonti: PHB 2014 (23), Xanathar (6), Tasha (7);
 - classi coperte: tutte le 12 classi presenti nel catalogo;
-- feature del catalogo completo non classificate: le restanti feature, incluse le 395 `not-automated`, restano fuori dal ticket.
+- feature fuori scope: tutte le altre feature, incluse le 395 richieste per il catalogo completo, restano non classificate.
 
-Il campione contiene casi semplici, compositi e ambigui. Non è un pilot di implementazione e non propone promozioni nel runtime.
+Questa revisione applica la review di Sol alla sola fase campione. Non è stato aggiunto alcun nuovo record di feature e non è stato modificato runtime, override, catalogo sorgente, overlay o JavaScript.
 
-## Verifica dello schema
+## Stato della tassonomia al commit
 
-Il registro contiene i 77 `primitiveId` della tassonomia finita dell'audit, senza primitive nuove. La matrice usa 70 primitive distinte; le primitive definite ma non richieste da una riga del campione sono `DATA.FRESHNESS`, `DATA.SCHEMA_VALIDATION`, `DATA.DERIVED_REPORT`, `SRC.SELECTABLE_CASTER`, `LC.APPLIED_AT`, `UI.MODAL_REVIEW` e `UI.CONTROL_CENTER`.
+Il registro contiene 79 primitive: le 77 primitive della tassonomia finita dell'audit più `ACT.REACTION` e `UI.VALUE_INPUT`. `ACT.REACTION` non rileva automaticamente il trigger e non automatizza l'economia della reazione: l'utente attiva la feature dopo la decisione del tavolo. `UI.VALUE_INPUT` raccoglie un valore esplicito dall'utente prima di una mutazione assistita, ma resta `missing` allo snapshot.
 
-Controlli eseguiti sul campione:
+`availability` è lo stato reale osservabile allo snapshot. Un ticket futuro non rende disponibile retroattivamente una primitive: i passaggi futuri sono descritti separatamente in `availabilityTransitions`.
 
-- 36 `featureId` univoci;
-- tutti i `requiredPrimitiveIds` esistono nel registro;
-- nessun campo derivato (`availablePrimitiveIds`, `missingPrimitiveIds`, `candidateTicketIds`, `unlockState`) è compilato nella matrice;
-- nessun nome, classe, sottoclasse, livello, descrizione o testo regolamentare è duplicato nella matrice;
-- ogni riga ha source pointer, snapshot, motivazione, pattern, ambiguità e riferimenti di review;
-- tutte le 13 righe con ambiguità complessiva 3 sono `unsupported` e `deferred`.
-
-Disponibilità del registro:
-
-| Stato | Conteggio |
+| Availability snapshot | Conteggio |
 |---|---:|
-| `available` | 65 |
-| `partial` | 10 |
-| `spell-adapter-needed` | 1 |
-| `missing` | 1 |
+| `available` | 47 |
+| `partial` | 17 |
+| `spell-adapter-needed` | 5 |
+| `missing` | 10 |
+| Totale | 79 |
 
-La primitive definita dall'audit ma senza implementazione baseline nel registro è `FX.ACTIVE_ACTION`. `SRC.SELECTABLE_CASTER` resta `spell-adapter-needed` perché il campione riguarda class feature e non introduce un secondo contratto per gli incantesimi.
+I ticket sono presenti in `providedByTicketIds` solo per primitive `missing` o `spell-adapter-needed`; per primitive già presenti ma da stabilizzare sono in `stabilizedByTicketIds`. Sono presenti 22 primitive con transizioni future e non ci sono primitive `available`/`partial` con un ticket futuro erroneamente conteggiato come implementazione corrente.
 
-## Distribuzione del campione
+Le primitive escluse intenzionalmente dalla v1 sono:
 
-| Classificazione | Conteggio |
+- `DATA.STAT_BLOCK`;
+- `FX.ENTITY_SUMMON`;
+- `RULE.TRIGGER_DETECTION`;
+- `RULE.DAMAGE_ENGINE`.
+
+## Verifica dello schema e del grafo
+
+La matrice contiene i nuovi campi `recordRole`, `classificationUnits`, `notApplicableAmbiguityAxes` e `supportDisposition`. Il vocabolario dei ruoli accetta `activatable`, `resource-pool`, `container`, `configuration`, `option`, `passive`, `reminder`, `target-effect` e `composite`. Gli stati runtime accettati sono `implemented`, `not-automated` e `not-exposed`.
+
+Controlli eseguiti:
+
+- 36 `featureId` univoci, senza nuove feature;
+- 59 `primitiveId` distinti richiesti dalla matrice, tutti presenti nel registro;
+- nessun campo derivato (`availablePrimitiveIds`, `missingPrimitiveIds`, `candidateTicketIds`, `unlockState`) è compilato;
+- ogni `primaryPattern` è strutturato come `patternId`, `referenceId`, `reusedAspects`;
+- ogni riga ha `classificationUnits` e gli assi non applicabili sono espliciti;
+- nessuna riga deferred ha un livello di automazione non nullo;
+- `unsupported` è usato zero volte: non è più sinonimo di `deferred`;
+- nessuna ambiguità complessiva è 3 e nessun asse elencato come non applicabile riceve 3;
+- tutti i riferimenti `SPELL.*` usati puntano a ID reali del catalogo spell;
+- il grafo di `dependsOnPrimitiveIds` è aciclico.
+
+Il grafo ora usa `dependsOnPrimitiveIds` solo per prerequisiti hard. Le integrazioni non bloccanti sono in `collaboratesWithPrimitiveIds`, mentre gli output UI sono in `emitsUiPrimitiveIds`. Sono stati rimossi i cicli tra:
+
+- `ACT.REVIEW`, `UI.MODAL_REVIEW`, `UI.QUICK_REVIEW`;
+- `ACT.PARENT_CHILD`, `FX.PARENT_END`, `END.ALL`;
+- `TGT.SELECTION`, `UI.TARGET_PICKER`;
+- `FX.REMINDER`, `UI.PILL`.
+
+## Distribuzione delle 36 righe
+
+### Automazione e supporto
+
+| Target | Conteggio |
 |---|---:|
-| `descriptive` | 9 |
-| `assisted` | 14 |
+| `descriptive` | 18 |
+| `assisted` | 18 |
 | `automatic` | 0 |
-| `unsupported` | 13 |
+| `unsupported` | 0 |
 
-Il valore corrente `automatica` è stato trattato come indizio, non come promozione: nessuna riga supera nel campione il gate di determinismo necessario per `automatic`.
-
-| Data readiness | Conteggio |
+| Support disposition | Conteggio |
 |---|---:|
-| `ready` | 4 |
-| `partial` | 18 |
-| `blocked` | 14 |
+| `supported` | 34 |
+| `supported-with-out-of-scope-unit` | 2 |
+| `deferred` | 0 |
 
-| Review | Conteggio |
+Le due righe con subunità fuori scope sono `druido-forma-selvatica` per l'applicazione dello stat block e `ranger-signore-delle-bestie-compagno-del-ranger` per lo stat block del compagno. Il record campione conserva un livello onesto per il tracking/configuration, senza introdurre primitive vietate.
+
+### Ruoli dei record
+
+| `recordRole` | Conteggio |
 |---|---:|
-| `triaged` | 23 |
-| `deferred` | 13 |
-| `approved` | 0 |
+| `activatable` | 4 |
+| `resource-pool` | 2 |
+| `container` | 0 |
+| `configuration` | 3 |
+| `option` | 0 |
+| `passive` | 4 |
+| `reminder` | 8 |
+| `target-effect` | 3 |
+| `composite` | 12 |
 
-Pattern primari coperti:
+I 12 record `composite` usano `classificationUnits`. Sono esplicitamente scomposti, tra gli altri, `Fonte di Magia`, `Imposizione delle Mani`, `Preservare Vita`, `Impeto Selvaggio`, `Forma Selvatica`, `Dono del Patto`, `Aura Tempestosa`, `Totem Spirituale`, `Tentacoli delle Profondità` e `Incantesimo Rapido`.
 
-- `CLASS.RAGE`: 1;
-- `CLASS.FIXED_OWNER`: 1;
-- `CLASS.RESOURCE_POOL`: 11;
-- `CLASS.RECKLESS_ATTACK`: 1;
-- `CLASS.DESCRIPTIVE_MARKER`: 8;
-- `CLASS.FEATURE_CHOICE`: 3;
-- `CLASS.PARENT_CHILD`: 6;
-- `CLASS.SELECTED_AURA`: 5.
+### Stato runtime e data readiness
 
-## Casi da segnalare separatamente
+| `existingRuntimeStatus` | Conteggio |
+|---|---:|
+| `implemented` | 8 |
+| `not-automated` | 21 |
+| `not-exposed` | 7 |
 
-### Feature che non entrano nella tassonomia operativa v1
+I sette record `not-exposed` sono `monaco-ki`, `warlock-magia-del-patto`, `guerriero-maestro-di-battaglia-manovre-attacco-adescante`, `warlock-dono-del-patto`, `monaco-via-della-misericordia-strumenti-di-misericordia`, `paladino-giuramento-di-conquista-aura-di-conquista` e `ladro-assassino-assassinare`.
 
-Queste feature possono conservare un riferimento o un reminder, ma non entrano come automazione operativa onesta finché non esiste un contratto per dati esterni o entità evocate:
+| `dataReadiness` | Conteggio |
+|---|---:|
+| `ready` | 25 |
+| `partial` | 11 |
+| `blocked` | 0 |
 
-- `druido-forma-selvatica`: richiede lo stat block della forma;
-- `ranger-signore-delle-bestie-compagno-del-ranger`: richiede dati canonici del compagno;
-- `warlock-l-insondabile-tentacoli-delle-profondita`: richiede un contratto per entità evocata e sue conseguenze.
+La readiness è relativa al livello scelto: un reminder descriptive non viene bloccato perché non possiede effetti strutturati o durata persistente. `Azione Impetuosa` non richiede blocker di durata o `LC.MANUAL`; `Recuperare Energie` è `partial` soltanto per l'input esplicito del tiro o valore di cura prima della mutazione HP canonica.
 
-Non è stato aggiunto alcun `primitiveId` per coprire questi casi.
+| `customCodeMode` | Conteggio |
+|---|---:|
+| `none` | 17 |
+| `shared-primitive` | 12 |
+| `adapter` | 7 |
 
-### Primitive apparentemente mancanti
+## Pattern SPELL.* usati
 
-Sono gap da valutare in ticket separati, non primitive aggiunte al registro:
+| Pattern | Occorrenze nella matrice |
+|---|---:|
+| `SPELL.ACTIVE_ACTION` | 2 |
+| `SPELL.CHOICE_EFFECT` | 2 |
+| `SPELL.DESCRIPTIVE_REMINDER` | 5 |
+| `SPELL.DYNAMIC_AURA` | 4 |
+| `SPELL.MULTI_TARGET` | 1 |
+| `SPELL.SELECTED_AREA` | 2 |
+| `SPELL.TARGET_TERMINATION` | 1 |
+| `SPELL.TEMP_HP_DECLARATIVE` | 3 |
+| `SPELL.TIMED_CONDITION` | 2 |
 
-- `ACT.REACTION`: attivazione di reazione come contratto di primo livello;
-- `DATA.STAT_BLOCK`: dati strutturati per forme e compagni;
-- `FX.ENTITY_SUMMON`: creazione e lifecycle di un'entità evocata;
-- `RULE.TRIGGER_DETECTION`: riconoscimento automatico di colpi, danni o eventi;
-- `RULE.DAMAGE_ENGINE`: applicazione automatica di danni e relativi tiri.
+Confronti espliciti della review:
 
-Gli ultimi due sono anche esclusi dai vincoli del ticket: il campione usa reminder e review, non automazione di trigger o danni.
+- `Protettori Ancestrali` ↔ `guiding-bolt` / `SPELL.TIMED_CONDITION`;
+- `Forma della Bestia` ↔ `alter-self` / `SPELL.CHOICE_EFFECT`;
+- `Impeto Selvaggio` ↔ `SPELL.CHOICE_EFFECT`, con parent e otto esiti;
+- `Santuario del Crepuscolo` ↔ `holy-aura` / `SPELL.DYNAMIC_AURA`;
+- `Preda dell'Uccisore` ↔ `hunters-mark` / `SPELL.TARGET_TERMINATION`;
+- `Tentacoli delle Profondità` ↔ `black-tentacles` / `SPELL.ACTIVE_ACTION` e area piazzata.
 
-### Candidati a shared-primitive
+## Decisioni applicate alle righe critiche
 
-- `FX.CONDITION` + lifecycle e termination: `barbaro-ira`, `barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali` e le aure con condizioni;
-- `RES.COST` + `RES.SHARED_POOL` + `UI.RESOURCE_COUNTER`: risorse di bardo, guerriero, monaco, paladino, stregone e warlock;
-- `CHOICE.REQUIRED` + `CHOICE.EFFECT_VARIANT` + `UI.DROPDOWN`: `barbaro-cammino-della-bestia-forma-della-bestia`, `barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa` e le scelte analoghe;
-- `AREA.MEMBERSHIP` + `AREA.RECONCILE` + `AREA.VISUAL`: `barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo`, `chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo`, `druido-circolo-del-pastore-totem-spirituale` e `paladino-giuramento-di-conquista-aura-di-conquista`;
-- `HP.TEMP_DECLARATIVE`: effetti HP temporanei di bardo, barbaro, chierico e druido;
-- `TGT.CARDINALITY_ASSISTED`: selezioni multi-target con limite derivabile.
+- `Ira` resta `assisted`, data ready, direct/self, con baseline accettata;
+- `Attacco Irruento` resta `descriptive`, data ready, con `LC.TURN_START` ancorato al proprietario;
+- `Ki` è `resource-pool`, non unsupported;
+- `Magia del Patto` è `resource-pool` descriptive/configuration, senza target o lifecycle artificiale;
+- `Spirito Totemico: Lupo` è reminder descriptive self e non richiede primitive area;
+- `Impeto Selvaggio` e `Aura Tempestosa` sono assisted/composite;
+- `Forma Selvatica` separa tracking e stat-block application fuori scope;
+- `Tentacoli delle Profondità` usa area piazzata/stato persistente/active action, non entity summon;
+- `Assassinare` è passive descriptive reminder;
+- le righe composite dichiarano le proprie `classificationUnits` invece di nascondere opzioni nel testo rationale.
 
-### Casi realmente feature-specific
+## Primitive candidate non ancora aggiunte alla v1
 
-Nessun caso del campione è confermato come `feature-specific`. Le feature apparentemente uniche richiedono invece dati mancanti, adjudication o un contratto condivisibile; sono state quindi classificate `not-allowed`, `adapter` o `unsupported`.
+Sono segnalate nel report e non nel registro:
 
-### Feature con ambiguità 3
+- `RES.VARIABLE_COST`;
+- `RES.CONVERSION`;
+- `AREA.PLACEMENT`;
+- eventuale `RES.ALLOCATION`.
 
-Le seguenti righe sono `unsupported`/`deferred`:
+Questi gap spiegano le readiness `partial` di conversioni, allocazioni, piazzamenti o adapter spell; non sono unlock calcolati e non trasformano una primitive v1 in `available`.
 
-- `monaco-ki`;
-- `warlock-magia-del-patto`;
-- `guerriero-maestro-di-battaglia-manovre-attacco-adescante`;
-- `barbaro-cammino-della-magia-selvaggia-impeto-selvaggio`;
-- `druido-forma-selvatica`;
-- `ranger-signore-delle-bestie-compagno-del-ranger`;
-- `stregone-magia-selvaggia-impulso-di-magia-selvaggia`;
-- `warlock-dono-del-patto`;
-- `monaco-via-della-misericordia-strumenti-di-misericordia`;
-- `barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa`;
-- `ranger-custode-degli-sciami-sciame-riunito`;
-- `warlock-l-insondabile-tentacoli-delle-profondita`;
-- `ladro-assassino-assassinare`.
+## Primitive v1 missing
 
-### Fonti o dati eseguibili insufficienti
+`UI.VALUE_INPUT` è presente nel registro v1 con availability `missing`, senza ticket futuro associato. È richiesta dal solo record `guerriero-recuperare-energie` per acquisire dall'utente il tiro o valore di cura prima della mutazione HP canonica; non viene calcolato alcun unlock.
 
-Il campione non presenta source pointer mancanti nei cataloghi, ma presenta dati non sufficienti per l'esecuzione in queste righe: `barbaro-attacco-irruento`, `chierico-incanalare-divinita-scacciare-non-morti`, `ranger-uccisore-di-mostri-preda-dell-uccisore`, `guerriero-maestro-di-battaglia-manovre-attacco-adescante`, `druido-circolo-delle-spore-entita-simbiotica`, `ranger-signore-delle-bestie-compagno-del-ranger`, `stregone-magia-selvaggia-impulso-di-magia-selvaggia`, `warlock-dono-del-patto`, `monaco-via-della-misericordia-strumenti-di-misericordia`, `barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo`, `ladro-assassino-assassinare` e `stregone-metamagia-incantesimo-rapido`.
+## Finding della review di Sol
 
-I blocker della matrice riportano i codici già presenti nell'audit (`effects`, `activation_semantics`, `effetti_strutturati`, `runtime_requirements`, `bersaglio_da_specificare`, `durata_da_specificare` e relativi codici di completezza); non viene ricopiato testo regolamentare.
+### Risolti e verificati
 
-### Possibili over-automation
+- P0 availability futura: corretto con stato snapshot e `availabilityTransitions`;
+- P0 grafo ciclico: corretto separando hard dependency, collaborazione e output UI; DAG verificato;
+- P0 ruoli e record non activatable: aggiunti ruoli e `supportDisposition`;
+- P0 decisioni contraddittorie sulle righe: corrette tutte le 36 righe, senza aggiungere feature;
+- P1 `unsupported`/`deferred`: separati; nel campione entrambi sono zero perché nessuna decisione è terminalmente unsupported o priva di decomposizione;
+- P1 readiness relativa al target: reminder e azioni istantanee non sono più bloccati da requisiti non necessari;
+- P1 required primitive set: ridotto al minimo per il livello scelto;
+- P1 pattern spell e decomposizione composite: applicati e verificati;
+- P1 `not-exposed`: distinti i sette record non presenti nel runtime;
+- ACT.REACTION: aggiunta con contratto manuale/assistito, senza trigger detection;
+- primitive vietate e unlock: non presenti e non calcolati.
+- gli otto residui P0/P1 sono stati applicati e verificati: `Ira` ora `none`; `Ispirazione Bardica`, `Protettori Ancestrali` e `Santuario del Crepuscolo` ora `adapter`; `Fonte di Magia` e `Preservare Vita` ora `shared-primitive` con i rispettivi blocker; `Recuperare Energie` usa review e input esplicito con readiness `partial`; `Assassinare` conserva solo `RULE.HIT_TRIGGER_REMINDER` tra i reminder di trigger/salvezza.
 
-Restano reminder o review manuale, senza trigger automatici, danni o adjudication automatica:
+### Ancora aperti, senza bloccare la correzione P0/P1 del campione
 
-- `ladro-attacco-furtivo`;
-- `paladino-punizione-divina`;
-- `mago-scuola-di-abiurazione-interdizione-arcana`;
-- `barbaro-cammino-della-magia-selvaggia-impeto-selvaggio`;
-- `ranger-custode-degli-sciami-sciame-riunito`;
-- `ladro-assassino-assassinare`;
-- `guerriero-maestro-di-battaglia-manovre-attacco-adescante`.
+- alcuni riferimenti di implementazione UI e di adapter spell richiedono una verifica P2 più puntuale contro export pubblici e test dedicati;
+- `HP.TEMP_DECLARATIVE`, `ACT.ACTIVE_ACTION`, `FX.ACTIVE_ACTION`, `SRC.SELECTABLE_CASTER` ed `END.TARGET` restano `spell-adapter-needed` allo snapshot;
+- `RES.VARIABLE_COST`, `RES.CONVERSION`, `AREA.PLACEMENT` e `RES.ALLOCATION` non hanno ancora un contratto v1;
+- gli stat block e le entità evocate restano fuori scope per scelta, non per omissione accidentale.
 
-### Incoerenze nei dati di origine
+## Esito e limiti
 
-- `barbaro-attacco-irruento` e `barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo` risultano `implemented` nello stato runtime corrente, mentre il meccanico sorgente resta `riferimento` con effetti/activation semantics mancanti;
-- `paladino-giuramento-di-conquista-aura-di-conquista` e `mago-scuola-di-abiurazione-interdizione-arcana` hanno livello sorgente `automatica`, ma risultano `not-automated` o non esposti nello stato runtime;
-- `runtime-feature-overrides.json` contiene 27 record, di cui 21 con `status: implemented` e 6 record senza status, usati come configurazioni/etichette correnti. Non sono stati reinterpretati o modificati.
+La fase campione è ora coerente per una review strutturale di schema, ruoli, disponibilità snapshot, transizioni e DAG. Non è però una dichiarazione di prontezza per classificare le 395 feature: il campione resta l'unico perimetro autorizzato, alcuni adapter e primitive candidate sono ancora aperti e due subunità sono esplicitamente fuori scope.
 
-Queste incoerenze sono state riportate, non risolte nel catalogo campione.
-
-## Esito della fase campione
-
-Il campione è sufficiente per una review architetturale di schema e tassonomia: copre tutte le classi, otto firme meccaniche, 77 primitive definite, casi con dati pronti/parziali/bloccati e il confine tra reminder, assistenza e unsupported.
-
-La tassonomia non è ancora approvata per l'implementazione. Prima di classificare le feature restanti servono la review dei 13 casi ad ambiguità 3, la decisione sui gap apparenti (`ACT.REACTION`, stat block, entity summon, trigger/damage engine) e la risoluzione separata delle incoerenze tra overlay e stato runtime.
-
-Non sono stati calcolati conteggi di unlock, `missingPrimitiveIds`, `candidateTicketIds` o `unlockState`: il campione non autorizza stime sull'insieme completo e non modifica alcun runtime, override, JavaScript, catalogo o overlay originario.
+Non sono stati calcolati `availablePrimitiveIds`, `missingPrimitiveIds`, `candidateTicketIds` o `unlockState`. Nessun file fuori dai tre autorizzati è stato modificato.
