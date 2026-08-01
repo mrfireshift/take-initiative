@@ -90,3 +90,24 @@ test("una pill riletta dai metadata ignora la fine del turno di lancio", () => {
 
   assert.equal(currentEnd.states[0].conditions.length, 1);
 });
+
+test("la riscrittura della durata conserva il reminder ricorrente", () => {
+  const saveReminder = {
+    ability: "int",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    success: "remove-effect",
+    label: "Se supera il TS, termina la penalit\u00e0.",
+  };
+  const instance = preserveConditionTimingMetadata({
+    id: "synaptic-static-penalty",
+    condition: "-1d6 Att/prove/TS concentrazione",
+    active: true,
+    expiry: { mode: "rounds", remaining: 9 },
+  }, {
+    saveReminder,
+  });
+
+  assert.deepEqual(instance.saveReminder, saveReminder);
+  assert.notEqual(instance.saveReminder, saveReminder);
+});

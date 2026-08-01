@@ -279,6 +279,51 @@ test("Nauseato consegna il reminder di fine turno nel nuovo turno visibile", () 
   );
 });
 
+test("Scossa Sinaptica ricorda il TS a fine turno per ogni bersaglio e ogni round", () => {
+  const first = target("first", [
+    condition("synaptic-first", "turn-end", {
+      condition: "-1d6 Att/prove/TS concentrazione",
+      ability: "int",
+      label: "Se supera il TS, termina la penalit\u00e0.",
+    }),
+  ]);
+  const second = target("second", [
+    condition("synaptic-second", "turn-end", {
+      condition: "-1d6 Att/prove/TS concentrazione",
+      ability: "int",
+      label: "Se supera il TS, termina la penalit\u00e0.",
+    }),
+  ]);
+  const items = [caster(), first, second];
+
+  const firstRoundFirst = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: state(1, 1),
+    initiativeState: state(2, 1),
+  });
+  const firstRoundSecond = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: state(2, 1),
+    initiativeState: state(0, 2),
+  });
+  const secondRoundFirst = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: state(1, 2),
+    initiativeState: state(2, 2),
+  });
+
+  assert.deepEqual(
+    [firstRoundFirst, firstRoundSecond, secondRoundFirst]
+      .map((notices) => notices.map((notice) => notice.target.id)),
+    [["first"], ["second"], ["first"]],
+  );
+  assert.equal(firstRoundFirst[0].saveLabel, "TS Intelligenza CD 16");
+  assert.notEqual(
+    firstRoundFirst[0].activationId,
+    secondRoundFirst[0].activationId,
+  );
+});
+
 test("supporta fine turno e danno, recuperando la CD dal caster sorgente", () => {
   const first = target("first", [
     condition("end-effect", "turn-end", { ability: "int" }),

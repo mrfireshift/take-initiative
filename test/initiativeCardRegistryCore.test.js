@@ -77,3 +77,36 @@ test("un token ricreato in iniziativa recupera le azioni rapide dalla memoria", 
     ["new-token"],
   );
 });
+
+test("un token ricreato recupera anche la configurazione multiclasse", () => {
+  const metadataKey = "com.thebigpicture.initiative/meta";
+  const recreated = {
+    id: "new-paladin",
+    name: "Alaric",
+    layer: "CHARACTER",
+    metadata: { [metadataKey]: { inInitiative: true } },
+  };
+  const registry = {
+    alaric: {
+      profile: {
+        characterBuild: [
+          { classId: "paladino", level: 3 },
+          { classId: "stregone", level: 2 },
+        ],
+        enabledClassFeatureIds: [
+          "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia",
+        ],
+      },
+      updatedAt: 100,
+    },
+  };
+
+  assert.deepEqual(
+    initiativeCardQuickActionMemoryCandidates(
+      [recreated],
+      registry,
+      { metadataKey },
+    ).map((item) => item.id),
+    ["new-paladin"],
+  );
+});

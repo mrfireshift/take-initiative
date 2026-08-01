@@ -38,6 +38,11 @@ function normalizedKey(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function themeColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/iu.test(color) ? color : fallback;
+}
+
 function visualTokenBox(token, sceneDpi) {
   const scaleX = Math.abs(Number(token?.scale?.x)) || 1;
   const scaleY = Math.abs(Number(token?.scale?.y)) || 1;
@@ -242,6 +247,14 @@ export function planEffectsLayout({
       const spellEffect = condition?.kind === "spell-effect";
       const buff = spellEffect && condition?.tone === "buff";
       const debuff = spellEffect && condition?.tone === "debuff";
+      const theme = condition?.theme && typeof condition.theme === "object"
+        ? condition.theme
+        : null;
+      const themedBackground = themeColor(
+        theme?.background,
+        buff ? config.buffBackground : debuff ? config.debuffBackground : "",
+      );
+      const themedText = themeColor(theme?.text, config.textFill);
       const parentEffectId = String(condition?.parentEffectId || "").trim();
       let spellContext = parentEffectId
         ? spellContextByTarget.get(`${token.id}|${parentEffectId}`)
@@ -273,11 +286,7 @@ export function planEffectsLayout({
         height: config.labelHeight,
         backgroundColor: linkedToSpell
           ? spellContext.backgroundColor
-          : buff
-            ? config.buffBackground
-            : debuff
-              ? config.debuffBackground
-              : config.conditionBackground,
+          : themedBackground || config.conditionBackground,
         backgroundOpacity: linkedToSpell
           ? spellContext.backgroundOpacity
           : config.conditionBackgroundOpacity,
@@ -286,7 +295,7 @@ export function planEffectsLayout({
         fontSize: config.fontSize,
         fontWeight: config.fontWeight,
         lineHeight: config.lineHeight,
-        textFill: config.textFill,
+        textFill: linkedToSpell ? config.textFill : themedText,
         textStroke: config.textStroke,
         textStrokeWidth: config.textStrokeWidth,
         maxViewScale: config.maxViewScale,

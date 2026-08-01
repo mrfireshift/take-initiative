@@ -343,6 +343,43 @@ test("le pill compatte conservano palette spell e dimensioni preview", () => {
   assert.equal(preview.style.height, "14px");
 });
 
+test("la pill compatta della Feature usa il tema e permette la terminazione", async () => {
+  const documentRef = createTestDocument();
+  const instance = {
+    type: "class-feature",
+    parentEffectId: "rage-1",
+    sourceId: "barbarian",
+  };
+  let terminated = null;
+  const pill = __buildCompactEffectPill(
+    {
+      kind: "class-feature",
+      label: "🔥 Ira",
+      title: "Ira | manuale",
+      classFeatureInstance: instance,
+      theme: {
+        background: "#7f1d1d",
+        accent: "#f97316",
+        text: "#fff7ed",
+      },
+    },
+    false,
+    {
+      documentRef,
+      onTerminateClassFeature: (value) => {
+        terminated = value;
+      },
+    },
+  );
+
+  assert.equal(pill.style.background, "#7f1d1d");
+  assert.equal(pill.style.border, "1px solid #f97316");
+  assert.equal(pill.style.color, "#fff7ed");
+  assert.equal(pill.children.length, 1);
+  await pill.children[0].dispatch("click", createTestEvent());
+  assert.equal(terminated, instance);
+});
+
 test("il ritratto compatto conserva immagine, fallback e cornice boss", () => {
   const documentRef = createTestDocument();
   const rgba = (color, alpha) => `${color}@${alpha}`;

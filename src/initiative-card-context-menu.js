@@ -13,6 +13,7 @@ const shell = document.querySelector("#shell");
 const root = document.querySelector("#menu");
 let openSubmenu = null;
 let resizeRevision = 0;
+let lastMeasuredNaturalHeight = 0;
 let closeOnBlurArmed = false;
 
 function send(type, action = "", value = "", details = {}) {
@@ -30,7 +31,7 @@ function asset(name) {
 
 function requestMenuResize() {
   const revision = ++resizeRevision;
-  requestAnimationFrame(async () => {
+  requestAnimationFrame(() => requestAnimationFrame(async () => {
     if (revision !== resizeRevision || !root || !shell) return;
 
     root.style.maxHeight = "none";
@@ -39,11 +40,24 @@ function requestMenuResize() {
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
     if (revision !== resizeRevision) return;
 
-    const targetHeight = Math.max(120, Math.min(naturalHeight, viewportHeight - 24));
+    const availableHeight = Math.max(120, viewportHeight - 24);
+    const targetHeight = Math.max(120, Math.min(naturalHeight, availableHeight));
     root.style.maxHeight = `${Math.max(118, targetHeight - 2)}px`;
     root.style.overflowY = naturalHeight > targetHeight ? "auto" : "hidden";
+    lastMeasuredNaturalHeight = naturalHeight;
     send("resize", "", "", { height: targetHeight });
+  }));
+}
+
+function mountResizeObserver() {
+  if (!root || typeof ResizeObserver !== "function") return;
+  const observer = new ResizeObserver(() => {
+    if (root.style.maxHeight === "none") return;
+    if (Math.ceil(root.scrollHeight + 2) !== lastMeasuredNaturalHeight) {
+      requestMenuResize();
+    }
   });
+  observer.observe(root);
 }
 
 function armClickAwayClose() {
@@ -146,6 +160,64 @@ function divider(parent) {
   parent.appendChild(line);
 }
 
+function classFeatureMenuEntries(features) {
+  const entries = [];
+  for (const feature of Array.isArray(features) ? features : []) {
+    const activeInstances = Array.isArray(feature?.activeInstances)
+      ? feature.activeInstances
+      : [];
+    const resourceEntries = Array.isArray(feature?.resources)
+      ? feature.resources
+      : [];
+    const resourceLabel = resourceEntries.length
+      ? resourceEntries.map((entry) => entry.unlimited
+        ? "∞"
+        : `${entry.current ?? "–"}/${entry.maximum ?? "–"}`).join(" · ")
+      : "";
+    const rangeLabel = feature?.rangeMeters
+      ? ` · ${feature.targetLabel || "bersaglio"} ${feature.rangeMeters} m`
+      : ` · ${feature.targetLabel || "su di sé"}`;
+    const themeColor = feature?.theme?.accent || "#38bdf8";
+
+    if (activeInstances.length) {
+      for (const instance of activeInstances) {
+        const remaining = Number(instance?.remainingRounds);
+        entries.push({
+          label: `Termina ${feature.label || feature.plainName || feature.featureId}`,
+          icon: "mark.svg",
+          action: "class-feature-deactivate",
+          options: {
+            value: instance?.instanceId,
+            color: themeColor,
+            danger: true,
+            trailing: Number.isFinite(remaining) ? `${remaining} r` : "Attiva",
+            title: `Termina ${feature.plainName || feature.featureId}${rangeLabel}`,
+          },
+        });
+      }
+      continue;
+    }
+
+    entries.push({
+      label: `Attiva ${feature.label || feature.plainName || feature.featureId}`,
+      icon: "mark.svg",
+      action: "class-feature-activate",
+      options: {
+        value: feature.featureId,
+        color: themeColor,
+        disabled: feature.resourceReady === false || feature.runtimeReady === false,
+        trailing: feature.runtimeReady === false ? "Non automatizzata" : resourceLabel || "",
+        title: feature.runtimeReady === false
+          ? `Non ancora automatizzata: ${feature.plainName || feature.featureId}`
+          : feature.resourceReady === false
+          ? `Usi esauriti: ${feature.plainName || feature.featureId}`
+          : `Attiva ${feature.plainName || feature.featureId}${rangeLabel}`,
+      },
+    });
+  }
+  return entries;
+}
+
 function render(payload) {
   root.replaceChildren();
 
@@ -170,6 +242,19 @@ function render(payload) {
         ? "Termina la concentrazione attiva"
         : "Nessuna concentrazione attiva",
     });
+    divider(root);
+  }
+
+  const classFeatureEntries = classFeatureMenuEntries(payload.classFeatures);
+  if (classFeatureEntries.length) {
+    addSubmenu(root, "Capacità di classe", "mark.svg", classFeatureEntries);
+  }
+  if (payload.showClassFeatureResourceReset) {
+    makeAction(root, "Ricarica risorse di classe", "mark.svg", "class-feature-reset-resources", {
+      title: "Ripristina tutte le risorse di classe disponibili",
+    });
+  }
+  if (classFeatureEntries.length || payload.showClassFeatureResourceReset) {
     divider(root);
   }
 
@@ -228,6 +313,7 @@ const payload = readStoredMenuPayload(localStorage, PAYLOAD_PREFIX, requestId);
 
 if (requestId && payload) {
   render(payload);
+  mountResizeObserver();
   requestMenuResize();
   armClickAwayClose();
   if (document.fonts?.ready) {
@@ -235,6 +321,7 @@ if (requestId && payload) {
   }
 } else {
   root.textContent = "Menu non disponibile";
+  mountResizeObserver();
   requestMenuResize();
 }
 

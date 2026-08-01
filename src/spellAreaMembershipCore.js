@@ -12,6 +12,14 @@ function conditionInstances(item, metaKey) {
   return Array.isArray(conditions?.instances) ? conditions.instances : [];
 }
 
+function effectThemeMatches(currentTheme, expectedTheme) {
+  if (!expectedTheme || typeof expectedTheme !== "object") return true;
+  if (!currentTheme || typeof currentTheme !== "object") return false;
+  return Object.entries(expectedTheme).every(([key, value]) =>
+    String(currentTheme[key] ?? "") === String(value ?? "")
+  );
+}
+
 function attitudeGroup(item, metaKey) {
   const attitude = String(
     item?.metadata?.[metaKey]?.attitude || "neutral"
@@ -73,6 +81,8 @@ export function areaMembershipPlan({
   metaKey = "",
   sourceName = "",
   defaultExpiry = { mode: "manual" },
+  effectType = "spell",
+  manualRemoval = false,
 } = {}) {
   const parentEffectId = String(instanceId || "").trim();
   const effects = areaMembershipEffects(rule);
@@ -84,6 +94,7 @@ export function areaMembershipPlan({
   const currentMembers = new Set();
   const removals = [];
   const additions = [];
+  const skipClassFeatureReconcile = effectType === "class-feature-area";
 
   for (const effect of effects) {
     const effectId = String(effect?.id || "").trim();
@@ -115,12 +126,25 @@ export function areaMembershipPlan({
         if (
           currentConditionName !== expectedConditionName
           || currentEffectKind !== expectedEffectKind
+          || !effectThemeMatches(instance?.theme, effect?.theme)
         ) {
-          removals.push({ itemId: targetId, instanceId: conditionId });
+          removals.push({
+            itemId: targetId,
+            instanceId: conditionId,
+            ...(skipClassFeatureReconcile
+              ? { skipClassFeatureReconcile: true }
+              : {}),
+          });
           continue;
         }
         if (currentForEffect.has(targetId)) {
-          removals.push({ itemId: targetId, instanceId: conditionId });
+          removals.push({
+            itemId: targetId,
+            instanceId: conditionId,
+            ...(skipClassFeatureReconcile
+              ? { skipClassFeatureReconcile: true }
+              : {}),
+          });
         } else {
           currentForEffect.set(targetId, conditionId);
         }
@@ -129,7 +153,13 @@ export function areaMembershipPlan({
 
     for (const [targetId, conditionId] of currentForEffect) {
       if (!desired.has(targetId)) {
-        removals.push({ itemId: targetId, instanceId: conditionId });
+        removals.push({
+          itemId: targetId,
+          instanceId: conditionId,
+          ...(skipClassFeatureReconcile
+            ? { skipClassFeatureReconcile: true }
+            : {}),
+        });
       }
     }
     const enteringForEffect = [...desired].filter(
@@ -145,12 +175,16 @@ export function areaMembershipPlan({
           sourceId: String(sourceId || "").trim(),
           sourceName: String(sourceName || "").trim(),
           parentEffectId,
-          type: "spell",
+          type: effectType,
           effectId,
           ...(!effect?.condition && effect?.kind
             ? { effectKind: effect.kind }
             : {}),
           effectDetail: String(effect.detail || ""),
+          ...(manualRemoval ? { manualRemoval: true } : {}),
+          ...(effect?.theme && typeof effect.theme === "object"
+            ? { theme: { ...effect.theme } }
+            : {}),
           ...(effect.mechanics && typeof effect.mechanics === "object"
             ? { mechanics: effect.mechanics }
             : {}),

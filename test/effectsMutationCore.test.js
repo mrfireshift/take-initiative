@@ -170,6 +170,42 @@ test("interrompere una zona senza bersagli rimuove il record tecnico dal caster"
   assert.deepEqual(state(plan, "caster").spells, []);
 });
 
+test("rompere la concentrazione rimuove anche l'incantesimo applicato al caster", () => {
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        benedizione: {
+          name: "Benedizione",
+          instanceId: "bless-instance",
+          targets: ["caster"],
+        },
+      },
+      spells: [{
+        id: "bless-entry",
+        name: "Benedizione",
+        turns: 10,
+        conc: true,
+        casterId: "caster",
+        instanceId: "bless-instance",
+      }],
+      conditions: [{
+        id: "bless-effect",
+        condition: "+1d4 Att/TS",
+        active: true,
+        type: "spell",
+        parentEffectId: "bless-instance",
+      }],
+    }),
+  ], [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+  }]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "caster").spells, []);
+  assert.deepEqual(state(plan, "caster").conditions, []);
+});
+
 test("una pill buff collegata alla spell conserva semantica e rimozione manuale indipendente", () => {
   const applied = buildEffectsMutationPlan([token("target")], [
     {

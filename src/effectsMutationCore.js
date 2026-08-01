@@ -116,6 +116,9 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     instance.effectKind = options.effectKind;
   }
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
+  if (options.theme && typeof options.theme === "object") {
+    instance.theme = clone(options.theme);
+  }
   const saveReminders = normalizeEffectSaveReminders(options.saveReminder);
   if (saveReminders.length) {
     instance.saveReminder = saveReminders.length === 1

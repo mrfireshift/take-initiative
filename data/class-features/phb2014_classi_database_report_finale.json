@@ -1,0 +1,45 @@
+{
+  "file": "phb2014_classi_database_finale.json",
+  "sha256": "c0c15940ac6ccd97bfa9678b47af39f0550d5d899492063bf5add6f3672eb53b",
+  "dimensione_byte": 499660,
+  "conteggi": {
+    "classi": 12,
+    "sottoclassi": 40,
+    "privilegi": 319,
+    "opzioni": 121,
+    "record_progressione_classi": 240
+  },
+  "copertura_sottoclassi_per_classe": {
+    "barbaro": 2,
+    "bardo": 2,
+    "chierico": 7,
+    "druido": 2,
+    "guerriero": 3,
+    "ladro": 3,
+    "mago": 8,
+    "monaco": 3,
+    "paladino": 3,
+    "ranger": 2,
+    "stregone": 2,
+    "warlock": 3
+  },
+  "distribuzione_fonti_descrizioni": {
+    "foundry_verificato": 241,
+    "manuale_errata": 109,
+    "manuale_verificato": 122,
+    "tabella_verificata": 8
+  },
+  "controlli": {
+    "json_valido": true,
+    "id_duplicati": [],
+    "riferimenti_mancanti": [],
+    "incoerenze_classe_livello": [],
+    "privilegi_orfani": [],
+    "descrizioni_vuote": [],
+    "artefatti_testuali_noti": [],
+    "progressioni_incomplete": [],
+    "pagine_fuori_intervallo": []
+  },
+  "esito": "ok",
+  "nota": "Il controllo attesta validità strutturale, integrità referenziale, copertura delle progressioni e assenza degli artefatti automatici noti. Nei passaggi in cui l'estrazione del PDF era danneggiata, il testo è stato riscritto in forma meccanicamente fedele anziché riprodotto tipograficamente parola per parola."
+}

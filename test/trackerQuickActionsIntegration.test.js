@@ -22,15 +22,52 @@ const initiativeCardsSource = readFileSync(
   new URL("../src/initiativeCards.js", import.meta.url),
   "utf8",
 );
+const cardModalSource = readFileSync(
+  new URL("../src/initiative-card-modal.js", import.meta.url),
+  "utf8",
+);
+const conditionsSource = readFileSync(
+  new URL("../src/conditions.js", import.meta.url),
+  "utf8",
+);
+const contextMenuSource = readFileSync(
+  new URL("../src/contextMenu.js", import.meta.url),
+  "utf8",
+);
 
-test("il tracker legge le azioni dalla scheda canonica del token", () => {
+test("il tracker usa solo le azioni rapide configurate nella scheda", () => {
   assert.match(
     initiativeSource,
-    /quickActions:\s*getInitiativeCard\(it\)\.quickActions/,
+    /const initiativeCard = getInitiativeCard\(it\)/,
   );
+  assert.match(
+    initiativeSource,
+    /quickActions: IS_GM\s*\?\s*initiativeCard\.quickActions/,
+  );
+  assert.doesNotMatch(initiativeSource, /buildClassFeatureQuickActions\(initiativeCard\)/);
+  assert.match(initiativeSource, /action\?\.kind === "feature"/);
+  assert.match(initiativeSource, /return activateClassFeature\(\{/);
+});
+
+test("l'editor consente di scegliere manualmente una feature per le azioni rapide", () => {
+  assert.match(cardModalSource, /\["feature",/);
+  assert.match(cardModalSource, /featureSelect\.dataset\.quickActionField = "featureId"/);
+  assert.match(cardModalSource, /classFeatureTargetMode\(feature\)/);
+  assert.match(cardModalSource, /activateClassFeature\(\{/);
+});
+
+test("il Giuramento non appartiene al catalogo condizioni e non c'e menu feature sul token", () => {
+  assert.doesNotMatch(conditionsSource, /"Giuramento di Inimicizia"\s*:/);
+  assert.doesNotMatch(conditionsSource, /\n\s*"Giuramento di Inimicizia",/);
+  assert.doesNotMatch(contextMenuSource, /ctx-class-features/);
+  assert.doesNotMatch(viteSource, /ctxClassFeatures/);
 });
 
 test("il launcher viene montato sia sulle card classiche sia su quelle compatte", () => {
+  assert.match(
+    initiativeSource,
+    /function __mountTrackerQuickActions[\s\S]*?if \(\s*!IS_GM\s*\|\|/,
+  );
   assert.match(
     initiativeSource,
     /__mountTrackerQuickActions\(card,\s*entry,\s*\{\s*compact:\s*true\s*\}\)/,

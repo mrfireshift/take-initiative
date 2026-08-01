@@ -73,6 +73,27 @@ test("scarta record invalidi, duplicati e oltre il limite", () => {
   const result = sanitizeQuickActions(source);
   assert.equal(result.length, MAX_QUICK_ACTIONS);
   assert.equal(new Set(result.map((action) => action.id)).size, MAX_QUICK_ACTIONS);
+  assert.equal(sanitizeQuickActions(source, { limit: 64 }).length, MAX_QUICK_ACTIONS + 3);
+});
+
+test("normalizza una capacità attiva senza stato runtime", () => {
+  const action = sanitizeQuickAction({
+    id: "feature:barbaro-ira",
+    label: "Ira",
+    kind: "feature",
+    featureId: "barbaro-ira",
+    targetMode: "self",
+    resourceCurrent: 2,
+  });
+  assert.deepEqual(action, {
+    version: 1,
+    id: "feature:barbaro-ira",
+    label: "Ira",
+    kind: "feature",
+    featureId: "barbaro-ira",
+    targetMode: "self",
+  });
+  assert.equal(quickActionPanel(action), "features");
 });
 
 test("risolve pannello, lookup e bersagli iniziali", () => {

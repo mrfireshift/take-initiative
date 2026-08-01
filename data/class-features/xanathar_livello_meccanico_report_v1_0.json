@@ -1,0 +1,48 @@
+{
+  "file": "xanathar_livello_meccanico_v1_0.json",
+  "base_catalog": "xanathar_sottoclassi_database_finale.json",
+  "conteggi": {
+    "source_records_expected": 199,
+    "mechanics_records": 199,
+    "resource_pools": 30,
+    "automation_level_counts": {
+      "assistita": 141,
+      "riferimento": 55,
+      "automatica": 2,
+      "tracciamento": 1
+    },
+    "completeness_status_counts": {
+      "curata": 18,
+      "parziale": 126,
+      "riferimento": 55
+    },
+    "broken_resource_pool_references": [],
+    "duplicate_mechanic_ids": [],
+    "duplicate_resource_pool_ids": []
+  },
+  "curated_records": [
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+    "barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori",
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
+    "barbaro-cammino-dello-zelota-furia-divina",
+    "bardo-collegio-dei-sussurri-lame-psichiche",
+    "bardo-collegio-dell-incanto-manto-di-ispirazione",
+    "bardo-collegio-delle-spade-virtuosismo-della-lama",
+    "druido-circolo-del-pastore-totem-spirituale",
+    "guerriero-arciere-arcano-tiro-arcano",
+    "guerriero-samurai-spirito-combattivo",
+    "mago-magia-della-guerra-deviazione-arcana",
+    "paladino-giuramento-di-conquista-aura-di-conquista",
+    "ranger-cacciatore-delle-tenebre-imboscata-terrificante",
+    "warlock-il-celestiale-luce-guaritrice",
+    "warlock-la-lama-del-sortilegio-maledizione-della-lama-del-sortilegio",
+    "warlock-la-lama-del-sortilegio-armatura-dei-sortilegi",
+    "warlock-suppliche-occulte-punizione-occulta",
+    "warlock-suppliche-occulte-tomba-di-levistus"
+  ],
+  "esito": "ok",
+  "schema_file": "xanathar_livello_meccanico_schema_v1_0.json",
+  "schema_valido": true,
+  "riferimenti_catalogo_mancanti": [],
+  "nota": "Solo i record con completezza curata sono considerati pronti per automazioni affidabili; gli altri restano esplicitamente parziali o di riferimento."
+}

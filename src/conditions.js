@@ -40,7 +40,6 @@ export const CONDITION_LIST = [
   "Trattenuto",
   "Indebolimento",
   "Ira",
-  "Giuramento di Inimicizia",
 ];
 
 // Indebolimento si gestisce dalla scheda iniziativa: resta nel catalogo per
@@ -67,12 +66,12 @@ export const CONDITION_EMOJI = Object.freeze({
   "Trattenuto": "⛓️",
   "Indebolimento": "🩸",
   "Ira": "🔥",
-  "Giuramento di Inimicizia": "⚔️",
+  "Santuario del Crepuscolo": "🌙",
 });
 
-export function formatConditionName(name) {
+export function formatConditionName(name, preferredEmoji = "") {
   const clean = String(name || "").trim();
-  const emoji = CONDITION_EMOJI[clean];
+  const emoji = String(preferredEmoji || CONDITION_EMOJI[clean] || "").trim();
   return emoji ? `${emoji} ${clean}` : clean;
 }
 const MAX_CUSTOM_SLOTS = 3;
@@ -113,6 +112,7 @@ function __normalizeAppliedAt(value) {
   if (Number.isFinite(round)) out.round = round;
   if (value.actorId) out.actorId = String(value.actorId);
   if (value.phase) out.phase = String(value.phase);
+  if (value.turnKey) out.turnKey = String(value.turnKey);
   return Object.keys(out).length ? out : null;
 }
 
@@ -155,12 +155,17 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.sourceName) instance.sourceName = String(value.sourceName);
   if (value.targetId) instance.targetId = String(value.targetId);
   if (value.parentEffectId) instance.parentEffectId = String(value.parentEffectId);
+  if (value.parentFeatureId) instance.parentFeatureId = String(value.parentFeatureId);
+  if (value.parentInstanceId) instance.parentInstanceId = String(value.parentInstanceId);
   if (value.type) instance.type = String(value.type);
   if (value.effectId) instance.effectId = String(value.effectId);
   if (value.effectKind === "buff" || value.effectKind === "debuff") {
     instance.effectKind = value.effectKind;
   }
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
+  if (value.theme && typeof value.theme === "object") {
+    instance.theme = { ...value.theme };
+  }
   if (value.mechanics && typeof value.mechanics === "object") {
     instance.mechanics = { ...value.mechanics };
   }
@@ -229,6 +234,7 @@ function __cloneConditionInstance(instance) {
   return {
     ...instance,
     expiry: { ...(instance.expiry || { mode: "manual" }) },
+    ...(instance.theme ? { theme: { ...instance.theme } } : {}),
     ...(instance.appliedAt ? { appliedAt: { ...instance.appliedAt } } : {}),
   };
 }
@@ -308,6 +314,9 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
     instance.effectKind = opts.effectKind;
   }
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
+  if (opts.theme && typeof opts.theme === "object") {
+    instance.theme = { ...opts.theme };
+  }
   const saveReminders = normalizeEffectSaveReminders(opts.saveReminder);
   if (saveReminders.length) {
     instance.saveReminder = saveReminders.length === 1
@@ -363,8 +372,8 @@ export function formatConditionInstance(instance) {
   const name = __conditionName(instance);
   if (!name) return "";
   const conditionLabel = name === EXHAUSTION_CONDITION
-    ? `${formatConditionName(name)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
-    : formatConditionName(name);
+    ? `${formatConditionName(name, instance?.theme?.emoji)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
+    : formatConditionName(name, instance?.theme?.emoji);
   const parts = [conditionLabel];
   if (instance?.sourceName) {
     parts.push(`fonte: ${instance.sourceName}`);
@@ -404,6 +413,9 @@ function __groupConditionInstances(cond = {}) {
       effectKind,
       effectId: String(instance.effectId || ""),
       parentEffectId: String(instance.parentEffectId || ""),
+      theme: instance.theme && typeof instance.theme === "object"
+        ? { ...instance.theme }
+        : null,
     };
     group.instances.push(instance);
     groups.set(key, group);
@@ -425,12 +437,12 @@ function __groupConditionInstances(cond = {}) {
   return ordered.map((group) => ({
     ...group,
     label: group.effectKind
-      ? compactSpellEffectLabel(group.name)
+      ? `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${compactSpellEffectLabel(group.name)}`
       : group.name === EXHAUSTION_CONDITION
-      ? `${formatConditionName(group.name)} ${exhaustionLevelFromInstances(group.instances)}`
+      ? `${formatConditionName(group.name, group.theme?.emoji)} ${exhaustionLevelFromInstances(group.instances)}`
       : group.instances.length > 1
-      ? `${formatConditionName(group.name)} x${group.instances.length}`
-      : `${formatConditionName(group.name)}${__compactExpiryLabel(group.instances[0])}`,
+      ? `${formatConditionName(group.name, group.theme?.emoji)} x${group.instances.length}`
+      : `${formatConditionName(group.name, group.theme?.emoji)}${__compactExpiryLabel(group.instances[0])}`,
   }));
 }
 function __conditionLabel(name, value) {
@@ -438,7 +450,7 @@ function __conditionLabel(name, value) {
     ? value
     : __legacyInstance(name, value, `label:${encodeURIComponent(name)}`);
   return instance
-    ? `${formatConditionName(name)}${__compactExpiryLabel(instance)}`
+    ? `${formatConditionName(name, instance?.theme?.emoji)}${__compactExpiryLabel(instance)}`
     : formatConditionName(name);
 }
 // Colore bordo per condizione (fallback a PILL_CFG.border)
@@ -459,6 +471,7 @@ const COND_BORDER = Object.freeze({
   "Trattenuto":      "#ff6f00",
   "Indebolimento":   "#d81b60",
   "Ira":             "#ff0000",
+  "Santuario del Crepuscolo": "#8b5cf6",
 });
 
 // Compatibilità per vecchi import: il watcher vive nel coordinatore effetti
@@ -934,6 +947,7 @@ function __orderedParts(cond = {}) {
     tone: group.effectKind || "",
     parentEffectId: group.parentEffectId,
     sourceId: String(group.instances[0]?.sourceId || ""),
+    theme: group.theme,
   }));
 }
 
@@ -1237,7 +1251,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
   const sizes = parts.map(p => {
     const label = p.label;
     const { width, height } = __pillSizeFor(label);
-    return { label, name: p.name, width, height, key: p.key };
+    return { label, name: p.name, width, height, key: p.key, theme: p.theme };
   });
 
   const totalWidth = sizes.reduce((acc, s) => acc + s.width, 0) + CHIP_GAP * (sizes.length - 1);
@@ -1282,7 +1296,15 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
       width: s.width,
       height: s.height,
       label: s.label,
-      border: COND_BORDER[s.name] || PILL_CFG.border,
+      background: /^#[0-9a-f]{6}$/iu.test(String(s.theme?.background || ""))
+        ? s.theme.background
+        : PILL_CFG.bg,
+      text: /^#[0-9a-f]{6}$/iu.test(String(s.theme?.text || ""))
+        ? s.theme.text
+        : PILL_CFG.textFill,
+      border: /^#[0-9a-f]{6}$/iu.test(String(s.theme?.accent || ""))
+        ? s.theme.accent
+        : COND_BORDER[s.name] || PILL_CFG.border,
     };
   }
 
@@ -1301,7 +1323,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
         .plainText(s.label)
         .position({ x: cx, y: cy })
         .attachedTo(it.id)
-        .backgroundColor(PILL_CFG.bg)
+        .backgroundColor(slot.background)
         .backgroundOpacity(PILL_CFG.bgOpacity)
         .cornerRadius(slot.height / 2)
         .pointerWidth(0)
@@ -1315,7 +1337,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
         .lineHeight(PILL_CFG.lineHeight)
         .textAlign("CENTER")
         .textAlignVertical("MIDDLE")
-        .fillColor(PILL_CFG.textFill)
+        .fillColor(slot.text)
         .strokeColor(PILL_CFG.textStroke)
         .strokeWidth(PILL_CFG.textStrokeW)
         .width(s.width)
@@ -1359,14 +1381,14 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
       width: slot.width,
       height: slot.height,
       label: slot.label,
-      backgroundColor: PILL_CFG.bg,
+      backgroundColor: slot.background,
       backgroundOpacity: PILL_CFG.bgOpacity,
       maxViewScale: WIDGET_MAX_VIEW_SCALE,
       fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
       fontSize: PILL_CFG.fontSize,
       fontWeight: PILL_CFG.fontWeight,
       lineHeight: PILL_CFG.lineHeight,
-      textFill: PILL_CFG.textFill,
+      textFill: slot.text,
       textStroke: PILL_CFG.textStroke,
       textStrokeWidth: PILL_CFG.textStrokeW,
       zIndex: CHIP_Z.bg,
@@ -1407,7 +1429,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
         itx.text.type = "PLAIN";
         itx.text.plainText = slot.label;
         itx.style = itx.style || {};
-        if (itx.style.backgroundColor !== PILL_CFG.bg) itx.style.backgroundColor = PILL_CFG.bg;
+        if (itx.style.backgroundColor !== slot.background) itx.style.backgroundColor = slot.background;
         if (itx.style.backgroundOpacity !== PILL_CFG.bgOpacity) itx.style.backgroundOpacity = PILL_CFG.bgOpacity;
         if (itx.style.cornerRadius !== slot.height / 2) itx.style.cornerRadius = slot.height / 2;
         if (itx.style.maxViewScale !== WIDGET_MAX_VIEW_SCALE) itx.style.maxViewScale = WIDGET_MAX_VIEW_SCALE;
@@ -1422,7 +1444,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
         itx.text.style.lineHeight = PILL_CFG.lineHeight;
         itx.text.style.textAlign = "CENTER";
         itx.text.style.textAlignVertical = "MIDDLE";
-        itx.text.style.fillColor = PILL_CFG.textFill;
+        itx.text.style.fillColor = slot.text;
         itx.text.style.fillOpacity = 1;
         itx.text.style.strokeColor = PILL_CFG.textStroke;
         itx.text.style.strokeWidth = PILL_CFG.textStrokeW;
@@ -1466,16 +1488,27 @@ export function buildConditionChips(cond = {}, opts = {}) {
 
   for (const group of ordered) {
     const chip = document.createElement("span");
-    chip.textContent = group.label;
+    chip.className = "chip condition-chip";
     chip.dataset.referenceType = "conditions";
     chip.dataset.referenceEntry = group.name;
-    const borderCol = COND_BORDER[group.name] || "rgba(255, 255, 255, 1)";
+    const chipLabel = document.createElement("span");
+    chipLabel.textContent = group.label;
+    chip.appendChild(chipLabel);
+    const borderCol = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.accent || ""))
+      ? group.theme.accent
+      : COND_BORDER[group.name] || "rgba(255, 255, 255, 1)";
+    const background = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.background || ""))
+      ? group.theme.background
+      : "rgba(0,0,0,.72)";
     Object.assign(chip.style, {
       fontSize: compact ? "10px" : "11px",
       fontWeight: "500",
       padding: compact ? "2px 6px" : "4px 8px",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "3px",
       borderRadius: "999px",
-      background: "rgba(0,0,0,.72)",
+      background,
       color: "#fff",
       border: `2px solid ${borderCol}`,
       lineHeight: "1",
@@ -1484,6 +1517,54 @@ export function buildConditionChips(cond = {}, opts = {}) {
       pointerEvents: "auto",
       cursor: "pointer",
     });
+    const classFeatureInstance = group.instances.length === 1
+      ? group.instances[0]
+      : null;
+    const canTerminateClassFeature = (
+      classFeatureInstance?.type === "class-feature"
+      || classFeatureInstance?.type === "class-feature-area"
+    ) && typeof opts.onTerminateClassFeature === "function";
+    if (canTerminateClassFeature) {
+      const terminate = document.createElement("button");
+      terminate.type = "button";
+      terminate.textContent = "×";
+      terminate.dataset.cardSelectionIgnore = "1";
+      terminate.title = `Termina ${group.name}`;
+      terminate.setAttribute("aria-label", terminate.title);
+      Object.assign(terminate.style, {
+        minWidth: compact ? "10px" : "12px",
+        width: compact ? "10px" : "12px",
+        height: compact ? "10px" : "12px",
+        padding: "0",
+        border: "0",
+        borderRadius: "50%",
+        background: "rgba(0,0,0,.22)",
+        color: "inherit",
+        font: "inherit",
+        fontSize: compact ? "10px" : "11px",
+        fontWeight: "800",
+        lineHeight: compact ? "10px" : "12px",
+        cursor: "pointer",
+      });
+      terminate.addEventListener("mouseenter", () => {
+        terminate.style.background = "rgba(220,38,38,.72)";
+      });
+      terminate.addEventListener("mouseleave", () => {
+        terminate.style.background = "rgba(0,0,0,.22)";
+      });
+      terminate.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (terminate.disabled) return;
+        terminate.disabled = true;
+        Promise.resolve(opts.onTerminateClassFeature(classFeatureInstance))
+          .catch((error) => {
+            terminate.disabled = false;
+            console.warn("[conditions] terminate class feature:", error?.message || error);
+          });
+      });
+      chip.appendChild(terminate);
+    }
     wrap.appendChild(chip);
   }
 
@@ -1508,14 +1589,20 @@ export function buildSpellEffectChips(cond = {}, opts = {}) {
     chip.dataset.conditionInstanceId = String(instance.id || "");
     chip.dataset.spellEffectKind = group.effectKind;
     const buff = group.effectKind === "buff";
+    const background = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.background || ""))
+      ? group.theme.background
+      : buff ? "rgba(21,128,61,.88)" : "rgba(185,28,28,.88)";
+    const border = /^#[0-9a-f]{6}$/iu.test(String(group.theme?.accent || ""))
+      ? group.theme.accent
+      : buff ? "#86efac" : "#fca5a5";
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
       padding: compact ? "2px 6px" : "4px 8px",
       borderRadius: "999px",
-      background: buff ? "rgba(21,128,61,.88)" : "rgba(185,28,28,.88)",
+      background,
       color: "#fff",
-      border: `2px solid ${buff ? "#86efac" : "#fca5a5"}`,
+      border: `2px solid ${border}`,
       boxShadow: "0 1px 0 rgba(0,0,0,.35)",
       fontSize: compact ? "10px" : "11px",
       fontWeight: "600",

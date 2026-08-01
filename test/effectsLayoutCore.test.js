@@ -106,6 +106,53 @@ test("le pill buff e debuff precedono lo stack senza cambiare il colore della sp
   assert.equal(rows[2].backgroundColor, "#6d28d9");
 });
 
+test("le pill delle Feature usano il tema invece del fallback buff verde", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [token("target", {
+      conditionParts: [{
+        key: "spell-effect:twilight-area",
+        label: "🌙 Santuario del Crepuscolo",
+        kind: "spell-effect",
+        tone: "buff",
+        theme: {
+          emoji: "🌙",
+          accent: "#a78bfa",
+          background: "#312e81",
+          text: "#f5f3ff",
+        },
+      }],
+    })],
+  }).filter((entry) => entry.targetId === "target");
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].backgroundColor, "#312e81");
+  assert.equal(rows[0].textFill, "#f5f3ff");
+});
+
+test("le pill di una Feature condizione usano il tema invece dello sfondo nero", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [token("target", {
+      conditionParts: [{
+        key: "custom:giuramento-di-inimicizia",
+        label: "âš”ï¸ Giuramento di Inimicizia",
+        kind: "condition",
+        theme: {
+          emoji: "âš”ï¸",
+          accent: "#f59e0b",
+          background: "#78350f",
+          text: "#fffbeb",
+        },
+      }],
+    })],
+  }).filter((entry) => entry.targetId === "target");
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].backgroundColor, "#78350f");
+  assert.equal(rows[0].textFill, "#fffbeb");
+});
+
 test("gli effetti collegati seguono la spell, ne usano il colore e accorciano la label", () => {
   const rows = planEffectsLayout({
     measureText,

@@ -15,6 +15,11 @@ function compactConditionName(name) {
   return name;
 }
 
+function themeColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/iu.test(color) ? color : fallback;
+}
+
 export function __compactConditionPillLabel(
   instance,
   { formatConditionName = compactConditionName } = {},
@@ -48,10 +53,31 @@ export function __compactEffectItems(
   const effects = conditionInstances.filter((instance) =>
     instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
   ).map((instance) => ({
-    kind: "condition",
+    kind: instance?.type === "class-feature" ? "class-feature" : "condition",
     label: __compactConditionPillLabel(instance, formatting),
     title: formatConditionInstance(instance),
+    ...(instance?.type === "class-feature"
+      ? {
+        classFeatureInstance: instance,
+        theme: instance.theme && typeof instance.theme === "object"
+          ? { ...instance.theme }
+          : null,
+      }
+      : {}),
   }));
+  for (const instance of conditionInstances.filter((entry) =>
+    (entry?.type === "class-feature" || entry?.type === "class-feature-area")
+    && (entry?.effectKind === "buff" || entry?.effectKind === "debuff")
+  )) {
+    effects.push({
+      kind: instance.effectKind,
+      label: __compactConditionPillLabel(instance, formatting),
+      title: formatConditionInstance(instance),
+      theme: instance.theme && typeof instance.theme === "object"
+        ? { ...instance.theme }
+        : null,
+    });
+  }
   for (const spell of spells) {
     const counter = spellExpiryCounter(spell);
     const spellName = String(spell?.name || "Incantesimo");
@@ -126,6 +152,7 @@ export function __buildCompactEffectPill(
   {
     documentRef = globalThis.document,
     spellColor = null,
+    onTerminateClassFeature = null,
   } = {},
 ) {
   const pill = compactDocument(documentRef).createElement("span");
@@ -138,14 +165,21 @@ export function __buildCompactEffectPill(
   const resolvedSpellColor = effect.kind === "spell" && typeof spellColor === "function"
     ? spellColor(effect.key)
     : null;
-  const background = effect.kind === "buff"
+  const effectTheme = effect.theme && typeof effect.theme === "object"
+    ? effect.theme
+    : null;
+  const background = effectTheme
+    ? themeColor(effectTheme.background, "rgba(8,12,21,.94)")
+    : effect.kind === "buff"
     ? "#15803d"
     : effect.kind === "debuff"
       ? "#b91c1c"
       : effect.kind === "concentration"
         ? "#2563eb"
         : resolvedSpellColor?.solid || "rgba(8,12,21,.94)";
-  const border = effect.kind === "buff"
+  const border = effectTheme
+    ? themeColor(effectTheme.accent, "rgba(255,255,255,.38)")
+    : effect.kind === "buff"
     ? "#86efac"
     : effect.kind === "debuff"
       ? "#fca5a5"
@@ -164,7 +198,9 @@ export function __buildCompactEffectPill(
     border: `1px solid ${border}`,
     borderRadius: "999px",
     background,
-    color: "#fff",
+    color: effectTheme
+      ? themeColor(effectTheme.text, "#fff")
+      : "#fff",
     fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
     fontSize: "8px",
     fontWeight: "600",
@@ -175,6 +211,50 @@ export function __buildCompactEffectPill(
     whiteSpace: "nowrap",
     boxShadow: "0 1px 4px rgba(0,0,0,.45)",
   });
+  if (effect.kind === "class-feature" && effect.classFeatureInstance &&
+      typeof onTerminateClassFeature === "function") {
+    const terminate = compactDocument(documentRef).createElement("button");
+    terminate.type = "button";
+    terminate.textContent = "×";
+    terminate.dataset.cardSelectionIgnore = "1";
+    terminate.title = `Termina ${effect.label}`;
+    terminate.setAttribute("aria-label", terminate.title);
+    Object.assign(terminate.style, {
+      minWidth: "10px",
+      width: "10px",
+      height: "10px",
+      marginLeft: "2px",
+      padding: "0",
+      border: "0",
+      borderRadius: "50%",
+      background: "rgba(0,0,0,.22)",
+      color: "inherit",
+      font: "inherit",
+      fontSize: "9px",
+      fontWeight: "800",
+      lineHeight: "10px",
+      cursor: "pointer",
+      flex: "0 0 10px",
+    });
+    terminate.addEventListener("mouseenter", () => {
+      terminate.style.background = "rgba(220,38,38,.72)";
+    });
+    terminate.addEventListener("mouseleave", () => {
+      terminate.style.background = "rgba(0,0,0,.22)";
+    });
+    terminate.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (terminate.disabled) return;
+      terminate.disabled = true;
+      Promise.resolve(onTerminateClassFeature(effect.classFeatureInstance))
+        .catch((error) => {
+          terminate.disabled = false;
+          console.warn("[initiative-card] terminate class feature:", error?.message || error);
+        });
+    });
+    pill.appendChild(terminate);
+  }
   return pill;
 }
 
@@ -667,6 +747,7 @@ export function buildCompactCardStatus(
     hasExpandableEffects = compactEffects.length > 1,
     effectsPopoverOpen = false,
     spellColor = null,
+    onTerminateClassFeature = null,
     documentRef = globalThis.document,
   } = {},
 ) {
@@ -705,6 +786,7 @@ export function buildCompactCardStatus(
     });
     previewPill = __buildCompactEffectPill(compactEffects[0], true, {
       spellColor,
+      onTerminateClassFeature,
       documentRef,
     });
     previewPill.style.flex = "1 1 100%";

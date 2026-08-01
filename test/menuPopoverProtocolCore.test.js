@@ -94,6 +94,7 @@ test("le azioni del menu admin sono limitate al contratto condiviso", () => {
 test("le azioni parametrizzate della card accettano soltanto valori noti", () => {
   assert.equal(isAllowedInitiativeCardMenuAction("conditions"), true);
   assert.equal(isAllowedInitiativeCardMenuAction("remove"), true);
+  assert.equal(isAllowedInitiativeCardMenuAction("class-feature-reset-resources"), true);
   for (const value of INITIATIVE_CARD_ATTITUDES) {
     assert.equal(isAllowedInitiativeCardMenuAction("attitude", value), true, value);
   }

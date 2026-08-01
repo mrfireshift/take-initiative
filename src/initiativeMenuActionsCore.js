@@ -37,6 +37,11 @@ export function buildInitiativeCardContextMenuPayload({
   const menuTitle = sourceEntry?.__groupCollapsed
     ? sourceEntry?.__groupBase
     : sourceEntry?.name;
+  const classFeatures = !isBulkScope && Array.isArray(sourceEntry?.classFeatures)
+    ? sourceEntry.classFeatures.slice(0, 64)
+    : [];
+  const showClassFeatureResourceReset = !isBulkScope
+    && ["pc", "ally"].includes(sourceEntry?.attitude);
 
   return {
     title: isBulkScope
@@ -52,6 +57,8 @@ export function buildInitiativeCardContextMenuPayload({
     showInitiativeCard: !isBulkScope &&
       ["pc", "ally"].includes(sourceEntry?.attitude),
     showBossMenu: !isBulkScope && sourceEntry?.attitude === "enemy",
+    ...(classFeatures.length ? { classFeatures } : {}),
+    ...(showClassFeatureResourceReset ? { showClassFeatureResourceReset: true } : {}),
   };
 }
 
@@ -88,6 +95,15 @@ export async function routeInitiativeCardContextMenuAction(
   }
   if (action === "clear-concentration") {
     return invoke("clearConcentrations", scopeIds, sourceEntry);
+  }
+  if (action === "class-feature-activate") {
+    return invoke("activateClassFeature", sourceEntry, value, scopeIds);
+  }
+  if (action === "class-feature-deactivate") {
+    return invoke("deactivateClassFeature", sourceEntry, value);
+  }
+  if (action === "class-feature-reset-resources") {
+    return invoke("resetClassFeatureResources", sourceEntry);
   }
   if (action === "initiative-card") {
     return invoke("openInitiativeCard", sourceEntry);

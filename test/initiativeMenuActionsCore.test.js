@@ -169,6 +169,7 @@ test("ogni azione card viene inoltrata alla callback corretta", async () => {
     setAttitude: async (...args) => calls.push(["setAttitude", ...args]),
     setBossMode: async (...args) => calls.push(["setBossMode", ...args]),
     removeFromInitiative: async (...args) => calls.push(["removeFromInitiative", ...args]),
+    resetClassFeatureResources: async (...args) => calls.push(["resetClassFeatureResources", ...args]),
   };
   const cases = [
     ["clear-conditions", "", ["clearConditions", context.scopeIds]],
@@ -182,6 +183,7 @@ test("ogni azione card viene inoltrata alla callback corretta", async () => {
     ["attitude", "ally", ["setAttitude", context.scopeIds, "ally"]],
     ["boss-mode", "epic", ["setBossMode", context.sourceEntry, "epic"]],
     ["remove", "", ["removeFromInitiative", context.scopeIds]],
+    ["class-feature-reset-resources", "", ["resetClassFeatureResources", context.sourceEntry]],
   ];
 
   for (const [action, value, expected] of cases) {
@@ -218,4 +220,42 @@ test("azioni o valori non ammessi non raggiungono le callback", async () => {
     handlers,
   ), false);
   assert.equal(calls, 0);
+});
+
+test("il payload e il routing del menu espongono attivazione e terminazione Feature", async () => {
+  const sourceEntry = {
+    name: "Paladino",
+    attitude: "pc",
+    classFeatures: [{
+      featureId: "feature-vow",
+      label: "⚔️ Giuramento",
+      active: false,
+      resourceReady: true,
+      targetLabel: "bersaglio",
+      theme: { accent: "#f97316" },
+    }],
+  };
+  const payload = buildInitiativeCardContextMenuPayload({
+    sourceEntry,
+    scopeIds: ["paladin"],
+  });
+  assert.equal(payload.classFeatures[0].featureId, "feature-vow");
+  assert.equal(payload.showClassFeatureResourceReset, true);
+
+  const calls = [];
+  const result = await routeInitiativeCardContextMenuAction(
+    { sourceEntry, scopeIds: ["paladin", "enemy"] },
+    { action: "class-feature-activate", value: "feature-vow" },
+    { activateClassFeature: async (...args) => calls.push(["activate", ...args]) },
+  );
+  assert.equal(result, true);
+  assert.deepEqual(calls, [["activate", sourceEntry, "feature-vow", ["paladin", "enemy"]]]);
+
+  calls.length = 0;
+  assert.equal(await routeInitiativeCardContextMenuAction(
+    { sourceEntry, scopeIds: ["paladin"] },
+    { action: "class-feature-deactivate", value: "instance-1" },
+    { deactivateClassFeature: async (...args) => calls.push(["deactivate", ...args]) },
+  ), true);
+  assert.deepEqual(calls, [["deactivate", sourceEntry, "instance-1"]]);
 });

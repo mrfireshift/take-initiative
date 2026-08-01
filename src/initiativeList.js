@@ -95,6 +95,21 @@ import {
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
 import {
+  CLASS_FEATURE_BY_ID,
+  buildClassFeatureContextEntries,
+  getClassFeatureDefinition,
+} from "./classFeatureCatalog.js";
+import {
+  CLASS_FEATURE_STATE_FIELD,
+  appendClassFeatureConditionInstances,
+  classFeatureTargeting,
+} from "./classFeatureCore.js";
+import {
+  activateClassFeature,
+  deactivateClassFeature,
+  resetClassFeatureResources,
+} from "./classFeatureRuntime.js";
+import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
 } from "./initiativeEditors.js";
@@ -130,7 +145,7 @@ import {
 export const CONDITIONS = [
   "Accecato", "Affascinato", "Afferrato", "Assordato", "Avvelenato",
   "Incapacitato", "Invisibile", "Paralizzato", "Pietrificato", "Privo di sensi",
-  "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione", "Ira", "Giuramento di Inimicizia"
+    "Prono", "Spaventato", "Stordito", "Trattenuto", "Indebolimento", "Concentrazione", "Ira"
 ];
 // — Dock condizioni (chip) sulla card
 const COND_DOCK_CFG = {
@@ -3519,8 +3534,14 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
 function entryFromSceneItem(it) {
   const meta = it?.metadata?.[META_KEY];
   if (!it?.id || !meta || meta.inInitiative !== true) return null;
+  const initiativeCard = getInitiativeCard(it);
   return {
-    conditions: __safeConditions(meta.conditions),
+    conditions: appendClassFeatureConditionInstances(
+      __safeConditions(meta.conditions),
+      meta[CLASS_FEATURE_STATE_FIELD],
+      CLASS_FEATURE_BY_ID,
+      __latestInitiativeState?.round ?? null,
+    ),
     id: it.id,
     name: it.name || "Unnamed",
     position: it.position ? { x: it.position.x, y: it.position.y } : null,
@@ -3550,7 +3571,16 @@ function entryFromSceneItem(it) {
         : max;
       return { max, current };
     })(),
-    quickActions: getInitiativeCard(it).quickActions,
+    quickActions: IS_GM
+      ? initiativeCard.quickActions
+      : initiativeCard.quickActions.filter((action) => action?.kind !== "feature"),
+    classFeatures: IS_GM
+      ? buildClassFeatureContextEntries(
+        initiativeCard,
+        meta[CLASS_FEATURE_STATE_FIELD],
+        __latestInitiativeState?.round ?? null,
+      )
+      : [],
     spells: getVisibleSpellsFromItem(it),
     isConcentrating: !!(meta[CONC_META_KEY] &&
                         typeof meta[CONC_META_KEY] === "object" &&
@@ -5417,7 +5447,7 @@ function mountTrackerPopoverToggleListener() {
       setOpenTrackerPopoverId();
     }
     if (data?.type === "resize" && data.id === __openTrackerPopoverId) {
-      const maxHeight = data.id === `${ID}/initiative-card-modal` ? 680 : 560;
+      const maxHeight = data.id === `${ID}/initiative-card-modal` ? 760 : 560;
       const height = Math.max(320, Math.min(maxHeight, Math.round(Number(data.height) || 0)));
       void OBR.popover.setHeight(data.id, height).catch(() => {});
     }
@@ -5816,9 +5846,65 @@ async function __terminateSpellOnTrackerCard(itemId, spell) {
   await refreshConditionLabels([itemId]);
 }
 
+async function __terminateClassFeatureOnTrackerCard(itemId, instance) {
+  if (!IS_GM || !itemId || !instance) return;
+  const sourceId = String(instance?.sourceId || itemId).trim();
+  const instanceId = String(instance?.parentEffectId || "").trim();
+  if (!sourceId || !instanceId) return;
+  await deactivateClassFeature(sourceId, instanceId);
+}
+
+async function __activateClassFeatureFromContext(entry, featureId, scopeIds = []) {
+  if (!IS_GM || !entry) return;
+  const sourceId = splitParagonId(entry.id).baseId;
+  const feature = getClassFeatureDefinition(featureId);
+  if (!sourceId || !feature) return;
+
+  const targeting = classFeatureTargeting(feature);
+  const selectedIds = await OBR.player.getSelection().catch(() => []);
+  const candidateIds = Array.from(new Set([
+    ...(Array.isArray(scopeIds) ? scopeIds : []),
+    ...(Array.isArray(selectedIds) ? selectedIds : []),
+  ])).map((id) => splitParagonId(String(id || "").trim()).baseId)
+    .filter((id) => id && id !== sourceId);
+
+  const activation = { sourceId, featureId: feature.id };
+  if (targeting.mode === "single-target" && candidateIds.length) {
+    activation.targetIds = candidateIds;
+  }
+  const result = await activateClassFeature(activation);
+  await renderAll("class-feature-context-activate");
+  return result;
+}
+
+async function __deactivateClassFeatureFromContext(entry, instanceId) {
+  if (!IS_GM || !entry) return;
+  const sourceId = splitParagonId(entry.id).baseId;
+  if (!sourceId || !instanceId) return;
+  const result = await deactivateClassFeature(sourceId, instanceId);
+  await renderAll("class-feature-context-deactivate");
+  return result;
+}
+
+async function __resetClassFeatureResourcesFromContext(entry) {
+  if (!IS_GM || !entry) return;
+  const sourceId = splitParagonId(entry.id).baseId;
+  if (!sourceId) return;
+  const result = await resetClassFeatureResources(sourceId);
+  await renderAll("class-feature-reset-resources");
+  return result;
+}
+
 async function __runTrackerQuickAction(sourceEntry, action) {
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) throw new Error("quick-action-source-missing");
+  if (action?.kind === "feature") {
+    if (!IS_GM) throw new Error("Solo il GM può attivare una capacità.");
+    return activateClassFeature({
+      sourceId,
+      featureId: action.featureId,
+    });
+  }
   const result = await executeDirectQuickAction({
     action,
     sourceItem: { id: sourceId, name: sourceEntry?.name || "" },
@@ -5840,6 +5926,8 @@ async function __runTrackerQuickAction(sourceEntry, action) {
 
 function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {}) {
   if (
+    !IS_GM
+    ||
     !card
     || !sourceEntry
     || sourceEntry.__groupCollapsed
@@ -6002,6 +6090,9 @@ async function __handleInitiativeCardContextMenuAction(context, data) {
     openSpells: openCardSpellsPopup,
     clearSpells: __clearCardSpells,
     clearConcentrations: __clearCardConcentrations,
+    activateClassFeature: __activateClassFeatureFromContext,
+    deactivateClassFeature: __deactivateClassFeatureFromContext,
+    resetClassFeatureResources: __resetClassFeatureResourcesFromContext,
     openInitiativeCard: openInitiativeCardPopup,
     setAttitude: __setCardAttitude,
     setBossMode: __setCardBossMode,
@@ -6031,6 +6122,12 @@ function mountInitiativeCardContextMenuListener() {
     __closeInitiativeCardContextMenu();
     void __handleInitiativeCardContextMenuAction(context, data).catch((error) => {
       console.warn("[initiative-card-context-menu] action error:", error?.message || error);
+      if (String(data.action || "").startsWith("class-feature-")) {
+        void OBR.notification.show(
+          error?.message || "Attivazione della capacità non riuscita.",
+          "WARNING",
+        ).catch(() => {});
+      }
     });
   });
 
@@ -6058,6 +6155,7 @@ function mountTrackerQuickActionsPopoverListener() {
     const actionId = String(data.actionId || "").trim();
     const action = sanitizeQuickActions(
       __trackerQuickActionsContext.sourceEntry?.quickActions,
+      { limit: 64 },
     ).find((entry) => entry.id === actionId);
     if (!action) return;
     const { sourceEntry } = __trackerQuickActionsContext;
@@ -6082,7 +6180,7 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   ];
   const openRevision = __trackerQuickActionsRevision;
   const requestId = createMenuRequestId();
-  const actions = sanitizeQuickActions(sourceEntry.quickActions);
+  const actions = sanitizeQuickActions(sourceEntry.quickActions, { limit: 64 });
   if (!actions.length || !writeStoredMenuPayload(
     localStorage,
     TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
@@ -7128,6 +7226,9 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
       hasExpandableEffects,
       effectsPopoverOpen,
       spellColor: __spellColor,
+      onTerminateClassFeature: IS_GM
+        ? (instance) => __terminateClassFeatureOnTrackerCard(entry.id, instance)
+        : null,
     });
 
     bindReferenceChips(status);
@@ -7245,6 +7346,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       __selectionIdsForEntry,
       __spellColor,
       __spellKey,
+      __terminateClassFeatureOnTrackerCard,
       __terminateSpellOnTrackerCard,
       applyGroupHPMaxDeltaWithRenderLock,
       armDocClickIgnore,

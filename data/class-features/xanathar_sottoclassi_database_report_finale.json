@@ -1,0 +1,41 @@
+{
+  "file": "xanathar_sottoclassi_database_finale.json",
+  "sha256": "00773a7d6dbb650ce64578ff9ecd07d8b7022355355226366411eabeea8001f0",
+  "dimensione_byte": 243345,
+  "conteggi": {
+    "sottoclassi": 31,
+    "privilegi": 153,
+    "opzioni": 46,
+    "suppliche_occulte": 14
+  },
+  "copertura_sottoclassi_per_classe": {
+    "barbaro": 3,
+    "bardo": 3,
+    "chierico": 2,
+    "druido": 2,
+    "guerriero": 3,
+    "ladro": 4,
+    "mago": 1,
+    "monaco": 3,
+    "paladino": 2,
+    "ranger": 3,
+    "stregone": 3,
+    "warlock": 2
+  },
+  "controlli": {
+    "json_valido": true,
+    "id_duplicati": [],
+    "riferimenti_mancanti": [],
+    "descrizioni_vuote": [],
+    "descrizioni_privilegi_troppo_brevi": [],
+    "pagine_fuori_intervallo": [],
+    "artefatti_testuali_critici": [],
+    "record_fallback_generici": [],
+    "opzioni_tiro_arcano": 8,
+    "suppliche_occulte": 14,
+    "copertura_sottoclassi_completa": true
+  },
+  "esito": "ok",
+  "nota": "Validazione strutturale del catalogo additivo Xanathar; le classi e il privilegio PHB Suppliche Occulte sono riferimenti esterni deliberati.",
+  "metodo": "Estrazione dal livello testuale selezionabile; verifica visiva e correzione mirata di titoli spezzati, tabelle, note marginali e righe ambigue."
+}

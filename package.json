@@ -14,6 +14,9 @@
     "generate:spell-translations": "node scripts/generate-spell-translations.mjs",
     "generate:supplement-spells": "node scripts/generate-supplement-spell-catalog.mjs",
     "generate:phb2014-extra": "node scripts/generate-phb2014-extra-catalog.mjs",
+    "generate:class-features": "node scripts/generate-class-feature-catalog.mjs",
+    "audit:class-features": "node scripts/audit-class-features.mjs",
+    "audit:barbaro": "node scripts/audit-barbaro-features.mjs",
     "check:spells": "node scripts/check-spell-catalog.mjs",
     "preview": "vite preview"
   },

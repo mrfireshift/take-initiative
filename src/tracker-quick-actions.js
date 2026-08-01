@@ -52,7 +52,7 @@ function armClickAwayClose() {
 }
 
 function render(payload) {
-  const actions = sanitizeQuickActions(payload?.actions);
+  const actions = sanitizeQuickActions(payload?.actions, { limit: 64 });
   root.replaceChildren();
   const title = document.createElement("div");
   title.className = "title";
@@ -67,7 +67,11 @@ function render(payload) {
 
     const icon = document.createElement("span");
     icon.className = "icon";
-    icon.textContent = action.kind === "condition" ? "C" : "✦";
+    icon.textContent = action.kind === "condition"
+      ? "C"
+      : action.kind === "feature"
+        ? "◆"
+        : "✦";
     const copy = document.createElement("span");
     copy.className = "copy";
     const label = document.createElement("span");
@@ -88,7 +92,7 @@ function render(payload) {
 }
 
 const payload = readStoredMenuPayload(localStorage, PAYLOAD_PREFIX, requestId);
-if (requestId && payload && sanitizeQuickActions(payload.actions).length) {
+if (requestId && payload && sanitizeQuickActions(payload.actions, { limit: 64 }).length) {
   render(payload);
   requestMenuResize();
   armClickAwayClose();

@@ -125,6 +125,12 @@ export async function prepareEffectsMutation(operations = []) {
   );
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
+  plan.skipClassFeatureReconcileIds = preparedOperations
+    .filter((operation) => operation.type === "condition:remove-instances")
+    .flatMap((operation) => (Array.isArray(operation.removals) ? operation.removals : []))
+    .filter((removal) => removal?.skipClassFeatureReconcile === true)
+    .map((removal) => String(removal.instanceId || "").trim())
+    .filter(Boolean);
 
   mutationStats.plans += 1;
   mutationStats.commands += preparedOperations.length;
@@ -183,6 +189,55 @@ export async function commitEffectsMutationPlan(plan) {
         item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
       }
     });
+    const removedClassFeatureConditions = [];
+    const skipClassFeatureReconcileIds = new Set(
+      (Array.isArray(plan?.skipClassFeatureReconcileIds)
+        ? plan.skipClassFeatureReconcileIds
+        : [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    );
+    for (const change of changes) {
+      if (!change.fields?.conditions) continue;
+      const before = Array.isArray(change.before?.conditions) ? change.before.conditions : [];
+      const afterIds = new Set(
+        (Array.isArray(change.after?.conditions) ? change.after.conditions : [])
+          .map((instance) => String(instance?.id || ""))
+      );
+      const afterClassFeatureConditions = Array.isArray(change.after?.conditions)
+        ? change.after.conditions.filter((instance) =>
+          ["class-feature", "class-feature-area"].includes(String(instance?.type || ""))
+        )
+        : [];
+      for (const instance of before) {
+        const replaced = afterClassFeatureConditions.some((next) =>
+          String(next?.parentEffectId || "") === String(instance?.parentEffectId || "")
+          && String(next?.sourceId || "") === String(instance?.sourceId || "")
+          && String(next?.targetId || "") === String(instance?.targetId || "")
+          && String(next?.effectId || "") === String(instance?.effectId || "")
+        );
+        if (
+          ["class-feature", "class-feature-area"].includes(String(instance?.type || ""))
+          && !afterIds.has(String(instance?.id || ""))
+          && !replaced
+          && !skipClassFeatureReconcileIds.has(String(instance?.id || ""))
+        ) {
+          removedClassFeatureConditions.push(instance);
+        }
+      }
+    }
+    if (removedClassFeatureConditions.length) {
+      try {
+        const { reconcileClassFeatureActivationsAfterConditionRemoval } =
+          await import("./classFeatureRuntime.js");
+        await reconcileClassFeatureActivationsAfterConditionRemoval(
+          removedClassFeatureConditions,
+          { inline: true },
+        );
+      } catch (error) {
+        console.warn("[class-feature] condition removal sync:", error?.message || error);
+      }
+    }
     mutationStats.commits += 1;
     effectsDiagnostics.event("mutation:commit", {
       mutationId,

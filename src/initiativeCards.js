@@ -18,6 +18,10 @@ import {
   normalizeInitiativeCardRegistry,
 } from "./initiativeCardRegistryCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
+import {
+  sanitizeCharacterBuild,
+  sanitizeEnabledClassFeatureIds,
+} from "./classFeatureCore.js";
 
 const META_KEY = `${ID}/meta`;
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
@@ -62,6 +66,9 @@ export function sanitizeInitiativeCard(value) {
     notes: shortText(source.notes),
     exhaustion: optionalInteger(source.exhaustion, 0, 5) ?? 0,
     quickActions: sanitizeQuickActions(source.quickActions),
+    characterBuild: sanitizeCharacterBuild(source.characterBuild),
+    enabledClassFeatureIds: sanitizeEnabledClassFeatureIds(source.enabledClassFeatureIds),
+    classFeaturesConfigured: source.classFeaturesConfigured === true,
     savingThrows: Object.fromEntries(
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
     ),
@@ -96,6 +103,15 @@ function mergeProfile(base, value) {
     quickActions: value.quickActions !== undefined
       ? cleanValue.quickActions
       : cleanBase.quickActions,
+    characterBuild: value.characterBuild !== undefined
+      ? cleanValue.characterBuild
+      : cleanBase.characterBuild,
+    enabledClassFeatureIds: value.enabledClassFeatureIds !== undefined
+      ? cleanValue.enabledClassFeatureIds
+      : cleanBase.enabledClassFeatureIds,
+    classFeaturesConfigured: value.classFeaturesConfigured !== undefined
+      ? cleanValue.classFeaturesConfigured
+      : cleanBase.classFeaturesConfigured,
     savingThrows: Object.fromEntries(SAVE_KEYS.map((key) => [
       key,
       value.savingThrows?.[key] !== undefined
@@ -343,6 +359,8 @@ export function hasInitiativeCardValues(profile) {
     Boolean(profile?.notes) ||
     Number(profile?.exhaustion) > 0 ||
     Array.isArray(profile?.quickActions) && profile.quickActions.length > 0 ||
+    Array.isArray(profile?.characterBuild) && profile.characterBuild.length > 0 ||
+    Array.isArray(profile?.enabledClassFeatureIds) && profile.enabledClassFeatureIds.length > 0 ||
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }
 

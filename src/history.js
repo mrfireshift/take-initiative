@@ -343,6 +343,7 @@ export async function withItemMetaHistory(options, action) {
   // Snapshot, azione e snapshot finale devono essere atomici rispetto alle
   // altre operazioni del plugin: serializzare solo appendEntry consentiva a
   // due azioni ravvicinate di catturare lo stesso stato iniziale.
+  if (options?.inline === true) return run();
   const task = __historyActionQueue.then(run, run);
   __historyActionQueue = task.catch(() => {});
   return task;

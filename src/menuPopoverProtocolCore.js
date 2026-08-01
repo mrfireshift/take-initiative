@@ -13,6 +13,9 @@ export const INITIATIVE_CARD_MENU_ACTIONS = Object.freeze([
   "spells",
   "clear-spells",
   "clear-concentration",
+  "class-feature-activate",
+  "class-feature-deactivate",
+  "class-feature-reset-resources",
   "initiative-card",
   "attitude",
   "boss-mode",
@@ -36,7 +39,10 @@ export const INITIATIVE_CARD_BOSS_MODES = Object.freeze([
 const COMPACT_ADMIN_MENU_ACTION_SET = new Set(COMPACT_ADMIN_MENU_ACTIONS);
 const INITIATIVE_CARD_SIMPLE_ACTION_SET = new Set(
   INITIATIVE_CARD_MENU_ACTIONS.filter((action) =>
-    action !== "attitude" && action !== "boss-mode"
+    action !== "attitude"
+      && action !== "boss-mode"
+      && action !== "class-feature-activate"
+      && action !== "class-feature-deactivate"
   )
 );
 const INITIATIVE_CARD_ATTITUDE_SET = new Set(INITIATIVE_CARD_ATTITUDES);
@@ -132,6 +138,12 @@ export function isAllowedInitiativeCardMenuAction(action, value = "") {
   }
   if (normalizedAction === "boss-mode") {
     return INITIATIVE_CARD_BOSS_MODE_SET.has(normalizedValue);
+  }
+  if (
+    normalizedAction === "class-feature-activate"
+    || normalizedAction === "class-feature-deactivate"
+  ) {
+    return /^[a-zA-Z0-9:_-]{1,220}$/.test(normalizedValue);
   }
   return false;
 }

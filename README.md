@@ -34,6 +34,12 @@ dopo la stabilizzazione 1.3 e non ancora raccolte in una nuova release.
   tiri fisici al tavolo;
 - offre azioni rapide per card, incantesimi preparati e azioni attive
   successive al lancio.
+- permette di indicare classe, sottoclasse e livello (anche multiclasse) nella
+  scheda iniziativa e di attivare capacità di classe con usi e durata tracciati;
+- materializza gli effetti attivi delle capacità come condizioni persistenti sui
+  token, rimovibili dalla finestra Condizioni, distinguendo caster, bersaglio
+  singolo e aura, con aree mobili e proiezioni buff/debuff sui token dentro
+  l'area.
 
 ## Avvio rapido
 
@@ -101,6 +107,7 @@ Build e controlli principali:
 
 ```bash
 npm test
+npm run generate:class-features
 npm run check:spells
 npm run build
 ```

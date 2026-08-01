@@ -4,6 +4,7 @@ export const MAX_QUICK_ACTIONS = 12;
 export const QUICK_ACTION_KINDS = Object.freeze([
   "spell",
   "condition",
+  "feature",
 ]);
 
 export const QUICK_ACTION_TARGET_MODES = Object.freeze([
@@ -75,6 +76,19 @@ export function sanitizeQuickAction(value) {
     };
   }
 
+  if (kind === "feature") {
+    const featureId = shortText(value.featureId, 220);
+    if (!featureId) return null;
+    return {
+      version: QUICK_ACTION_VERSION,
+      id,
+      label,
+      kind,
+      featureId,
+      targetMode,
+    };
+  }
+
   const conditionName = shortText(value.conditionName, 80);
   if (!conditionName) return null;
   const expiryMode = expiryModeSet.has(value.expiryMode)
@@ -94,8 +108,9 @@ export function sanitizeQuickAction(value) {
   };
 }
 
-export function sanitizeQuickActions(values) {
+export function sanitizeQuickActions(values, { limit = MAX_QUICK_ACTIONS } = {}) {
   const source = Array.isArray(values) ? values : [];
+  const maximum = Math.max(1, Math.min(256, Math.floor(Number(limit) || MAX_QUICK_ACTIONS)));
   const seen = new Set();
   const actions = [];
   for (const value of source) {
@@ -103,7 +118,7 @@ export function sanitizeQuickActions(values) {
     if (!action || seen.has(action.id)) continue;
     seen.add(action.id);
     actions.push(action);
-    if (actions.length >= MAX_QUICK_ACTIONS) break;
+    if (actions.length >= maximum) break;
   }
   return actions;
 }
@@ -119,6 +134,7 @@ export function quickActionPanel(action) {
   const normalized = sanitizeQuickAction(action);
   if (!normalized) return "";
   if (normalized.kind === "condition") return "conditions";
+  if (normalized.kind === "feature") return "features";
   return normalized.workflow === "area" ? "quick-hp" : "spells";
 }
 

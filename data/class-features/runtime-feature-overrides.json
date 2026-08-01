@@ -1,0 +1,418 @@
+{
+  "version": 1,
+  "features": {
+    "barbaro-ira": {
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "autoActivateFeatureIds": [
+        "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
+        "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa"
+      ]
+    },
+    "barbaro-attacco-irruento": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "activation": { "primary": "azione_attacco" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "timing": "next-turn" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Attacco Irruento",
+        "detail": "Vantaggio agli attacchi con Forza; gli attacchi contro il barbaro hanno vantaggio fino al suo prossimo turno."
+      }
+    },
+    "barbaro-cammino-del-berserker-frenesia": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "defaultEnabled": true,
+      "resourceCosts": [
+        {
+          "poolId": "barbaro-ira-usi",
+          "amount": 1,
+          "sharedWithFeatureId": "barbaro-ira"
+        }
+      ],
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Frenesia",
+        "detail": "Un attacco con arma da mischia come azione bonus in ciascun turno oltre quello iniziale; termina con Ira."
+      }
+    },
+    "barbaro-cammino-del-berserker-presenza-intimidatoria": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "activation": { "primary": "azione" },
+      "targeting": { "mode": "single-target", "rangeMeters": 9, "maxTargets": 1, "excludeSource": true },
+      "duration": { "timing": "next-turn-end" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Presenza Intimidatoria",
+        "detail": "Bersaglio spaventato fino al termine del prossimo turno del barbaro."
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "defaultEnabled": false,
+      "displayName": "Sintonia Totemica: Aquila",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Sintonia Totemica: Aquila",
+        "detail": "Velocità di volare pari alla velocità sul terreno finché il barbaro è in Ira."
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Spirito Totemico: Aquila",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spirito Totemico: Aquila",
+        "detail": "Le altre creature hanno svantaggio agli attacchi di opportunità contro il barbaro e lui può usare Scatto come azione bonus finché è in Ira."
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Spirito Totemico: Orso",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Spirito Totemico: Orso",
+        "detail": "Il barbaro ottiene resistenza a tutti i danni tranne psichici finché è in Ira."
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": false,
+      "displayName": "Spirito Totemico: Lupo",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "aura", "rangeMeters": 1.5, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Spirito Totemico: Lupo",
+        "radiusMeters": 1.5,
+        "detail": "Gli alleati entro 1,5 m dal barbaro hanno vantaggio agli attacchi in mischia contro creature ostili entro 1,5 m da lui finché è in Ira.",
+        "targetEffect": {
+          "conditionName": "Vantaggio: attacchi in mischia",
+          "effectKind": "buff",
+          "detail": "Vantaggio agli attacchi in mischia contro creature ostili entro 1,5 m dal barbaro.",
+          "targeting": { "filter": "friendly", "includeCaster": false }
+        }
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": false,
+      "displayName": "Sintonia Totemica: Orso",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "aura", "rangeMeters": 1.5, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Sintonia Totemica: Orso",
+        "radiusMeters": 1.5,
+        "detail": "Le creature ostili entro 1,5 m dal barbaro hanno svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di questa capacità.",
+        "targetEffect": {
+          "conditionName": "Svantaggio: attacchi contro altri bersagli",
+          "effectKind": "debuff",
+          "detail": "Svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di Sintonia Totemica: Orso.",
+          "targeting": { "filter": "hostile", "includeCaster": false }
+        }
+      }
+    },
+    "barbaro-cammino-della-bestia-forma-della-bestia": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Forma della Bestia",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "choiceOptions": [
+        {
+          "id": "morso",
+          "label": "Morso",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma della Bestia: Morso",
+            "detail": "Forma Morso attiva fino al termine di Ira; il recupero di punti ferita pari al bonus di competenza resta manuale."
+          }
+        },
+        {
+          "id": "artigli",
+          "label": "Artigli",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma della Bestia: Artigli",
+            "detail": "Forma Artigli attiva fino al termine di Ira; l'attacco aggiuntivo resta un promemoria manuale."
+          }
+        },
+        {
+          "id": "coda",
+          "label": "Coda",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Forma della Bestia: Coda",
+            "detail": "Forma Coda attiva fino al termine di Ira; portata e reazione con d8 alla CA restano manuali."
+          }
+        }
+      ],
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Forma della Bestia",
+        "detail": "Scegli Morso, Artigli o Coda quando entri in Ira."
+      }
+    },
+    "barbaro-cammino-della-bestia-chiamata-alla-caccia": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Chiamata alla Caccia",
+      "activation": { "primary": "innesco" },
+      "targeting": { "mode": "single-target", "rangeMeters": 9, "maxTargets": null, "excludeSource": true },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Chiamata alla Caccia",
+        "detail": "Le creature consenzienti scelte possono aggiungere 1d6 ai danni una volta per turno; il tiro resta manuale. Il barbaro ottiene 5 HP temporanei per creatura scelta.",
+        "temporaryHp": { "amount": 5, "applyTo": "source-per-target-count" }
+      }
+    },
+    "barbaro-cammino-della-magia-selvaggia-magia-corroborante": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Magia Corroborante",
+      "activation": { "primary": "azione" },
+      "targeting": { "mode": "single-target", "rangeMeters": 1.5, "maxTargets": 1, "excludeSource": false },
+      "duration": { "rounds": 100 },
+      "trackingMode": "active",
+      "choiceOptions": [
+        {
+          "id": "bonus-d20",
+          "label": "Bonus al d20",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Magia Corroborante: Bonus al d20",
+            "detail": "Per 10 minuti il bersaglio può aggiungere 1d3 ai tiri per colpire e alle prove di caratteristica; il dado resta manuale."
+          }
+        },
+        {
+          "id": "recupero-slot",
+          "label": "Recupero slot",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Magia Corroborante: Recupero slot",
+            "detail": "Il recupero di uno slot incantesimo resta da risolvere manualmente al tavolo."
+          }
+        }
+      ],
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Magia Corroborante",
+        "detail": "Beneficio scelto su una creatura toccata per 10 minuti."
+      }
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "defaultEnabled": true,
+      "displayName": "Impeto Selvaggio",
+      "activation": { "primary": "ingresso_in_ira" },
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "choiceOptions": [
+        { "id": "1", "label": "Magia Selvaggia: Viti Oscure", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Viti Oscure", "detail": "Risoluzione manuale: tiro salvezza su Costituzione, 1d12 danni necrotici alle creature scelte e 1d12 HP temporanei al barbaro." } },
+        { "id": "2", "label": "Magia Selvaggia: Teletrasporto", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Teletrasporto", "detail": "Il barbaro può usare Teletrasporto fino a 9 m come azione bonus fino al termine di Ira." } },
+        { "id": "3", "label": "Magia Selvaggia: Spirito Esplosivo", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Spirito Esplosivo", "detail": "Risoluzione manuale: posiziona lo spirito, poi gestisci esplosione, tiro salvezza e 1d6 danni da forza." } },
+        { "id": "4", "label": "Magia Selvaggia: Arma Infusa", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Arma Infusa", "detail": "Risoluzione manuale: l'arma diventa da forza, leggera e da lancio fino alla fine del turno corrente." } },
+        { "id": "5", "label": "Magia Selvaggia: Ritorsione della Forza", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Ritorsione della Forza", "detail": "Ogni creatura che colpisce il barbaro prima del termine di Ira subisce 1d6 danni da forza." } },
+        { "id": "6", "label": "Magia Selvaggia: Luci Protettive", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Luci Protettive", "detail": "Risoluzione manuale: il barbaro e gli alleati entro 3 m ottengono +1 alla CA fino al termine di Ira." } },
+        { "id": "7", "label": "Magia Selvaggia: Rampicanti", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Rampicanti", "detail": "Risoluzione manuale: il terreno entro 4,5 m è difficile per i nemici fino al termine di Ira." } },
+        { "id": "8", "label": "Magia Selvaggia: Dardo di Luce", "effectPlan": { "kind": "condition", "conditionName": "Magia Selvaggia: Dardo di Luce", "detail": "Risoluzione manuale: una creatura entro 9 m effettua il tiro salvezza; in caso di fallimento subisce 1d6 radianti ed è accecata fino all'inizio del prossimo turno del barbaro." } }
+      ],
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Impeto Selvaggio",
+        "detail": "Esito della Magia Selvaggia ottenuto entrando in Ira."
+      }
+    },
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "targeting": { "mode": "single-target", "maxTargets": 1, "excludeSource": true },
+      "duration": { "timing": "next-turn" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Protettori Ancestrali",
+        "detail": "Il bersaglio subisce svantaggio agli attacchi contro creature diverse dal barbaro fino all'inizio del suo prossimo turno."
+      }
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "defaultEnabled": false,
+      "displayName": "Magia Selvaggia: Teletrasporto",
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Magia Selvaggia: Teletrasporto",
+        "detail": "Può usare Teletrasporto come azione bonus fino al termine di Ira."
+      }
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-5": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "breaksConcentration": true,
+      "defaultEnabled": false,
+      "displayName": "Magia Selvaggia: Ritorsione della Forza",
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Magia Selvaggia: Ritorsione della Forza",
+        "detail": "Una creatura che colpisce il barbaro prima del termine di Ira subisce 1d6 danni da forza."
+      }
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": false,
+      "displayName": "Aura Tempestosa",
+      "activation": { "primary": "ingresso_in_ira" },
+      "targeting": { "mode": "aura", "rangeMeters": 3, "excludeSource": false },
+      "duration": { "untilFeatureId": "barbaro-ira" },
+      "trackingMode": "active",
+      "choiceOptions": [
+        { "id": "deserto", "label": "Deserto", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Deserto", "detail": "Area di 3 m: quando l'effetto viene attivato, le altre creature subiscono danni da fuoco (2-6 in base al livello)." } },
+        { "id": "mare", "label": "Mare", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Mare", "detail": "Area di 3 m: quando l'effetto viene attivato, scegli una creatura nell'aura per il tiro salvezza su Destrezza e i danni da fulmine (1-4d6)." } },
+        { "id": "tundra", "label": "Tundra", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Tundra", "detail": "Area di 3 m: quando l'effetto viene attivato, le creature scelte nell'aura ottengono HP temporanei (2-6)." } }
+      ],
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura Tempestosa",
+        "radiusMeters": 3,
+        "detail": "Area tempestosa di 3 m centrata sul barbaro finché è in Ira; l'ambiente scelto determina l'effetto da attivare.",
+        "targetEffect": null
+      }
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": false,
+      "displayName": "Tempesta Protettrice",
+      "activation": { "primary": "azione" },
+      "targeting": { "mode": "single-target", "rangeMeters": 3, "maxTargets": null, "excludeSource": true },
+      "duration": { "untilFeatureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Tempesta Protettrice",
+        "radiusMeters": 3,
+        "detail": "Le creature scelte ottengono la resistenza dell'Anima Tempestosa finché restano nell'Aura Tempestosa.",
+        "targetEffect": {
+          "conditionName": "Resistenza: Anima Tempestosa",
+          "effectKind": "buff",
+          "detail": "Resistenza ai danni dell'ambiente scelto dal barbaro finché il bersaglio resta nell'Aura Tempestosa.",
+          "targeting": { "membership": "selected", "filter": "friendly", "includeCaster": false }
+        }
+      }
+    },
+    "barbaro-cammino-dello-zelota-presenza-zelante": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "targeting": { "mode": "single-target", "rangeMeters": 18, "maxTargets": 10, "excludeSource": true },
+      "duration": { "timing": "next-turn" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Presenza Zelante",
+        "detail": "Gli alleati scelti hanno vantaggio ai tiri per colpire e ai tiri salvezza fino all'inizio del prossimo turno del barbaro."
+      }
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-1": {
+      "displayName": "Magia Selvaggia: Viti Oscure"
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-3": {
+      "displayName": "Magia Selvaggia: Spirito Esplosivo"
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-4": {
+      "displayName": "Magia Selvaggia: Arma Infusa"
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-6": {
+      "displayName": "Magia Selvaggia: Luci Protettive"
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-7": {
+      "displayName": "Magia Selvaggia: Rampicanti"
+    },
+    "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-8": {
+      "displayName": "Magia Selvaggia: Dardo di Luce"
+    },
+    "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia": {
+      "status": "implemented",
+      "adapter": "condition"
+    },
+    "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo": {
+      "status": "implemented",
+      "adapter": "aura"
+    }
+  }
+}

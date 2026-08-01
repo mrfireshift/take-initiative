@@ -21,5 +21,14 @@ export function preserveConditionTimingMetadata(instance, storedValue) {
     next.parentRemoval = raw.parentRemoval;
   }
 
+  if (Array.isArray(raw.saveReminder)) {
+    const reminders = raw.saveReminder
+      .filter((value) => value && typeof value === "object")
+      .map((value) => ({ ...value }));
+    if (reminders.length) next.saveReminder = reminders;
+  } else if (raw.saveReminder && typeof raw.saveReminder === "object") {
+    next.saveReminder = { ...raw.saveReminder };
+  }
+
   return next;
 }

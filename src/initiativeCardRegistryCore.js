@@ -71,6 +71,9 @@ export function initiativeCardQuickActionMemoryCandidates(
     const roomProfile = roomEntry.profile && typeof roomEntry.profile === "object"
       ? roomEntry.profile
       : roomEntry;
-    return sanitizeQuickActions(roomProfile.quickActions).length > 0;
+    return sanitizeQuickActions(roomProfile.quickActions).length > 0
+      || Array.isArray(roomProfile.characterBuild) && roomProfile.characterBuild.length > 0
+      || Array.isArray(roomProfile.enabledClassFeatureIds)
+        && roomProfile.enabledClassFeatureIds.length > 0;
   });
 }

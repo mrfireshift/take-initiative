@@ -11,6 +11,9 @@ export function trackerQuickActionSummary(action) {
   if (action?.kind === "condition") {
     return `${action.conditionName} · ${target}`;
   }
+  if (action?.kind === "feature") {
+    return `Capacità · ${target}`;
+  }
   return `${action?.workflow === "area" ? "Area" : "Incantesimo"} · ${target}`;
 }
 
@@ -21,7 +24,7 @@ export function buildTrackerQuickActionLauncher({
   onToggle = () => {},
   documentRef = globalThis.document,
 } = {}) {
-  const normalizedActions = sanitizeQuickActions(actions);
+  const normalizedActions = sanitizeQuickActions(actions, { limit: 64 });
   if (!normalizedActions.length || !documentRef) return null;
 
   const container = documentRef.createElement("div");

@@ -85,11 +85,6 @@ export const CONDITION_REFERENCE = Object.freeze([
     summary: "Effetto personalizzato del tracker.",
     details: "Voce personalizzata del tracker per rappresentare l'ira o un effetto equivalente. Le regole precise dipendono dalla creatura o dalla capacità che l'ha applicata.",
   },
-  {
-    name: "Giuramento di Inimicizia",
-    summary: "Effetto personalizzato del tracker.",
-    details: "Voce personalizzata del tracker per rappresentare un giuramento di inimicizia. Le regole precise dipendono dalla creatura o dalla capacità che l'ha applicato.",
-  },
 ]);
 
 export const CONDITION_REFERENCE_BY_NAME = new Map(

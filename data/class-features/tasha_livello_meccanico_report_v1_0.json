@@ -1,0 +1,29 @@
+{
+  "file": "tasha_livello_meccanico_v1_0.json",
+  "sha256": "28a91ba097c51bf26475497f09ed181418be9ee0e60694fbfaabac2a7c3e9a20",
+  "dimensione_byte": 240599,
+  "conteggi": {
+    "meccaniche": 176,
+    "resource_pool": 39
+  },
+  "controlli": {
+    "source_records_expected": 176,
+    "mechanics_records": 176,
+    "resource_pools": 39,
+    "automation_level_counts": {
+      "assistita": 94,
+      "tracciamento": 61,
+      "riferimento": 20,
+      "automatica": 1
+    },
+    "completeness_status_counts": {
+      "curata": 19,
+      "parziale": 137,
+      "riferimento": 20
+    },
+    "broken_resource_pool_references": [],
+    "duplicate_mechanic_ids": [],
+    "duplicate_resource_pool_ids": []
+  },
+  "esito": "ok"
+}
