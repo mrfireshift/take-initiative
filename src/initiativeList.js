@@ -616,11 +616,8 @@ async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-read
   );
 }
 
-async function __mountSceneEpochLifecycle() {
-  if (__sceneEpochLifecycleMounted) {
-    if (__sceneBaselineEpoch === currentSceneEpoch()) return true;
-    return __acquireInitiativeSceneBaseline(currentSceneEpoch(), "runtime-mount", false);
-  }
+function __mountSceneEpochLifecycle() {
+  if (__sceneEpochLifecycleMounted) return;
   __sceneEpochLifecycleMounted = true;
   __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch, reason }) => {
     if (phase === "unload") {
@@ -638,7 +635,10 @@ async function __mountSceneEpochLifecycle() {
     }
     markSceneEpochReady("scene-ready");
   });
-  return __acquireInitiativeSceneBaseline(currentSceneEpoch(), "runtime-mount", false);
+  const initialEpoch = currentSceneEpoch();
+  void __acquireInitiativeSceneBaseline(initialEpoch, "runtime-mount", false).catch((error) => {
+    console.warn("[initiative] initial scene baseline:", error?.message || error);
+  });
 }
 
 
@@ -8392,7 +8392,7 @@ try {
   }
 
     OBR.onReady(async () => {
-      await __mountSceneEpochLifecycle();
+      __mountSceneEpochLifecycle();
       const bootstrapSceneEpoch = currentSceneEpoch();
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();

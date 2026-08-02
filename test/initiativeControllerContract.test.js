@@ -50,7 +50,7 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
 
 test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", () => {
   const lifecycle = sourceSection(
-    "async function __mountSceneEpochLifecycle() {",
+    "function __mountSceneEpochLifecycle() {",
     "// Scansione e deduplicazione una tantum all'avvio."
   );
   assert.match(lifecycle, /OBR\.scene\.onReadyChange\(\(ready\) =>/);
@@ -58,7 +58,7 @@ test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", 
   assert.match(lifecycle, /markSceneEpochReady\("scene-ready"\)/);
   assert.match(
     lifecycle,
-    /return __acquireInitiativeSceneBaseline\(currentSceneEpoch\(\), "runtime-mount", false\)/,
+    /void __acquireInitiativeSceneBaseline\(initialEpoch, "runtime-mount", false\)\.catch/,
   );
 
   const metadata = sourceSection(
@@ -73,6 +73,21 @@ test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", 
     metadata.slice(baseline, firstRoundTick),
     /await __adoptInitiativeSceneBaseline\([\s\S]*?return;/,
   );
+});
+
+test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () => {
+  const boot = sourceSection(
+    "OBR.onReady(async () => {",
+    "await __mountTrackerSelectionSync();"
+  );
+  assertOrdered(boot, [
+    "__mountSceneEpochLifecycle();",
+    "const bootstrapSceneEpoch = currentSceneEpoch();",
+    "await mountTurnNoticeBroadcast()",
+    "await OBR.player?.getRole?.()",
+    "IS_GM = String(role).toUpperCase() === \"GM\";",
+  ]);
+  assert.doesNotMatch(boot, /await __mountSceneEpochLifecycle\(\)/);
 });
 
 test("il bootstrap invia il reminder anche per la prima card attiva", () => {
