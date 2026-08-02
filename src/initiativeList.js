@@ -354,6 +354,7 @@ const __initiativeMetadataProcessor = createSerialProcessor();
 let __initiativeMetadataRevision = 0;
 let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
+let __lastTurnNoticeActiveId = null;
 let __lastConditionTurnState = null;
 let __conditionNavigationHint = null;
 let __sceneBaselineEpoch = null;
@@ -552,6 +553,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __initiativeMetadataRevision += 1;
   __optimisticNavigationDigest = null;
   __lastActiveId = null;
+  __lastTurnNoticeActiveId = null;
   __lastConditionTurnState = null;
   __conditionNavigationHint = null;
   __selectedSceneItemIds = new Set();
@@ -580,6 +582,7 @@ async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, sourc
   __lastQueuedInitiativeMetadataDigest = stateDigest;
   __latestInitiativeState = st || null;
   __lastActiveId = __activeIdForState(st);
+  __lastTurnNoticeActiveId = __lastActiveId;
   __lastRoundSeen = Math.max(1, Number(st?.round || 1));
   __lastConditionTurnState = __conditionTurnStateSnapshot(st);
   __conditionNavigationHint = null;
@@ -8525,6 +8528,21 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
   });
   syncSpeedCheckTurn(st);
 
+  const noticeActiveId = __activeIdForState(st);
+  if (noticeActiveId && noticeActiveId !== __lastTurnNoticeActiveId) {
+    const previousNoticeActiveId = __lastTurnNoticeActiveId;
+    __lastTurnNoticeActiveId = noticeActiveId;
+    if (
+      previousNoticeActiveId
+      && IS_GM
+      && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })
+    ) {
+      void broadcastTurnNotice(st, sceneEpoch).catch((err) => {
+        console.warn("[turn-notice] broadcast error:", err?.message || err);
+      });
+    }
+  }
+
   let conditionTransition = null;
   if (st && Array.isArray(st.order) && st.order.length > 0) {
     const previousTurnState = __lastConditionTurnState;
@@ -8629,16 +8647,10 @@ try {
   if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) return;
 
   if (!activeId || activeId === __lastActiveId) return;
-  const previousActiveId = __lastActiveId;
   __lastActiveId = activeId;
   if (IS_GM && __isCurrentSceneOperation(sceneEpoch, "combat-turn", { metadataRevision })) {
     void recordCombatTurn(st, { sceneEpoch }).catch((err) => {
       console.warn("[combat-log] turn:", err?.message || err);
-    });
-  }
-  if (previousActiveId && IS_GM && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })) {
-    void broadcastTurnNotice(st, sceneEpoch).catch((err) => {
-      console.warn("[turn-notice] broadcast error:", err?.message || err);
     });
   }
 

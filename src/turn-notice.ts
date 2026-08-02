@@ -23,7 +23,7 @@ import { isTurnNoticeForScene } from "./turnNotice.js";
 const CHANNEL = ID + "/turn-notice";
 const AUTO_CLOSE_MS = 4500;
 const ZONE_AUTO_CLOSE_MS = 6500;
-const SAVE_REMINDER_AGGREGATION_MS = 90;
+const SAVE_REMINDER_AGGREGATION_MS = 16;
 const FADE_MS = 220;
 const ATTITUDES = new Set(["pc", "ally", "enemy", "neutral"]);
 
@@ -203,7 +203,7 @@ function showNotice(raw: any) {
   const nextPanel = buildPanel(notice);
   currentPanel = nextPanel;
   app.appendChild(nextPanel);
-  requestAnimationFrame(() => requestAnimationFrame(() => nextPanel.classList.add("is-visible")));
+  requestAnimationFrame(() => nextPanel.classList.add("is-visible"));
   if (previous) {
     previous.classList.remove("is-visible");
     previous.classList.add("is-leaving");

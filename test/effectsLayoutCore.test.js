@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   effectsLayoutDesiredInScope,
+  effectsLayoutSceneSnapshotItems,
   effectsLayoutTargetScope,
   expandEffectsLayoutTargetScope,
   planEffectsLayout,
   planEffectsWidgetDiff,
+  resolveEffectsLayoutSceneItems,
 } from "../src/effectsLayoutCore.js";
 
 const measureText = (text) => String(text).length * 10;
@@ -477,4 +479,56 @@ test("lo scope del caster include i suoi bersagli senza espandere spell non corr
 
   assert.deepEqual([...scope].sort(), ["caster", "target-a", "target-b"]);
   assert.equal(scope.has("unrelated"), false);
+});
+
+test("lo snapshot corrente evita la lettura SDK nel batch nato dall'evento", async () => {
+  const items = [{ id: "token-a" }, { id: "token-b" }];
+  let sdkReads = 0;
+  const result = await resolveEffectsLayoutSceneItems({
+    snapshot: {
+      complete: true,
+      sceneEpoch: 8,
+      generation: 12,
+      items,
+    },
+    sceneEpoch: 8,
+    minimumGeneration: 11,
+    readItems: async () => {
+      sdkReads += 1;
+      return [];
+    },
+  });
+
+  assert.equal(result.source, "snapshot");
+  assert.equal(result.items, items);
+  assert.equal(sdkReads, 0);
+});
+
+test("snapshot obsoleti o non autorizzati usano il fallback SDK", async () => {
+  const snapshot = {
+    complete: true,
+    sceneEpoch: 8,
+    generation: 10,
+    items: [{ id: "stale" }],
+  };
+  let sdkReads = 0;
+  const readItems = async () => {
+    sdkReads += 1;
+    return [{ id: "authoritative" }];
+  };
+
+  for (const options of [
+    { sceneEpoch: 9, minimumGeneration: 10 },
+    { sceneEpoch: 8, minimumGeneration: 11 },
+    { sceneEpoch: 8, minimumGeneration: null },
+  ]) {
+    const result = await resolveEffectsLayoutSceneItems({ snapshot, readItems, ...options });
+    assert.equal(result.source, "sdk");
+    assert.deepEqual(result.items, [{ id: "authoritative" }]);
+  }
+  assert.equal(sdkReads, 3);
+  assert.equal(effectsLayoutSceneSnapshotItems(snapshot, {
+    sceneEpoch: 8,
+    minimumGeneration: 10,
+  }), snapshot.items);
 });

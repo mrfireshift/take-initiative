@@ -583,3 +583,25 @@ test("il gateway full produttivo non usa sentinel né bypassa lo scheduler", () 
   assert.doesNotMatch(executeSource, /__reconcileSanitizedInitiativeState/);
   assert.doesNotMatch(executeSource, /setSceneState/);
 });
+
+test("il reconciler pill riusa lo snapshot versionato dell'Event Hub con fallback SDK", () => {
+  const eventsSource = readFileSync(
+    new URL("../src/sceneItemEvents.js", import.meta.url),
+    "utf8",
+  );
+  const reconcilerSource = readFileSync(
+    new URL("../src/effectsReconciler.js", import.meta.url),
+    "utf8",
+  );
+  const layoutSource = readFileSync(
+    new URL("../src/effectsLayout.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(eventsSource, /export function readSceneItemsSnapshot/);
+  assert.match(eventsSource, /__sceneSnapshotEpoch !== null/);
+  assert.match(reconcilerSource, /sceneItemsSnapshotGeneration:\s*snapshot\.complete/);
+  assert.match(layoutSource, /resolveEffectsLayoutSceneItems\(\{/);
+  assert.match(layoutSource, /readItems:\s*async \(\) => \{/);
+  assert.match(layoutSource, /OBR\.scene\.items\.getItems\(\)/);
+});

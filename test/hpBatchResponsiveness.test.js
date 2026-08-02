@@ -30,8 +30,23 @@ test("la Console HP avvia la preview batch prima del commit e recupera dallo sta
   assert.ok(preview >= 0 && commit > preview);
   assert.match(apply, /hpVisualTransaction\.recover\(\(itemIds\) =>/);
   assert.match(apply, /readAuthoritativeHPVisualUpdates\(itemIds, operationSceneEpoch\)/);
-  assert.match(apply, /await syncHPBatchToMemory\(entries\.map/);
+  assert.match(apply, /await Promise\.all\(\[/);
+  assert.match(apply, /syncHPBatchToMemory\(entries\.map/);
+  assert.match(apply, /showConcentrationWarnings\(entries\)/);
+  assert.match(apply, /showEffectSaveDamageWarnings\(entries\)/);
   assert.doesNotMatch(apply, /await saveHPToMemoryByItemId/);
+});
+
+test("le barre HP seguono i token senza riletture globali sui metadata di scena", () => {
+  const mount = section(
+    barsSource,
+    "export async function mountHPBars()",
+    "export function syncHPBarNow(",
+  );
+  assert.match(mount, /await queueCanonicalHPItems\(\)/);
+  assert.match(mount, /OBR\.scene\.onReadyChange/);
+  assert.match(mount, /subscribeSceneItemChanges/);
+  assert.doesNotMatch(mount, /OBR\.scene\.onMetadataChange/);
 });
 
 test("l'Undo sincronizza testo, rimozioni e memoria per lotto", () => {

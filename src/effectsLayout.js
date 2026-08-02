@@ -8,10 +8,12 @@ import {
   effectsLayoutTargetScope,
   expandEffectsLayoutTargetScope,
   planEffectsLayout,
+  resolveEffectsLayoutSceneItems,
 } from "./effectsLayoutCore.js";
 import { getSpellWidgetLayoutData } from "./spells-tag.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -309,16 +311,43 @@ function applySpec(item, spec) {
   item.text.style.strokeWidth = spec.textStrokeWidth;
 }
 
-async function sdkGetSceneItems(session) {
-  effectsDiagnostics.sdkCall(session, "getItems");
-  try {
-    const items = await OBR.scene.items.getItems();
-    effectsDiagnostics.sdkResult(session, "getItems", { returnedItems: items.length });
-    return items;
-  } catch (error) {
-    effectsDiagnostics.sdkError(session, "getItems");
-    throw error;
+async function sdkGetSceneItems(session, {
+  sceneEpoch,
+  minimumGeneration,
+} = {}) {
+  const snapshot = readSceneItemsSnapshot(sceneEpoch);
+  const result = await resolveEffectsLayoutSceneItems({
+    snapshot,
+    sceneEpoch,
+    minimumGeneration,
+    readItems: async () => {
+      effectsDiagnostics.event("layout:scene-snapshot-miss", {
+        reconcileId: session?.id,
+        sceneEpoch,
+        minimumGeneration,
+        generation: snapshot.generation,
+        complete: snapshot.complete,
+      });
+      effectsDiagnostics.sdkCall(session, "getItems");
+      try {
+        const items = await OBR.scene.items.getItems();
+        effectsDiagnostics.sdkResult(session, "getItems", { returnedItems: items.length });
+        return items;
+      } catch (error) {
+        effectsDiagnostics.sdkError(session, "getItems");
+        throw error;
+      }
+    },
+  });
+  if (result.source === "snapshot") {
+    effectsDiagnostics.event("layout:scene-snapshot-hit", {
+      reconcileId: session?.id,
+      sceneEpoch,
+      generation: snapshot.generation,
+      returnedItems: result.items.length,
+    });
   }
+  return result.items;
 }
 
 async function sdkGetLocalWidgets(session, targetScope = null) {
@@ -471,7 +500,10 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
 
   try {
     [sceneItems, localWidgets] = await Promise.all([
-      sdkGetSceneItems(session),
+      sdkGetSceneItems(session, {
+        sceneEpoch,
+        minimumGeneration: batch.sceneItemsSnapshotGeneration,
+      }),
       sdkGetLocalWidgets(session, requestedScope),
     ]);
     if (stopIfStale("after-scene-read")) return { outcome, desiredWidgets: 0 };

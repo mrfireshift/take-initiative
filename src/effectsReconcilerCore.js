@@ -9,6 +9,8 @@ function createPendingBatch() {
     full: false,
     conditions: new Set(),
     concentration: new Set(),
+    sceneItemsSnapshotGeneration: null,
+    sceneItemsSnapshotBlocked: false,
   };
 }
 
@@ -77,6 +79,9 @@ export function createEffectsReconcileQueue({
       conditions: [...pending.conditions],
       concentration: [...pending.concentration],
       revision: latestRevision,
+      sceneItemsSnapshotGeneration: pending.sceneItemsSnapshotBlocked
+        ? null
+        : pending.sceneItemsSnapshotGeneration,
     };
     pending = createPendingBatch();
     return batch;
@@ -124,6 +129,7 @@ export function createEffectsReconcileQueue({
     conditions = [],
     concentration = [],
     joinCovered = false,
+    sceneItemsSnapshotGeneration = null,
   } = {}) {
     const normalizedRequest = {
       full: full === true,
@@ -142,6 +148,10 @@ export function createEffectsReconcileQueue({
       joinCovered
       && !hasPendingWork(pending)
       && batchCoversRequest(activeBatch, normalizedRequest)
+      && (
+        activeBatch?.sceneItemsSnapshotGeneration === null
+        || sceneItemsSnapshotGeneration !== null
+      )
     ) {
       const revision = activeBatch.revision;
       const done = new Promise((resolve, reject) => {
@@ -156,6 +166,22 @@ export function createEffectsReconcileQueue({
 
     if (!hasPendingWork(pending)) {
       return { revision: latestRevision, done: Promise.resolve({ revision: latestRevision }) };
+    }
+
+    const normalizedSnapshotGeneration = Number(sceneItemsSnapshotGeneration);
+    if (
+      sceneItemsSnapshotGeneration !== null
+      && sceneItemsSnapshotGeneration !== undefined
+      && Number.isFinite(normalizedSnapshotGeneration)
+      && !pending.sceneItemsSnapshotBlocked
+    ) {
+      pending.sceneItemsSnapshotGeneration = Math.max(
+        Number(pending.sceneItemsSnapshotGeneration) || 0,
+        Math.max(0, Math.floor(normalizedSnapshotGeneration)),
+      );
+    } else {
+      pending.sceneItemsSnapshotGeneration = null;
+      pending.sceneItemsSnapshotBlocked = true;
     }
 
     const revision = ++latestRevision;
@@ -182,6 +208,7 @@ export function createEffectsReconcileQueue({
         conditions: [...activeBatch.conditions],
         concentration: [...activeBatch.concentration],
         revision: activeBatch.revision,
+        sceneItemsSnapshotGeneration: activeBatch.sceneItemsSnapshotGeneration,
       } : null,
       latestRevision,
       completedRevision,
@@ -189,6 +216,9 @@ export function createEffectsReconcileQueue({
         full: pending.full,
         conditions: [...pending.conditions],
         concentration: [...pending.concentration],
+        sceneItemsSnapshotGeneration: pending.sceneItemsSnapshotBlocked
+          ? null
+          : pending.sceneItemsSnapshotGeneration,
       },
     }),
   };

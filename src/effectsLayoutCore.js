@@ -34,6 +34,42 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   dotZIndex: 100021,
 });
 
+export function effectsLayoutSceneSnapshotItems(snapshot, {
+  sceneEpoch,
+  minimumGeneration,
+} = {}) {
+  if (!snapshot || snapshot.complete !== true || !Array.isArray(snapshot.items)) {
+    return null;
+  }
+  if (Number(snapshot.sceneEpoch) !== Number(sceneEpoch)) return null;
+  if (
+    minimumGeneration === null
+    || minimumGeneration === undefined
+    || !Number.isFinite(Number(minimumGeneration))
+  ) {
+    return null;
+  }
+  if (Number(snapshot.generation) < Number(minimumGeneration)) return null;
+  return snapshot.items;
+}
+
+export async function resolveEffectsLayoutSceneItems({
+  snapshot,
+  sceneEpoch,
+  minimumGeneration,
+  readItems,
+} = {}) {
+  const snapshotItems = effectsLayoutSceneSnapshotItems(snapshot, {
+    sceneEpoch,
+    minimumGeneration,
+  });
+  if (snapshotItems) return { items: snapshotItems, source: "snapshot" };
+  if (typeof readItems !== "function") {
+    throw new TypeError("effects-layout-scene-items-reader-required");
+  }
+  return { items: await readItems(), source: "sdk" };
+}
+
 export function effectsLayoutTargetScope(batch = {}) {
   if (batch?.full === true) return null;
   const ids = new Set([

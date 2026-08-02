@@ -90,7 +90,10 @@ test("un refresh esplicito coperto dal batch pendente condivide la stessa riconc
     scheduleTask(callback) { queueMicrotask(callback); },
   });
 
-  const eventRequest = queue.request({ conditions: ["target"] });
+  const eventRequest = queue.request({
+    conditions: ["target"],
+    sceneItemsSnapshotGeneration: 6,
+  });
   const explicitRequest = queue.request({
     conditions: ["target"],
     joinCovered: true,
@@ -101,6 +104,50 @@ test("un refresh esplicito coperto dal batch pendente condivide la stessa riconc
   await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
   assert.equal(batches.length, 1);
   assert.deepEqual(batches[0].conditions, ["target"]);
+  assert.equal(batches[0].sceneItemsSnapshotGeneration, 6);
+});
+
+test("i batch event-driven conservano la generation dello snapshot piu recente", async () => {
+  const scheduled = [];
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch) { batches.push(batch); },
+    scheduleTask(callback) { scheduled.push(callback); },
+  });
+
+  const first = queue.request({
+    conditions: ["target-a"],
+    sceneItemsSnapshotGeneration: 4,
+  });
+  const second = queue.request({
+    concentration: ["target-b"],
+    sceneItemsSnapshotGeneration: 7,
+  });
+  scheduled.shift()();
+  await Promise.all([first.done, second.done, queue.idle()]);
+
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].sceneItemsSnapshotGeneration, 7);
+});
+
+test("una richiesta esplicita nello stesso batch forza la lettura autorevole", async () => {
+  const scheduled = [];
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch) { batches.push(batch); },
+    scheduleTask(callback) { scheduled.push(callback); },
+  });
+
+  const eventRequest = queue.request({
+    conditions: ["target-a"],
+    sceneItemsSnapshotGeneration: 5,
+  });
+  const explicitRequest = queue.request({ concentration: ["target-b"] });
+  scheduled.shift()();
+  await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
+
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].sceneItemsSnapshotGeneration, null);
 });
 
 test("un refresh esplicito coperto dal batch attivo non rende stale il primo render", async () => {
@@ -126,6 +173,36 @@ test("un refresh esplicito coperto dal batch attivo non rende stale il primo ren
   release();
   await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
   assert.equal(batches.length, 1);
+});
+
+test("un refresh esplicito non si unisce a uno snapshot gia attivo", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch, context) {
+      const record = { batch, context };
+      batches.push(record);
+      if (batches.length === 1) await gate;
+    },
+  });
+
+  const eventRequest = queue.request({
+    conditions: ["target"],
+    sceneItemsSnapshotGeneration: 9,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const explicitRequest = queue.request({
+    conditions: ["target"],
+    joinCovered: true,
+  });
+
+  assert.equal(explicitRequest.joined, undefined);
+  assert.equal(batches[0].context.isStale(), true);
+  release();
+  await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
+  assert.equal(batches.length, 2);
+  assert.equal(batches[1].batch.sceneItemsSnapshotGeneration, null);
 });
 
 test("una nuova invalidazione reale sullo stesso token non viene deduplicata", async () => {

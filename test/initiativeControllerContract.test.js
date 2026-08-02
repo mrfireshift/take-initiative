@@ -84,6 +84,24 @@ test("il bootstrap invia il reminder anche per la prima card attiva", () => {
   ]);
 });
 
+test("il reminder di turno precede render e tick senza duplicare il broadcast", () => {
+  const metadata = sourceSection(
+    "async function __processInitiativeMetadata(",
+    "OBR.scene.onMetadataChange((meta) => {"
+  );
+  assertOrdered(metadata, [
+    "const noticeActiveId = __activeIdForState(st);",
+    "broadcastTurnNotice(st, sceneEpoch)",
+    'await renderAll("metadata")',
+    "await roundEffectAdjustment",
+    'type: "effects:tick-boundaries"',
+  ]);
+  assert.equal(
+    (metadata.match(/broadcastTurnNotice\(st, sceneEpoch\)/g) || []).length,
+    1,
+  );
+});
+
 test("il cambio scena scarta il render tardivo e usa il primo snapshot history come baseline", () => {
   const render = sourceSection(
     "async function renderAll(reason = \"unspecified\") {",
@@ -204,8 +222,12 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
   assert.match(turnNoticeSource, /app\.replaceChildren\(panel\)/);
   assert.match(turnNoticeSource, /function clearZoneNotice\(\)/);
   assert.match(turnNoticeSource, /mergeSaveReminderNoticeBatch/);
-  assert.match(turnNoticeSource, /SAVE_REMINDER_AGGREGATION_MS/);
+  assert.match(turnNoticeSource, /SAVE_REMINDER_AGGREGATION_MS = 16/);
   assert.match(turnNoticeSource, /function queueSaveReminderNotices/);
+  assert.doesNotMatch(
+    turnNoticeSource,
+    /requestAnimationFrame\(\(\) => requestAnimationFrame/,
+  );
   assert.match(turnNoticeSource, /function clearTurnNotice\(\)/);
   assert.doesNotMatch(turnNoticeSource, /Apri Effetti ad Area per risolvere/);
   assert.doesNotMatch(turnNoticeSource, /zone-target-badge/);

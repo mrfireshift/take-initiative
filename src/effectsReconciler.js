@@ -23,7 +23,10 @@ import {
   isEffectsLocalRendererRole,
   isEffectsWidgetWriterRole,
 } from "./effectsReconcilerCore.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import {
+  readSceneItemsSnapshot,
+  subscribeSceneItemChanges,
+} from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -128,7 +131,13 @@ export async function mountEffectsReconciler() {
       spellsKey: SPELLS_META_KEY,
       concentrationKey: CONCENTRATION_META_KEY,
     });
-    queue.request(invalidation).done.catch((error) => {
+    const snapshot = readSceneItemsSnapshot(event.sceneEpoch);
+    queue.request({
+      ...invalidation,
+      sceneItemsSnapshotGeneration: snapshot.complete
+        ? snapshot.generation
+        : null,
+    }).done.catch((error) => {
       console.error("[effects] reconcile", error);
     });
   }, {

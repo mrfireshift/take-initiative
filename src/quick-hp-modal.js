@@ -1651,20 +1651,18 @@ async function applyOperation() {
     });
     if (hpVisualTransaction) await hpVisualTransaction.completion;
 
-    try {
-      await syncHPBatchToMemory(entries.map((entry) => ({
+    await Promise.all([
+      syncHPBatchToMemory(entries.map((entry) => ({
         itemId: entry.item.id,
         hp: entry.change.afterHP,
         hpMax: entry.change.hpMax,
       })), {
         sceneEpoch: operationSceneEpoch,
         items: entries.map((entry) => entry.item),
-      });
-    } catch (error) {
-      console.warn("[quick-hp] HP memory:", error && error.message || error);
-    }
-    await showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error));
-    await showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error));
+      }).catch((error) => console.warn("[quick-hp] HP memory:", error && error.message || error)),
+      showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error)),
+      showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error)),
+    ]);
     lastEntryId = recordedEntry && recordedEntry.id || "";
     lastZoneTriggerActivationId = requestedZoneTrigger?.id || "";
     if (requestedZoneTrigger) activeZoneTrigger = null;

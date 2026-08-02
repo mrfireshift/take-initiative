@@ -477,6 +477,7 @@ export function createSceneItemChangeDispatcher({
   let suspended = false;
   let suspendedRevision = 0;
   let sourceRevision = 0;
+  let snapshotGeneration = 0;
   let batchSequence = 0;
   let batchCorrelation = null;
 
@@ -590,6 +591,7 @@ export function createSceneItemChangeDispatcher({
     }
     if (batchEpoch === null) batchEpoch = sourceEpoch;
     currentSnapshot = nextSnapshot;
+    snapshotGeneration += 1;
 
     for (const subscriber of subscribers) {
       if (subscriber.immediate) runSubscriber(subscriber, immediateEvent, true);
@@ -602,6 +604,7 @@ export function createSceneItemChangeDispatcher({
     currentSnapshot = new Map();
     suspended = true;
     suspendedRevision += 1;
+    snapshotGeneration += 1;
   }
 
   function resume(items = [], { expectedSuspendedRevision = null } = {}) {
@@ -614,6 +617,7 @@ export function createSceneItemChangeDispatcher({
     clearPendingBatch();
     currentSnapshot = createSceneItemsSnapshot(items);
     suspended = false;
+    snapshotGeneration += 1;
     return true;
   }
 
@@ -625,6 +629,7 @@ export function createSceneItemChangeDispatcher({
     clearPendingBatch();
     currentSnapshot = createSceneItemsSnapshot(items);
     sourceRevision = 0;
+    snapshotGeneration += 1;
   }
 
   function subscribe(handler, options = {}) {
@@ -663,8 +668,15 @@ export function createSceneItemChangeDispatcher({
     resume,
     reset,
     getSuspendedRevision,
+    getSnapshot: () => ({
+      complete: !suspended,
+      generation: snapshotGeneration,
+      revision: sourceRevision,
+      items: [...currentSnapshot.values()].map((entry) => entry.item),
+    }),
     getState: () => ({
       sourceRevision,
+      snapshotGeneration,
       batchSequence,
       suspended,
       subscribers: subscribers.size,

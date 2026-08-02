@@ -261,3 +261,38 @@ test("un cambio scena idrata il baseline senza trasformarlo in aggiunte o rimozi
   assert.equal(events[0].flags.movement, true);
   assert.deepEqual(events[0].items.map((item) => item.id), ["scene-b-token"]);
 });
+
+test("lo snapshot completo viene aggiornato e invalidato insieme al lifecycle", () => {
+  let emit;
+  const dispatcher = createSceneItemChangeDispatcher({
+    initialItems: [token({ id: "scene-a-token" })],
+    subscribeSource(callback) {
+      emit = callback;
+      return () => {};
+    },
+    setTimer(callback) { return callback; },
+    clearTimer() {},
+  });
+  dispatcher.subscribe(() => {}, { immediate: true });
+
+  const baseline = dispatcher.getSnapshot();
+  assert.equal(baseline.complete, true);
+  assert.deepEqual(baseline.items.map((item) => item.id), ["scene-a-token"]);
+
+  emit([token({ id: "scene-a-token", position: { x: 70, y: 0 } })]);
+  const changed = dispatcher.getSnapshot();
+  assert.ok(changed.generation > baseline.generation);
+  assert.deepEqual(changed.items[0].position, { x: 70, y: 0 });
+
+  dispatcher.suspend();
+  const suspended = dispatcher.getSnapshot();
+  assert.equal(suspended.complete, false);
+  assert.deepEqual(suspended.items, []);
+  assert.ok(suspended.generation > changed.generation);
+
+  dispatcher.resume([token({ id: "scene-b-token" })]);
+  const resumed = dispatcher.getSnapshot();
+  assert.equal(resumed.complete, true);
+  assert.deepEqual(resumed.items.map((item) => item.id), ["scene-b-token"]);
+  assert.ok(resumed.generation > suspended.generation);
+});

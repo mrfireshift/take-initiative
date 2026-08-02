@@ -16,6 +16,7 @@ const dispatcher = createSceneItemChangeDispatcher({
 });
 
 let __sceneBaselineRevision = 0;
+let __sceneSnapshotEpoch = null;
 
 // Non classificare lo snapshot iniziale (o quello successivo a un unload)
 // come delta. Un evento ricevuto durante l'idratazione forza una nuova baseline.
@@ -23,7 +24,7 @@ dispatcher.suspend();
 
 async function resumeSceneItemDispatcher(epoch) {
   const revision = ++__sceneBaselineRevision;
-  await hydrateSceneItemChangeDispatcher({
+  const resumed = await hydrateSceneItemChangeDispatcher({
     dispatcher,
     readItems: () => OBR.scene.items.getItems(),
     isCurrent: () => (
@@ -31,11 +32,20 @@ async function resumeSceneItemDispatcher(epoch) {
       && isCurrentSceneEpoch(epoch)
     ),
   });
+  if (
+    resumed
+    && revision === __sceneBaselineRevision
+    && isCurrentSceneEpoch(epoch)
+  ) {
+    __sceneSnapshotEpoch = epoch;
+  }
+  return resumed;
 }
 
 subscribeSceneEpoch(({ phase, epoch }) => {
   if (phase === "unload") {
     __sceneBaselineRevision += 1;
+    __sceneSnapshotEpoch = null;
     dispatcher.suspend();
     return;
   }
@@ -57,6 +67,20 @@ export function subscribeSceneItemChanges(handler, options = {}) {
     }
     return handler(event);
   }, options);
+}
+
+export function readSceneItemsSnapshot(sceneEpoch = currentSceneEpoch()) {
+  const snapshot = dispatcher.getSnapshot();
+  const complete = snapshot.complete === true
+    && __sceneSnapshotEpoch !== null
+    && Number(__sceneSnapshotEpoch) === Number(sceneEpoch)
+    && isCurrentSceneEpoch(sceneEpoch);
+  return {
+    ...snapshot,
+    complete,
+    sceneEpoch,
+    items: complete ? snapshot.items : [],
+  };
 }
 
 export function isCurrentSceneItemEvent(event, {

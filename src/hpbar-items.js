@@ -726,15 +726,6 @@ export async function mountHPBars(){
       queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
     }
   }, { filter: (event) => event.flags.hpBars });
-
-  let metaChangeTimer = null;
-  OBR.scene.onMetadataChange(() => {
-    if (!IS_GM) return;
-    clearTimeout(metaChangeTimer);
-    metaChangeTimer = setTimeout(async () => {
-      await queueCanonicalHPItems();
-    }, 0);
-  });
 }
 
 export function syncHPBarNow(tokenId, hp, hpMax) {
