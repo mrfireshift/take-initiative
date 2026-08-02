@@ -4,8 +4,8 @@ import {
 } from "./spells.js";
 import { refreshConditionLabels } from "./conditions.js";
 import {
-  commitEffectsMutationPlan,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
 import {
   getTrackableSpellOptions,
@@ -19,7 +19,6 @@ import {
   getSpellCastPhasePlan,
 } from "./spellCastPhaseCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
-import { withItemMetaHistory } from "./history.js";
 import { ID } from "./constants.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
@@ -40,11 +39,6 @@ import { renderSpellOverview } from "./spellsPanelOverviewView.js";
 import { renderCasterConcentrationSummary } from "./spellsPanelCasterSummaryView.js";
 import { wireSpellPanelFormWorkflow } from "./spellsPanelFormWorkflow.js";
 import {
-  commitWithStaticSpellZoneRemoval,
-  getStaticSpellZoneItems,
-} from "./spellStaticZone.js";
-import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
-import {
   spellActiveActionPresentation,
 } from "./spellActiveActionCore.js";
 import { getMobileAuraRule } from "./spellAuraCore.js";
@@ -58,8 +52,6 @@ import { buildPreparedSpellResolutionRequest } from "./preparedSpellResolutionCo
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
-const SPELLS_META_KEY = ID + "/spells";
-const CONC_META_KEY = ID + "/concentration";
 const MODAL_ID = ID + "/spells-modal";
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 
@@ -74,13 +66,6 @@ function closeSpellsPopover() {
 const $ = (id) => document.getElementById(id);
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
 
-async function commitMutationRemovingStaticZones(mutationPlan, zoneItems = []) {
-  return commitWithStaticSpellZoneRemoval(
-    zoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  );
-}
-
 async function terminateSpellGroup(group, requestedTargetIds = null) {
   const scoped = Array.isArray(requestedTargetIds);
   const targetIds = scoped
@@ -89,10 +74,6 @@ async function terminateSpellGroup(group, requestedTargetIds = null) {
   const groupTargetIds = Array.from(group.targets.keys());
   const terminatingWholeGroup = !scoped
     || groupTargetIds.every((targetId) => targetIds.includes(targetId));
-  const staticZoneItems = terminatingWholeGroup && group.instanceId
-    ? await getStaticSpellZoneItems({ instanceId: group.instanceId })
-    : [];
-  if (!spellOverviewGroupCanTerminate(group, staticZoneItems.length)) return;
   const operations = [];
   if (group.concentrating && group.casterId) {
     operations.push({
@@ -123,15 +104,18 @@ async function terminateSpellGroup(group, requestedTargetIds = null) {
       name: group.storedName,
       casterId: group.casterId || null,
     });
-  const mutationPlan = await prepareEffectsMutation(operations);
-  const historyIds = mutationPlan.changedIds;
-  await withItemMetaHistory({
+  const label = "Terminato incantesimo: " + group.name;
+  if (!spellOverviewGroupCanTerminate(group, terminatingWholeGroup && group.instanceId ? 1 : 0)) return;
+  const mutation = await runEffectsMutation(operations, {
     kind: "spell",
-    label: "Terminato incantesimo: " + group.name,
-    itemIds: historyIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitMutationRemovingStaticZones(mutationPlan, staticZoneItems));
+    label,
+    targetIds: [group.casterId, ...targetIds],
+    sideEffects: terminatingWholeGroup && group.instanceId ? [{
+      type: "static-zone:remove-ended",
+      selectors: [{ instanceId: group.instanceId }],
+    }] : [],
+  });
+  requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(targetIds);
 }
 
@@ -605,32 +589,20 @@ async function init() {
     getFallbackTargetIds: getContextOrSelectionIds,
     onCommit: commitSpellApplication,
     async onClearNonConcentration(ids) {
-      const mutationPlan = await prepareEffectsMutation([{
+      const label = ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi";
+      const mutation = await runEffectsMutation([{
         type: "spell:clear-non-concentration",
         targetIds: ids,
-      }]);
-      const staticZoneCandidates = Array.from(new Map(
-        (await Promise.all(ids.map((casterId) =>
-          getStaticSpellZoneItems({ casterId })
-        )))
-          .flat()
-          .filter((item) => item?.id)
-          .map((item) => [item.id, item])
-      ).values());
-      const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-        staticZoneCandidates,
-        mutationPlan,
-      );
-      await withItemMetaHistory({
+      }], {
         kind: "spell",
-        label: ids.length > 1 ? "Terminati incantesimi multipli" : "Terminati incantesimi",
-        itemIds: mutationPlan.changedIds,
-        sceneItemIds: staticZoneItems.map((item) => item.id),
-        fields: [SPELLS_META_KEY, "conditions"],
-      }, () => commitMutationRemovingStaticZones(
-        mutationPlan,
-        staticZoneItems,
-      ));
+        label,
+        targetIds: ids,
+        sideEffects: [{
+          type: "static-zone:remove-ended",
+          selectors: ids.map((casterId) => ({ casterId })),
+        }],
+      });
+      requireAppliedEffectsMutation(mutation);
       await refreshConditionLabels(ids);
     },
     async onAfterSubmit() {
@@ -751,22 +723,22 @@ async function refreshCasterSummary(casterId, wrap, list) {
         displayName,
         targetIds,
       }) {
-        const staticZoneItems = info?.instanceId
-          ? await getStaticSpellZoneItems({ instanceId: info.instanceId })
-          : [];
-        const mutationPlan = await prepareEffectsMutation([{
+        const label = "Concentrazione interrotta: " + displayName;
+        const mutation = await runEffectsMutation([{
           type: "concentration:break",
           casterIds: [casterId],
           reference: info?.instanceId || key,
-        }]);
-        const ids = mutationPlan.changedIds;
-        await withItemMetaHistory({
-          kind: "spell",
-          label: "Concentrazione interrotta: " + displayName,
-          itemIds: ids,
-          sceneItemIds: staticZoneItems.map((item) => item.id),
-          fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-        }, () => commitMutationRemovingStaticZones(mutationPlan, staticZoneItems));
+        }], {
+          kind: "concentration",
+          label,
+          targetIds: [casterId, ...(targetIds || [])],
+          sideEffects: info?.instanceId ? [{
+            type: "static-zone:remove-ended",
+            selectors: [{ instanceId: info.instanceId }],
+          }] : [],
+        });
+        requireAppliedEffectsMutation(mutation);
+        const ids = mutation.changedIds;
         await refreshConditionLabels(targetIds);
         await refreshCasterSummary(casterId, wrap, list);
       },

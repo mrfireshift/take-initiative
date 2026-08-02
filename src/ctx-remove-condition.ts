@@ -5,10 +5,9 @@ import {
   getConditionInstances,
   refreshConditionLabels,
 } from "./conditions.js";
-import { withItemMetaHistory } from "./history.js";
 import {
-  commitEffectsMutationPlan,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
 
 const META_KEY = `${ID}/meta`;
@@ -88,16 +87,16 @@ async function render() {
       busy = true;
       app.querySelectorAll<HTMLButtonElement>("button").forEach((entry) => { entry.disabled = true; });
       try {
-        const mutationPlan = await prepareEffectsMutation([{
+        const mutation = await runEffectsMutation([{
           type: "condition:remove-instances",
           removals: [{ itemId: row.itemId, instanceId: row.instanceId }],
-        }]);
-        await withItemMetaHistory({
+        }], {
           kind: "condition",
           label: `Rimossa: ${row.name}`,
-          itemIds: mutationPlan.changedIds,
-          fields: ["conditions"],
-        }, () => commitEffectsMutationPlan(mutationPlan));
+          targetIds: [row.itemId],
+          history: { kind: "condition", label: `Rimossa: ${row.name}` },
+        });
+        requireAppliedEffectsMutation(mutation);
         await refreshConditionLabels([row.itemId]);
       } finally {
         busy = false;

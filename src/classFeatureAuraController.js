@@ -22,7 +22,7 @@ import {
   normalizeClassFeatureState,
 } from "./classFeatureCore.js";
 import { deactivateClassFeature } from "./classFeatureRuntime.js";
-import { runEffectsMutation } from "./effectsMutations.js";
+import { requireAppliedEffectsMutation, runEffectsMutation } from "./effectsMutations.js";
 import {
   mergeClassFeatureAuraReminderMetadata,
   planClassFeatureAuraReminder,
@@ -422,7 +422,14 @@ async function reconcileClassFeatureAuras() {
   if (staleRemovals.length) {
     operations.unshift({ type: "condition:remove-instances", removals: staleRemovals });
   }
-  if (operations.length) await runEffectsMutation(operations);
+  if (operations.length) {
+    const mutation = await runEffectsMutation(operations, {
+      history: false,
+      kind: "class-feature-aura",
+      label: "Aggiornata membership aura",
+    });
+    requireAppliedEffectsMutation(mutation);
+  }
   await clearStaleSuppressions(suppressionPlans);
   await reconcileAuraVisuals(items, desiredVisuals);
   if (newTriggerNotices.length) {

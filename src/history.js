@@ -14,6 +14,8 @@ import {
 } from "./metadataKeyScoped.js";
 
 const META_KEY = `${ID}/meta`;
+const SPELLS_META_KEY = `${ID}/spells`;
+const CONC_META_KEY = `${ID}/concentration`;
 const HISTORY_KEY = `${ID}/history`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const HISTORY_VERSION = 1;
@@ -21,6 +23,7 @@ const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
 const SCENE_HISTORY_SUPPRESS_MS = 2000;
 const INITIATIVE_HISTORY_FIELDS = ["inInitiative", "initiative", "attitude"];
+const EFFECTS_HISTORY_FIELDS = ["conditions", "spells", "concentrations"];
 
 let __historyWriteQueue = Promise.resolve();
 let __historyActionQueue = Promise.resolve();
@@ -311,7 +314,10 @@ async function appendEntryNow(entry, sceneEpoch) {
   const md = await OBR.scene.getMetadata();
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const history = normalizeHistory(md?.[HISTORY_KEY]);
-  const entries = [...history.entries, entry].slice(-MAX_HISTORY_ENTRIES);
+  const entries = [
+    ...history.entries.filter((candidate) => candidate?.id !== entry?.id),
+    entry,
+  ].slice(-MAX_HISTORY_ENTRIES);
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   await writeSceneMetadataKey(
     OBR.scene,
@@ -332,6 +338,108 @@ function appendEntry(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
   const write = () => appendEntryNow(entry, sceneEpoch);
   __historyWriteQueue = __historyWriteQueue.then(write, write);
   return __historyWriteQueue;
+}
+
+function effectHistoryFieldSnapshot(value) {
+  return cloneValue(value);
+}
+
+function effectHistoryChange(change) {
+  const fields = {};
+  const before = {};
+  const after = {};
+  for (const field of EFFECTS_HISTORY_FIELDS) {
+    if (!change?.fields?.[field]) continue;
+    fields[field] = true;
+    before[field] = effectHistoryFieldSnapshot(change.before?.[field]);
+    after[field] = effectHistoryFieldSnapshot(change.after?.[field]);
+  }
+  if (!Object.keys(fields).length) return null;
+  const output = {
+    id: change.id,
+    fields,
+    before,
+    after,
+  };
+  const metadataFields = Object.fromEntries(
+    Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)
+  );
+  if (Object.keys(metadataFields).length) {
+    output.metadataFields = metadataFields;
+    output.beforeMetadata = cloneValue(change.beforeMetadata || {});
+    output.afterMetadata = cloneValue(change.afterMetadata || {});
+  }
+  return output;
+}
+
+/**
+ * Records the coordinator's logical effects operation.  The entry contains
+ * only the fields changed by the plan; the scene metadata writer still owns
+ * only the history key, so this cannot overwrite tracker or token metadata.
+ */
+export async function recordEffectsMutationHistory({
+  command = {},
+  plan = null,
+  commitResult = null,
+  sceneEpoch = currentSceneEpoch(),
+} = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return null;
+  const changes = (Array.isArray(plan?.changes) ? plan.changes : [])
+    .map((change) => {
+      const effectChange = effectHistoryChange(change);
+      if (effectChange) return effectChange;
+      const metadataFields = Object.fromEntries(
+        Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)
+      );
+      if (!Object.keys(metadataFields).length) return null;
+      return {
+        id: change.id,
+        fields: {},
+        before: {},
+        after: {},
+        metadataFields,
+        beforeMetadata: cloneValue(change.beforeMetadata || {}),
+        afterMetadata: cloneValue(change.afterMetadata || {}),
+      };
+    })
+    .filter(Boolean);
+  if (!changes.length) return null;
+
+  const historyOptions = command.history && typeof command.history === "object"
+    ? command.history
+    : {};
+  const fields = Array.from(new Set(changes.flatMap((change) =>
+    [
+      ...Object.keys(change.fields || {}).filter((field) => change.fields[field]),
+      ...Object.keys(change.metadataFields || {}).filter((field) => change.metadataFields[field]),
+    ]
+  )));
+  const targetIds = Array.from(new Set([
+    ...(Array.isArray(command.targetIds) ? command.targetIds : []),
+    ...changes.map((change) => change.id),
+  ].filter(Boolean)));
+  const entry = {
+    id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
+    version: HISTORY_VERSION,
+    at: Date.now(),
+    kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
+    label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
+    changes,
+    effectsMutation: {
+      version: 1,
+      commandId: command.commandId || null,
+      correlationId: command.correlationId || command.commandId || null,
+      commandType: command.kind || "effects",
+      sceneEpoch,
+      sceneIdentity: command.sceneIdentity || null,
+      targetIds,
+      fields,
+      changes,
+      sideEffects: cloneValue(commitResult?.sideEffectChanges || []),
+    },
+  };
+  await appendEntry(entry, { sceneEpoch });
+  return entry;
 }
 
 export async function withItemMetaHistory(options, action) {
@@ -395,7 +503,7 @@ export async function withItemMetaHistory(options, action) {
       }
 
       if (changes.length && isCurrentSceneEpoch(sceneEpoch)) {
-        const entry = {
+        let entry = {
           id: createEntryId(),
           version: HISTORY_VERSION,
           at: Date.now(),
@@ -403,6 +511,10 @@ export async function withItemMetaHistory(options, action) {
           label: String(options?.label || "Modifica"),
           changes,
         };
+        if (typeof options?.decorateEntry === "function") {
+          const decorated = await options.decorateEntry(entry);
+          if (decorated && typeof decorated === "object") entry = decorated;
+        }
         await appendEntry(entry, { sceneEpoch });
         if (typeof options?.onRecorded === "function") {
           try { options.onRecorded(entry); }
@@ -681,6 +793,13 @@ export async function mountMovementHistoryWatcher() {
 
 async function restoreEntry(entry, sceneEpoch) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  if (entryTouchesEffects(entry)) {
+    const { undoEffectsMutation } = await import("./effectsMutations.js");
+    const mutation = await undoEffectsMutation(entry, {
+      sceneEpoch,
+    });
+    return mutation.status === "applied" && isCurrentSceneEpoch(sceneEpoch);
+  }
   const changes = Array.isArray(entry?.changes) ? entry.changes : [];
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
   if (!ids.length) return true;
@@ -831,6 +950,30 @@ async function syncRestoredEntry(entry, sceneEpoch) {
   return isCurrentSceneEpoch(sceneEpoch);
 }
 
+function entryTouchesEffects(entry) {
+  if (Array.isArray(entry?.effectsMutation?.changes)) return true;
+  return (entry?.changes || []).some((change) => [
+    "conditions",
+    SPELLS_META_KEY,
+    CONC_META_KEY,
+  ].some((field) => Object.prototype.hasOwnProperty.call(change?.before || {}, field)));
+}
+
+function decorateUndoResult(entries, result = {}) {
+  const output = Array.isArray(entries) ? [...entries] : [];
+  Object.defineProperty(output, "status", {
+    value: result.status || "applied",
+    enumerable: false,
+    configurable: true,
+  });
+  Object.defineProperty(output, "result", {
+    value: result,
+    enumerable: false,
+    configurable: true,
+  });
+  return output;
+}
+
 async function undoHistoryThroughNow(entryId, sceneEpoch) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   if (await OBR.player.getRole() !== "GM") {
@@ -850,6 +993,112 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
 
   const selected = history.entries.slice(targetIndex);
   const undoOrder = [...selected].reverse();
+
+  // ARCH-003 entries are undone by the effects coordinator.  This validates
+  // every touched field against the recorded `after` value at the queue head
+  // and never restores an entire token metadata object.
+  const coordinatedBatch = undoOrder.some(entryTouchesEffects);
+  if (coordinatedBatch) {
+    const { undoEffectsMutation } = await import("./effectsMutations.js");
+    const undoCommandId = `effects-undo:${sceneEpoch}:${undoOrder
+      .map((entry) => String(entry?.id || ""))
+      .join(":")}`;
+    const mutation = await undoEffectsMutation(undoOrder, {
+      sceneEpoch,
+      kind: "effects:undo",
+      label: "Annulla modifica effetti",
+      commandId: undoCommandId,
+    });
+    if (mutation.status !== "applied") return decorateUndoResult([], mutation);
+
+    const postCommitErrors = [
+      ...(Array.isArray(mutation?.commitResult?.postCommitErrors)
+        ? mutation.commitResult.postCommitErrors
+        : []),
+    ];
+    const restoredIds = Array.from(new Set(
+      (mutation?.plan?.changedIds || []).filter(Boolean)
+    ));
+    const sceneHistorySuppressedUntil = Date.now() + SCENE_HISTORY_SUPPRESS_MS;
+    markHistoryRestoreSuppressed(restoredIds, sceneHistorySuppressedUntil);
+    if (restoredIds.length) {
+      try {
+        await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
+          type: "suppress-scene-history",
+          ids: restoredIds,
+          until: sceneHistorySuppressedUntil,
+        }, { destination: "LOCAL" });
+      } catch (error) {
+        postCommitErrors.push({
+          phase: "history-suppression-broadcast",
+          message: String(error?.message || error),
+        });
+      }
+    }
+    const synchronized = await runSceneEpochSteps({
+      sceneEpoch,
+      isCurrent: isCurrentSceneEpoch,
+      steps: [(epoch) => syncRestoredEntry({
+        changes: (mutation.plan?.changes || []).map((change) => ({
+          id: change.id,
+          // syncRestoredEntry uses `before` as the restored snapshot.
+          before: {
+            ...(change.after || {}),
+            ...(change.afterMetadata || {}),
+          },
+        })),
+      }, epoch)],
+    });
+    if (!synchronized) {
+      postCommitErrors.push({
+        phase: "undo-derived-state-sync",
+        message: "scene-changed-during-post-commit-sync",
+      });
+    }
+
+    if (isCurrentSceneEpoch(sceneEpoch)) {
+      try {
+        const latestMd = await OBR.scene.getMetadata();
+        if (!isCurrentSceneEpoch(sceneEpoch)) {
+          postCommitErrors.push({
+            phase: "undo-history-cleanup",
+            message: "stale-after-history-read",
+          });
+        } else {
+          const latest = normalizeHistory(latestMd?.[HISTORY_KEY]);
+          const selectedIds = new Set(selected.map((entry) => entry.id));
+          const entries = latest.entries.filter((candidate) => !selectedIds.has(candidate?.id));
+          await writeSceneMetadataKey(
+            OBR.scene,
+            METADATA_OWNERSHIP.HISTORY,
+            { ...latest, version: HISTORY_VERSION, entries },
+            { runtime: "history" },
+          );
+        }
+      } catch (error) {
+        postCommitErrors.push({
+          phase: "undo-history-cleanup",
+          message: String(error?.message || error),
+        });
+      }
+    } else {
+      postCommitErrors.push({
+        phase: "undo-history-cleanup",
+        message: "stale-before-history-cleanup",
+      });
+    }
+    try {
+      await recordCombatUndo(undoOrder, { sceneEpoch });
+    } catch (err) {
+      postCommitErrors.push({
+        phase: "combat-log-undo",
+        message: String(err?.message || err),
+      });
+      console.warn("[combat-log] undo event:", err?.message || err);
+    }
+    return decorateUndoResult(undoOrder, { ...mutation, postCommitErrors });
+  }
+
   const movementPositions = {};
   for (const entry of undoOrder) {
     for (const change of entry?.changes || []) {
@@ -920,7 +1169,7 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     console.warn("[combat-log] undo event:", err?.message || err);
   }
 
-  return undoOrder;
+  return decorateUndoResult(undoOrder, { status: "applied" });
 }
 
 export async function undoHistoryThrough(entryId) {

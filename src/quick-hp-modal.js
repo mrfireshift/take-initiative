@@ -16,15 +16,14 @@ import {
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST } from "./conditions.js";
 import {
-  commitEffectsMutationPlan,
   conditionMutationOperations,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
   saveSpellResolutionOperations,
   saveSpellTriggerResolutionOperations,
 } from "./effectsMutations.js";
 import {
   getZeroHPConditionHistoryIds,
-  reconcileZeroHPConditionsForItems,
 } from "./hpConditionAutomation.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { createSpellInstanceId } from "./spells.js";
@@ -64,11 +63,20 @@ import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js"
 import { spellColorFor } from "./spellColorCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
+import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
 const SPELLS_KEY = ID + "/spells";
 const CONCENTRATION_KEY = ID + "/concentration";
+
+function quickHpEffectsHistoryEntry(entry, mutation = null) {
+  return decorateCompositeEffectsHistoryEntry({
+    entry,
+    mutation,
+    effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
+  });
+}
 const CONCENTRATION_WARNING_CHANNEL = ID + "/concentration-warning";
 const MODAL_ID = ID + "/quick-hp-modal";
 const TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
@@ -1490,12 +1498,9 @@ async function applyOperation() {
         ruleChoice: selectedSaveRuleChoice(),
       })
       : [];
-    const previewEffectPlan = effectOperations.length
-      ? await prepareEffectsMutation(effectOperations)
-      : null;
     if (
       !entries.length
-      && !previewEffectPlan?.changedIds?.length
+      && !effectOperations.length
       && !nextStaticZoneItems.length
       && !requestedZoneTrigger
     ) {
@@ -1511,7 +1516,7 @@ async function applyOperation() {
     ]));
     const historyIds = Array.from(new Set([
       ...ids,
-      ...(previewEffectPlan?.changedIds || []),
+      ...effectSubjectIds,
       ...await getZeroHPConditionHistoryIds(ids),
     ]));
     const staticZoneSceneItemIds = Array.from(new Set([
@@ -1519,6 +1524,7 @@ async function applyOperation() {
       ...nextStaticZoneItems.map((item) => item.id),
       ...triggerRootItems.map((item) => item.id),
     ].filter(Boolean)));
+    let coordinatedMutation = null;
     await withItemMetaHistory({
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
@@ -1528,6 +1534,7 @@ async function applyOperation() {
       sceneItemIds: staticZoneSceneItemIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
       onRecorded: (entry) => { recordedEntry = entry; },
+      decorateEntry: (entry) => quickHpEffectsHistoryEntry(entry, coordinatedMutation),
     }, async () => {
       let removedPreviousZone = false;
       let addedNextZone = false;
@@ -1553,13 +1560,24 @@ async function applyOperation() {
               });
             }
           });
-          await reconcileZeroHPConditionsForItems(ids);
         }
-        if (effectOperations.length) {
-          // Ricalcola sullo stato post-HP senza cambiare gli ID preparati usati
-          // per delimitare la history (lo zero HP può aggiungere condizioni).
-          const effectPlan = await prepareEffectsMutation(previewEffectPlan?.operations || effectOperations);
-          await commitEffectsMutationPlan(effectPlan);
+        const coordinatedOperations = [
+          ...(ids.length ? [{
+            type: "condition:reconcile-zero-hp",
+            targetIds: ids,
+          }] : []),
+          ...effectOperations,
+        ];
+        if (coordinatedOperations.length) {
+          // Il coordinatore legge e prepara sullo stato post-HP in testa alla
+          // propria coda; non esiste piu un piano preparato prima dell'azione.
+          coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
+            history: false,
+            kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp-effects",
+            label: "Effetti collegati alla modifica HP",
+            targetIds: Array.from(new Set([...ids, ...effectSubjectIds])),
+          });
+          requireAppliedEffectsMutation(coordinatedMutation);
         }
         if (requestedZoneTrigger) {
           await consumeZoneTriggerActivation(requestedZoneTrigger);

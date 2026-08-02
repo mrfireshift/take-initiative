@@ -6,6 +6,7 @@ import { mountStaticSpellZoneController } from "./spellStaticZone.js";
 import { mountEffectSaveReminderController } from "./effectSaveReminderController.js";
 import { mountClassFeatureReminderController } from "./classFeatureReminderController.js";
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
+import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
 import "./clocksTool.js";
@@ -13,7 +14,8 @@ import "./distance3dTool.js";
 import "./referenceTool.js";
 import "./aoeTargetTool.js";
 
-OBR.onReady(() => {
+OBR.onReady(async () => {
+  await mountEffectsMutationCoordinatorService();
   void mountEffectsReconciler();
   void mountSpellAuraController();
   void mountClassFeatureAuraController();

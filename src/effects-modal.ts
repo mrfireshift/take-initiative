@@ -7,11 +7,10 @@ import {
   getConditionInstances,
   refreshConditionLabels,
 } from "./conditions.js";
-import { withItemMetaHistory } from "./history.js";
 import {
-  commitEffectsMutationPlan,
   conditionMutationOperations,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
@@ -22,8 +21,6 @@ import { executeConditionApplication } from "./conditionApplicationExecutor.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
-const SPELLS_META_KEY = `${ID}/spells`;
-const CONC_META_KEY = `${ID}/concentration`;
 const MODAL_ID = `${ID}/effects-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 const QUICK_ACTION_ID = new URLSearchParams(window.location.search).get("quickAction") || "";
@@ -721,17 +718,18 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     rows = rows.filter((row) => !row.managed);
     if (!rows.length) return;
     const targetIds = selectedTargetIds();
-    const mutationPlan = await prepareEffectsMutation([{
+    const label = rows.length > 1 ? "Rimossi effetti multipli" : `Rimossa: ${rows[0].name}`;
+    const mutation = await runEffectsMutation([{
       type: "condition:remove-instances",
       removals: rows.map((row) => ({ itemId: row.targetId, instanceId: row.id })),
-    }]);
-    const changedIds = mutationPlan.changedIds;
-    await withItemMetaHistory({
+    }], {
       kind: "condition",
-      label: rows.length > 1 ? "Rimossi effetti multipli" : `Rimossa: ${rows[0].name}`,
-      itemIds: changedIds,
-      fields: ["conditions"],
-    }, () => commitEffectsMutationPlan(mutationPlan));
+      label,
+      targetIds,
+      history: { kind: "condition", label },
+    });
+    requireAppliedEffectsMutation(mutation);
+    const changedIds = mutation.changedIds;
     await refreshConditionLabels(changedIds);
     await render(sourceId, targetIds);
   };

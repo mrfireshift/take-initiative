@@ -1,14 +1,9 @@
-import { ID } from "./constants.js";
 import { refreshConditionLabels } from "./conditions.js";
 import {
-  commitEffectsMutationPlan,
   conditionMutationOperations,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
-import { withItemMetaHistory } from "./history.js";
-
-const SPELLS_META_KEY = `${ID}/spells`;
-const CONC_META_KEY = `${ID}/concentration`;
 
 export async function executeConditionApplication({
   conditionName = "",
@@ -22,7 +17,7 @@ export async function executeConditionApplication({
   const normalizedName = String(conditionName || "").trim();
   if (!normalizedName || !targetIds.length) return [];
 
-  const mutationPlan = await prepareEffectsMutation(conditionMutationOperations({
+  const mutation = await runEffectsMutation(conditionMutationOperations({
     targetIds,
     conditionName: normalizedName,
     mode: conditionMode,
@@ -32,14 +27,14 @@ export async function executeConditionApplication({
       appliedAt,
       expiry,
     },
-  }));
-  const changedIds = mutationPlan.changedIds;
-  await withItemMetaHistory({
+  }), {
     kind: "condition",
     label: `Applicata: ${normalizedName}`,
-    itemIds: changedIds,
-    fields: ["conditions", SPELLS_META_KEY, CONC_META_KEY],
-  }, () => commitEffectsMutationPlan(mutationPlan));
+    targetIds,
+    history: { kind: "condition", label: `Applicata: ${normalizedName}` },
+  });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = mutation.changedIds;
   await refreshConditionLabels(changedIds);
   return changedIds;
 }

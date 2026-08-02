@@ -13,7 +13,10 @@ import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from 
 import { spellColorFor } from "./spellColorCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
-import { commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
+import {
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
+} from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -23,11 +26,6 @@ import {
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
 } from "./effectSaveReminderCore.js";
-import {
-  commitWithStaticSpellZoneRemoval,
-  getStaticSpellZoneItems,
-} from "./spellStaticZone.js";
-import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
 import {
   getZeroHPConditionHistoryIds,
   reconcileZeroHPConditionsForItems,
@@ -344,8 +342,6 @@ let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
 let __lastConditionTurnState = null;
 let __conditionNavigationHint = null;
-let __conditionTurnQueue = Promise.resolve();
-let __roundEffectQueue = Promise.resolve();
 let __sceneBaselineEpoch = null;
 let __sceneEpochLifecycleMounted = false;
 let __sceneEpochUnsubscribe = null;
@@ -476,8 +472,6 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __lastActiveId = null;
   __lastConditionTurnState = null;
   __conditionNavigationHint = null;
-  __conditionTurnQueue = Promise.resolve();
-  __roundEffectQueue = Promise.resolve();
   __selectedSceneItemIds = new Set();
   __trackerSelectionAnchorId = null;
   __lastRenderedActiveId = null;
@@ -6031,16 +6025,15 @@ async function __clearCardConditions(ids) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length) return;
   await __selectContextScope(scopeIds);
-  const mutationPlan = await prepareEffectsMutation([{
+  const mutation = await runEffectsMutation([{
     type: "condition:clear",
     targetIds: scopeIds,
-  }]);
-  await withItemMetaHistory({
+  }], {
     kind: "condition",
     label: scopeIds.length > 1 ? "Rimosse tutte le condizioni (selezione)" : "Rimosse tutte le condizioni",
-    itemIds: mutationPlan.changedIds,
-    fields: ["conditions"],
-  }, () => commitEffectsMutationPlan(mutationPlan));
+    targetIds: scopeIds,
+  });
+  requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(scopeIds);
 }
 
@@ -6070,26 +6063,18 @@ async function __terminateSpellOnTrackerCard(itemId, spell) {
       casterId: casterId || null,
     });
 
-  const mutationPlan = await prepareEffectsMutation(operations);
-  if (!mutationPlan.changedIds.length) return;
-  const staticZoneCandidates = instanceId
-    && (spell?.conc || spell?.castContext?.staticZoneOwner === true)
-    ? await getStaticSpellZoneItems({ instanceId })
-    : [];
-  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-    staticZoneCandidates,
-    mutationPlan,
-  );
-  await withItemMetaHistory({
+  const removeStaticZone = instanceId
+    && (spell?.conc || spell?.castContext?.staticZoneOwner === true);
+  const mutation = await runEffectsMutation(operations, {
     kind: "spell",
     label: `Terminato: ${spellName || "Incantesimo"}`,
-    itemIds: mutationPlan.changedIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    staticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
+    targetIds: [itemId, casterId],
+    sideEffects: removeStaticZone ? [{
+      type: "static-zone:remove-ended",
+      selectors: [{ instanceId }],
+    }] : [],
+  });
+  requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels([itemId]);
 }
 
@@ -6204,32 +6189,20 @@ async function __clearCardSpells(ids) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
   if (!scopeIds.length) return;
   await __selectContextScope(scopeIds);
-  const mutationPlan = await prepareEffectsMutation([{
+  const label = scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi";
+  const mutation = await runEffectsMutation([{
     type: "spell:clear-non-concentration",
     targetIds: scopeIds,
-  }]);
-  const staticZoneCandidates = Array.from(new Map(
-    (await Promise.all(scopeIds.map((casterId) =>
-      getStaticSpellZoneItems({ casterId })
-    )))
-      .flat()
-      .filter((item) => item?.id)
-      .map((item) => [item.id, item])
-  ).values());
-  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-    staticZoneCandidates,
-    mutationPlan,
-  );
-  await withItemMetaHistory({
+  }], {
     kind: "spell",
-    label: scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi",
-    itemIds: mutationPlan.changedIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    staticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
+    label,
+    targetIds: scopeIds,
+    sideEffects: [{
+      type: "static-zone:remove-ended",
+      selectors: scopeIds.map((casterId) => ({ casterId })),
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(scopeIds);
 }
 
@@ -6239,32 +6212,23 @@ async function __clearCardConcentrations(ids, sourceEntry = null) {
     ...__selectionIdsForEntry(sourceEntry),
   ].filter(Boolean)));
   if (!scopeIds.length) return;
-  const mutationPlan = await prepareEffectsMutation([{
+  await __selectContextScope(scopeIds);
+  const label = scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione";
+  const mutation = await runEffectsMutation([{
     type: "concentration:break",
     casterIds: scopeIds,
-  }]);
-  if (!mutationPlan.changedIds.length) return;
-  const staticZoneItems = Array.from(new Map(
-    (await Promise.all(scopeIds.map((casterId) =>
-      getStaticSpellZoneItems({ casterId })
-    )))
-      .flat()
-      .filter((item) => item?.id)
-      .map((item) => [item.id, item])
-  ).values());
-
-  await __selectContextScope(scopeIds);
-  const historyIds = mutationPlan.changedIds;
-  await withItemMetaHistory({
-    kind: "spell",
-    label: scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione",
-    itemIds: historyIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    staticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
+  }], {
+    kind: "concentration",
+    label,
+    targetIds: scopeIds,
+    sideEffects: [{
+      type: "static-zone:remove-ended",
+      selectors: scopeIds.map((casterId) => ({ casterId })),
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
+  if (!mutation.changedIds.length) return;
+  const historyIds = mutation.changedIds;
   await refreshConditionLabels(historyIds);
 }
 
@@ -8404,45 +8368,27 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
             .filter(id => id && !isLairId(id) && !isEpicActionId(id));
           const unique = Array.from(new Set(tokenIds));
           const run = async () => {
-            const mutationPlan = await prepareEffectsMutation([{
+            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
+            const mutation = await runEffectsMutation([{
               type: "effects:tick-round",
               targetIds: unique,
               delta,
-            }]);
-            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
-            const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-              await getStaticSpellZoneItems(),
-              mutationPlan,
-            );
-            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
-            await commitWithStaticSpellZoneRemoval(
-              staticZoneItems,
-              async () => {
-                if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return [];
-                const changedIds = await commitEffectsMutationPlan(mutationPlan, {
-                  isCurrent: () => __isCurrentSceneOperation(
-                    sceneEpoch,
-                    "round-tick",
-                    { metadataRevision },
-                  ),
-                });
-                return __isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })
-                  ? changedIds
-                  : [];
-              },
-              {
-                sceneEpoch,
-                isCurrent: (epoch) => __isCurrentSceneOperation(
-                  epoch,
-                  "round-tick",
-                  { metadataRevision },
-                ),
-              },
-            );
-            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
+            }], {
+              kind: "effects:tick-round",
+              label: "Scadenza effetti di round",
+              targetIds: unique,
+              history: false,
+              sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }],
+              sideEffects: [{
+                type: "static-zone:remove-ended",
+                selectors: [{ all: true }],
+              }],
+            });
+            if (mutation.status !== "applied") {
+              requireAppliedEffectsMutation(mutation);
+            }
           };
-          __roundEffectQueue = __roundEffectQueue.then(run, run);
-          roundEffectAdjustment = __roundEffectQueue;
+          roundEffectAdjustment = run();
         }
       }
     }
@@ -8476,32 +8422,19 @@ try {
           .filter(Boolean)
       ));
       if (!tokenIds.length) return;
-      await withItemMetaHistory({
-        kind: "spell",
+      const mutation = await runEffectsMutation([{
+        type: "effects:tick-boundaries",
+        targetIds: tokenIds,
+        boundaries,
+      }], {
+        kind: "effects:tick-boundaries",
         label: "Scadenza effetti di turno",
-        itemIds: tokenIds,
-        fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-        sceneEpoch,
-      }, async () => {
-        const mutationPlan = await prepareEffectsMutation([{
-          type: "effects:tick-boundaries",
-          targetIds: tokenIds,
-          boundaries,
-        }]);
-        if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) {
-          return [];
-        }
-        return commitEffectsMutationPlan(mutationPlan, {
-          isCurrent: () => __isCurrentSceneOperation(
-            sceneEpoch,
-            "condition-turn-tick",
-            { metadataRevision },
-          ),
-        });
+        targetIds: tokenIds,
+        sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }],
       });
+      requireAppliedEffectsMutation(mutation);
     };
-    const conditionTurnAdjustment = __conditionTurnQueue = __conditionTurnQueue.then(run, run);
-    await conditionTurnAdjustment;
+    await run();
   }
 } catch (err) {
   console.warn("[conditions] tick turn boundary error:", err?.message || err);

@@ -1,7 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 import defaults from "./initiative-cards.json";
 import { ID } from "./constants.js";
-import { withItemMetaHistory } from "./history.js";
+import {
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
+} from "./effectsMutations.js";
 import { normalizeSpeedMeters } from "./speedCheckCore.js";
 import {
   getExhaustionContributionLevel,
@@ -219,40 +222,44 @@ async function updateRoomCards(updater) {
 }
 
 async function writeTokenProfile(itemId, storedProfile) {
-  let conditionsChanged = false;
-  await OBR.scene.items.updateItems([itemId], (items) => {
-    const item = items[0];
-    if (!item) return;
-    const meta = { ...(item.metadata?.[META_KEY] || {}) };
-    meta[INITIATIVE_CARD_FIELD] = storedProfile;
-    const previousConditions = meta.conditions;
-    const nextConditions = reconcileExhaustionCondition(
-      previousConditions,
-      storedProfile?.exhaustion,
-      item.id
-    );
-    conditionsChanged = JSON.stringify(previousConditions || null) !== JSON.stringify(nextConditions);
-    if (nextConditions) meta.conditions = nextConditions;
-    else delete meta.conditions;
-    item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+  const mutation = await runEffectsMutation([{
+    type: "condition:reconcile-exhaustion",
+    targetIds: [itemId],
+    level: storedProfile?.exhaustion,
+  }], {
+    kind: "initiative-card",
+    label: "Scheda iniziativa aggiornata",
+    targetIds: [itemId],
+    metadataPatches: [{
+      id: itemId,
+      fields: {
+        [INITIATIVE_CARD_FIELD]: { mode: "set", value: storedProfile },
+      },
+    }],
   });
+  requireAppliedEffectsMutation(mutation);
+  const conditionsChanged = mutation.changes.some((change) => change.fields?.conditions);
   if (conditionsChanged) await refreshConditionLabels([itemId]);
 }
 
 async function removeTokenProfile(itemId) {
-  let conditionsChanged = false;
-  await OBR.scene.items.updateItems([itemId], (items) => {
-    const item = items[0];
-    if (!item) return;
-    const meta = { ...(item.metadata?.[META_KEY] || {}) };
-    delete meta[INITIATIVE_CARD_FIELD];
-    const previousConditions = meta.conditions;
-    const nextConditions = reconcileExhaustionCondition(previousConditions, 0, item.id);
-    conditionsChanged = JSON.stringify(previousConditions || null) !== JSON.stringify(nextConditions);
-    if (nextConditions) meta.conditions = nextConditions;
-    else delete meta.conditions;
-    item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+  const mutation = await runEffectsMutation([{
+    type: "condition:reconcile-exhaustion",
+    targetIds: [itemId],
+    level: 0,
+  }], {
+    kind: "initiative-card",
+    label: "Scheda iniziativa rimossa",
+    targetIds: [itemId],
+    metadataPatches: [{
+      id: itemId,
+      fields: {
+        [INITIATIVE_CARD_FIELD]: { mode: "delete" },
+      },
+    }],
   });
+  requireAppliedEffectsMutation(mutation);
+  const conditionsChanged = mutation.changes.some((change) => change.fields?.conditions);
   if (conditionsChanged) await refreshConditionLabels([itemId]);
 }
 
@@ -389,23 +396,16 @@ export async function saveInitiativeCard(itemId, name, value) {
   const updatedAt = Date.now();
   const storedProfile = { ...storedBaseProfile, updatedAt };
 
-  await withItemMetaHistory({
-    kind: "initiative-card",
-    label: `Scheda iniziativa: ${String(name || "Personaggio")}`,
-    itemIds: [itemId],
-    fields: [INITIATIVE_CARD_FIELD, "conditions"],
-  }, async () => {
-    await updateRoomCards((next) => {
-      const entry = {
-        name: String(sourceItem?.name || name || ""),
-        profile: storedBaseProfile,
-        updatedAt,
-      };
-      for (const key of keys) next[key] = entry;
-      return next;
-    });
-    await writeTokenProfile(itemId, storedProfile);
+  await updateRoomCards((next) => {
+    const entry = {
+      name: String(sourceItem?.name || name || ""),
+      profile: storedBaseProfile,
+      updatedAt,
+    };
+    for (const key of keys) next[key] = entry;
+    return next;
   });
+  await writeTokenProfile(itemId, storedProfile);
   return profile;
 }
 

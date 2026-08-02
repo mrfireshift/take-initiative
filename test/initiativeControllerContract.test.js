@@ -94,16 +94,16 @@ test("il cambio scena scarta il render tardivo e usa il primo snapshot history c
 test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {
   const section = sourceSectionIn(
     normalizedSource,
-    "const run = async () => {\n            const mutationPlan",
-    "__roundEffectQueue = __roundEffectQueue.then(run, run);"
+    "const run = async () => {\n            if (!__isCurrentSceneOperation(sceneEpoch, \"round-tick\"",
+    "roundEffectAdjustment = run();"
   );
   assertOrdered(section, [
+    "const mutation = await runEffectsMutation([{",
     'type: "effects:tick-round"',
-    "staticSpellZoneItemsEndedByPlan(",
-    "await getStaticSpellZoneItems()",
-    "commitWithStaticSpellZoneRemoval(",
-    "const changedIds = await commitEffectsMutationPlan(mutationPlan, {",
-    "isCurrent: (epoch) => __isCurrentSceneOperation(",
+    "sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }]",
+    'type: "static-zone:remove-ended"',
+    "selectors: [{ all: true }]",
+    "requireAppliedEffectsMutation(mutation)",
   ]);
 });
 
@@ -128,11 +128,18 @@ test("Undo cattura l'epoch prima della coda e lo propaga a restore e sync", () =
   );
   assertOrdered(section, [
     "async function undoHistoryThroughNow(entryId, sceneEpoch)",
-    "restoreEntry(entry, epoch)",
-    "syncRestoredEntry(entry, epoch)",
+    "const coordinatedBatch = undoOrder.some(entryTouchesEffects)",
+    "const { undoEffectsMutation } = await import(\"./effectsMutations.js\")",
+    "const mutation = await undoEffectsMutation(undoOrder,",
+    "commandId: undoCommandId",
+    "syncRestoredEntry({",
     "recordCombatUndo(undoOrder, { sceneEpoch })",
     "const sceneEpoch = currentSceneEpoch();",
     "() => undoHistoryThroughNow(entryId, sceneEpoch)",
+  ]);
+  assertOrdered(section, [
+    "restoreEntry(entry, epoch)",
+    "syncRestoredEntry(entry, epoch)",
   ]);
 });
 

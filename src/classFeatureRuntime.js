@@ -12,16 +12,12 @@ import { EXHAUSTION_CONDITION } from "./exhaustionCore.js";
 import { getSpellsFromItem } from "./spells.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import {
-  commitEffectsMutationPlan,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
-import {
-  commitWithStaticSpellZoneRemoval,
-  getStaticSpellZoneItems,
-} from "./spellStaticZone.js";
-import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
   CLASS_FEATURE_STATE_FIELD,
   activeClassFeatureInstances,
@@ -66,6 +62,12 @@ function createInstanceId() {
   return typeof globalThis.crypto?.randomUUID === "function"
     ? `class-feature-${globalThis.crypto.randomUUID()}`
     : `class-feature-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function metadataFieldExpectation(meta, field) {
+  return Object.prototype.hasOwnProperty.call(meta || {}, field)
+    ? { present: true, value: structuredClone(meta[field]) }
+    : { present: false };
 }
 
 function classFeatureError(reason, poolId = "") {
@@ -404,54 +406,29 @@ export async function purifyClassFeatureSpell({
     profile.characterBuild,
   );
   const [targetId] = resolvedTargetIds;
-  const [targetItem] = await OBR.scene.items.getItems([targetId]);
   const requestedInstanceId = String(spellInstanceId || "").trim();
   const requestedName = String(spellName || "").trim().toLocaleLowerCase();
-  const activeSpells = getSpellsFromItem(targetItem).filter((spell) =>
-    spell?.castContext?.staticZoneOwner !== true
-  );
-  const spell = activeSpells.find((entry) =>
-    requestedInstanceId
-      && String(entry?.instanceId || "").trim() === requestedInstanceId
-  ) || activeSpells.find((entry) =>
-    requestedName
-      && String(entry?.name || "").trim().toLocaleLowerCase() === requestedName
-  );
-  const instanceId = String(spell?.instanceId || "").trim();
-  if (!spell || !instanceId) throw classFeatureError("target-spell-required");
-
-  const operations = [];
-  if (spell.conc === true && spell.casterId) {
-    operations.push({
-      type: "concentration:break-targets",
-      casterIds: [spell.casterId],
-      reference: instanceId,
-      targetIds: [targetId],
-    });
-  }
-  operations.push({
-    type: "spell:remove-instance",
+  const mutation = await runEffectsMutation([{
+    type: "spell:remove-requested",
     targetIds: [targetId],
-    instanceId,
-  });
-  const mutationPlan = await prepareEffectsMutation(operations);
-  if (!mutationPlan.changedIds?.length) throw classFeatureError("target-spell-required");
-  const staticZoneCandidates = await getStaticSpellZoneItems({ instanceId });
-  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-    staticZoneCandidates,
-    mutationPlan,
-  );
-  const changedIds = Array.from(new Set(mutationPlan.changedIds));
-  await withItemMetaHistory({
+    instanceId: requestedInstanceId,
+    name: requestedName,
+  }], {
     kind: "spell",
-    label: `Tocco Purificatore: ${spell.name || "Incantesimo"}`,
-    itemIds: changedIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    staticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
+    label: "Tocco Purificatore",
+    targetIds: [targetId],
+    requireChanges: true,
+    sideEffects: [{ type: "static-zone:remove-ended", selectors: [{ all: true }] }],
+  });
+  requireAppliedEffectsMutation(mutation);
+  if (!mutation.changedIds?.length) throw classFeatureError("target-spell-required");
+  const targetChange = mutation.changes.find((change) => change.id === targetId);
+  const remainingIds = new Set((targetChange?.after?.spells || []).map((entry) => entry?.instanceId));
+  const spell = (targetChange?.before?.spells || []).find((entry) =>
+    entry?.instanceId && !remainingIds.has(entry.instanceId)
+  ) || null;
+  const instanceId = String(spell?.instanceId || requestedInstanceId).trim();
+  const changedIds = Array.from(new Set(mutation.changedIds));
   await refreshConditionLabels(changedIds);
   return {
     feature,
@@ -717,29 +694,24 @@ function applyBerserkerFrenzyExhaustion(meta, sourceId, frenzyInstanceId) {
 
 async function terminateConcentrationForClassFeature(sourceId, feature) {
   if (!classFeatureBreaksConcentration(feature)) return [];
-  const mutationPlan = await prepareEffectsMutation([{
+  const label = `Concentrazione terminata: ${feature.name}`;
+  const mutation = await runEffectsMutation([{
     type: "concentration:break",
     casterIds: [sourceId],
-  }]);
-  const changedIds = Array.isArray(mutationPlan?.changedIds)
-    ? mutationPlan.changedIds
+  }], {
+    kind: "concentration",
+    label,
+    targetIds: [sourceId],
+    sideEffects: [{
+      type: "static-zone:remove-ended",
+      selectors: [{ casterId: sourceId }],
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = Array.isArray(mutation?.changedIds)
+    ? mutation.changedIds
     : [];
   if (!changedIds.length) return [];
-  const staticZoneCandidates = await getStaticSpellZoneItems({ casterId: sourceId });
-  const staticZoneItems = staticSpellZoneItemsEndedByPlan(
-    staticZoneCandidates,
-    mutationPlan,
-  );
-  await withItemMetaHistory({
-    kind: "spell",
-    label: `Concentrazione terminata: ${feature.name}`,
-    itemIds: changedIds,
-    sceneItemIds: staticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    staticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
   await refreshConditionLabels(changedIds);
   return changedIds;
 }
@@ -1134,91 +1106,107 @@ export async function activateClassFeature({
     targetIds: resolvedTargetIds,
     choiceId,
   });
-  await withItemMetaHistory({
+  activation = planClassFeatureActivation({
+    state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
+    feature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: profile.characterBuild,
+    sourceId: sourceItem.id,
+    targetIds: resolvedTargetIds,
+    currentRound: round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    choiceId,
+    resourceValues,
+    enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  });
+  if (!activation.ok) {
+    throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  }
+  const conditionFeature = adapter === "bardic-inspiration"
+    ? featureWithEloquenceInfallibleReminder(feature, profile)
+    : feature;
+  const additions = classFeatureConditionInstancesForActivation(
+    conditionFeature,
+    activation.instance,
+    sourceItem.name,
+    profile.characterBuild,
+  );
+  const instancesByTarget = {};
+  for (const instance of additions) {
+    (instancesByTarget[instance.targetId] ||= []).push(instance);
+  }
+  const currentItems = await OBR.scene.items.getItems(itemIds);
+  const currentById = new Map(currentItems.map((item) => [item.id, item]));
+  const metadataPatches = [{
+    id: sourceItem.id,
+    fields: {
+      [CLASS_FEATURE_STATE_FIELD]: {
+        mode: "set",
+        value: activation.state,
+        expected: metadataFieldExpectation(
+          sourceItem.metadata?.[META_KEY] || {},
+          CLASS_FEATURE_STATE_FIELD,
+        ),
+      },
+    },
+  }];
+  for (const application of temporaryHpApplications) {
+    const item = currentById.get(application.targetId);
+    const meta = item?.metadata?.[META_KEY] || {};
+    const hp = Number(meta.hp);
+    const hpMax = Number(meta.hpMax);
+    if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) continue;
+    const change = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.TEMP,
+      value: application.amount,
+      hp,
+      hpMax,
+    });
+    if (!change.changed) continue;
+    metadataPatches.push({
+      id: application.targetId,
+      fields: {
+        hp: {
+          mode: "set",
+          value: change.afterHP,
+          expected: metadataFieldExpectation(meta, "hp"),
+        },
+        hpMax: {
+          mode: "assert",
+          expected: metadataFieldExpectation(meta, "hpMax"),
+        },
+      },
+    });
+  }
+  const activationOperations = Object.keys(instancesByTarget).length
+    ? [{ type: "condition:add-instances", instancesByTarget }]
+    : [];
+  if (classFeatureBreaksConcentration(feature)) {
+    activationOperations.push({
+      type: "concentration:break",
+      casterIds: [sourceItem.id],
+    });
+  }
+  const classFeatureMutation = await runEffectsMutation(
+    activationOperations,
+    {
     kind: "class-feature",
     label: `Capacità: ${feature.name}`,
-    itemIds,
-    fields: [
-      CLASS_FEATURE_STATE_FIELD,
-      "conditions",
-      ...(temporaryHpApplications.length ? ["hp"] : []),
-    ],
-  }, () => OBR.scene.items.updateItems(itemIds, (drafts) => {
-    const sourceDraft = drafts.find((entry) => entry.id === sourceItem.id);
-    if (!sourceDraft) return;
-    const meta = { ...(sourceDraft.metadata?.[META_KEY] || {}) };
-    activation = planClassFeatureActivation({
-      state: meta[CLASS_FEATURE_STATE_FIELD],
-      feature,
-      poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
-      characterBuild: profile.characterBuild,
-      sourceId: sourceItem.id,
-      targetIds: resolvedTargetIds,
-      currentRound: round,
-      currentTurnKey: turnState.turnKey,
-      instanceId,
-      choiceId,
-      resourceValues,
-      enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
-    });
-    if (!activation.ok) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = activation.state;
-    sourceDraft.metadata = { ...(sourceDraft.metadata || {}), [META_KEY]: meta };
-
-    const conditionFeature = adapter === "bardic-inspiration"
-      ? featureWithEloquenceInfallibleReminder(feature, profile)
-      : feature;
-    const additions = classFeatureConditionInstancesForActivation(
-      conditionFeature,
-      activation.instance,
-      sourceItem.name,
-      profile.characterBuild,
-    );
-    const additionsByTarget = new Map();
-    for (const instance of additions) {
-      const list = additionsByTarget.get(instance.targetId) || [];
-      list.push(instance);
-      additionsByTarget.set(instance.targetId, list);
-    }
-    for (const draft of drafts) {
-      const targetAdditions = additionsByTarget.get(draft.id);
-      if (!targetAdditions?.length) continue;
-      const targetMeta = { ...(draft.metadata?.[META_KEY] || {}) };
-      appendConditionInstances(targetMeta, targetAdditions);
-      draft.metadata = { ...(draft.metadata || {}), [META_KEY]: targetMeta };
-    }
-    for (const application of temporaryHpApplications) {
-      const draft = drafts.find((entry) => entry.id === application.targetId);
-      if (!draft) continue;
-      const targetMeta = { ...(draft.metadata?.[META_KEY] || {}) };
-      const hp = Number(targetMeta.hp);
-      const hpMax = Number(targetMeta.hpMax);
-      if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) continue;
-      const change = calculateQuickHPChange({
-        mode: QUICK_HP_MODES.TEMP,
-        value: application.amount,
-        hp,
-        hpMax,
-      });
-      if (!change.changed) continue;
-      targetMeta.hp = change.afterHP;
-      draft.metadata = { ...(draft.metadata || {}), [META_KEY]: targetMeta };
-    }
-  }));
-
-  if (!activation?.ok) {
-    throw classFeatureError(
-      activation?.reason || "invalid-activation",
-      activation?.poolId
-    );
-  }
-  const concentrationChangedIds = await terminateConcentrationForClassFeature(
-    sourceItem.id,
-    feature,
+      targetIds: itemIds,
+      metadataPatches,
+      sideEffects: classFeatureBreaksConcentration(feature)
+        ? [{
+          type: "static-zone:remove-ended",
+          selectors: [{ casterId: sourceItem.id }],
+        }]
+        : [],
+    },
   );
+  requireAppliedEffectsMutation(classFeatureMutation);
   await refreshConditionLabels(Array.from(new Set([
     ...itemIds,
-    ...concentrationChangedIds,
+    ...(classFeatureMutation.changedIds || []),
   ])));
   const autoResults = [...prerequisiteResults];
   if (!suppressAutoActivation && Array.isArray(feature.autoActivateFeatureIds)) {
@@ -1276,36 +1264,43 @@ export async function deactivateClassFeature(sourceId, instanceId) {
   const endedFrenzyEntries = removedEntries.filter((entry) =>
     String(entry?.featureId || "") === BERSERKER_FRENZY_FEATURE_ID
   );
-  let result = null;
-  await withItemMetaHistory({
+  const sourceMeta = sourceItem.metadata?.[META_KEY] || {};
+  const frenzyMeta = { conditions: structuredClone(sourceMeta.conditions || {}) };
+  for (const entry of endedFrenzyEntries) {
+    applyBerserkerFrenzyExhaustion(frenzyMeta, sourceId, entry.instanceId);
+  }
+  const previousConditionIds = new Set(conditionInstancesForMeta(sourceMeta).map((entry) => entry.id));
+  const frenzyAdditions = conditionInstancesForMeta(frenzyMeta)
+    .filter((entry) => !previousConditionIds.has(entry.id));
+  const operations = [{
+    type: "condition:remove-parent-effects",
+    parentEffectIds: [...removedInstanceIds],
+    conditionTypes: ["class-feature", "class-feature-area"],
+  }];
+  if (frenzyAdditions.length) {
+    operations.push({
+      type: "condition:add-instances",
+      instancesByTarget: { [sourceId]: frenzyAdditions },
+    });
+  }
+  const mutation = await runEffectsMutation(operations, {
     kind: "class-feature",
     label: "Capacità terminata",
-    itemIds,
-    fields: [CLASS_FEATURE_STATE_FIELD, "conditions"],
-  }, () => OBR.scene.items.updateItems(itemIds, (drafts) => {
-    const sourceDraft = drafts.find((entry) => entry.id === sourceId);
-    if (!sourceDraft) return;
-    const meta = { ...(sourceDraft.metadata?.[META_KEY] || {}) };
-    result = planClassFeatureDeactivation(meta[CLASS_FEATURE_STATE_FIELD], instanceId);
-    if (result.changed) {
-      meta[CLASS_FEATURE_STATE_FIELD] = result.state;
-      for (const entry of endedFrenzyEntries) {
-        applyBerserkerFrenzyExhaustion(meta, sourceId, entry.instanceId);
-      }
-      sourceDraft.metadata = { ...(sourceDraft.metadata || {}), [META_KEY]: meta };
-    }
-    for (const draft of drafts) {
-      const draftMeta = { ...(draft.metadata?.[META_KEY] || {}) };
-      let changed = false;
-      for (const removedId of removedInstanceIds) {
-        if (removeClassFeatureParent(draftMeta, removedId)) changed = true;
-      }
-      if (!changed) continue;
-      draft.metadata = { ...(draft.metadata || {}), [META_KEY]: draftMeta };
-    }
-  }));
+    targetIds: itemIds,
+    metadataPatches: [{
+      id: sourceId,
+      fields: {
+        [CLASS_FEATURE_STATE_FIELD]: {
+          mode: "set",
+          value: plannedRemoval.state,
+          expected: metadataFieldExpectation(sourceMeta, CLASS_FEATURE_STATE_FIELD),
+        },
+      },
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(itemIds);
-  return result || {
+  return plannedRemoval || {
     changed: false,
     state: getClassFeatureState(sourceItem),
   };
@@ -1313,8 +1308,14 @@ export async function deactivateClassFeature(sourceId, instanceId) {
 
 export async function reconcileClassFeatureActivationsAfterConditionRemoval(
   removedConditions = [],
-  { inline = false } = {},
+  {
+    returnDetails = false,
+    isCurrent = () => true,
+    sourceItems = null,
+  } = {},
 ) {
+  const emptyResult = () => returnDetails ? { changed: [], details: [] } : [];
+  if (!isCurrent()) return emptyResult();
   const grouped = new Map();
   for (const instance of Array.isArray(removedConditions) ? removedConditions : []) {
     if (!isClassFeatureConditionType(String(instance?.type || ""))) continue;
@@ -1335,10 +1336,13 @@ export async function reconcileClassFeatureActivationsAfterConditionRemoval(
     }
     grouped.set(key, entry);
   }
-  if (!grouped.size) return [];
+  if (!grouped.size) return emptyResult();
 
   const sourceIds = Array.from(new Set([...grouped.values()].map((entry) => entry.sourceId)));
-  const sources = await OBR.scene.items.getItems(sourceIds);
+  const sources = Array.isArray(sourceItems)
+    ? sourceItems.filter((item) => sourceIds.includes(item?.id))
+    : await OBR.scene.items.getItems(sourceIds);
+  if (!isCurrent()) return emptyResult();
   const bySourceId = new Map(sources.map((item) => [item.id, item]));
   const updates = new Map();
 
@@ -1414,30 +1418,28 @@ export async function reconcileClassFeatureActivationsAfterConditionRemoval(
     });
   }
 
-  if (!updates.size) return [];
+  if (!updates.size) return emptyResult();
   const ids = [...updates.keys()];
-  const changed = [];
-  await withItemMetaHistory({
-    kind: "class-feature",
-    label: "Terminata capacità dopo rimozione effetto",
-    itemIds: ids,
-    fields: [CLASS_FEATURE_STATE_FIELD, "conditions"],
-    inline,
-  }, () => OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const draft of drafts) {
-      const update = updates.get(draft.id);
+  const details = [];
+  for (const source of sources) {
+      const update = updates.get(source.id);
       if (!update) continue;
-      const meta = { ...(draft.metadata?.[META_KEY] || {}) };
+      const meta = structuredClone(source.metadata?.[META_KEY] || {});
+      const beforeState = metadataFieldExpectation(meta, CLASS_FEATURE_STATE_FIELD);
+      const beforeConditions = structuredClone(conditionInstancesForMeta(meta));
       meta[CLASS_FEATURE_STATE_FIELD] = update.nextState;
       for (const instanceId of update.removedFrenzyInstanceIds || []) {
-        applyBerserkerFrenzyExhaustion(meta, draft.id, instanceId);
+        applyBerserkerFrenzyExhaustion(meta, source.id, instanceId);
       }
-      draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-      changed.push(draft.id);
-    }
-  }));
-  await refreshConditionLabels(ids);
-  return changed;
+      details.push({
+        id: source.id,
+        beforeState,
+        afterState: metadataFieldExpectation(meta, CLASS_FEATURE_STATE_FIELD),
+        beforeConditions,
+        afterConditions: structuredClone(conditionInstancesForMeta(meta)),
+      });
+  }
+  return returnDetails ? { changed: ids, details } : ids;
 }
 
 export async function adjustClassFeatureResource(

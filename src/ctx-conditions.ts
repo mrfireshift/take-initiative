@@ -6,16 +6,13 @@ import {
   APPLICABLE_CONDITION_LIST,
   getConditionInstances
 } from "./conditions.js";
-import { withItemMetaHistory } from "./history.js";
 import {
-  commitEffectsMutationPlan,
   conditionMutationOperations,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
 
 const META_KEY = `${ID}/meta`;
-const SPELLS_META_KEY = `${ID}/spells`;
-const CONC_META_KEY = `${ID}/concentration`;
 
 // --- UI helpers -----------------------------------------------------------
 function makeChip(name) {
@@ -168,25 +165,28 @@ chip.addEventListener("click", () => {
     }
 
     // 3) fire‑and‑forget: non bloccare il listener
-    const mutationPlan = await prepareEffectsMutation(conditionMutationOperations({
+    const mutation = await runEffectsMutation(conditionMutationOperations({
       targetIds: ids,
       conditionName: name,
       options: wasOn ? {} : durationOpts(turnsInput),
       mode: "toggle",
-    }));
-    const historyIds = mutationPlan.changedIds;
-    withItemMetaHistory({
+    }), {
       kind: "condition",
       label: `${wasOn ? "Rimossa" : "Applicata"}: ${name}`,
-      itemIds: historyIds,
-      fields: ["conditions", SPELLS_META_KEY, CONC_META_KEY],
-    }, () => commitEffectsMutationPlan(mutationPlan))
-      .then(() => { queueRefresh(grid); })
-      .catch(() => {
-        // in caso di errore: ripristina lo stato visivo precedente
-        paintChip(chip, wasOn ? "on" : "off");
-        queueRefresh(grid);
-      });
+      targetIds: ids,
+      history: {
+        kind: "condition",
+        label: `${wasOn ? "Rimossa" : "Applicata"}: ${name}`,
+      },
+    });
+    requireAppliedEffectsMutation(mutation);
+    queueRefresh(grid);
+  };
+  run().catch(() => {
+    // in caso di errore: ripristina lo stato visivo precedente
+    paintChip(chip, wasOn ? "on" : "off");
+    queueRefresh(grid);
+  });
   };
   // lancia senza attendere
   run();
@@ -205,19 +205,18 @@ chip.addEventListener("click", () => {
     if (!text) return;
     const ids = await getSelectedIdsSafe();
     if (!ids.length) return;
-    const mutationPlan = await prepareEffectsMutation(conditionMutationOperations({
+    const mutation = await runEffectsMutation(conditionMutationOperations({
       targetIds: ids,
       conditionName: text,
       options: durationOpts(turnsInput),
       mode: "custom",
-    }));
-    const historyIds = mutationPlan.changedIds;
-    await withItemMetaHistory({
+    }), {
       kind: "condition",
       label: `Applicata: ${text}`,
-      itemIds: historyIds,
-      fields: ["conditions", SPELLS_META_KEY, CONC_META_KEY],
-    }, () => commitEffectsMutationPlan(mutationPlan));
+      targetIds: ids,
+      history: { kind: "condition", label: `Applicata: ${text}` },
+    });
+    requireAppliedEffectsMutation(mutation);
     input.value = "";
     await refreshChipsState(grid, ids);
   });
@@ -225,16 +224,16 @@ chip.addEventListener("click", () => {
   btnClear?.addEventListener("click", async () => {
     const ids = await getSelectedIdsSafe();
     if (!ids.length) return;
-    const mutationPlan = await prepareEffectsMutation([{
+    const mutation = await runEffectsMutation([{
       type: "condition:clear",
       targetIds: ids,
-    }]);
-    await withItemMetaHistory({
+    }], {
       kind: "condition",
       label: "Rimosse tutte le condizioni",
-      itemIds: mutationPlan.changedIds,
-      fields: ["conditions"],
-    }, () => commitEffectsMutationPlan(mutationPlan));
+      targetIds: ids,
+      history: { kind: "condition", label: "Rimosse tutte le condizioni" },
+    });
+    requireAppliedEffectsMutation(mutation);
     await refreshChipsState(grid, ids);
   });
 

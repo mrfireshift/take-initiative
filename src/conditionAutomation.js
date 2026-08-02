@@ -1,7 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { getConditionInstances } from "./conditions.js";
-import { runEffectsMutation } from "./effectsMutations.js";
+import {
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
+} from "./effectsMutations.js";
 import {
   getPotentialConditionAutomationChanges,
 } from "./conditionAutomationCore.js";
@@ -31,6 +34,12 @@ export async function applyConditionAutomationsForItems(itemIds = []) {
   const plan = await runEffectsMutation([{
     type: "condition:automate",
     subjectIds: [...subjectIds],
-  }]);
+  }], {
+    history: false,
+    kind: "condition:automate",
+    label: "Aggiornata automazione condizioni",
+    targetIds: [...subjectIds],
+  });
+  requireAppliedEffectsMutation(plan);
   return plan.changedIds;
 }

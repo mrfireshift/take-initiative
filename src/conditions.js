@@ -524,21 +524,37 @@ export async function getItemConditions(itemId) {
   return __normalizeConditions(it?.metadata?.[META_KEY]?.conditions || {});
 }
 
+async function __runCoordinatedConditionMutation(operations, options = {}) {
+  const {
+    requireAppliedEffectsMutation,
+    runEffectsMutation,
+  } = await import("./effectsMutations.js");
+  return requireAppliedEffectsMutation(await runEffectsMutation(operations, options));
+}
+
+function __conditionUpdatesFromMutation(mutation, targetIds = []) {
+  const scope = new Set((targetIds || []).filter(Boolean));
+  const updates = new Map();
+  for (const change of mutation?.changes || []) {
+    if (!change?.fields?.conditions || (scope.size && !scope.has(change.id))) continue;
+    updates.set(change.id, {
+      version: CONDITION_SCHEMA_VERSION,
+      instances: Array.isArray(change.after?.conditions) ? change.after.conditions : [],
+    });
+  }
+  return updates;
+}
+
 export async function setItemConditions(itemId, next) {
-  await OBR.scene.items.updateItems([itemId], (list) => {
-    const it = list[0];
-    if (!it) return;
-    const me = { ...(it.metadata?.[META_KEY] || {}) };
-    const previous = __conditionsForWrite(me.conditions || {});
-    const conditions = __conditionsForWrite(next);
-    conditions.instances = __withConditionEntryConsequences(
-      previous.instances,
-      conditions.instances,
-      it.id
-    );
-    me.conditions = conditions;
-    it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-  });
+  const id = String(itemId || "").trim();
+  if (!id) return;
+  const conditions = __conditionsForWrite(next);
+  await __runCoordinatedConditionMutation([{
+    type: "condition:set-instances",
+    targetIds: [id],
+    instancesByTarget: { [id]: conditions.instances },
+    applyEntryConsequences: true,
+  }], { kind: "condition", targetIds: [id] });
 }
 
 export function getExhaustionLevel(cond = {}) {
@@ -573,21 +589,12 @@ export async function toggleFlagForItems(itemIds, flagName, opts = {}) {
   const ids = (itemIds || []).filter(Boolean);
   if (!name || !ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const previousInstances = [...cond.instances];
-      const isActive = cond.instances.some((instance) => __sameCondition(instance, name));
-      cond.instances = isActive
-        ? cond.instances.filter((instance) => !__sameCondition(instance, name))
-        : [...cond.instances, __buildConditionInstance(name, opts, it.id)].filter(Boolean);
-      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
-      if (cond.instances.length) me.conditions = cond;
-      else delete me.conditions;
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:toggle",
+    targetIds: ids,
+    conditionName: name,
+    options: opts,
+  }], { kind: "condition", targetIds: ids });
 }
 
 export async function addCustomForItems(itemIds, text, opts = {}) {
@@ -595,76 +602,24 @@ export async function addCustomForItems(itemIds, text, opts = {}) {
   const ids = (itemIds || []).filter(Boolean);
   if (!name || !ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const previousInstances = [...cond.instances];
-      const customIndexes = cond.instances
-        .map((instance, index) => CONDITION_LIST.includes(__conditionName(instance)) ? -1 : index)
-        .filter((index) => index >= 0);
-      if (customIndexes.length >= MAX_CUSTOM_SLOTS) {
-        cond.instances.splice(customIndexes[customIndexes.length - 1], 1);
-      }
-      const instance = __buildConditionInstance(name, opts, it.id);
-      if (instance) cond.instances.push(instance);
-      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
-      me.conditions = cond;
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:add-custom",
+    targetIds: ids,
+    conditionName: name,
+    options: opts,
+  }], { kind: "condition", targetIds: ids });
 }
 
 export async function adjustConditionDurationsForItems(itemIds, delta) {
   if (!itemIds?.length || !Number.isFinite(delta) || delta === 0) return new Map();
 
-  const items = await OBR.scene.items.getItems(itemIds);
-  const updates = new Map();
-
-  for (const it of items) {
-    const cond = __conditionsForWrite(it?.metadata?.[META_KEY]?.conditions || {});
-    let changed = false;
-    const nextInstances = [];
-
-    for (const instance of cond.instances) {
-      const expiry = instance.expiry || { mode: "manual" };
-      const remaining = __durationFrom(expiry.remaining);
-      if (expiry.mode !== "rounds" || !remaining) {
-        nextInstances.push(instance);
-        continue;
-      }
-
-      const nextRemaining = Math.max(0, remaining + delta);
-      changed = true;
-      if (nextRemaining > 0) {
-        nextInstances.push({
-          ...instance,
-          expiry: { ...expiry, remaining: nextRemaining },
-        });
-      }
-    }
-
-    if (changed) {
-      updates.set(it.id, {
-        version: CONDITION_SCHEMA_VERSION,
-        instances: nextInstances,
-      });
-    }
-  }
-
-  if (updates.size) {
-    await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
-      for (const it of drafts) {
-        const me = { ...(it.metadata?.[META_KEY] || {}) };
-        const next = updates.get(it.id);
-        if (next?.instances?.length) me.conditions = next;
-        else delete me.conditions;
-        it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-      }
-    });
-  }
-
-  return updates;
+  const ids = (itemIds || []).filter(Boolean);
+  const mutation = await __runCoordinatedConditionMutation([{
+    type: "condition:adjust",
+    targetIds: ids,
+    delta,
+  }], { history: false, kind: "condition:adjust", targetIds: ids });
+  return __conditionUpdatesFromMutation(mutation, ids);
 }
 
 export async function advanceConditionTurnBoundariesForItems(itemIds, boundaries = []) {
@@ -677,65 +632,12 @@ export async function advanceConditionTurnBoundariesForItems(itemIds, boundaries
     .filter((entry) => entry.mode && entry.actorId);
   if (!ids.length || !events.length) return new Map();
 
-  const items = await OBR.scene.items.getItems(ids);
-  const updates = new Map();
-
-  for (const it of items) {
-    const cond = __conditionsForWrite(it?.metadata?.[META_KEY]?.conditions || {});
-    let changed = false;
-    const nextInstances = [];
-
-    for (const instance of cond.instances) {
-      const expiry = instance.expiry || { mode: "manual" };
-      if (expiry.mode !== "turn-start" && expiry.mode !== "turn-end") {
-        nextInstances.push(instance);
-        continue;
-      }
-
-      const actorId = String(
-        expiry.actorId || (expiry.actor === "source" ? instance.sourceId : instance.targetId) || ""
-      );
-      const initialRemaining = __durationFrom(expiry.remaining) || 1;
-      let remaining = initialRemaining;
-      for (const event of events) {
-        if (event.mode === expiry.mode && event.actorId === actorId) remaining -= 1;
-      }
-
-      if (remaining === initialRemaining) {
-        nextInstances.push(instance);
-        continue;
-      }
-
-      changed = true;
-      if (remaining > 0) {
-        nextInstances.push({
-          ...instance,
-          expiry: { ...expiry, actorId, remaining },
-        });
-      }
-    }
-
-    if (changed) {
-      updates.set(it.id, {
-        version: CONDITION_SCHEMA_VERSION,
-        instances: nextInstances,
-      });
-    }
-  }
-
-  if (updates.size) {
-    await OBR.scene.items.updateItems([...updates.keys()], (drafts) => {
-      for (const it of drafts) {
-        const me = { ...(it.metadata?.[META_KEY] || {}) };
-        const next = updates.get(it.id);
-        if (next?.instances?.length) me.conditions = next;
-        else delete me.conditions;
-        it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-      }
-    });
-  }
-
-  return updates;
+  const mutation = await __runCoordinatedConditionMutation([{
+    type: "condition:tick-boundaries",
+    targetIds: ids,
+    boundaries,
+  }], { history: false, kind: "condition:tick-boundaries", targetIds: ids });
+  return __conditionUpdatesFromMutation(mutation, ids);
 }
 
 export async function addOrUpdateConditionForItems(itemIds, conditionName, opts = {}) {
@@ -743,18 +645,12 @@ export async function addOrUpdateConditionForItems(itemIds, conditionName, opts 
   const ids = (itemIds || []).filter(Boolean);
   if (!name || !ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const previousInstances = [...cond.instances];
-      const instance = __buildConditionInstance(name, opts, it.id);
-      if (instance) cond.instances.push(instance);
-      cond.instances = __withConditionEntryConsequences(previousInstances, cond.instances, it.id);
-      me.conditions = cond;
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:add",
+    targetIds: ids,
+    conditionName: name,
+    options: opts,
+  }], { kind: "condition", targetIds: ids });
 }
 
 export async function removeConditionInstanceFromItems(itemIds, instanceId) {
@@ -762,20 +658,10 @@ export async function removeConditionInstanceFromItems(itemIds, instanceId) {
   const ids = (itemIds || []).filter(Boolean);
   if (!id || !ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const nextInstances = cond.instances.filter((instance) => instance.id !== id);
-      if (nextInstances.length === cond.instances.length) continue;
-      if (nextInstances.length) {
-        me.conditions = { version: CONDITION_SCHEMA_VERSION, instances: nextInstances };
-      } else {
-        delete me.conditions;
-      }
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:remove-instances",
+    removals: ids.map((itemId) => ({ itemId, instanceId: id })),
+  }], { kind: "condition", targetIds: ids });
 }
 
 export async function removeConditionInstancesFromItems(removals = []) {
@@ -790,22 +676,13 @@ export async function removeConditionInstancesFromItems(removals = []) {
   }
   if (!byItem.size) return;
 
-  await OBR.scene.items.updateItems([...byItem.keys()], (drafts) => {
-    for (const it of drafts) {
-      const removeIds = byItem.get(it.id);
-      if (!removeIds?.size) continue;
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const nextInstances = cond.instances.filter((instance) => !removeIds.has(instance.id));
-      if (nextInstances.length === cond.instances.length) continue;
-      if (nextInstances.length) {
-        me.conditions = { version: CONDITION_SCHEMA_VERSION, instances: nextInstances };
-      } else {
-        delete me.conditions;
-      }
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  const normalized = [...byItem].flatMap(([itemId, instanceIds]) =>
+    [...instanceIds].map((instanceId) => ({ itemId, instanceId }))
+  );
+  await __runCoordinatedConditionMutation([{
+    type: "condition:remove-instances",
+    removals: normalized,
+  }], { kind: "condition", targetIds: [...byItem.keys()] });
 }
 
 export async function removeConditionInstancesByParentEffects(removals = []) {
@@ -820,56 +697,34 @@ export async function removeConditionInstancesByParentEffects(removals = []) {
   }
   if (!byItem.size) return;
 
-  await OBR.scene.items.updateItems([...byItem.keys()], (drafts) => {
-    for (const it of drafts) {
-      const parentIds = byItem.get(it.id);
-      if (!parentIds?.size) continue;
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const nextInstances = cond.instances.filter((instance) =>
-        instance.type !== "spell" || !parentIds.has(String(instance.parentEffectId || ""))
-      );
-      if (nextInstances.length === cond.instances.length) continue;
-      if (nextInstances.length) {
-        me.conditions = { version: CONDITION_SCHEMA_VERSION, instances: nextInstances };
-      } else {
-        delete me.conditions;
-      }
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  const normalized = [...byItem].flatMap(([itemId, parentEffectIds]) =>
+    [...parentEffectIds].map((parentEffectId) => ({ itemId, parentEffectId }))
+  );
+  await __runCoordinatedConditionMutation([{
+    type: "condition:remove-parent-effects",
+    removals: normalized,
+    conditionTypes: ["spell"],
+  }], { kind: "condition", targetIds: [...byItem.keys()] });
 }
 export async function removeConditionFromItems(itemIds, conditionName) {
   const name = String(conditionName || "").trim();
   const ids = (itemIds || []).filter(Boolean);
   if (!name || !ids.length) return;
 
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cond = __conditionsForWrite(me.conditions || {});
-      const nextInstances = cond.instances.filter((instance) => !__sameCondition(instance, name));
-      if (nextInstances.length === cond.instances.length) continue;
-      if (nextInstances.length) {
-        me.conditions = { version: CONDITION_SCHEMA_VERSION, instances: nextInstances };
-      } else {
-        delete me.conditions;
-      }
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:remove-name",
+    targetIds: ids,
+    conditionName: name,
+  }], { kind: "condition", targetIds: ids });
 }
 
 export async function clearAllConditionsForItems(itemIds) {
   const ids = (itemIds || []).filter(Boolean);
   if (!ids.length) return;
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const it of drafts) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      delete me.conditions;
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
+  await __runCoordinatedConditionMutation([{
+    type: "condition:clear",
+    targetIds: ids,
+  }], { kind: "condition", targetIds: ids });
 }
 // Payload Slate minimale per un testo monoriga
 function _mkSlateParagraph(text) {

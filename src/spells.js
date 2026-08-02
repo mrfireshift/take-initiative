@@ -1,6 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { runEffectsMutation, tickRoundEffects } from "./effectsMutations.js";
+import {
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
+  tickRoundEffects,
+} from "./effectsMutations.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
 import { spellColorFor } from "./spellColorCore.js";
@@ -10,6 +14,11 @@ const SPELLS_META_KEY = ID + "/spells";
 const CONC_META_KEY = ID + "/concentration";
 
 const keyOf = (name) => String(name || "").trim().toLocaleLowerCase();
+
+async function applySpellMutation(operations, options = {}) {
+  const result = await runEffectsMutation(operations, options);
+  return requireAppliedEffectsMutation(result);
+}
 
 function createId(prefix) {
   try {
@@ -78,11 +87,11 @@ export async function getCastingDetails(casterId, spellName) {
 }
 
 export async function setSpellsOnItem(itemId, spells) {
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "spell:set",
     targetIds: [itemId],
     spells: Array.isArray(spells) ? spells : [],
-  }]);
+  }], { kind: "spell", label: "Aggiornate magie", targetIds: [itemId] });
 }
 
 async function __getConcentration(casterId) {
@@ -92,7 +101,7 @@ async function __getConcentration(casterId) {
 }
 
 export async function addOrUpdateSpell(itemId, name, turns, opts = {}) {
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "spell:upsert",
     targetIds: [itemId],
     name,
@@ -102,7 +111,7 @@ export async function addOrUpdateSpell(itemId, name, turns, opts = {}) {
     instanceId: opts.instanceId,
     spellId: opts.spellId,
     replaceNames: [opts.enteredName, name, opts.storedName],
-  }]);
+  }], { kind: "spell", label: `Applicata: ${name}`, targetIds: [itemId] });
 }
 
 export function findSpellByInstance(state, instanceId) {
@@ -117,22 +126,22 @@ export async function removeSpellByName(itemId, name) {
 
 export async function removeSpellByNameAndSource(itemId, name, casterId = null) {
   if (!itemId || !name) return;
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "spell:remove-name-source",
     targetIds: [itemId],
     name,
     casterId,
-  }]);
+  }], { kind: "spell", label: `Rimossa: ${name}`, targetIds: [itemId] });
 }
 
 export async function removeSpellByInstance(itemId, instanceId) {
   const id = String(instanceId || "").trim();
   if (!itemId || !id) return;
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "spell:remove-instance",
     targetIds: [itemId],
     instanceId: id,
-  }]);
+  }], { kind: "spell", label: "Rimossa magia", targetIds: [itemId] });
 }
 
 export async function tickSpellsForItems(itemIds) {
@@ -142,11 +151,11 @@ export async function tickSpellsForItems(itemIds) {
 export async function adjustSpellsForItems(itemIds, delta) {
   if (!itemIds?.length || !Number.isFinite(delta) || delta === 0) return new Map();
   const ids = Array.from(new Set(itemIds.filter(Boolean)));
-  const plan = await runEffectsMutation([{
+  const plan = await applySpellMutation([{
     type: "spell:adjust",
     targetIds: ids,
     delta,
-  }]);
+  }], { kind: "spell", label: "Aggiornata durata magie", targetIds: ids });
   const updates = new Map();
   const scope = new Set(ids);
   for (const change of plan.changes) {
@@ -158,14 +167,14 @@ export async function adjustSpellsForItems(itemIds, delta) {
 }
 
 export async function registerConcentration(casterId, name, targetIds, opts = {}) {
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "concentration:register",
     casterId,
     targetIds,
     name,
     instanceId: opts.instanceId,
     spellId: opts.spellId,
-  }]);
+  }], { kind: "concentration", label: `Concentrazione: ${name}`, targetIds: [casterId, ...(targetIds || [])] });
 }
 
 export async function getCasterConcentrations(casterId) {
@@ -174,11 +183,11 @@ export async function getCasterConcentrations(casterId) {
 }
 
 export async function breakConcentration(casterId, nameOrInstanceId) {
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "concentration:break",
     casterIds: [casterId],
     reference: nameOrInstanceId,
-  }]);
+  }], { kind: "concentration", label: "Interrotta concentrazione", targetIds: [casterId] });
 }
 
 export async function breakAllConcentrations(casterId) {
@@ -186,19 +195,19 @@ export async function breakAllConcentrations(casterId) {
 }
 
 export async function breakAllConcentrationsForItems(casterIds) {
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "concentration:break",
     casterIds: Array.from(new Set((casterIds || []).filter(Boolean))),
-  }]);
+  }], { kind: "concentration", label: "Interrotte concentrazioni", targetIds: casterIds });
 }
 
 export async function clearSpellsOnItems(itemIds) {
   const ids = Array.from(new Set(Array.isArray(itemIds) ? itemIds.filter(Boolean) : []));
   if (!ids.length) return;
-  await runEffectsMutation([{
+  await applySpellMutation([{
     type: "spell:clear-non-concentration",
     targetIds: ids,
-  }]);
+  }], { kind: "spell", label: "Rimosse magie non concentrate", targetIds: ids });
 }
 
 export function buildSpellChips(spells, options = {}) {

@@ -3,25 +3,17 @@ import { ID } from "./constants.js";
 import { createSpellInstanceId } from "./spells.js";
 import { refreshConditionLabels } from "./conditions.js";
 import {
-  commitEffectsMutationPlan,
-  prepareEffectsMutation,
+  requireAppliedEffectsMutation,
+  runEffectsMutation,
 } from "./effectsMutations.js";
 import {
   buildSpellApplicationIntent,
   buildSpellApplicationPlan,
 } from "./spellApplicationPlanCore.js";
-import { withItemMetaHistory } from "./history.js";
-import {
-  commitWithStaticSpellZoneRemoval,
-  getStaticSpellZoneItems,
-  setStaticSpellZoneRuleChoice,
-} from "./spellStaticZone.js";
 import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const STATE_KEY = `${ID}/state`;
-const SPELLS_META_KEY = `${ID}/spells`;
-const CONC_META_KEY = `${ID}/concentration`;
 
 export async function getCurrentSpellAppliedAt() {
   try {
@@ -62,27 +54,19 @@ export async function executeSpellActiveAction({
     throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
   }
 
-  const zoneItems = actionPlan.zoneRuleChoice
-    ? await getStaticSpellZoneItems({ instanceId: group?.instanceId })
-    : [];
-  if (actionPlan.zoneRuleChoice && !zoneItems.length) {
-    throw new Error("La zona dell'incantesimo non è più presente sulla scena.");
-  }
-
-  const mutationPlan = await prepareEffectsMutation(actionPlan.operations);
-  const changedIds = mutationPlan.changedIds;
-  await withItemMetaHistory({
+  const mutation = await runEffectsMutation(actionPlan.operations, {
     kind: "spell",
     label: actionPlan.historyLabel,
-    itemIds: changedIds,
-    sceneItemIds: zoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, async () => {
-    await commitEffectsMutationPlan(mutationPlan);
-    if (actionPlan.zoneRuleChoice) {
-      await setStaticSpellZoneRuleChoice(zoneItems, actionPlan.zoneRuleChoice);
-    }
+    targetIds: selectedTargetIds,
+    sideEffects: actionPlan.zoneRuleChoice ? [{
+      type: "static-zone:set-rule-choice",
+      selector: { instanceId: group?.instanceId || "" },
+      ruleChoice: actionPlan.zoneRuleChoice,
+      requireMatch: true,
+    }] : [],
   });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = mutation.changedIds;
   await refreshConditionLabels(changedIds);
   return changedIds;
 }
@@ -130,24 +114,20 @@ export async function executeSpellApplication({
     appliedAt: resolvedAppliedAt,
     casterName,
   });
-  const replacedStaticZoneItems = intent.wantsConcentration
+  const removeReplacedZones = intent.wantsConcentration
     && applicationPlan.concentrationAction === "replace"
-    && casterId
-    ? await getStaticSpellZoneItems({ casterId })
-    : [];
-  const mutationPlan = await prepareEffectsMutation(applicationPlan.operations);
-  const changedIds = mutationPlan.changedIds;
-
-  await withItemMetaHistory({
+    && casterId;
+  const mutation = await runEffectsMutation(applicationPlan.operations, {
     kind: "spell",
     label: applicationPlan.historyLabel,
-    itemIds: changedIds,
-    sceneItemIds: replacedStaticZoneItems.map((item) => item.id),
-    fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-  }, () => commitWithStaticSpellZoneRemoval(
-    replacedStaticZoneItems,
-    () => commitEffectsMutationPlan(mutationPlan),
-  ));
+    targetIds: [casterId, ...targetIds],
+    sideEffects: removeReplacedZones ? [{
+      type: "static-zone:remove-ended",
+      selectors: [{ casterId }],
+    }] : [],
+  });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = mutation.changedIds;
   await refreshConditionLabels(changedIds);
   return changedIds;
 }

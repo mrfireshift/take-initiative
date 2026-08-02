@@ -629,8 +629,14 @@ function applyOperation(states, operation, options) {
       applySpellAdjustment(states, operation);
       applyConditionAdjustment(states, operation);
       break;
+    case "condition:adjust":
+      applyConditionAdjustment(states, operation);
+      break;
     case "effects:tick-boundaries":
       applySpellBoundaryAdjustment(states, operation);
+      applyConditionBoundaryAdjustment(states, operation);
+      break;
+    case "condition:tick-boundaries":
       applyConditionBoundaryAdjustment(states, operation);
       break;
     case "concentration:register": {
@@ -673,6 +679,53 @@ function applyOperation(states, operation, options) {
         if (state) appendCondition(state, operation, targetId);
       }
       break;
+    case "condition:add-instances": {
+      const byTarget = operation.instancesByTarget && typeof operation.instancesByTarget === "object"
+        ? operation.instancesByTarget
+        : {};
+      for (const [targetId, additions] of Object.entries(byTarget)) {
+        const state = states.get(targetId);
+        if (!state || !Array.isArray(additions) || !additions.length) continue;
+        const known = new Set(state.conditions.map((instance) => String(instance?.id || "")));
+        for (const instance of additions) {
+          const id = String(instance?.id || "").trim();
+          if (!id || known.has(id)) continue;
+          state.conditions.push(clone(instance));
+          known.add(id);
+        }
+      }
+      break;
+    }
+    case "condition:set-instances": {
+      const byTarget = operation.instancesByTarget && typeof operation.instancesByTarget === "object"
+        ? operation.instancesByTarget
+        : {};
+      for (const [targetId, instances] of Object.entries(byTarget)) {
+        const state = states.get(targetId);
+        if (!state) continue;
+        const previous = clone(state.conditions);
+        state.conditions = Array.isArray(instances) ? clone(instances) : [];
+        if (operation.applyEntryConsequences !== true) continue;
+        for (const addition of getConditionEntryAdditions(previous, state.conditions)) {
+          const childName = String(addition?.condition || "").trim();
+          const childKey = conditionKey(childName);
+          const childId = String(
+            operation?.consequenceInstanceIds?.[targetId]?.[childKey]
+            || `${operation.operationId}:automatic:${targetId}:${childKey}`
+          ).trim();
+          if (!childName || !childId || state.conditions.some((entry) => String(entry?.id || "") === childId)) {
+            continue;
+          }
+          const child = conditionInstance(operation, targetId, childId, childName, {
+            type: "automatic",
+            appliedAt: addition?.triggeredBy?.appliedAt,
+            expiry: { mode: "manual" },
+          });
+          if (child) state.conditions.push(child);
+        }
+      }
+      break;
+    }
     case "condition:add-custom": {
       const known = new Set((options.knownConditionNames || []).map(conditionKey));
       const maxCustom = Math.max(1, Number(options.maxCustomConditions) || 3);
@@ -768,12 +821,23 @@ function applyOperation(states, operation, options) {
         ids.add(parentEffectId);
         byItem.set(itemId, ids);
       }
+      const globalParentIds = new Set(
+        (Array.isArray(operation.parentEffectIds) ? operation.parentEffectIds : [])
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      );
+      if (globalParentIds.size) {
+        for (const itemId of states.keys()) byItem.set(itemId, globalParentIds);
+      }
       for (const [itemId, parentIds] of byItem) {
         const state = states.get(itemId);
-        if (state) state.conditions = state.conditions.filter((instance) =>
-          String(instance?.type || "") !== "spell" ||
-          !parentIds.has(String(instance?.parentEffectId || ""))
-        );
+        if (state) state.conditions = state.conditions.filter((instance) => {
+          if (!parentIds.has(String(instance?.parentEffectId || ""))) return true;
+          const allowedTypes = Array.isArray(operation.conditionTypes)
+            ? operation.conditionTypes.map((value) => String(value || ""))
+            : ["spell"];
+          return !allowedTypes.includes(String(instance?.type || ""));
+        });
       }
       break;
     }
