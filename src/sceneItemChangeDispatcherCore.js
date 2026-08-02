@@ -181,10 +181,36 @@ export function classifySceneItemChanges(beforeItems = [], afterItems = []) {
   );
 }
 
+export async function hydrateSceneItemChangeDispatcher({
+  dispatcher,
+  readItems,
+  isCurrent = null,
+} = {}) {
+  if (!dispatcher || typeof dispatcher.resume !== "function" ||
+      typeof dispatcher.getSuspendedRevision !== "function") {
+    throw new TypeError("scene-items-hydration-requires-dispatcher");
+  }
+  if (typeof readItems !== "function") {
+    throw new TypeError("scene-items-hydration-requires-reader");
+  }
+  const canResume = () => typeof isCurrent !== "function" || isCurrent();
+
+  while (canResume()) {
+    const suspendedRevision = dispatcher.getSuspendedRevision();
+    const items = await readItems();
+    if (!canResume()) return false;
+    if (dispatcher.resume(items, { expectedSuspendedRevision: suspendedRevision })) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function createSceneItemChangeDispatcher({
   subscribeSource,
   debounceMs = 50,
   initialItems = [],
+  getEpoch = null,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 } = {}) {
@@ -195,8 +221,29 @@ export function createSceneItemChangeDispatcher({
   const subscribers = new Set();
   let currentSnapshot = createSceneItemsSnapshot(initialItems);
   let batchBaseSnapshot = null;
+  let batchEpoch = null;
   let timer = null;
   let unsubscribeSource = null;
+  let suspended = false;
+  let suspendedRevision = 0;
+
+  function currentEpoch() {
+    return typeof getEpoch === "function" ? getEpoch() : undefined;
+  }
+
+  function attachEpoch(event, epoch) {
+    if (epoch !== undefined) event.sceneEpoch = epoch;
+    return event;
+  }
+
+  function clearPendingBatch() {
+    if (timer) {
+      clearTimer(timer);
+      timer = null;
+    }
+    batchBaseSnapshot = null;
+    batchEpoch = null;
+  }
 
   function runSubscriber(subscriber, event, immediate) {
     if (subscriber.filter && !subscriber.filter(event)) return null;
@@ -225,8 +272,12 @@ export function createSceneItemChangeDispatcher({
     }
     if (!batchBaseSnapshot) return Promise.resolve();
 
-    const event = classifySceneItemSnapshots(batchBaseSnapshot, currentSnapshot);
+    const event = attachEpoch(
+      classifySceneItemSnapshots(batchBaseSnapshot, currentSnapshot),
+      batchEpoch,
+    );
     batchBaseSnapshot = null;
+    batchEpoch = null;
     if (!event.flags.any) return Promise.resolve();
 
     const pending = [];
@@ -244,16 +295,54 @@ export function createSceneItemChangeDispatcher({
   }
 
   function onSourceChange(items = []) {
+    if (suspended) {
+      suspendedRevision += 1;
+      return;
+    }
     const nextSnapshot = createSceneItemsSnapshot(items);
-    const immediateEvent = classifySceneItemSnapshots(currentSnapshot, nextSnapshot);
+    const sourceEpoch = currentEpoch();
+    const immediateEvent = attachEpoch(
+      classifySceneItemSnapshots(currentSnapshot, nextSnapshot),
+      sourceEpoch,
+    );
     if (!immediateEvent.flags.any) return;
     if (!batchBaseSnapshot) batchBaseSnapshot = currentSnapshot;
+    if (batchEpoch === null) batchEpoch = sourceEpoch;
     currentSnapshot = nextSnapshot;
 
     for (const subscriber of subscribers) {
       if (subscriber.immediate) runSubscriber(subscriber, immediateEvent, true);
     }
     if ([...subscribers].some((subscriber) => !subscriber.immediate)) scheduleFlush();
+  }
+
+  function suspend() {
+    clearPendingBatch();
+    currentSnapshot = new Map();
+    suspended = true;
+    suspendedRevision += 1;
+  }
+
+  function resume(items = [], { expectedSuspendedRevision = null } = {}) {
+    if (
+      expectedSuspendedRevision !== null
+      && Number(expectedSuspendedRevision) !== suspendedRevision
+    ) {
+      return false;
+    }
+    clearPendingBatch();
+    currentSnapshot = createSceneItemsSnapshot(items);
+    suspended = false;
+    return true;
+  }
+
+  function getSuspendedRevision() {
+    return suspendedRevision;
+  }
+
+  function reset(items = []) {
+    clearPendingBatch();
+    currentSnapshot = createSceneItemsSnapshot(items);
   }
 
   function subscribe(handler, options = {}) {
@@ -272,11 +361,9 @@ export function createSceneItemChangeDispatcher({
       if (subscribers.size || !unsubscribeSource) return;
       unsubscribeSource();
       unsubscribeSource = null;
-      if (timer) clearTimer(timer);
-      timer = null;
-      batchBaseSnapshot = null;
+      clearPendingBatch();
     };
   }
 
-  return { subscribe, flush };
+  return { subscribe, flush, suspend, resume, reset, getSuspendedRevision };
 }

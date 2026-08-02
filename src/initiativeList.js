@@ -13,7 +13,7 @@ import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from 
 import { spellColorFor } from "./spellColorCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
-import { advanceTurnBoundaryEffects, commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
+import { commitEffectsMutationPlan, prepareEffectsMutation } from "./effectsMutations.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -69,6 +69,15 @@ import {
 } from "./initiativeRenderCore.js";
 import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
+import {
+  currentSceneEpoch,
+  invalidateSceneEpoch,
+  isCurrentSceneEpoch,
+  markSceneEpochReady,
+  runSceneEpochSteps,
+  subscribeSceneEpoch,
+} from "./sceneEpoch.js";
+import { cancelSceneEditorsWithoutCommit } from "./sceneEditorResetCore.js";
 import {
   createMenuRequestId,
   isAllowedInitiativeCardMenuAction,
@@ -313,6 +322,7 @@ let __activeTurnLabelDesired = null;
 let __activeTurnLabelPumpRunning = false;
 let __activeTurnLabelRetryTimer = null;
 let __navigationDesiredState = null;
+let __navigationDesiredEpoch = null;
 let __navigationPumpRunning = false;
 let __navigationFlushTimer = null;
 let __navigationDesiredAt = 0;
@@ -332,6 +342,9 @@ let __lastConditionTurnState = null;
 let __conditionNavigationHint = null;
 let __conditionTurnQueue = Promise.resolve();
 let __roundEffectQueue = Promise.resolve();
+let __sceneBaselineEpoch = null;
+let __sceneEpochLifecycleMounted = false;
+let __sceneEpochUnsubscribe = null;
 let __selectedSceneItemIds = new Set();
 let __trackerSelectionAnchorId = null;
 let __playerSelectionUnsubscribe = null;
@@ -387,6 +400,8 @@ globalThis.__tbpInitiativeDiagnostics = {
   summary() {
     return {
       ...summarizeInitiativeDiagnostics(__initiativeDiagnosticEvents),
+      sceneEpoch: currentSceneEpoch(),
+      sceneReady: isCurrentSceneEpoch(currentSceneEpoch()),
       build: globalThis.__tbpBuildInfo || null,
     };
   },
@@ -395,6 +410,145 @@ globalThis.__tbpInitiativeDiagnostics = {
     return __initiativeDiagnosticEvents.length;
   },
 };
+
+function __isCurrentSceneOperation(sceneEpoch, operation, detail = {}) {
+  if (isCurrentSceneEpoch(sceneEpoch)) return true;
+  __initiativeDiag("scene:operation-discarded", {
+    operation,
+    operationEpoch: sceneEpoch,
+    sceneEpoch: currentSceneEpoch(),
+    ...detail,
+  });
+  return false;
+}
+
+function __cancelSceneEditorsWithoutCommit() {
+  const editors = typeof document === "undefined"
+    ? []
+    : Array.from(document.querySelectorAll('[data-init-editing="1"], [data-hp-editing="1"]'));
+  __initiativeFillMode = false;
+  __initiativeFillSession = null;
+  __editingInitForId = null;
+  __editingHPForId = null;
+  __suspendRenders = false;
+  void cancelSceneEditorsWithoutCommit(editors);
+}
+
+function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
+  __cancelSceneEditorsWithoutCommit();
+  __sceneBaselineEpoch = null;
+  __activeTurnLabel = null;
+  __activeTurnLabelInitialized = false;
+  __activeTurnLabelDpi = null;
+  __activeLabelEntriesById = new Map();
+  __latestInitiativeState = null;
+  __activeTurnLabelDesired = null;
+  __activeTurnLabelLatestKey = null;
+  __activeTurnLabelRevision += 1;
+  if (__activeTurnLabelRetryTimer !== null) {
+    window.clearTimeout(__activeTurnLabelRetryTimer);
+    __activeTurnLabelRetryTimer = null;
+  }
+  __navigationDesiredState = null;
+  __navigationDesiredEpoch = null;
+  __navigationDesiredAt = 0;
+  __navigationRevision += 1;
+  __lastNavigationAt = 0;
+  if (__navigationFlushTimer !== null) {
+    window.clearTimeout(__navigationFlushTimer);
+    __navigationFlushTimer = null;
+  }
+  __renderRequestRevision += 1;
+  __latestAcceptedRenderRevision = __renderRequestRevision;
+  if (__pendingIncrementalRenderTimer !== null) {
+    window.clearTimeout(__pendingIncrementalRenderTimer);
+    __pendingIncrementalRenderTimer = null;
+  }
+  __pendingIncrementalTrackerItemIds.clear();
+  __lastInitiativeMetadataDigest = undefined;
+  __lastQueuedInitiativeMetadataDigest = undefined;
+  __initiativeMetadataRevision += 1;
+  __optimisticNavigationDigest = null;
+  __lastActiveId = null;
+  __lastConditionTurnState = null;
+  __conditionNavigationHint = null;
+  __conditionTurnQueue = Promise.resolve();
+  __roundEffectQueue = Promise.resolve();
+  __selectedSceneItemIds = new Set();
+  __trackerSelectionAnchorId = null;
+  __lastRenderedActiveId = null;
+  __prevActiveId = null;
+  __lastRoundSeen = null;
+  __scrollActiveOnNextRender = false;
+  __selectFocusDesired = null;
+  __selectFocusRunningKey = null;
+  __selectFocusCompletedKey = null;
+  __viewportFocusDesired = null;
+  if (__viewportFocusTimer !== null) {
+    window.clearTimeout(__viewportFocusTimer);
+    __viewportFocusTimer = null;
+  }
+  __initiativeDiag("scene:reset", { sceneEpoch, reason });
+}
+
+async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, source, render = true) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "baseline", { source })) return false;
+  if (__sceneBaselineEpoch === sceneEpoch) return false;
+
+  __sceneBaselineEpoch = sceneEpoch;
+  __lastInitiativeMetadataDigest = stateDigest;
+  __lastQueuedInitiativeMetadataDigest = stateDigest;
+  __latestInitiativeState = st || null;
+  __lastActiveId = __activeIdForState(st);
+  __lastRoundSeen = Math.max(1, Number(st?.round || 1));
+  __lastConditionTurnState = __conditionTurnStateSnapshot(st);
+  __conditionNavigationHint = null;
+  syncSpeedCheckTurn(st);
+  __initiativeDiag("scene:baseline-acquired", {
+    sceneEpoch,
+    source,
+    activeId: __lastActiveId,
+    round: __lastRoundSeen,
+  });
+
+  if (!render) return true;
+  await renderAll("scene-baseline");
+  return __isCurrentSceneOperation(sceneEpoch, "baseline-render", { source });
+}
+
+async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-ready") {
+  if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
+  const metadata = await OBR.scene.getMetadata();
+  if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
+  const st = metadata?.[STATE_KEY];
+  return __adoptInitiativeSceneBaseline(
+    st,
+    initiativeStateDigest(st),
+    sceneEpoch,
+    source,
+  );
+}
+
+function __mountSceneEpochLifecycle() {
+  if (__sceneEpochLifecycleMounted) return;
+  __sceneEpochLifecycleMounted = true;
+  __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch, reason }) => {
+    if (phase === "unload") {
+      __resetInitiativeSceneRuntime(epoch, reason);
+      return;
+    }
+    void __acquireInitiativeSceneBaseline(epoch, reason).catch((error) => {
+      console.warn("[initiative] scene baseline:", error?.message || error);
+    });
+  });
+  OBR.scene.onReadyChange((ready) => {
+    if (!ready) {
+      invalidateSceneEpoch("scene-unload");
+      return;
+    }
+    markSceneEpochReady("scene-ready");
+  });
+}
 
 
   // Scansione e deduplicazione una tantum all'avvio.
@@ -2779,17 +2933,22 @@ trackWrap.addEventListener("scroll", () => {
       const md = await OBR.scene.getMetadata();
       return md[STATE_KEY];
     }
-    async function setSceneState(next) {
+    async function setSceneState(next, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
   const md   = await OBR.scene.getMetadata();
+  if (!__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
   const prev = md[STATE_KEY] || { order: [], current: 0, collapsed: {} };
   const raw  = (typeof next === "function") ? next(prev) : next;
   const value = { ...prev, ...(raw || {}) }; // <- MERGE: non perdiamo campi extra
   await OBR.scene.setMetadata({ ...md, [STATE_KEY]: value });
+  return __isCurrentSceneOperation(sceneEpoch, "scene-state-write");
 }
 
     // ===== Hard reset dello stato iniziativa (quando non resta alcun token tracciato)
-async function resetTrackerState() {
+async function resetTrackerState(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
   const md = await OBR.scene.getMetadata();
+  if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
   await OBR.scene.setMetadata({
     ...md,
     [STATE_KEY]: {
@@ -2799,12 +2958,13 @@ async function resetTrackerState() {
       seededGroups: {},   // azzera anche i seed per gruppi
     },
   });
+  return __isCurrentSceneOperation(sceneEpoch, "tracker-state-reset");
 }
 
 // ===== Selezione + centratura viewport (robusta) =====
-async function selectInScene(itemId, replace = true) {
+async function selectInScene(itemId, replace = true, sceneEpoch = currentSceneEpoch()) {
   // Solo il GM forza la selezione locale del token
-  if (!IS_GM || !itemId) return;
+  if (!IS_GM || !itemId || !__isCurrentSceneOperation(sceneEpoch, "scene-selection")) return;
   try {
     await OBR.player.select([itemId], replace);
   } catch {}
@@ -2827,16 +2987,18 @@ async function buildBiasedBBox(bounds, gridDpi, gridSpan = FOCUS_GRID_SPAN, minP
   };
 }
 
-async function centerOnItem(itemId, expectedNavigationRevision = null) {
-  if (!itemId) return false;
+async function centerOnItem(itemId, expectedNavigationRevision = null, sceneEpoch = currentSceneEpoch()) {
+  if (!itemId || !__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
   try {
     const items = await OBR.scene.items.getItems([itemId]);
+    if (!__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
     if (!items || items.length === 0) return false;
 
     const [raw, gridDpi] = await Promise.all([
       OBR.scene.items.getItemBounds([itemId]),
       OBR.scene.grid.getDpi().catch(() => FOCUS_FALLBACK_DPI),
     ]);
+    if (!__isCurrentSceneOperation(sceneEpoch, "viewport-focus")) return false;
     if (!raw) return false;
 
     const biased = await buildBiasedBBox(raw, gridDpi);
@@ -2876,10 +3038,11 @@ let __viewportFocusDesired = null;
 let __viewportFocusTimer = null;
 let __viewportFocusRunning = false;
 
-function __scheduleViewportFocus(itemId, revision) {
+function __scheduleViewportFocus(itemId, revision, sceneEpoch = currentSceneEpoch()) {
   __viewportFocusDesired = {
     itemId,
     revision,
+    sceneEpoch,
     queuedAt: Date.now(),
   };
   if (__viewportFocusTimer !== null) {
@@ -2902,7 +3065,11 @@ async function __flushViewportFocus() {
   const desired = __viewportFocusDesired;
   if (!desired) return;
   const expectedAnchorId = __resolveAnchorForActive(__activeIdForState(__latestInitiativeState));
-  if (desired.revision !== __navigationRevision || desired.itemId !== expectedAnchorId) {
+  if (
+    desired.revision !== __navigationRevision ||
+    desired.itemId !== expectedAnchorId ||
+    !__isCurrentSceneOperation(desired.sceneEpoch, "viewport-focus")
+  ) {
     if (__viewportFocusDesired === desired) __viewportFocusDesired = null;
     __initiativeDiag("viewport:focus-skipped-stale", {
       anchorId: desired.itemId,
@@ -2919,7 +3086,7 @@ async function __flushViewportFocus() {
     navigationRevision: desired.revision,
   });
   try {
-    const animated = await centerOnItem(desired.itemId, desired.revision);
+    const animated = await centerOnItem(desired.itemId, desired.revision, desired.sceneEpoch);
     if (!animated) return;
     __initiativeDiag(
       desired.revision === __navigationRevision
@@ -2945,6 +3112,8 @@ async function __flushViewportFocus() {
 }
 
 function queueSelectAndFocus(itemId, autoFocus = true) {
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "selection-queue")) return;
   const expectedActiveId = __activeIdForState(__latestInitiativeState);
   if (expectedActiveId && itemId !== expectedActiveId) {
     __initiativeDiag("selection:skipped-stale", {
@@ -2956,7 +3125,7 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
   }
   const anchorId = __resolveAnchorForActive(itemId);
   if (!anchorId) return;
-  const requestKey = `${__navigationRevision}\u0000${anchorId}\u0000${autoFocus ? "1" : "0"}`;
+  const requestKey = `${sceneEpoch}\u0000${__navigationRevision}\u0000${anchorId}\u0000${autoFocus ? "1" : "0"}`;
   if (
     requestKey === __selectFocusDesired?.key ||
     requestKey === __selectFocusRunningKey ||
@@ -2973,6 +3142,7 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
     itemId: anchorId,
     autoFocus,
     revision: __navigationRevision,
+    sceneEpoch,
     key: requestKey,
   };
   __initiativeDiag("selection:queued", {
@@ -2989,7 +3159,7 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
     });
   }
   if (autoFocus) {
-    __scheduleViewportFocus(anchorId, __navigationRevision);
+    __scheduleViewportFocus(anchorId, __navigationRevision, sceneEpoch);
   } else {
     __viewportFocusDesired = null;
     if (__viewportFocusTimer !== null) {
@@ -3005,14 +3175,18 @@ function queueSelectAndFocus(itemId, autoFocus = true) {
       while (__selectFocusDesired) {
         const desired = __selectFocusDesired;
         __selectFocusDesired = null;
-        if (desired.revision !== __navigationRevision) continue;
+        if (
+          desired.revision !== __navigationRevision ||
+          !__isCurrentSceneOperation(desired.sceneEpoch, "selection-queue")
+        ) continue;
         __selectFocusRunningKey = desired.key;
 
         __initiativeDiag("selection:select-start", {
           anchorId: desired.itemId,
           navigationRevision: desired.revision,
         });
-        await selectInScene(desired.itemId, true);
+        await selectInScene(desired.itemId, true, desired.sceneEpoch);
+        if (!__isCurrentSceneOperation(desired.sceneEpoch, "selection-queue")) continue;
         __initiativeDiag("selection:select-complete", {
           anchorId: desired.itemId,
           navigationRevision: desired.revision,
@@ -3115,9 +3289,17 @@ function __setActiveTurnLabelText(item, text) {
   };
 }
 
-async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = null, revision = __activeTurnLabelRevision) {
+async function upsertActiveTurnLabel(
+  anchorId,
+  displayText,
+  anchorSnapshot = null,
+  revision = __activeTurnLabelRevision,
+  sceneEpoch = currentSceneEpoch(),
+) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label")) return;
   const textStr = String(displayText ?? "");
   const existing = await __findExistingActiveLabel();
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
 
   if (!anchorId) {
     if (existing && existing.visible !== false) {
@@ -3138,8 +3320,10 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
   }
 
   const dpi = __activeTurnLabelDpi ?? await OBR.scene.grid.getDpi();
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
   __activeTurnLabelDpi = dpi;
   const anchor = anchorSnapshot || (await OBR.scene.items.getItems([anchorId]))[0];
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
   if (!anchor) {
     __activeTurnLabelLatestKey = null;
     return;
@@ -3147,6 +3331,7 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
 
   let anchorBounds = null;
   try { anchorBounds = await OBR.scene.items.getItemBounds([anchorId]); } catch {}
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
   const pos = __activeTurnLabelPosition(anchor, anchorBounds, dpi);
 
   if (!existing) {
@@ -3186,6 +3371,7 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
         .name("Turno attuale")
         .build();
       await OBR.scene.items.addItems([item]);
+      if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
       __activeTurnLabel = item;
     } finally {
       __mutatingActiveLabel--;
@@ -3211,6 +3397,7 @@ async function upsertActiveTurnLabel(anchorId, displayText, anchorSnapshot = nul
       item.disableAttachmentBehavior = (item.disableAttachmentBehavior || [])
         .filter((behavior) => behavior !== "POSITION");
     });
+    if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
     existing.attachedTo = anchorId;
     existing.position = pos;
     existing.visible = true;
@@ -3237,7 +3424,8 @@ async function __pumpActiveTurnLabel() {
       failedDesired = desired;
       if (
         desired.revision !== __activeTurnLabelRevision ||
-        desired.navigationRevision !== __navigationRevision
+        desired.navigationRevision !== __navigationRevision ||
+        !__isCurrentSceneOperation(desired.sceneEpoch, "active-label")
       ) {
         __initiativeDiag("label:skipped-superseded", {
           anchorId: desired.anchorId,
@@ -3255,7 +3443,8 @@ async function __pumpActiveTurnLabel() {
         desired.anchorId,
         desired.text,
         desired.anchor,
-        desired.revision
+        desired.revision,
+        desired.sceneEpoch,
       );
       __initiativeDiag("label:update-complete", {
         anchorId: desired.anchorId,
@@ -3302,6 +3491,7 @@ function syncActiveTurnLabel(activeId) {
     anchor: activeEntry?.position ? activeEntry : null,
     revision,
     navigationRevision: __navigationRevision,
+    sceneEpoch: currentSceneEpoch(),
   };
   __initiativeDiag("label:queued", {
     activeId,
@@ -3325,9 +3515,12 @@ function __scheduleNavigationStateFlush() {
 async function __flushNavigationState() {
   if (__navigationPumpRunning) return;
   const desired = __navigationDesiredState;
+  const sceneEpoch = __navigationDesiredEpoch ?? currentSceneEpoch();
   if (!desired) return;
 
   __navigationDesiredState = null;
+  __navigationDesiredEpoch = null;
+  if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
   __navigationPumpRunning = true;
   __initiativeDiag("navigation:flush-start", {
     activeId: __activeIdForState(desired),
@@ -3336,7 +3529,8 @@ async function __flushNavigationState() {
     navigationRevision: __navigationRevision,
   });
   try {
-    await setSceneState(desired);
+    await setSceneState(desired, sceneEpoch);
+    if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
     const desiredActiveId = __activeIdForState(desired);
     const latestActiveId = __activeIdForState(__latestInitiativeState);
     if (!__navigationDesiredState && desiredActiveId === latestActiveId) {
@@ -3353,6 +3547,7 @@ async function __flushNavigationState() {
       __lastNavigationAt = 0;
       try {
         __latestInitiativeState = await getSceneState();
+        if (!__isCurrentSceneOperation(sceneEpoch, "navigation-error")) return;
         await renderAll("navigation-error");
       } catch (reconcileErr) {
         console.warn("[initiative] navigation reconcile error:", reconcileErr?.message || reconcileErr);
@@ -3364,8 +3559,9 @@ async function __flushNavigationState() {
   }
 }
 
-function queueNavigationState(next) {
+function queueNavigationState(next, sceneEpoch = currentSceneEpoch()) {
   __navigationDesiredState = next;
+  __navigationDesiredEpoch = sceneEpoch;
   __navigationDesiredAt = Date.now();
   __initiativeDiag("navigation:queued", {
     activeId: __activeIdForState(next),
@@ -3795,8 +3991,10 @@ async function _getGroupForItemId(itemId) {
   return { key, members, me, entries };
 }
 // Raccoglie i group-key (attitude + base-name) attualmente presenti in scena
-async function __currentSeedGroupKeySet() {
+async function __currentSeedGroupKeySet(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-read")) return new Set();
   const entries = await readEntries(); // solo token reali
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-read")) return new Set();
   const keys = new Set();
   for (const e of entries) {
     const k = _groupKeyFromEntry(e);
@@ -3806,10 +4004,13 @@ async function __currentSeedGroupKeySet() {
 }
 
 // Rimuove da state.seededGroups le chiavi che non hanno più membri in scena
-async function __gcSeededGroups() {
+async function __gcSeededGroups(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-gc")) return false;
   const st = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-gc")) return false;
   const prev = (st && st.seededGroups) || {};
-  const present = await __currentSeedGroupKeySet();
+  const present = await __currentSeedGroupKeySet(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-gc")) return false;
 
   let changed = false;
   const next = { ...prev };
@@ -3820,20 +4021,27 @@ async function __gcSeededGroups() {
     }
   }
   if (changed) {
-    await setSceneState(p => ({ ...(p || {}), seededGroups: next }));
+    if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-gc-write")) return false;
+    await setSceneState(p => ({ ...(p || {}), seededGroups: next }), sceneEpoch);
+    if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-gc-write")) return false;
   }
+  return changed;
 }
 
 // Backfill di iniziativa per i gruppi già seedati quando compaiono nuovi membri
-async function __backfillInitiativeForSeededGroups() {
+async function __backfillInitiativeForSeededGroups(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill")) return false;
   const st = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill")) return false;
   const seeded = st?.seededGroups || {};
   const keys = Object.keys(seeded).filter(k => seeded[k]?.initiative);
-  if (!keys.length) return;
+  if (!keys.length) return false;
 
   // prendi tutti i token "tracciati" (con il nostro META_KEY)
   const all = await OBR.scene.items.getItems();
+  if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill")) return false;
   const tracked = all.filter(it => it?.metadata?.[META_KEY]);
+  let changed = false;
 
   // Raggruppa con la stessa chiave usata dalle tab del tracker.
   const byKey = new Map();
@@ -3884,13 +4092,18 @@ async function __backfillInitiativeForSeededGroups() {
 
     if (!targets.length) continue;
 
+    if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill-write")) return false;
     await OBR.scene.items.updateItems(targets, (list) => {
+      if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill-write")) return;
       for (const it of list) {
         const prev = it.metadata?.[META_KEY] || {};
         it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prev, initiative: seed, initTouched: true } };
       }
     });
+    if (!__isCurrentSceneOperation(sceneEpoch, "seed-groups-backfill-write")) return false;
+    changed = true;
   }
+  return changed;
 }
 
 // Propagazione iniziativa al gruppo (prima volta + backfill per nuovi membri)
@@ -4240,15 +4453,17 @@ async function mountTurnNoticeBroadcast() {
   });
 }
 
-async function broadcastTurnNotice(state) {
-  if (!IS_GM) return;
+async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
+  if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
-  if (!notice) return;
+  if (!notice || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   await OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
     type: "show-turn-notice",
+    sceneEpoch,
     ...notice,
     noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
   }, { destination: "ALL" });
+  return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
 }
 async function showConcentrationDamageWarning(changes = []) {
   if (!IS_GM) return;
@@ -4690,11 +4905,13 @@ function bindHPEditorForEntry(
     isCurrentEditor: () => __editingHPForId === entry.id,
     armClickIgnore: armDocClickIgnore,
     handoffEditor: async () => {
+      const sceneEpoch = currentSceneEpoch();
       __suspendRenders = true;
       try {
         await closeOpenEditors();
       } catch {}
       requestAnimationFrame(() => {
+        if (!__isCurrentSceneOperation(sceneEpoch, "hp-editor-handoff")) return;
         armDocClickIgnore(250);
         const nextPill = document.querySelector(
           `[data-badge="hp"][data-item-id="${entry.id}"]`
@@ -4702,7 +4919,9 @@ function bindHPEditorForEntry(
         nextPill?.dispatchEvent(new PointerEvent("pointerdown", {
           bubbles: true,
         }));
-        __suspendRenders = false;
+        if (__isCurrentSceneOperation(sceneEpoch, "hp-editor-handoff")) {
+          __suspendRenders = false;
+        }
       });
     },
     beginEdit: async () => {
@@ -7496,11 +7715,14 @@ for (const e of entries) {
   return true;
 }
 
-async function ensureState() {
+async function ensureState(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "ensure-state")) return false;
   const state = await getSceneState();
-  if (state) return;
+  if (!__isCurrentSceneOperation(sceneEpoch, "ensure-state")) return false;
+  if (state) return false;
   const sorted = sortByInitiative(await getEntriesWithLair(null), null);
-  await setSceneState({
+  if (!__isCurrentSceneOperation(sceneEpoch, "ensure-state")) return false;
+  return setSceneState({
     order: [...new Set(sorted.map(e => e.id))],
     current: 0,
     round: 1,
@@ -7510,7 +7732,7 @@ async function ensureState() {
     activeBadge: { x: 0.12, y: 0.60 }, // 12% da sinistra, 60% dall’alto
     tagsDock:    { x: 0.72, y: 0.50 }  // badge EPIC a destra, centrato
     }
-  });
+  }, sceneEpoch);
 }
 
   function arraysEqual(a, b) {
@@ -7520,16 +7742,25 @@ async function ensureState() {
     return true;
 
   }
-async function reconcileStateWithItems() {
-  await __gcSeededGroups();
-  await __backfillInitiativeForSeededGroups();  // ← NEW: backfill per nuovi membri
-
+async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "reconcile-state")) return false;
+  const preludeComplete = await runSceneEpochSteps({
+    sceneEpoch,
+    isCurrent: (epoch) => __isCurrentSceneOperation(epoch, "reconcile-state"),
+    steps: [
+      (epoch) => __gcSeededGroups(epoch),
+      (epoch) => __backfillInitiativeForSeededGroups(epoch),
+    ],
+  });
+  if (!preludeComplete) return false;
   const state   = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "reconcile-state")) return false;
   const entries = await getEntriesWithLair(state);
+  if (!__isCurrentSceneOperation(sceneEpoch, "reconcile-state")) return false;
 
   if (!entries || entries.length === 0) {
-    await resetTrackerState();
-    return true;
+    await resetTrackerState(sceneEpoch);
+    return __isCurrentSceneOperation(sceneEpoch, "reconcile-state");
   }
 
   const expanded = expandParagonEntries(entries, state);
@@ -7580,8 +7811,8 @@ async function reconcileStateWithItems() {
   const seededGroups = state?.seededGroups || {};
   const collapsed = state?.collapsed || {};
   const paragonInits = state?.paragonInits || {};
-  await setSceneState({ order: newOrder, current: newCurrent, round, seededGroups, collapsed, paragonInits });
-  return true;
+  await setSceneState({ order: newOrder, current: newCurrent, round, seededGroups, collapsed, paragonInits }, sceneEpoch);
+  return __isCurrentSceneOperation(sceneEpoch, "reconcile-state");
 }
 
 // --- DnD helper: sposta sourceId prima/dopo targetId ma SOLO fra pari iniziativa
@@ -7708,6 +7939,7 @@ function __cachedEntriesForIncrementalItems(items, state) {
 }
 
 function __schedulePendingIncrementalTrackerItems(itemIds) {
+  const sceneEpoch = currentSceneEpoch();
   for (const id of itemIds || []) {
     if (id) __pendingIncrementalTrackerItemIds.add(id);
   }
@@ -7715,6 +7947,7 @@ function __schedulePendingIncrementalTrackerItems(itemIds) {
 
   const flush = async () => {
     __pendingIncrementalRenderTimer = null;
+    if (!__isCurrentSceneOperation(sceneEpoch, "incremental-render-timer")) return;
     if (__initiativeFillMode) {
       __pendingIncrementalTrackerItemIds.clear();
       return;
@@ -7740,6 +7973,8 @@ function __schedulePendingIncrementalTrackerItems(itemIds) {
 }
 
 function __renderIncrementalTrackerItems(event, plan, reason = "items") {
+  const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "incremental-render", { reason })) return false;
   if (plan?.mode === "none") return true;
   if (plan?.mode !== "cards") return false;
   if (__suspendRenders) {
@@ -7778,12 +8013,14 @@ function __renderIncrementalTrackerItems(event, plan, reason = "items") {
 }
 
 async function __renderIncrementalTrackerItemIdsFromScene(itemIds, reason) {
+  const sceneEpoch = currentSceneEpoch();
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
   if (!ids.length) return true;
   const items = await OBR.scene.items.getItems(ids);
+  if (!__isCurrentSceneOperation(sceneEpoch, "incremental-render-read", { reason })) return false;
   if (items.length !== ids.length) return false;
   return __renderIncrementalTrackerItems(
-    { items },
+    { items, sceneEpoch },
     { mode: "cards", itemIds: ids },
     reason,
   );
@@ -7791,11 +8028,14 @@ async function __renderIncrementalTrackerItemIdsFromScene(itemIds, reason) {
 
 async function renderAll(reason = "unspecified") {
   if (__suspendRenders) return;
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "render", { reason })) return;
   const renderStartedAt = performance.now();
   const renderDurationMs = () => Math.round((performance.now() - renderStartedAt) * 100) / 100;
   const renderRevision = ++__renderRequestRevision;
   __initiativeDiag("render:requested", { renderRevision, reason });
   const stateRaw = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "render-read-state", { reason, renderRevision })) return;
   // Gli snapshot intermedi di una raffica di click non devono ridisegnare
   // lista, fumetto o selezione sopra lo stato ottimistico più recente.
   if (__isStaleNavigationState(stateRaw)) {
@@ -7817,6 +8057,7 @@ async function renderAll(reason = "unspecified") {
   }
   __latestAcceptedRenderRevision = renderRevision;
   const baseEntries  = await getEntriesWithLair(stateRaw);
+  if (!__isCurrentSceneOperation(sceneEpoch, "render-read-items", { reason, renderRevision })) return;
   if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
     __initiativeDiag("render:skipped-superseded", {
       renderRevision,
@@ -7842,6 +8083,7 @@ async function renderAll(reason = "unspecified") {
 // byId deve conoscere anche le voci virtuali
 const entriesWithVirtuals = entries.concat(epicVirtuals);
 const byId = new Map(entriesWithVirtuals.map((e) => [e.id, e]));
+if (!__isCurrentSceneOperation(sceneEpoch, "render-build", { reason, renderRevision })) return;
 __activeLabelEntriesById = byId;
 
 
@@ -7875,7 +8117,8 @@ __activeLabelEntriesById = byId;
 
     if (needFix) {
       // N.B. questo triggherà onMetadataChange, ma intanto noi renderizziamo già giusto
-      await setSceneState(stateClean);
+      await setSceneState(stateClean, sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "render-state-fix", { reason, renderRevision })) return;
       if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
         __initiativeDiag("render:skipped-superseded", {
           renderRevision,
@@ -7914,6 +8157,7 @@ __activeLabelEntriesById = byId;
     // costruisci la lista rispettando l’ordine pulito
     const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
+    if (!__isCurrentSceneOperation(sceneEpoch, "render-commit", { reason, renderRevision })) return;
     // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
 try {
   syncActiveTurnLabel(activeIdNow);
@@ -7955,6 +8199,8 @@ try {
   }
 
     OBR.onReady(async () => {
+      __mountSceneEpochLifecycle();
+      const bootstrapSceneEpoch = currentSceneEpoch();
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();
       mountTrackerQuickActionsPopoverListener();
@@ -7963,6 +8209,7 @@ try {
     mountConcentrationWarningBroadcast();
     await mountTurnNoticeBroadcast().catch(() => {});
     await mountSpeedWarningBroadcast().catch(() => {});
+    if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-listeners")) return;
     setTrackedMoveButtonActive(false);
     try {
       const role =
@@ -8028,11 +8275,13 @@ try {
       IS_GM = false;
     }
     await __mountTrackerSelectionSync();
+    if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-selection")) return;
     try {
 } catch (e) {
   console.error("[hpbar] mount error", e?.error?.message || e?.message || e);
 }
   await mountHPBars();
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-hp-bars")) return;
   if (IS_GM) {
     enableSpeedCheckProcessor();
     subscribeMovementSegments(queueSpeedCheckMovements);
@@ -8050,18 +8299,26 @@ try {
       console.warn("[initiative-card] quick action memory boot:", error?.message || error);
     }
   }
-  await ensureState();
-  await reconcileStateWithItems();
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-history")) return;
+  await ensureState(bootstrapSceneEpoch);
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-ensure-state")) return;
+  await reconcileStateWithItems(bootstrapSceneEpoch);
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-reconcile")) return;
   await enforceUniqueNamePrefixes();
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-names")) return;
   await renderAll("boot");
-  __lastInitiativeMetadataDigest = initiativeStateDigest(await getSceneState());
-  __lastQueuedInitiativeMetadataDigest = __lastInitiativeMetadataDigest;
-  __lastActiveId = __activeIdForState(__latestInitiativeState);
-  syncSpeedCheckTurn(__latestInitiativeState);
-  __lastRoundSeen = Math.max(1, Number(__latestInitiativeState?.round || 1));
-  __lastConditionTurnState = __conditionTurnStateSnapshot(__latestInitiativeState);
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-render")) return;
+  const bootPersistedState = await getSceneState();
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-state")) return;
+  await __adoptInitiativeSceneBaseline(
+    __latestInitiativeState || bootPersistedState,
+    initiativeStateDigest(bootPersistedState),
+    bootstrapSceneEpoch,
+    "boot",
+    false,
+  );
   if (IS_GM) {
-    void recordCombatTurn(__latestInitiativeState).catch((err) => {
+    void recordCombatTurn(__latestInitiativeState, { sceneEpoch: bootstrapSceneEpoch }).catch((err) => {
       console.warn("[combat-log] initial turn:", err?.message || err);
     });
   }
@@ -8082,7 +8339,17 @@ try {
   }
 });
 
-async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
+async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "metadata", { metadataRevision })) return;
+  if (__sceneBaselineEpoch !== sceneEpoch) {
+    await __adoptInitiativeSceneBaseline(
+      st,
+      stateDigest,
+      sceneEpoch,
+      "metadata",
+    );
+    return;
+  }
   __lastInitiativeMetadataDigest = stateDigest;
   if (__isStaleNavigationState(st)) {
     __initiativeDiag("metadata:skipped-stale-navigation", {
@@ -8133,14 +8400,37 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
               targetIds: unique,
               delta,
             }]);
+            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
             const staticZoneItems = staticSpellZoneItemsEndedByPlan(
               await getStaticSpellZoneItems(),
               mutationPlan,
             );
+            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
             await commitWithStaticSpellZoneRemoval(
               staticZoneItems,
-              () => commitEffectsMutationPlan(mutationPlan),
+              async () => {
+                if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return [];
+                const changedIds = await commitEffectsMutationPlan(mutationPlan, {
+                  isCurrent: () => __isCurrentSceneOperation(
+                    sceneEpoch,
+                    "round-tick",
+                    { metadataRevision },
+                  ),
+                });
+                return __isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })
+                  ? changedIds
+                  : [];
+              },
+              {
+                sceneEpoch,
+                isCurrent: (epoch) => __isCurrentSceneOperation(
+                  epoch,
+                  "round-tick",
+                  { metadataRevision },
+                ),
+              },
             );
+            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
           };
           __roundEffectQueue = __roundEffectQueue.then(run, run);
           roundEffectAdjustment = __roundEffectQueue;
@@ -8152,6 +8442,7 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision) {
   }
 
   await renderAll("metadata"); // ridisegna UI
+  if (!__isCurrentSceneOperation(sceneEpoch, "metadata-render", { metadataRevision })) return;
   if (!st || !Array.isArray(st.order) || st.order.length === 0) {
     return;
   }
@@ -8169,35 +8460,56 @@ try {
   const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
   if (IS_GM && boundaries.length) {
     const run = async () => {
+      if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) return;
       const tokenIds = Array.from(new Set(
         [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
           .map(__conditionActorId)
           .filter(Boolean)
       ));
+      if (!tokenIds.length) return;
       await withItemMetaHistory({
         kind: "spell",
         label: "Scadenza effetti di turno",
         itemIds: tokenIds,
         fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-      }, () => advanceTurnBoundaryEffects(tokenIds, boundaries));
+        sceneEpoch,
+      }, async () => {
+        const mutationPlan = await prepareEffectsMutation([{
+          type: "effects:tick-boundaries",
+          targetIds: tokenIds,
+          boundaries,
+        }]);
+        if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) {
+          return [];
+        }
+        return commitEffectsMutationPlan(mutationPlan, {
+          isCurrent: () => __isCurrentSceneOperation(
+            sceneEpoch,
+            "condition-turn-tick",
+            { metadataRevision },
+          ),
+        });
+      });
     };
-    __conditionTurnQueue = __conditionTurnQueue.then(run, run);
-    await __conditionTurnQueue;
+    const conditionTurnAdjustment = __conditionTurnQueue = __conditionTurnQueue.then(run, run);
+    await conditionTurnAdjustment;
   }
 } catch (err) {
   console.warn("[conditions] tick turn boundary error:", err?.message || err);
 }
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) return;
+
   if (!activeId || activeId === __lastActiveId) return;
   const previousActiveId = __lastActiveId;
   __lastActiveId = activeId;
-  if (IS_GM) {
-    void recordCombatTurn(st).catch((err) => {
+  if (IS_GM && __isCurrentSceneOperation(sceneEpoch, "combat-turn", { metadataRevision })) {
+    void recordCombatTurn(st, { sceneEpoch }).catch((err) => {
       console.warn("[combat-log] turn:", err?.message || err);
     });
   }
-  if (previousActiveId && IS_GM) {
-    void broadcastTurnNotice(st).catch((err) => {
+  if (previousActiveId && IS_GM && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })) {
+    void broadcastTurnNotice(st, sceneEpoch).catch((err) => {
       console.warn("[turn-notice] broadcast error:", err?.message || err);
     });
   }
@@ -8208,13 +8520,18 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   try { await resetLegendaryIfAny(activeId); }
   catch (e) { console.warn("[legendary] reset on turn:", e?.message || e); }
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-turn", { metadataRevision })) return;
+
   queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
   try {
-    if (__matchesLatestActiveTurn(st)) {
+    if (__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision }) && __matchesLatestActiveTurn(st)) {
       const entriesNow = await readEntries();
+      if (!__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })) return;
       const collapseChanged = await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
-      if (collapseChanged) await renderAll("auto-collapse");
+      if (collapseChanged && __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })) {
+        await renderAll("auto-collapse");
+      }
     } else {
       __initiativeDiag("collapse:skipped-stale", {
         activeId,
@@ -8227,6 +8544,8 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
 }
 
 OBR.scene.onMetadataChange((meta) => {
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "metadata-event")) return;
   const st = meta?.[STATE_KEY];
   const stateDigest = initiativeStateDigest(st);
   if (stateDigest === __lastQueuedInitiativeMetadataDigest) {
@@ -8237,7 +8556,7 @@ OBR.scene.onMetadataChange((meta) => {
   }
   __lastQueuedInitiativeMetadataDigest = stateDigest;
   const metadataRevision = ++__initiativeMetadataRevision;
-  const run = () => __processInitiativeMetadata(st, stateDigest, metadataRevision);
+  const run = () => __processInitiativeMetadata(st, stateDigest, metadataRevision, sceneEpoch);
   void __initiativeMetadataProcessor.enqueue(run).catch((err) => {
     console.warn("[initiative] metadata queue error:", err?.message || err);
   });
@@ -8255,6 +8574,8 @@ OBR.scene.onMetadataChange((meta) => {
   });
 
   subscribeSceneItemChanges((event) => {
+    const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "quick-action-restore")) return null;
     if (!IS_GM) return null;
     const candidateIds = (event.items || [])
       .filter((item) => (
@@ -8271,13 +8592,17 @@ OBR.scene.onMetadataChange((meta) => {
   });
 
   subscribeSceneItemChanges(async (event) => {
+    const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     if (__mutatingActiveLabel > 0) return;
     const renderPlan = planIncrementalTrackerItemRender(event);
     const fillInterrupted = await interruptInitiativeFillForRemovedActor(event);
+    if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     const addedInitiativeActors = IS_GM && sceneItemEventAddsInitiative(event);
     if (__initiativeFillMode && addedInitiativeActors && !initiativeFillShowsAddedActors(event)) {
       await closeOpenEditors();
       await finishInitiativeFillMode();
+      if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     }
     if (renderPlan.mode === "none") return;
     if (!fillInterrupted && renderPlan.mode === "cards") {
@@ -8287,10 +8612,12 @@ OBR.scene.onMetadataChange((meta) => {
         console.warn("[initiative] incremental item render:", error?.message || error);
       }
     }
-    await reconcileStateWithItems();
+    await reconcileStateWithItems(sceneEpoch);
+    if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     await enforceUniqueNamePrefixes();
+    if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     await renderAll(fillInterrupted ? "initiative-fill-item-removed" : "items-fallback");
-    if (addedInitiativeActors) {
+    if (addedInitiativeActors && __isCurrentSceneOperation(sceneEpoch, "item-dispatch")) {
       await startInitiativeFillMode({ silent: true });
     }
   }, { filter: (event) => event.flags.tracker });
@@ -8298,15 +8625,19 @@ OBR.scene.onMetadataChange((meta) => {
   // ——— Auto-ripristino HP quando cambia qualcosa tra gli item della scena
 // (nuovi token, nome/ritratto cambiati, metadata azzerati, ecc.)
 try {
-  subscribeSceneItemChanges(() => {
-    scheduleHPMemoryAutofill(150); // 150ms debounce
+  subscribeSceneItemChanges((event) => {
+    const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "hp-memory-autofill")) return;
+    scheduleHPMemoryAutofill(150, sceneEpoch); // 150ms debounce
   }, { filter: (event) => event.flags.hpMemoryAutofill });
 } catch (e) {
   console.warn("[hpMemory] onChange subscribe failed", e);
 }
 
     btnPrev.addEventListener("click", async () => {
+    const sceneEpoch = currentSceneEpoch();
     const st = __latestInitiativeState || await getSceneState();
+    if (!__isCurrentSceneOperation(sceneEpoch, "navigation-click")) return;
     if (!st || !st.order || st.order.length === 0) return;
     const nextBase = advanceInitiativeState(st, -1);
     const prevIdx = nextBase.current;
@@ -8330,10 +8661,10 @@ try {
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
 
-    queueNavigationState(next);
+    queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}
 
-    if (revision !== __navigationRevision) return;
+    if (revision !== __navigationRevision || !__isCurrentSceneOperation(sceneEpoch, "navigation-click")) return;
     if (activeId && !isLairId(activeId)) {
       queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
     }
@@ -8341,7 +8672,9 @@ try {
   });
 
   btnNext.addEventListener("click", async () => {
+    const sceneEpoch = currentSceneEpoch();
     const st = __latestInitiativeState || await getSceneState();
+    if (!__isCurrentSceneOperation(sceneEpoch, "navigation-click")) return;
     if (!st || !st.order || st.order.length === 0) return;
     const nextBase = advanceInitiativeState(st, 1);
     const nextIdx = nextBase.current;
@@ -8365,10 +8698,10 @@ try {
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
 
-    queueNavigationState(next);
+    queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}
 
-    if (revision !== __navigationRevision) return;
+    if (revision !== __navigationRevision || !__isCurrentSceneOperation(sceneEpoch, "navigation-click")) return;
     if (activeId && !isLairId(activeId)) {
       queueSelectAndFocus(activeId, isAutoFocusEnabled(next));
     }

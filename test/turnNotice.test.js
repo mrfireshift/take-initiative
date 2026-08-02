@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildTurnNoticePayload } from "../src/turnNotice.js";
+import {
+  buildTurnNoticePayload,
+  isTurnNoticeForScene,
+} from "../src/turnNotice.js";
 
 test("builds current and next turn names", () => {
   const entries = new Map([
@@ -35,4 +38,11 @@ test("wraps next turn and resolves virtual entries", () => {
 
 test("returns null for an empty initiative", () => {
   assert.equal(buildTurnNoticePayload({ order: [] }, new Map()), null);
+});
+
+test("accetta un notice solo nello scene epoch che lo ha prodotto", () => {
+  const payload = { sceneEpoch: 4 };
+  assert.equal(isTurnNoticeForScene(payload, 4, true), true);
+  assert.equal(isTurnNoticeForScene(payload, 5, true), false);
+  assert.equal(isTurnNoticeForScene(payload, 4, false), false);
 });

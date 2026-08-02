@@ -18,6 +18,7 @@ import {
   mergeSaveReminderNoticeBatch,
   saveReminderNoticeBatchPresentation,
 } from "./saveReminderNoticeCore.js";
+import { isTurnNoticeForScene } from "./turnNotice.js";
 
 const CHANNEL = ID + "/turn-notice";
 const AUTO_CLOSE_MS = 4500;
@@ -34,6 +35,7 @@ type TurnNotice = {
   round: number;
   noticeId: number;
   turnKey: string;
+  sceneEpoch: number;
 };
 
 type ZoneNoticeTarget = {
@@ -71,6 +73,7 @@ function normalizeNotice(parsed: any): TurnNotice | null {
     round: Math.max(1, Math.floor(Number(parsed?.round) || 1)),
     noticeId: Math.max(0, Math.floor(Number(parsed?.noticeId) || 0)),
     turnKey: String(parsed?.turnKey || "").trim().slice(0, 300),
+    sceneEpoch: Math.max(0, Math.floor(Number(parsed?.sceneEpoch) || 0)),
   };
 }
 
@@ -92,6 +95,8 @@ let unsubscribeZoneItems: (() => void) | null = null;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
 let unsubscribeZoneBroadcast: (() => void) | null = null;
 let unsubscribeEffectSaveBroadcast: (() => void) | null = null;
+let noticeSceneEpoch = 0;
+let noticeSceneReady = true;
 
 function buildPanel(notice: TurnNotice) {
   const panel = document.createElement("section");
@@ -154,6 +159,14 @@ function hideCurrent() {
   leaving.classList.remove("is-visible");
   leaving.classList.add("is-leaving");
   window.setTimeout(() => leaving.remove(), FADE_MS);
+}
+
+function clearTurnNotice() {
+  window.clearTimeout(hideTimer);
+  hideTimer = 0;
+  currentPanel?.remove();
+  currentPanel = null;
+  document.getElementById("app")?.replaceChildren();
 }
 
 function clearZoneNotice() {
@@ -422,7 +435,12 @@ document.addEventListener("keydown", (event) => {
 
 OBR.onReady(() => {
   OBR.broadcast.onMessage(CHANNEL, (event) => {
-    if (event?.data?.type === "show-turn-notice") showNotice(event.data);
+    if (
+      event?.data?.type === "show-turn-notice"
+      && isTurnNoticeForScene(event.data, noticeSceneEpoch, noticeSceneReady)
+    ) {
+      showNotice(event.data);
+    }
   });
   unsubscribeEffectSaveBroadcast = OBR.broadcast.onMessage(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
@@ -432,20 +450,24 @@ OBR.onReady(() => {
       }
     },
   );
-  if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
-  unsubscribeZoneItems = OBR.scene.items.onChange(
-    requestPendingZoneNoticeSync,
-  );
   unsubscribeZoneSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
+      noticeSceneEpoch += 1;
+      noticeSceneReady = false;
+      clearTurnNotice();
       zonePendingBaselineReady = false;
       announcedZoneActivationIds.clear();
       clearPendingSaveReminderNotices();
       clearZoneNotice();
       return;
     }
-    requestPendingZoneNoticeSync();
+    noticeSceneReady = true;
+    if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) requestPendingZoneNoticeSync();
   });
+  if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
+  unsubscribeZoneItems = OBR.scene.items.onChange(
+    requestPendingZoneNoticeSync,
+  );
   unsubscribeZoneBroadcast = OBR.broadcast.onMessage(
     SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
     (event) => {
@@ -458,6 +480,7 @@ OBR.onReady(() => {
 });
 
 window.addEventListener("beforeunload", () => {
+  clearTurnNotice();
   clearPendingSaveReminderNotices();
   unsubscribeZoneItems?.();
   unsubscribeZoneSceneReady?.();

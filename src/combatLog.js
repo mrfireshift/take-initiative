@@ -1,6 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { combatEventFromHistoryEntry, serializeCombatLogText } from "./combatLogCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { recordCombatTurnForEpoch } from "./combatLogTurnCore.js";
 
 const DB_NAME = `${ID}.combat-log`;
 const DB_VERSION = 1;
@@ -12,6 +14,10 @@ const CHANNEL = `${ID}/combat-log-change`;
 const LAIR_ID = "__LAIR__";
 let writeQueue = Promise.resolve();
 let dbPromise = null;
+
+function isSceneEpochCurrent(sceneEpoch) {
+  return sceneEpoch == null || isCurrentSceneEpoch(sceneEpoch);
+}
 
 function createId() {
   return typeof globalThis.crypto?.randomUUID === "function"
@@ -56,30 +62,44 @@ function openDatabase() {
   return dbPromise;
 }
 
-async function getStoredSession(id) {
+async function getStoredSession(id, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const db = await openDatabase();
-  return requestResult(db.transaction(SESSION_STORE, "readonly").objectStore(SESSION_STORE).get(id));
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const session = await requestResult(db.transaction(SESSION_STORE, "readonly").objectStore(SESSION_STORE).get(id));
+  return isSceneEpochCurrent(sceneEpoch) ? session : null;
 }
 
-async function putStoredSession(session) {
+async function putStoredSession(session, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
   const db = await openDatabase();
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
   const tx = db.transaction(SESSION_STORE, "readwrite");
+  if (!isSceneEpochCurrent(sceneEpoch)) {
+    tx.abort();
+    return false;
+  }
   tx.objectStore(SESSION_STORE).put(session);
   await new Promise((resolve, reject) => {
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error || new Error("Salvataggio sessione fallito."));
     tx.onabort = () => reject(tx.error || new Error("Salvataggio sessione annullato."));
   });
+  return isSceneEpochCurrent(sceneEpoch);
 }
 
-async function getSessionState() {
+async function getSessionState({ sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const metadata = await OBR.scene.getMetadata();
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const state = metadata?.[SESSION_STATE_KEY];
   return state && typeof state === "object" ? state : null;
 }
 
-async function setSessionState(session) {
+async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
   const metadata = await OBR.scene.getMetadata();
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
   await OBR.scene.setMetadata({
     ...metadata,
     [SESSION_STATE_KEY]: {
@@ -89,10 +109,13 @@ async function setSessionState(session) {
       startedAt: session.startedAt,
     },
   });
+  return isSceneEpochCurrent(sceneEpoch);
 }
 
-export async function startCombatLogSession(name = "") {
+export async function startCombatLogSession(name = "", { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può creare un registro.");
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const now = Date.now();
   const session = {
     id: createId(),
@@ -105,17 +128,23 @@ export async function startCombatLogSession(name = "") {
     lastRound: null,
     lastTurnKey: "",
   };
-  await putStoredSession(session);
-  await setSessionState(session);
-  await notifyChange("session", session.id);
-  return session;
+  if (!await putStoredSession(session, { sceneEpoch })) return null;
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  if (!await setSessionState(session, { sceneEpoch })) return null;
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  await notifyChange("session", session.id, { sceneEpoch });
+  return isSceneEpochCurrent(sceneEpoch) ? session : null;
 }
 
-export async function ensureCombatLogSession() {
+export async function ensureCombatLogSession({ sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (await OBR.player.getRole() !== "GM") return null;
-  const state = await getSessionState();
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const state = await getSessionState({ sceneEpoch });
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (state?.sessionId) {
-    const stored = await getStoredSession(state.sessionId);
+    const stored = await getStoredSession(state.sessionId, { sceneEpoch });
+    if (!isSceneEpochCurrent(sceneEpoch)) return null;
     if (stored) return stored;
     const recovered = {
       id: state.sessionId,
@@ -128,21 +157,34 @@ export async function ensureCombatLogSession() {
       lastRound: null,
       lastTurnKey: "",
     };
-    await putStoredSession(recovered);
-    return recovered;
+    if (!await putStoredSession(recovered, { sceneEpoch })) return null;
+    return isSceneEpochCurrent(sceneEpoch) ? recovered : null;
   }
-  return startCombatLogSession();
+  return startCombatLogSession("", { sceneEpoch });
 }
 
-async function appendEventsNow(sessionId, inputs, sessionPatch = {}) {
+async function appendEventsNow(
+  sessionId,
+  inputs,
+  sessionPatch = {},
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
   const db = await openDatabase();
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
   const created = [];
   await new Promise((resolve, reject) => {
+    let stale = false;
     const tx = db.transaction([SESSION_STORE, EVENT_STORE], "readwrite");
     const sessions = tx.objectStore(SESSION_STORE);
     const events = tx.objectStore(EVENT_STORE);
     const request = sessions.get(sessionId);
     request.onsuccess = () => {
+      if (!isSceneEpochCurrent(sceneEpoch)) {
+        stale = true;
+        tx.abort();
+        return;
+      }
       const session = request.result;
       if (!session) {
         tx.abort();
@@ -150,6 +192,11 @@ async function appendEventsNow(sessionId, inputs, sessionPatch = {}) {
       }
       let sequence = Math.max(1, Number(session.nextSequence) || 1);
       for (const input of inputs) {
+        if (!isSceneEpochCurrent(sceneEpoch)) {
+          stale = true;
+          tx.abort();
+          return;
+        }
         const event = {
           ...input,
           id: createId(),
@@ -161,6 +208,11 @@ async function appendEventsNow(sessionId, inputs, sessionPatch = {}) {
         events.put(event);
         created.push(event);
       }
+      if (!isSceneEpochCurrent(sceneEpoch)) {
+        stale = true;
+        tx.abort();
+        return;
+      }
       sessions.put({
         ...session,
         ...sessionPatch,
@@ -168,13 +220,19 @@ async function appendEventsNow(sessionId, inputs, sessionPatch = {}) {
         updatedAt: Date.now(),
       });
     };
-    request.onerror = () => reject(request.error || new Error("Lettura sessione fallita."));
+    request.onerror = () => {
+      if (!stale) reject(request.error || new Error("Lettura sessione fallita."));
+    };
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error || new Error("Scrittura Combat Log fallita."));
-    tx.onabort = () => reject(tx.error || new Error("Scrittura Combat Log annullata."));
+    tx.onabort = () => {
+      if (stale) resolve();
+      else reject(tx.error || new Error("Scrittura Combat Log annullata."));
+    };
   });
-  if (created.length) await notifyChange("events", sessionId);
-  return created;
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
+  if (created.length) await notifyChange("events", sessionId, { sceneEpoch });
+  return isSceneEpochCurrent(sceneEpoch) ? created : [];
 }
 
 function queueWrite(action) {
@@ -182,12 +240,15 @@ function queueWrite(action) {
   return writeQueue;
 }
 
-async function currentContext() {
+async function currentContext({ sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return { round: 1, turn: null };
   const metadata = await OBR.scene.getMetadata();
+  if (!isSceneEpochCurrent(sceneEpoch)) return { round: 1, turn: null };
   const state = metadata?.[STATE_KEY] || {};
   const round = Math.max(1, Number(state.round) || 1);
   const activeId = Array.isArray(state.order) ? state.order[state.current] : null;
-  return { round, turn: await resolveTurn(activeId) };
+  const turn = await resolveTurn(activeId, { sceneEpoch });
+  return isSceneEpochCurrent(sceneEpoch) ? { round, turn } : { round: 1, turn: null };
 }
 
 function realActorId(value) {
@@ -196,7 +257,8 @@ function realActorId(value) {
   return paragonIndex >= 0 ? id.slice(0, paragonIndex) : id;
 }
 
-async function resolveTurn(activeId) {
+async function resolveTurn(activeId, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const rawId = String(activeId || "");
   if (!rawId) return null;
   if (rawId === LAIR_ID) return { id: rawId, name: "Azioni di Tana" };
@@ -204,37 +266,45 @@ async function resolveTurn(activeId) {
   const id = realActorId(rawId);
   try {
     const [item] = await OBR.scene.items.getItems([id]);
+    if (!isSceneEpochCurrent(sceneEpoch)) return null;
     return { id: rawId, tokenId: id, name: String(item?.name || "Token") };
   } catch {
-    return { id: rawId, tokenId: id, name: "Token" };
+    return isSceneEpochCurrent(sceneEpoch)
+      ? { id: rawId, tokenId: id, name: "Token" }
+      : null;
   }
 }
 
-export async function appendCombatLogEvent(input) {
+export async function appendCombatLogEvent(input, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
   return queueWrite(async () => {
-    const session = await ensureCombatLogSession();
-    if (!session) return [];
-    const context = await currentContext();
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    const session = await ensureCombatLogSession({ sceneEpoch });
+    if (!isSceneEpochCurrent(sceneEpoch) || !session) return [];
+    const context = await currentContext({ sceneEpoch });
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
     return appendEventsNow(session.id, [{
       source: "automatic",
       round: context.round,
       turn: context.turn,
       ...input,
-    }]);
+    }], {}, { sceneEpoch });
   });
 }
 
-export async function recordHistoryInCombatLog(entry) {
+export async function recordHistoryInCombatLog(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return [];
   try {
-    const context = await currentContext();
-    return appendCombatLogEvent(combatEventFromHistoryEntry(entry, context));
+    const context = await currentContext({ sceneEpoch });
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    return appendCombatLogEvent(combatEventFromHistoryEntry(entry, context), { sceneEpoch });
   } catch (error) {
     console.warn("[combat-log] history event:", error?.message || error);
     return [];
   }
 }
 
-export async function recordCombatUndo(entries) {
+export async function recordCombatUndo(entries, { sceneEpoch = currentSceneEpoch() } = {}) {
   const list = Array.isArray(entries) ? entries : [];
   if (!list.length) return [];
   const labels = list.map((entry) => String(entry?.label || "Modifica"));
@@ -246,10 +316,10 @@ export async function recordCombatUndo(entries) {
       historyEntryIds: list.map((entry) => entry?.id).filter(Boolean),
       description: labels.join(" | "),
     },
-  });
+  }, { sceneEpoch });
 }
 
-export async function recordNativeMovementUndo(changes) {
+export async function recordNativeMovementUndo(changes, { sceneEpoch = currentSceneEpoch() } = {}) {
   const targets = (Array.isArray(changes) ? changes : [])
     .map((change) => ({
       id: String(change?.id || ""),
@@ -268,45 +338,23 @@ export async function recordNativeMovementUndo(changes) {
       : `Movimento annullato: ${targets.length} token`,
     targets,
     payload: { targets, nativeUndo: true },
-  });
+  }, { sceneEpoch });
 }
 
-export async function recordCombatTurn(state) {
+export async function recordCombatTurn(state, { sceneEpoch = currentSceneEpoch() } = {}) {
   if (!state || !Array.isArray(state.order) || !state.order.length) return [];
-  return queueWrite(async () => {
-    const session = await ensureCombatLogSession();
-    if (!session) return [];
-    const round = Math.max(1, Number(state.round) || 1);
-    const activeId = String(state.order[state.current] || "");
-    const turnKey = `${round}:${activeId}`;
-    const latest = await getStoredSession(session.id) || session;
-    if (latest.lastTurnKey === turnKey) return [];
-    const turn = await resolveTurn(activeId);
-    const inputs = [];
-    if (Number(latest.lastRound) !== round) {
-      inputs.push({
-        source: "automatic",
-        round,
-        turn,
-        kind: "round",
-        action: "start",
-        label: `Inizio Round ${round}`,
-        targets: [],
-        payload: {},
-      });
-    }
-    inputs.push({
-      source: "automatic",
-      round,
-      turn,
-      kind: "turn",
-      action: "start",
-      label: `Turno di ${turn?.name || "Token"}`,
-      targets: turn ? [turn] : [],
-      payload: { actorId: activeId, actorName: turn?.name || "Token" },
-    });
-    return appendEventsNow(session.id, inputs, { lastRound: round, lastTurnKey: turnKey });
-  });
+  return queueWrite(() => recordCombatTurnForEpoch({
+    state,
+    sceneEpoch,
+    isCurrent: isCurrentSceneEpoch,
+    ensureSession: ({ sceneEpoch: epoch }) => ensureCombatLogSession({ sceneEpoch: epoch }),
+    getStoredSession: (sessionId, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
+      getStoredSession(sessionId, { sceneEpoch: operationEpoch }),
+    resolveTurn: (activeId, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
+      resolveTurn(activeId, { sceneEpoch: operationEpoch }),
+    appendEvents: (sessionId, inputs, patch, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
+      appendEventsNow(sessionId, inputs, patch, { sceneEpoch: operationEpoch }),
+  }));
 }
 
 export async function addCombatLogNote(text) {
@@ -454,10 +502,12 @@ export function exportCombatLogJSON(session, events) {
   return JSON.stringify({ version: 1, session, events }, null, 2);
 }
 
-async function notifyChange(type, sessionId) {
+async function notifyChange(type, sessionId, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isSceneEpochCurrent(sceneEpoch)) return false;
   try {
     await OBR.broadcast.sendMessage(CHANNEL, { type, sessionId }, { destination: "LOCAL" });
   } catch {}
+  return isSceneEpochCurrent(sceneEpoch);
 }
 
 export function subscribeCombatLog(handler) {

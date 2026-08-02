@@ -150,7 +150,9 @@ export async function prepareEffectsMutation(operations = []) {
   return plan;
 }
 
-export async function commitEffectsMutationPlan(plan) {
+export async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
+  const canCommit = () => typeof isCurrent !== "function" || isCurrent();
+  if (!canCommit()) return [];
   const changes = Array.isArray(plan?.changes) ? plan.changes : [];
   const mutationId = String(plan?.mutationId || createId("effects-mutation"));
   if (!changes.length) {
@@ -162,9 +164,11 @@ export async function commitEffectsMutationPlan(plan) {
   const byId = new Map(changes.map((change) => [change.id, change]));
   const ids = [...byId.keys()];
   try {
+    if (!canCommit()) return [];
     mutationStats.updateCalls += 1;
     mutationStats.requestedItems += ids.length;
     await OBR.scene.items.updateItems(ids, (drafts) => {
+      if (!canCommit()) return;
       for (const item of drafts) {
         const change = byId.get(item.id);
         if (!change) continue;
@@ -189,6 +193,7 @@ export async function commitEffectsMutationPlan(plan) {
         item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
       }
     });
+    if (!canCommit()) return [];
     const removedClassFeatureConditions = [];
     const skipClassFeatureReconcileIds = new Set(
       (Array.isArray(plan?.skipClassFeatureReconcileIds)
@@ -228,16 +233,20 @@ export async function commitEffectsMutationPlan(plan) {
     }
     if (removedClassFeatureConditions.length) {
       try {
+        if (!canCommit()) return [];
         const { reconcileClassFeatureActivationsAfterConditionRemoval } =
           await import("./classFeatureRuntime.js");
+        if (!canCommit()) return [];
         await reconcileClassFeatureActivationsAfterConditionRemoval(
           removedClassFeatureConditions,
           { inline: true },
         );
+        if (!canCommit()) return [];
       } catch (error) {
         console.warn("[class-feature] condition removal sync:", error?.message || error);
       }
     }
+    if (!canCommit()) return [];
     mutationStats.commits += 1;
     effectsDiagnostics.event("mutation:commit", {
       mutationId,

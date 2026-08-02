@@ -2,6 +2,12 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { recordCombatUndo, recordHistoryInCombatLog, recordNativeMovementUndo } from "./combatLog.js";
+import {
+  currentSceneEpoch,
+  isCurrentSceneEpoch,
+  runSceneEpochSteps,
+  subscribeSceneEpoch,
+} from "./sceneEpoch.js";
 
 const META_KEY = `${ID}/meta`;
 const HISTORY_KEY = `${ID}/history`;
@@ -24,6 +30,50 @@ const __suppressedMovements = new Map();
 const __sceneHistorySnapshot = new Map();
 const __historyRestoreSuppressedIds = new Map();
 const __movementSegmentListeners = new Set();
+let __sceneHistoryBaselineEpoch = null;
+let __sceneEpochUnsubscribe = null;
+let __movementFlushEpoch = null;
+
+function replaceSceneHistorySnapshot(items = []) {
+  __sceneHistorySnapshot.clear();
+  for (const item of items || []) {
+    if (item?.id) __sceneHistorySnapshot.set(item.id, cloneValue(item));
+  }
+}
+
+function resetSceneHistoryRuntime(epoch) {
+  if (__movementFlushTimer) clearTimeout(__movementFlushTimer);
+  __movementFlushTimer = null;
+  __movementFlushEpoch = null;
+  __movementPositions.clear();
+  __pendingMovements.clear();
+  __suppressedMovements.clear();
+  __sceneHistorySnapshot.clear();
+  __historyRestoreSuppressedIds.clear();
+  __historyRestoreSuppressedUntil = 0;
+  __sceneHistoryBaselineEpoch = epoch;
+}
+
+async function acquireSceneHistoryBaseline(epoch) {
+  if (!isCurrentSceneEpoch(epoch) || __sceneHistoryBaselineEpoch !== epoch) return;
+  const items = await OBR.scene.items.getItems();
+  if (!isCurrentSceneEpoch(epoch) || __sceneHistoryBaselineEpoch !== epoch) return;
+  replaceSceneHistorySnapshot(items);
+  __sceneHistoryBaselineEpoch = null;
+}
+
+function mountSceneEpochHistoryLifecycle() {
+  if (__sceneEpochUnsubscribe) return;
+  __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch }) => {
+    if (phase === "unload") {
+      resetSceneHistoryRuntime(epoch);
+      return;
+    }
+    void acquireSceneHistoryBaseline(epoch).catch((error) => {
+      console.warn("[history] scene baseline:", error?.message || error);
+    });
+  });
+}
 
 function cloneValue(value) {
   if (value === undefined) return undefined;
@@ -185,8 +235,8 @@ function sceneTokenHistoryChange(previous, next) {
   };
 }
 
-async function appendSceneHistoryChanges(changes) {
-  if (!changes.length) return;
+async function appendSceneHistoryChanges(changes, sceneEpoch = currentSceneEpoch()) {
+  if (!changes.length || !isCurrentSceneEpoch(sceneEpoch)) return;
   const labels = changes.map((change) => change.label);
   const kinds = new Set(changes.map((change) => change.kind));
   const label = labels.length === 1
@@ -201,8 +251,8 @@ async function appendSceneHistoryChanges(changes) {
     changes: changes.map((change) => change.change),
   };
   const task = __historyActionQueue.then(
-    () => appendEntry(entry),
-    () => appendEntry(entry),
+    () => appendEntry(entry, { sceneEpoch }),
+    () => appendEntry(entry, { sceneEpoch }),
   );
   __historyActionQueue = task.catch(() => {});
   await task;
@@ -211,15 +261,20 @@ async function appendSceneHistoryChanges(changes) {
 export async function mountSceneHistoryWatcher() {
   if (__sceneHistoryWatcherMounted) return;
   if (await OBR.player.getRole() !== "GM") return;
-  const initialItems = await OBR.scene.items.getItems();
-  __sceneHistorySnapshot.clear();
-  for (const item of initialItems) {
-    if (item?.id) __sceneHistorySnapshot.set(item.id, cloneValue(item));
-  }
   __sceneHistoryWatcherMounted = true;
+  mountSceneEpochHistoryLifecycle();
+  const initialEpoch = currentSceneEpoch();
+  __sceneHistoryBaselineEpoch = initialEpoch;
 
   subscribeSceneItemChanges(async (event) => {
+    const eventEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!isCurrentSceneEpoch(eventEpoch)) return;
     const currentItems = Array.isArray(event?.allItems) ? event.allItems : [];
+    if (__sceneHistoryBaselineEpoch === eventEpoch) {
+      replaceSceneHistorySnapshot(currentItems);
+      __sceneHistoryBaselineEpoch = null;
+      return;
+    }
     const currentById = new Map(currentItems.filter((item) => item?.id).map((item) => [item.id, item]));
     const pending = [];
 
@@ -236,31 +291,38 @@ export async function mountSceneHistoryWatcher() {
       }
     }
 
-    __sceneHistorySnapshot.clear();
-    for (const item of currentById.values()) __sceneHistorySnapshot.set(item.id, cloneValue(item));
-    if (pending.length) await appendSceneHistoryChanges(pending);
+    replaceSceneHistorySnapshot(currentById.values());
+    if (pending.length) await appendSceneHistoryChanges(pending, eventEpoch);
   }, {
     filter: (event) => event.flags.added || event.flags.removed || event.flags.tracker,
   });
+
+  void acquireSceneHistoryBaseline(initialEpoch).catch((error) => {
+    console.warn("[history] initial scene baseline:", error?.message || error);
+  });
 }
 
-async function appendEntryNow(entry) {
+async function appendEntryNow(entry, sceneEpoch) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const md = await OBR.scene.getMetadata();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const history = normalizeHistory(md?.[HISTORY_KEY]);
   const entries = [...history.entries, entry].slice(-MAX_HISTORY_ENTRIES);
   await OBR.scene.setMetadata({
     ...md,
     [HISTORY_KEY]: { ...history, version: HISTORY_VERSION, entries },
   });
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   try {
-    await recordHistoryInCombatLog(entry);
+    await recordHistoryInCombatLog(entry, { sceneEpoch });
   } catch (err) {
     console.warn("[combat-log] append:", err?.message || err);
   }
+  return true;
 }
 
-function appendEntry(entry) {
-  const write = () => appendEntryNow(entry);
+function appendEntry(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
+  const write = () => appendEntryNow(entry, sceneEpoch);
   __historyWriteQueue = __historyWriteQueue.then(write, write);
   return __historyWriteQueue;
 }
@@ -269,12 +331,16 @@ export async function withItemMetaHistory(options, action) {
   const itemIds = Array.from(new Set((options?.itemIds || []).filter(Boolean)));
   const fields = Array.from(new Set((options?.fields || []).filter(Boolean)));
   const sceneItemIds = Array.from(new Set((options?.sceneItemIds || []).filter(Boolean)));
+  const sceneEpoch = options?.sceneEpoch ?? currentSceneEpoch();
   const captureMetadata = itemIds.length > 0 && fields.length > 0;
   if ((!captureMetadata && !sceneItemIds.length) || typeof action !== "function") {
-    return typeof action === "function" ? action() : undefined;
+    return typeof action === "function" && isCurrentSceneEpoch(sceneEpoch)
+      ? action()
+      : undefined;
   }
 
   const run = async () => {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
     let before = [];
     let sceneBefore = [];
     try {
@@ -284,10 +350,13 @@ export async function withItemMetaHistory(options, action) {
       ]);
     } catch (err) {
       console.warn("[history] capture before:", err?.message || err);
+      if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
       return action();
     }
 
+    if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
     const result = await action();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return result;
     try {
       const [after, sceneAfter] = await Promise.all([
         captureMetadata ? captureItems(itemIds, fields) : [],
@@ -318,7 +387,7 @@ export async function withItemMetaHistory(options, action) {
         });
       }
 
-      if (changes.length) {
+      if (changes.length && isCurrentSceneEpoch(sceneEpoch)) {
         const entry = {
           id: createEntryId(),
           version: HISTORY_VERSION,
@@ -327,7 +396,7 @@ export async function withItemMetaHistory(options, action) {
           label: String(options?.label || "Modifica"),
           changes,
         };
-        await appendEntry(entry);
+        await appendEntry(entry, { sceneEpoch });
         if (typeof options?.onRecorded === "function") {
           try { options.onRecorded(entry); }
           catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
@@ -401,8 +470,13 @@ async function measuredMovementCells(move, dpi) {
   return measured.reduce((total, cells) => total + Math.max(0, Number(cells) || 0), 0);
 }
 
-async function flushPendingMovements() {
+async function flushPendingMovements(sceneEpoch = __movementFlushEpoch ?? currentSceneEpoch()) {
   __movementFlushTimer = null;
+  __movementFlushEpoch = null;
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    __pendingMovements.clear();
+    return;
+  }
   const pending = Array.from(__pendingMovements.values());
   __pendingMovements.clear();
   if (!pending.length) return;
@@ -412,6 +486,7 @@ async function flushPendingMovements() {
     const gridDpi = await OBR.scene.grid.getDpi();
     dpi = Math.max(1, Number(gridDpi) || 1);
   } catch {}
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
 
   const changes = [];
   for (const move of pending) {
@@ -419,6 +494,7 @@ async function flushPendingMovements() {
     if (!hasSegments && samePosition(move.beforePosition, move.afterPosition)) continue;
 
     const cells = await measuredMovementCells(move, dpi);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
     if (cells < 0.01) continue;
 
     changes.push({
@@ -444,13 +520,14 @@ async function flushPendingMovements() {
       ? `Movimento: ${changes[0].name}`
       : `Movimento: ${changes.length} token`,
     changes,
-  });
+  }, { sceneEpoch });
 }
 
-function scheduleMovementFlush() {
+function scheduleMovementFlush(sceneEpoch = currentSceneEpoch()) {
   if (__movementFlushTimer) clearTimeout(__movementFlushTimer);
+  __movementFlushEpoch = sceneEpoch;
   __movementFlushTimer = setTimeout(() => {
-    void flushPendingMovements().catch((err) => {
+    void flushPendingMovements(sceneEpoch).catch((err) => {
       console.warn("[history] movement record:", err?.message || err);
     });
   }, MOVEMENT_SETTLE_MS);
@@ -462,6 +539,7 @@ export async function mountMovementHistoryWatcher() {
   __movementWatcherMounted = true;
 
   await mountSceneHistoryWatcher();
+  mountSceneEpochHistoryLifecycle();
 
   OBR.broadcast.onMessage(HISTORY_CONTROL_CHANNEL, (event) => {
     const data = event?.data;
@@ -480,18 +558,24 @@ export async function mountMovementHistoryWatcher() {
     }
   });
 
+  const initialEpoch = currentSceneEpoch();
   const initial = await OBR.scene.items.getItems((item) =>
     !!item.metadata?.[META_KEY] && !!itemPosition(item)
   );
-  for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
+  if (isCurrentSceneEpoch(initialEpoch)) {
+    for (const item of initial) __movementPositions.set(item.id, itemPosition(item));
+  }
 
-  subscribeSceneItemChanges(async ({ items: changes }) => {
+  subscribeSceneItemChanges(async ({ items: changes, sceneEpoch }) => {
+    const eventEpoch = sceneEpoch ?? currentSceneEpoch();
+    if (!isCurrentSceneEpoch(eventEpoch)) return;
     const now = Date.now();
     let movementChanged = false;
     let nativeUndoAvailable = false;
     try {
       nativeUndoAvailable = await OBR.scene.history.canRedo();
     } catch {}
+    if (!isCurrentSceneEpoch(eventEpoch)) return;
     const nativeUndoCorrections = [];
 
     for (const item of changes) {
@@ -567,7 +651,7 @@ export async function mountMovementHistoryWatcher() {
       movementChanged = true;
     }
 
-    if (movementChanged) scheduleMovementFlush();
+    if (movementChanged) scheduleMovementFlush(eventEpoch);
     if (nativeUndoCorrections.length) {
       let dpi = 1;
       try {
@@ -579,7 +663,8 @@ export async function mountMovementHistoryWatcher() {
         if (cells >= 0.01) corrections.push({ ...correction, cells });
       }
       try {
-        await recordNativeMovementUndo(corrections);
+        if (!isCurrentSceneEpoch(eventEpoch)) return;
+        await recordNativeMovementUndo(corrections, { sceneEpoch: eventEpoch });
       } catch (err) {
         console.warn("[combat-log] native movement undo:", err?.message || err);
       }
@@ -587,10 +672,11 @@ export async function mountMovementHistoryWatcher() {
   }, { immediate: true, filter: (event) => event.flags.movement });
 }
 
-async function restoreEntry(entry) {
+async function restoreEntry(entry, sceneEpoch) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const changes = Array.isArray(entry?.changes) ? entry.changes : [];
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
-  if (!ids.length) return;
+  if (!ids.length) return true;
 
   const sceneDeleteIds = [];
   const sceneAdditions = [];
@@ -602,6 +688,7 @@ async function restoreEntry(entry) {
     const beforeScene = change.sceneBefore;
     const afterScene = change.sceneAfter;
     const existing = await OBR.scene.items.getItems([change.id]);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     if (beforeScene === null && afterScene) {
       if (existing.length) sceneDeleteIds.push(change.id);
       continue;
@@ -610,13 +697,21 @@ async function restoreEntry(entry) {
       sceneAdditions.push(cloneValue(beforeScene));
     }
   }
-  if (sceneDeleteIds.length) await OBR.scene.items.deleteItems(sceneDeleteIds);
+  if (sceneDeleteIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+    await OBR.scene.items.deleteItems(sceneDeleteIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  }
 
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const existing = await OBR.scene.items.getItems(ids);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const existingIds = existing.map((item) => item.id);
   if (existingIds.length) {
     const byId = new Map(changes.map((change) => [change.id, change]));
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     await OBR.scene.items.updateItems(existingIds, (drafts) => {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
       for (const item of drafts) {
         const change = byId.get(item.id);
         if (!change) continue;
@@ -639,14 +734,21 @@ async function restoreEntry(entry) {
         }
       }
     });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   }
-  if (sceneAdditions.length) await OBR.scene.items.addItems(sceneAdditions);
+  if (sceneAdditions.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+    await OBR.scene.items.addItems(sceneAdditions);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  }
+  return true;
 }
 
-async function syncRestoredEntry(entry) {
+async function syncRestoredEntry(entry, sceneEpoch) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const changes = Array.isArray(entry?.changes) ? entry.changes : [];
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
-  if (!ids.length) return;
+  if (!ids.length) return true;
 
   const restoredHP = changes.some((change) =>
     Object.prototype.hasOwnProperty.call(change?.before || {}, "hp") ||
@@ -666,21 +768,30 @@ async function syncRestoredEntry(entry) {
         import("./hpbar-items.js"),
         import("./hpMemory.js"),
       ]);
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       for (const item of items) {
+        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
         const meta = item.metadata?.[META_KEY] || {};
         const hasHP =
           Object.prototype.hasOwnProperty.call(meta, "hp") ||
           Object.prototype.hasOwnProperty.call(meta, "hpMax");
         if (!hasHP) {
+          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
           await bars.removeHPWidgetsNow(item.id);
-          await memory.removeHPFromMemoryByItemId(item.id);
+          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+          await memory.removeHPFromMemoryByItemId(item.id, { sceneEpoch });
+          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
           continue;
         }
         const hp = Math.floor(Number(meta.hp) || 0);
         const hpMax = Math.floor(Number(meta.hpMax) || 0);
+        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
         bars.syncHPBarNow(item.id, hp, hpMax);
+        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
         await bars.syncHPTextNow(item.id, hp, hpMax);
-        await memory.saveHPToMemoryByItemId(item.id, hp, hpMax);
+        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+        await memory.saveHPToMemoryByItemId(item.id, hp, hpMax, { sceneEpoch });
+        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       }
     } catch (err) {
       console.warn("[history] HP sync after undo:", err?.message || err);
@@ -689,8 +800,11 @@ async function syncRestoredEntry(entry) {
 
   if (restoredConditions) {
     try {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       const { refreshConditionLabels } = await import("./conditions.js");
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       await refreshConditionLabels(ids);
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     } catch (err) {
       console.warn("[history] condition sync after undo:", err?.message || err);
     }
@@ -698,20 +812,27 @@ async function syncRestoredEntry(entry) {
 
   if (restoredInitiativeCards) {
     try {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       const { syncInitiativeCardRegistryFromItems } = await import("./initiativeCards.js");
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
       await syncInitiativeCardRegistryFromItems(ids);
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     } catch (err) {
       console.warn("[history] initiative card sync after undo:", err?.message || err);
     }
   }
+  return isCurrentSceneEpoch(sceneEpoch);
 }
 
-async function undoHistoryThroughNow(entryId) {
+async function undoHistoryThroughNow(entryId, sceneEpoch) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   if (await OBR.player.getRole() !== "GM") {
     throw new Error("Solo il GM puo usare Undo.");
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
 
   const md = await OBR.scene.getMetadata();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const history = normalizeHistory(md?.[HISTORY_KEY]);
   if (!history.entries.length) return [];
 
@@ -733,39 +854,59 @@ async function undoHistoryThroughNow(entryId) {
   }
   const movementIds = Object.keys(movementPositions);
   if (movementIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
     await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
       type: "suppress-movement",
       ids: movementIds,
       positions: movementPositions,
       until: Date.now() + 2000,
     }, { destination: "LOCAL" });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   }
 
   const restoredIds = undoOrder.flatMap((entry) =>
     (entry?.changes || []).map((change) => change?.id).filter(Boolean)
   );
   const sceneHistorySuppressedUntil = Date.now() + SCENE_HISTORY_SUPPRESS_MS;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   markHistoryRestoreSuppressed(restoredIds, sceneHistorySuppressedUntil);
   if (restoredIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
     await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
       type: "suppress-scene-history",
       ids: restoredIds,
       until: sceneHistorySuppressedUntil,
     }, { destination: "LOCAL" });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   }
-  for (const entry of undoOrder) await restoreEntry(entry);
-  for (const entry of undoOrder) await syncRestoredEntry(entry);
+  const restored = await runSceneEpochSteps({
+    sceneEpoch,
+    isCurrent: isCurrentSceneEpoch,
+    steps: undoOrder.map((entry) => (epoch) => restoreEntry(entry, epoch)),
+  });
+  if (!restored) return [];
+  const synchronized = await runSceneEpochSteps({
+    sceneEpoch,
+    isCurrent: isCurrentSceneEpoch,
+    steps: undoOrder.map((entry) => (epoch) => syncRestoredEntry(entry, epoch)),
+  });
+  if (!synchronized) return [];
 
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const latestMd = await OBR.scene.getMetadata();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const latest = normalizeHistory(latestMd?.[HISTORY_KEY]);
   const selectedIds = new Set(selected.map((entry) => entry.id));
   const entries = latest.entries.filter((candidate) => !selectedIds.has(candidate?.id));
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   await OBR.scene.setMetadata({
     ...latestMd,
     [HISTORY_KEY]: { ...latest, version: HISTORY_VERSION, entries },
   });
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   try {
-    await recordCombatUndo(undoOrder);
+    await recordCombatUndo(undoOrder, { sceneEpoch });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   } catch (err) {
     console.warn("[combat-log] undo event:", err?.message || err);
   }
@@ -774,12 +915,14 @@ async function undoHistoryThroughNow(entryId) {
 }
 
 export async function undoHistoryThrough(entryId) {
+  const sceneEpoch = currentSceneEpoch();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   // Anche Undo deve attendere un'eventuale operazione metadata in corso:
   // altrimenti il suo ripristino può essere seguito dallo snapshot finale
   // dell'azione e sembrare inefficace fino a un secondo tentativo.
   const task = __historyActionQueue.then(
-    () => undoHistoryThroughNow(entryId),
-    () => undoHistoryThroughNow(entryId),
+    () => undoHistoryThroughNow(entryId, sceneEpoch),
+    () => undoHistoryThroughNow(entryId, sceneEpoch),
   );
   __historyActionQueue = task.catch(() => {});
   return task;

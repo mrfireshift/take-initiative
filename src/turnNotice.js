@@ -40,3 +40,7 @@ export function buildTurnNoticePayload(state, entriesById) {
     turnKey: `${round}:${current}:${currentId}`,
   };
 }
+
+export function isTurnNoticeForScene(payload, sceneEpoch, sceneReady = true) {
+  return sceneReady === true && Number(payload?.sceneEpoch) === Number(sceneEpoch);
+}

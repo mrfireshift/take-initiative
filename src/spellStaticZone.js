@@ -25,6 +25,7 @@ import {
   planStaticSpellZoneReminder,
 } from "./spellStaticZoneReminderCore.js";
 import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
+import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCore.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 1000;
@@ -394,18 +395,21 @@ export async function setStaticSpellZoneRuleChoice(
   return true;
 }
 
-export async function commitWithStaticSpellZoneRemoval(zoneItems = [], action) {
-  if (typeof action !== "function") throw new TypeError("static-zone-action-required");
+export async function commitWithStaticSpellZoneRemoval(
+  zoneItems = [],
+  action,
+  { sceneEpoch = null, isCurrent = null } = {},
+) {
   const snapshots = Array.isArray(zoneItems) ? zoneItems.filter(Boolean) : [];
-  const zoneIds = snapshots.map((item) => item.id).filter(Boolean);
-  if (!zoneIds.length) return action();
-  await OBR.scene.items.deleteItems(zoneIds);
-  try {
-    return await action();
-  } catch (error) {
-    await OBR.scene.items.addItems(snapshots).catch(() => {});
-    throw error;
-  }
+  return runStaticSpellZoneRemovalTransaction({
+    snapshots,
+    action,
+    isCurrent: typeof isCurrent === "function"
+      ? () => isCurrent(sceneEpoch)
+      : null,
+    deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
+    addItems: (items) => OBR.scene.items.addItems(items),
+  });
 }
 
 async function reconcileStaticSpellZones(sceneMetadataOverride = null) {

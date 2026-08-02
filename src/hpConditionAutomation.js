@@ -10,6 +10,7 @@ import {
   resolveZeroHPUnconsciousAction,
   ZERO_HP_UNCONSCIOUS_TYPE,
 } from "./hpConditionRulesCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -17,10 +18,15 @@ export function getZeroHPConditionHistoryIds(itemIds = []) {
   return getConditionAutomationHistoryIds(itemIds);
 }
 
-export async function reconcileZeroHPConditionsForItems(itemIds = []) {
+export async function reconcileZeroHPConditionsForItems(
+  itemIds = [],
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const ids = Array.from(new Set((Array.isArray(itemIds) ? itemIds : []).filter(Boolean)));
   if (!ids.length) return [];
   const items = await OBR.scene.items.getItems(ids);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const addIds = [];
   const removals = [];
 
@@ -55,6 +61,9 @@ export async function reconcileZeroHPConditionsForItems(itemIds = []) {
   if (!operations.length) return [];
 
   const plan = await prepareEffectsMutation(operations);
-  await commitEffectsMutationPlan(plan);
-  return plan.changedIds;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  await commitEffectsMutationPlan(plan, {
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+  });
+  return isCurrentSceneEpoch(sceneEpoch) ? plan.changedIds : [];
 }

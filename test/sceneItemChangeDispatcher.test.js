@@ -219,3 +219,45 @@ test("debounces derived work while immediate subscribers receive every movement"
   assert.equal(batched[0].flags.movement, true);
   assert.deepEqual(batched[0].items[0].position, { x: 140, y: 0 });
 });
+
+test("un cambio scena idrata il baseline senza trasformarlo in aggiunte o rimozioni", async () => {
+  let emit;
+  let pendingTimer = null;
+  let epoch = 4;
+  const dispatcher = createSceneItemChangeDispatcher({
+    initialItems: [token({ id: "scene-a-token" })],
+    getEpoch: () => epoch,
+    subscribeSource(callback) {
+      emit = callback;
+      return () => {};
+    },
+    setTimer(callback) {
+      pendingTimer = callback;
+      return callback;
+    },
+    clearTimer(handle) {
+      if (pendingTimer === handle) pendingTimer = null;
+    },
+  });
+  const events = [];
+  dispatcher.subscribe((event) => events.push(event));
+
+  emit([token({ id: "scene-a-token", position: { x: 70, y: 0 } })]);
+  dispatcher.suspend();
+  epoch = 5;
+  dispatcher.resume([token({ id: "scene-b-token" })]);
+  emit([token({ id: "scene-b-token" })]);
+  await dispatcher.flush();
+
+  assert.equal(events.length, 0);
+
+  emit([token({ id: "scene-b-token", position: { x: 70, y: 0 } })]);
+  await dispatcher.flush();
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].sceneEpoch, 5);
+  assert.equal(events[0].flags.added, false);
+  assert.equal(events[0].flags.removed, false);
+  assert.equal(events[0].flags.movement, true);
+  assert.deepEqual(events[0].items.map((item) => item.id), ["scene-b-token"]);
+});

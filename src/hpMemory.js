@@ -3,17 +3,34 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileZeroHPConditionsForItems } from "./hpConditionAutomation.js";
+import {
+  currentSceneEpoch,
+  isCurrentSceneEpoch,
+  subscribeSceneEpoch,
+} from "./sceneEpoch.js";
+import { createSceneEpochTimer } from "./sceneEpochTimerCore.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
-let __attScanTimer = null;          // debounce per la scansione attitude
-let __hpApplyTimer = null;
-let __hpApplyBusy = false; // evita loop quando noi stessi scriviamo hp
+let __hpApplyBusyEpoch = null;
 let __roomHPWriteQueue = Promise.resolve();
 let __roomHPFallbackWarned = false;
 
 const ROOM_HP_KEY = `${ID}/hpMemory`; // mappa: { "<name>||<portrait>": { hp, hpMax, t } }
 const LOCAL_HP_KEY = `${ID}/hpMemory/local`;
 const META_KEY = `${ID}/meta`;      // stesso namespace usato nel plugin
+
+const __attitudeRescanTimer = createSceneEpochTimer({
+  isCurrent: isCurrentSceneEpoch,
+});
+const __hpAutofillTimer = createSceneEpochTimer({
+  isCurrent: isCurrentSceneEpoch,
+});
+
+subscribeSceneEpoch(({ phase }) => {
+  if (phase !== "unload") return;
+  __attitudeRescanTimer.cancel();
+  __hpAutofillTimer.cancel();
+});
 
 // ——— helper: normalizza il "nome base" rimuovendo tutti i prefissi "(n) "
 function baseName(raw) {
@@ -105,22 +122,31 @@ function writeLocalHPMap(map) {
 }
 
 // ——— lettura/scrittura su Room metadata
-async function readRoomHPMap() {
+async function readRoomHPMap(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return {};
   const md = await OBR.room.getMetadata().catch(() => ({}));
+  if (!isCurrentSceneEpoch(sceneEpoch)) return {};
   return mergeHPMaps(readLocalHPMap(), md?.[ROOM_HP_KEY]);
 }
-async function writeRoomHPMap(updater) {
+async function writeRoomHPMap(updater, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return {};
   const write = async () => {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return {};
     const md = await OBR.room.getMetadata().catch(() => ({}));
+    if (!isCurrentSceneEpoch(sceneEpoch)) return {};
     const prev = mergeHPMaps(readLocalHPMap(), md?.[ROOM_HP_KEY]);
     const next = (typeof updater === "function") ? updater({ ...prev }) : { ...prev, ...(updater || {}) };
     const normalizedNext = normalizeHPMap(next);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return {};
     const localWritten = writeLocalHPMap(normalizedNext);
     try {
       // setMetadata fa già merge con gli altri metadata della Room.
+      if (!isCurrentSceneEpoch(sceneEpoch)) return normalizedNext;
       await OBR.room.setMetadata({ [ROOM_HP_KEY]: normalizedNext });
+      if (!isCurrentSceneEpoch(sceneEpoch)) return normalizedNext;
       __roomHPFallbackWarned = false;
     } catch (error) {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return normalizedNext;
       if (!localWritten) throw error;
       if (!__roomHPFallbackWarned) {
         __roomHPFallbackWarned = true;
@@ -137,7 +163,8 @@ async function writeRoomHPMap(updater) {
   return result;
 }
 
-async function persistRemovedHPItems(items = []) {
+async function persistRemovedHPItems(items = [], sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const snapshots = [];
   for (const item of items) {
     const key = pcKeyFromItem(item);
@@ -157,6 +184,7 @@ async function persistRemovedHPItems(items = []) {
   }
   if (!snapshots.length) return;
 
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   await writeRoomHPMap((map) => {
     const savedAt = Date.now();
     for (const snapshot of snapshots) {
@@ -172,20 +200,21 @@ async function persistRemovedHPItems(items = []) {
       };
     }
     return map;
-  });
+  }, { sceneEpoch });
 }
 
 // Debounce per la scansione delle attitude correnti in scena
-function scheduleAttitudeRescan(delay = 120) {
-  if (__attScanTimer) clearTimeout(__attScanTimer);
-  __attScanTimer = setTimeout(() => {
-    rescanAndPersistAttitudes().catch(() => {});
-  }, delay);
+function scheduleAttitudeRescan(delay = 120, sceneEpoch = currentSceneEpoch()) {
+  __attitudeRescanTimer.schedule(sceneEpoch, delay, (epoch) =>
+    rescanAndPersistAttitudes(epoch).catch(() => {})
+  );
 }
 
 // Legge tutti gli item, prende l'attitude presente e la salva come "ultima" in room
-async function rescanAndPersistAttitudes() {
+async function rescanAndPersistAttitudes(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const items = await OBR.scene.items.getItems();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (!items || !items.length) return;
 
   const updates = new Map(); // key -> {attitude}
@@ -203,6 +232,7 @@ async function rescanAndPersistAttitudes() {
 
   if (updates.size === 0) return;
 
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   await writeRoomHPMap((m) => {
     for (const [key, payload] of updates) {
       const prev = (m[key] && typeof m[key] === "object") ? m[key] : {};
@@ -214,25 +244,31 @@ async function rescanAndPersistAttitudes() {
       };
     }
     return m;
-  });
+  }, { sceneEpoch });
 }
 
 // ——— API: chiamala una volta in onReady (facoltativa ma pulita)
 export async function initHPMemory() {
+  const sceneEpoch = currentSceneEpoch();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   // best-effort: assicura che la struttura esista
-  await writeRoomHPMap(m => m);
+  await writeRoomHPMap(m => m, { sceneEpoch });
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
 
   // Monta una sola volta un watcher che aggiorna SEMPRE l'ultima attitude
   if (!__attSubMounted) {
     __attSubMounted = true;
     try {
       subscribeSceneItemChanges(async (event) => {
+        const eventEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+        if (!isCurrentSceneEpoch(eventEpoch)) return;
         try {
-          await persistRemovedHPItems(event.removedItems);
+          await persistRemovedHPItems(event.removedItems, eventEpoch);
         } catch (err) {
           console.warn("[hpMemory] removed item save failed:", err?.message || err);
         }
-        scheduleAttitudeRescan(120); // debounce breve: 120ms
+        if (!isCurrentSceneEpoch(eventEpoch)) return;
+        scheduleAttitudeRescan(120, eventEpoch); // debounce breve: 120ms
       }, { filter: (event) => event.flags.hpMemory });
     } catch (err) {
       console.warn("[hpMemory] attitude watcher subscribe failed:", err?.message || err);
@@ -240,12 +276,19 @@ export async function initHPMemory() {
   }
 
   // prima scansione all'avvio (copre lo stato attuale)
-  scheduleAttitudeRescan(0);
+  scheduleAttitudeRescan(0, sceneEpoch);
 }
 
 // ——— Salva nella memoria gli HP dell’item se è un PG
-export async function saveHPToMemoryByItemId(itemId, hp, hpMax) {
+export async function saveHPToMemoryByItemId(
+  itemId,
+  hp,
+  hpMax,
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const [item] = await OBR.scene.items.getItems([itemId]);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (!item) return;
   const key = pcKeyFromItem(item);
   if (!key) return; // non è un PG → ignora
@@ -258,12 +301,17 @@ export async function saveHPToMemoryByItemId(itemId, hp, hpMax) {
     const previous = m[key] && typeof m[key] === "object" ? m[key] : {};
     m[key] = { ...previous, hp: nHP, hpMax: nMax, attitude: att, t: Date.now() };
     return m;
-  });
+  }, { sceneEpoch });
 }
 
 // ——— All’avvio della lista: riempi HP mancanti dei PG da memoria (senza toccare i mostri)
-export async function removeHPFromMemoryByItemId(itemId) {
+export async function removeHPFromMemoryByItemId(
+  itemId,
+  { sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const [item] = await OBR.scene.items.getItems([itemId]);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (!item) return;
   const key = pcKeyFromItem(item);
   if (!key) return;
@@ -271,17 +319,20 @@ export async function removeHPFromMemoryByItemId(itemId) {
   await writeRoomHPMap((map) => {
     delete map[key];
     return map;
-  });
+  }, { sceneEpoch });
 }
 
-export async function applyHPMemoryToSceneForMissingHP() {
-  if (__hpApplyBusy) return;
-  __hpApplyBusy = true;
+export async function applyHPMemoryToSceneForMissingHP(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (__hpApplyBusyEpoch === sceneEpoch) return;
+  __hpApplyBusyEpoch = sceneEpoch;
   try {
-    const map = await readRoomHPMap();
+    const map = await readRoomHPMap(sceneEpoch);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
     if (!Object.keys(map).length) return;
 
     const all = await OBR.scene.items.getItems();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
     const targets = [];
 
     for (const it of all) {
@@ -301,7 +352,9 @@ export async function applyHPMemoryToSceneForMissingHP() {
 
     if (!targets.length) return;
 
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
     await OBR.scene.items.updateItems(targets.map(t => t.id), (list) => {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   for (const it of list) {
     const t = targets.find(x => x.id === it.id);
     if (!t) continue;
@@ -328,20 +381,25 @@ export async function applyHPMemoryToSceneForMissingHP() {
     };
   }
 });
-    await reconcileZeroHPConditionsForItems(targets.map((target) => target.id));
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    await reconcileZeroHPConditionsForItems(
+      targets.map((target) => target.id),
+      { sceneEpoch },
+    );
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
 
     try {
       const { syncHPBarNow } = await import("./hpbar-items.js");
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
       for (const t of targets) syncHPBarNow(t.id, t.hp, t.hpMax);
     } catch {}
   } finally {
-    __hpApplyBusy = false;
+    if (__hpApplyBusyEpoch === sceneEpoch) __hpApplyBusyEpoch = null;
   }
 }
 
-export function scheduleHPMemoryAutofill(delay = 150) {
-  if (__hpApplyTimer) clearTimeout(__hpApplyTimer);
-  __hpApplyTimer = setTimeout(() => {
-    applyHPMemoryToSceneForMissingHP().catch(() => {});
-  }, delay);
+export function scheduleHPMemoryAutofill(delay = 150, sceneEpoch = currentSceneEpoch()) {
+  __hpAutofillTimer.schedule(sceneEpoch, delay, (epoch) =>
+    applyHPMemoryToSceneForMissingHP(epoch).catch(() => {})
+  );
 }

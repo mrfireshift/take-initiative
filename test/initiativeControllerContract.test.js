@@ -11,6 +11,7 @@ const classicBuilderSource = readFileSync(
   new URL("../src/initiativeCardClassicBuilder.js", import.meta.url),
   "utf8"
 );
+const historySource = readFileSync(new URL("../src/history.js", import.meta.url), "utf8");
 
 function sourceSectionIn(sourceText, startMarker, endMarker) {
   const start = sourceText.indexOf(startMarker);
@@ -46,6 +47,49 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
   ]);
 });
 
+test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", () => {
+  const lifecycle = sourceSection(
+    "function __mountSceneEpochLifecycle() {",
+    "// Scansione e deduplicazione una tantum all'avvio."
+  );
+  assert.match(lifecycle, /OBR\.scene\.onReadyChange\(\(ready\) =>/);
+  assert.match(lifecycle, /invalidateSceneEpoch\("scene-unload"\)/);
+  assert.match(lifecycle, /markSceneEpochReady\("scene-ready"\)/);
+
+  const metadata = sourceSection(
+    "async function __processInitiativeMetadata(",
+    "OBR.scene.onMetadataChange((meta) => {"
+  );
+  const baseline = metadata.indexOf("if (__sceneBaselineEpoch !== sceneEpoch)");
+  const firstRoundTick = metadata.indexOf('type: "effects:tick-round"');
+  assert.ok(baseline >= 0, "manca il gate baseline del metadata");
+  assert.ok(firstRoundTick > baseline, "il baseline deve precedere ogni tick di round");
+  assert.match(
+    metadata.slice(baseline, firstRoundTick),
+    /await __adoptInitiativeSceneBaseline\([\s\S]*?return;/,
+  );
+});
+
+test("il cambio scena scarta il render tardivo e usa il primo snapshot history come baseline", () => {
+  const render = sourceSection(
+    "async function renderAll(reason = \"unspecified\") {",
+    "OBR.onReady(async () => {"
+  );
+  const renderRead = render.indexOf("const stateRaw = await getSceneState();");
+  const staleRenderGuard = render.indexOf('"render-read-state"');
+  const renderCommit = render.indexOf("renderTrack(ordered, stateClean");
+  assert.ok(renderRead >= 0 && staleRenderGuard > renderRead);
+  assert.ok(renderCommit > staleRenderGuard);
+
+  const watcherStart = historySource.indexOf("export async function mountSceneHistoryWatcher()");
+  const watcherEnd = historySource.indexOf("async function appendEntryNow", watcherStart);
+  const watcher = historySource.slice(watcherStart, watcherEnd);
+  const baseline = watcher.indexOf("if (__sceneHistoryBaselineEpoch === eventEpoch)");
+  const diff = watcher.indexOf("sceneTokenHistoryChange");
+  const append = watcher.indexOf("appendSceneHistoryChanges(pending, eventEpoch)");
+  assert.ok(baseline >= 0 && diff > baseline && append > baseline);
+});
+
 test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {
   const section = sourceSection(
     "const run = async () => {\n            const mutationPlan",
@@ -56,7 +100,58 @@ test("la scadenza naturale degli incantesimi elimina atomicamente le zone conclu
     "staticSpellZoneItemsEndedByPlan(",
     "await getStaticSpellZoneItems()",
     "commitWithStaticSpellZoneRemoval(",
-    "() => commitEffectsMutationPlan(mutationPlan)",
+    "const changedIds = await commitEffectsMutationPlan(mutationPlan, {",
+    "isCurrent: (epoch) => __isCurrentSceneOperation(",
+  ]);
+});
+
+test("la riconciliazione reale propaga lo scene epoch a GC e backfill", () => {
+  const section = sourceSection(
+    "async function reconcileStateWithItems(",
+    "// --- DnD helper:"
+  );
+  assert.match(section, /async function reconcileStateWithItems\(sceneEpoch = currentSceneEpoch\(\)\)/);
+  assertOrdered(section, [
+    "runSceneEpochSteps({",
+    "(epoch) => __gcSeededGroups(epoch)",
+    "(epoch) => __backfillInitiativeForSeededGroups(epoch)",
+  ]);
+});
+
+test("Undo cattura l'epoch prima della coda e lo propaga a restore e sync", () => {
+  const section = sourceSectionIn(
+    historySource,
+    "async function undoHistoryThroughNow(",
+    "export async function undoLastHistoryEntry()"
+  );
+  assertOrdered(section, [
+    "async function undoHistoryThroughNow(entryId, sceneEpoch)",
+    "restoreEntry(entry, epoch)",
+    "syncRestoredEntry(entry, epoch)",
+    "recordCombatUndo(undoOrder, { sceneEpoch })",
+    "const sceneEpoch = currentSceneEpoch();",
+    "() => undoHistoryThroughNow(entryId, sceneEpoch)",
+  ]);
+});
+
+test("il turn notice porta lo scene epoch e viene cancellato all'unload", () => {
+  const sender = sourceSection(
+    "async function broadcastTurnNotice(",
+    "async function showConcentrationDamageWarning("
+  );
+  assert.match(sender, /sceneEpoch,/);
+  assert.match(sender, /__isCurrentSceneOperation\(sceneEpoch, "turn-notice"\)/);
+  assert.match(turnNoticeSource, /isTurnNoticeForScene\(event\.data, noticeSceneEpoch, noticeSceneReady\)/);
+  const lifecycle = sourceSectionIn(
+    turnNoticeSource,
+    "unsubscribeZoneSceneReady = OBR.scene.onReadyChange((ready) => {",
+    "unsubscribeZoneBroadcast = OBR.broadcast.onMessage("
+  );
+  assertOrdered(lifecycle, [
+    "noticeSceneEpoch += 1;",
+    "noticeSceneReady = false;",
+    "clearTurnNotice();",
+    "noticeSceneReady = true;",
   ]);
 });
 
@@ -89,10 +184,7 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
   assert.match(turnNoticeSource, /mergeSaveReminderNoticeBatch/);
   assert.match(turnNoticeSource, /SAVE_REMINDER_AGGREGATION_MS/);
   assert.match(turnNoticeSource, /function queueSaveReminderNotices/);
-  assert.ok(
-    turnNoticeSource.indexOf("clearZoneNotice();")
-      < turnNoticeSource.indexOf("window.clearTimeout(hideTimer);"),
-  );
+  assert.match(turnNoticeSource, /function clearTurnNotice\(\)/);
   assert.doesNotMatch(turnNoticeSource, /Apri Effetti ad Area per risolvere/);
   assert.doesNotMatch(turnNoticeSource, /zone-target-badge/);
 });
@@ -112,7 +204,7 @@ test("HP immediati e rendering incrementale restano separati dal fallback global
   assertOrdered(trackerSection, [
     "const renderPlan = planIncrementalTrackerItemRender(event);",
     "__renderIncrementalTrackerItems(event, renderPlan, \"items\")",
-    "await reconcileStateWithItems();",
+    "await reconcileStateWithItems(sceneEpoch);",
     "await enforceUniqueNamePrefixes();",
     "await renderAll(",
   ]);
@@ -168,7 +260,7 @@ test("il renderer classico delega la costruzione completa al builder estratto", 
   );
   const render = sourceSection(
     "function renderTrack(entries, state, opts = {}) {",
-    "async function ensureState() {"
+    "async function ensureState("
   );
 
   assert.match(adapter, /return buildClassicTrackerCard\(entry,\s*\{/);
