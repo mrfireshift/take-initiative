@@ -1222,17 +1222,25 @@
         "pagina": 28,
         "pagina_pdf": 29
       },
-      "automation_level": "tracciamento",
+      "automation_level": "riferimento",
       "activation": {
-        "primary": "innesco",
+        "primary": "passiva",
         "alternatives": [],
-        "optional": true
+        "trigger": "prova_caratteristica_persuasione_o_inganno",
+        "timing": "prima_esito",
+        "optional": false
       },
-      "triggers_detected": [],
+      "triggers_detected": [
+        "prova_persuasione",
+        "prova_inganno"
+      ],
       "targets": {
-        "type": "non_specificato",
+        "type": "se_stesso",
         "range_meters_detected": [],
-        "requirements": [],
+        "requirements": [
+          "persuasione",
+          "inganno"
+        ],
         "excluded_types": []
       },
       "duration": {
@@ -1244,11 +1252,9 @@
       "effect_tags": [],
       "runtime_requirements": [],
       "completeness": {
-        "status": "parziale",
-        "review_required": true,
-        "missing_for_execution": [
-          "effetti_strutturati"
-        ]
+        "status": "curata",
+        "review_required": false,
+        "missing_for_execution": []
       }
     },
     {
@@ -1267,20 +1273,27 @@
       "activation": {
         "primary": "azione_bonus",
         "alternatives": [],
+        "timing": "nel_proprio_turno",
         "optional": true
       },
       "triggers_detected": [],
       "targets": {
-        "type": "non_specificato",
+        "type": "creatura",
         "range_meters_detected": [
           18.0
         ],
-        "requirements": [],
+        "requirements": [
+          "visibile_al_bardo"
+        ],
         "excluded_types": []
       },
+      "manual_choice_required": true,
       "duration": {
         "type": "testuale_o_non_specificata",
-        "end_conditions": []
+        "end_conditions": [
+          "prossimo_tiro_salvezza",
+          "inizio_prossimo_turno_bardo"
+        ]
       },
       "resource_costs": [
         {
@@ -1316,17 +1329,25 @@
         "pagina": 28,
         "pagina_pdf": 29
       },
-      "automation_level": "tracciamento",
+      "automation_level": "riferimento",
       "activation": {
         "primary": "innesco",
         "alternatives": [],
+        "trigger": "uso_ispirazione_bardica_fallito",
+        "timing": "dopo_esito",
         "optional": true
       },
-      "triggers_detected": [],
+      "triggers_detected": [
+        "prova_caratteristica",
+        "tiro_per_colpire",
+        "tiro_salvezza"
+      ],
       "targets": {
-        "type": "non_specificato",
+        "type": "se_stesso",
         "range_meters_detected": [],
-        "requirements": [],
+        "requirements": [
+          "fallimento_dopo_uso_ispirazione_bardica"
+        ],
         "excluded_types": []
       },
       "duration": {
@@ -1341,11 +1362,9 @@
       ],
       "runtime_requirements": [],
       "completeness": {
-        "status": "parziale",
-        "review_required": true,
-        "missing_for_execution": [
-          "effetti_strutturati"
-        ]
+        "status": "curata",
+        "review_required": false,
+        "missing_for_execution": []
       }
     },
     {
@@ -1368,15 +1387,21 @@
       },
       "triggers_detected": [],
       "targets": {
-        "type": "non_specificato",
+        "type": "creature_multiple",
         "range_meters_detected": [
           18.0
         ],
-        "requirements": [],
+        "requirements": [
+          "visibile_al_bardo",
+          "max(1, modificatore_carisma)"
+        ],
         "excluded_types": []
       },
+      "manual_choice_required": true,
       "duration": {
-        "type": "testuale_o_non_specificata",
+        "type": "fixed",
+        "value": 1,
+        "unit": "ora",
         "end_conditions": []
       },
       "resource_costs": [
@@ -1391,11 +1416,9 @@
       ],
       "runtime_requirements": [],
       "completeness": {
-        "status": "parziale",
-        "review_required": true,
-        "missing_for_execution": [
-          "effetti_strutturati"
-        ]
+        "status": "curata",
+        "review_required": false,
+        "missing_for_execution": []
       }
     },
     {
@@ -1416,19 +1439,32 @@
         "alternatives": [
           "innesco"
         ],
+        "trigger": "uso_ispirazione_bardica_con_successo",
+        "timing": "dopo_esito",
         "optional": true
       },
-      "triggers_detected": [],
+      "triggers_detected": [
+        "prova_caratteristica",
+        "tiro_per_colpire",
+        "tiro_salvezza"
+      ],
       "targets": {
-        "type": "non_specificato",
+        "type": "creatura_diversa_da_se",
         "range_meters_detected": [
           18.0
         ],
-        "requirements": [],
+        "requirements": [
+          "visibile_al_bardo",
+          "puo_sentire_il_bardo",
+          "successo_con_ispirazione_bardica"
+        ],
         "excluded_types": []
       },
+      "manual_choice_required": true,
       "duration": {
-        "type": "testuale_o_non_specificata",
+        "type": "fixed",
+        "value": 10,
+        "unit": "minuti",
         "end_conditions": []
       },
       "resource_costs": [
@@ -1437,18 +1473,31 @@
           "amount": 1
         }
       ],
-      "effects": [],
+      "effects": [
+        {
+          "type": "grant_consumable_die",
+          "die_from": {
+            "class_id": "bardo",
+            "progression_field": "dado_ispirazione_bardica"
+          },
+          "uses": 1,
+          "applies_to": [
+            "prova_caratteristica",
+            "tiro_per_colpire",
+            "tiro_salvezza"
+          ],
+          "decision_timing": "dopo_d20_prima_esito_DM"
+        }
+      ],
       "effect_tags": [
         "tiro_salvezza",
         "tiro_per_colpire"
       ],
       "runtime_requirements": [],
       "completeness": {
-        "status": "parziale",
-        "review_required": true,
-        "missing_for_execution": [
-          "effetti_strutturati"
-        ]
+        "status": "curata",
+        "review_required": false,
+        "missing_for_execution": []
       }
     },
     {

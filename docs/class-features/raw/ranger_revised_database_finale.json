@@ -1,0 +1,1284 @@
+{
+  "meta": {
+    "titolo": "Database supplementare - Ranger (Revised) e conclavi",
+    "lingua": "it-IT",
+    "sistema": "D&D 5e 2014 - Unearthed Arcana",
+    "versione_schema": "1.1.0",
+    "versione": "1.0.0",
+    "data_generazione": "2026-08-02",
+    "fonte_primaria": "UA_RevisedRanger.pdf",
+    "intervallo_pagine_pdf": {
+      "inizio": 1,
+      "fine": 8
+    },
+    "base_classi_esterna": "phb2014_classi_database_finale.json",
+    "traduzione": "editoriale non ufficiale, allineata per quanto possibile alla terminologia italiana del Manuale del Giocatore 2014",
+    "note": "Catalogo additivo che introduce una classe distinta con id ranger-revised. Non modifica né sovrascrive il ranger PHB. Include i tre conclavi descritti nel documento UA, le opzioni del Cacciatore e la progressione completa della classe.",
+    "stato": "finale_validato_da_fonte_playtest",
+    "natura_fonte": "materiale di playtest Unearthed Arcana, non una regola definitiva pubblicata in un manuale ufficiale"
+  },
+  "conteggi": {
+    "classi": 1,
+    "sottoclassi": 3,
+    "privilegi": 30,
+    "opzioni": 15,
+    "record_progressione_classi": 20
+  },
+  "classi": [
+    {
+      "id": "ranger-revised",
+      "nome": "Ranger (Revised)",
+      "nome_originale": "Ranger, Revised",
+      "tipo": "classe_variante_playtest",
+      "classe_base_correlata": "ranger",
+      "dado_vita": "d10",
+      "punti_ferita": {
+        "primo_livello": "10 + modificatore di Costituzione",
+        "livelli_successivi": "1d10 (o 6) + modificatore di Costituzione per ogni livello dopo il 1°"
+      },
+      "competenze": {
+        "armature": [
+          "armature leggere",
+          "armature medie",
+          "scudi"
+        ],
+        "armi": [
+          "armi semplici",
+          "armi da guerra"
+        ],
+        "strumenti": []
+      },
+      "tiri_salvezza": [
+        "Forza",
+        "Destrezza"
+      ],
+      "abilita_scelte": {
+        "numero": 3,
+        "da": [
+          "Addestrare Animali",
+          "Atletica",
+          "Furtività",
+          "Indagare",
+          "Intuizione",
+          "Natura",
+          "Percezione",
+          "Sopravvivenza"
+        ]
+      },
+      "equipaggiamento_iniziale": [
+        {
+          "scelta": [
+            "corazza a scaglie",
+            "armatura di cuoio"
+          ]
+        },
+        {
+          "scelta": [
+            "due spade corte",
+            "due armi semplici da mischia"
+          ]
+        },
+        {
+          "scelta": [
+            "dotazione da avventuriero",
+            "dotazione da esploratore"
+          ]
+        },
+        {
+          "fisso": "arco lungo e faretra con 20 frecce"
+        }
+      ],
+      "pagina_inizio": 2,
+      "pagina_fine": 8,
+      "livello_sottoclasse": 3,
+      "livelli_privilegi_sottoclasse": [
+        3,
+        5,
+        7,
+        11,
+        15
+      ],
+      "privilegi_per_livello": {
+        "1": [
+          "ranger-revised-nemico-prescelto",
+          "ranger-revised-esploratore-nato"
+        ],
+        "2": [
+          "ranger-revised-stile-di-combattimento",
+          "ranger-revised-incantesimi"
+        ],
+        "3": [
+          "ranger-revised-consapevolezza-primordiale",
+          "ranger-revised-conclave-ranger"
+        ],
+        "4": [
+          "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+        ],
+        "6": [
+          "ranger-revised-nemico-prescelto-migliorato"
+        ],
+        "8": [
+          "ranger-revised-aumento-dei-punteggi-di-caratteristica",
+          "ranger-revised-passo-veloce"
+        ],
+        "10": [
+          "ranger-revised-nascondersi-in-piena-vista"
+        ],
+        "12": [
+          "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+        ],
+        "14": [
+          "ranger-revised-svanire"
+        ],
+        "16": [
+          "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+        ],
+        "18": [
+          "ranger-revised-sensi-ferini"
+        ],
+        "19": [
+          "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+        ],
+        "20": [
+          "ranger-revised-sterminatore-di-nemici"
+        ]
+      },
+      "sottoclassi": [
+        "ranger-revised-conclave-della-bestia",
+        "ranger-revised-conclave-del-cacciatore",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita"
+      ],
+      "progressione_livelli": [
+        {
+          "livello": 1,
+          "bonus_competenza": 2,
+          "privilegi": [
+            "ranger-revised-nemico-prescelto",
+            "ranger-revised-esploratore-nato"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 0,
+          "slot_incantesimo": {}
+        },
+        {
+          "livello": 2,
+          "bonus_competenza": 2,
+          "privilegi": [
+            "ranger-revised-stile-di-combattimento",
+            "ranger-revised-incantesimi"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 2,
+          "slot_incantesimo": {
+            "1": 2
+          }
+        },
+        {
+          "livello": 3,
+          "bonus_competenza": 2,
+          "privilegi": [
+            "ranger-revised-consapevolezza-primordiale",
+            "ranger-revised-conclave-ranger"
+          ],
+          "privilegio_sottoclasse": true,
+          "incantesimi_conosciuti": 3,
+          "slot_incantesimo": {
+            "1": 3
+          }
+        },
+        {
+          "livello": 4,
+          "bonus_competenza": 2,
+          "privilegi": [
+            "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 3,
+          "slot_incantesimo": {
+            "1": 3
+          }
+        },
+        {
+          "livello": 5,
+          "bonus_competenza": 3,
+          "privilegi": [],
+          "privilegio_sottoclasse": true,
+          "incantesimi_conosciuti": 4,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 2
+          }
+        },
+        {
+          "livello": 6,
+          "bonus_competenza": 3,
+          "privilegi": [
+            "ranger-revised-nemico-prescelto-migliorato"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 4,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 2
+          }
+        },
+        {
+          "livello": 7,
+          "bonus_competenza": 3,
+          "privilegi": [],
+          "privilegio_sottoclasse": true,
+          "incantesimi_conosciuti": 5,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3
+          }
+        },
+        {
+          "livello": 8,
+          "bonus_competenza": 3,
+          "privilegi": [
+            "ranger-revised-aumento-dei-punteggi-di-caratteristica",
+            "ranger-revised-passo-veloce"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 5,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3
+          }
+        },
+        {
+          "livello": 9,
+          "bonus_competenza": 4,
+          "privilegi": [],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 6,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 2
+          }
+        },
+        {
+          "livello": 10,
+          "bonus_competenza": 4,
+          "privilegi": [
+            "ranger-revised-nascondersi-in-piena-vista"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 6,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 2
+          }
+        },
+        {
+          "livello": 11,
+          "bonus_competenza": 4,
+          "privilegi": [],
+          "privilegio_sottoclasse": true,
+          "incantesimi_conosciuti": 7,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3
+          }
+        },
+        {
+          "livello": 12,
+          "bonus_competenza": 4,
+          "privilegi": [
+            "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 7,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3
+          }
+        },
+        {
+          "livello": 13,
+          "bonus_competenza": 5,
+          "privilegi": [],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 8,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 1
+          }
+        },
+        {
+          "livello": 14,
+          "bonus_competenza": 5,
+          "privilegi": [
+            "ranger-revised-svanire"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 8,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 1
+          }
+        },
+        {
+          "livello": 15,
+          "bonus_competenza": 5,
+          "privilegi": [],
+          "privilegio_sottoclasse": true,
+          "incantesimi_conosciuti": 9,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 2
+          }
+        },
+        {
+          "livello": 16,
+          "bonus_competenza": 5,
+          "privilegi": [
+            "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 9,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 2
+          }
+        },
+        {
+          "livello": 17,
+          "bonus_competenza": 6,
+          "privilegi": [],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 10,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 3,
+            "5": 1
+          }
+        },
+        {
+          "livello": 18,
+          "bonus_competenza": 6,
+          "privilegi": [
+            "ranger-revised-sensi-ferini"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 10,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 3,
+            "5": 1
+          }
+        },
+        {
+          "livello": 19,
+          "bonus_competenza": 6,
+          "privilegi": [
+            "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 11,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 3,
+            "5": 2
+          }
+        },
+        {
+          "livello": 20,
+          "bonus_competenza": 6,
+          "privilegi": [
+            "ranger-revised-sterminatore-di-nemici"
+          ],
+          "privilegio_sottoclasse": false,
+          "incantesimi_conosciuti": 11,
+          "slot_incantesimo": {
+            "1": 4,
+            "2": 3,
+            "3": 3,
+            "4": 3,
+            "5": 2
+          }
+        }
+      ],
+      "descrizione": "Versione playtest del ranger pubblicata in Unearthed Arcana nel 2016. Mantiene la progressione magica del ranger del Player's Handbook, ma sostituisce numerosi privilegi di classe e assegna i privilegi offensivi del 5° livello al conclave scelto.",
+      "compatibilita": {
+        "coesistenza_con_ranger_phb": true,
+        "sostituisce_automaticamente_ranger_phb": false,
+        "sottoclassi_predefinite": [
+          "ranger-revised-conclave-della-bestia",
+          "ranger-revised-conclave-del-cacciatore",
+          "ranger-revised-conclave-del-cacciatore-delle-profondita"
+        ],
+        "altre_sottoclassi_ranger": "non collegate automaticamente: richiedono una decisione esplicita del DM e un adattamento dei privilegi al 5° livello"
+      }
+    }
+  ],
+  "sottoclassi": [
+    {
+      "id": "ranger-revised-conclave-della-bestia",
+      "nome": "Conclave della Bestia",
+      "nome_originale": "Beast Conclave",
+      "classe_id": "ranger-revised",
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "privilegi": [
+        "ranger-revised-conclave-della-bestia-compagno-animale",
+        "ranger-revised-conclave-della-bestia-legame-del-compagno",
+        "ranger-revised-conclave-della-bestia-attacco-coordinato",
+        "ranger-revised-conclave-della-bestia-difesa-della-bestia",
+        "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne",
+        "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia"
+      ],
+      "descrizione": "Molti ranger si sentono più a casa nelle terre selvagge che nella civiltà, al punto che gli animali li considerano propri simili. I membri del Conclave della Bestia sviluppano uno stretto legame con una bestia e lo rafforzano ulteriormente tramite la magia.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "privilegi_per_livello": {
+        "3": [
+          "ranger-revised-conclave-della-bestia-compagno-animale",
+          "ranger-revised-conclave-della-bestia-legame-del-compagno"
+        ],
+        "5": [
+          "ranger-revised-conclave-della-bestia-attacco-coordinato"
+        ],
+        "7": [
+          "ranger-revised-conclave-della-bestia-difesa-della-bestia"
+        ],
+        "11": [
+          "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne"
+        ],
+        "15": [
+          "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia"
+        ]
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore",
+      "nome": "Conclave del Cacciatore",
+      "nome_originale": "Hunter Conclave",
+      "classe_id": "ranger-revised",
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "privilegi": [
+        "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+        "ranger-revised-conclave-del-cacciatore-attacco-extra",
+        "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+        "ranger-revised-conclave-del-cacciatore-multiattacco",
+        "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+      ],
+      "descrizione": "Alcuni ranger cercano di padroneggiare le armi per proteggere meglio la civiltà dagli orrori delle terre selvagge. I membri del Conclave del Cacciatore apprendono tecniche specializzate contro le minacce più terribili, dagli ogre e dalle orde di orchi fino ai giganti e ai draghi.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "privilegi_per_livello": {
+        "3": [
+          "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore"
+        ],
+        "5": [
+          "ranger-revised-conclave-del-cacciatore-attacco-extra"
+        ],
+        "7": [
+          "ranger-revised-conclave-del-cacciatore-tattiche-difensive"
+        ],
+        "11": [
+          "ranger-revised-conclave-del-cacciatore-multiattacco"
+        ],
+        "15": [
+          "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+        ]
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "nome": "Conclave del Cacciatore delle Profondità",
+      "nome_originale": "Deep Stalker Conclave",
+      "classe_id": "ranger-revised",
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "privilegi": [
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore",
+        "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore"
+      ],
+      "descrizione": "La maggior parte delle persone scende nelle profondità dell'Underdark soltanto in circostanze disperate. Il male, però, prospera troppo spesso sotto terra senza essere notato, e i ranger del Conclave del Cacciatore delle Profondità cercano di scoprire e sconfiggere tali minacce prima che raggiungano la superficie.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "privilegi_per_livello": {
+        "3": [
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark",
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita"
+        ],
+        "5": [
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra"
+        ],
+        "7": [
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro"
+        ],
+        "11": [
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore"
+        ],
+        "15": [
+          "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore"
+        ]
+      }
+    }
+  ],
+  "privilegi": [
+    {
+      "id": "ranger-revised-nemico-prescelto",
+      "nome": "Nemico Prescelto",
+      "nome_originale": "Favored Enemy",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        1
+      ],
+      "pagina": 2,
+      "pagina_pdf": 2,
+      "descrizione": "A partire dal 1° livello, il ranger possiede una notevole esperienza nello studiare, seguire le tracce, dare la caccia e perfino parlare con un tipo di nemico che si incontra comunemente nelle terre selvagge.\n\nIl ranger sceglie un tipo di nemico prescelto tra bestie, folletti, umanoidi, mostruosità o non morti. Ottiene un bonus di +2 ai tiri per i danni degli attacchi con un'arma contro le creature del tipo scelto. Dispone inoltre di vantaggio alle prove di Saggezza (Sopravvivenza) effettuate per seguirne le tracce e alle prove di Intelligenza effettuate per ricordare informazioni su di esse.\n\nQuando ottiene questo privilegio, il ranger apprende anche un linguaggio a sua scelta, normalmente parlato dal nemico prescelto o da creature a esso associate; può tuttavia scegliere liberamente qualsiasi linguaggio.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "scelte_strutturate": {
+        "tipo_nemico": [
+          "bestie",
+          "folletti",
+          "umanoidi",
+          "mostruosità",
+          "non morti"
+        ],
+        "linguaggi": 1
+      },
+      "bonus_danno": 2
+    },
+    {
+      "id": "ranger-revised-esploratore-nato",
+      "nome": "Esploratore Nato",
+      "nome_originale": "Natural Explorer",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        1
+      ],
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "descrizione": "Il ranger è un maestro nell'attraversare il mondo naturale e reagisce con rapidità e decisione quando viene attaccato. Ignora il terreno difficile, dispone di vantaggio ai tiri di iniziativa e, nel suo primo turno di ogni combattimento, dispone di vantaggio ai tiri per colpire contro le creature che non hanno ancora agito.\n\nQuando viaggia per almeno un'ora, il terreno difficile non rallenta il gruppo; il gruppo non può perdersi se non per mezzi magici; il ranger rimane all'erta anche mentre svolge un'altra attività; se viaggia da solo può muoversi furtivamente a passo normale; quando foraggia trova il doppio del cibo; quando segue le tracce di altre creature ne apprende anche il numero esatto, la taglia e da quanto tempo sono passate nell'area.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento",
+      "nome": "Stile di Combattimento",
+      "nome_originale": "Fighting Style",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        2
+      ],
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "descrizione": "Al 2° livello, il ranger adotta uno stile di combattimento particolare come propria specialità. Sceglie una delle opzioni disponibili. Non può scegliere la stessa opzione più di una volta, anche qualora ottenga in seguito la possibilità di scegliere nuovamente uno stile di combattimento.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "opzioni": [
+        "ranger-revised-stile-di-combattimento-tiro",
+        "ranger-revised-stile-di-combattimento-difesa",
+        "ranger-revised-stile-di-combattimento-duellare",
+        "ranger-revised-stile-di-combattimento-combattere-con-due-armi"
+      ]
+    },
+    {
+      "id": "ranger-revised-incantesimi",
+      "nome": "Incantesimi",
+      "nome_originale": "Spellcasting",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        2
+      ],
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "descrizione": "Quando raggiunge il 2° livello, il ranger impara a usare l'essenza magica della natura per lanciare incantesimi, in modo analogo a un druido.\n\nLa tabella del Ranger (Revised) indica quanti slot incantesimo possiede e quanti incantesimi da ranger conosce. Per lanciare un incantesimo di 1° livello o superiore, deve spendere uno slot di livello pari o superiore al livello dell'incantesimo. Recupera tutti gli slot spesi quando completa un riposo lungo.\n\nIl ranger conosce due incantesimi da ranger di 1° livello a sua scelta al 2° livello e apprende ulteriori incantesimi secondo la progressione della classe. Ogni volta che acquisisce un livello in questa classe, può sostituire un incantesimo da ranger conosciuto con un altro incantesimo della lista da ranger di un livello per cui possiede slot.\n\nSaggezza è la caratteristica da incantatore del ranger. La CD del tiro salvezza degli incantesimi è pari a 8 + il bonus di competenza + il modificatore di Saggezza; il modificatore di attacco degli incantesimi è pari al bonus di competenza + il modificatore di Saggezza.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "caratteristica_da_incantatore": "Saggezza",
+      "formula_cd": "8 + bonus_competenza + modificatore_saggezza",
+      "formula_attacco_incantesimo": "bonus_competenza + modificatore_saggezza"
+    },
+    {
+      "id": "ranger-revised-consapevolezza-primordiale",
+      "nome": "Consapevolezza Primordiale",
+      "nome_originale": "Primeval Awareness",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        3
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "A partire dal 3° livello, la padronanza delle conoscenze da ranger permette al personaggio di stabilire un potente legame con le bestie e con il territorio circostante.\n\nIl ranger possiede una capacità innata di comunicare con le bestie, che lo riconoscono come uno spirito affine. Come azione, attraverso suoni e gesti può comunicare idee semplici a una bestia e comprenderne l'umore e le intenzioni di base. Apprende il suo stato emotivo, se è soggetta a qualche forma di magia, i suoi bisogni immediati e quali azioni potrebbero convincerla a non attaccare. Non può usare questa capacità su una creatura che abbia attaccato nei 10 minuti precedenti.\n\nInoltre, il ranger può concentrare i propri sensi per determinare se nelle vicinanze si trovano suoi nemici prescelti. Dopo 1 minuto ininterrotto di concentrazione, come se si concentrasse su un incantesimo, percepisce la presenza entro 5 miglia di qualsiasi tipo di nemico prescelto. Apprende quali nemici sono presenti, il loro numero e, in termini generali, la direzione e la distanza in miglia di ciascun gruppo.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "modalita": [
+        "comunicazione_con_bestie",
+        "percezione_nemici_prescelti"
+      ],
+      "raggio_percezione_miglia": 5
+    },
+    {
+      "id": "ranger-revised-conclave-ranger",
+      "nome": "Conclave Ranger",
+      "nome_originale": "Ranger Conclave",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        3
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "Al 3° livello, il ranger sceglie di emulare gli ideali e l'addestramento di un conclave ranger: il Conclave della Bestia, il Conclave del Cacciatore o il Conclave del Cacciatore delle Profondità. La scelta conferisce privilegi al 3° livello e poi di nuovo al 5°, 7°, 11° e 15° livello.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-aumento-dei-punteggi-di-caratteristica",
+      "nome": "Aumento dei Punteggi di Caratteristica",
+      "nome_originale": "Ability Score Improvement",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        4,
+        8,
+        12,
+        16,
+        19
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "Quando arriva al 4° livello, e poi di nuovo all'8°, 12°, 16° e 19° livello, il ranger può aumentare di 2 un punteggio di caratteristica a sua scelta, oppure può aumentare di 1 due punteggi di caratteristica a sua scelta. Non può aumentare un punteggio oltre 20 tramite questo privilegio.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-nemico-prescelto-migliorato",
+      "nome": "Nemico Prescelto Migliorato",
+      "nome_originale": "Greater Favored Enemy",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        6
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "Al 6° livello, il ranger è pronto a dare la caccia a prede ancora più letali. Sceglie un tipo di nemico prescelto migliorato tra aberrazioni, celestiali, costrutti, draghi, elementali, giganti o immondi. Contro il tipo scelto ottiene tutti i benefici di Nemico Prescelto, incluso un linguaggio aggiuntivo.\n\nIl bonus ai tiri per i danni contro tutti i suoi nemici prescelti aumenta a +4. Inoltre, il ranger dispone di vantaggio ai tiri salvezza contro gli incantesimi e le capacità usate da un suo nemico prescelto migliorato.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "scelte_strutturate": {
+        "tipo_nemico": [
+          "aberrazioni",
+          "celestiali",
+          "costrutti",
+          "draghi",
+          "elementali",
+          "giganti",
+          "immondi"
+        ],
+        "linguaggi": 1
+      },
+      "bonus_danno_totale": 4
+    },
+    {
+      "id": "ranger-revised-passo-veloce",
+      "nome": "Passo Veloce",
+      "nome_originale": "Fleet of Foot",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        8
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "A partire dall'8° livello, il ranger può usare l'azione Scattare come azione bonus nel proprio turno.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-nascondersi-in-piena-vista",
+      "nome": "Nascondersi in Piena Vista",
+      "nome_originale": "Hide in Plain Sight",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        10
+      ],
+      "pagina": 4,
+      "pagina_pdf": 4,
+      "descrizione": "A partire dal 10° livello, il ranger può rimanere perfettamente immobile per lunghi periodi allo scopo di preparare un'imboscata.\n\nQuando tenta di nascondersi nel proprio turno, può scegliere di non muoversi in quel turno. Se rimane immobile, le creature che tentano di individuarlo subiscono una penalità di -10 alle prove di Saggezza (Percezione) fino all'inizio del turno successivo del ranger. Il beneficio termina se il ranger si muove o cade prono, volontariamente o per un effetto esterno. Il ranger viene comunque individuato automaticamente se un effetto o un'azione fa sì che non sia più nascosto.\n\nSe all'inizio del turno successivo è ancora nascosto, può continuare a rimanere immobile e conservare il beneficio finché non viene individuato.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-svanire",
+      "nome": "Svanire",
+      "nome_originale": "Vanish",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        14
+      ],
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "descrizione": "A partire dal 14° livello, il ranger può usare l'azione Nascondersi come azione bonus nel proprio turno. Inoltre, non può essere seguito tramite mezzi non magici, a meno che non scelga di lasciare una pista.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-sensi-ferini",
+      "nome": "Sensi Ferini",
+      "nome_originale": "Feral Senses",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        18
+      ],
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "descrizione": "Al 18° livello, il ranger ottiene sensi preternaturali che lo aiutano a combattere le creature che non è in grado di vedere. Quando attacca una creatura che non vede, la sua incapacità di vederla non gli impone svantaggio ai tiri per colpire contro di essa.\n\nIl ranger è inoltre consapevole della posizione di ogni creatura invisibile entro 9 metri da lui, purché la creatura non sia nascosta e il ranger non sia accecato o assordato.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-sterminatore-di-nemici",
+      "nome": "Sterminatore di Nemici",
+      "nome_originale": "Foe Slayer",
+      "tipo": "privilegio_classe",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": null,
+      "livelli": [
+        20
+      ],
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "descrizione": "Al 20° livello, il ranger diventa un cacciatore senza pari. Una volta in ogni suo turno, può aggiungere il proprio modificatore di Saggezza al tiro per colpire o al tiro per i danni di un attacco da lui effettuato. Può decidere di usare questo privilegio prima o dopo il tiro, ma prima che gli effetti del tiro vengano applicati.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-compagno-animale",
+      "nome": "Compagno Animale",
+      "nome_originale": "Animal Companion",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        3
+      ],
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "descrizione": "Al 3° livello, il ranger impara a usare la magia per creare un potente legame con una creatura del mondo naturale.\n\nDedicando 8 ore di lavoro e spendendo 50 mo in erbe rare e cibo pregiato, il ranger richiama dalle terre selvagge un animale che diventa il suo fedele compagno. Normalmente sceglie tra scimmia, orso nero, cinghiale, tasso gigante, donnola gigante, mulo, pantera o lupo; il DM può invece scegliere una creatura appropriata al territorio circostante. Al termine delle 8 ore, il compagno compare e ottiene tutti i benefici di Legame del Compagno. Il ranger può avere un solo compagno animale alla volta.\n\nSe il compagno muore, il legame magico permette al ranger di riportarlo in vita. Dedicando 8 ore di lavoro e spendendo 25 mo in erbe rare e cibo pregiato, richiama lo spirito del compagno e gli crea magicamente un nuovo corpo, anche senza possederne alcun resto. Se usa questa capacità per riportare in vita un vecchio compagno mentre ne possiede già uno, il compagno attuale lo lascia ed è sostituito da quello restaurato.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "compagni_predefiniti": [
+        "scimmia",
+        "orso nero",
+        "cinghiale",
+        "tasso gigante",
+        "donnola gigante",
+        "mulo",
+        "pantera",
+        "lupo"
+      ],
+      "creazione": {
+        "tempo_ore": 8,
+        "costo_mo": 50
+      },
+      "resurrezione": {
+        "tempo_ore": 8,
+        "costo_mo": 25
+      },
+      "limite_compagni": 1,
+      "criteri_opzioni_estese_da_riquadro": {
+        "taglia_massima": "Media",
+        "punti_ferita_massimi": 15,
+        "danno_massimo_singolo_attacco": 8,
+        "grado_sfida_indicativo_massimo": "1/4"
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-legame-del-compagno",
+      "nome": "Legame del Compagno",
+      "nome_originale": "Companion's Bond",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        3
+      ],
+      "pagina": 5,
+      "pagina_pdf": 5,
+      "descrizione": "Finché è legato al ranger, il compagno animale ottiene vari benefici. Perde l'azione Multiattacco, se la possiede. Obbedisce ai comandi del ranger al meglio delle proprie capacità, tira l'iniziativa come qualsiasi altra creatura e il ranger ne determina azioni, decisioni e atteggiamenti; se il ranger è incapacitato o assente, il compagno agisce autonomamente. Quando il ranger usa Esploratore Nato, entrambi possono muoversi furtivamente a passo normale.\n\nIl compagno usa il bonus di competenza del ranger al posto del proprio. Oltre agli usi normali, aggiunge tale bonus alla CA e ai tiri per i danni. Ottiene competenza in due abilità a scelta e in tutti i tiri salvezza. Per ogni livello da ranger acquisito dopo il 3°, ottiene un Dado Vita aggiuntivo e aumenta di conseguenza i propri punti ferita. Ogni volta che il ranger ottiene Aumento dei Punteggi di Caratteristica, anche il compagno può aumentare di 2 un punteggio o di 1 due punteggi, senza superare 20 salvo diversa indicazione nella sua descrizione.\n\nIl compagno condivide l'allineamento e l'ideale del ranger. Ottiene un tratto della personalità e un difetto; il suo legame è sempre: «Il ranger che viaggia con me è un compagno amato per il quale darei volentieri la vita».\n\nIl compagno beneficia inoltre di Nemico Prescelto e, dal 6° livello, di Nemico Prescelto Migliorato, usando i tipi scelti dal ranger.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "tratti_personalita_d6": [
+        "Sono impavido di fronte alle avversità.",
+        "Chi minaccia i miei amici minaccia me.",
+        "Rimango allerta affinché gli altri possano riposare.",
+        "La gente vede un animale e mi sottovaluta; sfrutto questo errore a mio vantaggio.",
+        "Ho un talento per comparire proprio al momento giusto.",
+        "Metto i bisogni dei miei amici davanti ai miei in ogni cosa."
+      ],
+      "difetti_d6": [
+        "Se del cibo viene lasciato incustodito, lo mangio.",
+        "Ringhio agli estranei, e per me tutti tranne il mio ranger sono estranei.",
+        "Ogni momento è quello giusto per farmi grattare la pancia.",
+        "Ho una paura mortale dell'acqua.",
+        "Il mio modo di salutare è una raffica di leccate sul viso.",
+        "Salto addosso alle creature per mostrare quanto voglio loro bene."
+      ]
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-attacco-coordinato",
+      "nome": "Attacco Coordinato",
+      "nome_originale": "Coordinated Attack",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        5
+      ],
+      "pagina": 6,
+      "pagina_pdf": 6,
+      "descrizione": "A partire dal 5° livello, il ranger e il suo compagno animale formano una squadra di combattimento più efficace. Quando il ranger usa l'azione Attaccare nel proprio turno, se il compagno è in grado di vederlo, il compagno può usare la propria reazione per effettuare un attacco in mischia.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-difesa-della-bestia",
+      "nome": "Difesa della Bestia",
+      "nome_originale": "Beast's Defense",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        7
+      ],
+      "pagina": 6,
+      "pagina_pdf": 6,
+      "descrizione": "Al 7° livello, finché il compagno animale è in grado di vedere il ranger, dispone di vantaggio a tutti i tiri salvezza.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne",
+      "nome": "Tempesta di Artigli e Zanne",
+      "nome_originale": "Storm of Claws and Fangs",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        11
+      ],
+      "pagina": 6,
+      "pagina_pdf": 6,
+      "descrizione": "All'11° livello, il compagno animale può usare la propria azione per effettuare un attacco in mischia contro ogni creatura a sua scelta entro 1,5 metri da lui, effettuando un tiro per colpire separato per ogni bersaglio.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia",
+      "nome": "Difesa Superiore della Bestia",
+      "nome_originale": "Superior Beast's Defense",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-della-bestia",
+      "livelli": [
+        15
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "Al 15° livello, quando un attaccante che il compagno animale è in grado di vedere lo colpisce con un attacco, il compagno può usare la propria reazione per dimezzare i danni dell'attacco contro di sé.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+      "nome": "Preda del Cacciatore",
+      "nome_originale": "Hunter's Prey",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore",
+      "livelli": [
+        3
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "Al 3° livello, il ranger sceglie una delle opzioni seguenti, che rappresenta una tecnica specializzata per affrontare le minacce delle terre selvagge.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "opzioni": [
+        "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi",
+        "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti",
+        "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda"
+      ]
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-attacco-extra",
+      "nome": "Attacco Extra",
+      "nome_originale": "Extra Attack",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore",
+      "livelli": [
+        5
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "A partire dal 5° livello, il ranger può attaccare due volte anziché una ogni volta che effettua l'azione Attaccare nel proprio turno.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+      "nome": "Tattiche Difensive",
+      "nome_originale": "Defensive Tactics",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore",
+      "livelli": [
+        7
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "Al 7° livello, il ranger sceglie una delle opzioni difensive seguenti.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "opzioni": [
+        "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda",
+        "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco",
+        "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio"
+      ]
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+      "nome": "Multiattacco",
+      "nome_originale": "Multiattack",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore",
+      "livelli": [
+        11
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "All'11° livello, il ranger sceglie una delle opzioni di multiattacco seguenti.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "opzioni": [
+        "ranger-revised-conclave-del-cacciatore-multiattacco-raffica",
+        "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante"
+      ]
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+      "nome": "Difesa Superiore del Cacciatore",
+      "nome_originale": "Superior Hunter's Defense",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore",
+      "livelli": [
+        15
+      ],
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "descrizione": "Al 15° livello, il ranger sceglie una delle opzioni difensive superiori seguenti.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "opzioni": [
+        "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione",
+        "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea",
+        "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa"
+      ]
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark",
+      "nome": "Esploratore dell'Underdark",
+      "nome_originale": "Underdark Scout",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        3
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "Al 3° livello, il ranger padroneggia l'arte dell'imboscata. Nel suo primo turno di ogni combattimento, la sua velocità aumenta di 3 metri e, se usa l'azione Attaccare, può effettuare un attacco aggiuntivo.\n\nIl ranger è inoltre esperto nell'eludere le creature che si affidano alla scurovisione. Tali creature non traggono alcun beneficio dalla scurovisione quando tentano di individuarlo in condizioni di luce fioca o oscurità. Inoltre, quando il DM determina se il ranger può nascondersi da una creatura, la scurovisione di quella creatura non fornisce alcun beneficio.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita",
+      "nome": "Magia del Cacciatore delle Profondità",
+      "nome_originale": "Deep Stalker Magic",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        3
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "Al 3° livello, il ranger ottiene scurovisione entro 27 metri. Se possiede già scurovisione, la sua portata aumenta di 9 metri.\n\nOttiene inoltre accesso a incantesimi aggiuntivi ai livelli indicati nella tabella. Quando ottiene un incantesimo del Cacciatore delle Profondità, esso conta come incantesimo da ranger per lui ma non viene conteggiato nel numero di incantesimi da ranger che conosce.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata",
+      "incantesimi_aggiuntivi": {
+        "3": "camuffare se stesso",
+        "5": "trucco della corda",
+        "9": "glifo di interdizione",
+        "13": "invisibilità superiore",
+        "17": "sembrare"
+      },
+      "anomalia_fonte": "Il paragrafo inglese elenca 3°, 5°, 9°, 13° e 15° livello, mentre la tabella assegna 'seeming' al 17° livello. Il dato strutturato segue la tabella, senza nascondere la discrepanza."
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra",
+      "nome": "Attacco Extra",
+      "nome_originale": "Extra Attack",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        5
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "A partire dal 5° livello, il ranger può attaccare due volte anziché una ogni volta che effettua l'azione Attaccare nel proprio turno.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro",
+      "nome": "Mente di Ferro",
+      "nome_originale": "Iron Mind",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        7
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "Al 7° livello, il ranger ottiene competenza nei tiri salvezza su Saggezza.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore",
+      "nome": "Raffica del Cacciatore",
+      "nome_originale": "Stalker's Flurry",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        11
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "A partire dall'11° livello, una volta in ogni suo turno, quando manca con un attacco, il ranger può effettuare un altro attacco.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore",
+      "nome": "Schivata del Cacciatore",
+      "nome_originale": "Stalker's Dodge",
+      "tipo": "privilegio_sottoclasse",
+      "classe_id": "ranger-revised",
+      "sottoclasse_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+      "livelli": [
+        15
+      ],
+      "pagina": 8,
+      "pagina_pdf": 8,
+      "descrizione": "Al 15° livello, quando una creatura attacca il ranger senza disporre di vantaggio, il ranger può usare la propria reazione per imporre svantaggio al tiro per colpire della creatura contro di lui. Può usare questo privilegio prima o dopo che il tiro per colpire sia stato effettuato, ma deve farlo prima che l'esito del tiro venga determinato.",
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    }
+  ],
+  "opzioni": [
+    {
+      "id": "ranger-revised-stile-di-combattimento-tiro",
+      "parent_id": "ranger-revised-stile-di-combattimento",
+      "nome": "Tiro",
+      "nome_originale": "Archery",
+      "descrizione": "Il ranger ottiene un bonus di +2 ai tiri per colpire effettuati con le armi a distanza.",
+      "livello_minimo": 2,
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-difesa",
+      "parent_id": "ranger-revised-stile-di-combattimento",
+      "nome": "Difesa",
+      "nome_originale": "Defense",
+      "descrizione": "Quando indossa un'armatura, il ranger ottiene un bonus di +1 alla CA.",
+      "livello_minimo": 2,
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-duellare",
+      "parent_id": "ranger-revised-stile-di-combattimento",
+      "nome": "Duellare",
+      "nome_originale": "Dueling",
+      "descrizione": "Quando impugna un'arma da mischia in una mano e nessun'altra arma, il ranger ottiene un bonus di +2 ai tiri per i danni effettuati con quell'arma.",
+      "livello_minimo": 2,
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-combattere-con-due-armi",
+      "parent_id": "ranger-revised-stile-di-combattimento",
+      "nome": "Combattere con Due Armi",
+      "nome_originale": "Two-Weapon Fighting",
+      "descrizione": "Quando combatte con due armi, il ranger può aggiungere il proprio modificatore di caratteristica ai danni del secondo attacco.",
+      "livello_minimo": 2,
+      "pagina": 3,
+      "pagina_pdf": 3,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+      "nome": "Sterminatore di Colossi",
+      "nome_originale": "Colossus Slayer",
+      "descrizione": "Quando il ranger colpisce una creatura con un attacco con un'arma, la creatura subisce 1d8 danni extra se possiede meno punti ferita del suo massimo. Il ranger può infliggere questi danni extra soltanto una volta per turno.",
+      "livello_minimo": 3,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+      "nome": "Uccisore di Giganti",
+      "nome_originale": "Giant Killer",
+      "descrizione": "Quando una creatura di taglia Grande o superiore entro 1,5 metri dal ranger lo colpisce o lo manca con un attacco, il ranger può usare la propria reazione per attaccare quella creatura immediatamente dopo il suo attacco, purché sia in grado di vederla.",
+      "livello_minimo": 3,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+      "nome": "Devastatore dell'Orda",
+      "nome_originale": "Horde Breaker",
+      "descrizione": "Una volta in ogni suo turno, quando effettua un attacco con un'arma, il ranger può effettuare un altro attacco con la stessa arma contro una creatura diversa situata entro 1,5 metri dal bersaglio originale e entro la gittata dell'arma.",
+      "livello_minimo": 3,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+      "nome": "Sfuggire all'Orda",
+      "nome_originale": "Escape the Horde",
+      "descrizione": "Gli attacchi di opportunità effettuati contro il ranger subiscono svantaggio.",
+      "livello_minimo": 7,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+      "nome": "Difesa dal Multiattacco",
+      "nome_originale": "Multiattack Defense",
+      "descrizione": "Quando una creatura colpisce il ranger con un attacco, il ranger ottiene un bonus di +4 alla CA contro tutti gli attacchi successivi effettuati da quella creatura per il resto del turno.",
+      "livello_minimo": 7,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+      "nome": "Volontà di Acciaio",
+      "nome_originale": "Steel Will",
+      "descrizione": "Il ranger dispone di vantaggio ai tiri salvezza contro la condizione di spaventato.",
+      "livello_minimo": 7,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco-raffica",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+      "nome": "Raffica",
+      "nome_originale": "Volley",
+      "descrizione": "Il ranger può usare la propria azione per effettuare un attacco a distanza contro un qualsiasi numero di creature entro 3 metri da un punto che egli sia in grado di vedere e che si trovi entro la gittata dell'arma. Deve possedere munizioni sufficienti per ogni bersaglio ed effettua un tiro per colpire separato per ciascuno.",
+      "livello_minimo": 11,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+      "nome": "Attacco Turbinante",
+      "nome_originale": "Whirlwind Attack",
+      "descrizione": "Il ranger può usare la propria azione per effettuare attacchi in mischia contro un qualsiasi numero di creature entro 1,5 metri da lui, effettuando un tiro per colpire separato per ogni bersaglio.",
+      "livello_minimo": 11,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+      "nome": "Elusione",
+      "nome_originale": "Evasion",
+      "descrizione": "Quando il ranger è soggetto a un effetto che gli consente di effettuare un tiro salvezza su Destrezza per dimezzare i danni, non subisce alcun danno se supera il tiro salvezza e subisce soltanto la metà dei danni se lo fallisce.",
+      "livello_minimo": 15,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+      "nome": "Opporsi alla Marea",
+      "nome_originale": "Stand Against the Tide",
+      "descrizione": "Quando una creatura ostile manca il ranger con un attacco in mischia, il ranger può usare la propria reazione per costringere quella creatura a ripetere lo stesso attacco contro un'altra creatura a sua scelta, diversa dall'attaccante stesso.",
+      "livello_minimo": 15,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa",
+      "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+      "nome": "Schivata Prodigiosa",
+      "nome_originale": "Uncanny Dodge",
+      "descrizione": "Quando un attaccante che il ranger è in grado di vedere lo colpisce con un attacco, il ranger può usare la propria reazione per dimezzare i danni dell'attacco contro di sé.",
+      "livello_minimo": 15,
+      "pagina": 7,
+      "pagina_pdf": 7,
+      "fonte_descrizione": "traduzione_italiana_editoriale_da_ua_verificata"
+    }
+  ],
+  "riferimenti_esterni": {
+    "classe_base_correlata": "ranger",
+    "lista_incantesimi": "ranger",
+    "slot_incantesimo": "slot-incantesimo-standard-aggregati",
+    "creature_compagno_animale": "statistiche delle bestie nei manuali/compendi esterni"
+  },
+  "anomalie_fonte": [
+    {
+      "record_id": "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita",
+      "tipo": "discordanza_livello",
+      "descrizione": "Il testo di Deep Stalker Magic cita il 15° livello, ma la tabella assegna 'seeming' al 17° livello. Il campo strutturato segue la tabella e conserva questa nota."
+    }
+  ]
+}

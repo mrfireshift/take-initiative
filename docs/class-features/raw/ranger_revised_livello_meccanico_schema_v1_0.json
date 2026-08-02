@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ranger-revised-livello-meccanico-schema-1.0.0",
+  "title": "Ranger (Revised) Mechanical Overlay",
+  "type": "object",
+  "required": [
+    "meta",
+    "automation_levels",
+    "external_resource_pools",
+    "resource_pools",
+    "mechanics",
+    "runtime_contract",
+    "validation"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object"
+    },
+    "automation_levels": {
+      "type": "object"
+    },
+    "external_resource_pools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resource_pools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "owner",
+          "kind"
+        ]
+      }
+    },
+    "mechanics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "catalog_ref",
+          "source",
+          "automation_level",
+          "activation",
+          "targets",
+          "duration",
+          "resource_costs",
+          "effects",
+          "runtime_requirements",
+          "completeness"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "automation_level": {
+            "enum": [
+              "riferimento",
+              "tracciamento",
+              "assistita",
+              "automatica"
+            ]
+          },
+          "activation": {
+            "type": "object",
+            "required": [
+              "primary",
+              "alternatives",
+              "optional"
+            ]
+          },
+          "targets": {
+            "type": "object",
+            "required": [
+              "type",
+              "requirements",
+              "excluded_types"
+            ]
+          },
+          "duration": {
+            "type": "object",
+            "required": [
+              "type",
+              "end_conditions"
+            ]
+          },
+          "resource_costs": {
+            "type": "array"
+          },
+          "effects": {
+            "type": "array"
+          },
+          "runtime_requirements": {
+            "type": "array"
+          },
+          "completeness": {
+            "type": "object",
+            "required": [
+              "status",
+              "review_required",
+              "missing_for_execution"
+            ]
+          }
+        }
+      }
+    },
+    "runtime_contract": {
+      "type": "object"
+    },
+    "validation": {
+      "type": "object"
+    }
+  }
+}

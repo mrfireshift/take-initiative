@@ -1,4 +1,5 @@
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 
@@ -445,9 +446,10 @@ export function pendingSpellZoneTriggerActivations(items = []) {
   for (const item of Array.isArray(items) ? items : []) {
     const staticMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
     const auraMetadata = item?.metadata?.[SPELL_AURA_META_KEY];
+    const classFeatureAuraMetadata = item?.metadata?.[CLASS_FEATURE_AURA_META_KEY];
     const metadata = staticMetadata?.role === "root"
       ? staticMetadata
-      : auraMetadata;
+      : auraMetadata || classFeatureAuraMetadata;
     if (!metadata) continue;
     const runtime = normalizeSpellZoneTriggerRuntime(metadata.triggerRuntime);
     for (const activation of runtime.pending) {

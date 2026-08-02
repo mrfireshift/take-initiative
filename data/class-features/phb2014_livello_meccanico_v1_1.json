@@ -489,6 +489,25 @@
       ]
     },
     {
+      "id": "stregone-magia-selvaggia-onde-di-caos-usi",
+      "nome": "Onde di Caos - utilizzi",
+      "owner": {
+        "type": "sottoclasse",
+        "id": "stregone-magia-selvaggia"
+      },
+      "kind": "uses",
+      "capacity": {
+        "type": "fixed",
+        "value": 1
+      },
+      "refresh": [
+        {
+          "event": "riposo_lungo",
+          "amount": "massimo"
+        }
+      ]
+    },
+    {
       "id": "warlock-slot-magia-del-patto",
       "nome": "Slot Magia del Patto",
       "owner": {
@@ -596,6 +615,10 @@
       "refresh": [
         {
           "event": "riposo_breve",
+          "amount": "massimo"
+        },
+        {
+          "event": "riposo_lungo",
           "amount": "massimo"
         }
       ],
@@ -747,6 +770,26 @@
       "owner": {
         "type": "privilegio",
         "id": "paladino-giuramento-di-vendetta-angelo-vendicatore"
+      },
+      "kind": "uses",
+      "capacity": {
+        "type": "fixed",
+        "value": 1
+      },
+      "refresh": [
+        {
+          "event": "riposo_lungo",
+          "amount": "massimo"
+        }
+      ],
+      "generated_from_explicit_text": true
+    },
+    {
+      "id": "paladino-giuramento-di-devozione-nube-sacra-usi",
+      "nome": "Nube Sacra - utilizzi",
+      "owner": {
+        "type": "privilegio",
+        "id": "paladino-giuramento-di-devozione-nube-sacra"
       },
       "kind": "uses",
       "capacity": {
@@ -1196,7 +1239,7 @@
       "id": "barbaro-cammino-del-berserker-frenesia",
       "automation_level": "riferimento",
       "activation": {
-        "primary": "azione_bonus",
+        "primary": "ingresso_in_ira",
         "alternatives": [],
         "trigger": null,
         "timing": null,
@@ -1788,44 +1831,49 @@
     },
     {
       "id": "barbaro-cammino-del-berserker-presenza-intimidatoria",
-      "automation_level": "riferimento",
+      "automation_level": "assistita",
       "activation": {
-        "primary": "passiva",
+        "primary": "azione",
         "alternatives": [],
         "trigger": "tiro_salvezza",
         "timing": null,
-        "optional": false
+        "optional": true
       },
       "targets": {
-        "type": "non_specificato",
-        "range_meters": null,
-        "additional_ranges_meters": [
-          9.0,
-          18.0
-        ],
+        "type": "creatura_visibile",
+        "range_meters": 9,
+        "additional_ranges_meters": [],
         "origin": null,
-        "requirements": [],
+        "requirements": [
+          "visibile_al_barbaro",
+          "puo_vedere_o_udire_il_barbaro"
+        ],
         "excluded_types": []
       },
       "resource_costs": [],
       "effects": [],
-      "manual_choice_required": false,
+      "manual_choice_required": true,
       "catalog_ref": {
         "collection": "privilegi",
         "id": "barbaro-cammino-del-berserker-presenza-intimidatoria"
       },
       "duration": {
-        "type": "fixed",
-        "value": 24,
-        "unit": "ora",
+        "type": "until_end_of_next_turn",
+        "value": null,
+        "unit": null,
         "max_rounds": null,
         "formula": null,
-        "end_conditions": []
+        "end_conditions": [
+          "fuori_linea_di_visuale",
+          "oltre_18_metri"
+        ]
       },
       "triggers": [
         "tiro_salvezza"
       ],
-      "recovery": [],
+      "recovery": [
+        "blocco_24_ore_dopo_tiro_salvezza_riuscito"
+      ],
       "mechanical_tags": [
         "condizione",
         "tiro_salvezza",
@@ -2728,7 +2776,7 @@
     },
     {
       "id": "bardo-collegio-della-sapienza-parole-taglienti",
-      "automation_level": "assistita",
+      "automation_level": "riferimento",
       "activation": {
         "primary": "reazione",
         "alternatives": [
@@ -2739,13 +2787,17 @@
         "optional": true
       },
       "targets": {
-        "type": "non_specificato",
+        "type": "creatura_visibile",
         "range_meters": 18.0,
         "additional_ranges_meters": [
           18.0
         ],
         "origin": null,
-        "requirements": [],
+        "requirements": [
+          "visibile_al_bardo",
+          "puo_sentire_il_bardo",
+          "non_immune_ad_affascinato"
+        ],
         "excluded_types": []
       },
       "resource_costs": [
@@ -2770,7 +2822,8 @@
       },
       "triggers": [
         "tiro_per_colpire",
-        "prova_caratteristica"
+        "prova_caratteristica",
+        "tiro_danno"
       ],
       "recovery": [],
       "mechanical_tags": [
@@ -2778,9 +2831,15 @@
         "condizione",
         "prova_caratteristica",
         "tiro_per_colpire",
+        "tiro_danno",
         "competenza"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "visibile_al_bardo",
+        "puo_sentire_il_bardo",
+        "non_immune_ad_affascinato",
+        "dopo_il_tiro_prima_dell_esito_o_del_danno"
+      ],
       "source": {
         "name": "Parole Taglienti",
         "class_id": "bardo",
@@ -3060,17 +3119,41 @@
         "optional": true
       },
       "targets": {
-        "type": "non_specificato",
+        "type": "aura_alleati_incluso_se_stesso",
         "range_meters": 9.0,
         "additional_ranges_meters": [
           9.0
         ],
         "origin": null,
-        "requirements": [],
-        "excluded_types": []
+        "requirements": [
+          "puo_sentire_il_bardo"
+        ],
+        "excluded_types": [
+          "creatura_ostile"
+        ]
       },
       "resource_costs": [],
-      "effects": [],
+      "effects": [
+        {
+          "type": "aura",
+          "radius_meters": 9.0,
+          "applies_to": [
+            "tiro_salvezza_contro_affascinato",
+            "tiro_salvezza_contro_spaventato"
+          ],
+          "condition": "puo_sentire_il_bardo",
+          "targeting": {
+            "filter": "friendly",
+            "include_caster": false
+          },
+          "source_marker": true,
+          "end_conditions": [
+            "bardo_incapacitato",
+            "bardo_ridotto_al_silenzio",
+            "terminazione_volontaria"
+          ]
+        }
+      ],
       "manual_choice_required": true,
       "catalog_ref": {
         "collection": "privilegi",
@@ -3082,7 +3165,11 @@
         "unit": null,
         "max_rounds": null,
         "formula": null,
-        "end_conditions": []
+        "end_conditions": [
+          "bardo_incapacitato",
+          "bardo_ridotto_al_silenzio",
+          "terminazione_volontaria"
+        ]
       },
       "triggers": [
         "fine_turno"
@@ -3092,7 +3179,13 @@
         "vantaggio",
         "condizione"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "posizione_token",
+        "distanza",
+        "puo_sentire_il_bardo",
+        "bardo_non_incapacitato",
+        "bardo_non_silenzioso"
+      ],
       "source": {
         "name": "Controfascino",
         "class_id": "bardo",
@@ -3291,13 +3384,13 @@
     },
     {
       "id": "bardo-collegio-della-sapienza-abilita-impareggiabile",
-      "automation_level": "tracciamento",
+      "automation_level": "riferimento",
       "activation": {
-        "primary": "passiva",
+        "primary": "innesco",
         "alternatives": [],
         "trigger": "prova_caratteristica",
-        "timing": null,
-        "optional": false
+        "timing": "dopo_d20_prima_esito",
+        "optional": true
       },
       "targets": {
         "type": "non_specificato",
@@ -3314,7 +3407,7 @@
         }
       ],
       "effects": [],
-      "manual_choice_required": false,
+      "manual_choice_required": true,
       "catalog_ref": {
         "collection": "privilegi",
         "id": "bardo-collegio-della-sapienza-abilita-impareggiabile"
@@ -3334,7 +3427,10 @@
       "mechanical_tags": [
         "prova_caratteristica"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "propria_prova_caratteristica",
+        "dopo_d20_prima_esito"
+      ],
       "source": {
         "name": "Abilità Impareggiabile",
         "class_id": "bardo",
@@ -9931,7 +10027,7 @@
     },
     {
       "id": "ladro-elusione",
-      "automation_level": "automatica",
+      "automation_level": "riferimento",
       "activation": {
         "primary": "innesco",
         "alternatives": [],
@@ -10121,17 +10217,22 @@
       "activation": {
         "primary": "innesco",
         "alternatives": [],
-        "trigger": null,
+        "trigger": "incantesimo_lanciato_da_nascosto",
         "timing": null,
         "optional": true
       },
       "targets": {
-        "type": "non_specificato",
+        "type": "creature_qualificate",
         "range_meters": null,
         "additional_ranges_meters": [],
         "origin": null,
-        "requirements": [],
-        "excluded_types": []
+        "requirements": [
+          "ladro_nascosto_dalla_creatura",
+          "incantesimo_lanciato_sulla_creatura"
+        ],
+        "excluded_types": [
+          "ladro_sorgente"
+        ]
       },
       "resource_costs": [],
       "effects": [],
@@ -10141,11 +10242,12 @@
         "id": "ladro-mistificatore-arcano-imboscata-magica"
       },
       "duration": {
-        "type": "non_specificata",
+        "type": "until_end_of_turn",
         "value": null,
         "unit": null,
         "max_rounds": null,
         "formula": null,
+        "timing": "until_end_of_turn",
         "end_conditions": []
       },
       "triggers": [
@@ -10158,7 +10260,12 @@
         "tiro_salvezza",
         "incantesimo"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "furtivita_confermata_al_tavolo",
+        "incantesimo_lanciato_confermato_al_tavolo",
+        "bersagli_qualificati_scelti",
+        "tiro_salvezza_manuale"
+      ],
       "source": {
         "name": "Imboscata Magica",
         "class_id": "ladro",
@@ -10368,14 +10475,19 @@
         "optional": true
       },
       "targets": {
-        "type": "non_specificato",
+        "type": "creatura_entro_1_5m_dalla_mano_spettrale",
         "range_meters": 1.5,
         "additional_ranges_meters": [
           1.5
         ],
         "origin": null,
-        "requirements": [],
-        "excluded_types": []
+        "requirements": [
+          "mano_magica_attiva",
+          "bersaglio_entro_1_5m_dalla_mano"
+        ],
+        "excluded_types": [
+          "ladro_sorgente"
+        ]
       },
       "resource_costs": [],
       "effects": [],
@@ -10390,6 +10502,7 @@
         "unit": null,
         "max_rounds": null,
         "formula": null,
+        "timing": "until_end_of_turn",
         "end_conditions": []
       },
       "triggers": [
@@ -10400,7 +10513,11 @@
         "vantaggio",
         "incantesimo"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "mano_magica_attiva_confermata",
+        "posizione_della_mano_confermata",
+        "bersaglio_scelto_al_tavolo"
+      ],
       "source": {
         "name": "Ingannatore Versatile",
         "class_id": "ladro",
@@ -10667,17 +10784,23 @@
       "activation": {
         "primary": "reazione",
         "alternatives": [],
-        "trigger": null,
+        "trigger": "incantesimo_lanciato_su_o_includente_il_ladro",
         "timing": null,
         "optional": true
       },
       "targets": {
-        "type": "non_specificato",
+        "type": "lanciatore_originale",
         "range_meters": null,
         "additional_ranges_meters": [],
         "origin": null,
-        "requirements": [],
-        "excluded_types": []
+        "requirements": [
+          "incantesimo_bersaglia_o_include_ladro",
+          "ts_del_lanciatore_fallito_confermato",
+          "lanciatore_scelto"
+        ],
+        "excluded_types": [
+          "ladro_sorgente"
+        ]
       },
       "resource_costs": [
         {
@@ -10699,7 +10822,10 @@
         "formula": null,
         "end_conditions": []
       },
-      "triggers": [],
+      "triggers": [
+        "incantesimo_lanciato",
+        "tiro_salvezza_fallito"
+      ],
       "recovery": [
         "riposo_lungo"
       ],
@@ -10707,7 +10833,12 @@
         "tiro_salvezza",
         "incantesimo"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "reazione_subito_dopo_il_lancio",
+        "cd_e_ts_risolti_al_tavolo",
+        "incantesimo_catalogo_scelto",
+        "conferma_livello_lanciabile_per_modalita_rubato"
+      ],
       "source": {
         "name": "Ladro di Incantesimi",
         "class_id": "ladro",
@@ -10791,13 +10922,13 @@
     },
     {
       "id": "ladro-colpo-di-fortuna",
-      "automation_level": "tracciamento",
+      "automation_level": "assistita",
       "activation": {
-        "primary": "passiva",
+        "primary": "innesco",
         "alternatives": [],
-        "trigger": null,
+        "trigger": "attacco_mancato_o_prova_fallita",
         "timing": null,
-        "optional": false
+        "optional": true
       },
       "targets": {
         "type": "non_specificato",
@@ -10829,7 +10960,8 @@
       },
       "triggers": [],
       "recovery": [
-        "riposo_breve"
+        "riposo_breve",
+        "riposo_lungo"
       ],
       "mechanical_tags": [
         "prova_caratteristica",
@@ -17277,7 +17409,12 @@
         "requirements": [],
         "excluded_types": []
       },
-      "resource_costs": [],
+      "resource_costs": [
+        {
+          "pool_id": "paladino-giuramento-di-devozione-nube-sacra-usi",
+          "amount": 1
+        }
+      ],
       "effects": [],
       "manual_choice_required": true,
       "catalog_ref": {
@@ -19022,13 +19159,13 @@
     },
     {
       "id": "stregone-magia-selvaggia-onde-di-caos",
-      "automation_level": "riferimento",
+      "automation_level": "assistita",
       "activation": {
-        "primary": "passiva",
+        "primary": "innesco",
         "alternatives": [],
         "trigger": null,
         "timing": null,
-        "optional": false
+        "optional": true
       },
       "targets": {
         "type": "non_specificato",
@@ -19038,9 +19175,14 @@
         "requirements": [],
         "excluded_types": []
       },
-      "resource_costs": [],
+      "resource_costs": [
+        {
+          "pool_id": "stregone-magia-selvaggia-onde-di-caos-usi",
+          "amount": 1
+        }
+      ],
       "effects": [],
-      "manual_choice_required": false,
+      "manual_choice_required": true,
       "catalog_ref": {
         "collection": "privilegi",
         "id": "stregone-magia-selvaggia-onde-di-caos"
@@ -19065,7 +19207,9 @@
         "incantesimo",
         "risorsa"
       ],
-      "runtime_requirements": [],
+      "runtime_requirements": [
+        "onde_di_caos_usi"
+      ],
       "source": {
         "name": "Onde di Caos",
         "class_id": "stregone",

@@ -5,6 +5,11 @@ export const CLASS_FEATURE_STATE_VERSION = 1;
 export const MAX_CHARACTER_CLASSES = 4;
 export const MAX_ENABLED_CLASS_FEATURES = 256;
 export const MAX_CLASS_FEATURE_INSTANCES = 256;
+export const CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS = 10;
+
+const BARDIC_INSPIRATION_EFFECT_ID = "bardo-ispirazione-bardica";
+const BERSERKER_FRENZY_FEATURE_ID = "barbaro-cammino-del-berserker-frenesia";
+const BERSERKER_RAGE_FEATURE_ID = "barbaro-ira";
 
 export const CLASS_FEATURE_RUNTIME_STATUS = Object.freeze({
   IMPLEMENTED: "implemented",
@@ -60,6 +65,54 @@ export function classFeatureRuntimeSupport(feature) {
     reason: String(raw.reason || "").trim() || null,
     ready: status === CLASS_FEATURE_RUNTIME_STATUS.IMPLEMENTED,
   };
+}
+
+const REFERENCE_ONLY_ACTIVATIONS = new Set([
+  "passiva",
+  "contenitore_opzioni",
+  "sistema_incantesimi",
+]);
+
+export function classFeatureIsReferenceOnly(feature) {
+  const runtimeSupport = classFeatureRuntimeSupport(feature);
+  if (runtimeSupport.status !== CLASS_FEATURE_RUNTIME_STATUS.NOT_AUTOMATED) {
+    return false;
+  }
+  const automationLevel = String(feature?.automationLevel || "")
+    .trim()
+    .toLowerCase();
+  const activation = String(feature?.activation?.primary || "")
+    .trim()
+    .toLowerCase();
+  return automationLevel === "riferimento"
+    || REFERENCE_ONLY_ACTIVATIONS.has(activation);
+}
+
+export function classFeatureRequiredActiveFeatureId(feature) {
+  return shortText(
+    feature?.requiresActiveFeatureId
+      || feature?.requires_active_feature_id,
+    220,
+  );
+}
+
+export function classFeatureParentFeatureId(feature) {
+  return shortText(
+    feature?.parentFeatureId
+      || feature?.parent_feature_id,
+    220,
+  );
+}
+
+export function classFeaturePassiveMovementMechanics(feature) {
+  const activation = String(feature?.activation?.primary || "")
+    .trim()
+    .toLowerCase();
+  if (activation !== "passiva") return null;
+  const movement = feature?.passiveMechanics?.movement;
+  return movement && typeof movement === "object"
+    ? { ...movement }
+    : null;
 }
 
 export function classFeatureChoiceOptions(feature) {
@@ -180,6 +233,29 @@ export function characterClassLevel(characterBuild, classId) {
     .find((entry) => entry.classId === wanted)?.level || 0;
 }
 
+export function classFeatureConditionResourceDie(value, characterBuild = []) {
+  const effectId = String(
+    value?.effectId
+      || value?.conditionEffectId
+      || value?.effectPlan?.conditionEffectId
+      || value?.id
+      || ""
+  ).trim();
+  const condition = String(value?.condition || value?.conditionName || "").trim();
+  const type = String(value?.type || "").trim();
+  const isBardicInspiration = effectId === BARDIC_INSPIRATION_EFFECT_ID
+    || ((type === "class-feature" || type === "class-feature-area")
+      && condition === "Ispirazione Bardica");
+  if (!isBardicInspiration) return null;
+
+  const level = characterClassLevel(characterBuild, "bardo");
+  if (level >= 15) return "d12";
+  if (level >= 10) return "d10";
+  if (level >= 5) return "d8";
+  if (level >= 1) return "d6";
+  return null;
+}
+
 export function normalizeClassFeatureState(value) {
   const source = value && typeof value === "object" ? value : {};
   const resources = {};
@@ -255,6 +331,17 @@ export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
   const capacity = pool.capacity && typeof pool.capacity === "object"
     ? pool.capacity
     : {};
+  const normalizedExpression = String(capacity.expression || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/gu, "_");
+  const totalCharacterLevel = Math.min(20, sanitizeCharacterBuild(characterBuild)
+    .reduce((total, entry) => total + entry.level, 0));
+  const formulaValue = capacity.type === "formula"
+    && normalizedExpression === "bonus_competenza"
+    && totalCharacterLevel > 0
+    ? 2 + Math.floor((totalCharacterLevel - 1) / 4)
+    : null;
   const classId = String(
     capacity.class_id
     || pool.owner?.classId
@@ -268,7 +355,7 @@ export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
     ? byLevel[String(level)]
     : capacity.type === "fixed"
       ? capacity.value
-      : null;
+      : formulaValue;
   const normalized = String(raw ?? "").trim().toLowerCase();
   if (normalized === "illimitato" || normalized === "illimitate" || normalized === "unlimited") {
     return { maximum: null, unlimited: true };
@@ -277,6 +364,80 @@ export function resolveClassFeatureResourceMaximum(pool, characterBuild) {
     maximum: finiteResourceValue(raw),
     unlimited: false,
   };
+}
+
+function resourcePoolClassId(pool, descriptor = null) {
+  return String(
+    descriptor?.class_id
+      || descriptor?.classId
+      || pool?.capacity?.class_id
+      || pool?.capacity?.classId
+      || pool?.owner?.classId
+      || ""
+  ).trim();
+}
+
+function classLevelValue(values, level) {
+  if (!values || typeof values !== "object" || !level) return null;
+  const exact = values[String(level)];
+  if (exact !== undefined && exact !== null && String(exact).trim()) return exact;
+  const fallbackLevel = Object.keys(values)
+    .map(Number)
+    .filter((value) => Number.isInteger(value) && value > 0 && value <= level)
+    .sort((left, right) => right - left)[0];
+  return fallbackLevel ? values[String(fallbackLevel)] : null;
+}
+
+export function resolveClassFeatureResourceDie(pool, characterBuild) {
+  const die = pool?.die && typeof pool.die === "object" ? pool.die : null;
+  const classId = resourcePoolClassId(pool, die);
+  const level = classId ? characterClassLevel(characterBuild, classId) : 0;
+  const raw = classLevelValue(pool?.dieByClassLevel, level);
+  const normalized = String(raw ?? "").trim();
+  return normalized || null;
+}
+
+export function resolveClassFeatureProgressionValue(feature, characterBuild) {
+  const descriptor = feature?.diceFrom && typeof feature.diceFrom === "object"
+    ? feature.diceFrom
+    : null;
+  const classId = String(
+    descriptor?.classId
+      || descriptor?.class_id
+      || feature?.classId
+      || ""
+  ).trim();
+  const level = classId ? characterClassLevel(characterBuild, classId) : 0;
+  const raw = classLevelValue(feature?.diceByClassLevel, level);
+  const normalized = String(raw ?? "").trim();
+  return normalized || null;
+}
+
+export function resolveClassFeatureDice(feature, characterBuild) {
+  return resolveClassFeatureProgressionValue(feature, characterBuild);
+}
+
+export function classFeatureResourceRefreshEvents(pool, characterBuild) {
+  const classId = resourcePoolClassId(pool);
+  const level = classId ? characterClassLevel(characterBuild, classId) : 0;
+  const byLevel = Array.isArray(pool?.refreshByClassLevel)
+    ? pool.refreshByClassLevel
+    : [];
+  const applicable = byLevel.filter((entry) => {
+    const minimum = Math.max(1, Math.floor(Number(entry?.min_level ?? entry?.minLevel) || 1));
+    const maximum = Number(entry?.max_level ?? entry?.maxLevel);
+    return level >= minimum && (!Number.isFinite(maximum) || level <= maximum);
+  });
+  const events = applicable.flatMap((entry) => (
+    Array.isArray(entry?.events) ? entry.events : []
+  ));
+  const fallback = Array.isArray(pool?.refresh) ? pool.refresh : [];
+  return Array.from(new Set(
+    (events.length ? events : fallback)
+      .map((entry) => typeof entry === "string" ? entry : entry?.event)
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean)
+  ));
 }
 
 function resourceEntryForCost(state, pool, characterBuild) {
@@ -289,7 +450,14 @@ function resourceEntryForCost(state, pool, characterBuild) {
       unlimited: true,
     };
   }
-  const maximum = resolved.maximum ?? stored?.maximum ?? null;
+  const storedMaximum = finiteResourceValue(stored?.maximum);
+  const formulaMaximumUnknown = pool?.capacity?.type === "formula"
+    && resolved.maximum === null;
+  const maximum = resolved.maximum ?? (
+    formulaMaximumUnknown
+      ? storedMaximum > 0 ? storedMaximum : null
+      : storedMaximum
+  );
   const storedCurrent = finiteResourceValue(stored?.current);
   return {
     current: maximum === null
@@ -309,17 +477,26 @@ export function classFeatureResourceEntries(
   const state = normalizeClassFeatureState(stateValue);
   const poolIds = Array.from(new Set(
     (Array.isArray(features) ? features : [])
-      .flatMap((feature) => Array.isArray(feature?.resourceCosts)
-        ? feature.resourceCosts.map((cost) => cost.poolId)
-        : [])
+      .flatMap((feature) => [
+        ...(Array.isArray(feature?.resourceCosts)
+          ? feature.resourceCosts.map((cost) => cost.poolId)
+          : []),
+        ...(Array.isArray(feature?.trackedResourcePoolIds)
+          ? feature.trackedResourcePoolIds
+          : []),
+      ])
       .filter(Boolean)
   ));
   return poolIds.map((poolId) => {
     const pool = poolsById.get(poolId);
     if (!pool) return null;
+    const die = resolveClassFeatureResourceDie(pool, characterBuild);
+    const refreshEvents = classFeatureResourceRefreshEvents(pool, characterBuild);
     return {
       pool,
       ...resourceEntryForCost(state, pool, characterBuild),
+      ...(die ? { die } : {}),
+      ...(refreshEvents.length ? { refreshEvents } : {}),
     };
   }).filter(Boolean);
 }
@@ -338,6 +515,11 @@ export function classFeatureDurationTiming(feature) {
     .replaceAll("_", "-");
   if (timing === "next-turn" || timing === "until-next-turn") return "next-turn";
   if (timing === "next-turn-end" || timing === "until-next-turn-end") return "next-turn-end";
+  if (
+    timing === "turn-end"
+    || timing === "until-end-of-turn"
+    || timing === "current-turn-end"
+  ) return "turn-end";
   return null;
 }
 
@@ -350,7 +532,41 @@ export function classFeatureDurationParentFeatureId(feature) {
   );
 }
 
-export function classFeatureTargeting(feature) {
+export function classFeatureAutoActivateParentFeatureId(feature) {
+  const parentFeatureId = classFeatureDurationParentFeatureId(feature);
+  return feature?.id === BERSERKER_FRENZY_FEATURE_ID
+    && parentFeatureId === BERSERKER_RAGE_FEATURE_ID
+    ? parentFeatureId
+    : "";
+}
+
+export function classFeatureDurationIndefiniteFeatureId(feature) {
+  return shortText(
+    feature?.duration?.indefiniteWithFeatureId
+      || feature?.duration?.indefinite_with_feature_id,
+    220,
+  );
+}
+
+export function classFeatureResolvedRadiusMeters(feature, characterBuild = []) {
+  const effectPlan = classFeatureEffectPlan(feature);
+  const byLevel = effectPlan?.radiusByClassLevel
+    || effectPlan?.radius_by_class_level;
+  if (!byLevel || typeof byLevel !== "object") return null;
+  const level = characterClassLevel(characterBuild, feature?.classId);
+  const levels = Object.keys(byLevel)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((left, right) => left - right);
+  if (!levels.length) return null;
+  const resolvedLevel = levels.includes(level)
+    ? level
+    : levels.filter((value) => value <= level).pop() || levels[0];
+  const radius = Number(byLevel[String(resolvedLevel)]);
+  return Number.isFinite(radius) && radius > 0 ? radius : null;
+}
+
+export function classFeatureTargeting(feature, characterBuild = []) {
   const raw = feature?.targeting && typeof feature.targeting === "object"
     ? feature.targeting
     : {};
@@ -359,12 +575,15 @@ export function classFeatureTargeting(feature) {
     ? raw.mode
     : fallbackMode;
   const rangeMeters = Number(raw.rangeMeters);
+  const resolvedRangeMeters = Number.isFinite(rangeMeters) && rangeMeters > 0
+    ? rangeMeters
+    : classFeatureResolvedRadiusMeters(feature, characterBuild);
   const maxTargets = raw.maxTargets === null
     ? null
     : Math.max(1, Math.floor(Number(raw.maxTargets) || (mode === "self" || mode === "single-target" ? 1 : 1)));
   return {
     mode,
-    rangeMeters: Number.isFinite(rangeMeters) && rangeMeters > 0 ? rangeMeters : null,
+    rangeMeters: resolvedRangeMeters,
     maxTargets,
     excludeSource: raw.excludeSource === false
       ? false
@@ -376,8 +595,9 @@ export function classFeatureTargetIds(
   feature,
   sourceId,
   requestedTargetIds = [],
+  characterBuild = [],
 ) {
-  const targeting = classFeatureTargeting(feature);
+  const targeting = classFeatureTargeting(feature, characterBuild);
   const source = shortText(sourceId, 220);
   if (targeting.mode === "self" || targeting.mode === "aura") {
     return source ? [source] : [];
@@ -392,20 +612,44 @@ export function classFeatureTargetIds(
     : ids;
 }
 
-export function classFeatureEffectProjection(feature, choiceId = "") {
+export function classFeatureEffectProjection(
+  feature,
+  choiceId = "",
+  characterBuild = [],
+) {
   const raw = classFeatureEffectPlan(feature, choiceId);
-  const targeting = classFeatureTargeting(feature);
+  const targeting = classFeatureTargeting(feature, characterBuild);
   const runtimeSupport = classFeatureRuntimeSupport(feature);
   const conditionName = shortText(
     raw.conditionName || feature?.name || "Capacità",
     160,
   );
   const detail = shortText(raw.detail || feature?.name || "", 240);
+  const conditionEffectId = shortText(
+    raw.conditionEffectId || raw.condition_effect_id,
+    220,
+  );
+  const projectedIdentity = conditionEffectId ? { conditionEffectId } : {};
   if (!runtimeSupport.ready) {
     return {
       kind: "none",
       conditionName,
       detail,
+      ...projectedIdentity,
+      radiusMeters: null,
+      theme: classFeatureTheme(feature),
+      targetEffect: null,
+      targetEffects: [],
+      secondaryEffects: [],
+      membershipTargeting: null,
+    };
+  }
+  if (raw.kind === "none") {
+    return {
+      kind: "none",
+      conditionName,
+      detail,
+      ...projectedIdentity,
       radiusMeters: null,
       theme: classFeatureTheme(feature),
       targetEffect: null,
@@ -419,7 +663,17 @@ export function classFeatureEffectProjection(feature, choiceId = "") {
     : raw.kind === "condition" || targeting.mode !== "aura"
       ? "condition"
       : "aura";
-  const radiusMeters = Number(raw.radiusMeters ?? targeting.rangeMeters);
+  const radiusMeters = Number(
+    raw.radiusMeters
+      ?? classFeatureResolvedRadiusMeters(
+        { ...feature, effectPlan: raw },
+        characterBuild,
+      )
+      ?? targeting.rangeMeters
+  );
+  const mechanics = raw.mechanics && typeof raw.mechanics === "object"
+    ? { ...raw.mechanics }
+    : {};
   const targetRaw = raw.targetEffect && typeof raw.targetEffect === "object"
     ? raw.targetEffect
     : null;
@@ -460,16 +714,27 @@ export function classFeatureEffectProjection(feature, choiceId = "") {
     : raw.membershipTargeting && typeof raw.membershipTargeting === "object"
       ? { ...raw.membershipTargeting }
       : null;
+  const triggerPolicy = raw.triggerPolicy && typeof raw.triggerPolicy === "object"
+    ? {
+      ...raw.triggerPolicy,
+      ...(Array.isArray(raw.triggerPolicy.triggers)
+        ? { triggers: raw.triggerPolicy.triggers.map((trigger) => ({ ...trigger })) }
+        : {}),
+    }
+    : null;
   return {
     kind,
     conditionName,
     detail,
+    ...projectedIdentity,
     radiusMeters: Number.isFinite(radiusMeters) && radiusMeters > 0 ? radiusMeters : null,
+    ...(Object.keys(mechanics).length ? { mechanics } : {}),
     theme: classFeatureTheme(feature),
     targetEffect,
     targetEffects,
     secondaryEffects,
     membershipTargeting,
+    ...(triggerPolicy ? { triggerPolicy } : {}),
   };
 }
 
@@ -482,24 +747,34 @@ export function classFeatureConditionInstance(
   activation,
   targetId,
   sourceName = "",
+  characterBuild = [],
 ) {
   const sourceId = shortText(activation?.sourceId, 220);
   const instanceId = shortText(activation?.instanceId, 220);
   const target = shortText(targetId, 220);
   if (!sourceId || !instanceId || !target) return null;
-  const targeting = classFeatureTargeting(feature);
+  const targeting = classFeatureTargeting(feature, characterBuild);
   if (targeting.excludeSource && target === sourceId) return null;
   const choiceId = shortText(activation?.choiceId, 120);
-  const projection = classFeatureEffectProjection(feature, choiceId);
+  const projection = classFeatureEffectProjection(feature, choiceId, characterBuild);
   if (projection.kind === "none") return null;
+  const sourceCardOnly = projection.kind === "aura"
+    && feature?.effectPlan?.sourceCardPill?.mapVisible === false;
   const durationTiming = classFeatureDurationTiming(feature);
   const durationParentFeatureId = classFeatureDurationParentFeatureId(feature);
   const nextTurnTiming = durationTiming === "next-turn";
   const nextTurnEndTiming = durationTiming === "next-turn-end";
+  const turnEndTiming = durationTiming === "turn-end";
   const remaining = classFeatureRemainingRounds(
     activation,
     activation?.startedRound,
   );
+  const resourceDie = classFeatureConditionResourceDie({
+    ...feature,
+    type: "class-feature",
+    condition: projection.conditionName,
+    effectId: projection.conditionEffectId || feature?.id,
+  }, characterBuild);
   const instance = {
     id: `class-feature:${instanceId}:${target}`,
     condition: projection.conditionName,
@@ -509,12 +784,14 @@ export function classFeatureConditionInstance(
     sourceName: shortText(sourceName, 180),
     parentEffectId: instanceId,
     type: "class-feature",
-    effectId: shortText(feature?.id, 220),
+    effectId: shortText(projection.conditionEffectId || feature?.id, 220),
     ...(choiceId ? { choiceId } : {}),
     ...(durationParentFeatureId ? { parentFeatureId: durationParentFeatureId } : {}),
     ...(activation?.parentInstanceId ? { parentInstanceId: activation.parentInstanceId } : {}),
     effectDetail: projection.detail,
+    ...(resourceDie ? { resourceDie } : {}),
     theme: projection.theme,
+    ...(sourceCardOnly ? { mapVisible: false } : {}),
     expiry: nextTurnTiming
       ? {
         mode: "turn-start",
@@ -531,6 +808,13 @@ export function classFeatureConditionInstance(
           remaining: 1,
           anchor: "next-turn",
         }
+      : turnEndTiming
+        ? {
+          mode: "turn-end",
+          actor: "source",
+          actorId: sourceId,
+          remaining: 1,
+        }
       : remaining === null
         ? { mode: "manual" }
         : { mode: "rounds", remaining },
@@ -541,8 +825,12 @@ export function classFeatureConditionInstance(
       ...(activation?.startedTurnKey ? { turnKey: activation.startedTurnKey } : {}),
     },
   };
+  if (projection.mechanics && Object.keys(projection.mechanics).length) {
+    instance.mechanics = { ...projection.mechanics };
+  }
   if (projection.kind === "aura") {
     instance.mechanics = {
+      ...(instance.mechanics || {}),
       area: {
         radiusMeters: projection.radiusMeters,
         anchorId: sourceId,
@@ -559,8 +847,15 @@ function classFeatureSecondaryConditionInstance(
   sourceName,
   effect,
   index,
+  characterBuild = [],
 ) {
-  const primary = classFeatureConditionInstance(feature, activation, targetId, sourceName);
+  const primary = classFeatureConditionInstance(
+    feature,
+    activation,
+    targetId,
+    sourceName,
+    characterBuild,
+  );
   if (!primary || !effect?.conditionName) return null;
   return {
     ...primary,
@@ -580,13 +875,15 @@ export function classFeatureConditionInstancesForActivation(
   feature,
   activation,
   sourceName = "",
+  characterBuild = [],
 ) {
   if (!activation?.instanceId) return [];
   const choiceId = shortText(activation?.choiceId, 120);
-  const projection = classFeatureEffectProjection(feature, choiceId);
+  const projection = classFeatureEffectProjection(feature, choiceId, characterBuild);
   if (projection.kind === "none") return [];
+  if (projection.kind === "aura" && feature?.suppressSourceCardPill === true) return [];
   const sourceId = shortText(activation.sourceId, 220);
-  const targeting = classFeatureTargeting(feature);
+  const targeting = classFeatureTargeting(feature, characterBuild);
   const targets = projection.kind === "aura"
     ? [activation.sourceId]
     : (Array.isArray(activation.targetIds) ? activation.targetIds : [])
@@ -594,7 +891,13 @@ export function classFeatureConditionInstancesForActivation(
         && String(targetId || "").trim() === sourceId));
   const instances = [];
   for (const targetId of targets) {
-    const primary = classFeatureConditionInstance(feature, activation, targetId, sourceName);
+    const primary = classFeatureConditionInstance(
+      feature,
+      activation,
+      targetId,
+      sourceName,
+      characterBuild,
+    );
     if (primary) instances.push(primary);
     for (const [index, effect] of projection.secondaryEffects.entries()) {
       const secondary = classFeatureSecondaryConditionInstance(
@@ -604,6 +907,7 @@ export function classFeatureConditionInstancesForActivation(
         sourceName,
         effect,
         index,
+        characterBuild,
       );
       if (secondary) instances.push(secondary);
     }
@@ -656,6 +960,84 @@ export function classFeatureResourceCostUsesActiveParent(
   );
 }
 
+export function classFeatureResourceCostAmount(cost, resourceValues = {}) {
+  if (cost?.variable !== true) {
+    const amount = Number(cost?.amount);
+    return Number.isFinite(amount) && amount > 0
+      ? Math.floor(amount)
+      : 0;
+  }
+  const raw = resourceValues && typeof resourceValues === "object"
+    ? resourceValues[cost.poolId]
+      ?? resourceValues.amount
+      ?? resourceValues.value
+    : resourceValues;
+  const amount = Number(raw);
+  if (!Number.isInteger(amount)) return null;
+  if (cost?.valueInput === "spell-level-0-9" && (amount < 0 || amount > 9)) return null;
+  if (amount < 0) return null;
+  return cost?.valueInput === "spell-level-0-9"
+    ? Math.max(1, amount)
+    : amount > 0 ? amount : null;
+}
+
+export function classFeatureSpellSlotCreationCost(feature, slotLevel) {
+  const operations = Array.isArray(feature?.resourceOperations)
+    ? feature.resourceOperations
+    : [];
+  const operation = operations.find((entry) => entry?.kind === "create-spell-slot");
+  const level = Number(slotLevel);
+  if (!operation || !Number.isInteger(level) || level < 1 || level > 5) return null;
+  const cost = Number(operation.costTable?.[String(level)]);
+  return Number.isInteger(cost) && cost > 0 ? cost : null;
+}
+
+export function classFeatureTwinnedSpellCost(spellLevel) {
+  const level = Number(spellLevel);
+  if (!Number.isInteger(level) || level < 0 || level > 9) return null;
+  return Math.max(1, level);
+}
+
+export function classFeatureSpecialRefresh(pool, characterBuild, event = "riposo_breve") {
+  const wantedEvent = String(event || "").trim();
+  if (!pool || !wantedEvent) return null;
+  const classId = String(
+    pool.capacity?.class_id
+      || pool.owner?.classId
+      || ""
+  ).trim();
+  const level = classId ? characterClassLevel(characterBuild, classId) : 0;
+  const entries = Array.isArray(pool.specialRefresh) ? pool.specialRefresh : [];
+  return entries
+    .filter((entry) => String(entry?.event || "").trim() === wantedEvent)
+    .filter((entry) => level >= Number(entry?.minClassLevel || 1))
+    .sort((left, right) => Number(right?.minClassLevel || 0) - Number(left?.minClassLevel || 0))[0]
+    || null;
+}
+
+export function planClassFeatureSpecialRefresh(
+  stateValue,
+  pool,
+  characterBuild,
+  { event = "riposo_breve" } = {},
+) {
+  const refresh = classFeatureSpecialRefresh(pool, characterBuild, event);
+  if (!refresh) {
+    return {
+      changed: false,
+      state: normalizeClassFeatureState(stateValue),
+      reason: "special-refresh-unavailable",
+    };
+  }
+  const result = planClassFeatureResourceAdjustment(
+    stateValue,
+    pool,
+    characterBuild,
+    { delta: Number(refresh.amount) || 0 },
+  );
+  return { ...result, refresh };
+}
+
 export function planClassFeatureActivation({
   state: stateValue,
   feature,
@@ -667,6 +1049,8 @@ export function planClassFeatureActivation({
   currentTurnKey = "",
   instanceId,
   choiceId = "",
+  resourceValues = {},
+  enabledFeatureIds = [],
   createdAt = Date.now(),
 } = {}) {
   if (!feature?.id || !instanceId || !sourceId) {
@@ -690,15 +1074,45 @@ export function planClassFeatureActivation({
     instances: [...state.instances],
   };
 
+  const round = optionalInteger(currentRound, 1, 99999) ?? 1;
+  if (feature.trackingMode !== "instant") {
+    const targeting = classFeatureTargeting(feature, characterBuild);
+    const requestedTargetIds = new Set(
+      (Array.isArray(targetIds) ? targetIds : [])
+        .map((id) => shortText(id, 220))
+        .filter(Boolean),
+    );
+    const duplicate = activeClassFeatureInstances(state, round)
+      .filter((entry) => entry.featureId === feature.id)
+      .some((entry) => targeting.mode === "self" || targeting.mode === "aura"
+        ? true
+        : (Array.isArray(entry.targetIds) ? entry.targetIds : [])
+          .some((id) => requestedTargetIds.has(id)));
+    if (duplicate) {
+      return { ok: false, reason: "feature-already-active" };
+    }
+  }
+
   const parentFeatureId = classFeatureDurationParentFeatureId(feature);
+  const requiredActiveFeatureId = classFeatureRequiredActiveFeatureId(feature);
   const parentInstance = parentFeatureId
     ? activeParentInstance(state, parentFeatureId, currentRound)
+    : null;
+  const requiredActiveInstance = requiredActiveFeatureId
+    ? activeParentInstance(state, requiredActiveFeatureId, currentRound)
     : null;
   if (parentFeatureId && !parentInstance) {
     return {
       ok: false,
       reason: "parent-feature-required",
       parentFeatureId,
+    };
+  }
+  if (requiredActiveFeatureId && !requiredActiveInstance) {
+    return {
+      ok: false,
+      reason: "parent-feature-required",
+      parentFeatureId: requiredActiveFeatureId,
     };
   }
 
@@ -708,22 +1122,37 @@ export function planClassFeatureActivation({
     }
     const pool = poolsById.get(cost.poolId);
     if (!pool) return { ok: false, reason: "resource-pool-missing", poolId: cost.poolId };
+    const amount = classFeatureResourceCostAmount(cost, resourceValues);
+    if (amount === null) {
+      return { ok: false, reason: "resource-value-required", poolId: cost.poolId };
+    }
     const entry = resourceEntryForCost(state, pool, characterBuild);
-    if (!entry.unlimited && entry.current !== null && entry.current < cost.amount) {
+    if (!entry.unlimited && entry.current !== null && entry.current < amount) {
       return { ok: false, reason: "resource-empty", poolId: cost.poolId };
     }
     next.resources[cost.poolId] = entry.unlimited
       ? entry
       : entry.current === null
         ? entry
-        : { ...entry, current: entry.current - cost.amount };
+        : { ...entry, current: entry.current - amount };
   }
 
-  const round = optionalInteger(currentRound, 1, 99999) ?? 1;
   const durationTiming = classFeatureDurationTiming(feature);
-  const durationRounds = parentInstance
+  const indefiniteFeatureId = classFeatureDurationIndefiniteFeatureId(feature);
+  const enabledFeatureIdSet = new Set(
+    (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
+      .map((id) => shortText(id, 220))
+      .filter(Boolean)
+  );
+  const indefiniteDuration = !!indefiniteFeatureId
+    && enabledFeatureIdSet.has(indefiniteFeatureId);
+  const durationRounds = indefiniteDuration
+    ? null
+    : parentInstance
     ? classFeatureRemainingRounds(parentInstance, round)
-    : durationTiming === "next-turn" || durationTiming === "next-turn-end"
+    : durationTiming === "next-turn"
+      || durationTiming === "next-turn-end"
+      || durationTiming === "turn-end"
       ? null
       : optionalInteger(feature?.duration?.rounds, 1, 99999);
   const instance = {
@@ -756,7 +1185,7 @@ export function planClassFeatureActivation({
   return {
     ok: true,
     state: next,
-    instance: feature.trackingMode === "instant" ? null : instance,
+    instance,
   };
 }
 
@@ -896,9 +1325,19 @@ export function appendClassFeatureConditionInstances(
   stateValue,
   featureById,
   currentRound = null,
+  characterBuild = [],
+  characterBuildBySourceId = null,
 ) {
   const base = conditions && typeof conditions === "object" ? conditions : {};
-  const instances = Array.isArray(base.instances) ? [...base.instances] : [];
+  const instances = (Array.isArray(base.instances) ? base.instances : []).map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+    const sourceBuild = characterBuildBySourceId?.get?.(String(entry.sourceId || "").trim())
+      || characterBuild;
+    const resourceDie = classFeatureConditionResourceDie(entry, sourceBuild);
+    return resourceDie && !entry.resourceDie
+      ? { ...entry, resourceDie }
+      : entry;
+  });
   const persistedParents = new Set(instances
     .map((entry) => String(entry?.parentEffectId || "").trim())
     .filter(Boolean));
@@ -906,9 +1345,11 @@ export function appendClassFeatureConditionInstances(
     if (persistedParents.has(active.instanceId)) continue;
     const feature = featureById.get(active.featureId);
     if (!feature) continue;
-    const projection = classFeatureEffectProjection(feature, active.choiceId);
+    const sourceBuild = characterBuildBySourceId?.get?.(String(active.sourceId || "").trim())
+      || characterBuild;
+    const projection = classFeatureEffectProjection(feature, active.choiceId, sourceBuild);
     if (projection.kind === "none") continue;
-    const targeting = classFeatureTargeting(feature);
+    const targeting = classFeatureTargeting(feature, sourceBuild);
     const sourceId = String(active.sourceId || "").trim();
     const sourceIsTargeted = targeting.mode === "self"
       || projection.kind === "aura"
@@ -918,6 +1359,7 @@ export function appendClassFeatureConditionInstances(
       feature,
       active,
       "",
+      sourceBuild,
     ).filter((instance) => String(instance?.targetId || "") === sourceId);
     if (generated.length) instances.push(...generated);
   }

@@ -1602,7 +1602,7 @@
       ],
       "pagina": 32,
       "pagina_pdf": 33,
-      "descrizione": "Il chierico può vedere attraverso l'oscurità pi: profonda. Ottiene scurovisione entro un raggio di 90 metri. In questo raggio, in condizioni di luce fioca può vedere come se si trovasse in condizioni di luce intensa e nell'oscurità come se si trovasse in luce fioca. Con un'azione, il chierico può condividere magicamente la scurovisione di questo privilegio con delle creature consenzienti nel raggio di 3 metri e che sia in grado di vedere, fino a un numero pari al suo modificatore di Saggezza (minimo di una creatura). La condivisione della 1 ora. Una volta condivisa, il chierico scurovisione dura non può farlo di nuovo prima di aver completato un riposo lungo, a meno che non spenda uno slot incantesimo di qualsiasi livello per condividerla nuovamente.",
+      "descrizione": "Il chierico può vedere attraverso l'oscurità più profonda. Ottiene scurovisione entro un raggio di 90 metri. In questo raggio, in condizioni di luce fioca può vedere come se si trovasse in condizioni di luce intensa e nell'oscurità come se si trovasse in luce fioca. Con un'azione, il chierico può condividere magicamente la scurovisione di questo privilegio con creature consenzienti entro 3 metri che sia in grado di vedere, fino a un numero pari al suo modificatore di Saggezza (minimo una creatura). La condivisione dura 1 ora. Una volta condivisa, il chierico non può farlo di nuovo prima di aver completato un riposo lungo, a meno che non spenda uno slot incantesimo di qualsiasi livello per condividerla nuovamente.",
       "fonte_descrizione": "manuale_verificato"
     },
     {

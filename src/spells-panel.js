@@ -42,17 +42,18 @@ import { wireSpellPanelFormWorkflow } from "./spellsPanelFormWorkflow.js";
 import {
   commitWithStaticSpellZoneRemoval,
   getStaticSpellZoneItems,
-  setStaticSpellZoneRuleChoice,
 } from "./spellStaticZone.js";
 import { staticSpellZoneItemsEndedByPlan } from "./spellStaticZoneCore.js";
 import {
-  buildSpellActiveActionPlan,
   spellActiveActionPresentation,
 } from "./spellActiveActionCore.js";
 import { getMobileAuraRule } from "./spellAuraCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
-import { executeSpellApplication } from "./spellApplicationExecutor.js";
+import {
+  executeSpellActiveAction,
+  executeSpellApplication,
+} from "./spellApplicationExecutor.js";
 import { buildPreparedSpellResolutionRequest } from "./preparedSpellResolutionCore.js";
 
 const META_KEY = ID + "/meta";
@@ -550,7 +551,7 @@ async function init() {
         action,
         targetIds,
       }) {
-        const actionPlan = buildSpellActiveActionPlan({
+        await executeSpellActiveAction({
           spell,
           actionId: action.id,
           group,
@@ -558,33 +559,6 @@ async function init() {
           appliedAt: await getAppliedAt(),
           casterName: group.casterName,
         });
-        if (!actionPlan.valid) {
-          throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
-        }
-        const zoneItems = actionPlan.zoneRuleChoice
-          ? await getStaticSpellZoneItems({ instanceId: group.instanceId })
-          : [];
-        if (actionPlan.zoneRuleChoice && !zoneItems.length) {
-          throw new Error("La zona dell'incantesimo non è più presente sulla scena.");
-        }
-        const mutationPlan = await prepareEffectsMutation(actionPlan.operations);
-        const historyIds = mutationPlan.changedIds;
-        await withItemMetaHistory({
-          kind: "spell",
-          label: actionPlan.historyLabel,
-          itemIds: historyIds,
-          sceneItemIds: zoneItems.map((item) => item.id),
-          fields: [SPELLS_META_KEY, CONC_META_KEY, "conditions"],
-        }, async () => {
-          await commitEffectsMutationPlan(mutationPlan);
-          if (actionPlan.zoneRuleChoice) {
-            await setStaticSpellZoneRuleChoice(
-              zoneItems,
-              actionPlan.zoneRuleChoice,
-            );
-          }
-        });
-        await refreshConditionLabels(historyIds);
         await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
         await refreshOverview();
       },

@@ -4,6 +4,7 @@ import { mountSpellAuraController } from "./spellAuraController.js";
 import { mountClassFeatureAuraController } from "./classFeatureAuraController.js";
 import { mountStaticSpellZoneController } from "./spellStaticZone.js";
 import { mountEffectSaveReminderController } from "./effectSaveReminderController.js";
+import { mountClassFeatureReminderController } from "./classFeatureReminderController.js";
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
@@ -18,5 +19,6 @@ OBR.onReady(() => {
   void mountClassFeatureAuraController();
   void mountStaticSpellZoneController();
   void mountEffectSaveReminderController();
+  void mountClassFeatureReminderController();
   void mountPreparedSpellResolutionController();
 });

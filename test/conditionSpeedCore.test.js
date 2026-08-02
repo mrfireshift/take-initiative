@@ -1,5 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CLASS_FEATURE_BY_ID } from "../src/classFeatureCatalog.js";
+import {
+  classFeatureConditionInstance,
+  classFeaturePassiveMovementMechanics,
+} from "../src/classFeatureCore.js";
 import {
   conditionMovementCostCells,
   proneStandingCostMeters,
@@ -123,6 +128,30 @@ test("gli effetti numerici del catalogo modificano la velocità tramite mechanic
   assert.equal(resolveConditionSpeed(9, [powerWordPain], [{ spellId: "haste" }]).speedMeters, 3);
   assert.equal(resolveConditionSpeed(9, [feignDeath]).speedMeters, 0);
   assert.equal(resolveConditionSpeed(9, [feignDeath]).blocksSpeedBonuses, true);
+});
+
+test("le capacità Barbaro applicano le modifiche di velocità al profilo di movimento", () => {
+  const fastMovement = CLASS_FEATURE_BY_ID.get("barbaro-movimento-veloce");
+  const movement = classFeaturePassiveMovementMechanics(fastMovement);
+  assert.equal(resolveConditionSpeed(9, [{
+    id: "class-feature-passive:barbaro-movimento-veloce",
+    effectId: fastMovement.id,
+    condition: fastMovement.name,
+    mechanics: { movement },
+  }]).speedMeters, 12);
+
+  const eagleAttunement = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
+  );
+  const eagle = classFeatureConditionInstance(eagleAttunement, {
+    sourceId: "barbarian",
+    instanceId: "eagle",
+    startedRound: 1,
+    expiresRound: null,
+  }, "barbarian");
+  const profile = resolveConditionSpeed(9, [eagle], [], "fly");
+  assert.equal(profile.activeMode, "fly");
+  assert.equal(profile.speedMeters, 9);
 });
 
 test("il terreno difficile dell'aura raddoppia il costo senza dimezzare la velocità", () => {

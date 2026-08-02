@@ -209,6 +209,21 @@ test("le etichette compatte conservano livello e scadenza della condizione", () 
     }),
     "Trattenuto (C)",
   );
+  assert.equal(
+    __compactConditionPillLabel({
+      condition: "Ispirazione Bardica",
+      resourceDie: "d10",
+      expiry: { mode: "rounds", remaining: 100 },
+    }),
+    "Ispirazione Bardica (d10)",
+  );
+  assert.equal(
+    __compactConditionPillLabel({
+      condition: "Affascinato",
+      expiry: { mode: "rounds", remaining: 100 },
+    }),
+    "Affascinato",
+  );
 });
 
 test("gli effetti compatti mantengono condizioni e spell ma escludono buff e debuff", () => {
@@ -227,6 +242,16 @@ test("gli effetti compatti mantengono condizioni e spell ma escludono buff e deb
     effectKind: "debuff",
     parentEffectId: "missing",
   };
+  const classFeatureBuff = {
+    type: "class-feature",
+    condition: "Bonus della capacità",
+    effectKind: "buff",
+  };
+  const classFeatureDebuff = {
+    type: "class-feature-area",
+    condition: "Svantaggio della capacità",
+    effectKind: "debuff",
+  };
   const spell = {
     name: "Velocità",
     instanceId: "spell-1",
@@ -235,7 +260,7 @@ test("gli effetti compatti mantengono condizioni e spell ma escludono buff e deb
   };
 
   const effects = __compactEffectItems(
-    [condition, linkedBuff, orphanDebuff],
+    [condition, linkedBuff, orphanDebuff, classFeatureBuff, classFeatureDebuff],
     [spell],
     true,
     {
@@ -253,6 +278,8 @@ test("gli effetti compatti mantengono condizioni e spell ma escludono buff e deb
   assert.equal(effects.some((effect) => effect.kind === "buff"), false);
   assert.equal(effects.some((effect) => effect.kind === "debuff"), false);
   assert.equal(effects.some((effect) => effect.label === "Lentezza"), false);
+  assert.equal(effects.some((effect) => effect.label === "Bonus della capacità"), false);
+  assert.equal(effects.some((effect) => effect.label === "Svantaggio della capacità"), false);
   assert.equal(effects.some((effect) => effect.kind === "concentration"), false);
 });
 

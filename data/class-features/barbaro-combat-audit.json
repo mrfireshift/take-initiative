@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedOn": "2026-08-01",
+  "generatedOn": "2026-08-02",
   "sourceAudit": {
     "path": "data/class-features/class-feature-automation-audit.json",
     "version": 2
@@ -40,17 +40,17 @@
   },
   "summary": {
     "byMode": {
-      "tavolo": 26,
+      "tavolo": 27,
       "token_marker": 19,
-      "covered_by_parent": 4,
       "instant_effect": 13,
-      "token_marker_review": 6
+      "token_marker_review": 6,
+      "covered_by_parent": 3
     },
     "tokenMarkerCount": 19,
     "tokenMarkerReviewCount": 6,
     "instantEffectCount": 13,
-    "tableCount": 26,
-    "coveredByParentCount": 4,
+    "tableCount": 27,
+    "coveredByParentCount": 3,
     "actionableMarkerCount": 25
   },
   "durationAudit": [
@@ -160,10 +160,12 @@
     {
       "id": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
       "expected": {
-        "kind": "next-turn"
+        "kind": "next-turn-until-feature",
+        "featureId": "barbaro-ira"
       },
       "actual": {
-        "kind": "next-turn"
+        "kind": "next-turn-until-feature",
+        "featureId": "barbaro-ira"
       },
       "matches": true
     },
@@ -318,6 +320,12 @@
       "matches": true
     },
     {
+      "id": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+      "expected": "break",
+      "actual": "break",
+      "matches": true
+    },
+    {
       "id": "barbaro-cammino-della-bestia-forma-della-bestia",
       "expected": "break",
       "actual": "break",
@@ -372,7 +380,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -403,8 +413,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -615,7 +625,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -644,8 +656,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -834,7 +846,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -863,8 +877,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -905,7 +919,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -934,8 +950,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -978,7 +994,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1007,8 +1025,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1052,7 +1070,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1081,8 +1101,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1123,7 +1143,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1152,8 +1174,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1196,7 +1218,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1225,8 +1249,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1267,7 +1291,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1296,8 +1322,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1338,7 +1364,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1367,8 +1395,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1417,7 +1445,7 @@
         ],
         "sourceAutomationLevel": "riferimento",
         "completeness": "riferimento",
-        "activation": "azione_bonus",
+        "activation": "ingresso_in_ira",
         "activeActivation": true,
         "combatActivation": true,
         "manualChoice": false,
@@ -1478,7 +1506,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1507,8 +1537,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1527,12 +1557,11 @@
       "sourceName": "Ira Incontenibile",
       "combatAudit": {
         "id": "barbaro-cammino-del-berserker-ira-incontenibile",
-        "mode": "covered_by_parent",
-        "parentId": "barbaro-ira",
+        "mode": "tavolo",
         "targetScope": "self",
         "duration": "ira",
         "priority": "nessuna",
-        "reason": "È una modifica del marker Ira: sospende affascinato/spaventato senza richiedere una pill separata."
+        "reason": "Promemoria descrittivo: durante Ira ricorda l'immunità a nuovi Affascinato/Spaventato e la sospensione manuale degli effetti già presenti fino alla fine di Ira."
       }
     },
     {
@@ -1546,33 +1575,36 @@
       "minimumLevel": 10,
       "page": 49,
       "recommendation": {
-        "mode": "tavolo",
-        "modeLabel": "Gestione al tavolo",
-        "priority": "nessuna",
-        "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
-        "scopeExclusion": "solo_riferimento",
+        "mode": "token_marker_review",
+        "modeLabel": "Candidato token da curare",
+        "priority": "media",
+        "rationale": "Il testo suggerisce uno stato persistente da ricordare su un token, ma bersaglio, durata o effetto devono essere curati prima di esporlo.",
+        "scopeExclusion": null,
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "scelta_giocatore_o_opzione"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
           "effects",
-          "activation_semantics"
+          "activation_semantics",
+          "effetti_da_estrarre_dal_testo"
         ],
-        "sourceAutomationLevel": "riferimento",
+        "sourceAutomationLevel": "assistita",
         "completeness": "riferimento",
-        "activation": "passiva",
-        "activeActivation": false,
-        "combatActivation": false,
-        "manualChoice": false,
+        "activation": "azione",
+        "activeActivation": true,
+        "combatActivation": true,
+        "manualChoice": true,
         "effectTypes": [],
         "effectCount": 0,
         "hasMarkerEffect": false,
         "resourceOnly": false,
         "resourcePoolIds": [],
-        "targetType": "non_specificato",
-        "knownTarget": false,
-        "durationType": "fixed",
+        "targetType": "creatura_visibile",
+        "knownTarget": true,
+        "durationType": "until_end_of_next_turn",
         "knownRoundDuration": true,
         "textMarkerSignals": [
           "fino a",
@@ -1594,9 +1626,12 @@
           "activation_semantics"
         ],
         "runtimeRequirements": [],
-        "manualChoiceRequired": false,
+        "manualChoiceRequired": true,
         "activationAlternatives": [],
-        "targetRequirements": [],
+        "targetRequirements": [
+          "visibile_al_barbaro",
+          "puo_vedere_o_udire_il_barbaro"
+        ],
         "effectTags": [
           "condizione",
           "tiro_salvezza",
@@ -1630,7 +1665,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1658,8 +1695,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1699,7 +1736,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1728,8 +1767,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -1772,7 +1811,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -1801,8 +1842,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2075,7 +2116,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2106,8 +2149,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2150,7 +2193,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2179,8 +2224,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2221,7 +2266,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2250,8 +2297,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2292,7 +2339,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2321,8 +2370,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2365,7 +2414,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2394,8 +2445,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2422,82 +2473,6 @@
       }
     },
     {
-      "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
-      "name": "Lupo",
-      "source": "phb2014",
-      "sourceLabel": "Manuale del Giocatore 2014",
-      "collection": "opzioni",
-      "classId": "barbaro",
-      "subclassId": "barbaro-cammino-del-combattente-totemico",
-      "minimumLevel": 14,
-      "page": 50,
-      "recommendation": {
-        "mode": "tavolo",
-        "modeLabel": "Gestione al tavolo",
-        "priority": "nessuna",
-        "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
-        "scopeExclusion": "solo_riferimento",
-        "requiresDataWork": true,
-        "blockers": [
-          "non_esposta_nel_catalogo_runtime"
-        ],
-        "dataBlockers": [
-          "completezza_non_curata",
-          "effetti_non_strutturati",
-          "effects",
-          "effetti_da_estrarre_dal_testo"
-        ],
-        "sourceAutomationLevel": "riferimento",
-        "completeness": "riferimento",
-        "activation": "azione_bonus",
-        "activeActivation": true,
-        "combatActivation": true,
-        "manualChoice": false,
-        "effectTypes": [],
-        "effectCount": 0,
-        "hasMarkerEffect": false,
-        "resourceOnly": false,
-        "resourcePoolIds": [],
-        "targetType": "non_specificato",
-        "knownTarget": false,
-        "durationType": "non_specificata",
-        "knownRoundDuration": false,
-        "textMarkerSignals": [
-          "finché"
-        ],
-        "runtimeImplemented": false,
-        "markerEffectTypes": [],
-        "nonMarkerEffectTypes": [],
-        "sourceEffectTypeSet": []
-      },
-      "runtime": {
-        "exposed": false,
-        "status": null,
-        "adapter": null
-      },
-      "sourceData": {
-        "completenessMissing": [
-          "effects"
-        ],
-        "runtimeRequirements": [],
-        "manualChoiceRequired": false,
-        "activationAlternatives": [
-          "innesco"
-        ],
-        "targetRequirements": [],
-        "effectTags": []
-      },
-      "sourceName": "Lupo",
-      "combatAudit": {
-        "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
-        "mode": "instant_effect",
-        "targetScope": "event_target",
-        "duration": "azione_bonus",
-        "priority": "nessuna",
-        "reason": "Atterramento su un bersaglio dopo un colpo; il risultato può essere gestito dalla condizione Prono."
-      }
-    },
-    {
       "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica",
       "name": "Sintonia Totemica",
       "source": "phb2014",
@@ -2514,7 +2489,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -2543,8 +2520,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -2641,6 +2618,80 @@
         "duration": "fino_a_termine_ira",
         "priority": "alta",
         "reason": "Volo attivo durante Ira: bersaglio e durata sono chiari e il promemoria sul token evita di dimenticare la caduta a fine turno."
+      }
+    },
+    {
+      "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
+      "name": "Sintonia Totemica: Lupo",
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "collection": "opzioni",
+      "classId": "barbaro",
+      "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "minimumLevel": 14,
+      "page": 50,
+      "recommendation": {
+        "mode": "tavolo",
+        "modeLabel": "Gestione al tavolo",
+        "priority": "nessuna",
+        "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
+        "scopeExclusion": "solo_riferimento",
+        "requiresDataWork": true,
+        "blockers": [],
+        "dataBlockers": [
+          "completezza_non_curata",
+          "effetti_non_strutturati",
+          "effects",
+          "effetti_da_estrarre_dal_testo"
+        ],
+        "sourceAutomationLevel": "riferimento",
+        "completeness": "riferimento",
+        "activation": "azione_bonus",
+        "activeActivation": true,
+        "combatActivation": true,
+        "manualChoice": false,
+        "effectTypes": [],
+        "effectCount": 0,
+        "hasMarkerEffect": false,
+        "resourceOnly": false,
+        "resourcePoolIds": [],
+        "targetType": "non_specificato",
+        "knownTarget": false,
+        "durationType": "non_specificata",
+        "knownRoundDuration": false,
+        "textMarkerSignals": [
+          "finché"
+        ],
+        "runtimeImplemented": true,
+        "markerEffectTypes": [],
+        "nonMarkerEffectTypes": [],
+        "sourceEffectTypeSet": []
+      },
+      "runtime": {
+        "exposed": true,
+        "status": "implemented",
+        "adapter": "condition"
+      },
+      "sourceData": {
+        "completenessMissing": [
+          "effects"
+        ],
+        "runtimeRequirements": [],
+        "manualChoiceRequired": false,
+        "activationAlternatives": [
+          "innesco"
+        ],
+        "targetRequirements": [],
+        "effectTags": []
+      },
+      "sourceName": "Lupo",
+      "combatAudit": {
+        "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
+        "mode": "instant_effect",
+        "targetScope": "event_target",
+        "duration": "azione_bonus",
+        "priority": "nessuna",
+        "reason": "Atterramento su un bersaglio dopo un colpo; il risultato può essere gestito dalla condizione Prono."
       }
     },
     {
@@ -2798,9 +2849,9 @@
         "id": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
         "mode": "token_marker",
         "targetScope": "single_target",
-        "duration": "fino_all_inizio_del_prossimo_turno_del_barbaro",
+        "duration": "fino_all_inizio_del_prossimo_turno_o_fine_ira",
         "priority": "alta",
-        "reason": "La prima creatura colpita diventa un bersaglio preciso fino all'inizio del prossimo turno; il marker ricorda svantaggio e resistenza indiretta."
+        "reason": "Dopo la conferma manuale del colpo, il bersaglio scelto riceve un marker fino all'inizio del prossimo turno o alla fine di Ira; svantaggio e resistenza restano reminder manuali."
       }
     },
     {

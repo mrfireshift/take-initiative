@@ -26,7 +26,7 @@
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila": { "kind": "until-feature", "featureId": "barbaro-ira" },
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo": { "kind": "until-feature", "featureId": "barbaro-ira" },
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso": { "kind": "until-feature", "featureId": "barbaro-ira" },
-    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali": { "kind": "next-turn" },
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali": { "kind": "next-turn-until-feature", "featureId": "barbaro-ira" },
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2": { "kind": "until-feature", "featureId": "barbaro-ira" },
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-5": { "kind": "until-feature", "featureId": "barbaro-ira" },
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio": { "kind": "until-feature", "featureId": "barbaro-ira" },
@@ -45,6 +45,7 @@
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila": "break",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo": "break",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso": "break",
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali": "break",
     "barbaro-cammino-della-bestia-forma-della-bestia": "break",
     "barbaro-cammino-della-bestia-chiamata-alla-caccia": "break",
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2": "break",
@@ -79,7 +80,7 @@
     {"id":"barbaro-campione-primordiale","mode":"tavolo","targetScope":"self","duration":"passiva","priority":"nessuna","reason":"Aumento permanente dei punteggi e dei massimi."},
 
     {"id":"barbaro-cammino-del-berserker-frenesia","mode":"token_marker","targetScope":"self","duration":"fino_a_termine_ira","priority":"alta","reason":"Scelta effettuata entrando in Ira; abilita un attacco con azione bonus per turno e termina con Ira."},
-    {"id":"barbaro-cammino-del-berserker-ira-incontenibile","mode":"covered_by_parent","parentId":"barbaro-ira","targetScope":"self","duration":"ira","priority":"nessuna","reason":"È una modifica del marker Ira: sospende affascinato/spaventato senza richiedere una pill separata."},
+    {"id":"barbaro-cammino-del-berserker-ira-incontenibile","mode":"tavolo","targetScope":"self","duration":"ira","priority":"nessuna","reason":"Promemoria descrittivo: durante Ira ricorda l'immunità a nuovi Affascinato/Spaventato e la sospensione manuale degli effetti già presenti fino alla fine di Ira."},
     {"id":"barbaro-cammino-del-berserker-presenza-intimidatoria","mode":"token_marker","targetScope":"single_target","duration":"fino_al_termine_del_prossimo_turno_del_barbaro","priority":"alta","reason":"Applica spaventato a un bersaglio scelto fino al termine del prossimo turno, con rinnovo esplicito."},
     {"id":"barbaro-cammino-del-berserker-ritorsione","mode":"instant_effect","targetScope":"event_target","duration":"reazione","priority":"nessuna","reason":"È un attacco di reazione immediato; non lascia un effetto persistente da ricordare."},
 
@@ -98,7 +99,7 @@
     {"id":"barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso","mode":"token_marker","targetScope":"aura","duration":"ira","priority":"alta","reason":"L'aura automatica aggiorna le creature ostili vicine e la pill di svantaggio mentre il barbaro si muove."},
     {"id":"barbaro-cammino-del-combattente-totemico-sintonia-totemica","mode":"tavolo","targetScope":"self","duration":"scelta_sottoclasse","priority":"nessuna","reason":"Contenitore della scelta di Sintonia Totemica."},
 
-    {"id":"barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali","mode":"token_marker","targetScope":"single_target","duration":"fino_all_inizio_del_prossimo_turno_del_barbaro","priority":"alta","reason":"La prima creatura colpita diventa un bersaglio preciso fino all'inizio del prossimo turno; il marker ricorda svantaggio e resistenza indiretta."},
+    {"id":"barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali","mode":"token_marker","targetScope":"single_target","duration":"fino_all_inizio_del_prossimo_turno_o_fine_ira","priority":"alta","reason":"Dopo la conferma manuale del colpo, il bersaglio scelto riceve un marker fino all'inizio del prossimo turno o alla fine di Ira; svantaggio e resistenza restano reminder manuali."},
     {"id":"barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori","mode":"instant_effect","targetScope":"event_target","duration":"reazione","priority":"nessuna","reason":"Riduzione di danno su un evento; non c'è uno stato persistente da applicare."},
     {"id":"barbaro-cammino-del-guardiano-ancestrale-consultare-gli-spiriti","mode":"tavolo","targetScope":"self","duration":"riposo_breve_o_lungo","priority":"nessuna","reason":"Capacità di lancio e consultazione, non un'applicazione su token nel round."},
     {"id":"barbaro-cammino-del-guardiano-ancestrale-antenati-vendicativi","mode":"instant_effect","targetScope":"event_target","duration":"reazione","priority":"nessuna","reason":"Danno riflesso nello stesso evento di Spiriti Protettori."},

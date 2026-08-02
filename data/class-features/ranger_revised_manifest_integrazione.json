@@ -1,0 +1,35 @@
+{
+  "pacchetto": "Ranger (Revised)",
+  "versione": "1.0.0",
+  "data_generazione": "2026-08-02",
+  "class_id": "ranger-revised",
+  "display_name": "Ranger (Revised)",
+  "source_status": "Unearthed Arcana playtest 2016",
+  "load_order": [
+    "phb2014_classi_database_finale.json",
+    "phb2014_livello_meccanico_v1_1.json",
+    "ranger_revised_database_finale.json",
+    "ranger_revised_livello_meccanico_v1_0.json"
+  ],
+  "files": {
+    "catalog": "ranger_revised_database_finale.json",
+    "catalog_report": "ranger_revised_database_report_finale.json",
+    "mechanical_overlay": "ranger_revised_livello_meccanico_v1_0.json",
+    "mechanical_schema": "ranger_revised_livello_meccanico_schema_v1_0.json",
+    "mechanical_report": "ranger_revised_livello_meccanico_report_v1_0.json"
+  },
+  "integration_policy": {
+    "coexists_with_class_id": "ranger",
+    "must_not_overwrite": [
+      "ranger"
+    ],
+    "default_subclass_ids": [
+      "ranger-revised-conclave-della-bestia",
+      "ranger-revised-conclave-del-cacciatore",
+      "ranger-revised-conclave-del-cacciatore-delle-profondita"
+    ],
+    "spell_list_ref": "ranger",
+    "standard_spell_slot_pool_ref": "slot-incantesimo-standard-aggregati",
+    "multiclass_note": "Il documento UA non fornisce regole specifiche di multiclasse; non sono state inventate."
+  }
+}

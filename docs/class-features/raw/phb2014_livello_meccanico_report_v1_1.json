@@ -1,0 +1,58 @@
+{
+  "database_file": "phb2014_livello_meccanico_v1_1.json",
+  "schema_file": "phb2014_livello_meccanico_schema_v1_1.json",
+  "base_catalog": "phb2014_classi_database_finale.json",
+  "counts": {
+    "source_records_expected": 440,
+    "mechanics_records": 440,
+    "resource_pools": 35,
+    "automation_level_counts": {
+      "riferimento": 286,
+      "assistita": 108,
+      "tracciamento": 43,
+      "automatica": 3
+    },
+    "completeness_status_counts": {
+      "reference": 286,
+      "curated": 23,
+      "partially_structured": 131
+    },
+    "broken_resource_pool_references": [],
+    "duplicate_mechanic_ids": [],
+    "duplicate_resource_pool_ids": [],
+    "uniform_required_fields": true
+  },
+  "curated_mechanics": [
+    "barbaro-ira",
+    "bardo-ispirazione-bardica",
+    "chierico-incanalare-divinita",
+    "druido-forma-selvatica",
+    "guerriero-azione-impetuosa",
+    "guerriero-indomito",
+    "guerriero-maestro-di-battaglia-superiorita-in-combattimento",
+    "guerriero-recuperare-energie",
+    "ladro-attacco-furtivo",
+    "ladro-elusione",
+    "ladro-schivata-prodigiosa",
+    "mago-recupero-arcano",
+    "mago-scuola-di-abiurazione-interdizione-arcana",
+    "mago-scuola-di-divinazione-portento",
+    "monaco-colpo-stordente",
+    "monaco-ki",
+    "paladino-aura-di-protezione",
+    "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia",
+    "paladino-imposizione-delle-mani",
+    "paladino-percezione-del-divino",
+    "paladino-punizione-divina",
+    "stregone-fonte-di-magia",
+    "warlock-magia-del-patto"
+  ],
+  "partially_structured_count": 131,
+  "reference_only_count": 286,
+  "notes": [
+    "Il file è un overlay: non duplica nomi e descrizioni complete del catalogo.",
+    "Tutti i record hanno la stessa forma JSON, anche quando una capacità non è ancora eseguibile.",
+    "Il runtime deve ignorare effects vuoto e rispettare completeness.missing_for_execution.",
+    "Le capacità assistite richiedono conferma; solo le capacità automatiche curate possono essere applicate senza prompt."
+  ]
+}

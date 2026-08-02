@@ -1,0 +1,3304 @@
+{
+  "meta": {
+    "titolo": "Livello meccanico supplementare - Ranger (Revised)",
+    "sistema": "D&D 5e 2014 - Unearthed Arcana",
+    "lingua": "it-IT",
+    "versione": "1.0.0",
+    "versione_schema": "1.1.0",
+    "data_generazione": "2026-08-02",
+    "base_catalog_file": "ranger_revised_database_finale.json",
+    "base_phb_mechanics_file": "phb2014_livello_meccanico_v1_1.json",
+    "descrizione": "Overlay meccanico per la classe Ranger (Revised), i tre conclavi e tutte le opzioni selezionabili. Tutti i record sono stati strutturati manualmente dalla fonte UA; le capacità che richiedono decisioni o dati del mondo sono marcate come assistite o di tracciamento."
+  },
+  "automation_levels": {
+    "riferimento": "Mostra testo e metadati; nessuna automazione.",
+    "tracciamento": "Gestisce scelte, stato o disponibilità senza applicare automaticamente effetti al combattimento.",
+    "assistita": "Propone o applica gli effetti soltanto dopo una scelta o conferma del giocatore/DM.",
+    "automatica": "Effetto deterministico applicabile dal runtime quando tutti i dati richiesti sono disponibili."
+  },
+  "external_resource_pools": [
+    "slot-incantesimo-standard-aggregati"
+  ],
+  "resource_pools": [],
+  "mechanics": [
+    {
+      "id": "ranger-revised-nemico-prescelto",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-nemico-prescelto"
+      },
+      "source": {
+        "name": "Nemico Prescelto",
+        "original_name": "Favored Enemy",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          1
+        ],
+        "page": 2,
+        "description_hash_sha256": "d7c5784535c5aedf13b69aa857a6fda5e8139bfe3af9eb3a4c5c9eca91f21322"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "configuration_choice",
+          "field": "favored_enemy_type",
+          "allowed": [
+            "bestie",
+            "folletti",
+            "umanoidi",
+            "mostruosità",
+            "non morti"
+          ],
+          "count": 1
+        },
+        {
+          "type": "bonus_damage",
+          "value": 2,
+          "damage_roll": "weapon_attack",
+          "condition": "target.type == feature_state.favored_enemy_type"
+        },
+        {
+          "type": "advantage",
+          "roll": "Saggezza (Sopravvivenza)",
+          "condition": "tracking favored enemy"
+        },
+        {
+          "type": "advantage",
+          "roll": "Intelligenza",
+          "condition": "recalling information about favored enemy"
+        },
+        {
+          "type": "learn_language",
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "danni_extra",
+        "vantaggio",
+        "linguaggio"
+      ],
+      "runtime_requirements": [
+        "target_creature_type",
+        "feature_choice:favored_enemy_type"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-esploratore-nato",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-esploratore-nato"
+      },
+      "source": {
+        "name": "Esploratore Nato",
+        "original_name": "Natural Explorer",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          1
+        ],
+        "page": 3,
+        "description_hash_sha256": "000b61d6e04401d0164f668bd8c6aab47b81e7382b23f65e60c6c13689a6d89e"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "ignore_difficult_terrain",
+          "scope": "self"
+        },
+        {
+          "type": "advantage",
+          "roll": "initiative"
+        },
+        {
+          "type": "advantage",
+          "roll": "attack",
+          "condition": "first_turn_of_combat && target.has_not_acted"
+        },
+        {
+          "type": "travel_rule_bundle",
+          "id": "revised_ranger_natural_explorer_travel"
+        }
+      ],
+      "effect_tags": [
+        "terreno_difficile",
+        "iniziativa",
+        "vantaggio",
+        "viaggio"
+      ],
+      "runtime_requirements": [
+        "combat_round_state",
+        "target_turn_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-stile-di-combattimento"
+      },
+      "source": {
+        "name": "Stile di Combattimento",
+        "original_name": "Fighting Style",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "e4bab321cbce0026cfce48da8aa4ab3d1857a95f862e77942f2ac5122ca4619f"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_option",
+          "from_parent": "ranger-revised-stile-di-combattimento",
+          "count": 1,
+          "unique": true
+        }
+      ],
+      "effect_tags": [
+        "scelta_permanente"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-incantesimi",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-incantesimi"
+      },
+      "source": {
+        "name": "Incantesimi",
+        "original_name": "Spellcasting",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "ee766ecb2e49a9969f733a7fafc7c9949465a65d0dad0fc93ca88591d37ba5a4"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "spellcasting_progression",
+          "class_id": "ranger-revised",
+          "ability": "Saggezza",
+          "known_spells_field": "incantesimi_conosciuti",
+          "slot_pool_id": "slot-incantesimo-standard-aggregati"
+        },
+        {
+          "type": "spell_save_dc",
+          "formula": "8 + bonus_competenza + modificatore_saggezza"
+        },
+        {
+          "type": "spell_attack_modifier",
+          "formula": "bonus_competenza + modificatore_saggezza"
+        }
+      ],
+      "effect_tags": [
+        "incantesimi",
+        "slot_incantesimo"
+      ],
+      "runtime_requirements": [
+        "character_build",
+        "spell_catalog"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      },
+      "recovery": [
+        "riposo_lungo"
+      ]
+    },
+    {
+      "id": "ranger-revised-consapevolezza-primordiale",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-consapevolezza-primordiale"
+      },
+      "source": {
+        "name": "Consapevolezza Primordiale",
+        "original_name": "Primeval Awareness",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 4,
+        "description_hash_sha256": "7b6d1e148e7fa767104b912e998e1d198096a88b1f716003f560e2716c1900a0"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [
+          "1_minuto_concentrazione"
+        ],
+        "trigger": null,
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "bestia_o_area",
+        "range_meters": 8046.72,
+        "additional_ranges_meters": [
+          8046.72
+        ],
+        "origin": null,
+        "requirements": [
+          "modalità scelta"
+        ],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "fixed",
+        "value": 1,
+        "unit": "minuto",
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": [
+          "concentrazione_interrotta"
+        ]
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "communicate_simple_ideas_with_beast",
+          "restriction": "not attacked by ranger within previous 10 minutes"
+        },
+        {
+          "type": "sense_favored_enemies",
+          "range_miles": 5,
+          "reveals": [
+            "types_present",
+            "number",
+            "general_direction",
+            "distance_miles"
+          ],
+          "requires_concentration": true
+        }
+      ],
+      "effect_tags": [
+        "bestie",
+        "percezione",
+        "concentrazione"
+      ],
+      "runtime_requirements": [
+        "feature_state:favored_enemy_types",
+        "world_query_or_dm_input"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-ranger",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-ranger"
+      },
+      "source": {
+        "name": "Conclave Ranger",
+        "original_name": "Ranger Conclave",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 4,
+        "description_hash_sha256": "b1b5e03297446e626547d3e76e9f2ca33ee25c944ab4daec27966d34a0248008"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_subclass",
+          "allowed": [
+            "ranger-revised-conclave-della-bestia",
+            "ranger-revised-conclave-del-cacciatore",
+            "ranger-revised-conclave-del-cacciatore-delle-profondita"
+          ],
+          "level": 3
+        }
+      ],
+      "effect_tags": [
+        "sottoclasse"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-aumento-dei-punteggi-di-caratteristica",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-aumento-dei-punteggi-di-caratteristica"
+      },
+      "source": {
+        "name": "Aumento dei Punteggi di Caratteristica",
+        "original_name": "Ability Score Improvement",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          4,
+          8,
+          12,
+          16,
+          19
+        ],
+        "page": 4,
+        "description_hash_sha256": "07e6f2f91148bd30f5249ee728b3bd1b20ec8e18f083345ed9e1c7e9373d474e"
+      },
+      "automation_level": "riferimento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "ability_score_improvement",
+          "choice": "one +2 or two +1",
+          "maximum": 20
+        }
+      ],
+      "effect_tags": [
+        "punteggi_caratteristica"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-nemico-prescelto-migliorato",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-nemico-prescelto-migliorato"
+      },
+      "source": {
+        "name": "Nemico Prescelto Migliorato",
+        "original_name": "Greater Favored Enemy",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          6
+        ],
+        "page": 4,
+        "description_hash_sha256": "197a92a621dd22205784b20fdcd0abaad69af051161efa3a8b1aef39d7ef2ed2"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "configuration_choice",
+          "field": "greater_favored_enemy_type",
+          "allowed": [
+            "aberrazioni",
+            "celestiali",
+            "costrutti",
+            "draghi",
+            "elementali",
+            "giganti",
+            "immondi"
+          ],
+          "count": 1
+        },
+        {
+          "type": "set_bonus_damage_against_all_favored_enemies",
+          "value": 4,
+          "damage_roll": "weapon_attack"
+        },
+        {
+          "type": "advantage",
+          "roll": "saving_throw",
+          "condition": "source is greater favored enemy spell or ability"
+        },
+        {
+          "type": "learn_language",
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "danni_extra",
+        "vantaggio",
+        "linguaggio"
+      ],
+      "runtime_requirements": [
+        "target_creature_type",
+        "effect_source_creature"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-passo-veloce",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-passo-veloce"
+      },
+      "source": {
+        "name": "Passo Veloce",
+        "original_name": "Fleet of Foot",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          8
+        ],
+        "page": 4,
+        "description_hash_sha256": "d3559fa955e20c3f840693e697598c4a71c4090768acaa232e4e35e807918af3"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "grant_action",
+          "action": "Scattare",
+          "as": "azione_bonus"
+        }
+      ],
+      "effect_tags": [
+        "azione_bonus",
+        "movimento"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-nascondersi-in-piena-vista",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-nascondersi-in-piena-vista"
+      },
+      "source": {
+        "name": "Nascondersi in Piena Vista",
+        "original_name": "Hide in Plain Sight",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          10
+        ],
+        "page": 4,
+        "description_hash_sha256": "98fdc879ae94dd05ec2583c9785c993b6b98de81a64b14de6ee6ecda9285e1b2"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [],
+        "trigger": "attempt_hide",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "attempt_hide"
+      ],
+      "targets": {
+        "type": "self",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "conditional",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": [
+          "moves",
+          "falls_prone",
+          "no_longer_hidden"
+        ]
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "observer_check_modifier",
+          "roll": "Saggezza (Percezione)",
+          "value": -10,
+          "applies_to": "creatures attempting to detect ranger",
+          "until": "start_of_ranger_next_turn_or_continued_if_motionless"
+        }
+      ],
+      "effect_tags": [
+        "nascondersi",
+        "percezione",
+        "penalita"
+      ],
+      "runtime_requirements": [
+        "hidden_state",
+        "movement_state",
+        "turn_state"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-svanire",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-svanire"
+      },
+      "source": {
+        "name": "Svanire",
+        "original_name": "Vanish",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          14
+        ],
+        "page": 5,
+        "description_hash_sha256": "fbceb82c880989bdd266937693dcc9f31a7093713841602f15171d64c7d46cf3"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "grant_action",
+          "action": "Nascondersi",
+          "as": "azione_bonus"
+        },
+        {
+          "type": "cannot_be_tracked",
+          "means": "nonmagical",
+          "unless": "chooses_to_leave_trail"
+        }
+      ],
+      "effect_tags": [
+        "azione_bonus",
+        "nascondersi",
+        "tracce"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-sensi-ferini",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-sensi-ferini"
+      },
+      "source": {
+        "name": "Sensi Ferini",
+        "original_name": "Feral Senses",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          18
+        ],
+        "page": 5,
+        "description_hash_sha256": "059687db5dd908cbc3601749592a5d1380f9c242628afaf9c3d96fb88e9a468c"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "creatura",
+        "range_meters": 9.0,
+        "additional_ranges_meters": [
+          9.0
+        ],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "ignore_disadvantage_from_unseen_target",
+          "roll": "attack"
+        },
+        {
+          "type": "sense_invisible_location",
+          "range_meters": 9.0,
+          "conditions": [
+            "target_not_hidden",
+            "ranger_not_blinded",
+            "ranger_not_deafened"
+          ]
+        }
+      ],
+      "effect_tags": [
+        "invisibile",
+        "percezione",
+        "svantaggio"
+      ],
+      "runtime_requirements": [
+        "visibility_state",
+        "conditions_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-sterminatore-di-nemici",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-sterminatore-di-nemici"
+      },
+      "source": {
+        "name": "Sterminatore di Nemici",
+        "original_name": "Foe Slayer",
+        "class_id": "ranger-revised",
+        "subclass_id": null,
+        "parent_id": null,
+        "levels": [
+          20
+        ],
+        "page": 5,
+        "description_hash_sha256": "003024deec096ff73f94981a7d9602a6a34cfdcc086f42e4f5844ac823db2630"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "attack_or_damage_roll",
+        "timing": "before_or_after_roll_before_effects",
+        "optional": true
+      },
+      "triggers_detected": [
+        "attack_or_damage_roll"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "add_ability_modifier",
+          "ability": "Saggezza",
+          "to_one_of": [
+            "attack_roll",
+            "damage_roll"
+          ],
+          "frequency": "once_per_turn"
+        }
+      ],
+      "effect_tags": [
+        "tiro_per_colpire",
+        "danni",
+        "una_volta_per_turno"
+      ],
+      "runtime_requirements": [
+        "turn_state",
+        "wisdom_modifier",
+        "roll_resolution_state"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-compagno-animale",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-compagno-animale"
+      },
+      "source": {
+        "name": "Compagno Animale",
+        "original_name": "Animal Companion",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 5,
+        "description_hash_sha256": "cfd2cd684a506c50bb49b8f73fe285cf807e82a25e7f3dd65493e35e8e86eeb0"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "attivita_fuori_servizio",
+        "alternatives": [
+          "resurrezione_compagno"
+        ],
+        "trigger": null,
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [
+        {
+          "type": "tempo",
+          "amount": 8,
+          "unit": "ore"
+        },
+        {
+          "type": "moneta",
+          "amount": 50,
+          "currency": "mo",
+          "mode": "new_companion"
+        },
+        {
+          "type": "moneta",
+          "amount": 25,
+          "currency": "mo",
+          "mode": "restore_companion"
+        }
+      ],
+      "effects": [
+        {
+          "type": "create_or_restore_companion",
+          "allowed_default_creatures": [
+            "scimmia",
+            "orso nero",
+            "cinghiale",
+            "tasso gigante",
+            "donnola gigante",
+            "mulo",
+            "pantera",
+            "lupo"
+          ],
+          "max_active": 1
+        }
+      ],
+      "effect_tags": [
+        "compagno",
+        "creatura",
+        "attivita_fuori_servizio"
+      ],
+      "runtime_requirements": [
+        "creature_stat_block",
+        "companion_state",
+        "dm_approval"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-legame-del-compagno",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-legame-del-compagno"
+      },
+      "source": {
+        "name": "Legame del Compagno",
+        "original_name": "Companion's Bond",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 5,
+        "description_hash_sha256": "6590d16aea0798be9a713dbb9f32a84ef8c07c349f7b8ff698f8e03a375fae6e"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "remove_action",
+          "target": "companion",
+          "action": "Multiattacco"
+        },
+        {
+          "type": "replace_proficiency_bonus",
+          "target": "companion",
+          "source": "ranger"
+        },
+        {
+          "type": "add_proficiency_bonus",
+          "target": "companion",
+          "to": [
+            "CA",
+            "tiri_per_i_danni"
+          ]
+        },
+        {
+          "type": "grant_skill_proficiencies",
+          "target": "companion",
+          "count": 2
+        },
+        {
+          "type": "grant_all_saving_throw_proficiencies",
+          "target": "companion"
+        },
+        {
+          "type": "companion_hit_dice_progression",
+          "formula": "base_hit_dice + max(0, ranger_revised_level - 3)"
+        },
+        {
+          "type": "share_ability_score_improvements",
+          "target": "companion"
+        },
+        {
+          "type": "inherit_feature",
+          "target": "companion",
+          "features": [
+            "ranger-revised-nemico-prescelto",
+            "ranger-revised-nemico-prescelto-migliorato"
+          ]
+        },
+        {
+          "type": "shared_stealth_normal_pace",
+          "condition": "using Natural Explorer"
+        }
+      ],
+      "effect_tags": [
+        "compagno",
+        "bonus_competenza",
+        "classe_armatura",
+        "tiri_salvezza",
+        "punti_ferita"
+      ],
+      "runtime_requirements": [
+        "companion_state",
+        "ranger_revised_level",
+        "proficiency_bonus"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-attacco-coordinato",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-attacco-coordinato"
+      },
+      "source": {
+        "name": "Attacco Coordinato",
+        "original_name": "Coordinated Attack",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          5
+        ],
+        "page": 6,
+        "description_hash_sha256": "d2ea84148468674397ca0446ab8199b2b44b7081bd0d9d6d5998d9b4b49a697e"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "ranger_takes_attack_action",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "ranger_takes_attack_action"
+      ],
+      "targets": {
+        "type": "companion",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "companion_melee_attack",
+          "condition": "companion_can_see_ranger"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "attacco_compagno"
+      ],
+      "runtime_requirements": [
+        "companion_state",
+        "visibility_state",
+        "reaction_available"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-difesa-della-bestia",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-difesa-della-bestia"
+      },
+      "source": {
+        "name": "Difesa della Bestia",
+        "original_name": "Beast's Defense",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          7
+        ],
+        "page": 6,
+        "description_hash_sha256": "6ba2b96f5ce65acee159a28cb4546bb8f1fd4599c61d0c3e4a474203d85bffb5"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "companion",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "advantage",
+          "roll": "all_saving_throws",
+          "condition": "companion_can_see_ranger"
+        }
+      ],
+      "effect_tags": [
+        "vantaggio",
+        "tiri_salvezza",
+        "compagno"
+      ],
+      "runtime_requirements": [
+        "companion_state",
+        "visibility_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne"
+      },
+      "source": {
+        "name": "Tempesta di Artigli e Zanne",
+        "original_name": "Storm of Claws and Fangs",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          11
+        ],
+        "page": 6,
+        "description_hash_sha256": "626a0a33c65242860f88820cf261d1efac665fc16a76f9fd764bc36e6b9ea3bd"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "creature_multiple",
+        "range_meters": 1.5,
+        "additional_ranges_meters": [
+          1.5
+        ],
+        "origin": "companion",
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "melee_attack_each_target",
+          "separate_attack_rolls": true
+        }
+      ],
+      "effect_tags": [
+        "attacco_area",
+        "compagno"
+      ],
+      "runtime_requirements": [
+        "companion_state",
+        "targets_in_range"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia"
+      },
+      "source": {
+        "name": "Difesa Superiore della Bestia",
+        "original_name": "Superior Beast's Defense",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-della-bestia",
+        "parent_id": null,
+        "levels": [
+          15
+        ],
+        "page": 7,
+        "description_hash_sha256": "5439bf3ff5ad7b64698c035ce63b5a132cfdc908697338b972942264b9701d4e"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "companion_hit_by_visible_attacker",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "companion_hit_by_visible_attacker"
+      ],
+      "targets": {
+        "type": "companion",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "halve_damage",
+          "source": "triggering_attack"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "riduzione_danni",
+        "compagno"
+      ],
+      "runtime_requirements": [
+        "companion_state",
+        "visibility_state",
+        "reaction_available",
+        "damage_event"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore"
+      },
+      "source": {
+        "name": "Preda del Cacciatore",
+        "original_name": "Hunter's Prey",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore",
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 7,
+        "description_hash_sha256": "d79e1f87a8c62328ef2432c48a56438c0b791faec12eff4ad0522bca186d3071"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_option",
+          "from_parent": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+          "allowed": [
+            "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi",
+            "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti",
+            "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda"
+          ],
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "scelta_sottoclasse"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-attacco-extra",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-attacco-extra"
+      },
+      "source": {
+        "name": "Attacco Extra",
+        "original_name": "Extra Attack",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore",
+        "parent_id": null,
+        "levels": [
+          5
+        ],
+        "page": 7,
+        "description_hash_sha256": "f59621f0c75fcf18925d0ba926f3a445200cdc99462ef25a15d243ccd662c6ee"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "set_attacks_per_attack_action",
+          "value": 2
+        }
+      ],
+      "effect_tags": [
+        "attacco_extra"
+      ],
+      "runtime_requirements": [
+        "action_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive"
+      },
+      "source": {
+        "name": "Tattiche Difensive",
+        "original_name": "Defensive Tactics",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore",
+        "parent_id": null,
+        "levels": [
+          7
+        ],
+        "page": 7,
+        "description_hash_sha256": "eeb8ceafb506878b2779f8e40bf1a0a22bd4662091cf8616409db1edca7d036b"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_option",
+          "from_parent": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+          "allowed": [
+            "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda",
+            "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco",
+            "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio"
+          ],
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "scelta_sottoclasse"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-multiattacco"
+      },
+      "source": {
+        "name": "Multiattacco",
+        "original_name": "Multiattack",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore",
+        "parent_id": null,
+        "levels": [
+          11
+        ],
+        "page": 7,
+        "description_hash_sha256": "8c357f25ac16b3acfb1489b5347fc9cf3aecd646713b654e0c0a81f0fd61c55c"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_option",
+          "from_parent": "ranger-revised-conclave-del-cacciatore-multiattacco",
+          "allowed": [
+            "ranger-revised-conclave-del-cacciatore-multiattacco-raffica",
+            "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante"
+          ],
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "scelta_sottoclasse"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+      },
+      "source": {
+        "name": "Difesa Superiore del Cacciatore",
+        "original_name": "Superior Hunter's Defense",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore",
+        "parent_id": null,
+        "levels": [
+          15
+        ],
+        "page": 7,
+        "description_hash_sha256": "25d9a231faa434861add2a0aa0b35db5e7096b65391a40f23c9ca1e3b6d47154"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "choose_option",
+          "from_parent": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+          "allowed": [
+            "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione",
+            "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea",
+            "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa"
+          ],
+          "count": 1
+        }
+      ],
+      "effect_tags": [
+        "scelta_sottoclasse"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark"
+      },
+      "source": {
+        "name": "Esploratore dell'Underdark",
+        "original_name": "Underdark Scout",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 8,
+        "description_hash_sha256": "598743cbb3a3d742e11d4dd14cb7a54828356adc20bd85f133116bafcd5e89ac"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": "first_turn_of_combat",
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [
+        "first_turn_of_combat"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "speed_bonus",
+          "value_meters": 3,
+          "duration": "first_turn_of_combat"
+        },
+        {
+          "type": "additional_attack",
+          "condition": "takes Attack action on first turn",
+          "value": 1
+        },
+        {
+          "type": "ignore_darkvision_detection_benefit",
+          "conditions": [
+            "dim_light",
+            "darkness"
+          ]
+        }
+      ],
+      "effect_tags": [
+        "primo_turno",
+        "velocita",
+        "attacco_extra",
+        "scurovisione"
+      ],
+      "runtime_requirements": [
+        "combat_turn_state",
+        "lighting_state",
+        "observer_senses"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita"
+      },
+      "source": {
+        "name": "Magia del Cacciatore delle Profondità",
+        "original_name": "Deep Stalker Magic",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          3
+        ],
+        "page": 8,
+        "description_hash_sha256": "184ffcd16b0455454bf3373b7d91f1a9caec26ce09c7411c664cb7d280eb0151"
+      },
+      "automation_level": "tracciamento",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "darkvision",
+          "range_meters": 27,
+          "if_already_has": "increase_by_9_meters"
+        },
+        {
+          "type": "grant_always_known_spells",
+          "levels": {
+            "3": "camuffare se stesso",
+            "5": "trucco della corda",
+            "9": "glifo di interdizione",
+            "13": "invisibilità superiore",
+            "17": "sembrare"
+          },
+          "counts_against_spells_known": false,
+          "spell_class": "ranger"
+        }
+      ],
+      "effect_tags": [
+        "scurovisione",
+        "incantesimi_aggiuntivi"
+      ],
+      "runtime_requirements": [
+        "character_level",
+        "spell_catalog"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra"
+      },
+      "source": {
+        "name": "Attacco Extra",
+        "original_name": "Extra Attack",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          5
+        ],
+        "page": 8,
+        "description_hash_sha256": "f59621f0c75fcf18925d0ba926f3a445200cdc99462ef25a15d243ccd662c6ee"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "set_attacks_per_attack_action",
+          "value": 2
+        }
+      ],
+      "effect_tags": [
+        "attacco_extra"
+      ],
+      "runtime_requirements": [
+        "action_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro"
+      },
+      "source": {
+        "name": "Mente di Ferro",
+        "original_name": "Iron Mind",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          7
+        ],
+        "page": 8,
+        "description_hash_sha256": "c502aeda20261856dc57212e115cc48935390dd8ae18b8e0bc40b70839acba26"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "grant_saving_throw_proficiency",
+          "ability": "Saggezza"
+        }
+      ],
+      "effect_tags": [
+        "competenza",
+        "tiro_salvezza"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore"
+      },
+      "source": {
+        "name": "Raffica del Cacciatore",
+        "original_name": "Stalker's Flurry",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          11
+        ],
+        "page": 8,
+        "description_hash_sha256": "e76d27c4a9d96ea8786411c5d86ce0a7761a8f85960cd88e0d866761cf4218eb"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "attack_misses",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "attack_misses"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "additional_attack",
+          "frequency": "once_per_turn"
+        }
+      ],
+      "effect_tags": [
+        "attacco_extra",
+        "una_volta_per_turno"
+      ],
+      "runtime_requirements": [
+        "turn_state",
+        "attack_result"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore",
+      "catalog_ref": {
+        "collection": "privilegi",
+        "id": "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore"
+      },
+      "source": {
+        "name": "Schivata del Cacciatore",
+        "original_name": "Stalker's Dodge",
+        "class_id": "ranger-revised",
+        "subclass_id": "ranger-revised-conclave-del-cacciatore-delle-profondita",
+        "parent_id": null,
+        "levels": [
+          15
+        ],
+        "page": 8,
+        "description_hash_sha256": "c6279a193d6661a02135c431eec57d8536df81717c2fa5cff57c1d2715009dbe"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "creature_attacks_ranger_without_advantage",
+        "timing": "before_outcome_determined",
+        "optional": true
+      },
+      "triggers_detected": [
+        "creature_attacks_ranger_without_advantage"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "impose_disadvantage",
+          "roll": "triggering_attack"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "svantaggio"
+      ],
+      "runtime_requirements": [
+        "reaction_available",
+        "attack_advantage_state",
+        "roll_resolution_state"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-tiro",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-stile-di-combattimento-tiro"
+      },
+      "source": {
+        "name": "Tiro",
+        "original_name": "Archery",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-stile-di-combattimento",
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "0444737a83123372c5c966d5854ca23ce67fbb71aacc5dd8b41127b3e2f67373"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "roll_bonus",
+          "roll": "ranged_weapon_attack",
+          "value": 2
+        }
+      ],
+      "effect_tags": [
+        "stile_di_combattimento"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-difesa",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-stile-di-combattimento-difesa"
+      },
+      "source": {
+        "name": "Difesa",
+        "original_name": "Defense",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-stile-di-combattimento",
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "7d0584a71038cace5b52f5de03073f67507fb71eb6f029d0669c7f46057196b8"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "armor_class_bonus",
+          "value": 1,
+          "condition": "wearing_armor"
+        }
+      ],
+      "effect_tags": [
+        "stile_di_combattimento"
+      ],
+      "runtime_requirements": [
+        "equipment_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-duellare",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-stile-di-combattimento-duellare"
+      },
+      "source": {
+        "name": "Duellare",
+        "original_name": "Dueling",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-stile-di-combattimento",
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "03c844180434e1e563b9fd53620146da348aaf9d9c895b75126e77f92d945b63"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "damage_bonus",
+          "value": 2,
+          "condition": "one_melee_weapon_in_one_hand && no_other_weapon"
+        }
+      ],
+      "effect_tags": [
+        "stile_di_combattimento"
+      ],
+      "runtime_requirements": [
+        "equipment_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-stile-di-combattimento-combattere-con-due-armi",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-stile-di-combattimento-combattere-con-due-armi"
+      },
+      "source": {
+        "name": "Combattere con Due Armi",
+        "original_name": "Two-Weapon Fighting",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-stile-di-combattimento",
+        "levels": [
+          2
+        ],
+        "page": 3,
+        "description_hash_sha256": "58e6ecfc477f66e26e8fb3f9e4c187659606e98e55b7ea398e88becad43e92dc"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "allow_ability_modifier_to_offhand_damage"
+        }
+      ],
+      "effect_tags": [
+        "stile_di_combattimento"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi"
+      },
+      "source": {
+        "name": "Sterminatore di Colossi",
+        "original_name": "Colossus Slayer",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+        "levels": [
+          3
+        ],
+        "page": 7,
+        "description_hash_sha256": "4e6846623ec533dab69eae24648dd53e510ef77e0e4d4c02107644c6ba1d4581"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "weapon_attack_hits",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "weapon_attack_hits"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "extra_damage",
+          "dice": "1d8",
+          "condition": "target_hp < target_hp_max",
+          "frequency": "once_per_turn"
+        }
+      ],
+      "effect_tags": [
+        "danni_extra",
+        "una_volta_per_turno"
+      ],
+      "runtime_requirements": [
+        "target_hp",
+        "turn_state"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti"
+      },
+      "source": {
+        "name": "Uccisore di Giganti",
+        "original_name": "Giant Killer",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+        "levels": [
+          3
+        ],
+        "page": 7,
+        "description_hash_sha256": "e8736f7ed99aa10beb5d814303592509b541e681f4c99f3234cbc9cda3d3158a"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "large_or_larger_creature_attacks_ranger",
+        "timing": "after_attack",
+        "optional": true
+      },
+      "triggers_detected": [
+        "large_or_larger_creature_attacks_ranger"
+      ],
+      "targets": {
+        "type": "triggering_creature",
+        "range_meters": 1.5,
+        "additional_ranges_meters": [
+          1.5
+        ],
+        "origin": null,
+        "requirements": [
+          "visible",
+          "size Large or larger"
+        ],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "weapon_attack"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "attacco"
+      ],
+      "runtime_requirements": [
+        "target_size",
+        "visibility_state",
+        "reaction_available"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda"
+      },
+      "source": {
+        "name": "Devastatore dell'Orda",
+        "original_name": "Horde Breaker",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore",
+        "levels": [
+          3
+        ],
+        "page": 7,
+        "description_hash_sha256": "97f0ac4dbabd90e80bb949877dfced6eb8ad95573723eaed0da9dde34f06dcb1"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "weapon_attack",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "weapon_attack"
+      ],
+      "targets": {
+        "type": "different_creature",
+        "range_meters": 1.5,
+        "additional_ranges_meters": [
+          1.5
+        ],
+        "origin": "original_target",
+        "requirements": [
+          "within_weapon_range"
+        ],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "additional_weapon_attack",
+          "same_weapon": true,
+          "frequency": "once_per_turn"
+        }
+      ],
+      "effect_tags": [
+        "attacco_extra",
+        "una_volta_per_turno"
+      ],
+      "runtime_requirements": [
+        "target_positions",
+        "weapon_range",
+        "turn_state"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda"
+      },
+      "source": {
+        "name": "Sfuggire all'Orda",
+        "original_name": "Escape the Horde",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+        "levels": [
+          7
+        ],
+        "page": 7,
+        "description_hash_sha256": "21e03dfc28e58ce654250bcae76f12e2b70c45c5c0dae48456e5f4553a225fe0"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "disadvantage",
+          "roll": "opportunity_attacks_against_ranger"
+        }
+      ],
+      "effect_tags": [
+        "svantaggio",
+        "attacco_opportunita"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco"
+      },
+      "source": {
+        "name": "Difesa dal Multiattacco",
+        "original_name": "Multiattack Defense",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+        "levels": [
+          7
+        ],
+        "page": 7,
+        "description_hash_sha256": "087daab0a5217404703e0ca3f22c7ba139b2c47887bf6319d35977475b6b913e"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "hit_by_attack",
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [
+        "hit_by_attack"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "until_end_of_turn",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": [
+          "end_of_current_turn"
+        ]
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "armor_class_bonus",
+          "value": 4,
+          "against": "subsequent_attacks_by_triggering_creature"
+        }
+      ],
+      "effect_tags": [
+        "classe_armatura"
+      ],
+      "runtime_requirements": [
+        "attacker_identity",
+        "turn_state"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio"
+      },
+      "source": {
+        "name": "Volontà di Acciaio",
+        "original_name": "Steel Will",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-tattiche-difensive",
+        "levels": [
+          7
+        ],
+        "page": 7,
+        "description_hash_sha256": "9faf520a77a4d6b9ae3161afbcd9f7c71712cced7918d8ab42b2372867dcae08"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "passiva",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "advantage",
+          "roll": "saving_throw",
+          "against_condition": "spaventato"
+        }
+      ],
+      "effect_tags": [
+        "vantaggio",
+        "spaventato"
+      ],
+      "runtime_requirements": [],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco-raffica",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-multiattacco-raffica"
+      },
+      "source": {
+        "name": "Raffica",
+        "original_name": "Volley",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+        "levels": [
+          11
+        ],
+        "page": 7,
+        "description_hash_sha256": "b0da7b26a91e2f4e597f96bc939f2553bb1df78ca27e5a2229bef10e1aafae47"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "creature_multiple",
+        "range_meters": 3.0,
+        "additional_ranges_meters": [
+          3.0
+        ],
+        "origin": "chosen_point_within_weapon_range",
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "ranged_weapon_attack_each_target",
+          "separate_attack_rolls": true,
+          "requires_ammunition_per_target": true
+        }
+      ],
+      "effect_tags": [
+        "attacco_area",
+        "tiro_per_colpire"
+      ],
+      "runtime_requirements": [
+        "targets_in_area",
+        "weapon_range",
+        "ammunition"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante"
+      },
+      "source": {
+        "name": "Attacco Turbinante",
+        "original_name": "Whirlwind Attack",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-multiattacco",
+        "levels": [
+          11
+        ],
+        "page": 7,
+        "description_hash_sha256": "89e50d0c9b010740aaad9c39e57cf6016cbfad69574174a2c94caf6e9601416a"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "azione",
+        "alternatives": [],
+        "trigger": null,
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [],
+      "targets": {
+        "type": "creature_multiple",
+        "range_meters": 1.5,
+        "additional_ranges_meters": [
+          1.5
+        ],
+        "origin": "self",
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "melee_attack_each_target",
+          "separate_attack_rolls": true
+        }
+      ],
+      "effect_tags": [
+        "attacco_area",
+        "tiro_per_colpire"
+      ],
+      "runtime_requirements": [
+        "targets_in_range"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione"
+      },
+      "source": {
+        "name": "Elusione",
+        "original_name": "Evasion",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+        "levels": [
+          15
+        ],
+        "page": 7,
+        "description_hash_sha256": "e01c14770e9c7ad0be6e494d433ad9d9ebec3c027736c18f6adb10c9de04268a"
+      },
+      "automation_level": "automatica",
+      "activation": {
+        "primary": "innesco",
+        "alternatives": [],
+        "trigger": "dexterity_save_for_half_damage",
+        "timing": null,
+        "optional": false
+      },
+      "triggers_detected": [
+        "dexterity_save_for_half_damage"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "modify_save_damage",
+          "on_success": "zero",
+          "on_failure": "half"
+        }
+      ],
+      "effect_tags": [
+        "tiro_salvezza",
+        "riduzione_danni"
+      ],
+      "runtime_requirements": [
+        "saving_throw_event"
+      ],
+      "manual_choice_required": false,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea"
+      },
+      "source": {
+        "name": "Opporsi alla Marea",
+        "original_name": "Stand Against the Tide",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+        "levels": [
+          15
+        ],
+        "page": 7,
+        "description_hash_sha256": "8c5320a7bcea385f2c106b1f33fd8d28f47925d1e1fdc772a111e7db59e5bea0"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "hostile_creature_misses_ranger_with_melee_attack",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "hostile_creature_misses_ranger_with_melee_attack"
+      ],
+      "targets": {
+        "type": "other_creature",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [
+          "chosen target is not triggering attacker"
+        ],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "redirect_repeat_attack",
+          "attacker": "triggering_creature",
+          "attack": "same_attack"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "attacco_reindirizzato"
+      ],
+      "runtime_requirements": [
+        "reaction_available",
+        "eligible_alternate_target"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    },
+    {
+      "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa",
+      "catalog_ref": {
+        "collection": "opzioni",
+        "id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa"
+      },
+      "source": {
+        "name": "Schivata Prodigiosa",
+        "original_name": "Uncanny Dodge",
+        "class_id": null,
+        "subclass_id": null,
+        "parent_id": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore",
+        "levels": [
+          15
+        ],
+        "page": 7,
+        "description_hash_sha256": "4b338b417949b596622477b07014d5902d1bff9f552c898256d812da6e0ad58d"
+      },
+      "automation_level": "assistita",
+      "activation": {
+        "primary": "reazione",
+        "alternatives": [],
+        "trigger": "visible_attacker_hits_ranger",
+        "timing": null,
+        "optional": true
+      },
+      "triggers_detected": [
+        "visible_attacker_hits_ranger"
+      ],
+      "targets": {
+        "type": "non_specificato",
+        "range_meters": null,
+        "additional_ranges_meters": [],
+        "origin": null,
+        "requirements": [],
+        "excluded_types": []
+      },
+      "duration": {
+        "type": "non_specificata",
+        "value": null,
+        "unit": null,
+        "max_rounds": null,
+        "formula": null,
+        "end_conditions": []
+      },
+      "resource_costs": [],
+      "effects": [
+        {
+          "type": "halve_damage",
+          "source": "triggering_attack"
+        }
+      ],
+      "effect_tags": [
+        "reazione",
+        "riduzione_danni"
+      ],
+      "runtime_requirements": [
+        "reaction_available",
+        "visibility_state",
+        "damage_event"
+      ],
+      "manual_choice_required": true,
+      "completeness": {
+        "status": "curated",
+        "review_required": false,
+        "missing_for_execution": []
+      }
+    }
+  ],
+  "runtime_contract": {
+    "character_build": {
+      "shape": [
+        {
+          "classId": "ranger-revised",
+          "level": 20,
+          "subclassId": "ranger-revised-conclave-della-bestia"
+        }
+      ],
+      "notes": [
+        "Usare un array per supportare il multiclasse.",
+        "ranger-revised è distinto da ranger e non deve essere normalizzato automaticamente nel medesimo ID."
+      ]
+    },
+    "feature_choices": {
+      "favored_enemy_type": "tipo scelto per Nemico Prescelto",
+      "greater_favored_enemy_type": "tipo scelto per Nemico Prescelto Migliorato",
+      "fighting_style_option_id": "una delle opzioni figlie di Stile di Combattimento",
+      "subclass_option_ids": "opzioni scelte nei privilegi del Conclave del Cacciatore"
+    },
+    "companion_state": {
+      "required_for_subclass": "ranger-revised-conclave-della-bestia",
+      "fields": [
+        "actor_id",
+        "creature_id",
+        "alive",
+        "hp",
+        "max_hp",
+        "hit_dice",
+        "proficiency_bonus",
+        "reaction_available",
+        "can_see_ranger"
+      ]
+    },
+    "turn_state": [
+      "round",
+      "turn_actor_id",
+      "has_acted",
+      "is_first_turn_of_combat",
+      "once_per_turn_flags"
+    ],
+    "principles": [
+      "Il catalogo contiene il testo; questo overlay contiene soltanto dati eseguibili o di tracciamento.",
+      "Le capacità assistite richiedono conferma e non devono consumare la reazione prima della scelta.",
+      "Le decisioni del DM, le statistiche delle bestie e le informazioni sul mondo restano input esterni.",
+      "Non collegare automaticamente al Ranger (Revised) sottoclassi del ranger PHB/Xanathar/Tasha non incluse in questo documento."
+    ]
+  },
+  "validation": {
+    "source_records_expected": 45,
+    "mechanics_records": 45,
+    "resource_pools": 0,
+    "automation_level_counts": {
+      "assistita": 20,
+      "tracciamento": 9,
+      "riferimento": 1,
+      "automatica": 15
+    },
+    "completeness_status_counts": {
+      "curated": 45
+    },
+    "broken_catalog_references": [],
+    "broken_resource_pool_references": [],
+    "duplicate_mechanic_ids": [],
+    "duplicate_resource_pool_ids": [],
+    "uniform_required_fields": true
+  }
+}

@@ -54,6 +54,7 @@ const ITALIAN_ALIASES = Object.freeze({
   "hypnotic-pattern": ["Trama Ipnotica"],
   "invisibility": ["Invisibilità"],
   "mage-armor": ["Armatura Magica"],
+  "moonbeam": ["Raggio Lunare", "Raggio di Luna"],
   "polymorph": ["Metamorfosi"],
   "protection-from-evil-and-good": ["Protezione dal Bene e dal Male"],
   "shield": ["Scudo"],
@@ -63,6 +64,7 @@ const ITALIAN_ALIASES = Object.freeze({
   "slow": ["Lentezza"],
   "spirit-guardians": ["Spiriti Guardiani"],
   "stoneskin": ["Pelle di Pietra"],
+  "tiny-hut": ["Capanna di Leomund"],
   "web": ["Ragnatela"],
 });
 

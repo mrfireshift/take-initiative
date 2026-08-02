@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
@@ -10,10 +11,13 @@ import {
   classFeatureBreaksConcentration,
   classFeatureChoiceOptions,
   classFeatureConditionInstancesForActivation,
+  classFeatureAutoActivateParentFeatureId,
   classFeatureDisplayName,
   classFeatureEffectProjection,
+  classFeatureTargetIds,
   classFeatureTemporaryHpApplications,
   planClassFeatureActivation,
+  planClassFeatureDeactivation,
 } from "../src/classFeatureCore.js";
 
 const PRIORITY_IDS = [
@@ -23,6 +27,7 @@ const PRIORITY_IDS = [
   "barbaro-cammino-del-berserker-presenza-intimidatoria",
   "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
   "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+  "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
   "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
   "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
   "barbaro-cammino-della-bestia-forma-della-bestia",
@@ -35,6 +40,7 @@ const PRIORITY_IDS = [
 const OPTION_GATED_IDS = new Set([
   "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
   "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+  "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
   "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
   "barbaro-cammino-della-bestia-forma-della-bestia",
   "barbaro-cammino-della-bestia-chiamata-alla-caccia",
@@ -60,7 +66,9 @@ test("Ira e le varianti collegate dichiarano la rottura della concentrazione", (
     "barbaro-cammino-del-berserker-frenesia",
     "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
     "barbaro-cammino-della-bestia-forma-della-bestia",
     "barbaro-cammino-della-bestia-chiamata-alla-caccia",
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2",
@@ -83,6 +91,9 @@ test("i bersagli dei marker Barbaro rispettano la semantica della capacità", ()
   const protettori = CLASS_FEATURE_BY_ID.get(
     "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
   );
+  const lupo = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+  );
   const presenza = CLASS_FEATURE_BY_ID.get(
     "barbaro-cammino-dello-zelota-presenza-zelante",
   );
@@ -104,6 +115,12 @@ test("i bersagli dei marker Barbaro rispettano la semantica della capacità", ()
     maxTargets: 1,
     excludeSource: true,
   });
+  assert.deepEqual(classFeatureTargeting(lupo), {
+    mode: "aura",
+    rangeMeters: 1.5,
+    maxTargets: null,
+    excludeSource: false,
+  });
   assert.deepEqual(classFeatureTargeting(presenza), {
     mode: "single-target",
     rangeMeters: 18,
@@ -122,6 +139,269 @@ test("i bersagli dei marker Barbaro rispettano la semantica della capacità", ()
     maxTargets: 1,
     excludeSource: false,
   });
+});
+
+test("Spirito Totemico: Lupo produce un'aura legata a Ira", () => {
+  const rage = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const lupo = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+  );
+  const withoutRage = planClassFeatureActivation({
+    feature: lupo,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{
+      classId: "barbaro",
+      level: 3,
+      subclassId: "barbaro-cammino-del-combattente-totemico",
+    }],
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 2,
+    instanceId: "wolf-without-rage",
+  });
+  assert.deepEqual(withoutRage, {
+    ok: false,
+    reason: "parent-feature-required",
+    parentFeatureId: "barbaro-ira",
+  });
+
+  const rageActivation = planClassFeatureActivation({
+    feature: rage,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{
+      classId: "barbaro",
+      level: 3,
+      subclassId: "barbaro-cammino-del-combattente-totemico",
+    }],
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 2,
+    instanceId: "rage-parent",
+  });
+  const activation = planClassFeatureActivation({
+    state: rageActivation.state,
+    feature: lupo,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{
+      classId: "barbaro",
+      level: 3,
+      subclassId: "barbaro-cammino-del-combattente-totemico",
+    }],
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 2,
+    instanceId: "wolf-1",
+  });
+  assert.equal(rageActivation.ok, true);
+  assert.equal(activation.ok, true);
+  assert.equal(activation.instance.parentInstanceId, "rage-parent");
+  assert.equal(activation.instance.parentFeatureId, "barbaro-ira");
+
+  const projection = classFeatureEffectProjection(lupo);
+  assert.equal(projection.kind, "aura");
+  assert.equal(projection.radiusMeters, 1.5);
+  assert.equal(projection.targetEffect.conditionName, "Vantaggio: attacchi in mischia");
+  assert.deepEqual(projection.targetEffects.map((effect) => ({
+    conditionName: effect.conditionName,
+    effectKind: effect.effectKind,
+  })), [{
+    conditionName: "Vantaggio: attacchi in mischia",
+    effectKind: "buff",
+  }]);
+  assert.deepEqual(projection.secondaryEffects, []);
+  assert.deepEqual(projection.membershipTargeting, {
+    filter: "friendly",
+    includeCaster: false,
+  });
+  const pills = classFeatureConditionInstancesForActivation(
+    lupo,
+    activation.instance,
+    "Barbaro",
+  );
+  assert.equal(pills.length, 1);
+  assert.equal(pills[0].targetId, "barbarian");
+  assert.deepEqual(pills[0].mechanics, {
+    area: {
+      radiusMeters: 1.5,
+      anchorId: "barbarian",
+    },
+  });
+
+  const terminated = planClassFeatureDeactivation(activation.state, "rage-parent");
+  assert.deepEqual(terminated.removedInstanceIds.sort(), ["rage-parent", "wolf-1"]);
+  assert.equal(terminated.state.instances.length, 0);
+});
+
+test("Sintonia Totemica: Lupo applica Prono come effetto istantaneo riutilizzabile", () => {
+  const rage = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const lupo = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
+  );
+  const build = [{
+    classId: "barbaro",
+    level: 14,
+    subclassId: "barbaro-cammino-del-combattente-totemico",
+  }];
+  const withoutRage = planClassFeatureActivation({
+    feature: lupo,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["enemy"],
+    currentRound: 2,
+    instanceId: "wolf-prone-without-rage",
+  });
+  assert.deepEqual(withoutRage, {
+    ok: false,
+    reason: "parent-feature-required",
+    parentFeatureId: "barbaro-ira",
+  });
+
+  const rageActivation = planClassFeatureActivation({
+    feature: rage,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 2,
+    instanceId: "rage-for-prone",
+  });
+  const first = planClassFeatureActivation({
+    state: rageActivation.state,
+    feature: lupo,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["enemy"],
+    currentRound: 2,
+    instanceId: "wolf-prone-1",
+  });
+  assert.equal(first.ok, true);
+  assert.equal(first.instance.parentFeatureId, undefined);
+  assert.equal(first.instance.parentInstanceId, undefined);
+  assert.equal(first.state.instances.some((entry) => entry.featureId === lupo.id), false);
+  const [firstPill] = classFeatureConditionInstancesForActivation(
+    lupo,
+    first.instance,
+    "Barbaro",
+  );
+  assert.equal(firstPill.condition, "Prono");
+  assert.equal(firstPill.targetId, "enemy");
+  assert.deepEqual(firstPill.expiry, { mode: "manual" });
+  assert.equal(firstPill.parentFeatureId, undefined);
+  assert.equal(firstPill.parentInstanceId, undefined);
+
+  const second = planClassFeatureActivation({
+    state: first.state,
+    feature: lupo,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["enemy-2"],
+    currentRound: 2,
+    instanceId: "wolf-prone-2",
+  });
+  assert.equal(second.ok, true);
+  assert.equal(second.state.instances.filter((entry) => entry.featureId === lupo.id).length, 0);
+  assert.notEqual(first.instance.instanceId, second.instance.instanceId);
+
+  const rageEnded = planClassFeatureDeactivation(first.state, "rage-for-prone");
+  assert.deepEqual(rageEnded.removedInstanceIds, ["rage-for-prone"]);
+  assert.equal(rageEnded.state.instances.length, 0);
+});
+
+test("Protettori Ancestrali richiede Ira e lascia un solo reminder manuale sul bersaglio", () => {
+  const rage = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const protettori = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+  );
+  const build = [{
+    classId: "barbaro",
+    level: 3,
+    subclassId: "barbaro-cammino-del-guardiano-ancestrale",
+  }];
+  const withoutRage = planClassFeatureActivation({
+    feature: protettori,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["enemy"],
+    currentRound: 3,
+    instanceId: "ancestors-without-rage",
+  });
+  assert.deepEqual(withoutRage, {
+    ok: false,
+    reason: "parent-feature-required",
+    parentFeatureId: "barbaro-ira",
+  });
+
+  const rageActivation = planClassFeatureActivation({
+    feature: rage,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 3,
+    currentTurnKey: "3:2:barbarian",
+    instanceId: "rage-parent",
+  });
+  const activation = planClassFeatureActivation({
+    state: rageActivation.state,
+    feature: protettori,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["enemy"],
+    currentRound: 3,
+    currentTurnKey: "3:2:barbarian",
+    instanceId: "ancestors-1",
+  });
+  assert.equal(rageActivation.ok, true);
+  assert.equal(activation.ok, true);
+  assert.equal(activation.instance.parentInstanceId, "rage-parent");
+  assert.deepEqual(classFeatureTargetIds(protettori, "barbarian", [
+    "barbarian",
+    "enemy",
+  ]), ["enemy"]);
+  assert.equal(classFeatureTargeting(protettori).maxTargets, 1);
+
+  const projection = classFeatureEffectProjection(protettori);
+  assert.equal(projection.kind, "condition");
+  assert.equal(projection.targetEffect, null);
+  assert.deepEqual(projection.targetEffects, []);
+  assert.deepEqual(projection.secondaryEffects, []);
+  assert.equal(protettori.effectPlan.mechanics, undefined);
+  assert.deepEqual(classFeatureTemporaryHpApplications(protettori, activation.instance), []);
+  const [pill] = classFeatureConditionInstancesForActivation(
+    protettori,
+    activation.instance,
+    "Barbaro",
+  );
+  assert.equal(pill.targetId, "enemy");
+  assert.equal(pill.parentInstanceId, "rage-parent");
+  assert.equal(pill.mechanics, undefined);
+  assert.match(pill.effectDetail, /svantaggio/i);
+  assert.match(pill.effectDetail, /resistenza/i);
+  assert.match(pill.effectDetail, /manual/i);
+  assert.deepEqual(pill.expiry, {
+    mode: "turn-start",
+    actor: "source",
+    actorId: "barbarian",
+    remaining: 1,
+    anchor: "next-turn",
+  });
+
+  const targetTermination = planClassFeatureDeactivation(activation.state, "ancestors-1");
+  assert.deepEqual(targetTermination.removedInstanceIds, ["ancestors-1"]);
+  assert.deepEqual(targetTermination.state.instances.map((entry) => entry.instanceId), [
+    "rage-parent",
+  ]);
+  const rageTermination = planClassFeatureDeactivation(activation.state, "rage-parent");
+  assert.deepEqual(rageTermination.removedInstanceIds.sort(), [
+    "ancestors-1",
+    "rage-parent",
+  ]);
+  assert.equal(rageTermination.state.instances.length, 0);
 });
 
 test("Attacco Irruento scade all'inizio del prossimo turno del barbaro", () => {
@@ -178,6 +458,11 @@ test("Presenza Intimidatoria scade alla fine del prossimo turno del barbaro", ()
     remaining: 1,
     anchor: "next-turn",
   });
+  assert.match(feature.effectPlan.detail, /TS Saggezza fallito/i);
+  assert.match(feature.effectPlan.detail, /rinnov/i);
+  assert.match(feature.effectPlan.detail, /fuori linea/i);
+  assert.match(feature.effectPlan.detail, /18 m/i);
+  assert.match(feature.effectPlan.detail, /24 ore/i);
 });
 
 test("Frenesia usa lo stesso pool di Ira", () => {
@@ -187,6 +472,43 @@ test("Frenesia usa lo stesso pool di Ira", () => {
     amount: 1,
     sharedWithFeatureId: "barbaro-ira",
   }]);
+});
+
+test("Frenesia si sceglie entrando in Ira e applica Indebolimento alla fine", () => {
+  const feature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-del-berserker-frenesia");
+  assert.equal(classFeatureAutoActivateParentFeatureId(feature), "barbaro-ira");
+  assert.equal(feature.activation.primary, "ingresso_in_ira");
+  assert.match(feature.effectPlan.detail, /attiva prima Ira/i);
+  assert.match(feature.effectPlan.detail, /entrando in Ira/i);
+  assert.match(feature.effectPlan.detail, /turno oltre quello iniziale/i);
+  assert.match(feature.effectPlan.detail, /automaticamente uno stack di Indebolimento/i);
+  assert.deepEqual(feature.duration, {
+    rounds: null,
+    untilFeatureId: "barbaro-ira",
+  });
+});
+
+test("l'overlay meccanico del Berserker separa scelta, TS assistito e blocco di 24 ore", () => {
+  const mechanics = JSON.parse(fs.readFileSync(
+    new URL("../data/class-features/phb2014_livello_meccanico_v1_1.json", import.meta.url),
+    "utf8",
+  )).mechanics;
+  const frenzy = mechanics.find((entry) => entry.id === "barbaro-cammino-del-berserker-frenesia");
+  const intimidatoria = mechanics.find((entry) => entry.id === "barbaro-cammino-del-berserker-presenza-intimidatoria");
+  assert.equal(frenzy.activation.primary, "ingresso_in_ira");
+  assert.equal(intimidatoria.automation_level, "assistita");
+  assert.deepEqual(intimidatoria.activation, {
+    primary: "azione",
+    alternatives: [],
+    trigger: "tiro_salvezza",
+    timing: null,
+    optional: true,
+  });
+  assert.equal(intimidatoria.manual_choice_required, true);
+  assert.equal(intimidatoria.targets.range_meters, 9);
+  assert.equal(intimidatoria.duration.type, "until_end_of_next_turn");
+  assert.notEqual(intimidatoria.duration.value, 24);
+  assert.deepEqual(intimidatoria.recovery, ["blocco_24_ore_dopo_tiro_salvezza_riuscito"]);
 });
 
 test("Presenza Zelante termina all'inizio del prossimo turno del barbaro", () => {

@@ -1,6 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { loadInitiativeCard } from "./initiativeCards.js";
+import { getInitiativeCard, loadInitiativeCard } from "./initiativeCards.js";
+import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
+import { classFeaturePassiveMovementMechanics } from "./classFeatureCore.js";
 import { getConditionInstances } from "./conditions.js";
 import {
   conditionMovementCostCells,
@@ -146,9 +148,22 @@ function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk") {
   const meta = item?.metadata?.[META_KEY] || {};
   const conditions = meta.conditions || {};
   const spells = meta[SPELLS_META_KEY] || [];
+  const passiveFeatureInstances = getEnabledClassFeatures(getInitiativeCard(item))
+    .map((feature) => {
+      const movement = classFeaturePassiveMovementMechanics(feature);
+      if (!movement) return null;
+      return {
+        id: `class-feature-passive:${feature.id}`,
+        effectId: feature.id,
+        condition: feature.name,
+        active: true,
+        mechanics: { movement },
+      };
+    })
+    .filter(Boolean);
   return resolveConditionSpeed(
     baseSpeedMeters,
-    getConditionInstances(conditions),
+    [...passiveFeatureInstances, ...getConditionInstances(conditions)],
     spells,
     preferredMode,
   );
@@ -323,7 +338,7 @@ function mountSpeedMetadataListener() {
     const item = event.items.find((candidate) => candidate?.id === movementState.itemId);
     if (!item) return;
     if (event.flags.speedCheck) applyPersistedMovementItem(item);
-    if (event.flags.conditions || event.flags.concentration) {
+    if (event.flags.conditions || event.flags.concentration || event.flags.tracker) {
       void applyConditionSpeedItem(item).catch(() => {});
     }
     for (const record of event.changedRecords || []) {

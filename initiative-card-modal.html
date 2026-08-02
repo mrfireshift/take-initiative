@@ -37,7 +37,7 @@
     * { box-sizing:border-box; }
     html,body { margin:0; width:100%; height:100%; overflow:hidden; color:#fff; background:transparent !important; }
     body { font-size:var(--obrt-type-body); line-height:1.25; }
-    .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; }
+    .glass-shell { width:100%; height:100%; min-height:0 !important; display:flex; flex-direction:column; overflow:hidden; transform:translateZ(.001px); backface-visibility:hidden; }
     .panel {
       flex:1 1 auto; min-height:0; position:relative;
       overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable;
@@ -146,19 +146,53 @@
     .class-feature-resource-copy,.class-feature-active-copy { min-width:0; flex:1; display:grid; gap:2px; }
     .class-feature-resource-copy small,.class-feature-active-copy small,.class-feature-meta { color:rgba(255,255,255,.60); font-size:10px; }
     .class-feature-active-copy .class-feature-manual { color:var(--feature-accent,#fbbf24); line-height:1.35; }
-    .class-feature-resource-value { color:var(--accent-bright); font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; }
-    .class-feature-resource-controls { display:flex; gap:3px; }
+    .class-feature-resource-value { display:inline-flex; align-items:center; gap:3px; color:var(--accent-bright); font-weight:var(--obrt-weight-bold); font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .class-feature-resource-controls { display:flex; align-items:center; gap:3px; }
+    .class-feature-resource-maximum-editable { min-width:20px; cursor:text; border-bottom:1px dashed rgba(var(--faction-rgb),.50); text-align:center; }
+    .class-feature-resource-maximum-editable:focus-visible { outline:1px solid rgba(var(--faction-rgb),.62); outline-offset:2px; border-radius:2px; }
+    .class-feature-resource-maximum-input { width:34px; min-height:24px; padding:0; border:0; outline:0; background:transparent; color:#fff; font:inherit; font-size:10px; text-align:center; }
     .class-feature-resource-controls button,.class-feature-end { min-width:26px; min-height:26px; padding:2px 7px; border-radius:7px; }
     .class-feature-end { width:26px; padding:0; border:1px solid rgba(248,113,113,.52); background:rgba(127,29,29,.28); color:#fecaca; font-size:15px; font-weight:800; line-height:1; }
     .class-feature-end:hover:not(:disabled) { border-color:#f87171; background:rgba(185,28,28,.62); }
     .class-feature-card { display:grid; gap:7px; }
-    .class-feature-head { display:flex; align-items:flex-start; gap:8px; }
-    .class-feature-copy { min-width:0; flex:1; display:grid; gap:2px; }
+    .class-feature-subfeature { margin-left:14px; border-left-width:2px; background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(7,12,19,.24)); }
+    .class-feature-head { display:grid; gap:2px; }
+    .class-feature-copy { min-width:0; display:grid; gap:2px; }
     .class-feature-runtime-status { color:var(--feature-accent,#fbbf24); font-size:10px; line-height:1.3; }
     .class-feature-not-automated { opacity:.82; }
     .class-feature-card button:disabled { cursor:not-allowed; opacity:.58; }
     .class-feature-copy strong { line-height:1.25; }
     .class-feature-card button { flex:0 0 auto; min-height:28px; padding:4px 9px; border-radius:8px; border-color:rgba(var(--faction-rgb),.46); background:rgba(var(--faction-rgb),.14); }
+    .class-feature-controls { display:flex; flex-wrap:wrap; align-items:end; gap:6px; font-size:10px; line-height:1.45; }
+    .class-feature-controls > .class-feature-special-controls { flex:1 1 100%; min-width:0; }
+    .class-feature-controls > button,.class-feature-controls .class-feature-special-controls button { min-height:26px; padding:4px 8px; font:inherit; white-space:nowrap; }
+    .class-feature-tides-button { flex:0 0 auto !important; width:auto; }
+    .class-feature-special-controls { display:flex; flex-wrap:wrap; align-items:end; gap:5px; }
+    .class-feature-special-controls label { min-width:112px; font-size:10px; }
+    .class-feature-special-controls input,.class-feature-special-controls select { min-height:28px; padding:4px 6px; border:1px solid rgba(var(--faction-rgb),.28); border-radius:7px; background:rgba(0,0,0,.30); color:#fff; font:inherit; font-size:10px; }
+    .class-feature-special-controls small { flex-basis:100%; color:rgba(255,255,255,.58); font-size:10px; line-height:1.35; }
+    .class-feature-lay-on-hands-controls { width:100%; min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1.15fr) auto; align-items:end; gap:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,.10); }
+    .class-feature-lay-on-hands-controls label { min-width:0; display:grid; gap:3px; line-height:1.1; }
+    .class-feature-lay-on-hands-controls input { width:100%; min-width:0; box-sizing:border-box; }
+    .class-feature-lay-on-hands-controls button { min-width:62px; white-space:nowrap; }
+    .class-feature-additional-spells { display:grid; gap:5px; padding:8px; border:1px solid rgba(var(--faction-rgb),.24); border-radius:8px; background:rgba(var(--faction-rgb),.08); }
+    .class-feature-additional-spells > strong { color:var(--accent-bright); font-size:11px; line-height:1.25; }
+    .class-feature-additional-spells > small { color:rgba(255,255,255,.60); font-size:10px; line-height:1.35; }
+    .class-feature-additional-spells-list { display:grid; gap:3px; margin:1px 0 0; padding:0; list-style:none; }
+    .class-feature-additional-spell-row { display:grid; grid-template-columns:auto minmax(0,1fr); gap:7px; align-items:start; padding-top:3px; border-top:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.78); font-size:10px; line-height:1.35; }
+    .class-feature-additional-spell-level { color:var(--accent-bright); white-space:nowrap; }
+    .class-feature-additional-spell-names { min-width:0; overflow-wrap:anywhere; }
+    .class-feature-wild-magic-controls-wrap { display:grid; align-items:start; }
+    .class-feature-wild-magic-viewer { display:grid; gap:7px; width:100%; padding:8px; border:1px solid rgba(192,132,252,.35); border-radius:8px; background:rgba(88,28,135,.14); }
+    .class-feature-wild-magic-controls { display:flex; flex-wrap:wrap; align-items:end; gap:5px; }
+    .class-feature-wild-magic-controls label { min-width:118px; }
+    .class-feature-wild-magic-result { display:grid; gap:6px; }
+    .class-feature-wild-magic-outcome { display:grid; gap:6px; padding:7px; border-radius:7px; background:rgba(0,0,0,.20); }
+    .class-feature-wild-magic-effect,.class-feature-wild-magic-field { display:grid; gap:2px; }
+    .class-feature-wild-magic-effect span,.class-feature-wild-magic-field span { color:rgba(255,255,255,.78); font-size:10px; line-height:1.35; }
+    .class-feature-wild-magic-field strong { color:rgba(255,255,255,.58); font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
+    .class-feature-spell-link { justify-self:start; min-height:24px !important; padding:3px 6px !important; color:#ddd6fe; font-size:10px; }
+    .class-feature-wild-magic-rule { color:#ddd6fe; line-height:1.35; }
     .class-feature-description { margin:0; color:rgba(255,255,255,.76); font-size:10px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
     .class-feature-editor-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .class-feature-editor-head .section-title { margin:0; }
@@ -167,6 +201,9 @@
     .class-build-editor-row select { width:100%; min-height:32px; padding:5px 7px; border:1px solid rgba(var(--faction-rgb),.22); border-radius:8px; background:rgba(0,0,0,.35); color:#fff; font:inherit; }
     .class-build-remove { width:28px; min-height:28px; padding:0; border-radius:7px; }
     .class-feature-editor-option { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; align-items:start; padding:9px; border:1px solid rgba(var(--faction-rgb),.20); border-radius:9px; background:rgba(0,0,0,.15); cursor:pointer; }
+    .class-feature-editor-subgroup { display:grid; gap:6px; margin-left:14px; padding-left:9px; border-left:2px solid rgba(var(--faction-rgb),.25); }
+    .class-feature-editor-subgroup > small { color:rgba(255,255,255,.52); font-size:10px; }
+    .class-feature-editor-suboption { margin-left:0; background:rgba(255,255,255,.035); }
     .class-feature-editor-option input { width:15px; min-height:15px; margin:2px 0 0; accent-color:var(--accent); }
     .class-feature-editor-option-copy { min-width:0; display:grid; gap:3px; }
     .class-feature-editor-option-copy small { color:rgba(255,255,255,.58); font-size:10px; line-height:1.3; }
@@ -207,6 +244,7 @@
       .form-grid { grid-template-columns:1fr; }
       .quick-actions-list,.quick-action-editor-grid { grid-template-columns:1fr; }
       .quick-action-editor-grid label.wide { grid-column:1; }
+      .class-feature-lay-on-hands-controls { grid-template-columns:minmax(0,1fr) auto; }
       .class-build-editor-row { grid-template-columns:minmax(0,1fr) 65px auto; }
       .class-build-editor-row label:nth-child(3) { grid-column:1 / -1; grid-row:2; }
       .portrait { flex-basis:54px; width:54px; height:54px; }
@@ -298,7 +336,7 @@
         <p class="class-feature-help">Fino a quattro classi. Il livello è quello della singola classe, non il livello totale del personaggio.</p>
         <span class="section-title">Capacità attive</span>
         <div id="classFeatureEditorList" class="class-feature-editor-list"></div>
-        <p class="class-feature-help">Sono elencate solo capacità con un’attivazione utilizzabile. Le conseguenze complesse (per esempio PF temporanei o rimozione di condizioni) restano manuali al tavolo.</p>
+      <p class="class-feature-help">Sono elencate le capacità disponibili, incluse quelle descrittive. Le conseguenze complesse (per esempio PF temporanei o rimozione di condizioni) restano manuali al tavolo.</p>
       </section>
       <div id="status" class="status"></div>
       <div class="actions">

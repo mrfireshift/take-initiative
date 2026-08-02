@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   activeClassFeatureInstances,
+  classFeatureConditionResourceDie,
   classFeatureConditionInstancesForActivation,
   classFeatureEffectProjection,
   classFeatureTargetIds,
@@ -23,6 +24,33 @@ const ragePool = {
   maximumByClassLevel: { "1": 2, "2": 2, "3": 3 },
 };
 const pools = new Map([[ragePool.id, ragePool]]);
+
+test("risolve il dado di Ispirazione Bardica dalla build del Bardo", () => {
+  const bardic = {
+    id: "bardo-ispirazione-bardica",
+    type: "class-feature",
+    condition: "Ispirazione Bardica",
+  };
+  assert.equal(
+    classFeatureConditionResourceDie(bardic, [{ classId: "bardo", level: 4 }]),
+    "d6",
+  );
+  assert.equal(
+    classFeatureConditionResourceDie(bardic, [{ classId: "bardo", level: 12 }]),
+    "d10",
+  );
+  assert.equal(
+    classFeatureConditionResourceDie(bardic, [{ classId: "bardo", level: 17 }]),
+    "d12",
+  );
+  assert.equal(
+    classFeatureConditionResourceDie(
+      { id: "stregone-metamagia", type: "condition", condition: "Ispirazione Bardica" },
+      [{ classId: "bardo", level: 12 }],
+    ),
+    null,
+  );
+});
 
 test("normalizza una build multiclasse senza duplicare classi", () => {
   assert.deepEqual(sanitizeCharacterBuild([
@@ -61,6 +89,133 @@ test("l'attivazione consuma la risorsa e crea un'istanza a durata", () => {
   assert.equal(activeClassFeatureInstances(result.state, 14).length, 0);
 });
 
+test("una capacità attiva su sé stessa non crea una seconda istanza", () => {
+  const feature = {
+    id: "barbaro-ira",
+    trackingMode: "active",
+    duration: { rounds: 10 },
+    resourceCosts: [{ poolId: ragePool.id, amount: 1 }],
+  };
+  const first = planClassFeatureActivation({
+    feature,
+    poolsById: pools,
+    characterBuild: build,
+    sourceId: "barbaro-token",
+    targetIds: ["barbaro-token"],
+    currentRound: 4,
+    instanceId: "rage-1",
+  });
+  const duplicate = planClassFeatureActivation({
+    state: first.state,
+    feature,
+    poolsById: pools,
+    characterBuild: build,
+    sourceId: "barbaro-token",
+    targetIds: ["barbaro-token"],
+    currentRound: 4,
+    instanceId: "rage-2",
+  });
+
+  assert.equal(first.ok, true);
+  assert.deepEqual(duplicate, { ok: false, reason: "feature-already-active" });
+  assert.equal(first.state.resources[ragePool.id].current, 2);
+  assert.equal(first.state.instances.length, 1);
+});
+
+test("una capacità a bersaglio può restare attiva su bersagli diversi", () => {
+  const feature = {
+    id: "bardo-ispirazione-bardica",
+    trackingMode: "active",
+    targeting: { mode: "single-target", maxTargets: 1 },
+    duration: { rounds: 10 },
+  };
+  const first = planClassFeatureActivation({
+    feature,
+    poolsById: new Map(),
+    characterBuild: build,
+    sourceId: "bardo-token",
+    targetIds: ["bersaglio-a"],
+    currentRound: 4,
+    instanceId: "inspiration-1",
+  });
+  const sameTarget = planClassFeatureActivation({
+    state: first.state,
+    feature,
+    poolsById: new Map(),
+    characterBuild: build,
+    sourceId: "bardo-token",
+    targetIds: ["bersaglio-a"],
+    currentRound: 4,
+    instanceId: "inspiration-2",
+  });
+  const otherTarget = planClassFeatureActivation({
+    state: first.state,
+    feature,
+    poolsById: new Map(),
+    characterBuild: build,
+    sourceId: "bardo-token",
+    targetIds: ["bersaglio-b"],
+    currentRound: 4,
+    instanceId: "inspiration-3",
+  });
+
+  assert.deepEqual(sameTarget, { ok: false, reason: "feature-already-active" });
+  assert.equal(otherTarget.ok, true);
+  assert.equal(otherTarget.state.instances.length, 2);
+});
+
+test("Ira Persistente rende indefinita l'istanza di Ira quando la capacità è abilitata", () => {
+  const feature = {
+    id: "barbaro-ira",
+    trackingMode: "active",
+    duration: { rounds: 10, indefiniteWithFeatureId: "barbaro-ira-persistente" },
+  };
+  const withPersistentRage = planClassFeatureActivation({
+    feature,
+    poolsById: new Map(),
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 4,
+    instanceId: "rage-persistent",
+    enabledFeatureIds: ["barbaro-ira-persistente"],
+  });
+  assert.equal(withPersistentRage.ok, true);
+  assert.equal(withPersistentRage.instance.expiresRound, null);
+
+  const withFiniteRage = planClassFeatureActivation({
+    feature,
+    poolsById: new Map(),
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    currentRound: 4,
+    instanceId: "rage-finite",
+  });
+  assert.equal(withFiniteRage.instance.expiresRound, 13);
+});
+
+test("le mechanics di movimento del piano diventano parte dell'istanza", () => {
+  const feature = {
+    id: "eagle-attunement",
+    trackingMode: "active",
+    effectPlan: {
+      kind: "condition",
+      conditionName: "Sintonia Totemica: Aquila",
+      mechanics: { movement: { modes: { fly: { copyFrom: "walk" } } } },
+    },
+  };
+  const projection = classFeatureEffectProjection(feature);
+  assert.deepEqual(projection.mechanics.movement.modes.fly, { copyFrom: "walk" });
+  const instance = classFeatureConditionInstancesForActivation(feature, {
+    instanceId: "eagle-1",
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    startedRound: 1,
+  })[0];
+  assert.deepEqual(instance.mechanics.movement.modes.fly, { copyFrom: "walk" });
+});
+
 test("una capacità istantanea consuma la risorsa senza restare attiva", () => {
   const result = planClassFeatureActivation({
     feature: {
@@ -77,9 +232,55 @@ test("una capacità istantanea consuma la risorsa senza restare attiva", () => {
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.instance, null);
+  assert.equal(result.instance.instanceId, "instant-1");
+  assert.equal(result.instance.featureId, "azione-istantanea");
+  assert.equal(result.instance.parentFeatureId, undefined);
+  assert.equal(result.instance.parentInstanceId, undefined);
   assert.equal(result.state.instances.length, 0);
   assert.equal(result.state.resources[ragePool.id].current, 2);
+});
+
+test("un costo variabile richiede un intero positivo e consuma il valore scelto", () => {
+  const feature = {
+    id: "paladino-imposizione-delle-mani",
+    trackingMode: "instant",
+    resourceCosts: [{ poolId: ragePool.id, amount: 1, variable: true }],
+  };
+  const spent = planClassFeatureActivation({
+    feature,
+    poolsById: pools,
+    characterBuild: build,
+    sourceId: "paladin",
+    targetIds: ["target"],
+    instanceId: "lay-on-hands-1",
+    resourceValues: { [ragePool.id]: 2 },
+  });
+  assert.equal(spent.ok, true);
+  assert.equal(spent.state.resources[ragePool.id].current, 1);
+
+  assert.deepEqual(planClassFeatureActivation({
+    feature,
+    poolsById: pools,
+    characterBuild: build,
+    sourceId: "paladin",
+    instanceId: "lay-on-hands-2",
+  }), {
+    ok: false,
+    reason: "resource-value-required",
+    poolId: ragePool.id,
+  });
+  assert.deepEqual(planClassFeatureActivation({
+    feature,
+    poolsById: pools,
+    characterBuild: build,
+    sourceId: "paladin",
+    instanceId: "lay-on-hands-3",
+    resourceValues: { [ragePool.id]: 1.5 },
+  }), {
+    ok: false,
+    reason: "resource-value-required",
+    poolId: ragePool.id,
+  });
 });
 
 test("l'attivazione è atomica quando la risorsa è esaurita", () => {

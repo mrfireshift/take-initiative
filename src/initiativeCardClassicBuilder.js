@@ -16,7 +16,6 @@ import {
 } from "./initiativeEditors.js";
 import { compactStatusBadge } from "./initiativeCardCompact.js";
 import { openReferencePopover } from "./referencePopover.js";
-import { buildSpellEffectChips } from "./conditions.js";
 
 export function buildClassicTrackerCard(e, context) {
   const {
@@ -708,11 +707,6 @@ if (hasAny) {
   });
   if (fragCond) fragAll.appendChild(fragCond);
 }
-
-// Gli effetti secondari delle Capacità usano lo stesso contratto visivo
-// dei bonus/malus degli incantesimi, mantenendo il tema della Feature.
-const fragFeatureEffects = buildSpellEffectChips(condData, { compact: true });
-if (fragFeatureEffects?.childNodes?.length) fragAll.appendChild(fragFeatureEffects);
 
 // 2) Incantesimi
 if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {

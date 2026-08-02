@@ -53,6 +53,11 @@ function armClickAwayClose() {
 
 function render(payload) {
   const actions = sanitizeQuickActions(payload?.actions, { limit: 64 });
+  const disabledActionIds = new Set(
+    (Array.isArray(payload?.disabledActionIds) ? payload.disabledActionIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
   root.replaceChildren();
   const title = document.createElement("div");
   title.className = "title";
@@ -61,9 +66,14 @@ function render(payload) {
 
   for (const action of actions) {
     const button = document.createElement("button");
+    const disabled = disabledActionIds.has(action.id);
     button.type = "button";
     button.setAttribute("role", "menuitem");
-    button.title = trackerQuickActionSummary(action);
+    button.disabled = disabled;
+    button.setAttribute("aria-disabled", String(disabled));
+    button.title = disabled
+      ? `${trackerQuickActionSummary(action)} · Già attiva`
+      : trackerQuickActionSummary(action);
 
     const icon = document.createElement("span");
     icon.className = "icon";

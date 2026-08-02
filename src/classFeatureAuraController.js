@@ -1,11 +1,13 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
+import { getConditionInstances } from "./conditions.js";
 import { withItemMetaHistory } from "./history.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
 import {
   CLASS_FEATURE_AURA_META_KEY,
+  classFeatureAuraEndsOnSourceCondition,
   classFeatureAuraMembershipPlan,
   classFeatureAuraTargetIds,
   collectActiveClassFeatureAuras,
@@ -14,11 +16,17 @@ import {
 import {
   CLASS_FEATURE_BY_ID,
 } from "./classFeatureCatalog.js";
+import { getInitiativeCard } from "./initiativeCards.js";
 import {
   CLASS_FEATURE_STATE_FIELD,
   normalizeClassFeatureState,
 } from "./classFeatureCore.js";
+import { deactivateClassFeature } from "./classFeatureRuntime.js";
 import { runEffectsMutation } from "./effectsMutations.js";
+import {
+  mergeClassFeatureAuraReminderMetadata,
+  planClassFeatureAuraReminder,
+} from "./classFeatureAuraReminderCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -82,7 +90,7 @@ async function itemBounds(items) {
 
 function auraVisualMetadata(aura, dpi, sizeCells, style) {
   return {
-    version: 1,
+    version: 2,
     instanceId: aura.instanceId,
     featureId: aura.featureId,
     sourceId: aura.sourceId,
@@ -110,9 +118,20 @@ function classFeatureAuraStyle(aura) {
   };
 }
 
-function buildAuraVisual({ aura, center, caster, dpi, sizeCells }) {
+function buildAuraVisual({
+  aura,
+  center,
+  caster,
+  dpi,
+  sizeCells,
+  reminderUpdate = null,
+}) {
   const style = classFeatureAuraStyle(aura);
   const radius = sizeCells * dpi;
+  const metadata = mergeClassFeatureAuraReminderMetadata(
+    auraVisualMetadata(aura, dpi, sizeCells, style),
+    reminderUpdate,
+  );
   return buildPath()
     .commands(circleCommands(radius))
     .fillRule("evenodd")
@@ -125,13 +144,11 @@ function buildAuraVisual({ aura, center, caster, dpi, sizeCells }) {
     .attachedTo(aura.sourceId)
     .locked(true)
     .disableHit(true)
-    .layer("ATTACHMENT")
+    .layer("DRAWING")
     .disableAttachmentBehavior(["ROTATION", "VISIBLE", "COPY", "SCALE"])
     .visible(true)
     .zIndex((Number(caster?.zIndex) || 0) - 1)
-    .metadata({
-      [CLASS_FEATURE_AURA_META_KEY]: auraVisualMetadata(aura, dpi, sizeCells, style),
-    })
+    .metadata({ [CLASS_FEATURE_AURA_META_KEY]: metadata })
     .name(`Aura capacità: ${aura.conditionName}`)
     .build();
 }
@@ -150,6 +167,7 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
   const desiredIds = new Set(desiredVisuals.map((entry) => entry.aura.instanceId));
   const deleteIds = [];
   const additions = [];
+  const metadataUpdates = new Map();
   for (const item of existing) {
     const instanceId = String(
       item.metadata[CLASS_FEATURE_AURA_META_KEY]?.instanceId || ""
@@ -168,7 +186,8 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
     );
     const keeper = matches.find((item) => {
       const actual = item.metadata?.[CLASS_FEATURE_AURA_META_KEY] || {};
-      return item.attachedTo === desired.aura.sourceId
+      return item.layer === "DRAWING"
+        && item.attachedTo === desired.aura.sourceId
         && actual.featureId === expected.featureId
         && Number(actual.dpi) === expected.dpi
         && Number(actual.sizeCells) === expected.sizeCells
@@ -177,11 +196,30 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
     });
     deleteIds.push(...matches.filter((item) => item !== keeper).map((item) => item.id));
     if (!keeper) additions.push(buildAuraVisual(desired));
+    else if (desired.reminderUpdate?.changed) {
+      metadataUpdates.set(keeper.id, desired.reminderUpdate);
+    }
   }
 
   const uniqueDeleteIds = [...new Set(deleteIds.filter(Boolean))];
   if (uniqueDeleteIds.length) await OBR.scene.items.deleteItems(uniqueDeleteIds);
   if (additions.length) await OBR.scene.items.addItems(additions);
+  if (metadataUpdates.size) {
+    await OBR.scene.items.updateItems([...metadataUpdates.keys()], (drafts) => {
+      for (const item of drafts) {
+        const update = metadataUpdates.get(item.id);
+        const metadata = item.metadata?.[CLASS_FEATURE_AURA_META_KEY];
+        if (!update || !metadata) continue;
+        item.metadata = {
+          ...(item.metadata || {}),
+          [CLASS_FEATURE_AURA_META_KEY]: mergeClassFeatureAuraReminderMetadata(
+            metadata,
+            update,
+          ),
+        };
+      }
+    });
+  }
 }
 
 async function clearStaleSuppressions(plans) {
@@ -235,12 +273,32 @@ async function reconcileClassFeatureAuras() {
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
   ]);
   const round = await currentRound(sceneMetadata);
-  const auras = collectActiveClassFeatureAuras(items, {
+  const characterBuildBySourceId = new Map(
+    items.map((item) => [item.id, getInitiativeCard(item).characterBuild])
+  );
+  const collectedAuras = collectActiveClassFeatureAuras(items, {
     metaKey: META_KEY,
     featureById: CLASS_FEATURE_BY_ID,
     currentRound: round,
+    characterBuildBySourceId,
   });
   const byId = new Map(items.map((item) => [item.id, item]));
+  const endedAuras = collectedAuras.filter((aura) => (
+    classFeatureAuraEndsOnSourceCondition(
+      aura,
+      getConditionInstances(byId.get(aura.sourceId)?.metadata?.[META_KEY]?.conditions),
+    )
+  ));
+  if (endedAuras.length) {
+    for (const aura of endedAuras) {
+      await deactivateClassFeature(aura.sourceId, aura.instanceId);
+    }
+    // La mutazione sopra innesca normalmente onChange; mantenere comunque
+    // una nuova iterazione garantisce che area e pill spariscano subito.
+    requested = true;
+    return;
+  }
+  const auras = collectedAuras;
   const order = Array.isArray(sceneMetadata?.[STATE_KEY]?.order)
     ? sceneMetadata[STATE_KEY].order
     : [];
@@ -266,6 +324,15 @@ async function reconcileClassFeatureAuras() {
   const operations = [];
   const desiredVisuals = [];
   const suppressionPlans = [];
+  const existingAuraVisualByInstance = new Map(
+    items
+      .filter((item) => item?.metadata?.[CLASS_FEATURE_AURA_META_KEY]?.instanceId)
+      .map((item) => [
+        String(item.metadata[CLASS_FEATURE_AURA_META_KEY].instanceId),
+        item,
+      ]),
+  );
+  const newTriggerNotices = [];
 
   for (const aura of auras) {
     const caster = byId.get(aura.sourceId);
@@ -325,12 +392,31 @@ async function reconcileClassFeatureAuras() {
       items,
       metaKey: META_KEY,
     }).operations);
-    desiredVisuals.push({ aura, center, caster, dpi, sizeCells });
+    const reminderUpdate = planClassFeatureAuraReminder({
+      aura,
+      auraItem: existingAuraVisualByInstance.get(aura.instanceId) || null,
+      desiredTargetIds,
+      initiativeState: sceneMetadata?.[STATE_KEY] || {},
+      itemsById: byId,
+      areaPosition: center,
+    });
+    newTriggerNotices.push(...reminderUpdate.notices);
+    desiredVisuals.push({
+      aura,
+      center,
+      caster,
+      dpi,
+      sizeCells,
+      reminderUpdate,
+    });
   }
 
   const activeInstanceIds = auras.map((aura) => aura.instanceId);
   const staleRemovals = staleClassFeatureAuraEffectRemovals(items, {
     activeInstanceIds,
+    suppressSourceCardPillInstanceIds: auras
+      .filter((aura) => aura.feature?.suppressSourceCardPill === true)
+      .map((aura) => aura.instanceId),
     metaKey: META_KEY,
   });
   if (staleRemovals.length) {
@@ -339,6 +425,19 @@ async function reconcileClassFeatureAuras() {
   if (operations.length) await runEffectsMutation(operations);
   await clearStaleSuppressions(suppressionPlans);
   await reconcileAuraVisuals(items, desiredVisuals);
+  if (newTriggerNotices.length) {
+    void OBR.broadcast.sendMessage(
+      SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
+      {
+        type: "show-zone-trigger-notices",
+        activationIds: newTriggerNotices.map((notice) => notice.activationId),
+        notices: newTriggerNotices,
+      },
+      { destination: "ALL" },
+    ).catch((error) => {
+      console.warn("[class-feature-aura] trigger notice:", error?.message || error);
+    });
+  }
 }
 
 async function pump() {

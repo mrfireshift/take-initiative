@@ -3,6 +3,7 @@ import {
   spellExpiryDescription,
 } from "./spellExpiryCore.js";
 import { enableInlineNameEditor } from "./initiativeEditors.js";
+import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js";
 
 export const COMPACT_CARD_WIDTH = 92;
 export const COMPACT_CARD_HEIGHT = 120;
@@ -31,9 +32,21 @@ export function __compactConditionPillLabel(
   }
   const expiry = instance?.expiry || {};
   const remaining = Math.max(0, Math.floor(Number(expiry.remaining) || 0));
-  if (expiry.mode === "rounds" && remaining) label += ` (${remaining})`;
-  else if (expiry.mode === "turn-start") label += ` (I${remaining > 1 ? `:${remaining}` : ""})`;
-  else if (expiry.mode === "turn-end") label += ` (F${remaining > 1 ? `:${remaining}` : ""})`;
+  const resourceDie = String(instance?.resourceDie || "").trim();
+  if (resourceDie) label += ` (${resourceDie})`;
+  else if (expiry.mode === "rounds" && remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS) {
+    label += ` (${remaining})`;
+  } else if (expiry.mode === "turn-start") {
+    const visibleRemaining = remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS
+      ? remaining
+      : 0;
+    label += ` (I${visibleRemaining > 1 ? `:${visibleRemaining}` : ""})`;
+  } else if (expiry.mode === "turn-end") {
+    const visibleRemaining = remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS
+      ? remaining
+      : 0;
+    label += ` (F${visibleRemaining > 1 ? `:${visibleRemaining}` : ""})`;
+  }
   else if (expiry.mode === "concentration") label += " (C)";
   return label;
 }
@@ -65,19 +78,6 @@ export function __compactEffectItems(
       }
       : {}),
   }));
-  for (const instance of conditionInstances.filter((entry) =>
-    (entry?.type === "class-feature" || entry?.type === "class-feature-area")
-    && (entry?.effectKind === "buff" || entry?.effectKind === "debuff")
-  )) {
-    effects.push({
-      kind: instance.effectKind,
-      label: __compactConditionPillLabel(instance, formatting),
-      title: formatConditionInstance(instance),
-      theme: instance.theme && typeof instance.theme === "object"
-        ? { ...instance.theme }
-        : null,
-    });
-  }
   for (const spell of spells) {
     const counter = spellExpiryCounter(spell);
     const spellName = String(spell?.name || "Incantesimo");

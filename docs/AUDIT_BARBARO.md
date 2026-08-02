@@ -1,6 +1,6 @@
 # Audit capacità del Barbaro
 
-Report generato il 2026-08-01 a partire dal catalogo meccanico generale (versione 2).
+Report generato il 2026-08-02 a partire dal catalogo meccanico generale (versione 2).
 
 ## Obiettivo
 
@@ -15,8 +15,8 @@ Sono stati esaminati **68 record** del Barbaro base e dei 7 Cammini presenti nei
 | Marker token prioritario | 19 |
 | Marker da curare | 6 |
 | Effetto istantaneo | 13 |
-| Gestione al tavolo | 26 |
-| Coperta da capacità contenitore | 4 |
+| Gestione al tavolo | 27 |
+| Coperta da capacità contenitore | 3 |
 
 Marker prioritari: **19**. Marker da curare: **6**.
 
@@ -35,7 +35,7 @@ Le durate delle capacità automatizzate sono confrontate con regole dichiarative
 | Spirito Totemico: Aquila | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
 | Spirito Totemico: Lupo | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
 | Spirito Totemico: Orso | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
-| Protettori Ancestrali | {"kind":"next-turn"} | {"kind":"next-turn"} | OK |
+| Protettori Ancestrali | {"kind":"next-turn-until-feature","featureId":"barbaro-ira"} | {"kind":"next-turn-until-feature","featureId":"barbaro-ira"} | OK |
 | Magia Selvaggia: Teletrasporto | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
 | Magia Selvaggia: Ritorsione della Forza | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
 | Impeto Selvaggio | {"kind":"until-feature","featureId":"barbaro-ira"} | {"kind":"until-feature","featureId":"barbaro-ira"} | OK |
@@ -59,6 +59,7 @@ Ira e le varianti legate a Ira devono chiudere la concentrazione del caster prim
 | Spirito Totemico: Aquila | break | break | OK |
 | Spirito Totemico: Lupo | break | break | OK |
 | Spirito Totemico: Orso | break | break | OK |
+| Protettori Ancestrali | break | break | OK |
 | Forma della Bestia | break | break | OK |
 | Chiamata alla Caccia | break | break | OK |
 | Magia Selvaggia: Teletrasporto | break | break | OK |
@@ -79,7 +80,7 @@ Ira e le varianti legate a Ira devono chiudere la concentrazione del caster prim
 | Spirito Totemico: Orso | 3 | Marker token prioritario | self | ira | La resistenza a tutti i danni tranne psichici resta attiva per tutta Ira e merita un promemoria sul barbaro. |
 | Sintonia Totemica: Aquila | 14 | Marker token prioritario | self | fino_a_termine_ira | Volo attivo durante Ira: bersaglio e durata sono chiari e il promemoria sul token evita di dimenticare la caduta a fine turno. |
 | Sintonia Totemica: Orso | 14 | Marker token prioritario | aura | ira | L'aura automatica aggiorna le creature ostili vicine e la pill di svantaggio mentre il barbaro si muove. |
-| Protettori Ancestrali | 3 | Marker token prioritario | single_target | fino_all_inizio_del_prossimo_turno_del_barbaro | La prima creatura colpita diventa un bersaglio preciso fino all'inizio del prossimo turno; il marker ricorda svantaggio e resistenza indiretta. |
+| Protettori Ancestrali | 3 | Marker token prioritario | single_target | fino_all_inizio_del_prossimo_turno_o_fine_ira | Dopo la conferma manuale del colpo, il bersaglio scelto riceve un marker fino all'inizio del prossimo turno o alla fine di Ira; svantaggio e resistenza restano reminder manuali. |
 | Aura Tempestosa | 3 | Marker token prioritario | aura | ira | L'area automatica di 3 metri resta agganciata al barbaro e il dropdown conserva l'ambiente scelto; danni e HP vengono risolti dal testo del marker. |
 | Tempesta Protettrice | 10 | Marker token prioritario | selected_allies | aura | L'area automatica riconcilia solo gli alleati selezionati e applica la pill di resistenza finché restano nell'Aura Tempestosa. |
 | Forma della Bestia | 3 | Marker token prioritario | self | ira | Il marker conserva la scelta Morso, Artigli o Coda fino al termine di Ira; tiri e guarigioni restano manuali. |
@@ -118,7 +119,7 @@ Ira e le varianti legate a Ira devono chiudere la concentrazione del caster prim
 | Capacità | Livello | Esito | Bersaglio | Durata | Nota |
 |---|---:|---|---|---|---|
 | Frenesia | 3 | Marker token prioritario | self | fino_a_termine_ira | Scelta effettuata entrando in Ira; abilita un attacco con azione bonus per turno e termina con Ira. |
-| Ira Incontenibile | 6 | Coperta da capacità contenitore | self | ira | È una modifica del marker Ira: sospende affascinato/spaventato senza richiedere una pill separata. |
+| Ira Incontenibile | 6 | Gestione al tavolo | self | ira | Promemoria descrittivo: durante Ira ricorda l'immunità a nuovi Affascinato/Spaventato e la sospensione manuale degli effetti già presenti fino alla fine di Ira. |
 | Presenza Intimidatoria | 10 | Marker token prioritario | single_target | fino_al_termine_del_prossimo_turno_del_barbaro | Applica spaventato a un bersaglio scelto fino al termine del prossimo turno, con rinnovo esplicito. |
 | Ritorsione | 14 | Effetto istantaneo | event_target | reazione | È un attacco di reazione immediato; non lascia un effetto persistente da ricordare. |
 
@@ -136,16 +137,16 @@ Ira e le varianti legate a Ira devono chiudere la concentrazione del caster prim
 | Lupo | 6 | Gestione al tavolo | self | passiva | Tracciamento di viaggio e furtività, non di uno stato del round. |
 | Orso | 6 | Gestione al tavolo | self | passiva | Capacità di trasporto e prove di Forza, senza stato persistente di combattimento. |
 | Viandante Spirituale | 10 | Gestione al tavolo | self | rituale | Incantesimo rituale e informazione narrativa. |
-| Lupo | 14 | Effetto istantaneo | event_target | azione_bonus | Atterramento su un bersaglio dopo un colpo; il risultato può essere gestito dalla condizione Prono. |
 | Sintonia Totemica | 14 | Gestione al tavolo | self | scelta_sottoclasse | Contenitore della scelta di Sintonia Totemica. |
 | Sintonia Totemica: Aquila | 14 | Marker token prioritario | self | fino_a_termine_ira | Volo attivo durante Ira: bersaglio e durata sono chiari e il promemoria sul token evita di dimenticare la caduta a fine turno. |
+| Sintonia Totemica: Lupo | 14 | Effetto istantaneo | event_target | azione_bonus | Atterramento su un bersaglio dopo un colpo; il risultato può essere gestito dalla condizione Prono. |
 | Sintonia Totemica: Orso | 14 | Marker token prioritario | aura | ira | L'aura automatica aggiorna le creature ostili vicine e la pill di svantaggio mentre il barbaro si muove. |
 
 ### Cammino del Guardiano Ancestrale
 
 | Capacità | Livello | Esito | Bersaglio | Durata | Nota |
 |---|---:|---|---|---|---|
-| Protettori Ancestrali | 3 | Marker token prioritario | single_target | fino_all_inizio_del_prossimo_turno_del_barbaro | La prima creatura colpita diventa un bersaglio preciso fino all'inizio del prossimo turno; il marker ricorda svantaggio e resistenza indiretta. |
+| Protettori Ancestrali | 3 | Marker token prioritario | single_target | fino_all_inizio_del_prossimo_turno_o_fine_ira | Dopo la conferma manuale del colpo, il bersaglio scelto riceve un marker fino all'inizio del prossimo turno o alla fine di Ira; svantaggio e resistenza restano reminder manuali. |
 | Spiriti Protettori | 6 | Effetto istantaneo | event_target | reazione | Riduzione di danno su un evento; non c'è uno stato persistente da applicare. |
 | Consultare gli Spiriti | 10 | Gestione al tavolo | self | riposo_breve_o_lungo | Capacità di lancio e consultazione, non un'applicazione su token nel round. |
 | Antenati Vendicativi | 14 | Effetto istantaneo | event_target | reazione | Danno riflesso nello stesso evento di Spiriti Protettori. |

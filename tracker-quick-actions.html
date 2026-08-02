@@ -10,7 +10,7 @@
       html,body { margin:0; width:100%; height:auto; min-height:0; overflow:hidden; background:transparent!important; }
       body { box-sizing:border-box; color:#fff; font-family:var(--obrt-font-ui,"Helvetica Neue",Helvetica,Arial,sans-serif); font-size:12px; }
       .glass-shell { box-sizing:border-box; width:100%; height:auto; min-height:0!important; overflow:hidden; outline:none; }
-      #menu { box-sizing:border-box; width:100%; max-height:100vh; padding:5px; overflow-y:auto; scrollbar-width:thin; }
+      #menu { box-sizing:border-box; width:100%; max-height:none; padding:5px; overflow-y:auto; scrollbar-width:thin; }
       .title { padding:6px 8px 8px; margin-bottom:3px; overflow:hidden; border-bottom:1px solid rgba(253,224,71,.22); color:#fef08a; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
       button {
         box-sizing:border-box; width:100%; min-height:38px; padding:6px 8px; display:grid;
@@ -18,6 +18,8 @@
         border:0; border-radius:8px; background:transparent; color:#fff; font:inherit; text-align:left; cursor:pointer;
       }
       button:hover { background:rgba(253,224,71,.11); }
+      button:disabled { cursor:not-allowed; opacity:.45; }
+      button:disabled:hover { background:transparent; }
       button:focus-visible { outline:2px solid rgba(253,224,71,.82); outline-offset:-2px; }
       .icon { width:22px; height:22px; display:grid; place-items:center; border-radius:7px; background:rgba(253,224,71,.13); color:#fde047; font-weight:800; }
       .copy { min-width:0; display:grid; gap:2px; }

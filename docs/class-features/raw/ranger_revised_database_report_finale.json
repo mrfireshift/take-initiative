@@ -1,0 +1,39 @@
+{
+  "file": "ranger_revised_database_finale.json",
+  "sha256": "580cefc5c2b2b18bba455edc726360ad35956878ac548d970ab34f189423eff9",
+  "dimensione_byte": 57702,
+  "conteggi": {
+    "classi": 1,
+    "sottoclassi": 3,
+    "privilegi": 30,
+    "opzioni": 15,
+    "record_progressione_classi": 20
+  },
+  "copertura_sottoclassi": {
+    "ranger-revised": 3
+  },
+  "traduzione": {
+    "lingua_origine": "en-US",
+    "lingua_destinazione": "it-IT",
+    "metodo": "traduzione editoriale manuale con terminologia del Manuale del Giocatore 2014",
+    "nomi_originali_conservati": true
+  },
+  "controlli": {
+    "json_valido": true,
+    "id_duplicati": [],
+    "riferimenti_mancanti": [],
+    "descrizioni_vuote": [],
+    "livelli_fuori_intervallo": [],
+    "progressione_completa_1_20": true,
+    "artefatti_testuali_noti": [],
+    "anomalie_fonte_documentate": [
+      {
+        "record_id": "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita",
+        "tipo": "discordanza_livello",
+        "descrizione": "Il testo di Deep Stalker Magic cita il 15° livello, ma la tabella assegna 'seeming' al 17° livello. Il campo strutturato segue la tabella e conserva questa nota."
+      }
+    ]
+  },
+  "esito": "ok",
+  "nota": "Il file è un supplemento e usa un ID di classe distinto. La fonte è materiale playtest; la validazione attesta fedeltà strutturale al documento, non ufficialità delle regole."
+}

@@ -17,9 +17,9 @@ test("l'audit Barbaro copre la classe base e tutti i Cammini presenti", () => {
 
 test("la classificazione Barbaro separa marker, review, istantanei e tavolo", () => {
   assert.deepEqual(audit.summary.byMode, {
-    tavolo: 26,
+    tavolo: 27,
     token_marker: 19,
-    covered_by_parent: 4,
+    covered_by_parent: 3,
     instant_effect: 13,
     token_marker_review: 6,
   });
@@ -33,6 +33,7 @@ test("i marker prioritari hanno bersaglio e durata espliciti", () => {
     "barbaro-cammino-del-berserker-frenesia",
     "barbaro-cammino-del-berserker-presenza-intimidatoria",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
     "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
     "barbaro-cammino-della-bestia-forma-della-bestia",
@@ -66,11 +67,40 @@ test("i parent dichiarati dalle decisioni esistono nell'audit", () => {
   }
 });
 
+test("Lupo usa un'aura automatica e Protettori resta assistito fino alla fine di Ira", () => {
+  const lupo = audit.features.find(
+    (entry) => entry.id === "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+  );
+  const protettori = audit.features.find(
+    (entry) => entry.id === "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+  );
+  assert.equal(lupo.combatAudit.targetScope, "aura");
+  assert.match(lupo.combatAudit.reason, /aura automatica/i);
+  assert.equal(protettori.combatAudit.targetScope, "single_target");
+  assert.equal(
+    protettori.combatAudit.duration,
+    "fino_all_inizio_del_prossimo_turno_o_fine_ira",
+  );
+  assert.match(protettori.combatAudit.reason, /conferma manuale/i);
+  assert.match(protettori.combatAudit.reason, /resistenza/i);
+});
+
 test("l'audit verifica le durate runtime dei marker prioritari", () => {
   assert.equal(audit.durationAudit.length, 19);
   assert.equal(audit.durationAudit.every((entry) => entry.matches), true);
   const zelante = audit.durationAudit.find(
     (entry) => entry.id === "barbaro-cammino-dello-zelota-presenza-zelante",
   );
+  const protettori = audit.durationAudit.find(
+    (entry) => entry.id === "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+  );
   assert.deepEqual(zelante.actual, { kind: "next-turn" });
+  assert.deepEqual(protettori.expected, {
+    kind: "next-turn-until-feature",
+    featureId: "barbaro-ira",
+  });
+  assert.deepEqual(protettori.actual, {
+    kind: "next-turn-until-feature",
+    featureId: "barbaro-ira",
+  });
 });

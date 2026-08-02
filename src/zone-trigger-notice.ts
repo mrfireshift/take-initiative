@@ -58,7 +58,7 @@ function noticeFromActivation(
   if (!activationId || !targets.length) return null;
   return {
     activationId,
-    spellName: String(root?.name || "Incantesimo")
+    spellName: String(activation?.spellName || root?.name || "Incantesimo")
       .replace(/^Zona:\s*/i, "")
       .trim()
       .slice(0, 100) || "Incantesimo",

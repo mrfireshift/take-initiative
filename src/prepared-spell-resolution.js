@@ -4,15 +4,22 @@ import {
   buildPreparedSpellResolutionRequest,
   findPreparedSpellResolutionGroup,
   PREPARED_SPELL_RESOLUTION_CHANNEL,
+  preparedSpellDefinition,
+  preparedSpellResolutionAction,
   preparedSpellResolutionChoices,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
-import { executeSpellApplication } from "./spellApplicationExecutor.js";
+import {
+  executeSpellActiveAction,
+  executeSpellApplication,
+} from "./spellApplicationExecutor.js";
+import { spellActiveActionPresentation } from "./spellActiveActionCore.js";
 import { spellResolveActionPresentation } from "./spellsPanelTargetPicker.js";
 
 const META_KEY = `${ID}/meta`;
 const instanceId = new URLSearchParams(window.location.search).get("instance") || "";
 const app = document.getElementById("app");
+const eyebrow = document.getElementById("eyebrow");
 const title = document.getElementById("spellName");
 const caster = document.getElementById("casterName");
 const choice = document.getElementById("resolutionChoice");
@@ -46,34 +53,49 @@ function validSelectedTargets(selection, items) {
 }
 
 function updateResolvePresentation() {
-  if (!currentGroup) {
+  const action = preparedSpellResolutionAction(currentGroup);
+  if (!currentGroup || !action) {
     resolveButton.disabled = true;
     resolveButton.textContent = "Risolto";
     return;
   }
-  const presentation = spellResolveActionPresentation(currentTargetIds.length);
+  const manual = action.type === "manual";
+  const presentation = manual
+    ? spellActiveActionPresentation(action, currentTargetIds)
+    : spellResolveActionPresentation(currentTargetIds.length);
   resolveButton.disabled = resolving || !currentGroup || presentation.disabled;
-  resolveButton.textContent = resolving ? "Risoluzione…" : presentation.text;
+  resolveButton.textContent = resolving
+    ? manual ? "Attivazione…" : "Risoluzione…"
+    : presentation.text;
   resolveButton.title = presentation.title;
-  status.textContent = currentTargetIds.length
-    ? presentation.title
-    : "Seleziona il bersaglio sul tabellone";
+  if (manual && action.subjectMode === "caster") {
+    status.textContent = "Pronto sul caster";
+  } else {
+    status.textContent = currentTargetIds.length
+      ? presentation.title
+      : "Seleziona il bersaglio sul tabellone";
+  }
 }
 
 function renderGroup(group) {
   currentGroup = group;
   if (!group) {
     app.dataset.state = "stale";
-    title.textContent = "Preparazione terminata";
+    eyebrow.textContent = "Incantesimo";
+    title.textContent = "Attivazione terminata";
     caster.textContent = "";
     choice.hidden = true;
-    status.textContent = "L’incantesimo non è più risolvibile.";
+    status.textContent = "L’azione non è più disponibile.";
     resolveButton.disabled = true;
     resolveButton.textContent = "Risolto";
     return;
   }
 
+  const action = preparedSpellResolutionAction(group);
   app.dataset.state = "ready";
+  eyebrow.textContent = action?.type === "manual"
+    ? "Incantesimo attivo"
+    : "Incantesimo preparato";
   title.textContent = group.name;
   caster.textContent = `Caster: ${group.casterName}`;
   const choices = preparedSpellResolutionChoices(group);
@@ -130,37 +152,58 @@ async function requestControllerSync() {
 }
 
 async function resolvePreparedSpell() {
-  if (resolving || !currentGroup || !currentTargetIds.length) return;
+  if (resolving || !currentGroup) return;
   resolving = true;
   updateResolvePresentation();
   try {
     const latestItems = await spellItems();
     const latestGroup = findPreparedSpellResolutionGroup(latestItems, instanceId);
     if (!latestGroup) throw new Error("prepared-spell-stale");
+    const action = preparedSpellResolutionAction(latestGroup);
+    if (!action) throw new Error("prepared-spell-stale");
     const selection = await OBR.player.getSelection().catch(() => []);
     const targetIds = validSelectedTargets(selection, latestItems);
-    if (!targetIds.length) throw new Error("prepared-spell-targets-required");
+    const presentation = action.type === "manual"
+      ? spellActiveActionPresentation(action, targetIds)
+      : spellResolveActionPresentation(targetIds.length);
+    if (presentation.disabled) throw new Error("prepared-spell-targets-invalid");
 
-    const request = buildPreparedSpellResolutionRequest({
-      group: latestGroup,
-      targetIds,
-      selectedChoice: choice.hidden ? "" : choice.value,
-    });
-    await executeSpellApplication({
-      ...request,
-      casterName: latestGroup.casterName,
-    });
+    if (action.type === "manual") {
+      await executeSpellActiveAction({
+        spell: preparedSpellDefinition(latestGroup),
+        actionId: action.id,
+        group: latestGroup,
+        selectedTargetIds: targetIds,
+        casterName: latestGroup.casterName,
+      });
+    } else {
+      const request = buildPreparedSpellResolutionRequest({
+        group: latestGroup,
+        targetIds,
+        selectedChoice: choice.hidden ? "" : choice.value,
+      });
+      await executeSpellApplication({
+        ...request,
+        casterName: latestGroup.casterName,
+      });
+    }
     await requestControllerSync();
-    await OBR.popover.close(preparedSpellResolutionPopoverId(instanceId));
+    await refresh();
+    if (!currentGroup) {
+      await OBR.popover.close(preparedSpellResolutionPopoverId(instanceId));
+    }
   } catch (error) {
     const code = String(error?.message || error);
     if (code === "prepared-spell-stale") {
       renderGroup(null);
       await requestControllerSync();
-    } else if (code === "prepared-spell-targets-required") {
-      status.textContent = "Seleziona almeno un bersaglio valido.";
+    } else if (
+      code === "prepared-spell-targets-required"
+      || code === "prepared-spell-targets-invalid"
+    ) {
+      status.textContent = "Seleziona un bersaglio valido.";
     } else {
-      status.textContent = "Risoluzione non riuscita. Riprova dal pannello Spells.";
+      status.textContent = "Attivazione non riuscita. Riprova dal pannello Spells.";
       console.warn("[prepared-spell-resolution] resolve:", code);
     }
   } finally {

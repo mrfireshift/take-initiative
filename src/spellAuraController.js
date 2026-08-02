@@ -103,7 +103,7 @@ function buildAuraVisual({
     .attachedTo(aura.casterId)
     .locked(true)
     .disableHit(true)
-    .layer("ATTACHMENT")
+    .layer("DRAWING")
     .disableAttachmentBehavior(["ROTATION", "VISIBLE", "COPY", "SCALE"])
     .visible(true)
     .zIndex((Number(caster?.zIndex) || 0) - 1)
@@ -164,7 +164,8 @@ async function reconcileAuraVisuals(items, desiredVisuals) {
     );
     const keeper = matches.find((item) => {
       const actual = item.metadata?.[SPELL_AURA_META_KEY] || {};
-      return item.attachedTo === desired.aura.casterId
+      return item.layer === "DRAWING"
+        && item.attachedTo === desired.aura.casterId
         && actual.ruleId === expected.ruleId
         && Number(actual.dpi) === expected.dpi
         && Number(actual.sizeCells) === expected.sizeCells

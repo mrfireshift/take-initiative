@@ -10,6 +10,11 @@ import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 export const PREPARED_SPELL_RESOLUTION_CHANNEL =
   `${ID}/prepared-spell-resolution`;
 
+const BOARD_POPOVER_ACTIVE_ACTION_IDS = Object.freeze({
+  "heat-metal": "heat-metal-repeat",
+  "xanathar-colpo-dello-zefiro": "zephyr-strike-attack",
+});
+
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
     .map((value) => String(value || "").trim())
@@ -29,18 +34,28 @@ export function preparedSpellDefinition(group) {
   return getSpellDefinition(group?.spellId || group?.storedName);
 }
 
-export function isPreparedSpellResolutionGroup(group) {
+export function preparedSpellResolutionAction(group) {
   const spell = preparedSpellDefinition(group);
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
-  if (!spell || !instanceId || !casterId) return false;
-  return getSpellOverviewActions({
+  if (!spell || !instanceId || !casterId) return null;
+  const actions = getSpellOverviewActions({
     spell,
     castContext: group?.castContext,
     casterId,
     targetIds: groupTargetIds(group),
     effectInstances: group?.effectInstances,
-  }).some((action) => action.type === "resolve");
+  });
+  const resolution = actions.find((action) => action.type === "resolve");
+  if (resolution) return resolution;
+  const activeActionId = BOARD_POPOVER_ACTIVE_ACTION_IDS[spell.id];
+  return actions.find((action) => (
+    action.type === "manual" && action.id === activeActionId
+  )) || null;
+}
+
+export function isPreparedSpellResolutionGroup(group) {
+  return !!preparedSpellResolutionAction(group);
 }
 
 export function preparedSpellResolutionGroups(items = []) {
@@ -57,7 +72,8 @@ export function findPreparedSpellResolutionGroup(items = [], instanceId = "") {
 
 export function preparedSpellResolutionChoices(group) {
   const spell = preparedSpellDefinition(group);
-  if (!spell) return [];
+  const action = preparedSpellResolutionAction(group);
+  if (!spell || action?.type !== "resolve") return [];
   return getSpellEffectChoices(spell).map((choice) => ({
     value: String(choice?.value || ""),
     label: String(choice?.label || choice?.value || ""),
@@ -69,7 +85,7 @@ export function buildPreparedSpellResolutionRequest({
   targetIds = [],
   selectedChoice = "",
 } = {}) {
-  if (!isPreparedSpellResolutionGroup(group)) {
+  if (preparedSpellResolutionAction(group)?.type !== "resolve") {
     throw new Error("prepared-spell-stale");
   }
   const targets = uniqueIds(targetIds);

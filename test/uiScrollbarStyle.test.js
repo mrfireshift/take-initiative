@@ -46,3 +46,10 @@ test("l'editor Azioni rapide nasconde i campi incompatibili e usa un solo scroll
   assert.doesNotMatch(editorListRule, /overflow-y|max-height/);
   assert.match(initiativeCardHtml, /input,textarea,select\s*\{\s*min-width:0;/);
 });
+
+test("la scheda iniziativa mantiene il backdrop su un layer 3D non ottimizzabile", () => {
+  const glassShellRule = initiativeCardHtml.match(/\.glass-shell\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(glassShellRule, /transform:\s*translateZ\(\.001px\)/);
+  assert.match(glassShellRule, /backface-visibility:\s*hidden/);
+  assert.doesNotMatch(glassShellRule, /clip-path/);
+});

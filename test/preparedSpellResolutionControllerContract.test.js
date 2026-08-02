@@ -6,6 +6,14 @@ const controller = readFileSync(
   new URL("../src/preparedSpellResolutionController.js", import.meta.url),
   "utf8",
 );
+const popover = readFileSync(
+  new URL("../src/prepared-spell-resolution.js", import.meta.url),
+  "utf8",
+);
+const spellsPanel = readFileSync(
+  new URL("../src/spells-panel.js", import.meta.url),
+  "utf8",
+);
 const background = readFileSync(
   new URL("../src/background.js", import.meta.url),
   "utf8",
@@ -37,4 +45,9 @@ test("il refresh mantiene solo il lavoro più recente senza coda di frame stale"
   assert.match(controller, /let anchorRefreshRequested = false;/);
   assert.match(controller, /if \(controllerWorkRunning\) return;/);
   assert.doesNotMatch(controller, /reconcileQueue = reconcileQueue\.then/);
+});
+
+test("popover e pannello condividono lo stesso executor delle azioni attive", () => {
+  assert.match(popover, /executeSpellActiveAction/);
+  assert.match(spellsPanel, /executeSpellActiveAction/);
 });

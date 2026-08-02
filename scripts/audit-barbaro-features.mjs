@@ -81,8 +81,11 @@ function runtimeDurationSignature(feature) {
       || duration.parentFeatureId
       || duration.endsWithFeatureId
   );
-  if (untilFeatureId) return { kind: "until-feature", featureId: untilFeatureId };
   const timing = text(duration.timing).toLowerCase().replaceAll("_", "-");
+  if (untilFeatureId && (timing === "next-turn" || timing === "until-next-turn")) {
+    return { kind: "next-turn-until-feature", featureId: untilFeatureId };
+  }
+  if (untilFeatureId) return { kind: "until-feature", featureId: untilFeatureId };
   if (timing === "next-turn" || timing === "until-next-turn") {
     return { kind: "next-turn" };
   }
@@ -122,7 +125,11 @@ const durationAudit = Object.entries(runtimeDurationRules).map(([id, expected]) 
 const unknownDurationRules = Object.keys(runtimeDurationRules)
   .filter((id) => !featureById.has(id));
 const automatedBarbarianIds = barbarianFeatures
-  .filter((feature) => runtimeFeatureById.get(feature.id)?.runtimeSupport?.status === "implemented")
+  .filter((feature) => {
+    const runtimeFeature = runtimeFeatureById.get(feature.id);
+    return runtimeFeature?.runtimeSupport?.status === "implemented"
+      && runtimeFeature.trackingMode !== "instant";
+  })
   .map((feature) => feature.id);
 const missingDurationRules = automatedBarbarianIds
   .filter((id) => !Object.prototype.hasOwnProperty.call(runtimeDurationRules, id));

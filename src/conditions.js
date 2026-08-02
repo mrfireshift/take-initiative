@@ -17,6 +17,10 @@ import {
 import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
 import { compactSpellEffectLabel } from "./effectLabelCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
+import {
+  CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS,
+  classFeatureConditionResourceDie,
+} from "./classFeatureCore.js";
 
 const META_KEY = `${ID}/meta`;
 const COND_LABEL_META = `${ID}/condLabel`;
@@ -162,6 +166,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.effectKind === "buff" || value.effectKind === "debuff") {
     instance.effectKind = value.effectKind;
   }
+  if (value.resourceDie) instance.resourceDie = String(value.resourceDie).trim();
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
   if (value.theme && typeof value.theme === "object") {
     instance.theme = { ...value.theme };
@@ -170,6 +175,7 @@ function __normalizeConditionInstance(value, fallbackId) {
     instance.mechanics = { ...value.mechanics };
   }
   if (value.manualRemoval === true) instance.manualRemoval = true;
+  if (value.mapVisible === false) instance.mapVisible = false;
   if (value.parentRemoval === "target" || value.parentRemoval === "spell") {
     instance.parentRemoval = value.parentRemoval;
   }
@@ -343,13 +349,45 @@ function __compactExpiryLabel(instance) {
   if (__conditionName(instance) === EXHAUSTION_CONDITION) {
     return ` ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`;
   }
+  const resourceDie = String(instance?.resourceDie || "").trim();
+  if (resourceDie) return ` (${resourceDie})`;
   const expiry = instance?.expiry || { mode: "manual" };
   const remaining = __durationFrom(expiry.remaining);
-  if (expiry.mode === "rounds") return remaining ? ` (${remaining})` : "";
-  if (expiry.mode === "turn-start") return ` (I${remaining && remaining > 1 ? `:${remaining}` : ""})`;
-  if (expiry.mode === "turn-end") return ` (F${remaining && remaining > 1 ? `:${remaining}` : ""})`;
+  if (expiry.mode === "rounds") {
+    return remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS
+      ? ` (${remaining})`
+      : "";
+  }
+  if (expiry.mode === "turn-start") {
+    const visibleRemaining = remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS
+      ? remaining
+      : null;
+    return ` (I${visibleRemaining && visibleRemaining > 1 ? `:${visibleRemaining}` : ""})`;
+  }
+  if (expiry.mode === "turn-end") {
+    const visibleRemaining = remaining && remaining <= CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS
+      ? remaining
+      : null;
+    return ` (F${visibleRemaining && visibleRemaining > 1 ? `:${visibleRemaining}` : ""})`;
+  }
   if (expiry.mode === "concentration") return " (C)";
   return "";
+}
+
+function __conditionDisplayData(cond, characterBuild = [], characterBuildBySourceId = null) {
+  const source = cond && typeof cond === "object" ? cond : {};
+  if (!Array.isArray(source.instances)) return source;
+  return {
+    ...source,
+    instances: source.instances.map((instance) => {
+      if (!instance || typeof instance !== "object" || instance.resourceDie) return instance;
+      const sourceBuild = characterBuildBySourceId?.get?.(String(instance.sourceId || "").trim())
+        || characterBuild;
+      if (!Array.isArray(sourceBuild) || !sourceBuild.length) return instance;
+      const resourceDie = classFeatureConditionResourceDie(instance, sourceBuild);
+      return resourceDie ? { ...instance, resourceDie } : instance;
+    }),
+  };
 }
 
 function __fullExpiryLabel(instance) {
@@ -937,7 +975,13 @@ const COND_WIDGET_LAYOUT_VERSION = 2;
 
 // Ordina le flag secondo la tua UI + custom in coda
 function __orderedParts(cond = {}) {
-  return __groupConditionInstances(cond).map((group) => ({
+  const mapConditions = Array.isArray(cond?.instances)
+    ? {
+      ...cond,
+      instances: cond.instances.filter((instance) => instance?.mapVisible !== false),
+    }
+    : cond;
+  return __groupConditionInstances(mapConditions).map((group) => ({
     name: group.name,
     label: group.label,
     key: group.effectKind
@@ -1233,7 +1277,27 @@ async function __stackCYForCondition(
 
 // === Versione a widget (SHAPE + TEXT) — multi-chip, una per condizione ===
 async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
-  const cond = it.metadata?.[META_KEY]?.conditions || {};
+  const rawMeta = it.metadata?.[META_KEY] || {};
+  const rawInstances = Array.isArray(rawMeta.conditions?.instances)
+    ? rawMeta.conditions.instances
+    : [];
+  const sourceIds = new Set(rawInstances
+    .map((instance) => String(instance?.sourceId || "").trim())
+    .filter((sourceId) => sourceId && sourceId !== it.id));
+  const sourceItems = sourceIds.size
+    ? await __conditionGetItems(diagnosticsSession, (item) => sourceIds.has(item.id))
+    : [];
+  const characterBuildBySourceId = new Map(
+    sourceItems.map((sourceItem) => [
+      sourceItem.id,
+      sourceItem.metadata?.[META_KEY]?.initiativeCard?.characterBuild,
+    ])
+  );
+  const cond = __conditionDisplayData(
+    rawMeta.conditions || {},
+    rawMeta.initiativeCard?.characterBuild,
+    characterBuildBySourceId,
+  );
   const parts = __orderedParts(cond);
   const wantNone = parts.length === 0;
 

@@ -102,6 +102,16 @@ test("il popover usa il protocollo isolato e restituisce solo l'id azione", () =
   assert.match(viteSource, /trackerQuickActions:\s*path\.resolve\(process\.cwd\(\),\s*"tracker-quick-actions\.html"\)/);
 });
 
+test("il popover mostra tutte le azioni e disabilita le capacità già attive", () => {
+  assert.match(initiativeSource, /function __disabledTrackerQuickActionIds\(/);
+  assert.match(initiativeSource, /disabledActionIds/);
+  assert.match(popoverSource, /payload\?\.disabledActionIds/);
+  assert.match(popoverSource, /button\.disabled = disabled/);
+  assert.match(popoverHtml, /max-height:none/);
+  assert.doesNotMatch(popoverHtml, /max-height:100vh/);
+  assert.match(initiativeSource, /const TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT = 520/);
+});
+
 test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda", () => {
   assert.match(
     initiativeCardsSource,

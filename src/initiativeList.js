@@ -102,6 +102,7 @@ import {
 import {
   CLASS_FEATURE_STATE_FIELD,
   appendClassFeatureConditionInstances,
+  classFeatureConditionResourceDie,
   classFeatureTargeting,
 } from "./classFeatureCore.js";
 import {
@@ -3531,19 +3532,32 @@ async function nudgeSelectionBy(dxCells, dyCells, doubleStep = false) {
       return null;
     }
 
-function entryFromSceneItem(it) {
+function entryFromSceneItem(it, characterBuildBySourceId = null) {
   const meta = it?.metadata?.[META_KEY];
   if (!it?.id || !meta || meta.inInitiative !== true) return null;
   const initiativeCard = getInitiativeCard(it);
+  const conditions = appendClassFeatureConditionInstances(
+    __safeConditions(meta.conditions),
+    meta[CLASS_FEATURE_STATE_FIELD],
+    CLASS_FEATURE_BY_ID,
+    __latestInitiativeState?.round ?? null,
+    initiativeCard.characterBuild,
+    characterBuildBySourceId,
+  );
   return {
-    conditions: appendClassFeatureConditionInstances(
-      __safeConditions(meta.conditions),
-      meta[CLASS_FEATURE_STATE_FIELD],
-      CLASS_FEATURE_BY_ID,
-      __latestInitiativeState?.round ?? null,
-    ),
+    conditions: {
+      ...conditions,
+      instances: conditions.instances.map((instance) => {
+        if (!instance || typeof instance !== "object" || instance.resourceDie) return instance;
+        const sourceBuild = characterBuildBySourceId?.get?.(String(instance.sourceId || "").trim())
+          || initiativeCard.characterBuild;
+        const resourceDie = classFeatureConditionResourceDie(instance, sourceBuild);
+        return resourceDie ? { ...instance, resourceDie } : instance;
+      }),
+    },
     id: it.id,
     name: it.name || "Unnamed",
+    characterBuild: initiativeCard.characterBuild,
     position: it.position ? { x: it.position.x, y: it.position.y } : null,
     initiative: (meta.epic ? LAIR_INITIATIVE : (Number(meta.initiative) || 0)),
     initTouched: meta.initTouched === true,
@@ -3599,10 +3613,15 @@ async function readEntries() {
   const items = await OBR.scene.items.getItems();
   const out = [];
   const seen = new Set();
+  const characterBuildBySourceId = new Map(
+    items
+      .filter((item) => item?.id)
+      .map((item) => [item.id, getInitiativeCard(item).characterBuild])
+  );
 
   for (const it of items) {
     if (seen.has(it?.id)) continue;
-    const entry = entryFromSceneItem(it);
+    const entry = entryFromSceneItem(it, characterBuildBySourceId);
     if (!entry) continue;
     seen.add(it.id);
     out.push(entry);
@@ -5641,7 +5660,7 @@ const TRACKER_QUICK_ACTIONS_POPOVER_ID = `${ID}/tracker-quick-actions`;
 const TRACKER_QUICK_ACTIONS_CHANNEL = `${ID}/tracker-quick-actions`;
 const TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX = `${ID}/tracker-quick-actions/`;
 const TRACKER_QUICK_ACTIONS_WIDTH = 248;
-const TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT = 220;
+const TRACKER_QUICK_ACTIONS_INITIAL_HEIGHT = 520;
 
 let __initiativeCardContextMenu = null;
 let __initiativeCardContextMenuRequestId = "";
@@ -6166,6 +6185,24 @@ function mountTrackerQuickActionsPopoverListener() {
   });
 }
 
+function __disabledTrackerQuickActionIds(sourceEntry, actions) {
+  const activeSelfOrAuraFeatureIds = new Set(
+    (Array.isArray(sourceEntry?.classFeatures) ? sourceEntry.classFeatures : [])
+      .filter((feature) => (
+        feature?.active === true
+        && (feature.targetMode === "self" || feature.targetMode === "aura")
+      ))
+      .map((feature) => String(feature.featureId || "").trim())
+      .filter(Boolean),
+  );
+  return actions
+    .filter((action) => (
+      action?.kind === "feature"
+      && activeSelfOrAuraFeatureIds.has(String(action.featureId || "").trim())
+    ))
+    .map((action) => action.id);
+}
+
 function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) return;
@@ -6181,6 +6218,7 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   const openRevision = __trackerQuickActionsRevision;
   const requestId = createMenuRequestId();
   const actions = sanitizeQuickActions(sourceEntry.quickActions, { limit: 64 });
+  const disabledActionIds = __disabledTrackerQuickActionIds(sourceEntry, actions);
   if (!actions.length || !writeStoredMenuPayload(
     localStorage,
     TRACKER_QUICK_ACTIONS_PAYLOAD_PREFIX,
@@ -6189,6 +6227,7 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
       title: `${sourceEntry.name || "Personaggio"} · Azioni rapide`,
       sourceId,
       actions,
+      ...(disabledActionIds.length ? { disabledActionIds } : {}),
     },
   )) {
     console.warn("[tracker-quick-actions] payload error");
@@ -7636,9 +7675,14 @@ function __cachedEntriesForIncrementalItems(items, state) {
     return null;
   }
   const nextById = new Map(__activeLabelEntriesById);
+  const characterBuildBySourceId = new Map(
+    Array.from(nextById.values())
+      .filter((entry) => entry?.id)
+      .map((entry) => [entry.id, entry.characterBuild])
+  );
 
   for (const item of items || []) {
-    const entry = entryFromSceneItem(item);
+    const entry = entryFromSceneItem(item, characterBuildBySourceId); // entryFromSceneItem(item) remains the incremental entry contract.
     if (!entry) return null;
     const baseId = entry.id;
     const expanded = expandParagonEntries([entry], state);

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { CLASS_FEATURE_AURA_META_KEY } from "../src/classFeatureAuraCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 import {
@@ -38,6 +39,26 @@ test("l'inizializzazione fotografa la membership senza generare trigger retroatt
   assert.deepEqual(plan.runtime.memberIds, ["target"]);
   assert.equal(plan.runtime.initialized, true);
   assert.equal(plan.runtime.evaluatedActorId, "target");
+});
+
+test("i trigger pendenti riconoscono anche le aure delle capacità di classe", () => {
+  const pending = pendingSpellZoneTriggerActivations([{
+    id: "angel-aura",
+    metadata: {
+      [CLASS_FEATURE_AURA_META_KEY]: {
+        triggerRuntime: {
+          pending: [{ id: "angel-trigger", targetIds: ["enemy"], createdAt: 1 }],
+        },
+      },
+    },
+  }]);
+
+  assert.deepEqual(pending, [{
+    id: "angel-trigger",
+    targetIds: ["enemy"],
+    createdAt: 1,
+    zoneItemId: "angel-aura",
+  }]);
 });
 
 test("Ragnatela prepara il TS a inizio turno una sola volta nel turno", () => {

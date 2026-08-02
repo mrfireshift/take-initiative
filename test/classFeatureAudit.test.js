@@ -7,24 +7,24 @@ const audit = JSON.parse(fs.readFileSync(
   "utf8",
 ));
 
-test("l'audit copre tutti i record dei tre overlay", () => {
-  assert.equal(audit.scope.totalMechanics, 815);
-  assert.equal(audit.scope.runtimeCatalogRecords, 416);
-  assert.equal(audit.features.length, 815);
-  assert.equal(new Set(audit.features.map((feature) => feature.id)).size, 815);
+test("l'audit copre tutti i record dei quattro overlay", () => {
+  assert.equal(audit.scope.totalMechanics, 860);
+  assert.equal(audit.scope.runtimeCatalogRecords, 542);
+  assert.equal(audit.features.length, 860);
+  assert.equal(new Set(audit.features.map((feature) => feature.id)).size, 860);
 });
 
 test("l'audit separa marker token, effetti istantanei e gestione al tavolo", () => {
   assert.deepEqual(audit.summary.byCombatTracking, {
-    tavolo: 621,
+    tavolo: 649,
     token_marker_review: 160,
-    instant_effect: 28,
-    token_marker: 6,
+    instant_effect: 43,
+    token_marker: 8,
   });
-  assert.equal(audit.summary.tokenMarkerCandidateCount, 6);
-  assert.equal(audit.summary.structuredMarkerReviewCount, 14);
-  assert.equal(audit.summary.textualMarkerReviewCount, 146);
-  assert.equal(audit.summary.deterministicExcludedCount, 3);
+  assert.equal(audit.summary.tokenMarkerCandidateCount, 8);
+  assert.equal(audit.summary.structuredMarkerReviewCount, 13);
+  assert.equal(audit.summary.textualMarkerReviewCount, 147);
+  assert.equal(audit.summary.deterministicExcludedCount, 4);
   assert.equal(audit.summary.resourceCriterionIgnored, true);
 });
 
@@ -53,7 +53,7 @@ test("le candidate deterministiche e i contenitori di risorse restano fuori dal 
   const pactMagic = audit.features.find((feature) => feature.id === "warlock-magia-del-patto");
   const protectionAura = audit.features.find((feature) => feature.id === "paladino-aura-di-protezione");
   assert.equal(deterministic.recommendation.mode, "tavolo");
-  assert.equal(deterministic.recommendation.scopeExclusion, "automazione_deterministica_scartata");
+  assert.equal(deterministic.recommendation.scopeExclusion, "solo_riferimento");
   assert.equal(channelDivinity.recommendation.mode, "tavolo");
   assert.equal(pactMagic.recommendation.mode, "tavolo");
   assert.equal(protectionAura.recommendation.mode, "tavolo");

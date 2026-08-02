@@ -26,6 +26,12 @@ const SOURCE_CONFIGS = Object.freeze([
     catalog: "tasha_sottoclassi_database_finale.json",
     mechanics: "tasha_livello_meccanico_v1_0.json",
   }),
+  Object.freeze({
+    id: "ranger-revised",
+    label: "Unearthed Arcana: Ranger, Revised (2016)",
+    catalog: "ranger_revised_database_finale.json",
+    mechanics: "ranger_revised_livello_meccanico_v1_0.json",
+  }),
 ]);
 
 const NON_ACTION_ACTIVATIONS = new Set([

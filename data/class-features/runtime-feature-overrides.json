@@ -5,10 +5,29 @@
       "status": "implemented",
       "adapter": "condition",
       "breaksConcentration": true,
+      "duration": {
+        "rounds": 10,
+        "end_conditions": [
+          "privo_di_sensi",
+          "fine_turno_senza_attacco_contro_creatura_ostile_e_senza_danni_dal_turno_precedente",
+          "terminazione_volontaria_azione_bonus"
+        ],
+        "indefiniteWithFeatureId": "barbaro-ira-persistente"
+      },
       "autoActivateFeatureIds": [
         "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
         "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa"
       ]
+    },
+    "barbaro-difesa-senza-armatura": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-percezione-del-pericolo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
     },
     "barbaro-attacco-irruento": {
       "include": true,
@@ -25,12 +44,61 @@
         "detail": "Vantaggio agli attacchi con Forza; gli attacchi contro il barbaro hanno vantaggio fino al suo prossimo turno."
       }
     },
-    "barbaro-cammino-del-berserker-frenesia": {
+    "barbaro-attacco-extra": {
       "include": true,
-      "status": "implemented",
-      "adapter": "condition",
-      "breaksConcentration": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-movimento-veloce": {
+      "include": true,
+      "status": "not-automated",
       "defaultEnabled": true,
+      "passiveMechanics": {
+        "movement": {
+          "addMeters": 3,
+          "label": "Movimento Veloce (+3 m)"
+        }
+      }
+    },
+    "barbaro-istinto-ferino": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-critico-brutale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-ira-implacabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-ira-persistente": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-potenza-indomabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-campione-primordiale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+  "barbaro-cammino-del-berserker-frenesia": {
+    "include": true,
+    "status": "implemented",
+    "adapter": "condition",
+    "breaksConcentration": true,
+    "defaultEnabled": true,
+    "activation": {
+      "primary": "ingresso_in_ira"
+    },
       "resourceCosts": [
         {
           "poolId": "barbaro-ira-usi",
@@ -42,9 +110,9 @@
       "duration": { "untilFeatureId": "barbaro-ira" },
       "trackingMode": "active",
       "effectPlan": {
-        "kind": "condition",
-        "conditionName": "Frenesia",
-        "detail": "Un attacco con arma da mischia come azione bonus in ciascun turno oltre quello iniziale; termina con Ira."
+      "kind": "condition",
+      "conditionName": "Frenesia",
+      "detail": "Attivabile anche separatamente: se Ira non è attiva, il plugin attiva prima Ira. Scelta entrando in Ira: un attacco con arma da mischia come azione bonus in ciascun turno oltre quello iniziale; quando Frenesia termina, il plugin applica automaticamente uno stack di Indebolimento."
       }
     },
     "barbaro-cammino-del-berserker-presenza-intimidatoria": {
@@ -57,10 +125,60 @@
       "duration": { "timing": "next-turn-end" },
       "trackingMode": "active",
       "effectPlan": {
-        "kind": "condition",
-        "conditionName": "Presenza Intimidatoria",
-        "detail": "Bersaglio spaventato fino al termine del prossimo turno del barbaro."
-      }
+      "kind": "condition",
+      "conditionName": "Presenza Intimidatoria",
+      "detail": "Dopo la conferma manuale di un TS Saggezza fallito, ricorda un bersaglio visibile entro 9 m che può vedere o udire il barbaro, fino al termine del prossimo turno; l'azione può rinnovarlo terminando e riapplicando la capacità. Il GM termina il reminder se il bersaglio conclude il proprio turno fuori linea di visuale o oltre 18 m; con TS riuscito non si applica alcuna pill e il riuso per 24 ore resta manuale."
+    }
+  },
+  "barbaro-cammino-del-berserker-ira-incontenibile": {
+    "include": true,
+    "status": "not-automated",
+    "defaultEnabled": true
+  },
+  "barbaro-cammino-del-berserker-ritorsione": {
+    "include": true,
+    "status": "not-automated",
+    "defaultEnabled": true
+  },
+    "barbaro-cammino-del-combattente-totemico-cercatore-di-spiriti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-aquila": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-lupo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-orso": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false
+    },
+    "barbaro-cammino-del-combattente-totemico-viandante-spirituale": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
     },
     "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila": {
       "include": true,
@@ -76,7 +194,31 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Sintonia Totemica: Aquila",
-        "detail": "Velocità di volare pari alla velocità sul terreno finché il barbaro è in Ira."
+        "mechanics": {
+          "movement": {
+            "label": "Sintonia Totemica: Aquila",
+            "modes": {
+              "fly": { "copyFrom": "walk" }
+            }
+          }
+        },
+        "detail": "Velocità di volare pari alla velocità sul terreno finché il barbaro è in Ira; se termina il turno in aria senza un sostegno, cade."
+      }
+    },
+    "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": false,
+      "displayName": "Sintonia Totemica: Lupo",
+      "activation": { "primary": "azione_bonus" },
+      "requiresActiveFeatureId": "barbaro-ira",
+      "targeting": { "mode": "single-target", "maxTargets": 1, "excludeSource": true },
+      "trackingMode": "instant",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Prono",
+        "detail": "Il bersaglio diventa Prono dopo la conferma manuale del colpo con arma da mischia, della taglia Grande o inferiore e della spesa dell'azione bonus."
       }
     },
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila": {
@@ -92,7 +234,7 @@
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Spirito Totemico: Aquila",
-        "detail": "Le altre creature hanno svantaggio agli attacchi di opportunità contro il barbaro e lui può usare Scatto come azione bonus finché è in Ira."
+        "detail": "Le altre creature hanno svantaggio agli attacchi di opportunità contro il barbaro e lui può usare Scatto come azione bonus finché è in Ira e non indossa armatura pesante."
       }
     },
     "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso": {
@@ -148,11 +290,11 @@
         "kind": "aura",
         "conditionName": "Sintonia Totemica: Orso",
         "radiusMeters": 1.5,
-        "detail": "Le creature ostili entro 1,5 m dal barbaro hanno svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di questa capacità.",
+        "detail": "Le creature ostili entro 1,5 m dal barbaro hanno svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di questa capacità. Una creatura è immune se non può vedere o sentire il barbaro oppure se non può essere spaventata.",
         "targetEffect": {
           "conditionName": "Svantaggio: attacchi contro altri bersagli",
           "effectKind": "debuff",
-          "detail": "Svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di Sintonia Totemica: Orso.",
+          "detail": "Svantaggio agli attacchi contro bersagli diversi dal barbaro o da un altro portatore di Sintonia Totemica: Orso. Una creatura è immune se non può vedere o sentire il barbaro oppure se non può essere spaventata.",
           "targeting": { "filter": "hostile", "includeCaster": false }
         }
       }
@@ -288,12 +430,12 @@
       "adapter": "condition",
       "defaultEnabled": true,
       "targeting": { "mode": "single-target", "maxTargets": 1, "excludeSource": true },
-      "duration": { "timing": "next-turn" },
+      "duration": { "timing": "next-turn", "untilFeatureId": "barbaro-ira" },
       "trackingMode": "active",
       "effectPlan": {
         "kind": "condition",
         "conditionName": "Protettori Ancestrali",
-        "detail": "Il bersaglio subisce svantaggio agli attacchi contro creature diverse dal barbaro fino all'inizio del suo prossimo turno."
+        "detail": "Reminder manuale: il bersaglio ha svantaggio agli attacchi contro creature diverse dal barbaro e, se colpisce un'altra creatura, questa ha resistenza ai danni dell'attacco. Fino all'inizio del prossimo turno del barbaro o alla fine di Ira."
       }
     },
     "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2": {
@@ -410,9 +552,1593 @@
       "status": "implemented",
       "adapter": "condition"
     },
-    "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo": {
+    "chierico-dominio-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-incanalare-divinita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-incanalare-divinita-scacciare-non-morti": {
+      "include": true,
       "status": "implemented",
-      "adapter": "aura"
+      "adapter": "turn-undead",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": { "emoji": "🕯️" },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": { "rounds": 10 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Scacciato",
+        "detail": "Il bersaglio deve allontanarsi dal Chierico con il movimento disponibile, non può avvicinarsi entro 9 m, non usa reazioni e può solo Scattare o tentare di sfuggire a un effetto che gli impedisce di muoversi. Termina se subisce danni."
+      }
+    },
+    "chierico-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-distruggere-non-morti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-intervento-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-del-crepuscolo-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-del-crepuscolo-occhi-della-notte": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": { "emoji": "👁️" },
+      "excludeResourcePoolIds": [
+        "chierico-dominio-del-crepuscolo-occhi-della-notte-usi"
+      ]
+    },
+    "chierico-dominio-del-crepuscolo-benedizione-vigile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": { "emoji": "⚡" }
+    },
+    "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "targeting": {
+        "mode": "aura",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": 10,
+        "end_conditions": ["incapacitato_o_morto"]
+      },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Santuario del Crepuscolo",
+        "radiusMeters": 9,
+        "detail": "Sfera di luce fioca centrata sul Chierico.",
+        "sourceCardPill": { "mapVisible": false },
+        "membershipTargeting": {
+          "filter": "all",
+          "includeCaster": true
+        },
+        "targetEffect": {
+          "conditionName": "Nel Santuario del Crepuscolo",
+          "effectKind": "buff",
+          "detail": "A fine turno il Chierico può dare PF temporanei: tira manualmente 1d6 + suo livello, oppure rimuovere Affascinato o Spaventato. Termina dopo 1 minuto o se è incapacitato/morto. Con Sudario (17°), Chierico e alleati hanno mezza copertura."
+        },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "santuario-del-crepuscolo-fine-turno",
+              "event": "turn-end",
+              "targetMode": "actor",
+              "frequency": "once-per-turn",
+              "resolution": "informational",
+              "label": "Santuario: per questa creatura, tira manualmente 1d6 + livello da Chierico e applica PF temporanei, oppure termina Affascinata o Spaventata."
+            }
+          ]
+        }
+      }
+    },
+    "chierico-dominio-del-crepuscolo-passi-nella-notte": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": { "emoji": "🪽" },
+      "targeting": {
+        "mode": "self",
+        "excludeSource": false
+      },
+      "duration": { "rounds": 10 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Passi nella Notte",
+        "detail": "Dopo la conferma di luce fioca o oscurità, velocità di volo pari alla velocità sul terreno per 1 minuto. Se termina il turno in aria senza sostegno, cade.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": { "copyFrom": "walk" }
+            }
+          }
+        }
+      }
+    },
+    "chierico-dominio-del-crepuscolo-colpo-divino": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "chierico-dominio-del-crepuscolo-sudario-del-crepuscolo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "bardo-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-ispirazione-bardica": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "bardic-inspiration",
+      "defaultEnabled": true,
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": {
+        "rounds": 100
+      },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ispirazione Bardica",
+        "detail": "Il bersaglio conserva un dado di Ispirazione Bardica (d6/d8/d10/d12 secondo il livello del Bardo), utilizzabile una volta su una prova di caratteristica, un tiro per colpire o un tiro salvezza dopo il d20 e prima dell'esito. Durata: 10 minuti; la creatura puo avere un solo dado alla volta."
+      }
+    },
+    "bardo-factotum": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-canto-di-riposo": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-bardico": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-maestria": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-fonte-di-ispirazione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-controfascino": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": true,
+      "targeting": {
+        "mode": "aura",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": {
+        "timing": "next-turn-end",
+        "end_conditions": [
+          "bardo_incapacitato",
+          "bardo_ridotto_al_silenzio",
+          "terminazione_volontaria"
+        ]
+      },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Controfascino",
+        "radiusMeters": 9,
+        "detail": "Il Bardo e gli amici nell'area hanno vantaggio ai tiri salvezza contro Affascinato o Spaventato, se possono sentirlo. Il marker termina alla fine del turno successivo o prima se il Bardo e incapacitato, silenziato o pone fine all'esibizione.",
+        "targetEffect": {
+          "conditionName": "Vantaggio: TS contro Affascinato o Spaventato",
+          "effectKind": "buff",
+          "detail": "Vantaggio soltanto ai tiri salvezza contro Affascinato o Spaventato; il bersaglio deve poter sentire il Bardo.",
+          "targeting": {
+            "filter": "friendly",
+            "includeCaster": false
+          }
+        }
+      }
+    },
+    "bardo-segreti-magici": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-ispirazione-superiore": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-sapienza-competenze-bonus": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-sapienza-parole-taglienti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-sapienza-segreti-magici-aggiuntivi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-della-sapienza-abilita-impareggiabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true
+    },
+    "bardo-collegio-dell-eloquenza-arte-oratoria": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false }
+    },
+    "bardo-collegio-dell-eloquenza-parole-inquietanti": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "unsettling-words",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "🌀",
+        "accent": "#a78bfa",
+        "background": "#4c1d95",
+        "text": "#f5f3ff"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": { "timing": "next-turn" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Parole Inquietanti",
+        "detail": "Il bersaglio sottrae il risultato inserito del dado di Ispirazione Bardica al prossimo tiro salvezza prima dell'inizio del prossimo turno del Bardo.",
+        "targetEffect": {
+          "conditionName": "Parole Inquietanti",
+          "effectKind": "debuff",
+          "detail": "Il bersaglio sottrae il valore indicato al prossimo tiro salvezza; il tiro e il risultato restano manuali."
+        }
+      }
+    },
+    "bardo-collegio-dell-eloquenza-ispirazione-infallibile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false }
+    },
+    "bardo-collegio-dell-eloquenza-linguaggio-universale": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "universal-speech",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "🌐",
+        "accent": "#22d3ee",
+        "background": "#164e63",
+        "text": "#ecfeff"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": null,
+        "excludeSource": false
+      },
+      "duration": { "rounds": 600 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Linguaggio Universale",
+        "detail": "Il Bardo e le creature scelte comprendono magicamente ciò che il Bardo dice per 1 ora. La comprensione è unidirezionale: il Bardo non comprende automaticamente le loro risposte; visibilità e limite massimo restano conferme del tavolo.",
+        "targetEffect": {
+          "conditionName": "Comprensione del Linguaggio del Bardo",
+          "effectKind": "buff",
+          "detail": "Il bersaglio comprende ciò che il Bardo dice; il Bardo non comprende automaticamente le risposte del bersaglio."
+        }
+      }
+    },
+    "bardo-collegio-dell-eloquenza-ispirazione-contagiosa": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "bardic-inspiration",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "🔗",
+        "accent": "#f59e0b",
+        "background": "#78350f",
+        "text": "#fffbeb"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 18,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": { "rounds": 100 },
+      "trackingMode": "active",
+      "stacking": { "sameEffectMaxInstancesPerTarget": 1 },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ispirazione Bardica",
+        "conditionEffectId": "bardo-ispirazione-bardica",
+        "detail": "Il bersaglio conserva un dado di Ispirazione Bardica (d6/d8/d10/d12 secondo il livello del Bardo), utilizzabile una volta su una prova di caratteristica, un tiro per colpire o un tiro salvezza dopo il d20 e prima dell'esito. Durata: 10 minuti; la creatura può avere un solo dado alla volta."
+      }
+    },
+    "paladino-percezione-del-divino": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "resourceCosts": [],
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "timing": "next-turn-end" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Percezione del Divino",
+        "detail": "Entro 18 m riconosci posizione e tipo di celestiali, immondi e non morti non coperti totalmente; puoi anche individuare luoghi o oggetti consacrati o dissacrati. Dura fino al termine del prossimo turno. Usi: 1 + modificatore di Carisma; il conteggio resta manuale."
+      }
+    },
+    "paladino-imposizione-delle-mani": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "lay-on-hands",
+      "defaultEnabled": true,
+      "resourceCosts": [
+        {
+          "poolId": "paladino-imposizione-mani-punti",
+          "amount": 1,
+          "variable": true,
+          "valueInput": "positive-integer"
+        }
+      ],
+      "targeting": { "mode": "single-target", "rangeMeters": 1.5, "maxTargets": 1, "excludeSource": false },
+      "trackingMode": "instant",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Imposizione delle Mani",
+        "detail": "Azione e contatto: cura un numero scelto di PF fino alla riserva rimanente, senza superare PF massimi; in alternativa, cura malattie o neutralizza veleni al costo di 5 punti per effetto. Non morti e costrutti restano una conferma manuale."
+      }
+    },
+    "paladino-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-stile-di-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "choiceOptions": [
+        { "id": "paladino-stile-di-combattimento-difesa", "label": "Difesa" },
+        { "id": "paladino-stile-di-combattimento-duellare", "label": "Duellare" },
+        { "id": "paladino-stile-di-combattimento-combattere-con-armi-possenti", "label": "Combattere con Armi Possenti" },
+        { "id": "paladino-stile-di-combattimento-protezione", "label": "Protezione" }
+      ]
+    },
+    "paladino-stile-di-combattimento-difesa": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "paladino-stile-di-combattimento"
+    },
+    "paladino-stile-di-combattimento-duellare": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "paladino-stile-di-combattimento"
+    },
+    "paladino-stile-di-combattimento-combattere-con-armi-possenti": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "paladino-stile-di-combattimento"
+    },
+    "paladino-stile-di-combattimento-protezione": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "paladino-stile-di-combattimento"
+    },
+    "paladino-punizione-divina": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "resourceCosts": [],
+      "excludeResourcePoolIds": ["slot-incantesimo-standard-aggregati"]
+    },
+    "paladino-giuramento-sacro": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-salute-divina": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-aura-di-protezione": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": { "mode": "aura", "maxTargets": null, "excludeSource": false },
+      "duration": { "end_conditions": ["privo_di_sensi"] },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura di Protezione",
+        "radiusByClassLevel": [
+          { "minLevel": 6, "maxLevel": 17, "value": 3 },
+          { "minLevel": 18, "maxLevel": 20, "value": 9 }
+        ],
+        "detail": "Il Paladino e gli alleati entro il raggio aggiungono il modificatore di Carisma ai tiri salvezza, minimo +1. Il Paladino deve essere cosciente; il bonus resta un reminder e non modifica i tiri.",
+        "targetEffect": {
+          "conditionName": "Bonus ai tiri salvezza",
+          "effectKind": "buff",
+          "detail": "Aggiungi manualmente il modificatore di Carisma del Paladino ai tiri salvezza; bonus minimo +1.",
+          "targeting": { "filter": "friendly", "includeCaster": true }
+        }
+      }
+    },
+    "paladino-aura-di-coraggio": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": { "mode": "aura", "maxTargets": null, "excludeSource": false },
+      "duration": { "end_conditions": ["privo_di_sensi"] },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura di Coraggio",
+        "radiusByClassLevel": [
+          { "minLevel": 10, "maxLevel": 17, "value": 3 },
+          { "minLevel": 18, "maxLevel": 20, "value": 9 }
+        ],
+        "detail": "Il Paladino e gli alleati entro il raggio non possono essere spaventati finché il Paladino è cosciente. Non rimuove automaticamente una condizione Spaventato già applicata.",
+        "targetEffect": {
+          "conditionName": "Immunità a Spaventato",
+          "effectKind": "buff",
+          "detail": "Reminder: il bersaglio non può essere spaventato finché il Paladino è cosciente; non rimuovere condizioni esistenti automaticamente.",
+          "targeting": { "filter": "friendly", "includeCaster": true }
+        }
+      }
+    },
+    "paladino-giuramento-di-devozione-incanalare-divinita-arma-consacrata": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "quickActionEligible": true,
+      "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
+      "duration": { "rounds": 10 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Arma Consacrata",
+        "detail": "Per 10 round l'arma impugnata o trasportata dal Paladino aggiunge il modificatore di Carisma ai tiri per colpire, con bonus minimo +1, ed è magica se non lo era già. Emette luce intensa entro 6 m e luce fioca per ulteriori 6 m. Termina manualmente, se l'arma non è più impugnata o trasportata, oppure se il Paladino cade privo di sensi; arma, attacchi, Carisma e luce restano gestiti manualmente."
+      }
+    },
+    "paladino-giuramento-di-devozione-incanalare-divinita-scacciare-i-sacrileghi": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "turn-creatures",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "targetRemovalMode": "single",
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": 9,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": { "rounds": 10 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Scacciato",
+        "detail": "Dopo i tiri salvezza confermati dal tavolo, applica questa pill soltanto alle creature che hanno fallito. Per 10 round la creatura deve allontanarsi dal Paladino, non può avvicinarsi volontariamente entro 9 m, non può effettuare reazioni e può usare soltanto Scattare o tentare di liberarsi da un effetto che impedisce il movimento; se non può fuggire, può usare Schivare. Termina se la creatura subisce danni; ogni bersaglio viene terminato separatamente.",
+        "targetEffect": {
+          "conditionName": "Scacciato",
+          "effectKind": "debuff",
+          "detail": "Applicato solo dopo un TS Saggezza fallito confermato dal tavolo; termina al danno o manualmente."
+        }
+      }
+    },
+    "paladino-giuramento-di-devozione-aura-di-devozione": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "suppressSourceCardPill": true,
+      "defaultEnabled": true,
+      "automationLevel": "automatica",
+      "quickActionEligible": false,
+      "targeting": { "mode": "aura", "maxTargets": null, "excludeSource": false },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Aura di Devozione",
+        "radiusByClassLevel": [
+          { "minLevel": 7, "maxLevel": 17, "value": 3 },
+          { "minLevel": 18, "maxLevel": 20, "value": 9 }
+        ],
+        "detail": "Il Paladino e le creature amiche nell'aura hanno un reminder di immunità ad Affascinato finché il Paladino è cosciente. Il plugin non rimuove una condizione Affascinato già presente; il GM adjudica gli effetti già in corso e termina manualmente l'aura quando il Paladino perde i sensi.",
+        "targetEffect": {
+          "conditionName": "Immunità ad Affascinato",
+          "effectKind": "buff",
+          "detail": "Il bersaglio non può essere Affascinato finché il Paladino è cosciente. Non rimuovere automaticamente condizioni Affascinato esistenti.",
+          "targeting": { "filter": "friendly", "includeCaster": true }
+        }
+      }
+    },
+    "paladino-giuramento-di-devozione-purezza-di-spirito": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "paladino-giuramento-di-devozione-nube-sacra": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": true,
+      "automationLevel": "assistita",
+      "quickActionEligible": true,
+      "targeting": { "mode": "aura", "rangeMeters": 9, "maxTargets": null, "excludeSource": false },
+      "duration": { "rounds": 10 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Nube Sacra",
+        "radiusMeters": 9,
+        "detail": "Per 10 round il Paladino emana luce intensa entro 9 m e luce fioca per ulteriori 9 m. Ottiene vantaggio ai tiri salvezza contro incantesimi lanciati da immondi e non morti. Ogni nemico che inizia il proprio turno nella luce intensa riceve un reminder di 10 danni radianti; applica il danno manualmente dopo immunità, resistenza o vulnerabilità. Non viene creata una seconda aura per la luce fioca.",
+        "targetEffect": {
+          "conditionName": "Nella luce intensa di Nube Sacra",
+          "effectKind": "debuff",
+          "detail": "A inizio turno applica manualmente 10 danni radianti dopo aver valutato immunità, resistenza o vulnerabilità.",
+          "targeting": { "filter": "hostile", "includeCaster": false }
+        },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "nube-sacra-danni-inizio-turno",
+              "event": "turn-start",
+              "targetMode": "actor",
+              "frequency": "once-per-turn",
+              "resolution": "informational",
+              "label": "Nube Sacra: questa creatura nemica subisce 10 danni radianti. Applicali manualmente con il controllo HP."
+            }
+          ]
+        }
+      }
+    },
+    "paladino-punizione-divina-migliorata": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-tocco-purificatore": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "purifying-touch",
+      "defaultEnabled": true,
+      "resourceCosts": [],
+      "targeting": { "mode": "single-target", "rangeMeters": 1.5, "maxTargets": 1, "excludeSource": false },
+      "trackingMode": "instant",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Tocco Purificatore",
+        "detail": "Azione e contatto: termina un singolo incantesimo attivo sul Paladino o su una creatura consenziente. Usi: modificatore di Carisma, minimo 1; il conteggio resta manuale."
+      }
+    },
+    "paladino-giuramento-di-vendetta-incanalare-divinita-abiurare-nemico": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "condition-choice",
+      "defaultEnabled": true,
+      "targeting": { "mode": "single-target", "rangeMeters": 18, "maxTargets": 1, "excludeSource": true },
+      "duration": { "rounds": 10, "end_conditions": ["danno al bersaglio"] },
+      "trackingMode": "active",
+      "choiceOptions": [
+        {
+          "id": "fallito",
+          "label": "TS fallito",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Spaventato",
+            "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni. Immunità e svantaggio di immondi/non morti restano reminder manuali.",
+            "targetEffect": {
+              "conditionName": "Spaventato",
+              "effectKind": "debuff",
+              "detail": "Spaventato; velocità 0; nessun bonus alla velocità; massimo 10 round; termina al danno.",
+              "mechanics": { "speedMeters": 0, "noSpeedBonuses": true, "endsOnDamage": true }
+            }
+          }
+        },
+        {
+          "id": "superato",
+          "label": "TS superato",
+          "effectPlan": {
+            "kind": "condition",
+            "conditionName": "Velocità dimezzata",
+            "detail": "TS Saggezza superato: velocità dimezzata. Massimo 10 round; termina prima se il bersaglio subisce danni.",
+            "targetEffect": {
+              "conditionName": "Velocità dimezzata",
+              "effectKind": "debuff",
+              "detail": "Velocità dimezzata; massimo 10 round; termina al danno.",
+              "mechanics": { "speedMultiplier": 0.5, "endsOnDamage": true }
+            }
+          }
+        }
+      ],
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Abiurare Nemico",
+        "detail": "Dopo il tiro salvezza su Saggezza scegli l'esito confermato dal tavolo."
+      }
+    },
+    "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia": {
+      "status": "implemented",
+      "adapter": "condition",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Giuramento di Inimicizia",
+        "detail": "Il Paladino ottiene vantaggio ai tiri per colpire contro il bersaglio marcato entro 3 m. Dura 10 round e termina quando il bersaglio scende a 0 PF o cade privo di sensi; la fine può essere confermata manualmente."
+      }
+    },
+    "paladino-giuramento-di-vendetta-vendicatore-implacabile": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-giuramento-di-vendetta-anima-di-vendetta": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento"
+    },
+    "paladino-giuramento-di-vendetta-angelo-vendicatore": {
+      "include": true,
+      "status": "implemented",
+      "adapter": "aura",
+      "defaultEnabled": true,
+      "activation": { "primary": "azione" },
+      "targeting": { "mode": "aura", "rangeMeters": 9, "maxTargets": null, "excludeSource": false },
+      "duration": { "rounds": 600 },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "aura",
+        "conditionName": "Angelo Vendicatore",
+        "radiusMeters": 9,
+        "detail": "Trasformazione per 600 round (1 ora): il Paladino ottiene volo 18 m e un'aura ostile di 9 m. Il tiro salvezza viene ricordato con un popup quando una creatura entra nell'aura o vi inizia il turno.",
+        "mechanics": {
+          "movement": {
+            "modes": {
+              "fly": { "grantMeters": 18 }
+            }
+          }
+        },
+        "membershipTargeting": { "filter": "hostile", "includeCaster": false },
+        "triggerPolicy": {
+          "triggers": [
+            {
+              "id": "angelo-vendicatore-tiro-saggezza-ingresso",
+              "group": "angelo-vendicatore-tiro-saggezza",
+              "event": "enter",
+              "targetMode": "actor",
+              "frequency": "once",
+              "label": "TS Saggezza da risolvere",
+              "failureEffect": "Spaventato per 1 minuto; termina se il bersaglio subisce danni."
+            },
+            {
+              "id": "angelo-vendicatore-tiro-saggezza-inizio-turno",
+              "group": "angelo-vendicatore-tiro-saggezza",
+              "event": "turn-start",
+              "targetMode": "actor",
+              "frequency": "once",
+              "label": "TS Saggezza da risolvere",
+              "failureEffect": "Spaventato per 1 minuto; termina se il bersaglio subisce danni."
+            }
+          ]
+        }
+      }
+    },
+    "stregone-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-origine-stregonesca": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-fonte-di-magia": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "sorcery-source",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "activation": { "primary": "azione_bonus" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-ripristino-stregonesco": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "sorcerous-restoration",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "activation": { "primary": "fine_riposo_breve" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-celato": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 1 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-distante": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 1 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-esteso": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 1 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-intensificato": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 3 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-potenziato": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 1 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-preciso": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 1 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-raddoppiato": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        {
+          "poolId": "stregone-punti-stregoneria",
+          "amount": "variabile",
+          "valueInput": "spell-level-0-9"
+        }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-metamagia-incantesimo-rapido": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": false,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 2 }
+      ],
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-magia-selvaggia-impulso-di-magia-selvaggia": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "wild-magic-surge",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-magia-selvaggia-onde-di-caos": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "wild-magic-tides",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Onde di Caos",
+        "detail": "Reminder: hai attivato Onde di Caos. Applica vantaggio a un tiro per colpire, a una prova di caratteristica o a un tiro salvezza scelto."
+      }
+    },
+    "stregone-magia-selvaggia-piegare-la-fortuna": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": true,
+      "resourceCosts": [
+        { "poolId": "stregone-punti-stregoneria", "amount": 2 }
+      ],
+      "activation": { "primary": "reazione" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "stregone-magia-selvaggia-caos-controllato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "stregone-magia-selvaggia-bombardamento-magico": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-maestria": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-attacco-furtivo": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-gergo-ladresco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-azione-scaltra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-archetipo-ladresco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-schivata-prodigiosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-elusione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-dote-affidabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-percezione-cieca": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-mente-sfuggente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-inafferrabile": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-mistificatore-arcano-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-mistificatore-arcano-gioco-di-prestigio-della-mano-magica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ladro-colpo-di-fortuna": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "resource-only",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83C\uDF40",
+        "accent": "#86efac",
+        "background": "#14532d",
+        "text": "#f0fdf4"
+      },
+      "activation": { "primary": "innesco" },
+      "trackingMode": "instant",
+      "effectPlan": { "kind": "none" }
+    },
+    "ladro-mistificatore-arcano-imboscata-magica": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83D\uDD75\uFE0F",
+        "accent": "#c4b5fd",
+        "background": "#4c1d95",
+        "text": "#f5f3ff"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": null,
+        "maxTargets": null,
+        "excludeSource": true
+      },
+      "duration": { "timing": "turn-end" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Imboscata Magica",
+        "detail": "Solo i tiri salvezza contro l'incantesimo appena lanciato dal Ladro hanno svantaggio fino alla fine del turno corrente."
+      }
+    },
+    "ladro-mistificatore-arcano-ingannatore-versatile": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "condition",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83E\uDDD9",
+        "accent": "#f9a8d4",
+        "background": "#831843",
+        "text": "#fdf2f8"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": { "timing": "turn-end" },
+      "trackingMode": "active",
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Ingannatore Versatile",
+        "detail": "Il Ladro ha vantaggio contro il bersaglio mentre la Mano Magica è adiacente; posizione della mano e distanza sono state confermate al tavolo. L'effetto termina alla fine del turno corrente."
+      }
+    },
+    "ladro-mistificatore-arcano-ladro-di-incantesimi": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "adapter": "spell-thief",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83D\uDD11",
+        "accent": "#fcd34d",
+        "background": "#78350f",
+        "text": "#fffbeb"
+      },
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "trackingMode": "active",
+      "effectPlan": { "kind": "none" }
+    },
+    "ranger-revised-nemico-prescelto": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-esploratore-nato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-stile-di-combattimento": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-consapevolezza-primordiale": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-ranger": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-nemico-prescelto-migliorato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-passo-veloce": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-nascondersi-in-piena-vista": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83E\uDEE5",
+        "accent": "#94a3b8",
+        "background": "#0f172a",
+        "text": "#f8fafc"
+      },
+      "activation": { "primary": "azione" },
+      "trackingMode": "active",
+      "targeting": {
+        "mode": "self",
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "duration": {
+        "rounds": null,
+        "end_conditions": ["moves", "falls_prone", "no_longer_hidden"]
+      },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Nascosto in Piena Vista",
+        "detail": "\u221210 alle prove di Percezione per individuare il Ranger. Termina se si muove, cade prono o non \u00e8 pi\u00f9 nascosto; pu\u00f2 continuare dal turno successivo solo se resta nascosto e immobile."
+      }
+    },
+    "ranger-revised-svanire": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-sensi-ferini": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-sterminatore-di-nemici": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-della-bestia-compagno-animale": {
+      "include": true,
+      "status": "implemented",
+      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "theme": {
+        "emoji": "\uD83D\uDC3E",
+        "accent": "#84cc16",
+        "background": "#365314",
+        "text": "#f7fee7"
+      },
+      "trackingMode": "active",
+      "targeting": {
+        "mode": "single-target",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": true
+      },
+      "duration": { "rounds": null },
+      "effectPlan": {
+        "kind": "condition",
+        "conditionName": "Compagno Animale",
+        "detail": "Creatura legata al Ranger Revised. Usa lo stat block gi\u00e0 disponibile e consulta Legame del Compagno; pu\u00f2 esistere un solo compagno. Termina il vecchio legame prima di applicarne uno nuovo."
+      }
+    },
+    "ranger-revised-conclave-della-bestia-legame-del-compagno": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-della-bestia-attacco-coordinato": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-della-bestia-difesa-della-bestia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-della-bestia-tempesta-di-artigli-e-zanne": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-della-bestia-difesa-superiore-della-bestia": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-tattiche-difensive": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-multiattacco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-esploratore-dell-underdark": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-magia-del-cacciatore-delle-profondita": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-attacco-extra": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-mente-di-ferro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-raffica-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-conclave-del-cacciatore-delle-profondita-schivata-del-cacciatore": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "ranger-revised-stile-di-combattimento-tiro": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-stile-di-combattimento"
+    },
+    "ranger-revised-stile-di-combattimento-difesa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-stile-di-combattimento"
+    },
+    "ranger-revised-stile-di-combattimento-duellare": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-stile-di-combattimento"
+    },
+    "ranger-revised-stile-di-combattimento-combattere-con-due-armi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-stile-di-combattimento"
+    },
+    "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-sterminatore-di-colossi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore"
+    },
+    "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-uccisore-di-giganti": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore"
+    },
+    "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore-devastatore-dell-orda": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-preda-del-cacciatore"
+    },
+    "ranger-revised-conclave-del-cacciatore-tattiche-difensive-sfuggire-all-orda": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-tattiche-difensive"
+    },
+    "ranger-revised-conclave-del-cacciatore-tattiche-difensive-difesa-dal-multiattacco": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-tattiche-difensive"
+    },
+    "ranger-revised-conclave-del-cacciatore-tattiche-difensive-volonta-di-acciaio": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-tattiche-difensive"
+    },
+    "ranger-revised-conclave-del-cacciatore-multiattacco-raffica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-multiattacco"
+    },
+    "ranger-revised-conclave-del-cacciatore-multiattacco-attacco-turbinante": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-multiattacco"
+    },
+    "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-elusione": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+    },
+    "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-opporsi-alla-marea": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+    },
+    "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore-schivata-prodigiosa": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": false,
+      "quickActionEligible": false,
+      "optionGroup": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
     }
   }
 }

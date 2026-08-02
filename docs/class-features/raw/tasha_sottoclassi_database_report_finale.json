@@ -1,0 +1,33 @@
+{
+  "file": "tasha_sottoclassi_database_finale.json",
+  "sha256": "862ec98728838665dfb14eb8208c2d4708670bd68851de9ac0237ee92bdd813b",
+  "dimensione_byte": 233150,
+  "conteggi": {
+    "sottoclassi": 26,
+    "privilegi": 135,
+    "opzioni": 41
+  },
+  "copertura_sottoclassi_per_classe": {
+    "barbaro": 2,
+    "bardo": 2,
+    "chierico": 3,
+    "druido": 3,
+    "guerriero": 2,
+    "ladro": 2,
+    "mago": 2,
+    "monaco": 2,
+    "paladino": 2,
+    "ranger": 2,
+    "stregone": 2,
+    "warlock": 2
+  },
+  "controlli": {
+    "json_valido": true,
+    "id_duplicati": [],
+    "riferimenti_mancanti": [],
+    "descrizioni_vuote": [],
+    "descrizioni_privilegi_troppo_brevi": [],
+    "pagine_fuori_intervallo": []
+  },
+  "esito": "ok"
+}

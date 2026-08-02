@@ -5417,7 +5417,7 @@
           "Colpo Infuocato"
         ]
       },
-      "descrizione": "Il Giuramento di Devozione lega un paladino ai più alti ideali di giustizia, virtù e ordine. A volte chiamati cavalieri bianchi o combattenti sacri, questi paladini incarnano l'ideale del cavaliere in armatura splendente e agisce onorevolmente in nome della giustizia e del bene superiore. Si considerano modelli esemplari di condotta e, alcuni, nel bene e nel male, applicano i loro stessi parametri al resto del mondo. Considerano gli angeli i perfetti servitori del bene, i loro ideali di riferimento e spesso sfoggiano il simbolo delle ali angeliche sui loro elmetti o sui loro stemmi araldici. Dettami di Devozione Sebbene le parole e gli obblighi esatti del Giuramento di Devozione possano variare, i paladini di questo giuramento condividono i seguenti precetti. Onestà. Non mentire e non rubare. Che la tua parola sia vincolante come una promessa. Coraggio. Non avere mai paura di agire, anche se la prudenza è segno di saggezza. Compassione. Aiuta gli altri, proteggi i deboli e punisci coloro che li minacciano. Mostra pietà ai tuoi nemici, ma che la tua pietà sia accompagnata dalla saggezza. Onore. Tratta gli altri con gentilezza e lascia che i tuoi atti onorevoli siano di esempio per loro. Fa' tutto il bene possibile provocando il minimo ammontare di danni. Dovere. Sii responsabile delle tue azioni e delle loro conseguenze, proteggi coloro che sono stati affidati alle tue cure e obbedisci a chi esercita la sua legittima autorità su di te.",
+      "descrizione": "Il Giuramento di Devozione lega un paladino ai più alti ideali di giustizia, virtù e ordine. A volte chiamati cavalieri bianchi o combattenti sacri, questi paladini incarnano l'ideale del cavaliere in armatura splendente e agiscono onorevolmente in nome della giustizia e del bene superiore. Si considerano modelli esemplari di condotta e, alcuni, nel bene e nel male, applicano i loro stessi parametri al resto del mondo. Considerano gli angeli i perfetti servitori del bene, i loro ideali di riferimento e spesso sfoggiano il simbolo delle ali angeliche sui loro elmetti o sui loro stemmi araldici. Dettami di Devozione Sebbene le parole e gli obblighi esatti del Giuramento di Devozione possano variare, i paladini di questo giuramento condividono i seguenti precetti. Onestà. Non mentire e non rubare. Che la tua parola sia vincolante come una promessa. Coraggio. Non avere mai paura di agire, anche se la prudenza è segno di saggezza. Compassione. Aiuta gli altri, proteggi i deboli e punisci coloro che li minacciano. Mostra pietà ai tuoi nemici, ma che la tua pietà sia accompagnata dalla saggezza. Onore. Tratta gli altri con gentilezza e lascia che i tuoi atti onorevoli siano di esempio per loro. Fa' tutto il bene possibile provocando il minimo ammontare di danni. Dovere. Sii responsabile delle tue azioni e delle loro conseguenze, proteggi coloro che sono stati affidati alle tue cure e obbedisci a chi esercita la sua legittima autorità su di te.",
       "fonte_descrizione": "foundry_verificato",
       "privilegi_per_livello": {
         "3": [
@@ -5672,7 +5672,7 @@
         },
         {
           "d100": "13-14",
-          "effetto": "Lo stregone lancia confusione centrato su se stesso."
+          "effetto": "Lo stregone lancia confusione centrata su se stesso."
         },
         {
           "d100": "15-16",
@@ -5772,7 +5772,7 @@
         },
         {
           "d100": "63-64",
-          "effetto": "Lo stregone lancia nube di nebbia centrato su se stesso."
+          "effetto": "Lo stregone lancia nube di nebbia centrata su se stesso."
         },
         {
           "d100": "65-66",
@@ -7470,7 +7470,7 @@
         1
       ],
       "pagina": 72,
-      "descrizione": "Adotta uno stile di combattimento in cui specializzarsi scegliendo una tra le opzioni seguenti. Non è consentito scegliere uno stile di combattimento più di una volta, anche se in seguito hai diritto a scegliere di nuovo. Opzioni del Guerriero Tiro Difesa Duellare Combattere con Armi Possenti Protezione Combattere con Due Armi Opzioni del Paladino Difesa Duellare Combattere con Armi Possenti Protezione Opzioni del Ranger Tiro Difesa Duellare Combattere con Due Armi",
+      "descrizione": "Adotta uno stile di combattimento in cui specializzarsi scegliendo una tra le opzioni seguenti. Non è consentito scegliere uno stile di combattimento più di una volta, anche se in seguito hai diritto a scegliere di nuovo. Scegli una tra le opzioni del Paladino: Difesa, Duellare, Combattere con Armi Possenti o Protezione.",
       "fonte_descrizione": "foundry_verificato",
       "opzioni": [
         "guerriero-stile-di-combattimento-combattere-con-armi-possenti",
@@ -9251,7 +9251,7 @@
         3
       ],
       "pagina": 99,
-      "descrizione": "Come azione, presenti il tuo simbolo sacro e pronunci una preghiera di censura verso immondi e non morti, usando Incanalare Divinità. Ogni immondo e non morto che puoi vedere, e si trovi entro 9 metri da te, deve effettuare un tiro salvezza su Saggezza. Una creatura che fallisce il tiro salvezza è scacciata per 1 minuto o finché non subisce danni. Una creatura scacciata deve impiegare i suoi turni cercando di allontanarsi il più possibile da te, e non si può avvicinare volontariamente a più di 9 metri da te. Inoltre non può effettuare reazioni. Come sua azione, può impiegare solo l'azione Scattare o cercare di liberarsi da un effetto che le impedisca il movimento. Se non c'è spazio per fuggire, la creature può usare l'azione Schivare",
+      "descrizione": "Come azione, presenti il tuo simbolo sacro e pronunci una preghiera di censura verso immondi e non morti, usando Incanalare Divinità. Ogni immondo e non morto che puoi vedere, e si trovi entro 9 metri da te, deve effettuare un tiro salvezza su Saggezza. Una creatura che fallisce il tiro salvezza è scacciata per 1 minuto o finché non subisce danni. Una creatura scacciata deve impiegare i suoi turni cercando di allontanarsi il più possibile da te, e non si può avvicinare volontariamente a più di 9 metri da te. Inoltre non può effettuare reazioni. Come sua azione, può impiegare solo l'azione Scattare o cercare di liberarsi da un effetto che le impedisca il movimento. Se non c'è spazio per fuggire, la creatura può usare l'azione Schivare",
       "fonte_descrizione": "foundry_verificato"
     },
     {
@@ -9385,7 +9385,7 @@
         7
       ],
       "pagina": 101,
-      "descrizione": "Al 7° livello, grazie alla sua concentrazione soprannaturale, il paladino è in grado di bloccare la ritirata dei suoi nemici. Quando colpisce una creatura con un attacco di opportunità, può muoversi fino a metà delta sua velocità immediatamente dopo l'attacco e come parte della stessa reazione. Questo movimento non provoca attacchi di opportunità.",
+      "descrizione": "Al 7° livello, grazie alla sua concentrazione soprannaturale, il paladino è in grado di bloccare la ritirata dei suoi nemici. Quando colpisce una creatura con un attacco di opportunità, può muoversi fino a metà della sua velocità immediatamente dopo l'attacco e come parte della stessa reazione. Questo movimento non provoca attacchi di opportunità.",
       "fonte_descrizione": "manuale_errata"
     },
     {
@@ -10015,7 +10015,7 @@
         14
       ],
       "pagina": 111,
-      "descrizione": "Al 14° livello, lo stregone ottiene un minimo di controllo sugli impulsi della sua magia selvaggia. Ogni volta che tira sulla tabella \"Impulsi di Magia Selvaggia', può tirare due volte e scegliere quale numero usare.",
+      "descrizione": "Al 14° livello, lo stregone ottiene un minimo di controllo sugli impulsi della sua magia selvaggia. Ogni volta che tira sulla tabella \"Impulsi di Magia Selvaggia\", può tirare due volte e scegliere quale numero usare.",
       "fonte_descrizione": "manuale_errata"
     },
     {
@@ -10651,7 +10651,7 @@
       "id": "guerriero-stile-di-combattimento-combattere-con-armi-possenti",
       "parent_id": "guerriero-stile-di-combattimento",
       "nome": "Combattere con Armi Possenti",
-      "descrizione": "Quando il guerriero ottiene un 1 o un 2 a un tiro per i danni di un attacco che ha effettuato con un'arma da mischia impugnata a due mani, può ripetere il tiro e deve usare il nuovo risultato, anche se ottiene ancora un 1 o un 2. L'arma deve possedere la proprietà a due mani o versatile affinché il guerriero ottenga questo beneficio.",
+      "descrizione": "Quando ottieni un 1 o un 2 a un tiro per i danni di un attacco che hai effettuato con un'arma da mischia impugnata a due mani, puoi ripetere il tiro e devi usare il nuovo risultato, anche se ottieni ancora un 1 o un 2. L'arma deve possedere la proprietà a due mani o versatile affinché tu ottenga questo beneficio.",
       "livello_minimo": 1,
       "pagina": 72,
       "fonte_descrizione": "foundry_verificato"
@@ -10687,7 +10687,7 @@
       "id": "guerriero-stile-di-combattimento-protezione",
       "parent_id": "guerriero-stile-di-combattimento",
       "nome": "Protezione",
-      "descrizione": "Quando una creatura che il guerriero sia in grado di vedere attacca un bersaglio diverso dal guerriero e situato entro 1,5 metri da lui, il guerriero può usare la sua reazione per infliggere svantaggio al tiro per colpire della creatura. Il guerriero deve impugnare uno scudo.",
+      "descrizione": "Quando una creatura che puoi vedere attacca un bersaglio diverso da te e situato entro 1,5 metri da te, puoi usare la tua reazione per infliggere svantaggio al tiro per colpire della creatura. Devi impugnare uno scudo.",
       "livello_minimo": 1,
       "pagina": 72,
       "fonte_descrizione": "foundry_verificato"
@@ -11029,7 +11029,7 @@
       "id": "paladino-stile-di-combattimento-combattere-con-armi-possenti",
       "parent_id": "paladino-stile-di-combattimento",
       "nome": "Combattere con Armi Possenti",
-      "descrizione": "Quando il guerriero ottiene un 1 o un 2 a un tiro per i danni di un attacco che ha effettuato con un'arma da mischia impugnata a due mani, può ripetere il tiro e deve usare il nuovo risultato, anche se ottiene ancora un 1 o un 2. L'arma deve possedere la proprietà a due mani o versatile affinché il guerriero ottenga questo beneficio.",
+      "descrizione": "Quando ottieni un 1 o un 2 a un tiro per i danni di un attacco che hai effettuato con un'arma da mischia impugnata a due mani, puoi ripetere il tiro e devi usare il nuovo risultato, anche se ottieni ancora un 1 o un 2. L'arma deve possedere la proprietà a due mani o versatile affinché tu ottenga questo beneficio.",
       "livello_minimo": 2,
       "pagina": 97,
       "fonte_descrizione": "foundry_verificato"
@@ -11056,7 +11056,7 @@
       "id": "paladino-stile-di-combattimento-protezione",
       "parent_id": "paladino-stile-di-combattimento",
       "nome": "Protezione",
-      "descrizione": "Quando una creatura che il guerriero sia in grado di vedere attacca un bersaglio diverso dal guerriero e situato entro 1,5 metri da lui, il guerriero può usare la sua reazione per infliggere svantaggio al tiro per colpire della creatura. Il guerriero deve impugnare uno scudo.",
+      "descrizione": "Quando una creatura che puoi vedere attacca un bersaglio diverso da te e situato entro 1,5 metri da te, puoi usare la tua reazione per infliggere svantaggio al tiro per colpire della creatura. Devi impugnare uno scudo.",
       "livello_minimo": 2,
       "pagina": 97,
       "fonte_descrizione": "foundry_verificato"

@@ -5,7 +5,7 @@
   "counts": {
     "source_records_expected": 440,
     "mechanics_records": 440,
-    "resource_pools": 35,
+      "resource_pools": 36,
     "automation_level_counts": {
       "riferimento": 286,
       "assistita": 108,

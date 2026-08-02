@@ -5,6 +5,7 @@ import { ID } from "../src/constants.js";
 import {
   buildPreparedSpellResolutionRequest,
   findPreparedSpellResolutionGroup,
+  preparedSpellResolutionAction,
   preparedSpellResolutionGroups,
   preparedSpellResolutionPopoverId,
 } from "../src/preparedSpellResolutionCore.js";
@@ -54,6 +55,44 @@ function preparedItems({ phase = "prepare" } = {}) {
   }];
 }
 
+function activeItems(spellName, { effectId = "" } = {}) {
+  const spell = getSpellDefinition(spellName);
+  const instanceId = `active:${spell.id}:1`;
+  return [{
+    id: "caster",
+    name: "Incantatore",
+    layer: "CHARACTER",
+    metadata: {
+      [META_KEY]: {
+        [SPELLS_META_KEY]: [{
+          instanceId,
+          name: spell.name,
+          spellId: spell.id,
+          casterId: "caster",
+          conc: true,
+          turns: 10,
+        }],
+        ...(effectId ? {
+          conditions: {
+            version: 2,
+            instances: [{
+              id: `${effectId}:ready`,
+              effectId,
+              parentEffectId: instanceId,
+              active: true,
+            }],
+          },
+        } : {}),
+      },
+    },
+  }, {
+    id: "enemy",
+    name: "Goblin",
+    layer: "CHARACTER",
+    metadata: { [META_KEY]: {} },
+  }];
+}
+
 test("trova solo istanze ancora in fase di preparazione", () => {
   const groups = preparedSpellResolutionGroups(preparedItems());
   assert.equal(groups.length, 1);
@@ -81,6 +120,32 @@ test("costruisce la stessa richiesta di risoluzione sul target selezionato", () 
   assert.equal(request.activeConcentration.instanceId, "prepared:wrathful:1");
   assert.deepEqual(request.activeConcentration.targets, ["caster"]);
   assert.equal(request.historyLabel, "Risoluzione: Punizione Collerica");
+});
+
+test("estende il popover solo a Riscaldare il Metallo e Colpo dello Zefiro", () => {
+  const heat = preparedSpellResolutionGroups(activeItems("heat-metal"));
+  assert.equal(heat.length, 1);
+  assert.equal(preparedSpellResolutionAction(heat[0]).id, "heat-metal-repeat");
+
+  const zephyr = preparedSpellResolutionGroups(activeItems(
+    "xanathar-colpo-dello-zefiro",
+    { effectId: "zephyr-strike" },
+  ));
+  assert.equal(zephyr.length, 1);
+  assert.equal(preparedSpellResolutionAction(zephyr[0]).id, "zephyr-strike-attack");
+
+  assert.equal(
+    preparedSpellResolutionGroups(activeItems("xanathar-investitura-del-ghiaccio")).length,
+    0,
+  );
+  assert.equal(
+    preparedSpellResolutionGroups(activeItems("control-water")).length,
+    0,
+  );
+  assert.throws(
+    () => buildPreparedSpellResolutionRequest({ group: heat[0], targetIds: ["enemy"] }),
+    /prepared-spell-stale/,
+  );
 });
 
 test("rifiuta preparazioni stale o risoluzioni senza bersagli", () => {
