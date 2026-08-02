@@ -6,6 +6,10 @@ import {
   registeredAttitudeForItem,
   removeFactionFromRegistry,
 } from "./factionRegistryCore.js";
+import {
+  METADATA_OWNERSHIP,
+  writeRoomMetadataKey,
+} from "./metadataKeyScoped.js";
 
 export const FACTION_REGISTRY_KEY = `${ID}/factionRegistry`;
 export const FACTION_CONFIGURATOR_ID = `${ID}/faction-configurator`;
@@ -58,7 +62,12 @@ async function updateFactionRegistry(updater) {
     const next = normalizeFactionRegistry(updater(previous) || previous);
     const localWritten = writeLocalFactionRegistry(next);
     try {
-      await OBR.room.setMetadata({ ...metadata, [FACTION_REGISTRY_KEY]: next });
+      await writeRoomMetadataKey(
+        OBR.room,
+        METADATA_OWNERSHIP.REGISTRY,
+        next,
+        { runtime: "factionRegistry" },
+      );
     } catch (error) {
       if (!localWritten) throw error;
     }

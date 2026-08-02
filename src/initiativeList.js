@@ -67,6 +67,10 @@ import {
   initiativeStateDigest,
   isCurrentRenderRevision,
 } from "./initiativeRenderCore.js";
+import {
+  METADATA_OWNERSHIP,
+  writeSceneMetadataKey,
+} from "./metadataKeyScoped.js";
 import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
 import {
@@ -2940,24 +2944,29 @@ trackWrap.addEventListener("scroll", () => {
   const prev = md[STATE_KEY] || { order: [], current: 0, collapsed: {} };
   const raw  = (typeof next === "function") ? next(prev) : next;
   const value = { ...prev, ...(raw || {}) }; // <- MERGE: non perdiamo campi extra
-  await OBR.scene.setMetadata({ ...md, [STATE_KEY]: value });
+  await writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.INITIATIVE_STATE,
+    value,
+    { runtime: "initiativeList" },
+  );
   return __isCurrentSceneOperation(sceneEpoch, "scene-state-write");
 }
 
     // ===== Hard reset dello stato iniziativa (quando non resta alcun token tracciato)
 async function resetTrackerState(sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
-  const md = await OBR.scene.getMetadata();
-  if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
-  await OBR.scene.setMetadata({
-    ...md,
-    [STATE_KEY]: {
+  await writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.INITIATIVE_STATE,
+    {
       order: [],
       current: 0,
       round: 1,
       seededGroups: {},   // azzera anche i seed per gruppi
     },
-  });
+    { runtime: "initiativeList" },
+  );
   return __isCurrentSceneOperation(sceneEpoch, "tracker-state-reset");
 }
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+const normalizedSource = source.replace(/\r\n/g, "\n");
 const turnNoticeSource = readFileSync(
   new URL("../src/turn-notice.ts", import.meta.url),
   "utf8"
@@ -91,7 +92,8 @@ test("il cambio scena scarta il render tardivo e usa il primo snapshot history c
 });
 
 test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {
-  const section = sourceSection(
+  const section = sourceSectionIn(
+    normalizedSource,
     "const run = async () => {\n            const mutationPlan",
     "__roundEffectQueue = __roundEffectQueue.then(run, run);"
   );

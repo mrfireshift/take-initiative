@@ -4,6 +4,10 @@ import {
   isTrackerPopoverOpen,
   setTrackerPopoverOpen,
 } from "./trackerPopover.js";
+import {
+  METADATA_OWNERSHIP,
+  writeRoomMetadataKey,
+} from "./metadataKeyScoped.js";
 
 const UI_KEY = `${ID}/ui`;
 let handling = false;
@@ -15,11 +19,12 @@ async function toggleTracker() {
     const nextOpen = !isTrackerPopoverOpen();
     await setTrackerPopoverOpen(nextOpen);
     if (await OBR.player.getRole() === "GM") {
-      const metadata = await OBR.room.getMetadata();
-      await OBR.room.setMetadata({
-        ...metadata,
-        [UI_KEY]: { open: nextOpen, at: Date.now() },
-      });
+      await writeRoomMetadataKey(
+        OBR.room,
+        METADATA_OWNERSHIP.SHARED_UI,
+        { open: nextOpen, at: Date.now() },
+        { runtime: "action-launcher" },
+      );
     }
   } finally {
     try { await OBR.action.close(); } catch {}

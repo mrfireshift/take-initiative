@@ -22,6 +22,10 @@ import {
   sanitizeCharacterBuild,
   sanitizeEnabledClassFeatureIds,
 } from "./classFeatureCore.js";
+import {
+  METADATA_OWNERSHIP,
+  writeRoomMetadataKey,
+} from "./metadataKeyScoped.js";
 
 const META_KEY = `${ID}/meta`;
 const ROOM_CARD_KEY = `${ID}/initiativeCards`;
@@ -199,7 +203,12 @@ async function updateRoomCards(updater) {
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
     const localWritten = writeLocalInitiativeCards(next);
     try {
-      await OBR.room.setMetadata({ ...metadata, [ROOM_CARD_KEY]: next });
+      await writeRoomMetadataKey(
+        OBR.room,
+        METADATA_OWNERSHIP.INITIATIVE_CARDS,
+        next,
+        { runtime: "initiativeCards" },
+      );
     } catch (error) {
       if (!localWritten) throw error;
     }

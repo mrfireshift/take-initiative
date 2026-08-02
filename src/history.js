@@ -8,6 +8,10 @@ import {
   runSceneEpochSteps,
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
+import {
+  METADATA_OWNERSHIP,
+  writeSceneMetadataKey,
+} from "./metadataKeyScoped.js";
 
 const META_KEY = `${ID}/meta`;
 const HISTORY_KEY = `${ID}/history`;
@@ -308,10 +312,13 @@ async function appendEntryNow(entry, sceneEpoch) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const history = normalizeHistory(md?.[HISTORY_KEY]);
   const entries = [...history.entries, entry].slice(-MAX_HISTORY_ENTRIES);
-  await OBR.scene.setMetadata({
-    ...md,
-    [HISTORY_KEY]: { ...history, version: HISTORY_VERSION, entries },
-  });
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  await writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.HISTORY,
+    { ...history, version: HISTORY_VERSION, entries },
+    { runtime: "history" },
+  );
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   try {
     await recordHistoryInCombatLog(entry, { sceneEpoch });
@@ -899,10 +906,12 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
   const selectedIds = new Set(selected.map((entry) => entry.id));
   const entries = latest.entries.filter((candidate) => !selectedIds.has(candidate?.id));
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  await OBR.scene.setMetadata({
-    ...latestMd,
-    [HISTORY_KEY]: { ...latest, version: HISTORY_VERSION, entries },
-  });
+  await writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.HISTORY,
+    { ...latest, version: HISTORY_VERSION, entries },
+    { runtime: "history" },
+  );
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   try {
     await recordCombatUndo(undoOrder, { sceneEpoch });

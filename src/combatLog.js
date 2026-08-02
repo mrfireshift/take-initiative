@@ -3,6 +3,11 @@ import { ID } from "./constants.js";
 import { combatEventFromHistoryEntry, serializeCombatLogText } from "./combatLogCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { recordCombatTurnForEpoch } from "./combatLogTurnCore.js";
+import {
+  clearSceneMetadataKey,
+  METADATA_OWNERSHIP,
+  writeSceneMetadataKey,
+} from "./metadataKeyScoped.js";
 
 const DB_NAME = `${ID}.combat-log`;
 const DB_VERSION = 1;
@@ -17,6 +22,11 @@ let dbPromise = null;
 
 function isSceneEpochCurrent(sceneEpoch) {
   return sceneEpoch == null || isCurrentSceneEpoch(sceneEpoch);
+}
+
+function normalizeSessionState(value) {
+  if (value === null || value === undefined) return null;
+  return typeof value === "object" ? value : null;
 }
 
 function createId() {
@@ -92,23 +102,22 @@ async function getSessionState({ sceneEpoch = currentSceneEpoch() } = {}) {
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const metadata = await OBR.scene.getMetadata();
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
-  const state = metadata?.[SESSION_STATE_KEY];
-  return state && typeof state === "object" ? state : null;
+  return normalizeSessionState(metadata?.[SESSION_STATE_KEY]);
 }
 
 async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {}) {
   if (!isSceneEpochCurrent(sceneEpoch)) return false;
-  const metadata = await OBR.scene.getMetadata();
-  if (!isSceneEpochCurrent(sceneEpoch)) return false;
-  await OBR.scene.setMetadata({
-    ...metadata,
-    [SESSION_STATE_KEY]: {
+  await writeSceneMetadataKey(
+    OBR.scene,
+    METADATA_OWNERSHIP.COMBAT_LOG_SESSION,
+    {
       version: 1,
       sessionId: session.id,
       name: session.name,
       startedAt: session.startedAt,
     },
-  });
+    { runtime: "combatLog" },
+  );
   return isSceneEpochCurrent(sceneEpoch);
 }
 
@@ -467,21 +476,26 @@ export async function deleteCombatLogSession(sessionId) {
     if (state?.sessionId === sessionId) {
       const remaining = await listCombatLogSessions();
       const next = remaining[0] || null;
-      const metadata = await OBR.scene.getMetadata();
       if (next) {
-        await OBR.scene.setMetadata({
-          ...metadata,
-          [SESSION_STATE_KEY]: {
+        await writeSceneMetadataKey(
+          OBR.scene,
+          METADATA_OWNERSHIP.COMBAT_LOG_SESSION,
+          {
             version: 1,
             sessionId: next.id,
             name: next.name,
             startedAt: next.startedAt,
           },
-        });
+          { runtime: "combatLog" },
+        );
       } else {
-        const nextMetadata = { ...metadata };
-        delete nextMetadata[SESSION_STATE_KEY];
-        await OBR.scene.setMetadata(nextMetadata);
+        // L'SDK non documenta una cancellazione fisica key-scoped: null è il
+        // tombstone JSON-safe che rappresenta semanticamente nessuna sessione.
+        await clearSceneMetadataKey(
+          OBR.scene,
+          METADATA_OWNERSHIP.COMBAT_LOG_SESSION,
+          { runtime: "combatLog" },
+        );
       }
     }
     await notifyChange("delete", sessionId);

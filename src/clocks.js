@@ -1,6 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { normalizeClocksState } from "./clocksCore.js";
+import {
+  METADATA_OWNERSHIP,
+  writeSceneMetadataKey,
+} from "./metadataKeyScoped.js";
 
 export const CLOCKS_KEY = `${ID}/clocks`;
 export const CLOCKS_POPOVER_ID = `${ID}/clocks-popover`;
@@ -24,10 +28,12 @@ export function updateClocksState(mutator) {
       clocks: current.clocks.map((clock) => ({ ...clock })),
     });
     const next = normalizeClocksState(candidate || current);
-    await OBR.scene.setMetadata({
-      ...metadata,
-      [CLOCKS_KEY]: next,
-    });
+    await writeSceneMetadataKey(
+      OBR.scene,
+      METADATA_OWNERSHIP.CLOCKS,
+      next,
+      { runtime: "clocks" },
+    );
     return next;
   };
   writeQueue = writeQueue.then(run, run);

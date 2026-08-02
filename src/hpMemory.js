@@ -9,6 +9,10 @@ import {
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
 import { createSceneEpochTimer } from "./sceneEpochTimerCore.js";
+import {
+  METADATA_OWNERSHIP,
+  writeRoomMetadataKey,
+} from "./metadataKeyScoped.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
 let __hpApplyBusyEpoch = null;
@@ -142,7 +146,13 @@ async function writeRoomHPMap(updater, { sceneEpoch = currentSceneEpoch() } = {}
     try {
       // setMetadata fa già merge con gli altri metadata della Room.
       if (!isCurrentSceneEpoch(sceneEpoch)) return normalizedNext;
-      await OBR.room.setMetadata({ [ROOM_HP_KEY]: normalizedNext });
+      // Il writer invia soltanto la chiave di memoria Room posseduta.
+      await writeRoomMetadataKey(
+        OBR.room,
+        METADATA_OWNERSHIP.ROOM_MEMORY,
+        normalizedNext,
+        { runtime: "hpMemory" },
+      );
       if (!isCurrentSceneEpoch(sceneEpoch)) return normalizedNext;
       __roomHPFallbackWarned = false;
     } catch (error) {

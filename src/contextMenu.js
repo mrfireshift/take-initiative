@@ -2,6 +2,10 @@
   import { mountElevationLabelWatcher } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
+  import {
+    METADATA_OWNERSHIP,
+    writeSceneMetadataKey,
+  } from "./metadataKeyScoped.js";
   export { ID }; // re-export per compatibilità con eventuali import esistenti
 
   /** Chiavi e util */
@@ -157,10 +161,12 @@ async function toggleParagonBossOn(ids) {
       if (!stillOn && par[id]) { delete par[id]; changed = true; }
     }
     if (changed) {
-      await OBR.scene.setMetadata({
-        ...st,
-        [STATE_KEY]: { ...(prev || {}), paragonInits: par },
-      });
+      await writeSceneMetadataKey(
+        OBR.scene,
+        METADATA_OWNERSHIP.INITIATIVE_STATE,
+        { ...(prev || {}), paragonInits: par },
+        { runtime: "contextMenu" },
+      );
     }
   } catch (e) {
     console.warn("[paragon] cleanup stato fallito", e?.message || e);
