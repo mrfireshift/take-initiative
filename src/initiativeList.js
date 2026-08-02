@@ -181,6 +181,7 @@ const COND_DOCK_CFG = {
   const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
   const CONCENTRATION_WARNING_MODAL_ID = `${ID}/concentration-warning-modal`;
   const TURN_NOTICE_CHANNEL = ID + "/turn-notice";
+  const TURN_NOTICE_READY_CHANNEL = TURN_NOTICE_CHANNEL + "/ready";
   const TURN_NOTICE_MODAL_ID = ID + "/turn-notice-modal";
   // —— CHIP STYLE PRESET (condizioni + spell)
 const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
@@ -554,6 +555,8 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __optimisticNavigationDigest = null;
   __lastActiveId = null;
   __lastTurnNoticeActiveId = null;
+  __pendingTurnNotice = null;
+  __lastTurnNoticeDeliveryKey = "";
   __lastConditionTurnState = null;
   __conditionNavigationHint = null;
   __selectedSceneItemIds = new Set();
@@ -599,7 +602,7 @@ async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, sourc
   return __isCurrentSceneOperation(sceneEpoch, "baseline-render", { source });
 }
 
-async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-ready") {
+async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-ready", render = true) {
   if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
   const metadata = await OBR.scene.getMetadata();
   if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
@@ -609,11 +612,15 @@ async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-read
     initiativeStateDigest(st),
     sceneEpoch,
     source,
+    render,
   );
 }
 
-function __mountSceneEpochLifecycle() {
-  if (__sceneEpochLifecycleMounted) return;
+async function __mountSceneEpochLifecycle() {
+  if (__sceneEpochLifecycleMounted) {
+    if (__sceneBaselineEpoch === currentSceneEpoch()) return true;
+    return __acquireInitiativeSceneBaseline(currentSceneEpoch(), "runtime-mount", false);
+  }
   __sceneEpochLifecycleMounted = true;
   __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch, reason }) => {
     if (phase === "unload") {
@@ -631,6 +638,7 @@ function __mountSceneEpochLifecycle() {
     }
     markSceneEpochReady("scene-ready");
   });
+  return __acquireInitiativeSceneBaseline(currentSceneEpoch(), "runtime-mount", false);
 }
 
 
@@ -4532,10 +4540,39 @@ function mountConcentrationWarningBroadcast() {
 let __turnNoticeListenerMounted = false;
 let __turnNoticeSequence = 0;
 let __effectSaveDamageSequence = 0;
+let __turnNoticeReady = false;
+let __pendingTurnNotice = null;
+let __lastTurnNoticeDeliveryKey = "";
+
+async function __sendTurnNoticePayload(notice, sceneEpoch) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
+  await OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
+    type: "show-turn-notice",
+    sceneEpoch,
+    ...notice,
+    noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
+  }, { destination: "ALL" });
+  return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
+}
+
+function __markTurnNoticeReady() {
+  if (__turnNoticeReady) return;
+  __turnNoticeReady = true;
+  const pending = __pendingTurnNotice;
+  __pendingTurnNotice = null;
+  if (!pending) return;
+  void __sendTurnNoticePayload(pending.notice, pending.sceneEpoch).catch((err) => {
+    console.warn("[turn-notice] pending broadcast error:", err?.message || err);
+  });
+}
 
 async function mountTurnNoticeBroadcast() {
   if (__turnNoticeListenerMounted) return;
   __turnNoticeListenerMounted = true;
+  __turnNoticeReady = false;
+  OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL, (event) => {
+    if (event?.data?.type === "turn-notice-ready") __markTurnNoticeReady();
+  });
   await OBR.modal.open({
     id: TURN_NOTICE_MODAL_ID,
     url: "/turn-notice.html",
@@ -4544,19 +4581,23 @@ async function mountTurnNoticeBroadcast() {
     hidePaper: true,
     disablePointerEvents: true,
   });
+  void OBR.broadcast.sendMessage(TURN_NOTICE_READY_CHANNEL, {
+    type: "turn-notice-ready-request",
+  }, { destination: "LOCAL" }).catch(() => {});
 }
 
 async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
   if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
   if (!notice || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
-  await OBR.broadcast.sendMessage(TURN_NOTICE_CHANNEL, {
-    type: "show-turn-notice",
-    sceneEpoch,
-    ...notice,
-    noticeId: (Date.now() * 1000) + (++__turnNoticeSequence % 1000),
-  }, { destination: "ALL" });
-  return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
+  const deliveryKey = `${sceneEpoch}:${notice.turnKey}`;
+  if (deliveryKey === __lastTurnNoticeDeliveryKey) return false;
+  __lastTurnNoticeDeliveryKey = deliveryKey;
+  if (!__turnNoticeReady) {
+    __pendingTurnNotice = { notice, sceneEpoch };
+    return true;
+  }
+  return __sendTurnNoticePayload(notice, sceneEpoch);
 }
 async function showConcentrationDamageWarning(changes = []) {
   if (!IS_GM) return;
@@ -8351,7 +8392,7 @@ try {
   }
 
     OBR.onReady(async () => {
-      __mountSceneEpochLifecycle();
+      await __mountSceneEpochLifecycle();
       const bootstrapSceneEpoch = currentSceneEpoch();
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();

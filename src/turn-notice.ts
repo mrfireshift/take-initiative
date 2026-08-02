@@ -21,6 +21,7 @@ import {
 import { isTurnNoticeForScene } from "./turnNotice.js";
 
 const CHANNEL = ID + "/turn-notice";
+const READY_CHANNEL = CHANNEL + "/ready";
 const AUTO_CLOSE_MS = 4500;
 const ZONE_AUTO_CLOSE_MS = 6500;
 const SAVE_REMINDER_AGGREGATION_MS = 16;
@@ -95,6 +96,8 @@ let unsubscribeZoneItems: (() => void) | null = null;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
 let unsubscribeZoneBroadcast: (() => void) | null = null;
 let unsubscribeEffectSaveBroadcast: (() => void) | null = null;
+let unsubscribeTurnNoticeBroadcast: (() => void) | null = null;
+let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
 let noticeSceneEpoch = 0;
 let noticeSceneReady = true;
 
@@ -434,7 +437,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(() => {
-  OBR.broadcast.onMessage(CHANNEL, (event) => {
+  unsubscribeTurnNoticeBroadcast = OBR.broadcast.onMessage(CHANNEL, (event) => {
     if (
       event?.data?.type === "show-turn-notice"
       && isTurnNoticeForScene(event.data, noticeSceneEpoch, noticeSceneReady)
@@ -442,6 +445,18 @@ OBR.onReady(() => {
       showNotice(event.data);
     }
   });
+  const announceReady = () => OBR.broadcast.sendMessage(
+    READY_CHANNEL,
+    { type: "turn-notice-ready" },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+  unsubscribeTurnNoticeReadyRequest = OBR.broadcast.onMessage(
+    READY_CHANNEL,
+    (event) => {
+      if (event?.data?.type === "turn-notice-ready-request") void announceReady();
+    },
+  );
+  void announceReady();
   unsubscribeEffectSaveBroadcast = OBR.broadcast.onMessage(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     (event) => {
@@ -486,4 +501,6 @@ window.addEventListener("beforeunload", () => {
   unsubscribeZoneSceneReady?.();
   unsubscribeZoneBroadcast?.();
   unsubscribeEffectSaveBroadcast?.();
+  unsubscribeTurnNoticeBroadcast?.();
+  unsubscribeTurnNoticeReadyRequest?.();
 });

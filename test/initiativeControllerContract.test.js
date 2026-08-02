@@ -50,12 +50,16 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
 
 test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", () => {
   const lifecycle = sourceSection(
-    "function __mountSceneEpochLifecycle() {",
+    "async function __mountSceneEpochLifecycle() {",
     "// Scansione e deduplicazione una tantum all'avvio."
   );
   assert.match(lifecycle, /OBR\.scene\.onReadyChange\(\(ready\) =>/);
   assert.match(lifecycle, /invalidateSceneEpoch\("scene-unload"\)/);
   assert.match(lifecycle, /markSceneEpochReady\("scene-ready"\)/);
+  assert.match(
+    lifecycle,
+    /return __acquireInitiativeSceneBaseline\(currentSceneEpoch\(\), "runtime-mount", false\)/,
+  );
 
   const metadata = sourceSection(
     "async function __processInitiativeMetadata(",
@@ -82,6 +86,29 @@ test("il bootstrap invia il reminder anche per la prima card attiva", () => {
     "__activeIdForState(bootInitialState)",
     "broadcastTurnNotice(bootInitialState, bootstrapSceneEpoch)",
   ]);
+});
+
+test("il modal conferma il listener e conserva il primo notice durante il reload", () => {
+  const sender = sourceSection(
+    "let __turnNoticeListenerMounted = false;",
+    "async function showConcentrationDamageWarning("
+  );
+  assertOrdered(sender, [
+    "OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL",
+    "await OBR.modal.open({",
+    "turn-notice-ready-request",
+  ]);
+  assert.match(sender, /if \(!__turnNoticeReady\) \{\s*__pendingTurnNotice = \{ notice, sceneEpoch \};/);
+  assert.match(sender, /__sendTurnNoticePayload\(pending\.notice, pending\.sceneEpoch\)/);
+  assert.match(sender, /const deliveryKey = `\$\{sceneEpoch\}:\$\{notice\.turnKey\}`/);
+
+  assertOrdered(turnNoticeSource, [
+    "unsubscribeTurnNoticeBroadcast = OBR.broadcast.onMessage(CHANNEL",
+    "unsubscribeTurnNoticeReadyRequest = OBR.broadcast.onMessage(",
+    "void announceReady();",
+  ]);
+  assert.match(turnNoticeSource, /type: "turn-notice-ready"/);
+  assert.match(turnNoticeSource, /destination: "LOCAL"/);
 });
 
 test("il reminder di turno precede render e tick senza duplicare il broadcast", () => {
