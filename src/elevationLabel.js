@@ -2,6 +2,7 @@ import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { formatDistance } from "./distance3dCore.js";
 import { readElevation } from "./distance3d.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const LABEL_OWNER_META = `${ID}/elevationLabelOf`;
 const LABEL_LAYOUT_META = `${ID}/elevationLabelLayout`;
@@ -185,7 +186,10 @@ export function mountElevationLabelWatcher() {
   mounted = true;
   void OBR.player.getRole().then((role) => {
     if (role !== "GM") return;
-    OBR.scene.items.onChange(scheduleElevationLabels);
+    subscribeSceneItemChanges(scheduleElevationLabels, {
+      domains: ["elevation"],
+      immediate: true,
+    });
     OBR.scene.grid.onChange(scheduleElevationLabels);
     scheduleElevationLabels();
   }).catch(() => {});

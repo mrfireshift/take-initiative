@@ -20,7 +20,12 @@ import {
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
+import {
+  isCurrentSceneItemEvent,
+  sceneItemEventCorrelation,
+  subscribeSceneItemChanges,
+} from "./sceneItemEvents.js";
 import { buildTurnNoticePayload } from "./turnNotice.js";
 import {
   effectSaveReminderNoticesForDamage,
@@ -70,6 +75,10 @@ import {
   writeSceneMetadataKey,
 } from "./metadataKeyScoped.js";
 import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
+import {
+  createDirtyItemSet,
+  createInitiativeRenderScheduler,
+} from "./initiativeRenderSchedulerCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
 import {
   currentSceneEpoch,
@@ -334,6 +343,11 @@ let __renderRequestRevision = 0;
 let __latestAcceptedRenderRevision = 0;
 let __pendingIncrementalRenderTimer = null;
 const __pendingIncrementalTrackerItemIds = new Set();
+const __editorDirtyTrackerItemIds = createDirtyItemSet();
+let __fullRenderDirty = false;
+let __initiativeRenderScheduler = null;
+let __latestSceneItemEventRevision = 0;
+let __latestSceneItemEventCorrelation = null;
 let __lastInitiativeMetadataDigest;
 let __lastQueuedInitiativeMetadataDigest;
 const __initiativeMetadataProcessor = createSerialProcessor();
@@ -422,6 +436,69 @@ function __isCurrentSceneOperation(sceneEpoch, operation, detail = {}) {
   return false;
 }
 
+function __getInitiativeRenderScheduler() {
+  if (__initiativeRenderScheduler) return __initiativeRenderScheduler;
+  __initiativeRenderScheduler = createInitiativeRenderScheduler({
+    getSceneEpoch: currentSceneEpoch,
+    isCurrent: (sceneEpoch) => isCurrentSceneEpoch(sceneEpoch),
+    onEvent: (event) => {
+      __initiativeDiag(`render:scheduler-${event.type}`, {
+        mode: event.mode,
+        priority: event.priority,
+        schedulerSequence: event.sequence,
+        sceneEpoch: event.sceneEpoch,
+        sourceRevision: event.sourceRevision,
+        correlationId: event.correlationId,
+        itemIds: event.itemIds,
+        barrier: event.barrier,
+        error: event.error,
+      });
+    },
+  });
+  return __initiativeRenderScheduler;
+}
+
+function __markEditorDirtyFromCard(card) {
+  if (!(card instanceof HTMLElement)) return;
+  __editorDirtyTrackerItemIds.add(card.dataset.itemId);
+  __editorDirtyTrackerItemIds.addMany(card.__selectionItemIds);
+}
+
+function __scheduleEditorDirtyFlush() {
+  if (__suspendRenders || __editingInitForId || __editingHPForId) return;
+  const dirtyIds = __editorDirtyTrackerItemIds.take();
+  const sceneEpoch = currentSceneEpoch();
+  const requiresFull = __fullRenderDirty;
+  if (!requiresFull && !dirtyIds.length) return;
+  __fullRenderDirty = false;
+
+  const flush = async () => {
+    try {
+      if (requiresFull) {
+        await renderAll("editor-close");
+        return;
+      }
+      const scheduled = await __requestIncrementalTrackerItems(
+        { sceneEpoch, revision: __latestSceneItemEventRevision },
+        { mode: "cards", itemIds: dirtyIds },
+        "editor-close",
+      );
+      if (!scheduled) await renderAll("editor-close-fallback");
+    } catch (error) {
+      console.warn("[initiative] editor dirty render:", error?.message || error);
+      if (!__isCurrentSceneOperation(sceneEpoch, "editor-dirty-retry")) return;
+      try {
+        await renderAll("editor-close-error");
+      } catch (fallbackError) {
+        __editorDirtyTrackerItemIds.addMany(dirtyIds);
+        __fullRenderDirty = true;
+        console.warn("[initiative] editor full retry:", fallbackError?.message || fallbackError);
+      }
+    }
+  };
+  void flush();
+}
+
 function __cancelSceneEditorsWithoutCommit() {
   const editors = typeof document === "undefined"
     ? []
@@ -460,11 +537,16 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   }
   __renderRequestRevision += 1;
   __latestAcceptedRenderRevision = __renderRequestRevision;
+  __initiativeRenderScheduler?.reset(sceneEpoch);
   if (__pendingIncrementalRenderTimer !== null) {
     window.clearTimeout(__pendingIncrementalRenderTimer);
     __pendingIncrementalRenderTimer = null;
   }
   __pendingIncrementalTrackerItemIds.clear();
+  __editorDirtyTrackerItemIds.clear();
+  __fullRenderDirty = false;
+  __latestSceneItemEventRevision = 0;
+  __latestSceneItemEventCorrelation = null;
   __lastInitiativeMetadataDigest = undefined;
   __lastQueuedInitiativeMetadataDigest = undefined;
   __initiativeMetadataRevision += 1;
@@ -1015,6 +1097,7 @@ layoutToggleButton.addEventListener("click", (event) => {
     : TRACKER_LAYOUT_COMPACT;
   updateLayoutToggleButton();
   applyTrackerLayout();
+  __syncTrackerPopoverSizeForLayout();
   void renderAll();
   void setTrackerLayout(__trackerLayout).catch((error) => {
     console.warn("[tracker-layout] salvataggio fallito:", error?.message || error);
@@ -1957,11 +2040,12 @@ function syncMovementModeSelect(snapshot) {
 }
 
 subscribeSpeedCheckState((snapshot) => {
+  const previousSnapshot = latestMovementSnapshot;
   latestMovementSnapshot = snapshot;
   queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
-  const visible = snapshot.available;
+  const visible = shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot);
   movementReadout.style.display = visible ? "flex" : "none";
-  if (!visible) return;
+  if (!snapshot.available) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
   movementReadoutMeta.textContent = movementReadoutSummary(snapshot);
   syncMovementModeSelect(snapshot);
@@ -2732,7 +2816,9 @@ function applyTrackerLayout() {
         fontSize: "24px",
       });
     }
-    compactNavigationRow.replaceChildren(btnPrev, trackWrap, btnNext);
+    compactNavigationRow.replaceChildren(
+      ...(IS_GM ? [btnPrev, trackWrap, btnNext] : [trackWrap]),
+    );
     col.replaceChildren(roundPill, compactNavigationRow, viewOptionsRow);
   } else {
     restoreClassicHeader();
@@ -2824,6 +2910,7 @@ function applyTrackerLayout() {
       borderRadius: "10px",
       background: "rgba(9,13,21,.44)",
     });
+    classicNavigationRow.style.display = IS_GM ? "grid" : "none";
     for (const [button, text, label, primary] of [
       [btnPrev, "▲", "Turno precedente", false],
       [btnNext, "▼", "Turno successivo", true],
@@ -2845,7 +2932,7 @@ function applyTrackerLayout() {
         fontSize: "15px",
       });
     }
-    classicNavigationRow.replaceChildren(btnPrev, btnNext);
+    classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, btnNext] : []));
     col.replaceChildren(topRow, trackWrap, classicNavigationRow);
   }
   applyHeaderLayoutPresentation(compact);
@@ -4793,6 +4880,7 @@ function bindInitiativeEditorForEntry(badge, entry) {
     },
     cleanupEdit: () => {
       __editingInitForId = null;
+      __scheduleEditorDirtyFlush();
     },
     saveValue: async (normalized) => {
       await updateInitiative(entry.id, normalized);
@@ -4947,6 +5035,7 @@ function bindHPEditorForEntry(
     },
     cleanupEdit: () => {
       __editingHPForId = null;
+      __scheduleEditorDirtyFlush();
     },
     parseRelativeDelta: parseRelativeHPDelta,
     setDeltaButtonActive: setHPDeltaButtonActive,
@@ -6135,6 +6224,9 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     return activateClassFeature({
       sourceId,
       featureId: action.featureId,
+    }).then(async (result) => {
+      await renderAll("class-feature-quick-action");
+      return result;
     });
   }
   const result = await executeDirectQuickAction({
@@ -6533,6 +6625,26 @@ let __lastCompactPopoverSize = "";
 let __compactPopoverResizeRevision = 0;
 const COMPACT_TRACKER_RESIZE_DURATION_MS = 240;
 
+function __syncTrackerPopoverSizeForLayout() {
+  __lastCompactPopoverSize = "";
+  __compactPopoverResizeRevision += 1;
+  if (isCompactTrackerLayout()) {
+    resizeCompactTrackerPopover(
+      Array.from(track.querySelectorAll("[data-tracker-card='1']")),
+    );
+    return;
+  }
+
+  void (async () => {
+    let viewportHeight = 900;
+    try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    await Promise.all([
+      OBR.popover.setWidth(TRACKER_POPOVER_ID, 340),
+      OBR.popover.setHeight(TRACKER_POPOVER_ID, Math.max(360, Math.floor(viewportHeight - 124))),
+    ]);
+  })().catch(() => {});
+}
+
 async function __animateCompactTrackerPopoverWidth(
   targetWidth,
   revision,
@@ -6574,7 +6686,10 @@ function resizeCompactTrackerPopover(
   entries,
   { syncProgress = null, duration = COMPACT_TRACKER_RESIZE_DURATION_MS } = {},
 ) {
-  const requestedWidth = compactTrackerWidth(entries?.length, { showToolbar: IS_GM });
+  const requestedWidth = compactTrackerWidth(entries?.length, {
+    showToolbar: IS_GM,
+    showNavigation: IS_GM,
+  });
   const requestedHeight = 156;
   const requestKey = `${requestedWidth}x${requestedHeight}`;
   if (__lastCompactPopoverSize === requestKey) return;
@@ -6712,6 +6827,7 @@ function __replaceTrackCardsIncremental(nextNodes) {
   for (const { liveCard, nextCard } of replacements) {
     if (__trackerCardHasOpenEditor(liveCard)) {
       skippedEditors += 1;
+      __markEditorDirtyFromCard(liveCard);
       continue;
     }
     if (__expandedCompactEffectsId === liveCard.dataset.itemId) {
@@ -7841,6 +7957,8 @@ if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
 
 function __renderOptimisticNavigationState(state) {
   if (__suspendRenders || __editingInitForId || __editingHPForId) return false;
+  const schedulerState = __initiativeRenderScheduler?.getState?.();
+  if (schedulerState?.fullPending || schedulerState?.fullRunning) return false;
   const order = Array.isArray(state?.order) ? state.order : [];
   if (!order.length) return false;
   const ordered = order.map((id) => __activeLabelEntriesById.get(id)).filter(Boolean);
@@ -7933,9 +8051,12 @@ function __schedulePendingIncrementalTrackerItems(itemIds) {
     const ids = [...__pendingIncrementalTrackerItemIds];
     __pendingIncrementalTrackerItemIds.clear();
     try {
-      if (!await __renderIncrementalTrackerItemIdsFromScene(ids, "items-resumed")) {
-        await renderAll("items-resumed-fallback");
-      }
+      const resumed = await __requestIncrementalTrackerItems(
+        { sceneEpoch, revision: __latestSceneItemEventRevision },
+        { mode: "cards", itemIds: ids },
+        "items-resumed",
+      );
+      if (!resumed) await renderAll("items-resumed-fallback");
     } catch (error) {
       console.warn("[initiative] resumed incremental render:", error?.message || error);
       await renderAll("items-resumed-error");
@@ -7945,12 +8066,22 @@ function __schedulePendingIncrementalTrackerItems(itemIds) {
   __pendingIncrementalRenderTimer = window.setTimeout(() => void flush(), 0);
 }
 
-function __renderIncrementalTrackerItems(event, plan, reason = "items") {
+function __renderIncrementalTrackerItems(
+  event,
+  plan,
+  reason = "items",
+  schedulerRequest = null,
+) {
   const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
   if (!__isCurrentSceneOperation(sceneEpoch, "incremental-render", { reason })) return false;
   if (plan?.mode === "none") return true;
   if (plan?.mode !== "cards") return false;
+  if (schedulerRequest?.isIncrementalBarrierOpen
+      && !schedulerRequest.isIncrementalBarrierOpen()) {
+    return false;
+  }
   if (__suspendRenders) {
+    __editorDirtyTrackerItemIds.addMany(plan.itemIds);
     if (!__initiativeFillMode) __schedulePendingIncrementalTrackerItems(plan.itemIds);
     __initiativeDiag("render:incremental-skipped-suspended", { reason });
     return true;
@@ -7967,7 +8098,6 @@ function __renderIncrementalTrackerItems(event, plan, reason = "items") {
 
   const renderStartedAt = performance.now();
   const renderRevision = ++__renderRequestRevision;
-  __latestAcceptedRenderRevision = renderRevision;
   const committed = renderTrack(cached.ordered, state, {
     itemIds: plan.itemIds,
     animateActive: false,
@@ -7985,8 +8115,12 @@ function __renderIncrementalTrackerItems(event, plan, reason = "items") {
   return true;
 }
 
-async function __renderIncrementalTrackerItemIdsFromScene(itemIds, reason) {
-  const sceneEpoch = currentSceneEpoch();
+async function __renderIncrementalTrackerItemIdsFromScene(
+  itemIds,
+  reason,
+  sceneEpoch = currentSceneEpoch(),
+  schedulerRequest = null,
+) {
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
   if (!ids.length) return true;
   const items = await OBR.scene.items.getItems(ids);
@@ -7996,12 +8130,82 @@ async function __renderIncrementalTrackerItemIdsFromScene(itemIds, reason) {
     { items, sceneEpoch },
     { mode: "cards", itemIds: ids },
     reason,
+    schedulerRequest,
   );
 }
 
+async function __runScheduledIncrementalTrackerItems(request) {
+  if (!request?.isCurrent?.()) return { status: "stale" };
+  if (__initiativeFillMode) {
+    for (const id of request.itemIds || []) __pendingIncrementalTrackerItemIds.add(id);
+    return { status: "deferred" };
+  }
+  if (__suspendRenders) {
+    __editorDirtyTrackerItemIds.addMany(request.itemIds);
+    return { status: "deferred" };
+  }
+
+  const committed = await __renderIncrementalTrackerItemIdsFromScene(
+    request.itemIds,
+    request.reason,
+    request.sceneEpoch,
+    request,
+  );
+  if (committed) return { status: "committed" };
+
+  __fullRenderDirty = true;
+  const fallback = renderAll("incremental-barrier-fallback");
+  fallback.catch((error) => {
+    console.warn("[initiative] incremental full fallback:", error?.message || error);
+  });
+  return { status: "fallback" };
+}
+
+async function __requestIncrementalTrackerItems(event, plan, reason = "items") {
+  const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "incremental-request", { reason })) return true;
+  if (plan?.mode === "none") return true;
+  if (plan?.mode !== "cards") return false;
+  const scheduler = __getInitiativeRenderScheduler();
+  const ticket = scheduler.requestIncremental({
+    sceneEpoch,
+    sourceRevision: Number(event?.revision) || __latestSceneItemEventRevision,
+    correlationId: sceneItemEventCorrelation(event),
+    itemIds: plan.itemIds,
+    reason,
+    execute: __runScheduledIncrementalTrackerItems,
+  });
+  const result = await ticket.done;
+  return ["committed", "fallback", "deferred", "stale"].includes(result?.status);
+}
+
 async function renderAll(reason = "unspecified") {
-  if (__suspendRenders) return;
   const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "render-request", { reason })) {
+    return { status: "stale", sceneEpoch };
+  }
+  if (__suspendRenders) {
+    __fullRenderDirty = true;
+    return { status: "deferred", sceneEpoch };
+  }
+  const scheduler = __getInitiativeRenderScheduler();
+  const ticket = scheduler.requestFull({
+    sceneEpoch,
+    sourceRevision: __latestSceneItemEventRevision,
+    correlationId: __latestSceneItemEventCorrelation,
+    reason,
+    execute: __executeFullRenderRequest,
+  });
+  return ticket.done;
+}
+
+async function __executeFullRenderRequest(request) {
+  const sceneEpoch = request?.sceneEpoch;
+  const reason = request?.reason || "unspecified";
+  if (__suspendRenders) {
+    __fullRenderDirty = true;
+    return { status: "deferred", sceneEpoch };
+  }
   if (!__isCurrentSceneOperation(sceneEpoch, "render", { reason })) return;
   const renderStartedAt = performance.now();
   const renderDurationMs = () => Math.round((performance.now() - renderStartedAt) * 100) / 100;
@@ -8073,45 +8277,9 @@ __activeLabelEntriesById = byId;
   if (!__navigationPumpRunning && !__navigationDesiredState) {
     __latestInitiativeState = stateClean;
   }
-  zoomChk.checked = isAutoFocusEnabled(stateClean);
-  setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
-
-    try {
-      const lbl = document.getElementById("tbp-round-label");
-      if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
-    } catch {}
-
-    // se lo stato pulito è diverso dal raw, riallinea i metadata una volta sola
-    const needFix =
-      !stateRaw ||
-      stateRaw.current !== stateClean.current ||
-      (stateRaw.order?.length || 0) !== stateClean.order.length ||
-      (stateRaw.order || []).some((id, i) => id !== stateClean.order[i]);
-
-    if (needFix) {
-      // N.B. questo triggherà onMetadataChange, ma intanto noi renderizziamo già giusto
-      await setSceneState(stateClean, sceneEpoch);
-      if (!__isCurrentSceneOperation(sceneEpoch, "render-state-fix", { reason, renderRevision })) return;
-      if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
-        __initiativeDiag("render:skipped-superseded", {
-          renderRevision,
-          reason,
-          durationMs: renderDurationMs(),
-        });
-        return;
-      }
-      if (__isStaleNavigationState(stateClean)) {
-        __initiativeDiag("render:skipped-stale-before-commit", {
-          renderRevision,
-          reason,
-          activeId: __activeIdForState(stateClean),
-          durationMs: renderDurationMs(),
-        });
-        return;
-      }
-    }
     // Evita rimpiazzi DOM mentre c'è un editor aperto o stiamo switchando editor
     if (__suspendRenders) {
+      __fullRenderDirty = true;
       __initiativeDiag("render:skipped-suspended", {
         renderRevision,
         reason,
@@ -8120,6 +8288,7 @@ __activeLabelEntriesById = byId;
       return;
     }
     if (__editingInitForId || __editingHPForId) {
+      __fullRenderDirty = true;
       __initiativeDiag("render:skipped-editor", {
         renderRevision,
         reason,
@@ -8131,6 +8300,12 @@ __activeLabelEntriesById = byId;
     const ordered = stateClean.order.map((id) => byId.get(id)).filter(Boolean);
     const activeIdNow = stateClean.order[stateClean.current];
     if (!__isCurrentSceneOperation(sceneEpoch, "render-commit", { reason, renderRevision })) return;
+    zoomChk.checked = isAutoFocusEnabled(stateClean);
+    setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
+    try {
+      const lbl = document.getElementById("tbp-round-label");
+      if (lbl) lbl.textContent = `Round ${Math.max(1, stateClean.round || 1)}`;
+    } catch {}
     // === Active Turn Label: risolvi l'ancora e aggiorna/crea la label ===
 try {
   syncActiveTurnLabel(activeIdNow);
@@ -8157,6 +8332,7 @@ try {
     const animateActive = (activeIdNow !== __prevActiveId);
 
     renderTrack(ordered, stateClean, { animateActive });  // <-- passa il flag
+    __fullRenderDirty = false;
     __initiativeDiag("render:committed", {
       renderRevision,
       reason,
@@ -8283,13 +8459,23 @@ try {
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-render")) return;
   const bootPersistedState = await getSceneState();
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-state")) return;
+  const bootInitialState = __latestInitiativeState || bootPersistedState;
   await __adoptInitiativeSceneBaseline(
-    __latestInitiativeState || bootPersistedState,
+    bootInitialState,
     initiativeStateDigest(bootPersistedState),
     bootstrapSceneEpoch,
     "boot",
     false,
   );
+  if (
+    IS_GM
+    && __activeIdForState(bootInitialState)
+    && __isCurrentSceneOperation(bootstrapSceneEpoch, "initial-turn-notice")
+  ) {
+    void broadcastTurnNotice(bootInitialState, bootstrapSceneEpoch).catch((err) => {
+      console.warn("[turn-notice] initial broadcast error:", err?.message || err);
+    });
+  }
   if (IS_GM) {
     void recordCombatTurn(__latestInitiativeState, { sceneEpoch: bootstrapSceneEpoch }).catch((err) => {
       console.warn("[combat-log] initial turn:", err?.message || err);
@@ -8535,6 +8721,16 @@ OBR.scene.onMetadataChange((meta) => {
 
   subscribeSceneItemChanges(async (event) => {
     const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!isCurrentSceneItemEvent(event, {
+      sceneEpoch,
+      revision: __latestSceneItemEventRevision,
+    })) return;
+    __latestSceneItemEventRevision = Math.max(
+      __latestSceneItemEventRevision,
+      Number(event?.revision) || 0,
+    );
+    __latestSceneItemEventCorrelation = sceneItemEventCorrelation(event)
+      || __latestSceneItemEventCorrelation;
     if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     if (__mutatingActiveLabel > 0) return;
     const renderPlan = planIncrementalTrackerItemRender(event);
@@ -8549,7 +8745,9 @@ OBR.scene.onMetadataChange((meta) => {
     if (renderPlan.mode === "none") return;
     if (!fillInterrupted && renderPlan.mode === "cards") {
       try {
-        if (__renderIncrementalTrackerItems(event, renderPlan, "items")) return;
+        // La richiesta schedulata conserva il contratto del patch locale:
+        // __renderIncrementalTrackerItems(event, renderPlan, "items")
+        if (await __requestIncrementalTrackerItems(event, renderPlan, "items")) return;
       } catch (error) {
         console.warn("[initiative] incremental item render:", error?.message || error);
       }

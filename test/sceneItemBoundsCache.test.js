@@ -85,3 +85,42 @@ test("un bounds in cache non rende completa una scansione fallita dopo il movime
   assert.deepEqual(moved.missingIds, ["target"]);
   assert.equal(moved.boundsById.get("target").min.x, 0);
 });
+
+test("due richieste concorrenti della stessa geometria condividono il load SDK", async () => {
+  let calls = 0;
+  let resolveBounds;
+  const cache = createSceneItemBoundsCache(() => {
+    calls += 1;
+    return new Promise((resolve) => { resolveBounds = resolve; });
+  }, { timeoutMs: 100 });
+
+  const first = cache.load([item("target")]);
+  const second = cache.load([item("target")]);
+  await Promise.resolve();
+  resolveBounds(bounds(0));
+
+  assert.equal((await first).complete, true);
+  assert.equal((await second).complete, true);
+  assert.equal(calls, 1);
+});
+
+test("un risultato precedente non sovrascrive la cache dopo invalidate", async () => {
+  const resolvers = [];
+  const cache = createSceneItemBoundsCache(() => new Promise((resolve) => {
+    resolvers.push(resolve);
+  }), { timeoutMs: 100 });
+
+  const stale = cache.load([item("target")]);
+  await Promise.resolve();
+  cache.invalidate("target");
+  const current = cache.load([item("target", 200)]);
+  await Promise.resolve();
+  resolvers[1](bounds(200));
+  assert.equal((await current).boundsById.get("target").min.x, 200);
+  resolvers[0](bounds(0));
+  await stale;
+
+  const cached = await cache.load([item("target", 200)]);
+  assert.equal(cached.boundsById.get("target").min.x, 200);
+  assert.equal(resolvers.length, 2);
+});

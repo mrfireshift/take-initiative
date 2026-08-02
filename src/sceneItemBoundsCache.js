@@ -52,7 +52,52 @@ export function createSceneItemBoundsCache(
     throw new TypeError("item-bounds-loader-required");
   }
   const cache = new Map();
+  const pending = new Map();
+  const itemGenerations = new Map();
+  let cacheGeneration = 0;
   const safeTimeoutMs = Math.max(1, Math.floor(Number(timeoutMs) || 1200));
+
+  const invalidateIds = (itemIds = []) => {
+    for (const itemId of itemIds) {
+      const id = String(itemId || "").trim();
+      if (!id) continue;
+      cache.delete(id);
+      pending.delete(id);
+      itemGenerations.set(id, (itemGenerations.get(id) || 0) + 1);
+    }
+  };
+
+  const loadFresh = (item, signature) => {
+    const active = pending.get(item.id);
+    if (active?.signature === signature && active.cacheGeneration === cacheGeneration) {
+      return active.promise;
+    }
+    const itemGeneration = (itemGenerations.get(item.id) || 0) + 1;
+    itemGenerations.set(item.id, itemGeneration);
+    const startedCacheGeneration = cacheGeneration;
+    const entry = {
+      signature,
+      cacheGeneration: startedCacheGeneration,
+      promise: null,
+    };
+    entry.promise = withTimeout(
+      () => loadBounds(item.id),
+      safeTimeoutMs,
+    ).then((bounds) => {
+      if (!bounds) throw new Error("item-bounds-missing");
+      if (
+        cacheGeneration === startedCacheGeneration
+        && itemGenerations.get(item.id) === itemGeneration
+      ) {
+        cache.set(item.id, { signature, bounds });
+      }
+      return bounds;
+    }).finally(() => {
+      if (pending.get(item.id) === entry) pending.delete(item.id);
+    });
+    pending.set(item.id, entry);
+    return entry.promise;
+  };
 
   return {
     async load(items = []) {
@@ -60,7 +105,7 @@ export function createSceneItemBoundsCache(
         .filter((item) => String(item?.id || "").trim());
       const liveIds = new Set(list.map((item) => item.id));
       for (const itemId of cache.keys()) {
-        if (!liveIds.has(itemId)) cache.delete(itemId);
+        if (!liveIds.has(itemId)) invalidateIds([itemId]);
       }
 
       const boundsById = new Map();
@@ -73,12 +118,7 @@ export function createSceneItemBoundsCache(
           continue;
         }
         try {
-          const bounds = await withTimeout(
-            () => loadBounds(item.id),
-            safeTimeoutMs,
-          );
-          if (!bounds) throw new Error("item-bounds-missing");
-          cache.set(item.id, { signature, bounds });
+          const bounds = await loadFresh(item, signature);
           boundsById.set(item.id, bounds);
         } catch {
           missingIds.push(item.id);
@@ -92,8 +132,14 @@ export function createSceneItemBoundsCache(
         missingIds,
       };
     },
+    invalidate(itemIds = []) {
+      invalidateIds(Array.isArray(itemIds) ? itemIds : [itemIds]);
+    },
     clear() {
+      cacheGeneration += 1;
       cache.clear();
+      pending.clear();
+      itemGenerations.clear();
     },
   };
 }

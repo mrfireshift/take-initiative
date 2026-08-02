@@ -198,12 +198,17 @@ test("il baseline item della scena B non produce history o notice, mentre un del
 test("la transazione zone interrotta dopo delete non committa né ripristina nella scena B", async () => {
   const epochs = createSceneEpochController({ initialEpoch: 50 });
   const deleted = deferred();
+  let zoneItems = [{ id: "zone-a" }];
   let actionCalls = 0;
   let rollbackCalls = 0;
   const task = runStaticSpellZoneRemovalTransaction({
     snapshots: [{ id: "zone-a" }],
     isCurrent: () => epochs.isCurrent(50),
-    deleteItems: async () => deleted.promise,
+    readItems: async (ids) => zoneItems.filter((item) => ids.includes(item.id)),
+    deleteItems: async (ids) => {
+      await deleted.promise;
+      zoneItems = zoneItems.filter((item) => !ids.includes(item.id));
+    },
     addItems: async () => { rollbackCalls += 1; },
     action: async () => { actionCalls += 1; },
   });
@@ -221,12 +226,19 @@ test("la transazione zone non esegue rollback quando l'epoch cambia durante una 
   const epochs = createSceneEpochController({ initialEpoch: 55 });
   const actionStarted = deferred();
   const actionSettled = deferred();
+  let zoneItems = [{ id: "zone-a" }];
   let rollbackCalls = 0;
   const task = runStaticSpellZoneRemovalTransaction({
     snapshots: [{ id: "zone-a" }],
     isCurrent: () => epochs.isCurrent(55),
-    deleteItems: async () => {},
-    addItems: async () => { rollbackCalls += 1; },
+    readItems: async (ids) => zoneItems.filter((item) => ids.includes(item.id)),
+    deleteItems: async (ids) => {
+      zoneItems = zoneItems.filter((item) => !ids.includes(item.id));
+    },
+    addItems: async (items) => {
+      rollbackCalls += 1;
+      zoneItems.push(...items);
+    },
     action: async () => {
       actionStarted.resolve();
       await actionSettled.promise;
@@ -246,11 +258,15 @@ test("la transazione zone non esegue rollback quando l'epoch cambia durante una 
 test("la transazione zone nella stessa scena esegue una sola commit", async () => {
   const epochs = createSceneEpochController({ initialEpoch: 60 });
   let commits = 0;
+  let zoneItems = [{ id: "zone-a" }];
   await runStaticSpellZoneRemovalTransaction({
     snapshots: [{ id: "zone-a" }],
     isCurrent: () => epochs.isCurrent(60),
-    deleteItems: async () => {},
-    addItems: async () => {},
+    readItems: async (ids) => zoneItems.filter((item) => ids.includes(item.id)),
+    deleteItems: async (ids) => {
+      zoneItems = zoneItems.filter((item) => !ids.includes(item.id));
+    },
+    addItems: async (items) => { zoneItems.push(...items); },
     action: async () => { commits += 1; },
   });
   assert.equal(commits, 1);

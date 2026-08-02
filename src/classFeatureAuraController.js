@@ -27,19 +27,30 @@ import {
   mergeClassFeatureAuraReminderMetadata,
   planClassFeatureAuraReminder,
 } from "./classFeatureAuraReminderCore.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
+import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
 const RECONCILE_DELAY_MS = 70;
+const RECONCILE_RECOVERY_DELAY_MS = 250;
+const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 
 let mounted = false;
 let running = false;
 let requested = false;
 let timer = null;
+let recoveryTimer = null;
 let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
+const sceneItemBounds = createSceneItemBoundsCache(
+  (itemId) => OBR.scene.items.getItemBounds([itemId]),
+  { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
+);
 
 function point(value) {
   const x = Number(value?.x);
@@ -75,17 +86,6 @@ function trackedCreature(item, orderedIds) {
   return !!item?.id
     && !!meta
     && (meta.inInitiative === true || orderedIds.has(item.id));
-}
-
-async function itemBounds(items) {
-  const entries = await Promise.all(items.map(async (item) => {
-    try {
-      return [item.id, await OBR.scene.items.getItemBounds([item.id])];
-    } catch {
-      return [item.id, null];
-    }
-  }));
-  return new Map(entries);
 }
 
 function auraVisualMetadata(aura, dpi, sizeCells, style) {
@@ -153,73 +153,66 @@ function buildAuraVisual({
     .build();
 }
 
-async function reconcileAuraVisuals(items, desiredVisuals) {
-  const existing = items.filter((item) => item?.metadata?.[CLASS_FEATURE_AURA_META_KEY]);
-  const byInstance = new Map();
-  for (const item of existing) {
-    const instanceId = String(
-      item.metadata[CLASS_FEATURE_AURA_META_KEY]?.instanceId || ""
-    ).trim();
-    if (!byInstance.has(instanceId)) byInstance.set(instanceId, []);
-    byInstance.get(instanceId).push(item);
-  }
+function auraVisualIsCompatible(item, desired) {
+  const style = classFeatureAuraStyle(desired.aura);
+  const expected = auraVisualMetadata(
+    desired.aura,
+    desired.dpi,
+    desired.sizeCells,
+    style,
+  );
+  const actual = item?.metadata?.[CLASS_FEATURE_AURA_META_KEY] || {};
+  return item.layer === "DRAWING"
+    && item.attachedTo === desired.aura.sourceId
+    && actual.featureId === expected.featureId
+    && Number(actual.dpi) === expected.dpi
+    && Number(actual.sizeCells) === expected.sizeCells
+    && actual.fillColor === expected.fillColor
+    && actual.strokeColor === expected.strokeColor;
+}
 
-  const desiredIds = new Set(desiredVisuals.map((entry) => entry.aura.instanceId));
-  const deleteIds = [];
-  const additions = [];
-  const metadataUpdates = new Map();
-  for (const item of existing) {
-    const instanceId = String(
-      item.metadata[CLASS_FEATURE_AURA_META_KEY]?.instanceId || ""
-    ).trim();
-    if (!desiredIds.has(instanceId)) deleteIds.push(item.id);
-  }
+function auraVisualNeedsUpdate(item, desired) {
+  if (!desired.reminderUpdate?.changed) return false;
+  const metadata = item?.metadata?.[CLASS_FEATURE_AURA_META_KEY] || {};
+  const merged = mergeClassFeatureAuraReminderMetadata(
+    metadata,
+    desired.reminderUpdate,
+  );
+  return JSON.stringify(metadata) !== JSON.stringify(merged);
+}
 
-  for (const desired of desiredVisuals) {
-    const matches = byInstance.get(desired.aura.instanceId) || [];
-    const style = classFeatureAuraStyle(desired.aura);
-    const expected = auraVisualMetadata(
-      desired.aura,
-      desired.dpi,
-      desired.sizeCells,
-      style,
-    );
-    const keeper = matches.find((item) => {
-      const actual = item.metadata?.[CLASS_FEATURE_AURA_META_KEY] || {};
-      return item.layer === "DRAWING"
-        && item.attachedTo === desired.aura.sourceId
-        && actual.featureId === expected.featureId
-        && Number(actual.dpi) === expected.dpi
-        && Number(actual.sizeCells) === expected.sizeCells
-        && actual.fillColor === expected.fillColor
-        && actual.strokeColor === expected.strokeColor;
-    });
-    deleteIds.push(...matches.filter((item) => item !== keeper).map((item) => item.id));
-    if (!keeper) additions.push(buildAuraVisual(desired));
-    else if (desired.reminderUpdate?.changed) {
-      metadataUpdates.set(keeper.id, desired.reminderUpdate);
-    }
-  }
-
-  const uniqueDeleteIds = [...new Set(deleteIds.filter(Boolean))];
-  if (uniqueDeleteIds.length) await OBR.scene.items.deleteItems(uniqueDeleteIds);
-  if (additions.length) await OBR.scene.items.addItems(additions);
-  if (metadataUpdates.size) {
-    await OBR.scene.items.updateItems([...metadataUpdates.keys()], (drafts) => {
-      for (const item of drafts) {
-        const update = metadataUpdates.get(item.id);
-        const metadata = item.metadata?.[CLASS_FEATURE_AURA_META_KEY];
-        if (!update || !metadata) continue;
-        item.metadata = {
-          ...(item.metadata || {}),
-          [CLASS_FEATURE_AURA_META_KEY]: mergeClassFeatureAuraReminderMetadata(
-            metadata,
-            update,
-          ),
-        };
-      }
-    });
-  }
+async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
+  return reconcileOwnedSceneItems({
+    desired: desiredVisuals,
+    identityOfDesired: (desired) => desired.aura.instanceId,
+    readItems: () => OBR.scene.items.getItems(
+      (item) => !!item?.metadata?.[CLASS_FEATURE_AURA_META_KEY],
+    ),
+    identityOfItem: (item) => item?.metadata?.[CLASS_FEATURE_AURA_META_KEY]?.instanceId,
+    isCompatible: auraVisualIsCompatible,
+    needsUpdate: auraVisualNeedsUpdate,
+    buildItem: buildAuraVisual,
+    addItems: (items) => OBR.scene.items.addItems(items),
+    updateItems: async (updates) => {
+      const byId = new Map(updates.map(({ item, spec }) => [item.id, spec]));
+      await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
+        for (const item of drafts) {
+          const desired = byId.get(item.id);
+          const metadata = item.metadata?.[CLASS_FEATURE_AURA_META_KEY];
+          if (!desired || !metadata) continue;
+          item.metadata = {
+            ...(item.metadata || {}),
+            [CLASS_FEATURE_AURA_META_KEY]: mergeClassFeatureAuraReminderMetadata(
+              metadata,
+              desired.reminderUpdate,
+            ),
+          };
+        }
+      });
+    },
+    deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+  });
 }
 
 async function clearStaleSuppressions(plans) {
@@ -265,6 +258,7 @@ async function currentRound(sceneMetadata) {
 }
 
 async function reconcileClassFeatureAuras() {
+  const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const [items, sceneMetadata, dpiValue, scale] = await Promise.all([
     OBR.scene.items.getItems(),
@@ -272,6 +266,7 @@ async function reconcileClassFeatureAuras() {
     OBR.scene.grid.getDpi(),
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
   ]);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const round = await currentRound(sceneMetadata);
   const characterBuildBySourceId = new Map(
     items.map((item) => [item.id, getInitiativeCard(item).characterBuild])
@@ -291,8 +286,10 @@ async function reconcileClassFeatureAuras() {
   ));
   if (endedAuras.length) {
     for (const aura of endedAuras) {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
       await deactivateClassFeature(aura.sourceId, aura.instanceId);
     }
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
     // La mutazione sopra innesca normalmente onChange; mantenere comunque
     // una nuova iterazione garantisce che area e pill spariscano subito.
     requested = true;
@@ -311,7 +308,13 @@ async function reconcileClassFeatureAuras() {
   const boundedItems = [...requiredIds]
     .map((id) => byId.get(id))
     .filter(Boolean);
-  const boundsById = await itemBounds(boundedItems);
+  const boundsResult = await sceneItemBounds.load(boundedItems);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!boundsResult.complete) {
+    scheduleClassFeatureAuraRecovery();
+    return;
+  }
+  const boundsById = boundsResult.boundsById;
   const candidates = creatures.map((item) => ({
     item,
     bounds: boundsById.get(item.id),
@@ -422,6 +425,7 @@ async function reconcileClassFeatureAuras() {
   if (staleRemovals.length) {
     operations.unshift({ type: "condition:remove-instances", removals: staleRemovals });
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (operations.length) {
     const mutation = await runEffectsMutation(operations, {
       history: false,
@@ -430,8 +434,11 @@ async function reconcileClassFeatureAuras() {
     });
     requireAppliedEffectsMutation(mutation);
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   await clearStaleSuppressions(suppressionPlans);
-  await reconcileAuraVisuals(items, desiredVisuals);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  await reconcileAuraVisuals(desiredVisuals, sceneEpoch);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (newTriggerNotices.length) {
     void OBR.broadcast.sendMessage(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
@@ -447,6 +454,14 @@ async function reconcileClassFeatureAuras() {
   }
 }
 
+function scheduleClassFeatureAuraRecovery() {
+  if (!mounted || recoveryTimer) return;
+  recoveryTimer = setTimeout(() => {
+    recoveryTimer = null;
+    requestClassFeatureAuraReconcile();
+  }, RECONCILE_RECOVERY_DELAY_MS);
+}
+
 async function pump() {
   if (running) return;
   running = true;
@@ -457,6 +472,7 @@ async function pump() {
         await reconcileClassFeatureAuras();
       } catch (error) {
         console.error("[class-feature-aura] reconcile:", error);
+        scheduleClassFeatureAuraRecovery();
       }
     }
   } finally {
@@ -465,6 +481,8 @@ async function pump() {
 }
 
 export function requestClassFeatureAuraReconcile() {
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
   requested = true;
   if (running || timer) return;
   timer = setTimeout(() => {
@@ -478,10 +496,25 @@ export async function mountClassFeatureAuraController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
-  unsubscribeItems = OBR.scene.items.onChange(requestClassFeatureAuraReconcile);
-  unsubscribeGrid = OBR.scene.grid.onChange(requestClassFeatureAuraReconcile);
+  unsubscribeItems = subscribeSceneItemChanges(
+    () => requestClassFeatureAuraReconcile(),
+    {
+      domains: ["aura"],
+      filter: (event) => !event?.derived?.output,
+    },
+  );
+  unsubscribeGrid = OBR.scene.grid.onChange(() => {
+    sceneItemBounds.clear();
+    requestClassFeatureAuraReconcile();
+  });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
-    if (ready) requestClassFeatureAuraReconcile();
+    if (!ready) {
+      sceneItemBounds.clear();
+      if (recoveryTimer) clearTimeout(recoveryTimer);
+      recoveryTimer = null;
+      return;
+    }
+    requestClassFeatureAuraReconcile();
   });
   unsubscribeSceneMetadata = OBR.scene.onMetadataChange(requestClassFeatureAuraReconcile);
   requestClassFeatureAuraReconcile();
@@ -499,6 +532,9 @@ export function unmountClassFeatureAuraController() {
   unsubscribeSceneMetadata = null;
   if (timer) clearTimeout(timer);
   timer = null;
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
+  sceneItemBounds.clear();
   requested = false;
   mounted = false;
   running = false;

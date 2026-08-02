@@ -52,6 +52,7 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
 
   return {
     enabled: !!enabled,
+    disabled: source.disabled === true,
     movementLimited: !!movementLimited,
     available,
     turnKey: String(source.turnKey || ""),
@@ -87,6 +88,15 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     cycle: completedCycles + 1,
     progress: available && allowanceMeters > 0 ? Math.min(1, totalMeters / allowanceMeters) : 0,
   };
+}
+
+export function shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot = null) {
+  if (snapshot?.available === true) return true;
+  return snapshot?.enabled === true
+    && snapshot?.disabled !== true
+    && !!snapshot?.turnKey
+    && !!snapshot?.itemId
+    && previousSnapshot?.available === true;
 }
 
 export function limitedMovementRejection(snapshot, movedCells) {

@@ -6,6 +6,7 @@ import {
   preparedSpellResolutionGroups,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const POPOVER_WIDTH = 250;
@@ -232,9 +233,13 @@ export async function mountPreparedSpellResolutionController() {
   if (role !== "GM") return false;
 
   mounted = true;
-  unsubscribeItems = OBR.scene.items.onChange(() => {
-    requestControllerWork({ reconcile: true });
-  });
+  unsubscribeItems = subscribeSceneItemChanges(
+    () => requestControllerWork({ reconcile: true }),
+    {
+      domains: ["prepared-spells"],
+      filter: (event) => !event?.derived?.output,
+    },
+  );
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
       requestControllerWork({ reconcile: true });

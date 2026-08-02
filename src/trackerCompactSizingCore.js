@@ -20,13 +20,18 @@ function fixedChromeWidth(showToolbar) {
     + COLUMN_PADDING_AND_BORDER;
 }
 
-export function compactTrackerWidth(entryCount, { showToolbar = true } = {}) {
+export function compactTrackerWidth(
+  entryCount,
+  { showToolbar = true, showNavigation = true } = {},
+) {
   const count = Math.max(0, Math.floor(Number(entryCount) || 0));
   const cardStripWidth = count * COMPACT_CARD_WIDTH
     + Math.max(0, count - 1) * CARD_GAP
     + TRACK_HORIZONTAL_PADDING;
-  const requestedWidth = NAVIGATION_BUTTONS_WIDTH
-    + NAVIGATION_GAPS_WIDTH
+  const navigationWidth = showNavigation
+    ? NAVIGATION_BUTTONS_WIDTH + NAVIGATION_GAPS_WIDTH
+    : 0;
+  const requestedWidth = navigationWidth
     + cardStripWidth
     + fixedChromeWidth(showToolbar);
 

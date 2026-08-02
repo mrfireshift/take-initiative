@@ -79,7 +79,11 @@ function requestMovementSnapshot(turnKey = currentTurn?.turnKey || "") {
 }
 
 function notifyMovementState() {
-  const snapshot = buildSpeedCheckSnapshot(movementState, speedCheckEnabled, movementLimitEnabled);
+  const snapshot = buildSpeedCheckSnapshot(
+    movementState || currentTurn,
+    speedCheckEnabled,
+    movementLimitEnabled,
+  );
   emitMovementSnapshot(snapshot);
   broadcastMovementSnapshot(snapshot);
 }
@@ -499,7 +503,7 @@ export function syncSpeedCheckTurn(state) {
     }
   } else if (changed) {
     remoteMovementSnapshot = null;
-    emitMovementSnapshot(buildSpeedCheckSnapshot(null, false, movementLimitEnabled));
+    emitMovementSnapshot(buildSpeedCheckSnapshot(currentTurn, true, movementLimitEnabled));
     requestMovementSnapshot(currentTurn?.turnKey);
   }
 }

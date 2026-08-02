@@ -28,6 +28,7 @@ import {
 } from "./spellAreaPlacementCore.js";
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const TOOL_ID = `${ID}/aoe-target-tool`;
 const MODE_IDS = {
@@ -603,15 +604,32 @@ function scheduleMovedAreaSelection(item) {
   }, 90);
 }
 
-function mountPersistentAreaListener() {
-  OBR.scene.items.onChange((items) => {
-    for (const item of items || []) {
+async function mountPersistentAreaListener() {
+  const initialAreas = await OBR.scene.items.getItems(
+    (item) => !!item?.metadata?.[AREA_META_KEY]?.type,
+  ).catch(() => []);
+  for (const item of initialAreas) {
+    areaTransforms.set(item.id, transformSignature(item));
+  }
+
+  subscribeSceneItemChanges((event) => {
+    for (const item of event?.removedItems || []) {
+      if (item?.metadata?.[AREA_META_KEY]?.type) areaTransforms.delete(item.id);
+    }
+    for (const item of event?.items || []) {
       if (!item?.metadata?.[AREA_META_KEY]?.type) continue;
       const next = transformSignature(item);
       const previous = areaTransforms.get(item.id);
       areaTransforms.set(item.id, next);
       if (previous && !sameTransform(previous, next)) scheduleMovedAreaSelection(item);
     }
+  }, {
+    domains: ["zone"],
+    immediate: true,
+    filter: (event) => [
+      ...(event?.items || []),
+      ...(event?.removedItems || []),
+    ].some((item) => !!item?.metadata?.[AREA_META_KEY]?.type),
   });
 }
 
@@ -763,7 +781,7 @@ function modeDefinition(type, label, icon) {
 
 OBR.onReady(async () => {
   if (await OBR.player.getRole() !== "GM") return;
-  mountPersistentAreaListener();
+  await mountPersistentAreaListener();
   OBR.broadcast.onMessage(AOE_STYLE_CHANNEL, (event) => {
     if (event?.data?.type !== "change") return;
     currentStyle = normalizeAoEStyle(event.data.style);

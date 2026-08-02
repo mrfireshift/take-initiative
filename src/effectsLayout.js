@@ -5,9 +5,10 @@ import { effectsDiagnostics } from "./effectsDiagnostics.js";
 import {
   EFFECTS_LAYOUT_CONFIG,
   planEffectsLayout,
-  planEffectsWidgetDiff,
 } from "./effectsLayoutCore.js";
 import { getSpellWidgetLayoutData } from "./spells-tag.js";
+import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const META_KEY = `${ID}/meta`;
 
@@ -321,6 +322,18 @@ async function sdkGetLocalWidgets(session) {
   }
 }
 
+async function sdkGetGlobalWidgets(session) {
+  effectsDiagnostics.sdkCall(session, "getItems");
+  try {
+    const items = await OBR.scene.items.getItems(isEffectsWidgetItem);
+    effectsDiagnostics.sdkResult(session, "getItems", { returnedItems: items.length });
+    return items;
+  } catch (error) {
+    effectsDiagnostics.sdkError(session, "getItems");
+    throw error;
+  }
+}
+
 async function sdkDeleteLocalItems(session, itemIds) {
   if (!itemIds.length) return;
   effectsDiagnostics.sdkCall(session, "deleteItems", { requestedItems: itemIds.length });
@@ -400,6 +413,7 @@ export async function inspectEffectsLayoutStores() {
 }
 
 export async function reconcileEffectsLayout(batch = {}, context = {}) {
+  const sceneEpoch = currentSceneEpoch();
   const revision = ++reconcileRevision;
   const requestedIds = new Set([
     ...(Array.isArray(batch.conditions) ? batch.conditions : []),
@@ -417,12 +431,17 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   let globalLegacyWidgets = [];
   let tokens = [];
   let desired = [];
-  let diff = { additions: [], updates: [], deleteIds: [] };
+  let localResult = null;
+  let globalResult = null;
   let deletedGlobalWidgets = 0;
   let staleRecorded = false;
 
+  const operationIsCurrent = () => (
+    isCurrentSceneEpoch(sceneEpoch)
+    && !context.isStale?.()
+  );
   const stopIfStale = (stage) => {
-    if (!context.isStale?.()) return false;
+    if (operationIsCurrent()) return false;
     outcome = "stale";
     if (!staleRecorded) {
       staleRecorded = true;
@@ -435,36 +454,56 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   };
 
   try {
-    [sceneItems, localWidgets] = await Promise.all([
-      sdkGetSceneItems(session),
-      sdkGetLocalWidgets(session),
-    ]);
+    sceneItems = await sdkGetSceneItems(session);
+    if (stopIfStale("after-scene-read")) return { outcome, desiredWidgets: 0 };
     tokens = sceneItems.map(normalizeToken).filter(Boolean);
     const sceneDpi = await getEffectsLayoutGridDpi();
+    if (stopIfStale("after-grid-read")) return { outcome, desiredWidgets: 0 };
     desired = planEffectsLayout({ tokens, sceneDpi, measureText: measureTextWidth });
-    const existing = localWidgets.map(classifyExistingWidget).filter(Boolean);
     globalLegacyWidgets = sceneItems.map(classifyExistingWidget).filter(Boolean);
-    diff = planEffectsWidgetDiff({ desired, existing, needsUpdate: widgetNeedsUpdate });
 
     if (stopIfStale("before-widget-commit")) return { outcome, desiredWidgets: desired.length };
 
     if (context.cleanupGlobalWidgets === true) {
       deletedGlobalWidgets = globalLegacyWidgets.length;
-      await sdkDeleteGlobalLegacyWidgets(
-        session,
-        globalLegacyWidgets.map(({ item }) => item.id)
-      );
+      globalResult = await reconcileOwnedSceneItems({
+        desired: [],
+        readItems: async () => {
+          const items = await sdkGetGlobalWidgets(session);
+          globalLegacyWidgets = items.map(classifyExistingWidget).filter(Boolean);
+          return items;
+        },
+        identityOfItem: (item) => item.id,
+        deleteItems: (ids) => sdkDeleteGlobalLegacyWidgets(session, ids),
+        isCurrent: operationIsCurrent,
+      });
     }
     if (stopIfStale("after-global-cleanup")) return { outcome, desiredWidgets: desired.length };
-    await sdkDeleteLocalItems(session, diff.deleteIds);
-    if (stopIfStale("after-delete")) return { outcome, desiredWidgets: desired.length };
-    await sdkAddLocalItems(session, diff.additions.map(buildWidget));
-    if (stopIfStale("after-add")) return { outcome, desiredWidgets: desired.length };
-    await sdkUpdateLocalItems(session, diff.updates);
-    stopIfStale("after-update");
-    if (!deletedGlobalWidgets && !diff.deleteIds.length &&
-      !diff.additions.length && !diff.updates.length) {
-      if (outcome !== "stale") outcome = "no-change";
+    localResult = await reconcileOwnedSceneItems({
+      desired,
+      readItems: async () => {
+        localWidgets = await sdkGetLocalWidgets(session);
+        return localWidgets;
+      },
+      identityOfItem: (item) => classifyExistingWidget(item)?.identity,
+      isCompatible: (item) => classifyExistingWidget(item)?.valid === true,
+      needsUpdate: widgetNeedsUpdate,
+      buildItem: buildWidget,
+      addItems: (items) => sdkAddLocalItems(session, items),
+      updateItems: (updates) => sdkUpdateLocalItems(session, updates),
+      deleteItems: (ids) => sdkDeleteLocalItems(session, ids),
+      isCurrent: operationIsCurrent,
+    });
+    if (localResult.outcome === "stale" || stopIfStale("after-local-converge")) {
+      outcome = "stale";
+    } else {
+      const mutationCalls = [globalResult, localResult]
+        .filter(Boolean)
+        .reduce((total, result) => total
+          + result.metrics.addCalls
+          + result.metrics.updateCalls
+          + result.metrics.deleteCalls, 0);
+      outcome = mutationCalls === 0 ? "no-change" : "completed";
     }
   } catch (error) {
     outcome = "failed";
@@ -478,9 +517,9 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
       globalLegacyWidgets: globalLegacyWidgets.length,
       deletedGlobalWidgets,
       plannedWidgets: desired.length,
-      addedWidgets: diff.additions.length,
-      updatedWidgets: diff.updates.length,
-      deletedWidgets: diff.deleteIds.length,
+      addedWidgets: localResult?.metrics?.requestedAdds || 0,
+      updatedWidgets: localResult?.metrics?.requestedUpdates || 0,
+      deletedWidgets: localResult?.metrics?.requestedDeletes || 0,
     });
   }
 

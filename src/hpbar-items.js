@@ -2,6 +2,8 @@
 import OBR, { buildShape, buildText } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
@@ -18,6 +20,7 @@ const BAR_BG_OPACITY   = 0.82;
 const BAR_BORDER_COLOR = "rgba(255,255,255,0.34)";
 const BAR_FILL_OPACITY = 0.96;
 const HP_TEXT_FONT_SIZE = 12;
+const HP_WIDGET_RECOVERY_DELAY_MS = 500;
 let   IS_GM            = false;
 
 /* ========= Throttle/Batch (evita rate limit) ========= */
@@ -37,6 +40,7 @@ let _fastFillFlushing = false;
 const _tokenRevision = new Map(); // tokenId -> ultimo aggiornamento richiesto
 const _textRevision = new Map(); // tokenId -> ultimo testo richiesto
 const _textQueues = new Map(); // tokenId -> coda seriale del testo HP
+const _recoveryTimers = new Set();
 
 function nextTokenRevision(tokenId) {
   const next = (_tokenRevision.get(tokenId) || 0) + 1;
@@ -63,6 +67,8 @@ function resetRuntimeState() {
   _fastFillScheduled = false;
   _tokenRevision.clear();
   _textRevision.clear();
+  for (const timer of _recoveryTimers) clearTimeout(timer);
+  _recoveryTimers.clear();
 }
 
 /* ========= Utils ========= */
@@ -274,35 +280,24 @@ async function computeBarLayout(tokenId, tokenSnapshot = null){
 
 /* ========= Creazione & ricerca shape ========= */
 
-// Trova la base/riempimento di un token e rimuove eventuali duplicati/ombre
-async function findHPBars(tokenId, itemsSnapshot = null){
-  const items = itemsSnapshot || await OBR.scene.items.getItems();
-  const ofToken = items.filter(
-    it => it.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId
-  );
-
-  const byKind = new Map();
-  for (const it of ofToken) {
-    const k = it.metadata[HPBAR_META_FLAG].kind; // "bg" | "fg" | (vecchie "shadow")
-    if (!byKind.has(k)) byKind.set(k, []);
-    byKind.get(k).push(it);
-  }
-
-  // elimina ombre e duplicati (tieni il primo per kind)
-  const toDelete = [];
-  for (const [k, arr] of byKind) {
-    if (k === "shadow") toDelete.push(...arr.map(x=>x.id)); // non usiamo più le ombre
-    if (arr.length > 1) toDelete.push(...arr.slice(1).map(x=>x.id));
-  }
-  if (toDelete.length) await OBR.scene.items.deleteItems(toDelete);
-
-  const bg = (byKind.get("bg") || [])[0] || null;
-  const fg = (byKind.get("fg") || [])[0] || null;
-  return { bg, fg };
+function hpBarIdentity(tokenId, kind) {
+  return `${tokenId}|${kind}`;
 }
 
-async function createHPBars(tokenId){
-  const L = await computeBarLayout(tokenId);
+function hpBarItemIdentity(item) {
+  const metadata = item?.metadata?.[HPBAR_META_FLAG];
+  return metadata?.targetId && (metadata.kind === "bg" || metadata.kind === "fg")
+    ? hpBarIdentity(metadata.targetId, metadata.kind)
+    : "";
+}
+
+async function createHPBars(
+  tokenId,
+  sceneEpoch = currentSceneEpoch(),
+  layout = null,
+  itemsSnapshot = null,
+){
+  const L = layout || await computeBarLayout(tokenId);
   if (!L) return null;
   const { barW, barH, leftX, topY, tokenZ } = L;
 
@@ -337,8 +332,32 @@ async function createHPBars(tokenId){
     .name("HPBAR_FG")
     .build();
 
-  await OBR.scene.items.addItems([bg, fg]);
-  return { bg, fg };
+  const result = await reconcileOwnedSceneItems({
+    desired: [
+      { identity: hpBarIdentity(tokenId, "bg"), item: bg, tokenId },
+      { identity: hpBarIdentity(tokenId, "fg"), item: fg, tokenId },
+    ],
+    readItems: () => OBR.scene.items.getItems((item) => (
+      item?.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId
+    )),
+    identityOfItem: hpBarItemIdentity,
+    isCompatible: (item, spec) => (
+      item.type === "SHAPE"
+      && item.attachedTo === spec.tokenId
+      && item.layer === "ATTACHMENT"
+    ),
+    buildItem: (spec) => spec.item,
+    addItems: (items) => OBR.scene.items.addItems(items),
+    deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+    initialItems: Array.isArray(itemsSnapshot)
+      ? itemsSnapshot.filter((item) => item?.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId)
+      : null,
+  });
+  return {
+    bg: result.itemsByIdentity.get(hpBarIdentity(tokenId, "bg")) || null,
+    fg: result.itemsByIdentity.get(hpBarIdentity(tokenId, "fg")) || null,
+  };
 }
 
 /* ========= Coda aggiornamenti (batch) ========= */
@@ -360,10 +379,13 @@ async function flushQueued(){
 
   const hpTextUpdates = [];
   const candidates = [];
+  const operationEpoch = currentSceneEpoch();
+  let entries = [];
   try {
     await waitForSceneReady();
+    if (!isCurrentSceneEpoch(operationEpoch)) return;
 
-    const entries = Array.from(_pending.entries());
+    entries = Array.from(_pending.entries());
     _pending.clear();
     if (!entries.length) { return; }
 
@@ -374,14 +396,26 @@ async function flushQueued(){
     const allItemsNow = await OBR.scene.items.getItems();
     const itemsById = new Map(allItemsNow.map(it => [it.id, it]));
     const hptextByToken = new Map();
+    const hptextCountsByToken = new Map();
     const hpbarKindsByToken = new Map();
     for (const it of allItemsNow) {
       const m = it.metadata?.[HPTEXT_META_FLAG];
-      if (m?.targetId) hptextByToken.set(m.targetId, it);
+      if (m?.targetId) {
+        hptextByToken.set(m.targetId, it);
+        hptextCountsByToken.set(m.targetId, (hptextCountsByToken.get(m.targetId) || 0) + 1);
+      }
       const barMeta = it.metadata?.[HPBAR_META_FLAG];
       if (barMeta?.targetId) {
-        if (!hpbarKindsByToken.has(barMeta.targetId)) hpbarKindsByToken.set(barMeta.targetId, new Set());
-        hpbarKindsByToken.get(barMeta.targetId).add(barMeta.kind);
+        if (!hpbarKindsByToken.has(barMeta.targetId)) hpbarKindsByToken.set(barMeta.targetId, new Map());
+        const counts = hpbarKindsByToken.get(barMeta.targetId);
+        counts.set(barMeta.kind, (counts.get(barMeta.kind) || 0) + 1);
+        if ((barMeta.kind === "bg" || barMeta.kind === "fg") && (
+          it.type !== "SHAPE"
+          || it.attachedTo !== barMeta.targetId
+          || it.layer !== "ATTACHMENT"
+        )) {
+          counts.set("invalid", (counts.get("invalid") || 0) + 1);
+        }
       }
     }
 
@@ -407,19 +441,30 @@ async function flushQueued(){
         const keysChanged = Object.keys(ds);
         const barKinds = hpbarKindsByToken.get(tokenId);
         const textItem = hptextByToken.get(tokenId);
-        const textIsCurrent = textItem?.text?.plainText === hpTextValue(hp, hpMax);
-        if (!keysChanged.length && barKinds?.has("bg") && barKinds?.has("fg") && textIsCurrent) {
+        const textIsCurrent = hptextCountsByToken.get(tokenId) === 1
+          && textItem?.type === "TEXT"
+          && textItem?.attachedTo === tokenId
+          && textItem?.layer === "ATTACHMENT"
+          && textItem?.text?.plainText === hpTextValue(hp, hpMax);
+        if (!keysChanged.length
+          && barKinds?.get("bg") === 1
+          && barKinds?.get("fg") === 1
+          && !barKinds?.get("shadow")
+          && !barKinds?.get("invalid")
+          && textIsCurrent) {
           continue;
         }
       }
 
-      // Trova o crea le due shape (bg/fg)
-      let { bg, fg } = await findHPBars(tokenId, allItemsNow);
-      if (!bg || !fg){
-        const created = await createHPBars(tokenId);
-        if (created) ({ bg, fg } = created);
-        else { continue; }
-      }
+      // Crea prima gli elementi mancanti e pulisce duplicati/legacy soltanto
+      // dopo aver verificato una coppia completa nella scena corrente.
+      const { bg, fg } = await createHPBars(
+        tokenId,
+        operationEpoch,
+        layout,
+        allItemsNow,
+      );
+      if (!bg || !fg) continue;
 
       // Geometria e fill
       const inner = Math.max(0, barW - BAR_INSET * 2);
@@ -569,6 +614,15 @@ async function flushQueued(){
 
   } catch (e) {
     console.warn("[hpbar] flush error:", e?.message || e);
+    if (isCurrentSceneEpoch(operationEpoch)) {
+      for (const [tokenId, pending] of entries) {
+        if (pending.epoch !== _sceneEpoch) continue;
+        const newer = _pending.get(tokenId);
+        if (!newer || newer.revision < pending.revision) {
+          _pending.set(tokenId, pending);
+        }
+      }
+    }
   } finally {
     _flushing = false;
     if (_pending.size) scheduleFlush(0);
@@ -678,10 +732,114 @@ export function syncHPBarNow(tokenId, hp, hpMax) {
   } catch {}
 }
 
+function hpTextIdentity(tokenId) {
+  return `hptext|${tokenId}`;
+}
+
+function buildHPTextItem(spec) {
+  return buildText()
+    .plainText(spec.text)
+    .textType("PLAIN")
+    .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
+    .fontSize(HP_TEXT_FONT_SIZE)
+    .fontWeight(700)
+    .lineHeight(1)
+    .textAlign("CENTER")
+    .textAlignVertical("MIDDLE")
+    .fillColor("#f8fafc")
+    .strokeColor("rgba(2,6,23,0.9)")
+    .strokeWidth(2)
+    .position(spec.position)
+    .layer("ATTACHMENT")
+    .attachedTo(spec.tokenId)
+    .locked(true)
+    .disableHit(true)
+    .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
+    .zIndex(spec.zIndex)
+    .visible(spec.visible)
+    .metadata({ [HPTEXT_META_FLAG]: { targetId: spec.tokenId } })
+    .name("HP Text")
+    .build();
+}
+
+function hpTextNeedsUpdate(item, spec) {
+  return item.layer !== "ATTACHMENT"
+    || item.attachedTo !== spec.tokenId
+    || item.locked !== true
+    || item.disableHit !== true
+    || item.position?.x !== spec.position.x
+    || item.position?.y !== spec.position.y
+    || item.zIndex !== spec.zIndex
+    || item.visible !== spec.visible
+    || item.text?.plainText !== spec.text;
+}
+
+function applyHPTextSpec(item, spec) {
+  item.layer = "ATTACHMENT";
+  item.attachedTo = spec.tokenId;
+  item.locked = true;
+  item.disableHit = true;
+  item.position = spec.position;
+  item.zIndex = spec.zIndex;
+  item.visible = spec.visible;
+  if (!item.text) item.text = { type: "PLAIN", plainText: spec.text };
+  item.text.type = "PLAIN";
+  item.text.plainText = spec.text;
+  item.text.style = {
+    ...(item.text.style || {}),
+    fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    fontSize: HP_TEXT_FONT_SIZE,
+    fontWeight: 700,
+    lineHeight: 1,
+    textAlign: "CENTER",
+    textAlignVertical: "MIDDLE",
+    fillColor: "#f8fafc",
+    strokeColor: "rgba(2,6,23,0.9)",
+    strokeWidth: 2,
+  };
+  item.metadata = {
+    ...(item.metadata || {}),
+    [HPTEXT_META_FLAG]: { targetId: spec.tokenId },
+  };
+}
+
+async function reconcileHPTextItem(spec, sceneEpoch, initialItems = null) {
+  return reconcileOwnedSceneItems({
+    desired: [{ ...spec, identity: hpTextIdentity(spec.tokenId) }],
+    readItems: () => OBR.scene.items.getItems((item) => (
+      item?.metadata?.[HPTEXT_META_FLAG]?.targetId === spec.tokenId
+    )),
+    identityOfItem: (item) => {
+      const targetId = item?.metadata?.[HPTEXT_META_FLAG]?.targetId;
+      return targetId ? hpTextIdentity(targetId) : "";
+    },
+    isCompatible: (item, desired) => (
+      item.type === "TEXT"
+      && item.attachedTo === desired.tokenId
+    ),
+    needsUpdate: hpTextNeedsUpdate,
+    buildItem: buildHPTextItem,
+    addItems: (items) => OBR.scene.items.addItems(items),
+    updateItems: async (updates) => {
+      const byId = new Map(updates.map(({ item, spec: desired }) => [item.id, desired]));
+      await OBR.scene.items.updateItems([...byId.keys()], (items) => {
+        for (const item of items) {
+          const desired = byId.get(item.id);
+          if (desired) applyHPTextSpec(item, desired);
+        }
+      });
+    },
+    deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+    initialItems,
+  });
+}
+
 // Modifica
 // Crea/aggiorna un item di TESTO "(HP/Max - %)" sopra le HPBAR.
 // Usa il TextBuilder correttamente (plainText + metodi stile del builder).
 async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
+  const sceneEpoch = currentSceneEpoch();
   try {
     await waitForSceneReady();
     if (epoch !== _sceneEpoch || _textRevision.get(tokenId) !== revision) return;
@@ -705,77 +863,36 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
     // dedup
     const all = await OBR.scene.items.getItems();
     if (epoch !== _sceneEpoch || _textRevision.get(tokenId) !== revision) return;
-    let existing = all.find(it => it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId);
-    const dups = all
-      .filter(it => it.id !== (existing?.id) && it.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId)
-      .map(it => it.id);
-    if (dups.length) await OBR.scene.items.deleteItems(dups);
-
-    if (!existing) {
-      const textItem = buildText()
-        .plainText(textStr)          // ← contenuto testuale
-        .textType("PLAIN")           // ← esplicito per evitare ambiguità
-        .fontFamily('"Helvetica Neue", Helvetica, Arial, sans-serif')
-        .fontSize(HP_TEXT_FONT_SIZE)
-        .fontWeight(700)
-        .lineHeight(1)
-        .textAlign("CENTER")
-        .textAlignVertical("MIDDLE")
-        .fillColor("#f8fafc")
-        .strokeColor("rgba(2,6,23,0.9)")
-        .strokeWidth(2)
-        .position(pos)
-        .layer("ATTACHMENT")
-        .attachedTo(tokenId)
-        .locked(true)
-        .disableHit(true)
-        .disableAttachmentBehavior(["ROTATION","VISIBLE","COPY","SCALE"])
-        .zIndex(z)
-        .visible(playerVisible)
-        .metadata({ [HPTEXT_META_FLAG]: { targetId: tokenId } })
-        .name("HP Text")
-        .build();
-
-      await OBR.scene.items.addItems([textItem]);
-      rememberHPTextRef(tokenId, textItem.id);
-    } else {
-      rememberHPTextRef(tokenId, existing.id);
-      await OBR.scene.items.updateItems([existing.id], (list) => {
-        const it = list[0]; if (!it) return;
-        it.layer      = "ATTACHMENT";
-        it.attachedTo = tokenId;
-        it.locked     = true;
-        it.disableHit = true;
-        it.position   = pos;
-        it.zIndex     = z;
-        it.visible    = playerVisible;
-
-        // Aggiorna contenuto e stile tramite proprietà del Text item
-        if (!it.text) it.text = { type: "PLAIN", plainText: textStr };
-        it.text.type = "PLAIN";
-        it.text.plainText = textStr;
-
-        // Alcune proprietà di stile stanno su it.text.style; altre sono a livello item per i builder.
-        // Qui preserviamo font/align se già presenti.
-        it.text.style = {
-          ...(it.text.style || {}),
-          fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-          fontSize:   HP_TEXT_FONT_SIZE,
-          fontWeight: 700,
-          lineHeight: 1,
-          textAlign:  "CENTER",
-          textAlignVertical: "MIDDLE",
-          fillColor:  "#f8fafc",
-          strokeColor: "rgba(2,6,23,0.9)",
-          strokeWidth: 2,
-        };
-
-        if (!it.metadata) it.metadata = {};
-        it.metadata[HPTEXT_META_FLAG] = { targetId: tokenId };
-      });
-    }
+    const result = await reconcileHPTextItem({
+      tokenId,
+      text: textStr,
+      position: pos,
+      zIndex: z,
+      visible: playerVisible,
+    }, sceneEpoch, all.filter((item) => (
+      item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
+    )));
+    const existing = result.itemsByIdentity.get(hpTextIdentity(tokenId)) || null;
+    if (existing) rememberHPTextRef(tokenId, existing.id);
   } catch (error) {
     console.warn("[hptext] sync error:", error?.message || error);
+    if (
+      epoch === _sceneEpoch
+      && _textRevision.get(tokenId) === revision
+      && isCurrentSceneEpoch(sceneEpoch)
+    ) {
+      const recoveryTimer = setTimeout(() => {
+        _recoveryTimers.delete(recoveryTimer);
+        if (
+          epoch === _sceneEpoch
+          && _textRevision.get(tokenId) === revision
+          && isCurrentSceneEpoch(sceneEpoch)
+        ) {
+          void syncHPTextNow(tokenId, hp, hpMax);
+        }
+      }, HP_WIDGET_RECOVERY_DELAY_MS);
+      _recoveryTimers.add(recoveryTimer);
+    }
   }
 }
 
@@ -823,31 +940,43 @@ export async function syncHPTextBatchNow(updates = []) {
 
   const textIds = [];
   const foundTargets = new Set();
+  const textCountsByTarget = new Map();
   for (const item of sceneItems) {
     const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
     if (!valuesByToken.has(targetId)) continue;
     textIds.push(item.id);
     foundTargets.add(targetId);
+    textCountsByTarget.set(targetId, (textCountsByTarget.get(targetId) || 0) + 1);
     rememberHPTextRef(targetId, item.id);
   }
 
   if (textIds.length) {
-    await OBR.scene.items.updateItems(Array.from(new Set(textIds)), (items) => {
-      for (const item of items) {
-        const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
-        const value = valuesByToken.get(targetId);
-        if (!value) continue;
-        const plainText = hpTextValue(value.hp, value.hpMax);
-        if (!item.text) item.text = { type: "PLAIN", plainText };
-        item.text.type = "PLAIN";
-        item.text.plainText = plainText;
-      }
-    });
+    try {
+      await OBR.scene.items.updateItems(Array.from(new Set(textIds)), (items) => {
+        for (const item of items) {
+          const targetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
+          const value = valuesByToken.get(targetId);
+          if (!value) continue;
+          const plainText = hpTextValue(value.hp, value.hpMax);
+          if (!item.text) item.text = { type: "PLAIN", plainText };
+          item.text.type = "PLAIN";
+          item.text.plainText = plainText;
+        }
+      });
+    } catch {
+      await Promise.all([...valuesByToken].map(([tokenId, value]) =>
+        syncHPTextNow(tokenId, value.hp, value.hpMax)
+      ));
+      return;
+    }
   }
 
-  // Mantiene il fallback esistente soltanto per label realmente mancanti.
+  // Il fallback convergente crea le label mancanti e compatta i duplicati.
   const missing = Array.from(valuesByToken.entries())
-    .filter(([tokenId]) => !foundTargets.has(tokenId));
+    .filter(([tokenId]) => (
+      !foundTargets.has(tokenId)
+      || (textCountsByTarget.get(tokenId) || 0) !== 1
+    ));
   await Promise.all(missing.map(([tokenId, value]) =>
     syncHPTextNow(tokenId, value.hp, value.hpMax)
   ));

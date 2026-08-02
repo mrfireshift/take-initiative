@@ -24,6 +24,10 @@ test("compactTrackerWidth omits the GM toolbar for players", () => {
   assert.equal(compactTrackerWidth(5, { showToolbar: false }), 682);
 });
 
+test("compactTrackerWidth omits navigation when the player view has no arrows", () => {
+  assert.equal(compactTrackerWidth(5, { showToolbar: false, showNavigation: false }), 620);
+});
+
 test("compactTrackerResizeWidth follows a clamped ease-out transition", () => {
   assert.equal(compactTrackerResizeWidth(1180, 782, -1), 1180);
   assert.equal(compactTrackerResizeWidth(1180, 782, 0.5), 832);

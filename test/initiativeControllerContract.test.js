@@ -71,6 +71,19 @@ test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", 
   );
 });
 
+test("il bootstrap invia il reminder anche per la prima card attiva", () => {
+  const boot = sourceSection(
+    "const bootPersistedState = await getSceneState();",
+    "if (IS_GM) {\n    void recordCombatTurn",
+  );
+  assertOrdered(boot, [
+    "const bootInitialState = __latestInitiativeState || bootPersistedState;",
+    "await __adoptInitiativeSceneBaseline(",
+    "__activeIdForState(bootInitialState)",
+    "broadcastTurnNotice(bootInitialState, bootstrapSceneEpoch)",
+  ]);
+});
+
 test("il cambio scena scarta il render tardivo e usa il primo snapshot history come baseline", () => {
   const render = sourceSection(
     "async function renderAll(reason = \"unspecified\") {",

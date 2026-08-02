@@ -26,9 +26,12 @@ import {
 } from "./spellStaticZoneReminderCore.js";
 import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCore.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 1000;
+const RECONCILE_RECOVERY_DELAY_MS = 250;
 const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -39,6 +42,7 @@ let running = false;
 let requested = false;
 let timer = null;
 let watchdogTimer = null;
+let recoveryTimer = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
@@ -409,15 +413,18 @@ export async function commitWithStaticSpellZoneRemoval(
       : null,
     deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
     addItems: (items) => OBR.scene.items.addItems(items),
+    readItems: (ids) => OBR.scene.items.getItems(ids),
   });
 }
 
 async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
+  const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const [items, fetchedSceneMetadata] = await Promise.all([
     OBR.scene.items.getItems(),
     OBR.scene.getMetadata().catch(() => ({})),
   ]);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const sceneMetadata = sceneMetadataOverride
     && typeof sceneMetadataOverride === "object"
     && !Array.isArray(sceneMetadataOverride)
@@ -440,6 +447,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       metaKey: META_KEY,
     });
     if (staleEffectRemovals.length) {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
       await queueSpellAreaEffectsMutation([{
         type: "condition:remove-instances",
         removals: staleEffectRemovals,
@@ -463,11 +471,13 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     .map((id) => byId.get(id))
     .filter(Boolean);
   const boundsResult = await sceneItemBounds.load(boundedItems);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (!boundsResult.complete) {
     console.warn(
       "[spell-static-zone] bounds incompleti, reconcile rinviato:",
       boundsResult.missingIds,
     );
+    scheduleStaticSpellZoneRecovery();
     return;
   }
   const boundsById = boundsResult.boundsById;
@@ -558,7 +568,9 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       removals: staleEffectRemovals,
     });
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (triggerRuntimeUpdates.size) {
     await OBR.scene.items.updateItems(
       [...triggerRuntimeUpdates.keys()],
@@ -578,6 +590,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       },
     );
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (newTriggerNotices.length) {
     // La coda persistente serve alla risoluzione in Effetti ad Area; il
     // reminder visivo riceve invece un payload live già completo.
@@ -598,6 +611,14 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   }
 }
 
+function scheduleStaticSpellZoneRecovery() {
+  if (!mounted || recoveryTimer) return;
+  recoveryTimer = setTimeout(() => {
+    recoveryTimer = null;
+    requestStaticSpellZoneReconcile();
+  }, RECONCILE_RECOVERY_DELAY_MS);
+}
+
 async function pump() {
   if (running) return;
   running = true;
@@ -610,6 +631,7 @@ async function pump() {
         await reconcileStaticSpellZones(sceneMetadataOverride);
       } catch (error) {
         console.error("[spell-static-zone] reconcile:", error);
+        scheduleStaticSpellZoneRecovery();
       }
     }
   } finally {
@@ -624,6 +646,8 @@ async function pump() {
 }
 
 export function requestStaticSpellZoneReconcile() {
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
   requested = true;
   if (running || timer) return;
   timer = setTimeout(() => {
@@ -637,13 +661,19 @@ export async function mountStaticSpellZoneController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
-  unsubscribeItems = OBR.scene.items.onChange(
-    requestStaticSpellZoneReconcile
+  unsubscribeItems = subscribeSceneItemChanges(
+    () => requestStaticSpellZoneReconcile(),
+    {
+      domains: ["zone"],
+      filter: (event) => !event?.derived?.output,
+    },
   );
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
       queuedSceneMetadata = null;
       sceneItemBounds.clear();
+      if (recoveryTimer) clearTimeout(recoveryTimer);
+      recoveryTimer = null;
       return;
     }
     requestStaticSpellZoneReconcile();
@@ -669,6 +699,8 @@ export function unmountStaticSpellZoneController() {
   unsubscribeSceneMetadata = null;
   if (watchdogTimer) clearInterval(watchdogTimer);
   watchdogTimer = null;
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
   if (timer) clearTimeout(timer);
   timer = null;
   queuedSceneMetadata = null;

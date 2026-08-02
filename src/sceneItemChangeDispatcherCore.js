@@ -7,6 +7,34 @@ const CONDITION_WIDGET_META = ID + "/condWidgetOf";
 const CONCENTRATION_WIDGET_META = ID + "/concWidgetOf";
 const HP_BAR_META = ID + "/hpbar";
 const HP_TEXT_META = ID + "/hptext";
+const SPELL_AURA_META = ID + "/spellAura";
+const CLASS_FEATURE_AURA_META = ID + "/classFeatureAura";
+const STATIC_SPELL_ZONE_META = ID + "/spellStaticZone";
+const AOE_AREA_META = ID + "/aoeArea";
+
+export const TRACKER_LOCAL_METADATA_KEYS = new Set([
+  "hp",
+  "hpMax",
+  "conditions",
+  SPELLS_META_KEY,
+  CONCENTRATION_META_KEY,
+  "legendary",
+  "legendaryResistances",
+  "initTouched",
+  "elevation",
+]);
+
+const DERIVED_ITEM_METADATA_KEYS = new Set([
+  ACTIVE_TURN_LABEL_META,
+  CONDITION_WIDGET_META,
+  CONCENTRATION_WIDGET_META,
+  HP_BAR_META,
+  HP_TEXT_META,
+  SPELL_AURA_META,
+  CLASS_FEATURE_AURA_META,
+  STATIC_SPELL_ZONE_META,
+  AOE_AREA_META,
+]);
 
 function fingerprint(value) {
   const seen = new WeakSet();
@@ -23,16 +51,106 @@ function fingerprint(value) {
   return json === undefined ? "undefined" : json;
 }
 
+function metadataObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function derivedItemKind(item) {
+  const metadata = metadataObject(item?.metadata);
+  for (const key of DERIVED_ITEM_METADATA_KEYS) {
+    if (!metadata[key]) continue;
+    if (key === ACTIVE_TURN_LABEL_META) return "active-label";
+    if (key === CONDITION_WIDGET_META || key === CONCENTRATION_WIDGET_META) {
+      return "effects-widget";
+    }
+    if (key === HP_BAR_META || key === HP_TEXT_META) return "hp-widget";
+    if (key === SPELL_AURA_META || key === CLASS_FEATURE_AURA_META) return "aura-visual";
+    if (key === STATIC_SPELL_ZONE_META || key === AOE_AREA_META) return "zone-visual";
+  }
+  return null;
+}
+
+function changedMetadataSignatures(pluginMeta) {
+  const meta = metadataObject(pluginMeta);
+  return Object.fromEntries(
+    Object.keys(meta).sort().map((key) => [key, fingerprint(meta[key])]),
+  );
+}
+
+export function changedSceneItemMetadataKeys(beforeSnapshot, afterSnapshot) {
+  const before = metadataObject(beforeSnapshot?.metadataSignatures);
+  const after = metadataObject(afterSnapshot?.metadataSignatures);
+  return new Set([
+    ...Object.keys(before),
+    ...Object.keys(after),
+  ].filter((key) => before[key] !== after[key]));
+}
+
+function canReuseItemSnapshot(previous, item) {
+  if (!previous?.item || !item) return false;
+  if (previous.item === item) return true;
+  const before = previous.item;
+  return before.id === item.id
+    && before.type === item.type
+    && before.layer === item.layer
+    && before.name === item.name
+    && before.attachedTo === item.attachedTo
+    && before.rotation === item.rotation
+    && before.width === item.width
+    && before.height === item.height
+    && before.visible === item.visible
+    && before.locked === item.locked
+    && before.zIndex === item.zIndex
+    && before.position === item.position
+    && before.scale === item.scale
+    && before.image === item.image
+    && before.text === item.text
+    && before.metadata === item.metadata;
+}
+
 function snapshotItem(item) {
   const metadata = item?.metadata || {};
   const pluginMeta = metadata[META_KEY];
-  const trackerMeta = pluginMeta && typeof pluginMeta === "object"
-    ? Object.fromEntries(Object.entries(pluginMeta).filter(([key]) => key !== "speedCheckMovement"))
-    : pluginMeta;
+  const metadataSignatures = changedMetadataSignatures(pluginMeta);
+  const missingSignature = fingerprint(undefined);
+  const metadataSignature = (key) => metadataSignatures[key] ?? missingSignature;
+  const speedCheckSignature = metadataSignature("speedCheckMovement");
+  const trackerMetaSignature = Object.entries(metadataSignatures)
+    .filter(([key]) => key !== "speedCheckMovement")
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, signature]) => `${key}:${signature}`)
+    .join("\u0000");
+  const geometrySignature = fingerprint({
+    type: item?.type,
+    layer: item?.layer,
+    attachedTo: item?.attachedTo,
+    position: item?.position,
+    rotation: item?.rotation,
+    scale: item?.scale,
+    width: item?.width,
+    height: item?.height,
+    visible: item?.visible,
+    locked: item?.locked,
+    zIndex: item?.zIndex,
+  });
+  const derivedKind = derivedItemKind(item);
+  const externalMetadataSignature = derivedKind
+    ? fingerprint(
+      Object.fromEntries(
+        Object.keys(metadata)
+          .filter((key) => key !== META_KEY)
+          .sort()
+          .map((key) => [key, fingerprint(metadata[key])]),
+      ),
+    )
+    : "none";
   return {
     id: item.id,
     item,
     isPluginToken: !!pluginMeta,
+    derivedKind,
     isActiveTurnLabel: !!metadata[ACTIVE_TURN_LABEL_META],
     isConditionWidget: !!metadata[CONDITION_WIDGET_META],
     isConcentrationWidget: !!metadata[CONCENTRATION_WIDGET_META],
@@ -40,38 +158,40 @@ function snapshotItem(item) {
     nameSignature: fingerprint(item?.name),
     imageSignature: fingerprint(item?.image),
     positionSignature: fingerprint(item?.position),
-    pluginMetaSignature: fingerprint(pluginMeta),
-    trackerMetaSignature: fingerprint(trackerMeta),
-    speedCheckSignature: fingerprint(pluginMeta?.speedCheckMovement),
-    hpSignature: fingerprint([pluginMeta?.hp, pluginMeta?.hpMax]),
-    attitudeSignature: fingerprint(pluginMeta?.attitude),
-    conditionsSignature: fingerprint(pluginMeta?.conditions),
-    spellsSignature: fingerprint(pluginMeta?.[SPELLS_META_KEY]),
-    concentrationSignature: fingerprint(pluginMeta?.[CONCENTRATION_META_KEY]),
-    contentSignature: fingerprint({
-      type: item?.type,
-      name: item?.name,
-      image: item?.image,
-      text: item?.text,
-      position: item?.position,
-      rotation: item?.rotation,
-      scale: item?.scale,
-      width: item?.width,
-      height: item?.height,
-      visible: item?.visible,
-      locked: item?.locked,
-      layer: item?.layer,
-      zIndex: item?.zIndex,
-      attachedTo: item?.attachedTo,
-      metadata,
-    }),
+    geometrySignature,
+    pluginMetaSignature: `${trackerMetaSignature}\u0001${speedCheckSignature}`,
+    trackerMetaSignature,
+    speedCheckSignature,
+    metadataSignatures,
+    externalMetadataSignature,
+    hpSignature: `${metadataSignature("hp")}\u0001${metadataSignature("hpMax")}`,
+    attitudeSignature: metadataSignature("attitude"),
+    conditionsSignature: metadataSignature("conditions"),
+    spellsSignature: metadataSignature(SPELLS_META_KEY),
+    concentrationSignature: metadataSignature(CONCENTRATION_META_KEY),
+    contentSignature: [
+      fingerprint(item?.type),
+      fingerprint(item?.name),
+      fingerprint(item?.image),
+      fingerprint(item?.text),
+      geometrySignature,
+      trackerMetaSignature,
+      speedCheckSignature,
+      externalMetadataSignature,
+    ].join("\u0001"),
   };
 }
 
-export function createSceneItemsSnapshot(items = []) {
+export function createSceneItemsSnapshot(items = [], previousSnapshot = null) {
   return new Map((Array.isArray(items) ? items : [])
     .filter((item) => item?.id)
-    .map((item) => [item.id, snapshotItem(item)]));
+    .map((item) => {
+      const previous = previousSnapshot?.get(item.id);
+      if (canReuseItemSnapshot(previous, item)) {
+        return [item.id, { ...previous, item }];
+      }
+      return [item.id, snapshotItem(item)];
+    }));
 }
 
 function createFlags() {
@@ -89,7 +209,24 @@ function createFlags() {
     concentration: false,
     widgets: false,
     activeTurnLabelOnly: false,
+    trackerStructure: false,
+    attitude: false,
+    aura: false,
+    zone: false,
+    preparedSpells: false,
+    elevation: false,
+    derivedOutput: false,
+    derivedEffects: false,
   };
+}
+
+function mergeFlags(target, source) {
+  for (const key of Object.keys(target)) {
+    if (typeof target[key] === "boolean" && source?.[key] === true) {
+      target[key] = true;
+    }
+  }
+  return target;
 }
 
 function markPluginTokenChange(flags, before, after, lifecycleChange) {
@@ -104,15 +241,79 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   const conditionsChanged = lifecycleChange || before?.conditionsSignature !== after?.conditionsSignature;
   const spellsChanged = lifecycleChange || before?.spellsSignature !== after?.spellsSignature;
   const concentrationChanged = lifecycleChange || before?.concentrationSignature !== after?.concentrationSignature;
+  const changedKeys = changedSceneItemMetadataKeys(before, after);
+  const trackerStructureChanged = lifecycleChange
+    || nameChanged
+    || [...changedKeys].some((key) => !TRACKER_LOCAL_METADATA_KEYS.has(key));
 
-  flags.movement ||= !lifecycleChange && before?.positionSignature !== after?.positionSignature;
+  const movementChanged = !lifecycleChange && before?.positionSignature !== after?.positionSignature;
+  flags.movement ||= movementChanged;
   flags.speedCheck ||= speedCheckChanged;
   flags.tracker ||= nameChanged || imageChanged || metaChanged;
+  flags.trackerStructure ||= trackerStructureChanged;
   flags.hpBars ||= hpChanged || attitudeChanged;
+  flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;
   flags.hpMemoryAutofill ||= nameChanged || imageChanged || metaChanged;
   flags.conditions ||= conditionsChanged;
   flags.concentration ||= spellsChanged || concentrationChanged;
+  flags.aura ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
+  flags.zone ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
+  flags.preparedSpells ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged;
+  flags.elevation ||= lifecycleChange
+    || before?.geometrySignature !== after?.geometrySignature
+    || changedKeys.has("elevation");
+}
+
+function markNonTokenDomainChanges(flags, before, after, lifecycleChange) {
+  const geometryChanged = lifecycleChange
+    || before?.geometrySignature !== after?.geometrySignature;
+  const derivedKind = after?.derivedKind || before?.derivedKind;
+  const metadataChanged = lifecycleChange
+    || before?.externalMetadataSignature !== after?.externalMetadataSignature;
+  if ((geometryChanged || metadataChanged)
+      && (derivedKind === "aura-visual" || derivedKind === "zone-visual")) {
+    flags.aura ||= derivedKind === "aura-visual";
+    flags.zone ||= derivedKind === "zone-visual";
+  }
+  if ((geometryChanged || metadataChanged) && derivedKind === "hp-widget") {
+    flags.elevation = true;
+  }
+}
+
+function deriveEventDomains(flags) {
+  const domains = new Set();
+  if (flags.tracker) domains.add("tracker");
+  if (flags.trackerStructure) domains.add("tracker-structure");
+  if (flags.hpBars) domains.add("hp");
+  if (flags.hpMemory) domains.add("hp-memory");
+  if (flags.hpMemoryAutofill) domains.add("hp-memory-autofill");
+  if (flags.speedCheck) domains.add("speed-check");
+  if (flags.conditions || flags.concentration) domains.add("effects");
+  if (flags.widgets) domains.add("effects-widgets");
+  if (flags.movement) domains.add("movement");
+  if (flags.elevation) domains.add("elevation");
+  if (flags.activeTurnLabelOnly) domains.add("active-label");
+
+  if (flags.aura) domains.add("aura");
+  if (flags.zone) domains.add("zone");
+  if (flags.preparedSpells && !flags.derivedOutput) domains.add("prepared-spells");
+  if (flags.derivedOutput) domains.add("derived");
+  if (flags.derivedEffects) domains.add("derived-effects");
+  return [...domains];
+}
+
+function domainItemIds(changedRecords) {
+  const output = {};
+  for (const record of changedRecords) {
+    const id = record?.after?.id || record?.before?.id;
+    if (!id) continue;
+    for (const domain of record?.domains || []) {
+      if (!output[domain]) output[domain] = [];
+      if (!output[domain].includes(id)) output[domain].push(id);
+    }
+  }
+  return output;
 }
 
 export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
@@ -148,30 +349,79 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     .filter(Boolean);
 
   if (!flags.any) {
-    return { flags, items: [], removedItems: [], allItems, changedIds: [], changedRecords: [] };
+    return {
+      flags,
+      domains: [],
+      invalidations: {},
+      derived: { output: false, effects: false },
+      items: [],
+      removedItems: [],
+      allItems,
+      changedIds: [],
+      changedRecords: [],
+    };
   }
 
   flags.activeTurnLabelOnly = changedRecords.every(({ before: previous, after: next }) =>
     !!(next?.isActiveTurnLabel || previous?.isActiveTurnLabel)
   );
   if (flags.activeTurnLabelOnly) {
-    return { flags, items: changedItems, removedItems, allItems, changedIds, changedRecords };
+    const domains = ["active-label"];
+    return {
+      flags,
+      domains,
+      invalidations: { "active-label": [...changedIds] },
+      derived: { output: true, effects: false },
+      items: changedItems,
+      removedItems,
+      allItems,
+      changedIds,
+      changedRecords,
+    };
   }
 
-  for (const { before: previous, after: next } of changedRecords) {
+  for (const record of changedRecords) {
+    const { before: previous, after: next } = record;
     const lifecycleChange = !previous || !next;
-    markPluginTokenChange(flags, previous, next, lifecycleChange);
+    const recordFlags = createFlags();
+    recordFlags.any = true;
+    markPluginTokenChange(recordFlags, previous, next, lifecycleChange);
+    markNonTokenDomainChanges(recordFlags, previous, next, lifecycleChange);
 
     const conditionWidgetChanged = !!(previous?.isConditionWidget || next?.isConditionWidget);
     const concentrationWidgetChanged = !!(previous?.isConcentrationWidget || next?.isConcentrationWidget);
     const hpWidgetChanged = !!(previous?.isHPWidget || next?.isHPWidget);
-    flags.widgets ||= conditionWidgetChanged || concentrationWidgetChanged || hpWidgetChanged;
+    recordFlags.widgets ||= conditionWidgetChanged || concentrationWidgetChanged || hpWidgetChanged;
+    recordFlags.derivedOutput = !!(previous?.derivedKind || next?.derivedKind);
+    record.flags = recordFlags;
+    record.derived = { output: recordFlags.derivedOutput, effects: false };
+    record.domains = deriveEventDomains(recordFlags);
+    mergeFlags(flags, recordFlags);
 
     // I widget sono output derivati. Non devono riattivare i due renderer:
     // il coordinatore li esegue già in ordine (spell, poi condizioni).
   }
 
-  return { flags, items: changedItems, removedItems, allItems, changedIds, changedRecords };
+  flags.derivedOutput = changedRecords.every(({ before, after }) => {
+    const kinds = [before?.derivedKind, after?.derivedKind].filter(Boolean);
+    return kinds.length > 0;
+  });
+
+  const domains = [...new Set(changedRecords.flatMap((record) => record.domains || []))];
+  return {
+    flags,
+    domains,
+    invalidations: domainItemIds(changedRecords),
+    derived: {
+      output: flags.derivedOutput,
+      effects: flags.derivedEffects,
+    },
+    items: changedItems,
+    removedItems,
+    allItems,
+    changedIds,
+    changedRecords,
+  };
 }
 
 export function classifySceneItemChanges(beforeItems = [], afterItems = []) {
@@ -226,13 +476,26 @@ export function createSceneItemChangeDispatcher({
   let unsubscribeSource = null;
   let suspended = false;
   let suspendedRevision = 0;
+  let sourceRevision = 0;
+  let batchSequence = 0;
+  let batchCorrelation = null;
 
   function currentEpoch() {
     return typeof getEpoch === "function" ? getEpoch() : undefined;
   }
 
-  function attachEpoch(event, epoch) {
+  function attachContext(event, {
+    epoch,
+    revision = sourceRevision,
+    batchId = null,
+    correlationId = null,
+    commandId = null,
+  } = {}) {
     if (epoch !== undefined) event.sceneEpoch = epoch;
+    event.revision = revision;
+    event.batchId = batchId || `scene-items:${revision}`;
+    if (correlationId) event.correlationId = correlationId;
+    if (commandId) event.commandId = commandId;
     return event;
   }
 
@@ -243,6 +506,7 @@ export function createSceneItemChangeDispatcher({
     }
     batchBaseSnapshot = null;
     batchEpoch = null;
+    batchCorrelation = null;
   }
 
   function runSubscriber(subscriber, event, immediate) {
@@ -272,12 +536,19 @@ export function createSceneItemChangeDispatcher({
     }
     if (!batchBaseSnapshot) return Promise.resolve();
 
-    const event = attachEpoch(
+    const event = attachContext(
       classifySceneItemSnapshots(batchBaseSnapshot, currentSnapshot),
-      batchEpoch,
+      {
+        epoch: batchEpoch,
+        revision: sourceRevision,
+        batchId: `scene-items-batch:${++batchSequence}`,
+        correlationId: batchCorrelation?.correlationId,
+        commandId: batchCorrelation?.commandId,
+      },
     );
     batchBaseSnapshot = null;
     batchEpoch = null;
+    batchCorrelation = null;
     if (!event.flags.any) return Promise.resolve();
 
     const pending = [];
@@ -294,19 +565,29 @@ export function createSceneItemChangeDispatcher({
     timer = setTimer(() => { void flush(); }, debounceMs);
   }
 
-  function onSourceChange(items = []) {
+  function onSourceChange(items = [], sourceContext = null) {
     if (suspended) {
       suspendedRevision += 1;
       return;
     }
-    const nextSnapshot = createSceneItemsSnapshot(items);
+    const nextSnapshot = createSceneItemsSnapshot(items, currentSnapshot);
     const sourceEpoch = currentEpoch();
-    const immediateEvent = attachEpoch(
+    const revision = ++sourceRevision;
+    const correlationId = String(
+      sourceContext?.correlationId
+        || sourceContext?.source?.correlationId
+        || "",
+    ).trim() || null;
+    const commandId = String(sourceContext?.commandId || "").trim() || null;
+    const immediateEvent = attachContext(
       classifySceneItemSnapshots(currentSnapshot, nextSnapshot),
-      sourceEpoch,
+      { epoch: sourceEpoch, revision, correlationId, commandId },
     );
     if (!immediateEvent.flags.any) return;
-    if (!batchBaseSnapshot) batchBaseSnapshot = currentSnapshot;
+    if (!batchBaseSnapshot) {
+      batchBaseSnapshot = currentSnapshot;
+      batchCorrelation = { correlationId, commandId };
+    }
     if (batchEpoch === null) batchEpoch = sourceEpoch;
     currentSnapshot = nextSnapshot;
 
@@ -343,13 +624,23 @@ export function createSceneItemChangeDispatcher({
   function reset(items = []) {
     clearPendingBatch();
     currentSnapshot = createSceneItemsSnapshot(items);
+    sourceRevision = 0;
   }
 
   function subscribe(handler, options = {}) {
     if (typeof handler !== "function") throw new TypeError("handler must be a function");
+    const domains = Array.isArray(options.domains)
+      ? options.domains.map((domain) => String(domain || "").trim()).filter(Boolean)
+      : options.domains
+        ? [String(options.domains).trim()].filter(Boolean)
+        : [];
+    const filter = typeof options.filter === "function" ? options.filter : null;
     const subscriber = {
       handler,
-      filter: typeof options.filter === "function" ? options.filter : null,
+      filter: (event) => (
+        (!domains.length || domains.some((domain) => event?.domains?.includes(domain)))
+        && (!filter || filter(event))
+      ),
       immediate: options.immediate === true,
       queue: Promise.resolve(),
     };
@@ -365,5 +656,18 @@ export function createSceneItemChangeDispatcher({
     };
   }
 
-  return { subscribe, flush, suspend, resume, reset, getSuspendedRevision };
+  return {
+    subscribe,
+    flush,
+    suspend,
+    resume,
+    reset,
+    getSuspendedRevision,
+    getState: () => ({
+      sourceRevision,
+      batchSequence,
+      suspended,
+      subscribers: subscribers.size,
+    }),
+  };
 }

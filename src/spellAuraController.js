@@ -17,6 +17,10 @@ import {
   mergeMobileAuraReminderMetadata,
   planMobileAuraReminder,
 } from "./spellAuraReminderCore.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
+import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 export { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 
@@ -24,15 +28,22 @@ const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const STATE_KEY = `${ID}/state`;
 const RECONCILE_DELAY_MS = 60;
+const RECONCILE_RECOVERY_DELAY_MS = 250;
+const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 
 let mounted = false;
 let running = false;
 let requested = false;
 let timer = null;
+let recoveryTimer = null;
 let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
+const sceneItemBounds = createSceneItemBoundsCache(
+  (itemId) => OBR.scene.items.getItemBounds([itemId]),
+  { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
+);
 
 function point(value) {
   const x = Number(value?.x);
@@ -121,86 +132,67 @@ function trackedCreature(item, orderedIds) {
     && (meta.inInitiative === true || orderedIds.has(item.id));
 }
 
-async function itemBounds(items) {
-  const entries = await Promise.all(items.map(async (item) => {
-    try {
-      return [item.id, await OBR.scene.items.getItemBounds([item.id])];
-    } catch {
-      return [item.id, null];
-    }
-  }));
-  return new Map(entries);
+function auraVisualIsCompatible(item, desired) {
+  const style = spellAreaStyle(desired.aura.spellId, loadAoEStyle());
+  const expected = auraVisualMetadata(
+    desired.aura,
+    desired.dpi,
+    desired.sizeCells,
+    style,
+  );
+  const actual = item?.metadata?.[SPELL_AURA_META_KEY] || {};
+  return item.layer === "DRAWING"
+    && item.attachedTo === desired.aura.casterId
+    && actual.ruleId === expected.ruleId
+    && Number(actual.dpi) === expected.dpi
+    && Number(actual.sizeCells) === expected.sizeCells
+    && actual.fillColor === expected.fillColor
+    && actual.strokeColor === expected.strokeColor;
 }
 
-async function reconcileAuraVisuals(items, desiredVisuals) {
-  const existing = items.filter((item) => item?.metadata?.[SPELL_AURA_META_KEY]);
-  const byInstance = new Map();
-  for (const item of existing) {
-    const instanceId = String(
-      item.metadata[SPELL_AURA_META_KEY]?.instanceId || ""
-    ).trim();
-    if (!byInstance.has(instanceId)) byInstance.set(instanceId, []);
-    byInstance.get(instanceId).push(item);
-  }
+function auraVisualNeedsUpdate(item, desired) {
+  if (!desired.reminderUpdate?.changed) return false;
+  const metadata = item?.metadata?.[SPELL_AURA_META_KEY] || {};
+  const merged = mergeMobileAuraReminderMetadata(metadata, desired.reminderUpdate);
+  return JSON.stringify(metadata) !== JSON.stringify(merged);
+}
 
-  const desiredIds = new Set(desiredVisuals.map((entry) => entry.aura.instanceId));
-  const deleteIds = [];
-  const additions = [];
-  const metadataUpdates = new Map();
-  for (const item of existing) {
-    const instanceId = String(
-      item.metadata[SPELL_AURA_META_KEY]?.instanceId || ""
-    ).trim();
-    if (!desiredIds.has(instanceId)) deleteIds.push(item.id);
-  }
-  for (const desired of desiredVisuals) {
-    const matches = byInstance.get(desired.aura.instanceId) || [];
-    const style = spellAreaStyle(desired.aura.spellId, loadAoEStyle());
-    const expected = auraVisualMetadata(
-      desired.aura,
-      desired.dpi,
-      desired.sizeCells,
-      style,
-    );
-    const keeper = matches.find((item) => {
-      const actual = item.metadata?.[SPELL_AURA_META_KEY] || {};
-      return item.layer === "DRAWING"
-        && item.attachedTo === desired.aura.casterId
-        && actual.ruleId === expected.ruleId
-        && Number(actual.dpi) === expected.dpi
-        && Number(actual.sizeCells) === expected.sizeCells
-        && actual.fillColor === expected.fillColor
-        && actual.strokeColor === expected.strokeColor;
-    });
-    deleteIds.push(...matches.filter((item) => item !== keeper).map((item) => item.id));
-    if (!keeper) additions.push(buildAuraVisual(desired));
-    else if (desired.reminderUpdate?.changed) {
-      metadataUpdates.set(keeper.id, desired.reminderUpdate);
-    }
-  }
-
-  const uniqueDeleteIds = [...new Set(deleteIds.filter(Boolean))];
-  if (uniqueDeleteIds.length) await OBR.scene.items.deleteItems(uniqueDeleteIds);
-  if (additions.length) await OBR.scene.items.addItems(additions);
-  if (metadataUpdates.size) {
-    await OBR.scene.items.updateItems([...metadataUpdates.keys()], (drafts) => {
-      for (const item of drafts) {
-        const update = metadataUpdates.get(item.id);
-        const metadata = item.metadata?.[SPELL_AURA_META_KEY];
-        if (!update || !metadata) continue;
-        item.metadata = {
-          ...(item.metadata || {}),
-          [SPELL_AURA_META_KEY]: mergeMobileAuraReminderMetadata(
-            metadata,
-            update,
-          ),
-        };
-      }
-    });
-  }
+async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
+  return reconcileOwnedSceneItems({
+    desired: desiredVisuals,
+    identityOfDesired: (desired) => desired.aura.instanceId,
+    readItems: () => OBR.scene.items.getItems(
+      (item) => !!item?.metadata?.[SPELL_AURA_META_KEY],
+    ),
+    identityOfItem: (item) => item?.metadata?.[SPELL_AURA_META_KEY]?.instanceId,
+    isCompatible: auraVisualIsCompatible,
+    needsUpdate: auraVisualNeedsUpdate,
+    buildItem: buildAuraVisual,
+    addItems: (items) => OBR.scene.items.addItems(items),
+    updateItems: async (updates) => {
+      const byId = new Map(updates.map(({ item, spec }) => [item.id, spec]));
+      await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
+        for (const item of drafts) {
+          const desired = byId.get(item.id);
+          const metadata = item.metadata?.[SPELL_AURA_META_KEY];
+          if (!desired || !metadata) continue;
+          item.metadata = {
+            ...(item.metadata || {}),
+            [SPELL_AURA_META_KEY]: mergeMobileAuraReminderMetadata(
+              metadata,
+              desired.reminderUpdate,
+            ),
+          };
+        }
+      });
+    },
+    deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+  });
 }
 
 async function reconcileSpellAuras() {
+  const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const [items, sceneMetadata, dpiValue, scale] = await Promise.all([
     OBR.scene.items.getItems(),
@@ -210,6 +202,7 @@ async function reconcileSpellAuras() {
       parsed: { multiplier: 1.5, unit: "m" },
     })),
   ]);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const auras = collectActiveMobileAuras(items, {
     metaKey: META_KEY,
     spellsKey: SPELLS_META_KEY,
@@ -225,7 +218,13 @@ async function reconcileSpellAuras() {
   const boundedItems = [...requiredIds]
     .map((id) => byId.get(id))
     .filter(Boolean);
-  const boundsById = await itemBounds(boundedItems);
+  const boundsResult = await sceneItemBounds.load(boundedItems);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!boundsResult.complete) {
+    scheduleSpellAuraRecovery();
+    return;
+  }
+  const boundsById = boundsResult.boundsById;
   const candidates = creatures.map((item) => ({
     item,
     bounds: boundsById.get(item.id),
@@ -312,8 +311,11 @@ async function reconcileSpellAuras() {
       removals: staleRemovals,
     });
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
-  await reconcileAuraVisuals(items, desiredVisuals);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  await reconcileAuraVisuals(desiredVisuals, sceneEpoch);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (newTriggerNotices.length) {
     void OBR.broadcast.sendMessage(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
@@ -329,6 +331,14 @@ async function reconcileSpellAuras() {
   }
 }
 
+function scheduleSpellAuraRecovery() {
+  if (!mounted || recoveryTimer) return;
+  recoveryTimer = setTimeout(() => {
+    recoveryTimer = null;
+    requestSpellAuraReconcile();
+  }, RECONCILE_RECOVERY_DELAY_MS);
+}
+
 async function pump() {
   if (running) return;
   running = true;
@@ -339,6 +349,7 @@ async function pump() {
         await reconcileSpellAuras();
       } catch (error) {
         console.error("[spell-aura] reconcile:", error);
+        scheduleSpellAuraRecovery();
       }
     }
   } finally {
@@ -347,6 +358,8 @@ async function pump() {
 }
 
 export function requestSpellAuraReconcile() {
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
   requested = true;
   if (running || timer) return;
   timer = setTimeout(() => {
@@ -360,10 +373,25 @@ export async function mountSpellAuraController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
-  unsubscribeItems = OBR.scene.items.onChange(requestSpellAuraReconcile);
-  unsubscribeGrid = OBR.scene.grid.onChange(requestSpellAuraReconcile);
+  unsubscribeItems = subscribeSceneItemChanges(
+    () => requestSpellAuraReconcile(),
+    {
+      domains: ["aura"],
+      filter: (event) => !event?.derived?.output,
+    },
+  );
+  unsubscribeGrid = OBR.scene.grid.onChange(() => {
+    sceneItemBounds.clear();
+    requestSpellAuraReconcile();
+  });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
-    if (ready) requestSpellAuraReconcile();
+    if (!ready) {
+      sceneItemBounds.clear();
+      if (recoveryTimer) clearTimeout(recoveryTimer);
+      recoveryTimer = null;
+      return;
+    }
+    requestSpellAuraReconcile();
   });
   unsubscribeSceneMetadata = OBR.scene.onMetadataChange(
     requestSpellAuraReconcile,
@@ -383,6 +411,9 @@ export function unmountSpellAuraController() {
   unsubscribeSceneMetadata = null;
   if (timer) clearTimeout(timer);
   timer = null;
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = null;
+  sceneItemBounds.clear();
   requested = false;
   mounted = false;
 }

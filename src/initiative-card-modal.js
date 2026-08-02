@@ -1617,7 +1617,7 @@ function renderClassFeatures() {
           copy.appendChild(manual);
         }
         row.appendChild(copy);
-        if (isGM && !isAuraToggle) {
+        if (isGM) {
           const end = document.createElement("button");
           end.type = "button";
           end.className = "class-feature-end";

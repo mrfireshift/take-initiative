@@ -58,3 +58,27 @@ export function subscribeSceneItemChanges(handler, options = {}) {
     return handler(event);
   }, options);
 }
+
+export function isCurrentSceneItemEvent(event, {
+  sceneEpoch = currentSceneEpoch(),
+  revision = null,
+} = {}) {
+  if (!event) return false;
+  if (event.sceneEpoch !== undefined && Number(event.sceneEpoch) !== Number(sceneEpoch)) {
+    return false;
+  }
+  if (event.sceneEpoch !== undefined && !isCurrentSceneEpoch(event.sceneEpoch)) {
+    return false;
+  }
+  if (revision === null || revision === undefined) return true;
+  return Number(event.revision || 0) >= Number(revision || 0);
+}
+
+export function sceneItemEventCorrelation(event) {
+  return String(
+    event?.correlationId
+      || event?.commandId
+      || event?.source?.correlationId
+      || "",
+  ).trim() || null;
+}

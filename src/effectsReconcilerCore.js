@@ -157,22 +157,44 @@ export function collectEffectsInvalidation(event, {
 } = {}) {
   const conditions = new Set();
   const concentration = new Set();
+  const changedRecords = Array.isArray(event?.changedRecords)
+    ? event.changedRecords
+    : [];
+  let movementChanged = false;
+
+  if (changedRecords.length) {
+    for (const record of changedRecords) {
+      const recordFlags = record?.flags || {};
+      movementChanged ||= recordFlags.movement === true;
+      const item = record?.after?.item || record?.before?.item;
+      const pluginMeta = item?.metadata?.[metaKey];
+      if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") continue;
+      if (recordFlags.conditions) conditions.add(item.id);
+      if (recordFlags.concentration) {
+        concentration.add(item.id);
+        collectCasterIds(pluginMeta?.[spellsKey], concentration);
+      }
+    }
+  }
+
   const changedItems = [
     ...(Array.isArray(event?.items) ? event.items : []),
     ...(Array.isArray(event?.removedItems) ? event.removedItems : []),
   ];
 
-  for (const item of changedItems) {
-    const pluginMeta = item?.metadata?.[metaKey];
-    if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") continue;
-    if (event?.flags?.conditions) conditions.add(item.id);
-    if (event?.flags?.concentration) {
-      concentration.add(item.id);
-      collectCasterIds(pluginMeta?.[spellsKey], concentration);
+  if (!changedRecords.length) {
+    movementChanged = event?.flags?.movement === true;
+    for (const item of changedItems) {
+      const pluginMeta = item?.metadata?.[metaKey];
+      if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") continue;
+      if (event?.flags?.conditions) conditions.add(item.id);
+      if (event?.flags?.concentration) {
+        concentration.add(item.id);
+        collectCasterIds(pluginMeta?.[spellsKey], concentration);
+      }
     }
   }
 
-  const movementChanged = event?.flags?.movement === true;
   const effectsFlagged = !!(
     movementChanged
     || event?.flags?.conditions

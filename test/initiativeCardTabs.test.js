@@ -33,6 +33,12 @@ test("scheda e card osservano la stessa modifica metadata delle capacita", () =>
   assert.match(source, /profile = getInitiativeCard\(item\);[\s\S]*?renderView\(\);/);
   assert.match(trackerSource, /deactivateClassFeature\(sourceId, instanceId\)/);
   assert.match(trackerSource, /renderAll\("class-feature-context-deactivate"\)/);
+  assert.match(trackerSource, /renderAll\("class-feature-quick-action"\)/);
+});
+
+test("il dialog ATTIVE consente di terminare anche un'aura dal GM", () => {
+  assert.match(source, /if \(isGM\) \{[\s\S]*?class-feature-end/);
+  assert.match(source, /deactivateClassFeature\(item\.id, instance\.instanceId\)/);
 });
 
 test("statistiche, azioni rapide e capacità vivono in pannelli distinti", () => {

@@ -12,6 +12,7 @@ import {
   retreatSpeedCycle,
   reversedPathStart,
   sameGridCell,
+  shouldKeepSpeedReadoutOpen,
   shouldRetreatSpeedMovement,
   SPEED_CHECK_METERS_PER_CELL,
 } from "../src/speedCheckCore.js";
@@ -69,6 +70,27 @@ test("builds an explicit movement readout", () => {
   assert.equal(snapshot.cycle, 1);
   assert.equal(snapshot.progress, 6 / 10.5);
   assert.equal(snapshot.turnKey, "4:2:hero");
+});
+
+test("keeps the speed readout open while the next token speed is resolving", () => {
+  const previous = buildSpeedCheckSnapshot({
+    turnKey: "1:0:hero",
+    itemId: "hero",
+    speedMeters: 9,
+  });
+  const pending = buildSpeedCheckSnapshot({
+    turnKey: "1:1:ally",
+    itemId: "ally",
+  });
+  const disabled = buildSpeedCheckSnapshot({
+    turnKey: "1:1:ally",
+    itemId: "ally",
+    disabled: true,
+  });
+
+  assert.equal(shouldKeepSpeedReadoutOpen(pending, previous), true);
+  assert.equal(shouldKeepSpeedReadoutOpen(disabled, previous), false);
+  assert.equal(shouldKeepSpeedReadoutOpen(buildSpeedCheckSnapshot(null), previous), false);
 });
 
 test("the movement snapshot exposes the active mode and available alternatives", () => {

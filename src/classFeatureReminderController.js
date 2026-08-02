@@ -71,7 +71,7 @@ export async function mountClassFeatureReminderController() {
     void reconcileRelentlessRageReminders(event).catch((error) => {
       console.warn("[class-feature-reminder] reconcile:", error?.message || error);
     });
-  }, { immediate: true });
+  }, { immediate: true, domains: ["hp"] });
   return true;
 }
 

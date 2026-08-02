@@ -1,3 +1,5 @@
+import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
+
 function isAllowed(isCurrent) {
   return typeof isCurrent !== "function" || isCurrent();
 }
@@ -6,6 +8,7 @@ export async function runStaticSpellZoneRemovalTransaction({
   snapshots = [],
   deleteItems,
   addItems,
+  readItems = null,
   action,
   isCurrent,
 } = {}) {
@@ -19,7 +22,18 @@ export async function runStaticSpellZoneRemovalTransaction({
     return isAllowed(isCurrent) ? result : undefined;
   }
 
-  await deleteItems(ids);
+  if (typeof readItems !== "function") {
+    throw new TypeError("static-zone-item-reader-required");
+  }
+
+  const removal = await reconcileOwnedSceneItems({
+    desired: [],
+    readItems: () => readItems(ids),
+    identityOfItem: (item) => item?.id,
+    deleteItems,
+    isCurrent,
+  });
+  if (removal.outcome === "stale") return undefined;
   if (!isAllowed(isCurrent)) return undefined;
 
   try {
@@ -29,8 +43,21 @@ export async function runStaticSpellZoneRemovalTransaction({
   } catch (error) {
     if (!isAllowed(isCurrent)) return undefined;
     try {
-      await addItems(items);
-    } catch {}
+      const restore = await reconcileOwnedSceneItems({
+        desired: items,
+        identityOfDesired: (item) => item?.id,
+        readItems: () => readItems(ids),
+        identityOfItem: (item) => item?.id,
+        isCompatible: () => true,
+        buildItem: (item) => item,
+        addItems,
+        deleteItems,
+        isCurrent,
+      });
+      if (restore.outcome === "stale") return undefined;
+    } catch (rollbackError) {
+      error.rollbackError = rollbackError;
+    }
     if (!isAllowed(isCurrent)) return undefined;
     throw error;
   }
