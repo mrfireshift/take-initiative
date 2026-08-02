@@ -652,23 +652,38 @@ async function queueCanonicalHPItems() {
   scheduleFlush(0);
 }
 
-export async function removeHPWidgetsNow(tokenId) {
-  if (!tokenId) return;
-  _pending.delete(tokenId);
-  _fastFillPending.delete(tokenId);
-  _last.delete(tokenId);
-  _barRefs.delete(tokenId);
-  _tokenRevision.set(tokenId, (_tokenRevision.get(tokenId) || 0) + 1);
-  _textRevision.set(tokenId, (_textRevision.get(tokenId) || 0) + 1);
-  const pendingText = _textQueues.get(tokenId);
-  if (pendingText) {
-    try { await pendingText; } catch {}
-  }
-  const widgets = await OBR.scene.items.getItems((item) =>
-    item.metadata?.[HPBAR_META_FLAG]?.targetId === tokenId ||
-    item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
+export async function removeHPWidgetsBatchNow(tokenIds = []) {
+  const targets = new Set(
+    (Array.isArray(tokenIds) ? tokenIds : [tokenIds])
+      .map((tokenId) => String(tokenId || "").trim())
+      .filter(Boolean),
   );
+  if (!targets.size) return;
+  const epoch = _sceneEpoch;
+  const pendingTexts = [];
+  for (const tokenId of targets) {
+    _pending.delete(tokenId);
+    _fastFillPending.delete(tokenId);
+    _last.delete(tokenId);
+    _barRefs.delete(tokenId);
+    _tokenRevision.set(tokenId, (_tokenRevision.get(tokenId) || 0) + 1);
+    _textRevision.set(tokenId, (_textRevision.get(tokenId) || 0) + 1);
+    const pendingText = _textQueues.get(tokenId);
+    if (pendingText) pendingTexts.push(pendingText);
+  }
+  if (pendingTexts.length) await Promise.allSettled(pendingTexts);
+  if (epoch !== _sceneEpoch) return;
+  const widgets = await OBR.scene.items.getItems((item) => {
+    const hpBarTargetId = item.metadata?.[HPBAR_META_FLAG]?.targetId;
+    const hpTextTargetId = item.metadata?.[HPTEXT_META_FLAG]?.targetId;
+    return targets.has(hpBarTargetId) || targets.has(hpTextTargetId);
+  });
+  if (epoch !== _sceneEpoch) return;
   if (widgets.length) await OBR.scene.items.deleteItems(widgets.map((item) => item.id));
+}
+
+export async function removeHPWidgetsNow(tokenId) {
+  return removeHPWidgetsBatchNow([tokenId]);
 }
 
 export async function mountHPBars(){

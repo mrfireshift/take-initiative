@@ -16,6 +16,22 @@ function hasPendingWork(pending) {
   return pending.full || pending.conditions.size > 0 || pending.concentration.size > 0;
 }
 
+function batchItemIds(batch) {
+  return new Set([
+    ...(batch?.conditions || []),
+    ...(batch?.concentration || []),
+  ]);
+}
+
+function batchCoversRequest(batch, request) {
+  if (!batch) return false;
+  if (batch.full) return true;
+  if (request.full) return false;
+  const covered = batchItemIds(batch);
+  const requested = batchItemIds(request);
+  return requested.size > 0 && [...requested].every((id) => covered.has(id));
+}
+
 export function isEffectsWidgetWriterRole(role) {
   return String(role || "").trim().toUpperCase() === "GM";
 }
@@ -34,6 +50,7 @@ export function createEffectsReconcileQueue({
   let pending = createPendingBatch();
   let scheduled = false;
   let running = false;
+  let activeBatch = null;
   let latestRevision = 0;
   let completedRevision = 0;
   const waiters = [];
@@ -71,6 +88,7 @@ export function createEffectsReconcileQueue({
     try {
       while (hasPendingWork(pending)) {
         const batch = takePending();
+        activeBatch = batch;
         let error = null;
         try {
           await run(batch, {
@@ -82,8 +100,10 @@ export function createEffectsReconcileQueue({
         }
         completedRevision = Math.max(completedRevision, batch.revision);
         settleRevisionWaiters(batch.revision, error);
+        activeBatch = null;
       }
     } finally {
+      activeBatch = null;
       running = false;
       if (hasPendingWork(pending)) scheduleDrain();
       else settleIdleWaiters();
@@ -99,10 +119,40 @@ export function createEffectsReconcileQueue({
     });
   }
 
-  function request({ full = false, conditions = [], concentration = [] } = {}) {
-    pending.full ||= full === true;
-    for (const id of normalizeIds(conditions)) pending.conditions.add(id);
-    for (const id of normalizeIds(concentration)) pending.concentration.add(id);
+  function request({
+    full = false,
+    conditions = [],
+    concentration = [],
+    joinCovered = false,
+  } = {}) {
+    const normalizedRequest = {
+      full: full === true,
+      conditions: normalizeIds(conditions),
+      concentration: normalizeIds(concentration),
+    };
+
+    if (joinCovered && batchCoversRequest(pending, normalizedRequest)) {
+      const revision = latestRevision;
+      const done = new Promise((resolve, reject) => {
+        waiters.push({ revision, resolve, reject });
+      });
+      return { revision, done, joined: true };
+    }
+    if (
+      joinCovered
+      && !hasPendingWork(pending)
+      && batchCoversRequest(activeBatch, normalizedRequest)
+    ) {
+      const revision = activeBatch.revision;
+      const done = new Promise((resolve, reject) => {
+        waiters.push({ revision, resolve, reject });
+      });
+      return { revision, done, joined: true };
+    }
+
+    pending.full ||= normalizedRequest.full;
+    for (const id of normalizedRequest.conditions) pending.conditions.add(id);
+    for (const id of normalizedRequest.concentration) pending.concentration.add(id);
 
     if (!hasPendingWork(pending)) {
       return { revision: latestRevision, done: Promise.resolve({ revision: latestRevision }) };
@@ -127,6 +177,12 @@ export function createEffectsReconcileQueue({
     getState: () => ({
       running,
       scheduled,
+      active: activeBatch ? {
+        full: activeBatch.full,
+        conditions: [...activeBatch.conditions],
+        concentration: [...activeBatch.concentration],
+        revision: activeBatch.revision,
+      } : null,
       latestRevision,
       completedRevision,
       pending: {
@@ -138,22 +194,29 @@ export function createEffectsReconcileQueue({
   };
 }
 
-function collectCasterIds(value, output) {
+function collectAssignmentIds(value, output) {
   if (Array.isArray(value)) {
-    for (const entry of value) collectCasterIds(entry, output);
+    for (const entry of value) collectAssignmentIds(entry, output);
     return;
   }
   if (!value || typeof value !== "object") return;
   const casterId = String(value.casterId || "").trim();
   if (casterId) output.add(casterId);
+  for (const field of ["targets", "targetIds"]) {
+    for (const targetId of Array.isArray(value[field]) ? value[field] : []) {
+      const id = String(targetId || "").trim();
+      if (id) output.add(id);
+    }
+  }
   for (const nested of Object.values(value)) {
-    if (nested && typeof nested === "object") collectCasterIds(nested, output);
+    if (nested && typeof nested === "object") collectAssignmentIds(nested, output);
   }
 }
 
 export function collectEffectsInvalidation(event, {
   metaKey,
   spellsKey,
+  concentrationKey,
 } = {}) {
   const conditions = new Set();
   const concentration = new Set();
@@ -166,13 +229,20 @@ export function collectEffectsInvalidation(event, {
     for (const record of changedRecords) {
       const recordFlags = record?.flags || {};
       movementChanged ||= recordFlags.movement === true;
-      const item = record?.after?.item || record?.before?.item;
-      const pluginMeta = item?.metadata?.[metaKey];
-      if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") continue;
+      const recordItems = [record?.before?.item, record?.after?.item].filter(Boolean);
+      const item = recordItems.at(-1);
+      if (!item?.id) continue;
       if (recordFlags.conditions) conditions.add(item.id);
       if (recordFlags.concentration) {
         concentration.add(item.id);
-        collectCasterIds(pluginMeta?.[spellsKey], concentration);
+        for (const recordItem of recordItems) {
+          const pluginMeta = recordItem?.metadata?.[metaKey];
+          if (!pluginMeta || typeof pluginMeta !== "object") continue;
+          collectAssignmentIds(pluginMeta?.[spellsKey], concentration);
+          if (concentrationKey) {
+            collectAssignmentIds(pluginMeta?.[concentrationKey], concentration);
+          }
+        }
       }
     }
   }
@@ -190,7 +260,10 @@ export function collectEffectsInvalidation(event, {
       if (event?.flags?.conditions) conditions.add(item.id);
       if (event?.flags?.concentration) {
         concentration.add(item.id);
-        collectCasterIds(pluginMeta?.[spellsKey], concentration);
+        collectAssignmentIds(pluginMeta?.[spellsKey], concentration);
+        if (concentrationKey) {
+          collectAssignmentIds(pluginMeta?.[concentrationKey], concentration);
+        }
       }
     }
   }

@@ -895,6 +895,9 @@ async function syncRestoredEntry(entry, sceneEpoch) {
         import("./hpMemory.js"),
       ]);
       if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+      const textUpdates = [];
+      const removedWidgetIds = [];
+      const memoryUpdates = [];
       for (const item of items) {
         if (!isCurrentSceneEpoch(sceneEpoch)) return false;
         const meta = item.metadata?.[META_KEY] || {};
@@ -902,22 +905,30 @@ async function syncRestoredEntry(entry, sceneEpoch) {
           Object.prototype.hasOwnProperty.call(meta, "hp") ||
           Object.prototype.hasOwnProperty.call(meta, "hpMax");
         if (!hasHP) {
-          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-          await bars.removeHPWidgetsNow(item.id);
-          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-          await memory.removeHPFromMemoryByItemId(item.id, { sceneEpoch });
-          if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+          removedWidgetIds.push(item.id);
+          memoryUpdates.push({ itemId: item.id, remove: true });
           continue;
         }
         const hp = Math.floor(Number(meta.hp) || 0);
         const hpMax = Math.floor(Number(meta.hpMax) || 0);
-        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
         bars.syncHPBarNow(item.id, hp, hpMax);
-        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-        await bars.syncHPTextNow(item.id, hp, hpMax);
-        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-        await memory.saveHPToMemoryByItemId(item.id, hp, hpMax, { sceneEpoch });
-        if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+        textUpdates.push({ tokenId: item.id, hp, hpMax });
+        memoryUpdates.push({ itemId: item.id, hp, hpMax });
+      }
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+      const results = await Promise.allSettled([
+        ...(textUpdates.length ? [bars.syncHPTextBatchNow(textUpdates)] : []),
+        ...(removedWidgetIds.length
+          ? [bars.removeHPWidgetsBatchNow(removedWidgetIds)]
+          : []),
+        ...(memoryUpdates.length
+          ? [memory.syncHPBatchToMemory(memoryUpdates, { sceneEpoch, items })]
+          : []),
+      ]);
+      if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed) {
+        throw failed.reason;
       }
     } catch (err) {
       console.warn("[history] HP sync after undo:", err?.message || err);

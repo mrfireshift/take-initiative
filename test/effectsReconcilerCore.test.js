@@ -83,6 +83,71 @@ test("20 invalidazioni rapide convergono nell'ultimo batch senza concorrenza", a
   assert.equal(queue.getState().latestRevision, queue.getState().completedRevision);
 });
 
+test("un refresh esplicito coperto dal batch pendente condivide la stessa riconciliazione", async () => {
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch) { batches.push(batch); },
+    scheduleTask(callback) { queueMicrotask(callback); },
+  });
+
+  const eventRequest = queue.request({ conditions: ["target"] });
+  const explicitRequest = queue.request({
+    conditions: ["target"],
+    joinCovered: true,
+  });
+
+  assert.equal(explicitRequest.joined, true);
+  assert.equal(explicitRequest.revision, eventRequest.revision);
+  await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
+  assert.equal(batches.length, 1);
+  assert.deepEqual(batches[0].conditions, ["target"]);
+});
+
+test("un refresh esplicito coperto dal batch attivo non rende stale il primo render", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch, context) {
+      batches.push({ batch, context });
+      await gate;
+    },
+  });
+
+  const eventRequest = queue.request({ concentration: ["caster", "target"] });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const explicitRequest = queue.request({
+    concentration: ["target"],
+    joinCovered: true,
+  });
+
+  assert.equal(explicitRequest.joined, true);
+  assert.equal(batches[0].context.isStale(), false);
+  release();
+  await Promise.all([eventRequest.done, explicitRequest.done, queue.idle()]);
+  assert.equal(batches.length, 1);
+});
+
+test("una nuova invalidazione reale sullo stesso token non viene deduplicata", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const batches = [];
+  const queue = createEffectsReconcileQueue({
+    async run(batch, context) {
+      batches.push({ batch, context });
+      if (batches.length === 1) await gate;
+    },
+  });
+
+  const first = queue.request({ conditions: ["target"] });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const second = queue.request({ conditions: ["target"] });
+  assert.equal(batches[0].context.isStale(), true);
+  release();
+  await Promise.all([first.done, second.done, queue.idle()]);
+  assert.equal(batches.length, 2);
+});
+
 test("l'invalidazione usa solo token e include il caster indicato dalla spell", () => {
   const metaKey = "plugin/meta";
   const spellsKey = "plugin/spells";
@@ -106,6 +171,43 @@ test("l'invalidazione usa solo token e include il caster indicato dalla spell", 
     full: false,
     conditions: ["target"],
     concentration: ["target", "caster"],
+  });
+});
+
+test("l'invalidazione concentrazione conserva bersagli precedenti e nuovi", () => {
+  const metaKey = "plugin/meta";
+  const spellsKey = "plugin/spells";
+  const concentrationKey = "plugin/concentration";
+  const item = (targets) => ({
+    id: "caster",
+    metadata: {
+      [metaKey]: {
+        [spellsKey]: [{ name: "Velocita", casterId: "caster", targets }],
+        [concentrationKey]: {
+          Velocita: { casterId: "caster", targets },
+        },
+      },
+    },
+  });
+  const event = {
+    flags: { conditions: false, concentration: true },
+    changedRecords: [{
+      flags: { concentration: true },
+      before: { item: item(["old-target"]) },
+      after: { item: item(["new-target"]) },
+    }],
+    items: [item(["new-target"])],
+    removedItems: [],
+  };
+
+  assert.deepEqual(collectEffectsInvalidation(event, {
+    metaKey,
+    spellsKey,
+    concentrationKey,
+  }), {
+    full: false,
+    conditions: [],
+    concentration: ["caster", "old-target", "new-target"],
   });
 });
 

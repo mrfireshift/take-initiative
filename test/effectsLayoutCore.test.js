@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  effectsLayoutDesiredInScope,
+  effectsLayoutTargetScope,
+  expandEffectsLayoutTargetScope,
   planEffectsLayout,
   planEffectsWidgetDiff,
 } from "../src/effectsLayoutCore.js";
@@ -439,4 +442,39 @@ test("20 piani rapidi convergono al solo stato finale senza residui", () => {
   }
 
   assert.deepEqual(existing.map((entry) => entry.identity), ["condition|a|flag:Prono"]);
+});
+
+test("lo scope incrementale limita il piano ai soli token invalidati", () => {
+  const scope = effectsLayoutTargetScope({
+    conditions: ["target-a", "target-a"],
+    concentration: ["caster"],
+  });
+  assert.deepEqual([...scope].sort(), ["caster", "target-a"]);
+  assert.equal(effectsLayoutTargetScope({ full: true, conditions: ["target-a"] }), null);
+
+  const desired = [
+    { identity: "condition|target-a|prono", targetId: "target-a" },
+    { identity: "condition|target-b|accecato", targetId: "target-b" },
+    { identity: "dot|caster", targetId: "caster" },
+  ];
+  assert.deepEqual(
+    effectsLayoutDesiredInScope(desired, scope).map((entry) => entry.identity),
+    ["condition|target-a|prono", "dot|caster"],
+  );
+});
+
+test("lo scope del caster include i suoi bersagli senza espandere spell non correlate", () => {
+  const scope = expandEffectsLayoutTargetScope([
+    {
+      id: "caster",
+      assignments: [{ targets: ["target-a", "target-b"] }],
+    },
+    {
+      id: "target-a",
+      assignments: [{ targets: ["unrelated"] }],
+    },
+  ], new Set(["caster"]));
+
+  assert.deepEqual([...scope].sort(), ["caster", "target-a", "target-b"]);
+  assert.equal(scope.has("unrelated"), false);
 });

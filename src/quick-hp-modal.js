@@ -5,16 +5,21 @@ import {
   TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
-import { saveHPToMemoryByItemId } from "./hpMemory.js";
+import { syncHPBatchToMemory } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
 import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
   calculateQuickHPChange,
+  createQuickHPVisualTransaction,
   failedQuickHPTargetIds,
+  quickHPVisualUpdates,
+  quickHPZeroReconcileTargetIds,
   shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
-import { APPLICABLE_CONDITION_LIST } from "./conditions.js";
+import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
+import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
   conditionMutationOperations,
   requireAppliedEffectsMutation,
@@ -1282,6 +1287,30 @@ async function placeSelectedSpellArea() {
     renderTargets();
   }
 }
+
+function syncHPVisualUpdates(updates = []) {
+  for (const update of updates) {
+    syncHPBarNow(update.tokenId, update.hp, update.hpMax);
+  }
+  return syncHPTextBatchNow(updates);
+}
+
+async function readAuthoritativeHPVisualUpdates(itemIds = [], sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  const ids = Array.from(new Set(itemIds.filter(Boolean)));
+  if (!ids.length) return [];
+  const items = await OBR.scene.items.getItems(ids);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  return items.filter(hasTrackedHP).map((item) => {
+    const meta = item.metadata?.[META_KEY] || {};
+    return {
+      tokenId: item.id,
+      hp: Math.max(0, Math.floor(Number(meta.hp) || 0)),
+      hpMax: Math.max(0, Math.floor(Number(meta.hpMax) || 0)),
+    };
+  });
+}
+
 async function applyOperation() {
   if (busy) return;
   const selectedItems = selectedTargetItems();
@@ -1308,6 +1337,8 @@ async function applyOperation() {
   }
   setBusy(true);
   status.textContent = "";
+  const operationSceneEpoch = currentSceneEpoch();
+  let hpVisualTransaction = null;
   try {
     const liveItems = await OBR.scene.items.getItems(candidateIds);
     const factorSnapshot = new Map(factors);
@@ -1509,6 +1540,17 @@ async function applyOperation() {
     }
     let recordedEntry = null;
     const ids = entries.map((entry) => entry.item.id);
+    const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
+      const meta = entry.item.metadata?.[META_KEY] || {};
+      return resolveZeroHPUnconsciousAction(
+        {
+          ...meta,
+          hp: entry.change.afterHP,
+          hpMax: entry.change.hpMax,
+        },
+        getConditionInstances(meta.conditions || {}),
+      );
+    });
     const affectedIds = Array.from(new Set([
       ...ids,
       ...effectSubjectIds,
@@ -1525,6 +1567,15 @@ async function applyOperation() {
       ...triggerRootItems.map((item) => item.id),
     ].filter(Boolean)));
     let coordinatedMutation = null;
+    const optimisticHPVisualUpdates = quickHPVisualUpdates(entries);
+    if (optimisticHPVisualUpdates.length && isCurrentSceneEpoch(operationSceneEpoch)) {
+      hpVisualTransaction = createQuickHPVisualTransaction(optimisticHPVisualUpdates, {
+        syncVisuals: syncHPVisualUpdates,
+        onPreviewError: (error) => {
+          console.warn("[quick-hp] optimistic HP visual sync:", error?.message || error);
+        },
+      });
+    }
     await withItemMetaHistory({
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
@@ -1562,9 +1613,9 @@ async function applyOperation() {
           });
         }
         const coordinatedOperations = [
-          ...(ids.length ? [{
+          ...(zeroHPReconcileIds.length ? [{
             type: "condition:reconcile-zero-hp",
-            targetIds: ids,
+            targetIds: zeroHPReconcileIds,
           }] : []),
           ...effectOperations,
         ];
@@ -1598,24 +1649,19 @@ async function applyOperation() {
         throw error;
       }
     });
-    // Accoda tutti i bersagli nel batch grafico condiviso: barra e testo HP
-    // esistenti vengono aggiornati insieme da una sola chiamata OBR.
-    for (const entry of entries) {
-      syncHPBarNow(entry.item.id, entry.change.afterHP, entry.change.hpMax);
-    }
-    await syncHPTextBatchNow(entries.map((entry) => ({
-      tokenId: entry.item.id,
-      hp: entry.change.afterHP,
-      hpMax: entry.change.hpMax,
-    })));
+    if (hpVisualTransaction) await hpVisualTransaction.completion;
 
-    // La memoria stanza usa read-modify-write: resta intenzionalmente seriale.
-    for (const entry of entries) {
-      try {
-        await saveHPToMemoryByItemId(entry.item.id, entry.change.afterHP, entry.change.hpMax);
-      } catch (error) {
-        console.warn("[quick-hp] HP memory:", error && error.message || error);
-      }
+    try {
+      await syncHPBatchToMemory(entries.map((entry) => ({
+        itemId: entry.item.id,
+        hp: entry.change.afterHP,
+        hpMax: entry.change.hpMax,
+      })), {
+        sceneEpoch: operationSceneEpoch,
+        items: entries.map((entry) => entry.item),
+      });
+    } catch (error) {
+      console.warn("[quick-hp] HP memory:", error && error.message || error);
     }
     await showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error));
     await showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error));
@@ -1636,6 +1682,13 @@ async function applyOperation() {
     }
   } catch (error) {
     console.error("[quick-hp] apply:", error);
+    if (hpVisualTransaction) {
+      await hpVisualTransaction.recover((itemIds) => (
+        readAuthoritativeHPVisualUpdates(itemIds, operationSceneEpoch)
+      )).catch((syncError) => {
+        console.warn("[quick-hp] HP visual recovery:", syncError?.message || syncError);
+      });
+    }
     status.textContent = "Applicazione non riuscita.";
   } finally {
     busy = false;

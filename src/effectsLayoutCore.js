@@ -34,6 +34,37 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   dotZIndex: 100021,
 });
 
+export function effectsLayoutTargetScope(batch = {}) {
+  if (batch?.full === true) return null;
+  const ids = new Set([
+    ...(Array.isArray(batch?.conditions) ? batch.conditions : []),
+    ...(Array.isArray(batch?.concentration) ? batch.concentration : []),
+  ].map((value) => String(value || "").trim()).filter(Boolean));
+  return ids.size ? ids : null;
+}
+
+export function expandEffectsLayoutTargetScope(tokens = [], requestedScope = null) {
+  if (!(requestedScope instanceof Set)) return null;
+  const expanded = new Set(requestedScope);
+  const requestedSources = new Set(requestedScope);
+  for (const token of Array.isArray(tokens) ? tokens : []) {
+    if (!requestedSources.has(token?.id)) continue;
+    for (const assignment of Array.isArray(token?.assignments) ? token.assignments : []) {
+      for (const targetId of Array.isArray(assignment?.targets) ? assignment.targets : []) {
+        const id = String(targetId || "").trim();
+        if (id) expanded.add(id);
+      }
+    }
+  }
+  return expanded;
+}
+
+export function effectsLayoutDesiredInScope(desired = [], targetScope = null) {
+  if (!(targetScope instanceof Set)) return Array.isArray(desired) ? desired : [];
+  return (Array.isArray(desired) ? desired : [])
+    .filter((entry) => targetScope.has(String(entry?.targetId || "")));
+}
+
 function normalizedKey(value) {
   return String(value || "").trim().toLowerCase();
 }

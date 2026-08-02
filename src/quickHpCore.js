@@ -74,6 +74,68 @@ export function failedQuickHPTargetIds(items = [], outcomes = new Map()) {
     .filter((id) => id && readOutcome(id) === "failed");
 }
 
+export function quickHPVisualUpdates(entries = [], { phase = "after" } = {}) {
+  const useBefore = phase === "before";
+  const updatesById = new Map();
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const tokenId = String(entry?.item?.id || "").trim();
+    if (!tokenId) continue;
+    updatesById.set(tokenId, {
+      tokenId,
+      hp: nonNegativeInteger(useBefore ? entry?.change?.hp : entry?.change?.afterHP),
+      hpMax: nonNegativeInteger(entry?.change?.hpMax),
+    });
+  }
+  return [...updatesById.values()];
+}
+
+export function quickHPZeroReconcileTargetIds(entries = [], resolveAction) {
+  const ids = new Set();
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    const itemId = String(entry?.item?.id || "").trim();
+    if (!itemId) continue;
+    if (typeof resolveAction !== "function") {
+      ids.add(itemId);
+      continue;
+    }
+    const action = resolveAction(entry) || {};
+    if (action.add === true || (Array.isArray(action.removeInstanceIds) && action.removeInstanceIds.length)) {
+      ids.add(itemId);
+    }
+  }
+  return [...ids];
+}
+
+export function createQuickHPVisualTransaction(
+  updates = [],
+  { syncVisuals, onPreviewError = () => {} } = {},
+) {
+  if (typeof syncVisuals !== "function") {
+    throw new TypeError("syncVisuals must be a function");
+  }
+  const batch = (Array.isArray(updates) ? updates : []).map((update) => ({ ...update }));
+  const targetIds = Array.from(new Set(batch.map((update) => update.tokenId).filter(Boolean)));
+  let previewResult;
+  try {
+    previewResult = syncVisuals(batch);
+  } catch (error) {
+    previewResult = Promise.reject(error);
+  }
+  const completion = Promise.resolve(previewResult).catch((error) => {
+    onPreviewError(error);
+  });
+  return {
+    targetIds,
+    completion,
+    async recover(readAuthoritativeUpdates) {
+      await completion;
+      if (typeof readAuthoritativeUpdates !== "function") return;
+      const authoritativeUpdates = await readAuthoritativeUpdates([...targetIds]);
+      await syncVisuals(Array.isArray(authoritativeUpdates) ? authoritativeUpdates : []);
+    },
+  };
+}
+
 export function shouldHandleQuickHPUndoShortcut({
   key = "",
   ctrlKey = false,

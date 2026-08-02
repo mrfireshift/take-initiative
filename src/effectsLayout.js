@@ -4,6 +4,9 @@ import { getConditionWidgetLayoutParts } from "./conditions.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
 import {
   EFFECTS_LAYOUT_CONFIG,
+  effectsLayoutDesiredInScope,
+  effectsLayoutTargetScope,
+  expandEffectsLayoutTargetScope,
   planEffectsLayout,
 } from "./effectsLayoutCore.js";
 import { getSpellWidgetLayoutData } from "./spells-tag.js";
@@ -135,6 +138,14 @@ function classifyExistingWidget(item) {
 
 function isEffectsWidgetItem(item) {
   return !!item?.metadata?.[COND_WIDGET_META] || !!item?.metadata?.[CONC_WIDGET_META];
+}
+
+function effectsWidgetTargetId(item) {
+  return String(
+    item?.metadata?.[COND_WIDGET_META]
+      || item?.metadata?.[CONC_WIDGET_META]
+      || "",
+  ).trim();
 }
 
 function commonLabelNeedsUpdate(item, spec) {
@@ -310,10 +321,13 @@ async function sdkGetSceneItems(session) {
   }
 }
 
-async function sdkGetLocalWidgets(session) {
+async function sdkGetLocalWidgets(session, targetScope = null) {
   effectsDiagnostics.sdkCall(session, "getItems");
   try {
-    const items = await OBR.scene.local.getItems(isEffectsWidgetItem);
+    const items = await OBR.scene.local.getItems((item) => (
+      isEffectsWidgetItem(item)
+      && (!(targetScope instanceof Set) || targetScope.has(effectsWidgetTargetId(item)))
+    ));
     effectsDiagnostics.sdkResult(session, "getItems", { returnedItems: items.length });
     return items;
   } catch (error) {
@@ -415,6 +429,7 @@ export async function inspectEffectsLayoutStores() {
 export async function reconcileEffectsLayout(batch = {}, context = {}) {
   const sceneEpoch = currentSceneEpoch();
   const revision = ++reconcileRevision;
+  const requestedScope = effectsLayoutTargetScope(batch);
   const requestedIds = new Set([
     ...(Array.isArray(batch.conditions) ? batch.conditions : []),
     ...(Array.isArray(batch.concentration) ? batch.concentration : []),
@@ -431,6 +446,7 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   let globalLegacyWidgets = [];
   let tokens = [];
   let desired = [];
+  let targetScope = requestedScope;
   let localResult = null;
   let globalResult = null;
   let deletedGlobalWidgets = 0;
@@ -454,17 +470,34 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
   };
 
   try {
-    sceneItems = await sdkGetSceneItems(session);
+    [sceneItems, localWidgets] = await Promise.all([
+      sdkGetSceneItems(session),
+      sdkGetLocalWidgets(session, requestedScope),
+    ]);
     if (stopIfStale("after-scene-read")) return { outcome, desiredWidgets: 0 };
     tokens = sceneItems.map(normalizeToken).filter(Boolean);
+    targetScope = expandEffectsLayoutTargetScope(tokens, requestedScope);
+    if (
+      requestedScope instanceof Set
+      && targetScope instanceof Set
+      && targetScope.size !== requestedScope.size
+    ) {
+      localWidgets = await sdkGetLocalWidgets(session, targetScope);
+      if (stopIfStale("after-expanded-widget-read")) {
+        return { outcome, desiredWidgets: 0 };
+      }
+    }
     const sceneDpi = await getEffectsLayoutGridDpi();
     if (stopIfStale("after-grid-read")) return { outcome, desiredWidgets: 0 };
-    desired = planEffectsLayout({ tokens, sceneDpi, measureText: measureTextWidth });
+    desired = effectsLayoutDesiredInScope(
+      planEffectsLayout({ tokens, sceneDpi, measureText: measureTextWidth }),
+      targetScope,
+    );
     globalLegacyWidgets = sceneItems.map(classifyExistingWidget).filter(Boolean);
 
     if (stopIfStale("before-widget-commit")) return { outcome, desiredWidgets: desired.length };
 
-    if (context.cleanupGlobalWidgets === true) {
+    if (context.cleanupGlobalWidgets === true && !(targetScope instanceof Set)) {
       deletedGlobalWidgets = globalLegacyWidgets.length;
       globalResult = await reconcileOwnedSceneItems({
         desired: [],
@@ -476,13 +509,14 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
         identityOfItem: (item) => item.id,
         deleteItems: (ids) => sdkDeleteGlobalLegacyWidgets(session, ids),
         isCurrent: operationIsCurrent,
+        initialItems: globalLegacyWidgets.map(({ item }) => item),
       });
     }
     if (stopIfStale("after-global-cleanup")) return { outcome, desiredWidgets: desired.length };
     localResult = await reconcileOwnedSceneItems({
       desired,
       readItems: async () => {
-        localWidgets = await sdkGetLocalWidgets(session);
+        localWidgets = await sdkGetLocalWidgets(session, targetScope);
         return localWidgets;
       },
       identityOfItem: (item) => classifyExistingWidget(item)?.identity,
@@ -493,6 +527,7 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
       updateItems: (updates) => sdkUpdateLocalItems(session, updates),
       deleteItems: (ids) => sdkDeleteLocalItems(session, ids),
       isCurrent: operationIsCurrent,
+      initialItems: localWidgets,
     });
     if (localResult.outcome === "stale" || stopIfStale("after-local-converge")) {
       outcome = "stale";

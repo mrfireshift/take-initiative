@@ -27,6 +27,7 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
+const CONCENTRATION_META_KEY = `${ID}/concentration`;
 
 let mounted = false;
 let writer = false;
@@ -58,14 +59,14 @@ function rendererState() {
 
 function requestConditions(itemIds) {
   const request = Array.isArray(itemIds)
-    ? queue.request({ conditions: itemIds })
+    ? queue.request({ conditions: itemIds, joinCovered: true })
     : queue.request({ full: true });
   return request.done;
 }
 
 function requestConcentration(itemIds) {
   const request = Array.isArray(itemIds)
-    ? queue.request({ concentration: itemIds })
+    ? queue.request({ concentration: itemIds, joinCovered: true })
     : queue.request({ full: true });
   return request.done;
 }
@@ -125,11 +126,13 @@ export async function mountEffectsReconciler() {
     const invalidation = collectEffectsInvalidation(event, {
       metaKey: META_KEY,
       spellsKey: SPELLS_META_KEY,
+      concentrationKey: CONCENTRATION_META_KEY,
     });
     queue.request(invalidation).done.catch((error) => {
       console.error("[effects] reconcile", error);
     });
   }, {
+    immediate: true,
     domains: ["effects", "movement"],
     filter: (event) => !event?.derived?.output,
   });

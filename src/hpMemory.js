@@ -290,28 +290,83 @@ export async function initHPMemory() {
 }
 
 // ——— Salva nella memoria gli HP dell’item se è un PG
+export async function syncHPBatchToMemory(
+  updates = [],
+  { sceneEpoch = currentSceneEpoch(), items = [] } = {},
+) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const updatesById = new Map();
+  for (const update of Array.isArray(updates) ? updates : []) {
+    const itemId = String(update?.itemId || "").trim();
+    if (!itemId) continue;
+    updatesById.set(itemId, {
+      itemId,
+      remove: update?.remove === true,
+      hp: update?.hp,
+      hpMax: update?.hpMax,
+    });
+  }
+  if (!updatesById.size) return;
+
+  const itemsById = new Map(
+    (Array.isArray(items) ? items : [])
+      .filter((item) => item?.id && updatesById.has(item.id))
+      .map((item) => [item.id, item]),
+  );
+  const missingIds = [...updatesById.keys()].filter((itemId) => !itemsById.has(itemId));
+  if (missingIds.length) {
+    const loadedItems = await OBR.scene.items.getItems(missingIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    for (const item of loadedItems) itemsById.set(item.id, item);
+  }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+
+  const memoryUpdates = [];
+  for (const update of updatesById.values()) {
+    const item = itemsById.get(update.itemId);
+    const key = pcKeyFromItem(item);
+    if (!key) continue;
+    memoryUpdates.push({
+      key,
+      remove: update.remove,
+      hp: Math.max(0, Math.floor(Number(update.hp) || 0)),
+      hpMax: Math.max(0, Math.floor(Number(update.hpMax) || 0)),
+      attitude: String(item.metadata?.[META_KEY]?.attitude || "").trim().toLowerCase() || null,
+    });
+  }
+  if (!memoryUpdates.length || !isCurrentSceneEpoch(sceneEpoch)) return;
+
+  await writeRoomHPMap((m) => {
+    const savedAt = Date.now();
+    for (const update of memoryUpdates) {
+      if (update.remove) {
+        delete m[update.key];
+        continue;
+      }
+      const previous = m[update.key] && typeof m[update.key] === "object"
+        ? m[update.key]
+        : {};
+      m[update.key] = {
+        ...previous,
+        hp: update.hp,
+        hpMax: update.hpMax,
+        attitude: update.attitude,
+        t: savedAt,
+      };
+    }
+    return m;
+  }, { sceneEpoch });
+}
+
 export async function saveHPToMemoryByItemId(
   itemId,
   hp,
   hpMax,
   { sceneEpoch = currentSceneEpoch() } = {},
 ) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  const [item] = await OBR.scene.items.getItems([itemId]);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  if (!item) return;
-  const key = pcKeyFromItem(item);
-  if (!key) return; // non è un PG → ignora
-
-  const nHP  = Math.max(0, Math.floor(Number(hp)    || 0));
-  const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
-  const att  = String(item.metadata?.[META_KEY]?.attitude || "").trim().toLowerCase() || null;
-
-  await writeRoomHPMap((m) => {
-    const previous = m[key] && typeof m[key] === "object" ? m[key] : {};
-    m[key] = { ...previous, hp: nHP, hpMax: nMax, attitude: att, t: Date.now() };
-    return m;
-  }, { sceneEpoch });
+  return syncHPBatchToMemory([
+    { itemId, hp, hpMax },
+  ], { sceneEpoch });
 }
 
 // ——— All’avvio della lista: riempi HP mancanti dei PG da memoria (senza toccare i mostri)
@@ -319,17 +374,9 @@ export async function removeHPFromMemoryByItemId(
   itemId,
   { sceneEpoch = currentSceneEpoch() } = {},
 ) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  const [item] = await OBR.scene.items.getItems([itemId]);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  if (!item) return;
-  const key = pcKeyFromItem(item);
-  if (!key) return;
-
-  await writeRoomHPMap((map) => {
-    delete map[key];
-    return map;
-  }, { sceneEpoch });
+  return syncHPBatchToMemory([
+    { itemId, remove: true },
+  ], { sceneEpoch });
 }
 
 export async function applyHPMemoryToSceneForMissingHP(sceneEpoch = currentSceneEpoch()) {
