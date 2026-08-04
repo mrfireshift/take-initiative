@@ -418,6 +418,9 @@ export async function recordEffectsMutationHistory({
     ...(Array.isArray(command.targetIds) ? command.targetIds : []),
     ...changes.map((change) => change.id),
   ].filter(Boolean)));
+  const historyPayload = historyOptions.payload && typeof historyOptions.payload === "object"
+    ? cloneValue(historyOptions.payload)
+    : null;
   const entry = {
     id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
     version: HISTORY_VERSION,
@@ -425,6 +428,7 @@ export async function recordEffectsMutationHistory({
     kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
     label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
     changes,
+    ...(historyPayload ? { payload: historyPayload } : {}),
     effectsMutation: {
       version: 1,
       commandId: command.commandId || null,

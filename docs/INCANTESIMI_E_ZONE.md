@@ -13,7 +13,7 @@ decisioni prese al tavolo.
 - Il plugin indica chi deve effettuare un tiro salvezza, quando e contro quale
   CD, se la scheda dell'incantatore contiene il dato.
 - Il GM tira fisicamente e dichiara l'esito con i controlli
-  **Superato**, **Fallito** o **Immune**.
+  **Superato** o **Fallito**.
 - Le condizioni che dipendono dal fallimento non vengono applicate prima
   dell'esito. Per esempio, Tempesta di Nevischio non rende automaticamente
   Prono e Tentacoli Neri non rende automaticamente Trattenuto al lancio.
@@ -144,6 +144,18 @@ Gli esiti di un tiro salvezza di area vengono dichiarati nella
 **Console effetti ad area**. I pulsanti di esito non vengono mostrati quando
 l'incantesimo non infligge un effetto immediato al lancio e il trigger RAW è
 soltanto ingresso, movimento, inizio o fine turno.
+
+I trigger di zona già migrati con dati strutturati possono essere risolti dal
+GM direttamente nella riga del reminder: **Superato** o **Fallito**, con un
+campo numerico compatto quando è richiesto il risultato dei
+dadi. Il fallimento può applicare condizioni come Prono o Trattenuto; il
+successo usa danno dimezzato o nullo secondo il trigger. La vista Player resta
+informativa. La risoluzione usa il coordinatore effetti e una sola History/Undo
+anche quando combina HP, condizioni e chiusura dell'attivazione.
+
+I trigger senza `resolutionData` riconosciuta restano reminder informativi. Non
+sono inclusi tiri virtuali, interpretazione del testo, resistenze o
+vulnerabilità, aggregazioni multi-target e scripting personalizzato.
 
 ## Zone, aure e geometrie
 

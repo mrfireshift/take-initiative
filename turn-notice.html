@@ -17,40 +17,41 @@
       }
       #notice-stack {
         position: absolute;
-        top: 14px;
-        left: 50%;
-        width: min(620px, calc(100vw - 32px));
+        top: 0;
+        left: 0;
+        width: 100%;
         display: grid;
-        justify-items: center;
-        transform: translateX(-50%);
+        justify-items: stretch;
+        pointer-events: none;
       }
       #app {
         position: relative;
         width: 100%;
-        height: 158px;
+        height: 136px;
+        z-index: 1;
       }
+      #app:empty { display: none; }
       #zone-app {
-        width: min(520px, 100%);
+        position: relative;
+        width: 100%;
         display: grid;
+        z-index: 3;
       }
       #zone-app:empty { display: none; }
-      #zone-app:empty + #app {
-        margin-top: max(0px, calc(11vh - 14px));
-      }
       #zone-app:not(:empty) + #app {
-        margin-top: max(10px, calc(11vh - 86px));
+        margin-top: 8px;
       }
       .notice {
         --accent: #60a5fa;
         --accent-soft: rgba(96, 165, 250, .42);
         --accent-deep: rgba(15, 62, 112, .92);
         position: absolute;
-        top: 0;
-        left: 50%;
-        width: min(620px, 100%);
-        min-height: 158px;
+        top: 4px;
+        left: 4px;
+        width: calc(100% - 8px);
+        min-height: 126px;
         overflow: visible;
-        padding: 18px 78px 17px 132px;
+        padding: 14px 62px 14px 106px;
         border: 2px solid #080b10;
         border-radius: 8px;
         background:
@@ -62,13 +63,13 @@
           inset 0 0 0 1px rgba(255, 255, 255, .12),
           inset 0 -28px 44px rgba(0, 0, 0, .25);
         opacity: 0;
-        transform: translate(-50%, -8px) scale(.78);
+        transform: translate(0, -8px);
         transform-origin: top center;
         transition: opacity 180ms ease, transform 220ms ease;
         will-change: opacity, transform;
       }
-      .notice.is-visible { opacity: 1; transform: translate(-50%, 0) scale(.8); }
-      .notice.is-leaving { opacity: 0; transform: translate(-50%, 5px) scale(.79); }
+      .notice.is-visible { opacity: 1; transform: translate(0, 0); }
+      .notice.is-leaving { opacity: 0; transform: translate(0, 5px); }
       .notice[data-attitude="enemy"] {
         --accent: #ef4444;
         --accent-soft: rgba(239, 68, 68, .43);
@@ -86,10 +87,10 @@
       }
       .notice::before {
         position: absolute;
-        top: 8px;
-        right: 10px;
-        bottom: 8px;
-        left: 10px;
+        top: 6px;
+        right: 8px;
+        bottom: 6px;
+        left: 8px;
         border: 1px solid rgba(255,255,255,.10);
         border-radius: 4px;
         content: "";
@@ -97,16 +98,16 @@
       .portrait {
         position: absolute;
         top: 50%;
-        left: 16px;
-        width: 104px;
-        height: 104px;
+        left: 13px;
+        width: 83px;
+        height: 83px;
         overflow: hidden;
-        border: 3px solid #080b10;
+        border: 2px solid #080b10;
         border-radius: 50%;
         background: rgba(4, 7, 11, .96);
         box-shadow:
-          0 0 0 3px var(--accent),
-          0 0 18px 4px var(--accent-soft),
+          0 0 0 2px var(--accent),
+          0 0 14px 3px var(--accent-soft),
           inset 0 0 0 1px rgba(255,255,255,.18);
         transform: translateY(-50%);
       }
@@ -125,7 +126,7 @@
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         color: #fff;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 44px;
+        font-size: 35px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
       }
@@ -133,7 +134,7 @@
       .eyebrow {
         color: var(--accent);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 800;
         letter-spacing: .8px;
         text-transform: uppercase;
@@ -142,7 +143,7 @@
         margin-top: 3px;
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(22px, 3.5vw, 29px);
+        font-size: clamp(18px, 3.5vw, 23px);
         font-weight: 800;
         line-height: 1.05;
         text-overflow: ellipsis;
@@ -151,10 +152,10 @@
       }
       .round-badge {
         position: absolute;
-        top: 18px;
-        right: 19px;
-        width: 48px;
-        height: 48px;
+        top: 14px;
+        right: 15px;
+        width: 38px;
+        height: 38px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -168,19 +169,19 @@
         line-height: 1;
         z-index: 1;
       }
-      .round-badge span { color: var(--accent); font-size: 8px; font-weight: 900; letter-spacing: .5px; }
-      .round-badge strong { margin-top: 3px; font-family: Georgia, "Times New Roman", serif; font-size: 18px; }
+      .round-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
+      .round-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
       .next {
         position: relative;
-        margin-top: 18px;
-        padding-top: 11px;
+        margin-top: 14px;
+        padding-top: 9px;
         border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
         color: rgba(255,255,255,.68);
-        font-size: 12px;
+        font-size: 10px;
         z-index: 1;
       }
       .next span { margin-right: 5px; color: var(--accent); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
-      .next strong { color: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+      .next strong { color: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 11px; }
       .timer {
         position: absolute;
         right: 0;
@@ -206,10 +207,10 @@
         --accent-soft: rgba(251, 146, 60, .42);
         --accent-deep: rgba(104, 39, 20, .95);
         position: relative;
-        width: 100%;
-        min-height: 82px;
-        margin-bottom: -10px;
-        padding: 9px 14px 9px 72px;
+        width: calc(100% - 8px);
+        min-height: 66px;
+        margin: 4px;
+        padding: 7px 11px 7px 58px;
         border: 1px solid #080b10;
         border-radius: 7px;
         background:
@@ -220,12 +221,12 @@
           0 10px 30px rgba(0,0,0,.62),
           inset 0 0 0 1px rgba(255,255,255,.12),
           inset 0 -18px 30px rgba(0,0,0,.22);
-        transform: scale(.86);
+        transform: none;
         transform-origin: top center;
       }
       .zone-notice::before {
         position: absolute;
-        inset: 5px 7px;
+        inset: 4px 6px;
         border: 1px solid rgba(255,255,255,.10);
         border-radius: 3px;
         content: "";
@@ -233,16 +234,16 @@
       .zone-portrait {
         position: absolute;
         top: 50%;
-        left: 10px;
-        width: 52px;
-        height: 52px;
+        left: 8px;
+        width: 42px;
+        height: 42px;
         overflow: hidden;
         border: 2px solid #080b10;
         border-radius: 50%;
         background: rgba(4,7,11,.96);
         box-shadow:
           0 0 0 2px var(--accent),
-          0 0 12px 2px var(--accent-soft),
+          0 0 10px 2px var(--accent-soft),
           inset 0 0 0 1px rgba(255,255,255,.18);
         transform: translateY(-50%);
       }
@@ -260,7 +261,7 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
       }
@@ -268,7 +269,7 @@
       .zone-eyebrow {
         color: var(--accent);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 10px;
+        font-size: 8px;
         font-weight: 800;
         letter-spacing: .6px;
         text-transform: uppercase;
@@ -277,7 +278,7 @@
         margin-top: 1px;
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(16px, 2.5vw, 19px);
+        font-size: clamp(13px, 2.5vw, 15px);
         font-weight: 800;
         line-height: 1.05;
         text-overflow: ellipsis;
@@ -288,8 +289,8 @@
         position: relative;
         display: grid;
         gap: 2px;
-        margin-top: 6px;
-        padding-top: 5px;
+        margin-top: 5px;
+        padding-top: 4px;
         border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
         z-index: 1;
       }
@@ -302,14 +303,89 @@
       .zone-detail strong {
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 12px;
+        font-size: 10px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
       .zone-detail span {
         color: rgba(255,255,255,.72);
-        font-size: 11px;
+        font-size: 9px;
         line-height: 1.25;
+      }
+      .zone-resolution {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        margin-top: 5px;
+        pointer-events: auto;
+        z-index: 2;
+      }
+      .zone-resolution-outcomes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+      }
+      .zone-resolution button,
+      .zone-resolution input {
+        min-height: 20px;
+        border: 1px solid rgba(255,255,255,.26);
+        border-radius: 4px;
+        background: rgba(4, 8, 13, .82);
+        color: #fff;
+        font: 700 9px/1 system-ui, sans-serif;
+        pointer-events: auto;
+      }
+      .zone-resolution button {
+        padding: 3px 5px;
+        cursor: pointer;
+      }
+      .zone-resolution button:hover,
+      .zone-resolution button.is-selected {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 30%, rgba(4,8,13,.88));
+      }
+      .zone-resolution button:disabled,
+      .zone-resolution input:disabled {
+        cursor: default;
+        opacity: .52;
+      }
+      .zone-resolution-damage {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: rgba(255,255,255,.76);
+        font-size: 9px;
+      }
+      .zone-resolution-damage input {
+        width: 48px;
+        padding: 3px 4px;
+        text-align: center;
+      }
+      [data-resolution-status] {
+        display: block;
+        flex-basis: 100%;
+        color: var(--accent);
+        font-size: 9px;
+        font-weight: 800;
+      }
+      .zone-close {
+        position: absolute;
+        top: 5px;
+        right: 8px;
+        width: 21px;
+        height: 21px;
+        padding: 0;
+        border: 1px solid rgba(255,255,255,.24);
+        border-radius: 50%;
+        background: rgba(4,8,13,.72);
+        color: rgba(255,255,255,.82);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 18px;
+        pointer-events: auto;
+        z-index: 3;
       }
       .zone-timer {
         position: absolute;
@@ -334,31 +410,22 @@
       @keyframes expire { to { transform: scaleX(0); } }
       @keyframes zone-expire { to { transform: scaleX(0); } }
       @media (max-width: 520px) {
-        #notice-stack {
-          top: 10px;
-          width: min(620px, calc(100vw - 24px));
-        }
-        #app { height: 140px; }
+        #app { height: 122px; }
         #zone-app { width: 100%; }
-        #zone-app:empty + #app {
-          margin-top: max(0px, calc(11vh - 10px));
-        }
         #zone-app:not(:empty) + #app {
-          margin-top: max(10px, calc(11vh - 74px));
+          margin-top: 7px;
         }
-        .notice { padding: 16px 64px 15px 104px; min-height: 140px; }
-        .portrait { left: 13px; width: 78px; height: 78px; }
-        .title { font-size: 21px; }
-        .round-badge { top: 15px; right: 14px; width: 42px; height: 42px; }
-        .next { margin-top: 15px; }
+        .notice { padding: 13px 54px 12px 88px; min-height: 114px; }
+        .portrait { left: 11px; width: 66px; height: 66px; }
+        .title { font-size: 18px; }
+        .round-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
+        .next { margin-top: 12px; }
         .zone-notice {
-          min-height: 78px;
-          margin-bottom: -14px;
-          padding: 8px 12px 8px 64px;
-          transform: scale(.8);
+          min-height: 62px;
+          padding: 7px 10px 7px 54px;
         }
-        .zone-portrait { left: 10px; width: 44px; height: 44px; }
-        .zone-title { font-size: 16px; }
+        .zone-portrait { left: 8px; width: 38px; height: 38px; }
+        .zone-title { font-size: 14px; }
       }
     </style>
   </head>

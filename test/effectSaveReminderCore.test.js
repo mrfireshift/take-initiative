@@ -159,6 +159,22 @@ test("emette reminder distinti per ogni token e di nuovo al round successivo", (
   }), []);
 });
 
+test("il bootstrap esplicito non forza il reminder dell'inizio turno corrente", () => {
+  const current = target("first", [condition("effect-first", "turn-start")]);
+  assert.deepEqual(planEffectSaveReminderNotices({
+    items: [caster(), current],
+    previousInitiativeState: null,
+    initiativeState: state(1),
+    includeCurrentTurnStart: false,
+  }), []);
+  assert.deepEqual(planEffectSaveReminderNotices({
+    items: [caster(), current],
+    previousInitiativeState: state(1),
+    initiativeState: state(1),
+    includeCurrentTurnStart: false,
+  }), []);
+});
+
 test("un reminder legato al caster viene emesso all'inizio del turno della fonte", () => {
   const bearer = target("first", [
     condition("heat-metal", "turn-start", {

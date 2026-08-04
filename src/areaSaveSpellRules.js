@@ -426,6 +426,11 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         ability: "wis",
         timing: "turn-end",
         dcSource: "source-spell",
+        damage: Object.freeze({
+          dice: "4d10",
+          type: "psichici",
+          onSave: "none",
+        }),
         label: "4d10 psichici se fallisce; se supera, termina la spell.",
       }),
     }),

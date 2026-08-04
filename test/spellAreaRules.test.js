@@ -313,6 +313,24 @@ test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
   assert.equal(SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED, true);
 });
 
+test("i trigger manuali migrati espongono dati di risoluzione strutturati", () => {
+  const web = getSpellAreaRuleById("web:cast").zonePolicy.triggers[0];
+  const moonbeam = getSpellAreaRuleById("moonbeam:cast").zonePolicy.triggers[0];
+  const dawn = getSpellAreaRuleById("xanathar-alba:cast").zonePolicy.triggers[0];
+
+  assert.equal(web.ability, "dex");
+  assert.deepEqual(web.resolutionData.failureCondition, {
+    condition: "Trattenuto",
+  });
+  assert.equal(moonbeam.ability, "con");
+  assert.equal(moonbeam.resolutionData.damage.onSave, "half");
+  assert.deepEqual(dawn.resolutionData.damage, {
+    dice: "4d10",
+    type: "radiosi",
+    onSave: "half",
+  });
+});
+
 test("il primo gruppo di zone dichiara confine, TS ed effetto del fallimento", () => {
   const expected = {
     "xanathar-alba": {

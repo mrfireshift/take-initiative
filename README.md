@@ -32,10 +32,15 @@ dopo la stabilizzazione 1.3 e non ancora raccolte in una nuova release.
   attraversamento, inizio e fine turno;
 - mostra reminder aggregati per tiri salvezza ed effetti senza sostituire i
   tiri fisici al tavolo;
+- consente al GM di risolvere i reminder modellati con Superato o Fallito,
+  mantenendo Player view, History/Undo e Combat Log coerenti;
 - offre azioni rapide per card, incantesimi preparati e azioni attive
   successive al lancio;
 - conserva una configurazione di fazione nella room e può riutilizzarla quando
   nuovi token condividono immagine o nome con creature già classificate;
+- permette al GM di creare aure personalizzate autonome dal menu contestuale
+  del token, configurando raggio, stile, bersagli, pill persistente e warning
+  a inizio o fine turno;
 - permette di indicare classe, sottoclasse e livello (anche multiclasse) nella
   scheda iniziativa e di attivare capacità di classe con usi e durata tracciati;
 - materializza gli effetti attivi delle capacità come condizioni persistenti sui

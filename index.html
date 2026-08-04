@@ -7,9 +7,55 @@
     <title>Vite App</title>
     <link rel="stylesheet" href="/ui-typography.css" />
     <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      html,
+      body,
+      #app {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: transparent;
+      }
+
+      #app {
+        height: 100vh;
+      }
+
+      .tbp-loading {
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        gap: 10px;
+        height: 100%;
+        padding: 24px;
+        color: rgba(226, 232, 240, 0.86);
+        font: 600 13px/1.4 var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+        text-align: center;
+      }
+
+      .tbp-loading__spinner {
+        width: 22px;
+        height: 22px;
+        border: 2px solid rgba(148, 163, 184, 0.28);
+        border-top-color: rgba(226, 232, 240, 0.9);
+        border-radius: 50%;
+        animation: tbp-loading-spin 0.8s linear infinite;
+      }
+
+      @keyframes tbp-loading-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="tbp-loading" role="status" aria-live="polite">
+        <span class="tbp-loading__spinner" aria-hidden="true"></span>
+        <span>Caricamento tracker…</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -79,6 +79,13 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
   }
   if (kind === "condition") return { ...base, action: "condition" };
   if (kind === "spell") return { ...base, action: "spell" };
+  if (kind === "reminder-resolution") {
+    return {
+      ...base,
+      action: "reminder-resolution",
+      payload: clone(entry?.payload || {}),
+    };
+  }
   if (kind === "initiative-card") return { ...base, kind: "resource", action: "sheet" };
   return base;
 }
@@ -100,6 +107,15 @@ export function combatEventDetail(event) {
   if (event?.kind === "turn") return String(event?.payload?.actorName || event?.turn?.name || "");
   if (event?.kind === "note") return String(event?.payload?.text || "");
   if (event?.kind === "undo") return String(event?.payload?.description || "");
+  if (event?.kind === "reminder-resolution") {
+    const outcome = {
+      passed: "Superato",
+      failed: "Fallito",
+      immune: "Immune",
+    }[String(event?.payload?.outcome || "").trim().toLowerCase()] || "Risolto";
+    const damage = Number(event?.payload?.damage) || 0;
+    return `${outcome}${damage > 0 ? ` · ${numberText(damage)} danni` : ""}`;
+  }
   if (event?.kind === "scene-add" || event?.kind === "scene-remove" || event?.kind === "initiative-add" || event?.kind === "initiative-remove") {
     return targets.map((target) => target.name).join(", ");
   }

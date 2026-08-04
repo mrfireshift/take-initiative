@@ -319,6 +319,39 @@ test("la deduplicazione background applica una sola volta lo stesso commandId", 
   assert.equal(runtime.history.length, 1);
 });
 
+test("una risoluzione reminder duplicata crea una sola History ed è annullabile interamente", async () => {
+  const runtime = createSharedRuntime();
+  const operation = [{
+    type: "condition:add-instances",
+    instancesByTarget: { "token-1": [condition("reminder-condition", "token-1")] },
+  }];
+  const [first, duplicate] = await Promise.all([
+    runtime.clientA.apply(operation, {
+      commandId: "reminder-resolution:zone-activation",
+      history: {
+        kind: "reminder-resolution",
+        label: "Reminder: Ragnatela · Fallito",
+      },
+    }),
+    runtime.clientB.apply(operation, {
+      commandId: "reminder-resolution:zone-activation",
+      history: {
+        kind: "reminder-resolution",
+        label: "Reminder: Ragnatela · Fallito",
+      },
+    }),
+  ]);
+
+  assert.equal(first.status, EFFECTS_MUTATION_STATUS.APPLIED);
+  assert.equal(duplicate.status, EFFECTS_MUTATION_STATUS.APPLIED);
+  assert.equal(runtime.history.length, 1);
+  assert.equal(runtime.store.get("token-1").conditions.length, 1);
+
+  const undone = await runtime.clientB.undo(runtime.history[0]);
+  assert.equal(undone.status, EFFECTS_MUTATION_STATUS.APPLIED);
+  assert.deepEqual(runtime.store.get("token-1").conditions, []);
+});
+
 test("Undo background e atomicamente prevalidato e preserva campi estranei", async () => {
   const runtime = createSharedRuntime();
   await runtime.clientA.apply([{

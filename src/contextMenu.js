@@ -2,6 +2,7 @@
   import { mountElevationLabelWatcher } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
+  import { openTrackedPopover } from "./popoverDragHost.js";
   import {
     METADATA_OWNERSHIP,
     writeSceneMetadataKey,
@@ -23,6 +24,7 @@
   const ICON_BOSS = ASSET("boss.svg");
   const ICON_BOSS_OFF = ASSET("boss-remove.svg");
   const ICON_ELEVATION = ASSET("elevation.svg");
+  const ICON_CUSTOM_AURA = ASSET("aoe-circle.svg");
   
   // ===== DEBUG =====
 const DEBUG_CTX = false;
@@ -72,6 +74,34 @@ async function dumpItems(ids, label) {
 
   /* --------------------------- Group unificato ---------------------------- */
   const MENU_GROUP = `${ID}/initiative-manage`;
+  const CUSTOM_AURA_MODAL_ID = `${ID}/custom-aura-modal`;
+
+  async function customAuraPopoverOptions(tokenIds) {
+    let viewportWidth = 1200;
+    let viewportHeight = 800;
+    try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+    try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+    const width = Math.min(560, Math.max(360, viewportWidth - 32));
+    const height = Math.min(720, Math.max(360, viewportHeight - 96));
+    const query = new URLSearchParams();
+    for (const tokenId of tokenIds) query.append("tokenId", tokenId);
+    return {
+      id: CUSTOM_AURA_MODAL_ID,
+      url: `/custom-aura-modal.html?${query.toString()}`,
+      width,
+      height,
+      anchorReference: "POSITION",
+      anchorPosition: {
+        left: Math.max(12, viewportWidth - width - 64),
+        top: Math.max(12, Math.round((viewportHeight - height) / 2)),
+      },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    };
+  }
 
   /* --------------------------- Helper “chiudi” ---------------------------- */
   function closeContextMenuSoon() {
@@ -318,6 +348,34 @@ async function toggleEpicBossOn(ids) {
       embed: {
         url: "/ctx-elevation.html",
         height: 44,
+      },
+    });
+
+    OBR.contextMenu.create({
+      id: `${ID}/custom-aura-manage`,
+      group: MENU_GROUP,
+      icons: [{
+        icon: ICON_CUSTOM_AURA,
+        label: "Gestisci aure personalizzate…",
+        filter: {
+          roles: ["GM"],
+          every: [isCharacter(), hasMeta("!=")],
+        },
+      }],
+      onClick: async (ctx) => {
+        try {
+          const tokenIds = [...new Set(
+            (Array.isArray(ctx?.items) ? ctx.items : [])
+              .map((item) => String(typeof item === "string" ? item : item?.id || "").trim())
+              .filter(Boolean),
+          )];
+          if (!tokenIds.length) return;
+          await OBR.modal.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
+          await OBR.popover.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
+          await openTrackedPopover(await customAuraPopoverOptions(tokenIds));
+        } catch (error) {
+          console.warn("[custom-aura] editor:", error?.message || error);
+        }
       },
     });
 

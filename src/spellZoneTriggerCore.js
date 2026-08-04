@@ -1,5 +1,6 @@
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
+import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 
@@ -333,6 +334,9 @@ export function planSpellZoneTriggers({
       triggerId: String(trigger.id || "").trim(),
       event: String(trigger.event || "").trim(),
       resolution: String(trigger.resolution || "").trim(),
+      ...(String(trigger.ability || "").trim()
+        ? { ability: String(trigger.ability).trim() }
+        : {}),
       label: String(trigger.label || "").trim(),
       ...(String(trigger.failureEffect || "").trim()
         ? { failureEffect: String(trigger.failureEffect).trim() }
@@ -346,6 +350,23 @@ export function planSpellZoneTriggers({
         : {}),
       ...(trigger.damage && typeof trigger.damage === "object"
         ? { damage: clone(trigger.damage) }
+        : trigger.resolutionData?.damage && typeof trigger.resolutionData.damage === "object"
+          ? { damage: clone(trigger.resolutionData.damage) }
+        : {}),
+      ...(trigger.failureCondition && typeof trigger.failureCondition === "object"
+        ? { failureCondition: clone(trigger.failureCondition) }
+        : trigger.resolutionData?.failureCondition
+          && typeof trigger.resolutionData.failureCondition === "object"
+          ? { failureCondition: clone(trigger.resolutionData.failureCondition) }
+          : {}),
+      ...(trigger.resolutionData && typeof trigger.resolutionData === "object"
+        ? { resolutionData: clone(trigger.resolutionData) }
+        : {}),
+      ...(trigger.success && typeof trigger.success === "object"
+        ? { success: clone(trigger.success) }
+        : {}),
+      ...(trigger.immune && typeof trigger.immune === "object"
+        ? { immune: clone(trigger.immune) }
         : {}),
     };
     if (activation.resolution !== "informational") {
@@ -447,9 +468,10 @@ export function pendingSpellZoneTriggerActivations(items = []) {
     const staticMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
     const auraMetadata = item?.metadata?.[SPELL_AURA_META_KEY];
     const classFeatureAuraMetadata = item?.metadata?.[CLASS_FEATURE_AURA_META_KEY];
+    const customAuraMetadata = item?.metadata?.[CUSTOM_AURA_META_KEY];
     const metadata = staticMetadata?.role === "root"
       ? staticMetadata
-      : auraMetadata || classFeatureAuraMetadata;
+      : auraMetadata || classFeatureAuraMetadata || customAuraMetadata;
     if (!metadata) continue;
     const runtime = normalizeSpellZoneTriggerRuntime(metadata.triggerRuntime);
     for (const activation of runtime.pending) {

@@ -60,6 +60,7 @@ const SPELL_ZONE_INITIAL_RESOLUTIONS = Object.freeze([
   "none",
   "manual-save",
 ]);
+const SPELL_SAVE_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 
 const MEASURE_BY_SHAPE = Object.freeze({
   circle: "radius",
@@ -114,6 +115,26 @@ function validateTriggerEntries(triggers, errors) {
     }
     if (!allowed(SPELL_ZONE_RESOLUTIONS, trigger?.resolution)) {
       errors.push("zone-trigger-resolution-invalid");
+    }
+    if (
+      trigger?.ability !== undefined
+      && !SPELL_SAVE_ABILITIES.has(String(trigger.ability || "").trim().toLowerCase())
+    ) {
+      errors.push("zone-trigger-ability-invalid");
+    }
+    if (
+      trigger?.failureCondition !== undefined
+      && (
+        !trigger.failureCondition
+        || typeof trigger.failureCondition !== "object"
+        || !String(
+          trigger.failureCondition.condition
+          || trigger.failureCondition.name
+          || "",
+        ).trim()
+      )
+    ) {
+      errors.push("zone-trigger-failure-condition-invalid");
     }
     if (
       trigger?.requiresOwnTurn !== undefined
@@ -403,11 +424,12 @@ export function validateSpellAreaRule(rule) {
 }
 
 function defineRule(rule) {
-  const validation = validateSpellAreaRule(rule);
+  const nextRule = withReminderResolutionData(rule);
+  const validation = validateSpellAreaRule(nextRule);
   if (!validation.valid) {
-    throw new Error(`Invalid spell area rule "${rule?.id || "unknown"}": ${validation.errors.join(", ")}`);
+    throw new Error(`Invalid spell area rule "${nextRule?.id || "unknown"}": ${validation.errors.join(", ")}`);
   }
-  return deepFreeze(rule);
+  return deepFreeze(nextRule);
 }
 
 const meters = (value, measure) => Object.freeze({ value, unit: "m", measure });
@@ -1321,6 +1343,151 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     },
   ],
 });
+
+// Only triggers with an explicit entry here become actionable reminders.  The
+// catalog labels remain presentation text; they are never parsed to infer a
+// saving throw or an effect.
+const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
+  "control-water-whirlpool-save-on-entry": {
+    ability: "str",
+    failureCondition: { condition: "Trattenuto" },
+  },
+  "control-water-whirlpool-save-on-turn-start": {
+    ability: "str",
+    failureCondition: { condition: "Trattenuto" },
+  },
+  "earthquake-ground-save-on-source-turn-end": {
+    ability: "dex",
+    failureCondition: { condition: "Prono" },
+  },
+  "guardian-of-faith-save-on-entry": { ability: "dex" },
+  "guardian-of-faith-save-on-move-within": { ability: "dex" },
+  "black-tentacles-save-on-entry": {
+    ability: "dex",
+    failureCondition: { condition: "Trattenuto" },
+    damage: { dice: "3d6", type: "contundenti", onSave: "none" },
+  },
+  "black-tentacles-save-on-turn-start": {
+    ability: "dex",
+    failureCondition: { condition: "Trattenuto" },
+    damage: { dice: "3d6", type: "contundenti", onSave: "none" },
+  },
+  "grease-save-on-entry": {
+    ability: "dex",
+    failureCondition: { condition: "Prono" },
+  },
+  "grease-save-on-turn-end": {
+    ability: "dex",
+    failureCondition: { condition: "Prono" },
+  },
+  "sleet-storm-save-on-entry": {
+    ability: "dex",
+    failureCondition: { condition: "Prono" },
+  },
+  "sleet-storm-save-on-turn-start": {
+    ability: "dex",
+    failureCondition: { condition: "Prono" },
+  },
+  "blade-barrier-save-on-entry": { ability: "dex" },
+  "blade-barrier-save-on-turn-start": { ability: "dex" },
+  "cloudkill-save-on-entry": { ability: "con" },
+  "cloudkill-save-on-turn-start": { ability: "con" },
+  "flaming-sphere-save-on-turn-end": { ability: "dex" },
+  "incendiary-cloud-save-on-entry": { ability: "dex" },
+  "incendiary-cloud-save-on-turn-end": { ability: "dex" },
+  "insect-plague-save-on-entry": { ability: "con" },
+  "insect-plague-save-on-turn-end": { ability: "con" },
+  "wall-of-ice-frigid-sheet-save-on-entry": { ability: "con" },
+  "wall-of-ice-frigid-sheet-save-on-move": { ability: "con" },
+  "wall-of-ice-frigid-sheet-save-on-leave": { ability: "con" },
+  "wall-of-thorns-save-on-entry": { ability: "dex" },
+  "wall-of-thorns-save-on-turn-end": { ability: "dex" },
+  "dawn-save-on-turn-end": {
+    ability: "con",
+    damage: { dice: "4d10", type: "radiosi", onSave: "half" },
+  },
+  "sickening-radiance-save-on-entry": { ability: "con" },
+  "sickening-radiance-save-on-turn-start": { ability: "con" },
+  "maelstrom-save-on-turn-start": { ability: "str" },
+  "control-winds-downdraft-save-on-entry": {
+    ability: "str",
+    failureCondition: { condition: "Prono" },
+  },
+  "control-winds-downdraft-save-on-turn-start": {
+    ability: "str",
+    failureCondition: { condition: "Prono" },
+  },
+  "watery-sphere-save-on-ram": {
+    ability: "str",
+    failureCondition: { condition: "Trattenuto" },
+  },
+  "create-bonfire-save-on-entry": { ability: "dex" },
+  "create-bonfire-save-on-turn-end": { ability: "dex" },
+  "maddening-darkness-save-on-turn-start": {
+    ability: "wis",
+    damage: { dice: "8d8", type: "psichici", onSave: "half" },
+  },
+  "storm-sphere-save-on-turn-end": {
+    ability: "str",
+    damage: { dice: "2d6", type: "contundenti", onSave: "none" },
+  },
+  "cordon-of-arrows-save-on-entry": { ability: "dex" },
+  "cordon-of-arrows-save-on-turn-end": { ability: "dex" },
+  "hunger-of-hadar-save-on-turn-end": { ability: "dex" },
+  "web-save-on-entry": {
+    ability: "dex",
+    failureCondition: { condition: "Trattenuto" },
+  },
+  "web-save-on-turn-start": {
+    ability: "dex",
+    failureCondition: { condition: "Trattenuto" },
+  },
+  "moonbeam-save-on-entry": { ability: "con" },
+  "moonbeam-save-on-turn-start": { ability: "con" },
+  "spirit-guardians-save-on-entry": { ability: "wis" },
+  "spirit-guardians-save-on-turn-start": { ability: "wis" },
+});
+
+function enrichReminderTriggers(triggers) {
+  if (!Array.isArray(triggers)) return triggers;
+  return triggers.map((trigger) => {
+    const data = REMINDER_TRIGGER_RESOLUTION_DATA[trigger?.id];
+    if (!data) return trigger;
+    const resolutionData = {
+      ...(trigger?.resolutionData && typeof trigger.resolutionData === "object"
+        ? trigger.resolutionData
+        : {}),
+      ...(trigger?.damage ? { damage: trigger.damage } : {}),
+      ...data,
+    };
+    return {
+      ...trigger,
+      ...(data.ability ? { ability: data.ability } : {}),
+      resolutionData,
+    };
+  });
+}
+
+function withReminderResolutionData(rule) {
+  if (!rule || typeof rule !== "object") return rule;
+  const zonePolicy = rule.zonePolicy && typeof rule.zonePolicy === "object"
+    ? {
+      ...rule.zonePolicy,
+      triggers: enrichReminderTriggers(rule.zonePolicy.triggers),
+    }
+    : rule.zonePolicy;
+  const triggerPolicy = rule.triggerPolicy && typeof rule.triggerPolicy === "object"
+    ? {
+      ...rule.triggerPolicy,
+      triggers: enrichReminderTriggers(rule.triggerPolicy.triggers),
+    }
+    : rule.triggerPolicy;
+  return {
+    ...rule,
+    ...(zonePolicy ? { zonePolicy } : {}),
+    ...(triggerPolicy ? { triggerPolicy } : {}),
+  };
+}
 
 function catalogAreaRule(spec) {
   const zone = spec.kind === "zone";

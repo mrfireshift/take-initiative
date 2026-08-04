@@ -22,6 +22,10 @@ const turnNotice = readFileSync(
   new URL("../src/turn-notice.ts", import.meta.url),
   "utf8",
 );
+const turnNoticeHost = readFileSync(
+  new URL("../src/turnNoticeHost.js", import.meta.url),
+  "utf8",
+);
 
 test("il background monta il controller GM e serializza gli avanzamenti", () => {
   assert.match(background, /mountEffectSaveReminderController/);
@@ -29,6 +33,9 @@ test("il background monta il controller GM e serializza gli avanzamenti", () => 
   assert.match(controller, /OBR\.scene\.onMetadataChange\(enqueueReconcile\)/);
   assert.match(controller, /reconcileQueue = reconcileQueue\.then\(run, run\)/);
   assert.match(controller, /announcedActivationIds\.has\(notice\.activationId\)/);
+  assert.match(controller, /currentSceneEpoch/);
+  assert.match(controller, /isCurrentSceneEpoch\(sceneEpoch\)/);
+  assert.match(controller, /includeCurrentTurnStart: previousState !== null/);
 });
 
 test("i due percorsi canonici del danno emettono reminder indipendenti dalla concentrazione", () => {
@@ -41,7 +48,7 @@ test("i due percorsi canonici del danno emettono reminder indipendenti dalla con
 
 test("il layer piccolo ascolta i reminder effetto anche prima del gate delle zone", () => {
   const listener = turnNotice.indexOf(
-    "EFFECT_SAVE_REMINDER_NOTICE_CHANNEL",
+    'data?.type === "show-effect-save-notices"',
     turnNotice.indexOf("OBR.onReady(() => {"),
   );
   const zoneGate = turnNotice.indexOf(
@@ -50,8 +57,12 @@ test("il layer piccolo ascolta i reminder effetto anche prima del gate delle zon
   assert.ok(listener >= 0);
   assert.ok(zoneGate > listener);
   assert.match(
+    turnNoticeHost,
+    /OBR\.broadcast\.onMessage\(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL/,
+  );
+  assert.match(
     turnNotice,
     /kind:\s*informational\s*\?\s*"effect-reminder"\s*:\s*"effect-save"/,
   );
-  assert.match(turnNotice, /showEffectSaveNotices\(event\.data\)/);
+  assert.match(turnNotice, /showEffectSaveNotices\(data\)/);
 });

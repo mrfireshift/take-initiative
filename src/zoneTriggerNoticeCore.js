@@ -1,5 +1,9 @@
 import { ID } from "./constants.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
+import {
+  buildZoneTriggerReminderResolution,
+  normalizeReminderResolution,
+} from "./reminderResolutionCore.js";
 
 const META_KEY = `${ID}/meta`;
 const NOTICE_TIMINGS = new Set([
@@ -56,6 +60,9 @@ export function normalizeZoneTriggerNotice(value) {
   const dc = optionalDC(value?.dc);
   const timing = normalizeNoticeTiming(value?.timing || value?.event);
   const failureEffect = normalizedText(value?.failureEffect, "", 240);
+  const eyebrow = normalizedText(value?.eyebrow, "", 80);
+  const instruction = normalizedText(value?.instruction, "", 320);
+  const resolution = normalizeReminderResolution(value?.resolution);
   const kind = value?.kind === "zone-effect"
     || value?.resolution === "informational"
     ? "zone-effect"
@@ -72,6 +79,9 @@ export function normalizeZoneTriggerNotice(value) {
       160,
     ),
     ...(failureEffect ? { failureEffect } : {}),
+    ...(eyebrow ? { eyebrow } : {}),
+    ...(instruction ? { instruction } : {}),
+    ...(resolution ? { resolution } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(casterName ? { casterName } : {}),
     targets,
@@ -84,7 +94,16 @@ export function zoneTriggerNoticeFromActivation(
 ) {
   const source = itemsById instanceof Map ? itemsById : new Map();
   const root = source.get(String(activation?.zoneItemId || ""));
-  const zoneMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY] || {};
+  const metadataKey = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+    ? SPELL_STATIC_ZONE_META_KEY
+    : root?.metadata && Object.keys(root.metadata).find((key) =>
+      key === `${ID}/spellAura`
+      || key === `${ID}/classFeatureAura`
+      || key === `${ID}/customAura`
+    ) || "";
+  const zoneMetadata = root?.metadata?.[metadataKey]
+    || root?.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+    || {};
   const casterId = normalizedText(
     activation?.casterId || zoneMetadata.casterId,
     "",
@@ -108,7 +127,7 @@ export function zoneTriggerNoticeFromActivation(
       };
     })
     .filter(Boolean);
-  return normalizeZoneTriggerNotice({
+  const rawNotice = {
     activationId: activation?.id,
     turnKey: activation?.noticeTurnKey || activation?.turnKey,
     timing: activation?.event,
@@ -121,9 +140,29 @@ export function zoneTriggerNoticeFromActivation(
     ),
     label: activation?.label,
     failureEffect: activation?.failureEffect,
+    eyebrow: activation?.eyebrow,
+    instruction: activation?.instruction,
+    ...(activation?.ability ? { ability: activation.ability } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(casterName ? { casterName } : {}),
     targets,
+  };
+  const resolution = targets.length === 1
+    ? buildZoneTriggerReminderResolution({
+      activation: {
+        ...activation,
+        zoneItemId: activation?.zoneItemId,
+      },
+      targetId: targets[0].id,
+      sourceId: casterId,
+      sourceName: casterName,
+      dc,
+      metadataKey,
+    })
+    : null;
+  return normalizeZoneTriggerNotice({
+    ...rawNotice,
+    ...(resolution ? { resolution } : {}),
   });
 }
 

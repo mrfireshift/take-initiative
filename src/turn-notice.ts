@@ -1,9 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import {
-  EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
-  ID,
-  SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
-} from "./constants.js";
+import { ID } from "./constants.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
   pendingSpellZoneTriggerActivations,
@@ -18,10 +14,18 @@ import {
   mergeSaveReminderNoticeBatch,
   saveReminderNoticeBatchPresentation,
 } from "./saveReminderNoticeCore.js";
+import {
+  REMINDER_OUTCOMES,
+  reminderResolutionNeedsDamage,
+} from "./reminderResolutionCore.js";
+import { resolveReminder } from "./reminderResolution.js";
+import { currentSceneEpoch } from "./sceneEpoch.js";
 import { isTurnNoticeForScene } from "./turnNotice.js";
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
+const LAYOUT_CHANNEL = CHANNEL + "/layout";
+const UI_CHANNEL = CHANNEL + "/ui";
 const AUTO_CLOSE_MS = 4500;
 const ZONE_AUTO_CLOSE_MS = 6500;
 const SAVE_REMINDER_AGGREGATION_MS = 16;
@@ -58,6 +62,7 @@ type ZoneTriggerNotice = {
   kind?: "zone" | "zone-effect" | "effect-save" | "effect-reminder";
   eyebrow?: string;
   instruction?: string;
+  resolution?: any;
 };
 
 function normalizeNotice(parsed: any): TurnNotice | null {
@@ -94,12 +99,64 @@ let zonePendingSyncRequested = false;
 let zonePendingSyncRunning = false;
 let unsubscribeZoneItems: (() => void) | null = null;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
-let unsubscribeZoneBroadcast: (() => void) | null = null;
-let unsubscribeEffectSaveBroadcast: (() => void) | null = null;
-let unsubscribeTurnNoticeBroadcast: (() => void) | null = null;
+let unsubscribeUiBroadcast: (() => void) | null = null;
 let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
 let noticeSceneEpoch = 0;
 let noticeSceneReady = true;
+let noticeRole = "PLAYER";
+let lastNoticeLayoutKey = "";
+const resolutionDrafts = new Map<string, { outcome: string; damageRoll: string }>();
+const resolutionStatus = new Map<string, string>();
+const resolvingActivations = new Set<string>();
+
+const RESOLUTION_LABELS: Record<string, string> = {
+  [REMINDER_OUTCOMES.PASSED]: "Superato",
+  [REMINDER_OUTCOMES.FAILED]: "Fallito",
+};
+const RESOLUTION_BUTTON_OUTCOMES = [
+  REMINDER_OUTCOMES.PASSED,
+  REMINDER_OUTCOMES.FAILED,
+] as const;
+
+function announceNoticeLayout() {
+  const hasTurnNotice = !!currentPanel;
+  const hasZoneNotice = !!currentZonePanel;
+  const fallbackHeight = !hasTurnNotice && !hasZoneNotice
+    ? 1
+    : hasTurnNotice && hasZoneNotice
+      ? 232
+      : hasZoneNotice
+        ? 158
+        : 122;
+  const stack = document.getElementById("notice-stack");
+  const measuredHeight = Number(stack?.scrollHeight || 0);
+  const height = hasTurnNotice || hasZoneNotice
+    ? Math.max(
+      1,
+      window.innerWidth > 100 && measuredHeight > 1
+        ? Math.ceil(measuredHeight)
+        : fallbackHeight,
+    )
+    : 1;
+  const key = `${hasTurnNotice ? 1 : 0}:${hasZoneNotice ? 1 : 0}:${height}`;
+  if (key === lastNoticeLayoutKey) return;
+  lastNoticeLayoutKey = key;
+  void OBR.broadcast.sendMessage(
+    LAYOUT_CHANNEL,
+    {
+      type: "turn-notice-layout",
+      visible: hasTurnNotice || hasZoneNotice,
+      height,
+    },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
+window.addEventListener("resize", () => {
+  if (!currentPanel && !currentZonePanel) return;
+  lastNoticeLayoutKey = "";
+  window.requestAnimationFrame(announceNoticeLayout);
+});
 
 function buildPanel(notice: TurnNotice) {
   const panel = document.createElement("section");
@@ -159,6 +216,7 @@ function hideCurrent() {
   if (!currentPanel) return;
   const leaving = currentPanel;
   currentPanel = null;
+  announceNoticeLayout();
   leaving.classList.remove("is-visible");
   leaving.classList.add("is-leaving");
   window.setTimeout(() => leaving.remove(), FADE_MS);
@@ -170,6 +228,7 @@ function clearTurnNotice() {
   currentPanel?.remove();
   currentPanel = null;
   document.getElementById("app")?.replaceChildren();
+  announceNoticeLayout();
 }
 
 function clearZoneNotice() {
@@ -180,6 +239,7 @@ function clearZoneNotice() {
   currentZoneTurnKey = "";
   currentSaveReminderBatch = null;
   document.getElementById("zone-app")?.replaceChildren();
+  announceNoticeLayout();
 }
 
 function clearPendingSaveReminderNotices() {
@@ -195,12 +255,18 @@ function showNotice(raw: any) {
   if (notice.noticeId && notice.noticeId <= lastNoticeId) return;
   if (notice.noticeId) lastNoticeId = notice.noticeId;
 
+  pendingSaveReminderNotices = pendingSaveReminderNotices.filter((pending) =>
+    !pending.turnKey
+    || !notice.turnKey
+    || pending.turnKey === notice.turnKey,
+  );
   if (
     currentZonePanel
     && shouldClearZoneNoticeAtTurn(currentZoneTurnKey, notice.turnKey)
   ) {
     clearZoneNotice();
   }
+
   window.clearTimeout(hideTimer);
   const previous = currentPanel;
   const nextPanel = buildPanel(notice);
@@ -213,6 +279,175 @@ function showNotice(raw: any) {
     window.setTimeout(() => previous.remove(), FADE_MS);
   }
   hideTimer = window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
+  announceNoticeLayout();
+}
+
+function resolutionDraftFor(activationId: string) {
+  const current = resolutionDrafts.get(activationId);
+  if (current) return current;
+  const draft = { outcome: "", damageRoll: "" };
+  resolutionDrafts.set(activationId, draft);
+  return draft;
+}
+
+function setResolutionStatus(line: HTMLElement, activationId: string, message: string) {
+  resolutionStatus.set(activationId, message);
+  line.dataset.resolutionState = message ? "done" : "";
+  line.querySelector("[data-resolution-controls]")?.remove();
+  const previous = line.querySelector("[data-resolution-status]");
+  previous?.remove();
+  if (!message) return;
+  const status = document.createElement("span");
+  status.dataset.resolutionStatus = "1";
+  status.textContent = message;
+  status.setAttribute("role", "status");
+  line.appendChild(status);
+}
+
+function resolutionStatusNode(line: HTMLElement, message: string) {
+  const previous = line.querySelector("[data-resolution-status]");
+  previous?.remove();
+  if (!message) return;
+  const status = document.createElement("span");
+  status.dataset.resolutionStatus = "1";
+  status.textContent = message;
+  status.setAttribute("role", "alert");
+  line.appendChild(status);
+}
+
+function dismissResolvedReminder(activationId: string) {
+  const entries = Array.isArray(currentSaveReminderBatch?.entries)
+    ? currentSaveReminderBatch.entries.filter((entry: any) => (
+      String(entry?.activationId || "").trim() !== activationId
+    ))
+    : [];
+  resolutionDrafts.delete(activationId);
+  resolutionStatus.delete(activationId);
+  if (!entries.length) {
+    clearZoneNotice();
+    return;
+  }
+  const nextBatch = mergeSaveReminderNoticeBatch(null, entries);
+  if (!nextBatch || !renderSaveReminderBatch(nextBatch)) {
+    clearZoneNotice();
+    return;
+  }
+  currentSaveReminderBatch = nextBatch;
+}
+
+function buildResolutionControls(line: HTMLElement, row: any) {
+  if (
+    noticeRole !== "GM"
+    || !row?.resolution
+    || !Array.isArray(row.targets)
+    || row.targets.length !== 1
+  ) return;
+  const activationId = String(row.activationId || "").trim();
+  if (!activationId) return;
+  const completed = resolutionStatus.get(activationId);
+  if (completed) {
+    setResolutionStatus(line, activationId, completed);
+    return;
+  }
+  const draft = resolutionDraftFor(activationId);
+  const controls = document.createElement("div");
+  controls.dataset.resolutionControls = "1";
+  controls.className = "zone-resolution";
+
+  let damageInput: HTMLInputElement | null = null;
+  if (reminderResolutionNeedsDamage(row.resolution)) {
+    const damageLabel = document.createElement("label");
+    damageLabel.className = "zone-resolution-damage";
+    damageLabel.textContent = `Risultato dadi (${row.resolution.damage.dice})`;
+    damageInput = document.createElement("input");
+    damageInput.type = "number";
+    damageInput.min = "0";
+    damageInput.step = "1";
+    damageInput.inputMode = "numeric";
+    damageInput.value = draft.damageRoll;
+    damageInput.placeholder = "0";
+    damageInput.setAttribute("aria-label", "Risultato dei dadi");
+    damageInput.addEventListener("input", () => {
+      draft.damageRoll = damageInput?.value || "";
+    });
+    damageLabel.appendChild(damageInput);
+    controls.appendChild(damageLabel);
+  }
+
+  const outcomes = document.createElement("div");
+  outcomes.className = "zone-resolution-outcomes";
+  const refreshSelection = () => {
+    for (const button of Array.from(outcomes.querySelectorAll("button"))) {
+      button.classList.toggle("is-selected", button.dataset.outcome === draft.outcome);
+    }
+  };
+
+  const resolve = async (outcome: string) => {
+    if (resolvingActivations.has(activationId)) return;
+    draft.outcome = outcome;
+    refreshSelection();
+    if (
+      damageInput
+      && (!damageInput.value.trim() || !Number.isFinite(Number(damageInput.value)))
+    ) {
+      resolutionStatusNode(line, "Inserisci un risultato dei dadi valido.");
+      damageInput.focus();
+      return;
+    }
+
+    resolvingActivations.add(activationId);
+    for (const button of Array.from(controls.querySelectorAll("button, input"))) {
+      (button as HTMLButtonElement | HTMLInputElement).disabled = true;
+    }
+    resolutionStatusNode(line, "Risoluzione in corso…");
+    try {
+      const result = await resolveReminder({
+        notice: {
+          activationId,
+          targets: row.targets || [],
+          resolution: row.resolution,
+        },
+        outcome: draft.outcome,
+        damageRoll: draft.damageRoll,
+        sceneEpoch: currentSceneEpoch(),
+      });
+      if (result.status === "applied" || result.status === "already-resolved") {
+        setResolutionStatus(
+          line,
+          activationId,
+          result.message || `Risolto: ${RESOLUTION_LABELS[draft.outcome]}.`,
+        );
+        dismissResolvedReminder(activationId);
+      } else {
+        resolutionStatusNode(line, result.message || "Reminder non più corrente; puoi chiuderlo.");
+        for (const button of Array.from(controls.querySelectorAll("button, input"))) {
+          (button as HTMLButtonElement | HTMLInputElement).disabled = false;
+        }
+        refreshSelection();
+      }
+    } catch (error) {
+      resolutionStatusNode(line, String((error as any)?.message || "Risoluzione non riuscita; puoi chiudere il reminder."));
+      for (const button of Array.from(controls.querySelectorAll("button, input"))) {
+        (button as HTMLButtonElement | HTMLInputElement).disabled = false;
+      }
+      refreshSelection();
+    } finally {
+      resolvingActivations.delete(activationId);
+    }
+  };
+
+  for (const outcome of RESOLUTION_BUTTON_OUTCOMES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.outcome = outcome;
+    button.textContent = RESOLUTION_LABELS[outcome] || outcome;
+    button.addEventListener("click", () => {
+      void resolve(outcome);
+    });
+    outcomes.appendChild(button);
+  }
+  controls.append(outcomes);
+  line.appendChild(controls);
 }
 
 function renderSaveReminderBatch(batch: any) {
@@ -267,25 +502,45 @@ function renderSaveReminderBatch(batch: any) {
     const instruction = document.createElement("span");
     instruction.textContent = row.detail;
     line.append(instruction);
+    buildResolutionControls(line, row);
     detail.append(line);
   }
 
   const timer = document.createElement("div");
   timer.className = "zone-timer";
-  panel.append(portrait, copy, detail, timer);
+  const requiresResolution = noticeRole === "GM"
+    && presentation.rows.some((row) => row.resolution);
+  panel.append(portrait, copy, detail);
+  if (requiresResolution) {
+    panel.dataset.requiresResolution = "true";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "zone-close";
+    close.textContent = "×";
+    close.title = "Chiudi reminder";
+    close.setAttribute("aria-label", "Chiudi reminder");
+    close.addEventListener("click", clearZoneNotice);
+    panel.appendChild(close);
+  } else {
+    panel.appendChild(timer);
+  }
   window.clearTimeout(zoneHideTimer);
   app.replaceChildren(panel);
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
-  zoneHideTimer = window.setTimeout(() => {
-    if (currentZonePanel === panel) {
-      currentZonePanel = null;
-      currentZoneTurnKey = "";
-      currentSaveReminderBatch = null;
-      zoneHideTimer = 0;
-    }
-    panel.remove();
-  }, ZONE_AUTO_CLOSE_MS);
+  announceNoticeLayout();
+  if (!requiresResolution) {
+    zoneHideTimer = window.setTimeout(() => {
+      if (currentZonePanel === panel) {
+        currentZonePanel = null;
+        currentZoneTurnKey = "";
+        currentSaveReminderBatch = null;
+        zoneHideTimer = 0;
+        announceNoticeLayout();
+      }
+      panel.remove();
+    }, ZONE_AUTO_CLOSE_MS);
+  }
   return true;
 }
 
@@ -344,6 +599,7 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
       : `${saveLabel}${casterName ? ` (${casterName})` : ""}. ${
         String(raw?.instruction || "Risolvi il tiro salvezza.").trim()
       }`,
+    ...(raw?.resolution ? { resolution: raw.resolution } : {}),
     targets: [{
       id: targetId,
       name: targetName,
@@ -433,16 +689,36 @@ function requestPendingZoneNoticeSync() {
 }
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") hideCurrent();
+  if (event.key === "Escape") {
+    hideCurrent();
+    clearZoneNotice();
+  }
 });
 
 OBR.onReady(() => {
-  unsubscribeTurnNoticeBroadcast = OBR.broadcast.onMessage(CHANNEL, (event) => {
+  void OBR.player.getRole().then((role) => {
+    noticeRole = role === "GM" ? "GM" : "PLAYER";
+    if (noticeRole === "GM" && currentSaveReminderBatch) {
+      renderSaveReminderBatch(currentSaveReminderBatch);
+    }
+  }).catch(() => {
+    noticeRole = "PLAYER";
+  });
+  unsubscribeUiBroadcast = OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
+    const data = event?.data;
     if (
-      event?.data?.type === "show-turn-notice"
-      && isTurnNoticeForScene(event.data, noticeSceneEpoch, noticeSceneReady)
+      data?.type === "show-turn-notice"
+      && isTurnNoticeForScene(data, noticeSceneEpoch, noticeSceneReady)
     ) {
-      showNotice(event.data);
+      showNotice(data);
+      return;
+    }
+    if (data?.type === "show-effect-save-notices") {
+      showEffectSaveNotices(data);
+      return;
+    }
+    if (data?.type === "show-zone-trigger-notices") {
+      showZoneNotices(data);
     }
   });
   const announceReady = () => OBR.broadcast.sendMessage(
@@ -462,14 +738,6 @@ OBR.onReady(() => {
     },
   );
   void announceReady();
-  unsubscribeEffectSaveBroadcast = OBR.broadcast.onMessage(
-    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
-    (event) => {
-      if (event?.data?.type === "show-effect-save-notices") {
-        showEffectSaveNotices(event.data);
-      }
-    },
-  );
   unsubscribeZoneSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
       noticeSceneEpoch += 1;
@@ -477,6 +745,10 @@ OBR.onReady(() => {
       clearTurnNotice();
       zonePendingBaselineReady = false;
       announcedZoneActivationIds.clear();
+      announcedEffectActivationIds.clear();
+      resolutionDrafts.clear();
+      resolutionStatus.clear();
+      resolvingActivations.clear();
       clearPendingSaveReminderNotices();
       clearZoneNotice();
       return;
@@ -485,17 +757,10 @@ OBR.onReady(() => {
     void announceReady();
     if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) requestPendingZoneNoticeSync();
   });
+  announceNoticeLayout();
   if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
   unsubscribeZoneItems = OBR.scene.items.onChange(
     requestPendingZoneNoticeSync,
-  );
-  unsubscribeZoneBroadcast = OBR.broadcast.onMessage(
-    SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
-    (event) => {
-      if (event?.data?.type === "show-zone-trigger-notices") {
-        showZoneNotices(event.data);
-      }
-    },
   );
   requestPendingZoneNoticeSync();
 });
@@ -505,8 +770,6 @@ window.addEventListener("beforeunload", () => {
   clearPendingSaveReminderNotices();
   unsubscribeZoneItems?.();
   unsubscribeZoneSceneReady?.();
-  unsubscribeZoneBroadcast?.();
-  unsubscribeEffectSaveBroadcast?.();
-  unsubscribeTurnNoticeBroadcast?.();
+  unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();
 });

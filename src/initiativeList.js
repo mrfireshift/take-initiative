@@ -6,7 +6,7 @@ import {
   TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
-import { mountHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
+import { mountHPBars, syncInitialHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
@@ -17,6 +17,7 @@ import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
+import { buildConcentrationSaveWarning } from "./concentrationSaveReminderCore.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -31,6 +32,7 @@ import {
   isInitiativeTurnTransition,
 } from "./turnNotice.js";
 import {
+  planEffectSaveReminderNotices,
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
 } from "./effectSaveReminderCore.js";
@@ -128,11 +130,17 @@ import {
   classFeatureConditionResourceDie,
   classFeatureTargeting,
 } from "./classFeatureCore.js";
-import {
-  activateClassFeature,
-  deactivateClassFeature,
-  resetClassFeatureResources,
-} from "./classFeatureRuntime.js";
+let __classFeatureRuntimePromise = null;
+
+function __loadClassFeatureRuntime() {
+  if (!__classFeatureRuntimePromise) {
+    __classFeatureRuntimePromise = import("./classFeatureRuntime.js").catch((error) => {
+      __classFeatureRuntimePromise = null;
+      throw error;
+    });
+  }
+  return __classFeatureRuntimePromise;
+}
 import {
   bindClassicHPEditor,
   bindClassicInitiativeEditor,
@@ -184,8 +192,6 @@ const COND_DOCK_CFG = {
   const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
   const CONCENTRATION_WARNING_MODAL_ID = `${ID}/concentration-warning-modal`;
   const TURN_NOTICE_CHANNEL = ID + "/turn-notice";
-  const TURN_NOTICE_READY_CHANNEL = TURN_NOTICE_CHANNEL + "/ready";
-  const TURN_NOTICE_MODAL_ID = ID + "/turn-notice-modal";
   // —— CHIP STYLE PRESET (condizioni + spell)
 const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
 const CHIP_HEIGHT_PX = 18;  // altezza visiva della pill
@@ -558,8 +564,6 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __optimisticNavigationDigest = null;
   __lastActiveId = null;
   __lastTurnNoticeActiveId = null;
-  __turnNoticeReady = false;
-  __pendingTurnNotice = null;
   __lastTurnNoticeDeliveryKey = "";
   __lastConditionTurnState = null;
   __conditionNavigationHint = null;
@@ -4510,6 +4514,10 @@ function normalizeConcentrationWarnings(values = []) {
     dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
     portrait: String(warning?.portrait || "").trim().slice(0, 2048),
     attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
+    spellName: String(warning?.spellName || "").trim().slice(0, 240),
+    notice: warning?.notice && typeof warning.notice === "object"
+      ? warning.notice
+      : null,
   })).filter((warning) => warning.damage > 0);
 }
 
@@ -4517,15 +4525,29 @@ async function openConcentrationWarningModal(data) {
   const warnings = normalizeConcentrationWarnings(data?.warnings);
   if (!warnings.length) return;
 
+  let viewportWidth = 1200;
+  let viewportHeight = 800;
+  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
+  const width = cardWidth + 8;
+  const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
+  const top = Math.max(12, Math.round(viewportHeight * 0.09));
   try { await OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID); } catch {}
+  try { await OBR.popover.close(CONCENTRATION_WARNING_MODAL_ID); } catch {}
   const payload = encodeURIComponent(JSON.stringify({ warnings }));
-  await OBR.modal.open({
+  await OBR.popover.open({
     id: CONCENTRATION_WARNING_MODAL_ID,
     url: `/concentration-warning.html?payload=${payload}`,
-    fullScreen: true,
-    hideBackdrop: true,
+    width,
+    height,
+    anchorReference: "POSITION",
+    anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
+    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
     hidePaper: true,
-    disablePointerEvents: true,
+    disableClickAway: true,
+    marginThreshold: 12,
   });
 }
 
@@ -4545,11 +4567,9 @@ function mountConcentrationWarningBroadcast() {
   });
 }
 
-let __turnNoticeListenerMounted = false;
 let __turnNoticeSequence = 0;
 let __effectSaveDamageSequence = 0;
-let __turnNoticeReady = false;
-let __pendingTurnNotice = null;
+let __concentrationDamageSequence = 0;
 let __lastTurnNoticeDeliveryKey = "";
 
 async function __sendTurnNoticePayload(notice, sceneEpoch) {
@@ -4563,51 +4583,6 @@ async function __sendTurnNoticePayload(notice, sceneEpoch) {
   return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
 }
 
-function __markTurnNoticeReady() {
-  if (__turnNoticeReady) return;
-  __turnNoticeReady = true;
-  const pending = __pendingTurnNotice;
-  __pendingTurnNotice = null;
-  if (!pending) return;
-  void __sendTurnNoticePayload(pending.notice, pending.sceneEpoch).catch((err) => {
-    console.warn("[turn-notice] pending broadcast error:", err?.message || err);
-  });
-}
-
-function __requestTurnNoticeReady(sceneEpoch = currentSceneEpoch()) {
-  void OBR.broadcast.sendMessage(TURN_NOTICE_READY_CHANNEL, {
-    type: "turn-notice-ready-request",
-    sceneEpoch,
-  }, { destination: "LOCAL" }).catch(() => {});
-}
-
-async function mountTurnNoticeBroadcast() {
-  if (__turnNoticeListenerMounted) return;
-  __turnNoticeListenerMounted = true;
-  __turnNoticeReady = false;
-  OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL, (event) => {
-    if (event?.data?.type !== "turn-notice-ready") return;
-    const readyEpoch = Number(event?.data?.sceneEpoch);
-    if (
-      Number.isFinite(readyEpoch)
-      && readyEpoch !== currentSceneEpoch()
-    ) {
-      __requestTurnNoticeReady(currentSceneEpoch());
-      return;
-    }
-    __markTurnNoticeReady();
-  });
-  await OBR.modal.open({
-    id: TURN_NOTICE_MODAL_ID,
-    url: "/turn-notice.html",
-    fullScreen: true,
-    hideBackdrop: true,
-    hidePaper: true,
-    disablePointerEvents: true,
-  });
-  __requestTurnNoticeReady();
-}
-
 async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
   if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
@@ -4615,12 +4590,42 @@ async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
   const deliveryKey = `${sceneEpoch}:${notice.turnKey}`;
   if (deliveryKey === __lastTurnNoticeDeliveryKey) return false;
   __lastTurnNoticeDeliveryKey = deliveryKey;
-  if (!__turnNoticeReady) {
-    __pendingTurnNotice = { notice, sceneEpoch };
-    return true;
-  }
   return __sendTurnNoticePayload(notice, sceneEpoch);
 }
+
+async function __broadcastEffectSaveReminderTransition(
+  previousTurnState,
+  nextTurnState,
+  sceneEpoch = currentSceneEpoch(),
+  metadataRevision,
+) {
+  if (
+    !IS_GM
+    || !previousTurnState
+    || !nextTurnState
+    || !__isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision })
+  ) return false;
+
+  const items = await OBR.scene.items.getItems();
+  if (!__isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision })) {
+    return false;
+  }
+  const notices = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: previousTurnState,
+    initiativeState: nextTurnState,
+    includeCurrentTurnStart: false,
+  });
+  if (!notices.length) return false;
+
+  await OBR.broadcast.sendMessage(
+    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+    { type: "show-effect-save-notices", notices },
+    { destination: "ALL" },
+  );
+  return __isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision });
+}
+
 async function showConcentrationDamageWarning(changes = []) {
   if (!IS_GM) return;
 
@@ -4640,17 +4645,22 @@ async function showConcentrationDamageWarning(changes = []) {
     ? items.concat(await OBR.scene.items.getItems(missingSourceIds))
     : items;
   const warnings = [];
+  const concentrationEventId = `${Date.now()}-${++__concentrationDamageSequence}`;
   for (const item of items) {
     const concentration = item.metadata?.[META_KEY]?.[CONC_META_KEY];
     if (!concentration || typeof concentration !== "object" || !Object.keys(concentration).length) continue;
     const damage = damageById.get(item.id) || 0;
-    warnings.push({
-      name: item.name || "Token",
+    const warning = buildConcentrationSaveWarning({
+      casterId: item.id,
+      casterName: item.name || "Token",
+      concentration,
       damage,
       dc: concentrationSaveDC(damage),
       portrait: getTokenImageUrl(item) || "",
       attitude: item.metadata?.[META_KEY]?.attitude || "neutral",
+      eventId: concentrationEventId,
     });
+    if (warning) warnings.push(warning);
   }
   const effectNotices = effectSaveReminderNoticesForDamage({
     items: reminderItems,
@@ -6238,6 +6248,7 @@ async function __terminateClassFeatureOnTrackerCard(itemId, instance) {
   const sourceId = String(instance?.sourceId || itemId).trim();
   const instanceId = String(instance?.parentEffectId || "").trim();
   if (!sourceId || !instanceId) return;
+  const { deactivateClassFeature } = await __loadClassFeatureRuntime();
   await deactivateClassFeature(sourceId, instanceId);
 }
 
@@ -6259,6 +6270,7 @@ async function __activateClassFeatureFromContext(entry, featureId, scopeIds = []
   if (targeting.mode === "single-target" && candidateIds.length) {
     activation.targetIds = candidateIds;
   }
+  const { activateClassFeature } = await __loadClassFeatureRuntime();
   const result = await activateClassFeature(activation);
   await renderAll("class-feature-context-activate");
   return result;
@@ -6268,6 +6280,7 @@ async function __deactivateClassFeatureFromContext(entry, instanceId) {
   if (!IS_GM || !entry) return;
   const sourceId = splitParagonId(entry.id).baseId;
   if (!sourceId || !instanceId) return;
+  const { deactivateClassFeature } = await __loadClassFeatureRuntime();
   const result = await deactivateClassFeature(sourceId, instanceId);
   await renderAll("class-feature-context-deactivate");
   return result;
@@ -6277,6 +6290,7 @@ async function __resetClassFeatureResourcesFromContext(entry) {
   if (!IS_GM || !entry) return;
   const sourceId = splitParagonId(entry.id).baseId;
   if (!sourceId) return;
+  const { resetClassFeatureResources } = await __loadClassFeatureRuntime();
   const result = await resetClassFeatureResources(sourceId);
   await renderAll("class-feature-reset-resources");
   return result;
@@ -6287,6 +6301,7 @@ async function __runTrackerQuickAction(sourceEntry, action) {
   if (!sourceId) throw new Error("quick-action-source-missing");
   if (action?.kind === "feature") {
     if (!IS_GM) throw new Error("Solo il GM può attivare una capacità.");
+    const { activateClassFeature } = await __loadClassFeatureRuntime();
     return activateClassFeature({
       sourceId,
       featureId: action.featureId,
@@ -8432,8 +8447,8 @@ try {
       mountCompactAdminMenuListener();
       mountSpeedCheckStateBroadcast();
     mountConcentrationWarningBroadcast();
-    await mountTurnNoticeBroadcast().catch(() => {});
-    await mountSpeedWarningBroadcast().catch(() => {});
+    const speedWarningBootstrap = mountSpeedWarningBroadcast().catch(() => {});
+    await speedWarningBootstrap;
     if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-listeners")) return;
     setTrackedMoveButtonActive(false);
     try {
@@ -8505,26 +8520,13 @@ try {
 } catch (e) {
   console.error("[hpbar] mount error", e?.error?.message || e?.message || e);
 }
-  await mountHPBars();
+  await mountHPBars({ deferInitialSync: true });
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-hp-bars")) return;
   if (IS_GM) {
     enableSpeedCheckProcessor();
     subscribeMovementSegments(queueSpeedCheckMovements);
-    await mountMovementHistoryWatcher();
-    try {
-      const initiativeCardItems = await OBR.scene.items.getItems((item) => (
-        item.layer === "CHARACTER"
-        && !item.attachedTo
-        && item.metadata?.[META_KEY]?.inInitiative === true
-      ));
-      await restoreInitiativeCardQuickActionsFromMemory(
-        initiativeCardItems.map((item) => item.id),
-      );
-    } catch (error) {
-      console.warn("[initiative-card] quick action memory boot:", error?.message || error);
-    }
   }
-  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-history")) return;
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-speed-check")) return;
   await ensureState(bootstrapSceneEpoch);
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-ensure-state")) return;
   await reconcileStateWithItems(bootstrapSceneEpoch);
@@ -8543,24 +8545,57 @@ try {
     false,
   );
   if (IS_GM) {
+    const runDeferredBootstrap = async () => {
+      if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-start")) return;
+      try {
+        await syncInitialHPBars();
+      } catch (err) {
+        console.warn("[hpbar] deferred boot sync error:", err?.message || err);
+      }
+      if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-hp-bars")) return;
+      try {
+        await mountMovementHistoryWatcher();
+      } catch (err) {
+        console.warn("[history] deferred boot mount:", err?.message || err);
+      }
+      if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-history")) return;
+      try {
+        const initiativeCardItems = await OBR.scene.items.getItems((item) => (
+          item.layer === "CHARACTER"
+          && !item.attachedTo
+          && item.metadata?.[META_KEY]?.inInitiative === true
+        ));
+        await restoreInitiativeCardQuickActionsFromMemory(
+          initiativeCardItems.map((item) => item.id),
+        );
+      } catch (error) {
+        console.warn("[initiative-card] deferred quick action memory boot:", error?.message || error);
+      }
+      if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-quick-actions")) return;
+      try {
+        const st = await getSceneState();
+        const entries = await getEntriesWithLair(st);
+        for (const e of entries) {
+          if (isLairId(e.id)) continue; // la Tana non ha HP
+          syncHPBarNow(e.id, e.hp ?? 0, e.hpMax ?? 0);
+        }
+      } catch (err) {
+        console.warn("[hpbar] deferred state sync error:", err?.message || err);
+      }
+    };
+    const scheduleDeferredBootstrap = () => {
+      void runDeferredBootstrap();
+    };
+    if (typeof globalThis.requestIdleCallback === "function") {
+      globalThis.requestIdleCallback(scheduleDeferredBootstrap, { timeout: 1000 });
+    } else {
+      globalThis.setTimeout(scheduleDeferredBootstrap, 0);
+    }
+  }
+  if (IS_GM) {
     void recordCombatTurn(__latestInitiativeState, { sceneEpoch: bootstrapSceneEpoch }).catch((err) => {
       console.warn("[combat-log] initial turn:", err?.message || err);
     });
-  }
-
-  if (IS_GM) {
-    try {
-      const { syncHPBarNow } = await import("./hpbar-items.js");
-      const st = await getSceneState();
-      const entries = await getEntriesWithLair(st);
-      for (const e of entries) {
-      if (isLairId(e.id)) continue; // la Tana non ha HP
-  syncHPBarNow(e.id, e.hp ?? 0, e.hpMax ?? 0);
-}
-
-    } catch (err) {
-      console.warn("[hpbar] boot sync error", err);
-    }
   }
 });
 
@@ -8629,6 +8664,20 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
   } else {
     __lastConditionTurnState = null;
     __conditionNavigationHint = null;
+  }
+
+  try {
+    const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
+    if (IS_GM && boundaries.length) {
+      await __broadcastEffectSaveReminderTransition(
+        previousTurnState,
+        nextTurnState,
+        sceneEpoch,
+        metadataRevision,
+      );
+    }
+  } catch (err) {
+    console.warn("[effect-save-reminder] transition broadcast error:", err?.message || err);
   }
 
   let roundEffectAdjustment = Promise.resolve();

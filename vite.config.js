@@ -62,6 +62,7 @@ export default defineConfig(() => {
         trackerQuickActions: path.resolve(process.cwd(), "tracker-quick-actions.html"),
         compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
+        customAuraModal: path.resolve(process.cwd(), "custom-aura-modal.html"),
       },
     },
   },

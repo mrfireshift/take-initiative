@@ -31,6 +31,20 @@ test("converte una modifica HP in un evento di danno strutturato", () => {
   assert.match(combatEventDetail(event), /Erinni: 68\/168 → 40\/168 \(-28\)/);
 });
 
+test("registra una risoluzione reminder con esito e danno nel Combat Log", () => {
+  const event = combatEventFromHistoryEntry({
+    id: "effects-history:reminder-resolution:1",
+    kind: "reminder-resolution",
+    label: "Reminder: Ragnatela · Fallito",
+    payload: { outcome: "failed", damage: 7 },
+    changes: [],
+  });
+
+  assert.equal(event.action, "reminder-resolution");
+  assert.deepEqual(event.payload, { outcome: "failed", damage: 7 });
+  assert.equal(combatEventDetail(event), "Fallito · 7 danni");
+});
+
 test("cumula il movimento dello stesso token nello stesso turno", () => {
   const base = {
     kind: "move",

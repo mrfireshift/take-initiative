@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, ID } from "./constants.js";
 import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
@@ -24,14 +25,17 @@ function snapshot(state) {
 }
 
 async function reconcileEffectSaveReminders(sceneMetadata = null) {
+  const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) {
     previousInitiativeState = null;
     announcedActivationIds.clear();
     return;
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const metadata = sceneMetadata && typeof sceneMetadata === "object"
     ? sceneMetadata
     : await OBR.scene.getMetadata().catch(() => ({}));
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const initiativeState = snapshot(metadata?.[STATE_KEY]);
   if (!initiativeState) {
     previousInitiativeState = null;
@@ -39,11 +43,15 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
     return;
   }
   const items = await OBR.scene.items.getItems();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const previousState = previousInitiativeState;
   const notices = planEffectSaveReminderNotices({
     items,
-    previousInitiativeState,
+    previousInitiativeState: previousState,
     initiativeState,
+    includeCurrentTurnStart: previousState !== null,
   }).filter((notice) => !announcedActivationIds.has(notice.activationId));
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   previousInitiativeState = initiativeState;
   if (!notices.length) return;
   for (const notice of notices) announcedActivationIds.add(notice.activationId);
@@ -52,6 +60,7 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
     announcedActivationIds.clear();
     for (const activationId of recent) announcedActivationIds.add(activationId);
   }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   await OBR.broadcast.sendMessage(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     { type: "show-effect-save-notices", notices },

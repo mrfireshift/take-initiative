@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <link rel="stylesheet" href="/custom-aura.css?v=4" />
+    <title>Aure personalizzate</title>
+  </head>
+  <body>
+    <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/custom-aura-modal">
+      <header data-drag-handle draggable="true">
+        <div>
+          <h1>Aure personalizzate</h1>
+          <div id="token-name" class="subtitle">Caricamento token…</div>
+        </div>
+        <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
+      </header>
+      <main><div id="list"></div></main>
+      <footer>
+        <span id="status"></span>
+        <button id="add" class="button" type="button">+ Nuova aura</button>
+        <button id="save" class="button primary" type="button">Salva</button>
+      </footer>
+    </div>
+    <script type="module" src="/src/popoverDrag.js"></script>
+    <script type="module" src="/src/custom-aura-modal.js"></script>
+  </body>
+</html>

@@ -8,6 +8,14 @@ const turnNoticeSource = readFileSync(
   new URL("../src/turn-notice.ts", import.meta.url),
   "utf8"
 );
+const turnNoticeHostSource = readFileSync(
+  new URL("../src/turnNoticeHost.js", import.meta.url),
+  "utf8"
+);
+const backgroundSource = readFileSync(
+  new URL("../src/background.js", import.meta.url),
+  "utf8"
+);
 const classicBuilderSource = readFileSync(
   new URL("../src/initiativeCardClassicBuilder.js", import.meta.url),
   "utf8"
@@ -86,11 +94,11 @@ test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () =>
   assertOrdered(boot, [
     "__mountSceneEpochLifecycle();",
     "const bootstrapSceneEpoch = currentSceneEpoch();",
-    "await mountTurnNoticeBroadcast()",
     "await OBR.player?.getRole?.()",
     "IS_GM = String(role).toUpperCase() === \"GM\";",
   ]);
   assert.doesNotMatch(boot, /await __mountSceneEpochLifecycle\(\)/);
+  assert.doesNotMatch(boot, /mountTurnNoticeBroadcast/);
 });
 
 test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () => {
@@ -104,24 +112,29 @@ test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () =
   assert.doesNotMatch(boot, /broadcastTurnNotice\(/);
 });
 
-test("il modal conferma il listener e conserva il primo notice durante il reload", () => {
+test("il background apre il turn notice on demand e conserva il primo payload", () => {
   const sender = sourceSection(
-    "let __turnNoticeListenerMounted = false;",
+    "let __turnNoticeSequence = 0;",
     "async function showConcentrationDamageWarning("
   );
-  assertOrdered(sender, [
-    "OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL",
-    "await OBR.modal.open({",
-    "__requestTurnNoticeReady();",
-  ]);
-  assert.match(sender, /if \(!__turnNoticeReady\) \{\s*__pendingTurnNotice = \{ notice, sceneEpoch \};/);
-  assert.match(sender, /__sendTurnNoticePayload\(pending\.notice, pending\.sceneEpoch\)/);
+  assert.doesNotMatch(sender, /mountTurnNoticeBroadcast|__turnNoticeReady|__pendingTurnNotice/);
+  assert.match(sender, /return __sendTurnNoticePayload\(notice, sceneEpoch\)/);
   assert.match(sender, /const deliveryKey = `\$\{sceneEpoch\}:\$\{notice\.turnKey\}`/);
-  assert.match(sender, /function __requestTurnNoticeReady\(sceneEpoch = currentSceneEpoch\(\)\)/);
-  assert.match(sender, /readyEpoch !== currentSceneEpoch\(\)/);
+  assert.match(backgroundSource, /mountTurnNoticeHost\(\)/);
+  assert.match(turnNoticeHostSource, /pendingPayloads\.push\(payload\)/);
+  assert.match(turnNoticeHostSource, /await openTurnNoticePopover\(payload\)/);
+  assert.match(turnNoticeHostSource, /OBR\.popover\.open\(\{/);
+  assert.match(turnNoticeHostSource, /OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
+  assert.match(turnNoticeHostSource, /TURN_NOTICE_UI_CHANNEL/);
+  assert.match(turnNoticeHostSource, /TURN_NOTICE_READY_CHANNEL/);
+  const hostMount = turnNoticeHostSource.slice(
+    turnNoticeHostSource.indexOf("export function mountTurnNoticeHost()"),
+  );
+  assert.doesNotMatch(hostMount, /OBR\.popover\.open\(/);
+  assert.match(hostMount, /OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
 
   assertOrdered(turnNoticeSource, [
-    "unsubscribeTurnNoticeBroadcast = OBR.broadcast.onMessage(CHANNEL",
+    "unsubscribeUiBroadcast = OBR.broadcast.onMessage(UI_CHANNEL",
     "unsubscribeTurnNoticeReadyRequest = OBR.broadcast.onMessage(",
     "void announceReady();",
   ]);
@@ -140,6 +153,7 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     "const noticeActiveId = __activeIdForState(st);",
     "isInitiativeTurnTransition(",
     "broadcastTurnNotice(st, sceneEpoch)",
+    "await __broadcastEffectSaveReminderTransition(",
     'await renderAll("metadata")',
     "await roundEffectAdjustment",
     'type: "effects:tick-boundaries"',
@@ -148,6 +162,7 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     (metadata.match(/broadcastTurnNotice\(st, sceneEpoch\)/g) || []).length,
     1,
   );
+  assert.match(source, /includeCurrentTurnStart: false/);
 
   const navigation = sourceSection(
     "async function __flushNavigationState()",
@@ -238,11 +253,11 @@ test("il turn notice porta lo scene epoch e viene cancellato all'unload", () => 
   );
   assert.match(sender, /sceneEpoch,/);
   assert.match(sender, /__isCurrentSceneOperation\(sceneEpoch, "turn-notice"\)/);
-  assert.match(turnNoticeSource, /isTurnNoticeForScene\(event\.data, noticeSceneEpoch, noticeSceneReady\)/);
+  assert.match(turnNoticeSource, /isTurnNoticeForScene\(data, noticeSceneEpoch, noticeSceneReady\)/);
   const lifecycle = sourceSectionIn(
     turnNoticeSource,
     "unsubscribeZoneSceneReady = OBR.scene.onReadyChange((ready) => {",
-    "unsubscribeZoneBroadcast = OBR.broadcast.onMessage("
+    "announceNoticeLayout();\n  if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;"
   );
   assertOrdered(lifecycle, [
     "noticeSceneEpoch += 1;",
@@ -278,6 +293,13 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
   assert.doesNotMatch(turnNoticeSource, /PENDING_SYNC_INTERVAL_MS|setInterval/);
   assert.match(turnNoticeSource, /app\.replaceChildren\(panel\)/);
   assert.match(turnNoticeSource, /function clearZoneNotice\(\)/);
+  const turnNotice = sourceSectionIn(
+    turnNoticeSource,
+    "function showNotice(raw: any)",
+    "function renderSaveReminderBatch(batch: any)",
+  );
+  assert.match(turnNotice, /shouldClearZoneNoticeAtTurn\(currentZoneTurnKey, notice\.turnKey\)/);
+  assert.match(turnNotice, /clearZoneNotice\(\)/);
   assert.match(turnNoticeSource, /mergeSaveReminderNoticeBatch/);
   assert.match(turnNoticeSource, /SAVE_REMINDER_AGGREGATION_MS = 16/);
   assert.match(turnNoticeSource, /function queueSaveReminderNotices/);
@@ -288,6 +310,10 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
   assert.match(turnNoticeSource, /function clearTurnNotice\(\)/);
   assert.doesNotMatch(turnNoticeSource, /Apri Effetti ad Area per risolvere/);
   assert.doesNotMatch(turnNoticeSource, /zone-target-badge/);
+  assert.doesNotMatch(source, /mountTurnNoticeBroadcast|TURN_NOTICE_POPOVER_ID/);
+  assert.match(turnNoticeHostSource, /OBR\.broadcast\.onMessage\(SPELL_ZONE_TRIGGER_NOTICE_CHANNEL/);
+  assert.match(turnNoticeHostSource, /height: initialPopoverHeight\(payload\)/);
+  assert.match(turnNoticeHostSource, /await OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
 });
 
 test("HP immediati e rendering incrementale restano separati dal fallback globale", () => {

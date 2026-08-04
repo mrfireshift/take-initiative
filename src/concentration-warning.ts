@@ -1,7 +1,8 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { resolveReminder } from "./reminderResolution.js";
 
-const MODAL_ID = ID + "/concentration-warning-modal";
+const POPOVER_ID = ID + "/concentration-warning-modal";
 const AUTO_CLOSE_MS = 6000;
 
 type Warning = {
@@ -10,7 +11,12 @@ type Warning = {
   dc: number;
   portrait: string;
   attitude: string;
+  spellName: string;
+  notice: any;
 };
+
+let hideTimer = 0;
+let activeWarnings: Warning[] = [];
 
 function warningsFromURL(): Warning[] {
   try {
@@ -22,28 +28,34 @@ function warningsFromURL(): Warning[] {
       dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
       portrait: String(warning?.portrait || "").trim().slice(0, 2048),
       attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
+      spellName: String(warning?.spellName || "").trim().slice(0, 240),
+      notice: warning?.notice && typeof warning.notice === "object" ? warning.notice : null,
     })).filter((warning: Warning) => warning.damage > 0);
   } catch {
     return [];
   }
 }
 
-function closeModal() {
-  void OBR.modal.close(MODAL_ID).catch(() => {});
+function closePopover() {
+  window.clearTimeout(hideTimer);
+  void OBR.popover.close(POPOVER_ID).catch(() => {});
 }
 
-function render() {
+function render(role: string, warnings: Warning[] = warningsFromURL()) {
   const app = document.getElementById("app");
   if (!app) return;
-  const warnings = warningsFromURL();
+  window.clearTimeout(hideTimer);
+  activeWarnings = warnings;
+  app.replaceChildren();
   if (!warnings.length) {
-    closeModal();
+    closePopover();
     return;
   }
+  const canResolve = role === "GM" && warnings.some((warning) => !!warning.notice?.resolution);
 
   const primary = warnings[0];
   const panel = document.createElement("section");
-  panel.className = "warning";
+  panel.className = warnings.length === 1 ? "warning warning-single" : "warning warning-multiple";
   panel.setAttribute("role", "alert");
   panel.setAttribute("aria-label", warnings.length === 1
     ? "Tiro salvezza su Concentrazione per " + primary.name + ", CD " + primary.dc
@@ -71,7 +83,7 @@ function render() {
   eyebrow.textContent = "Concentrazione";
   const title = document.createElement("div");
   title.className = "title";
-  title.textContent = warnings.length === 1 ? "TS di Costituzione" : "Tiri salvezza richiesti";
+  title.textContent = warnings.length === 1 ? primary.name : "Tiri salvezza richiesti";
   copy.append(eyebrow, title);
 
   const saveBadge = document.createElement("div");
@@ -87,27 +99,83 @@ function render() {
   for (const warning of warnings) {
     const row = document.createElement("div");
     row.className = "row";
+    const identity = document.createElement("div");
+    identity.className = "identity";
     const name = document.createElement("div");
     name.className = "name";
-    name.textContent = warning.name;
+    name.textContent = warnings.length === 1 ? "TS di Costituzione" : warning.name;
+    identity.appendChild(name);
+    if (warning.spellName) {
+      const spellName = document.createElement("div");
+      spellName.className = "spell-name";
+      spellName.textContent = warning.spellName;
+      identity.appendChild(spellName);
+    }
     const damage = document.createElement("div");
     damage.className = "damage";
     damage.textContent = warning.damage + " danni";
-    const dc = document.createElement("div");
-    dc.className = "dc";
-    dc.textContent = "CD " + warning.dc;
-    row.append(name, damage, dc);
+    row.append(identity, damage);
+    if (warnings.length > 1) {
+      const dc = document.createElement("div");
+      dc.className = "dc";
+      dc.textContent = "CD " + warning.dc;
+      row.appendChild(dc);
+    }
+    if (role === "GM" && warning.notice?.resolution) {
+      const resolution = document.createElement("div");
+      resolution.className = "resolution";
+      const status = document.createElement("div");
+      status.className = "resolution-status";
+      status.hidden = true;
+      const buttons: HTMLButtonElement[] = [];
+      const activationId = String(warning.notice.activationId || "");
+      const resolve = async (outcome: "passed" | "failed") => {
+        if (buttons.some((button) => button.disabled)) return;
+        for (const button of buttons) button.disabled = true;
+        try {
+          const result = await resolveReminder({ notice: warning.notice, outcome });
+          if (result.status === "applied" || result.status === "already-resolved") {
+            const remaining = activeWarnings.filter((entry) =>
+              String(entry.notice?.activationId || "") !== activationId,
+            );
+            render(role, remaining);
+            return;
+          }
+          status.hidden = false;
+          status.textContent = result.message || "Il tiro non Ã¨ piÃ¹ corrente.";
+        } catch (error) {
+          status.hidden = false;
+          status.textContent = String((error as any)?.message || "Risoluzione non riuscita.");
+        }
+        for (const button of buttons) button.disabled = false;
+      };
+      for (const [outcome, label] of [["passed", "Superato"], ["failed", "Fallito"]] as const) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", () => void resolve(outcome));
+        buttons.push(button);
+        resolution.appendChild(button);
+      }
+      row.append(resolution, status);
+    }
     list.appendChild(row);
   }
 
-  const timer = document.createElement("div");
-  timer.className = "timer";
-  panel.append(portrait, copy, saveBadge, list, timer);
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeModal();
-  });
+  panel.append(portrait, copy, saveBadge, list);
+  if (!canResolve) {
+    const timer = document.createElement("div");
+    timer.className = "timer";
+    panel.appendChild(timer);
+    hideTimer = window.setTimeout(closePopover, AUTO_CLOSE_MS);
+  }
   app.appendChild(panel);
-  window.setTimeout(closeModal, AUTO_CLOSE_MS);
 }
 
-render();
+OBR.onReady(async () => {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closePopover();
+  });
+  const role = await OBR.player.getRole().catch(() => "PLAYER");
+  render(String(role || "PLAYER").toUpperCase());
+});

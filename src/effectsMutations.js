@@ -25,6 +25,10 @@ import {
   EFFECTS_MUTATION_CONDITION_VERSION,
 } from "./effectsMutationCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
+import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
+import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
+import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
+import { consumeSpellZoneTrigger, normalizeSpellZoneTriggerRuntime } from "./spellZoneTriggerCore.js";
 import {
   createEffectsMutationCoordinator,
   EFFECTS_MUTATION_STATUS,
@@ -733,6 +737,45 @@ async function prepareEffectsSideEffects(plan, command) {
         items,
         ruleChoice: String(descriptor.ruleChoice || "").trim(),
       });
+    } else if (descriptor?.type === "reminder:consume-zone-activation") {
+      const itemId = String(descriptor.itemId || "").trim();
+      const metadataKey = String(descriptor.metadataKey || "").trim();
+      const activationId = String(descriptor.activationId || "").trim();
+      const allowedKeys = new Set([
+        SPELL_STATIC_ZONE_META_KEY,
+        SPELL_AURA_META_KEY,
+        CLASS_FEATURE_AURA_META_KEY,
+        CUSTOM_AURA_META_KEY,
+      ]);
+      const [item] = itemId ? await OBR.scene.items.getItems([itemId]) : [];
+      const metadata = item?.metadata?.[metadataKey];
+      const runtime = normalizeSpellZoneTriggerRuntime(metadata?.triggerRuntime);
+      const activation = runtime.pending.find((entry) => entry.id === activationId);
+      const targetId = String(descriptor.targetId || "").trim();
+      if (
+        !item
+        || !allowedKeys.has(metadataKey)
+        || !metadata
+        || !activation
+        || (targetId && !activation.targetIds.includes(targetId))
+      ) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "stale-reminder-activation", itemId: itemId || null }],
+        };
+      }
+      const after = {
+        ...metadata,
+        triggerRuntime: consumeSpellZoneTrigger(runtime, activationId),
+      };
+      prepared.push({
+        type: descriptor.type,
+        id: itemId,
+        metadataKey,
+        activationId,
+        before: { present: true, value: clone(metadata) },
+        after: { present: true, value: clone(after) },
+      });
     }
   }
   plan.preparedSideEffects = prepared;
@@ -814,6 +857,31 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       before: sceneItemMetadataSnapshot(item, SPELL_STATIC_ZONE_META_KEY),
       after: staticZoneRuleChoiceAfterSnapshot(item, sideEffect.ruleChoice),
     }));
+  }
+  if (sideEffect.type === "reminder:consume-zone-activation") {
+    const [item] = await OBR.scene.items.getItems([sideEffect.id]);
+    if (!item) throw new Error("reminder-zone-item-missing");
+    const actual = sceneItemMetadataSnapshot(item, sideEffect.metadataKey);
+    if (!metadataSnapshotMatches(actual, sideEffect.before)) {
+      throw new Error("reminder-zone-activation-stale-before-consume");
+    }
+    if (!isCurrent()) throw new Error("stale-before-reminder-zone-consume");
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        draft.metadata = {
+          ...(draft.metadata || {}),
+          [sideEffect.metadataKey]: clone(sideEffect.after.value),
+        };
+      }
+    });
+    return [{
+      id: sideEffect.id,
+      type: "metadata",
+      metadataKey: sideEffect.metadataKey,
+      before: clone(sideEffect.before),
+      after: clone(sideEffect.after),
+    }];
   }
   return [];
 }

@@ -142,8 +142,31 @@ automatizzata.
 | Concorrenti | Più reminder nello stesso momento vengono aggregati. |
 | Navigazione | Il nuovo turno sostituisce il reminder precedente. |
 | Nessun evento | Se il nuovo attore non è coinvolto, il reminder scompare. |
-| Esito | Il GM tira al tavolo e dichiara Superato, Fallito o Immune. |
-| Conseguenze | Danni e condizioni sono informativi finché il GM non risolve l'esito. |
+| Esito | Il GM tira al tavolo e dichiara Superato o Fallito. |
+| Risoluzione | Solo i reminder con `resolution` strutturata espongono i controlli al GM. |
+| Conseguenze | Danni, condizioni ed effetti sono applicati dal coordinatore esistente in una sola operazione. |
+| Player | Vede il reminder, ma non pulsanti, input o controlli di regia. |
+| Idempotenza | Il comando usa l'ID di attivazione e un marker scoped nei metadata del token. |
+
+### Contratto di risoluzione
+
+Un reminder risolvibile trasporta una descrizione JSON serializzabile con
+target, sorgente, caratteristica/CD, esiti `passed`, `failed` e `immune`,
+azioni su condizioni, spell o concentrazione e una regola danni `full`, `half`
+o `zero`. Le condizioni vengono applicate solo quando sono dichiarate dal
+catalogo; le etichette descrittive non vengono interpretate come script.
+
+Il successo può rimuovere una condizione o terminare l'effetto indicato. Il
+fallimento mantiene l'effetto oppure applica la condizione modellata. L'esito
+immune non applica danni né condizioni. Il risultato dei dadi viene inserito
+dal GM una sola volta e la metà usa arrotondamento per difetto.
+
+La mutazione unificata passa da metadata key-scoped e dal coordinatore effetti,
+quindi la History contiene una sola entry comprensiva di HP, condizioni,
+spell/concentrazione e marker. Undo ripristina l'intera entry; la stessa entry
+produce un evento `reminder-resolution` nel Combat Log. Se scena, target,
+sorgente o attivazione non sono più correnti, il comando è rifiutato senza
+History e il reminder resta chiudibile.
 
 ### Eventi delle zone
 

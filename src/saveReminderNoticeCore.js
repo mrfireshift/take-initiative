@@ -1,3 +1,5 @@
+import { normalizeReminderResolution } from "./reminderResolutionCore.js";
+
 const normalizedText = (value, fallback = "", maxLength = 160) =>
   (String(value || "").trim() || fallback).slice(0, maxLength);
 
@@ -53,6 +55,7 @@ function normalizeEntry(value) {
         ? "zone-effect"
         : "zone";
   const timing = normalizeTiming(value?.timing);
+  const resolution = normalizeReminderResolution(value?.resolution);
   return {
     activationId,
     ...(turnKey ? { turnKey } : {}),
@@ -66,6 +69,7 @@ function normalizeEntry(value) {
     ...(value?.instruction
       ? { instruction: normalizedText(value.instruction, "", 320) }
       : {}),
+    ...(resolution ? { resolution } : {}),
     targets,
   };
 }
@@ -165,6 +169,8 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
         activationId: entry.activationId,
         title: "",
         detail: entry.instruction || entry.label,
+        targets: entry.targets,
+        ...(entry.resolution ? { resolution: entry.resolution } : {}),
       }],
     };
   }
@@ -201,6 +207,8 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
           ? `${baseTitle} · ${entryPhase}`
           : baseTitle,
         detail: entry.instruction || entry.label,
+        targets: entry.targets,
+        ...(entry.resolution ? { resolution: entry.resolution } : {}),
       };
     }),
   };

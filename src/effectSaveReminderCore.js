@@ -1,5 +1,10 @@
 import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import {
+  buildEffectSaveReminderResolution,
+  normalizeReminderResolution,
+  REMINDER_RESOLUTIONS_FIELD,
+} from "./reminderResolutionCore.js";
 
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
@@ -67,6 +72,14 @@ export function normalizeEffectSaveReminder(value) {
   if (!ability || !TIMINGS.has(timing)) return null;
   const dc = optionalDC(value.dc);
   const dcSource = value.dcSource === "source-spell" ? "source-spell" : "";
+  const resolution = normalizeReminderResolution(value.resolution);
+  const damage = value.damage && typeof value.damage === "object"
+    ? {
+      ...value.damage,
+      ...(value.damage.dice ? { dice: String(value.damage.dice).trim().slice(0, 80) } : {}),
+      ...(value.damage.type ? { type: String(value.damage.type).trim().slice(0, 80) } : {}),
+    }
+    : null;
   return {
     ability: ability.key,
     timing,
@@ -78,6 +91,8 @@ export function normalizeEffectSaveReminder(value) {
     ...(value.failure ? {
       failure: String(value.failure).trim().slice(0, 160),
     } : {}),
+    ...(damage?.dice && damage?.type ? { damage } : {}),
+    ...(resolution ? { resolution } : {}),
   };
 }
 
@@ -243,6 +258,14 @@ function reminderNotice({
       ? "In caso di successo rimuovi l'effetto."
       : "Risolvi il tiro e mantieni l'effetto."
   );
+  const resolution = buildEffectSaveReminderResolution({
+    item,
+    instance,
+    reminder,
+    dc,
+    activationId,
+    turnKey,
+  });
   return {
     activationId,
     turnKey,
@@ -253,6 +276,7 @@ function reminderNotice({
     ability: ability.short,
     ...(dc !== null ? { dc } : {}),
     ...(sourceName ? { sourceName } : {}),
+    ...(resolution ? { resolution } : {}),
     target: {
       id: item.id,
       name: String(item.name || "Token").trim().slice(0, 100) || "Token",
@@ -287,11 +311,18 @@ function noticesForTiming(
         ) {
           continue;
         }
+        const activationId = `${instance.id}:${timing}:${eventKey}`;
+        const resolutions = item?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD];
+        if (
+          resolutions
+          && typeof resolutions === "object"
+          && Object.prototype.hasOwnProperty.call(resolutions, activationId)
+        ) continue;
         const notice = reminderNotice({
           item,
           instance,
           reminder,
-          activationId: `${instance.id}:${timing}:${eventKey}`,
+          activationId,
           turnKey: noticeTurnKey,
           itemsById,
         });
@@ -347,6 +378,7 @@ export function planEffectSaveReminderNotices({
   items = [],
   previousInitiativeState = null,
   initiativeState = null,
+  includeCurrentTurnStart = true,
 } = {}) {
   const list = Array.isArray(items) ? items : [];
   const itemsById = new Map(list.map((item) => [String(item?.id || ""), item]));
@@ -354,8 +386,10 @@ export function planEffectSaveReminderNotices({
     previousInitiativeState,
     initiativeState,
   );
-  const currentStart = currentTurnStartBoundary(initiativeState);
-  if (currentStart) boundaries.push(currentStart);
+  if (includeCurrentTurnStart) {
+    const currentStart = currentTurnStartBoundary(initiativeState);
+    if (currentStart) boundaries.push(currentStart);
+  }
   const uniqueBoundaries = new Map(boundaries.map((boundary) => [
     `${boundary.timing}:${boundary.actorId}:${boundary.turnKey}`,
     boundary,

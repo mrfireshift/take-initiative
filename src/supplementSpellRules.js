@@ -354,6 +354,11 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
       timing: "turn-end",
       dcSource: "source-spell",
       success: "remove-effect",
+      damage: Object.freeze({
+        dice: "4d6",
+        type: "fuoco",
+        onSave: "none",
+      }),
       label: "4d6 fuoco se fallisce; se supera, termina la spell.",
     }),
     manualRemoval: true,

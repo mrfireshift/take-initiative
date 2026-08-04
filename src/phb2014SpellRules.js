@@ -347,6 +347,11 @@ export const PHB2014_EFFECTS = Object.freeze({
       timing: "turn-start",
       dcSource: "source-spell",
       success: "remove-effect",
+      damage: Object.freeze({
+        dice: "1d6",
+        type: "fuoco",
+        onSave: "none",
+      }),
       label: "1d6 fuoco se fallisce; se supera, termina la spell.",
     }),
     manualRemoval: true,

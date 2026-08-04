@@ -2,11 +2,13 @@ import OBR from "@owlbear-rodeo/sdk";
 import { mountEffectsReconciler } from "./effectsReconciler.js";
 import { mountSpellAuraController } from "./spellAuraController.js";
 import { mountClassFeatureAuraController } from "./classFeatureAuraController.js";
+import { mountCustomAuraController } from "./customAuraController.js";
 import { mountStaticSpellZoneController } from "./spellStaticZone.js";
 import { mountEffectSaveReminderController } from "./effectSaveReminderController.js";
 import { mountClassFeatureReminderController } from "./classFeatureReminderController.js";
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
 import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
+import { mountTurnNoticeHost } from "./turnNoticeHost.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
 import "./clocksTool.js";
@@ -15,10 +17,12 @@ import "./referenceTool.js";
 import "./aoeTargetTool.js";
 
 OBR.onReady(async () => {
+  mountTurnNoticeHost();
   await mountEffectsMutationCoordinatorService();
   void mountEffectsReconciler();
   void mountSpellAuraController();
   void mountClassFeatureAuraController();
+  void mountCustomAuraController();
   void mountStaticSpellZoneController();
   void mountEffectSaveReminderController();
   void mountClassFeatureReminderController();

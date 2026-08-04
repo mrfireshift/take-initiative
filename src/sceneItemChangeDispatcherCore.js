@@ -9,6 +9,7 @@ const HP_BAR_META = ID + "/hpbar";
 const HP_TEXT_META = ID + "/hptext";
 const SPELL_AURA_META = ID + "/spellAura";
 const CLASS_FEATURE_AURA_META = ID + "/classFeatureAura";
+const CUSTOM_AURA_META = ID + "/customAura";
 const STATIC_SPELL_ZONE_META = ID + "/spellStaticZone";
 const AOE_AREA_META = ID + "/aoeArea";
 
@@ -22,6 +23,7 @@ export const TRACKER_LOCAL_METADATA_KEYS = new Set([
   "legendaryResistances",
   "initTouched",
   "elevation",
+  "customAuras",
 ]);
 
 const DERIVED_ITEM_METADATA_KEYS = new Set([
@@ -32,6 +34,7 @@ const DERIVED_ITEM_METADATA_KEYS = new Set([
   HP_TEXT_META,
   SPELL_AURA_META,
   CLASS_FEATURE_AURA_META,
+  CUSTOM_AURA_META,
   STATIC_SPELL_ZONE_META,
   AOE_AREA_META,
 ]);
@@ -66,7 +69,11 @@ function derivedItemKind(item) {
       return "effects-widget";
     }
     if (key === HP_BAR_META || key === HP_TEXT_META) return "hp-widget";
-    if (key === SPELL_AURA_META || key === CLASS_FEATURE_AURA_META) return "aura-visual";
+    if (
+      key === SPELL_AURA_META
+      || key === CLASS_FEATURE_AURA_META
+      || key === CUSTOM_AURA_META
+    ) return "aura-visual";
     if (key === STATIC_SPELL_ZONE_META || key === AOE_AREA_META) return "zone-visual";
   }
   return null;
@@ -257,7 +264,13 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.hpMemoryAutofill ||= nameChanged || imageChanged || metaChanged;
   flags.conditions ||= conditionsChanged;
   flags.concentration ||= spellsChanged || concentrationChanged;
-  flags.aura ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
+  flags.aura ||= lifecycleChange
+    || movementChanged
+    || spellsChanged
+    || concentrationChanged
+    || attitudeChanged
+    || conditionsChanged
+    || changedKeys.has("customAuras");
   flags.zone ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
   flags.preparedSpells ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged;
   flags.elevation ||= lifecycleChange

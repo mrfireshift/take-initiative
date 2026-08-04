@@ -215,10 +215,28 @@ reminder sostituisce il precedente; se l'attore successivo non è coinvolto,
 l'avviso scompare.
 
 Il GM effettua il tiro al tavolo e dichiara l'esito. Nella Console effetti ad
-area i controlli **Superato**, **Fallito** e **Immune** compaiono soltanto
+area i controlli **Superato** e **Fallito** compaiono soltanto
 quando esiste un effetto immediato da risolvere. Le condizioni dipendenti dal
 fallimento, come Prono per Tempesta di Nevischio o Trattenuto per Tentacoli
 Neri, devono essere applicate dopo il risultato reale.
+
+Quando il reminder è compatibile, il GM può anche inserire una sola volta il
+risultato dei dadi fisici. Il plugin applica danno pieno al fallimento, metà
+danno al successo quando previsto dalla regola (arrotondata per difetto) e
+nessun danno per un esito nullo o immune. Il successo può rimuovere una
+condizione o terminare un effetto/istanza spell modellata; il fallimento può
+mantenere l'effetto oppure applicare la condizione dichiarata dal catalogo.
+
+I controlli sono esclusivi della vista GM. La vista Player riceve lo stesso
+reminder informativo, ma non mostra pulsanti o input. Ogni conferma passa dal
+coordinatore di effetti: HP, pill, tracker e barre mappa restano derivati dai
+metadata canonici, mentre una sola voce di History/Undo alimenta anche il
+Combat Log. Un reminder già risolto, duplicato o diventato obsoleto non viene
+riapplicato; il GM può chiudere l'avviso e continuare senza conseguenze.
+
+Restano informativi i reminder privi di una descrizione strutturata. L'MVP non
+esegue tiri virtuali, bonus automatici, resistenze/vulnerabilità, testo libero,
+risoluzioni aggregate multi-bersaglio o scripting personalizzato.
 
 Per geometrie, trigger supportati, azioni attive e copertura residua consulta
 [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).

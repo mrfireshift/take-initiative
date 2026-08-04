@@ -1,7 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 
-const SPEED_WARNING_CHANNEL = ID + "/speed-warning";
+const POPOVER_ID = ID + "/speed-warning-modal";
 const AUTO_CLOSE_MS = 5000;
 
 type Warning = {
@@ -16,6 +16,19 @@ type Warning = {
 };
 
 let hideTimer = 0;
+
+function warningFromURL() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get("payload") || "";
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function closePopover() {
+  void OBR.popover.close(POPOVER_ID).catch(() => {});
+}
 
 function normalizeWarning(value: any): Warning | null {
   const speedMeters = Math.max(0, Number(value?.speedMeters) || 0);
@@ -36,7 +49,10 @@ function normalizeWarning(value: any): Warning | null {
 function renderWarning(value: any) {
   const app = document.getElementById("app");
   const warning = normalizeWarning(value);
-  if (!app || !warning) return;
+  if (!app || !warning) {
+    closePopover();
+    return;
+  }
   window.clearTimeout(hideTimer);
 
   const panel = document.createElement("section");
@@ -92,11 +108,12 @@ function renderWarning(value: any) {
   timer.className = "timer";
   panel.append(portrait, copy, detail, badge, timer);
   app.replaceChildren(panel);
-  hideTimer = window.setTimeout(() => app.replaceChildren(), AUTO_CLOSE_MS);
+  hideTimer = window.setTimeout(closePopover, AUTO_CLOSE_MS);
 }
 
 OBR.onReady(() => {
-  OBR.broadcast.onMessage(SPEED_WARNING_CHANNEL, (event) => {
-    if (event?.data?.type === "show-speed-warning") renderWarning(event.data);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closePopover();
   });
+  renderWarning(warningFromURL());
 });

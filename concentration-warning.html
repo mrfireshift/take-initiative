@@ -20,13 +20,13 @@
         --accent-soft: rgba(251, 146, 60, .42);
         --accent-deep: rgba(104, 39, 20, .95);
         position: absolute;
-        top: 9vh;
-        left: 50%;
-        width: min(620px, calc(100vw - 32px));
-        min-height: 158px;
-        max-height: calc(91vh - 24px);
-        overflow: visible;
-        padding: 18px 78px 17px 132px;
+        top: 4px;
+        left: 4px;
+        width: calc(100% - 8px);
+        min-height: 126px;
+        max-height: calc(100% - 8px);
+        overflow: hidden;
+        padding: 14px 62px 14px 106px;
         border: 2px solid #080b10;
         border-radius: 8px;
         background:
@@ -37,15 +37,13 @@
           0 18px 48px rgba(0, 0, 0, .68),
           inset 0 0 0 1px rgba(255, 255, 255, .12),
           inset 0 -28px 44px rgba(0, 0, 0, .25);
-        transform: translateX(-50%) scale(.8);
-        transform-origin: top center;
       }
       .warning::before {
         position: absolute;
-        top: 8px;
-        right: 10px;
-        bottom: 8px;
-        left: 10px;
+        top: 6px;
+        right: 8px;
+        bottom: 6px;
+        left: 8px;
         border: 1px solid rgba(255,255,255,.10);
         border-radius: 4px;
         content: "";
@@ -54,16 +52,16 @@
       .portrait {
         position: absolute;
         top: 50%;
-        left: 16px;
-        width: 104px;
-        height: 104px;
+        left: 13px;
+        width: 83px;
+        height: 83px;
         overflow: hidden;
-        border: 3px solid #080b10;
+        border: 2px solid #080b10;
         border-radius: 50%;
         background: rgba(4, 7, 11, .96);
         box-shadow:
-          0 0 0 3px var(--accent),
-          0 0 18px 4px var(--accent-soft),
+          0 0 0 2px var(--accent),
+          0 0 14px 3px var(--accent-soft),
           inset 0 0 0 1px rgba(255,255,255,.18);
         transform: translateY(-50%);
       }
@@ -76,7 +74,7 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 44px;
+        font-size: 35px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
       }
@@ -84,7 +82,7 @@
       .eyebrow {
         color: var(--accent);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 12px;
+        font-size: 10px;
         font-weight: 800;
         letter-spacing: .8px;
         text-transform: uppercase;
@@ -93,7 +91,7 @@
         margin-top: 3px;
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(22px, 3.5vw, 29px);
+        font-size: clamp(18px, 3.5vw, 23px);
         font-weight: 800;
         line-height: 1.05;
         text-overflow: ellipsis;
@@ -102,10 +100,10 @@
       }
       .save-badge {
         position: absolute;
-        top: 18px;
-        right: 19px;
-        width: 48px;
-        height: 48px;
+        top: 14px;
+        right: 15px;
+        width: 38px;
+        height: 38px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -117,32 +115,59 @@
         line-height: 1;
         z-index: 1;
       }
-      .save-badge span { color: var(--accent); font-size: 8px; font-weight: 900; letter-spacing: .5px; }
-      .save-badge strong { margin-top: 3px; font-family: Georgia, "Times New Roman", serif; font-size: 18px; }
+      .save-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
+      .save-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; }
       .list {
         position: relative;
         display: grid;
-        gap: 6px;
-        max-height: 190px;
-        margin-top: 17px;
-        padding-top: 10px;
+        gap: 5px;
+        max-height: calc(100% - 48px);
+        margin-top: 8px;
+        padding-top: 6px;
         overflow-y: auto;
         border-top: 1px solid rgba(251,146,60,.42);
         z-index: 1;
       }
       .row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        gap: 6px;
         align-items: center;
-        padding: 6px 8px;
+        padding: 4px 6px;
         border: 1px solid rgba(255,255,255,.10);
         border-radius: 4px;
         background: rgba(0,0,0,.24);
       }
-      .name { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 14px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-      .damage { color: rgba(255,255,255,.68); font-size: 11px; }
-      .dc { color: var(--accent); font-size: 12px; font-weight: 900; }
+      .warning-single .row { grid-template-columns: minmax(0, 1fr) auto auto; }
+      .identity { min-width: 0; }
+      .name { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+      .spell-name { margin-top: 1px; overflow: hidden; color: rgba(255,255,255,.62); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      .damage { color: rgba(255,255,255,.68); font-size: 9px; }
+      .dc { color: var(--accent); font-size: 10px; font-weight: 900; }
+      .resolution {
+        display: flex;
+        gap: 3px;
+        pointer-events: auto;
+      }
+      .resolution button {
+        min-height: 18px;
+        padding: 3px 5px;
+        border: 1px solid rgba(255,255,255,.26);
+        border-radius: 4px;
+        background: rgba(4, 8, 13, .82);
+        color: #fff;
+        cursor: pointer;
+        font: 700 8px/1 system-ui, sans-serif;
+        pointer-events: auto;
+      }
+      .resolution button:hover { border-color: var(--accent); }
+      .resolution button:disabled { cursor: default; opacity: .52; }
+      .resolution-status {
+        grid-column: 1 / -1;
+        color: var(--accent);
+        font-size: 8px;
+        font-weight: 800;
+      }
       .timer {
         position: absolute;
         right: 0;
@@ -165,10 +190,10 @@
       }
       @keyframes expire { to { transform: scaleX(0); } }
       @media (max-width: 520px) {
-        .warning { padding: 16px 64px 15px 104px; min-height: 140px; }
-        .portrait { left: 13px; width: 78px; height: 78px; }
-        .title { font-size: 21px; }
-        .save-badge { top: 15px; right: 14px; width: 42px; height: 42px; }
+        .warning { padding: 13px 54px 12px 88px; min-height: 114px; }
+        .portrait { left: 11px; width: 66px; height: 66px; }
+        .title { font-size: 18px; }
+        .save-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
       }
     </style>
   </head>

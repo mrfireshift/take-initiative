@@ -91,8 +91,12 @@ export async function openTrackerPopover({ refresh = false } = {}) {
   const compact = layout === TRACKER_LAYOUT_COMPACT;
   let viewportHeight = 900;
   let viewportWidth = 1200;
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+  const [nextHeight, nextWidth] = await Promise.all([
+    Promise.resolve().then(() => OBR.viewport.getHeight()).catch(() => viewportHeight),
+    Promise.resolve().then(() => OBR.viewport.getWidth()).catch(() => viewportWidth),
+  ]);
+  viewportHeight = Number(nextHeight) || viewportHeight;
+  viewportWidth = Number(nextWidth) || viewportWidth;
   const width = compact
     ? Math.max(260, Math.min(COMPACT_DEFAULT_WIDTH, COMPACT_MAX_WIDTH, Math.floor(viewportWidth - 32)))
     : 340;

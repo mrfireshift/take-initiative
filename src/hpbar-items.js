@@ -30,6 +30,7 @@ let   _flushT   = null;
 let   _flushing = false;
 let   _sceneEpoch = 0;
 let   _readyListenerMounted = false;
+let   _sceneItemListenerMounted = false;
 
 // cache dell’ultimo stato applicato (evita update inutili)
 const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
@@ -687,6 +688,7 @@ export async function removeHPWidgetsNow(tokenId) {
 }
 
 export async function mountHPBars(){
+  const { deferInitialSync = false } = arguments[0] || {};
   try {
     const role =
       (await OBR.player?.getRole?.()) ||
@@ -694,16 +696,18 @@ export async function mountHPBars(){
     IS_GM = String(role).toUpperCase() === "GM";
   } catch { IS_GM = false; }
 
-  await waitForSceneReady();
+  if (!deferInitialSync) {
+    await waitForSceneReady();
 
-  if (IS_GM) {
-    const all = await OBR.scene.items.getItems();
-    const oldShadows = all
-      .filter(it => it.metadata?.[HPBAR_META_FLAG]?.kind === "shadow")
-      .map(it => it.id);
-    if (oldShadows.length) await OBR.scene.items.deleteItems(oldShadows);
+    if (IS_GM) {
+      const all = await OBR.scene.items.getItems();
+      const oldShadows = all
+        .filter(it => it.metadata?.[HPBAR_META_FLAG]?.kind === "shadow")
+        .map(it => it.id);
+      if (oldShadows.length) await OBR.scene.items.deleteItems(oldShadows);
 
-    await queueCanonicalHPItems();
+      await queueCanonicalHPItems();
+    }
   }
 
   if (!_readyListenerMounted) {
@@ -717,15 +721,22 @@ export async function mountHPBars(){
     });
   }
 
-  subscribeSceneItemChanges(({ items }) => {
-    if (!IS_GM) return;
-    for (const cur of items) {
-      if (cur.metadata?.[HPBAR_META_FLAG]) continue;
-      const m = cur.metadata?.[META_KEY];
-      if (!hasCanonicalHP(m)) continue;
-      queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
-    }
-  }, { filter: (event) => event.flags.hpBars });
+  if (!_sceneItemListenerMounted) {
+    _sceneItemListenerMounted = true;
+    subscribeSceneItemChanges(({ items }) => {
+      if (!IS_GM) return;
+      for (const cur of items) {
+        if (cur.metadata?.[HPBAR_META_FLAG]) continue;
+        const m = cur.metadata?.[META_KEY];
+        if (!hasCanonicalHP(m)) continue;
+        queueToken(cur.id, Number(m.hp)||0, Number(m.hpMax)||0);
+      }
+    }, { filter: (event) => event.flags.hpBars });
+  }
+}
+
+export async function syncInitialHPBars() {
+  return mountHPBars();
 }
 
 export function syncHPBarNow(tokenId, hp, hpMax) {

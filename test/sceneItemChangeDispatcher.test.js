@@ -262,6 +262,34 @@ test("un cambio scena idrata il baseline senza trasformarlo in aggiunte o rimozi
   assert.deepEqual(events[0].items.map((item) => item.id), ["scene-b-token"]);
 });
 
+test("classifica configurazione e visuale delle aure personalizzate", () => {
+  const configured = token({
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        attitude: "enemy",
+        customAuras: [{ id: "fear", enabled: true }],
+      },
+    },
+  });
+  const configEvent = classifySceneItemChanges([token()], [configured]);
+  assert.equal(configEvent.flags.aura, true);
+  assert.equal(configEvent.flags.trackerStructure, false);
+  assert.ok(configEvent.domains.includes("aura"));
+
+  const visual = {
+    id: "custom-aura-visual",
+    type: "PATH",
+    layer: "DRAWING",
+    position: { x: 0, y: 0 },
+    metadata: { [ID + "/customAura"]: { instanceId: "token-1:fear" } },
+  };
+  const visualEvent = classifySceneItemChanges([], [visual]);
+  assert.equal(visualEvent.flags.aura, true);
+  assert.equal(visualEvent.derived.output, true);
+});
+
 test("lo snapshot completo viene aggiornato e invalidato insieme al lifecycle", () => {
   let emit;
   const dispatcher = createSceneItemChangeDispatcher({

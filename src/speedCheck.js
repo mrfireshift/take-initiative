@@ -942,13 +942,38 @@ export function mountSpeedWarningBroadcast() {
   if (warningLayerPromise) return warningLayerPromise;
   warningLayerPromise = (async () => {
     try { await OBR.modal.close(SPEED_WARNING_MODAL_ID); } catch {}
-    await OBR.modal.open({
-      id: SPEED_WARNING_MODAL_ID,
-      url: "/speed-warning.html",
-      fullScreen: true,
-      hideBackdrop: true,
-      hidePaper: true,
-      disablePointerEvents: true,
+    try { await OBR.popover.close(SPEED_WARNING_MODAL_ID); } catch {}
+    let warningQueue = Promise.resolve();
+    OBR.broadcast.onMessage(SPEED_WARNING_CHANNEL, (event) => {
+      if (event?.data?.type !== "show-speed-warning") return;
+      const run = async () => {
+        let viewportWidth = 1200;
+        let viewportHeight = 800;
+        try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
+        try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+        const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
+        const width = cardWidth + 8;
+        const top = Math.max(12, Math.round(viewportHeight * 0.09));
+        const payload = encodeURIComponent(JSON.stringify(event.data));
+        await OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {});
+        await OBR.popover.open({
+          id: SPEED_WARNING_MODAL_ID,
+          url: `/speed-warning.html?payload=${payload}`,
+          width,
+          height: 122,
+          anchorReference: "POSITION",
+          anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
+          anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+          transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+          hidePaper: true,
+          disableClickAway: false,
+          marginThreshold: 12,
+        });
+      };
+      warningQueue = warningQueue.then(run, run);
+      void warningQueue.catch((error) => {
+        console.warn("[speed-check] warning popover:", error?.message || error);
+      });
     });
   })().catch((error) => {
     warningLayerPromise = null;
