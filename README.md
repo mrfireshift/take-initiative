@@ -33,7 +33,9 @@ dopo la stabilizzazione 1.3 e non ancora raccolte in una nuova release.
 - mostra reminder aggregati per tiri salvezza ed effetti senza sostituire i
   tiri fisici al tavolo;
 - offre azioni rapide per card, incantesimi preparati e azioni attive
-  successive al lancio.
+  successive al lancio;
+- conserva una configurazione di fazione nella room e può riutilizzarla quando
+  nuovi token condividono immagine o nome con creature già classificate;
 - permette di indicare classe, sottoclasse e livello (anche multiclasse) nella
   scheda iniziativa e di attivare capacità di classe con usi e durata tracciati;
 - materializza gli effetti attivi delle capacità come condizioni persistenti sui
@@ -58,8 +60,12 @@ Per installazione locale e pubblicazione consulta
 
 ## Documentazione
 
+- [Indice della documentazione](docs/INDICE.md) — mappa dei riferimenti correnti,
+  dei contratti tecnici e degli audit storici.
 - [Guida utente](docs/GUIDA_UTENTE.md) — flusso completo per il DM e
   comportamento della vista player.
+- [Capacità di classe](docs/CAPACITA_CLASSE.md) — build, risorse, capacità
+  attivabili, aure e stato di automazione.
 - [Incantesimi, zone e reminder](docs/INCANTESIMI_E_ZONE.md) — catalogo,
   registro, geometrie, trigger, automazioni e limiti correnti.
 - [Riferimento delle funzioni](docs/RIFERIMENTO_FUNZIONI.md) — controlli,
@@ -73,8 +79,8 @@ Per installazione locale e pubblicazione consulta
 - [Risoluzione dei problemi](docs/RISOLUZIONE_PROBLEMI.md) — verifiche e rimedi
   per i problemi più comuni.
 - [Backlog](BACKLOG.md) — funzionalità pianificate ma non ancora incluse.
-- [Stabilizzazione 1.3](docs/STABILIZZAZIONE_1_3.md) — documento storico della
-  candidata 1.3.
+- [Workspace class features](docs/class-features/README.md) — sorgenti,
+  generatori e audit del catalogo capacità.
 - [Licenze di terze parti](THIRD_PARTY_NOTICES.md) — attribuzioni dei
   contenuti di catalogo.
 
@@ -82,7 +88,9 @@ Per installazione locale e pubblicazione consulta
 
 - Regole di riferimento: **D&D 5e 2014**.
 - Catalogo runtime: **477 definizioni**, di cui **357 tracciabili** nel pannello
-  Incantesimi, costruite a partire da SRD 5.1 e dalle integrazioni 2014.
+  Incantesimi, provenienti da SRD 5.1, Xanathar, Tasha e integrazioni PHB 2014.
+- Catalogo capacità: **542 record runtime**, di cui **59 attivabili** e **483
+  gestiti come riferimento/manuale**; include 104 pool di risorse.
 - SDK Owlbear Rodeo: `@owlbear-rodeo/sdk` 3.x.
 - Browser moderni supportati da Owlbear Rodeo.
 - Il plugin traccia eventi, durata, condizioni e reminder; i dadi e le
@@ -99,7 +107,7 @@ Per installazione locale e pubblicazione consulta
 ## Sviluppo rapido
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -108,6 +116,7 @@ Build e controlli principali:
 ```bash
 npm test
 npm run generate:class-features
+npm run audit:class-features
 npm run check:spells
 npm run build
 ```

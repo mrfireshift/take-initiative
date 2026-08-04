@@ -5,6 +5,8 @@ del repository. La sezione 1.3 è conservata come riferimento storico; le
 funzioni successive sono documentate anche in
 [Incantesimi, zone e reminder](docs/INCANTESIMI_E_ZONE.md).
 
+Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
+
 ## Completato in v1.3.0
 
 - Stabilizzazione del tracker con rendering incrementale, protezioni contro lo stato obsoleto e diagnostica dei render.
@@ -28,6 +30,16 @@ funzioni successive sono documentate anche in
 - Azioni rapide persistenti nelle schede iniziativa.
 - Automazioni dei principali incantesimi da combattimento elencati nella
   documentazione corrente.
+
+## Capacità di classe
+
+Il catalogo runtime espone 542 capacità e 104 pool di risorse. Al momento 59
+sono `implemented`; le restanti 483 sono intenzionalmente consultabili come
+`not-automated` e richiedono gestione manuale. L'espansione degli adapter deve
+partire dai dati in `data/class-features/`, passare da
+`npm run generate:class-features` e aggiornare i test prima di essere descritta
+come capacità attivabile. Il dettaglio dello snapshot è in
+[Capacità di classe](docs/CAPACITA_CLASSE.md) e nell'[audit generato](docs/AUDIT_CAPACITA_CLASSE.md).
 
 ## Pianificato
 

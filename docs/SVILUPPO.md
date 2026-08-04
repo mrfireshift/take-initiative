@@ -2,8 +2,9 @@
 
 ## Preparazione
 
-Usa la versione di Node indicata in `.node-version`. Sono supportati Node
-`20.19.x` oppure `22.12.0` e successivi; la CI usa Node `24.15.0`.
+Usa la versione di Node indicata in `.node-version` (`24.15.0` nel repository
+corrente). Il `package.json` supporta anche Node `20.19.x` oppure `22.12.0` e
+successivi.
 
 ```bash
 npm ci
@@ -28,14 +29,20 @@ Lo sviluppo usa Vite. Installa il manifest esposto dal server locale nella room 
 | `npm run generate:spell-translations` | Rigenera le traduzioni del catalogo |
 | `npm run generate:supplement-spells` | Rigenera le definizioni di Tasha e Xanathar |
 | `npm run generate:phb2014-extra` | Rigenera le integrazioni PHB 2014 |
+| `npm run generate:class-features` | Rigenera il catalogo runtime delle capacità di classe |
+| `npm run audit:class-features` | Rigenera audit JSON e Markdown delle capacità |
+| `npm run audit:barbaro` | Genera l'audit mirato delle capacità del Barbaro |
 
 ## Struttura del progetto
 
 ```text
 public/                 asset statici e manifest Owlbear Rodeo
 scripts/                generatori e controlli del catalogo
+data/class-features/    cataloghi e overlay sorgente delle capacità di classe
 src/                    codice applicativo
+src/class-features-runtime.json  catalogo runtime generato
 test/                   test unitari e di regressione
+docs/                   guide correnti, contratti e audit tracciabili
 *.html                  entry point dei popup e delle pagine Vite
 vite.config.js          configurazione multi-page della build
 ```
@@ -45,6 +52,8 @@ Moduli da individuare prima di una modifica:
 - tracker e card: `src/initiativeList.js`;
 - stato ordine: `src/initiativeOrderCore.js`;
 - profili tra scene: `src/initiativeCards.js`;
+- fazioni persistenti: `src/factionRegistry.js`, `src/factionRegistryCore.js`,
+  `src/faction-configurator.ts`;
 - HP sulla mappa: `src/hpbar-items.js`;
 - memoria HP: `src/hpMemory.js`;
 - condizioni: `src/conditions.js`, `src/effects-modal.ts`;
@@ -65,6 +74,8 @@ Moduli da individuare prima di una modifica:
   `src/preparedSpellResolutionController.js`, `src/spellActiveActionCore.js`;
 - azioni rapide: `src/quickActionsCore.js`,
   `src/quickActionExecution.js`;
+- capacità di classe: `src/classFeatureCatalog.js`, `src/classFeatureCore.js`,
+  `src/classFeatureRuntime.js`, `src/classFeatureAuraController.js`;
 - movimento: `src/speedCheck.js`, `src/speedCheckCore.js`;
 - log e Undo: `src/combatLog.js`, `src/history.js`, `src/history-modal.ts`;
 - clock: `src/clocks*.js`;
@@ -129,6 +140,16 @@ Moduli da individuare prima di una modifica:
 - zone sovrapposte con effetti figli indipendenti;
 - geometria rettangolare su direzioni cardinali e diagonali.
 
+### Capacità di classe e fazioni
+
+- build multiclasse fino al limite previsto, livelli e sottoclassi;
+- distinzione tra capacità `implemented` e `not-automated`;
+- consumo, recupero e reset delle risorse;
+- effetti su sé stessi, bersaglio singolo e aura;
+- pulizia delle condizioni per `instanceId` senza rimuovere condizioni manuali;
+- configurazione di fazioni su più token e riuso del registry per nuovi asset;
+- conflitto tra nomi uguali associati a fazioni diverse.
+
 ### Strumenti mappa
 
 - quota positiva, negativa e zero;
@@ -171,6 +192,11 @@ Il catalogo runtime unisce SRD 5.1, Xanathar, Tasha, integrazioni PHB 2014 e
 alias legacy. Non modificare manualmente un file generato senza aggiornare
 anche lo script sorgente. Dopo qualsiasi intervento esegui
 `npm run check:spells`.
+
+Il catalogo capacità segue lo stesso principio: modificare i dati in
+`data/class-features/`, eseguire `npm run generate:class-features` e poi
+`npm run audit:class-features`. Il report in `docs/AUDIT_CAPACITA_CLASSE.md` e
+il JSON di audit sono artefatti generati.
 
 Le automazioni curate non devono essere dedotte automaticamente dalla sola
 descrizione. Ogni nuova regola deve dichiarare in modo verificabile:

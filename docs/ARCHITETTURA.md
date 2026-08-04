@@ -16,6 +16,7 @@ Il progetto evita un backend proprio: la sincronizzazione avviene tramite metada
 | `src/initiativeList.js` | Stato, rendering e interazioni del tracker. |
 | `src/trackerPopover.js` | Apertura, layout e dimensionamento del popover tracker. |
 | `src/contextMenu.js` | Comandi contestuali su token. |
+| `src/faction-configurator.ts` / `src/factionRegistry.js` | Configurazione e registry persistente delle fazioni. |
 | `src/effects-modal.ts` | Popup Condizioni. |
 | `src/spells-panel.js` | Popup Incantesimi, registro globale, preparazione e azioni attive. |
 | `src/quick-hp-modal.js` | Console HP multi-bersaglio e Console effetti ad area. |
@@ -32,6 +33,10 @@ Il progetto evita un backend proprio: la sincronizzazione avviene tramite metada
 | `src/aoeTargetTool.js` | Creazione, persistenza e selezione delle aree. |
 | `src/hpbar-items.js` | Elementi derivati della barra HP sulla mappa. |
 | `src/initiativeCards.js` | Profilo persistente delle card tra scene. |
+| `src/initiative-card-modal.js` | Scheda iniziativa, build e capacità di classe. |
+| `src/classFeatureCatalog.js` / `src/classFeatureCore.js` | Catalogo, stato e proiezione delle capacità. |
+| `src/classFeatureRuntime.js` | Attivazione, risorse e pulizia delle capacità. |
+| `src/classFeatureAuraController.js` / `src/classFeatureReminderController.js` | Aure e reminder delle capacità. |
 
 `vite.config.js` elenca tutte le pagine incluse nella build.
 
@@ -59,6 +64,7 @@ Contiene i dati specifici della creatura, tra cui:
 - `legendaryResistances`
 - `paragon`
 - `epic`
+- `classFeatureState`
 - `com.thebigpicture.initiative/spells`
 - `com.thebigpicture.initiative/concentration`
 
@@ -94,6 +100,7 @@ Le geometrie persistenti sono item della scena con metadata dedicati:
 | `com.thebigpicture.initiative/aoeArea` | Area geometrica generica |
 | `com.thebigpicture.initiative/spellStaticZone` | Zona persistente collegata a un'istanza |
 | `com.thebigpicture.initiative/spellAura` | Aura mobile collegata a una sorgente |
+| `com.thebigpicture.initiative/classFeatureAura` | Aura mobile collegata a un'istanza di capacità |
 
 `instanceId`, `spellId`, `casterId` e i riferimenti alla sorgente consentono di
 riconciliare e pulire questi item senza dedurre la relazione dal nome visibile.
@@ -103,12 +110,43 @@ riconciliare e pulire questi item senza dedurre la relazione dal nome visibile.
 | Chiave | Scopo |
 | --- | --- |
 | `com.thebigpicture.initiative/hpMemory` | Fallback persistente HP/fazione per attori riconosciuti |
+| `com.thebigpicture.initiative/factionRegistry` | Associazione room tra asset/nome e fazione |
 | `com.thebigpicture.initiative/initiativeCards` | Registry delle schede tra scene |
+| `com.thebigpicture.initiative/ui` | Stato UI condiviso richiesto dall'action launcher |
 
 Il registry locale `com.thebigpicture.initiative/initiativeCards/local` offre un fallback nel browser.
 
+Il registry locale `com.thebigpicture.initiative/factionRegistry/local` offre
+lo stesso fallback per la configurazione automatica delle fazioni. Il registry
+usa prima l'URL canonico dell'immagine e poi il nome normalizzato; se lo stesso
+nome è stato associato a più fazioni, non applica una scelta ambigua.
+
 Le azioni rapide sono memorizzate nel profilo della card. Il formato viene
 sanificato da `src/quickActionsCore.js` e non costituisce metadata turnale.
+
+### Capacità di classe
+
+La build e la configurazione del personaggio vivono nel profilo
+`initiativeCard`. Lo stato di runtime è un campo annidato del metadata token:
+
+```text
+com.thebigpicture.initiative/meta.classFeatureState
+```
+
+Il catalogo importato da `src/class-features-runtime.json` è generato dai dati
+in `data/class-features/`. Una capacità `implemented` produce, a seconda della
+regola, un'istanza su sé stesso, un effetto su un bersaglio o un'aura. Le
+condizioni persistenti sono riconciliate dal sistema effetti esistente e le
+aure usano item di scena con:
+
+```text
+com.thebigpicture.initiative/classFeatureAura
+```
+
+Le condizioni e le aure conservano `instanceId`, `sourceId` e i collegamenti
+ai bersagli per consentire rimozione e riconciliazione senza colpire effetti
+manuali omonimi. Le risorse correnti restano nel `classFeatureState`; il
+plugin non usa un secondo registro room per lo stato attivo.
 
 ### Preferenze locali
 

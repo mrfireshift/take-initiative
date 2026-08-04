@@ -19,7 +19,11 @@
 | Creare e gestire clock | Sì | No |
 | Vedere clock dichiarati visibili | Sì | Sì |
 | Impostare quota | Sì | No |
-| Usare Distanza 3D | Sì | Sì |
+| Usare Distanza 3D | Sì | No |
+| Aprire Enciclopedia DM | Sì | No |
+| Configurare il registry automatico delle fazioni | Sì | No |
+| Vedere capacità e reminder configurati | Sì | Sì |
+| Configurare, attivare e terminare capacità | Sì | No |
 
 ## Condizioni predefinite
 
@@ -111,7 +115,7 @@ Condizioni, Incantesimi e Console HP condividono la stessa logica:
 | **Totale runtime** | **477** |
 
 Sono tracciabili nel pannello Incantesimi 357 definizioni. Il catalogo
-comprende inoltre 133 regole di area, 71 definizioni con automazioni esplicite
+comprende inoltre 133 regole di area per 132 incantesimi distinti, 71 definizioni con automazioni esplicite
 per il tiro salvezza e 7 definizioni con azioni attive. La presenza di una
 geometria non implica che ogni clausola RAW dell'incantesimo sia già
 automatizzata.
@@ -171,12 +175,30 @@ i trigger concorrenti dello stesso incantesimo.
 Il dettaglio del catalogo, dei casi speciali e della copertura residua è in
 [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md).
 
+## Fazioni automatiche
+
+Il configuratore GM salva nella room le associazioni tra fazione e asset dei
+token. La chiave preferita è l'URL canonico dell'immagine; il nome normalizzato
+è un fallback. **Aggiungi attori** usa il registry per i token riconosciuti e
+lascia al GM i casi ambigui o sconosciuti. Un reset del registry non modifica
+le fazioni già presenti nei metadata dei token.
+
+## Capacità di classe
+
+La card può contenere una build fino a quattro classi, con livelli 1–20 e
+sottoclassi. Il catalogo runtime contiene 542 record, 104 pool di risorse, 59
+capacità `implemented` e 483 voci `not-automated`. Le prime sono attivabili dal
+GM; le seconde restano descrittive o manuali. Le capacità pronte possono usare
+risorse, creare condizioni persistenti o proiettare aure, ma tiri, scelte ed
+esiti non deterministici restano conferme del GM. Il riferimento completo è in
+[Capacità di classe](CAPACITA_CLASSE.md).
+
 ## Azioni rapide
 
 | Proprietà | Valori |
 | --- | --- |
 | Massimo per profilo | 12 |
-| Tipi | Incantesimo, condizione |
+| Tipi | Incantesimo, condizione, capacità di classe supportata |
 | Bersaglio | Caster oppure selezione |
 | Workflow spell | Pannello Incantesimi oppure Console effetti ad area |
 | Scadenza condizione | Manuale, round, inizio turno, fine turno |
@@ -236,6 +258,7 @@ difficile, trigger turnali, attraversamento e pulizia legata all'istanza.
 | Dato | Ambito |
 | --- | --- |
 | HP, iniziativa, fazione, condizioni, incantesimi, boss, quota | Token |
+| Build, capacità abilitate, risorse e stato attivo delle capacità | Token, dentro metadata `meta` |
 | Azioni rapide | Profilo card nella room, con fallback locale |
 | Ordine, turno, round, gruppi, turni virtuali | Scena |
 | Registro incantesimi attivi | Derivato dalle istanze sui token |
@@ -243,6 +266,7 @@ difficile, trigger turnali, attraversamento e pulizia legata all'istanza.
 | Clock | Scena |
 | Cronologia Undo e log di combattimento | Scena |
 | Memoria persistente dei PG e card | Room, con fallback locale |
+| Registry automatico delle fazioni | Room, con fallback locale |
 | Posizioni finestre, layout e stile AoE | Browser locale |
 
 Per i nomi esatti delle chiavi consulta [Architettura e dati](ARCHITETTURA.md).

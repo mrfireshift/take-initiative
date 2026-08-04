@@ -20,6 +20,23 @@ Le fazioni disponibili sono:
 
 La fazione determina colore delle card, filtri nei popup e visibilità di alcune informazioni nella vista player.
 
+### Configurare le fazioni in modo persistente
+
+Dal tracker il GM può aprire **Configura fazioni** per assegnare una fazione a
+più token della scena in una sola volta. Il configuratore registra
+l'associazione nella room usando prima l'immagine del token e poi il nome
+normalizzato.
+
+Quando in seguito scegli **Aggiungi attori** o aggiungi nuovi token
+all'iniziativa, il plugin riusa questa associazione. Un asset o un nome mai
+visto viene trattato come **Nemico** finché il GM non lo assegna manualmente.
+Se lo stesso nome è stato usato per fazioni diverse, il plugin non sceglie in
+modo automatico: usa la fazione del token o chiede una correzione al GM.
+
+Il configuratore è condiviso nella room e dispone di un fallback locale per il
+browser. **Azzera registry** rimuove le associazioni salvate, non cambia le
+fazioni già scritte sui token.
+
 ## 2. Aprire e configurare il lister
 
 Premi l'icona di Take Initiative! nella barra delle estensioni. Il lister può essere chiuso e riaperto senza perdere lo stato del combattimento.
@@ -69,6 +86,22 @@ Il controllo accanto agli HP apre la modifica rapida o la scheda iniziativa, a s
 Le card di creature con lo stesso nome vengono raggruppate. Una card collassata mostra **(Gruppo)** e il numero di membri. Il gruppo si espande automaticamente quando il turno entra nello stack e si richiude quando lo lascia; può anche essere aperto manualmente. L'animazione mantiene la prima card come ancora.
 
 In caso di iniziative uguali, le card possono essere riordinate tramite trascinamento.
+
+### Capacità di classe
+
+Nella scheda **Capacità** della card il GM può indicare fino a quattro classi,
+livello e sottoclasse, quindi abilitare le capacità che devono essere visibili
+e utilizzabili per quel personaggio. Il catalogo mostra anche le capacità non
+ancora automatizzate, ma queste restano un riferimento da gestire manualmente.
+
+Le capacità pronte possono consumare una risorsa, applicare un effetto a sé,
+chiedere un bersaglio o mantenere un'aura. Il GM deve confermare tiri, scelte,
+esiti e conseguenze che il plugin non può risolvere. Le istanze attive mostrano
+durata, bersagli e reminder; le condizioni create dalla capacità compaiono
+nella finestra **Condizioni** e vengono rimosse insieme all'istanza corretta.
+
+Per conteggi, adapter, limiti e persistenza consulta
+[Capacità di classe](CAPACITA_CLASSE.md).
 
 ## 4. Gestire il combattimento
 

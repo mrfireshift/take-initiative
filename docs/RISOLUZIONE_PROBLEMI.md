@@ -141,6 +141,48 @@ I toggle di fazione sono combinabili. Se uno o più toggle sono attivi, compaion
 
 Verifica inoltre che i token siano nell'iniziativa: i popup operano principalmente sugli attori tracciati.
 
+## Un token riceve una fazione automatica inattesa
+
+Il registry delle fazioni usa prima l'URL canonico dell'immagine e poi il nome
+normalizzato. Un nuovo asset non riconosciuto ricade su **Nemico** quando viene
+aggiunto in blocco.
+
+1. Apri **Configura fazioni** e assegna manualmente il token.
+2. Se il nome viene usato per creature di fazioni diverse, assegna la fazione
+   direttamente dal menu contestuale del token invece di affidarti al nome.
+3. Usa **Azzera registry** soltanto per cancellare le associazioni della room;
+   le fazioni già scritte sui token non vengono modificate.
+4. Se GM e player vedono risultati diversi, verifica la room e il fallback
+   locale del browser.
+
+## Una capacità di classe non compare o non si attiva
+
+Controlla prima la scheda **Capacità** della card:
+
+- la classe è presente nella build e il livello rientra nella progressione;
+- la sottoclasse selezionata è quella corretta;
+- la capacità è stata abilitata nella configurazione esplicita;
+- il catalogo mostra `implemented`, non `not-automated`;
+- il pool della risorsa ha usi disponibili;
+- per una capacità a bersaglio, la selezione sulla mappa contiene token
+  CHARACTER validi e dentro portata.
+
+Una voce `not-automated` è intenzionalmente un riferimento manuale e non
+diventa attivabile aggiungendola alle azioni rapide. Per un problema runtime
+raccogli ID della capacità, classe/livello, `instanceId` e il risultato di
+`npm test` e `npm run build`.
+
+## Un effetto di capacità resta sulla mappa
+
+Le aure di capacità sono item derivati con metadata
+`com.thebigpicture.initiative/classFeatureAura`. Termina prima l'istanza dalla
+card o dal menu contestuale e attendi la riconciliazione.
+
+Non eliminare in massa gli item della scena: l'aura può condividere il piano di
+riconciliazione con barre HP, zone spell e pill locali. Se resta una condizione,
+controlla `instanceId`, `sourceId` e se la condizione era stata applicata
+manualmente.
+
 ## Movimento o Maiusc interferiscono con Owlbear Rodeo
 
 Il vecchio strumento di movimento nella toolbar di Owlbear Rodeo è stato rimosso e scollegato. Il monitoraggio viene controllato dal tracker e non dovrebbe cambiare lo strumento attivo.

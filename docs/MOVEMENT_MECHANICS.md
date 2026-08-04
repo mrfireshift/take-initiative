@@ -98,6 +98,12 @@ conservando il comportamento precedente.
 Gli incantesimi e le condizioni restano la fonte di verità. Il profilo
 risolto è derivato e non viene scritto nei metadata del token.
 
+Le capacità di classe che dichiarano `passiveMechanics.movement` entrano nello
+stesso profilo quando la capacità è presente nella build e il relativo adapter
+è supportato. Possono concedere una modalità, modificare velocità o costo e
+applicare un limite; una voce `not-automated` resta invece un promemoria
+manuale.
+
 Nel campo turnale `speedCheckMovement` vengono conservati soltanto:
 
 - turno;

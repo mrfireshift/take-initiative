@@ -41,14 +41,21 @@ area, ma non creano necessariamente una spell attiva.
 
 Il catalogo dichiara inoltre:
 
-- 133 regole geometriche: 58 effetti istantanei, 63 zone persistenti, 11 aure
-  mobili e 1 emissione;
+- 133 regole geometriche per 132 incantesimi distinti: 58 effetti istantanei,
+  63 zone persistenti, 11 aure mobili e 1 emissione;
 - 71 definizioni con automazioni esplicite per il tiro salvezza;
 - 7 definizioni con azioni attive successive al lancio.
 
 Questi numeri descrivono il catalogo tecnico, non il numero di incantesimi
 completamente automatizzati. Alcune geometrie possono essere disegnate senza
 avere ancora tutti i trigger RAW.
+
+La copertura va letta su tre livelli: definizione nel catalogo, membership e
+trigger verificati dal runtime, quindi conseguenza RAW completa. Un incantesimo
+può avere una regola di area e reminder funzionanti, ma richiedere ancora al GM
+la scelta di una sottozona, il tiro fisico o una conseguenza condizionata. Le
+regole di area e i test sono in `src/spellAreaRules.js` e `test/`; il [Backlog](../BACKLOG.md)
+elenca i dettagli ancora da completare.
 
 ## Lanciare e registrare un incantesimo
 
@@ -222,7 +229,10 @@ Questo workflow esclude intenzionalmente:
 - incantesimi di utilità non orientati al combattimento;
 - incantesimi con tempo di lancio di almeno 1 minuto.
 
-Restano da completare soprattutto i casi con geometrie o stati multipli:
+Restano da completare soprattutto i casi con geometrie o stati multipli. Le
+spell elencate possono già avere una dichiarazione di area, membership o
+trigger di base; il lavoro residuo riguarda le conseguenze RAW complete e non
+implica che siano assenti dal catalogo:
 
 - revisione completa di Controllare Acqua;
 - sottozone figlie, a partire dalle fenditure di Terremoto;

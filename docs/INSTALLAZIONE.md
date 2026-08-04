@@ -4,7 +4,8 @@
 
 - un account Owlbear Rodeo con permessi per installare estensioni nella room;
 - un browser moderno;
-- per lo sviluppo: Node.js e npm;
+- per lo sviluppo: Node.js e npm; usa `.node-version` (`24.15.0`) quando
+  possibile;
 - per l'uso al tavolo: una seconda finestra browser, un secondo profilo o un secondo dispositivo collegato come player.
 
 ## Installare una build pubblicata
@@ -22,7 +23,7 @@ Il server deve servire i file senza autenticazione e con percorsi coerenti con l
 ## Avvio locale per sviluppo
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -47,6 +48,7 @@ Per provare il comportamento GM/player sullo stesso computer:
 npm run verify:version
 npm test
 npm run check:spells
+npm run generate:class-features
 npm run build
 npm run verify:dist
 ```
@@ -58,6 +60,7 @@ L'output viene scritto in `dist/`. Prima della pubblicazione verifica:
 - che `dist/manifest.json` sia presente;
 - che icone, immagini e pagine HTML siano state copiate;
 - che le pagine dei reminder e della risoluzione preparata siano incluse;
+- che la pagina del configuratore fazioni e la scheda capacità siano incluse;
 - che la room carichi correttamente sia il background sia il lister.
 
 ## Aggiornamento
