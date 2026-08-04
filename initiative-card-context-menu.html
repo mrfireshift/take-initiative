@@ -29,6 +29,18 @@
         min-height: 0 !important;
         overflow: hidden;
         outline: none;
+        opacity: 0;
+        transform: translateY(-4px) scale(.985);
+        transform-origin: top center;
+        transition: opacity 120ms ease-out, transform 140ms cubic-bezier(.2,.8,.2,1);
+        will-change: opacity, transform;
+      }
+      .glass-shell.is-open { opacity: 1; transform: translateY(0) scale(1); }
+      .glass-shell.is-closing {
+        opacity: 0;
+        transform: translateY(-2px) scale(.99);
+        pointer-events: none;
+        transition-duration: 90ms;
       }
       #menu {
         box-sizing: border-box;
@@ -54,6 +66,7 @@
         font-weight: 600;
         text-align: left;
         cursor: pointer;
+        transition: background-color 90ms ease, transform 90ms ease;
       }
       button:hover:not(:disabled), button[aria-current="true"] {
         background: rgba(255,255,255,.12);
@@ -62,6 +75,7 @@
         outline: 2px solid rgba(147,197,253,.9);
         outline-offset: -2px;
       }
+      button:active:not(:disabled) { transform: scale(.985); }
       button:disabled {
         color: rgba(255,255,255,.42);
         cursor: default;
@@ -112,6 +126,9 @@
         flex: 0 0 11px;
         border: 1px solid rgba(255,255,255,.55);
         border-radius: 999px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .glass-shell, button { transition: none !important; }
       }
     </style>
   </head>

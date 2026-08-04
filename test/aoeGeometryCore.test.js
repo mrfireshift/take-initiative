@@ -29,7 +29,7 @@ test("il cono colpisce davanti all'origine ma non alle sue spalle", () => {
   assert.ok(!area.cells.some((cell) => cell.column === -1 && cell.row === 0));
 });
 
-test("il cono template include ogni casella parzialmente coperta", () => {
+test("il cono template include ogni casella con sovrapposizione reale", () => {
   const area = buildConeArea(
     { x: 0, y: 0 },
     { x: 450, y: 0 },
@@ -37,11 +37,25 @@ test("il cono template include ogni casella parzialmente coperta", () => {
     { x: 0, y: 0 },
   );
   assert.equal(area.squares, 3);
-  assert.equal(area.cells.length, 9);
+  assert.equal(area.cells.length, 8);
   assert.ok(area.cells.some((cell) => cell.column === 2 && cell.row === 1));
+  assert.ok(!area.cells.some((cell) => cell.column === 1 && cell.row === 1));
 });
 
-test("il cono template risolve le basi dispari senza alterare quelle pari", () => {
+test("il cono scarta le caselle sfiorate da una deviazione infinitesimale", () => {
+  const area = buildConeArea(
+    { x: 328.5, y: 110 },
+    { x: 329, y: 575 },
+    155,
+    { x: 96, y: 110 },
+  );
+  assert.deepEqual(
+    area.cells.map((cell) => `${cell.column}:${cell.row}`).sort(),
+    ["0:1", "0:2", "1:0", "1:1", "1:2", "2:1", "2:2"],
+  );
+});
+
+test("il cono template applica la soglia anche alle basi dispari", () => {
   const origin = { x: 75, y: 75 };
   const gridOrigin = { x: 0, y: 0 };
   const counts = [1, 2, 3, 4].map((squares) => buildConeArea(
@@ -50,7 +64,19 @@ test("il cono template risolve le basi dispari senza alterare quelle pari", () =
     150,
     gridOrigin,
   ).cells.length);
-  assert.deepEqual(counts, [3, 7, 11, 17]);
+  assert.deepEqual(counts, [1, 4, 7, 12]);
+});
+
+test("il cono parte dalla mediana del lato e non include la cella alle spalle", () => {
+  const area = buildConeArea(
+    { x: 225, y: 150 },
+    { x: 225, y: 600 },
+    150,
+    { x: 0, y: 0 },
+  );
+  assert.equal(area.squares, 3);
+  assert.ok(!area.cells.some((cell) => cell.row === 0));
+  assert.ok(area.cells.some((cell) => cell.row === 1));
 });
 
 test("il bordo delle celle adiacenti diventa un unico contorno senza linee interne", () => {
@@ -78,7 +104,7 @@ test("il cono template ignora le caselle che toccano soltanto il perimetro", () 
   assert.ok(!area.cells.some((cell) => cell.column < 0));
 });
 
-test("la sagoma del cono resta simmetrica e la griglia risolve un solo bordo ambiguo", () => {
+test("la sagoma del cono resta simmetrica senza aggiungere celle marginali", () => {
   const area = buildConeArea(
     { x: 0, y: 0 },
     { x: 450, y: 0 },
@@ -96,7 +122,7 @@ test("la sagoma del cono resta simmetrica e la griglia risolve un solo bordo amb
   );
   const cells = new Set(area.cells.map((cell) => `${cell.column}:${cell.row}`));
   const unmatched = area.cells.filter((cell) => !cells.has(`${cell.column}:${-cell.row - 1}`));
-  assert.equal(unmatched.length, 1);
+  assert.equal(unmatched.length, 0);
 });
 
 test("il cono segue una direzione libera senza quantizzarla a 45 gradi", () => {
@@ -112,7 +138,7 @@ test("il cono segue una direzione libera senza quantizzarla a 45 gradi", () => {
   };
   const renderedSlope = (baseCenter.y - area.origin.y) / (baseCenter.x - area.origin.x);
   assert.ok(Math.abs(renderedSlope - (150 / 450)) < 1e-6);
-  assert.ok(area.cells.some((cell) => cell.column === 3 && cell.row === 2));
+  assert.ok(area.cells.some((cell) => cell.column === 2 && cell.row === 2));
 });
 
 test("la linea e larga una casella e segue la direzione", () => {
@@ -185,6 +211,22 @@ test("lo snap tratta allo stesso modo tutti i vertici e il centro della casella"
   );
   assert.deepEqual(center.position, { x: 75, y: 75 });
   assert.equal(center.kind, "center");
+});
+
+test("un cono può mantenere un'origine agganciata a uno spigolo della griglia", () => {
+  const snap = nearestGridSnap(
+    { x: 145, y: 145 },
+    { x: 0, y: 0 },
+    150,
+  );
+  const area = buildConeArea(
+    snap.position,
+    { x: 595, y: 145 },
+    150,
+    { x: 0, y: 0 },
+  );
+  assert.equal(snap.kind, "corner");
+  assert.deepEqual(area.points[0], snap.position);
 });
 
 test("il quadrato usa il lato maggiore del trascinamento come spigolo", () => {

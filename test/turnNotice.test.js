@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildTurnNoticePayload,
+  isInitiativeTurnTransition,
   isTurnNoticeForScene,
 } from "../src/turnNotice.js";
 
@@ -45,4 +46,22 @@ test("accetta un notice solo nello scene epoch che lo ha prodotto", () => {
   assert.equal(isTurnNoticeForScene(payload, 4, true), true);
   assert.equal(isTurnNoticeForScene(payload, 5, true), false);
   assert.equal(isTurnNoticeForScene(payload, 4, false), false);
+});
+
+test("riconosce solo un vero avanzamento a ordine invariato", () => {
+  const freddy = { order: ["freddy", "omar"], current: 0, round: 1 };
+  const omar = { order: ["freddy", "omar"], current: 1, round: 1 };
+
+  assert.equal(isInitiativeTurnTransition(freddy, omar), true);
+  assert.equal(isInitiativeTurnTransition(omar, freddy), true);
+  assert.equal(isInitiativeTurnTransition(freddy, freddy), false);
+  assert.equal(isInitiativeTurnTransition(null, freddy), false);
+  assert.equal(isInitiativeTurnTransition(
+    { order: [], current: 0, round: 1 },
+    freddy,
+  ), false);
+  assert.equal(isInitiativeTurnTransition(
+    { order: ["freddy"], current: 0, round: 1 },
+    freddy,
+  ), false);
 });

@@ -48,7 +48,7 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
   ]);
 });
 
-test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", () => {
+test("il primo metadata di un nuovo scene epoch usa la baseline senza perdere il primo cambio", () => {
   const lifecycle = sourceSection(
     "function __mountSceneEpochLifecycle() {",
     "// Scansione e deduplicazione una tantum all'avvio."
@@ -69,10 +69,13 @@ test("il primo metadata di un nuovo scene epoch viene acquisito come baseline", 
   const firstRoundTick = metadata.indexOf('type: "effects:tick-round"');
   assert.ok(baseline >= 0, "manca il gate baseline del metadata");
   assert.ok(firstRoundTick > baseline, "il baseline deve precedere ogni tick di round");
-  assert.match(
-    metadata.slice(baseline, firstRoundTick),
-    /await __adoptInitiativeSceneBaseline\([\s\S]*?return;/,
-  );
+  assertOrdered(metadata.slice(baseline, firstRoundTick), [
+    "const previousState = __latestInitiativeState;",
+    "await __adoptInitiativeSceneBaseline(",
+    "!previousState",
+    "if (!previousState || baselineDigest === stateDigest) return;",
+  ]);
+  assert.match(metadata.slice(baseline, firstRoundTick), /__lastQueuedInitiativeMetadataDigest = stateDigest;/);
 });
 
 test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () => {
@@ -90,17 +93,15 @@ test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () =>
   assert.doesNotMatch(boot, /await __mountSceneEpochLifecycle\(\)/);
 });
 
-test("il bootstrap invia il reminder anche per la prima card attiva", () => {
+test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () => {
   const boot = sourceSection(
     "const bootPersistedState = await getSceneState();",
     "if (IS_GM) {\n    void recordCombatTurn",
   );
   assertOrdered(boot, [
-    "const bootInitialState = __latestInitiativeState || bootPersistedState;",
     "await __adoptInitiativeSceneBaseline(",
-    "__activeIdForState(bootInitialState)",
-    "broadcastTurnNotice(bootInitialState, bootstrapSceneEpoch)",
   ]);
+  assert.doesNotMatch(boot, /broadcastTurnNotice\(/);
 });
 
 test("il modal conferma il listener e conserva il primo notice durante il reload", () => {
@@ -111,11 +112,13 @@ test("il modal conferma il listener e conserva il primo notice durante il reload
   assertOrdered(sender, [
     "OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL",
     "await OBR.modal.open({",
-    "turn-notice-ready-request",
+    "__requestTurnNoticeReady();",
   ]);
   assert.match(sender, /if \(!__turnNoticeReady\) \{\s*__pendingTurnNotice = \{ notice, sceneEpoch \};/);
   assert.match(sender, /__sendTurnNoticePayload\(pending\.notice, pending\.sceneEpoch\)/);
   assert.match(sender, /const deliveryKey = `\$\{sceneEpoch\}:\$\{notice\.turnKey\}`/);
+  assert.match(sender, /function __requestTurnNoticeReady\(sceneEpoch = currentSceneEpoch\(\)\)/);
+  assert.match(sender, /readyEpoch !== currentSceneEpoch\(\)/);
 
   assertOrdered(turnNoticeSource, [
     "unsubscribeTurnNoticeBroadcast = OBR.broadcast.onMessage(CHANNEL",
@@ -123,6 +126,8 @@ test("il modal conferma il listener e conserva il primo notice durante il reload
     "void announceReady();",
   ]);
   assert.match(turnNoticeSource, /type: "turn-notice-ready"/);
+  assert.match(turnNoticeSource, /sceneEpoch: noticeSceneEpoch/);
+  assert.match(turnNoticeSource, /noticeSceneEpoch = Math\.floor\(requestedEpoch\)/);
   assert.match(turnNoticeSource, /destination: "LOCAL"/);
 });
 
@@ -133,6 +138,7 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
   );
   assertOrdered(metadata, [
     "const noticeActiveId = __activeIdForState(st);",
+    "isInitiativeTurnTransition(",
     "broadcastTurnNotice(st, sceneEpoch)",
     'await renderAll("metadata")',
     "await roundEffectAdjustment",
@@ -142,6 +148,15 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     (metadata.match(/broadcastTurnNotice\(st, sceneEpoch\)/g) || []).length,
     1,
   );
+
+  const navigation = sourceSection(
+    "async function __flushNavigationState()",
+    "function queueNavigationState("
+  );
+  assertOrdered(navigation, [
+    "await setSceneState(desired, sceneEpoch);",
+    "broadcastTurnNotice(desired, sceneEpoch)",
+  ]);
 });
 
 test("il cambio scena scarta il render tardivo e usa il primo snapshot history come baseline", () => {

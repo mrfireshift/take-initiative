@@ -6,9 +6,11 @@ import {
   constrainedSpellAreaEnd,
   createSpellAreaPlacementSession,
   nearestGridCellCenter,
+  nearestGridCellSideCenter,
   nearestGridCorner,
   reviewSpellAreaPlacement,
   spellAreaGridCells,
+  spellAreaRangeCells,
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
 } from "../src/spellAreaPlacementCore.js";
@@ -19,6 +21,16 @@ test("converte le misure delle spell nelle scale metriche e imperiali della grig
   assert.equal(spellAreaGridCells(radius, { multiplier: 1.5, unit: "m" }), 4);
   assert.equal(spellAreaGridCells(radius, { multiplier: 5, unit: "ft" }), 4);
   assert.equal(spellAreaGridCells(null, { multiplier: 1.5, unit: "m" }), 0);
+});
+
+test("converte la portata massima in celle senza arrotondarla", () => {
+  const range = { value: 18, unit: "m", measure: "range" };
+  assert.equal(spellAreaRangeCells(range, { multiplier: 1.5, unit: "m" }), 12);
+  assert.ok(Math.abs(
+    spellAreaRangeCells(range, { multiplier: 5, unit: "ft" }) - 18 / 1.524,
+  ) < 1e-9);
+  assert.equal(spellAreaRangeCells({ value: 2, unit: "m" }, { multiplier: 1.5, unit: "m" }), 2 / 1.5);
+  assert.equal(spellAreaRangeCells(null, { multiplier: 1.5, unit: "m" }), 0);
 });
 
 test("cerchio e quadrato mantengono la dimensione indipendentemente dal trascinamento", () => {
@@ -92,7 +104,7 @@ test("la portata usa la scala reale della griglia", () => {
   }), false);
 });
 
-test("l'origine di coni e linee scatta sempre al centro di una casella", () => {
+test("l'origine di linee e coni può agganciarsi alla mediana del lato", () => {
   assert.deepEqual(nearestGridCellCenter(
     { x: 200, y: 181 },
     { x: 150, y: 150 },
@@ -100,6 +112,16 @@ test("l'origine di coni e linee scatta sempre al centro di una casella", () => {
   ), {
     position: { x: 225, y: 225 },
     gridOrigin: { x: 150, y: 150 },
+  });
+  assert.deepEqual(nearestGridCellSideCenter(
+    { x: 200, y: 181 },
+    { x: 150, y: 150 },
+    150,
+    { x: -1, y: 0 },
+  ), {
+    position: { x: 150, y: 225 },
+    gridOrigin: { x: 150, y: 150 },
+    cellCenter: { x: 225, y: 225 },
   });
 });
 

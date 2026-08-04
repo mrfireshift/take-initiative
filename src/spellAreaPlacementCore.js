@@ -58,6 +58,29 @@ export function nearestGridCellCenter(rawPosition, cornerAnchor, dpi = 1) {
   };
 }
 
+export function nearestGridCellSideCenter(
+  rawPosition,
+  cornerAnchor,
+  dpi = 1,
+  sideDirection = { x: 1, y: 0 },
+) {
+  const snapped = nearestGridCellCenter(rawPosition, cornerAnchor, dpi);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const directionX = Number(sideDirection?.x) || 0;
+  const directionY = Number(sideDirection?.y) || 0;
+  const position = { ...snapped.position };
+  if (Math.abs(directionX) >= Math.abs(directionY)) {
+    position.x += (directionX < 0 ? -1 : 1) * safeDpi / 2;
+  } else {
+    position.y += (directionY < 0 ? -1 : 1) * safeDpi / 2;
+  }
+  return {
+    position,
+    gridOrigin: snapped.gridOrigin,
+    cellCenter: snapped.position,
+  };
+}
+
 export function nearestGridCorner(rawPosition, cornerAnchor, dpi = 1) {
   const raw = finitePoint(rawPosition);
   const anchor = finitePoint(cornerAnchor);
@@ -116,6 +139,12 @@ export function spellAreaGridCells(measure, scale = {}) {
   const meters = Number(measure?.value);
   if (!Number.isFinite(meters) || meters <= 0 || measure?.unit !== "m") return 0;
   return Math.max(1, Math.round(meters / gridMetersPerCell(scale)));
+}
+
+export function spellAreaRangeCells(range, scale = {}) {
+  const meters = Number(range?.value);
+  if (!Number.isFinite(meters) || meters <= 0 || range?.unit !== "m") return 0;
+  return meters / gridMetersPerCell(scale);
 }
 
 export function constrainedSpellAreaEnd({

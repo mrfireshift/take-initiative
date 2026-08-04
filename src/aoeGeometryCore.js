@@ -1,4 +1,5 @@
 const EPSILON = 1e-6;
+const CONE_MINIMUM_OVERLAP_RATIO = 0.15;
 
 function finitePoint(value) {
   const x = Number(value?.x);
@@ -53,7 +54,7 @@ function polygonArea(points) {
   return Math.abs(sum) / 2;
 }
 
-function polygonCellOverlapArea(points, cell) {
+function polygonCellOverlapArea(points, cell, boundaryEpsilon = EPSILON) {
   const minX = cell.x;
   const maxX = cell.x + cell.width;
   const minY = cell.y;
@@ -69,10 +70,10 @@ function polygonCellOverlapArea(points, cell) {
     return { x: from.x + (to.x - from.x) * ratio, y };
   };
   let clipped = points;
-  clipped = clipPolygon(clipped, (point) => point.x >= minX - EPSILON, verticalIntersection(minX));
-  clipped = clipPolygon(clipped, (point) => point.x <= maxX + EPSILON, verticalIntersection(maxX));
-  clipped = clipPolygon(clipped, (point) => point.y >= minY - EPSILON, horizontalIntersection(minY));
-  clipped = clipPolygon(clipped, (point) => point.y <= maxY + EPSILON, horizontalIntersection(maxY));
+  clipped = clipPolygon(clipped, (point) => point.x >= minX - boundaryEpsilon, verticalIntersection(minX));
+  clipped = clipPolygon(clipped, (point) => point.x <= maxX + boundaryEpsilon, verticalIntersection(maxX));
+  clipped = clipPolygon(clipped, (point) => point.y >= minY - boundaryEpsilon, horizontalIntersection(minY));
+  clipped = clipPolygon(clipped, (point) => point.y <= maxY + boundaryEpsilon, horizontalIntersection(maxY));
   return polygonArea(clipped);
 }
 
@@ -190,15 +191,6 @@ export function buildConeArea(start, end, dpi, gridOrigin = start) {
   const left = { x: tip.x + perpendicular.x * halfWidth, y: tip.y + perpendicular.y * halfWidth };
   const right = { x: tip.x - perpendicular.x * halfWidth, y: tip.y - perpendicular.y * halfWidth };
   const points = [origin, left, right];
-  // On odd grid lengths the template base can land exactly on a grid line.
-  // Give that otherwise ambiguous boundary a deterministic, sub-pixel side
-  // without altering the geometric triangle that is rendered on the map.
-  const rasterBias = safeDpi * 1e-3;
-  const rasterPoints = [
-    origin,
-    { x: left.x + perpendicular.x * rasterBias, y: left.y + perpendicular.y * rasterBias },
-    { x: right.x + perpendicular.x * rasterBias, y: right.y + perpendicular.y * rasterBias },
-  ];
   const minX = Math.min(...points.map((point) => point.x));
   const maxX = Math.max(...points.map((point) => point.x));
   const minY = Math.min(...points.map((point) => point.y));
@@ -207,12 +199,12 @@ export function buildConeArea(start, end, dpi, gridOrigin = start) {
   const maxColumn = Math.ceil((maxX - cellsOrigin.x) / safeDpi) + 1;
   const minRow = Math.floor((minY - cellsOrigin.y) / safeDpi) - 1;
   const maxRow = Math.ceil((maxY - cellsOrigin.y) / safeDpi) + 1;
-  const minimumOverlap = safeDpi * safeDpi * 1e-9;
+  const minimumOverlap = safeDpi * safeDpi * CONE_MINIMUM_OVERLAP_RATIO;
   const cells = [];
   for (let column = minColumn; column <= maxColumn; column += 1) {
     for (let row = minRow; row <= maxRow; row += 1) {
       const cell = cellRect(cellsOrigin, column, row, safeDpi);
-      if (polygonCellOverlapArea(rasterPoints, cell) > minimumOverlap) cells.push(cell);
+      if (polygonCellOverlapArea(points, cell, 0) > minimumOverlap) cells.push(cell);
     }
   }
   return { type: "cone", origin, squares, cells, points };

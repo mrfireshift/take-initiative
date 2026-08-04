@@ -14,6 +14,10 @@ const shell = document.querySelector("#shell");
 const root = document.querySelector("#menu");
 let resizeRevision = 0;
 let closeOnBlurArmed = false;
+let closeRequested = false;
+const EXIT_ANIMATION_MS = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+  ? 0
+  : 90;
 
 function send(type, details = {}) {
   void OBR.broadcast.sendMessage(
@@ -21,6 +25,18 @@ function send(type, details = {}) {
     createMenuMessage(requestId, type, details),
     { destination: "LOCAL" },
   ).catch(() => {});
+}
+
+function revealMenu() {
+  requestAnimationFrame(() => shell?.classList.add("is-open"));
+}
+
+function sendAfterExit(type, details = {}) {
+  if (closeRequested) return;
+  closeRequested = true;
+  shell?.classList.remove("is-open");
+  shell?.classList.add("is-closing");
+  window.setTimeout(() => send(type, details), EXIT_ANIMATION_MS);
 }
 
 function requestMenuResize() {
@@ -95,7 +111,7 @@ function render(payload) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      send("action", { actionId: action.id });
+      sendAfterExit("action", { actionId: action.id });
     });
     root.appendChild(button);
   }
@@ -104,6 +120,7 @@ function render(payload) {
 const payload = readStoredMenuPayload(localStorage, PAYLOAD_PREFIX, requestId);
 if (requestId && payload && sanitizeQuickActions(payload.actions, { limit: 64 }).length) {
   render(payload);
+  revealMenu();
   requestMenuResize();
   armClickAwayClose();
   if (document.fonts?.ready) {
@@ -111,12 +128,13 @@ if (requestId && payload && sanitizeQuickActions(payload.actions, { limit: 64 })
   }
 } else {
   root.textContent = "Azioni rapide non disponibili";
+  revealMenu();
   requestMenuResize();
 }
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") send("close");
+  if (event.key === "Escape") sendAfterExit("close");
 });
 window.addEventListener("blur", () => {
-  if (closeOnBlurArmed) send("close");
+  if (closeOnBlurArmed) sendAfterExit("close");
 });

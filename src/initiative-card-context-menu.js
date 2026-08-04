@@ -15,6 +15,10 @@ let openSubmenu = null;
 let resizeRevision = 0;
 let lastMeasuredNaturalHeight = 0;
 let closeOnBlurArmed = false;
+let closeRequested = false;
+const EXIT_ANIMATION_MS = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+  ? 0
+  : 90;
 
 function send(type, action = "", value = "", details = {}) {
   if (type === "action" && !isAllowedInitiativeCardMenuAction(action, value)) return;
@@ -25,13 +29,28 @@ function send(type, action = "", value = "", details = {}) {
   ).catch(() => {});
 }
 
+function revealMenu() {
+  requestAnimationFrame(() => shell?.classList.add("is-open"));
+}
+
+function sendAfterExit(type, action = "", value = "", details = {}) {
+  if (closeRequested) return;
+  closeRequested = true;
+  shell?.classList.remove("is-open");
+  shell?.classList.add("is-closing");
+  window.setTimeout(
+    () => send(type, action, value, details),
+    EXIT_ANIMATION_MS,
+  );
+}
+
 function asset(name) {
   return `${import.meta.env.BASE_URL || "/"}${name}`;
 }
 
 function requestMenuResize() {
   const revision = ++resizeRevision;
-  requestAnimationFrame(() => requestAnimationFrame(async () => {
+  requestAnimationFrame(async () => {
     if (revision !== resizeRevision || !root || !shell) return;
 
     root.style.maxHeight = "none";
@@ -46,7 +65,7 @@ function requestMenuResize() {
     root.style.overflowY = naturalHeight > targetHeight ? "auto" : "hidden";
     lastMeasuredNaturalHeight = naturalHeight;
     send("resize", "", "", { height: targetHeight });
-  }));
+  });
 }
 
 function mountResizeObserver() {
@@ -120,7 +139,7 @@ function makeAction(parent, label, icon, action, options = {}) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      send("action", action, options.value || "");
+      sendAfterExit("action", action, options.value || "");
     });
   }
   parent.appendChild(button);
@@ -313,6 +332,7 @@ const payload = readStoredMenuPayload(localStorage, PAYLOAD_PREFIX, requestId);
 
 if (requestId && payload) {
   render(payload);
+  revealMenu();
   mountResizeObserver();
   requestMenuResize();
   armClickAwayClose();
@@ -321,16 +341,17 @@ if (requestId && payload) {
   }
 } else {
   root.textContent = "Menu non disponibile";
+  revealMenu();
   mountResizeObserver();
   requestMenuResize();
 }
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") send("close");
+  if (event.key === "Escape") sendAfterExit("close");
 });
 
 window.addEventListener("blur", () => {
-  if (closeOnBlurArmed) send("close");
+  if (closeOnBlurArmed) sendAfterExit("close");
 });
 
 document.addEventListener("pointerdown", (event) => {
@@ -344,5 +365,5 @@ document.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
-  send("close");
+  sendAfterExit("close");
 }, { capture: true });

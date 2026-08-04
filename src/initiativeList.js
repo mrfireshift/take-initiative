@@ -26,7 +26,10 @@ import {
   sceneItemEventCorrelation,
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
-import { buildTurnNoticePayload } from "./turnNotice.js";
+import {
+  buildTurnNoticePayload,
+  isInitiativeTurnTransition,
+} from "./turnNotice.js";
 import {
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
@@ -555,6 +558,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __optimisticNavigationDigest = null;
   __lastActiveId = null;
   __lastTurnNoticeActiveId = null;
+  __turnNoticeReady = false;
   __pendingTurnNotice = null;
   __lastTurnNoticeDeliveryKey = "";
   __lastConditionTurnState = null;
@@ -624,6 +628,7 @@ function __mountSceneEpochLifecycle() {
       __resetInitiativeSceneRuntime(epoch, reason);
       return;
     }
+    __requestTurnNoticeReady(epoch);
     void __acquireInitiativeSceneBaseline(epoch, reason).catch((error) => {
       console.warn("[initiative] scene baseline:", error?.message || error);
     });
@@ -3632,6 +3637,9 @@ async function __flushNavigationState() {
   try {
     await setSceneState(desired, sceneEpoch);
     if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
+    void broadcastTurnNotice(desired, sceneEpoch).catch((err) => {
+      console.warn("[turn-notice] navigation broadcast error:", err?.message || err);
+    });
     const desiredActiveId = __activeIdForState(desired);
     const latestActiveId = __activeIdForState(__latestInitiativeState);
     if (!__navigationDesiredState && desiredActiveId === latestActiveId) {
@@ -4566,12 +4574,28 @@ function __markTurnNoticeReady() {
   });
 }
 
+function __requestTurnNoticeReady(sceneEpoch = currentSceneEpoch()) {
+  void OBR.broadcast.sendMessage(TURN_NOTICE_READY_CHANNEL, {
+    type: "turn-notice-ready-request",
+    sceneEpoch,
+  }, { destination: "LOCAL" }).catch(() => {});
+}
+
 async function mountTurnNoticeBroadcast() {
   if (__turnNoticeListenerMounted) return;
   __turnNoticeListenerMounted = true;
   __turnNoticeReady = false;
   OBR.broadcast.onMessage(TURN_NOTICE_READY_CHANNEL, (event) => {
-    if (event?.data?.type === "turn-notice-ready") __markTurnNoticeReady();
+    if (event?.data?.type !== "turn-notice-ready") return;
+    const readyEpoch = Number(event?.data?.sceneEpoch);
+    if (
+      Number.isFinite(readyEpoch)
+      && readyEpoch !== currentSceneEpoch()
+    ) {
+      __requestTurnNoticeReady(currentSceneEpoch());
+      return;
+    }
+    __markTurnNoticeReady();
   });
   await OBR.modal.open({
     id: TURN_NOTICE_MODAL_ID,
@@ -4581,9 +4605,7 @@ async function mountTurnNoticeBroadcast() {
     hidePaper: true,
     disablePointerEvents: true,
   });
-  void OBR.broadcast.sendMessage(TURN_NOTICE_READY_CHANNEL, {
-    type: "turn-notice-ready-request",
-  }, { destination: "LOCAL" }).catch(() => {});
+  __requestTurnNoticeReady();
 }
 
 async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
@@ -6369,10 +6391,12 @@ async function __clearCardConcentrations(ids, sourceEntry = null) {
 }
 
 async function __getInitiativeCardContextMenuPlacement(event) {
-  let viewportWidth = 1200;
-  let viewportHeight = 800;
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  const [viewportWidthRaw, viewportHeightRaw] = await Promise.all([
+    OBR.viewport.getWidth().catch(() => 1200),
+    OBR.viewport.getHeight().catch(() => 800),
+  ]);
+  const viewportWidth = Number(viewportWidthRaw) || 1200;
+  const viewportHeight = Number(viewportHeightRaw) || 800;
 
   const width = Math.max(232, Math.min(INITIATIVE_CARD_CONTEXT_MENU_WIDTH, viewportWidth - 24));
   const height = Math.max(220, Math.min(INITIATIVE_CARD_CONTEXT_MENU_INITIAL_HEIGHT, viewportHeight - 24));
@@ -6567,15 +6591,18 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   __trackerQuickActionsSourceId = sourceId;
   __trackerQuickActionsButton = button;
   button.setAttribute("aria-expanded", "true");
+  const placementPromise = __getInitiativeCardContextMenuPlacement(event);
   void (async () => {
-    await Promise.all(closePromises);
+    const [, , basePlacement] = await Promise.all([
+      ...closePromises,
+      placementPromise,
+    ]);
     if (
       __trackerQuickActionsRevision !== openRevision
       || __trackerQuickActionsRequestId !== requestId
     ) {
       return;
     }
-    const basePlacement = await __getInitiativeCardContextMenuPlacement(event);
     if (__trackerQuickActionsRequestId !== requestId) return;
     await OBR.popover.open({
       id: TRACKER_QUICK_ACTIONS_POPOVER_ID,
@@ -6606,8 +6633,10 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
 
   event.preventDefault();
   event.stopPropagation();
-  void __closeTrackerQuickActionsPopover();
-  const closePromise = __closeInitiativeCardContextMenu();
+  const closePromises = [
+    __closeTrackerQuickActionsPopover(),
+    __closeInitiativeCardContextMenu(),
+  ];
   const openRevision = __initiativeCardContextMenuRevision;
   const scopeIds = __contextScopeIds(sourceEntry);
   const hasActiveConcentration = !!sourceEntry.isConcentrating || scopeIds.some((id) =>
@@ -6632,10 +6661,13 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
 
   __initiativeCardContextMenuRequestId = requestId;
   __initiativeCardContextMenuContext = { sourceEntry, scopeIds };
+  const placementPromise = __getInitiativeCardContextMenuPlacement(event);
   void (async () => {
-    await closePromise;
+    const [, , placement] = await Promise.all([
+      ...closePromises,
+      placementPromise,
+    ]);
     if (__initiativeCardContextMenuRevision !== openRevision) return;
-    const placement = await __getInitiativeCardContextMenuPlacement(event);
     if (__initiativeCardContextMenuRequestId !== requestId) return;
     await OBR.popover.open({
       id: INITIATIVE_CARD_CONTEXT_MENU_ID,
@@ -8503,23 +8535,13 @@ try {
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-render")) return;
   const bootPersistedState = await getSceneState();
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-state")) return;
-  const bootInitialState = __latestInitiativeState || bootPersistedState;
   await __adoptInitiativeSceneBaseline(
-    bootInitialState,
+    __latestInitiativeState || bootPersistedState,
     initiativeStateDigest(bootPersistedState),
     bootstrapSceneEpoch,
     "boot",
     false,
   );
-  if (
-    IS_GM
-    && __activeIdForState(bootInitialState)
-    && __isCurrentSceneOperation(bootstrapSceneEpoch, "initial-turn-notice")
-  ) {
-    void broadcastTurnNotice(bootInitialState, bootstrapSceneEpoch).catch((err) => {
-      console.warn("[turn-notice] initial broadcast error:", err?.message || err);
-    });
-  }
   if (IS_GM) {
     void recordCombatTurn(__latestInitiativeState, { sceneEpoch: bootstrapSceneEpoch }).catch((err) => {
       console.warn("[combat-log] initial turn:", err?.message || err);
@@ -8545,13 +8567,20 @@ try {
 async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "metadata", { metadataRevision })) return;
   if (__sceneBaselineEpoch !== sceneEpoch) {
+    const previousState = __latestInitiativeState;
+    const baselineState = previousState || st;
+    const baselineDigest = previousState
+      ? initiativeStateDigest(previousState)
+      : stateDigest;
     await __adoptInitiativeSceneBaseline(
-      st,
-      stateDigest,
+      baselineState,
+      baselineDigest,
       sceneEpoch,
       "metadata",
+      !previousState,
     );
-    return;
+    if (!previousState || baselineDigest === stateDigest) return;
+    __lastQueuedInitiativeMetadataDigest = stateDigest;
   }
   __lastInitiativeMetadataDigest = stateDigest;
   if (__isStaleNavigationState(st)) {
@@ -8570,11 +8599,16 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
   syncSpeedCheckTurn(st);
 
   const noticeActiveId = __activeIdForState(st);
+  const isTurnTransition = isInitiativeTurnTransition(
+    __lastConditionTurnState,
+    st,
+  );
   if (noticeActiveId && noticeActiveId !== __lastTurnNoticeActiveId) {
     const previousNoticeActiveId = __lastTurnNoticeActiveId;
     __lastTurnNoticeActiveId = noticeActiveId;
     if (
       previousNoticeActiveId
+      && isTurnTransition
       && IS_GM
       && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })
     ) {

@@ -447,13 +447,18 @@ OBR.onReady(() => {
   });
   const announceReady = () => OBR.broadcast.sendMessage(
     READY_CHANNEL,
-    { type: "turn-notice-ready" },
+    { type: "turn-notice-ready", sceneEpoch: noticeSceneEpoch },
     { destination: "LOCAL" },
   ).catch(() => {});
   unsubscribeTurnNoticeReadyRequest = OBR.broadcast.onMessage(
     READY_CHANNEL,
     (event) => {
-      if (event?.data?.type === "turn-notice-ready-request") void announceReady();
+      if (event?.data?.type !== "turn-notice-ready-request") return;
+      const requestedEpoch = Number(event?.data?.sceneEpoch);
+      if (Number.isFinite(requestedEpoch) && requestedEpoch >= 0) {
+        noticeSceneEpoch = Math.floor(requestedEpoch);
+      }
+      void announceReady();
     },
   );
   void announceReady();
@@ -477,6 +482,7 @@ OBR.onReady(() => {
       return;
     }
     noticeSceneReady = true;
+    void announceReady();
     if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) requestPendingZoneNoticeSync();
   });
   if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;

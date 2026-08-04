@@ -20,9 +20,11 @@ import {
   constrainedSpellAreaEnd,
   createSpellAreaPlacementSession,
   nearestGridCellCenter,
+  nearestGridCellSideCenter,
   nearestGridCorner,
   reviewSpellAreaPlacement,
   spellAreaGridCells,
+  spellAreaRangeCells,
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
 } from "./spellAreaPlacementCore.js";
@@ -113,6 +115,8 @@ async function closeSpellPlacement(status, {
   const runtime = spellPlacementSession;
   if (!runtime) return;
   cancelDrag();
+  runtime.rangePreview?.[1]?.();
+  runtime.rangePreview = null;
   spellPlacementSession = null;
   const completed = completePlacementSession(runtime.session, status, error);
   await setSpellPlacementToolState(false);
@@ -182,8 +186,9 @@ async function beginSpellPlacement(data) {
     id: previousToolId,
     modeId: previousModeId,
   };
+  let runtime = null;
   try {
-    spellPlacementSession = {
+    runtime = {
       session: createSpellAreaPlacementSession({
         requestId,
         rule,
@@ -194,12 +199,38 @@ async function beginSpellPlacement(data) {
       rule,
       casterOrigin: caster?.center || null,
       casterBounds: caster?.bounds || null,
+      rangePreview: null,
     };
+    spellPlacementSession = runtime;
+    const [dpiValue, scale] = await Promise.all([
+      OBR.scene.grid.getDpi().catch(() => 150),
+      OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    ]);
+    if (spellPlacementSession !== runtime) return;
+    const dpi = Math.max(1, Number(dpiValue) || 150);
+    const gridScale = {
+      multiplier: Math.max(0, Number(scale?.parsed?.multiplier) || 1.5),
+      unit: String(scale?.parsed?.unit || "m").trim(),
+    };
+    const rangePreview = await startSpellRangePreview({
+      origin: runtime.casterOrigin,
+      range: rule.placement.range,
+      dpi,
+      scale: gridScale,
+      strokeWidth: Math.max(2, dpi * 0.035 * currentStyle.strokeWidth),
+    });
+    if (spellPlacementSession !== runtime) {
+      rangePreview?.[1]?.();
+      return;
+    }
+    runtime.rangePreview = rangePreview;
     await setSpellPlacementToolState(true);
     await OBR.tool.activateTool(TOOL_ID);
     await OBR.tool.activateMode(TOOL_ID, areaModeId(rule.geometry.shape));
   } catch (error) {
+    if (spellPlacementSession !== runtime) return;
     const message = String(error?.message || error || "placement-start-failed");
+    runtime?.rangePreview?.[1]?.();
     spellPlacementSession = null;
     await setSpellPlacementToolState(false);
     await sendSpellPlacementResult({
@@ -272,11 +303,28 @@ function previewPath(
     .build();
 }
 
-function radiusLabel(dpi) {
+function spellRangePreviewPath(origin, radius, strokeWidth) {
+  const preview = previewPath(
+    "Portata incantesimo",
+    0.04,
+    0.9,
+    Math.max(2, strokeWidth * 0.8),
+    "#ef4444",
+    "#ef4444",
+  );
+  preview.commands = geometryCommands({
+    type: "circle",
+    origin,
+    radius,
+  });
+  return preview;
+}
+
+function radiusLabel(dpi, text = "", name = "Raggio AoE") {
   const width = Math.max(180, dpi * 3.2);
   const height = Math.max(64, dpi * 0.72);
   return buildText()
-    .plainText("")
+    .plainText(text)
     .textType("PLAIN")
     .width(width)
     .height(height)
@@ -294,8 +342,33 @@ function radiusLabel(dpi) {
     .disableHit(true)
     .layer("TEXT")
     .metadata({ [PREVIEW_META_KEY]: true })
-    .name("Raggio AoE")
+    .name(name)
     .build();
+}
+
+async function startSpellRangePreview({
+  origin = null,
+  range = null,
+  dpi = 150,
+  scale = {},
+  strokeWidth = 2,
+} = {}) {
+  const radius = spellAreaRangeCells(range, scale) * Math.max(1, Number(dpi) || 1);
+  if (!origin || !(radius > 0)) return null;
+  const path = spellRangePreviewPath(origin, radius, strokeWidth);
+  const label = radiusLabel(
+    dpi,
+    `Gittata: ${formatMeasure(range.value)}m`,
+    "Gittata incantesimo",
+  );
+  const width = Number(label.text?.width) || Math.max(180, dpi * 3.2);
+  const height = Number(label.text?.height) || Math.max(64, dpi * 0.72);
+  const gap = Math.max(8, dpi * 0.08);
+  label.position = {
+    x: origin.x - width / 2,
+    y: origin.y - radius - height - gap,
+  };
+  return OBR.interaction.startItemInteraction([path, label]);
 }
 
 function formatMeasure(value) {
@@ -311,8 +384,34 @@ function areaLabelPosition(area) {
   }), { x: 0, y: 0 });
 }
 
+function updateConeOrigin(state) {
+  if (state?.type !== "cone" || !state.originCellCenter) return;
+  if (!state.spellPlacementRequestId && state.originSnapKind === "corner") {
+    state.start = state.originCellCenter;
+    return;
+  }
+  const sideDirection = state.rule?.placement?.origin === "caster-adjacent"
+    && state.casterOrigin
+    ? {
+      x: state.casterOrigin.x - state.originCellCenter.x,
+      y: state.casterOrigin.y - state.originCellCenter.y,
+    }
+    : {
+      x: Number(state.rawEnd?.x) - state.originCellCenter.x,
+      y: Number(state.rawEnd?.y) - state.originCellCenter.y,
+    };
+  if (!(Math.hypot(sideDirection.x, sideDirection.y) > 1e-9)) return;
+  state.start = nearestGridCellSideCenter(
+    state.originCellCenter,
+    state.gridOrigin,
+    state.dpi,
+    sideDirection,
+  ).position;
+}
+
 function renderDrag(state) {
   if (!state?.ready || !state.interaction || !state.start || !state.end) return null;
+  updateConeOrigin(state);
   if (state.spellPlacementRequestId) {
     state.end = constrainedSpellAreaEnd({
       shape: state.type,
@@ -362,10 +461,14 @@ async function prepareDrag(state) {
     const corner = point(cornerStart) || state.rawStart;
     const snapped = state.rule?.placement?.origin === "caster-adjacent"
       ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
-      : state.spellPlacementRequestId && state.type === "square"
-        ? nearestGridCorner(state.rawStart, corner, state.dpi)
-        : nearestGridSnap(state.rawStart, corner, state.dpi);
-    state.start = snapped?.position || corner;
+      : !state.spellPlacementRequestId && state.type === "cone"
+        ? nearestGridSnap(state.rawStart, corner, state.dpi)
+        : state.spellPlacementRequestId && state.type === "square"
+          ? nearestGridCorner(state.rawStart, corner, state.dpi)
+          : nearestGridSnap(state.rawStart, corner, state.dpi);
+    state.originCellCenter = snapped?.position || corner;
+    state.originSnapKind = snapped?.kind || "center";
+    state.start = state.originCellCenter;
     state.gridOrigin = snapped?.gridOrigin || corner;
     if (state.spellPlacementRequestId) {
       state.sizeCells = spellAreaGridCells(state.rule.geometry.size, {
@@ -380,7 +483,7 @@ async function prepareDrag(state) {
       if (
         state.rule.placement.origin === "caster-adjacent"
         && !spellAreaOriginAdjacentToCaster({
-          origin: state.start,
+          origin: state.originCellCenter,
           casterBounds: state.casterBounds,
           dpi: state.dpi,
         })
@@ -393,6 +496,7 @@ async function prepareDrag(state) {
         );
         return;
       }
+      updateConeOrigin(state);
       const inRange = spellAreaOriginWithinRange({
         origin: state.start,
         casterOrigin: state.casterOrigin,
@@ -702,6 +806,8 @@ function startDrag(type, event) {
     finishing: false,
     interaction: null,
     area: null,
+    originCellCenter: null,
+    originSnapKind: "center",
     spellPlacementRequestId: constrained ? placement.session.requestId : "",
     rule: constrained ? placement.rule : null,
     casterOrigin: constrained ? placement.casterOrigin : null,

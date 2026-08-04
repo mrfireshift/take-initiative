@@ -97,7 +97,7 @@ test("il pulsante apre e richiude un popover dedicato alle macro", () => {
 
 test("il popover usa il protocollo isolato e restituisce solo l'id azione", () => {
   assert.match(popoverSource, /readStoredMenuPayload\(localStorage,\s*PAYLOAD_PREFIX,\s*requestId\)/);
-  assert.match(popoverSource, /send\("action",\s*\{\s*actionId:\s*action\.id\s*\}\)/);
+  assert.match(popoverSource, /sendAfterExit\("action",\s*\{\s*actionId:\s*action\.id\s*\}\)/);
   assert.match(popoverHtml, /id="menu"\s+role="menu"/);
   assert.match(viteSource, /trackerQuickActions:\s*path\.resolve\(process\.cwd\(\),\s*"tracker-quick-actions\.html"\)/);
 });
