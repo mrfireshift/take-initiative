@@ -46,9 +46,11 @@ import {
   TRACKER_LAYOUT_COMPACT,
   TRACKER_POPOVER_ID,
   getCompactTrackerPopoverAnchor,
+  getCompactTrackerManualWidth,
   getTrackerLayout,
   setTrackerLayout,
 } from "./trackerPopover.js";
+import { mountCompactTrackerResizeHandles } from "./trackerCompactResize.js";
 import {
   FACTION_CONFIGURATOR_ID,
   readFactionRegistry,
@@ -170,6 +172,8 @@ import {
 import {
   compactTrackerGroupProgress,
   compactTrackerResizeWidth,
+  compactTrackerStageSize,
+  compactTrackerViewportWidth,
   compactTrackerWidth,
 } from "./trackerCompactSizingCore.js";
 
@@ -6777,10 +6781,11 @@ function resizeCompactTrackerPopover(
   entries,
   { syncProgress = null, duration = COMPACT_TRACKER_RESIZE_DURATION_MS } = {},
 ) {
-  const requestedWidth = compactTrackerWidth(entries?.length, {
-    showToolbar: IS_GM,
-    showNavigation: IS_GM,
-  });
+  const requestedWidth = getCompactTrackerManualWidth()
+    || compactTrackerWidth(entries?.length, {
+      showToolbar: IS_GM,
+      showNavigation: IS_GM,
+    });
   const requestedHeight = 156;
   const requestKey = `${requestedWidth}x${requestedHeight}`;
   if (__lastCompactPopoverSize === requestKey) return;
@@ -6791,7 +6796,7 @@ function resizeCompactTrackerPopover(
     let viewportWidth = 1200;
     try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
     if (revision !== __compactPopoverResizeRevision || !isCompactTrackerLayout()) return;
-    const width = Math.max(260, Math.min(requestedWidth, Math.floor(viewportWidth - 32)));
+    const width = compactTrackerViewportWidth(requestedWidth, viewportWidth);
     try {
       await Promise.all([
         __animateCompactTrackerPopoverWidth(width, revision, { syncProgress, duration }),
@@ -6803,6 +6808,21 @@ function resizeCompactTrackerPopover(
     }
   })();
 }
+
+mountCompactTrackerResizeHandles({
+  container,
+  isCompact: isCompactTrackerLayout,
+  onResizeStart() {
+    __compactPopoverResizeRevision += 1;
+    __lastCompactPopoverSize = "";
+  },
+  onAutoFitRequest() {
+    __lastCompactPopoverSize = "";
+    resizeCompactTrackerPopover(
+      Array.from(track.querySelectorAll("[data-tracker-card='1']")),
+    );
+  },
+});
 
 const GROUP_LAYOUT_ANIMATION_MS = 460;
 const GROUP_LAYOUT_STAGGER_MS = 34;
@@ -7434,7 +7454,11 @@ function __replaceTrackCardsMagnetic(nodes, { onGroupTransitionStart = null } = 
         finalStageSizes,
         stages.map((record) => {
           const rect = record.stage.getBoundingClientRect();
-          return compact ? rect.width : rect.height;
+          return compactTrackerStageSize(
+            compact ? rect.width : rect.height,
+            record.finalSize,
+            record.stage.isConnected,
+          );
         }),
       ),
     });

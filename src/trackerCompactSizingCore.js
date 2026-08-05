@@ -2,6 +2,7 @@ import { COMPACT_CARD_WIDTH } from "./initiativeCardCompact.js";
 
 export const COMPACT_TRACKER_MAX_WIDTH = 1180;
 export const COMPACT_TRACKER_MIN_WIDTH = 320;
+export const COMPACT_TRACKER_VIEWPORT_MARGIN = 32;
 
 const ROUND_PANEL_WIDTH = 118;
 const TOOLBAR_WIDTH = 98;
@@ -18,6 +19,35 @@ function fixedChromeWidth(showToolbar) {
     + (showToolbar ? TOOLBAR_WIDTH : 0)
     + (visibleSectionCount - 1) * COLUMN_GAP
     + COLUMN_PADDING_AND_BORDER;
+}
+
+export function compactTrackerViewportWidth(width, viewportWidth) {
+  const requested = Math.round(Number(width) || COMPACT_TRACKER_MIN_WIDTH);
+  const viewportLimit = Math.max(
+    260,
+    Math.floor((Number(viewportWidth) || 1200) - COMPACT_TRACKER_VIEWPORT_MARGIN),
+  );
+  const maximum = Math.min(COMPACT_TRACKER_MAX_WIDTH, viewportLimit);
+  const minimum = Math.min(COMPACT_TRACKER_MIN_WIDTH, maximum);
+  return Math.max(minimum, Math.min(maximum, requested));
+}
+
+export function compactTrackerStageSize(currentSize, finalSize, isConnected = true) {
+  return Number(isConnected ? currentSize : finalSize) || 0;
+}
+
+export function compactTrackerManualResizeWidth(
+  startWidth,
+  deltaX,
+  side,
+  viewportWidth,
+) {
+  const direction = side === "left" ? -1 : 1;
+  return compactTrackerViewportWidth(
+    (Number(startWidth) || COMPACT_TRACKER_MIN_WIDTH)
+      + direction * (Number(deltaX) || 0) * 2,
+    viewportWidth,
+  );
 }
 
 export function compactTrackerWidth(
