@@ -18,6 +18,7 @@ const SPELLS_META_KEY = `${ID}/spells`;
 const CONC_META_KEY = `${ID}/concentration`;
 const HISTORY_KEY = `${ID}/history`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
+const HISTORY_CHANGE_CHANNEL = `${ID}/history-change`;
 const HISTORY_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
@@ -94,10 +95,23 @@ function createEntryId() {
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function currentRoomId() {
+  return String(OBR.room?.id || "").trim();
+}
+
 function normalizeHistory(value) {
   const root = value && typeof value === "object" ? value : {};
-  const entries = Array.isArray(root.entries) ? root.entries.filter(Boolean) : [];
-  return { ...root, version: HISTORY_VERSION, entries: entries.slice(-MAX_HISTORY_ENTRIES) };
+  const roomId = currentRoomId();
+  const storedRoomId = String(root.roomId || "").trim();
+  const entries = roomId && storedRoomId !== roomId
+    ? []
+    : (Array.isArray(root.entries) ? root.entries.filter(Boolean) : []);
+  return {
+    ...root,
+    version: HISTORY_VERSION,
+    ...(roomId ? { roomId } : {}),
+    entries: entries.slice(-MAX_HISTORY_ENTRIES),
+  };
 }
 
 function snapshotFields(meta, fields) {
@@ -326,6 +340,7 @@ async function appendEntryNow(entry, sceneEpoch) {
     { runtime: "history" },
   );
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  void notifyHistoryChange(sceneEpoch);
   try {
     await recordHistoryInCombatLog(entry, { sceneEpoch });
   } catch (err) {
@@ -338,6 +353,18 @@ function appendEntry(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
   const write = () => appendEntryNow(entry, sceneEpoch);
   __historyWriteQueue = __historyWriteQueue.then(write, write);
   return __historyWriteQueue;
+}
+
+async function notifyHistoryChange(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+  try {
+    await OBR.broadcast.sendMessage(
+      HISTORY_CHANGE_CHANNEL,
+      { type: "changed", sceneEpoch },
+      { destination: "LOCAL" },
+    );
+  } catch {}
+  return isCurrentSceneEpoch(sceneEpoch);
 }
 
 function effectHistoryFieldSnapshot(value) {
@@ -1089,6 +1116,7 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
             { ...latest, version: HISTORY_VERSION, entries },
             { runtime: "history" },
           );
+          void notifyHistoryChange(sceneEpoch);
         }
       } catch (error) {
         postCommitErrors.push({
@@ -1177,6 +1205,7 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     { runtime: "history" },
   );
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  void notifyHistoryChange(sceneEpoch);
   try {
     await recordCombatUndo(undoOrder, { sceneEpoch });
     if (!isCurrentSceneEpoch(sceneEpoch)) return [];

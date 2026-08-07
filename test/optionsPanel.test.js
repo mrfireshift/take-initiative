@@ -26,7 +26,11 @@ test("OPTIONS-003: il selector del pannello espone i nove gruppi senza metadata 
     },
   }));
 
-  assert.deepEqual(model.local, { layout: "compact", followActiveTurn: false });
+  assert.deepEqual(model.local, {
+    layout: "compact",
+    followActiveTurn: false,
+    combatLog: true,
+  });
   assert.equal(model.room.trackerOpen, false);
   assert.equal(model.room.popup, false);
   assert.equal(model.room.directResolution, "informational");
@@ -51,7 +55,11 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
   });
   const patches = buildOptionsPanelPatches(draft);
 
-  assert.deepEqual(draft.local, { layout: "classic", followActiveTurn: true });
+  assert.deepEqual(draft.local, {
+    layout: "classic",
+    followActiveTurn: true,
+    combatLog: true,
+  });
   assert.equal(patches.room.turn.popup, false);
   assert.equal(patches.room.uiSync.trackerOpen, false);
   assert.equal(Object.hasOwn(patches.room, "unrelated"), false);
@@ -65,6 +73,16 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     "turn.directReminderResolution",
     "turn.popup",
   ]);
+});
+
+test("OPTIONS-004: il Combat Log locale può essere disattivato senza cambiare gli scope condivisi", () => {
+  const draft = normalizeOptionsPanelDraft({ local: { combatLog: false } });
+  const patches = buildOptionsPanelPatches(draft);
+
+  assert.equal(draft.local.combatLog, false);
+  assert.deepEqual(patches.local.runtime, { combatLog: false });
+  assert.equal(Object.hasOwn(patches, "room"), true);
+  assert.equal(Object.hasOwn(patches, "scene"), true);
 });
 
 test("OPTIONS-003: inherit usa Room nell'anteprima e override usa il valore scena", () => {
@@ -130,6 +148,7 @@ test("OPTIONS-003: il pannello usa selector e writer, non storage o metadata dir
   assert.match(html, /Cosa vedranno i Player/);
   assert.match(html, /data-scope="room"/);
   assert.match(html, /data-scope="scene"/);
+  assert.match(html, /data-local="combatLog"/);
   assert.match(html, /Eredita/);
   assert.match(tracker, /options-modal\.html/);
   assert.match(syncOpen, /selectTrackerOpenSyncEnabled/);

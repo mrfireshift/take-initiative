@@ -149,6 +149,7 @@ export function selectOptionsPanelModel(options) {
     local: {
       layout: value.local.tracker.layout,
       followActiveTurn: value.local.tracker.followActiveTurn,
+      combatLog: value.local.runtime.combatLog,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,

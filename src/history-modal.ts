@@ -9,6 +9,7 @@ import {
   exportCombatLogJSON,
   exportCombatLogText,
   getActiveCombatLogData,
+  isCombatLogEventSinkEnabled,
   listCombatLogSessions,
   mountCombatLogEventSink,
   recordCombatTurn,
@@ -16,14 +17,22 @@ import {
   subscribeCombatLog,
 } from "./combatLog.js";
 import { getHistoryEntries, undoHistoryThrough } from "./history.js";
+import { runtimeOptionsService } from "./options/optionsRuntime.js";
+import { selectCombatLogEnabled } from "./options/optionsSelectors.js";
 
 const MODAL_ID = `${ID}/history-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
+const HISTORY_CHANGE_CHANNEL = `${ID}/history-change`;
 
 let statusMessage = "";
 let refreshQueued = false;
 let logPanelOpen = true;
 let undoPanelOpen = false;
+let preferredPanel: "log" | "undo" | null = null;
+let undoInProgress = false;
+let refreshAfterUndo = false;
+let unsubscribeCombatLogOption: (() => void) | null = null;
+let unsubscribeHistoryChange: (() => void) | null = null;
 
 function closeHistoryPopover() {
   void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
@@ -38,6 +47,11 @@ function captureAccordionState(app: HTMLElement) {
   const undoPanel = app.querySelector('details[data-panel="undo"]');
   if (logPanel instanceof HTMLDetailsElement) logPanelOpen = logPanel.open;
   if (undoPanel instanceof HTMLDetailsElement) undoPanelOpen = undoPanel.open;
+  if (preferredPanel === "undo") {
+    logPanelOpen = false;
+    undoPanelOpen = true;
+    preferredPanel = null;
+  }
 }
 
 function button(label: string, tone = "default", iconPath = "", iconOnly = false) {
@@ -303,6 +317,8 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
     undo.addEventListener("click", async () => {
       if (selectedDepth < 1) return;
       undo.disabled = true;
+      preferredPanel = "undo";
+      undoInProgress = true;
       try {
         const target = newest[selectedDepth - 1];
         const undone = await undoHistoryThrough(target?.id);
@@ -311,6 +327,13 @@ function makeUndoPanel(entries: any[], onDone: (message: string) => Promise<void
           : `Annullate ${undone.length} azioni.`);
       } catch (error: any) {
         await onDone(`Undo fallito: ${error?.message || error}`);
+      } finally {
+        preferredPanel = null;
+        undoInProgress = false;
+        if (refreshAfterUndo) {
+          refreshAfterUndo = false;
+          queueRefresh();
+        }
       }
     });
     refresh();
@@ -331,6 +354,7 @@ async function render(message = statusMessage) {
   const { session, events } = await getActiveCombatLogData();
   const [undoEntries, sessions] = await Promise.all([getHistoryEntries(), listCombatLogSessions()]);
   const displayEvents = aggregateCombatLogEvents(events);
+  const combatLogEnabled = isCombatLogEventSinkEnabled();
   statusMessage = message;
 
   const panel = document.createElement("main");
@@ -422,6 +446,10 @@ async function render(message = statusMessage) {
   exportText.title = "Esporta il registro in formato testo";
   exportJson.title = "Esporta il registro in formato JSON";
   newSession.title = "Crea un nuovo registro e archivia quello corrente";
+  if (!combatLogEnabled) {
+    newSession.disabled = true;
+    newSession.title = "Riattiva il Combat Log dalle Opzioni per creare un nuovo registro";
+  }
   clearLog.title = "Rimuove gli eventi ma mantiene il registro nella lista";
   deleteLog.title = "Elimina definitivamente il registro selezionato";
   exportText.disabled = !events.length;
@@ -439,6 +467,10 @@ async function render(message = statusMessage) {
     "application/json;charset=utf-8"
   ));
   newSession.addEventListener("click", async () => {
+    if (!isCombatLogEventSinkEnabled()) {
+      await render("Combat Log disattivato: nessun nuovo registro creato.");
+      return;
+    }
     if (events.length && !window.confirm("Creare un nuovo registro? Quello corrente resterà archiviato nel browser.")) return;
     const name = window.prompt("Nome del nuovo combattimento:", "") || "";
     try {
@@ -566,6 +598,7 @@ async function render(message = statusMessage) {
   Object.assign(noteForm.style, { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "6px" });
   const note = document.createElement("input");
   note.type = "text";
+  note.disabled = !combatLogEnabled;
   note.placeholder = "Aggiungi una nota manuale al combattimento…";
   Object.assign(note.style, {
     minWidth: "0",
@@ -579,17 +612,26 @@ async function render(message = statusMessage) {
     outline: "none",
   });
   const addNote = button("Aggiungi nota", "primary", "log-note.svg");
+  addNote.disabled = !combatLogEnabled;
   noteForm.append(note, addNote);
   noteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!note.value.trim()) return;
+    if (!isCombatLogEventSinkEnabled()) {
+      await render("Combat Log disattivato: nota non registrata.");
+      return;
+    }
     addNote.disabled = true;
-    await addCombatLogNote(note.value);
-    await render("Nota aggiunta.");
+    const created = await addCombatLogNote(note.value);
+    await render(created.length ? "Nota aggiunta." : "Combat Log disattivato: nota non registrata.");
   });
 
   const status = document.createElement("div");
-  status.textContent = message || "Il registro non viene modificato dagli Undo: viene aggiunta una voce di annullamento.";
+  status.textContent = combatLogEnabled
+    ? (message || "Il registro non viene modificato dagli Undo: viene aggiunta una voce di annullamento.")
+    : (message
+      ? `${message} Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.`
+      : "Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.");
   Object.assign(status.style, { minHeight: "14px", color: "rgba(255,255,255,.58)", fontSize: "var(--obrt-type-caption, 10px)", fontWeight: "var(--obrt-weight-regular, 400)" });
 
   const timeline = document.createElement("section");
@@ -689,10 +731,18 @@ async function render(message = statusMessage) {
 }
 
 function queueRefresh() {
+  if (undoInProgress) {
+    refreshAfterUndo = true;
+    return;
+  }
   if (refreshQueued) return;
   refreshQueued = true;
   window.setTimeout(() => {
     refreshQueued = false;
+    if (undoInProgress) {
+      refreshAfterUndo = true;
+      return;
+    }
     void render();
   }, 80);
 }
@@ -703,5 +753,18 @@ OBR.onReady(async () => {
   document.body.style.margin = "0";
   document.body.style.background = "transparent";
   subscribeCombatLog(queueRefresh);
+  unsubscribeHistoryChange = OBR.broadcast.onMessage(HISTORY_CHANGE_CHANNEL, (event) => {
+    if (event?.data?.type === "changed") queueRefresh();
+  });
+  unsubscribeCombatLogOption = runtimeOptionsService.subscribe(
+    selectCombatLogEnabled,
+    () => queueRefresh(),
+    { emitCurrent: false },
+  );
   await render();
+});
+
+window.addEventListener("beforeunload", () => {
+  unsubscribeCombatLogOption?.();
+  unsubscribeHistoryChange?.();
 });

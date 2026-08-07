@@ -116,6 +116,19 @@ test("OPTIONS-004: gli otto adapter sono selector-driven e gli ALWAYS-ON restano
   assert.doesNotMatch(background, /select.*History|select.*Coordinator/);
 });
 
+test("OPTIONS-004: Combat Log off conserva la History e disabilita le nuove scritture dalla UI", () => {
+  const combatLog = readFileSync(new URL("../src/combatLog.js", import.meta.url), "utf8");
+  const historyModal = readFileSync(new URL("../src/history-modal.ts", import.meta.url), "utf8");
+
+  assert.match(combatLog, /if \(!eventSinkEnabled\) throw new Error/);
+  assert.match(combatLog, /if \(eventSinkEnabled\) \{\s+session = await ensureCombatLogSession\(/);
+  assert.match(combatLog, /state\?\.sessionId \? await getStoredSession\(state\.sessionId\) : null/);
+  assert.match(historyModal, /isCombatLogEventSinkEnabled/);
+  assert.match(historyModal, /newSession\.disabled = true/);
+  assert.match(historyModal, /note\.disabled = !combatLogEnabled/);
+  assert.match(historyModal, /selectCombatLogEnabled/);
+});
+
 test("OPTIONS-004: il bootstrap del tracker non attende le letture opzioni remote", () => {
   const main = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
   const combatLog = readFileSync(new URL("../src/combatLog.js", import.meta.url), "utf8");

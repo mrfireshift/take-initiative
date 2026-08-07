@@ -147,6 +147,7 @@ async function setSessionState(session, { sceneEpoch = currentSceneEpoch() } = {
 }
 
 export async function startCombatLogSession(name = "", { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!eventSinkEnabled) throw new Error("Combat Log disattivato nelle opzioni.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   if (await OBR.player.getRole() !== "GM") throw new Error("Solo il GM può creare un registro.");
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
@@ -528,7 +529,13 @@ export async function deleteCombatLogSession(sessionId) {
 }
 
 export async function getActiveCombatLogData() {
-  const session = await ensureCombatLogSession();
+  let session;
+  if (eventSinkEnabled) {
+    session = await ensureCombatLogSession();
+  } else {
+    const state = await getSessionState();
+    session = state?.sessionId ? await getStoredSession(state.sessionId) : null;
+  }
   if (!session) return { session: null, events: [] };
   return { session, events: await getCombatLogEvents(session.id) };
 }

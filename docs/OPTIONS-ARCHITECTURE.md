@@ -122,7 +122,7 @@ Una nuova chiave viene scritta soltanto tramite un'azione esplicita `write`,
 | `optionsRuntime.js` | Singleton browser con SDK e avvio idempotente condiviso dal singolo iframe. |
 | `optionsSync.js` | Convergenza cross-client sulla revisione Room/scena persistita dopo un salvataggio. |
 | `optionsProjection.js` | Proiezioni pure HP, effects, boss e reminder, senza letture o scritture SDK. |
-| `optionsPanelCore.js` | Modello editabile, normalizzazione delle nove famiglie, patch scope-specific e salvataggio tramite servizio. |
+| `optionsPanelCore.js` | Modello editabile, normalizzazione delle dieci famiglie, patch scope-specific e salvataggio tramite servizio. |
 | `options-modal.js` | UI GM, gestione Room/scena, anteprima effettiva e bridge layout legacy. |
 | `optionalRuntimeLifecycle.js` | Serializza enable/disable, mount/unmount, cleanup e full reconcile; collega ogni adapter a un selector. |
 
@@ -251,22 +251,23 @@ le projection boundary descritte sopra.
 ### OPTIONS-003 — Pannello Opzioni
 
 Completata. Il pulsante `Opzioni` è disponibile al GM nel tracker e apre un
-popover dedicato. Il pannello espone esattamente le nove famiglie approvate:
+popover dedicato. Il pannello espone esattamente le dieci famiglie approvate:
 
 1. layout tracker locale;
 2. Follow locale del turno attivo;
-3. sincronizzazione apertura tracker Player (Room);
-4. matrice HP Player per superficie e fazione (Room/scena);
-5. condizioni, spell e concentrazione Player (Room/scena);
-6. dettaglio reminder, CD e caster Player (Room/scena);
-7. popup cambio turno (Room/scena);
-8. risoluzione reminder assistita o informativa (Room/scena);
-9. label del turno attivo sulla mappa (Room/scena).
+3. registrazione Combat Log locale;
+4. sincronizzazione apertura tracker Player (Room);
+5. matrice HP Player per superficie e fazione (Room/scena);
+6. condizioni, spell e concentrazione Player (Room/scena);
+7. dettaglio reminder, CD e caster Player (Room/scena);
+8. popup cambio turno (Room/scena);
+9. risoluzione reminder assistita o informativa (Room/scena);
+10. label del turno attivo sulla mappa (Room/scena).
 
 La vista `Questa scena` usa `Eredita` o un override esplicito. L'anteprima
 `Cosa vedranno i Player` risolve Room e scena senza leggere metadata grezzi.
 Il salvataggio passa solo dai writer del servizio, conserva proprietà unknown
-anche nelle entry override e non modifica opzioni fuori dalle nove famiglie.
+anche nelle entry override e non modifica opzioni fuori dalle dieci famiglie.
 
 La sincronizzazione apertura tracker Player è collegata al relativo selector.
 Layout e Follow sono collegati allo scope locale. Le policy HP, effetti,
@@ -303,7 +304,7 @@ condizioni, spell, quota, clock, History, iniziativa o sessioni Combat Log.
 
 ## Limiti intenzionali dopo OPTIONS-004
 
-- il pannello OPTIONS-003 continua a esporre le nove famiglie approvate; gli
+- il pannello OPTIONS-003 continua a esporre le dieci famiglie approvate; gli
   altri runtime v1 sono collegati allo schema e ai selector ma non ricevono
   nuovi controlli UI in questo step;
 - i lifecycle canonici di condizioni, spell, feature, History, coordinator,

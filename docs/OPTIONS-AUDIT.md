@@ -250,7 +250,7 @@ La colonna “disattivazione” distingue sempre UI, runtime, stato e output. �
 | Clock singolo | Segmenti, nome, colore, valore, ordine e `visible` Player. | OBJECT-LEVEL | Nessuna policy globale obbligatoria | Object setting | Nuovo: 6, rosso, 0, visibile | Clock modal | `visible:false` lo nasconde solo al Player | Nessuno | Basso | Visibilità pubblica resta per clock. |
 | History/Undo runtime | Cattura mutazioni e movimento, snapshot field-scoped, conflict guard, max 30. | ALWAYS-ON | Nessuna | — | On | Coordinator, HP, scene watcher, Combat Log | Non disattivabile | — | Critico | UI può essere nascosta, runtime no. |
 | History/Undo UI | Modal accessibile solo GM. | HIDE-ONLY | Preset toolbar | Local preference | Visibile | History runtime | Nasconde accesso, History continua | Chiudere popover | Medio | Non confondere con cancellazione History. |
-| Combat Log | Auto-sessione e sink degli eventi History/turno; IndexedDB locale. | OPTIONAL-RUNTIME | “Registra Combat Log” | Local preference GM | On | History, turn events, IndexedDB, scene pointer | Stop nuovi eventi; History resta. Conserva sessioni esistenti; riattivazione riprende/crea secondo scelta esplicita | Nessuna cancellazione automatica; eventualmente tombstone solo se utente chiude sessione | Medio | Consigliare in seconda release. |
+| Combat Log | Auto-sessione e sink degli eventi History/turno; IndexedDB locale. | OPTIONAL-RUNTIME | “Registra Combat Log” | Local preference GM | On | History, turn events, IndexedDB, scene pointer | Stop nuovi eventi; History resta. Conserva sessioni esistenti; riattivazione riprende/crea secondo scelta esplicita | Nessuna cancellazione automatica; eventualmente tombstone solo se utente chiude sessione | Medio | Integrato nel pannello Opzioni. |
 | Boss Legendary | Risorse azioni/resistenze, reset turnale, pips Player. | OBJECT-LEVEL | Config boss sul token | Object setting | Off; attivazione 3/3 e resistenze 3/3 | Tracker, turn reset, Player view | Disattivazione token rimuove solo campi boss con History appropriata | Reconcile card/order | Alto | Non globale. |
 | Paragon/Epic | Voci virtuali, iniziative separate, Epic dopo ogni PG; mutua esclusione boss. | OBJECT-LEVEL | Config boss sul token | Object + state derivato | Off | Order resolver, virtual IDs, turn lifecycle | Disattivazione riconcilia `state.order`/`paragonInits`; non filtrare ID alla cieca | Reconcile ordine | Critico | Non esporre regole di iniezione/initiative 20. |
 | Informazioni boss Player | Oggi modalità e risorse sono visibili. | CONFIGURABLE-BEHAVIOR | “Dettagli boss ai Player”: `full`/`solo modalità`/`hidden` | Room + Scene override | Full | Player projection, classic/compact cards | Redige risorse; logica boss GM invariata | Rerender Player | Medio/privacy tattica | Consigliare, probabilmente seconda release. |
@@ -569,26 +569,27 @@ Una preferenza locale non può ampliare ciò che la policy room consente al Play
 
 ## 15. Lista ristretta per la prima release
 
-Prima release: **9 gruppi di opzioni**, tutti con default legacy e senza spegnere lifecycle canonici.
+Prima release: **10 gruppi di opzioni**, tutti con default legacy e senza spegnere lifecycle canonici.
 
 | # | Opzione | Scope | Default |
 | ---: | --- | --- | --- |
 | 1 | Layout tracker | Local | Esteso |
 | 2 | Follow del turno attivo | Local | On |
-| 3 | Sincronizza apertura tracker Player | Room | On |
-| 4 | Policy HP Player per fazione/superficie | Room + Scene override | Matrice corrente |
-| 5 | Policy conditions/spells/concentration Player | Room + Scene override | Tutto visibile |
-| 6 | Dettaglio reminder Player (DC/caster) | Room + Scene override | Full |
-| 7 | Popup cambio turno | Room + Scene override | On |
-| 8 | Reminder assistiti o informativi | Room + Scene override | Assisted |
-| 9 | Label turno sulla mappa | Room + Scene override | On |
+| 3 | Registra Combat Log | Local | On |
+| 4 | Sincronizza apertura tracker Player | Room | On |
+| 5 | Policy HP Player per fazione/superficie | Room + Scene override | Matrice corrente |
+| 6 | Policy conditions/spells/concentration Player | Room + Scene override | Tutto visibile |
+| 7 | Dettaglio reminder Player (DC/caster) | Room + Scene override | Full |
+| 8 | Popup cambio turno | Room + Scene override | On |
+| 9 | Reminder assistiti o informativi | Room + Scene override | Assisted |
+| 10 | Label turno sulla mappa | Room + Scene override | On |
 
 Rimandare HP map bars, local effect labels, elevation labels e tool runtime alla release successiva: sono sensati, ma richiedono cleanup/recovery verificati. Rimandare anche il preset toolbar, che riduce il rumore ma ha meno valore della sicurezza della proiezione Player.
 
 ## 16. Riepilogo decisionale
 
 - **Famiglie configurabili esistenti ma sparse:** 36 (13 locali/sessionali, 4 room, 7 scena, 12 object-level).
-- **Opzioni globali consigliate complessive:** 16 gruppi: le 9 della prima release più map HP bars, local effects labels, elevation labels, Clock tool, Distanza 3D, Enciclopedia e Combat Log.
+- **Opzioni globali consigliate complessive:** 16 gruppi: le 10 della prima release più map HP bars, local effects labels, elevation labels, Clock tool, Distanza 3D e Enciclopedia.
 - **Moduli realmente disattivabili:** 8, con lifecycle/cleanup indicato nella sezione 7.
 - **Moduli soltanto nascondibili:** 13 famiglie UI, sezione 6.
 - **Garanzie non esponibili:** 20, sezione 5.

@@ -28,6 +28,9 @@ export function normalizeOptionsPanelDraft(value = {}) {
       layout: localInput.layout,
       followActiveTurn: localInput.followActiveTurn,
     },
+    runtime: {
+      combatLog: localInput.combatLog,
+    },
   });
   const room = normalizeRoomOptions({
     playerView: {
@@ -54,6 +57,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     local: {
       layout: local.tracker.layout,
       followActiveTurn: local.tracker.followActiveTurn,
+      combatLog: local.runtime.combatLog,
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
@@ -92,6 +96,9 @@ export function buildOptionsPanelPatches(draft) {
       tracker: {
         layout: normalized.local.layout,
         followActiveTurn: normalized.local.followActiveTurn,
+      },
+      runtime: {
+        combatLog: normalized.local.combatLog,
       },
     },
     room: {
