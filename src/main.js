@@ -3,6 +3,8 @@ import "./buildInfo.js";
 import { setupContextMenu } from "./contextMenu";
 import { mountInitiativeList } from "./initiativeList";
 import { initHPMemory } from "./hpMemory.js";
+import { startRuntimeOptions } from "./options/optionsRuntime.js";
+import { mountCombatLogEventSink } from "./combatLog.js";
 
 
 const app = document.querySelector("#app");
@@ -42,6 +44,8 @@ list.style.minHeight = "0";     // ← sblocca lo shrink in flex
 root.appendChild(list);
 
 OBR.onReady(() => {
+  void startRuntimeOptions().catch(() => {});
+  mountCombatLogEventSink();
   setupContextMenu();
   initHPMemory();
   mountInitiativeList(list);

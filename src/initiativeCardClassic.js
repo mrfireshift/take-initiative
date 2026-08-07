@@ -55,20 +55,27 @@ export function deriveClassicCardPresentation(
   const hasLegendary = !!(entry?.legendary && Number(entry.legendary.max) > 0);
   const hasParagon = Number(entry?.paragonActions) > 1;
   const isEpic = !!entry?.isEpic;
-  const isBoss = hasLegendary || hasParagon || isEpic;
-  const hpValue = Number.isFinite(Number(entry?.hp)) ? Number(entry.hp) : 0;
-  const hpMax = Number.isFinite(Number(entry?.hpMax)) ? Number(entry.hpMax) : 0;
+  const isBoss = hasLegendary || hasParagon || isEpic || entry?.bossDisclosure === "summary";
+  const disclosure = entry?.hpDisclosure && typeof entry.hpDisclosure === "object"
+    ? entry.hpDisclosure
+    : null;
+  const hpValue = disclosure && disclosure.mode !== "exact"
+    ? Number(disclosure.ratio) || 0
+    : Number.isFinite(Number(entry?.hp)) ? Number(entry.hp) : 0;
+  const hpMax = disclosure && disclosure.mode !== "exact"
+    ? (disclosure.mode === "hidden" ? 0 : 1)
+    : Number.isFinite(Number(entry?.hpMax)) ? Number(entry.hpMax) : 0;
   const attitude = String(entry?.attitude || "").toLowerCase();
-  const hpVisible = isGM || ["ally", "pc"].includes(attitude);
+  const hpVisible = isGM || (disclosure
+    ? disclosure.mode !== "hidden"
+    : ["ally", "pc"].includes(attitude));
   const knockedOut = hpVisible
     && !entry?.__groupCollapsed
     && !isLair
     && !isEpicAction
     && hpMax > 0
     && hpValue <= 0;
-  const playerCardHasHP = !isGM
-    && !entry?.__groupCollapsed
-    && ["ally", "pc"].includes(attitude);
+  const playerCardHasHP = !isGM && !entry?.__groupCollapsed && hpVisible && hpMax > 0;
   const playerBossVerticalOffset = isBoss && !isGM && !playerCardHasHP
     ? (hasLegendary ? 16 : 7)
     : 0;
@@ -114,6 +121,7 @@ export function buildClassicCardShell(
   card.dataset.groupKey = groupKey;
   card.dataset.trackerCard = "1";
   card.dataset.hpCanSee = hpVisible ? "1" : "0";
+  card.__hpMode = entry?.hpDisclosure?.mode || (hpVisible ? "exact" : "hidden");
   card.dataset.hpVisible = hpVisible && hpMax > 0 ? "1" : "0";
   card.dataset.knockedOut = knockedOut ? "1" : "0";
   card.dataset.isEpicAction = entry.isEpicAction ? "1" : "0";

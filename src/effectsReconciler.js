@@ -8,6 +8,7 @@ import {
 } from "./spells-tag.js";
 import {
   cleanupLocalEffectsLayout,
+  configureEffectsLayoutProjection,
   inspectEffectsLayoutStores,
   reconcileEffectsLayout,
   setEffectsLayoutGridDpi,
@@ -27,6 +28,8 @@ import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
+import { runtimeOptionsService } from "./options/optionsRuntime.js";
+import { selectPlayerEffectsPolicy } from "./options/optionsSelectors.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -39,6 +42,7 @@ let unsubscribe = null;
 let unsubscribeDiagnostics = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
+let unsubscribeOptions = null;
 
 const queue = createEffectsReconcileQueue({
   async run(batch, context) {
@@ -89,6 +93,24 @@ export async function mountEffectsReconciler() {
   writer = isEffectsLocalRendererRole(role);
   globalCleanupOwner = isEffectsWidgetWriterRole(role);
   if (!writer) return false;
+
+  configureEffectsLayoutProjection({
+    role: String(role).toUpperCase() === "GM" ? "GM" : "PLAYER",
+    policy: runtimeOptionsService.get(selectPlayerEffectsPolicy),
+  });
+  unsubscribeOptions = runtimeOptionsService.subscribe(
+    selectPlayerEffectsPolicy,
+    (policy) => {
+      configureEffectsLayoutProjection({
+        role: String(role).toUpperCase() === "GM" ? "GM" : "PLAYER",
+        policy,
+      });
+      queue.request({ full: true }).done.catch((error) => {
+        console.error("[effects] options reconcile", error);
+      });
+    },
+    { emitCurrent: false },
+  );
 
   configureConditionWidgetWriter(requestConditions);
   configureConcentrationWidgetWriter(requestConcentration);
@@ -170,7 +192,7 @@ export async function mountEffectsReconciler() {
   return true;
 }
 
-export function unmountEffectsReconciler() {
+export async function unmountEffectsReconciler() {
   unsubscribe?.();
   unsubscribe = null;
   unsubscribeDiagnostics?.();
@@ -179,12 +201,23 @@ export function unmountEffectsReconciler() {
   unsubscribeGrid = null;
   unsubscribeSceneReady?.();
   unsubscribeSceneReady = null;
+  unsubscribeOptions?.();
+  unsubscribeOptions = null;
   configureConditionWidgetWriter(null);
   configureConcentrationWidgetWriter(null);
-  void cleanupLocalEffectsLayout().catch(() => {});
   mounted = false;
   writer = false;
   globalCleanupOwner = false;
+  await queue.idle();
+}
+
+export async function cleanupOwnedEffectsLabels() {
+  return cleanupLocalEffectsLayout();
+}
+
+export async function reconcileAllEffectsLabels() {
+  if (!mounted || !writer) return { outcome: "ignored-non-writer" };
+  return queue.request({ full: true }).done;
 }
 
 globalThis.__tbpEffectsReconciler = {

@@ -43,6 +43,16 @@ export const METADATA_OWNERSHIP = Object.freeze({
     domain: "initiative-cards",
     owners: Object.freeze(["initiativeCards.js"]),
   }),
+  ROOM_OPTIONS: Object.freeze({
+    key: `${ID}/options-room`,
+    domain: "options-room",
+    owners: Object.freeze(["options/roomOptionsStore.js"]),
+  }),
+  SCENE_OPTIONS: Object.freeze({
+    key: `${ID}/options-scene`,
+    domain: "options-scene",
+    owners: Object.freeze(["options/sceneOptionsStore.js"]),
+  }),
 });
 
 export const METADATA_DIAGNOSTICS_GLOBAL = "__TBP_METADATA_KEY_DIAGNOSTICS__";

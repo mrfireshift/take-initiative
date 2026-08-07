@@ -1,5 +1,10 @@
   // src/contextMenu.js
-  import { mountElevationLabelWatcher } from "./elevationLabel.js";
+  import {
+    cleanupOwnedElevationLabels,
+    mountElevationLabelWatcher,
+    reconcileAllElevationLabels,
+    unmountElevationLabelWatcher,
+  } from "./elevationLabel.js";
   import OBR from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
@@ -7,11 +12,24 @@
     METADATA_OWNERSHIP,
     writeSceneMetadataKey,
   } from "./metadataKeyScoped.js";
+  import { runtimeOptionsService } from "./options/optionsRuntime.js";
+  import { selectElevationLabelsEnabled } from "./options/optionsSelectors.js";
+  import {
+    bindOptionalRuntimeOption,
+    createOptionalRuntimeLifecycle,
+  } from "./options/optionalRuntimeLifecycle.js";
   export { ID }; // re-export per compatibilità con eventuali import esistenti
 
   /** Chiavi e util */
   const META_KEY = `${ID}/meta`;
   const STATE_KEY = `${ID}/state`;
+  const elevationLabelsLifecycle = createOptionalRuntimeLifecycle({
+    name: "elevation-labels",
+    mount: mountElevationLabelWatcher,
+    unmount: unmountElevationLabelWatcher,
+    cleanupOwnedOutputs: cleanupOwnedElevationLabels,
+    reconcileFull: reconcileAllElevationLabels,
+  });
 
   const BASE_URL = (import.meta?.env?.BASE_URL ?? "/"); // es. "/" o "/initiative-tracker/"
   const ORIGIN   = window.location.origin.replace(/\/+$/, "");
@@ -235,7 +253,11 @@ async function toggleEpicBossOn(ids) {
     if (window.__TBP_CTX_MOUNTED) return;
     window.__TBP_CTX_MOUNTED = true;
 
-    try { mountElevationLabelWatcher(); } catch {}
+    bindOptionalRuntimeOption({
+      service: runtimeOptionsService,
+      selector: selectElevationLabelsEnabled,
+      lifecycle: elevationLabelsLifecycle,
+    });
 
     /* ======================= “Segna come…” (EMBED) ======================= */
     OBR.contextMenu.create({

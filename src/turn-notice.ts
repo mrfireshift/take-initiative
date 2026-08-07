@@ -21,6 +21,9 @@ import {
 import { resolveReminder } from "./reminderResolution.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { isTurnNoticeForScene } from "./turnNotice.js";
+import { projectReminderNotices } from "./options/optionsProjection.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectReminderProjectionPolicy } from "./options/optionsSelectors.js";
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
@@ -104,6 +107,12 @@ let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
 let noticeSceneEpoch = 0;
 let noticeSceneReady = true;
 let noticeRole = "PLAYER";
+let reminderProjectionPolicy = {
+  player: { visibility: "full", showDc: true, showCaster: true },
+  popup: true,
+  directResolution: "assisted",
+};
+let unsubscribeOptions: (() => void) | null = null;
 let lastNoticeLayoutKey = "";
 const resolutionDrafts = new Map<string, { outcome: string; damageRoll: string }>();
 const resolutionStatus = new Map<string, string>();
@@ -609,7 +618,11 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
 }
 
 function showEffectSaveNotices(raw: any) {
-  const values = Array.isArray(raw?.notices) ? raw.notices : [];
+  const values = projectReminderNotices(raw?.notices, {
+    role: noticeRole,
+    policy: reminderProjectionPolicy.player,
+    directResolution: reminderProjectionPolicy.directResolution,
+  });
   const notices: ZoneTriggerNotice[] = [];
   for (const value of values) {
     const notice = effectSaveNotice(value);
@@ -626,7 +639,11 @@ function showEffectSaveNotices(raw: any) {
 }
 
 function showZoneNotices(raw: any, { baseline = false } = {}) {
-  const values = Array.isArray(raw?.notices) ? raw.notices : [];
+  const values = projectReminderNotices(raw?.notices, {
+    role: noticeRole,
+    policy: reminderProjectionPolicy.player,
+    directResolution: reminderProjectionPolicy.directResolution,
+  });
   const plan = planZoneTriggerNoticeDelivery(
     values,
     [...announcedZoneActivationIds],
@@ -695,19 +712,30 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-OBR.onReady(() => {
-  void OBR.player.getRole().then((role) => {
-    noticeRole = role === "GM" ? "GM" : "PLAYER";
-    if (noticeRole === "GM" && currentSaveReminderBatch) {
-      renderSaveReminderBatch(currentSaveReminderBatch);
-    }
-  }).catch(() => {
-    noticeRole = "PLAYER";
-  });
+OBR.onReady(async () => {
+  await startRuntimeOptions().catch(() => {});
+  noticeRole = await OBR.player.getRole()
+    .then((role) => role === "GM" ? "GM" : "PLAYER")
+    .catch(() => "PLAYER");
+  if (noticeRole === "GM" && currentSaveReminderBatch) {
+    renderSaveReminderBatch(currentSaveReminderBatch);
+  }
+  reminderProjectionPolicy = runtimeOptionsService.get(selectReminderProjectionPolicy);
+  unsubscribeOptions = runtimeOptionsService.subscribe(
+    selectReminderProjectionPolicy,
+    (policy) => {
+      reminderProjectionPolicy = policy;
+      if (!policy.popup) clearTurnNotice();
+      clearPendingSaveReminderNotices();
+      clearZoneNotice();
+    },
+    { emitCurrent: false },
+  );
   unsubscribeUiBroadcast = OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
     const data = event?.data;
     if (
       data?.type === "show-turn-notice"
+      && reminderProjectionPolicy.popup
       && isTurnNoticeForScene(data, noticeSceneEpoch, noticeSceneReady)
     ) {
       showNotice(data);
@@ -772,4 +800,5 @@ window.addEventListener("beforeunload", () => {
   unsubscribeZoneSceneReady?.();
   unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();
+  unsubscribeOptions?.();
 });

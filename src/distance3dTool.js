@@ -9,6 +9,19 @@ const DISTANCE_3D_TOOL_ID = `${ID}/distance-3d-tool`;
 const DISTANCE_3D_POSITION_KEY = `${ID}/distance-3d-position`;
 let popoverOpen = false;
 let toggling = false;
+let mounted = false;
+let roleAllowed = false;
+let unsubscribeBroadcast = null;
+const runtimeOperations = new Set();
+
+function trackRuntimeOperation(operation) {
+  const promise = Promise.resolve(operation).catch((error) => {
+    console.warn("[distance-3d-tool] runtime:", error?.message || error);
+  });
+  runtimeOperations.add(promise);
+  void promise.then(() => runtimeOperations.delete(promise));
+  return promise;
+}
 
 function clamp(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
@@ -54,7 +67,7 @@ async function popoverOptions(positionOverride = null) {
 }
 
 async function movePopover(deltaX, deltaY) {
-  if (!popoverOpen) return;
+  if (!mounted || !popoverOpen) return;
   const options = await popoverOptions();
   let width = options.width;
   let height = options.height;
@@ -68,11 +81,12 @@ async function movePopover(deltaX, deltaY) {
   nextOptions.width = width;
   nextOptions.height = height;
   localStorage.setItem(DISTANCE_3D_POSITION_KEY, JSON.stringify(nextOptions.anchorPosition));
+  if (!mounted) return;
   await OBR.popover.open(nextOptions);
 }
 
 async function resizePopover(requestedHeight) {
-  if (!popoverOpen) return;
+  if (!mounted || !popoverOpen) return;
   let viewportHeight = 800;
   try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
   const height = Math.max(170, Math.min(520, viewportHeight - 96, Math.ceil(Number(requestedHeight) || 0)));
@@ -80,14 +94,16 @@ async function resizePopover(requestedHeight) {
 }
 
 async function togglePopover() {
-  if (toggling) return;
+  if (!mounted || !roleAllowed || toggling) return;
   toggling = true;
   try {
     if (popoverOpen) {
       await OBR.popover.close(DISTANCE_3D_POPOVER_ID).catch(() => {});
       popoverOpen = false;
     } else {
-      await OBR.popover.open(await popoverOptions());
+      const options = await popoverOptions();
+      if (!mounted) return;
+      await OBR.popover.open(options);
       popoverOpen = true;
     }
   } finally {
@@ -95,20 +111,43 @@ async function togglePopover() {
   }
 }
 
-OBR.onReady(async () => {
-  if (await OBR.player.getRole() !== "GM") return;
-
-  OBR.broadcast.onMessage(DISTANCE_3D_CHANNEL, (event) => {
-    if (event?.data?.type === "opened") popoverOpen = true;
-    if (event?.data?.type === "closed") popoverOpen = false;
-    if (event?.data?.type === "resize") void resizePopover(event.data.height);
-    if (event?.data?.type === "drag-end") void movePopover(event.data.deltaX, event.data.deltaY);
-  });
-
+export async function reconcileDistance3dTool() {
+  if (!mounted || !roleAllowed) return false;
   try { await OBR.tool.remove(DISTANCE_3D_TOOL_ID); } catch {}
   await OBR.tool.create({
     id: DISTANCE_3D_TOOL_ID,
     icons: [{ icon: "/distance-3d.svg", label: "Distanza 3D" }],
-    onClick: () => void togglePopover(),
+    onClick: () => void trackRuntimeOperation(togglePopover()),
   });
-});
+  return true;
+}
+
+export async function cleanupDistance3dTool() {
+  await OBR.popover.close(DISTANCE_3D_POPOVER_ID).catch(() => {});
+  popoverOpen = false;
+  try { await OBR.tool.remove(DISTANCE_3D_TOOL_ID); } catch {}
+}
+
+export async function mountDistance3dTool() {
+  if (mounted) return roleAllowed;
+  mounted = true;
+  roleAllowed = await OBR.player.getRole().then((role) => role === "GM").catch(() => false);
+  if (!roleAllowed) return false;
+  unsubscribeBroadcast = OBR.broadcast.onMessage(DISTANCE_3D_CHANNEL, (event) => {
+    if (event?.data?.type === "opened") popoverOpen = true;
+    if (event?.data?.type === "closed") popoverOpen = false;
+    if (event?.data?.type === "resize") void trackRuntimeOperation(resizePopover(event.data.height));
+    if (event?.data?.type === "drag-end") void trackRuntimeOperation(movePopover(event.data.deltaX, event.data.deltaY));
+  });
+  await reconcileDistance3dTool();
+  return true;
+}
+
+export async function unmountDistance3dTool() {
+  unsubscribeBroadcast?.();
+  unsubscribeBroadcast = null;
+  mounted = false;
+  roleAllowed = false;
+  toggling = false;
+  if (runtimeOperations.size) await Promise.allSettled([...runtimeOperations]);
+}

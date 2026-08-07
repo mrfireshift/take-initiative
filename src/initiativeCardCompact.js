@@ -286,6 +286,7 @@ export function buildCompactCardShell(
   card.dataset.compactCard = "1";
   card.dataset.hpCanSee = canSeeHP ? "1" : "0";
   card.dataset.hpVisible = showHP ? "1" : "0";
+  card.__hpMode = entry?.hpDisclosure?.mode || (showHP ? "exact" : "hidden");
   card.dataset.knockedOut = knockedOut ? "1" : "0";
   card.dataset.hasEffectOverflow = hasExpandableEffects ? "1" : "0";
   card.dataset.isEpic = entry.isEpic ? "1" : "0";
@@ -554,11 +555,22 @@ export function buildCompactCardHP(
   const document = compactDocument(documentRef);
   const hpText = document.createElement("div");
   hpText.dataset.cardHpText = "1";
-  hpText.textContent = showHP
-    ? `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`
-    : "";
+  const disclosure = entry?.hpDisclosure;
+  const hpMode = disclosure?.mode || "exact";
+  const statusLabels = {
+    down: "Fuori combattimento",
+    critical: "Critico",
+    bloodied: "Ferito",
+    hurt: "Provato",
+    healthy: "In salute",
+  };
+  hpText.textContent = !showHP || hpMode === "bar"
+    ? ""
+    : hpMode === "status"
+      ? (statusLabels[disclosure?.status] || "Stato sconosciuto")
+      : `HP ${Math.round(safeHP)} / ${Math.round(hpMax)}`;
   Object.assign(hpText.style, {
-    display: showHP ? "block" : "none",
+    display: showHP && hpMode !== "bar" ? "block" : "none",
     width: "100%",
     height: "11px",
     overflow: "hidden",
@@ -595,9 +607,12 @@ export function buildCompactCardHP(
 
   let knockedOutBadge = null;
   if (knockedOut) {
+    const knockedOutTitle = hpMode === "exact"
+      ? `Fuori combattimento: 0 / ${hpMax}`
+      : "Fuori combattimento";
     knockedOutBadge = compactStatusBadge(
       "KO",
-      `Fuori combattimento: 0 / ${hpMax}`,
+      knockedOutTitle,
       "neutral",
       { documentRef },
     );
@@ -855,11 +870,19 @@ export function deriveCompactCardPresentation(
   const active = members.some((member) => member?.id === activeId);
   const boss = !!entry?.isEpic
     || Number(entry?.paragonActions) > 1
-    || Number(entry?.legendary?.max) > 0;
+    || Number(entry?.legendary?.max) > 0
+    || entry?.bossDisclosure === "summary";
   const attitude = String(entry?.attitude || "").toLowerCase();
-  const canSeeHP = isGM || attitude === "pc";
-  const hp = Number(entry?.hp);
-  const hpMax = Number(entry?.hpMax);
+  const disclosure = entry?.hpDisclosure && typeof entry.hpDisclosure === "object"
+    ? entry.hpDisclosure
+    : null;
+  const canSeeHP = isGM || (disclosure ? disclosure.mode !== "hidden" : attitude === "pc");
+  const hp = disclosure && disclosure.mode !== "exact"
+    ? Number(disclosure.ratio)
+    : Number(entry?.hp);
+  const hpMax = disclosure && disclosure.mode !== "exact"
+    ? (disclosure.mode === "hidden" ? 0 : 1)
+    : Number(entry?.hpMax);
   const hasHP = !virtual && Number.isFinite(hpMax) && hpMax > 0;
   const showHP = canSeeHP && hasHP;
   const safeHP = hasHP && Number.isFinite(hp) ? Math.max(0, hp) : 0;

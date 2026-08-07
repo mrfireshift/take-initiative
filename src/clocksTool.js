@@ -13,6 +13,18 @@ const LEGACY_CLOCKS_DRAG_PREVIEW_ID = `${ID}/clocks-drag-preview`;
 let popoverOpen = false;
 let toggling = false;
 let resizing = false;
+let mounted = false;
+let unsubscribeBroadcast = null;
+const runtimeOperations = new Set();
+
+function trackRuntimeOperation(operation) {
+  const promise = Promise.resolve(operation).catch((error) => {
+    console.warn("[clocks-tool] runtime:", error?.message || error);
+  });
+  runtimeOperations.add(promise);
+  void promise.then(() => runtimeOperations.delete(promise));
+  return promise;
+}
 
 function isCompact() {
   return localStorage.getItem(CLOCKS_COMPACT_KEY) === "1";
@@ -60,13 +72,15 @@ async function popoverOptions(positionOverride = null) {
 }
 
 async function openClocksPopover() {
+  if (!mounted) return;
   await OBR.popover.close(CLOCKS_POPOVER_ID).catch(() => {});
+  if (!mounted) return;
   await OBR.popover.open(await popoverOptions());
   popoverOpen = true;
 }
 
 async function moveClocksPopover(deltaX, deltaY) {
-  if (!popoverOpen) return;
+  if (!mounted || !popoverOpen) return;
   const options = await popoverOptions();
   const [currentWidth, currentHeight] = await Promise.all([
     OBR.popover.getWidth(CLOCKS_POPOVER_ID).catch(() => options.width),
@@ -80,11 +94,12 @@ async function moveClocksPopover(deltaX, deltaY) {
   nextOptions.width = Number(currentWidth) || options.width;
   nextOptions.height = Number(currentHeight) || options.height;
   localStorage.setItem(CLOCKS_POSITION_KEY, JSON.stringify(nextOptions.anchorPosition));
+  if (!mounted) return;
   await OBR.popover.open(nextOptions);
 }
 
 async function resizeClocksPopover(width, height) {
-  if (!popoverOpen || resizing) return;
+  if (!mounted || !popoverOpen || resizing) return;
   resizing = true;
   try {
     const options = await popoverOptions();
@@ -95,6 +110,7 @@ async function resizeClocksPopover(width, height) {
     const nextWidth = Math.max(1, Math.round(Number(width) || options.width));
     const nextHeight = Math.max(1, Math.round(Number(height) || options.height));
     if (Math.abs(currentWidth - nextWidth) < 1 && Math.abs(currentHeight - nextHeight) < 1) return;
+    if (!mounted) return;
     await OBR.popover.open({
       ...options,
       width: nextWidth,
@@ -112,7 +128,7 @@ async function closeClocksPopover() {
 }
 
 async function toggleClocksPopover() {
-  if (toggling) return;
+  if (!mounted || toggling) return;
   toggling = true;
   try {
     if (popoverOpen) await closeClocksPopover();
@@ -122,9 +138,28 @@ async function toggleClocksPopover() {
   }
 }
 
-OBR.onReady(async () => {
+export async function reconcileClocksTool() {
+  if (!mounted) return false;
   await OBR.scene.local.deleteItems([LEGACY_CLOCKS_DRAG_PREVIEW_ID]).catch(() => {});
-  OBR.broadcast.onMessage(CLOCKS_POPOVER_CHANNEL, (event) => {
+  try { await OBR.tool.removeAction(LEGACY_CLOCKS_ACTION_ID); } catch {}
+  try { await OBR.tool.remove(CLOCKS_TOOL_ID); } catch {}
+  await OBR.tool.create({
+    id: CLOCKS_TOOL_ID,
+    icons: [{ icon: "/clock.svg", label: "Clock" }],
+    onClick: () => void trackRuntimeOperation(toggleClocksPopover()),
+  });
+  return true;
+}
+
+export async function cleanupClocksTool() {
+  await closeClocksPopover();
+  try { await OBR.tool.remove(CLOCKS_TOOL_ID); } catch {}
+}
+
+export async function mountClocksTool() {
+  if (mounted) return true;
+  mounted = true;
+  unsubscribeBroadcast = OBR.broadcast.onMessage(CLOCKS_POPOVER_CHANNEL, (event) => {
     const type = event?.data?.type;
     if (type === "opened") popoverOpen = true;
     if (type === "closed") popoverOpen = false;
@@ -132,18 +167,21 @@ OBR.onReady(async () => {
       localStorage.setItem(CLOCKS_COMPACT_KEY, event.data.compact ? "1" : "0");
     }
     if (type === "resize") {
-      void resizeClocksPopover(event.data.width, event.data.height);
+      void trackRuntimeOperation(resizeClocksPopover(event.data.width, event.data.height));
     }
     if (type === "drag-end") {
-      void moveClocksPopover(event.data.deltaX, event.data.deltaY);
+      void trackRuntimeOperation(moveClocksPopover(event.data.deltaX, event.data.deltaY));
     }
   });
+  await reconcileClocksTool();
+  return true;
+}
 
-  try { await OBR.tool.removeAction(LEGACY_CLOCKS_ACTION_ID); } catch {}
-  try { await OBR.tool.remove(CLOCKS_TOOL_ID); } catch {}
-  await OBR.tool.create({
-    id: CLOCKS_TOOL_ID,
-    icons: [{ icon: "/clock.svg", label: "Clock" }],
-    onClick: () => void toggleClocksPopover(),
-  });
-});
+export async function unmountClocksTool() {
+  unsubscribeBroadcast?.();
+  unsubscribeBroadcast = null;
+  mounted = false;
+  toggling = false;
+  resizing = false;
+  if (runtimeOperations.size) await Promise.allSettled([...runtimeOperations]);
+}

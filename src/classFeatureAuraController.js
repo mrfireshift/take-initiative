@@ -1,4 +1,5 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
 import { getConditionInstances } from "./conditions.js";
 import { withItemMetaHistory } from "./history.js";
@@ -440,14 +441,13 @@ async function reconcileClassFeatureAuras() {
   await reconcileAuraVisuals(desiredVisuals, sceneEpoch);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (newTriggerNotices.length) {
-    void OBR.broadcast.sendMessage(
+    void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
       {
         type: "show-zone-trigger-notices",
         activationIds: newTriggerNotices.map((notice) => notice.activationId),
         notices: newTriggerNotices,
       },
-      { destination: "ALL" },
     ).catch((error) => {
       console.warn("[class-feature-aura] trigger notice:", error?.message || error);
     });

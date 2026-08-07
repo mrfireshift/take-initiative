@@ -4,6 +4,7 @@ import { ID } from "./constants.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { mapHpDisclosure } from "./options/optionsProjection.js";
 
 /* ========= Chiavi metadata ========= */
 const META_KEY         = `${ID}/meta`;    // nei token: { hp, hpMax, ... }
@@ -31,6 +32,12 @@ let   _flushing = false;
 let   _sceneEpoch = 0;
 let   _readyListenerMounted = false;
 let   _sceneItemListenerMounted = false;
+let   _mounted = false;
+let   _runtimeEnabled = false;
+let   _unsubscribeReady = null;
+let   _unsubscribeSceneItems = null;
+let   _flushPromise = null;
+let   _fastFillPromise = null;
 
 // cache dell’ultimo stato applicato (evita update inutili)
 const _last = new Map(); // tokenId -> {barW, barH, leftX, topY, pct, color}
@@ -53,7 +60,13 @@ function scheduleFlush(delay = FLUSH_MS) {
   if (_flushing || _flushT) return;
   _flushT = setTimeout(() => {
     _flushT = null;
-    void flushQueued();
+    const operation = flushQueued();
+    _flushPromise = operation;
+    void operation.then(() => {
+      if (_flushPromise === operation) _flushPromise = null;
+    }, () => {
+      if (_flushPromise === operation) _flushPromise = null;
+    });
   }, Math.max(0, delay));
 }
 
@@ -76,8 +89,17 @@ function resetRuntimeState() {
 const clamp   = (n, a, b) => Math.max(a, Math.min(b, n));
 const clamp01 = (n) => clamp(n, 0, 1);
 
-// Config: quali attitude sono visibili ai player
-const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
+let playerHpPolicy = {
+  map: { pc: "exact", ally: "exact", neutral: "hidden", enemy: "hidden" },
+};
+
+export function setHPBarPlayerPolicy(policy) {
+  const next = policy && typeof policy === "object" ? policy : playerHpPolicy;
+  const changed = JSON.stringify(next) !== JSON.stringify(playerHpPolicy);
+  playerHpPolicy = next;
+  if (changed) _last.clear();
+  return changed;
+}
 
 // diff veloce fra due firme
 function __diffSig(a = {}, b = {}) {
@@ -96,9 +118,12 @@ function getAttitude(item){
   } catch { return null; }
 }
 
-function isPlayerVisibleAttitude(att){
-  const a = (att || "").toLowerCase();
-  return PLAYER_VISIBLE_ATTITUDES.includes(a);
+function playerDisclosure(hp, hpMax, attitude) {
+  return mapHpDisclosure({ hp, hpMax, attitude }, playerHpPolicy);
+}
+
+function hasStatusProjection() {
+  return Object.values(playerHpPolicy?.map || {}).includes("status");
 }
 
 function hpColorByPct(p){
@@ -132,7 +157,13 @@ function scheduleFastFill() {
   _fastFillScheduled = true;
   setTimeout(() => {
     _fastFillScheduled = false;
-    void flushFastFills();
+    const operation = flushFastFills();
+    _fastFillPromise = operation;
+    void operation.then(() => {
+      if (_fastFillPromise === operation) _fastFillPromise = null;
+    }, () => {
+      if (_fastFillPromise === operation) _fastFillPromise = null;
+    });
   }, 0);
 }
 
@@ -208,6 +239,7 @@ async function flushFastFills() {
 }
 
 function queueFastFill(tokenId, hp, hpMax) {
+  if (hasStatusProjection()) return;
   _fastFillPending.set(tokenId, {
     hp: Number(hp) || 0,
     hpMax: Number(hpMax) || 0,
@@ -431,11 +463,23 @@ async function flushQueued(){
       if (!layout) { continue; }
 
       const { barW, barH, leftX, topY, tokenZ } = layout;
-      const pct   = clamp01(hpMax > 0 ? hp / hpMax : 0);
+      const canonicalPct = clamp01(hpMax > 0 ? hp / hpMax : 0);
+      const att = getAttitude(item);
+      const disclosure = playerDisclosure(hp, hpMax, att);
+      const pct = disclosure.mode === "status"
+        ? disclosure.ratio
+        : canonicalPct;
       const color = hpColorByPct(pct);
+      const playerBarVisible = disclosure.mode !== "hidden";
+      const playerTextVisible = disclosure.mode === "exact";
 
       // Firma di dedup (include hp/hpMax)
-      const sig = { barW, barH, leftX, topY, pct, color, hp, hpMax };
+      const sig = {
+        barW, barH, leftX, topY, pct, color, hp, hpMax,
+        playerMode: disclosure.mode,
+        playerBarVisible,
+        playerTextVisible,
+      };
       const last = _last.get(tokenId);
       if (last) {
         const ds = __diffSig(last, sig);
@@ -446,7 +490,8 @@ async function flushQueued(){
           && textItem?.type === "TEXT"
           && textItem?.attachedTo === tokenId
           && textItem?.layer === "ATTACHMENT"
-          && textItem?.text?.plainText === hpTextValue(hp, hpMax);
+          && textItem?.text?.plainText === hpTextValue(hp, hpMax)
+          && textItem?.visible === playerTextVisible;
         if (!keysChanged.length
           && barKinds?.get("bg") === 1
           && barKinds?.get("fg") === 1
@@ -471,11 +516,8 @@ async function flushQueued(){
       const inner = Math.max(0, barW - BAR_INSET * 2);
       const fillW = Math.floor(inner * pct);
 
-      // Visibilità per i player: SOLO Ally/PC → true; Enemy/Neutral → false.
-      // Il GM vede comunque anche quando visible=false.
-      const att = getAttitude(item);
-      const playerVisible = isPlayerVisibleAttitude(att);
-
+      // La policy Player controlla separatamente geometria pubblica e testo;
+      // il GM vede comunque gli attachment anche quando visible=false.
       updatesById.set(bg.id, {
         width: barW, height: barH,
         position: { x: leftX, y: topY },
@@ -484,7 +526,7 @@ async function flushQueued(){
         fillOpacity: BAR_BG_OPACITY,
         strokeColor: BAR_BORDER_COLOR,
         strokeWidth: 1,
-        visible: playerVisible,
+        visible: playerBarVisible,
       });
       updatesById.set(fg.id, {
         width: fillW, height: Math.max(1, barH - BAR_INSET * 2),
@@ -493,7 +535,7 @@ async function flushQueued(){
         fillColor: color, fillOpacity: BAR_FILL_OPACITY,
         strokeColor: "transparent",
         strokeWidth: 0,
-        visible: playerVisible,
+        visible: playerBarVisible,
       });
       idsToUpdate.push(bg.id, fg.id);
 
@@ -504,7 +546,7 @@ async function flushQueued(){
         updatesById.set(txt.id, {
           position: hpTextPosition(leftX, topY, barW, barH, plainText),
           zIndex: tokenZ + 1000,
-          visible: playerVisible,
+          visible: playerTextVisible,
           plainText,
           fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
           fontSize: HP_TEXT_FONT_SIZE,
@@ -642,7 +684,9 @@ function hasCanonicalHP(meta) {
 }
 
 async function queueCanonicalHPItems() {
+  if (!_runtimeEnabled || !IS_GM) return;
   const items = await OBR.scene.items.getItems();
+  if (!_runtimeEnabled || !IS_GM) return;
   for (const item of items) {
     const meta = item.metadata?.[META_KEY];
     if (!hasCanonicalHP(meta)) continue;
@@ -689,6 +733,12 @@ export async function removeHPWidgetsNow(tokenId) {
 
 export async function mountHPBars(){
   const { deferInitialSync = false } = arguments[0] || {};
+  _runtimeEnabled = true;
+  if (_mounted) {
+    if (!deferInitialSync && IS_GM) await queueCanonicalHPItems();
+    return IS_GM;
+  }
+  _mounted = true;
   try {
     const role =
       (await OBR.player?.getRole?.()) ||
@@ -712,9 +762,9 @@ export async function mountHPBars(){
 
   if (!_readyListenerMounted) {
     _readyListenerMounted = true;
-    OBR.scene.onReadyChange((ready) => {
+    _unsubscribeReady = OBR.scene.onReadyChange((ready) => {
       resetRuntimeState();
-      if (!ready || !IS_GM) return;
+      if (!ready || !IS_GM || !_runtimeEnabled || !_mounted) return;
       void queueCanonicalHPItems().catch((error) => {
         console.warn("[hpbar] scene ready sync error:", error?.message || error);
       });
@@ -723,8 +773,8 @@ export async function mountHPBars(){
 
   if (!_sceneItemListenerMounted) {
     _sceneItemListenerMounted = true;
-    subscribeSceneItemChanges(({ items }) => {
-      if (!IS_GM) return;
+    _unsubscribeSceneItems = subscribeSceneItemChanges(({ items }) => {
+      if (!IS_GM || !_runtimeEnabled || !_mounted) return;
       for (const cur of items) {
         if (cur.metadata?.[HPBAR_META_FLAG]) continue;
         const m = cur.metadata?.[META_KEY];
@@ -733,13 +783,15 @@ export async function mountHPBars(){
       }
     }, { filter: (event) => event.flags.hpBars });
   }
+  return IS_GM;
 }
 
 export async function syncInitialHPBars() {
-  return mountHPBars();
+  return reconcileAllHPBars();
 }
 
 export function syncHPBarNow(tokenId, hp, hpMax) {
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return;
   try {
     queueFastFill(tokenId, hp, hpMax);
     queueToken(tokenId, Number(hp) || 0, Number(hpMax) || 0);
@@ -856,6 +908,7 @@ async function reconcileHPTextItem(spec, sceneEpoch, initialItems = null) {
 // Crea/aggiorna un item di TESTO "(HP/Max - %)" sopra le HPBAR.
 // Usa il TextBuilder correttamente (plainText + metodi stile del builder).
 async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return;
   const sceneEpoch = currentSceneEpoch();
   try {
     await waitForSceneReady();
@@ -872,7 +925,7 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
 
     // Visibilità lato player (GM vede comunque anche se false)
     const att = getAttitude(token);
-    const playerVisible = isPlayerVisibleAttitude(att);
+    const disclosure = playerDisclosure(hp, hpMax, att);
 
     const pos = hpTextPosition(leftX, topY, L.barW, barH, textStr);
     const z   = (Number(tokenZ) || 0) + 1000;
@@ -885,7 +938,7 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
       text: textStr,
       position: pos,
       zIndex: z,
-      visible: playerVisible,
+      visible: disclosure.mode === "exact",
     }, sceneEpoch, all.filter((item) => (
       item.metadata?.[HPTEXT_META_FLAG]?.targetId === tokenId
     )));
@@ -914,6 +967,7 @@ async function syncHPTextAtRevision(tokenId, hp, hpMax, revision, epoch) {
 }
 
 export function syncHPTextNow(tokenId, hp, hpMax) {
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return Promise.resolve();
   const revision = (_textRevision.get(tokenId) || 0) + 1;
   const epoch = _sceneEpoch;
   _textRevision.set(tokenId, revision);
@@ -932,6 +986,7 @@ export function syncHPTextNow(tokenId, hp, hpMax) {
 // Aggiornamento affidabile per operazioni multi-target: risolve le label dalla
 // scena corrente e le modifica con un solo batch composto esclusivamente da TextItem.
 export async function syncHPTextBatchNow(updates = []) {
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return;
   const valuesByToken = new Map();
   for (const update of updates) {
     const tokenId = String(update?.tokenId || "");
@@ -997,4 +1052,43 @@ export async function syncHPTextBatchNow(updates = []) {
   await Promise.all(missing.map(([tokenId, value]) =>
     syncHPTextNow(tokenId, value.hp, value.hpMax)
   ));
+}
+
+export async function reconcileAllHPBars() {
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return false;
+  await waitForSceneReady();
+  if (!_runtimeEnabled || !_mounted || !IS_GM) return false;
+  await queueCanonicalHPItems();
+  return true;
+}
+
+export async function cleanupOwnedHPWidgets() {
+  const role = await OBR.player.getRole().catch(() => "PLAYER");
+  if (String(role).toUpperCase() !== "GM") return 0;
+  const cleanupEpoch = _sceneEpoch;
+  const widgets = await OBR.scene.items.getItems((item) => (
+    !!item.metadata?.[HPBAR_META_FLAG] || !!item.metadata?.[HPTEXT_META_FLAG]
+  ));
+  if (cleanupEpoch !== _sceneEpoch) return 0;
+  if (widgets.length) await OBR.scene.items.deleteItems(widgets.map((item) => item.id));
+  return widgets.length;
+}
+
+export async function unmountHPBars() {
+  _runtimeEnabled = false;
+  _mounted = false;
+  _unsubscribeReady?.();
+  _unsubscribeSceneItems?.();
+  _unsubscribeReady = null;
+  _unsubscribeSceneItems = null;
+  _readyListenerMounted = false;
+  _sceneItemListenerMounted = false;
+  const pendingOperations = [
+    _flushPromise,
+    _fastFillPromise,
+    ..._textQueues.values(),
+  ].filter(Boolean);
+  resetRuntimeState();
+  if (pendingOperations.length) await Promise.allSettled(pendingOperations);
+  resetRuntimeState();
 }

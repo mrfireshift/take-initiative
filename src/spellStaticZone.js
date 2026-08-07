@@ -1,4 +1,5 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import { buildArea, buildCellBoundaryLoops } from "./aoeGeometryCore.js";
 import { AOE_AREA_META_KEY, loadAoEStyle, normalizeAoEStyle } from "./aoeStyle.js";
 import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
@@ -594,14 +595,13 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   if (newTriggerNotices.length) {
     // La coda persistente serve alla risoluzione in Effetti ad Area; il
     // reminder visivo riceve invece un payload live già completo.
-    void OBR.broadcast.sendMessage(
+    void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
       {
         type: "show-zone-trigger-notices",
         activationIds: newTriggerActivations.map((activation) => activation.id),
         notices: newTriggerNotices,
       },
-      { destination: "ALL" },
     ).catch((error) => {
       console.warn(
         "[spell-static-zone] trigger notice:",

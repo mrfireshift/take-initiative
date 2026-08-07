@@ -6,6 +6,8 @@ import {
   resetCompactTrackerPopoverPosition,
   setTrackerPopoverOpen,
 } from "./trackerPopover.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectTrackerOpenSyncEnabled } from "./options/optionsSelectors.js";
 
 const UI_KEY = `${ID}/ui`;
 
@@ -23,15 +25,27 @@ if (!window.__TBP_SYNC_OPEN_MOUNTED) {
       }
     });
 
-    OBR.room.onMetadataChange(async (metadata) => {
+    await startRuntimeOptions().catch(() => {});
+    const role = await OBR.player.getRole().catch(() => "PLAYER");
+
+    const applyTrackerOpenState = async (metadata) => {
       const state = metadata?.[UI_KEY];
-      if (!state || await OBR.player.getRole() === "GM") return;
+      if (!state || role === "GM") return;
+      if (!runtimeOptionsService.get(selectTrackerOpenSyncEnabled)) return;
       await setTrackerPopoverOpen(!!state.open);
+    };
+
+    OBR.room.onMetadataChange((metadata) => {
+      void applyTrackerOpenState(metadata);
     });
 
-    if (await OBR.player.getRole() === "GM") return;
+    runtimeOptionsService.subscribe(selectTrackerOpenSyncEnabled, (enabled) => {
+      if (!enabled || role === "GM") return;
+      void OBR.room.getMetadata().then(applyTrackerOpenState).catch(() => {});
+    }, { emitCurrent: false });
+
+    if (role === "GM") return;
     const metadata = await OBR.room.getMetadata();
-    const state = metadata?.[UI_KEY];
-    if (state) await setTrackerPopoverOpen(!!state.open);
+    await applyTrackerOpenState(metadata);
   });
 }

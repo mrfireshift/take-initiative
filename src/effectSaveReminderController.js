@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, ID } from "./constants.js";
 import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
@@ -61,10 +62,9 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
     for (const activationId of recent) announcedActivationIds.add(activationId);
   }
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  await OBR.broadcast.sendMessage(
+  await sendProjectedReminderPayload(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     { type: "show-effect-save-notices", notices },
-    { destination: "ALL" },
   );
 }
 

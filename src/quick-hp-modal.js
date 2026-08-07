@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
@@ -69,6 +70,7 @@ import { spellColorFor } from "./spellColorCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
+import { mountCombatLogEventSink } from "./combatLog.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -1215,10 +1217,10 @@ async function showEffectSaveDamageWarnings(entries) {
     eventId: `${Date.now()}-${++effectSaveDamageSequence}`,
   });
   if (!notices.length) return;
-  await OBR.broadcast.sendMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
+  await sendProjectedReminderPayload(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
     type: "show-effect-save-notices",
     notices,
-  }, { destination: "ALL" });
+  });
 }
 function setBusy(next) {
   busy = !!next;
@@ -1849,6 +1851,7 @@ window.addEventListener("beforeunload", () => {
   zoneTriggerRequestUnsubscribe?.();
 });
 OBR.onReady(async () => {
+  await mountCombatLogEventSink();
   if (await OBR.player.getRole() !== "GM") {
     targetList.textContent = "La console HP rapida e disponibile solo per il GM.";
     return;

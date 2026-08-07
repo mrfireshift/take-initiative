@@ -1,5 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { mountEffectsReconciler } from "./effectsReconciler.js";
+import {
+  cleanupOwnedEffectsLabels,
+  mountEffectsReconciler,
+  reconcileAllEffectsLabels,
+  unmountEffectsReconciler,
+} from "./effectsReconciler.js";
 import { mountSpellAuraController } from "./spellAuraController.js";
 import { mountClassFeatureAuraController } from "./classFeatureAuraController.js";
 import { mountCustomAuraController } from "./customAuraController.js";
@@ -11,20 +16,89 @@ import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
 import "./sync-open.js";
 import "./speedMoveTool.js";
-import "./clocksTool.js";
-import "./distance3dTool.js";
-import "./referenceTool.js";
+import {
+  cleanupClocksTool,
+  mountClocksTool,
+  reconcileClocksTool,
+  unmountClocksTool,
+} from "./clocksTool.js";
+import {
+  cleanupDistance3dTool,
+  mountDistance3dTool,
+  reconcileDistance3dTool,
+  unmountDistance3dTool,
+} from "./distance3dTool.js";
+import {
+  cleanupReferenceTool,
+  mountReferenceTool,
+  reconcileReferenceTool,
+  unmountReferenceTool,
+} from "./referenceTool.js";
 import "./aoeTargetTool.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import {
+  selectClocksToolEnabled,
+  selectDistance3dToolEnabled,
+  selectMapEffectLabelsEnabled,
+  selectReferenceToolEnabled,
+} from "./options/optionsSelectors.js";
+import {
+  bindOptionalRuntimeOption,
+  createOptionalRuntimeLifecycle,
+} from "./options/optionalRuntimeLifecycle.js";
+import { mountCombatLogEventSink } from "./combatLog.js";
 
-OBR.onReady(async () => {
+const optionalRuntimes = [
+  [selectMapEffectLabelsEnabled, createOptionalRuntimeLifecycle({
+    name: "map-effect-labels",
+    mount: mountEffectsReconciler,
+    unmount: unmountEffectsReconciler,
+    cleanupOwnedOutputs: cleanupOwnedEffectsLabels,
+    reconcileFull: reconcileAllEffectsLabels,
+  })],
+  [selectClocksToolEnabled, createOptionalRuntimeLifecycle({
+    name: "clocks-tool",
+    mount: mountClocksTool,
+    unmount: unmountClocksTool,
+    cleanupOwnedOutputs: cleanupClocksTool,
+    reconcileFull: reconcileClocksTool,
+  })],
+  [selectDistance3dToolEnabled, createOptionalRuntimeLifecycle({
+    name: "distance-3d-tool",
+    mount: mountDistance3dTool,
+    unmount: unmountDistance3dTool,
+    cleanupOwnedOutputs: cleanupDistance3dTool,
+    reconcileFull: reconcileDistance3dTool,
+  })],
+  [selectReferenceToolEnabled, createOptionalRuntimeLifecycle({
+    name: "reference-tool",
+    mount: mountReferenceTool,
+    unmount: unmountReferenceTool,
+    cleanupOwnedOutputs: cleanupReferenceTool,
+    reconcileFull: reconcileReferenceTool,
+  })],
+];
+
+OBR.onReady(() => {
+  void startRuntimeOptions().catch(() => {});
+  mountCombatLogEventSink();
   mountTurnNoticeHost();
-  await mountEffectsMutationCoordinatorService();
-  void mountEffectsReconciler();
-  void mountSpellAuraController();
-  void mountClassFeatureAuraController();
-  void mountCustomAuraController();
-  void mountStaticSpellZoneController();
-  void mountEffectSaveReminderController();
-  void mountClassFeatureReminderController();
-  void mountPreparedSpellResolutionController();
+  void mountEffectsMutationCoordinatorService().then(async () => {
+    await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (
+      bindOptionalRuntimeOption({
+        service: runtimeOptionsService,
+        selector,
+        lifecycle,
+      }).ready
+    )));
+    void mountSpellAuraController();
+    void mountClassFeatureAuraController();
+    void mountCustomAuraController();
+    void mountStaticSpellZoneController();
+    void mountEffectSaveReminderController();
+    void mountClassFeatureReminderController();
+    void mountPreparedSpellResolutionController();
+  }).catch((error) => {
+    console.warn("[background] bootstrap:", error?.message || error);
+  });
 });

@@ -63,6 +63,7 @@ export default defineConfig(() => {
         compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
         customAuraModal: path.resolve(process.cwd(), "custom-aura-modal.html"),
+        optionsModal: path.resolve(process.cwd(), "options-modal.html"),
       },
     },
   },

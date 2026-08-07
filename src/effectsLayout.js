@@ -14,8 +14,11 @@ import { getSpellWidgetLayoutData } from "./spells-tag.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
+import { projectSceneItemEffects } from "./options/optionsProjection.js";
 
 const META_KEY = `${ID}/meta`;
+const SPELLS_META_KEY = `${ID}/spells`;
+const CONCENTRATION_META_KEY = `${ID}/concentration`;
 
 const COND_WIDGET_META = `${ID}/condWidgetOf`;
 const COND_WIDGET_KEY_META = `${ID}/condWidgetKey`;
@@ -38,6 +41,17 @@ const LABEL_BG_NAME = "Concentrazione (label bg)";
 let measureContext = null;
 let reconcileRevision = 0;
 let sceneGridDpi = null;
+let effectsProjection = {
+  role: "GM",
+  policy: { conditions: "all", spells: "all", concentration: "all" },
+};
+
+export function configureEffectsLayoutProjection({ role, policy } = {}) {
+  effectsProjection = {
+    role: role === "GM" ? "GM" : "PLAYER",
+    policy: policy && typeof policy === "object" ? policy : effectsProjection.policy,
+  };
+}
 
 export function setEffectsLayoutGridDpi(value) {
   const raw = Number(value);
@@ -84,9 +98,15 @@ function spellLabelHash(spec) {
 }
 
 function normalizeToken(item) {
-  const pluginMeta = item?.metadata?.[META_KEY];
+  const projectedItem = projectSceneItemEffects(item, {
+    ...effectsProjection,
+    metaKey: META_KEY,
+    spellsKey: SPELLS_META_KEY,
+    concentrationKey: CONCENTRATION_META_KEY,
+  });
+  const pluginMeta = projectedItem?.metadata?.[META_KEY];
   if (!item?.id || !pluginMeta || typeof pluginMeta !== "object") return null;
-  const spells = getSpellWidgetLayoutData(item);
+  const spells = getSpellWidgetLayoutData(projectedItem);
   return {
     id: item.id,
     position: item.position,

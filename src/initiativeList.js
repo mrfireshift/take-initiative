@@ -6,7 +6,16 @@ import {
   TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
-import { mountHPBars, syncInitialHPBars, syncHPBarNow, syncHPTextNow } from "./hpbar-items.js";
+import {
+  cleanupOwnedHPWidgets,
+  mountHPBars,
+  reconcileAllHPBars,
+  setHPBarPlayerPolicy,
+  syncInitialHPBars,
+  syncHPBarNow,
+  syncHPTextNow,
+  unmountHPBars,
+} from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
@@ -176,6 +185,20 @@ import {
   compactTrackerViewportWidth,
   compactTrackerWidth,
 } from "./trackerCompactSizingCore.js";
+import { projectTrackerEntries } from "./options/optionsProjection.js";
+import { runtimeOptionsService } from "./options/optionsRuntime.js";
+import {
+  selectActiveTurnLabelEnabled,
+  selectFollowActiveTurn,
+  selectMapHpBarsEnabled,
+  selectTrackerLayout,
+  selectTrackerProjectionPolicy,
+} from "./options/optionsSelectors.js";
+import {
+  bindOptionalRuntimeOption,
+  createOptionalRuntimeLifecycle,
+} from "./options/optionalRuntimeLifecycle.js";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 
   // Configurazione condizioni per tag card
 export const CONDITIONS = [
@@ -346,6 +369,8 @@ let __latestInitiativeState = null;
 let __activeTurnLabelDesired = null;
 let __activeTurnLabelPumpRunning = false;
 let __activeTurnLabelRetryTimer = null;
+let __activeTurnLabelPumpPromise = null;
+let __activeTurnLabelRuntimeEnabled = false;
 let __navigationDesiredState = null;
 let __navigationDesiredEpoch = null;
 let __navigationPumpRunning = false;
@@ -379,6 +404,13 @@ let __trackerSelectionAnchorId = null;
 let __playerSelectionUnsubscribe = null;
 let __playerSelectionPollTimer = null;
 let __playerSelectionPollBusy = false;
+const __hpBarsLifecycle = createOptionalRuntimeLifecycle({
+  name: "map-hp-bars",
+  mount: () => mountHPBars({ deferInitialSync: true }),
+  unmount: unmountHPBars,
+  cleanupOwnedOutputs: cleanupOwnedHPWidgets,
+  reconcileFull: reconcileAllHPBars,
+});
 const NAVIGATION_STALE_GRACE_MS = 500;
 const NAVIGATION_WRITE_SETTLE_MS = 60;
 const INITIATIVE_DIAGNOSTICS_STORAGE_KEY = `${ID}/initiative-diagnostics`;
@@ -877,6 +909,8 @@ const EPIC_TAG_CFG = {
   let __initiativeFillMode = false;
   let __initiativeFillSession = null;
   let IS_GM = false;
+  let __optionsProjectionUnsubscribe = null;
+  let __optionsPresentationUnsubscribe = null;
   let __trackerLayout = getTrackerLayout();
 
   function isCompactTrackerLayout() {
@@ -887,6 +921,13 @@ const EPIC_TAG_CFG = {
   export function mountInitiativeList(container) {
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
+    const __activeTurnLabelLifecycle = createOptionalRuntimeLifecycle({
+      name: "active-turn-map-label",
+      mount: () => { __activeTurnLabelRuntimeEnabled = true; },
+      unmount: __unmountActiveTurnLabelRuntime,
+      cleanupOwnedOutputs: __cleanupOwnedActiveTurnLabels,
+      reconcileFull: __reconcileActiveTurnLabelRuntime,
+    });
     const styleTag = document.createElement("style");
 styleTag.textContent = `
   :root, body { height: 100%; overflow: hidden; }
@@ -1123,6 +1164,12 @@ layoutToggleButton.addEventListener("click", (event) => {
   applyTrackerLayout();
   __syncTrackerPopoverSizeForLayout();
   void renderAll();
+  void runtimeOptionsService.updateLocal((current) => ({
+    ...current,
+    tracker: { ...current.tracker, layout: __trackerLayout },
+  })).catch((error) => {
+    console.warn("[tracker-layout] opzioni locali non salvate:", error?.message || error);
+  });
   void setTrackerLayout(__trackerLayout).catch((error) => {
     console.warn("[tracker-layout] salvataggio fallito:", error?.message || error);
   });
@@ -1574,13 +1621,16 @@ Object.assign(globalPanelsWrap.style, {
 const globalEffectsButton = makeGlobalPanelButton("Conditions", "conditions-panel.svg");
 const globalSpellsButton = makeGlobalPanelButton("Spells", "spells-panel.svg");
 const globalQuickHPButton = makeGlobalPanelButton("Danno rapido", "quick-damage.svg");
+const globalOptionsButton = makeGlobalPanelButton("Opzioni", "options.svg");
 globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Danno";
 const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
 const SPELLS_POPUP_ID = `${ID}/spells-modal`;
 const QUICK_HP_POPUP_ID = `${ID}/quick-hp-modal`;
+const OPTIONS_POPUP_ID = `${ID}/options-modal`;
 globalEffectsButton.setAttribute("aria-pressed", "false");
 globalSpellsButton.setAttribute("aria-pressed", "false");
 globalQuickHPButton.setAttribute("aria-pressed", "false");
+globalOptionsButton.setAttribute("aria-pressed", "false");
 const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed-panel.svg");
 trackedMoveButton.querySelector("[data-toolbar-caption='1']").textContent = "Movimento";
 trackedMoveButton.setAttribute("aria-pressed", "false");
@@ -1608,7 +1658,8 @@ trackedMoveButton.addEventListener("click", () => {
 globalEffectsButton.addEventListener("click", () => void openGlobalEffectsPopup());
 globalSpellsButton.addEventListener("click", () => void openGlobalSpellsPopup());
 globalQuickHPButton.addEventListener("click", () => void openGlobalQuickHPPopup());
-globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton);
+globalOptionsButton.addEventListener("click", () => void openOptionsPopup());
+globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton, globalOptionsButton);
 toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
 
 const movementReadout = document.createElement("div");
@@ -2284,17 +2335,9 @@ lairChk.addEventListener("change", async (e) => {
 zoomChk.addEventListener("change", async (e) => {
   const enabled = !!e.target.checked;
   setCompactToggleVisual(zoomToggleWrap, enabled);
-  const next = {
-    ...(__latestInitiativeState || {}),
-    ui: {
-      ...(__latestInitiativeState?.ui || {}),
-      autoFocus: enabled,
-    },
-  };
-  __latestInitiativeState = next;
-  await setSceneState(prev => ({
-    ...(prev || {}),
-    ui: { ...(prev?.ui || {}), autoFocus: enabled },
+  await runtimeOptionsService.updateLocal((current) => ({
+    ...current,
+    tracker: { ...current.tracker, followActiveTurn: enabled },
   }));
 });
 
@@ -3058,6 +3101,45 @@ trackWrap.addEventListener("scroll", () => {
   return __isCurrentSceneOperation(sceneEpoch, "scene-state-write");
 }
 
+async function __unmountActiveTurnLabelRuntime() {
+  __activeTurnLabelRuntimeEnabled = false;
+  __activeTurnLabelDesired = null;
+  __activeTurnLabelLatestKey = null;
+  __activeTurnLabelRevision += 1;
+  if (__activeTurnLabelRetryTimer !== null) {
+    window.clearTimeout(__activeTurnLabelRetryTimer);
+    __activeTurnLabelRetryTimer = null;
+  }
+  if (__activeTurnLabelPumpPromise) {
+    await __activeTurnLabelPumpPromise.catch(() => {});
+  }
+}
+
+async function __cleanupOwnedActiveTurnLabels() {
+  const sceneEpoch = currentSceneEpoch();
+  __activeTurnLabel = null;
+  __activeTurnLabelInitialized = false;
+  const locals = await OBR.scene.local.getItems((item) => (
+    item.type === "LABEL" && !!item.metadata?.[ACTIVE_LABEL_META]
+  )).catch(() => []);
+  if (locals.length && __isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) {
+    await OBR.scene.local.deleteItems(locals.map((item) => item.id));
+  }
+  if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return;
+  const globals = await OBR.scene.items.getItems((item) => (
+    item.type === "LABEL" && !!item.metadata?.[ACTIVE_LABEL_META]
+  ));
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return;
+  if (globals.length) await OBR.scene.items.deleteItems(globals.map((item) => item.id));
+}
+
+function __reconcileActiveTurnLabelRuntime() {
+  if (!__activeTurnLabelRuntimeEnabled || !IS_GM) return;
+  const state = __latestInitiativeState;
+  const activeId = Array.isArray(state?.order) ? state.order[state.current] : null;
+  syncActiveTurnLabel(activeId);
+}
+
     // ===== Hard reset dello stato iniziativa (quando non resta alcun token tracciato)
 async function resetTrackerState(sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
@@ -3134,8 +3216,8 @@ async function centerOnItem(itemId, expectedNavigationRevision = null, sceneEpoc
   }
 }
 
-function isAutoFocusEnabled(state) {
-  return state?.ui?.autoFocus !== false;
+function isAutoFocusEnabled() {
+  return runtimeOptionsService.get(selectFollowActiveTurn);
 }
 
 async function selectAndFocus(itemId, autoFocus = true) {
@@ -3577,15 +3659,27 @@ async function __pumpActiveTurnLabel() {
       if (__activeTurnLabelRetryTimer === null) {
         __activeTurnLabelRetryTimer = window.setTimeout(() => {
           __activeTurnLabelRetryTimer = null;
-          void __pumpActiveTurnLabel();
+          __startActiveTurnLabelPump();
         }, 250);
       }
     }
   }
 }
 
+function __startActiveTurnLabelPump() {
+  if (__activeTurnLabelPumpPromise) return __activeTurnLabelPumpPromise;
+  const operation = __pumpActiveTurnLabel();
+  __activeTurnLabelPumpPromise = operation;
+  void operation.then(() => {
+    if (__activeTurnLabelPumpPromise === operation) __activeTurnLabelPumpPromise = null;
+  }, () => {
+    if (__activeTurnLabelPumpPromise === operation) __activeTurnLabelPumpPromise = null;
+  });
+  return operation;
+}
+
 function syncActiveTurnLabel(activeId) {
-  if (!IS_GM) return;
+  if (!IS_GM || !__activeTurnLabelRuntimeEnabled) return;
   const anchorId = __resolveAnchorForActive(activeId);
   const activeEntry =
     __activeLabelEntriesById.get(activeId) ||
@@ -3614,7 +3708,7 @@ function syncActiveTurnLabel(activeId) {
     labelRevision: revision,
   });
 
-  if (!__activeTurnLabelPumpRunning) void __pumpActiveTurnLabel();
+  if (!__activeTurnLabelPumpRunning) __startActiveTurnLabelPump();
 }
 function __scheduleNavigationStateFlush() {
   if (__navigationFlushTimer !== null) clearTimeout(__navigationFlushTimer);
@@ -4622,10 +4716,9 @@ async function __broadcastEffectSaveReminderTransition(
   });
   if (!notices.length) return false;
 
-  await OBR.broadcast.sendMessage(
+  await sendProjectedReminderPayload(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     { type: "show-effect-save-notices", notices },
-    { destination: "ALL" },
   );
   return __isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision });
 }
@@ -4680,10 +4773,10 @@ async function showConcentrationDamageWarning(changes = []) {
     }, { destination: "ALL" }));
   }
   if (effectNotices.length) {
-    broadcasts.push(OBR.broadcast.sendMessage(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
+    broadcasts.push(sendProjectedReminderPayload(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
       type: "show-effect-save-notices",
       notices: effectNotices,
-    }, { destination: "ALL" }));
+    }));
   }
   await Promise.all(broadcasts);
 }
@@ -4849,6 +4942,11 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
   const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"))
     .filter((card) => card.dataset.itemId === String(itemId) ||
       card.__selectionItemIds?.includes(String(itemId)));
+
+  if (!IS_GM && cards.some((card) => (card.__hpMode || "hidden") !== "exact")) {
+    void renderAll("hp-projection");
+    return;
+  }
 
   for (const card of cards) {
     const canSeeHP = card.dataset.hpCanSee === "1";
@@ -5822,6 +5920,32 @@ async function openGlobalQuickHPPopup(options = {}) {
   await openQuickHPPopup(options);
 }
 
+async function openOptionsPopup() {
+  const popupId = OPTIONS_POPUP_ID;
+  if (!await beginTrackerPopoverToggle(popupId)) return;
+  const anchorPosition = await getTrackerPopoverAnchor();
+  const viewportHeight = await OBR.viewport.getHeight().catch(() => 900);
+  try {
+    await openTrackedPopover({
+      id: popupId,
+      url: "/options-modal.html",
+      width: 720,
+      height: Math.max(360, Math.min(800, Math.floor(Number(viewportHeight) - 92))),
+      anchorReference: "POSITION",
+      anchorPosition,
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+    setOpenTrackerPopoverId(popupId);
+  } catch (error) {
+    setOpenTrackerPopoverId();
+    console.warn("[options-panel] popover open error:", error?.message || error);
+  }
+}
+
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
 const TRACKER_POPOVER_IDS = [
   `${ID}/history-modal`,
@@ -5829,6 +5953,7 @@ const TRACKER_POPOVER_IDS = [
   `${ID}/spells-modal`,
   `${ID}/reference-modal`,
   `${ID}/quick-hp-modal`,
+  OPTIONS_POPUP_ID,
   `${ID}/initiative-card-modal`,
   `${ID}/compact-effects-popover`,
   COMPACT_ADMIN_MENU_ID,
@@ -5839,6 +5964,7 @@ function syncGlobalPanelButtonPressedState() {
   globalEffectsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === EFFECTS_POPUP_ID));
   globalSpellsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === SPELLS_POPUP_ID));
   globalQuickHPButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === QUICK_HP_POPUP_ID));
+  globalOptionsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === OPTIONS_POPUP_ID));
   applyToolbarLayoutPresentation(isCompactTrackerLayout());
 }
 
@@ -7842,12 +7968,22 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
     function renderTrack(entries, state, opts = {}) {
     if (__suspendRenders) return;
     const animateActive = !!opts.animateActive;
-    if (isCompactTrackerLayout()) {
-      return renderCompactTrack(entries, state, {
+    const compactLayout = isCompactTrackerLayout();
+    const projectionPolicy = runtimeOptionsService.get(selectTrackerProjectionPolicy);
+    const projectedEntries = projectTrackerEntries(entries, {
+      role: IS_GM ? "GM" : "PLAYER",
+      surface: compactLayout ? "trackerCompact" : "trackerClassic",
+      hpPolicy: projectionPolicy.hp,
+      effectsPolicy: projectionPolicy.effects,
+      bossDetails: projectionPolicy.bossDetails,
+    });
+    if (compactLayout) {
+      return renderCompactTrack(projectedEntries, state, {
         animateActive,
         itemIds: opts.itemIds,
       });
     }
+    entries = projectedEntries;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
     const currentActiveId = len ? state.order[activeIdx] : null;   // <-- AGGIUNTO QUI
@@ -8481,6 +8617,51 @@ try {
         (await OBR.room?.getRole?.()) ||
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
+      const hpBarsBinding = bindOptionalRuntimeOption({
+        service: runtimeOptionsService,
+        selector: selectMapHpBarsEnabled,
+        lifecycle: __hpBarsLifecycle,
+        reconcileInitial: false,
+      });
+      const activeTurnLabelBinding = bindOptionalRuntimeOption({
+        service: runtimeOptionsService,
+        selector: selectActiveTurnLabelEnabled,
+        lifecycle: __activeTurnLabelLifecycle,
+      });
+      await Promise.all([hpBarsBinding.ready, activeTurnLabelBinding.ready]);
+      __trackerLayout = runtimeOptionsService.get(selectTrackerLayout);
+      updateLayoutToggleButton();
+      applyTrackerLayout();
+      const projectionPolicy = runtimeOptionsService.get(selectTrackerProjectionPolicy);
+      setHPBarPlayerPolicy(projectionPolicy.hp);
+      __optionsProjectionUnsubscribe ||= runtimeOptionsService.subscribe(
+        selectTrackerProjectionPolicy,
+        (nextPolicy) => {
+          setHPBarPlayerPolicy(nextPolicy.hp);
+          void renderAll("options-projection");
+          if (IS_GM) void syncInitialHPBars();
+        },
+        { emitCurrent: false },
+      );
+      __optionsPresentationUnsubscribe ||= runtimeOptionsService.subscribe(
+        (options) => ({
+          layout: selectTrackerLayout(options),
+          followActiveTurn: selectFollowActiveTurn(options),
+        }),
+        (presentation) => {
+          const layoutChanged = __trackerLayout !== presentation.layout;
+          __trackerLayout = presentation.layout;
+          updateLayoutToggleButton();
+          applyTrackerLayout();
+          zoomChk.checked = presentation.followActiveTurn;
+          setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
+          if (layoutChanged) {
+            __syncTrackerPopoverSizeForLayout();
+            void renderAll("options-presentation");
+          }
+        },
+        { emitCurrent: false },
+      );
       viewOptionsRow.style.display = IS_GM ? "flex" : "none";
       globalPanelsWrap.style.display = IS_GM ? "inline-flex" : "none";
       zoomToggleWrap.style.display = IS_GM ? "flex" : "none";
@@ -8544,7 +8725,6 @@ try {
 } catch (e) {
   console.error("[hpbar] mount error", e?.error?.message || e?.message || e);
 }
-  await mountHPBars({ deferInitialSync: true });
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-hp-bars")) return;
   if (IS_GM) {
     enableSpeedCheckProcessor();
@@ -8572,7 +8752,7 @@ try {
     const runDeferredBootstrap = async () => {
       if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-start")) return;
       try {
-        await syncInitialHPBars();
+        await __hpBarsLifecycle.reconcileFull();
       } catch (err) {
         console.warn("[hpbar] deferred boot sync error:", err?.message || err);
       }

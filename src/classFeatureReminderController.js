@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
@@ -55,10 +56,9 @@ async function reconcileRelentlessRageReminders(event) {
     if (notice) notices.push(notice);
   }
   if (!notices.length) return;
-  await OBR.broadcast.sendMessage(
+  await sendProjectedReminderPayload(
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     { type: "show-effect-save-notices", notices },
-    { destination: "ALL" },
   );
 }
 

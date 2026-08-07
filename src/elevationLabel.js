@@ -15,6 +15,21 @@ let mounted = false;
 let running = false;
 let queued = false;
 let timer = 0;
+let unsubscribeItems = null;
+let unsubscribeHPBars = null;
+let unsubscribeGrid = null;
+const idleWaiters = new Set();
+
+function resolveIdleWaiters() {
+  if (running || queued || timer) return;
+  for (const resolve of idleWaiters) resolve();
+  idleWaiters.clear();
+}
+
+function waitForElevationIdle() {
+  if (!running && !queued && !timer) return Promise.resolve();
+  return new Promise((resolve) => idleWaiters.add(resolve));
+}
 
 function labelText(elevation, unit) {
   const arrow = elevation > 0 ? "\u25B2" : "\u25BC";
@@ -61,6 +76,7 @@ function differs(label, spec, tokenId) {
 }
 
 async function reconcileElevationLabels() {
+  if (!mounted) return;
   if (running) {
     queued = true;
     return;
@@ -173,24 +189,65 @@ async function reconcileElevationLabels() {
       queued = false;
       scheduleElevationLabels();
     }
+    resolveIdleWaiters();
   }
 }
 
 function scheduleElevationLabels() {
+  if (!mounted) return;
   clearTimeout(timer);
-  timer = setTimeout(() => void reconcileElevationLabels(), 80);
+  timer = setTimeout(() => {
+    timer = 0;
+    void reconcileElevationLabels();
+  }, 80);
 }
 
-export function mountElevationLabelWatcher() {
-  if (mounted) return;
+export async function cleanupOwnedElevationLabels() {
+  const role = await OBR.player.getRole().catch(() => "PLAYER");
+  if (role !== "GM") return 0;
+  const labels = await OBR.scene.items.getItems((item) => (
+    item.type === "LABEL" && !!item.metadata?.[LABEL_OWNER_META]
+  ));
+  if (labels.length) await OBR.scene.items.deleteItems(labels.map((item) => item.id));
+  return labels.length;
+}
+
+export async function reconcileAllElevationLabels() {
+  if (!mounted) return false;
+  clearTimeout(timer);
+  timer = 0;
+  await reconcileElevationLabels();
+  await waitForElevationIdle();
+  return true;
+}
+
+export async function mountElevationLabelWatcher() {
+  if (mounted) return true;
   mounted = true;
-  void OBR.player.getRole().then((role) => {
-    if (role !== "GM") return;
-    subscribeSceneItemChanges(scheduleElevationLabels, {
-      domains: ["elevation"],
-      immediate: true,
-    });
-    OBR.scene.grid.onChange(scheduleElevationLabels);
-    scheduleElevationLabels();
-  }).catch(() => {});
+  const role = await OBR.player.getRole().catch(() => "PLAYER");
+  if (!mounted || role !== "GM") return false;
+  unsubscribeItems = subscribeSceneItemChanges(scheduleElevationLabels, {
+    domains: ["elevation"],
+    immediate: true,
+  });
+  unsubscribeHPBars = subscribeSceneItemChanges(scheduleElevationLabels, {
+    domains: ["hp"],
+  });
+  unsubscribeGrid = OBR.scene.grid.onChange(scheduleElevationLabels);
+  scheduleElevationLabels();
+  return true;
+}
+
+export async function unmountElevationLabelWatcher() {
+  mounted = false;
+  clearTimeout(timer);
+  timer = 0;
+  queued = false;
+  unsubscribeItems?.();
+  unsubscribeHPBars?.();
+  unsubscribeGrid?.();
+  unsubscribeItems = null;
+  unsubscribeHPBars = null;
+  unsubscribeGrid = null;
+  await waitForElevationIdle();
 }

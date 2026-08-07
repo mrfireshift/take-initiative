@@ -940,11 +940,12 @@ if (paragonDock) header.appendChild(paragonDock);
 
   card.appendChild(header);
 
-// === HP pill (solo GM)
-// === HP pill (GM sempre; Player solo per ally/pc)
-const _att = String(e.attitude || "").toLowerCase();
-const PLAYER_VISIBLE_ATTITUDES = ["ally", "pc"];
-const _playerCanSeeHP = PLAYER_VISIBLE_ATTITUDES.includes(_att);
+// === HP: il GM usa i valori canonici, il Player il view model proiettato.
+const _playerCanSeeHP = CLASSIC_HP_VISIBLE;
+const _hpDisclosure = e.hpDisclosure && typeof e.hpDisclosure === "object"
+  ? e.hpDisclosure
+  : null;
+const _hpMode = _hpDisclosure?.mode || "exact";
 
 if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isEpicActionId(e.id)) {
   const hpControlsRow = document.createElement("div");
@@ -965,7 +966,9 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
   });
 
   const pill = document.createElement("div");
-  pill.title = "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi";
+  pill.title = IS_GM
+    ? "Click: modifica HP. +N/-N sui token selezionati; ± modifica anche gli HP massimi"
+    : _hpMode === "status" ? "Stato HP" : "Barra HP";
   pill.style.position = "relative";
   pill.style.marginRight = "0";
   pill.style.padding = "0";
@@ -983,7 +986,19 @@ if ((IS_GM || _playerCanSeeHP) && !e.__groupCollapsed && !isLairId(e.id) && !isE
 
   const hpVal  = CLASSIC_HP_VALUE;
   const hpMaxV = CLASSIC_HP_MAX;
-  pill.innerHTML = formatHPHTML(hpVal, hpMaxV);   // <-- usa HTML per colorare cur se temp
+  const _statusLabels = {
+    down: "Fuori combattimento",
+    critical: "Critico",
+    bloodied: "Ferito",
+    hurt: "Provato",
+    healthy: "In salute",
+  };
+  pill.innerHTML = _hpMode === "bar"
+    ? ""
+    : _hpMode === "status"
+      ? (_statusLabels[_hpDisclosure?.status] || "Stato sconosciuto")
+      : formatHPHTML(hpVal, hpMaxV);
+  pill.style.display = _hpMode === "bar" ? "none" : "block";
   if (KNOCKED_OUT) pill.style.color = "rgba(255,255,255,.58)";
   pill.dataset.badge  = "hp";
   pill.dataset.itemId = e.id;

@@ -8,6 +8,8 @@ import {
   METADATA_OWNERSHIP,
   writeSceneMetadataKey,
 } from "./metadataKeyScoped.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectCombatLogEnabled } from "./options/optionsSelectors.js";
 
 const DB_NAME = `${ID}.combat-log`;
 const DB_VERSION = 1;
@@ -19,6 +21,29 @@ const CHANNEL = `${ID}/combat-log-change`;
 const LAIR_ID = "__LAIR__";
 let writeQueue = Promise.resolve();
 let dbPromise = null;
+let eventSinkEnabled = true;
+let unsubscribeEventSinkOption = null;
+
+export function mountCombatLogEventSink() {
+  eventSinkEnabled = runtimeOptionsService.get(selectCombatLogEnabled);
+  unsubscribeEventSinkOption ||= runtimeOptionsService.subscribe(
+    selectCombatLogEnabled,
+    (enabled) => { eventSinkEnabled = enabled === true; },
+    { emitCurrent: false },
+  );
+  void startRuntimeOptions().catch(() => {});
+  return eventSinkEnabled;
+}
+
+export function unmountCombatLogEventSink() {
+  unsubscribeEventSinkOption?.();
+  unsubscribeEventSinkOption = null;
+  eventSinkEnabled = false;
+}
+
+export function isCombatLogEventSinkEnabled() {
+  return eventSinkEnabled;
+}
 
 function isSceneEpochCurrent(sceneEpoch) {
   return sceneEpoch == null || isCurrentSceneEpoch(sceneEpoch);
@@ -285,9 +310,9 @@ async function resolveTurn(activeId, { sceneEpoch = currentSceneEpoch() } = {}) 
 }
 
 export async function appendCombatLogEvent(input, { sceneEpoch = currentSceneEpoch() } = {}) {
-  if (!isSceneEpochCurrent(sceneEpoch)) return [];
+  if (!eventSinkEnabled || !isSceneEpochCurrent(sceneEpoch)) return [];
   return queueWrite(async () => {
-    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    if (!eventSinkEnabled || !isSceneEpochCurrent(sceneEpoch)) return [];
     const session = await ensureCombatLogSession({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch) || !session) return [];
     const context = await currentContext({ sceneEpoch });
@@ -302,7 +327,7 @@ export async function appendCombatLogEvent(input, { sceneEpoch = currentSceneEpo
 }
 
 export async function recordHistoryInCombatLog(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
-  if (!isSceneEpochCurrent(sceneEpoch)) return [];
+  if (!eventSinkEnabled || !isSceneEpochCurrent(sceneEpoch)) return [];
   try {
     const context = await currentContext({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch)) return [];
@@ -351,8 +376,8 @@ export async function recordNativeMovementUndo(changes, { sceneEpoch = currentSc
 }
 
 export async function recordCombatTurn(state, { sceneEpoch = currentSceneEpoch() } = {}) {
-  if (!state || !Array.isArray(state.order) || !state.order.length) return [];
-  return queueWrite(() => recordCombatTurnForEpoch({
+  if (!eventSinkEnabled || !state || !Array.isArray(state.order) || !state.order.length) return [];
+  return queueWrite(() => eventSinkEnabled ? recordCombatTurnForEpoch({
     state,
     sceneEpoch,
     isCurrent: isCurrentSceneEpoch,
@@ -363,7 +388,7 @@ export async function recordCombatTurn(state, { sceneEpoch = currentSceneEpoch()
       resolveTurn(activeId, { sceneEpoch: operationEpoch }),
     appendEvents: (sessionId, inputs, patch, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
       appendEventsNow(sessionId, inputs, patch, { sceneEpoch: operationEpoch }),
-  }));
+  }) : []);
 }
 
 export async function addCombatLogNote(text) {

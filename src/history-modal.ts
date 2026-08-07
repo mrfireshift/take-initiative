@@ -10,6 +10,7 @@ import {
   exportCombatLogText,
   getActiveCombatLogData,
   listCombatLogSessions,
+  mountCombatLogEventSink,
   recordCombatTurn,
   startCombatLogSession,
   subscribeCombatLog,
@@ -697,6 +698,7 @@ function queueRefresh() {
 }
 
 OBR.onReady(async () => {
+  await mountCombatLogEventSink();
   document.documentElement.style.margin = "0";
   document.body.style.margin = "0";
   document.body.style.background = "transparent";
