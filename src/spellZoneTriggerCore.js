@@ -50,6 +50,18 @@ function normalizedMemberPositions(value = {}) {
   return positions;
 }
 
+function normalizedTargetIdsByTrigger(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries(
+    Object.entries(source)
+      .map(([triggerId, targetIds]) => [
+        String(triggerId || "").trim(),
+        uniqueIds(targetIds),
+      ])
+      .filter(([triggerId]) => triggerId),
+  );
+}
+
 function initiativeActorId(state) {
   const order = Array.isArray(state?.order) ? state.order : [];
   if (!order.length) return "";
@@ -86,6 +98,7 @@ export function normalizeSpellZoneTriggerRuntime(value = {}) {
     evaluatedTurnKey: String(source.evaluatedTurnKey || "").trim(),
     evaluatedActorId: String(source.evaluatedActorId || "").trim(),
     areaPosition: normalizedPoint(source.areaPosition),
+    areaMoveTargetIds: normalizedTargetIdsByTrigger(source.areaMoveTargetIds),
     handledKeys: uniqueIds(source.handledKeys),
     pending: normalizedPending(source.pending),
     sequence: Math.max(0, Math.floor(Number(source.sequence) || 0)),
@@ -110,10 +123,12 @@ function activationTargets({
   leaving,
   moving,
   currentMembers,
+  currentDirectMembers,
   previousMembers,
   turnChanged,
   activeActorId,
   previousActorId,
+  areaMoveTargetIds,
 }) {
   if (trigger.requiresAreaMove === true && !zoneMoved) return [];
   const targetMode = String(trigger?.targetMode || "actor").trim();
@@ -125,6 +140,13 @@ function activationTargets({
   }
   if (trigger.event === "enter") {
     if (!initialized || (zoneMoved && trigger.triggerOnAreaMove !== true)) return [];
+    if (targetMode === "direct-members") {
+      return zoneMoved
+        ? (Array.isArray(areaMoveTargetIds?.[trigger.id])
+          ? [...areaMoveTargetIds[trigger.id]]
+          : [...currentDirectMembers])
+        : [];
+    }
     return trigger.requiresOwnTurn === true
       ? entering.filter((targetId) => targetId === activeActorId)
       : entering;
@@ -187,6 +209,7 @@ export function planSpellZoneTriggers({
   zoneMetadata = null,
   runtime = null,
   currentTargetIds = [],
+  currentDirectTargetIds = [],
   currentTargetPositions = {},
   initiativeState = null,
   suppressedTargetIdsByTrigger = {},
@@ -196,6 +219,7 @@ export function planSpellZoneTriggers({
   const previous = normalizeSpellZoneTriggerRuntime(runtime);
   const currentIds = uniqueIds(currentTargetIds);
   const currentMembers = new Set(currentIds);
+  const currentDirectMembers = new Set(uniqueIds(currentDirectTargetIds));
   const previousMembers = new Set(previous.memberIds);
   const entering = currentIds.filter((targetId) => !previousMembers.has(targetId));
   const leaving = previous.memberIds.filter((targetId) => !currentMembers.has(targetId));
@@ -306,10 +330,12 @@ export function planSpellZoneTriggers({
       leaving,
       moving,
       currentMembers,
+      currentDirectMembers,
       previousMembers,
       turnChanged,
       activeActorId,
       previousActorId: previous.evaluatedActorId,
+      areaMoveTargetIds: previous.areaMoveTargetIds,
     }).filter((targetId) => !suppressed.has(targetId));
     const eligible = candidates.filter((targetId) => {
       const key = frequencyKey(trigger, targetId, turnKey);
@@ -401,6 +427,7 @@ export function planSpellZoneTriggers({
       evaluatedTurnKey: currentTurnKey,
       evaluatedActorId: activeActorId,
       areaPosition: nextAreaPosition,
+      areaMoveTargetIds: {},
       handledKeys,
       pending,
       sequence,

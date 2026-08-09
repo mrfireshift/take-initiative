@@ -59,7 +59,7 @@ if (requestId) {
     { action: "history", label: "Cronologia", icon: "history.svg" },
     { action: "add-all", label: "Aggiungi attori", icon: "+" },
     { action: "fill-initiative", label: "Compila iniziativa", icon: "✎" },
-    { action: "factions", label: "Configura fazioni", icon: "mark.svg" },
+    { action: "options", label: "Opzioni", icon: "options.svg" },
     { action: "clear-initiative", label: "Svuota iniziativa", icon: "×", danger: true },
   ].forEach(addAction);
 

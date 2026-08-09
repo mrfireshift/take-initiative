@@ -5,6 +5,10 @@ import {
 } from "./conditionRulesCore.js";
 import { normalizeExhaustionLevel } from "./exhaustionCore.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
+import {
+  normalizeDeferredEffects,
+  normalizeSpellEndConsequences,
+} from "./spellLifecycleContracts.js";
 
 const CONDITION_SCHEMA_VERSION = 2;
 const EXHAUSTION_CONDITION = "Indebolimento";
@@ -63,6 +67,17 @@ function normalizedExpiry(value, legacyTurns = null, legacyTiming = "rounds") {
   return expiry;
 }
 
+function normalizedActivation(value, sourceId, targetId) {
+  if (!value || typeof value !== "object") return null;
+  const activation = normalizedExpiry(value);
+  if (activation.mode !== "turn-start" && activation.mode !== "turn-end") return null;
+  activation.actor = activation.actor === "source" ? "source" : "target";
+  if (!activation.actorId) {
+    activation.actorId = activation.actor === "source" ? sourceId : targetId;
+  }
+  return activation;
+}
+
 function normalizedAppliedAt(value) {
   if (!value || typeof value !== "object") return null;
   const result = {};
@@ -92,6 +107,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     Math.max(0, Math.floor(Number(options.turns) || 0)) || null,
     options.durationBy || options.timing || "rounds"
   );
+  const activation = normalizedActivation(options.activation, sourceId, targetId);
 
   if (expiry.mode === "turn-start" || expiry.mode === "turn-end") {
     expiry.actor = expiry.actor === "source" ? "source" : "target";
@@ -102,11 +118,12 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   const instance = {
     id: String(instanceId),
     condition,
-    active: true,
+    active: activation ? false : options.active !== false,
     targetId,
     expiry,
     createdAt: Number(operation?.createdAt) || Date.now(),
   };
+  if (activation) instance.activation = activation;
   if (sourceId) instance.sourceId = sourceId;
   if (options.sourceName) instance.sourceName = String(options.sourceName);
   if (options.parentEffectId) instance.parentEffectId = String(options.parentEffectId);
@@ -125,6 +142,21 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
       ? saveReminders[0]
       : saveReminders;
   }
+  const deferredEffects = normalizeDeferredEffects(
+    options.deferredEffects ?? options.deferredEffect,
+  ).map((effect) => ({
+    ...effect,
+    ...(sourceId || options.sourceName
+      ? {
+        provenance: {
+          ...(effect.provenance || {}),
+          ...(sourceId ? { casterId: sourceId } : {}),
+          ...(options.sourceName ? { casterName: String(options.sourceName) } : {}),
+        },
+      }
+      : {}),
+  }));
+  if (deferredEffects.length) instance.deferredEffects = deferredEffects;
   if (options.mechanics && typeof options.mechanics === "object") {
     instance.mechanics = clone(options.mechanics);
   }
@@ -218,13 +250,18 @@ function removeLinkedConditionsFromAllStates(states, parentEffectId) {
   }
 }
 
-function applyParentEndConditions(state, parentEffectIds = []) {
+function applyParentEndConditions(
+  state,
+  parentEffectIds = [],
+  { naturalOnly = false } = {},
+) {
   const parentIds = new Set(uniqueIds(parentEffectIds));
   if (!parentIds.size) return;
   const linked = state.conditions.filter((instance) =>
     parentIds.has(String(instance?.parentEffectId || "").trim())
     && instance?.parentEndCondition
     && typeof instance.parentEndCondition === "object"
+    && (naturalOnly || instance.parentEndCondition.naturalOnly !== true)
   );
   for (const instance of linked) {
     const consequence = instance.parentEndCondition;
@@ -246,6 +283,9 @@ function applyParentEndConditions(state, parentEffectIds = []) {
       },
       options: {
         type: "automatic",
+        ...(consequence.options && typeof consequence.options === "object"
+          ? clone(consequence.options)
+          : {}),
         expiry: consequence.expiry && typeof consequence.expiry === "object"
           ? clone(consequence.expiry)
           : { mode: "manual" },
@@ -262,6 +302,35 @@ function applyParentEndConditionsToAllStates(states, parentEffectId) {
   }
 }
 
+function applySpellEndConsequences(state, removedSpells) {
+  for (const spell of Array.isArray(removedSpells) ? removedSpells : []) {
+    const consequences = normalizeSpellEndConsequences(spell?.onSpellEnd);
+    if (!consequences.length) continue;
+    for (const consequence of consequences) {
+      const targetId = consequence.target === "source"
+        ? String(spell?.casterId || "").trim()
+        : state.id;
+      if (!targetId || targetId !== state.id) continue;
+      const parentId = String(spell?.instanceId || spell?.id || "").trim();
+      const instanceId = `${parentId}:on-spell-end:${consequence.id}:${targetId}`;
+      const options = {
+        ...(consequence.options || {}),
+        type: "automatic",
+        ...(spell?.casterId ? { sourceId: String(spell.casterId) } : {}),
+        ...(spell?.casterName ? { sourceName: String(spell.casterName) } : {}),
+      };
+      delete options.parentEffectId;
+      appendCondition(state, {
+        operationId: `spell-end:${parentId}:${consequence.id}`,
+        createdAt: Number(spell?.appliedAt?.round) || Date.now(),
+        conditionName: consequence.condition,
+        instanceIds: { [targetId]: instanceId },
+        options,
+      }, targetId);
+    }
+  }
+}
+
 function removeSpells(state, predicate) {
   const removed = [];
   const next = [];
@@ -271,6 +340,7 @@ function removeSpells(state, predicate) {
   }
   if (removed.length) {
     state.spells = next;
+    applySpellEndConsequences(state, removed);
     removeLinkedConditions(state, removed);
   }
   return removed;
@@ -373,6 +443,7 @@ function applySpellUpsert(state, operation) {
     );
   const extra = {};
   if (sourceId) extra.casterId = sourceId;
+  if (operation?.casterName) extra.casterName = String(operation.casterName);
   if (operation?.conc != null) extra.conc = operation.conc === true;
   if (instanceId) extra.instanceId = instanceId;
   if (spellId) extra.spellId = spellId;
@@ -381,6 +452,8 @@ function applySpellUpsert(state, operation) {
   if (operation?.castContext && typeof operation.castContext === "object") {
     extra.castContext = clone(operation.castContext);
   }
+  const onSpellEnd = normalizeSpellEndConsequences(operation?.onSpellEnd);
+  if (onSpellEnd.length) extra.onSpellEnd = { conditions: onSpellEnd };
   const expiry = normalizedExpiry(operation?.expiry);
   if (operation?.expiry && expiry.mode !== "rounds") {
     if (expiry.mode === "turn-start" || expiry.mode === "turn-end") {
@@ -428,11 +501,13 @@ function applySpellAdjustment(states, operation) {
       }
     }
     state.spells = next;
+    applySpellEndConsequences(state, removed);
     applyParentEndConditions(
       state,
       removed
         .filter((spell) => spell?.conc === true)
         .map((spell) => spell?.instanceId),
+      { naturalOnly: true },
     );
     removeLinkedConditions(state, removed);
   }
@@ -506,11 +581,13 @@ function applySpellBoundaryAdjustment(states, operation) {
       }
     }
     state.spells = next;
+    applySpellEndConsequences(state, removed);
     applyParentEndConditions(
       state,
       removed
         .filter((spell) => spell?.conc === true)
         .map((spell) => spell?.instanceId),
+      { naturalOnly: true },
     );
     removeLinkedConditions(state, removed);
   }
@@ -524,6 +601,25 @@ function applyConditionBoundaryAdjustment(states, operation) {
     const state = states.get(targetId);
     if (!state?.conditions.length) continue;
     state.conditions = state.conditions.flatMap((instance) => {
+      const activation = instance?.activation || null;
+      if (
+        instance?.active === false
+        && activation
+        && (activation.mode === "turn-start" || activation.mode === "turn-end")
+      ) {
+        const actorId = String(activation.actorId || (
+          activation.actor === "source" ? instance?.sourceId : state.id
+        ) || "").trim();
+        const matches = boundaryMatchCount(activation, actorId, instance?.appliedAt, boundaries);
+        const remaining = Math.max(1, Math.floor(Number(activation.remaining) || 1));
+        const nextRemaining = remaining - matches;
+        if (nextRemaining > 0) {
+          return [{ ...instance, activation: { ...activation, remaining: nextRemaining } }];
+        }
+        const activated = { ...instance, active: true };
+        delete activated.activation;
+        return [activated];
+      }
       const expiry = instance?.expiry || {};
       if (expiry.mode !== "turn-start" && expiry.mode !== "turn-end") return [instance];
       const actorId = String(expiry.actorId || (

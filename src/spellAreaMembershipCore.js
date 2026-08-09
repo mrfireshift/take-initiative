@@ -1,4 +1,4 @@
-import { areaHitsBounds } from "./aoeGeometryCore.js";
+import { areaContainsBounds, areaHitsBounds } from "./aoeGeometryCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -29,6 +29,48 @@ function attitudeGroup(item, metaKey) {
   return "neutral";
 }
 
+function areaWithCellPadding(area, paddingSquares) {
+  const padding = Math.max(0, Math.floor(Number(paddingSquares) || 0));
+  if (!padding || !Array.isArray(area?.cells) || !area.cells.length) {
+    return area;
+  }
+  const cellsByKey = new Map();
+  for (const cell of area.cells) {
+    const x = Number(cell?.x);
+    const y = Number(cell?.y);
+    const width = Number(cell?.width);
+    const height = Number(cell?.height);
+    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+      continue;
+    }
+    for (let columnOffset = -padding; columnOffset <= padding; columnOffset += 1) {
+      for (let rowOffset = -padding; rowOffset <= padding; rowOffset += 1) {
+        const paddedCell = {
+          ...cell,
+          x: x + columnOffset * width,
+          y: y + rowOffset * height,
+          ...(Number.isFinite(Number(cell.column))
+            ? { column: Number(cell.column) + columnOffset }
+            : {}),
+          ...(Number.isFinite(Number(cell.row))
+            ? { row: Number(cell.row) + rowOffset }
+            : {}),
+        };
+        const key = [
+          paddedCell.x,
+          paddedCell.y,
+          width,
+          height,
+        ].join(":");
+        cellsByKey.set(key, paddedCell);
+      }
+    }
+  }
+  return cellsByKey.size
+    ? { ...area, cells: [...cellsByKey.values()] }
+    : area;
+}
+
 export function areaMembershipEffects(rule) {
   if (Array.isArray(rule?.zonePolicy?.membershipEffects)) {
     return rule.zonePolicy.membershipEffects;
@@ -48,6 +90,7 @@ export function areaMembershipTargetIds({
   area = null,
   candidates = [],
   metaKey = "",
+  membershipPaddingSquares = undefined,
 } = {}) {
   if (!rule || !area) return [];
   const normalizedSourceId = String(sourceId || "").trim();
@@ -56,6 +99,10 @@ export function areaMembershipTargetIds({
   )?.item;
   const sourceGroup = attitudeGroup(source, metaKey);
   const targeting = rule.zonePolicy?.membershipTargeting || rule.targeting || {};
+  const paddingSquares = membershipPaddingSquares === undefined
+    ? rule.zonePolicy?.membershipPaddingSquares
+    : membershipPaddingSquares;
+  const membershipArea = areaWithCellPadding(area, paddingSquares);
   return uniqueIds(candidates
     .filter(({ item, bounds }) => {
       const targetId = String(item?.id || "").trim();
@@ -67,7 +114,9 @@ export function areaMembershipTargetIds({
       const targetGroup = attitudeGroup(item, metaKey);
       if (filter === "hostile" && targetGroup === sourceGroup) return false;
       if (filter === "friendly" && targetGroup !== sourceGroup) return false;
-      return areaHitsBounds(area, bounds);
+      return targeting.containment === "fully-inside"
+        ? areaContainsBounds(membershipArea, bounds)
+        : areaHitsBounds(membershipArea, bounds);
     })
     .map(({ item }) => item.id));
 }

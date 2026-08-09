@@ -2,9 +2,11 @@ import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import {
   buildEffectSaveReminderResolution,
+  buildDeferredEffectResolution,
   normalizeReminderResolution,
   REMINDER_RESOLUTIONS_FIELD,
 } from "./reminderResolutionCore.js";
+import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
@@ -285,6 +287,63 @@ function reminderNotice({
   };
 }
 
+function deferredEffectNotice({
+  item,
+  instance,
+  deferredEffect,
+  activationId,
+  turnKey,
+  itemsById,
+}) {
+  if (!item?.id || !instance?.id || !deferredEffect?.id || !activationId) return null;
+  const save = deferredEffect.save && typeof deferredEffect.save === "object"
+    ? deferredEffect.save
+    : null;
+  const ability = save ? ABILITIES[String(save.ability || "").trim().toLowerCase()] : null;
+  const dc = save ? optionalDC(save.dc) : null;
+  const source = deferredEffect.provenance || {};
+  const sourceName = String(
+    itemsById.get(String(instance?.sourceId || source.casterId || "").trim())?.name
+      || source.casterName
+      || instance?.sourceName
+      || ""
+  ).trim().slice(0, 100);
+  const effectName = String(
+    instance.condition || instance.name || deferredEffect.reminder || "Effetto"
+  ).trim().slice(0, 120) || "Effetto";
+  const saveLabel = ability
+    ? `TS ${ability.label}${dc === null ? "" : ` CD ${dc}`}`
+    : deferredEffect.reminder;
+  const resolution = buildDeferredEffectResolution({
+    item,
+    instance,
+    deferredEffect,
+    activationId,
+    turnKey,
+  });
+  return {
+    activationId,
+    turnKey,
+    effectName,
+    saveLabel,
+    instruction: deferredEffect.reminder,
+    ...(deferredEffect.timing !== "immediate"
+      ? { timing: deferredEffect.timing }
+      : {}),
+    ...(ability ? { ability: ability.short } : {}),
+    ...(dc !== null ? { dc } : {}),
+    ...(sourceName ? { sourceName } : {}),
+    kind: ability ? "effect-save" : "effect-reminder",
+    eyebrow: ability ? "Tiro salvezza differito" : "Promemoria effetto",
+    ...(resolution ? { resolution } : {}),
+    target: {
+      id: item.id,
+      name: String(item.name || "Token").trim().slice(0, 100) || "Token",
+      portrait: itemPortrait(item),
+    },
+  };
+}
+
 function noticesForTiming(
   items,
   itemsById,
@@ -322,6 +381,35 @@ function noticesForTiming(
           item,
           instance,
           reminder,
+          activationId,
+          turnKey: noticeTurnKey,
+          itemsById,
+        });
+        if (notice) notices.push(notice);
+      }
+      for (const deferredEffect of normalizeDeferredEffects(
+        instance.deferredEffects ?? instance.deferredEffect,
+      )) {
+        if (deferredEffect.timing !== timing) continue;
+        const wantedActorId = deferredEffect.actor === "source"
+          ? actorId(deferredEffect.provenance?.casterId || instance.sourceId)
+          : String(item.id || "").trim();
+        if (timing !== "immediate" && (!wantedActorId || wantedActorId !== boundaryActorId)) continue;
+        if (
+          deferredEffect.anchor === "next-turn"
+          && String(instance?.appliedAt?.turnKey || "").trim() === eventKey
+        ) continue;
+        const activationId = `${item.id}:${instance.id}:deferred:${deferredEffect.id}:${timing}:${eventKey}`;
+        const resolutions = item?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD];
+        if (
+          resolutions
+          && typeof resolutions === "object"
+          && Object.prototype.hasOwnProperty.call(resolutions, activationId)
+        ) continue;
+        const notice = deferredEffectNotice({
+          item,
+          instance,
+          deferredEffect,
           activationId,
           turnKey: noticeTurnKey,
           itemsById,
@@ -394,7 +482,16 @@ export function planEffectSaveReminderNotices({
     `${boundary.timing}:${boundary.actorId}:${boundary.turnKey}`,
     boundary,
   ]));
-  const notices = [...uniqueBoundaries.values()].flatMap((boundary) => [
+  const notices = [
+    ...noticesForTiming(
+      list,
+      itemsById,
+      "immediate",
+      "",
+      "immediate",
+      "",
+    ),
+    ...[...uniqueBoundaries.values()].flatMap((boundary) => [
     ...noticesForTiming(
       list,
       itemsById,
@@ -410,7 +507,8 @@ export function planEffectSaveReminderNotices({
       boundary.turnKey,
       boundary.noticeTurnKey,
     ),
-  ]);
+    ]),
+  ];
   return [...new Map(notices.map((notice) => [
     notice.activationId,
     notice,

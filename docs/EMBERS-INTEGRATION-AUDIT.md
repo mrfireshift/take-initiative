@@ -284,11 +284,11 @@ Conversioni da usare nel bridge:
 
 | Take Initiative | Embers |
 |---|---|
-| centro/raggio del cerchio in coordinate scena | `source` + `size` |
-| `preview.start` → `preview.end` del cono | `source = start`, `size = distance(start,end)`, `rotation = atan2(dy,dx)` in gradi |
+| centro/raggio del cerchio in coordinate scena | `source` + `size = 2 * radius / preview.dpi` (larghezza del CIRCLE) |
+| `preview.start` → `preview.end` del cono | `source = start`, `size = distance(start,end) / preview.dpi`, `rotation = atan2(dy,dx)` in gradi |
 | centro caster/target bounds | punti `source`/`destination` del projectile |
-| `dpi` corrente della griglia | Embers lo legge dal proprio scene context; il bridge deve usare lo stesso scene coordinate space |
-| metri/celle da `spellAreaRules` | convertire prima in coordinate scena; mai inviare `5`, `15`, `20` come `size` senza conversione |
+| `dpi` corrente della griglia | converte le distanze scena in grid units Embers; i punti del projectile restano coordinate scena |
+| metri/celle da `spellAreaRules` | convertire nella sagoma scena e poi dividere per `preview.dpi`; mai inviare metri grezzi come `size` |
 
 Per un cerchio, `aoeGeometryCore.buildCircleArea()` tratta `start` come centro e la distanza `start → end` come raggio. Per un cono, `buildConeArea()` tratta `start` come origine e la distanza `start → end` come lunghezza. Questa corrispondenza rende possibile usare il preview già confermato senza fare una seconda selezione Embers.
 
@@ -458,6 +458,55 @@ Finché le domande 1, 2, 5, 6 e 7 non hanno risposta, la copertura deve restare 
 
 ## 15. Decisione finale
 
-**GO WITH LIMITATIONS.** Procedere solo con un adapter opt-in post-commit per Fire Bolt, Burning Hands e Fireball, mantenendo Take Initiative come unico proprietario dello stato e accettando che il rendering sia best effort. Rimandare persistenti, attached effects, actions, onDestroy, retry/prefetch e copia cataloghi/asset fino a contratto, lifecycle e licenze chiariti con l'autore di Embers.
+**GO WITH LIMITATIONS.** L’implementazione aggiornata copre le 54 spell
+riconciliabili con un renderer locale best-effort, mantenendo Take Initiative
+come unico proprietario dello stato. Persistenti, attached effects, actions,
+onDestroy, retry/prefetch e lifecycle di concentrazione restano esclusi dal
+percorso visuale e richiedono un contratto dedicato prima di essere sincronizzati.
 
-La raccomandazione concreta è: **broadcast legacy minimo + adapter isolato + due punti post-commit (`executeSpellApplication` e ramo area di `quick-hp-modal`) + nessun refactor architetturale**.
+La raccomandazione concreta resta: **mapping isolato + emissione post-commit +
+nessun refactor architetturale**, con Fireball sul renderer dedicato e le altre
+entry sul dispatcher WebM comune.
+
+## 16. Implementazione visuale matched (2026-08-09)
+
+Il perimetro è stato esteso alle **54 spell riconciliabili** dell’audit: 45
+match canonici, 8 match source-aware e `magic-missile` come match semantico.
+`hold-monster` riusa inoltre lo stesso mapping visuale di `hold-person`, pur
+non aggiungendo una nuova entry al catalogo Embers riconciliato.
+`fireball` conserva il renderer dedicato già verificato; le altre entry usano
+`src/embersMatchedVisualCore.js` e `src/embersMatchedVisualRenderer.js`.
+
+Il renderer locale riproduce direttamente i WebM JB2A referenziati dagli
+effect record Embers, quindi l’animazione non richiede l’installazione o
+l’attivazione di Embers. La geometria viene risolta da Take Initiative:
+coordinate del preview per cerchi/coni/pareti e bounds dei token per
+projectile e marker. Le blueprint `action`, `attachedTo`, movimento token,
+cleanup di concentrazione e loop persistenti non vengono inoltrate: per le
+zone persistenti l’animazione di cast/attivazione è un playback finito, mentre
+lo stato meccanico resta interamente al runtime esistente.
+
+I punti di emissione sono:
+
+- `executeSpellApplication()` per il pannello Incantesimi, le quick action e
+  la risoluzione delle spell preparate;
+- il commit della console Effetti ad Area, usando il preview confermato;
+- `classFeatureRuntime.js` per `bardo-ispirazione-bardica`.
+
+I test aggiungono una verifica di copertura delle 54 entry, dei piani WebM,
+della conversione raggio/diametro e della separazione di Palla di Fuoco dal
+dispatcher comune.
+
+## 17. Lifecycle visuale matched (2026-08-09)
+
+Il renderer matched ora distingue `start` ed `end`: le entry Embers con
+`duration: -1` vengono mantenute come WebM locali persistenti fino alla
+rimozione dell'istanza di spell o della capacità. I loop legati a caster e
+bersaglio usano `attachedTo`; le rimozioni parziali filtrano il singolo target
+senza spegnere gli altri loop della stessa istanza.
+
+Il coordinatore effetti deriva gli eventi `end` dai delta post-commit di spell,
+concentrazione e stato delle capacità. Questo copre terminazione manuale,
+scadenza, rottura della concentrazione e rimozione dello status senza introdurre
+un secondo proprietario dello stato. `shield` riproduce inoltre il suo
+`shield.outro.fade`. Le azioni Embers che mutano token/scena restano escluse.

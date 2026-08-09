@@ -7,9 +7,11 @@ import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadc
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
 let mounted = false;
+let sceneReady = false;
 let previousInitiativeState = null;
 let reconcileQueue = Promise.resolve();
 let unsubscribeMetadata = null;
+let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 
 function snapshot(state) {
@@ -27,7 +29,7 @@ function snapshot(state) {
 
 async function reconcileEffectSaveReminders(sceneMetadata = null) {
   const sceneEpoch = currentSceneEpoch();
-  if (!await OBR.scene.isReady().catch(() => false)) {
+  if (!sceneReady) {
     previousInitiativeState = null;
     announcedActivationIds.clear();
     return;
@@ -38,11 +40,6 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
     : await OBR.scene.getMetadata().catch(() => ({}));
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const initiativeState = snapshot(metadata?.[STATE_KEY]);
-  if (!initiativeState) {
-    previousInitiativeState = null;
-    announcedActivationIds.clear();
-    return;
-  }
   const items = await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const previousState = previousInitiativeState;
@@ -84,7 +81,9 @@ export async function mountEffectSaveReminderController() {
   if (role !== "GM") return false;
   mounted = true;
   unsubscribeMetadata = OBR.scene.onMetadataChange(enqueueReconcile);
+  unsubscribeItems = OBR.scene.items.onChange(() => enqueueReconcile());
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
+    sceneReady = !!ready;
     if (!ready) {
       previousInitiativeState = null;
       announcedActivationIds.clear();
@@ -92,15 +91,19 @@ export async function mountEffectSaveReminderController() {
     }
     enqueueReconcile();
   });
-  enqueueReconcile();
+  sceneReady = await OBR.scene.isReady().catch(() => false);
+  if (sceneReady) enqueueReconcile();
   return true;
 }
 
 export function unmountEffectSaveReminderController() {
   unsubscribeMetadata?.();
   unsubscribeMetadata = null;
+  unsubscribeItems?.();
+  unsubscribeItems = null;
   unsubscribeSceneReady?.();
   unsubscribeSceneReady = null;
+  sceneReady = false;
   previousInitiativeState = null;
   announcedActivationIds.clear();
   reconcileQueue = Promise.resolve();

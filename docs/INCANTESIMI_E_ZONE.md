@@ -57,6 +57,12 @@ la scelta di una sottozona, il tiro fisico o una conseguenza condizionata. Le
 regole di area e i test sono in `src/spellAreaRules.js` e `test/`; il [Backlog](../BACKLOG.md)
 elenca i dettagli ancora da completare.
 
+La [matrice di audit dell'automazione](AUDIT_AUTOMAZIONE_INCANTESIMI.md)
+parte da tutte le 477 definizioni, ma limita la matrice operativa alle spell con
+casting time non superiore a 1 azione. Confronta quel perimetro con i testi
+regolamentari locali e con i contratti runtime effettivi per individuare le
+lacune residue di tracking, aree, TS, status, movimento, trigger e fasi.
+
 ## Lanciare e registrare un incantesimo
 
 Il pannello **Incantesimi** consente di scegliere l'incantesimo, l'incantatore,
@@ -188,6 +194,28 @@ difficile, oscuramento o una descrizione meccanica. Il costo del terreno
 difficile entra nello Speed Tracker; i costi dipendenti dalla direzione, come
 muoversi verso il caster dentro Folata di Vento, sono ancora in backlog.
 
+### Zone mobili controllate
+
+Le zone mobili operative espongono l'azione comune `Sposta zona`, con la stessa
+economia dichiarata dall'incantesimo e una rivalidazione al momento della
+conferma. L'azione riusa il placement esistente, non apre una selezione di
+bersagli e aggiorna lo stesso root della zona; figli, metadata e sottozone sono
+riconciliati nella stessa transazione. Un trascinamento nativo diretto non
+aggira il controllo della posizione.
+
+| Incantesimo | Economia e limite | Regola aggiuntiva |
+| --- | --- | --- |
+| Bagliore Lunare | Azione, 18 m | Nessun trigger aggiuntivo sul movimento |
+| Sfera Infuocata | Azione bonus, 9 m | Arresto al primo contatto diretto; la corona resta distinta |
+| Spirito Guaritore | Azione bonus, 9 m | Lo spostamento non cura; cura manuale su ingresso/inizio turno |
+| Diavoletto di Polvere | Azione bonus, 9 m | Scelta opzionale per nube di detriti da 3 m |
+
+Il core rifiuta posizione iniziale obsoleta, coordinate non valide, distanza
+oltre il limite e scena cambiata tra preview e conferma. Per Sfera Infuocata
+un contatto ambiguo richiede una scelta esplicita del GM. I dadi, la spinta
+fisica del Diavoletto, il movimento delle creature e le interazioni con oggetti
+restano manuali.
+
 ### Incantesimi comuni con trigger di zona
 
 | Momento | Incantesimi principali già modellati |
@@ -229,6 +257,10 @@ dai test.
 | Colpo dello Zefiro | Usa colpo |
 | Controllare Venti | Folate, Discendente, Ascendente, Sospendi venti |
 | Investitura del Ghiaccio | Cono gelido |
+| Bagliore Lunare | Sposta zona |
+| Sfera Infuocata | Sposta zona |
+| Spirito Guaritore | Sposta zona |
+| Diavoletto di Polvere | Sposta zona |
 
 Per Sguardo penetrante, i bersagli già usati vengono ricordati e Nauseato
 genera il proprio reminder di fine turno.
@@ -269,3 +301,9 @@ Per collaudare un incantesimo persistente:
 6. dichiara un esito fisico e controlla l'eventuale condizione figlia;
 7. termina concentrazione o durata;
 8. verifica la pulizia di area, aura, pill, condizioni figlie e reminder.
+
+Per le zone mobili, ripeti il test spostando la zona entro e oltre il limite,
+modificando la scena prima della conferma e verificando che Undo ripristini
+root, figli e sottozone. Per Sfera Infuocata controlla il primo contatto; per
+Spirito Guaritore e Diavoletto di Polvere verifica i reminder nei rispettivi
+turni e la sostituzione/estinzione della nube di detriti.

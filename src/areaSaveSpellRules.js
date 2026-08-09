@@ -101,6 +101,27 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
 
 export const AREA_SAVE_SPELL_ID_SET = new Set(AREA_SAVE_SPELL_IDS);
 
+// Workflow con piu bersagli e TS distinti, ma senza una sagoma di lancio.
+// Sono esposti da Effetti ad Area per riusare la risoluzione batch senza
+// inventare una geometria persistente o un'origine sulla mappa.
+export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
+  "bane",
+  "legacy-tashas-mind-whip",
+  "chain-lightning",
+  "command",
+  "xanathar-anatema-elementale",
+  "banishment",
+]);
+
+export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
+  MULTI_TARGET_SAVE_SPELL_IDS,
+);
+
+export const AREA_POPOVER_SAVE_SPELL_ID_SET = new Set([
+  ...AREA_SAVE_SPELL_IDS,
+  ...MULTI_TARGET_SAVE_SPELL_IDS,
+]);
+
 // Zone e aure reali che non richiedono un TS al momento del lancio, ma che
 // devono comunque poter essere posizionate e mantenute sulla mappa. Restano
 // separate da AREA_SAVE_SPELL_IDS per non inventare esiti o condizioni.
@@ -150,12 +171,17 @@ export const AREA_HEALING_SPELL_ID_SET = new Set([
   "phb2014-aura-di-vitalita",
 ]);
 
-export const AREA_POPOVER_SPELL_IDS = Object.freeze(
+export const AREA_PLACEABLE_SPELL_IDS = Object.freeze(
   Array.from(new Set([
     ...AREA_SAVE_SPELL_IDS,
     ...AREA_PLACEMENT_ONLY_SPELL_IDS,
   ])),
 );
+
+export const AREA_POPOVER_SPELL_IDS = Object.freeze([
+  ...AREA_PLACEABLE_SPELL_IDS,
+  ...MULTI_TARGET_SAVE_SPELL_IDS,
+]);
 
 export const AREA_POPOVER_SPELL_ID_SET = new Set(AREA_POPOVER_SPELL_IDS);
 
@@ -196,6 +222,21 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
 // bersagli del TS. Gli altri effetti dello stesso spell possono appartenere
 // al caster o all'oggetto sorgente e non vanno copiati sui bersagli dell'area.
 export const AREA_SAVE_EFFECT_RULES = Object.freeze({
+  "bane": Object.freeze({
+    failedEffectIds: Object.freeze(["attack-save-penalty"]),
+  }),
+  "legacy-tashas-mind-whip": Object.freeze({
+    failedEffectIds: Object.freeze(["no-reaction-and-limited-turn-options"]),
+  }),
+  "xanathar-anatema-elementale": Object.freeze({
+    failedEffectIds: Object.freeze([
+      "elemental-bane-acido",
+      "elemental-bane-freddo",
+      "elemental-bane-fulmine",
+      "elemental-bane-fuoco",
+      "elemental-bane-tuono",
+    ]),
+  }),
   "faerie-fire": Object.freeze({
     failedEffectIds: Object.freeze(["incoming-attack-advantage"]),
   }),
@@ -226,11 +267,13 @@ function conditionRule(condition, {
   independent = false,
   manualRemoval = false,
   endsParentOnRemoval = false,
+  context = null,
   effectId = "",
   effectKind = "",
   effectDetail = "",
   exhaustionContribution = false,
   saveReminder = null,
+  deferredEffect = null,
 } = {}) {
   const ruleOptions = {
     ...(independent ? { parentEffectId: "" } : {}),
@@ -242,10 +285,12 @@ function conditionRule(condition, {
     ...(Object.keys(ruleOptions).length ? { options: Object.freeze(ruleOptions) } : {}),
     ...(manualRemoval ? { manualRemoval: true } : {}),
     ...(endsParentOnRemoval ? { endsParentOnRemoval: true } : {}),
+    ...(context && typeof context === "object" ? { context: Object.freeze(context) } : {}),
     ...(effectId ? { effectId } : {}),
     ...(effectKind ? { effectKind } : {}),
     ...(effectDetail ? { effectDetail } : {}),
     ...(saveReminder ? { saveReminder } : {}),
+    ...(deferredEffect ? { deferredEffect } : {}),
   });
 }
 
@@ -274,6 +319,14 @@ const noPersistentEffect = Object.freeze({
 // track=false mantiene condizioni istantanee (es. Prono) indipendenti da una
 // pill spell di un round, che altrimenti le rimuoverebbe troppo presto.
 export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
+  "banishment": failedAutomation([
+    conditionRule("Incapacitato", {
+      expiry: concentration,
+      manualRemoval: true,
+      context: { field: "planeOrigin", equals: "current-plane" },
+    }),
+  ]),
+  "chain-lightning": noPersistentEffect,
   "color-spray": failedAutomation([
     conditionRule("Accecato", {
       expiry: nextTurn("turn-end", "source"),
@@ -497,6 +550,18 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         expiry: nextTurn("turn-end", "target"),
         independent: true,
         manualRemoval: true,
+        deferredEffect: Object.freeze({
+          id: "vitriolic-sphere-delayed-acid",
+          timing: "turn-end",
+          actor: "target",
+          anchor: "next-turn",
+          reminder: "5d4 danni da acido",
+          damage: Object.freeze({ dice: "5d4", type: "acido" }),
+          provenance: Object.freeze({
+            spellId: "xanathar-sfera-al-vetriolo",
+            spellName: "Sfera al Vetriolo",
+          }),
+        }),
       },
     ),
   ], { track: false }),

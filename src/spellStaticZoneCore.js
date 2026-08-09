@@ -1,8 +1,37 @@
 import { ID } from "./constants.js";
+import { buildArea } from "./aoeGeometryCore.js";
+import { AOE_AREA_META_KEY } from "./aoeStyle.js";
 
 export const SPELL_STATIC_ZONE_META_KEY = `${ID}/spellStaticZone`;
+export const SPELL_ZONE_MOVEMENT_CONTROL_FIELD = "movementControl";
 
 const normalizedId = (value) => String(value || "").trim();
+
+const point = (value) => {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+};
+
+export function translatedZoneArea(item, positionOverride = null) {
+  const metadata = item?.metadata?.[AOE_AREA_META_KEY];
+  if (!metadata?.type || !metadata?.start || !metadata?.end) return null;
+  const position = point(positionOverride || item.position) || { x: 0, y: 0 };
+  const base = point(metadata.basePosition) || { x: 0, y: 0 };
+  const delta = { x: position.x - base.x, y: position.y - base.y };
+  const translate = (entry) => ({
+    x: Number(entry.x) + delta.x,
+    y: Number(entry.y) + delta.y,
+  });
+  return buildArea(
+    metadata.type,
+    translate(metadata.start),
+    translate(metadata.end),
+    metadata.dpi,
+    translate(metadata.gridOrigin || metadata.start),
+    { widthSquares: metadata.widthSquares },
+  );
+}
 
 export function staticSpellZoneMetadata({
   instanceId = "",
@@ -19,7 +48,7 @@ export function staticSpellZoneMetadata({
     ruleId: normalizedId(ruleId),
     spellId: normalizedId(spellId),
     casterId: normalizedId(casterId),
-    role: role === "geometry" ? "geometry" : "root",
+    role: ["geometry", "subzone"].includes(role) ? role : "root",
   };
   const normalizedParentId = normalizedId(parentId);
   if (normalizedParentId) metadata.parentId = normalizedParentId;

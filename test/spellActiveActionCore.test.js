@@ -278,6 +278,27 @@ test("la presentazione distingue azioni sul caster e azioni sui falliti", () => 
   });
 });
 
+test("le zone mobili non espongono piÃ¹ un'azione di spostamento", () => {
+  const spell = getSpellDefinition("xanathar-diavoletto-di-polvere");
+  const actions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+    zoneItem: {
+      id: "zone-1",
+    },
+    zoneRule: {
+      zonePolicy: {
+        movement: {
+          mode: "bonus-action",
+          economy: "bonus-action",
+          maximumMeters: 9,
+        },
+      },
+    },
+  });
+  assert.deepEqual(actions, []);
+});
+
 test("Controllare Venti prepara il cambio di modalità della zona senza inventare effetti sui token", () => {
   const spell = getSpellDefinition("xanathar-controllare-venti");
   const plan = buildSpellActiveActionPlan({

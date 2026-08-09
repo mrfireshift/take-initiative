@@ -80,6 +80,61 @@ test("il caster nell'area resta incluso anche nella membership persistente", () 
   }), ["caster"]);
 });
 
+test("Sfera Infuocata estende la membership alla corona di una casella", () => {
+  const rule = getSpellAreaRuleById("flaming-sphere:cast");
+  const area = { cells: [{ x: 0, y: 0, width: 100, height: 100 }] };
+  const candidates = [
+    { item: token("direct"), bounds: bounds(0, 0) },
+    { item: token("adjacent"), bounds: bounds(100, 0) },
+    { item: token("diagonal"), bounds: bounds(100, 100) },
+    { item: token("outside"), bounds: bounds(200, 0) },
+  ];
+
+  assert.equal(rule.zonePolicy.membershipPaddingSquares, 1);
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+  }), ["direct", "adjacent", "diagonal"]);
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+    membershipPaddingSquares: 0,
+  }), ["direct"]);
+});
+
+test("Gabbia di forza non duplica una pillola tecnica sui token", () => {
+  const rule = getSpellAreaRuleById("forcecage:cast");
+  const area = { cells: [{ x: 0, y: 0, width: 600, height: 600 }] };
+  const candidates = [
+    { item: token("inside"), bounds: bounds(150, 150) },
+    { item: token("edge"), bounds: bounds(550, 150) },
+  ];
+
+  assert.equal(rule.zonePolicy.membershipTargeting.containment, "fully-inside");
+  assert.deepEqual(areaMembershipEffects(rule), []);
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+  }), ["inside"]);
+  assert.deepEqual(areaMembershipPlan({
+    instanceId: "forcecage-instance",
+    sourceId: "caster",
+    rule,
+    desiredTargetIds: ["inside"],
+    items: candidates.map(({ item }) => item),
+    metaKey: META,
+  }).operations, []);
+});
+
 test("entrata e uscita applicano e rimuovono il terreno difficile della zona", () => {
   const rule = getSpellAreaRuleById("web:cast");
   const items = [

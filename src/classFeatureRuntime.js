@@ -46,6 +46,7 @@ import {
   getEnabledClassFeatures,
   getClassFeatureResourcePool,
 } from "./classFeatureCatalog.js";
+import { emitMatchedClassFeatureVisual } from "./embersMatchedVisualRenderer.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -1204,6 +1205,17 @@ export async function activateClassFeature({
     },
   );
   requireAppliedEffectsMutation(classFeatureMutation);
+  if (adapter === "bardic-inspiration") {
+    void emitMatchedClassFeatureVisual({
+      featureId: feature.id,
+      casterId: sourceItem.id,
+      targetIds: resolvedTargetIds,
+      eventId: activation.instance?.instanceId || instanceId,
+      lifecycleId: activation.instance?.instanceId || instanceId,
+    }).catch((error) => {
+      console.warn("[class-feature] matched visual:", error?.message || error);
+    });
+  }
   await refreshConditionLabels(Array.from(new Set([
     ...itemIds,
     ...(classFeatureMutation.changedIds || []),

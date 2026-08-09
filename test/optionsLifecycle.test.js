@@ -87,7 +87,7 @@ test("OPTIONS-004: il binding usa solo selector e subscription del servizio", as
   assert.equal(listener, null);
 });
 
-test("OPTIONS-004: gli otto adapter sono selector-driven e gli ALWAYS-ON restano montati", () => {
+test("OPTIONS-004: i nove adapter sono selector-driven e gli ALWAYS-ON restano montati", () => {
   const background = readFileSync(new URL("../src/background.js", import.meta.url), "utf8");
   const initiative = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   const elevation = readFileSync(new URL("../src/elevationLabel.js", import.meta.url), "utf8");
@@ -101,6 +101,9 @@ test("OPTIONS-004: gli otto adapter sono selector-driven e gli ALWAYS-ON restano
   assert.match(background, /selectClocksToolEnabled/);
   assert.match(background, /selectDistance3dToolEnabled/);
   assert.match(background, /selectReferenceToolEnabled/);
+  assert.match(background, /selectEmbersAnimationsEnabled/);
+  assert.match(background, /mountEmbersVisualRenderers/);
+  assert.match(background, /unmountEmbersVisualRenderers/);
   assert.match(initiative, /selectMapHpBarsEnabled/);
   assert.match(initiative, /selectActiveTurnLabelEnabled/);
   assert.match(elevation, /cleanupOwnedElevationLabels/);
@@ -114,6 +117,19 @@ test("OPTIONS-004: gli otto adapter sono selector-driven e gli ALWAYS-ON restano
   assert.match(background, /mountSpellAuraController\(\)/);
   assert.match(background, /mountStaticSpellZoneController\(\)/);
   assert.doesNotMatch(background, /select.*History|select.*Coordinator/);
+});
+
+test("OPTIONS-004: Embers off ferma producer e ripulisce entrambi i renderer locali", () => {
+  const matched = readFileSync(new URL("../src/embersMatchedVisualRenderer.js", import.meta.url), "utf8");
+  const fireball = readFileSync(new URL("../src/fireballVisualRenderer.js", import.meta.url), "utf8");
+
+  assert.match(matched, /selectEmbersAnimationsEnabled/);
+  assert.match(matched, /reason:\s*"disabled"/);
+  assert.match(matched, /activeLocalVideoIds/);
+  assert.match(fireball, /selectEmbersAnimationsEnabled/);
+  assert.match(fireball, /reason:\s*"disabled"/);
+  assert.match(fireball, /activeLocalVideoIds/);
+  assert.match(fireball, /activeLocalPathIds/);
 });
 
 test("OPTIONS-004: Combat Log off conserva la History e disabilita le nuove scritture dalla UI", () => {

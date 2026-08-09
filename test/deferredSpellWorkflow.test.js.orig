@@ -1,0 +1,267 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { ID } from "../src/constants.js";
+import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
+import { buildCoordinatedEffectsUndoPlan } from "../src/effectsMutationUndoCore.js";
+import { planEffectSaveReminderNotices } from "../src/effectSaveReminderCore.js";
+import { buildReminderResolutionPlan } from "../src/reminderResolutionCore.js";
+import { resolveConditionSpeed } from "../src/conditionSpeedCore.js";
+import { normalizeSaveSpellAutomation, resolveSaveSpellResolution } from "../src/saveSpellCore.js";
+import {
+  getSpellAttackResolution,
+  getSpellDefinition,
+} from "../src/spells-srd.js";
+import {
+  buildSpellApplicationIntent,
+  buildSpellApplicationPlan,
+} from "../src/spellApplicationPlanCore.js";
+
+const META_KEY = `${ID}/meta`;
+
+function sceneItem(state) {
+  return {
+    id: state.id,
+    name: state.name || state.id,
+    metadata: {
+      [META_KEY]: {
+        conditions: { version: 2, instances: state.conditions || [] },
+      },
+    },
+  };
+}
+
+function plainToken(id, overrides = {}) {
+  return {
+    id,
+    name: id,
+    spells: [],
+    concentrations: {},
+    conditions: [],
+    ...overrides,
+  };
+}
+
+test("Sfera al Vetriolo persiste un reminder differito indipendente e lo annuncia prima della scadenza", () => {
+  const spell = getSpellDefinition("xanathar-sfera-al-vetriolo");
+  const rule = normalizeSaveSpellAutomation(spell.saveAutomation)
+    .rulesByOutcome.failed[0];
+  const applied = buildEffectsMutationPlan([
+    plainToken("caster"),
+    plainToken("target"),
+  ], [{
+    type: "condition:add",
+    operationId: "sphere-failed",
+    targetIds: ["target"],
+    instanceIds: { target: "sphere-delay-target" },
+    conditionName: rule.conditionName,
+    options: {
+      sourceId: "caster",
+      sourceName: "Mago",
+      ...rule.options,
+      expiry: rule.options.expiry || rule.expiry,
+    },
+  }]);
+  const targetState = applied.states.find((state) => state.id === "target");
+  assert.equal(targetState.conditions[0].deferredEffects[0].reminder, "5d4 danni da acido");
+
+  const items = applied.states.map(sceneItem);
+  const notices = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: { order: ["caster", "target"], current: 1, round: 1 },
+    initiativeState: { order: ["caster", "target"], current: 0, round: 2 },
+  });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].target.id, "target");
+  assert.equal(notices[0].kind, "effect-reminder");
+  assert.equal(notices[0].timing, "turn-end");
+  assert.equal(notices[0].saveLabel, "5d4 danni da acido");
+  assert.equal(notices[0].resolution.mode, "consume");
+
+  const ended = buildEffectsMutationPlan(applied.states, [{
+    type: "effects:tick-boundaries",
+    targetIds: ["target"],
+    boundaries: [{ phase: "end", actorId: "target", turnKey: "1:1:target" }],
+  }]);
+  assert.deepEqual(ended.states.find((state) => state.id === "target").conditions, []);
+});
+
+test("chiudere un reminder differito è una mutazione consumabile e il marker impedisce il replay", () => {
+  const target = plainToken("target", {
+    conditions: [{
+      id: "delay",
+      condition: "Danno differito",
+      active: true,
+      expiry: { mode: "manual" },
+      deferredEffects: [{
+        id: "delay-effect",
+        timing: "immediate",
+        reminder: "5d4 danni da acido",
+      }],
+    }],
+  });
+  const notice = planEffectSaveReminderNotices({
+    items: [sceneItem(target)],
+    initiativeState: null,
+    previousInitiativeState: null,
+  })[0];
+  const plan = buildReminderResolutionPlan({
+    notice,
+    items: [sceneItem(target)],
+    outcome: "passed",
+  });
+  assert.equal(plan.status, "ready");
+  assert.deepEqual(plan.operations, [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "target", instanceId: "delay" }],
+  }]);
+  assert.equal(plan.metadataPatches[0].fields.reminderResolutions.value[plan.activationId].outcome, "passed");
+});
+
+test("Velocità applica alla terminazione una conseguenza con velocità effettiva zero", () => {
+  const spell = getSpellDefinition("Velocità");
+  const intent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 10,
+    casterId: "caster",
+    targetIds: ["target"],
+    requestedConcentration: true,
+  });
+  const application = buildSpellApplicationPlan({
+    intent,
+    instanceId: "haste-instance",
+    appliedAt: { round: 1, actorId: "caster", turnKey: "1:0:caster" },
+    casterName: "Mago",
+  });
+  const applied = buildEffectsMutationPlan([
+    plainToken("caster"),
+    plainToken("target"),
+  ], application.operations);
+  const ended = buildEffectsMutationPlan(applied.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "haste-instance",
+  }]);
+  const consequence = ended.states.find((state) => state.id === "target").conditions[0];
+  assert.equal(consequence.condition, "Spossatezza da Velocità");
+  assert.equal(consequence.parentEffectId, undefined);
+  assert.equal(
+    resolveConditionSpeed(9, [consequence], [], "walk").speedMeters,
+    0,
+  );
+
+  assert.equal(ended.changes.length, 2);
+  const undo = buildCoordinatedEffectsUndoPlan({
+    currentStates: ended.states,
+    entryOrEntries: [{
+      id: "haste-end-history",
+      effectsMutation: { changes: ended.changes },
+    }],
+  });
+  assert.equal(undo.status, undefined);
+  assert.deepEqual(
+    undo.states.find((state) => state.id === "caster").concentrations,
+    applied.states.find((state) => state.id === "caster").concentrations,
+  );
+  assert.deepEqual(
+    undo.states.find((state) => state.id === "target").spells,
+    applied.states.find((state) => state.id === "target").spells,
+  );
+  assert.deepEqual(
+    undo.states.find((state) => state.id === "target").conditions,
+    applied.states.find((state) => state.id === "target").conditions,
+  );
+});
+
+test("Tenser crea un TS immediato indipendente e il fallimento usa l'operazione canonica di Indebolimento", () => {
+  const spell = getSpellDefinition("Trasformazione di Tenser");
+  const intent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 100,
+    casterId: "caster",
+    targetIds: ["caster"],
+    requestedConcentration: true,
+  });
+  const application = buildSpellApplicationPlan({
+    intent,
+    instanceId: "tenser-instance",
+    appliedAt: { round: 1, actorId: "caster", turnKey: "1:0:caster" },
+    casterName: "Mago",
+  });
+  const applied = buildEffectsMutationPlan([
+    plainToken("caster"),
+  ], application.operations);
+  const ended = buildEffectsMutationPlan(applied.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "tenser-instance",
+  }]);
+  const item = sceneItem(ended.states[0]);
+  const notice = planEffectSaveReminderNotices({
+    items: [item],
+    initiativeState: null,
+    previousInitiativeState: null,
+  })[0];
+  assert.equal(notice.saveLabel, "TS Costituzione CD 15");
+  const resolution = buildReminderResolutionPlan({
+    notice,
+    items: [item],
+    outcome: "failed",
+  });
+  assert.equal(resolution.status, "ready");
+  assert.deepEqual(resolution.operations.map((operation) => operation.type), [
+    "condition:reconcile-exhaustion",
+    "condition:remove-instances",
+  ]);
+});
+
+test("Freccia acida usa risoluzione assistita, scaling slot e nessuna spell persistente", () => {
+  const spell = getSpellDefinition("Freccia acida");
+  const baseHit = getSpellAttackResolution(spell, "hit", { slotLevel: 2 });
+  assert.equal(baseHit.id, "acid-arrow");
+  assert.equal(baseHit.outcome, "hit");
+  assert.deepEqual(baseHit.initialDamage, { dice: "4d4", type: "acido", factor: "full" });
+  assert.ok(baseHit.deferredEffect);
+  assert.ok(baseHit.effect);
+  const hitIntent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 1,
+    casterId: "caster",
+    targetIds: ["target"],
+    selectedChoice: "hit",
+    castContext: { slotLevel: 5 },
+  });
+  const hitPlan = buildSpellApplicationPlan({
+    intent: hitIntent,
+    instanceId: "acid-hit",
+    casterName: "Mago",
+  });
+  assert.equal(hitPlan.attackResolution.initialDamage.dice, "7d4");
+  assert.equal(hitPlan.attackResolution.deferredEffect.reminder, "5d4 danni da acido");
+  assert.equal(hitPlan.operations.some((operation) => operation.type === "spell:upsert"), false);
+  const acidCondition = hitPlan.operations.find((operation) => operation.type === "condition:add");
+  assert.ok(acidCondition);
+  assert.equal(acidCondition.options.theme.background, "#65a30d");
+  assert.equal(acidCondition.options.theme.accent, "#bef264");
+
+  const missIntent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 1,
+    casterId: "caster",
+    targetIds: ["target"],
+    selectedChoice: "miss",
+    castContext: { slotLevel: 3 },
+  });
+  const missPlan = buildSpellApplicationPlan({
+    intent: missIntent,
+    instanceId: "acid-miss",
+  });
+  assert.equal(missPlan.attackResolution.initialDamage.dice, "5d4");
+  assert.equal(missPlan.attackResolution.initialDamage.factor, "half");
+  assert.equal(missPlan.operations.some((operation) => operation.type === "condition:add"), false);
+  assert.equal(missPlan.operations.some((operation) => operation.type === "spell:upsert"), false);
+});

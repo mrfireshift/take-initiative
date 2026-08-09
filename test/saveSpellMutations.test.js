@@ -4,6 +4,11 @@ import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
 import { exhaustionLevelFromInstances } from "../src/exhaustionCore.js";
 import { resolveSaveSpellResolution } from "../src/saveSpellCore.js";
 import {
+  getAreaSaveAutomation,
+  getSpellDefinition,
+} from "../src/spells-srd.js";
+import { getSpellSaveWorkflowRule } from "../src/spellSaveWorkflowRules.js";
+import {
   saveSpellResolutionOperations,
   saveSpellTriggerResolutionOperations,
 } from "../src/saveSpellOperationsCore.js";
@@ -556,4 +561,75 @@ test("la risoluzione di un trigger collega la vittima senza rilanciare la spell"
   }]);
   assert.deepEqual(state(interrupted, "target").spells, []);
   assert.deepEqual(state(interrupted, "target").conditions, []);
+});
+
+test("Esilio distingue interruzione anticipata e scadenza naturale per origine del piano", () => {
+  const spell = getSpellDefinition("banishment");
+  const resolution = resolveSaveSpellResolution({
+    spell,
+    casterId: "caster",
+    targetIds: ["native", "other"],
+    outcomes: { native: "failed", other: "failed" },
+    automation: getAreaSaveAutomation("banishment"),
+    saveWorkflowRule: getSpellSaveWorkflowRule("banishment"),
+    slotLevel: 5,
+    targetContexts: {
+      native: { planeOrigin: "current-plane" },
+      other: { planeOrigin: "other-plane" },
+    },
+    casterDistancesMeters: { native: 1, other: 1 },
+  });
+  const operations = saveSpellResolutionOperations({
+    resolution,
+    instanceId: "banishment-cast",
+    turns: 1,
+    spellExpiry: { mode: "concentration" },
+  });
+  const initial = [
+    {
+      id: "caster",
+      concentrations: {
+        esilio: {
+          name: "Esilio",
+          instanceId: "banishment-cast",
+          targets: ["native", "other"],
+        },
+      },
+      spells: [],
+      conditions: [],
+    },
+    { id: "native", concentrations: {}, spells: [], conditions: [] },
+    { id: "other", concentrations: {}, spells: [], conditions: [] },
+  ];
+  const applied = buildEffectsMutationPlan(initial, preparedOperations(operations, "banishment"));
+  assert.deepEqual(
+    state(applied, "native").conditions.map((condition) => condition.condition),
+    ["Incapacitato"],
+  );
+  assert.deepEqual(
+    state(applied, "other").conditions.map((condition) => condition.condition),
+    [],
+  );
+
+  const interrupted = buildEffectsMutationPlan(applied.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "banishment-cast",
+  }]);
+  assert.deepEqual(state(interrupted, "native").conditions, []);
+  assert.deepEqual(state(interrupted, "other").conditions, []);
+
+  const natural = buildEffectsMutationPlan(applied.states, [{
+    type: "effects:tick-round",
+    targetIds: ["native", "other"],
+    delta: -1,
+  }]);
+  assert.deepEqual(
+    state(natural, "native").conditions.map((condition) => condition.condition),
+    ["Esilio terminato · ritorno"],
+  );
+  assert.deepEqual(
+    state(natural, "other").conditions.map((condition) => condition.condition),
+    [],
+  );
 });

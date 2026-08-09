@@ -27,6 +27,11 @@ import {
   PHB2014_TRACKING,
 } from "./phb2014SpellRules.js";
 import { resolveSpellEffect } from "./spellMechanicsCore.js";
+import { getSpellAttackResolution as resolveSpellAttackResolution } from "./spellAttackResolutionCore.js";
+import {
+  getSpellSaveWorkflowChoiceAutomation,
+  SPELL_SAVE_WORKFLOW_SPELL_IDS,
+} from "./spellSaveWorkflowRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -544,6 +549,65 @@ const SPELL_EXPIRY = Object.freeze({
   ...PHB2014_EXPIRY,
 });
 
+const SPELL_END_CONSEQUENCES = Object.freeze({
+  haste: Object.freeze([Object.freeze({
+    id: "haste-post-expiry-fatigue",
+    target: "self",
+    condition: "Spossatezza da Velocità",
+    effectKind: "debuff",
+    effectDetail: "Fino alla fine del prossimo turno non può muoversi o effettuare azioni.",
+    effectId: "haste-post-expiry-fatigue",
+    manualRemoval: true,
+    options: Object.freeze({
+      expiry: Object.freeze({
+        mode: "turn-end",
+        actor: "target",
+        remaining: 1,
+        anchor: "next-turn",
+      }),
+      mechanics: Object.freeze({
+        movement: Object.freeze({
+          maximumMeters: 0,
+          label: "Spossatezza da Velocità: velocità 0 m",
+        }),
+      }),
+    }),
+  })]),
+  "xanathar-trasformazione-di-tenser": Object.freeze([Object.freeze({
+    id: "tensers-transformation-end-save",
+    target: "self",
+    condition: "TS Costituzione CD 15",
+    effectDetail: "Alla fine di Trasformazione di Tenser effettua il TS prima di rimuovere il reminder.",
+    options: Object.freeze({
+      expiry: Object.freeze({ mode: "manual" }),
+      deferredEffect: Object.freeze({
+        id: "tensers-transformation-end-save",
+        timing: "immediate",
+        actor: "target",
+        reminder: "TS Costituzione CD 15",
+        save: Object.freeze({ ability: "con", dc: 15 }),
+        resolution: Object.freeze({
+          outcomes: Object.freeze({
+            passed: Object.freeze({ actions: Object.freeze([]) }),
+            failed: Object.freeze({
+              actions: Object.freeze([Object.freeze({
+                kind: "condition",
+                action: "reconcile-exhaustion",
+                options: Object.freeze({ delta: 1 }),
+              })]),
+            }),
+            immune: Object.freeze({ actions: Object.freeze([]) }),
+          }),
+        }),
+        provenance: Object.freeze({
+          spellId: "xanathar-trasformazione-di-tenser",
+          spellName: "Trasformazione di Tenser",
+        }),
+      }),
+    }),
+  })]),
+});
+
 const SPELL_EFFECTS = Object.freeze({
   "fly": Object.freeze([
     Object.freeze({
@@ -805,6 +869,10 @@ const SPELL_EFFECTS = Object.freeze({
 });
 
 const SPELL_EFFECT_CHOICES = Object.freeze({
+  "acid-arrow": Object.freeze([
+    Object.freeze({ id: "hit", label: "Colpito" }),
+    Object.freeze({ id: "miss", label: "Mancato" }),
+  ]),
   "alter-self": Object.freeze([
     Object.freeze({
       id: "aquatic-adaptation",
@@ -1224,6 +1292,7 @@ function durationToRounds(duration) {
 
 const RAW_SPELLS = Array.isArray(catalogData?.spells) ? catalogData.spells : [];
 const SPELL_TRACKING_OVERRIDES = Object.freeze({
+  "acid-arrow": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "power-word-stun": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
 });
@@ -1252,6 +1321,9 @@ function effectSaveRule(effect, spell) {
       : {}),
     ...(effect?.saveReminder && typeof effect.saveReminder === "object"
       ? { saveReminder: effect.saveReminder }
+      : {}),
+    ...(effect?.deferredEffects !== undefined || effect?.deferredEffect !== undefined
+      ? { deferredEffects: effect.deferredEffects ?? effect.deferredEffect }
       : {}),
     ...(effect?.manualRemoval === true ? { manualRemoval: true } : {}),
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
@@ -1288,6 +1360,10 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
   const declared = selectedAreaChoice
     ? selectedAreaChoice.automation || null
     : AREA_SAVE_AUTOMATION_RULES[spell.id] || null;
+  const workflowChoiceAutomation = getSpellSaveWorkflowChoiceAutomation(
+    spell.id,
+    choiceValue,
+  );
   const effectRule = AREA_SAVE_EFFECT_RULES[spell.id] || null;
   const failedEffectIds = new Set(effectRule?.failedEffectIds || []);
   const selectedChoiceId = effectRule?.choiceId || choiceValue;
@@ -1299,8 +1375,8 @@ function areaSaveAutomationForSpell(spell, choiceValue = "") {
     .map((effect) => effectSaveRule(effect, spell))
     .filter((rule) => rule.condition && rule.effectKind);
 
-  if (!base && !declared && !failedEffects.length) return null;
-  const automationSources = [base, declared].filter(Boolean);
+  if (!base && !declared && !workflowChoiceAutomation && !failedEffects.length) return null;
+  const automationSources = [base, declared, workflowChoiceAutomation].filter(Boolean);
   const hasExplicitTrackOutcomes = automationSources.some((source) =>
     Object.prototype.hasOwnProperty.call(source, "trackOutcomes")
   );
@@ -1364,6 +1440,7 @@ const ALL_SPELLS = [
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
     expiry: SPELL_EXPIRY[spell.id] || null,
+    onSpellEnd: SPELL_END_CONSEQUENCES[spell.id] || null,
   };
   return Object.freeze({
     ...normalizedSpell,
@@ -1440,7 +1517,7 @@ export function getAreaSaveSpellOptions() {
       label: spell.catalogLabel || spell.displayName,
       level: spell.level,
       concentration: spell.concentration === true,
-      automated: !!spell.saveAutomation,
+      automated: !!spell.saveAutomation || SPELL_SAVE_WORKFLOW_SPELL_IDS.includes(spell.id),
     }));
 }
 
@@ -1502,6 +1579,11 @@ export function getSpellEffects(value, choiceValue = "", castContext = {}) {
   const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
   return [...fixed, ...(selected?.effects || [])]
     .map((effect) => resolveSpellEffect(effect, castContext));
+}
+
+export function getSpellAttackResolution(value, choiceValue = "", castContext = {}) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  return resolveSpellAttackResolution(spell, choiceValue, castContext);
 }
 
 export function getProposedConditions(spell, choice = "") {

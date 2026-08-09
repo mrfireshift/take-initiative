@@ -1,3 +1,7 @@
+import { resolveSpellSaveTargeting } from "./spellSaveTargetingCore.js";
+import { getSpellSaveWorkflowChoiceAutomation } from "./spellSaveWorkflowRules.js";
+import { spellEffectThemeFor } from "./spellColorCore.js";
+
 export const SAVE_SPELL_OUTCOMES = Object.freeze({
   PASSED: "passed",
   FAILED: "failed",
@@ -51,6 +55,11 @@ function normalizeConditionRule(value) {
   if (rule.saveReminder && typeof rule.saveReminder === "object") {
     options.saveReminder = clone(rule.saveReminder);
   }
+  if (rule.deferredEffect !== undefined || rule.deferredEffects !== undefined) {
+    options.deferredEffects = clone(
+      rule.deferredEffects ?? rule.deferredEffect,
+    );
+  }
   if (rule.manualRemoval === true) options.manualRemoval = true;
   if (rule.endsParentOnRemoval === true) options.endsParentOnRemoval = true;
   if (rule.parentRemoval === "target" || rule.parentRemoval === "spell") {
@@ -61,7 +70,13 @@ function normalizeConditionRule(value) {
   }
   if (rule.exhaustionContribution === true) options.exhaustionContribution = true;
 
-  return { conditionName, options };
+  return {
+    conditionName,
+    options,
+    ...(rule.context && typeof rule.context === "object"
+      ? { context: clone(rule.context) }
+      : {}),
+  };
 }
 
 export function normalizeSaveSpellAutomation(value = {}) {
@@ -104,6 +119,117 @@ export function partitionSaveSpellTargets(targetIds = [], outcomes = new Map()) 
   return partitions;
 }
 
+function contextConditionMatches(context, condition) {
+  if (!condition || typeof condition !== "object") return true;
+  if (Array.isArray(condition.all)) {
+    return condition.all.every((entry) => contextConditionMatches(context, entry));
+  }
+  if (Array.isArray(condition.any)) {
+    return condition.any.some((entry) => contextConditionMatches(context, entry));
+  }
+  const fieldId = String(condition.field || "").trim();
+  if (!fieldId) return true;
+  const actual = String(context?.[fieldId] ?? "").trim();
+  if (Object.prototype.hasOwnProperty.call(condition, "equals")) {
+    return actual === String(condition.equals ?? "").trim();
+  }
+  if (Object.prototype.hasOwnProperty.call(condition, "notEquals")) {
+    return actual !== String(condition.notEquals ?? "").trim();
+  }
+  if (Array.isArray(condition.values)) {
+    return condition.values.some((value) => actual === String(value ?? "").trim());
+  }
+  return false;
+}
+
+function contextModifierOptions(targeting, targetId, outcome, conditionName) {
+  const targetContext = targeting?.targetContext;
+  const context = targetContext?.contextByTarget?.[targetId] || {};
+  const modifier = (targetContext?.modifiers || []).find((candidate) => {
+    if (String(candidate?.outcome || "").trim() !== outcome) return false;
+    if (candidate?.condition && String(candidate.condition).trim() !== conditionName) return false;
+    if (candidate?.when && !contextConditionMatches(context, candidate.when)) return false;
+    if (candidate?.field) {
+      const value = String(context[candidate.field] ?? "").trim();
+      return !!candidate.values?.[value];
+    }
+    return true;
+  });
+  if (!modifier) return {};
+  if (modifier.field) {
+    const value = String(context[modifier.field] ?? "").trim();
+    const selected = modifier.values?.[value];
+    return selected && typeof selected === "object"
+      ? clone(selected.options || selected)
+      : {};
+  }
+  return clone(modifier.options || {});
+}
+
+function contextEffectConditionName(effect, context) {
+  if (typeof effect?.condition === "string") return effect.condition.trim();
+  if (!effect?.condition || typeof effect.condition !== "object") return "";
+  const field = String(effect.condition.field || "").trim();
+  const value = String(context?.[field] ?? "").trim();
+  if (!field || !value) return "";
+  return `${String(effect.condition.prefix || "")}${value}${String(effect.condition.suffix || "")}`.trim();
+}
+
+function contextEffectTargetIds(targeting, classification, involvedTargetIds) {
+  const context = targeting?.targetContext;
+  if (classification === "involved") return involvedTargetIds;
+  if (classification === "automatic") return context?.automaticTargetIds || [];
+  if (classification === "resisted") return context?.excludedTargetIds || [];
+  return [];
+}
+
+function contextEffectApplication(effect, targetId, targeting) {
+  const context = targeting?.targetContext?.contextByTarget?.[targetId] || {};
+  const conditionName = contextEffectConditionName(effect, context);
+  if (!conditionName) return null;
+  const rule = normalizeConditionRule({
+    condition: conditionName,
+    ...(effect.options && typeof effect.options === "object"
+      ? { options: effect.options }
+      : {}),
+    ...(effect.expiry && typeof effect.expiry === "object"
+      ? { expiry: effect.expiry }
+      : {}),
+    ...(effect.effectId ? { effectId: effect.effectId } : {}),
+    ...(effect.effectKind ? { effectKind: effect.effectKind } : {}),
+    ...(effect.effectDetail ? { effectDetail: effect.effectDetail } : {}),
+    ...(effect.mechanics && typeof effect.mechanics === "object"
+      ? { mechanics: effect.mechanics }
+      : {}),
+    ...(effect.deferredEffects !== undefined || effect.deferredEffect !== undefined
+      ? { deferredEffects: effect.deferredEffects ?? effect.deferredEffect }
+      : {}),
+    ...(effect.manualRemoval === true ? { manualRemoval: true } : {}),
+    ...(effect.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),
+  });
+  if (!rule) return null;
+  const mechanics = {
+    ...(rule.options.mechanics && typeof rule.options.mechanics === "object"
+      ? clone(rule.options.mechanics)
+      : {}),
+  };
+  for (const fieldId of mechanics.contextFields || []) {
+    if (Object.prototype.hasOwnProperty.call(context, fieldId)) {
+      mechanics[fieldId] = context[fieldId];
+    }
+  }
+  if (Object.keys(mechanics).length) rule.options.mechanics = mechanics;
+  if (effect.theme && typeof effect.theme === "object") {
+    rule.options.theme = clone(effect.theme);
+  }
+  return {
+    outcome: "context",
+    targetIds: [targetId],
+    conditionName: rule.conditionName,
+    options: rule.options,
+  };
+}
+
 export function resolveSaveSpellResolution({
   spell = null,
   casterId = "",
@@ -111,15 +237,55 @@ export function resolveSaveSpellResolution({
   outcomes = new Map(),
   automation = null,
   allowEmptyTargets = false,
+  saveWorkflowRule = null,
+  slotLevel = null,
+  choiceValue = "",
+  pairwiseDistancesMeters = [],
+  casterDistancesMeters = {},
+  validateSpatial = true,
+  targetContexts = {},
 } = {}) {
+  const inputTargetIds = Array.isArray(targetIds) ? targetIds : [];
   const targets = uniqueIds(targetIds);
   const caster = String(casterId || "").trim();
   const spellId = String(spell?.id || "").trim();
-  const spellName = String(spell?.displayName || spell?.name || "").trim();
   const concentration = spell?.concentration === true;
-  const partitions = partitionSaveSpellTargets(targets, outcomes);
+  const targeting = saveWorkflowRule
+    ? resolveSpellSaveTargeting({
+      spellId,
+      rule: saveWorkflowRule,
+      slotLevel,
+      targetIds: inputTargetIds,
+      allowEmptyTargets,
+      choiceValue,
+      pairwiseDistancesMeters,
+      casterDistancesMeters,
+      validateSpatial,
+      targetContexts,
+    })
+    : null;
+  const automaticOutcomes = targeting?.targetContext?.automaticOutcomeByTarget || {};
+  const effectiveOutcomes = new Map();
+  for (const targetId of targets) {
+    const automaticOutcome = automaticOutcomes[targetId];
+    const suppliedOutcome = outcomeFor(outcomes, targetId);
+    if (automaticOutcome) effectiveOutcomes.set(targetId, automaticOutcome);
+    else if (suppliedOutcome) effectiveOutcomes.set(targetId, suppliedOutcome);
+  }
+  const outcomeTargetIds = targeting?.targetContext?.saveTargetIds || targets;
+  const partitions = partitionSaveSpellTargets(outcomeTargetIds, effectiveOutcomes);
+  const choiceAutomation = targeting?.choice
+    ? getSpellSaveWorkflowChoiceAutomation(saveWorkflowRule, targeting.choiceValue)
+    : null;
+  const spellName = String(
+    targeting?.choice?.spellName
+      || spell?.displayName
+      || spell?.name
+      || "",
+  ).trim();
+  const spellEffectTheme = spellEffectThemeFor(spell);
   const normalizedAutomation = normalizeSaveSpellAutomation(
-    automation ?? spell?.saveAutomation ?? {}
+    automation ?? choiceAutomation ?? spell?.saveAutomation ?? {}
   );
   const idsByOutcome = {
     [SAVE_SPELL_OUTCOMES.PASSED]: partitions.passedIds,
@@ -132,23 +298,69 @@ export function resolveSaveSpellResolution({
     const outcomeTargetIds = idsByOutcome[outcome];
     if (!outcomeTargetIds.length) continue;
     for (const rule of normalizedAutomation.rulesByOutcome[outcome]) {
-      conditionApplications.push({
-        outcome,
-        targetIds: [...outcomeTargetIds],
-        conditionName: rule.conditionName,
-        options: clone(rule.options),
-      });
+      const grouped = new Map();
+      for (const targetId of outcomeTargetIds) {
+        if (rule.context && !contextConditionMatches(
+          targeting?.targetContext?.contextByTarget?.[targetId] || {},
+          rule.context,
+        )) continue;
+        const options = {
+          ...(spellEffectTheme ? { theme: spellEffectTheme } : {}),
+          ...clone(rule.options),
+          ...contextModifierOptions(targeting, targetId, outcome, rule.conditionName),
+        };
+        const key = JSON.stringify(options);
+        const group = grouped.get(key) || { ...options, targetIds: [] };
+        group.targetIds.push(targetId);
+        grouped.set(key, group);
+      }
+      for (const group of grouped.values()) {
+        conditionApplications.push({
+          outcome,
+          targetIds: group.targetIds,
+          conditionName: rule.conditionName,
+          options: Object.fromEntries(
+            Object.entries(group).filter(([key]) => key !== "targetIds"),
+          ),
+        });
+      }
     }
   }
 
-  const spellTargetIds = uniqueIds(normalizedAutomation.trackOutcomes.flatMap(
-    (outcome) => idsByOutcome[outcome] || []
-  ));
+  const automaticInvolvedIds = targeting?.targetContext?.automaticInvolvedIds || [];
+  const involvedOnOutcomes = targeting?.targetContext?.involvedOnOutcomes || [];
+  const involvedTargetIds = uniqueIds([
+    ...automaticInvolvedIds,
+    ...involvedOnOutcomes.flatMap((outcome) => idsByOutcome[outcome] || []),
+  ]);
+  for (const effect of targeting?.targetContext?.effects || []) {
+    const effectTargetIds = contextEffectTargetIds(
+      targeting,
+      effect.classification,
+      involvedTargetIds,
+    );
+    for (const targetId of effectTargetIds) {
+      const application = contextEffectApplication(effect, targetId, targeting);
+      if (application) conditionApplications.push(application);
+    }
+  }
+
+  const spellTargetIds = uniqueIds([
+    ...normalizedAutomation.trackOutcomes.flatMap(
+      (outcome) => idsByOutcome[outcome] || [],
+    ),
+    ...(targeting?.targetContext?.trackInvolved ? involvedTargetIds : []),
+  ]);
   const errors = [];
   if (!spellId || !spellName) errors.push("spell-required");
   if (!targets.length && !allowEmptyTargets) errors.push("targets-required");
   if (partitions.missingIds.length) errors.push("outcomes-incomplete");
   if (concentration && !caster) errors.push("caster-required");
+  if (targeting && !targeting.valid) {
+    for (const error of targeting.errors) {
+      if (!errors.includes(error)) errors.push(error);
+    }
+  }
 
   return {
     valid: errors.length === 0,
@@ -162,5 +374,15 @@ export function resolveSaveSpellResolution({
     spellTargetIds,
     conditionApplications,
     trackOutcomes: [...normalizedAutomation.trackOutcomes],
+    ...(targeting?.choice ? { choice: targeting.choice } : {}),
+    ...(targeting ? { targeting } : {}),
+    ...(targeting?.targetContext
+      ? {
+        targetContexts: targeting.targetContext.contextByTarget,
+        involvedTargetIds,
+        automaticTargetIds: targeting.targetContext.automaticTargetIds,
+        automaticOutcomeByTarget: targeting.targetContext.automaticOutcomeByTarget,
+      }
+      : {}),
   };
 }

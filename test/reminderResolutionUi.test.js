@@ -14,7 +14,9 @@ const turnNoticeHtml = readFileSync(
 test("la UI integra i controlli solo nel reminder GM", () => {
   assert.match(turnNotice, /noticeRole !== "GM"[\s\S]{0,140}!row\?\.resolution[\s\S]{0,140}row\.targets\.length !== 1/);
   assert.match(turnNotice, /const RESOLUTION_BUTTON_OUTCOMES = \[/);
-  assert.match(turnNotice, /for \(const outcome of RESOLUTION_BUTTON_OUTCOMES\)/);
+  assert.match(turnNotice, /for \(const option of outcomeOptions\)/);
+  assert.doesNotMatch(turnNotice, /dismissOnly/);
+  assert.doesNotMatch(turnNotice, /button\.textContent = dismissOnly \? "Chiudi"/);
   assert.doesNotMatch(turnNotice, /for \(const outcome of Object\.values\(REMINDER_OUTCOMES\)\)/);
   assert.doesNotMatch(turnNotice, /noticeRole === "PLAYER"[\s\S]{0,120}createElement\("button"\)/);
 });
@@ -28,7 +30,7 @@ test("il rerender conserva bozza di esito e risultato dadi", () => {
 
 test("l'esito viene inviato direttamente dal pulsante senza conferma", () => {
   assert.match(turnNotice, /const resolve = async \(outcome: string\)/);
-  assert.match(turnNotice, /button\.addEventListener\("click", \(\) => \{\s*void resolve\(outcome\);/);
+  assert.match(turnNotice, /button\.addEventListener\("click", \(\) => \{\s*void resolve\(option\.value\);/);
   assert.doesNotMatch(turnNotice, /textContent = "Conferma"/);
   assert.doesNotMatch(turnNotice, /zone-resolution-confirm/);
 });
@@ -42,9 +44,12 @@ test("una risoluzione riuscita rimuove subito il reminder risolto", () => {
   assert.match(turnNotice, /if \(!entries\.length\) \{\s*clearZoneNotice\(\);/);
 });
 
-test("un reminder GM risolvibile non avvia timer e mantiene il cambio turno come chiusura", () => {
-  assert.match(turnNotice, /const requiresResolution = noticeRole === "GM"/);
-  assert.match(turnNotice, /if \(!requiresResolution\) \{\s*zoneHideTimer = window\.setTimeout/);
+test("ogni reminder usa il timer automatico e non espone una chiusura manuale", () => {
+  assert.doesNotMatch(turnNotice, /const requiresResolution = noticeRole === "GM"/);
+  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
+  assert.match(turnNotice, /panel\.appendChild\(timer\)/);
+  assert.match(turnNotice, /zoneHideTimer = window\.setTimeout/);
+  assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
   assert.match(turnNotice, /shouldClearZoneNoticeAtTurn\(currentZoneTurnKey, notice\.turnKey\)/);
   assert.match(turnNotice, /clearZoneNotice\(\);/);
 });
@@ -61,4 +66,11 @@ test("il modal mantiene il click solo sui controlli e il layer zona sopra l'iniz
   assert.match(turnNoticeHtml, /#app \{[\s\S]{0,180}z-index: 1;/);
   assert.match(turnNoticeHtml, /#zone-app \{[\s\S]{0,220}z-index: 3;/);
   assert.match(turnNoticeHtml, /\.zone-resolution button,[\s\S]{0,280}pointer-events: auto;/);
+});
+
+test("un reminder consumabile non mostra Chiudi e usa il timer automatico", () => {
+  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
+  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
+  assert.match(turnNotice, /panel\.appendChild\(timer\)/);
+  assert.match(turnNotice, /zoneHideTimer = window\.setTimeout/);
 });

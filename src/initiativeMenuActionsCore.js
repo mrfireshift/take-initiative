@@ -8,7 +8,7 @@ const COMPACT_ADMIN_MENU_ACTION_SELECTORS = Object.freeze({
   history: "[data-history='1']",
   "add-all": "[data-add-all-initiative='1']",
   "fill-initiative": "[data-fill-initiative='1']",
-  factions: "[data-faction-configurator='1']",
+  options: "[data-options-panel='1']",
   "clear-initiative": "[data-clear-initiative='1']",
 });
 

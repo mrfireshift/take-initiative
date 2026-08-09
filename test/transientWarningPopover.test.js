@@ -35,6 +35,8 @@ test("concentrazione e velocità aprono popover transienti on demand", () => {
 test("i warning chiudono il proprio popover e non lasciano iframe vuoti", () => {
   assert.match(concentration, /OBR\.popover\.close\(POPOVER_ID\)/);
   assert.match(speed, /OBR\.popover\.close\(POPOVER_ID\)/);
+  assert.match(turnNoticeHost, /await OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
+  assert.doesNotMatch(turnNoticeHost, /setHeight\(TURN_NOTICE_POPOVER_ID, 1\)/);
   assert.doesNotMatch(concentration, /OBR\.modal\.close\(MODAL_ID\)/);
   assert.doesNotMatch(speed, /OBR\.broadcast\.onMessage\(SPEED_WARNING_CHANNEL/);
 });
@@ -77,6 +79,8 @@ test("iniziativa, concentrazione e velocita conservano la card da 500 px con mar
   assert.match(initiative, /const width = cardWidth \+ 8;[\s\S]{0,100}const height = Math\.min\(288, 122/);
   assert.match(speedCheck, /const width = cardWidth \+ 8;/);
   assert.match(speedCheck, /height: 122,/);
+  assert.match(speedCheck, /export function prewarmSpeedCheckTurn\(state\)/);
+  assert.match(speedCheck, /movementStatePrefetch\?\.turnKey === next\.turnKey/);
   for (const markup of [turnNoticeHtml, concentrationHtml, speedHtml]) {
     assert.match(markup, /@media \(max-width: 520px\)/);
     assert.match(markup, /min-height: 114px/);

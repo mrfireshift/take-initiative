@@ -1,6 +1,7 @@
 import { normalizeAoEStyle } from "./aoeStyle.js";
 
 const THEMES = Object.freeze({
+  acid: Object.freeze({ fillColor: "#65a30d", strokeColor: "#bef264" }),
   arcane: Object.freeze({ fillColor: "#6366f1", strokeColor: "#a5b4fc" }),
   cold: Object.freeze({ fillColor: "#22d3ee", strokeColor: "#a5f3fc" }),
   darkness: Object.freeze({ fillColor: "#4c1d95", strokeColor: "#a78bfa" }),
@@ -22,6 +23,7 @@ const EXPLICIT_THEMES = new Map([
   ["darkness", "darkness"],
   ["entangle", "nature"],
   ["fog-cloud", "storm"],
+  ["flaming-sphere", "fire"],
   ["guardian-of-faith", "radiant"],
   ["insect-plague", "nature"],
   ["moonbeam", "radiant"],
@@ -34,8 +36,10 @@ const EXPLICIT_THEMES = new Map([
   ["phb2014-fame-di-hadar", "darkness"],
   ["xanathar-boschetto-druidico", "nature"],
   ["xanathar-collera-della-natura", "nature"],
+  ["xanathar-diavoletto-di-polvere", "earth"],
   ["xanathar-fulgore-nauseante", "radiant"],
   ["xanathar-oscurita-della-follia", "darkness"],
+  ["xanathar-sfera-al-vetriolo", "acid"],
   ["xanathar-spirito-guaritore", "nature"],
 ]);
 

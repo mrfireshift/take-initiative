@@ -17,6 +17,7 @@
     "generate:class-features": "node scripts/generate-class-feature-catalog.mjs",
     "audit:class-features": "node scripts/audit-class-features.mjs",
     "audit:barbaro": "node scripts/audit-barbaro-features.mjs",
+    "audit:spells": "node scripts/audit-spell-automation.mjs",
     "check:spells": "node scripts/check-spell-catalog.mjs",
     "preview": "vite preview"
   },

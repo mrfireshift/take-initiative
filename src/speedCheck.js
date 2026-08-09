@@ -41,6 +41,7 @@ const MAX_MOVEMENT_SEGMENTS = 500;
 
 let movementState = null;
 let movementStatePromise = null;
+let movementStatePrefetch = null;
 let currentTurn = null;
 let movementQueue = Promise.resolve();
 let processorEnabled = false;
@@ -488,12 +489,33 @@ async function ensureMovementState(turn) {
   return movementState;
 }
 
+export function prewarmSpeedCheckTurn(state) {
+  const next = resolveSpeedCheckTurn(state);
+  if (!processorEnabled || !speedCheckEnabled || !next.turnKey) return;
+  if (next.turnKey === currentTurn?.turnKey) {
+    movementStatePrefetch = null;
+    return;
+  }
+  if (movementStatePrefetch?.turnKey === next.turnKey) return;
+  const promise = loadMovementState(next).catch((error) => {
+    console.warn("[speed-check] turn prefetch:", error?.message || error);
+    return null;
+  });
+  movementStatePrefetch = { turnKey: next.turnKey, promise };
+}
+
 export function syncSpeedCheckTurn(state) {
   const next = resolveSpeedCheckTurn(state);
   const changed = !next.turnKey || next.turnKey !== currentTurn?.turnKey;
   if (changed) {
+    const prefetched = movementStatePrefetch?.turnKey === next.turnKey
+      ? movementStatePrefetch
+      : null;
     movementState = null;
-    movementStatePromise = null;
+    movementStatePromise = prefetched
+      ? { turnKey: prefetched.turnKey, promise: prefetched.promise }
+      : null;
+    movementStatePrefetch = null;
   }
   currentTurn = next.turnKey ? next : null;
   if (changed && processorEnabled) {
@@ -608,6 +630,7 @@ export function setSpeedCheckEnabled(enabled) {
   speedCheckEnabled = next;
   movementState = null;
   movementStatePromise = null;
+  movementStatePrefetch = null;
   trackedDrags.clear();
   notifyMovementState();
   if (next && processorEnabled && currentTurn) {
@@ -905,6 +928,7 @@ export function setSpeedCheckMovementMode(mode) {
 
 export function resetSpeedCheckMovement() {
   movementStatePromise = null;
+  movementStatePrefetch = null;
   trackedDrags.clear();
   const reset = async () => {
     if (movementState && !movementState.disabled) {
@@ -949,8 +973,12 @@ export function mountSpeedWarningBroadcast() {
       const run = async () => {
         let viewportWidth = 1200;
         let viewportHeight = 800;
-        try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-        try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+        const [reportedWidth, reportedHeight] = await Promise.all([
+          OBR.viewport.getWidth().catch(() => viewportWidth),
+          OBR.viewport.getHeight().catch(() => viewportHeight),
+        ]);
+        viewportWidth = Number(reportedWidth) || viewportWidth;
+        viewportHeight = Number(reportedHeight) || viewportHeight;
         const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
         const width = cardWidth + 8;
         const top = Math.max(12, Math.round(viewportHeight * 0.09));

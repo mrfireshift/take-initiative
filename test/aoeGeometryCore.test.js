@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  areaContainsBounds,
   areaHitsBounds,
   buildCircleArea,
   buildCellBoundaryLoops,
@@ -253,4 +254,19 @@ test("un token grande viene colpito se una delle sue caselle interseca l'area", 
     min: { x: 600, y: 600 },
     max: { x: 750, y: 750 },
   }), false);
+});
+
+test("il contenimento completo richiede tutti gli angoli del token nell'area", () => {
+  const area = {
+    cells: [{ x: 0, y: 0, width: 600, height: 600 }],
+  };
+  assert.equal(areaContainsBounds(area, {
+    min: { x: 150, y: 150 },
+    max: { x: 300, y: 300 },
+  }), true);
+  assert.equal(areaContainsBounds(area, {
+    min: { x: 550, y: 150 },
+    max: { x: 650, y: 250 },
+  }), false);
+  assert.equal(areaContainsBounds(area, null), false);
 });

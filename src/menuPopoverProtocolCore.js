@@ -3,7 +3,7 @@ export const COMPACT_ADMIN_MENU_ACTIONS = Object.freeze([
   "history",
   "add-all",
   "fill-initiative",
-  "factions",
+  "options",
   "clear-initiative",
 ]);
 

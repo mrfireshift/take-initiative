@@ -4,6 +4,7 @@ import {
   getProposedConditions,
   getSpellEffectChoices,
   getSpellEffects,
+  getSpellAttackResolution,
 } from "./spells-srd.js";
 import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
 import { resolveSpellConcentration } from "./spellCastContextCore.js";
@@ -12,6 +13,7 @@ import {
   withSpellPhaseTransitionOperations,
 } from "./spellCastPhaseCore.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
+import { spellEffectThemeFor } from "./spellColorCore.js";
 
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
 
@@ -42,6 +44,11 @@ export function buildSpellApplicationIntent({
     applyAutomatedConditions: applyAutomatedConditions !== false,
   };
   const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
+  const attackResolution = getSpellAttackResolution(
+    spell,
+    selectedChoice,
+    persistedCastContext,
+  );
   const phaseEffects = resolvedPhasePlan.effects === null
     ? catalogEffects
     : resolvedPhasePlan.effects;
@@ -83,6 +90,7 @@ export function buildSpellApplicationIntent({
     persistedCastContext,
     phasePlan: resolvedPhasePlan,
     spell,
+    attackResolution,
     subjects,
     turns,
     wantsConcentration,
@@ -109,6 +117,7 @@ export function buildSpellApplicationPlan({
     persistedCastContext,
     phasePlan,
     spell,
+    attackResolution,
     subjects,
     turns,
     wantsConcentration,
@@ -122,6 +131,7 @@ export function buildSpellApplicationPlan({
   const expiry = spellExpiry || (wantsConcentration
     ? { mode: "concentration" }
     : { mode: "rounds", remaining: turns });
+  const spellEffectTheme = spellEffectThemeFor(spell);
   const lifecycleOperations = catalogSpellApplicationOperations({
     targetIds: subjects,
     casterId,
@@ -136,14 +146,21 @@ export function buildSpellApplicationPlan({
     appliedAt,
     castContext: persistedCastContext,
     proposedConditions: castAutomationPlan.conditions,
-    proposedEffects: castAutomationPlan.effects,
+    proposedEffects: [
+      ...castAutomationPlan.effects,
+      ...(attackResolution?.effect ? [attackResolution.effect] : []),
+    ],
     conditionOptions: {
       sourceId: casterId || "",
       sourceName: casterName,
       appliedAt,
       expiry,
+      ...(spellEffectTheme ? { theme: spellEffectTheme } : {}),
     },
     concentrationAction,
+    casterName,
+    onSpellEnd: spell?.onSpellEnd,
+    persistSpell: !attackResolution,
   });
   const operations = withSpellPhaseTransitionOperations({
     operations: lifecycleOperations,
@@ -153,6 +170,9 @@ export function buildSpellApplicationPlan({
     casterId,
   });
 
+  const attackHistory = attackResolution
+    ? ` · ${attackResolution.outcomeLabel}: ${attackResolution.initialDamage.dice} ${attackResolution.initialDamage.factor === "half" ? "(metà)" : "(pieno)"} manuali`
+    : "";
   return {
     concentrationAction,
     historyLabel: historyLabel || (
@@ -161,9 +181,10 @@ export function buildSpellApplicationPlan({
         : phasePlan.phase === "resolve"
           ? "Risoluzione: " + name
           : "Incantesimo: " + name
-    ),
+    ) + attackHistory,
     name,
     operations,
+    attackResolution,
     phasePlan,
     spellExpiry,
   };

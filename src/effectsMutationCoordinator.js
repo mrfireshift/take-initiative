@@ -156,7 +156,9 @@ export function createEffectsMutationCoordinator({
       let historyEntry = null;
       let historyError = null;
       let historySkipped = false;
-      if (command.history !== false && plan?.changedIds?.length && isCommandCurrent()) {
+      const hasLogicalChanges = !!plan?.changedIds?.length;
+      const hasSideEffectChanges = !!commitResult?.sideEffectChanges?.length;
+      if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges) && isCommandCurrent()) {
         try {
           historyEntry = await recordHistory({
             command,
@@ -168,7 +170,7 @@ export function createEffectsMutationCoordinator({
         } catch (error) {
           historyError = serializeError(error);
         }
-      } else if (command.history !== false && plan?.changedIds?.length) {
+      } else if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges)) {
         historySkipped = true;
         historyError = {
           name: "SceneChangedAfterCommit",

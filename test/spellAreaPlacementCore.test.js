@@ -14,7 +14,11 @@ import {
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
 } from "../src/spellAreaPlacementCore.js";
-import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
+import {
+  getSpellAreaPlacementChoices,
+  getSpellAreaRuleById,
+  getSpellAreaRuleForPlacement,
+} from "../src/spellAreaRules.js";
 
 test("converte le misure delle spell nelle scale metriche e imperiali della griglia", () => {
   const radius = { value: 6, unit: "m", measure: "radius" };
@@ -193,6 +197,23 @@ test("la sessione passa da posizionamento a revisione e conclusione", () => {
   assert.equal(completeSpellAreaPlacement(review, "confirmed").phase, "confirmed");
 });
 
+test("la revisione conserva il raggio reale della sagoma circolare", () => {
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-fireball",
+    rule: getSpellAreaRuleById("fireball:cast"),
+  });
+  const review = reviewSpellAreaPlacement(session, {
+    type: "circle",
+    start: { x: 100, y: 100 },
+    end: { x: 6850, y: 100 },
+    radius: 600,
+    gridOrigin: { x: 0, y: 0 },
+    dpi: 150,
+  });
+
+  assert.equal(review.preview.radius, 600);
+});
+
 test("non conferma una sessione priva di anteprima", () => {
   const session = createSpellAreaPlacementSession({
     requestId: "request-2",
@@ -203,4 +224,20 @@ test("non conferma una sessione priva di anteprima", () => {
     /placement-preview-required/
   );
   assert.equal(completeSpellAreaPlacement(session, "cancelled").phase, "cancelled");
+});
+
+test("Gabbia di forza conserva la variante scelta nella sessione", () => {
+  assert.deepEqual(getSpellAreaPlacementChoices("forcecage"), [
+    { value: "cage", label: "Gabbia 4×4" },
+    { value: "box", label: "Box solida 2×2" },
+  ]);
+  const boxRule = getSpellAreaRuleForPlacement("forcecage:cast", "box");
+  assert.equal(boxRule.geometry.size.value, 3);
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-forcecage",
+    rule: boxRule,
+    ruleChoice: "box",
+  });
+  assert.equal(session.ruleChoice, "box");
+  assert.equal(session.shape, "square");
 });

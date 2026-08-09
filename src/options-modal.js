@@ -1,5 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { FACTION_CONFIGURATOR_ID } from "./factionRegistry.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import {
   effectiveOptionsPanelShared,
   normalizeOptionsPanelDraft,
@@ -123,6 +125,7 @@ function buildHpMatrix() {
 function renderPreview() {
   const shared = effectiveOptionsPanelShared(draft);
   const hp = shared.hp;
+  const reminderHasDetails = shared.reminders.visibility === "full";
   const hpModeLabels = Object.fromEntries(HP_MODES);
   const effectLabels = { all: "dettagli completi", summary: "indicatore", hidden: "nascosti" };
   const reminderLabels = {
@@ -131,9 +134,12 @@ function renderPreview() {
     notice: "solo avviso",
     hidden: "nascosti",
   };
+  const reminderDetails = reminderHasDetails
+    ? `; CD ${shared.reminders.showDc ? "visibile" : "nascosta"}, caster ${shared.reminders.showCaster ? "visibile" : "nascosto"}`
+    : "";
   const cards = [
     ["Tracker", `HP nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
-    ["Reminder", `${reminderLabels[shared.reminders.visibility]}; CD ${shared.reminders.showDc ? "visibile" : "nascosta"}, caster ${shared.reminders.showCaster ? "visibile" : "nascosto"}.`],
+    ["Reminder", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}.`],
     ["Turno e mappa", `Popup ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; label ${shared.activeTurnLabel ? "attiva" : "disattiva"}.`],
   ];
   previewNode.replaceChildren(...cards.map(([title, copy]) => {
@@ -154,12 +160,13 @@ function render() {
     button.setAttribute("aria-pressed", String(button.dataset.scope === editScope));
   }
   document.getElementById("scope-help").textContent = editScope === "room"
-    ? "Modifica i valori condivisi usati come base in tutte le scene."
-    : "Scegli Eredita oppure personalizza soltanto la scena corrente.";
+    ? "Valori condivisi per tutte le scene."
+    : "Eredita dalla Room o personalizza questa scena.";
   for (const badge of document.querySelectorAll("[data-current-scope-badge]")) {
     badge.textContent = editScope === "room" ? "Room" : "Scena";
   }
   for (const node of document.querySelectorAll("[data-room-only]")) node.hidden = editScope !== "room";
+  for (const node of document.querySelectorAll("[data-room-section]")) node.hidden = editScope !== "room";
   for (const node of document.querySelectorAll(".scene-mode, .scene-choice")) node.hidden = editScope !== "scene";
   for (const node of document.querySelectorAll(".room-value")) node.hidden = editScope === "scene";
 
@@ -183,7 +190,16 @@ function render() {
       ? familyValue
       : readPath(familyValue, control.dataset.path);
     setControlValue(control, value);
-    control.disabled = editScope === "scene" && draft.scene[family].mode === "inherit";
+    const sceneInherited = editScope === "scene" && draft.scene[family].mode === "inherit";
+    const inactiveReminderDetail = family === "reminders"
+      && ["showDc", "showCaster"].includes(control.dataset.path)
+      && activeFamilyValue("reminders").visibility !== "full";
+    control.disabled = sceneInherited || inactiveReminderDetail;
+    const toggle = control.closest(".option-toggle");
+    if (toggle) {
+      toggle.classList.toggle("is-disabled", control.disabled);
+      toggle.title = inactiveReminderDetail ? "Disponibile solo con Contenuto: Completo" : "";
+    }
   }
   renderPreview();
 }
@@ -194,6 +210,34 @@ function closeModal() {
     id: MODAL_ID,
   }, { destination: "LOCAL" }).catch(() => {});
   void OBR.popover.close(MODAL_ID).catch(() => {});
+}
+
+async function openFactionConfigurator() {
+  const viewportWidth = Number(await OBR.viewport.getWidth().catch(() => 1200)) || 1200;
+  const viewportHeight = Number(await OBR.viewport.getHeight().catch(() => 900)) || 900;
+  const width = 420;
+  const height = 420;
+  try {
+    await openTrackedPopover({
+      id: FACTION_CONFIGURATOR_ID,
+      url: "/faction-configurator.html",
+      width,
+      height,
+      anchorReference: "POSITION",
+      anchorPosition: {
+        left: Math.max(12, viewportWidth - width - 12),
+        top: Math.max(12, Math.min(52, viewportHeight - height - 12)),
+      },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 12,
+      hidePaper: true,
+    });
+  } catch (error) {
+    console.warn("[options-panel] configuratore fazioni:", error?.message || error);
+    await OBR.notification.show("Impossibile aprire il configuratore fazioni.", "ERROR").catch(() => {});
+  }
 }
 
 async function save() {
@@ -255,6 +299,7 @@ function bindControls() {
     }
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (action === "close") closeModal();
+    if (action === "open-faction-configurator") void openFactionConfigurator();
     if (action === "save") void save();
   });
   root.addEventListener("change", (event) => {

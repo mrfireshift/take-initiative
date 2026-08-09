@@ -39,10 +39,10 @@ test("il menu amministrativo risolve ogni azione sul controllo esistente", () =>
   });
   assert.deepEqual(resolveCompactAdminMenuAction({
     type: "action",
-    action: "factions",
+    action: "options",
   }), {
-    action: "factions",
-    selector: "[data-faction-configurator='1']",
+    action: "options",
+    selector: "[data-options-panel='1']",
   });
   assert.deepEqual(resolveCompactAdminMenuAction({
     type: "action",

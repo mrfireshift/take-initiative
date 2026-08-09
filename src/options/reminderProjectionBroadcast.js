@@ -3,10 +3,26 @@ import { projectReminderNotices } from "./optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./optionsRuntime.js";
 import { selectReminderProjectionPolicy } from "./optionsSelectors.js";
 
+let reminderSenderIsGMPromise = null;
+
+function reminderSenderIsGM() {
+  if (reminderSenderIsGMPromise) return reminderSenderIsGMPromise;
+  const pending = OBR.player.getRole()
+    .then((role) => role === "GM")
+    .catch(() => {
+      if (reminderSenderIsGMPromise === pending) reminderSenderIsGMPromise = null;
+      return false;
+    });
+  reminderSenderIsGMPromise = pending;
+  return pending;
+}
+
 export async function sendProjectedReminderPayload(channel, payload = {}) {
-  await startRuntimeOptions().catch(() => {});
-  const role = await OBR.player.getRole().catch(() => "PLAYER");
-  if (role !== "GM") return { gm: 0, player: 0 };
+  const [, isGM] = await Promise.all([
+    startRuntimeOptions().catch(() => {}),
+    reminderSenderIsGM(),
+  ]);
+  if (!isGM) return { gm: 0, player: 0 };
   const projection = runtimeOptionsService.get(selectReminderProjectionPolicy);
   const rawNotices = Array.isArray(payload.notices) ? payload.notices : [];
   const gmNotices = projectReminderNotices(rawNotices, {

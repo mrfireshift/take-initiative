@@ -49,6 +49,16 @@ function itemPortrait(item) {
   );
 }
 
+function spellSlotLevel(item, instanceId) {
+  const spells = item?.metadata?.[META_KEY]?.[`${ID}/spells`];
+  const wanted = String(instanceId || "").trim();
+  const entry = Array.isArray(spells)
+    ? spells.find((spell) => String(spell?.instanceId || "").trim() === wanted)
+    : null;
+  const level = Number(entry?.castContext?.slotLevel);
+  return Number.isInteger(level) && level >= 0 ? level : null;
+}
+
 export function normalizeZoneTriggerNotice(value) {
   const activationId = normalizedText(value?.activationId, "", 300);
   const turnKey = normalizedText(value?.turnKey, "", 300);
@@ -113,6 +123,7 @@ export function zoneTriggerNoticeFromActivation(
     source.get(casterId)?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC,
   );
   const casterName = normalizedText(source.get(casterId)?.name, "", 100);
+  const slotLevel = spellSlotLevel(source.get(casterId), activation?.instanceId);
   const targets = (Array.isArray(activation?.targetIds)
     ? activation.targetIds
     : [])
@@ -147,17 +158,27 @@ export function zoneTriggerNoticeFromActivation(
     ...(casterName ? { casterName } : {}),
     targets,
   };
+  if (
+    activation?.resolution === "manual-heal"
+    && targets.length === 1
+    && !String(
+      source.get(targets[0].id)?.metadata?.[META_KEY]?.creatureType
+      || source.get(targets[0].id)?.metadata?.[META_KEY]?.creatureTypeName
+      || source.get(targets[0].id)?.metadata?.[META_KEY]?.creatureTypeLabel
+      || "",
+    ).trim()
+  ) {
+    rawNotice.instruction = "Verifica il tipo di creatura: Costrutti e Non Morti non possono recuperare PF.";
+  }
   const resolution = targets.length === 1
     ? buildZoneTriggerReminderResolution({
-      activation: {
-        ...activation,
-        zoneItemId: activation?.zoneItemId,
-      },
+      activation: { ...activation, zoneItemId: activation?.zoneItemId },
       targetId: targets[0].id,
       sourceId: casterId,
       sourceName: casterName,
       dc,
       metadataKey,
+      slotLevel,
     })
     : null;
   return normalizeZoneTriggerNotice({

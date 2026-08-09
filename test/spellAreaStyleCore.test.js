@@ -8,10 +8,12 @@ import {
 
 test("le aree usano palette coerenti col flavor della spell", () => {
   assert.equal(spellAreaTheme("wall-of-fire"), "fire");
+  assert.equal(spellAreaTheme("flaming-sphere"), "fire");
   assert.equal(spellAreaTheme("sleet-storm"), "cold");
   assert.equal(spellAreaTheme("darkness"), "darkness");
   assert.equal(spellAreaTheme("xanathar-maelstrom"), "water");
   assert.equal(spellAreaTheme("silence"), "silence");
+  assert.equal(spellAreaTheme("xanathar-sfera-al-vetriolo"), "acid");
 });
 
 test("la palette tematica conserva opacità e spessore scelti dall'utente", () => {
@@ -25,5 +27,14 @@ test("la palette tematica conserva opacità e spessore scelti dall'utente", () =
     strokeColor: "#bef264",
     fillOpacity: 0.27,
     strokeWidth: 1.7,
+  });
+});
+
+test("Sfera al Vetriolo usa la palette acida per l'area disegnata", () => {
+  assert.deepEqual(spellAreaStyle("xanathar-sfera-al-vetriolo"), {
+    fillColor: "#65a30d",
+    strokeColor: "#bef264",
+    fillOpacity: 0.18,
+    strokeWidth: 1,
   });
 });

@@ -348,6 +348,76 @@ test("spostare l'area non equivale a far entrare le creature", () => {
   assert.deepEqual(moved.newActivations, []);
 });
 
+test("Sfera Infuocata distingue prossimità e contatto durante lo spostamento", () => {
+  const rule = getSpellAreaRuleById("flaming-sphere:cast");
+  const metadata = zoneMetadata({
+    ruleId: rule.id,
+    spellId: rule.spellId,
+  });
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: ["target"],
+    currentDirectTargetIds: [],
+    initiativeState: state(0),
+    areaPosition: { x: 0, y: 0 },
+  });
+  const movedNearby = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    currentDirectTargetIds: [],
+    initiativeState: state(0),
+    areaPosition: { x: 50, y: 0 },
+  });
+  assert.deepEqual(movedNearby.newActivations, []);
+
+  const movedIntoContact = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: movedNearby.runtime,
+    currentTargetIds: ["target"],
+    currentDirectTargetIds: ["target"],
+    initiativeState: state(0),
+    areaPosition: { x: 100, y: 0 },
+  });
+  assert.equal(movedIntoContact.newActivations.length, 1);
+  assert.equal(
+    movedIntoContact.newActivations[0].triggerId,
+    "flaming-sphere-save-on-contact",
+  );
+  assert.deepEqual(movedIntoContact.newActivations[0].targetIds, ["target"]);
+});
+
+test("Sfera Infuocata usa la membership di prossimità a fine turno", () => {
+  const rule = getSpellAreaRuleById("flaming-sphere:cast");
+  const metadata = zoneMetadata({
+    ruleId: rule.id,
+    spellId: rule.spellId,
+  });
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: ["target"],
+    initiativeState: state(1),
+  });
+  const turnEnded = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    initiativeState: state(0, 2),
+  });
+
+  assert.equal(turnEnded.newActivations.length, 1);
+  assert.equal(
+    turnEnded.newActivations[0].triggerId,
+    "flaming-sphere-save-on-turn-end",
+  );
+  assert.deepEqual(turnEnded.newActivations[0].targetIds, ["target"]);
+});
+
 test("Raggio Lunare conserva il suggerimento danno nel trigger", () => {
   const rule = getSpellAreaRuleById("moonbeam:cast");
   const metadata = zoneMetadata({
@@ -1295,7 +1365,8 @@ test("Spirito Guaritore non si attiva spostando lo spirito sopra una creatura", 
     creatureEntered.newActivations[0].triggerId,
     "healing-spirit-heal-on-entry",
   );
-  assert.deepEqual(creatureEntered.runtime.pending, []);
+  assert.equal(creatureEntered.runtime.pending.length, 1);
+  assert.equal(creatureEntered.runtime.pending[0].resolution, "manual-heal");
 });
 
 test("Crescita di Spine aggrega entrata, movimento interno e uscita nello stesso turno", () => {

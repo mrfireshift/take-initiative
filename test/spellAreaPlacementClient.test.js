@@ -62,3 +62,26 @@ test("gli id generati sono valorizzati e distinti", () => {
   assert.ok(first);
   assert.notEqual(first, second);
 });
+
+test("il client propaga la variante scelta della sagoma", async () => {
+  const broadcast = fakeBroadcast();
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-forcecage",
+    ruleId: "forcecage:cast",
+    casterId: "caster",
+    ruleChoice: "box",
+  }, {
+    broadcast,
+    windowRef: null,
+  });
+
+  await Promise.resolve();
+  assert.equal(broadcast.sent[0].data.ruleChoice, "box");
+  broadcast.emit({
+    type: "result",
+    requestId: "request-forcecage",
+    status: "cancelled",
+    ruleChoice: "box",
+  });
+  assert.equal((await pending).ruleChoice, "box");
+});

@@ -450,6 +450,32 @@ export function boundsToRect(bounds) {
   return { x, y, width: Math.max(0, maxX - x), height: Math.max(0, maxY - y) };
 }
 
+function pointInsideRect(point, rect) {
+  const x = Number(point?.x);
+  const y = Number(point?.y);
+  const minX = Number(rect?.x);
+  const minY = Number(rect?.y);
+  const maxX = minX + Number(rect?.width);
+  const maxY = minY + Number(rect?.height);
+  return [x, y, minX, minY, maxX, maxY].every(Number.isFinite)
+    && x >= minX - EPSILON
+    && x <= maxX + EPSILON
+    && y >= minY - EPSILON
+    && y <= maxY + EPSILON;
+}
+
+export function areaContainsBounds(area, bounds) {
+  const rect = boundsToRect(bounds);
+  if (!rect || !Array.isArray(area?.cells) || !area.cells.length) return false;
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x, y: rect.y + rect.height },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+  ];
+  return corners.every((corner) => area.cells.some((cell) => pointInsideRect(corner, cell)));
+}
+
 export function areaHitsBounds(area, bounds) {
   const rect = boundsToRect(bounds);
   return !!rect && Array.isArray(area?.cells) && area.cells.some((cell) => rectsOverlap(cell, rect));

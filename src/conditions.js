@@ -138,15 +138,31 @@ function __normalizeExpiry(value, legacyTurns = null, legacyTiming = "rounds") {
   return out;
 }
 
+function __normalizeActivation(value, sourceId = "", targetId = "") {
+  if (!value || typeof value !== "object") return null;
+  const activation = __normalizeExpiry(value);
+  if (activation.mode !== "turn-start" && activation.mode !== "turn-end") return null;
+  activation.actor = activation.actor === "source" ? "source" : "target";
+  if (!activation.actorId) {
+    activation.actorId = activation.actor === "source"
+      ? String(sourceId || "")
+      : String(targetId || "");
+  }
+  if (value.anchor === "next-turn") activation.anchor = "next-turn";
+  return activation;
+}
+
 function __normalizeConditionInstance(value, fallbackId) {
-  if (!value || typeof value !== "object" || value.active === false) return null;
+  if (!value || typeof value !== "object") return null;
+  const activation = __normalizeActivation(value.activation, value.sourceId, value.targetId);
+  if (value.active === false && !activation) return null;
   const condition = __conditionName(value);
   if (!condition) return null;
 
   const instance = {
     id: String(value.id || fallbackId || ""),
     condition,
-    active: true,
+    active: value.active !== false,
     expiry: __normalizeExpiry(
       value.expiry,
       __durationFrom(value.turns),
@@ -158,6 +174,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.sourceId) instance.sourceId = String(value.sourceId);
   if (value.sourceName) instance.sourceName = String(value.sourceName);
   if (value.targetId) instance.targetId = String(value.targetId);
+  if (activation) instance.activation = activation;
   if (value.parentEffectId) instance.parentEffectId = String(value.parentEffectId);
   if (value.parentFeatureId) instance.parentFeatureId = String(value.parentFeatureId);
   if (value.parentInstanceId) instance.parentInstanceId = String(value.parentInstanceId);
@@ -178,6 +195,9 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.mapVisible === false) instance.mapVisible = false;
   if (value.parentRemoval === "target" || value.parentRemoval === "spell") {
     instance.parentRemoval = value.parentRemoval;
+  }
+  if (value.parentEndCondition && typeof value.parentEndCondition === "object") {
+    instance.parentEndCondition = { ...value.parentEndCondition };
   }
   if (value.exhaustionContribution === true) instance.exhaustionContribution = true;
   if (condition === EXHAUSTION_CONDITION) {
@@ -240,7 +260,11 @@ function __cloneConditionInstance(instance) {
   return {
     ...instance,
     expiry: { ...(instance.expiry || { mode: "manual" }) },
+    ...(instance.activation ? { activation: { ...instance.activation } } : {}),
     ...(instance.theme ? { theme: { ...instance.theme } } : {}),
+    ...(instance.parentEndCondition
+      ? { parentEndCondition: { ...instance.parentEndCondition } }
+      : {}),
     ...(instance.appliedAt ? { appliedAt: { ...instance.appliedAt } } : {}),
   };
 }

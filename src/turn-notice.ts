@@ -121,6 +121,8 @@ const resolvingActivations = new Set<string>();
 const RESOLUTION_LABELS: Record<string, string> = {
   [REMINDER_OUTCOMES.PASSED]: "Superato",
   [REMINDER_OUTCOMES.FAILED]: "Fallito",
+  apply: "Applica cura",
+  ignore: "Ignora",
 };
 const RESOLUTION_BUTTON_OUTCOMES = [
   REMINDER_OUTCOMES.PASSED,
@@ -348,6 +350,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   if (
     noticeRole !== "GM"
     || !row?.resolution
+    || row.resolution?.mode === "consume"
     || !Array.isArray(row.targets)
     || row.targets.length !== 1
   ) return;
@@ -359,15 +362,18 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     return;
   }
   const draft = resolutionDraftFor(activationId);
+  const manualHeal = row.resolution?.mode === "manual-heal";
   const controls = document.createElement("div");
   controls.dataset.resolutionControls = "1";
   controls.className = "zone-resolution";
 
   let damageInput: HTMLInputElement | null = null;
-  if (reminderResolutionNeedsDamage(row.resolution)) {
+  if (reminderResolutionNeedsDamage(row.resolution) || manualHeal) {
     const damageLabel = document.createElement("label");
     damageLabel.className = "zone-resolution-damage";
-    damageLabel.textContent = `Risultato dadi (${row.resolution.damage.dice})`;
+    damageLabel.textContent = `Risultato dadi (${manualHeal
+      ? row.resolution.healing?.dice
+      : row.resolution.damage.dice})`;
     damageInput = document.createElement("input");
     damageInput.type = "number";
     damageInput.min = "0";
@@ -385,6 +391,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
 
   const outcomes = document.createElement("div");
   outcomes.className = "zone-resolution-outcomes";
+
   const refreshSelection = () => {
     for (const button of Array.from(outcomes.querySelectorAll("button"))) {
       button.classList.toggle("is-selected", button.dataset.outcome === draft.outcome);
@@ -397,6 +404,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     refreshSelection();
     if (
       damageInput
+      && outcome !== "ignore"
       && (!damageInput.value.trim() || !Number.isFinite(Number(damageInput.value)))
     ) {
       resolutionStatusNode(line, "Inserisci un risultato dei dadi valido.");
@@ -445,13 +453,19 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     }
   };
 
-  for (const outcome of RESOLUTION_BUTTON_OUTCOMES) {
+  const outcomeOptions = manualHeal
+    ? [{ value: "apply", label: "Applica cura" }, { value: "ignore", label: "Ignora" }]
+    : RESOLUTION_BUTTON_OUTCOMES.map((value) => ({
+      value,
+      label: RESOLUTION_LABELS[value] || value,
+    }));
+  for (const option of outcomeOptions) {
     const button = document.createElement("button");
     button.type = "button";
-    button.dataset.outcome = outcome;
-    button.textContent = RESOLUTION_LABELS[outcome] || outcome;
+    button.dataset.outcome = option.value;
+    button.textContent = option.label;
     button.addEventListener("click", () => {
-      void resolve(outcome);
+      void resolve(option.value);
     });
     outcomes.appendChild(button);
   }
@@ -517,39 +531,23 @@ function renderSaveReminderBatch(batch: any) {
 
   const timer = document.createElement("div");
   timer.className = "zone-timer";
-  const requiresResolution = noticeRole === "GM"
-    && presentation.rows.some((row) => row.resolution);
   panel.append(portrait, copy, detail);
-  if (requiresResolution) {
-    panel.dataset.requiresResolution = "true";
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "zone-close";
-    close.textContent = "×";
-    close.title = "Chiudi reminder";
-    close.setAttribute("aria-label", "Chiudi reminder");
-    close.addEventListener("click", clearZoneNotice);
-    panel.appendChild(close);
-  } else {
-    panel.appendChild(timer);
-  }
+  panel.appendChild(timer);
   window.clearTimeout(zoneHideTimer);
   app.replaceChildren(panel);
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
   announceNoticeLayout();
-  if (!requiresResolution) {
-    zoneHideTimer = window.setTimeout(() => {
-      if (currentZonePanel === panel) {
-        currentZonePanel = null;
-        currentZoneTurnKey = "";
-        currentSaveReminderBatch = null;
-        zoneHideTimer = 0;
-        announceNoticeLayout();
-      }
-      panel.remove();
-    }, ZONE_AUTO_CLOSE_MS);
-  }
+  zoneHideTimer = window.setTimeout(() => {
+    if (currentZonePanel === panel) {
+      currentZonePanel = null;
+      currentZoneTurnKey = "";
+      currentSaveReminderBatch = null;
+      zoneHideTimer = 0;
+      announceNoticeLayout();
+    }
+    panel.remove();
+  }, ZONE_AUTO_CLOSE_MS);
   return true;
 }
 

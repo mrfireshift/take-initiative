@@ -6,6 +6,7 @@ import {
   getProposedConditions,
   getSpellEffectChoices,
   getSpellEffects,
+  getSpellAttackResolution,
 } from "./spells-srd.js";
 
 function spellChoiceOptions(spell, areaRuleChoices, effectChoices) {
@@ -48,6 +49,7 @@ export function buildSpellAutomationViewModel({
   const choices = spellChoiceOptions(spell, areaRuleChoices, effectChoices);
   const selectedChoice = selectedSpellChoice(choices, previousChoice);
   const catalogEffects = getSpellEffects(spell, selectedChoice, castContext);
+  const attackResolution = getSpellAttackResolution(spell, selectedChoice, castContext);
   const phaseEffects = phasePlan.effects === null ? catalogEffects : phasePlan.effects;
   const previewPlan = phasePlan.useCatalogAutomation
     ? buildSpellCastAutomationPlan({
@@ -80,6 +82,12 @@ export function buildSpellAutomationViewModel({
       + (spell.defaultTurns ? "" : " Imposta i round manualmente.")
     : "";
   const hasAutomatedConditions = conditionLabels.length > 0;
+  const attackLabel = attackResolution
+    ? ` Risoluzione assistita: ${attackResolution.outcomeLabel}. Danno iniziale manuale ${attackResolution.initialDamage.dice} (${attackResolution.initialDamage.factor === "half" ? "metà" : "pieno"}).`
+      + (attackResolution.deferredEffect
+        ? ` Reminder successivo: ${attackResolution.deferredEffect.reminder}.`
+        : "")
+    : "";
   const hasChoices = phasePlan.useCatalogAutomation && (
     automation?.mode === "choice"
     || areaRuleChoices.length > 0
@@ -91,7 +99,7 @@ export function buildSpellAutomationViewModel({
   if (!hasAutomatedConditions) {
     showChoice = hasChoices;
     text = (effectLabels.length ? "Tracciamento con effetti." : "Solo tracciamento.")
-      + " Bersaglio: " + targetLabel + "." + effectsLabel + durationLabel;
+      + " Bersaglio: " + targetLabel + "." + effectsLabel + durationLabel + attackLabel;
   } else if (automation?.mode === "choice") {
     showChoice = true;
     text = "Scegli condizione; bersaglio: " + targetLabel + "."
@@ -107,7 +115,7 @@ export function buildSpellAutomationViewModel({
       : "Dopo gli esiti, applica: ";
     text = prefix + conditionLabels.join(", ")
       + ". Bersaglio: " + targetLabel + "."
-      + effectsLabel + durationLabel;
+      + effectsLabel + durationLabel + attackLabel;
   }
 
   return {
@@ -121,5 +129,6 @@ export function buildSpellAutomationViewModel({
     hasAutomatedConditions,
     showChoice,
     text,
+    attackResolution,
   };
 }

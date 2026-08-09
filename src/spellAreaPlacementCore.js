@@ -219,6 +219,7 @@ export function createSpellAreaPlacementSession({
   requestId = "",
   rule = null,
   casterId = "",
+  ruleChoice = "",
   previousToolId = "",
   previousModeId = "",
 } = {}) {
@@ -238,6 +239,9 @@ export function createSpellAreaPlacementSession({
     ruleId: rule.id,
     spellId: String(rule.spellId || ""),
     casterId: normalizedCasterId,
+    ...(String(ruleChoice || "").trim()
+      ? { ruleChoice: String(ruleChoice).trim() }
+      : {}),
     shape: rule.geometry.shape,
     phase: "placing",
     previousTool: {
@@ -255,15 +259,20 @@ export function reviewSpellAreaPlacement(session, preview) {
   if (!preview?.start || !preview?.end || !preview?.gridOrigin) {
     throw new Error("placement-preview-required");
   }
+  const type = String(preview.type || session.shape);
+  const radius = Number(preview.radius);
   return {
     ...session,
     phase: "review",
     preview: {
-      type: String(preview.type || session.shape),
+      type,
       start: finitePoint(preview.start),
       end: finitePoint(preview.end),
       gridOrigin: finitePoint(preview.gridOrigin),
       dpi: Math.max(1, Number(preview.dpi) || 1),
+      ...(type === "circle" && Number.isFinite(radius) && radius > 0
+        ? { radius }
+        : {}),
       ...(Number(preview.widthSquares) > 0
         ? {
           widthSquares: Math.max(

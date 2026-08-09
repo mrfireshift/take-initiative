@@ -67,6 +67,7 @@
     .spell-combobox{position:relative;min-width:0;width:100%}.spell-search{padding-right:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spell-menu-toggle{position:absolute;top:1px;right:1px;width:40px;height:calc(100% - 2px);padding:0;border:0;border-radius:0 10px 10px 0;background:transparent;color:#fff;cursor:pointer;font-size:0}.spell-menu-toggle::before{content:"";position:absolute;top:50%;right:10px;width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-70%) rotate(45deg)}.spell-menu-toggle:hover{background:rgba(255,255,255,.06)}.spell-menu{position:absolute;z-index:20;top:calc(100% + 5px);left:0;right:0;max-height:min(300px,48vh);padding:4px;overflow-y:auto;border:1px solid rgba(148,163,184,.36);border-radius:11px;background:#172033;box-shadow:0 16px 32px rgba(0,0,0,.42);scrollbar-width:thin}.spell-menu-group+.spell-menu-group{margin-top:3px}.spell-menu-level{position:sticky;top:-4px;z-index:1;padding:6px 8px 4px;background:#172033;color:rgba(255,255,255,.56);font-size:var(--obrt-type-caption);font-weight:var(--obrt-weight-bold);letter-spacing:.07em;text-transform:uppercase}.spell-menu-option{display:block;width:100%;min-width:0;padding:7px 9px;overflow:hidden;border:0;border-radius:7px;background:transparent;color:rgba(255,255,255,.9);cursor:pointer;text-align:left;text-overflow:ellipsis;white-space:nowrap}.spell-menu-option:hover,.spell-menu-option.active{background:rgba(59,130,246,.24);color:#fff}.spell-menu-empty{padding:10px;color:var(--muted);text-align:center}
     .concentration-badge{box-sizing:border-box;width:18px;height:18px;flex:0 0 18px;display:inline-flex;align-items:center;justify-content:center;border:2px solid rgba(0,0,0,1);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5);background:rgba(0,0,0,.8);color:#fff;font-size:10px;font-weight:700;line-height:1;pointer-events:none}
     .spell-rule-summary,.concentration-note{padding:8px 10px;border:1px solid rgba(148,163,184,.18);border-radius:9px;background:rgba(15,23,42,.3);color:var(--muted);font-size:var(--obrt-type-caption);line-height:1.35;white-space:pre-line}.concentration-note{color:#fde68a;border-color:rgba(250,204,21,.24);background:rgba(161,98,7,.12)}
+    .spell-target-limit{padding:6px 8px;border:1px solid rgba(96,165,250,.28);border-radius:8px;background:rgba(30,64,175,.12);color:#bfdbfe;font-size:var(--obrt-type-caption)}.spell-target-limit.invalid{border-color:rgba(248,113,113,.55);background:rgba(185,28,28,.16);color:#fecaca}
     .condition-details{flex:1;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0;padding:0;border:1px solid rgba(148,163,184,.22);border-radius:11px;overflow:hidden;background:rgba(15,23,42,.34)}
     .condition-details label{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-width:0;padding:10px 12px;border-right:1px solid rgba(148,163,184,.18);border-bottom:1px solid rgba(148,163,184,.18)}
     .condition-details label:nth-child(2n){border-right:0}.condition-details label:nth-last-child(-n+2){border-bottom:0}
@@ -143,12 +144,16 @@
     .area-spell-row .select-field{align-items:stretch;justify-content:stretch}
     .area-spell-field{width:auto;flex:1 1 300px}
     #spellCasterWrap{width:190px;flex:0 0 190px}
+    #spellSlotWrap{width:130px;flex:0 0 130px}
     .caster-select-row{display:flex;min-width:0;align-items:center;gap:6px}
     .caster-select-row select{flex:1 1 auto}
     .area-spell-row select,.area-condition-row select,.area-condition-row input{width:100%;min-width:0;min-height:48px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:inherit;outline:none}
     .area-placement{width:auto;height:48px;min-width:150px;min-height:48px;flex:0 1 225px;margin-left:0}
     .area-condition-row{display:grid;grid-template-columns:minmax(190px,1.45fr) minmax(130px,1fr) minmax(120px,.9fr) minmax(105px,.8fr) minmax(90px,.7fr);align-items:end;gap:8px}
     .area-feedback{display:grid;gap:6px}
+    .chain-lightning-controls{display:grid;grid-template-columns:minmax(0,1fr);width:min(100%,190px);align-items:end;gap:8px}
+    .chain-lightning-controls label{display:grid;min-width:0;gap:6px}
+    .chain-lightning-controls select{width:100%;min-width:0;min-height:48px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:inherit;outline:none}
     .area-condition-row select:disabled,.area-condition-row input:disabled,.area-spell-row select:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
     .target.save-target{min-height:34px;padding-block:2px}
     @media(max-width:760px){
@@ -156,13 +161,15 @@
       .area-tabs{gap:3px;padding:3px}.area-tab{min-height:30px;padding:5px 8px}
       .area-tab-panel{min-height:78px;padding:7px 9px 9px}
       .area-condition-row{grid-template-columns:minmax(150px,1.4fr) repeat(4,minmax(80px,1fr))}
-      .area-spell-row select,.area-condition-row select,.area-condition-row input,.area-placement{height:32px;min-height:32px;padding:4px 7px}
+      .chain-lightning-controls{grid-template-columns:minmax(150px,1fr)}
+      .area-spell-row select,.area-condition-row select,.area-condition-row input,.chain-lightning-controls select,.area-placement{height:32px;min-height:32px;padding:4px 7px}
       .area-placement{width:auto;margin-left:0}
       .target.save-target{min-height:32px;padding-block:2px}
     }
     @media(max-width:520px){
       .area-spell-row{display:grid;grid-template-columns:1fr;row-gap:8px}
       .area-condition-row{grid-template-columns:1fr}
+      .chain-lightning-controls{grid-template-columns:1fr;width:100%}
       .area-spell-field,#spellCasterWrap{width:100%}
       .area-placement{width:100%;margin-left:0}
     }
@@ -179,6 +186,15 @@
       cursor:default;
       text-align:center;
     }
+    .target-entry{display:grid;min-width:0;gap:0}
+    .target-entry.has-target-context .target{border-radius:9px 9px 0 0}
+    .target-context-submenu{display:grid;width:100%;min-width:0;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;padding:6px 8px 7px;border:1px solid rgba(148,163,184,.22);border-top:0;border-radius:0 0 9px 9px;background:rgba(30,41,59,.44)}
+    .target-context-field{display:grid;min-width:0;gap:3px}
+    .target-context-field .caption{font-size:10px;letter-spacing:.045em}
+    .target-context-field select,.target-context-field input{width:100%;min-width:0;min-height:32px;padding:4px 7px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:inherit;outline:none;font-size:var(--obrt-type-body)}
+    .target-context-field select:disabled,.target-context-field input:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
+    @media(max-width:760px){.target-context-submenu{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:520px){.target-context-submenu{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -186,10 +202,10 @@
     <header class="header"><div class="title">Console effetti ad area</div><button class="close" id="close" type="button" title="Chiudi">X</button></header>
     <section class="controls">
       <div class="mode-group" aria-label="Modalita">
-        <button class="mode active" data-mode="damage" type="button">Danno</button>
+        <button class="mode active" data-mode="save" type="button">Effetti ad area</button>
+        <button class="mode" data-mode="damage" type="button">Danno</button>
         <button class="mode" data-mode="heal" type="button">Cura</button>
         <button class="mode" data-mode="temp" type="button">HP temp.</button>
-        <button class="mode" data-mode="save" type="button">Effetti ad area</button>
       </div>
       <label class="amount-wrap"><span class="caption">Valore</span><input class="amount" id="amount" type="text" inputmode="numeric" pattern="[0-9]*" value="0" autocomplete="off" /></label>
     </section>
@@ -212,11 +228,16 @@
               </label>
             </div>
             <label class="select-field with-caption" id="spellCasterWrap"><span class="caption">Caster</span><span class="caster-select-row"><select id="spellCaster" aria-label="Caster dell'incantesimo"><option value="">Nessun caster</option></select><span class="concentration-badge" id="concentrationNotice" aria-label="Incantesimo a concentrazione" hidden>C</span></span></label>
+            <label class="select-field with-caption" id="spellSlotWrap" hidden><span class="caption">Livello slot</span><select id="spellSlot" aria-label="Livello dello slot"></select></label>
             <button class="small area-placement" id="areaPlacement" type="button" hidden>Posiziona area</button>
           </div>
           <div class="area-feedback">
             <label class="select-field with-caption" id="spellRuleChoiceWrap" hidden><span class="caption">Effetto / variante</span><select id="spellRuleChoice" aria-label="Effetto o variante dell'incantesimo"></select></label>
             <div class="spell-rule-summary" id="spellRuleSummary" hidden></div>
+            <div class="spell-target-limit" id="spellTargetLimit" hidden></div>
+            <div class="chain-lightning-controls" id="chainLightningControls" hidden>
+              <label><span class="caption">Bersaglio primario</span><select id="chainPrimary" aria-label="Bersaglio primario di Catena di fulmini"></select></label>
+            </div>
           </div>
       </section>
       <section class="area-tab-panel" id="conditionDetails" role="tabpanel" aria-labelledby="areaConditionTab" hidden>

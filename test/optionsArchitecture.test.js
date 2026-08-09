@@ -16,6 +16,7 @@ import {
 import { resolveOptions } from "../src/options/optionsResolve.js";
 import {
   selectActiveTurnLabelEnabled,
+  selectEmbersAnimationsEnabled,
   selectFollowActiveTurn,
   selectMapHpBarsEnabled,
   selectPlayerHpVisibility,
@@ -59,6 +60,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   });
   assert.equal(room.tools.clocks, true);
   assert.equal(room.automation.knownFactionAssignment, true);
+  assert.equal(room.integrations.embersAnimations, true);
   assert.equal(room.uiSync.trackerOpen, true);
   assert.ok(Object.values(scene.overrides).every((entry) => entry.mode === "inherit"));
 });
@@ -90,6 +92,12 @@ test("OPTIONS-001: normalizza input mancanti, corrotti e parziali senza perdere 
   assert.equal(room.turn.futureTurn, 42);
   assert.equal(room.map.hpBars, true);
   assert.equal(room.map.futureMap, true);
+
+  const integrations = normalizeRoomOptions({
+    integrations: { embersAnimations: false, futureIntegration: "keep" },
+  });
+  assert.equal(integrations.integrations.embersAnimations, false);
+  assert.equal(integrations.integrations.futureIntegration, "keep");
 
   const scene = normalizeSceneOptions({
     futureTopLevel: true,
@@ -181,6 +189,7 @@ test("OPTIONS-001: la precedenza è default, Room, override scena e locale solo 
     surface: "trackerClassic", attitude: "enemy",
   }), "hidden");
   assert.deepEqual(selectSceneOverriddenPaths(resolved), ["turn.popup", "map.activeTurnLabel"]);
+  assert.equal(selectEmbersAnimationsEnabled(resolved), true);
 });
 
 test("OPTIONS-001: inherit torna alla Room e il fallback legacy locale vale solo se il campo manca", () => {

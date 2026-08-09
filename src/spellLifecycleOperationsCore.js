@@ -27,20 +27,23 @@ export function spellLifecycleOperations({
   spellExpiry = null,
   appliedAt = null,
   castContext = null,
+  casterName = "",
+  onSpellEnd = null,
   replaceNames = [],
   conditionApplications = [],
   concentrationAction = "replace",
+  persistSpell = true,
 } = {}) {
   const targets = uniqueIds(targetIds);
   const caster = String(casterId || "").trim();
   const mode = concentrationMode(concentrationAction);
-  const tracksConcentration = concentration === true && !!caster;
+  const tracksConcentration = persistSpell === true && concentration === true && !!caster;
   const operations = [];
 
   if (mode !== "extend" && tracksConcentration) {
     operations.push({ type: "concentration:break", casterIds: [caster] });
   }
-  if (mode !== "dismiss" && targets.length) {
+  if (persistSpell === true && mode !== "dismiss" && targets.length) {
     operations.push({
       type: "spell:upsert",
       targetIds: targets,
@@ -48,8 +51,10 @@ export function spellLifecycleOperations({
       turns: Math.max(1, Math.floor(Number(turns) || 1)),
       conc: tracksConcentration,
       source: caster,
+      ...(casterName ? { casterName: String(casterName) } : {}),
       instanceId,
       spellId,
+      ...(onSpellEnd ? { onSpellEnd: clone(onSpellEnd) } : {}),
       ...(spellExpiry ? { expiry: clone(spellExpiry) } : {}),
       ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
       ...(castContext ? { castContext: clone(castContext) } : {}),
@@ -110,6 +115,9 @@ export function catalogSpellApplicationOperations({
   proposedEffects = [],
   conditionOptions = {},
   concentrationAction = "replace",
+  casterName = "",
+  onSpellEnd = null,
+  persistSpell = true,
 } = {}) {
   const targets = uniqueIds(targetIds);
   const applications = [];
@@ -140,10 +148,19 @@ export function catalogSpellApplicationOperations({
       ? effect.kind
       : "";
     if (!effectLabel || !effectKind) continue;
+    const effectOptions = spellEffectConditionOptions(
+      effect,
+      conditionOptions,
+      persistSpell === true ? instanceId : "",
+    );
+    if (persistSpell !== true) {
+      effectOptions.type = "automatic";
+      effectOptions.parentEffectId = "";
+    }
     applications.push({
       targetIds: targets,
       conditionName: effectLabel,
-      options: spellEffectConditionOptions(effect, conditionOptions, instanceId),
+      options: effectOptions,
     });
   }
 
@@ -158,8 +175,11 @@ export function catalogSpellApplicationOperations({
     spellExpiry,
     appliedAt,
     castContext,
+    casterName,
+    onSpellEnd,
     replaceNames: [enteredName, name, storedName],
     conditionApplications: applications,
     concentrationAction,
+    persistSpell,
   });
 }

@@ -1,0 +1,2 @@
+- Incantesimi: Terminare implementazione degli incantesimi ad area/multifase/alto livello (vedere audit)
+- Controllo puntuale animazioni

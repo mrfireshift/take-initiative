@@ -10,13 +10,17 @@ import {
   areaMembershipTargetIds,
   staleAreaMembershipEffectRemovals,
 } from "./spellAreaMembershipCore.js";
-import { getSpellAreaRuleById, SPELL_AREA_RULES } from "./spellAreaRules.js";
+import {
+  getSpellAreaRuleById,
+  SPELL_AREA_RULES,
+} from "./spellAreaRules.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
   isStaticSpellZoneRule,
   staticSpellZoneItems,
   staticSpellZoneMetadata,
+  translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
@@ -29,6 +33,7 @@ import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 1000;
@@ -106,26 +111,6 @@ function boundsCenter(bounds) {
       y: (min.y + max.y) / 2,
     }
     : null;
-}
-
-function translatedZoneArea(item) {
-  const metadata = item?.metadata?.[AOE_AREA_META_KEY];
-  if (!metadata?.type || !metadata?.start || !metadata?.end) return null;
-  const position = point(item.position) || { x: 0, y: 0 };
-  const base = point(metadata.basePosition) || { x: 0, y: 0 };
-  const delta = { x: position.x - base.x, y: position.y - base.y };
-  const translate = (entry) => ({
-    x: Number(entry.x) + delta.x,
-    y: Number(entry.y) + delta.y,
-  });
-  return buildArea(
-    metadata.type,
-    translate(metadata.start),
-    translate(metadata.end),
-    metadata.dpi,
-    translate(metadata.gridOrigin || metadata.start),
-    { widthSquares: metadata.widthSquares },
-  );
 }
 
 function trackedCreature(item, orderedIds) {
@@ -359,6 +344,97 @@ export function buildStaticSpellZoneItems({
   return [root, geometry];
 }
 
+export function buildStaticSpellZoneSubzoneItem({
+  ruleId = "",
+  instanceId = "",
+  casterId = "",
+  parentId = "",
+  spellName = "",
+  center = null,
+  radiusMeters = 3,
+  dpi = 150,
+  scale = {},
+  expiresTurnKey = "",
+  style = null,
+} = {}) {
+  const rule = getSpellAreaRuleById(ruleId);
+  const origin = point(center);
+  const safeDpi = Math.max(1, Number(dpi) || 150);
+  const parsedScale = scale?.parsed && typeof scale.parsed === "object"
+    ? scale.parsed
+    : scale;
+  const multiplier = Number(parsedScale?.multiplier);
+  const unit = String(parsedScale?.unit || "m").trim().toLowerCase();
+  const unitMeters = unit === "ft" || unit === "foot" || unit === "feet"
+    ? 0.3048
+    : 1;
+  const metersPerCell = (Number.isFinite(multiplier) && multiplier > 0
+    ? multiplier
+    : 1.5) * unitMeters;
+  const radiusCells = Math.max(
+    1,
+    Math.round(Math.max(0.1, Number(radiusMeters) || 3) / metersPerCell),
+  );
+  if (!rule || !origin || !String(instanceId || "").trim()) {
+    throw new Error("static-zone-subzone-invalid");
+  }
+  const end = {
+    x: origin.x + radiusCells * safeDpi,
+    y: origin.y,
+  };
+  const area = buildArea(
+    "circle",
+    origin,
+    end,
+    safeDpi,
+    origin,
+  );
+  const resolvedStyle = spellAreaStyle(
+    rule.spellId,
+    normalizeAoEStyle(style || loadAoEStyle()),
+  );
+  const outlineWidth = Math.max(2, safeDpi * 0.035 * resolvedStyle.strokeWidth);
+  const label = String(spellName || rule.spellId || "Incantesimo").trim();
+  const metadata = staticSpellZoneMetadata({
+    instanceId,
+    ruleId: rule.id,
+    spellId: rule.spellId,
+    casterId,
+    role: "subzone",
+    parentId,
+  });
+  metadata.subzoneType = "dust-cloud";
+  metadata.effectLabel = "Pesantemente oscurato";
+  if (String(expiresTurnKey || "").trim()) {
+    metadata.expiresTurnKey = String(expiresTurnKey).trim();
+  }
+  return buildZonePath({
+    name: `Nube di detriti: ${label} · Pesantemente oscurato`,
+    commands: boundaryCommands(area.cells),
+    style: resolvedStyle,
+    fillOpacity: Math.min(0.36, Math.max(0.08, resolvedStyle.fillOpacity * 1.35)),
+    strokeOpacity: 0.75,
+    strokeWidth: outlineWidth,
+    metadata: {
+      [AOE_AREA_META_KEY]: {
+        version: 2,
+        singlePath: true,
+        type: "circle",
+        start: origin,
+        end,
+        dpi: safeDpi,
+        gridOrigin: origin,
+        basePosition: { x: 0, y: 0 },
+        style: resolvedStyle,
+        subzone: "dust-cloud",
+      },
+      [SPELL_STATIC_ZONE_META_KEY]: metadata,
+    },
+    locked: true,
+    disableHit: true,
+  });
+}
+
 export async function getStaticSpellZoneItems({
   instanceId = "",
   casterId = "",
@@ -431,6 +507,21 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     && !Array.isArray(sceneMetadataOverride)
     ? sceneMetadataOverride
     : fetchedSceneMetadata;
+  const currentTurnKey = currentInitiativeTurnKey(sceneMetadata?.[STATE_KEY]);
+  const expiredSubzoneIds = staticSpellZoneItems(items)
+    .filter((item) => {
+      const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      return metadata?.role === "subzone"
+        && metadata?.expiresTurnKey
+        && metadata.expiresTurnKey === currentTurnKey;
+    })
+    .map((item) => item.id)
+    .filter(Boolean);
+  if (expiredSubzoneIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    await OBR.scene.items.deleteItems(expiredSubzoneIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  }
   const zoneRoots = staticSpellZoneItems(items)
     .filter((item) =>
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
@@ -505,6 +596,18 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       candidates,
       metaKey: META_KEY,
     });
+    const directTargetIds = rule.zonePolicy?.triggers?.some(
+      (trigger) => trigger?.targetMode === "direct-members"
+    )
+      ? areaMembershipTargetIds({
+        sourceId: zoneMetadata.casterId,
+        rule,
+        area,
+        candidates,
+        metaKey: META_KEY,
+        membershipPaddingSquares: 0,
+      })
+      : [];
     const caster = byId.get(zoneMetadata.casterId);
     operations.push(...areaMembershipPlan({
       instanceId: zoneMetadata.instanceId,
@@ -521,6 +624,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       zoneItem: item,
       rule,
       desiredTargetIds,
+      directTargetIds,
       currentTargetPositions: Object.fromEntries(
         candidates
           .filter(({ item: candidate, center }) =>

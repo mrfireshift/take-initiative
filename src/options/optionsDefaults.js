@@ -110,6 +110,9 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   automation: {
     knownFactionAssignment: true,
   },
+  integrations: {
+    embersAnimations: true,
+  },
   uiSync: {
     trackerOpen: true,
   },

@@ -16,6 +16,14 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("entangle"), true);
   assert.equal(ids.has("hypnotic-pattern"), true);
   assert.equal(ids.has("fireball"), true);
+  assert.equal(ids.has("bane"), true);
+  assert.equal(ids.has("legacy-tashas-mind-whip"), true);
+  assert.equal(ids.has("chain-lightning"), true);
+  assert.equal(ids.has("command"), true);
+  assert.equal(ids.has("xanathar-anatema-elementale"), true);
+  assert.equal(ids.has("banishment"), true);
+  assert.equal(ids.has("xanathar-disperdere"), false);
+  assert.equal(ids.has("xanathar-metamorfosi-di-massa"), false);
   assert.equal(ids.has("xanathar-muro-di-luce"), true);
   assert.equal(ids.has("xanathar-scossa-tellurica"), true);
   assert.equal(ids.has("glyph-of-warding"), true);
@@ -43,6 +51,84 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("xanathar-immolazione"), false);
   assert.equal(ids.has("tasha-lenza-elettrizzante"), false);
   assert.equal(options.find((option) => option.id === "hypnotic-pattern")?.automated, true);
+  assert.equal(options.find((option) => option.id === "bane")?.automated, true);
+  assert.equal(options.find((option) => option.id === "legacy-tashas-mind-whip")?.automated, true);
+  assert.equal(options.find((option) => option.id === "chain-lightning")?.automated, true);
+  assert.equal(options.find((option) => option.id === "command")?.automated, true);
+  assert.equal(options.find((option) => option.id === "banishment")?.automated, true);
+  assert.equal(getAreaSaveAutomation("xanathar-disperdere"), null);
+  assert.equal(getAreaSaveAutomation("xanathar-metamorfosi-di-massa"), null);
+});
+
+test("i workflow multi-bersaglio senza sagoma riusano gli effetti esistenti", () => {
+  const bane = getAreaSaveAutomation("bane");
+  const mindWhip = getAreaSaveAutomation("legacy-tashas-mind-whip");
+  const chainLightning = getAreaSaveAutomation("chain-lightning");
+
+  assert.equal(bane.failed[0].effectId, "attack-save-penalty");
+  assert.deepEqual(bane.failed[0].expiry, { mode: "concentration" });
+  assert.equal(
+    mindWhip.failed[0].effectId,
+    "no-reaction-and-limited-turn-options",
+  );
+  assert.deepEqual(mindWhip.failed[0].expiry, {
+    mode: "turn-end",
+    actor: "target",
+    remaining: 1,
+    anchor: "next-turn",
+  });
+  assert.deepEqual(chainLightning.trackOutcomes, []);
+});
+
+test("Anatema Elementale riusa l'effetto del tipo scelto soltanto sui fallimenti", () => {
+  const automation = getAreaSaveAutomation("xanathar-anatema-elementale", "fuoco");
+
+  assert.deepEqual(automation.trackOutcomes, ["failed"]);
+  assert.equal(automation.passed, undefined);
+  assert.equal(automation.immune, undefined);
+  assert.deepEqual(automation.failed, [{
+    condition: "Niente res. fuoco · +2d6/turno",
+    effectId: "elemental-bane-fuoco",
+    effectKind: "debuff",
+    effectDetail: "Perde la resistenza ai danni da fuoco; la prima volta in ogni turno in cui li subisce, riceve 2d6 danni extra.",
+    expiry: { mode: "concentration" },
+  }]);
+  assert.equal(getAreaSaveAutomation("xanathar-anatema-elementale", "inesistente"), null);
+});
+
+test("Comando applica una sola scelta ai fallimenti e rende Prono soltanto Supplica", () => {
+  for (const choice of ["avvicinati", "fermo", "fuggi", "lascia"]) {
+    const automation = getAreaSaveAutomation("command", choice);
+    assert.deepEqual(automation.trackOutcomes, ["failed"], choice);
+    assert.equal(automation.failed, undefined, choice);
+  }
+
+  const supplica = getAreaSaveAutomation("command", "supplica");
+  assert.deepEqual(supplica.trackOutcomes, ["failed"]);
+  assert.deepEqual(supplica.failed, [{
+    condition: "Prono",
+    options: {
+      parentEffectId: "",
+      manualRemoval: true,
+      activation: {
+        mode: "turn-start",
+        actor: "target",
+        remaining: 1,
+        anchor: "next-turn",
+      },
+    },
+  }]);
+  assert.equal(getAreaSaveAutomation("command", "non-esiste"), null);
+});
+
+test("Esilio espone l'automazione dichiarativa", () => {
+  const banishment = getAreaSaveAutomation("banishment");
+  assert.deepEqual(banishment.trackOutcomes, ["failed"]);
+  assert.deepEqual(banishment.failed.map((rule) => rule.condition), ["Incapacitato"]);
+  assert.deepEqual(banishment.failed[0].expiry, { mode: "concentration" });
+  assert.equal(getAreaSaveAutomation("xanathar-disperdere"), null);
+  assert.equal(getSpellDefinition("banishment").concentration, true);
+  assert.equal(getSpellDefinition("xanathar-metamorfosi-di-massa").concentration, true);
 });
 
 test("le nuove aree collegano condizioni e casi senza effetto persistente", () => {

@@ -24,6 +24,21 @@ export function saveSpellResolutionOperations({
   const spellInstanceId = String(instanceId || "").trim();
   if (!spellInstanceId) throw new Error("Invalid save spell resolution: instance-required");
 
+  const resolvedCastContext = castContext && typeof castContext === "object"
+    ? clone(castContext)
+    : {};
+  if (resolution.targetContexts && typeof resolution.targetContexts === "object") {
+    const resolvedTargetContexts = clone(resolution.targetContexts);
+    if (Object.keys(resolvedTargetContexts).length) {
+      resolvedCastContext.targetContexts = {
+        ...(resolvedCastContext.targetContexts && typeof resolvedCastContext.targetContexts === "object"
+          ? resolvedCastContext.targetContexts
+          : {}),
+        ...resolvedTargetContexts,
+      };
+    }
+  }
+
   const targetIds = Array.from(new Set(
     (resolution.spellTargetIds || [])
       .map((value) => String(value || "").trim())
@@ -66,7 +81,7 @@ export function saveSpellResolutionOperations({
     spellId: resolution.spellId,
     spellExpiry,
     appliedAt,
-    castContext,
+    castContext: Object.keys(resolvedCastContext).length ? resolvedCastContext : null,
     replaceNames: [resolution.spellName],
     conditionApplications,
     concentrationAction,

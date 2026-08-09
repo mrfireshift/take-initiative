@@ -24,7 +24,13 @@ import {
   buildEffectsMutationPlan,
   EFFECTS_MUTATION_CONDITION_VERSION,
 } from "./effectsMutationCore.js";
-import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
+import {
+  SPELL_STATIC_ZONE_META_KEY,
+  SPELL_ZONE_MOVEMENT_CONTROL_FIELD,
+  translatedZoneArea,
+} from "./spellStaticZoneCore.js";
+import { getSpellAreaRuleById } from "./spellAreaRules.js";
+import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
 import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
@@ -42,6 +48,8 @@ import {
   isCurrentSceneEpoch,
   markSceneEpochReady,
 } from "./sceneEpoch.js";
+import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
+import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -670,6 +678,24 @@ function sameValue(left, right) {
   }
 }
 
+function nextCasterTurnKey(state, casterId) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const wanted = String(casterId || "").trim();
+  if (!order.length || !wanted) return "";
+  const round = Math.max(1, Math.floor(Number(state?.round) || 1));
+  const current = Math.max(
+    0,
+    Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)),
+  );
+  for (let offset = 1; offset <= order.length; offset += 1) {
+    const ordinal = ((round - 1) * order.length) + current + offset;
+    const index = ordinal % order.length;
+    const actorId = String(order[index] || "").replace(/::p\d+$/u, "");
+    if (actorId === wanted) return initiativeTurnKeyAtOrdinal(order, ordinal);
+  }
+  return "";
+}
+
 export async function prepareEffectsMutationUndo(entryOrEntries, {
   sceneEpoch = null,
   isCurrent = null,
@@ -736,6 +762,144 @@ async function prepareEffectsSideEffects(plan, command) {
         type: descriptor.type,
         items,
         ruleChoice: String(descriptor.ruleChoice || "").trim(),
+      });
+    } else if (descriptor?.type === "static-zone:move") {
+      const zoneItemId = String(descriptor.zoneItemId || "").trim();
+      const instanceId = String(descriptor.instanceId || "").trim();
+      const ruleId = String(descriptor.ruleId || "").trim();
+      const casterId = String(descriptor.casterId || "").trim();
+      const [root] = zoneItemId
+        ? await OBR.scene.items.getItems([zoneItemId])
+        : [];
+      const rule = getSpellAreaRuleById(ruleId);
+      const allItems = await OBR.scene.items.getItems();
+      const candidates = allItems
+        .filter((item) => (
+          item?.layer === "CHARACTER"
+          && !item?.attachedTo
+          && !!item?.metadata?.[META_KEY]
+        ))
+        .map(async (item) => ({
+          id: item.id,
+          bounds: await OBR.scene.items.getItemBounds([item.id]).catch(() => null),
+        }));
+      const [dpi, scale, sceneMetadata] = await Promise.all([
+        OBR.scene.grid.getDpi().catch(() => 150),
+        OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+        OBR.scene.getMetadata().catch(() => ({})),
+      ]);
+      const movementPlan = planSpellZoneMovement({
+        rule,
+        zoneItem: root,
+        initialPosition: descriptor.initialPosition,
+        proposedPosition: descriptor.proposedPosition,
+        dpi,
+        scale,
+        instanceId,
+        casterId,
+        sceneEpoch: command?.sceneEpoch,
+        currentSceneEpoch: currentSceneEpoch(),
+        contactCandidates: await Promise.all(candidates),
+        contactTargetId: descriptor.contactTargetId,
+        movementChoice: descriptor.movementChoice,
+      });
+      if (!movementPlan.valid) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: movementPlan.errors.map((reason) => ({
+            reason,
+            itemId: zoneItemId || null,
+          })),
+        };
+      }
+      const metadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      const runtime = normalizeSpellZoneTriggerRuntime(metadata?.triggerRuntime);
+      const contactTargets = movementPlan.firstContact?.targetId
+        ? [movementPlan.firstContact.targetId]
+        : [];
+      const areaMoveTargetIds = Object.fromEntries(
+        (rule?.zonePolicy?.triggers || [])
+          .filter((trigger) => (
+            trigger?.requiresAreaMove === true
+            && trigger?.triggerOnAreaMove === true
+          ))
+          .map((trigger) => [trigger.id, contactTargets]),
+      );
+      const afterMetadata = {
+        ...metadata,
+        [SPELL_ZONE_MOVEMENT_CONTROL_FIELD]: {
+          commandId: String(command?.commandId || "").trim(),
+          position: clone(movementPlan.finalPosition),
+        },
+        triggerRuntime: {
+          ...runtime,
+          areaMoveTargetIds,
+        },
+      };
+      if (!root || !metadata) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "missing-static-zone", itemId: zoneItemId || null }],
+        };
+      }
+      let subzone = null;
+      if (
+        rule?.spellId === "xanathar-diavoletto-di-polvere"
+        && movementPlan.movementChoice === "dust-terrain"
+      ) {
+        const { buildStaticSpellZoneSubzoneItem } = await import("./spellStaticZone.js");
+        const existingSubzones = allItems.filter((item) => {
+          const itemMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+          return itemMetadata?.role === "subzone"
+            && String(itemMetadata.instanceId || "") === instanceId;
+        });
+        const translated = translatedZoneArea(root, movementPlan.finalPosition);
+        const center = translated?.origin || movementPlan.finalPosition;
+        const expiresTurnKey = nextCasterTurnKey(
+          sceneMetadata?.[`${ID}/state`],
+          casterId,
+        );
+        const afterSubzone = buildStaticSpellZoneSubzoneItem({
+          ruleId,
+          instanceId,
+          casterId,
+          parentId: zoneItemId,
+          spellName: root?.name?.replace(/^Zona:\s*/u, "") || rule.spellId,
+          center,
+          radiusMeters: 3,
+          dpi,
+          scale,
+          expiresTurnKey,
+          style: root?.metadata?.[`${ID}/aoeArea`]?.style,
+        });
+        subzone = {
+          beforeItems: existingSubzones.map((item) => clone(item)),
+          afterItem: clone(afterSubzone),
+        };
+      } else if (rule?.spellId === "xanathar-diavoletto-di-polvere") {
+        const existingSubzones = allItems.filter((item) => {
+          const itemMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+          return itemMetadata?.role === "subzone"
+            && String(itemMetadata.instanceId || "") === instanceId;
+        });
+        subzone = {
+          beforeItems: existingSubzones.map((item) => clone(item)),
+          afterItem: null,
+        };
+      }
+      prepared.push({
+        type: descriptor.type,
+        id: zoneItemId,
+        instanceId,
+        ruleId,
+        casterId,
+        beforePosition: clone(root.position),
+        afterPosition: clone(movementPlan.finalPosition),
+        metadataKey: SPELL_STATIC_ZONE_META_KEY,
+        beforeMetadata: sceneItemMetadataSnapshot(root, SPELL_STATIC_ZONE_META_KEY),
+        afterMetadata: { present: true, value: clone(afterMetadata) },
+        movementPlan,
+        ...(subzone ? { subzone } : {}),
       });
     } else if (descriptor?.type === "reminder:consume-zone-activation") {
       const itemId = String(descriptor.itemId || "").trim();
@@ -858,6 +1022,73 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       after: staticZoneRuleChoiceAfterSnapshot(item, sideEffect.ruleChoice),
     }));
   }
+  if (sideEffect.type === "static-zone:move") {
+    const [current] = await OBR.scene.items.getItems([sideEffect.id]);
+    if (!current) throw new Error("static-zone-move-item-missing");
+    if (!sameValue(current.position, sideEffect.beforePosition)) {
+      throw new Error("static-zone-move-position-stale");
+    }
+    const actual = sceneItemMetadataSnapshot(current, sideEffect.metadataKey);
+    if (!metadataSnapshotMatches(actual, sideEffect.beforeMetadata)) {
+      throw new Error("static-zone-move-metadata-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-static-zone-move");
+    const subzone = sideEffect.subzone;
+    const beforeSubzones = Array.isArray(subzone?.beforeItems)
+      ? subzone.beforeItems
+      : [];
+    const beforeSubzoneIds = beforeSubzones.map((item) => item?.id).filter(Boolean);
+    const currentSubzones = beforeSubzoneIds.length
+      ? await OBR.scene.items.getItems(beforeSubzoneIds)
+      : [];
+    if (currentSubzones.length !== beforeSubzoneIds.length
+      || currentSubzones.some((item) => {
+        const expected = beforeSubzones.find((candidate) => candidate?.id === item.id);
+        return !expected || !sameValue(item, expected);
+      })) {
+      throw new Error("static-zone-subzone-stale");
+    }
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        draft.position = clone(sideEffect.afterPosition);
+        draft.metadata = {
+          ...(draft.metadata || {}),
+          [sideEffect.metadataKey]: clone(sideEffect.afterMetadata.value),
+        };
+      }
+    });
+    const changes = [{
+      id: sideEffect.id,
+      type: "static-zone-move",
+      metadataKey: sideEffect.metadataKey,
+      beforePosition: clone(sideEffect.beforePosition),
+      afterPosition: clone(sideEffect.afterPosition),
+      beforeMetadata: clone(sideEffect.beforeMetadata),
+      afterMetadata: clone(sideEffect.afterMetadata),
+      instanceId: sideEffect.instanceId,
+      ruleId: sideEffect.ruleId,
+    }];
+    if (beforeSubzoneIds.length) {
+      await OBR.scene.items.deleteItems(beforeSubzoneIds);
+      changes.push(...beforeSubzones.map((item) => ({
+        id: item.id,
+        type: "item",
+        before: clone(item),
+        after: null,
+      })));
+    }
+    if (subzone?.afterItem) {
+      await OBR.scene.items.addItems([clone(subzone.afterItem)]);
+      changes.push({
+        id: subzone.afterItem.id,
+        type: "item",
+        before: null,
+        after: clone(subzone.afterItem),
+      });
+    }
+    return changes;
+  }
   if (sideEffect.type === "reminder:consume-zone-activation") {
     const [item] = await OBR.scene.items.getItems([sideEffect.id]);
     if (!item) throw new Error("reminder-zone-item-missing");
@@ -904,6 +1135,32 @@ async function applyUndoSideEffect(sideEffect, isCurrent) {
       metadataKey: sideEffect.metadataKey,
       snapshot: sideEffect.restore,
     }]);
+    return [];
+  }
+  if (sideEffect.type === "static-zone-move") {
+    if (!current) throw new Error("undo-side-effect-item-missing");
+    if (sameValue(current.position, sideEffect.restorePosition)) return [];
+    if (!sameValue(current.position, sideEffect.expectedPosition)) {
+      throw new Error("undo-side-effect-conflict");
+    }
+    const metadata = sideEffect.restoreMetadata;
+    if (!metadata?.present) throw new Error("undo-static-zone-metadata-missing");
+    if (!isCurrent()) throw new Error("stale-before-undo-static-zone-move");
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        draft.position = clone(sideEffect.restorePosition);
+        const restoredMetadata = clone(metadata.value);
+        restoredMetadata[SPELL_ZONE_MOVEMENT_CONTROL_FIELD] = {
+          commandId: "undo",
+          position: clone(sideEffect.restorePosition),
+        };
+        draft.metadata = {
+          ...(draft.metadata || {}),
+          [sideEffect.metadataKey]: restoredMetadata,
+        };
+      }
+    });
     return [];
   }
   if (sideEffect.restore && sideEffect.expected === null) {
@@ -1318,7 +1575,13 @@ export async function runEffectsMutation(operations = [], options = {}) {
     sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
     sceneIdentity: options.sceneIdentity || backgroundSceneIdentity,
   });
-  return compatibilityPlan(result);
+  const compatible = compatibilityPlan(result);
+  void emitMatchedVisualEndsFromMutation(compatible, {
+    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+  }).catch((error) => {
+    console.warn("[effects] matched visual end:", error?.message || error);
+  });
+  return compatible;
 }
 
 export async function undoEffectsMutation(entryOrEntries, options = {}) {
@@ -1356,7 +1619,13 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
     sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
     sceneIdentity: options.sceneIdentity || backgroundSceneIdentity,
   });
-  return compatibilityPlan(result);
+  const compatible = compatibilityPlan(result);
+  void emitMatchedVisualEndsFromMutation(compatible, {
+    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+  }).catch((error) => {
+    console.warn("[effects] matched visual end after undo:", error?.message || error);
+  });
+  return compatible;
 }
 
 export function getEffectsMutationCoordinatorState() {

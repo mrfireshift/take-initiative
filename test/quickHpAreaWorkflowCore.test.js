@@ -28,6 +28,48 @@ test("espone il posizionamento per le sagome supportate", () => {
     casterId: "",
   }).disabled, true);
   assert.deepEqual(quickHpAreaPlacementPresentation({
+    spellId: "chain-lightning",
+    casterId: "caster",
+  }), {
+    rule: null,
+    hidden: true,
+    disabled: true,
+    text: "Posiziona area",
+    title: "Seleziona un incantesimo con area posizionabile",
+  });
+  assert.deepEqual(quickHpAreaPlacementPresentation({
+    spellId: "command",
+    casterId: "caster",
+  }), {
+    rule: null,
+    hidden: true,
+    disabled: true,
+    text: "Posiziona area",
+    title: "Seleziona un incantesimo con area posizionabile",
+  });
+  assert.deepEqual(quickHpAreaPlacementPresentation({
+    spellId: "xanathar-anatema-elementale",
+    casterId: "caster",
+  }), {
+    rule: null,
+    hidden: true,
+    disabled: true,
+    text: "Posiziona area",
+    title: "Seleziona un incantesimo con area posizionabile",
+  });
+  for (const spellId of ["banishment"]) {
+    assert.deepEqual(quickHpAreaPlacementPresentation({
+      spellId,
+      casterId: "caster",
+    }), {
+      rule: null,
+      hidden: true,
+      disabled: true,
+      text: "Posiziona area",
+      title: "Seleziona un incantesimo con area posizionabile",
+    });
+  }
+  assert.deepEqual(quickHpAreaPlacementPresentation({
     spellId: "unknown",
     casterId: "caster",
   }), {

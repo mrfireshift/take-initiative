@@ -72,7 +72,7 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   const trackableIds = new Set(getTrackableSpellOptions().map((option) => option.id));
   const instantaneous = catalog.spells.filter((entry) => entry.durationKind === "instantaneous");
 
-  assert.equal(getTrackableSpellOptions().length, 357);
+  assert.equal(getTrackableSpellOptions().length, 358);
   assert.equal(trackableIds.has("phb2014-raggio-di-infermita"), true);
   for (const entry of instantaneous) {
     if (entry.id === "phb2014-raggio-di-infermita") continue;

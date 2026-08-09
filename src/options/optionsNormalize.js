@@ -217,6 +217,7 @@ export function normalizeRoomOptions(value) {
   const map = objectOrEmpty(source.map);
   const tools = objectOrEmpty(source.tools);
   const automation = objectOrEmpty(source.automation);
+  const integrations = objectOrEmpty(source.integrations);
   const uiSync = objectOrEmpty(source.uiSync);
 
   return {
@@ -259,6 +260,13 @@ export function normalizeRoomOptions(value) {
       knownFactionAssignment: booleanOr(
         automation.knownFactionAssignment,
         defaults.automation.knownFactionAssignment,
+      ),
+    },
+    integrations: {
+      ...integrations,
+      embersAnimations: booleanOr(
+        integrations.embersAnimations,
+        defaults.integrations.embersAnimations,
       ),
     },
     uiSync: {

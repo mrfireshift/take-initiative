@@ -118,6 +118,9 @@ function themeForSpell(value) {
   const description = normalized(spell?.description || reference.description);
   const damageType = normalized(spell?.damageType || reference.damageType);
 
+  const explicitTheme = SPELL_THEME_OVERRIDES[normalized(spell?.id)];
+  if (explicitTheme) return explicitTheme;
+
   const structuredElement = findElement(damageType);
   if (structuredElement) return structuredElement;
 
@@ -154,4 +157,26 @@ export function spellColorFor(value) {
     border: `hsl(${hue}, ${Math.min(92, saturation + 16)}%, ${Math.min(78, lightness + 31)}%)`,
     soft: `hsla(${hue}, ${saturation}%, ${Math.min(62, lightness + 12)}%, .30)`,
   };
+}
+const SPELL_THEME_OVERRIDES = Object.freeze({
+  "xanathar-sfera-al-vetriolo": "acid",
+});
+
+const SPELL_EFFECT_THEMES = Object.freeze({
+  "acid-arrow": Object.freeze({
+    background: "#65a30d",
+    accent: "#bef264",
+    text: "#f7fee7",
+  }),
+  "xanathar-sfera-al-vetriolo": Object.freeze({
+    background: "#65a30d",
+    accent: "#bef264",
+    text: "#f7fee7",
+  }),
+});
+
+export function spellEffectThemeFor(value) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  const theme = SPELL_EFFECT_THEMES[normalized(spell?.id)];
+  return theme ? { ...theme } : null;
 }

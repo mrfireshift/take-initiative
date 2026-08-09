@@ -9,9 +9,11 @@ import {
 } from "../src/spellAreaRules.js";
 import {
   AREA_FIELD_NON_POPOVER_REASONS,
+  AREA_PLACEABLE_SPELL_IDS,
   AREA_PLACEMENT_ONLY_SPELL_IDS,
   AREA_POPOVER_SPELL_IDS,
   AREA_SAVE_SPELL_IDS,
+  MULTI_TARGET_SAVE_SPELL_IDS,
 } from "../src/areaSaveSpellRules.js";
 import { SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED } from "../src/spellZoneTriggerCore.js";
 import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
@@ -303,7 +305,13 @@ test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
     (trigger) => trigger.failureEffect === "Trattenuto dalla Ragnatela."
   ));
   assert.equal(moonbeam.geometry.size.value, 1.5);
-  assert.equal(moonbeam.zonePolicy.movement, "manual");
+  assert.deepEqual(moonbeam.zonePolicy.movement, {
+    mode: "action",
+    economy: "action",
+    maximumMeters: 18,
+    triggerOnAreaMove: false,
+    stopOnFirstContact: false,
+  });
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.dice, "2d10");
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.onSave, "half");
   assert.equal(
@@ -363,13 +371,23 @@ test("il primo gruppo di zone dichiara confine, TS ed effetto del fallimento", (
     assert.equal(trigger.resolution, "manual-save", spellId);
     assert.equal(trigger.label, values.label, spellId);
     assert.equal(trigger.failureEffect, values.failureEffect, spellId);
-    assert.equal(trigger.damage, undefined, spellId);
+    if (spellId === "xanathar-diavoletto-di-polvere") {
+      assert.deepEqual(trigger.damage, {
+        dice: "1d8",
+        type: "contundenti",
+        onSave: "half",
+        additionalPerSlotAbove: 1,
+        baseSlot: 2,
+      }, spellId);
+    } else {
+      assert.equal(trigger.damage, undefined, spellId);
+    }
   }
 });
 
 test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", () => {
   const expected = {
-    "flaming-sphere": ["turn-end:manual-save"],
+    "flaming-sphere": ["turn-end:manual-save", "enter:manual-save"],
     "incendiary-cloud": ["enter:manual-save", "turn-end:manual-save"],
     "insect-plague": ["enter:manual-save", "turn-end:manual-save"],
     "wall-of-fire": ["enter:informational", "turn-end:informational"],
@@ -405,7 +423,21 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
   const flamingSphere = getSpellAreaRuleById("flaming-sphere:cast");
   assert.equal(flamingSphere.geometry.shape, "circle");
   assert.equal(flamingSphere.geometry.size.value, 1.5);
-  assert.equal(flamingSphere.zonePolicy.movement, "manual");
+  assert.deepEqual(flamingSphere.zonePolicy.movement, {
+    mode: "bonus-action",
+    economy: "bonus-action",
+    maximumMeters: 9,
+    triggerOnAreaMove: true,
+    stopOnFirstContact: true,
+  });
+  assert.equal(flamingSphere.zonePolicy.membershipPaddingSquares, 1);
+  const contactTrigger = flamingSphere.zonePolicy.triggers.find(
+    (trigger) => trigger.id === "flaming-sphere-save-on-contact"
+  );
+  assert.equal(contactTrigger.targetMode, "direct-members");
+  assert.equal(contactTrigger.requiresAreaMove, true);
+  assert.equal(contactTrigger.triggerOnAreaMove, true);
+  assert.equal(contactTrigger.persistsAfterExit, true);
   assert.equal(
     getSpellAreaRuleById("phb2014-cordone-di-frecce:cast")
       .zonePolicy.membershipTargeting.includeCaster,
@@ -598,7 +630,7 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
     ["enter", "turn-start"],
   );
   assert.ok(healingSpirit.zonePolicy.triggers.every((trigger) =>
-    trigger.resolution === "informational"
+    trigger.resolution === "manual-heal"
     && trigger.group === "healing-spirit-heal"
   ));
   assert.equal(healingSpirit.zonePolicy.triggers[0].triggerOnAreaMove, false);
@@ -628,16 +660,18 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
   ));
 });
 
-test("ogni incantesimo del popover Effetti ad Area ha una sagoma di lancio", () => {
+test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
   assert.equal(AREA_SAVE_SPELL_IDS.length, 98);
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 34);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 132);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 132);
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 6);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 138);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),
     true,
   );
-  for (const spellId of AREA_POPOVER_SPELL_IDS) {
+  for (const spellId of AREA_PLACEABLE_SPELL_IDS) {
     const rules = getSpellAreaRules(spellId);
     assert.ok(
       rules.some((rule) =>
@@ -645,6 +679,9 @@ test("ogni incantesimo del popover Effetti ad Area ha una sagoma di lancio", () 
       ),
       spellId,
     );
+  }
+  for (const spellId of MULTI_TARGET_SAVE_SPELL_IDS) {
+    assert.deepEqual(getSpellAreaRules(spellId), [], spellId);
   }
 });
 

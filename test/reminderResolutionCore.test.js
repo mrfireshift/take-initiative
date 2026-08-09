@@ -22,7 +22,7 @@ function token(id, meta = {}) {
   };
 }
 
-function sceneItems(targetMeta = {}) {
+function sceneItems(targetMeta = {}, activationId = "zone-activation") {
   return [
     token("target", targetMeta),
     token("caster", { initiativeCard: { spellSaveDC: 15 } }),
@@ -33,7 +33,7 @@ function sceneItems(targetMeta = {}) {
         [SPELL_STATIC_ZONE_META_KEY]: {
           triggerRuntime: {
             pending: [{
-              id: "zone-activation",
+              id: activationId,
               targetIds: ["target"],
             }],
           },
@@ -260,4 +260,100 @@ test("una risoluzione aggregata multi-target resta informativa", () => {
     outcome: REMINDER_OUTCOMES.PASSED,
   });
   assert.equal(result.status, "unsupported");
+});
+
+test("lo scaling dei reminder usa lo slot dell'istanza una sola volta", () => {
+  const dust = (slotLevel) => buildZoneTriggerReminderResolution({
+    activation: {
+      id: "dust-activation",
+      resolution: "manual-save",
+      ability: "str",
+      damage: {
+        dice: "1d8",
+        type: "contundenti",
+        onSave: "half",
+        additionalPerSlotAbove: 1,
+        baseSlot: 2,
+      },
+    },
+    targetId: "target",
+    sourceId: "caster",
+    slotLevel,
+  });
+  assert.equal(dust(2).damage.dice, "1d8");
+  assert.equal(dust(3).damage.dice, "2d8");
+  assert.equal(dust(5).damage.dice, "4d8");
+
+  const spirit = (slotLevel) => buildZoneTriggerReminderResolution({
+    activation: {
+      id: "spirit-activation",
+      resolution: "manual-heal",
+      healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
+    },
+    targetId: "target",
+    sourceId: "caster",
+    slotLevel,
+  });
+  assert.equal(spirit(2).healing.dice, "1d6");
+  assert.equal(spirit(3).healing.dice, "2d6");
+  assert.equal(spirit(5).healing.dice, "4d6");
+});
+
+test("la cura manuale usa hp canonici, cap, Ignora e consumo una tantum", () => {
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "heal-activation",
+      resolution: "manual-heal",
+      healing: { dice: "2d6", additionalPerSlotAbove: 1, baseSlot: 2 },
+      zoneItemId: "zone",
+      instanceId: "spirit-1",
+    },
+    targetId: "target",
+    sourceId: "caster",
+    slotLevel: 3,
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+  const applied = buildReminderResolutionPlan({
+    notice: {
+      activationId: "heal-activation",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 8, hpMax: 10 }, "heal-activation"),
+    outcome: "apply",
+    damageRoll: 7,
+    now: 200,
+  });
+  assert.equal(applied.status, "ready");
+  assert.deepEqual(applied.healing, { roll: 7, amount: 2 });
+  assert.deepEqual(applied.hpChange, { before: 8, after: 10, hpMax: 10 });
+  assert.equal(applied.sideEffects[0].type, "reminder:consume-zone-activation");
+  assert.equal(
+    applied.metadataPatches[0].fields.reminderResolutions.value["heal-activation"].outcome,
+    "apply",
+  );
+
+  const ignored = buildReminderResolutionPlan({
+    notice: {
+      activationId: "heal-activation",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 8, hpMax: 10 }, "heal-activation"),
+    outcome: "ignore",
+  });
+  assert.equal(ignored.status, "ready");
+  assert.equal(ignored.hpChange, null);
+
+  const construct = buildReminderResolutionPlan({
+    notice: {
+      activationId: "heal-activation",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 8, hpMax: 10, creatureType: "Costrutto" }, "heal-activation"),
+    outcome: "apply",
+    damageRoll: 7,
+  });
+  assert.equal(construct.status, "unsupported");
 });

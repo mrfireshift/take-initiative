@@ -10,6 +10,7 @@ import {
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 
 const STATE_KEY = `${ID}/state`;
 const pendingResolutions = new Map();
@@ -72,7 +73,7 @@ async function executeReminderResolution({
     passed: "Superato",
     failed: "Fallito",
     immune: "Immune",
-  }[plan.outcome] || plan.outcome;
+  }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
   const commandId = `reminder-resolution:${plan.activationId}`;
   let mutation;
   try {
@@ -115,26 +116,42 @@ async function executeReminderResolution({
     };
   }
 
+  const derivedTasks = [];
   if (plan.hpChange && isCurrentSceneEpoch(sceneEpoch)) {
     const update = {
       tokenId: plan.targetId,
       hp: plan.hpChange.after,
       hpMax: plan.hpChange.hpMax,
     };
-    try {
-      syncHPBarNow(update.tokenId, update.hp, update.hpMax);
-      await syncHPTextBatchNow([update]);
-      await syncHPBatchToMemory([{
+    syncHPBarNow(update.tokenId, update.hp, update.hpMax);
+    derivedTasks.push(Promise.all([
+      syncHPTextBatchNow([update]),
+      syncHPBatchToMemory([{
         itemId: update.tokenId,
         hp: update.hp,
         hpMax: update.hpMax,
-      }], { sceneEpoch, items });
-    } catch (error) {
+      }], { sceneEpoch, items }),
+    ]).catch((error) => {
       // Visuals are derived from canonical metadata; a failed widget update
       // must not create a second History operation or undo the mutation.
       console.warn("[reminder-resolution] HP visual sync:", error?.message || error);
-    }
+    }));
   }
+  if (
+    plan.hpChange
+    && plan.hpChange.after < plan.hpChange.before
+    && isCurrentSceneEpoch(sceneEpoch)
+  ) {
+    derivedTasks.push(broadcastConcentrationSaveWarnings([{
+      itemId: plan.targetId,
+      damage: plan.damage.amount,
+    }], {
+      eventId: `reminder-resolution:${plan.activationId}`,
+    }).catch((error) => {
+      console.warn("[reminder-resolution] concentration warning:", error?.message || error);
+    }));
+  }
+  await Promise.all(derivedTasks);
   if (plan.operations.some((operation) => {
     const type = String(operation?.type || "");
     return type.startsWith("condition:") || type.startsWith("concentration:");
@@ -154,7 +171,9 @@ async function executeReminderResolution({
   }
   return {
     status: "applied",
-    message: `Risolto: ${outcomeLabel}.`,
+    message: plan.resolutionMode === "consume"
+      ? "Reminder chiuso."
+      : `Risolto: ${outcomeLabel}.`,
     mutation,
     plan,
   };

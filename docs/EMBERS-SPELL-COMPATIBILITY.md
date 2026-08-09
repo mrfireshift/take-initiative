@@ -204,7 +204,8 @@ Per Embers:
 ```js
 const dx = end.x - start.x;
 const dy = end.y - start.y;
-const size = Math.hypot(dx, dy);
+const sceneLength = Math.hypot(dx, dy);
+const size = sceneLength / dpi;
 const rotation = Math.atan2(dy, dx) * 180 / Math.PI;
 ```
 
@@ -289,3 +290,22 @@ Il mapping deve anche dichiarare una policy per ogni entry:
 **MVP approvabile con limitazioni:** Fire Bolt, Burning Hands e Fireball come effetti finiti, usando un adapter manuale e il contratto osservato `eu.armindo.embers/effects`.
 
 **Non approvato automaticamente:** il restante catalogo 62/62, le due spell realmente assenti (`frostbite`, `witch_bolt`), le entry generiche/capacità, i persistenti, gli attached, le action/interactions, gli onDestroy e qualsiasi distribuzione che incorpori catalogo o asset Embers.
+
+## Aggiornamento implementazione visuale (2026-08-09)
+
+Il runtime ora copre le 54 spell riconciliabili elencate in questo audit
+(45 canoniche, 8 source-aware e `magic-missile`) con un mapping visuale nativo;
+`hold-monster` riusa inoltre in modo identico il mapping persistente di
+`hold-person`, come alias visuale semantico.
+`fireball` resta sul renderer dedicato; `bardic_inspiration` è collegata al
+percorso delle capacità di classe. Gli asset WebM JB2A vengono referenziati
+dal bucket pubblico al momento del playback, senza dipendenza dal plugin
+Embers installato.
+
+La copertura è visuale e best-effort: il cast iniziale/attivazione riproduce
+il playback finito e, per le entry Embers con `duration: -1`, mantiene un
+WebM locale persistente fino alla rimozione dell'istanza canonica. Il renderer
+usa `attachedTo` per i loop legati a caster/bersaglio, chiude i lifecycle anche
+quando la concentrazione viene interrotta o lo status viene rimosso e riproduce
+l'outro `shield.outro.fade` per `shield`. Azioni Embers arbitrarie e blueprint
+che mutano la scena restano fuori dal perimetro.

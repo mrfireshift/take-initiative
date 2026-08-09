@@ -26,10 +26,10 @@ import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
-import { buildConcentrationSaveWarning } from "./concentrationSaveReminderCore.js";
+import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
-import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
 import {
   isCurrentSceneItemEvent,
@@ -41,7 +41,6 @@ import {
   isInitiativeTurnTransition,
 } from "./turnNotice.js";
 import {
-  planEffectSaveReminderNotices,
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
 } from "./effectSaveReminderCore.js";
@@ -61,7 +60,6 @@ import {
 } from "./trackerPopover.js";
 import { mountCompactTrackerResizeHandles } from "./trackerCompactResize.js";
 import {
-  FACTION_CONFIGURATOR_ID,
   readFactionRegistry,
   rememberFactionForIds,
   registeredAttitudeForItem,
@@ -190,6 +188,7 @@ import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import {
   selectActiveTurnLabelEnabled,
   selectFollowActiveTurn,
+  selectKnownFactionAssignmentEnabled,
   selectMapHpBarsEnabled,
   selectTrackerLayout,
   selectTrackerProjectionPolicy,
@@ -1281,12 +1280,17 @@ function makeAddAllInitiativeBtn() {
       }
 
       const ids = pending.map((item) => item.id);
-      const registry = await readFactionRegistry();
+      const knownFactionAssignmentEnabled = runtimeOptionsService.get(
+        selectKnownFactionAssignmentEnabled,
+      );
+      const registry = knownFactionAssignmentEnabled ? await readFactionRegistry() : {};
       const resolvedAttitudes = new Map();
       let unknownCount = 0;
       for (const item of pending) {
         const previous = item.metadata?.[META_KEY] || {};
-        const registered = registeredAttitudeForItem(item, registry);
+        const registered = knownFactionAssignmentEnabled
+          ? registeredAttitudeForItem(item, registry)
+          : "";
         if (!previous.attitude && !registered) unknownCount += 1;
         resolvedAttitudes.set(item.id, registered || previous.attitude || "enemy");
       }
@@ -1320,11 +1324,12 @@ function makeAddAllInitiativeBtn() {
   });
   return b;
 }
-function makeFactionConfiguratorBtn() {
+function makeOptionsBtn() {
   const b = document.createElement("button");
   b.type = "button";
-  b.dataset.factionConfigurator = "1";
-  b.title = "Configura le fazioni automatiche (solo GM)";
+  b.dataset.optionsPanel = "1";
+  b.title = "Apri il pannello opzioni (solo GM)";
+  b.setAttribute("aria-label", b.title);
   Object.assign(b.style, {
     width: "24px",
     height: "24px",
@@ -1341,7 +1346,7 @@ function makeFactionConfiguratorBtn() {
     padding: "0",
   });
   const icon = document.createElement("img");
-  icon.src = (import.meta.env.BASE_URL || "/") + "mark.svg";
+  icon.src = (import.meta.env.BASE_URL || "/") + "options.svg";
   icon.alt = "";
   Object.assign(icon.style, {
     width: "12px",
@@ -1351,34 +1356,9 @@ function makeFactionConfiguratorBtn() {
     pointerEvents: "none",
   });
   b.appendChild(icon);
-  b.addEventListener("click", async (event) => {
+  b.addEventListener("click", (event) => {
     event.stopPropagation();
-    b.disabled = true;
-    const popupUrl = "/faction-configurator.html";
-    try {
-      const [anchorPosition] = await Promise.all([
-        getTrackerPopoverAnchor(),
-        fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
-      ]);
-      await OBR.popover.close(FACTION_CONFIGURATOR_ID).catch(() => {});
-      await openTrackedPopover({
-        id: FACTION_CONFIGURATOR_ID,
-        url: popupUrl,
-        width: 420,
-        height: 420,
-        anchorReference: "POSITION",
-        anchorPosition,
-        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
-        disableClickAway: true,
-        marginThreshold: 12,
-        hidePaper: true,
-      });
-    } catch {
-      await OBR.notification.show("Impossibile aprire il configuratore fazioni.", "ERROR").catch(() => {});
-    } finally {
-      b.disabled = false;
-    }
+    void openOptionsPopup();
   });
   return b;
 }
@@ -1621,16 +1601,16 @@ Object.assign(globalPanelsWrap.style, {
 const globalEffectsButton = makeGlobalPanelButton("Conditions", "conditions-panel.svg");
 const globalSpellsButton = makeGlobalPanelButton("Spells", "spells-panel.svg");
 const globalQuickHPButton = makeGlobalPanelButton("Danno rapido", "quick-damage.svg");
-const globalOptionsButton = makeGlobalPanelButton("Opzioni", "options.svg");
 globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Danno";
 const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
 const SPELLS_POPUP_ID = `${ID}/spells-modal`;
 const QUICK_HP_POPUP_ID = `${ID}/quick-hp-modal`;
 const OPTIONS_POPUP_ID = `${ID}/options-modal`;
+const optionsPanelButton = makeOptionsBtn();
 globalEffectsButton.setAttribute("aria-pressed", "false");
 globalSpellsButton.setAttribute("aria-pressed", "false");
 globalQuickHPButton.setAttribute("aria-pressed", "false");
-globalOptionsButton.setAttribute("aria-pressed", "false");
+optionsPanelButton.setAttribute("aria-pressed", "false");
 const trackedMoveButton = makeGlobalPanelButton("Movimento tracciato", "speed-panel.svg");
 trackedMoveButton.querySelector("[data-toolbar-caption='1']").textContent = "Movimento";
 trackedMoveButton.setAttribute("aria-pressed", "false");
@@ -1658,8 +1638,7 @@ trackedMoveButton.addEventListener("click", () => {
 globalEffectsButton.addEventListener("click", () => void openGlobalEffectsPopup());
 globalSpellsButton.addEventListener("click", () => void openGlobalSpellsPopup());
 globalQuickHPButton.addEventListener("click", () => void openGlobalQuickHPPopup());
-globalOptionsButton.addEventListener("click", () => void openOptionsPopup());
-globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton, globalOptionsButton);
+globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton);
 toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
 
 const movementReadout = document.createElement("div");
@@ -2529,10 +2508,10 @@ function applyAdminMenuPresentation(compact) {
 
   const entries = [
     [roundResetSlot.querySelector("button"), "Reset round", false],
-    ...(compact ? [[roundHistorySlot.querySelector("button"), "Cronologia", false]] : []),
+    ...(compact ? [[roundHistorySlot.querySelector("[data-history='1']"), "Cronologia", false]] : []),
     [roundActions.querySelector("[data-add-all-initiative='1']"), "Aggiungi attori", false],
     [roundActions.querySelector("[data-fill-initiative='1']"), "Compila iniziativa", false],
-    [roundHistorySlot.querySelector("[data-faction-configurator='1']"), "Configura fazioni", false],
+    [roundHistorySlot.querySelector("[data-options-panel='1']"), "Opzioni", false],
     [roundActions.querySelector("[data-clear-initiative='1']"), "Svuota iniziativa", true],
   ];
 
@@ -4173,9 +4152,32 @@ async function __mountTrackerSelectionSync() {
 }
 
 // Collassa TUTTI i gruppi (len>1) tranne quello dell'elemento attivo
-async function __applyAutoCollapse(entries, state) {
+async function __applyAutoCollapse(entries, state, metadataRevision = null) {
+  if (metadataRevision !== null && metadataRevision !== __initiativeMetadataRevision) {
+    __initiativeDiag("collapse:skipped-stale", {
+      activeId: __activeIdForState(state),
+      metadataRevision,
+      latestMetadataRevision: __initiativeMetadataRevision,
+    });
+    return false;
+  }
   const { collapsed, changed } = __autoCollapseSnapshot(entries, state);
-  if (changed) await setSceneState(prev => ({ ...(prev || {}), collapsed }));
+  if (changed) {
+    await setSceneState(prev => {
+      if (metadataRevision !== null && metadataRevision !== __initiativeMetadataRevision) {
+        return prev;
+      }
+      return { ...(prev || {}), collapsed };
+    });
+    if (metadataRevision !== null && metadataRevision !== __initiativeMetadataRevision) {
+      __initiativeDiag("collapse:skipped-stale", {
+        activeId: __activeIdForState(state),
+        metadataRevision,
+        latestMetadataRevision: __initiativeMetadataRevision,
+      });
+      return false;
+    }
+  }
   __initiativeDiag(changed ? "collapse:changed" : "collapse:unchanged", {
     activeId: __activeIdForState(state),
   });
@@ -4598,10 +4600,6 @@ function parseRelativeHPDelta(value) {
   return match[1] === "-" ? -amount : amount;
 }
 
-function concentrationSaveDC(damage) {
-  return Math.max(10, Math.floor(Math.max(0, Number(damage) || 0) / 2));
-}
-
 let __concentrationWarningListenerMounted = false;
 let __concentrationWarningModalQueue = Promise.resolve();
 
@@ -4625,8 +4623,12 @@ async function openConcentrationWarningModal(data) {
 
   let viewportWidth = 1200;
   let viewportHeight = 800;
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  const [reportedWidth, reportedHeight] = await Promise.all([
+    OBR.viewport.getWidth().catch(() => viewportWidth),
+    OBR.viewport.getHeight().catch(() => viewportHeight),
+  ]);
+  viewportWidth = Number(reportedWidth) || viewportWidth;
+  viewportHeight = Number(reportedHeight) || viewportHeight;
   const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
   const width = cardWidth + 8;
   const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
@@ -4667,7 +4669,6 @@ function mountConcentrationWarningBroadcast() {
 
 let __turnNoticeSequence = 0;
 let __effectSaveDamageSequence = 0;
-let __concentrationDamageSequence = 0;
 let __lastTurnNoticeDeliveryKey = "";
 
 async function __sendTurnNoticePayload(notice, sceneEpoch) {
@@ -4691,38 +4692,6 @@ async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
   return __sendTurnNoticePayload(notice, sceneEpoch);
 }
 
-async function __broadcastEffectSaveReminderTransition(
-  previousTurnState,
-  nextTurnState,
-  sceneEpoch = currentSceneEpoch(),
-  metadataRevision,
-) {
-  if (
-    !IS_GM
-    || !previousTurnState
-    || !nextTurnState
-    || !__isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision })
-  ) return false;
-
-  const items = await OBR.scene.items.getItems();
-  if (!__isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision })) {
-    return false;
-  }
-  const notices = planEffectSaveReminderNotices({
-    items,
-    previousInitiativeState: previousTurnState,
-    initiativeState: nextTurnState,
-    includeCurrentTurnStart: false,
-  });
-  if (!notices.length) return false;
-
-  await sendProjectedReminderPayload(
-    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
-    { type: "show-effect-save-notices", notices },
-  );
-  return __isCurrentSceneOperation(sceneEpoch, "effect-save-reminder", { metadataRevision });
-}
-
 async function showConcentrationDamageWarning(changes = []) {
   if (!IS_GM) return;
 
@@ -4741,37 +4710,15 @@ async function showConcentrationDamageWarning(changes = []) {
   const reminderItems = missingSourceIds.length
     ? items.concat(await OBR.scene.items.getItems(missingSourceIds))
     : items;
-  const warnings = [];
-  const concentrationEventId = `${Date.now()}-${++__concentrationDamageSequence}`;
-  for (const item of items) {
-    const concentration = item.metadata?.[META_KEY]?.[CONC_META_KEY];
-    if (!concentration || typeof concentration !== "object" || !Object.keys(concentration).length) continue;
-    const damage = damageById.get(item.id) || 0;
-    const warning = buildConcentrationSaveWarning({
-      casterId: item.id,
-      casterName: item.name || "Token",
-      concentration,
-      damage,
-      dc: concentrationSaveDC(damage),
-      portrait: getTokenImageUrl(item) || "",
-      attitude: item.metadata?.[META_KEY]?.attitude || "neutral",
-      eventId: concentrationEventId,
-    });
-    if (warning) warnings.push(warning);
-  }
   const effectNotices = effectSaveReminderNoticesForDamage({
     items: reminderItems,
     damageById,
     eventId: `${Date.now()}-${++__effectSaveDamageSequence}`,
   });
-  const broadcasts = [];
-  if (warnings.length) {
-    broadcasts.push(OBR.broadcast.sendMessage(CONCENTRATION_WARNING_CHANNEL, {
-      type: "show-concentration-warning",
-      warnings,
-      createdAt: Date.now(),
-    }, { destination: "ALL" }));
-  }
+  const broadcasts = [broadcastConcentrationSaveWarnings(
+    [...damageById].map(([itemId, damage]) => ({ itemId, damage })),
+    { items },
+  )];
   if (effectNotices.length) {
     broadcasts.push(sendProjectedReminderPayload(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
       type: "show-effect-save-notices",
@@ -5964,7 +5911,7 @@ function syncGlobalPanelButtonPressedState() {
   globalEffectsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === EFFECTS_POPUP_ID));
   globalSpellsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === SPELLS_POPUP_ID));
   globalQuickHPButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === QUICK_HP_POPUP_ID));
-  globalOptionsButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === OPTIONS_POPUP_ID));
+  optionsPanelButton.setAttribute("aria-pressed", String(__openTrackerPopoverId === OPTIONS_POPUP_ID));
   applyToolbarLayoutPresentation(isCompactTrackerLayout());
 }
 
@@ -8674,7 +8621,7 @@ try {
   const hasBtn = !!roundPill.querySelector('[data-reset-round="1"]');
   const hasAddAllBtn = !!roundPill.querySelector('[data-add-all-initiative="1"]');
   const hasFillBtn = !!roundPill.querySelector('[data-fill-initiative="1"]');
-  const hasFactionConfiguratorBtn = !!roundPill.querySelector('[data-faction-configurator="1"]');
+  const hasOptionsBtn = !!roundPill.querySelector('[data-options-panel="1"]');
   const hasClearBtn = !!roundPill.querySelector('[data-clear-initiative="1"]');
   const hasHistoryBtn = !!roundPill.querySelector('[data-history="1"]');
   if (IS_GM) {
@@ -8685,13 +8632,13 @@ try {
     if (!hasAddAllBtn) roundActions.appendChild(makeAddAllInitiativeBtn());
     if (!hasFillBtn) roundActions.appendChild(makeInitiativeFillBtn());
     if (!hasClearBtn) roundActions.appendChild(makeClearInitiativeBtn());
-    if (!hasFactionConfiguratorBtn) roundHistorySlot.appendChild(makeFactionConfiguratorBtn());
+    if (!hasOptionsBtn) roundHistorySlot.appendChild(optionsPanelButton);
     if (!hasHistoryBtn) roundHistorySlot.appendChild(makeHistoryBtn());
   } else {
     if (hasBtn) roundPill.querySelector('[data-reset-round="1"]').remove();
     if (hasAddAllBtn) roundPill.querySelector('[data-add-all-initiative="1"]').remove();
     if (hasFillBtn) roundPill.querySelector('[data-fill-initiative="1"]').remove();
-    if (hasFactionConfiguratorBtn) roundPill.querySelector('[data-faction-configurator="1"]').remove();
+    if (hasOptionsBtn) roundPill.querySelector('[data-options-panel="1"]').remove();
     if (hasClearBtn) roundPill.querySelector('[data-clear-initiative="1"]').remove();
     if (hasHistoryBtn) roundPill.querySelector('[data-history="1"]').remove();
     if (roundResetSlot.isConnected) roundResetSlot.remove();
@@ -8870,20 +8817,6 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
     __conditionNavigationHint = null;
   }
 
-  try {
-    const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
-    if (IS_GM && boundaries.length) {
-      await __broadcastEffectSaveReminderTransition(
-        previousTurnState,
-        nextTurnState,
-        sceneEpoch,
-        metadataRevision,
-      );
-    }
-  } catch (err) {
-    console.warn("[effect-save-reminder] transition broadcast error:", err?.message || err);
-  }
-
   let roundEffectAdjustment = Promise.resolve();
   try {
     if (st && Array.isArray(st.order) && st.order.length > 0) {
@@ -8993,11 +8926,23 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
   queueSelectAndFocus(activeId, isAutoFocusEnabled(st));
 }
   try {
-    if (__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision }) && __matchesLatestActiveTurn(st)) {
+    if (
+      __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
+      && __sceneBaselineEpoch === sceneEpoch
+      && metadataRevision === __initiativeMetadataRevision
+      && __matchesLatestActiveTurn(st)
+    ) {
       const entriesNow = await readEntries();
-      if (!__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })) return;
-      const collapseChanged = await __applyAutoCollapse(entriesNow, st); // espandi gruppo attivo, collassa altri
-      if (collapseChanged && __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })) {
+      if (
+        !__isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
+        || metadataRevision !== __initiativeMetadataRevision
+      ) return;
+      const collapseChanged = await __applyAutoCollapse(entriesNow, st, metadataRevision); // espandi gruppo attivo, collassa altri
+      if (
+        collapseChanged
+        && __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
+        && metadataRevision === __initiativeMetadataRevision
+      ) {
         await renderAll("auto-collapse");
       }
     } else {
@@ -9140,6 +9085,7 @@ try {
     });
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
+    prewarmSpeedCheckTurn(next);
 
     queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}
@@ -9177,6 +9123,7 @@ try {
     });
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
+    prewarmSpeedCheckTurn(next);
 
     queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}

@@ -15,6 +15,20 @@ Commons Attribution 4.0 International license.
 Attribution: Dungeons & Dragons SRD 5.1 © Wizards of the Coast LLC, licensed
 under CC BY 4.0. Wizards of the Coast does not endorse this project.
 
+## Embers-matched WebM visuals
+
+The matched spell visuals reuse WebM assets published by JB2A and consumed by
+the Embers extension. The plugin references the public JB2A free asset bucket
+directly and does not require Embers to be installed. The runtime contains a
+small, source-aware effect mapping; it does not bundle the Embers extension or
+its catalog.
+
+- Asset source: https://jb2a-free.s3.eu-west-3.amazonaws.com/
+- Asset library: https://library.jb2a.org/
+- License: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+  International: https://creativecommons.org/licenses/by-nc-sa/4.0/
+- Embers integration reference: https://github.com/ArmindoFlores/embers
+
 ## Italian spell-name terminology
 
 Italian display names in src/spells-it-2014.json use the community D&D 5e

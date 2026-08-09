@@ -39,6 +39,7 @@ import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRun
 import {
   selectClocksToolEnabled,
   selectDistance3dToolEnabled,
+  selectEmbersAnimationsEnabled,
   selectMapEffectLabelsEnabled,
   selectReferenceToolEnabled,
 } from "./options/optionsSelectors.js";
@@ -47,6 +48,26 @@ import {
   createOptionalRuntimeLifecycle,
 } from "./options/optionalRuntimeLifecycle.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
+import {
+  mountFireballVisualRenderer,
+  unmountFireballVisualRenderer,
+} from "./fireballVisualRenderer.js";
+import {
+  mountEmbersMatchedVisualRenderer,
+  unmountEmbersMatchedVisualRenderer,
+} from "./embersMatchedVisualRenderer.js";
+
+function mountEmbersVisualRenderers() {
+  mountFireballVisualRenderer();
+  mountEmbersMatchedVisualRenderer();
+}
+
+async function unmountEmbersVisualRenderers() {
+  await Promise.all([
+    unmountFireballVisualRenderer(),
+    unmountEmbersMatchedVisualRenderer(),
+  ]);
+}
 
 const optionalRuntimes = [
   [selectMapEffectLabelsEnabled, createOptionalRuntimeLifecycle({
@@ -76,6 +97,11 @@ const optionalRuntimes = [
     unmount: unmountReferenceTool,
     cleanupOwnedOutputs: cleanupReferenceTool,
     reconcileFull: reconcileReferenceTool,
+  })],
+  [selectEmbersAnimationsEnabled, createOptionalRuntimeLifecycle({
+    name: "embers-animations",
+    mount: mountEmbersVisualRenderers,
+    unmount: unmountEmbersVisualRenderers,
   })],
 ];
 

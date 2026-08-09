@@ -184,6 +184,17 @@ export function buildCoordinatedEffectsUndoPlan({
         restore: clone(change?.before || { present: false }),
         expected: clone(change?.after || { present: false }),
       }
+      : change?.type === "static-zone-move"
+        ? {
+          id: change?.id,
+          type: "static-zone-move",
+          metadataKey: String(change?.metadataKey || ""),
+          restorePosition: clone(change?.beforePosition || null),
+          expectedPosition: clone(change?.afterPosition || null),
+          restoreMetadata: clone(change?.beforeMetadata || { present: false }),
+          instanceId: String(change?.instanceId || ""),
+          ruleId: String(change?.ruleId || ""),
+        }
       : {
         id: change?.id,
         type: "item",
@@ -195,6 +206,11 @@ export function buildCoordinatedEffectsUndoPlan({
     const actual = sceneById.get(sideEffect.id) || null;
     const matches = sideEffect.type === "metadata"
       ? !!actual && snapshotMatches(snapshot(actual.metadata, sideEffect.metadataKey), sideEffect.expected)
+      : sideEffect.type === "static-zone-move"
+        ? !!actual
+          && same(actual.position, sideEffect.expectedPosition)
+          && String(actual.metadata?.[sideEffect.metadataKey]?.instanceId || "") === sideEffect.instanceId
+          && String(actual.metadata?.[sideEffect.metadataKey]?.ruleId || "") === sideEffect.ruleId
       : sideEffect.expected === null ? actual === null : same(actual, sideEffect.expected);
     if (!matches) {
       conflicts.push({

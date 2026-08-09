@@ -12,7 +12,7 @@ import {
 
 test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano escluse dal tracker", () => {
   assert.equal(getSpellCatalog().length, 477);
-  assert.equal(getTrackableSpellOptions().length, 357);
+  assert.equal(getTrackableSpellOptions().length, 358);
   assert.equal(getSpellDefinition("Catapulta").trackable, false);
   assert.equal(getSpellDefinition("Morsa del Gelo").trackable, true);
 });

@@ -44,14 +44,16 @@ async function openTurnNoticePopover(payload) {
   if (popoverOpen) return;
   let viewportWidth = 1200;
   let viewportHeight = 800;
-  try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
-  try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
+  const [reportedWidth, reportedHeight] = await Promise.all([
+    OBR.viewport.getWidth().catch(() => viewportWidth),
+    OBR.viewport.getHeight().catch(() => viewportHeight),
+  ]);
+  viewportWidth = Number(reportedWidth) || viewportWidth;
+  viewportHeight = Number(reportedHeight) || viewportHeight;
   const cardWidth = Math.min(TURN_NOTICE_CARD_WIDTH, Math.max(312, viewportWidth - 40));
   const width = cardWidth + TURN_NOTICE_FRAME_GUTTER * 2;
   const top = Math.max(12, Math.round(viewportHeight * TURN_NOTICE_POPOVER_TOP_RATIO));
   const anchorTop = Math.max(8, top - TURN_NOTICE_FRAME_GUTTER);
-  await OBR.modal.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
-  await OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
   await OBR.popover.open({
     id: TURN_NOTICE_POPOVER_ID,
     url: "/turn-notice.html",

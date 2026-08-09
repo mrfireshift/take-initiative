@@ -102,6 +102,10 @@ export function selectKnownFactionAssignmentEnabled(options) {
   return resolved(options).shared.automation.knownFactionAssignment;
 }
 
+export function selectEmbersAnimationsEnabled(options) {
+  return resolved(options).shared.integrations.embersAnimations;
+}
+
 export function selectTrackerOpenSyncEnabled(options) {
   return resolved(options).shared.uiSync.trackerOpen;
 }
@@ -153,6 +157,8 @@ export function selectOptionsPanelModel(options) {
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
+      knownFactionAssignment: room.automation.knownFactionAssignment,
+      embersAnimations: room.integrations.embersAnimations,
       hp: room.playerView.hp,
       effects: room.playerView.effects,
       reminders: room.playerView.reminders,

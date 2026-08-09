@@ -198,7 +198,9 @@ test("OPTIONS-002: i reminder pubblici usano solo la consegna REMOTE redatta", (
     new URL("../src/options/reminderProjectionBroadcast.js", import.meta.url),
     "utf8",
   );
-  assert.match(broadcast, /role !== "GM"/);
+  assert.match(broadcast, /if \(!isGM\)/);
+  assert.match(broadcast, /reminderSenderIsGMPromise/);
+  assert.match(broadcast, /Promise\.all\(\[/);
   assert.match(broadcast, /destination: "LOCAL"/);
   assert.match(broadcast, /destination: "REMOTE"/);
   assert.doesNotMatch(broadcast, /destination: "ALL"/);

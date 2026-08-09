@@ -43,6 +43,14 @@ export function normalizeOptionsPanelDraft(value = {}) {
       directReminderResolution: roomInput.directResolution,
     },
     map: { activeTurnLabel: roomInput.activeTurnLabel },
+    automation: {
+      knownFactionAssignment: roomInput.knownFactionAssignment
+        ?? roomInput.automation?.knownFactionAssignment,
+    },
+    integrations: {
+      embersAnimations: roomInput.embersAnimations
+        ?? roomInput.integrations?.embersAnimations,
+    },
     uiSync: { trackerOpen: roomInput.trackerOpen },
   });
   const rawOverrides = {};
@@ -61,6 +69,8 @@ export function normalizeOptionsPanelDraft(value = {}) {
     },
     room: {
       trackerOpen: room.uiSync.trackerOpen,
+      knownFactionAssignment: room.automation.knownFactionAssignment,
+      embersAnimations: room.integrations.embersAnimations,
       hp: room.playerView.hp,
       effects: room.playerView.effects,
       reminders: room.playerView.reminders,
@@ -112,6 +122,12 @@ export function buildOptionsPanelPatches(draft) {
         directReminderResolution: normalized.room.directResolution,
       },
       map: { activeTurnLabel: normalized.room.activeTurnLabel },
+      automation: {
+        knownFactionAssignment: normalized.room.knownFactionAssignment,
+      },
+      integrations: {
+        embersAnimations: normalized.room.embersAnimations,
+      },
       uiSync: { trackerOpen: normalized.room.trackerOpen },
     },
     scene: {
@@ -138,6 +154,8 @@ export async function saveOptionsPanelDraft(service, draft) {
     playerView: { ...current.playerView, ...patches.room.playerView },
     turn: { ...current.turn, ...patches.room.turn },
     map: { ...current.map, ...patches.room.map },
+    automation: { ...current.automation, ...patches.room.automation },
+    integrations: { ...current.integrations, ...patches.room.integrations },
     uiSync: { ...current.uiSync, ...patches.room.uiSync },
   }));
   await service.updateScene((current) => ({

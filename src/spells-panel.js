@@ -234,9 +234,13 @@ async function init() {
     });
     overviewList?.querySelectorAll("[data-active-spell-action='1']").forEach((button) => {
       let unavailableTargetIds = [];
+      let actionChoice = null;
       try {
         const parsed = JSON.parse(button.dataset.actionUnavailableTargetIds || "[]");
         if (Array.isArray(parsed)) unavailableTargetIds = parsed;
+      } catch {}
+      try {
+        actionChoice = JSON.parse(button.dataset.actionChoice || "null");
       } catch {}
       const presentation = spellActiveActionPresentation({
         subjectMode: button.dataset.actionSubjectMode,
@@ -249,7 +253,8 @@ async function init() {
         maxTargets: button.dataset.actionMaxTargets,
         countLabelSingular: button.dataset.actionCountLabelSingular,
         countLabelPlural: button.dataset.actionCountLabelPlural,
-      }, selectedIds);
+        choice: actionChoice,
+      }, selectedIds, button.dataset.actionChoiceValue || "");
       button.disabled = presentation.disabled;
       button.textContent = presentation.text;
       button.title = presentation.title;
@@ -490,6 +495,7 @@ async function init() {
   };
 
   let overviewRevision = 0;
+  const overviewActionChoices = new Map();
   const refreshOverview = async () => {
     if (!overviewList) return;
     const revision = ++overviewRevision;
@@ -504,6 +510,15 @@ async function init() {
       groups,
       createReferenceButton: makeReferenceButton,
       getSelectedTargetIds: selectedSpellTargetIds,
+      getActionChoiceValue: (group, action) => overviewActionChoices.get(
+        `${group?.instanceId || ""}:${action?.id || ""}`,
+      ) || "",
+      onActionChoiceChange: (group, action, value) => {
+        overviewActionChoices.set(
+          `${group?.instanceId || ""}:${action?.id || ""}`,
+          String(value || "").trim(),
+        );
+      },
       onOpenReference(group) {
         void openReferencePopover({
           tab: "spells",

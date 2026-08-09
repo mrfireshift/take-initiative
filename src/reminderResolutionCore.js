@@ -1,5 +1,9 @@
 import { ID } from "./constants.js";
 import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
+import {
+  exhaustionLevelFromInstances,
+  normalizeExhaustionLevel,
+} from "./exhaustionCore.js";
 
 export const REMINDER_RESOLUTION_VERSION = 1;
 export const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
@@ -23,6 +27,7 @@ const ACTIONS = new Set([
   "remove-instance",
   "remove-name",
   "remove-parent",
+  "reconcile-exhaustion",
   "break",
   "break-targets",
 ]);
@@ -99,6 +104,8 @@ function normalizeDamage(value) {
     return DAMAGE_FACTORS.has(normalized) ? normalized : fallback;
   };
   const onSave = String(value.onSave || "").trim().toLowerCase();
+  const additionalPerSlotAbove = Number(value.additionalPerSlotAbove);
+  const baseSlot = Number(value.baseSlot);
   return {
     dice,
     type,
@@ -108,6 +115,60 @@ function normalizeDamage(value) {
       onSave === "half" ? "half" : "zero",
     ),
     onImmune: factor(value.onImmune, "zero"),
+    ...(Number.isInteger(additionalPerSlotAbove) && additionalPerSlotAbove > 0
+      ? { additionalPerSlotAbove }
+      : {}),
+    ...(Number.isInteger(baseSlot) && baseSlot >= 0 ? { baseSlot } : {}),
+  };
+}
+
+function normalizeHealing(value) {
+  if (!value || typeof value !== "object") return null;
+  const dice = text(value.dice, "", 80);
+  const additionalPerSlotAbove = Number(value.additionalPerSlotAbove);
+  const baseSlot = Number(value.baseSlot);
+  if (
+    !dice
+    || !Number.isInteger(additionalPerSlotAbove)
+    || additionalPerSlotAbove < 0
+    || !Number.isInteger(baseSlot)
+    || baseSlot < 0
+  ) return null;
+  return { dice, additionalPerSlotAbove, baseSlot };
+}
+
+function scaledDiceFormula(value, slotLevel = null) {
+  const normalized = value && typeof value === "object" ? { ...value } : null;
+  if (!normalized) return null;
+  const level = Number(slotLevel);
+  const baseSlot = Number(normalized.baseSlot);
+  const additional = Number(normalized.additionalPerSlotAbove);
+  if (
+    !Number.isInteger(level)
+    || !Number.isInteger(baseSlot)
+    || !Number.isInteger(additional)
+    || additional <= 0
+    || level <= baseSlot
+  ) return normalized;
+  const extra = (level - baseSlot) * additional;
+  const match = String(normalized.dice || "").trim().match(/^(\d+)d(\d+)$/i);
+  if (!match) return { ...normalized, slotLevel: level };
+  return {
+    ...normalized,
+    dice: `${Number(match[1]) + extra}d${match[2]}`,
+    slotLevel: level,
+  };
+}
+
+export function scaleReminderResolutionData({
+  damage = null,
+  healing = null,
+  slotLevel = null,
+} = {}) {
+  return {
+    ...(damage ? { damage: scaledDiceFormula(normalizeDamage(damage), slotLevel) } : {}),
+    ...(healing ? { healing: scaledDiceFormula(normalizeHealing(healing), slotLevel) } : {}),
+    ...(Number.isInteger(Number(slotLevel)) ? { slotLevel: Number(slotLevel) } : {}),
   };
 }
 
@@ -169,6 +230,7 @@ export function normalizeReminderResolution(value, context = {}) {
   const ability = normalizedAbility(saveSource.ability || context.ability);
   const dc = optionalDC(saveSource.dc ?? context.dc);
   const damage = normalizeDamage(value.damage || context.damage);
+  const healing = normalizeHealing(value.healing || context.healing);
   const outcomes = {};
   for (const key of OUTCOME_KEYS) {
     const normalized = normalizeOutcome(outcomeValue(value, key));
@@ -184,13 +246,18 @@ export function normalizeReminderResolution(value, context = {}) {
     : context.effect && typeof context.effect === "object"
       ? clone(context.effect)
       : null;
-  if (!ability && dc === null && !damage && !Object.keys(outcomes).length) return null;
+  const mode = ["consume", "manual-heal"].includes(value.mode) ? value.mode : "";
+  const slotLevel = Number(value.slotLevel ?? context.slotLevel);
+  if (!ability && dc === null && !damage && !healing && !Object.keys(outcomes).length && !mode) return null;
   return {
     version: REMINDER_RESOLUTION_VERSION,
+    ...(mode ? { mode } : {}),
     ...(target ? { target } : {}),
     ...(source ? { source } : {}),
     ...(ability ? { save: { ability, ...(dc !== null ? { dc } : {}) } } : {}),
     ...(damage ? { damage } : {}),
+    ...(healing ? { healing } : {}),
+    ...(Number.isInteger(slotLevel) && slotLevel >= 0 ? { slotLevel } : {}),
     ...(Object.keys(outcomes).length ? { outcomes } : {}),
     ...(activation ? { activation } : {}),
     ...(effect ? { effect } : {}),
@@ -325,6 +392,52 @@ export function buildEffectSaveReminderResolution({
   };
 }
 
+export function buildDeferredEffectResolution({
+  item = null,
+  instance = null,
+  deferredEffect = null,
+  activationId = "",
+  turnKey = "",
+} = {}) {
+  const targetId = text(item?.id, "", 200);
+  const instanceId = text(instance?.id, "", 200);
+  if (!targetId || !instanceId || !deferredEffect?.id) return null;
+  const save = deferredEffect.save && typeof deferredEffect.save === "object"
+    ? clone(deferredEffect.save)
+    : null;
+  const explicit = deferredEffect.resolution && typeof deferredEffect.resolution === "object"
+    ? clone(deferredEffect.resolution)
+    : {};
+  const resolution = normalizeReminderResolution({
+    ...explicit,
+    ...(save ? { save } : { mode: "consume" }),
+    target: { id: targetId },
+    activation: {
+      kind: "deferred-effect",
+      activationId: text(activationId, "", 300),
+      turnKey: text(turnKey, "", 300),
+    },
+    effect: {
+      kind: "condition",
+      targetId,
+      instanceId,
+      removeOnResolve: true,
+    },
+  });
+  if (!resolution) return null;
+  const context = { targetId, instanceId };
+  if (resolution.mode === "consume") {
+    return resolution;
+  }
+  return {
+    ...resolution,
+    outcomes: Object.fromEntries(OUTCOME_KEYS.map((outcome) => [
+      outcome,
+      materializeOutcome(resolution.outcomes?.[outcome], context, "none"),
+    ])),
+  };
+}
+
 function zoneFailureActions({
   failureCondition,
   targetId,
@@ -365,14 +478,40 @@ export function buildZoneTriggerReminderResolution({
   sourceName = "",
   dc = null,
   metadataKey = "",
+  slotLevel = null,
 } = {}) {
-  if (activation?.resolution !== "manual-save") return null;
+  if (!["manual-save", "manual-heal"].includes(activation?.resolution)) return null;
   const normalizedTargetId = text(targetId, "", 200);
   const normalizedSourceId = text(sourceId || activation?.casterId, "", 200);
   const resolutionData = activation?.resolutionData
     && typeof activation.resolutionData === "object"
     ? activation.resolutionData
     : {};
+  const scaled = scaleReminderResolutionData({
+    damage: activation?.damage || resolutionData.damage,
+    healing: activation?.healing || resolutionData.healing,
+    slotLevel: slotLevel ?? activation?.slotLevel ?? resolutionData.slotLevel,
+  });
+  const activationContext = {
+    kind: "zone",
+    activationId: text(activation?.id, "", 300),
+    zoneItemId: text(activation?.zoneItemId, "", 200),
+    instanceId: text(activation?.instanceId, "", 200),
+    triggerId: text(activation?.triggerId, "", 200),
+    turnKey: text(activation?.turnKey, "", 300),
+    ...(metadataKey ? { metadataKey } : {}),
+  };
+  if (activation?.resolution === "manual-heal") {
+    if (!normalizedTargetId || !scaled.healing) return null;
+    return normalizeReminderResolution({
+      mode: "manual-heal",
+      healing: scaled.healing,
+      slotLevel: scaled.slotLevel,
+      target: { id: normalizedTargetId },
+      source: { id: normalizedSourceId },
+      activation: activationContext,
+    });
+  }
   const ability = normalizedAbility(
     activation?.ability || resolutionData.ability,
   );
@@ -380,7 +519,8 @@ export function buildZoneTriggerReminderResolution({
   const resolution = normalizeReminderResolution({
     ability,
     dc,
-    damage: activation?.damage || resolutionData.damage,
+    damage: scaled.damage,
+    slotLevel: scaled.slotLevel,
     outcomes: {
       passed: activation?.success && typeof activation.success === "object"
         ? activation.success
@@ -401,15 +541,7 @@ export function buildZoneTriggerReminderResolution({
     },
     targetId: normalizedTargetId,
     sourceId: normalizedSourceId,
-    activation: {
-      kind: "zone",
-      activationId: text(activation?.id, "", 300),
-      zoneItemId: text(activation?.zoneItemId, "", 200),
-      instanceId: text(activation?.instanceId, "", 200),
-      triggerId: text(activation?.triggerId, "", 200),
-      turnKey: text(activation?.turnKey, "", 300),
-      ...(metadataKey ? { metadataKey } : {}),
-    },
+    activation: activationContext,
   });
   if (!resolution) return null;
   const context = { targetId: normalizedTargetId, sourceId: normalizedSourceId };
@@ -536,6 +668,22 @@ function actionOperations({ action, targetId, itemsById }) {
       ],
     };
   }
+  if (kind === "condition" && type === "reconcile-exhaustion") {
+    const options = action?.options && typeof action.options === "object"
+      ? action.options
+      : {};
+    const currentLevel = exhaustionLevelFromInstances(conditionInstances(targetItem));
+    const requestedLevel = options.level === undefined
+      ? currentLevel + (Number(options.delta) || 1)
+      : Number(options.level);
+    return {
+      operations: [{
+        type: "condition:reconcile-exhaustion",
+        targetIds: [resolvedTargetId],
+        level: normalizeExhaustionLevel(requestedLevel),
+      }],
+    };
+  }
   if (kind === "condition" && type === "remove-name") {
     const name = text(action?.name || action?.conditionName, "", 160);
     if (!name || !conditionInstances(targetItem).some((entry) => conditionNameKey(entry) === name.toLocaleLowerCase("it"))) {
@@ -641,7 +789,12 @@ export function buildReminderResolutionPlan({
 } = {}) {
   const resolution = normalizeReminderResolution(notice?.resolution);
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
-  if (!resolution || !OUTCOME_KEYS.includes(normalizedOutcome)) {
+  const consumeOnly = resolution?.mode === "consume";
+  const manualHeal = resolution?.mode === "manual-heal";
+  const validOutcome = manualHeal
+    ? ["apply", "ignore"].includes(normalizedOutcome)
+    : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
+  if (!resolution || !validOutcome) {
     return { status: "informational", message: "Questo reminder è solo informativo." };
   }
   const noticeTargetIds = uniqueIds((notice?.targets || []).map((target) => target?.id));
@@ -700,7 +853,7 @@ export function buildReminderResolutionPlan({
   }
 
   const effectInstanceId = text(resolution.effect?.instanceId, "", 200);
-  if (activationKind === "effect-save" && effectInstanceId) {
+  if ((activationKind === "effect-save" || activationKind === "deferred-effect") && effectInstanceId) {
     const instance = findCondition(target, effectInstanceId);
     if (!instance) return { status: "stale", message: "L'effetto del reminder non è più attivo." };
     if (sourceId && String(instance.sourceId || "") !== sourceId) {
@@ -726,10 +879,41 @@ export function buildReminderResolutionPlan({
     normalizedOutcome,
     normalizedDamageRoll,
   );
+  const healingRoll = resolution.healing && normalizedOutcome === "apply"
+    ? (damageRoll === "" || damageRoll === null || damageRoll === undefined
+      ? null
+      : Number(damageRoll))
+    : 0;
+  if (
+    manualHeal
+    && normalizedOutcome === "apply"
+    && (healingRoll === null || !Number.isFinite(healingRoll) || healingRoll < 0)
+  ) {
+    return { status: "invalid", message: "Inserisci un risultato dei dadi valido." };
+  }
   const hpBefore = Number(meta.hp);
   const hpMax = Number(meta.hpMax);
+  const creatureType = String(
+    meta.creatureType || meta.creatureTypeName || meta.creatureTypeLabel || "",
+  ).trim().toLocaleLowerCase("it");
+  if (manualHeal && normalizedOutcome === "apply" && /costrutt|non.?morto/u.test(creatureType)) {
+    return { status: "unsupported", message: "Costrutti e Non Morti non possono recuperare PF." };
+  }
+  const healing = manualHeal && normalizedOutcome === "apply"
+    ? {
+      roll: Math.max(0, Math.floor(Number(healingRoll) || 0)),
+      amount: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(hpMax) ? Math.floor(hpMax) : 0,
+          Number.isFinite(hpBefore) ? Math.floor(hpBefore) + Math.floor(Number(healingRoll) || 0) : 0,
+        ) - (Number.isFinite(hpBefore) ? Math.floor(hpBefore) : 0),
+      ),
+    }
+    : { roll: 0, amount: 0 };
   const hasDamage = damage.amount > 0;
-  if (hasDamage && (
+  const hasHealing = healing.amount > 0;
+  if ((hasDamage || (manualHeal && normalizedOutcome === "apply")) && (
     !Object.prototype.hasOwnProperty.call(meta, "hp")
     || !Object.prototype.hasOwnProperty.call(meta, "hpMax")
     || !Number.isFinite(hpBefore)
@@ -744,7 +928,13 @@ export function buildReminderResolutionPlan({
       after: Math.max(0, Math.floor(hpBefore) - damage.amount),
       hpMax: Math.max(0, Math.floor(hpMax)),
     }
-    : null;
+    : hasHealing
+      ? {
+        before: Math.max(0, Math.floor(hpBefore)),
+        after: Math.min(Math.max(0, Math.floor(hpMax)), Math.max(0, Math.floor(hpBefore) + healing.amount)),
+        hpMax: Math.max(0, Math.floor(hpMax)),
+      }
+      : null;
 
   const operations = [];
   const actionSideEffects = [];
@@ -755,7 +945,20 @@ export function buildReminderResolutionPlan({
     actionSideEffects.push(...(result.sideEffects || []));
   }
 
-  if (hpChange) {
+  if (
+    activationKind === "deferred-effect"
+    && effectInstanceId
+    && resolution.effect?.removeOnResolve !== false
+    && !operations.some((operation) => operation.type === "condition:remove-instances"
+      && operation.removals?.some((removal) => removal.instanceId === effectInstanceId))
+  ) {
+    operations.push({
+      type: "condition:remove-instances",
+      removals: [{ itemId: targetId, instanceId: effectInstanceId }],
+    });
+  }
+
+  if (hpChange && !manualHeal) {
     const zeroAction = resolveZeroHPUnconsciousAction(
       { ...meta, hp: hpChange.after, hpMax: hpChange.hpMax },
       conditionInstances(target),
@@ -786,6 +989,7 @@ export function buildReminderResolutionPlan({
       version: REMINDER_RESOLUTION_VERSION,
       outcome: normalizedOutcome,
       ...(damage.amount ? { damage: damage.amount } : {}),
+      ...(healing.amount ? { healing: healing.amount } : {}),
       resolvedAt: Math.max(0, Math.floor(Number(now) || Date.now())),
     },
   };
@@ -816,10 +1020,13 @@ export function buildReminderResolutionPlan({
   return {
     status: "ready",
     outcome: normalizedOutcome,
+    ...(consumeOnly ? { resolutionMode: "consume" } : {}),
+    ...(manualHeal ? { resolutionMode: "manual-heal" } : {}),
     targetId,
     sourceId,
     activationId,
     damage,
+    healing,
     hpChange,
     operations,
     metadataPatches: [{ id: targetId, fields: metadataFields }],

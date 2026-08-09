@@ -11,11 +11,12 @@ import {
 import { resolveOptions } from "../src/options/optionsResolve.js";
 import { selectOptionsPanelModel } from "../src/options/optionsSelectors.js";
 
-test("OPTIONS-003: il selector del pannello espone i nove gruppi senza metadata grezzi", () => {
+test("OPTIONS-003: il selector del pannello espone i gruppi senza metadata grezzi", () => {
   const model = selectOptionsPanelModel(resolveOptions({
     local: { tracker: { layout: "compact", followActiveTurn: false } },
     room: {
       uiSync: { trackerOpen: false },
+      integrations: { embersAnimations: false },
       turn: { popup: false, directReminderResolution: "informational" },
     },
     scene: {
@@ -32,12 +33,14 @@ test("OPTIONS-003: il selector del pannello espone i nove gruppi senza metadata 
     combatLog: true,
   });
   assert.equal(model.room.trackerOpen, false);
+  assert.equal(model.room.knownFactionAssignment, true);
+  assert.equal(model.room.embersAnimations, false);
   assert.equal(model.room.popup, false);
   assert.equal(model.room.directResolution, "informational");
   assert.deepEqual(model.scene.popup, { mode: "override", value: true });
   assert.equal(model.scene.hp.mode, "inherit");
   assert.deepEqual(Object.keys(model.room).sort(), [
-    "activeTurnLabel", "directResolution", "effects", "hp", "popup", "reminders", "trackerOpen",
+    "activeTurnLabel", "directResolution", "effects", "embersAnimations", "hp", "knownFactionAssignment", "popup", "reminders", "trackerOpen",
   ]);
   assert.deepEqual(Object.keys(model.scene).sort(), [
     "activeTurnLabel", "directResolution", "effects", "hp", "popup", "reminders",
@@ -61,6 +64,8 @@ test("OPTIONS-003: il draft normalizza dati parziali e produce sole patch approv
     combatLog: true,
   });
   assert.equal(patches.room.turn.popup, false);
+  assert.equal(patches.room.automation.knownFactionAssignment, true);
+  assert.equal(patches.room.integrations.embersAnimations, true);
   assert.equal(patches.room.uiSync.trackerOpen, false);
   assert.equal(Object.hasOwn(patches.room, "unrelated"), false);
   assert.deepEqual(patches.scene.overrides["turn.popup"], { mode: "override", value: true });
@@ -83,6 +88,26 @@ test("OPTIONS-004: il Combat Log locale può essere disattivato senza cambiare g
   assert.deepEqual(patches.local.runtime, { combatLog: false });
   assert.equal(Object.hasOwn(patches, "room"), true);
   assert.equal(Object.hasOwn(patches, "scene"), true);
+});
+
+test("OPTIONS-003: automatic faction assignment is saved in Room", () => {
+  const draft = normalizeOptionsPanelDraft({
+    room: { knownFactionAssignment: false },
+  });
+  const patches = buildOptionsPanelPatches(draft);
+
+  assert.equal(draft.room.knownFactionAssignment, false);
+  assert.deepEqual(patches.room.automation, { knownFactionAssignment: false });
+});
+
+test("OPTIONS-004: le animazioni Embers sono salvate come policy Room", () => {
+  const draft = normalizeOptionsPanelDraft({
+    room: { embersAnimations: false },
+  });
+  const patches = buildOptionsPanelPatches(draft);
+
+  assert.equal(draft.room.embersAnimations, false);
+  assert.deepEqual(patches.room.integrations, { embersAnimations: false });
 });
 
 test("OPTIONS-003: inherit usa Room nell'anteprima e override usa il valore scena", () => {
@@ -138,6 +163,8 @@ test("OPTIONS-003: il salvataggio conserva unknown Room, scena e override entry"
 test("OPTIONS-003: il pannello usa selector e writer, non storage o metadata diretti", () => {
   const source = readFileSync(new URL("../src/options-modal.js", import.meta.url), "utf8");
   const html = readFileSync(new URL("../options-modal.html", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../public/options-modal.css", import.meta.url), "utf8");
+  const glassCss = readFileSync(new URL("../public/popover-glass.css", import.meta.url), "utf8");
   const tracker = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
   const syncOpen = readFileSync(new URL("../src/sync-open.js", import.meta.url), "utf8");
 
@@ -145,13 +172,37 @@ test("OPTIONS-003: il pannello usa selector e writer, non storage o metadata dir
   assert.match(source, /saveOptionsPanelDraft/);
   assert.match(source, /broadcastRuntimeOptionsInvalidation/);
   assert.doesNotMatch(source, /localStorage|\.getMetadata\(|\.setMetadata\(/);
-  assert.match(html, /Cosa vedranno i Player/);
+  assert.match(html, /Anteprima Player/);
+  assert.match(html, /Automazioni e integrazioni/);
+  assert.match(html, /turn-options-grid/);
+  assert.match(html, /option-card-actions inline/);
+  assert.match(html, /data-room-section/);
   assert.match(html, /data-scope="room"/);
   assert.match(html, /data-scope="scene"/);
   assert.match(html, /data-local="combatLog"/);
+  assert.doesNotMatch(html, /section-index|data-preview-index/);
+  assert.doesNotMatch(html, /data-local="(?:layout|followActiveTurn)"/);
+  assert.match(html, /data-room="knownFactionAssignment"/);
+  assert.match(html, /data-room="embersAnimations"/);
+  assert.match(html, /Animazioni Embers/);
+  assert.match(html, /Riproduci animazioni/);
+  assert.match(html, /Fazioni automatiche/);
   assert.match(html, /Eredita/);
   assert.match(tracker, /options-modal\.html/);
+  assert.match(tracker, /data-options-panel/);
+  assert.doesNotMatch(tracker, /data-faction-configurator/);
   assert.match(syncOpen, /selectTrackerOpenSyncEnabled/);
+  assert.match(source, /inactiveReminderDetail/);
+  assert.match(source, /reminderHasDetails/);
+  assert.match(source, /Disponibile solo con Contenuto: Completo/);
+  assert.match(html, /class="glass-shell" data-glass-popover="1"/);
+  assert.match(html, /<main id="options-app" class="panel">/);
+  assert.match(html, /popover-glass\.css/);
+  assert.doesNotMatch(css, /color-scheme\s*:/);
+  assert.doesNotMatch(css, /--options-smoked-glass|#options-app[^}]*background/);
+  assert.match(css, /\.options-section\s*\{[^}]*background:\s*transparent/);
+  assert.match(glassCss, /\[data-glass-popover="1"\]/);
+  assert.match(glassCss, /backdrop-filter:\s*blur\(18px\)/);
 });
 
 test("OPTIONS-003: l'invalidazione non rilegge lo snapshot nell'iframe che salva", () => {

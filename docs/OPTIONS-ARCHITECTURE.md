@@ -7,8 +7,8 @@ selector e subscription. OPTIONS-002 monta il servizio nei runtime che
 producono tracker, reminder e output locali sulla mappa e applica la policy a
 view model derivati. OPTIONS-003 introduce il primo writer utente: un pannello
 GM con scope Room/scena, preferenze locali e anteprima Player. Lo stato canonico
-non viene modificato dalla proiezione o dal pannello. OPTIONS-004 collega gli
-otto moduli realmente opzionali a lifecycle serializzati, cleanup owner-scoped
+non viene modificato dalla proiezione o dal pannello. OPTIONS-004 collega i
+nove moduli realmente opzionali a lifecycle serializzati, cleanup owner-scoped
 e riconciliazione completa alla riattivazione.
 
 Coordinator, History, condizioni, spell, iniziativa e scene lifecycle restano
@@ -83,7 +83,7 @@ l'intero blocco normalizzato: non esistono merge parziali impliciti tra policy.
 - dettagli boss `full`;
 - popup turno e risoluzione reminder `assisted`;
 - HP bar, pill effetti, label turno e label quota on;
-- Clock, assegnazione fazioni note e sync apertura tracker on.
+- Clock, assegnazione fazioni note, animazioni Embers e sync apertura tracker on.
 
 ### Scena
 
@@ -122,7 +122,7 @@ Una nuova chiave viene scritta soltanto tramite un'azione esplicita `write`,
 | `optionsRuntime.js` | Singleton browser con SDK e avvio idempotente condiviso dal singolo iframe. |
 | `optionsSync.js` | Convergenza cross-client sulla revisione Room/scena persistita dopo un salvataggio. |
 | `optionsProjection.js` | Proiezioni pure HP, effects, boss e reminder, senza letture o scritture SDK. |
-| `optionsPanelCore.js` | Modello editabile, normalizzazione delle dieci famiglie, patch scope-specific e salvataggio tramite servizio. |
+| `optionsPanelCore.js` | Modello editabile, normalizzazione delle dodici famiglie, patch scope-specific e salvataggio tramite servizio. |
 | `options-modal.js` | UI GM, gestione Room/scena, anteprima effettiva e bridge layout legacy. |
 | `optionalRuntimeLifecycle.js` | Serializza enable/disable, mount/unmount, cleanup e full reconcile; collega ogni adapter a un selector. |
 
@@ -164,7 +164,7 @@ Selector disponibili:
 | Boss Player | `selectPlayerBossDetails` |
 | Turno | `selectTurnPopupEnabled`, `selectDirectReminderResolution` |
 | Output mappa | `selectMapHpBarsEnabled`, `selectMapEffectLabelsEnabled`, `selectActiveTurnLabelEnabled`, `selectElevationLabelsEnabled` |
-| Tool/automazioni condivisi | `selectClocksToolEnabled`, `selectKnownFactionAssignmentEnabled`, `selectTrackerOpenSyncEnabled` |
+| Tool/automazioni condivisi | `selectClocksToolEnabled`, `selectKnownFactionAssignmentEnabled`, `selectEmbersAnimationsEnabled`, `selectTrackerOpenSyncEnabled` |
 | Diagnostica scope | `selectSceneOverriddenPaths` |
 | Revisione scope | `selectOptionsRevision` |
 | Projection boundary | `selectTrackerProjectionPolicy`, `selectReminderProjectionPolicy` |
@@ -250,8 +250,8 @@ le projection boundary descritte sopra.
 
 ### OPTIONS-003 — Pannello Opzioni
 
-Completata. Il pulsante `Opzioni` è disponibile al GM nel tracker e apre un
-popover dedicato. Il pannello espone esattamente le dieci famiglie approvate:
+Completata. Il pulsante `Opzioni` è disponibile al GM nella fascia Incontro e apre un
+popover dedicato. Il pannello espone dodici famiglie:
 
 1. layout tracker locale;
 2. Follow locale del turno attivo;
@@ -263,11 +263,13 @@ popover dedicato. Il pannello espone esattamente le dieci famiglie approvate:
 8. popup cambio turno (Room/scena);
 9. risoluzione reminder assistita o informativa (Room/scena);
 10. label del turno attivo sulla mappa (Room/scena).
+11. assegnazione automatica delle fazioni note (Room), con accesso al registry.
+12. animazioni Embers/JB2A delle spell abbinate (Room).
 
 La vista `Questa scena` usa `Eredita` o un override esplicito. L'anteprima
 `Cosa vedranno i Player` risolve Room e scena senza leggere metadata grezzi.
 Il salvataggio passa solo dai writer del servizio, conserva proprietà unknown
-anche nelle entry override e non modifica opzioni fuori dalle dieci famiglie.
+anche nelle entry override e non modifica opzioni fuori dalle dodici famiglie.
 
 La sincronizzazione apertura tracker Player è collegata al relativo selector.
 Layout e Follow sono collegati allo scope locale. Le policy HP, effetti,
@@ -291,6 +293,7 @@ serializzate e convergono sull'ultimo valore richiesto.
 | Tool Distanza 3D | `selectDistance3dToolEnabled` | Chiude popover e rimuove il tool; quota intatta | Registra nuovamente il tool |
 | Enciclopedia DM | `selectReferenceToolEnabled` | Chiude popover e rimuove il tool | Registra nuovamente il tool |
 | Sink Combat Log | `selectCombatLogEnabled` | Interrompe nuovi eventi automatici/manuali; History e sessioni intatte | Riprende la sessione esistente o ne crea una al prossimo evento |
+| Animazioni Embers | `selectEmbersAnimationsEnabled` | Ferma i producer, smonta entrambi i renderer e rimuove i visual locali posseduti | Rimonta i listener; i nuovi cast tornano a produrre effetti |
 
 Il cambio scena forza una transizione `scene-ready` anche quando il valore
 risolto non cambia. Un runtime disabilitato ripete quindi il cleanup nella nuova
@@ -301,10 +304,13 @@ output appena rimosso.
 La rimozione delle HP bar invalida anche il layout delle label quota, che usa il
 fallback sul token quando la barra non esiste. Nessun cleanup cancella HP,
 condizioni, spell, quota, clock, History, iniziativa o sessioni Combat Log.
+Il toggle Embers non elimina item appartenenti all'estensione Embers: interrompe
+i nuovi broadcast e rimuove soltanto gli output locali di Take Initiative; un
+eventuale one-shot Embers già iniziato termina secondo il proprio lifecycle.
 
 ## Limiti intenzionali dopo OPTIONS-004
 
-- il pannello OPTIONS-003 continua a esporre le dieci famiglie approvate; gli
+- il pannello OPTIONS-003 espone dodici famiglie, inclusa la policy Embers; gli
   altri runtime v1 sono collegati allo schema e ai selector ma non ricevono
   nuovi controlli UI in questo step;
 - i lifecycle canonici di condizioni, spell, feature, History, coordinator,

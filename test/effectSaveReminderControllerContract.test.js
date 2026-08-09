@@ -36,6 +36,8 @@ test("il background monta il controller GM e serializza gli avanzamenti", () => 
   assert.match(controller, /currentSceneEpoch/);
   assert.match(controller, /isCurrentSceneEpoch\(sceneEpoch\)/);
   assert.match(controller, /includeCurrentTurnStart: previousState !== null/);
+  assert.doesNotMatch(initiative, /__broadcastEffectSaveReminderTransition/);
+  assert.doesNotMatch(initiative, /planEffectSaveReminderNotices/);
 });
 
 test("i due percorsi canonici del danno emettono reminder indipendenti dalla concentrazione", () => {

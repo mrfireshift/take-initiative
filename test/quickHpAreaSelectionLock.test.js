@@ -43,3 +43,61 @@ test("zone vuote e aure conservano il lifecycle con reminder governati dal featu
   assert.match(source, /castContext: mobileAuraPlacement/);
   assert.match(source, /SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED/);
 });
+
+test("il preset di una quick action legge anche il registro della stanza", () => {
+  assert.match(source, /getInitiativeCard, loadInitiativeCard/);
+  assert.match(source, /const profile = await loadInitiativeCard\(source\)/);
+  assert.match(source, /findQuickAction\(profile, QUICK_ACTION_ID\)/);
+});
+
+test("il visual Fireball parte prima della pipeline di mutazione HP", () => {
+  const noOpGuard = source.indexOf('status.textContent = "Nessuna modifica da applicare."');
+  const visualStart = source.indexOf("void emitFireballVisual", noOpGuard);
+  const historyStart = source.indexOf("await withItemMetaHistory", noOpGuard);
+
+  assert.ok(noOpGuard >= 0);
+  assert.ok(visualStart > noOpGuard);
+  assert.ok(historyStart > visualStart);
+  assert.equal(source.lastIndexOf("void emitFireballVisual"), visualStart);
+});
+
+test("Catena di fulmini usa il primario, il riferimento temporaneo e la rivalidazione finale", () => {
+  assert.match(markup, /id="chainLightningControls" hidden/);
+  assert.match(markup, /id="chainPrimary"/);
+  assert.match(markup, /Bersaglio primario<\/span>/);
+  assert.doesNotMatch(markup, /id="chainLightningSummary"/);
+  assert.match(markup, /\.chain-lightning-controls select\{[^}]*min-height:48px/);
+  assert.match(markup, /\.chain-lightning-controls\{[^}]*width:min\(100%,190px\)/);
+  assert.match(source, /resolveChainLightningSceneTargeting/);
+  assert.match(source, /startItemInteraction\(\[reference\]\)/);
+  assert.match(source, /clearChainLightningReference\(\);\r?\n  void OBR\.broadcast\.sendMessage/);
+});
+
+test("cambiando il primario Catena di fulmini la selezione viene sostituita", () => {
+  assert.match(source, /selectedIds = new Set\(\[chainPrimaryId\]\);/);
+  assert.match(source, /saveOutcomes\.clear\(\);/);
+  assert.match(source, /updateSceneSelection\(\[chainPrimaryId\], true, true\)/);
+});
+
+test("Gabbia di forza usa una scelta di posizionamento e il contratto di contenimento", () => {
+  assert.match(source, /getSpellAreaPlacementChoices/);
+  assert.match(source, /ruleChoice: selectedSpellPlacementChoice\(\)/);
+  assert.match(source, /pendingSpellAreaPlacement\.ruleChoice/);
+});
+
+test("il workflow TS condiviso conserva la scelta nel cast e nella singola transazione", () => {
+  assert.match(source, /getSpellSaveWorkflowChoiceOptions/);
+  assert.match(source, /choiceValue: selectedSaveRuleChoice\(\)/);
+  assert.match(source, /await withItemMetaHistory/);
+  assert.match(source, /runEffectsMutation\(coordinatedOperations, \{[\s\S]*history: false/);
+  assert.match(source, /await undoHistoryThrough\(lastEntryId\)/);
+});
+
+test("il contesto per bersaglio espande la entry selezionata senza editor globale", () => {
+  assert.match(markup, /target-context-submenu/);
+  assert.doesNotMatch(markup, /id="targetContextEditor"/);
+  assert.match(markup, /\.target-entry\{display:grid/);
+  assert.match(source, /renderTargetContextFields/);
+  assert.match(source, /entry\.classList\.add\("has-target-context"\)/);
+  assert.match(source, /entry\.appendChild\(contextFields\)/);
+});

@@ -430,7 +430,10 @@ export async function recordEffectsMutationHistory({
       };
     })
     .filter(Boolean);
-  if (!changes.length) return null;
+  const sideEffectChanges = Array.isArray(commitResult?.sideEffectChanges)
+    ? commitResult.sideEffectChanges
+    : [];
+  if (!changes.length && !sideEffectChanges.length) return null;
 
   const historyOptions = command.history && typeof command.history === "object"
     ? command.history
@@ -466,7 +469,7 @@ export async function recordEffectsMutationHistory({
       targetIds,
       fields,
       changes,
-      sideEffects: cloneValue(commitResult?.sideEffectChanges || []),
+      sideEffects: cloneValue(sideEffectChanges),
     },
   };
   await appendEntry(entry, { sceneEpoch });

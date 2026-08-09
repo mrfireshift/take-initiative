@@ -104,7 +104,7 @@ test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () =>
 test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () => {
   const boot = sourceSection(
     "const bootPersistedState = await getSceneState();",
-    "if (IS_GM) {\n    void recordCombatTurn",
+    "void recordCombatTurn(__latestInitiativeState",
   );
   assertOrdered(boot, [
     "await __adoptInitiativeSceneBaseline(",
@@ -112,7 +112,7 @@ test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () =
   assert.doesNotMatch(boot, /broadcastTurnNotice\(/);
 });
 
-test("il background apre il turn notice on demand e conserva il primo payload", () => {
+test("il background apre il turn notice on demand e lo chiude quando è invisibile", () => {
   const sender = sourceSection(
     "let __turnNoticeSequence = 0;",
     "async function showConcentrationDamageWarning("
@@ -127,6 +127,8 @@ test("il background apre il turn notice on demand e conserva il primo payload", 
   assert.match(turnNoticeHostSource, /OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
   assert.match(turnNoticeHostSource, /TURN_NOTICE_UI_CHANNEL/);
   assert.match(turnNoticeHostSource, /TURN_NOTICE_READY_CHANNEL/);
+  assert.match(turnNoticeHostSource, /await OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
+  assert.match(turnNoticeHostSource, /popoverOpen = false/);
   const hostMount = turnNoticeHostSource.slice(
     turnNoticeHostSource.indexOf("export function mountTurnNoticeHost()"),
   );
@@ -144,7 +146,7 @@ test("il background apre il turn notice on demand e conserva il primo payload", 
   assert.match(turnNoticeSource, /destination: "LOCAL"/);
 });
 
-test("il reminder di turno precede render e tick senza duplicare il broadcast", () => {
+test("il reminder di turno precede render e tick; i TS restano al solo background", () => {
   const metadata = sourceSection(
     "async function __processInitiativeMetadata(",
     "OBR.scene.onMetadataChange((meta) => {"
@@ -153,7 +155,6 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     "const noticeActiveId = __activeIdForState(st);",
     "isInitiativeTurnTransition(",
     "broadcastTurnNotice(st, sceneEpoch)",
-    "await __broadcastEffectSaveReminderTransition(",
     'await renderAll("metadata")',
     "await roundEffectAdjustment",
     'type: "effects:tick-boundaries"',
@@ -162,7 +163,8 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     (metadata.match(/broadcastTurnNotice\(st, sceneEpoch\)/g) || []).length,
     1,
   );
-  assert.match(source, /includeCurrentTurnStart: false/);
+  assert.doesNotMatch(source, /__broadcastEffectSaveReminderTransition/);
+  assert.doesNotMatch(source, /planEffectSaveReminderNotices/);
 
   const navigation = sourceSection(
     "async function __flushNavigationState()",
@@ -172,6 +174,7 @@ test("il reminder di turno precede render e tick senza duplicare il broadcast", 
     "await setSceneState(desired, sceneEpoch);",
     "broadcastTurnNotice(desired, sceneEpoch)",
   ]);
+  assert.equal((source.match(/prewarmSpeedCheckTurn\(next\)/g) || []).length, 2);
 });
 
 test("il cambio scena scarta il render tardivo e usa il primo snapshot history come baseline", () => {

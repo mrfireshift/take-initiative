@@ -1,3 +1,5 @@
+import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
+
 export function spellEffectConditionOptions(effect, conditionOptions = {}, parentEffectId = "") {
   const resolvedParentEffectId = Object.prototype.hasOwnProperty.call(effect || {}, "parentEffectId")
     ? String(effect.parentEffectId || "")
@@ -14,6 +16,13 @@ export function spellEffectConditionOptions(effect, conditionOptions = {}, paren
       : {}),
     ...(effect?.saveReminder && typeof effect.saveReminder === "object"
       ? { saveReminder: effect.saveReminder }
+      : {}),
+    ...(normalizeDeferredEffects(effect?.deferredEffects ?? effect?.deferredEffect).length
+      ? {
+        deferredEffects: normalizeDeferredEffects(
+          effect?.deferredEffects ?? effect?.deferredEffect,
+        ),
+      }
       : {}),
     manualRemoval: effect?.manualRemoval === true,
     ...(effect?.endsParentOnRemoval === true ? { endsParentOnRemoval: true } : {}),

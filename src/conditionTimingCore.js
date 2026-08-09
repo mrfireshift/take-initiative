@@ -20,6 +20,9 @@ export function preserveConditionTimingMetadata(instance, storedValue) {
   if (raw.parentRemoval === "target" || raw.parentRemoval === "spell") {
     next.parentRemoval = raw.parentRemoval;
   }
+  if (raw.parentEndCondition && typeof raw.parentEndCondition === "object") {
+    next.parentEndCondition = { ...raw.parentEndCondition };
+  }
 
   if (Array.isArray(raw.saveReminder)) {
     const reminders = raw.saveReminder

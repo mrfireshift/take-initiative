@@ -248,6 +248,46 @@ test("un TS informativo conserva istruzione, CD e caster", () => {
   );
 });
 
+test("il reminder dello Spirito legge lo slot dell'istanza e avvisa sul tipo sconosciuto", () => {
+  const itemsById = new Map([
+    ["zone", {
+      id: "zone",
+      name: "Zona: Spirito Guaritore",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      metadata: {
+        [META_KEY]: {
+          [ID + "/spells"]: [{
+            instanceId: "spirit-1",
+            castContext: { slotLevel: 3 },
+          }],
+        },
+      },
+    }],
+    ["target", {
+      id: "target",
+      name: "Bersaglio",
+      metadata: { [META_KEY]: { hp: 4, hpMax: 10 } },
+    }],
+  ]);
+  const notice = zoneTriggerNoticeFromActivation({
+    id: "heal-activation",
+    zoneItemId: "zone",
+    instanceId: "spirit-1",
+    resolution: "manual-heal",
+    healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
+    targetIds: ["target"],
+  }, itemsById);
+
+  assert.equal(notice.resolution.mode, "manual-heal");
+  assert.equal(notice.resolution.healing.dice, "2d6");
+  assert.match(notice.instruction, /Costrutti e Non Morti/);
+});
+
 test("il cambio turno conserva un reminder già arrivato per lo stesso turno", () => {
   assert.equal(
     shouldClearZoneNoticeAtTurn("2:1:nothic", "2:1:nothic"),

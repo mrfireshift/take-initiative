@@ -15,6 +15,8 @@ export function renderSpellOverview({
   groups = [],
   createReferenceButton,
   getSelectedTargetIds = () => [],
+  getActionChoiceValue = () => "",
+  onActionChoiceChange = () => {},
   onOpenReference = () => {},
   onTerminateTarget = async () => {},
   onResolve = async () => {},
@@ -180,6 +182,46 @@ export function renderSpellOverview({
     }
 
     for (const action of manualActions) {
+      const actionChoice = action.choice && typeof action.choice === "object"
+        ? action.choice
+        : null;
+      const actionChoices = Array.isArray(actionChoice?.options)
+        ? actionChoice.options
+        : [];
+      let actionChoiceSelect = null;
+      if (actionChoice && actionChoices.length) {
+        actionChoiceSelect = documentRef.createElement("select");
+        actionChoiceSelect.className = "active-spell-choice";
+        actionChoiceSelect.setAttribute(
+          "aria-label",
+          `Variante per ${group.name}`,
+        );
+        if (actionChoice.required === true) {
+          const placeholder = documentRef.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Seleziona una variante";
+          placeholder.disabled = true;
+          placeholder.selected = true;
+          actionChoiceSelect.appendChild(placeholder);
+        }
+        for (const optionValue of actionChoices) {
+          const option = documentRef.createElement("option");
+          option.value = String(optionValue?.value || "");
+          option.textContent = String(optionValue?.label || option.value);
+          actionChoiceSelect.appendChild(option);
+        }
+        const storedChoice = String(
+          getActionChoiceValue(group, action) || "",
+        ).trim();
+        if (storedChoice && actionChoices.some((option) => option.value === storedChoice)) {
+          actionChoiceSelect.value = storedChoice;
+        }
+        actionChoiceSelect.addEventListener("change", () => {
+          onActionChoiceChange(group, action, actionChoiceSelect.value);
+          updatePresentation();
+        });
+        actions.appendChild(actionChoiceSelect);
+      }
       const activate = documentRef.createElement("button");
       activate.type = "button";
       activate.className = "activate-spell";
@@ -198,14 +240,20 @@ export function renderSpellOverview({
       activate.dataset.actionMaxTargets = String(action.maxTargets || "");
       activate.dataset.actionCountLabelSingular = String(action.countLabelSingular || "bersaglio");
       activate.dataset.actionCountLabelPlural = String(action.countLabelPlural || "bersagli");
+      activate.dataset.actionChoice = JSON.stringify(actionChoice || null);
+      activate.dataset.actionChoiceValue = actionChoiceSelect?.value || "";
       const updatePresentation = () => {
         const presentation = spellActiveActionPresentation(
-          action,
+          {
+            ...action,
+            choiceValue: actionChoiceSelect?.value || activate.dataset.actionChoiceValue || "",
+          },
           getSelectedTargetIds(),
         );
         activate.disabled = presentation.disabled;
         activate.textContent = presentation.text;
         activate.title = presentation.title;
+        activate.dataset.actionChoiceValue = actionChoiceSelect?.value || "";
       };
       updatePresentation();
       activate.addEventListener("click", async () => {
@@ -218,6 +266,7 @@ export function renderSpellOverview({
             spell: groupSpell,
             action,
             targetIds: selectedTargetIds,
+            choiceValue: actionChoiceSelect?.value || "",
           });
         } catch (error) {
           onActionError("activate overview spell", error);

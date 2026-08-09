@@ -1,4 +1,4 @@
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
@@ -33,6 +33,7 @@ import {
 } from "./hpConditionAutomation.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { createSpellInstanceId } from "./spells.js";
+import { gridGeometryFromBounds, gridPlanarDistance } from "./distance3dCore.js";
 import {
   getAreaSaveAutomation,
   getAreaSaveRuleChoices,
@@ -41,9 +42,19 @@ import {
 } from "./spells-srd.js";
 import {
   AREA_HEALING_SPELL_ID_SET,
+  AREA_POPOVER_SAVE_SPELL_ID_SET,
   AREA_SAVE_SPELL_ID_SET,
 } from "./areaSaveSpellRules.js";
 import { normalizeSaveSpellAutomation, resolveSaveSpellResolution } from "./saveSpellCore.js";
+import {
+  CHAIN_LIGHTNING_TARGETING,
+  resolveChainLightningTargeting,
+} from "./chainLightningTargetingCore.js";
+import {
+  getSpellSaveWorkflowChoiceOptions,
+  getSpellSaveWorkflowRule,
+} from "./spellSaveWorkflowRules.js";
+import { resolveSpellSaveTargeting } from "./spellSaveTargetingCore.js";
 import {
   confirmedSpellAreaTargetIds,
   quickHpAreaPlacementPresentation,
@@ -60,6 +71,7 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   staticSpellZoneOwnerOperation,
 } from "./spellStaticZoneCore.js";
+import { getSpellAreaPlacementChoices } from "./spellAreaRules.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
   consumeSpellZoneTrigger,
@@ -67,10 +79,13 @@ import {
 } from "./spellZoneTriggerCore.js";
 import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js";
 import { spellColorFor } from "./spellColorCore.js";
-import { getInitiativeCard } from "./initiativeCards.js";
+import { getInitiativeCard, loadInitiativeCard } from "./initiativeCards.js";
 import { findQuickAction } from "./quickActionsCore.js";
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
+import { emitFireballVisual } from "./fireballVisualRenderer.js";
+import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
+import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -84,7 +99,6 @@ function quickHpEffectsHistoryEntry(entry, mutation = null) {
     effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
   });
 }
-const CONCENTRATION_WARNING_CHANNEL = ID + "/concentration-warning";
 const MODAL_ID = ID + "/quick-hp-modal";
 const TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 const QUICK_ACTION_QUERY = new URLSearchParams(window.location.search);
@@ -105,13 +119,17 @@ const outcomeOptions = [
   { value: SAVE_OUTCOMES.IMMUNE, label: "Immune", shortLabel: "Immune" },
 ];
 
-let mode = QUICK_HP_MODES.DAMAGE;
+let mode = QUICK_HP_MODES.SAVE;
 let areaEffectTab = "spell";
 let effectSaveDamageSequence = 0;
 let targets = [];
 let selectedIds = new Set();
 let factors = new Map();
 let saveOutcomes = new Map();
+let targetContexts = new Map();
+let chainPrimaryId = "";
+let chainLightningReferenceCleanup = null;
+let chainLightningReferenceSequence = 0;
 let selectionWriteDepth = 0;
 let selectionPollBusy = false;
 let selectionUnsubscribe = null;
@@ -145,6 +163,11 @@ const spellMenu = document.getElementById("spellMenu");
 const spellRuleChoiceWrap = document.getElementById("spellRuleChoiceWrap");
 const spellRuleChoice = document.getElementById("spellRuleChoice");
 const spellRuleSummary = document.getElementById("spellRuleSummary");
+const spellSlotWrap = document.getElementById("spellSlotWrap");
+const spellSlotSelect = document.getElementById("spellSlot");
+const spellTargetLimit = document.getElementById("spellTargetLimit");
+const chainLightningControls = document.getElementById("chainLightningControls");
+const chainPrimarySelect = document.getElementById("chainPrimary");
 const areaPlacementButton = document.getElementById("areaPlacement");
 const spellCasterWrap = document.getElementById("spellCasterWrap");
 const spellCasterSelect = document.getElementById("spellCaster");
@@ -221,10 +244,372 @@ function selectedAreaSpell() {
   if (areaEffectTab !== "spell") return null;
   return getSpellDefinition(spellSelect.value) || null;
 }
+function selectedSpellSaveWorkflowRule(spell = selectedAreaSpell()) {
+  return getSpellSaveWorkflowRule(spell?.id);
+}
+function isChainLightningSpell(spell = selectedAreaSpell()) {
+  return spell?.id === CHAIN_LIGHTNING_TARGETING.spellId;
+}
+function selectedSpellPlacementChoice(spell = selectedAreaSpell()) {
+  const choices = getSpellAreaPlacementChoices(spell);
+  const selected = spellRuleChoice.value.trim();
+  return choices.some((choice) => choice.value === selected) ? selected : "";
+}
+function selectedSpellSlotLevel(spell = selectedAreaSpell()) {
+  const rule = selectedSpellSaveWorkflowRule(spell);
+  const slotRule = rule?.targeting || (isChainLightningSpell(spell)
+    ? CHAIN_LIGHTNING_TARGETING
+    : null);
+  if (!slotRule) return null;
+  const selected = Number(spellSlotSelect.value);
+  return Number.isInteger(selected)
+    ? selected
+    : slotRule.baseSlot;
+}
+const SAVE_ABILITY_LABELS = Object.freeze({
+  cha: "Carisma",
+  con: "Costituzione",
+  int: "Intelligenza",
+  wis: "Saggezza",
+});
+function syncSpellSaveWorkflowControls() {
+  const spell = selectedAreaSpell();
+  const rule = selectedSpellSaveWorkflowRule(spell);
+  const slotRule = rule?.targeting || (isChainLightningSpell(spell)
+    ? CHAIN_LIGHTNING_TARGETING
+    : null);
+  const visible = mode === QUICK_HP_MODES.SAVE && !!slotRule;
+  spellSlotWrap.hidden = !visible;
+  if (!slotRule) {
+    spellSlotSelect.replaceChildren();
+    return;
+  }
+  const previous = Number(spellSlotSelect.value);
+  spellSlotSelect.replaceChildren();
+  for (let level = slotRule.baseSlot; level <= (slotRule.maxSlot || 9); level += 1) {
+    spellSlotSelect.appendChild(new Option(`${level}° livello`, String(level)));
+  }
+  const nextLevel = Number.isInteger(previous)
+    && previous >= slotRule.baseSlot
+    && previous <= (slotRule.maxSlot || 9)
+    ? previous
+    : slotRule.baseSlot;
+  spellSlotSelect.value = String(nextLevel);
+  spellSlotSelect.disabled = busy || !visible;
+}
+function currentChainLightningTargeting({
+  targetIds = selectedTargetItems().map((item) => item.id),
+  validateDistances = false,
+  primaryDistanceMeters = null,
+  secondaryDistancesMeters = {},
+} = {}) {
+  const normalizedTargetIds = Array.from(new Set(
+    (Array.isArray(targetIds) ? targetIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  ));
+  const primaryId = String(chainPrimaryId || "").trim();
+  const result = resolveChainLightningTargeting({
+    spellId: CHAIN_LIGHTNING_TARGETING.spellId,
+    slotLevel: selectedSpellSlotLevel(),
+    primaryId,
+    secondaryIds: normalizedTargetIds.filter((id) => id !== primaryId),
+    primaryDistanceMeters,
+    secondaryDistancesMeters,
+    validateDistances,
+  });
+  const errors = [...result.errors];
+  if (primaryId && !normalizedTargetIds.includes(primaryId)) {
+    errors.push("primary-not-selected");
+  }
+  return {
+    ...result,
+    valid: errors.length === 0,
+    errors: Object.freeze(errors),
+    selectedTargetIds: Object.freeze(normalizedTargetIds),
+  };
+}
+function syncChainLightningControls() {
+  const spell = selectedAreaSpell();
+  const visible = mode === QUICK_HP_MODES.SAVE && isChainLightningSpell(spell);
+  chainLightningControls.hidden = !visible;
+  if (!visible) {
+    chainPrimarySelect.replaceChildren();
+    return;
+  }
+  const previous = itemForId(chainPrimaryId) ? chainPrimaryId : chainPrimarySelect.value;
+  chainPrimarySelect.replaceChildren(new Option("Seleziona il primario", ""));
+  for (const item of targets) {
+    chainPrimarySelect.appendChild(new Option(displayName(item), item.id));
+  }
+  chainPrimaryId = itemForId(previous)?.id || "";
+  chainPrimarySelect.value = chainPrimaryId;
+  chainPrimarySelect.disabled = busy;
+}
+const GRID_UNIT_METERS = Object.freeze({
+  m: 1,
+  meter: 1,
+  meters: 1,
+  metro: 1,
+  metri: 1,
+  ft: 0.3048,
+  foot: 0.3048,
+  feet: 0.3048,
+});
+function gridMetersPerCell(scale = {}) {
+  const multiplier = Number(scale?.parsed?.multiplier);
+  const unit = String(scale?.parsed?.unit || "m").trim().toLocaleLowerCase();
+  return (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.5)
+    * (GRID_UNIT_METERS[unit] || 1);
+}
+function chainLightningCircleCommands(radius) {
+  const handle = radius * 0.5522847498;
+  return [
+    [Command.MOVE, radius, 0],
+    [Command.CUBIC, radius, handle, handle, radius, 0, radius],
+    [Command.CUBIC, -handle, radius, -radius, handle, -radius, 0],
+    [Command.CUBIC, -radius, -handle, -handle, -radius, 0, -radius],
+    [Command.CUBIC, handle, -radius, radius, -handle, radius, 0],
+    [Command.CLOSE],
+  ];
+}
+function clearChainLightningReference() {
+  chainLightningReferenceSequence += 1;
+  chainLightningReferenceCleanup?.();
+  chainLightningReferenceCleanup = null;
+}
+async function refreshChainLightningReference() {
+  clearChainLightningReference();
+  const requestSequence = chainLightningReferenceSequence;
+  if (mode !== QUICK_HP_MODES.SAVE || !isChainLightningSpell() || !chainPrimaryId) return;
+  try {
+    const [bounds, dpiValue, scale] = await Promise.all([
+      OBR.scene.items.getItemBounds([chainPrimaryId]),
+      OBR.scene.grid.getDpi().catch(() => 150),
+      OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    ]);
+    if (requestSequence !== chainLightningReferenceSequence) return;
+    const geometry = gridGeometryFromBounds(bounds, Math.max(1, Number(dpiValue) || 150));
+    const dpi = Math.max(1, Number(dpiValue) || 150);
+    const radius = CHAIN_LIGHTNING_TARGETING.secondaryRangeMeters
+      / gridMetersPerCell(scale)
+      * dpi;
+    const reference = buildPath()
+      .commands(chainLightningCircleCommands(radius))
+      .fillRule("evenodd")
+      .fillColor("#38bdf8")
+      .fillOpacity(0.04)
+      .strokeColor("#38bdf8")
+      .strokeOpacity(0.8)
+      .strokeWidth(Math.max(2, dpi * 0.025))
+      .position(geometry.position)
+      .locked(true)
+      .disableHit(true)
+      .layer("DRAWING")
+      .name("Riferimento 9 m / Catena di fulmini")
+      .build();
+    const interaction = await OBR.interaction.startItemInteraction([reference]);
+    if (requestSequence !== chainLightningReferenceSequence) {
+      interaction?.[1]?.();
+      return;
+    }
+    chainLightningReferenceCleanup = interaction?.[1] || null;
+  } catch (error) {
+    if (requestSequence === chainLightningReferenceSequence) {
+      console.warn("[quick-hp] Catena di fulmini reference:", error?.message || error);
+    }
+  }
+}
+async function resolveChainLightningSceneTargeting({
+  targetIds = selectedTargetItems().map((item) => item.id),
+  casterId = spellCasterSelect.value.trim(),
+} = {}) {
+  const normalizedTargetIds = Array.from(new Set(
+    (Array.isArray(targetIds) ? targetIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  ));
+  const normalizedCasterId = String(casterId || "").trim();
+  const ids = Array.from(new Set([
+    normalizedCasterId,
+    ...normalizedTargetIds,
+  ].filter(Boolean)));
+  const [liveItems, dpiValue, scale, boundsEntries] = await Promise.all([
+    OBR.scene.items.getItems(ids),
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    Promise.all(ids.map(async (id) => [
+      id,
+      await OBR.scene.items.getItemBounds([id]).catch(() => null),
+    ])),
+  ]);
+  const dpi = Math.max(1, Number(dpiValue) || 150);
+  const metersPerCell = gridMetersPerCell(scale);
+  const itemById = new Map((Array.isArray(liveItems) ? liveItems : []).map((item) => [item.id, item]));
+  const boundsById = new Map(boundsEntries.filter(([, bounds]) => bounds));
+  const geometryFor = (id) => {
+    const bounds = boundsById.get(id);
+    return bounds
+      ? gridGeometryFromBounds(bounds, dpi)
+      : itemById.get(id)?.position
+        ? {
+          position: itemById.get(id).position,
+          size: { width: dpi, height: dpi },
+        }
+        : null;
+  };
+  const casterGeometry = geometryFor(normalizedCasterId);
+  const primaryGeometry = geometryFor(chainPrimaryId);
+  const primaryDistance = casterGeometry && primaryGeometry
+    ? gridPlanarDistance(
+      casterGeometry.position,
+      primaryGeometry.position,
+      dpi,
+      metersPerCell,
+      casterGeometry.size,
+      primaryGeometry.size,
+    ).distance
+    : null;
+  const secondaryDistances = {};
+  for (const targetId of normalizedTargetIds.filter((id) => id !== chainPrimaryId)) {
+    const targetGeometry = geometryFor(targetId);
+    if (primaryGeometry && targetGeometry) {
+      secondaryDistances[targetId] = gridPlanarDistance(
+        primaryGeometry.position,
+        targetGeometry.position,
+        dpi,
+        metersPerCell,
+        primaryGeometry.size,
+        targetGeometry.size,
+      ).distance;
+    }
+  }
+  const targeting = currentChainLightningTargeting({
+    targetIds: normalizedTargetIds,
+    validateDistances: true,
+    primaryDistanceMeters: primaryDistance,
+    secondaryDistancesMeters: secondaryDistances,
+  });
+  const errors = [...targeting.errors];
+  if (!normalizedCasterId && !errors.includes("caster-required")) errors.push("caster-required");
+  return {
+    ...targeting,
+    valid: errors.length === 0,
+    errors: Object.freeze(errors),
+    casterId: normalizedCasterId,
+  };
+}
+async function resolveSpellSaveSceneTargeting({
+  spell = selectedAreaSpell(),
+  targetIds = selectedTargetItems().map((item) => item.id),
+  casterId = spellCasterSelect.value.trim(),
+  targetContexts: contextValues = targetContexts,
+} = {}) {
+  const rule = selectedSpellSaveWorkflowRule(spell);
+  const spatialRule = rule?.targeting?.spatial;
+  const baseInput = {
+    spellId: spell?.id,
+    rule,
+    slotLevel: selectedSpellSlotLevel(spell),
+    targetIds,
+    choiceValue: selectedSaveRuleChoice(),
+    targetContexts: contextValues,
+  };
+  if (!spatialRule) return resolveSpellSaveTargeting(baseInput);
+
+  const normalizedTargetIds = Array.from(new Set(
+    (Array.isArray(targetIds) ? targetIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  ));
+  const normalizedCasterId = String(casterId || "").trim();
+  if (spatialRule.mode === "caster-range" && !normalizedCasterId) {
+    return {
+      ...resolveSpellSaveTargeting(baseInput),
+      valid: false,
+      errors: Object.freeze(["caster-required"]),
+    };
+  }
+  const ids = Array.from(new Set([
+    ...(spatialRule.mode === "caster-range" ? [normalizedCasterId] : []),
+    ...normalizedTargetIds,
+  ].filter(Boolean)));
+  const [liveItems, dpiValue, scale, boundsEntries] = await Promise.all([
+    OBR.scene.items.getItems(ids),
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    Promise.all(ids.map(async (id) => [
+      id,
+      await OBR.scene.items.getItemBounds([id]).catch(() => null),
+    ])),
+  ]);
+  const dpi = Math.max(1, Number(dpiValue) || 150);
+  const metersPerCell = gridMetersPerCell(scale);
+  const itemById = new Map((Array.isArray(liveItems) ? liveItems : []).map((item) => [item.id, item]));
+  const boundsById = new Map(boundsEntries.filter(([, bounds]) => bounds));
+  const geometryFor = (id) => {
+    const bounds = boundsById.get(id);
+    return bounds
+      ? gridGeometryFromBounds(bounds, dpi)
+      : itemById.get(id)?.position
+        ? {
+          position: itemById.get(id).position,
+          size: { width: dpi, height: dpi },
+        }
+        : null;
+  };
+  const pairwiseDistancesMeters = [];
+  const casterDistancesMeters = {};
+  if (spatialRule.mode === "pairwise-distance") {
+    for (let index = 0; index < normalizedTargetIds.length; index += 1) {
+      for (let nextIndex = index + 1; nextIndex < normalizedTargetIds.length; nextIndex += 1) {
+        const firstId = normalizedTargetIds[index];
+        const secondId = normalizedTargetIds[nextIndex];
+        const firstGeometry = geometryFor(firstId);
+        const secondGeometry = geometryFor(secondId);
+        if (!firstGeometry || !secondGeometry) continue;
+        pairwiseDistancesMeters.push({
+          targetIds: [firstId, secondId],
+          distanceMeters: gridPlanarDistance(
+            firstGeometry.position,
+            secondGeometry.position,
+            dpi,
+            metersPerCell,
+            firstGeometry.size,
+            secondGeometry.size,
+          ).distance,
+        });
+      }
+    }
+  } else if (spatialRule.mode === "caster-range") {
+    const casterGeometry = geometryFor(normalizedCasterId);
+    for (const targetId of normalizedTargetIds) {
+      const targetGeometry = geometryFor(targetId);
+      if (!casterGeometry || !targetGeometry) continue;
+      casterDistancesMeters[targetId] = gridPlanarDistance(
+        casterGeometry.position,
+        targetGeometry.position,
+        dpi,
+        metersPerCell,
+        casterGeometry.size,
+        targetGeometry.size,
+      ).distance;
+    }
+  }
+  return {
+    ...resolveSpellSaveTargeting({
+      ...baseInput,
+      pairwiseDistancesMeters,
+      casterDistancesMeters,
+    }),
+    pairwiseDistancesMeters,
+    casterDistancesMeters,
+  };
+}
 function spellUsesSaveOutcomes(spell = selectedAreaSpell()) {
   return quickHpSpellUsesSaveOutcomes({
     spellId: spell?.id,
-    castSaveSpellIds: AREA_SAVE_SPELL_ID_SET,
+    castSaveSpellIds: AREA_POPOVER_SAVE_SPELL_ID_SET,
     activeZoneTrigger,
   });
 }
@@ -236,30 +621,68 @@ function areaOutcomeFor(targetId, spell = selectedAreaSpell()) {
     ? saveOutcomes.get(targetId)
     : SAVE_OUTCOMES.FAILED;
 }
-function pendingStaticZonePlacement(rule, spell, casterId) {
+function pendingStaticZonePlacement(
+  rule,
+  spell,
+  casterId,
+  ruleChoice = selectedSpellPlacementChoice(spell),
+) {
   if (rule?.kind !== "zone" || !pendingSpellAreaPlacement) return null;
   return pendingSpellAreaPlacement.ruleId === rule.id
     && pendingSpellAreaPlacement.spellId === spell?.id
     && pendingSpellAreaPlacement.casterId === String(casterId || "").trim()
+    && (!pendingSpellAreaPlacement.ruleChoice
+      || pendingSpellAreaPlacement.ruleChoice === String(ruleChoice || "").trim())
     ? pendingSpellAreaPlacement
     : null;
 }
 function selectedSaveRuleChoice() {
   return spellRuleChoice.value.trim();
 }
+function selectedSpellTargetContextContract(spell = selectedAreaSpell()) {
+  return selectedSpellSaveWorkflowRule(spell)?.targeting?.context || null;
+}
+function targetContextFor(targetId) {
+  return targetContexts.get(String(targetId || "").trim()) || {};
+}
+function targetContextResolution(spell, targetIds = selectedTargetItems().map((item) => item.id)) {
+  const rule = selectedSpellSaveWorkflowRule(spell);
+  if (!rule) return null;
+  return resolveSpellSaveTargeting({
+    spellId: spell?.id,
+    rule,
+    slotLevel: selectedSpellSlotLevel(spell),
+    targetIds,
+    choiceValue: selectedSaveRuleChoice(),
+    targetContexts,
+    validateSpatial: false,
+  });
+}
 function catalogSaveAutomation(spell) {
   if (!spellUsesSaveOutcomes(spell)) return null;
   return getAreaSaveAutomation(spell, selectedSaveRuleChoice());
 }
 function refreshSpellRuleChoices() {
-  const choices = getAreaSaveRuleChoices(selectedAreaSpell());
+  const spell = selectedAreaSpell();
+  const workflowRule = selectedSpellSaveWorkflowRule(spell);
+  const workflowChoices = getSpellSaveWorkflowChoiceOptions(workflowRule);
+  const saveChoices = workflowChoices.length
+    ? workflowChoices
+    : getAreaSaveRuleChoices(spell);
+  const choices = saveChoices.length ? saveChoices : getSpellAreaPlacementChoices(spell);
+  const requiredWorkflowChoice = !!workflowRule?.choice?.required && workflowChoices.length > 0;
   const previous = selectedSaveRuleChoice();
   spellRuleChoice.replaceChildren();
+  if (requiredWorkflowChoice) {
+    spellRuleChoice.appendChild(new Option("Seleziona una scelta", ""));
+  }
   for (const choice of choices) {
-    spellRuleChoice.appendChild(new Option(choice.label, choice.value));
+    spellRuleChoice.appendChild(new Option(choice.label, choice.value || choice.id));
   }
   if (choices.some((choice) => choice.value === previous)) {
     spellRuleChoice.value = previous;
+  } else if (!requiredWorkflowChoice && choices.length) {
+    spellRuleChoice.value = choices[0].value || choices[0].id;
   }
   spellRuleChoiceWrap.hidden = !choices.length;
 }
@@ -484,6 +907,8 @@ function syncConditionDetailControls() {
   const hasManualCondition = mode === QUICK_HP_MODES.SAVE
     && !hasCatalogRules
     && !!conditionSelect.value.trim();
+  syncSpellSaveWorkflowControls();
+  syncChainLightningControls();
   manualConditionWrap.hidden = false;
   for (const button of areaEffectTabButtons) {
     const active = button.dataset.areaEffectTab === areaEffectTab;
@@ -653,6 +1078,7 @@ function modeLabel() {
 function currentSpellResolution(selected) {
   const spell = selectedAreaSpell();
   if (!spell) return null;
+  const saveWorkflowRule = selectedSpellSaveWorkflowRule(spell);
   const placementRule = quickHpAreaPlacementPresentation({
     spellId: spell.id,
     casterId: spellCasterSelect.value.trim(),
@@ -672,7 +1098,76 @@ function currentSpellResolution(selected) {
       : new Map(selected.map((item) => [item.id, SAVE_OUTCOMES.FAILED])),
     automation: currentSaveAutomation(spell),
     allowEmptyTargets: areaLifecycleOnly,
+    saveWorkflowRule,
+    slotLevel: selectedSpellSlotLevel(spell),
+    choiceValue: selectedSaveRuleChoice(),
+    validateSpatial: false,
+    targetContexts,
   });
+}
+function manualSpellResolutionSummary(spell, resolution, items = selectedTargetItems()) {
+  const action = resolution?.targeting?.targetContext?.manualAction;
+  const involvedIds = new Set(resolution?.involvedTargetIds || []);
+  if (!action || !involvedIds.size) return "";
+  const names = items
+    .filter((item) => involvedIds.has(item.id))
+    .map((item) => displayName(item));
+  const targetLabel = names.length
+    ? names.join(", ")
+    : `${involvedIds.size} bersagli coinvolti`;
+  return `${action.label}: ${targetLabel}. ${action.detail || ""}`.trim();
+}
+function spellSaveOutcomesComplete(spell, selected, spellResolution) {
+  if (!spellUsesSaveOutcomes(spell)) return true;
+  const saveTargetIds = new Set(
+    spellResolution?.targeting?.targetContext?.saveTargetIds
+      || selected.map((item) => item.id),
+  );
+  return selected.every((item) =>
+    !saveTargetIds.has(item.id) || saveOutcomes.has(item.id)
+  ) && (selected.length > 0 || !!spellResolution?.targeting?.targetContext?.contract);
+}
+function updateSpellSaveWorkflowTargetLimit(spell, selected, spellResolution) {
+  if (mode === QUICK_HP_MODES.SAVE && isChainLightningSpell(spell)) {
+    const targeting = currentChainLightningTargeting({
+      targetIds: selected.map((item) => item.id),
+    });
+    spellTargetLimit.hidden = false;
+    spellTargetLimit.textContent = `Slot ${targeting.slotLevel || CHAIN_LIGHTNING_TARGETING.baseSlot}° · TS Destrezza · Primario 1 · Secondari ${targeting.secondaryIds.length}/${targeting.maximumSecondaryTargets}`;
+    spellTargetLimit.classList.toggle("invalid", targeting.errors.some((error) => [
+      "slot-level-invalid",
+      "primary-required",
+      "primary-not-selected",
+      "secondary-limit-exceeded",
+    ].includes(error)));
+    return;
+  }
+  const rule = selectedSpellSaveWorkflowRule(spell);
+  if (mode !== QUICK_HP_MODES.SAVE || !rule) {
+    spellTargetLimit.hidden = true;
+    spellTargetLimit.textContent = "";
+    spellTargetLimit.classList.remove("invalid");
+    return;
+  }
+  const targeting = spellResolution?.targeting || resolveSpellSaveTargeting({
+    spellId: spell.id,
+    rule,
+    slotLevel: selectedSpellSlotLevel(spell),
+    targetIds: selected.map((item) => item.id),
+    choiceValue: selectedSaveRuleChoice(),
+    targetContexts,
+    validateSpatial: false,
+  });
+  const ability = SAVE_ABILITY_LABELS[rule.ability] || rule.ability;
+  spellTargetLimit.hidden = false;
+  spellTargetLimit.textContent = `Slot ${targeting.slotLevel}° · TS ${ability} · ${selected.length}/${targeting.maximumTargets} bersagli`;
+  spellTargetLimit.classList.toggle("invalid", targeting.errors.some((error) => [
+    "slot-level-invalid",
+    "duplicate-targets",
+    "target-limit-exceeded",
+    "choice-required",
+    "choice-invalid",
+  ].includes(error)));
 }
 function updateControls() {
   document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
@@ -699,6 +1194,7 @@ function updateControls() {
   syncConditionDetailControls();
   const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
   const spellResolution = spell ? currentSpellResolution(selected) : null;
+  updateSpellSaveWorkflowTargetLimit(spell, selected, spellResolution);
   const placementRule = spell
     ? quickHpAreaPlacementPresentation({
       spellId: spell.id,
@@ -723,17 +1219,28 @@ function updateControls() {
   } else {
     summary.textContent = !selected.length ? "Nessun bersaglio selezionato" : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
   }
+  const manualSummary = manualSpellResolutionSummary(spell, spellResolution, selected);
+  if (manualSummary) summary.textContent = manualSummary;
   const outcomesComplete = mode !== QUICK_HP_MODES.SAVE
-    || !spellUsesSaveOutcomes(spell)
-    || selected.every((item) => saveOutcomes.has(item.id))
-      && (selected.length > 0 || hasAreaLifecycle);
+    || spellSaveOutcomesComplete(spell, selected, spellResolution)
+    || (!spellUsesSaveOutcomes(spell) && (selected.length > 0 || hasAreaLifecycle));
   const failedWithManualCondition = mode === QUICK_HP_MODES.SAVE
     && !spell
     && conditionSelect.value.trim()
     && selected.some((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED);
   const hasSpellEffect = !!spellResolution?.valid
     && (spellResolution.spellTargetIds.length > 0 || spellResolution.conditionApplications.length > 0);
-  const hasSaveEffect = failedWithManualCondition || hasSpellEffect;
+  const hasManualSpellResolution = !!manualSpellResolutionSummary(spell, spellResolution, selected);
+  const hasSaveEffect = failedWithManualCondition || hasSpellEffect || hasManualSpellResolution;
+  const saveWorkflowInvalid = mode === QUICK_HP_MODES.SAVE
+    && !!spellResolution?.targeting
+    && !spellResolution.targeting.valid;
+  const chainWorkflowInvalid = mode === QUICK_HP_MODES.SAVE
+    && isChainLightningSpell(spell)
+    && (
+      !currentChainLightningTargeting().valid
+      || !spellCasterSelect.value.trim()
+    );
   const hasZoneTrigger = zoneTriggerMatchesForm(
     activeZoneTrigger,
     spell,
@@ -753,6 +1260,8 @@ function updateControls() {
         : (changes.length === 0 && !hasSaveEffect && !hasAreaLifecycle)
           || (currentValue() <= 0 && !hasSaveEffect && !hasAreaLifecycle)
       : currentValue() <= 0 || changes.length === 0);
+  applyButton.disabled = applyButton.disabled || saveWorkflowInvalid;
+  applyButton.disabled = applyButton.disabled || chainWorkflowInvalid;
   targetNameFilter.disabled = busy;
   for (const button of factionFilterButtons) button.disabled = busy;
   amountInput.disabled = busy;
@@ -773,8 +1282,17 @@ function setSelectedFromScene(ids) {
   const available = new Set(targets.map((item) => item.id));
   const nextIds = new Set((Array.isArray(ids) ? ids : []).map(splitVirtualId).filter((id) => available.has(id)));
   if (sameSelection(nextIds)) return;
-  for (const id of selectedIds) if (!nextIds.has(id)) saveOutcomes.delete(id);
+  for (const id of selectedIds) {
+    if (!nextIds.has(id)) {
+      saveOutcomes.delete(id);
+      targetContexts.delete(id);
+    }
+  }
   selectedIds = nextIds;
+  if (chainPrimaryId && !nextIds.has(chainPrimaryId)) {
+    chainPrimaryId = "";
+    clearChainLightningReference();
+  }
   renderTargets();
 }
 async function refreshSelectionFromScene() {
@@ -821,6 +1339,78 @@ function renderFactorButtons(item, disabled) {
   }
   return group;
 }
+function targetOutcomeState(spell, targetId) {
+  const resolution = targetContextResolution(spell, [targetId]);
+  const context = resolution?.targeting?.targetContext;
+  if (!context) return { kind: "save" };
+  if (context.automaticOutcomeByTarget?.[targetId]) {
+    return {
+      kind: "automatic-outcome",
+      outcome: context.automaticOutcomeByTarget[targetId],
+    };
+  }
+  if (context.automaticInvolvedIds?.includes(targetId)) {
+    return { kind: "automatic-involved" };
+  }
+  if (context.saveTargetIds?.includes(targetId)) return { kind: "save" };
+  return { kind: "context-required" };
+}
+function renderTargetContextFields(item, disabled) {
+  const contract = selectedSpellTargetContextContract();
+  if (!contract?.fields?.length || !item) return null;
+  const fields = document.createElement("div");
+  fields.className = "target-context-submenu";
+  fields.dataset.targetContext = "true";
+  const current = targetContextFor(item.id);
+  for (const field of contract.fields) {
+    const fieldId = String(field?.id || "").trim();
+    if (!fieldId) continue;
+    const label = document.createElement("label");
+    label.className = "target-context-field";
+    label.dataset.targetContext = "true";
+    const caption = document.createElement("span");
+    caption.className = "caption";
+    caption.textContent = field.label || fieldId;
+    let control;
+    if (field.type === "text" || field.type === "number") {
+      control = document.createElement("input");
+      control.type = field.type === "number" ? "number" : "text";
+      if (field.type === "number") {
+        control.min = "0";
+        control.step = "1";
+      }
+      control.placeholder = field.placeholder || "";
+    } else {
+      control = document.createElement("select");
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = field.placeholder || "Seleziona";
+      control.appendChild(placeholder);
+      for (const option of field.options || []) {
+        control.appendChild(new Option(option.label, option.value));
+      }
+    }
+    control.value = current[fieldId] === undefined || current[fieldId] === null
+      ? ""
+      : String(current[fieldId]);
+    control.dataset.targetContext = fieldId;
+    control.setAttribute("aria-label", `${field.label || fieldId} di ${displayName(item)}`);
+    control.disabled = disabled || busy;
+    control.addEventListener("click", (event) => event.stopPropagation());
+    control.addEventListener("change", (event) => {
+      event.stopPropagation();
+      const next = { ...targetContextFor(item.id) };
+      next[fieldId] = field.type === "number" && control.value !== ""
+        ? Number(control.value)
+        : control.value;
+      targetContexts.set(item.id, next);
+      renderTargets();
+    });
+    label.append(caption, control);
+    fields.appendChild(label);
+  }
+  return fields;
+}
 function renderOutcomeButtons(item, disabled) {
   const group = document.createElement("div");
   group.className = "outcome-group";
@@ -830,6 +1420,23 @@ function renderOutcomeButtons(item, disabled) {
     included.className = "outcome active area-inside";
     included.textContent = "All'interno dell'area";
     included.title = "Bersaglio incluso nell'area";
+    group.appendChild(included);
+    return group;
+  }
+  const spell = selectedAreaSpell();
+  const targetState = targetOutcomeState(spell, item.id);
+  if (targetState.kind !== "save") {
+    group.classList.add("area-inside-group");
+    const included = document.createElement("span");
+    included.className = "outcome active area-inside";
+    included.textContent = targetState.kind === "automatic-outcome"
+      ? "Superato automatico"
+      : targetState.kind === "automatic-involved"
+        ? "Consenziente · coinvolto"
+        : "Completa il contesto";
+    included.title = targetState.kind === "automatic-involved"
+      ? "Il bersaglio non effettua il tiro salvezza"
+      : "Il contesto del bersaglio determina la risoluzione";
     group.appendChild(included);
     return group;
   }
@@ -960,6 +1567,19 @@ function renderTargets() {
         ? renderOutcomeButtons(item, disabled || (selectionLocked && !selected))
         : renderFactorButtons(item, disabled),
     );
+    const entry = document.createElement("div");
+    entry.className = "target-entry";
+    entry.appendChild(row);
+    if (mode === QUICK_HP_MODES.SAVE && selected) {
+      const contextFields = renderTargetContextFields(
+        item,
+        disabled || busy || selectionLocked,
+      );
+      if (contextFields) {
+        entry.classList.add("has-target-context");
+        entry.appendChild(contextFields);
+      }
+    }
     const toggle = () => {
       if (disabled || busy || selectionLocked) return;
       const next = !selectedIds.has(item.id);
@@ -967,6 +1587,11 @@ function renderTargets() {
       else {
         selectedIds.delete(item.id);
         saveOutcomes.delete(item.id);
+        targetContexts.delete(item.id);
+        if (chainPrimaryId === item.id) {
+          chainPrimaryId = "";
+          clearChainLightningReference();
+        }
       }
       renderTargets();
       void updateSceneSelection([item.id], next, false);
@@ -977,10 +1602,10 @@ function renderTargets() {
       toggle();
     });
     row.addEventListener("click", (event) => {
-      if (event.target.closest("[data-factor], [data-outcome]")) return;
+      if (event.target.closest("[data-factor], [data-outcome], [data-target-context]")) return;
       toggle();
     });
-    targetList.appendChild(row);
+    targetList.appendChild(entry);
   }
   updateControls();
 }
@@ -1087,7 +1712,8 @@ async function loadQuickActionPreset() {
   if (!QUICK_ACTION_SOURCE_ID || !QUICK_ACTION_ID) return false;
   const [source] = await OBR.scene.items.getItems([QUICK_ACTION_SOURCE_ID]).catch(() => []);
   if (!source) return false;
-  const action = findQuickAction(getInitiativeCard(source), QUICK_ACTION_ID);
+  const profile = await loadInitiativeCard(source).catch(() => getInitiativeCard(source));
+  const action = findQuickAction(profile, QUICK_ACTION_ID);
   if (action?.kind !== "spell" || action.workflow !== "area") return false;
   const spell = getSpellDefinition(action.spellId);
   if (!spell || !areaSaveSpells.some((entry) => entry.id === spell.id)) return false;
@@ -1180,27 +1806,15 @@ async function restoreZoneTriggerRoot(snapshot) {
   });
 }
 
-function portraitUrl(item) {
-  return String(item && item.image && (item.image.url || item.image.src) || item && item.asset && item.asset.image && item.asset.image.url || "");
-}
 async function showConcentrationWarnings(entries) {
   if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
   if (mode === QUICK_HP_MODES.SAVE && spellUsesAreaHealing()) return;
-  const warnings = entries.filter((entry) => {
-    const concentration = entry.item.metadata && entry.item.metadata[META_KEY] && entry.item.metadata[META_KEY][CONCENTRATION_KEY];
-    return entry.change.requested > 0 && concentration && typeof concentration === "object" && Object.keys(concentration).length > 0;
-  }).map((entry) => ({
-    name: displayName(entry.item),
-    damage: entry.change.requested,
-    dc: Math.max(10, Math.floor(entry.change.requested / 2)),
-    portrait: portraitUrl(entry.item),
-    attitude: entry.item.metadata[META_KEY].attitude || "neutral",
-  }));
-  if (warnings.length) {
-    await OBR.broadcast.sendMessage(CONCENTRATION_WARNING_CHANNEL, {
-      type: "show-concentration-warning", warnings, createdAt: Date.now(),
-    }, { destination: "ALL" });
-  }
+  await broadcastConcentrationSaveWarnings(entries
+    .filter((entry) => entry.change.requested > 0)
+    .map((entry) => ({
+      itemId: entry.item.id,
+      damage: entry.change.requested,
+    })));
 }
 async function showEffectSaveDamageWarnings(entries) {
   if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
@@ -1240,6 +1854,7 @@ async function placeSelectedSpellArea() {
     const result = await requestSpellAreaPlacement({
       ruleId: presentation.rule.id,
       casterId: spellCasterSelect.value.trim(),
+      ruleChoice: selectedSpellPlacementChoice(),
     }, {
       broadcast: OBR.broadcast,
       windowRef: window,
@@ -1257,14 +1872,13 @@ async function placeSelectedSpellArea() {
       result,
       targets.map((item) => item.id),
     );
-    pendingSpellAreaPlacement = presentation.rule.kind === "zone"
-      ? {
-        ruleId: presentation.rule.id,
-        spellId: presentation.rule.spellId,
-        casterId: spellCasterSelect.value.trim(),
-        preview: result.preview,
-      }
-      : null;
+    pendingSpellAreaPlacement = {
+      ruleId: presentation.rule.id,
+      spellId: presentation.rule.spellId,
+      casterId: spellCasterSelect.value.trim(),
+      ruleChoice: result.ruleChoice || selectedSpellPlacementChoice(),
+      preview: result.preview,
+    };
     saveOutcomes.clear();
     selectedIds = new Set(targetIds);
     if (!AREA_SAVE_SPELL_ID_SET.has(presentation.rule.spellId)) {
@@ -1332,7 +1946,11 @@ async function applyOperation() {
   if (
     mode === QUICK_HP_MODES.SAVE
     && spellUsesSaveOutcomes(spell)
-    && !selectedItems.every((item) => saveOutcomes.has(item.id))
+    && !spellSaveOutcomesComplete(
+      spell,
+      selectedItems,
+      currentSpellResolution(selectedItems),
+    )
   ) {
     status.textContent = "Imposta un esito per ogni bersaglio.";
     return;
@@ -1341,7 +1959,58 @@ async function applyOperation() {
   status.textContent = "";
   const operationSceneEpoch = currentSceneEpoch();
   let hpVisualTransaction = null;
+  let chainLightningVisualTargetIds = [];
+  let sceneSpellTargeting = null;
   try {
+    if (isChainLightningSpell(spell)) {
+      const chainTargeting = await resolveChainLightningSceneTargeting({
+        targetIds: candidateIds,
+        casterId: spellCasterSelect.value.trim(),
+      });
+      if (!chainTargeting.valid) {
+        status.textContent = chainTargeting.errors.includes("caster-required")
+          ? "Seleziona il caster di Catena di fulmini."
+          : chainTargeting.errors.includes("primary-required")
+            || chainTargeting.errors.includes("primary-not-selected")
+            ? "Seleziona il bersaglio primario e includilo tra i bersagli."
+            : chainTargeting.errors.includes("primary-out-of-range")
+              ? "Il bersaglio primario supera la gittata di 45 m."
+              : chainTargeting.errors.includes("secondary-out-of-range")
+                ? "Un bersaglio secondario supera il raggio di 9 m dal primario."
+                : chainTargeting.errors.includes("secondary-limit-exceeded")
+                  ? "Il numero di bersagli secondari supera il limite dello slot."
+                  : "Impossibile rivalidare le distanze di Catena di fulmini.";
+        return;
+      }
+      chainLightningVisualTargetIds = [...chainTargeting.targetIds];
+      clearChainLightningReference();
+    }
+    if (
+      mode === QUICK_HP_MODES.SAVE
+      && selectedSpellSaveWorkflowRule(spell)?.targeting?.spatial
+    ) {
+      sceneSpellTargeting = await resolveSpellSaveSceneTargeting({
+        spell,
+        targetIds: candidateIds,
+        casterId: spellCasterSelect.value.trim(),
+      });
+      if (sceneSpellTargeting.errors.includes("pairwise-distance-exceeded")) {
+        status.textContent = "I bersagli devono trovarsi tutti entro 9 m l'uno dall'altro.";
+        return;
+      }
+      if (sceneSpellTargeting.errors.includes("pairwise-distance-unavailable")) {
+        status.textContent = "Impossibile rivalidare le distanze tra i bersagli.";
+        return;
+      }
+      if (sceneSpellTargeting.errors.includes("caster-range-exceeded")) {
+        status.textContent = "Un bersaglio supera la gittata dell'incantesimo.";
+        return;
+      }
+      if (sceneSpellTargeting.errors.includes("caster-distance-unavailable")) {
+        status.textContent = "Impossibile rivalidare la gittata dal caster.";
+        return;
+      }
+    }
     const liveItems = await OBR.scene.items.getItems(candidateIds);
     const factorSnapshot = new Map(factors);
     const entries = liveItems.filter(hasTrackedHP).map((item) => {
@@ -1394,8 +2063,12 @@ async function applyOperation() {
     let effectSubjectIds = [];
     let spellInstanceId = "";
     let concentrationAction = "";
+  let fireballVisualContext = null;
+  let matchedVisualContext = null;
+  let manualSpellResolutionMessage = "";
     if (mode === QUICK_HP_MODES.SAVE && spell) {
       const automation = currentSaveAutomation(spell);
+      const saveWorkflowRule = selectedSpellSaveWorkflowRule(spell);
       const resolution = resolveSaveSpellResolution({
         spell,
         casterId: spellCasterSelect.value.trim(),
@@ -1405,15 +2078,38 @@ async function applyOperation() {
           : new Map(liveItems.map((item) => [item.id, SAVE_OUTCOMES.FAILED])),
         automation,
         allowEmptyTargets: !!staticZonePlacement || mobileAuraPlacement,
-      });
+          saveWorkflowRule,
+          slotLevel: selectedSpellSlotLevel(spell),
+          choiceValue: selectedSaveRuleChoice(),
+          pairwiseDistancesMeters: sceneSpellTargeting?.pairwiseDistancesMeters,
+          casterDistancesMeters: sceneSpellTargeting?.casterDistancesMeters,
+          targetContexts,
+        });
       if (!resolution.valid) {
         status.textContent = resolution.errors.includes("caster-required")
           ? "Seleziona il caster dello spell concentrato."
+          : resolution.errors.includes("choice-required")
+            ? "Seleziona un effetto o una variante."
+          : resolution.errors.includes("choice-invalid")
+              ? "La scelta dell'effetto non è valida."
+          : resolution.errors.includes("target-context-required")
+            ? "Completa il contesto richiesto per ogni bersaglio."
+          : resolution.errors.includes("target-context-invalid")
+            ? "Il contesto di un bersaglio non è valido."
+          : resolution.errors.includes("target-limit-exceeded")
+            ? "Il numero di bersagli supera il limite dello slot selezionato."
+            : resolution.errors.includes("slot-level-invalid")
+              ? "Seleziona un livello di slot valido per questo incantesimo."
           : resolution.errors.includes("outcomes-incomplete")
             ? "Imposta un esito per ogni bersaglio."
             : "La configurazione dello spell non è completa.";
         return;
       }
+      manualSpellResolutionMessage = manualSpellResolutionSummary(
+        spell,
+        resolution,
+        liveItems,
+      );
       if (mobileAuraPlacement && resolution.casterId) {
         resolution.spellTargetIds = Array.from(new Set([
           ...resolution.spellTargetIds,
@@ -1460,9 +2156,73 @@ async function applyOperation() {
           appliedAt,
           concentrationAction,
           castContext: mobileAuraPlacement
-            ? { mobileAura: true }
+            || resolution.targeting
+            || resolution.choice
+            ? {
+              ...(mobileAuraPlacement ? { mobileAura: true } : {}),
+              ...(resolution.targeting
+                ? { slotLevel: resolution.targeting.slotLevel }
+                : {}),
+              ...(resolution.choice?.value
+                ? { choice: resolution.choice.value }
+                : {}),
+              ...(resolution.targetContexts && Object.keys(resolution.targetContexts).length
+                ? { targetContexts: resolution.targetContexts }
+                : {}),
+            }
             : null,
         });
+        if (isChainLightningSpell(spell)) {
+          matchedVisualContext = {
+            spellId: spell.id,
+            casterId: resolution.casterId,
+            targetIds: chainLightningVisualTargetIds.length
+              ? chainLightningVisualTargetIds
+              : resolution.targetIds,
+            eventId: spellInstanceId,
+            lifecycleId: spellInstanceId,
+            sceneEpoch: operationSceneEpoch,
+          };
+        } else if (
+          spell.id === "banishment"
+          && resolution.spellTargetIds.length
+        ) {
+          // Esilio è un workflow target con contesto, non una sagoma area:
+          // usa i bersagli falliti già tracciati dal lifecycle per mantenere
+          // il portale agganciato al token e chiuderlo alla rimozione.
+          matchedVisualContext = {
+            spellId: spell.id,
+            casterId: resolution.casterId,
+            targetIds: resolution.spellTargetIds,
+            eventId: spellInstanceId,
+            lifecycleId: spellInstanceId,
+            sceneEpoch: operationSceneEpoch,
+          };
+        } else if (
+          spell.id === "fireball"
+          && pendingSpellAreaPlacement?.spellId === spell.id
+          && pendingSpellAreaPlacement?.ruleId === placementRule?.id
+        ) {
+          fireballVisualContext = {
+            casterId: resolution.casterId,
+            eventId: spellInstanceId,
+            preview: pendingSpellAreaPlacement.preview,
+            sceneEpoch: operationSceneEpoch,
+          };
+        } else if (
+          pendingSpellAreaPlacement?.spellId === spell.id
+          && pendingSpellAreaPlacement?.ruleId === placementRule?.id
+        ) {
+          matchedVisualContext = {
+            spellId: spell.id,
+            casterId: resolution.casterId,
+            targetIds: resolution.spellTargetIds,
+            eventId: spellInstanceId,
+            lifecycleId: spellInstanceId,
+            preview: pendingSpellAreaPlacement.preview,
+            sceneEpoch: operationSceneEpoch,
+          };
+        }
       }
     } else if (mode === QUICK_HP_MODES.SAVE && conditionName) {
       effectSubjectIds = failedQuickHPTargetIds(liveItems, saveOutcomes);
@@ -1531,14 +2291,31 @@ async function applyOperation() {
         ruleChoice: selectedSaveRuleChoice(),
       })
       : [];
+    if (matchedVisualContext && nextStaticZoneItems.length) {
+      const zoneRoot = nextStaticZoneItems.find((item) =>
+        item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
+      );
+      if (zoneRoot?.id) matchedVisualContext.zoneId = zoneRoot.id;
+    }
     if (
       !entries.length
       && !effectOperations.length
       && !nextStaticZoneItems.length
       && !requestedZoneTrigger
     ) {
-      status.textContent = "Nessuna modifica da applicare.";
+      if (manualSpellResolutionMessage) {
+        status.textContent = manualSpellResolutionMessage;
+      } else {
+        status.textContent = "Nessuna modifica da applicare.";
+      }
       return;
+    }
+    if (fireballVisualContext) {
+      // Avvia il visual dopo la validazione dell'input, senza aspettare la
+      // transazione HP, la cronologia o la riconciliazione degli effetti.
+      void emitFireballVisual(fireballVisualContext).catch((error) => {
+        console.warn("[quick-hp] Fireball visual:", error?.message || error);
+      });
     }
     let recordedEntry = null;
     const ids = entries.map((entry) => entry.item.id);
@@ -1651,9 +2428,15 @@ async function applyOperation() {
         throw error;
       }
     });
-    if (hpVisualTransaction) await hpVisualTransaction.completion;
-
-    await Promise.all([
+    if (matchedVisualContext) {
+      // I loop persistenti partono solo dopo il commit dell'istanza canonica;
+      // Fireball resta invece anticipata per non ritardare la risposta visiva
+      // alla console del danno.
+      void emitMatchedSpellVisual(matchedVisualContext).catch((error) => {
+        console.warn("[quick-hp] matched visual:", error?.message || error);
+      });
+    }
+    const derivedSync = Promise.all([
       syncHPBatchToMemory(entries.map((entry) => ({
         itemId: entry.item.id,
         hp: entry.change.afterHP,
@@ -1665,6 +2448,8 @@ async function applyOperation() {
       showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error)),
       showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error)),
     ]);
+    if (hpVisualTransaction) await hpVisualTransaction.completion;
+    await derivedSync;
     lastEntryId = recordedEntry && recordedEntry.id || "";
     lastZoneTriggerActivationId = requestedZoneTrigger?.id || "";
     if (requestedZoneTrigger) activeZoneTrigger = null;
@@ -1730,6 +2515,7 @@ async function undoLastOperation() {
   }
 }
 function closePopover() {
+  clearChainLightningReference();
   void OBR.broadcast.sendMessage(TOGGLE_CHANNEL, { type: "closed", id: MODAL_ID }, { destination: "LOCAL" }).catch(() => {});
   void OBR.popover.close(MODAL_ID);
 }
@@ -1739,6 +2525,10 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     mode = button.dataset.mode;
     if (mode !== QUICK_HP_MODES.SAVE) targetSelectionLocked = false;
     if (mode !== QUICK_HP_MODES.SAVE) activeZoneTrigger = null;
+    if (mode !== QUICK_HP_MODES.SAVE) {
+      chainPrimaryId = "";
+      clearChainLightningReference();
+    }
     status.textContent = "";
     renderTargets();
   });
@@ -1756,9 +2546,30 @@ spellSelect.addEventListener("change", () => {
   activeZoneTrigger = null;
   pendingSpellAreaPlacement = null;
   targetSelectionLocked = false;
+  targetContexts.clear();
+  if (!isChainLightningSpell()) {
+    chainPrimaryId = "";
+    clearChainLightningReference();
+  }
   status.textContent = "";
   refreshSpellRuleChoices();
   renderTargets();
+});
+spellSlotSelect.addEventListener("change", () => {
+  status.textContent = "";
+  renderTargets();
+});
+chainPrimarySelect.addEventListener("change", () => {
+  chainPrimaryId = chainPrimarySelect.value.trim();
+  if (chainPrimaryId) {
+    selectedIds = new Set([chainPrimaryId]);
+    saveOutcomes.clear();
+    renderTargets();
+    void updateSceneSelection([chainPrimaryId], true, true);
+  } else {
+    renderTargets();
+  }
+  void refreshChainLightningReference();
 });
 spellRuleChoice.addEventListener("change", () => {
   status.textContent = "";
@@ -1846,6 +2657,7 @@ applyButton.addEventListener("click", () => void applyOperation());
 undoButton.addEventListener("click", () => void undoLastOperation());
 closeButton.addEventListener("click", closePopover);
 window.addEventListener("beforeunload", () => {
+  clearChainLightningReference();
   if (selectionUnsubscribe) selectionUnsubscribe();
   if (selectionTimer) window.clearInterval(selectionTimer);
   zoneTriggerRequestUnsubscribe?.();

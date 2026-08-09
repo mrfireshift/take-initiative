@@ -106,7 +106,11 @@ export function getSpellOverviewActions({
   return actions;
 }
 
-export function spellActiveActionPresentation(action, selectedTargets = 0) {
+export function spellActiveActionPresentation(
+  action,
+  selectedTargets = 0,
+  choiceValue = action?.choiceValue || "",
+) {
   const selectedTargetIds = Array.isArray(selectedTargets)
     ? uniqueIds(selectedTargets)
     : [];
@@ -115,17 +119,31 @@ export function spellActiveActionPresentation(action, selectedTargets = 0) {
     Math.floor(Number(selectedTargets) || 0),
   );
   const label = String(action?.buttonLabel || action?.label || "Attiva").trim() || "Attiva";
-  const needsTargets = action?.subjectMode !== "caster";
+  const needsTargets = action?.subjectMode !== "caster"
+    && action?.subjectMode !== "none";
   const maxTargets = maximumTargets(action);
   const tooManyTargets = needsTargets && maxTargets > 0 && count > maxTargets;
   const unavailableTargets = new Set(uniqueIds(action?.unavailableTargetIds));
   const hasUnavailableTarget = selectedTargetIds.some((targetId) =>
     unavailableTargets.has(targetId)
   );
+  const choice = action?.choice && typeof action.choice === "object"
+    ? action.choice
+    : null;
+  const choiceOptions = Array.isArray(choice?.options) ? choice.options : [];
+  const normalizedChoiceValue = String(choiceValue || "").trim();
+  const choiceMissing = !!choice
+    && choice.required === true
+    && !choiceOptions.some((option) => option?.value === normalizedChoiceValue);
+  const choiceUnknown = !!choice
+    && normalizedChoiceValue !== ""
+    && !choiceOptions.some((option) => option?.value === normalizedChoiceValue);
   const singular = String(action?.countLabelSingular || "bersaglio").trim();
   const plural = String(action?.countLabelPlural || "bersagli").trim();
   return {
-    disabled: needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget),
+    disabled: needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget)
+      || choiceMissing
+      || choiceUnknown,
     text: needsTargets ? `${label} · ${count} ${count === 1 ? singular : plural}` : label,
     title: needsTargets
       ? count < 1
@@ -141,7 +159,11 @@ export function spellActiveActionPresentation(action, selectedTargets = 0) {
               || "La selezione contiene un bersaglio non disponibile."
             ).trim()
           : String(action?.detail || label).trim()
-      : String(action?.detail || label).trim(),
+      : choiceMissing
+        ? "Scegli una variante prima di confermare."
+        : choiceUnknown
+          ? "La variante selezionata non è valida."
+          : String(action?.detail || label).trim(),
   };
 }
 

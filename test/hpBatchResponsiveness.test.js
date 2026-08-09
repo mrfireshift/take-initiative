@@ -30,7 +30,12 @@ test("la Console HP avvia la preview batch prima del commit e recupera dallo sta
   assert.ok(preview >= 0 && commit > preview);
   assert.match(apply, /hpVisualTransaction\.recover\(\(itemIds\) =>/);
   assert.match(apply, /readAuthoritativeHPVisualUpdates\(itemIds, operationSceneEpoch\)/);
-  assert.match(apply, /await Promise\.all\(\[/);
+  assert.match(apply, /const derivedSync = Promise\.all\(\[/);
+  assert.match(apply, /await derivedSync/);
+  assert.ok(
+    apply.indexOf("const derivedSync = Promise.all([")
+      < apply.indexOf("if (hpVisualTransaction) await hpVisualTransaction.completion;"),
+  );
   assert.match(apply, /syncHPBatchToMemory\(entries\.map/);
   assert.match(apply, /showConcentrationWarnings\(entries\)/);
   assert.match(apply, /showEffectSaveDamageWarnings\(entries\)/);

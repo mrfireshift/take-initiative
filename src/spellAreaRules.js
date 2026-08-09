@@ -33,6 +33,8 @@ const SPELL_AREA_EFFECT_MODES = Object.freeze([
 ]);
 const SPELL_ZONE_OWNERS = Object.freeze(["caster"]);
 const SPELL_ZONE_MOVEMENTS = Object.freeze(["fixed", "manual", "drift"]);
+export const SPELL_ZONE_MOVEMENT_MODES = Object.freeze(["action", "bonus-action"]);
+export const SPELL_ZONE_MOVEMENT_ECONOMIES = Object.freeze(["action", "bonus-action"]);
 const SPELL_ZONE_EVENTS = Object.freeze([
   "cast",
   "enter",
@@ -50,10 +52,12 @@ const SPELL_ZONE_RESOLUTIONS = Object.freeze([
   "informational",
   "manual-save",
   "manual-effect",
+  "manual-heal",
 ]);
 const SPELL_ZONE_TARGET_MODES = Object.freeze([
   "actor",
   "members",
+  "direct-members",
   "caster",
 ]);
 const SPELL_ZONE_INITIAL_RESOLUTIONS = Object.freeze([
@@ -71,6 +75,64 @@ const MEASURE_BY_SHAPE = Object.freeze({
 });
 
 const allowed = (values, value) => values.includes(value);
+
+export function normalizeSpellZoneMovement(value) {
+  if (typeof value === "string") return value.trim().toLowerCase();
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const mode = String(value.mode || "").trim().toLowerCase();
+  const economy = String(value.economy || "").trim().toLowerCase();
+  const maximumMeters = Number(value.maximumMeters);
+  if (
+    !SPELL_ZONE_MOVEMENT_MODES.includes(mode)
+    || !SPELL_ZONE_MOVEMENT_ECONOMIES.includes(economy)
+    || !Number.isFinite(maximumMeters)
+    || maximumMeters <= 0
+    || typeof value.triggerOnAreaMove !== "boolean"
+    || typeof value.stopOnFirstContact !== "boolean"
+  ) return null;
+  const choice = normalizeSpellZoneMovementChoice(value.choice);
+  if (value.choice !== undefined && !choice) return null;
+  return {
+    mode,
+    economy,
+    maximumMeters,
+    triggerOnAreaMove: value.triggerOnAreaMove,
+    stopOnFirstContact: value.stopOnFirstContact,
+    ...(choice ? { choice } : {}),
+  };
+}
+
+export function normalizeSpellZoneMovementChoice(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const id = String(value.id || "").trim();
+  const required = value.required === true;
+  const options = Array.from(new Map(
+    (Array.isArray(value.options) ? value.options : [])
+      .map((option) => {
+        const optionValue = String(option?.value || "").trim();
+        const label = String(option?.label || "").trim();
+        return optionValue && label ? [optionValue, { value: optionValue, label }] : null;
+      })
+      .filter(Boolean),
+  ).values());
+  if (!id || !options.length) return null;
+  return { id, required, options };
+}
+
+export function normalizeSpellZoneMovementChoiceValue(movement, value = "") {
+  const choice = normalizeSpellZoneMovement(movement)?.choice;
+  const selected = String(value || "").trim();
+  if (!choice) return selected ? null : "";
+  if (!selected) return choice.required ? null : "";
+  return choice.options.some((option) => option.value === selected)
+    ? selected
+    : null;
+}
+
+function validSpellZoneMovement(value) {
+  if (typeof value === "string") return allowed(SPELL_ZONE_MOVEMENTS, value);
+  return !!normalizeSpellZoneMovement(value);
+}
 
 function validMeasure(value, expectedMeasure = "") {
   return value
@@ -115,6 +177,23 @@ function validateTriggerEntries(triggers, errors) {
     }
     if (!allowed(SPELL_ZONE_RESOLUTIONS, trigger?.resolution)) {
       errors.push("zone-trigger-resolution-invalid");
+    }
+    if (
+      trigger?.healing !== undefined
+      && (
+        !trigger.healing
+        || typeof trigger.healing !== "object"
+        || !String(trigger.healing.dice || "").trim()
+        || !Number.isInteger(Number(trigger.healing.baseSlot))
+        || Number(trigger.healing.baseSlot) < 0
+        || !Number.isInteger(Number(trigger.healing.additionalPerSlotAbove))
+        || Number(trigger.healing.additionalPerSlotAbove) < 0
+      )
+    ) {
+      errors.push("zone-trigger-healing-invalid");
+    }
+    if (trigger?.resolution === "manual-heal" && !trigger?.healing) {
+      errors.push("zone-trigger-healing-required");
     }
     if (
       trigger?.ability !== undefined
@@ -248,11 +327,20 @@ function validateZonePolicy(policy, errors) {
   if (!allowed(SPELL_ZONE_OWNERS, policy.owner)) {
     errors.push("zone-owner-invalid");
   }
-  if (!allowed(SPELL_ZONE_MOVEMENTS, policy.movement)) {
+  if (!validSpellZoneMovement(policy.movement)) {
     errors.push("zone-movement-invalid");
   }
   if (!allowed(SPELL_ZONE_INITIAL_RESOLUTIONS, policy.initialResolution)) {
     errors.push("zone-initial-resolution-invalid");
+  }
+  if (
+    policy.membershipPaddingSquares !== undefined
+    && (
+      !Number.isInteger(policy.membershipPaddingSquares)
+      || policy.membershipPaddingSquares < 0
+    )
+  ) {
+    errors.push("zone-membership-padding-invalid");
   }
   if (
     !policy.membershipTargeting
@@ -915,6 +1003,23 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       type: "fuoco",
       onSave: "half",
     },
+  }, {
+    id: "flaming-sphere-save-on-contact",
+    group: "flaming-sphere-save-on-contact",
+    label: "TS Destrezza per contatto con la Sfera Infuocata",
+    event: "enter",
+    frequency: "once-per-turn",
+    resolution: "manual-save",
+    targetMode: "direct-members",
+    requiresAreaMove: true,
+    triggerOnAreaMove: true,
+    persistsAfterExit: true,
+    failureEffect: "2d6 danni da fuoco, +1d6 per slot sopra il 2° (metà se superato).",
+    damage: {
+      dice: "2d6",
+      type: "fuoco",
+      onSave: "half",
+    },
   }],
   "incendiary-cloud": [
     {
@@ -1112,6 +1217,13 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     frequency: "once-per-turn",
     resolution: "manual-save",
     failureEffect: "Danni contundenti e spinta di 3 m (metà danni e nessuna spinta se superato).",
+    damage: {
+      dice: "1d8",
+      type: "contundenti",
+      onSave: "half",
+      additionalPerSlotAbove: 1,
+      baseSlot: 2,
+    },
   }],
   "xanathar-fulgore-nauseante": [
     {
@@ -1205,7 +1317,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "Il caster può far recuperare 1d6 PF; +1d6 per slot sopra il 2°. Non funziona su Costrutti o Non Morti.",
       event: "enter",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-heal",
+      healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
     },
@@ -1215,7 +1328,8 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "Il caster può far recuperare 1d6 PF; +1d6 per slot sopra il 2°. Non funziona su Costrutti o Non Morti.",
       event: "turn-start",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-heal",
+      healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
     },
   ],
   "xanathar-creare-falo": [
@@ -1393,6 +1507,17 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "cloudkill-save-on-entry": { ability: "con" },
   "cloudkill-save-on-turn-start": { ability: "con" },
   "flaming-sphere-save-on-turn-end": { ability: "dex" },
+  "flaming-sphere-save-on-contact": { ability: "dex" },
+  "dust-devil-save-on-turn-end": {
+    ability: "str",
+    damage: {
+      dice: "1d8",
+      type: "contundenti",
+      onSave: "half",
+      additionalPerSlotAbove: 1,
+      baseSlot: 2,
+    },
+  },
   "incendiary-cloud-save-on-entry": { ability: "dex" },
   "incendiary-cloud-save-on-turn-end": { ability: "dex" },
   "insect-plague-save-on-entry": { ability: "con" },
@@ -1444,6 +1569,12 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "moonbeam-save-on-entry": { ability: "con" },
   "moonbeam-save-on-turn-start": { ability: "con" },
+  "healing-spirit-heal-on-entry": {
+    healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
+  },
+  "healing-spirit-heal-on-turn-start": {
+    healing: { dice: "1d6", additionalPerSlotAbove: 1, baseSlot: 2 },
+  },
   "spirit-guardians-save-on-entry": { ability: "wis" },
   "spirit-guardians-save-on-turn-start": { ability: "wis" },
 });
@@ -1458,6 +1589,7 @@ function enrichReminderTriggers(triggers) {
         ? trigger.resolutionData
         : {}),
       ...(trigger?.damage ? { damage: trigger.damage } : {}),
+      ...(trigger?.healing ? { healing: trigger.healing } : {}),
       ...data,
     };
     return {
@@ -1681,6 +1813,18 @@ function catalogAreaRule(spec) {
       detail: "Vantaggio ai TS contro incantesimi ed effetti magici nell'aura.",
     }],
   }[spec.spellId] || [];
+  const placementChoices = Array.isArray(spec.placementChoices)
+    ? spec.placementChoices.map((choice) => ({
+      id: String(choice?.id || "").trim(),
+      label: String(choice?.label || "").trim(),
+      geometry: {
+        size: meters(
+          choice?.sizeMeters,
+          MEASURE_BY_SHAPE[spec.shape],
+        ),
+      },
+    }))
+    : [];
   return defineRule({
     id: `${spec.spellId}:cast`,
     spellId: spec.spellId,
@@ -1707,6 +1851,7 @@ function catalogAreaRule(spec) {
         : {}),
     },
     lifecycle: persistent ? SPELL_LIFECYCLE : PREVIEW_LIFECYCLE,
+    ...(placementChoices.length ? { placementChoices } : {}),
     targeting: areaSaveTargeting(spec.spellId),
     effectPolicy: aura
       ? membershipEffects.length
@@ -1721,10 +1866,13 @@ function catalogAreaRule(spec) {
         : ON_CONFIRM,
     ...(zone
       ? {
-        zonePolicy: {
+          zonePolicy: {
           placementOptional: true,
           owner: "caster",
           movement: spec.movement,
+          ...(Number.isInteger(spec.membershipPaddingSquares)
+            ? { membershipPaddingSquares: spec.membershipPaddingSquares }
+            : {}),
           initialResolution: ZONE_INITIAL_SAVE_SPELL_IDS.has(spec.spellId)
             ? "manual-save"
             : "none",
@@ -1740,6 +1888,9 @@ function catalogAreaRule(spec) {
               "gust-of-wind",
               "phb2014-cordone-di-frecce",
             ].includes(spec.spellId),
+            ...(spec.spellId === "forcecage"
+              ? { containment: "fully-inside" }
+              : {}),
           },
           membershipEffects,
           triggers: CATALOG_ZONE_TRIGGERS[spec.spellId] || [],
@@ -1949,7 +2100,13 @@ export const SPELL_AREA_RULES = Object.freeze([
     zonePolicy: {
       placementOptional: true,
       owner: "caster",
-      movement: "manual",
+      movement: {
+        mode: "action",
+        economy: "action",
+        maximumMeters: 18,
+        triggerOnAreaMove: false,
+        stopOnFirstContact: false,
+      },
       initialResolution: "none",
       membershipTargeting: {
         filter: "all",
@@ -2145,6 +2302,33 @@ for (const [spellId, rules] of RULES_BY_SPELL_ID.entries()) {
 
 export function getSpellAreaRuleById(ruleId) {
   return RULES_BY_ID.get(String(ruleId || "").trim()) || null;
+}
+
+export function getSpellAreaPlacementChoices(value) {
+  const spellId = typeof value === "object"
+    ? String(value?.id || "").trim()
+    : String(value || "").trim();
+  const rule = getSpellAreaRules(spellId, { triggerType: "cast" })
+    .find((entry) => Array.isArray(entry.placementChoices));
+  return (rule?.placementChoices || []).map((choice) => ({
+    value: choice.id,
+    label: choice.label,
+  }));
+}
+
+export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "") {
+  const rule = getSpellAreaRuleById(ruleId);
+  const choiceId = String(ruleChoice || "").trim();
+  const choice = rule?.placementChoices?.find((entry) => entry.id === choiceId);
+  if (!rule || !choice) return rule;
+  return deepFreeze({
+    ...rule,
+    geometry: {
+      ...rule.geometry,
+      ...choice.geometry,
+    },
+    placementChoice: choice.id,
+  });
 }
 
 export function getSpellAreaRules(spellId, {

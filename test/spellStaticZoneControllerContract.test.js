@@ -70,3 +70,9 @@ test("i trigger condizionali filtrano concentrazione e condizioni attive", () =>
       < source.indexOf("planStaticSpellZoneReminder({"),
   );
 });
+
+test("il controller lascia il trascinamento nativo delle zone mobili", () => {
+  assert.match(source, /filter: \(event\) => !event\?\.derived\?\.output,/);
+  assert.doesNotMatch(source, /guardControlledMobileZoneChanges/);
+  assert.doesNotMatch(source, /CONTROLLED_MOBILE_ZONE_SPELL_IDS/);
+});

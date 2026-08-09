@@ -1,4 +1,4 @@
-import { AREA_POPOVER_SPELL_IDS } from "./areaSaveSpellRules.js";
+import { AREA_PLACEABLE_SPELL_IDS } from "./areaSaveSpellRules.js";
 import { getSpellCatalog } from "./spells-srd.js";
 
 const FEET_TO_METERS = 0.3;
@@ -115,6 +115,51 @@ const DRIFTING_ZONE_SPELL_IDS = new Set([
   "phb2014-tsunami",
 ]);
 
+const DECLARATIVE_ZONE_MOVEMENTS = Object.freeze({
+  moonbeam: Object.freeze({
+    mode: "action",
+    economy: "action",
+    maximumMeters: 18,
+    triggerOnAreaMove: false,
+    stopOnFirstContact: false,
+  }),
+  "flaming-sphere": Object.freeze({
+    mode: "bonus-action",
+    economy: "bonus-action",
+    maximumMeters: 9,
+    triggerOnAreaMove: true,
+    stopOnFirstContact: true,
+  }),
+  "xanathar-spirito-guaritore": Object.freeze({
+    mode: "bonus-action",
+    economy: "bonus-action",
+    maximumMeters: 9,
+    triggerOnAreaMove: false,
+    stopOnFirstContact: false,
+  }),
+  "xanathar-diavoletto-di-polvere": Object.freeze({
+    mode: "bonus-action",
+    economy: "bonus-action",
+    maximumMeters: 9,
+    triggerOnAreaMove: false,
+    stopOnFirstContact: false,
+    choice: Object.freeze({
+      id: "dust-terrain",
+      required: false,
+      options: Object.freeze([
+        Object.freeze({
+          value: "none",
+          label: "Nessuna nube di detriti",
+        }),
+        Object.freeze({
+          value: "dust-terrain",
+          label: "Attraversa sabbia, polvere, terriccio o ghiaia",
+        }),
+      ]),
+    }),
+  }),
+});
+
 // Override curati per record senza geometria strutturata o per campi SRD che
 // descrivono l'altezza/estensione massima invece del raggio utile sulla mappa.
 const AREA_OVERRIDES = Object.freeze({
@@ -141,11 +186,20 @@ const AREA_OVERRIDES = Object.freeze({
     shape: "circle",
     sizeMeters: 3,
   },
+  "forcecage": {
+    shape: "square",
+    sizeMeters: 6,
+    placementChoices: [
+      { id: "cage", label: "Gabbia 4×4", sizeMeters: 6 },
+      { id: "box", label: "Box solida 2×2", sizeMeters: 3 },
+    ],
+  },
   "flaming-sphere": {
     shape: "circle",
     sizeMeters: 1.5,
     origin: "point",
     rangeMeters: 18,
+    membershipPaddingSquares: 1,
   },
   "guardian-of-faith": {
     shape: "circle",
@@ -399,11 +453,18 @@ function catalogSpec(spell) {
       : PERSISTENT_ZONE_SPELL_IDS.has(spell.id)
         ? "zone"
         : "instant",
-    movement: DRIFTING_ZONE_SPELL_IDS.has(spell.id)
-      ? "drift"
-      : MOVABLE_ZONE_SPELL_IDS.has(spell.id)
-        ? "manual"
-        : "fixed",
+    movement: DECLARATIVE_ZONE_MOVEMENTS[spell.id]
+      || (DRIFTING_ZONE_SPELL_IDS.has(spell.id)
+        ? "drift"
+        : MOVABLE_ZONE_SPELL_IDS.has(spell.id)
+          ? "manual"
+          : "fixed"),
+    ...(Number.isInteger(override.membershipPaddingSquares)
+      ? { membershipPaddingSquares: override.membershipPaddingSquares }
+      : {}),
+    ...(Array.isArray(override.placementChoices)
+      ? { placementChoices: override.placementChoices }
+      : {}),
     ...(override.note ? { note: override.note } : {}),
   });
 }
@@ -413,7 +474,7 @@ const SPELLS_BY_ID = new Map(
 );
 
 export const CATALOG_SPELL_AREA_SPECS = Object.freeze(
-  AREA_POPOVER_SPELL_IDS
+  AREA_PLACEABLE_SPELL_IDS
     .filter((spellId) => !EXPLICIT_RULE_SPELL_IDS.has(spellId))
     .map((spellId) => {
       const spell = SPELLS_BY_ID.get(spellId);

@@ -1,4 +1,5 @@
 import { getSpellAreaRules } from "./spellAreaRules.js";
+import { MULTI_TARGET_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -51,13 +52,16 @@ export function quickHpAreaPlacementPresentation({
   busy = false,
 } = {}) {
   const rule = getQuickHpPlaceableAreaRule(spellId);
+  const multiTargetWithoutTemplate = MULTI_TARGET_SAVE_SPELL_ID_SET.has(
+    String(spellId || "").trim(),
+  );
   const placementTitle = rule
     ? `Posiziona la sagoma di ${rule.spellId}`
       + (rule.placementNote ? `. ${rule.placementNote}` : "")
     : "Seleziona un incantesimo con area posizionabile";
   return {
     rule,
-    hidden: false,
+    hidden: multiTargetWithoutTemplate,
     disabled: !!busy || !rule || !String(casterId || "").trim(),
     text: "Posiziona area",
     title: !rule

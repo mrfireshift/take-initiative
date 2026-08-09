@@ -4,12 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Opzioni Take Initiative</title>
-    <link rel="stylesheet" href="/popover-glass.css" />
     <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
     <link rel="stylesheet" href="/options-modal.css" />
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+      .glass-shell {
+        width: 100%; height: 100%; min-height: 0 !important;
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; position: relative; }
+      * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
+    </style>
   </head>
   <body>
-    <main id="options-app" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/options-modal">
+    <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/options-modal">
+      <main id="options-app" class="panel">
       <header class="options-header" data-drag-handle>
         <div>
           <p class="options-kicker">Take Initiative</p>
@@ -23,7 +33,7 @@
           <button type="button" data-scope="room" aria-pressed="true">Room</button>
           <button type="button" data-scope="scene" aria-pressed="false">Questa scena</button>
         </div>
-        <p id="scope-help">Modifica i valori condivisi usati come base in tutte le scene.</p>
+        <p id="scope-help">Valori condivisi per tutte le scene.</p>
       </div>
 
       <div id="options-scroll" class="options-scroll">
@@ -31,49 +41,35 @@
 
         <section class="options-section" aria-labelledby="local-title">
           <div class="section-heading">
-            <div><p class="section-index">01</p><h2 id="local-title">Tracker locale</h2></div>
+            <div><h2 id="local-title">Combat Log</h2></div>
             <span class="scope-badge local">Questo browser</span>
           </div>
-          <div class="option-grid two">
-            <label class="option-field">
-              <span>Layout tracker</span>
-              <select data-local="layout">
-                <option value="classic">Esteso</option>
-                <option value="compact">Compatto</option>
-              </select>
-            </label>
-            <label class="option-toggle">
-              <span><strong>Follow del turno attivo</strong><small>Centra la mappa sul token attivo.</small></span>
-              <input type="checkbox" data-local="followActiveTurn" />
-            </label>
-            <label class="option-toggle">
-              <span><strong>Registra Combat Log</strong><small>Sospende i nuovi eventi, conservando History e sessioni esistenti.</small></span>
-              <input type="checkbox" data-local="combatLog" />
-            </label>
-          </div>
+          <label class="option-toggle compact">
+            <span>Registra nuovi eventi</span>
+            <input type="checkbox" data-local="combatLog" />
+          </label>
         </section>
 
         <section class="options-section" aria-labelledby="player-title">
           <div class="section-heading">
-            <div><p class="section-index">02</p><h2 id="player-title">Player e schermo condiviso</h2></div>
+            <div><h2 id="player-title">Vista Player</h2></div>
             <span class="scope-badge shared" data-current-scope-badge>Room</span>
           </div>
 
           <article class="option-card room-only" data-room-only>
             <div class="option-card-heading">
-              <div><h3>Sincronizza apertura tracker Player</h3><p>I Player seguono apertura e chiusura richieste dal GM.</p></div>
-              <span class="scope-badge shared">Room</span>
+              <div><h3>Apertura tracker</h3><p>I Player seguono apertura e chiusura del GM.</p></div>
             </div>
             <label class="option-toggle compact">
-              <span>Sincronizzazione</span><input type="checkbox" data-room="trackerOpen" />
+              <span>Sincronizza</span><input type="checkbox" data-room="trackerOpen" />
             </label>
           </article>
 
           <article class="option-card" data-family-card="hp">
             <div class="option-card-heading">
-              <div><h3>HP visibili ai Player</h3><p>Policy per fazione e superficie. I valori canonici non cambiano.</p></div>
-              <label class="scene-mode" hidden>Override
-                <select data-scene-mode="hp"><option value="inherit">Eredita</option><option value="override">Personalizza</option></select>
+              <div><h3>HP Player</h3><p>Dettaglio per fazione, tracker e mappa.</p></div>
+              <label class="scene-mode" hidden>Scena
+                <select data-scene-mode="hp"><option value="inherit">Eredita dalla Room</option><option value="override">Personalizza</option></select>
               </label>
             </div>
             <div id="hp-matrix" class="hp-matrix"></div>
@@ -81,60 +77,80 @@
 
           <article class="option-card" data-family-card="effects">
             <div class="option-card-heading">
-              <div><h3>Effetti visibili ai Player</h3><p>Condizioni, spell e concentrazione vengono redatte prima del DOM e delle pill.</p></div>
-              <label class="scene-mode" hidden>Override
-                <select data-scene-mode="effects"><option value="inherit">Eredita</option><option value="override">Personalizza</option></select>
+              <div><h3>Effetti Player</h3><p>Dettaglio di condizioni, spell e concentrazione.</p></div>
+              <label class="scene-mode" hidden>Scena
+                <select data-scene-mode="effects"><option value="inherit">Eredita dalla Room</option><option value="override">Personalizza</option></select>
               </label>
             </div>
             <div class="option-grid three">
-              <label class="option-field"><span>Condizioni</span><select data-family="effects" data-path="conditions"><option value="all">Dettagli completi</option><option value="summary">Indicatore generico</option><option value="hidden">Nascoste</option></select></label>
-              <label class="option-field"><span>Spell</span><select data-family="effects" data-path="spells"><option value="all">Dettagli completi</option><option value="summary">Indicatore generico</option><option value="hidden">Nascoste</option></select></label>
-              <label class="option-field"><span>Concentrazione</span><select data-family="effects" data-path="concentration"><option value="all">Dettagli completi</option><option value="summary">Solo indicatore</option><option value="hidden">Nascosta</option></select></label>
+              <label class="option-field"><span>Condizioni</span><select data-family="effects" data-path="conditions"><option value="all">Complete</option><option value="summary">Indicatore</option><option value="hidden">Nascoste</option></select></label>
+              <label class="option-field"><span>Spell</span><select data-family="effects" data-path="spells"><option value="all">Complete</option><option value="summary">Indicatore</option><option value="hidden">Nascoste</option></select></label>
+              <label class="option-field"><span>Concentrazione</span><select data-family="effects" data-path="concentration"><option value="all">Completa</option><option value="summary">Indicatore</option><option value="hidden">Nascosta</option></select></label>
             </div>
           </article>
 
           <article class="option-card" data-family-card="reminders">
             <div class="option-card-heading">
-              <div><h3>Dettaglio reminder Player</h3><p>Il GM conserva il proprio payload; ai Player arriva una copia dedicata.</p></div>
-              <label class="scene-mode" hidden>Override
-                <select data-scene-mode="reminders"><option value="inherit">Eredita</option><option value="override">Personalizza</option></select>
+              <div><h3>Reminder Player</h3><p>Decide quali dati ricevono i Player. La copia GM resta completa.</p></div>
+              <label class="scene-mode" hidden>Scena
+                <select data-scene-mode="reminders"><option value="inherit">Eredita dalla Room</option><option value="override">Personalizza</option></select>
               </label>
             </div>
             <div class="option-grid three">
-              <label class="option-field"><span>Contenuto</span><select data-family="reminders" data-path="visibility"><option value="full">Completo</option><option value="summary">Senza dettagli sensibili</option><option value="notice">Solo avviso</option><option value="hidden">Nascosto</option></select></label>
-              <label class="option-toggle compact"><span>Mostra CD</span><input type="checkbox" data-family="reminders" data-path="showDc" /></label>
-              <label class="option-toggle compact"><span>Mostra caster</span><input type="checkbox" data-family="reminders" data-path="showCaster" /></label>
+              <label class="option-field"><span>Contenuto</span><select data-family="reminders" data-path="visibility"><option value="full">Completo</option><option value="summary">Sintesi</option><option value="notice">Solo avviso</option><option value="hidden">Nascosto</option></select></label>
+              <label class="option-toggle compact reminder-toggle"><span>Mostra CD</span><input type="checkbox" data-family="reminders" data-path="showDc" /></label>
+              <label class="option-toggle compact reminder-toggle"><span>Mostra caster</span><input type="checkbox" data-family="reminders" data-path="showCaster" /></label>
             </div>
           </article>
         </section>
 
         <section class="options-section" aria-labelledby="turn-title">
           <div class="section-heading">
-            <div><p class="section-index">03</p><h2 id="turn-title">Tracker, turni e mappa</h2></div>
+            <div><h2 id="turn-title">Turno e mappa</h2></div>
             <span class="scope-badge shared" data-current-scope-badge>Room</span>
           </div>
-          <div class="option-grid two">
+          <div class="option-grid three turn-options-grid">
             <article class="option-card compact-card" data-family-card="popup">
-              <div class="option-card-heading"><div><h3>Popup cambio turno</h3><p>I reminder restano attivi.</p></div></div>
-              <label class="option-field room-value"><span>Valore Room</span><select data-family="popup" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
+              <div class="option-card-heading"><div><h3>Popup cambio turno</h3><p>Mostra il cambio turno. I reminder restano attivi.</p></div></div>
+              <label class="option-field room-value"><span>Impostazione</span><select data-family="popup" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
               <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="popup" data-value-type="boolean"><option value="inherit">Eredita</option><option value="true">On</option><option value="false">Off</option></select></label>
             </article>
             <article class="option-card compact-card" data-family-card="directResolution">
-              <div class="option-card-heading"><div><h3>Risoluzione reminder</h3><p>Controlli assistiti oppure solo informazione.</p></div></div>
-              <label class="option-field room-value"><span>Valore Room</span><select data-family="directResolution" data-path="value"><option value="assisted">Assistita</option><option value="informational">Informativa</option></select></label>
+              <div class="option-card-heading"><div><h3>Risoluzione reminder</h3><p>Azioni guidate o sola informazione.</p></div></div>
+              <label class="option-field room-value"><span>Impostazione</span><select data-family="directResolution" data-path="value"><option value="assisted">Assistita</option><option value="informational">Informativa</option></select></label>
               <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="directResolution"><option value="inherit">Eredita</option><option value="assisted">Assistita</option><option value="informational">Informativa</option></select></label>
             </article>
             <article class="option-card compact-card" data-family-card="activeTurnLabel">
-              <div class="option-card-heading"><div><h3>Label turno sulla mappa</h3><p>Off elimina soltanto la label posseduta; On la riconcilia dal turno corrente.</p></div></div>
-              <label class="option-field room-value"><span>Valore Room</span><select data-family="activeTurnLabel" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
+              <div class="option-card-heading"><div><h3>Nome del turno sulla mappa</h3><p>Mostra il nome del token attivo.</p></div></div>
+              <label class="option-field room-value"><span>Impostazione</span><select data-family="activeTurnLabel" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
               <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="activeTurnLabel" data-value-type="boolean"><option value="inherit">Eredita</option><option value="true">On</option><option value="false">Off</option></select></label>
+            </article>
+          </div>
+        </section>
+
+        <section class="options-section" aria-labelledby="automation-title" data-room-section>
+          <div class="section-heading">
+            <div><h2 id="automation-title">Automazioni e integrazioni</h2></div>
+            <span class="scope-badge shared">Room</span>
+          </div>
+          <div class="option-grid two">
+            <article class="option-card compact-card">
+              <div class="option-card-heading"><div><h3>Fazioni automatiche</h3><p>Riconosce i token già configurati.</p></div></div>
+              <div class="option-card-actions inline">
+                <label class="option-toggle compact"><span>Assegna fazione</span><input type="checkbox" data-room="knownFactionAssignment" /></label>
+                <button class="secondary" type="button" data-action="open-faction-configurator">Gestisci</button>
+              </div>
+            </article>
+            <article class="option-card compact-card">
+              <div class="option-card-heading"><div><h3>Animazioni Embers</h3><p>Effetti Embers/JB2A per le spell abbinate.</p></div></div>
+              <label class="option-toggle compact"><span>Riproduci animazioni</span><input type="checkbox" data-room="embersAnimations" /></label>
             </article>
           </div>
         </section>
 
         <section class="options-section preview-section" aria-labelledby="preview-title">
           <div class="section-heading">
-            <div><p class="section-index">04</p><h2 id="preview-title">Cosa vedranno i Player</h2></div>
+            <div><h2 id="preview-title">Anteprima Player</h2></div>
             <span class="scope-badge preview">Anteprima effettiva</span>
           </div>
           <div id="player-preview" class="player-preview"></div>
@@ -145,7 +161,8 @@
         <p id="save-status" aria-live="polite">Nessuna modifica.</p>
         <div><button type="button" class="secondary" data-action="close">Annulla</button><button type="button" class="primary" data-action="save">Salva opzioni</button></div>
       </footer>
-    </main>
+      </main>
+    </div>
     <script type="module" src="/src/popoverDrag.js"></script>
     <script type="module" src="/src/options-modal.js"></script>
   </body>
