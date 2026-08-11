@@ -204,6 +204,46 @@ posizione controllata precedente.
 Dadi, bersagli ambigui, oggetti e movimento fisico restano deliberatamente
 manuali dove indicato dai rispettivi contratti RAW.
 
+### Lotto G — pedine magiche persistenti (completato)
+
+Arma spirituale, Spada arcana, Lama del Disastro e Mano arcana non sono più
+trattate come zone. `Effetti ad Area` presenta `Posiziona token`, con scelta
+della casella, anteprima e conferma entro la gittata del cast. La conferma crea
+una pedina da tabellone sul layer `PROP`, collegata a caster e istanza ma
+esclusa dal runtime delle creature. La pedina è
+liberamente trascinabile; movimento, portata, attacchi e scaling sono riferimenti
+visibili nella scheda della spell e i dadi restano manuali.
+
+Mano arcana conserva sulla pedina CA 20, PF propri pari ai PF massimi del caster,
+modalità corrente e bersaglio associato. Creazione, cambi di modalità, PF,
+terminazione e ricreazione passano dal coordinatore con cronologia e Undo. Il
+reconciler GM elimina inoltre le pedine rimaste orfane dopo la fine della spell.
+
+### Lotto I — attivazioni offensive ripetibili (completato)
+
+Il pannello Spells espone un contratto dichiarativo comune per le azioni eseguite
+dopo il lancio e apre un popup dedicato, separato dalla Console Effetti ad Area.
+Il popup conserva istanza, caster, contesto dello slot, scena e radice della zona,
+gestisce il posizionamento o il bersaglio, rivalida tutto alla conferma e applica
+una sola mutazione con cronologia e Undo.
+
+- Invocare il fulmine: il lancio crea la nube temporalesca persistente da 18 m
+  centrata sul punto scelto e conserva la scarica iniziale da 1,5 m entro 36 m.
+  Il prompt contestualizzato per `Richiama fulmine` compare all'inizio di ogni
+  turno del caster, fuori dal pannello Spells, e si chiude quando l'iniziativa
+  avanza; TS Destrezza, 3d10 fulmine, scaling dello slot e bonus da tempesta
+  naturale restano risolti dal popup dedicato.
+- Investitura della Fiamma: il lancio applica l'investitura al caster e crea
+  l'aura mobile da 1,5 m; ingresso e fine turno usano reminder deduplicati da
+  1d10 fuoco. `Linea di fuoco` usa una linea adiacente da 4,5 × 1,5 m, TS
+  Destrezza e 4d8 fuoco.
+- Sfera della Tempesta: il trigger di fine turno resta invariato; `Fulmine` è
+  un'azione bonus con un solo bersaglio entro 18 m dal centro della root,
+  vantaggio indicato dentro la sfera e danno manuale 4d6 fulmine.
+
+Le attivazioni non creano nuove istanze, non sostituiscono la concentrazione e
+non modificano ordine, round o attore corrente.
+
 ## Intervento indipendente — Gabbia di forza (completato)
 
 Gabbia di forza riusa il lifecycle delle zone statiche ma richiede una scelta

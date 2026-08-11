@@ -12,9 +12,14 @@ export const DISTANCE_3D_POPOVER_ID = `${ID}/distance-3d-popover`;
 export const DISTANCE_3D_CHANNEL = `${ID}/distance-3d-events`;
 export const TOKEN_META_KEY = `${ID}/meta`;
 export const ELEVATION_FIELD = "elevation";
+export const CLIMBING_FIELD = "climbing";
 
 export function readElevation(item) {
   return normalizeElevation(item?.metadata?.[TOKEN_META_KEY]?.[ELEVATION_FIELD]);
+}
+
+export function readClimbing(item) {
+  return item?.metadata?.[TOKEN_META_KEY]?.[CLIMBING_FIELD] === true;
 }
 
 export async function writeElevation(itemId, elevation) {
@@ -32,7 +37,7 @@ export async function writeElevation(itemId, elevation) {
   return value;
 }
 
-export async function writeElevationForItems(itemIds, elevation) {
+export async function writeElevationForItems(itemIds, elevation, climbing) {
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
   const value = normalizeElevation(elevation);
   if (!ids.length) return value;
@@ -40,6 +45,7 @@ export async function writeElevationForItems(itemIds, elevation) {
     for (const item of items) {
       const tokenMeta = { ...(item.metadata?.[TOKEN_META_KEY] || {}) };
       tokenMeta[ELEVATION_FIELD] = value;
+      if (typeof climbing === "boolean") tokenMeta[CLIMBING_FIELD] = climbing;
       item.metadata = {
         ...(item.metadata || {}),
         [TOKEN_META_KEY]: tokenMeta,

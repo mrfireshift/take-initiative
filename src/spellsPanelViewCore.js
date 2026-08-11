@@ -60,6 +60,9 @@ export function spellOverviewGroups(items = []) {
           castContext: spell?.castContext && typeof spell.castContext === "object"
             ? { ...spell.castContext }
             : null,
+          appliedAt: spell?.appliedAt && typeof spell.appliedAt === "object"
+            ? { ...spell.appliedAt }
+            : null,
           name: spellDisplayName(spell?.spellId || storedName),
           casterId,
           casterName: byId.get(casterId)?.name || "Non indicato",
@@ -76,6 +79,9 @@ export function spellOverviewGroups(items = []) {
       if (!group.spellId && spell?.spellId) group.spellId = String(spell.spellId);
       if (!group.castContext && spell?.castContext && typeof spell.castContext === "object") {
         group.castContext = { ...spell.castContext };
+      }
+      if (!group.appliedAt && spell?.appliedAt && typeof spell.appliedAt === "object") {
+        group.appliedAt = { ...spell.appliedAt };
       }
       if (spell?.castContext?.staticZoneOwner !== true) {
         group.targets.set(target.id, target.name || target.id);
@@ -102,6 +108,7 @@ export function spellOverviewGroups(items = []) {
           storedName,
           spellId,
           castContext: null,
+          appliedAt: null,
           name: spellDisplayName(spellId || storedName),
           casterId: caster.id,
           casterName: caster.name || caster.id,

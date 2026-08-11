@@ -1,7 +1,12 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { readElevation, writeElevationForItems } from "./distance3d.js";
+import {
+  readClimbing,
+  readElevation,
+  writeElevationForItems,
+} from "./distance3d.js";
 
 const input = document.querySelector("#elevation");
+const climbingInput = document.querySelector("#climbing");
 const unitLabel = document.querySelector("#unit");
 let ids = [];
 let step = 1;
@@ -12,7 +17,7 @@ function closeSoon() {
 }
 
 async function apply() {
-  await writeElevationForItems(ids, input.value || 0);
+  await writeElevationForItems(ids, input.value || 0, climbingInput.checked);
   closeSoon();
 }
 
@@ -41,6 +46,11 @@ OBR.onReady(async () => {
   input.value = same ? String(values[0]) : "";
   input.placeholder = same ? "0" : "Valori diversi";
   input.step = String(step);
+  const climbingValues = items.map(readClimbing);
+  const sameClimbing = climbingValues.length
+    && climbingValues.every((value) => value === climbingValues[0]);
+  climbingInput.checked = sameClimbing ? climbingValues[0] : false;
+  climbingInput.indeterminate = climbingValues.length > 0 && !sameClimbing;
   unitLabel.textContent = String(scale?.parsed?.unit || "");
   input.focus();
   input.select();

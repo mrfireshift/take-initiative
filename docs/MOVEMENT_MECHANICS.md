@@ -45,6 +45,29 @@ mantenendo l'arrotondamento per difetto a caselle intere.
 `costMultiplier` non cambia la velocità disponibile: moltiplica invece il costo
 delle caselle percorse, come nel terreno difficile.
 
+Un effetto può dichiarare immunità selettive e un costo legato alla direzione
+del segmento:
+
+```js
+movement: {
+  immunities: ["difficult-terrain", "magical-speed-reduction"],
+  directional: {
+    direction: "toward-source",
+    costMultiplier: 2,
+    sourceId: casterId,
+    instanceId: spellInstanceId,
+    zoneId: zoneItemId,
+    label: "Folata di vento: movimento verso il caster ×2"
+  }
+}
+```
+
+`difficult-terrain` ignora soltanto i costi dichiarati come terreno difficile;
+`magical-speed-reduction` ignora riduzioni magiche della velocità, ma non la
+velocità base nulla, Prono o impedimenti non coperti dall'effetto. Il costo
+direzionale è risolto sui segmenti reali, usando la posizione corrente della
+`sourceId` e, quando presente, la geometria della `zoneId`.
+
 Le modalità aggiuntive sono dichiarate in `modes`:
 
 ```js
@@ -88,7 +111,10 @@ Per ogni modalità il resolver applica:
 
 Il costo delle caselle viene risolto separatamente. Se più effetti dichiarano
 `costMultiplier`, viene usato il valore più alto invece di moltiplicarli tra
-loro. Prono conserva la propria regola di costo nel conteggio del movimento.
+loro. I modificatori direzionali indipendenti si moltiplicano soltanto sulla
+porzione di segmento interessata; la stessa combinazione di sorgente, istanza,
+zona, direzione e moltiplicatore viene applicata una sola volta. Prono conserva
+la propria regola di costo nel conteggio del movimento.
 
 I dimezzamenti vengono arrotondati per difetto a caselle intere da 1,5 metri,
 conservando il comportamento precedente.
@@ -110,8 +136,13 @@ Nel campo turnale `speedCheckMovement` vengono conservati soltanto:
 - movimento consumato;
 - ultima casella;
 - posizione iniziale;
+- quota iniziale;
 - modalità attiva;
 - stato necessario a ricostruire il costo del movimento del turno.
+
+Ogni segmento registrato conserva il costo effettivamente addebitato, inclusi
+terreno difficile e modificatori direzionali. Il percorso usato da Undo non
+ricalcola le condizioni correnti: sottrae il costo già registrato del segmento.
 
 La modalità selezionata vale quindi per il turno corrente e viene abbandonata
 automaticamente se l'effetto che la concedeva termina.
@@ -122,7 +153,14 @@ Quando la modalità attiva è `fly`, ogni variazione manuale della quota consuma
 movimento in entrambe le direzioni. Il delta viene convertito in caselle usando
 il moltiplicatore della griglia e poi contabilizzato dallo Speed Tracker.
 
-Le altre modalità non consumano movimento in seguito a una variazione di quota.
+Il widget della quota può inoltre salvare `climbing: true` nel metadata del
+token. In questo caso una variazione di quota viene contabilizzata anche con
+`walk`; ogni movimento mentre il flag è attivo costa il doppio, salvo la
+presenza di una modalità `climb` con velocità positiva. Il costo della scalata
+si somma agli altri costi applicabili, come terreno difficile e Prono.
+
+Le altre modalità non consumano movimento in seguito a una variazione di quota
+quando il flag di scalata non è attivo.
 Se il limite al movimento è attivo e la distanza verticale eccede il residuo,
 la quota precedente viene ripristinata.
 
@@ -132,10 +170,15 @@ la quota precedente viene ripristinata.
   parete: la modalità viene scelta dal DM.
 - La caduta e la discesa forzata non vengono automatizzate.
 - Le zone supportate possono dichiarare terreno difficile tramite un effetto
-  di appartenenza. Il profilo lo riceve come `costMultiplier`.
-- Un costo che dipende dalla direzione del singolo segmento non è ancora
-  supportato. Folata di Vento, per esempio, non raddoppia automaticamente
-  soltanto il movimento verso il caster.
+  di appartenenza. Il profilo lo riceve come `costMultiplier` e ne conserva la
+  categoria per le immunità selettive.
+- Libertà di movimento blocca le applicazioni magiche di `Paralizzato` e
+  `Trattenuto`. Se sul bersaglio resta una restrizione non magica `Afferrato` o
+  `Trattenuto`, all'inizio del suo turno il sistema propone il reminder
+  `Spendi 1,5 m`: la scelta rimuove quella singola istanza e, quando il relativo
+  `Speed Tracker` è attivo sullo stesso turno, aggiorna anche il movimento
+  consumato. In assenza del tracker il reminder resta una conferma manuale del
+  costo RAW.
 - Le trasformazioni che consentono di alternare forma normale e speciale
   richiederanno un'azione esplicita in una fase successiva.
 

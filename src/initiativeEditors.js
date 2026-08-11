@@ -233,6 +233,7 @@ export function bindClassicHPEditor({
   saveValues,
   afterCommit,
   commitAndOpenNeighbor,
+  editableHPMax = true,
   documentRef = globalThis.document,
   requestAnimationFrameRef = globalThis.requestAnimationFrame,
   setTimeoutRef = globalThis.setTimeout,
@@ -241,7 +242,9 @@ export function bindClassicHPEditor({
 
   const focusHalf = (clientX) => {
     const bounds = pill.getBoundingClientRect();
-    const input = (clientX - bounds.left) > (bounds.width / 2)
+    const input = !editableHPMax
+      ? pill.__iHP
+      : (clientX - bounds.left) > (bounds.width / 2)
       ? pill.__iMax
       : pill.__iHP;
     input?.focus({ preventScroll: true });
@@ -354,8 +357,8 @@ export function bindClassicHPEditor({
       linkedHPMaxDelta = !!enabled;
       pill.__linkedHPMaxDelta = linkedHPMaxDelta;
       setDeltaButtonActive(linkedHPMaxDelta);
-      hpMaxInput.readOnly = linkedHPMaxDelta;
-      hpMaxInput.style.opacity = linkedHPMaxDelta ? ".72" : "1";
+      hpMaxInput.readOnly = !editableHPMax || linkedHPMaxDelta;
+      hpMaxInput.style.opacity = linkedHPMaxDelta || !editableHPMax ? ".72" : "1";
       if (linkedHPMaxDelta) syncLinkedHPMaxDelta();
       else hpMaxInput.value = String(hpMax);
     };
@@ -440,10 +443,12 @@ export function bindClassicHPEditor({
       const percentage = nextHPMax > 0
         ? Math.max(0, Math.min(1, nextHP / nextHPMax))
         : 0;
-      hpFill.style.width = `${percentage * 100}%`;
-      hpFill.style.background = nextHPMax > 0 && nextHP <= 0
-        ? "#475569"
-        : hpColorByPct(percentage);
+      if (hpFill?.style) {
+        hpFill.style.width = `${percentage * 100}%`;
+        hpFill.style.background = nextHPMax > 0 && nextHP <= 0
+          ? "#475569"
+          : hpColorByPct(percentage);
+      }
 
       const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
       const concentrationDamage = hpDelta !== null && hpDelta < 0
@@ -501,6 +506,7 @@ export function bindClassicHPEditor({
       if (keyEvent.key === "Tab") {
         keyEvent.preventDefault();
         if (keyEvent.shiftKey) await commitAndNavigate(true);
+        else if (!editableHPMax) await commit();
         else {
           hpMaxInput.focus({ preventScroll: true });
           hpMaxInput.select();
@@ -529,6 +535,13 @@ export function bindClassicHPEditor({
         }
       }
     });
+
+    if (!editableHPMax) {
+      hpMaxInput.readOnly = true;
+      hpMaxInput.tabIndex = -1;
+      hpMaxInput.title = "Il massimo segue gli HP massimi del caster";
+      hpMaxInput.style.opacity = ".72";
+    }
   });
 
   return pill;

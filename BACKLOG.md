@@ -43,8 +43,11 @@ come capacità attivabile. Il dettaglio dello snapshot è in
 
 ## Pianificato
 
-- Smoke test accurato di Folata di Vento: verificare la sagoma 12×2 su griglie metriche e imperiali, nelle direzioni cardinali e diagonali; ancoraggio, spostamento e cambio di direzione; ingresso, permanenza e uscita dei token; pill Controvento; TS su token consecutivi e nei round successivi; pulizia al termine della concentrazione.
-- Integrare Folata di Vento nello Speed Tracker con costo direzionale: raddoppiare soltanto il tratto percorso verso il caster, ricavando la posizione del caster dal `sourceId` dell'effetto; conservare il costo calcolato per segmento affinché Undo resti esatto; evitare cumuli impropri con terreno difficile e verificare movimenti diagonali, laterali e di allontanamento.
+- Creare icone dedicate per i token PROP generati dagli incantesimi (Arma
+  spirituale, Spada arcana, Lama del Disastro e Mano arcana), sostituendo gli
+  asset provvisori senza modificare lifecycle, targeting o integrazione nel
+  tracker.
+
 - Revisione completa di Controllare Acqua: distinguere la massa controllata di 30 m dalla sottozona del Vortice di raggio 7,5 m; modellare trascinamento di 3 m, ingresso nel vortice, prova di Atletica per nuotare o liberarsi, onda ricorrente di Inondazione e geometrie specifiche delle quattro modalità.
 - Esplorare una meccanica generale di sottozone figlie per incantesimi con più geometrie, iniziando dalle Fenditure di Terremoto: posizionamento di più aree collegate alla stessa istanza, vincoli entro la zona madre, membership e trigger indipendenti, deduplicazione nelle sovrapposizioni, Undo e pulizia atomica al termine della spell.
 - Completare Muro di Fuoco: rappresentare il lato caldo, il margine di 3 m e l'attraversamento reale anche quando un token passa da un lato all'altro senza fermarsi nel muro; includere inoltre l'aumento dei danni per slot superiori.

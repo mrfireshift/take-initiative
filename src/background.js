@@ -12,6 +12,7 @@ import { mountStaticSpellZoneController } from "./spellStaticZone.js";
 import { mountEffectSaveReminderController } from "./effectSaveReminderController.js";
 import { mountClassFeatureReminderController } from "./classFeatureReminderController.js";
 import { mountPreparedSpellResolutionController } from "./preparedSpellResolutionController.js";
+import { mountCallLightningTurnPromptController } from "./callLightningTurnPromptController.js";
 import { mountEffectsMutationCoordinatorService } from "./effectsMutations.js";
 import { mountTurnNoticeHost } from "./turnNoticeHost.js";
 import "./sync-open.js";
@@ -124,6 +125,7 @@ OBR.onReady(() => {
     void mountEffectSaveReminderController();
     void mountClassFeatureReminderController();
     void mountPreparedSpellResolutionController();
+    void mountCallLightningTurnPromptController();
   }).catch((error) => {
     console.warn("[background] bootstrap:", error?.message || error);
   });

@@ -216,6 +216,35 @@ un contatto ambiguo richiede una scelta esplicita del GM. I dadi, la spinta
 fisica del Diavoletto, il movimento delle creature e le interazioni con oggetti
 restano manuali.
 
+### Pedine magiche persistenti
+
+Le sorgenti magiche che si comportano come pezzi del tabellone non vengono
+modellate come aree. In `Effetti ad Area` il comando diventa `Posiziona token`:
+il GM sceglie una casella entro gittata, vede la pedina in anteprima e conferma
+il punto prima di applicare il cast. Solo allora viene creata una `PROP`
+trascinabile, collegata a caster e istanza spell ma esclusa da iniziativa, HP
+Console, condizioni e targeting delle creature. La posizione sulla mappa è la
+fonte di verità; movimento, portata e danni sono mostrati nella scheda della
+spell come riferimenti per il gioco dal vivo e non vengono imposti
+automaticamente.
+
+| Incantesimo | Riferimenti della pedina | Stato aggiuntivo |
+| --- | --- | --- |
+| Arma spirituale | Movimento 6 m, portata 1,5 m, 1d8 + modificatore | Scaling dello slot |
+| Spada arcana | Movimento 6 m, portata 1,5 m, 3d10 forza | Concentrazione |
+| Lama del Disastro | Movimento 9 m, portata 1,5 m, due attacchi da 4d12 | Critico 18–20 e attraversamento barriere |
+| Mano arcana | Movimento 18 m, portata 1,5 m | CA 20, PF propri, quattro modalità e bersaglio associato |
+
+Creazione, aggiornamenti di Mano arcana, terminazione, cronologia e Undo usano
+la mutazione coordinata. Se una pedina viene cancellata accidentalmente, la
+scheda della spell attiva espone `Posiziona token`; le pedine rimaste orfane vengono
+invece eliminate dal reconciler GM.
+
+Arma spirituale espone inoltre sotto la card iniziativa del caster una mini-card
+subordinata con l'icona della pedina e l'indicazione `Azione Bonus`. È una
+proiezione puramente visiva: non aggiunge elementi all'ordine e non possiede un
+turno autonomo.
+
 ### Incantesimi comuni con trigger di zona
 
 | Momento | Incantesimi principali già modellati |
@@ -261,6 +290,10 @@ dai test.
 | Sfera Infuocata | Sposta zona |
 | Spirito Guaritore | Sposta zona |
 | Diavoletto di Polvere | Sposta zona |
+| Arma spirituale | Riferimento attacco sulla pedina |
+| Spada arcana | Riferimento attacco sulla pedina |
+| Lama del Disastro | Riferimento dei due attacchi sulla pedina |
+| Mano arcana | Interposta, Possente, Afferra/Stritola, Pugno |
 
 Per Sguardo penetrante, i bersagli già usati vengono ricordati e Nauseato
 genera il proprio reminder di fine turno.

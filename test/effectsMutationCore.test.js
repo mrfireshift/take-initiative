@@ -259,6 +259,41 @@ test("una pill buff collegata alla spell conserva semantica e rimozione manuale 
   assert.deepEqual(state(removed, "target").conditions, []);
 });
 
+test("Libertà di movimento blocca Paralizzato e Trattenuto magici ma non quelli non magici", () => {
+  const freedom = token("target", {
+    spells: [{ spellId: "freedom-of-movement", instanceId: "freedom-1" }],
+  });
+  const magical = buildEffectsMutationPlan([freedom], [
+    {
+      type: "condition:add",
+      targetIds: ["target"],
+      instanceIds: { target: "magical-restrained" },
+      conditionName: "Trattenuto",
+      options: { type: "spell" },
+    },
+    {
+      type: "condition:add-instances",
+      instancesByTarget: {
+        target: [{
+          id: "magical-paralyzed",
+          condition: "Paralizzato",
+          active: true,
+          magical: true,
+        }],
+      },
+    },
+  ]);
+  assert.deepEqual(state(magical, "target").conditions, []);
+
+  const mundane = buildEffectsMutationPlan([freedom], [{
+    type: "condition:add",
+    targetIds: ["target"],
+    instanceIds: { target: "mundane-grapple" },
+    conditionName: "Trattenuto",
+  }]);
+  assert.equal(state(mundane, "target").conditions[0].condition, "Trattenuto");
+});
+
 test("l'automazione rimuove nello stesso piano concentrazione, spell, condizioni figlie e prese", () => {
   const items = [
     token("caster", {

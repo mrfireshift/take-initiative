@@ -442,6 +442,34 @@ test("Bagliore Lunare aggancia il loop al root della zona mobile", () => {
   assert.equal(loop.anchor, "area");
 });
 
+test("Invocare il fulmine usa il WebM opaco e il raggio della nube persistente", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "call-lightning",
+    eventId: "call-lightning-cloud",
+    lifecycleId: "call-lightning-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 100 },
+    preview: {
+      type: "circle",
+      start: { x: 700, y: 100 },
+      end: { x: 2500, y: 100 },
+      radius: 1800,
+      dpi: 100,
+    },
+    sceneDpi: 100,
+  });
+
+  const layer = event.layers.find((entry) => entry.effectId === "callLightning");
+  assert.ok(layer);
+  assert.equal(layer.persistent, true);
+  assert.equal(layer.anchor, "area");
+  assert.equal(layer.radius, 1800);
+
+  const plan = matchedVisualLayerPlan(layer, event.dpi);
+  assert.match(plan.url, /CallLightning_01_Blue_1000x1000\.webm$/);
+  assert.equal(plan.duration, 4000);
+});
+
 test("Sortilegio separa intro one-shot PROP e loop agganciato al bersaglio", () => {
   const event = buildMatchedVisualEvent({
     spellId: "phb2014-sortilegio",

@@ -23,6 +23,14 @@ test("espone il posizionamento per le sagome supportate", () => {
     getQuickHpPlaceableAreaRule("spirit-guardians")?.kind,
     "aura",
   );
+  assert.equal(
+    getQuickHpPlaceableAreaRule("spiritual-weapon")?.kind,
+    "board-token",
+  );
+  assert.equal(quickHpAreaPlacementPresentation({
+    spellId: "spiritual-weapon",
+    casterId: "caster",
+  }).text, "Posiziona token");
   assert.equal(quickHpAreaPlacementPresentation({
     spellId: "burning-hands",
     casterId: "",

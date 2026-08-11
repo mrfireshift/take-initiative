@@ -75,6 +75,7 @@ export function normalizeZoneTriggerNotice(value) {
   const resolution = normalizeReminderResolution(value?.resolution);
   const kind = value?.kind === "zone-effect"
     || value?.resolution === "informational"
+    || value?.resolution?.mode === "manual-damage"
     ? "zone-effect"
     : "";
   return {
@@ -183,6 +184,7 @@ export function zoneTriggerNoticeFromActivation(
     : null;
   return normalizeZoneTriggerNotice({
     ...rawNotice,
+    ...(resolution?.mode === "manual-damage" ? { kind: "zone-effect" } : {}),
     ...(resolution ? { resolution } : {}),
   });
 }

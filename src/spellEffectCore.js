@@ -14,6 +14,8 @@ export function spellEffectConditionOptions(effect, conditionOptions = {}, paren
     ...(effect?.mechanics && typeof effect.mechanics === "object"
       ? { mechanics: effect.mechanics }
       : {}),
+    ...(effect?.mapVisible === false ? { mapVisible: false } : {}),
+    magical: true,
     ...(effect?.saveReminder && typeof effect.saveReminder === "object"
       ? { saveReminder: effect.saveReminder }
       : {}),

@@ -270,7 +270,7 @@ const EFFECTS = freeze({
     "2nd_Level/Web/Opacities/Web_01_White_01_75OPA", 100, 400, "400x400", 5040,
   ),
   callLightning: circleEffect(
-    "3rd_Level/Call_Lightning/Opacities/CallLightning_01_Blue_75OPA", 200, 1000, "1000x1000", 4000,
+    "3rd_Level/Call_Lightning/CallLightning_01_Blue", 200, 1000, "1000x1000", 4000,
   ),
   lightningBolt: coneEffect(
     "3rd_Level/Lightning_Bolt/LightningBolt_01_Regular_Blue", 200, 4000, 4000, 200, "4000x200", 4000,

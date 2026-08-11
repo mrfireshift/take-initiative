@@ -5,7 +5,6 @@ import { getEnabledClassFeatures } from "./classFeatureCatalog.js";
 import { classFeaturePassiveMovementMechanics } from "./classFeatureCore.js";
 import { getConditionInstances } from "./conditions.js";
 import {
-  conditionMovementCostCells,
   proneStandingCostMeters,
   resolveConditionSpeed,
 } from "./conditionSpeedCore.js";
@@ -15,26 +14,36 @@ import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
+  climbingMovementCostMultiplier,
   elevationMovementCells,
   measureSquareGridCells,
   limitedMovementRejection,
   SPEED_CHECK_METERS_PER_CELL,
+  movementCostForSegment,
   resolveSpeedCheckTurn,
   retreatSpeedCycle,
   reversedPathStart,
   shouldRetreatSpeedMovement,
 } from "./speedCheckCore.js";
 import { normalizeElevation } from "./distance3dCore.js";
+import {
+  SPELL_STATIC_ZONE_META_KEY,
+  translatedZoneArea,
+} from "./spellStaticZoneCore.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
 const STATE_KEY = ID + "/state";
 const SPEED_WARNING_CHANNEL = ID + "/speed-warning";
 const SPEED_WARNING_MODAL_ID = ID + "/speed-warning-modal";
+const SPEED_WARNING_UI_CHANNEL = SPEED_WARNING_CHANNEL + "/ui";
+const SPEED_WARNING_HOST_CHANNEL = SPEED_WARNING_CHANNEL + "/host";
+const SPEED_WARNING_MAX_AGE_MS = 2500;
 const SPEED_DRAG_CHANNEL = ID + "/speed-drag";
 const SPEED_STATE_CHANNEL = ID + "/speed-state";
 const SPEED_CHECK_META_FIELD = "speedCheckMovement";
 const ELEVATION_META_FIELD = "elevation";
+const CLIMBING_META_FIELD = "climbing";
 const SPEED_CHECK_META_VERSION = 2;
 const MAX_MOVEMENT_SEGMENTS = 500;
 
@@ -56,6 +65,7 @@ let movementPersistQueue = Promise.resolve();
 const trackedDrags = new Map();
 const rejectedMovementRollbacks = new Map();
 const rejectedElevationRollbacks = new Map();
+const suppressedElevationResets = new Map();
 const movementStateListeners = new Set();
 
 function emitMovementSnapshot(snapshot) {
@@ -174,13 +184,54 @@ function conditionSpeedForItem(item, baseSpeedMeters, preferredMode = "walk") {
   );
 }
 
+async function liveDirectionalMovementModifiers(state) {
+  const declared = Array.isArray(state?.directionalCostModifiers)
+    ? state.directionalCostModifiers
+    : [];
+  if (!declared.length) return [];
+  const items = await OBR.scene.items.getItems().catch(() => []);
+  const byId = new Map(items.map((item) => [String(item?.id || ""), item]));
+  const zones = items.filter((item) => (
+    item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
+  ));
+  return declared.map((modifier) => {
+    const sourceId = String(modifier?.sourceId || "").trim();
+    const source = sourceId ? byId.get(sourceId) : null;
+    const sourcePosition = validPoint(source?.position);
+    if (!sourcePosition) return null;
+
+    const zoneId = String(modifier?.zoneId || "").trim();
+    const instanceId = String(modifier?.instanceId || "").trim();
+    const zone = zoneId
+      ? byId.get(zoneId)
+      : instanceId
+        ? zones.find((candidate) => {
+          const metadata = candidate?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+          return String(metadata?.instanceId || "").trim() === instanceId
+            && (!sourceId || String(metadata?.casterId || "").trim() === sourceId);
+        })
+        : null;
+    if ((zoneId || instanceId) && !zone) return null;
+    const area = zone ? translatedZoneArea(zone) : undefined;
+    if ((zoneId || instanceId) && !area) return null;
+    return {
+      ...modifier,
+      sourcePosition,
+      ...(area ? { area } : {}),
+    };
+  }).filter(Boolean);
+}
+
 function movementResolutionSignature(source) {
   return JSON.stringify({
     activeMode: source?.activeMode,
+    climbing: source?.climbing === true,
     speedMeters: source?.speedMeters,
     blocked: source?.blocked,
     conditionSummary: source?.conditionSummary ?? source?.summary,
     prone: source?.prone,
+    movementImmunities: source?.movementImmunities || [],
+    directionalCostModifiers: source?.directionalCostModifiers || [],
     movementModes: (source?.movementModes || []).map((entry) => [
       entry.id,
       entry.baseSpeedMeters,
@@ -205,6 +256,8 @@ function applyResolvedMovementState(state, resolved, totalMeters) {
     conditionReasons: resolved.reasons,
     prone: resolved.prone,
     movementCostMultiplier: resolved.movementCostMultiplier,
+    movementImmunities: resolved.movementImmunities || [],
+    directionalCostModifiers: resolved.directionalCostModifiers || [],
     blockedWarningSent: false,
   });
   state.cycle = resolved.speedMeters > 0
@@ -220,16 +273,18 @@ async function applyConditionSpeedItem(item) {
   const totalMeters = movementTotalMeters(movementState);
   const wasProne = movementState.prone === true;
   const previousMode = movementState.activeMode;
+  const climbing = item?.metadata?.[META_KEY]?.[CLIMBING_META_FIELD] === true;
   const resolved = conditionSpeedForItem(
     item,
     movementState.baseSpeedMeters,
     movementState.activeMode,
   );
   const previousSignature = movementResolutionSignature(movementState);
-  const nextSignature = movementResolutionSignature(resolved);
+  const nextSignature = movementResolutionSignature({ ...resolved, climbing });
   if (previousSignature === nextSignature) return;
 
   applyResolvedMovementState(movementState, resolved, totalMeters);
+  movementState.climbing = climbing;
 
   const standingCostMeters = wasProne && !resolved.prone
     ? proneStandingCostMeters(resolved.speedMeters)
@@ -259,11 +314,18 @@ function persistedMovementPayload(state) {
     lastCell: validPoint(state?.lastCell),
     startPosition: validPoint(state?.startPosition),
     startCell: validPoint(state?.startCell),
+    startElevation: normalizeElevation(state?.startElevation),
   };
+}
+
+function persistedStartElevation(payload) {
+  const value = Number(payload?.startElevation);
+  return Number.isFinite(value) ? normalizeElevation(value) : null;
 }
 
 function persistedMovementSignature(payload) {
   const lastCell = validPoint(payload?.lastCell);
+  const startElevation = persistedStartElevation(payload);
   return [
     String(payload?.turnKey || ""),
     Math.round(Math.max(0, Number(payload?.totalMeters) || 0) * 1000) / 1000,
@@ -274,6 +336,7 @@ function persistedMovementSignature(payload) {
     validPoint(payload?.startPosition)?.y ?? "",
     validPoint(payload?.startCell)?.x ?? "",
     validPoint(payload?.startCell)?.y ?? "",
+    startElevation ?? "",
   ].join("|");
 }
 
@@ -307,6 +370,9 @@ function applyPersistedMovementItem(item) {
     payload.activeMode || movementState.activeMode,
   );
   applyResolvedMovementState(movementState, resolved, totalMeters);
+  movementState.climbing = item?.metadata?.[META_KEY]?.[CLIMBING_META_FIELD] === true;
+  const storedStartElevation = persistedStartElevation(payload);
+  if (storedStartElevation !== null) movementState.startElevation = storedStartElevation;
   movementState.lastCell = validPoint(payload.lastCell) || movementState.lastCell;
   movementState.startPosition = validPoint(payload.startPosition) || movementState.startPosition;
   movementState.startCell = validPoint(payload.startCell) || movementState.startCell;
@@ -353,6 +419,14 @@ function mountSpeedMetadataListener() {
       const afterElevation = snapshotElevation(record.after);
       if (Math.abs(afterElevation - beforeElevation) < 0.001) continue;
 
+      const reset = suppressedElevationResets.get(itemId);
+      if (reset?.until <= Date.now()) {
+        suppressedElevationResets.delete(itemId);
+      } else if (reset && Math.abs(afterElevation - reset.elevation) < 0.001) {
+        suppressedElevationResets.delete(itemId);
+        continue;
+      }
+
       const rollback = rejectedElevationRollbacks.get(itemId);
       if (rollback?.until <= Date.now()) {
         rejectedElevationRollbacks.delete(itemId);
@@ -360,7 +434,11 @@ function mountSpeedMetadataListener() {
         rejectedElevationRollbacks.delete(itemId);
         continue;
       }
-      if (movementState.activeMode !== "fly") continue;
+      const climbing = record.after.item?.metadata?.[META_KEY]?.[CLIMBING_META_FIELD] === true;
+      const verticalMode = movementState.activeMode === "fly"
+        ? "fly"
+        : climbing ? "climb" : "";
+      if (!verticalMode) continue;
       queueSpeedCheckElevationChange({
         id: itemId,
         name: String(record.after.item?.name || movementState.name || "Personaggio"),
@@ -368,6 +446,8 @@ function mountSpeedMetadataListener() {
         beforeElevation,
         afterElevation,
         activeMode: movementState.activeMode,
+        verticalMode,
+        climbing,
       });
     }
   }, { immediate: true });
@@ -430,6 +510,9 @@ async function loadMovementState(turn) {
   const startCell = persistedMatches
     ? validPoint(persisted.startCell) || (persistedStartPosition ? await snapToGridCell(startPosition) : lastCell)
     : lastCell;
+  const currentElevation = normalizeElevation(meta?.[ELEVATION_META_FIELD]);
+  const storedStartElevation = persistedMatches ? persistedStartElevation(persisted) : null;
+  const startElevation = storedStartElevation ?? currentElevation;
   const totalMeters = persistedMatches ? Math.max(0, Number(persisted.totalMeters) || 0) : 0;
   const cycle = speedMeters > 0 ? Math.floor((totalMeters + 1e-9) / speedMeters) : 0;
   return {
@@ -449,6 +532,9 @@ async function loadMovementState(turn) {
     conditionReasons: resolvedSpeed.reasons,
     prone: resolvedSpeed.prone,
     movementCostMultiplier: resolvedSpeed.movementCostMultiplier,
+    movementImmunities: resolvedSpeed.movementImmunities || [],
+    directionalCostModifiers: resolvedSpeed.directionalCostModifiers || [],
+    climbing: meta?.[CLIMBING_META_FIELD] === true,
     blockedWarningSent: false,
     gridDpi: Math.max(1, Number(gridDpi) || 150),
     cycle,
@@ -459,10 +545,14 @@ async function loadMovementState(turn) {
     portrait: portraitUrl(item),
     startPosition,
     startCell,
+    startElevation,
     lastCell: persistedMatches ? validPoint(persisted.lastCell) || lastCell : lastCell,
     path: [],
     persistedSignature: persistedMatches ? persistedMovementSignature(persisted) : "",
-    needsBaselinePersist: !persistedMatches || !persistedStartPosition || !validPoint(persisted.startCell),
+    needsBaselinePersist: !persistedMatches
+      || !persistedStartPosition
+      || !validPoint(persisted.startCell)
+      || storedStartElevation === null,
   };
 }
 
@@ -621,7 +711,11 @@ export function enableSpeedCheckProcessor() {
   processorEnabled = true;
   mountSpeedMetadataListener();
   mountSpeedDragListener();
-  if (speedCheckEnabled && currentTurn) void ensureMovementState({ ...currentTurn }).catch(() => {});
+  if (speedCheckEnabled) {
+    void ensureSpeedCheckMovementState().catch((error) => {
+      console.warn("[speed-check] initial state:", error?.message || error);
+    });
+  }
 }
 
 export function setSpeedCheckEnabled(enabled) {
@@ -633,8 +727,10 @@ export function setSpeedCheckEnabled(enabled) {
   movementStatePrefetch = null;
   trackedDrags.clear();
   notifyMovementState();
-  if (next && processorEnabled && currentTurn) {
-    void ensureMovementState({ ...currentTurn }).catch(() => {});
+  if (next) {
+    void ensureSpeedCheckMovementState().catch((error) => {
+      console.warn("[speed-check] state activation:", error?.message || error);
+    });
   }
 }
 
@@ -652,6 +748,13 @@ async function readSpeedCheckTurn() {
   return currentTurn ? { ...currentTurn } : null;
 }
 
+async function ensureSpeedCheckMovementState() {
+  if (!speedCheckEnabled) return null;
+  const turn = await readSpeedCheckTurn();
+  if (!turn || !speedCheckEnabled) return null;
+  return ensureMovementState({ ...turn });
+}
+
 
 async function processSpeedCheckMovement(movement, turn) {
   if (!speedCheckEnabled) return;
@@ -662,9 +765,15 @@ async function processSpeedCheckMovement(movement, turn) {
   const state = await ensureMovementState(turn);
   if (!state || state.disabled || currentTurn?.turnKey !== turnKey) return;
 
+  const verticalMode = String(
+    movement?.verticalMode
+      || (movement?.activeMode === "fly" ? "fly" : ""),
+  ).trim().toLocaleLowerCase("it");
   const verticalMovement = movement?.kind === "elevation"
-    && Number(movement?.verticalCells) > 0;
-  if (verticalMovement && (movement.activeMode !== "fly" || state.activeMode !== "fly")) return;
+    && Number(movement?.verticalCells) > 0
+    && (verticalMode === "fly" || verticalMode === "climb");
+  if (verticalMovement && verticalMode === "fly" && state.activeMode !== "fly") return;
+  if (verticalMovement && verticalMode === "climb" && state.climbing !== true) return;
   const beforeCell = state.lastCell || movement?.beforeCell;
   const afterCell = verticalMovement ? beforeCell : movement?.afterCell;
   const rawBefore = validPoint(movement?.beforePosition);
@@ -705,7 +814,23 @@ async function processSpeedCheckMovement(movement, turn) {
     return;
   }
 
-  const chargedCells = conditionMovementCostCells(movedCells, state.movementCostMultiplier);
+  const directionalModifiers = verticalMovement
+    ? []
+    : await liveDirectionalMovementModifiers(state);
+  const climbingMovement = verticalMovement
+    ? verticalMode === "climb"
+    : state.climbing === true;
+  const movementCost = movementCostForSegment({
+    movedCells,
+    beforePosition: rawBefore,
+    afterPosition: rawAfter,
+    baseMultiplier: Math.max(1, Number(state.movementCostMultiplier) || 1)
+      * (climbingMovement
+        ? climbingMovementCostMultiplier(state.climbing, state.movementModes)
+        : 1),
+    directionalModifiers,
+  });
+  const chargedCells = movementCost.chargedCells;
   const beforeSnapshot = buildSpeedCheckSnapshot(state, true, movementLimitEnabled);
   const rejection = limitedMovementRejection(beforeSnapshot, chargedCells);
   if (rejection) {
@@ -758,6 +883,8 @@ async function processSpeedCheckMovement(movement, turn) {
       beforeCell: { ...beforeCell },
       afterCell: { ...afterCell },
       cells: chargedCells,
+      baseCells: movementCost.baseCells,
+      directionalCells: movementCost.directionalCells,
       toolDragId: movement?.toolDragId || "",
     });
     state.lastCell = afterCell;
@@ -847,14 +974,18 @@ function queueSpeedCheckElevationChange(change) {
   const run = async () => {
     const turn = await turnPromise;
     const state = await ensureMovementState(turn);
-    if (!state || state.disabled || state.activeMode !== "fly" || change.activeMode !== "fly") return;
+    if (!state || state.disabled) return;
+    const verticalMode = state.activeMode === "fly"
+      ? "fly"
+      : state.climbing === true ? "climb" : "";
+    if (!verticalMode) return;
     const scale = await OBR.scene.grid.getScale()
       .catch(() => ({ parsed: { multiplier: SPEED_CHECK_METERS_PER_CELL } }));
     const verticalCells = elevationMovementCells(
       change.beforeElevation,
       change.afterElevation,
       scale?.parsed?.multiplier,
-      change.activeMode,
+      verticalMode,
     );
     if (verticalCells < 0.001) return;
     const position = validPoint(change.position) || validPoint(state.lastCell);
@@ -864,6 +995,8 @@ function queueSpeedCheckElevationChange(change) {
       name: change.name,
       kind: "elevation",
       activeMode: change.activeMode,
+      verticalMode,
+      climbing: verticalMode === "climb",
       verticalCells,
       beforeElevation: change.beforeElevation,
       afterElevation: change.afterElevation,
@@ -909,6 +1042,8 @@ export function setSpeedCheckMovementMode(mode) {
       blocksSpeedBonuses: selected.blocksSpeedBonuses,
       conditionSummary: selected.summary,
       conditionReasons: selected.reasons,
+      movementImmunities: selected.movementImmunities || [],
+      directionalCostModifiers: selected.directionalCostModifiers || [],
       blockedWarningSent: false,
     });
     state.cycle = selected.speedMeters > 0
@@ -941,12 +1076,23 @@ export function resetSpeedCheckMovement() {
       state.lastCell = validPoint(state.startCell) || state.lastCell;
 
       const startPosition = validPoint(state.startPosition);
-      if (startPosition) {
-        suppressMovementHistory(state.itemId, startPosition);
-        await OBR.scene.items.updateItems([state.itemId], (drafts) => {
-          for (const item of drafts) item.position = { ...startPosition };
-        });
-      }
+      const startElevation = normalizeElevation(state.startElevation);
+      if (startPosition) suppressMovementHistory(state.itemId, startPosition);
+      rejectedElevationRollbacks.delete(state.itemId);
+      suppressedElevationResets.set(state.itemId, {
+        elevation: startElevation,
+        until: Date.now() + 2500,
+      });
+      await OBR.scene.items.updateItems([state.itemId], (drafts) => {
+        for (const item of drafts) {
+          if (startPosition) item.position = { ...startPosition };
+          const previous = { ...(item.metadata?.[META_KEY] || {}) };
+          item.metadata = {
+            ...(item.metadata || {}),
+            [META_KEY]: { ...previous, [ELEVATION_META_FIELD]: startElevation },
+          };
+        }
+      });
       notifyMovementState();
       await persistMovementState(state);
       return;
@@ -967,41 +1113,109 @@ export function mountSpeedWarningBroadcast() {
   warningLayerPromise = (async () => {
     try { await OBR.modal.close(SPEED_WARNING_MODAL_ID); } catch {}
     try { await OBR.popover.close(SPEED_WARNING_MODAL_ID); } catch {}
-    let warningQueue = Promise.resolve();
+    let warningPopoverOpen = false;
+    let warningUiReady = false;
+    let warningPumpRunning = false;
+    let warningPumpRequested = false;
+    let latestWarning = null;
+    const initialCleanup = Promise.all([
+      OBR.modal.close(SPEED_WARNING_MODAL_ID).catch(() => {}),
+      OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {}),
+    ]);
+
+    const sendLatestWarning = async () => {
+      const warning = latestWarning;
+      if (!warning) return;
+      if (Date.now() - warning.createdAt > SPEED_WARNING_MAX_AGE_MS) {
+        if (latestWarning === warning) latestWarning = null;
+        return;
+      }
+      if (warningPopoverOpen) {
+        if (warningUiReady) {
+          await OBR.broadcast.sendMessage(
+            SPEED_WARNING_UI_CHANNEL,
+            warning,
+            { destination: "LOCAL" },
+          );
+        }
+        return;
+      }
+      let viewportWidth = 1200;
+      let viewportHeight = 800;
+      const [reportedWidth, reportedHeight] = await Promise.all([
+        OBR.viewport.getWidth().catch(() => viewportWidth),
+        OBR.viewport.getHeight().catch(() => viewportHeight),
+      ]);
+      if (latestWarning !== warning) return;
+      viewportWidth = Number(reportedWidth) || viewportWidth;
+      viewportHeight = Number(reportedHeight) || viewportHeight;
+      const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
+      const width = cardWidth + 8;
+      const top = Math.max(12, Math.round(viewportHeight * 0.09));
+      const payload = encodeURIComponent(JSON.stringify(warning));
+      await OBR.popover.open({
+        id: SPEED_WARNING_MODAL_ID,
+        url: `/speed-warning.html?payload=${payload}`,
+        width,
+        height: 122,
+        anchorReference: "POSITION",
+        anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
+        anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+        transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+        hidePaper: true,
+        disableClickAway: false,
+        marginThreshold: 12,
+      });
+      warningPopoverOpen = true;
+      if (warningUiReady && latestWarning) {
+        await OBR.broadcast.sendMessage(
+          SPEED_WARNING_UI_CHANNEL,
+          latestWarning,
+          { destination: "LOCAL" },
+        );
+      }
+    };
+
+    const requestWarningPump = () => {
+      warningPumpRequested = true;
+      if (warningPumpRunning) return;
+      warningPumpRunning = true;
+      const run = async () => {
+        try {
+          await initialCleanup;
+          while (warningPumpRequested) {
+            warningPumpRequested = false;
+            await sendLatestWarning();
+          }
+        } catch (error) {
+          console.warn("[speed-check] warning popover:", error?.message || error);
+        } finally {
+          warningPumpRunning = false;
+          if (warningPumpRequested) requestWarningPump();
+        }
+      };
+      void run();
+    };
+
     OBR.broadcast.onMessage(SPEED_WARNING_CHANNEL, (event) => {
       if (event?.data?.type !== "show-speed-warning") return;
-      const run = async () => {
-        let viewportWidth = 1200;
-        let viewportHeight = 800;
-        const [reportedWidth, reportedHeight] = await Promise.all([
-          OBR.viewport.getWidth().catch(() => viewportWidth),
-          OBR.viewport.getHeight().catch(() => viewportHeight),
-        ]);
-        viewportWidth = Number(reportedWidth) || viewportWidth;
-        viewportHeight = Number(reportedHeight) || viewportHeight;
-        const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
-        const width = cardWidth + 8;
-        const top = Math.max(12, Math.round(viewportHeight * 0.09));
-        const payload = encodeURIComponent(JSON.stringify(event.data));
-        await OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {});
-        await OBR.popover.open({
-          id: SPEED_WARNING_MODAL_ID,
-          url: `/speed-warning.html?payload=${payload}`,
-          width,
-          height: 122,
-          anchorReference: "POSITION",
-          anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
-          anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
-          transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
-          hidePaper: true,
-          disableClickAway: false,
-          marginThreshold: 12,
-        });
-      };
-      warningQueue = warningQueue.then(run, run);
-      void warningQueue.catch((error) => {
-        console.warn("[speed-check] warning popover:", error?.message || error);
-      });
+      const createdAt = Math.max(0, Math.floor(Number(event.data?.createdAt) || Date.now()));
+      if (Date.now() - createdAt > SPEED_WARNING_MAX_AGE_MS) return;
+      latestWarning = { ...event.data, createdAt };
+      requestWarningPump();
+    });
+    OBR.broadcast.onMessage(SPEED_WARNING_HOST_CHANNEL, (event) => {
+      const data = event?.data;
+      if (data?.type === "speed-warning-ready") {
+        warningUiReady = true;
+        if (latestWarning) requestWarningPump();
+        return;
+      }
+      if (data?.type === "speed-warning-closed") {
+        warningPopoverOpen = false;
+        warningUiReady = false;
+        latestWarning = null;
+      }
     });
   })().catch((error) => {
     warningLayerPromise = null;

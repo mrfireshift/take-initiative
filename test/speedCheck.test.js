@@ -4,9 +4,12 @@ import {
   advanceSpeedCycle,
   buildSpeedCheckSnapshot,
   countSpeedLimitCrossings,
+  climbingMovementCostMultiplier,
   elevationMovementCells,
+  hasClimbingSpeed,
   limitedMovementRejection,
   measureSquareGridCells,
+  movementCostForSegment,
   normalizeSpeedMeters,
   resolveSpeedCheckTurn,
   retreatSpeedCycle,
@@ -46,12 +49,30 @@ test("quota in salita e discesa consuma la modalità Volare in caselle di grigli
   assert.equal(elevationMovementCells(0, 4.5, 1.5, "fly"), 3);
   assert.equal(elevationMovementCells(4.5, 1.5, 1.5, "fly"), 2);
   assert.equal(elevationMovementCells(0, 15, 5, "fly"), 3);
+  assert.equal(elevationMovementCells(0, 4.5, 1.5, "climb"), 3);
 });
 
 test("la quota non consuma movimento quando la modalità attiva non è Volare", () => {
   assert.equal(elevationMovementCells(0, 4.5, 1.5, "walk"), 0);
   assert.equal(elevationMovementCells(0, 4.5, 1.5, "swim"), 0);
   assert.equal(elevationMovementCells(0, 4.5, 0, "fly"), 0);
+});
+
+test("climbing doubles movement cost without a climbing speed", () => {
+  assert.equal(hasClimbingSpeed([{ id: "walk", speedMeters: 9 }]), false);
+  assert.equal(hasClimbingSpeed([{ id: "climb", speedMeters: 9 }]), true);
+  assert.equal(climbingMovementCostMultiplier(false, []), 1);
+  assert.equal(climbingMovementCostMultiplier(true, []), 2);
+  assert.equal(climbingMovementCostMultiplier(true, [{ id: "climb", speedMeters: 9 }]), 1);
+
+  const snapshot = buildSpeedCheckSnapshot({
+    speedMeters: 9,
+    climbing: true,
+    movementModes: [{ id: "walk", speedMeters: 9 }],
+  });
+  assert.equal(snapshot.climbing, true);
+  assert.equal(snapshot.hasClimbingSpeed, false);
+  assert.equal(snapshot.climbingCostMultiplier, 2);
 });
 
 test("builds an explicit movement readout", () => {
@@ -258,6 +279,147 @@ test("counts diagonal squares once and sums mixed segments", () => {
   assert.equal(diagonal, 1);
   assert.equal(horizontal, 2);
   assert.equal(diagonal + horizontal, 3);
+});
+
+test("il costo direzionale raddoppia solo la porzione verso la fonte", () => {
+  const toward = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 300, y: 0 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+  const away = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 150, y: 0 },
+    afterPosition: { x: 0, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 300, y: 0 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+  const lateral = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 0, y: 300 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+
+  assert.equal(toward.chargedCells, 2);
+  assert.equal(away.chargedCells, 1);
+  assert.equal(lateral.chargedCells, 1);
+});
+
+test("il costo direzionale distingue percorso misto, diagonali e cumuli indipendenti", () => {
+  const mixed = movementCostForSegment({
+    movedCells: 2,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 300, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 300, y: 0 },
+      area: { cells: [{ x: 150, y: -50, width: 150, height: 100 }] },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+  const diagonal = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 150 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 300, y: 300 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+  const stacked = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    baseMultiplier: 2,
+    directionalModifiers: [
+      {
+        sourceId: "caster",
+        instanceId: "gust",
+        sourcePosition: { x: 300, y: 0 },
+        direction: "toward-source",
+        costMultiplier: 2,
+      },
+      {
+        sourceId: "caster",
+        instanceId: "gust",
+        sourcePosition: { x: 300, y: 0 },
+        direction: "toward-source",
+        costMultiplier: 2,
+      },
+    ],
+  });
+
+  assert.equal(mixed.chargedCells, 3);
+  assert.equal(diagonal.chargedCells, 2);
+  assert.equal(stacked.chargedCells, 4);
+});
+
+test("il costo direzionale usa la posizione corrente della sorgente e ignora sorgenti assenti", () => {
+  const movedCaster = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 0, y: 300 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+  const missingSource = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    directionalModifiers: [{
+      sourceId: "caster",
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  });
+
+  assert.equal(movedCaster.chargedCells, 1);
+  assert.equal(missingSource.chargedCells, 1);
+});
+
+test("Undo sottrae il costo direzionale realmente registrato nel percorso", () => {
+  const chargedCells = movementCostForSegment({
+    movedCells: 1,
+    beforePosition: { x: 0, y: 0 },
+    afterPosition: { x: 150, y: 0 },
+    baseMultiplier: 2,
+    directionalModifiers: [{
+      sourceId: "caster",
+      sourcePosition: { x: 300, y: 0 },
+      direction: "toward-source",
+      costMultiplier: 2,
+    }],
+  }).chargedCells;
+  const advanced = advanceSpeedCycle(null, chargedCells, 9);
+  const undone = retreatSpeedCycle(advanced, chargedCells, 9);
+
+  assert.equal(chargedCells, 4);
+  assert.equal(advanced.cycleMeters, 6);
+  assert.equal(undone.cycle, 0);
+  assert.equal(undone.cycleMeters, 0);
 });
 
 test("preserves fractional samples across a mixed drag path", () => {

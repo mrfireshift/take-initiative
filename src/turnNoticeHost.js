@@ -4,6 +4,7 @@ import {
   ID,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
+import { enqueueTurnNoticeHostPayload } from "./turnNoticeHostCore.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
@@ -13,6 +14,7 @@ const TURN_NOTICE_POPOVER_ID = `${ID}/turn-notice-modal`;
 const TURN_NOTICE_CARD_WIDTH = 500;
 const TURN_NOTICE_FRAME_GUTTER = 4;
 const TURN_NOTICE_POPOVER_TOP_RATIO = 0.09;
+const TURN_NOTICE_READY_RETRY_MS = 800;
 
 let mounted = false;
 let popoverOpen = false;
@@ -22,10 +24,32 @@ let activityRevision = 0;
 let awaitingVisibleLayout = false;
 let pendingPayloads = [];
 let hostQueue = Promise.resolve();
+let noticePumpQueued = false;
+let noticeAwaitingReady = false;
+let readyRetryTimer = null;
 
 function enqueueHostTask(task) {
   hostQueue = hostQueue.then(task, task);
   return hostQueue;
+}
+
+function clearReadyRetry() {
+  if (readyRetryTimer !== null) clearTimeout(readyRetryTimer);
+  readyRetryTimer = null;
+}
+
+function scheduleReadyRetry() {
+  clearReadyRetry();
+  readyRetryTimer = setTimeout(() => {
+    readyRetryTimer = null;
+    if (
+      !popoverOpen
+      || !pendingPayloads.length
+      || readySceneEpoch === requestedSceneEpoch
+    ) return;
+    noticeAwaitingReady = false;
+    scheduleNoticePump();
+  }, TURN_NOTICE_READY_RETRY_MS);
 }
 
 function payloadSceneEpoch(payload) {
@@ -85,65 +109,106 @@ async function requestReadySceneEpoch() {
 async function flushPendingPayloads() {
   if (!popoverOpen || readySceneEpoch !== requestedSceneEpoch) return;
   while (pendingPayloads.length) {
-    const payload = pendingPayloads[0];
+    const payload = pendingPayloads.shift();
     awaitingVisibleLayout = true;
-    await OBR.broadcast.sendMessage(
-      TURN_NOTICE_UI_CHANNEL,
-      payload,
-      { destination: "LOCAL" },
-    );
-    pendingPayloads.shift();
+    try {
+      await OBR.broadcast.sendMessage(
+        TURN_NOTICE_UI_CHANNEL,
+        payload,
+        { destination: "LOCAL" },
+      );
+    } catch (error) {
+      pendingPayloads.unshift(payload);
+      throw error;
+    }
   }
+}
+
+function scheduleNoticePump() {
+  if (noticePumpQueued || noticeAwaitingReady || !pendingPayloads.length) return;
+  noticePumpQueued = true;
+  let completed = true;
+  void enqueueHostTask(async () => {
+    await openTurnNoticePopover(pendingPayloads[0]);
+    if (readySceneEpoch !== requestedSceneEpoch) {
+      noticeAwaitingReady = true;
+      try {
+        await requestReadySceneEpoch();
+        scheduleReadyRetry();
+      } catch (error) {
+        noticeAwaitingReady = false;
+        throw error;
+      }
+      return;
+    }
+    await flushPendingPayloads();
+  }).catch(() => {
+    completed = false;
+  }).finally(() => {
+    noticePumpQueued = false;
+    if (completed && !noticeAwaitingReady && pendingPayloads.length) scheduleNoticePump();
+  });
 }
 
 function receiveNoticePayload(payload) {
   activityRevision += 1;
-  void enqueueHostTask(async () => {
-    const sceneEpoch = payloadSceneEpoch(payload);
-    if (sceneEpoch !== null) requestedSceneEpoch = sceneEpoch;
-    pendingPayloads.push(payload);
-    await openTurnNoticePopover(payload);
-    if (readySceneEpoch !== requestedSceneEpoch) {
-      await requestReadySceneEpoch();
-      return;
-    }
-    await flushPendingPayloads();
-  }).catch(() => {});
+  const sceneEpoch = payloadSceneEpoch(payload);
+  if (sceneEpoch !== null) requestedSceneEpoch = sceneEpoch;
+  pendingPayloads = enqueueTurnNoticeHostPayload(pendingPayloads, payload);
+  scheduleNoticePump();
 }
 
 function receiveReadyMessage(payload) {
+  let completed = true;
   void enqueueHostTask(async () => {
-    if (!popoverOpen) return;
-    const sceneEpoch = payloadSceneEpoch(payload);
-    if (sceneEpoch !== requestedSceneEpoch) {
-      await requestReadySceneEpoch();
+    if (!popoverOpen) {
+      noticeAwaitingReady = false;
       return;
     }
+    const sceneEpoch = payloadSceneEpoch(payload);
+    if (sceneEpoch !== requestedSceneEpoch) {
+      try {
+        await requestReadySceneEpoch();
+        scheduleReadyRetry();
+      } catch (error) {
+        noticeAwaitingReady = false;
+        throw error;
+      }
+      return;
+    }
+    clearReadyRetry();
+    noticeAwaitingReady = false;
     readySceneEpoch = sceneEpoch;
     await flushPendingPayloads();
-  }).catch(() => {});
+  }).catch(() => {
+    completed = false;
+  }).finally(() => {
+    if (completed && !noticeAwaitingReady && pendingPayloads.length) scheduleNoticePump();
+  });
 }
 
 function receiveLayoutMessage(payload) {
   const revision = activityRevision;
+  if (!popoverOpen) return;
+  if (payload?.visible === true) {
+    awaitingVisibleLayout = false;
+    const requestedHeight = Number(payload?.height);
+    const height = Math.min(
+      428,
+      Math.max(1, Number.isFinite(requestedHeight) ? requestedHeight : 150),
+    );
+    void OBR.popover.setHeight(TURN_NOTICE_POPOVER_ID, height).catch(() => {});
+    return;
+  }
   void enqueueHostTask(async () => {
-    if (!popoverOpen) return;
-    if (payload?.visible === true) {
-      awaitingVisibleLayout = false;
-      const requestedHeight = Number(payload?.height);
-      const height = Math.min(
-        428,
-        Math.max(1, Number.isFinite(requestedHeight) ? requestedHeight : 150),
-      );
-      await OBR.popover.setHeight(TURN_NOTICE_POPOVER_ID, height).catch(() => {});
-      return;
-    }
     if (awaitingVisibleLayout) return;
     if (revision !== activityRevision || pendingPayloads.length) return;
     await OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
     popoverOpen = false;
     readySceneEpoch = null;
     awaitingVisibleLayout = false;
+    noticeAwaitingReady = false;
+    clearReadyRetry();
   }).catch(() => {});
 }
 

@@ -233,6 +233,43 @@ test("un danno automatico produce una notice informativa senza TS o CD", () => {
   );
 });
 
+test("Investitura della Fiamma espone il danno manuale con Conferma senza CD o fallimento", () => {
+  const itemsById = new Map([
+    ["zone", {
+      id: "zone",
+      name: "Aura mobile: Investitura della Fiamma",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      name: "Lavera",
+      metadata: {
+        [META_KEY]: { initiativeCard: { spellSaveDC: 19 } },
+      },
+    }],
+    ["target", { id: "target", name: "Duergar Artificer" }],
+  ]);
+  const notice = zoneTriggerNoticeFromActivation({
+    id: "flame-damage",
+    zoneItemId: "zone",
+    spellName: "Investitura della Fiamma",
+    event: "turn-end",
+    resolution: "manual-effect",
+    label: "1d10 fuoco a fine turno nell'aura",
+    failureEffect: "1d10 danni da fuoco (nessun TS).",
+    damage: { dice: "1d10", type: "fuoco", onSave: "none" },
+    targetIds: ["target"],
+  }, itemsById);
+
+  assert.equal(notice.kind, "zone-effect");
+  assert.equal(notice.resolution.mode, "manual-damage");
+  assert.equal(notice.resolution.damage.dice, "1d10");
+  assert.equal(zoneTriggerNoticeDetail(notice), "1d10 fuoco a fine turno nell'aura");
+  assert.doesNotMatch(zoneTriggerNoticeDetail(notice), /CD|Fallimento/);
+});
+
 test("un TS informativo conserva istruzione, CD e caster", () => {
   const notice = {
     ...validNotice("concentration-save"),

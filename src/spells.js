@@ -223,12 +223,38 @@ export function buildSpellChips(spells, options = {}) {
     const label = document.createElement("span");
     label.textContent = formatSpellChip(displayName, spell);
     chip.appendChild(label);
+    const boardTokenHP = options.boardTokenHP && typeof options.boardTokenHP === "object"
+      ? options.boardTokenHP
+      : null;
+    if (
+      boardTokenHP?.itemId
+      && Number.isFinite(Number(boardTokenHP.hp))
+      && Number.isFinite(Number(boardTokenHP.hpMax))
+    ) {
+      const hp = document.createElement("span");
+      hp.dataset.badge = "hp";
+      hp.dataset.spellBoardTokenHp = "1";
+      hp.dataset.itemId = String(boardTokenHP.itemId);
+      hp.textContent = `HP ${Math.max(0, Math.floor(Number(boardTokenHP.hp)))} / ${Math.max(0, Math.floor(Number(boardTokenHP.hpMax)))}`;
+      hp.title = `Punti ferita di ${displayName}. Clicca per modificare`;
+      hp.setAttribute("aria-label", hp.title);
+      Object.assign(hp.style, {
+        flex: "0 1 auto",
+        minWidth: "0",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        fontWeight: "700",
+        cursor: "text",
+      });
+      chip.appendChild(hp);
+    }
     chip.title = displayName + " — " + spellExpiryDescription(spell);
     const color = spellColorFor(spell?.spellId || displayName);
     Object.assign(chip.style, {
       display: "inline-flex",
       alignItems: "center",
-      gap: onTerminate ? "3px" : "0",
+      gap: onTerminate || boardTokenHP?.itemId ? "3px" : "0",
       padding: "2px 6px",
       borderRadius: "999px",
       background: color.solid,

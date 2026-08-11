@@ -1,7 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSpellInstanceId } from "./spells.js";
-import { refreshConditionLabels } from "./conditions.js";
+import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
 import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
@@ -11,10 +11,29 @@ import {
   buildSpellApplicationPlan,
 } from "./spellApplicationPlanCore.js";
 import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
+import {
+  normalizeActiveResolutionTargetIds,
+  resolveSpellActiveResolutionDamage,
+  validateSpellActiveResolutionPayload,
+} from "./spellActiveResolutionCore.js";
+import { validateSpellActiveResolutionCommit } from "./spellActiveResolutionValidation.js";
+import {
+  calculateQuickHPChange,
+  QUICK_HP_FACTORS,
+  QUICK_HP_MODES,
+} from "./quickHpCore.js";
+import {
+  resolveZeroHPUnconsciousAction,
+  ZERO_HP_UNCONSCIOUS_TYPE,
+} from "./hpConditionRulesCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
 import { requestSpellZoneMovement } from "./spellAreaPlacementClient.js";
+import {
+  createSpellBoardTokenId,
+  getSpellBoardTokenRule,
+} from "./spellBoardTokenCore.js";
 
 const STATE_KEY = `${ID}/state`;
 
@@ -117,21 +136,265 @@ export async function executeSpellActiveAction({
     throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
   }
 
-  const mutation = await runEffectsMutation(actionPlan.operations, {
-    kind: "spell",
-    label: actionPlan.historyLabel,
-    targetIds: selectedTargetIds,
-    sideEffects: actionPlan.zoneRuleChoice ? [{
+  const sideEffects = [];
+  if (actionPlan.zoneRuleChoice) {
+    sideEffects.push({
       type: "static-zone:set-rule-choice",
       selector: { instanceId: group?.instanceId || "" },
       ruleChoice: actionPlan.zoneRuleChoice,
       requireMatch: true,
-    }] : [],
+    });
+  }
+  if (actionPlan.entityAction) {
+    sideEffects.push({
+      type: "spell-board-token:update-state",
+      instanceId: String(group?.instanceId || "").trim(),
+      action: actionPlan.entityAction,
+      targetIds: actionPlan.subjectIds,
+    });
+  }
+  const mutation = await runEffectsMutation(actionPlan.operations, {
+    kind: "spell",
+    label: actionPlan.historyLabel,
+    targetIds: [String(group?.casterId || "").trim(), ...selectedTargetIds].filter(Boolean),
+    sideEffects,
   });
   requireAppliedEffectsMutation(mutation);
   const changedIds = mutation.changedIds;
   await refreshConditionLabels(changedIds);
   return changedIds;
+}
+
+function metadataSnapshot(meta, field) {
+  return Object.prototype.hasOwnProperty.call(meta || {}, field)
+    ? { present: true, value: meta[field] }
+    : { present: false };
+}
+
+function activeResolutionAction(payload) {
+  return payload?.action && typeof payload.action === "object"
+    ? payload.action
+    : null;
+}
+
+function activeResolutionOutcome(payload, targetId, attackOutcome) {
+  return payload?.action?.resolutionKind === "single-attack"
+    ? String(attackOutcome || "").trim()
+    : String(payload?.outcomes?.[targetId] || "").trim();
+}
+
+export async function executeSpellActiveResolution({
+  payload = null,
+  placement = null,
+  targetIds = [],
+  outcomes = {},
+  damageRoll = 0,
+  attackOutcome = "",
+  naturalStormBonus = false,
+} = {}) {
+  const normalizedPayload = {
+    ...(payload && typeof payload === "object" ? payload : {}),
+    ...(outcomes && typeof outcomes === "object" ? { outcomes } : {}),
+  };
+  const payloadValidation = validateSpellActiveResolutionPayload(payload);
+  if (!payloadValidation.valid) {
+    throw new Error("Invalid active spell resolution: " + payloadValidation.errors.join(", "));
+  }
+  const ids = normalizeActiveResolutionTargetIds(targetIds);
+  if (!ids.length) throw new Error("active-resolution-targets-required");
+  const commitInput = {
+    payload: normalizedPayload,
+    placement,
+    targetIds: ids,
+    outcomes,
+    damageRoll,
+    attackOutcome,
+  };
+  const preflight = await validateSpellActiveResolutionCommit(commitInput);
+  if (!preflight.valid) {
+    throw new Error("Invalid active spell resolution: " + preflight.errors.join(", "));
+  }
+
+  const items = await OBR.scene.items.getItems(ids);
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const metadataPatches = [];
+  const operations = [];
+  const unconsciousIds = [];
+  const unconsciousRemovals = [];
+  const action = activeResolutionAction(payload);
+  for (const targetId of ids) {
+    const item = byId.get(targetId);
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    const outcome = activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
+    const damage = resolveSpellActiveResolutionDamage({
+      action,
+      slotLevel: payload.slotLevel,
+      outcome,
+      roll: damageRoll,
+    });
+    if (!damage.valid) throw new Error("active-resolution-damage-invalid");
+    if (damage.amount <= 0) continue;
+    if (!item
+      || !Object.prototype.hasOwnProperty.call(meta, "hp")
+      || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
+      throw new Error("active-resolution-hp-required");
+    }
+    const hpChange = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.DAMAGE,
+      value: damage.amount,
+      factor: QUICK_HP_FACTORS.FULL,
+      hp: meta.hp,
+      hpMax: meta.hpMax,
+    });
+    if (!hpChange.changed) continue;
+    metadataPatches.push({
+      id: targetId,
+      fields: {
+        hp: {
+          expected: metadataSnapshot(meta, "hp"),
+          value: hpChange.afterHP,
+        },
+        hpMax: {
+          expected: metadataSnapshot(meta, "hpMax"),
+          value: hpChange.hpMax,
+        },
+      },
+    });
+    const zeroAction = resolveZeroHPUnconsciousAction(
+      { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
+      getConditionInstances(meta.conditions || {}),
+    );
+    if (zeroAction.add) unconsciousIds.push(targetId);
+    unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
+      itemId: targetId,
+      instanceId,
+    })));
+  }
+  if (unconsciousIds.length) {
+    operations.push({
+      type: "condition:add",
+      targetIds: unconsciousIds,
+      conditionName: "Privo di sensi",
+      options: { type: ZERO_HP_UNCONSCIOUS_TYPE, expiry: { mode: "manual" } },
+    });
+    operations.push({ type: "condition:automate", subjectIds: unconsciousIds });
+  }
+  if (unconsciousRemovals.length) {
+    operations.push({ type: "condition:remove-instances", removals: unconsciousRemovals });
+  }
+  const spellName = String(payload.spellName || payload.spellId).trim();
+  const actionLabel = String(action.buttonLabel || action.label || "Attivazione").trim();
+  const mutation = await runEffectsMutation(operations, {
+    sceneEpoch: payload.sceneEpoch,
+    kind: "spell-active-resolution",
+    label: `Attivazione: ${spellName} · ${actionLabel}`,
+    targetIds: [payload.casterId, ...ids],
+    metadataPatches,
+    sideEffects: [{
+      type: "spell-active-resolution:validate",
+      ...commitInput,
+      naturalStormBonus: naturalStormBonus === true,
+    }],
+    history: {
+      kind: "spell-active-resolution",
+      label: `Attivazione: ${spellName} · ${actionLabel}`,
+      payload: {
+        type: payload.type,
+        spellId: payload.spellId,
+        instanceId: payload.instanceId,
+        casterId: payload.casterId,
+        actionId: payload.actionId,
+        slotLevel: payload.slotLevel,
+        targetIds: ids,
+        outcomes,
+        attackOutcome: String(attackOutcome || ""),
+        damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)),
+        naturalStormBonus: naturalStormBonus === true,
+      },
+    },
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels(mutation.changedIds || []);
+  return mutation;
+}
+
+export async function executeSpellBoardTokenStateUpdate({
+  group = null,
+  hp = undefined,
+} = {}) {
+  const instanceId = String(group?.instanceId || "").trim();
+  const casterId = String(group?.casterId || "").trim();
+  if (!instanceId || !casterId) throw new Error("Invalid spell board token state: context-required");
+  const rule = getSpellBoardTokenRule(group?.spellId);
+  const endsAtZero = rule?.spellId === "arcane-hand"
+    && hp !== undefined
+    && Number.isFinite(Number(hp))
+    && Number(hp) === 0;
+  const operations = endsAtZero
+    ? [
+      {
+        type: "concentration:break",
+        casterIds: [casterId],
+        reference: instanceId,
+      },
+      {
+        type: "spell:remove-instance",
+        targetIds: [casterId],
+        instanceId,
+      },
+    ]
+    : [];
+  const label = endsAtZero
+    ? `Terminata pedina: ${String(group?.name || "Incantesimo").trim()}`
+    : `Aggiorna pedina: ${String(group?.name || "Incantesimo").trim()}`;
+  const mutation = await runEffectsMutation(operations, {
+    kind: "spell-board-token",
+    label,
+    targetIds: [casterId],
+    sideEffects: [{
+      type: "spell-board-token:update-state",
+      instanceId,
+      hp,
+      ...(endsAtZero ? { removeWhenZero: true } : {}),
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
+  return mutation.commitResult?.sideEffectChanges || [];
+}
+
+export async function executeSpellBoardTokenRecreate({
+  group = null,
+  position = null,
+} = {}) {
+  const instanceId = String(group?.instanceId || "").trim();
+  const casterId = String(group?.casterId || "").trim();
+  const rule = getSpellBoardTokenRule(group?.spellId);
+  if (
+    !instanceId
+    || !casterId
+    || !rule
+    || !Number.isFinite(Number(position?.x))
+    || !Number.isFinite(Number(position?.y))
+  ) {
+    throw new Error("Invalid spell board token recreation: context-required");
+  }
+  const label = `Ricrea pedina: ${String(group?.name || rule.label).trim()}`;
+  const mutation = await runEffectsMutation([], {
+    kind: "spell-board-token",
+    label,
+    targetIds: [casterId],
+    sideEffects: [{
+      type: "spell-board-token:place",
+      entityId: createSpellBoardTokenId(),
+      spellId: rule.spellId,
+      instanceId,
+      casterId,
+      slotLevel: group?.castContext?.slotLevel,
+      position: { x: Number(position.x), y: Number(position.y) },
+    }],
+  });
+  requireAppliedEffectsMutation(mutation);
+  return mutation.commitResult?.sideEffectChanges || [];
 }
 
 export async function executeSpellApplication({
@@ -180,18 +443,25 @@ export async function executeSpellApplication({
   const removeReplacedZones = intent.wantsConcentration
     && applicationPlan.concentrationAction === "replace"
     && casterId;
+  const boardTokenRule = applicationPlan.phasePlan?.phase === "prepare"
+    ? null
+    : getSpellBoardTokenRule(spell);
+  const sideEffects = [];
+  if (removeReplacedZones) {
+    sideEffects.push({
+      type: "static-zone:remove-ended",
+      selectors: [{ casterId }],
+    });
+  }
   const mutation = await runEffectsMutation(applicationPlan.operations, {
     kind: "spell",
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
-    sideEffects: removeReplacedZones ? [{
-      type: "static-zone:remove-ended",
-      selectors: [{ casterId }],
-    }] : [],
+    sideEffects,
   });
   requireAppliedEffectsMutation(mutation);
   const changedIds = mutation.changedIds;
-  if (applicationPlan.phasePlan?.phase !== "prepare") {
+  if (applicationPlan.phasePlan?.phase !== "prepare" && !boardTokenRule) {
     void emitMatchedSpellVisual({
       spellId: spell?.id,
       casterId,

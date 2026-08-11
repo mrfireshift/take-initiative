@@ -10,8 +10,8 @@
 - Catalogo sorgente: **477** definizioni; perimetro operativo: **374**; testi disponibili nel perimetro: **373**.
 - Fuori perimetro: **103** definizioni. Sono escluse a priori le spell con casting time maggiore di 1 azione e le esclusioni curate dal perimetro operativo.
 - Definizioni tracciabili: **280**; definizioni con almeno una regola di area: **114**.
-- Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **52**.
-- Impronta deterministica dello snapshot: `e670bda8c1ea7b4a`.
+- Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **43**.
+- Impronta deterministica dello snapshot: `b580f9abbf9a2c17`.
 - P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.
 - Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.
 - I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.
@@ -30,9 +30,9 @@
 
 | Stato | Totale |
 | --- | ---: |
-| coperto | 244 |
+| coperto | 253 |
 | istantaneo: gestione manuale | 57 |
-| parziale: revisione curata | 52 |
+| parziale: revisione curata | 43 |
 | revisione: testo mancante | 1 |
 | riferimento/utilità | 20 |
 
@@ -40,8 +40,8 @@
 
 | Stato | Totale |
 | --- | ---: |
-| — | 321 |
-| P1 | 52 |
+| — | 330 |
+| P1 | 43 |
 | P2 | 1 |
 
 ### Ambito dei tiri salvezza
@@ -58,7 +58,6 @@
 | Incantesimo | Fonte | Lacune | Evidenza/valutazione |
 | --- | --- | --- | --- |
 | Anatema Elementale | Xanathar | trigger condizionale durante la durata assente | Il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi; resta manuale il trigger della prima applicazione di danno compatibile in ogni turno, con +2d6 e rimozione della resistenza. |
-| Arma spirituale | SRD 5.1 | azione ripetibile della spell assente; azione di spostamento della zona assente | L'arma è una sorgente mobile: ogni azione bonus può spostarla di 6 m e ripetere l'attacco da quella posizione. |
 | Aura di Vita | PHB 2014 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente | Servono resistenza necrotica, protezione del massimo PF e recupero di 1 PF a inizio turno per creature non ostili a 0 PF. |
 | Aura di Vitalità | PHB 2014 | azione di cura entro l'aura assente | L'aura deve delimitare i bersagli validi dell'azione bonus di cura da 2d6. |
 | Aura sacra | SRD 5.1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato | Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell. |
@@ -71,7 +70,6 @@
 | Dominare bestie | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Dominare mostri | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Dominare persona | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
-| Folata di vento | SRD 5.1 | costo di movimento direzionale non calcolato; smoke test geometrico e lifecycle ancora richiesto | La linea, il TS a inizio turno e il cambio di direzione esistono; manca il costo raddoppiato soltanto avvicinandosi al caster e serve lo smoke test completo. |
 | Forme animali | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati. |
 | Frecce Infuocate | Xanathar | contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente | Servono il contatore condiviso delle dodici munizioni e il consumo dell'effetto al primo colpo o mancato di ogni freccia estratta. |
 | Fuorviare | SRD 5.1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente | Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi. |
@@ -81,14 +79,9 @@
 | Intermittenza | SRD 5.1 | stato casuale ricorrente di turno assente; conseguenza alla fine della spell assente | Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione. |
 | Inversione della gravità | SRD 5.1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti | La geometria non basta: servono salita, collisione, sospensione e caduta coordinata quando termina la spell. |
 | Investitura del Vento | Xanathar | azione ripetibile della spell assente; conseguenza alla fine della spell assente | La velocità di volo è modellabile, ma mancano il cubo offensivo ripetibile e la caduta se la spell termina mentre il caster è in volo. |
-| Investitura della Fiamma | Xanathar | azione ripetibile della spell assente; trigger spaziali o di turno assenti | Mancano il danno automatico a ingresso/fine turno nell'aura e la linea di fuoco ripetibile come azione. |
 | Investitura della Pietra | Xanathar | azione ripetibile della spell assente; eccezioni e immunità ai costi di movimento assenti; conseguenza alla fine della spell assente | Servono terremoto ripetibile, immunità al costo del terreno difficile, attraversamento della pietra ed espulsione con Stordito se il movimento termina al suo interno. |
-| Invocare il fulmine | SRD 5.1 | azione ripetibile della spell assente | Dopo il lancio il caster può scegliere ogni turno un nuovo punto sotto la nube e risolvere nuovamente area, TS e danni. |
 | Lama d'Ombra | Xanathar | azione ripetibile della spell assente | La spell non espone l'arma creata né l'azione bonus che la fa ricomparire nella mano dopo che è stata lasciata cadere o lanciata. |
-| Lama del Disastro | Tasha | azione ripetibile della spell assente; azione di spostamento della zona assente | Manca l'azione bonus ricorrente che sposta la lama di 9 m e risolve due attacchi, inclusa la soglia di critico 18–20 e i dadi critici speciali. |
 | Lama infuocata | SRD 5.1 | azione ripetibile della spell assente | La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata. |
-| Libertà di movimento | SRD 5.1 | eccezioni e immunità ai costi di movimento assenti | Lo Speed Tracker deve ignorare terreno difficile e riduzioni magiche, oltre a rappresentare l'uscita automatica spendendo 1,5 m. |
-| Mano arcana | SRD 5.1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente; azione di spostamento della zona assente | La mano è una sorgente mobile con PF/CA propri e quattro modalità ripetibili: interposizione, spinta, presa/stritolamento e pugno. |
 | Modellare Acqua | Xanathar | geometria d'area assente; varianti rilevanti non modellate | Le quattro manipolazioni del cubo d'acqua, incluse congelamento e animazione persistenti, non sono selezionabili né collegate a una geometria opzionale. |
 | Modellare Terra | Xanathar | geometria d'area assente; varianti rilevanti non modellate; meccanica di movimento assente | Mancano le modalità del cubo e, per il terreno reso difficile o normale per un'ora, una zona persistente collegata al costo di movimento. |
 | Muro d'Acqua | Xanathar | meccanica di movimento assente; trigger condizionale durante la durata assente | La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo. |
@@ -99,8 +92,6 @@
 | Palla di fuoco ritardata | SRD 5.1 | detonazione e accumulo alla terminazione assenti; contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente | La sfera accumula 1d6 a fine turno, esplode alla terminazione o al contatto e può essere lanciata altrove dopo un TS riuscito. |
 | Parlare con i vegetali | SRD 5.1 | meccanica di movimento assente; varianti rilevanti non modellate | L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker. |
 | Punizione marchiante | SRD 5.1 | trigger condizionale durante la durata assente; regole passive e limitazioni della spell incomplete | Manca la risoluzione sul prossimo colpo: danni radiosi, rivelazione di un bersaglio invisibile e blocco di nuova invisibilità fino alla fine della spell. |
-| Sfera della Tempesta | Xanathar | azione ripetibile della spell assente; effetto ricorrente di turno assente | La zona applica TS/danni a fine turno e il caster può lanciare un fulmine ogni round con vantaggio contro bersagli interni. |
-| Spada arcana | SRD 5.1 | azione ripetibile della spell assente; azione di spostamento della zona assente | Ogni azione bonus sposta la sorgente di 6 m e ripete l'attacco dallo spazio della spada. |
 | Spruzzo prismatico | SRD 5.1 | esito casuale e relativo stato non rappresentati; sequenza di più TS e uscita dalla condizione incompleta; condizione o stato RAW non rappresentato | La sagoma e il primo TS esistono, ma non il d8 per ciascun bersaglio, il doppio raggio con 8, i TS successivi e gli stati Accecato, Trattenuto e Pietrificato. |
 | Sudario Spirituale | Tasha | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente | Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo. |
 | Telecinesi | SRD 5.1 | azione ripetibile della spell assente; condizione o stato RAW non rappresentato | Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo. |
@@ -142,7 +133,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Arma Elementale | `phb2014-arma-elementale` | PHB 2014 / 3 | combattimento | — | — | tracking, varianti | coperto | — | — |
 | Arma magica | `magic-weapon` | SRD 5.1 / 2 | combattimento | — | — | tracking | coperto | — | — |
 | Arma Sacra | `xanathar-arma-sacra` | Xanathar / 5 | combattimento | area | area, TS:area | tracking, aree:instant, TS, status:Accecato, turni | coperto | — | — |
-| Arma spirituale | `spiritual-weapon` | SRD 5.1 / 2 | combattimento | — | fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente; azione di spostamento della zona assente |
+| Arma spirituale | `spiritual-weapon` | SRD 5.1 / 2 | combattimento | — | fasi/azioni | tracking, movimento, pedina magica, fasi/azioni | coperto | — | — |
 | Armatura di Agathys | `phb2014-armatura-di-agathys` | PHB 2014 / 1 | combattimento | — | — | tracking | coperto | — | — |
 | Armatura magica | `mage-armor` | SRD 5.1 / 1 | utilità/riferimento | — | — | tracking | coperto | — | — |
 | Artificio druidico | `druidcraft` | SRD 5.1 / 0 | utilità/riferimento | — | effetto istantaneo persistente | — | riferimento/utilità | — | — |
@@ -239,7 +230,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Fiotto acido | `acid-splash` | SRD 5.1 / 0 | combattimento | singolo | TS:singolo | — | istantaneo: gestione manuale | — | — |
 | Flusso di Energia Negativa | `xanathar-flusso-di-energia-negativa` | Xanathar / 5 | combattimento | singolo | TS:singolo, turni | — | istantaneo: gestione manuale | — | — |
 | Folata | `xanathar-folata` | Xanathar / 0 | combattimento | singolo | TS:singolo | — | istantaneo: gestione manuale | — | — |
-| Folata di vento | `gust-of-wind` | SRD 5.1 / 2 | combattimento | area | area, TS:area, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | parziale: revisione curata | P1 | costo di movimento direzionale non calcolato; smoke test geometrico e lifecycle ancora richiesto |
+| Folata di vento | `gust-of-wind` | SRD 5.1 / 2 | combattimento | area | area, TS:area, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
 | Forma eterea | `etherealness` | SRD 5.1 / 7 | combattimento | — | — | tracking | coperto | — | — |
 | Forme animali | `animal-shapes` | SRD 5.1 / 8 | combattimento | — | fasi/azioni, varianti | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Fortezza della Mente | `tasha-fortezza-della-mente` | Tasha / 3 | combattimento | — | — | tracking | coperto | — | — |
@@ -286,16 +277,16 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Inversione della gravità | `reverse-gravity` | SRD 5.1 / 7 | combattimento | — | riferimento TS | tracking, aree:zone, lifecycle, TS, movimento | parziale: revisione curata | P1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti |
 | Investitura del Ghiaccio | `xanathar-investitura-del-ghiaccio` | Xanathar / 6 | combattimento | area | area, TS:area, movimento, turni, fasi/azioni | tracking, aree:aura/emission, lifecycle, TS, movimento, turni, fasi/azioni | coperto | — | — |
 | Investitura del Vento | `xanathar-investitura-del-vento` | Xanathar / 6 | combattimento | area | area, TS:area, movimento, fasi/azioni | tracking, aree:instant, TS, movimento | parziale: revisione curata | P1 | azione ripetibile della spell assente; conseguenza alla fine della spell assente |
-| Investitura della Fiamma | `xanathar-investitura-della-fiamma` | Xanathar / 6 | combattimento | area | area, TS:area, fasi/azioni | tracking, aree:instant, TS | parziale: revisione curata | P1 | azione ripetibile della spell assente; trigger spaziali o di turno assenti |
+| Investitura della Fiamma | `xanathar-investitura-della-fiamma` | Xanathar / 6 | combattimento | area | area, TS:area, fasi/azioni | tracking, aree:aura/emission, lifecycle, TS, turni, fasi/azioni | coperto | — | — |
 | Investitura della Pietra | `xanathar-investitura-della-pietra` | Xanathar / 6 | combattimento | area | TS:area, status:Stordito, movimento, turni, fasi/azioni | tracking, aree:instant, TS, status:Prono | parziale: revisione curata | P1 | azione ripetibile della spell assente; eccezioni e immunità ai costi di movimento assenti; conseguenza alla fine della spell assente |
 | Inviare | `sending` | SRD 5.1 / 3 | utilità/riferimento | — | — | tracking, turni | coperto | — | — |
 | Invisibilità | `invisibility` | SRD 5.1 / 2 | combattimento | — | status:Invisibile | tracking, TS, status:Invisibile | coperto | — | — |
 | Invisibilità superiore | `greater-invisibility` | SRD 5.1 / 4 | combattimento | — | status:Invisibile | tracking, TS, status:Invisibile | coperto | — | — |
-| Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | combattimento | area | TS:area, fasi/azioni | tracking, aree:instant, TS | parziale: revisione curata | P1 | azione ripetibile della spell assente |
+| Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | combattimento | area | TS:area, fasi/azioni | tracking, aree:instant/zone, lifecycle, TS, movimento, fasi/azioni | coperto | — | — |
 | Invulnerabilità | `xanathar-invulnerabilita` | Xanathar / 9 | combattimento | — | — | tracking | coperto | — | — |
 | Labirinto | `maze` | SRD 5.1 / 8 | utilità/riferimento | — | — | tracking | coperto | — | — |
 | Lama d'Ombra | `xanathar-lama-dombra` | Xanathar / 2 | combattimento | — | turni, fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente |
-| Lama del Disastro | `tasha-lama-del-disastro` | Tasha / 9 | combattimento | — | area, ingresso/attraversamento, fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente; azione di spostamento della zona assente |
+| Lama del Disastro | `tasha-lama-del-disastro` | Tasha / 9 | combattimento | — | ingresso/attraversamento, fasi/azioni | tracking, movimento, pedina magica, fasi/azioni | coperto | — | — |
 | Lama infuocata | `flame-blade` | SRD 5.1 / 2 | combattimento | — | fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente |
 | Lama Roboante | `tasha-lama-roboante` | Tasha / 0 | combattimento | — | turni | tracking, turni | coperto | — | — |
 | Lama Verdefiamma | `tasha-lama-verdefiamma` | Tasha / 0 | combattimento | — | — | — | istantaneo: gestione manuale | — | — |
@@ -304,7 +295,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Lentezza | `slow` | SRD 5.1 / 3 | combattimento | area | TS:area, turni | tracking, aree:instant, TS, movimento, turni | coperto | — | — |
 | Lenza Elettrizzante | `tasha-lenza-elettrizzante` | Tasha / 0 | combattimento | singolo | TS:singolo | — | istantaneo: gestione manuale | — | — |
 | Levitazione | `levitate` | SRD 5.1 / 2 | combattimento | — | riferimento TS | tracking | coperto | — | — |
-| Libertà di movimento | `freedom-of-movement` | SRD 5.1 / 4 | utilità/riferimento | — | movimento | tracking | parziale: revisione curata | P1 | eccezioni e immunità ai costi di movimento assenti |
+| Libertà di movimento | `freedom-of-movement` | SRD 5.1 / 4 | utilità/riferimento | — | movimento | tracking, movimento | coperto | — | — |
 | Linguaggi | `tongues` | SRD 5.1 / 3 | utilità/riferimento | — | — | tracking | coperto | — | — |
 | Localizza animali o vegetali | `locate-animals-or-plants` | SRD 5.1 / 2 | utilità/riferimento | — | — | — | riferimento/utilità | — | — |
 | Localizza creatura | `locate-creature` | SRD 5.1 / 4 | utilità/riferimento | — | — | tracking | coperto | — | — |
@@ -316,7 +307,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Luminescenza | `faerie-fire` | SRD 5.1 / 1 | combattimento | — | area, riferimento TS | tracking, aree:instant, TS | coperto | — | — |
 | Maelstrom | `xanathar-maelstrom` | Xanathar / 5 | combattimento | area | area, TS:area, movimento | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
 | Mani brucianti | `burning-hands` | SRD 5.1 / 1 | combattimento | area | area, TS:area | aree:instant, TS | coperto | — | — |
-| Mano arcana | `arcane-hand` | SRD 5.1 / 5 | combattimento | — | movimento, fasi/azioni | tracking | parziale: revisione curata | P1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente; azione di spostamento della zona assente |
+| Mano arcana | `arcane-hand` | SRD 5.1 / 5 | combattimento | — | movimento, fasi/azioni | tracking, movimento, pedina magica, fasi/azioni, varianti | coperto | — | — |
 | Mano magica | `mage-hand` | SRD 5.1 / 0 | utilità/riferimento | — | — | tracking | coperto | — | — |
 | Manto del Crociato | `legacy-crusaders-mantle` | Legacy / 3 | utilità/riferimento | — | — | tracking | revisione: testo mancante | P2 | testo regolamentare locale mancante |
 | Messaggio | `message` | SRD 5.1 / 0 | utilità/riferimento | — | — | tracking, turni | coperto | — | — |
@@ -445,7 +436,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Sfera Acquea | `xanathar-sfera-acquea` | Xanathar / 4 | combattimento | area | area, TS:area | tracking, aree:zone, lifecycle, TS, status:Trattenuto, movimento, turni | coperto | — | — |
 | Sfera al Vetriolo | `xanathar-sfera-al-vetriolo` | Xanathar / 4 | combattimento | area | area, TS:area, turni, effetto istantaneo persistente | aree:instant, TS, turni | coperto | — | — |
 | Sfera congelante | `freezing-sphere` | SRD 5.1 / 6 | combattimento | area | area, TS:area | aree:instant, TS | coperto | — | — |
-| Sfera della Tempesta | `xanathar-sfera-della-tempesta` | Xanathar / 4 | combattimento | area | area, TS:area, movimento, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | parziale: revisione curata | P1 | azione ripetibile della spell assente; effetto ricorrente di turno assente |
+| Sfera della Tempesta | `xanathar-sfera-della-tempesta` | Xanathar / 4 | combattimento | area | area, TS:area, movimento, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni, fasi/azioni | coperto | — | — |
 | Sfera elastica | `resilient-sphere` | SRD 5.1 / 4 | combattimento | singolo | TS:singolo, ingresso/attraversamento | tracking | coperto | — | — |
 | Sfera infuocata | `flaming-sphere` | SRD 5.1 / 2 | combattimento | area | TS:area, movimento, ingresso/attraversamento, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
 | Sfocatura | `blur` | SRD 5.1 / 2 | utilità/riferimento | — | — | tracking | coperto | — | — |
@@ -454,7 +445,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Soffio del Drago | `xanathar-soffio-del-drago` | Xanathar / 2 | combattimento | area | area, TS:area | tracking, aree:instant, TS | coperto | — | — |
 | Sonnellino | `xanathar-sonnellino` | Xanathar / 3 | combattimento | — | — | tracking, TS, status:Privo di sensi | coperto | — | — |
 | Sonno | `sleep` | SRD 5.1 / 1 | combattimento | — | area | tracking, aree:instant, TS, status:Privo di sensi | coperto | — | — |
-| Spada arcana | `arcane-sword` | SRD 5.1 / 7 | combattimento | — | fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente; azione di spostamento della zona assente |
+| Spada arcana | `arcane-sword` | SRD 5.1 / 7 | combattimento | — | fasi/azioni | tracking, movimento, pedina magica, fasi/azioni | coperto | — | — |
 | Spirito Guaritore | `xanathar-spirito-guaritore` | Xanathar / 2 | combattimento | — | area, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
 | Spostamento planare | `plane-shift` | SRD 5.1 / 7 | combattimento | singolo | TS:singolo | — | istantaneo: gestione manuale | — | — |
 | Spruzzo colorato | `color-spray` | SRD 5.1 / 1 | combattimento | — | — | tracking, aree:instant, TS, status:Accecato, turni | coperto | — | — |

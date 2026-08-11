@@ -29,9 +29,10 @@ test("le pill di una spell possono avere scadenze diverse dal parent", () => {
       parentEffectId: "absorb",
       type: "spell",
       effectId: "resistance-fire",
-      effectKind: "buff",
-      effectDetail: "",
-      manualRemoval: false,
+    effectKind: "buff",
+    effectDetail: "",
+    magical: true,
+    manualRemoval: false,
   });
   assert.deepEqual(chargedHit.expiry, {
     mode: "turn-end",
@@ -76,4 +77,16 @@ test("una pill spell trasferisce il contratto del reminder TS", () => {
   assert.equal(options.saveReminder, saveReminder);
   assert.equal(options.sourceId, "caster");
   assert.equal(options.parentEffectId, "spell-instance");
+});
+
+test("un effetto spell trasferisce anche la visibilita mappa e la semantica magica", () => {
+  const options = spellEffectConditionOptions({
+    id: "freedom-of-movement-immunities",
+    kind: "buff",
+    label: "Libertà di movimento",
+    mapVisible: false,
+  }, {}, "freedom-instance");
+
+  assert.equal(options.mapVisible, false);
+  assert.equal(options.magical, true);
 });

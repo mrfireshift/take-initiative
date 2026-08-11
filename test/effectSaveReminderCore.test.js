@@ -271,6 +271,51 @@ test("un reminder di inizio turno non scatta nel turno in cui viene applicato", 
   }), []);
 });
 
+test("Libertà di movimento crea un prompt al turno del bersaglio solo per restrizioni non magiche", () => {
+  const bearer = target("first", [
+    {
+      id: "freedom-effect",
+      condition: "Libertà di movimento",
+      active: true,
+      appliedAt: { turnKey: "1:0:caster" },
+      mechanics: {
+        movement: {
+          escape: {
+            costMeters: 1.5,
+            conditions: ["Afferrato", "Trattenuto"],
+            prompt: "Spendere 1,5 m di movimento per liberarsi?",
+          },
+        },
+      },
+    },
+    {
+      id: "mundane-grapple",
+      condition: "Afferrato",
+      active: true,
+    },
+    {
+      id: "magical-restrained",
+      condition: "Trattenuto",
+      active: true,
+      type: "spell",
+    },
+  ]);
+  const notices = planEffectSaveReminderNotices({
+    items: [caster(), bearer],
+    previousInitiativeState: state(0),
+    initiativeState: state(1),
+  });
+
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].target.id, "first");
+  assert.equal(notices[0].saveLabel, "Movimento 1,5 m");
+  assert.match(notices[0].instruction, /Afferrato/);
+  assert.deepEqual(notices[0].resolution.choiceLabels, {
+    passed: "Spendi 1,5 m",
+    failed: "Non ora",
+  });
+});
+
 test("Nauseato consegna il reminder di fine turno nel nuovo turno visibile", () => {
   const first = target("first", [
     condition("eyebite-sickened", "turn-end", {

@@ -170,6 +170,103 @@ test("il terreno difficile dell'aura raddoppia il costo senza dimezzare la veloc
   assert.match(result.summary, /Aura ghiacciata/);
 });
 
+test("Libertà di movimento ignora terreno difficile e riduzioni magiche selettive", () => {
+  const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
+  const difficultTerrain = condition("Terreno difficile", {
+    mechanics: {
+      movement: {
+        costMultiplier: 2,
+        category: "difficult-terrain",
+      },
+    },
+  });
+  const magicalSlow = condition("Riduzione magica", {
+    type: "spell",
+    mechanics: { movement: { multiplier: 0.5 } },
+  });
+  const result = resolveConditionSpeed(9, [freedom, difficultTerrain, magicalSlow]);
+
+  assert.equal(result.speedMeters, 9);
+  assert.equal(result.movementCostMultiplier, 1);
+  assert.deepEqual(result.movementImmunities, [
+    "difficult-terrain",
+    "magical-speed-reduction",
+  ]);
+  assert.equal(
+    resolveConditionSpeed(9, [
+      freedom,
+      condition("Terreno difficile / Ragnatela", {
+        mechanics: { movement: { costMultiplier: 2 } },
+      }),
+    ]).movementCostMultiplier,
+    1,
+  );
+});
+
+test("Libertà di movimento conserva una riduzione non magica e ripristina il comportamento quando termina", () => {
+  const nonMagicalSlow = condition("Riduzione non magica", {
+    mechanics: { movement: { multiplier: 0.5 } },
+  });
+  const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
+
+  assert.equal(resolveConditionSpeed(9, [nonMagicalSlow]).speedMeters, 4.5);
+  assert.equal(resolveConditionSpeed(9, [freedom, nonMagicalSlow]).speedMeters, 4.5);
+  assert.equal(resolveConditionSpeed(9, [freedom]).speedMeters, 9);
+});
+
+test("Libertà di movimento non sblocca velocità base 0 né Prono", () => {
+  const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
+  assert.equal(resolveConditionSpeed(0, [freedom]).speedMeters, 0);
+  const prone = resolveConditionSpeed(9, [freedom, condition("Prono")]);
+  assert.equal(prone.speedMeters, 9);
+  assert.equal(prone.movementCostMultiplier, 2);
+  assert.equal(
+    resolveConditionSpeed(9, [freedom, condition("Privo di sensi")]).speedMeters,
+    0,
+  );
+});
+
+test("Libertà di movimento ignora Lentezza ma conserva le condizioni di blocco", () => {
+  assert.equal(
+    resolveConditionSpeed(9, [], [
+      { spellId: "freedom-of-movement" },
+      { spellId: "slow" },
+    ]).speedMeters,
+    9,
+  );
+  assert.equal(
+    resolveConditionSpeed(9, [
+      effectCondition(getSpellEffects("Libertà di movimento")[0]),
+      condition("Incapacitato"),
+    ]).speedMeters,
+    9,
+  );
+});
+
+test("Libertà di movimento conserva le modalità di movimento già disponibili", () => {
+  const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
+  const modes = condition("Modalità esistenti", {
+    mechanics: {
+      movement: {
+        modes: {
+          fly: { grantMeters: 18 },
+          swim: { copyFrom: "walk" },
+          climb: { copyFrom: "walk" },
+        },
+      },
+    },
+  });
+  const profile = resolveMovementProfile(9, [freedom, modes], [], "fly");
+  assert.deepEqual(profile.movementModes.map((entry) => entry.id), [
+    "walk",
+    "fly",
+    "swim",
+    "climb",
+  ]);
+  assert.equal(profile.activeMode, "fly");
+  assert.equal(profile.speedMeters, 18);
+});
+
 test("i moltiplicatori dichiarativi dimezzano tutte le velocità e arrotondano a caselle", () => {
   const slowed = condition("Velocità dimezzata", {
     effectId: "ice-investiture-slow",

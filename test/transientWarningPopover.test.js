@@ -37,6 +37,8 @@ test("i warning chiudono il proprio popover e non lasciano iframe vuoti", () => 
   assert.match(speed, /OBR\.popover\.close\(POPOVER_ID\)/);
   assert.match(turnNoticeHost, /await OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
   assert.doesNotMatch(turnNoticeHost, /setHeight\(TURN_NOTICE_POPOVER_ID, 1\)/);
+  assert.match(turnNoticeHost, /TURN_NOTICE_READY_RETRY_MS = 800/);
+  assert.match(turnNoticeHost, /scheduleReadyRetry\(\)/);
   assert.doesNotMatch(concentration, /OBR\.modal\.close\(MODAL_ID\)/);
   assert.doesNotMatch(speed, /OBR\.broadcast\.onMessage\(SPEED_WARNING_CHANNEL/);
 });

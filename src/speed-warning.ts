@@ -2,6 +2,8 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 
 const POPOVER_ID = ID + "/speed-warning-modal";
+const UI_CHANNEL = ID + "/speed-warning/ui";
+const HOST_CHANNEL = ID + "/speed-warning/host";
 const AUTO_CLOSE_MS = 5000;
 
 type Warning = {
@@ -27,6 +29,12 @@ function warningFromURL() {
 }
 
 function closePopover() {
+  window.clearTimeout(hideTimer);
+  void OBR.broadcast.sendMessage(
+    HOST_CHANNEL,
+    { type: "speed-warning-closed" },
+    { destination: "LOCAL" },
+  ).catch(() => {});
   void OBR.popover.close(POPOVER_ID).catch(() => {});
 }
 
@@ -115,5 +123,13 @@ OBR.onReady(() => {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePopover();
   });
+  OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
+    if (event?.data?.type === "show-speed-warning") renderWarning(event.data);
+  });
+  void OBR.broadcast.sendMessage(
+    HOST_CHANNEL,
+    { type: "speed-warning-ready" },
+    { destination: "LOCAL" },
+  ).catch(() => {});
   renderWarning(warningFromURL());
 });

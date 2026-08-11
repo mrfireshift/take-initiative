@@ -71,6 +71,7 @@ export function staticSpellZoneOwnerOperation({
   appliedAt = null,
   trackConcentration = false,
   ruleChoice = "",
+  slotLevel = null,
 } = {}) {
   const normalizedInstanceId = normalizedId(instanceId);
   const normalizedCasterId = normalizedId(casterId);
@@ -108,6 +109,9 @@ export function staticSpellZoneOwnerOperation({
     castContext: {
       staticZoneOwner: true,
       staticZoneRuleId: rule.id,
+      ...(slotLevel !== null && slotLevel !== "" && Number.isInteger(Number(slotLevel))
+        ? { slotLevel: Number(slotLevel) }
+        : {}),
       ...(normalizedId(ruleChoice)
         ? { choice: normalizedId(ruleChoice) }
         : {}),

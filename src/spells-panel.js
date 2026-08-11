@@ -19,6 +19,7 @@ import {
   getSpellCastPhasePlan,
 } from "./spellCastPhaseCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { currentSceneEpoch } from "./sceneEpoch.js";
 import { ID } from "./constants.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
@@ -47,8 +48,25 @@ import { findQuickAction } from "./quickActionsCore.js";
 import {
   executeSpellActiveAction,
   executeSpellApplication,
+  executeSpellBoardTokenRecreate,
+  executeSpellBoardTokenStateUpdate,
 } from "./spellApplicationExecutor.js";
 import { buildPreparedSpellResolutionRequest } from "./preparedSpellResolutionCore.js";
+import { getSpellBoardTokenItems } from "./spellBoardToken.js";
+import {
+  getSpellBoardTokenPlacementRule,
+  getSpellBoardTokenRule,
+  spellBoardTokenPlacementPosition,
+  spellBoardTokenView,
+} from "./spellBoardTokenCore.js";
+import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
+import {
+  buildSpellActiveResolutionPayload,
+  spellActiveResolutionPopoverId,
+} from "./spellActiveResolutionCore.js";
+import { getStaticSpellZoneItems } from "./spellStaticZone.js";
+import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 
 const META_KEY = ID + "/meta";
 const STATE_KEY = ID + "/state";
@@ -65,6 +83,18 @@ function closeSpellsPopover() {
 
 const $ = (id) => document.getElementById(id);
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
+
+async function activeResolutionAnchor(casterId) {
+  const bounds = await OBR.scene.items.getItemBounds([casterId]).catch(() => null);
+  const center = bounds?.center || null;
+  const min = bounds?.min || null;
+  if (!center || !min) return { left: 120, top: 120 };
+  const screen = await OBR.viewport.transformPoint({ x: center.x, y: min.y })
+    .catch(() => null);
+  return Number.isFinite(screen?.x) && Number.isFinite(screen?.y)
+    ? { left: screen.x, top: Math.max(12, screen.y - 12) }
+    : { left: 120, top: 120 };
+}
 
 async function terminateSpellGroup(group, requestedTargetIds = null) {
   const scoped = Array.isArray(requestedTargetIds);
@@ -323,7 +353,10 @@ async function init() {
 
   const currentCastContext = (spell) => ({
     slotLevel: resolveSpellSlotLevel(spell, slotLevelInput?.value),
-    mobileAura: !!getMobileAuraRule(spell?.id) && createMobileAuraInput?.checked === true,
+    mobileAura: !!getMobileAuraRule(spell?.id) && (
+      spell?.id === "xanathar-investitura-della-fiamma"
+      || createMobileAuraInput?.checked === true
+    ),
   });
 
   let automationSpellId = "";
@@ -343,6 +376,9 @@ async function init() {
     if (mobileAuraWrap) mobileAuraWrap.hidden = !auraRule;
     if (auraRule && createMobileAuraInput && automationSpellId !== spell.id) {
       createMobileAuraInput.checked = true;
+    }
+    if (createMobileAuraInput) {
+      createMobileAuraInput.disabled = spell.id === "xanathar-investitura-della-fiamma";
     }
     const viewModel = buildSpellAutomationViewModel({
       spell,
@@ -499,8 +535,37 @@ async function init() {
   const refreshOverview = async () => {
     if (!overviewList) return;
     const revision = ++overviewRevision;
-    const items = await getAllInitiativeCharacters(sourceId);
+    const [items, boardTokenItems, staticZoneItems, appliedAt] = await Promise.all([
+      getAllInitiativeCharacters(sourceId),
+      getSpellBoardTokenItems().catch(() => []),
+      getStaticSpellZoneItems().catch(() => []),
+      getAppliedAt(),
+    ]);
     const groups = spellOverviewGroups(items);
+    const boardTokenByInstance = new Map(
+      boardTokenItems
+        .map((item) => spellBoardTokenView(item))
+        .filter(Boolean)
+        .map((view) => [view.instanceId, view]),
+    );
+    const zoneRootByContext = new Map(
+      staticZoneItems
+        .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root")
+        .map((item) => {
+          const metadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
+          return [
+            `${metadata.instanceId}\u0000${metadata.casterId}`,
+            item.id,
+          ];
+        }),
+    );
+    for (const group of groups) {
+      group.boardToken = boardTokenByInstance.get(group.instanceId) || null;
+      group.boardTokenRule = getSpellBoardTokenRule(group.spellId);
+      group.zoneItemId = zoneRootByContext.get(
+        `${group.instanceId}\u0000${group.casterId}`,
+      ) || "";
+    }
     if (revision !== overviewRevision) return;
 
     renderSpellOverview({
@@ -508,6 +573,7 @@ async function init() {
       overviewList,
       overviewCount,
       groups,
+      currentTurnKey: appliedAt?.turnKey || "",
       createReferenceButton: makeReferenceButton,
       getSelectedTargetIds: selectedSpellTargetIds,
       getActionChoiceValue: (group, action) => overviewActionChoices.get(
@@ -544,6 +610,33 @@ async function init() {
         await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
         await refreshOverview();
       },
+      async onOpenActiveResolution({ group, spell, action }) {
+        const payload = buildSpellActiveResolutionPayload({
+          spell,
+          action,
+          group,
+          sceneEpoch: currentSceneEpoch(),
+          zoneItemId: group?.zoneItemId,
+        });
+        const popoverId = spellActiveResolutionPopoverId(
+          payload.instanceId,
+          payload.actionId,
+        );
+        const query = encodeURIComponent(JSON.stringify(payload));
+        await openTrackedPopover({
+          id: popoverId,
+          url: `/spell-active-resolution.html?payload=${query}`,
+          width: 360,
+          height: action?.resolutionKind === "single-attack" ? 320 : 520,
+          anchorReference: "POSITION",
+          anchorPosition: await activeResolutionAnchor(payload.casterId),
+          anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+          transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+          disableClickAway: true,
+          marginThreshold: 8,
+          hidePaper: true,
+        });
+      },
       async onActivate({
         group,
         spell,
@@ -559,6 +652,26 @@ async function init() {
           casterName: group.casterName,
         });
         await refreshCasterSummary(contextCasterId, concentrationWrap, concentrationList);
+        await refreshOverview();
+      },
+      async onUpdateBoardToken({ group, hp }) {
+        await executeSpellBoardTokenStateUpdate({ group, hp });
+        await refreshOverview();
+      },
+      async onRecreateBoardToken(group) {
+        const placementRule = getSpellBoardTokenPlacementRule(group?.spellId);
+        if (!placementRule) throw new Error("spell-board-token-placement-rule-missing");
+        const result = await requestSpellAreaPlacement({
+          ruleId: placementRule.id,
+          casterId: group?.casterId || "",
+        }, {
+          broadcast: OBR.broadcast,
+          windowRef: window,
+        });
+        if (result?.status !== "confirmed") return;
+        const position = spellBoardTokenPlacementPosition(result.preview);
+        if (!position) throw new Error("spell-board-token-placement-missing");
+        await executeSpellBoardTokenRecreate({ group, position });
         await refreshOverview();
       },
       async onTerminate(group) {

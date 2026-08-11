@@ -14,6 +14,7 @@ import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.
 
 const STATE_KEY = `${ID}/state`;
 const pendingResolutions = new Map();
+export const REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED = true;
 
 function staleMessage(result) {
   const reason = String(result?.reason || result?.conflicts?.[0]?.reason || "");
@@ -70,10 +71,11 @@ async function executeReminderResolution({
     || "Reminder",
   ).trim();
   const outcomeLabel = {
-    passed: "Superato",
-    failed: "Fallito",
-    immune: "Immune",
-  }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
+  passed: "Superato",
+  failed: "Fallito",
+  immune: "Immune",
+  confirmed: "Confermato",
+}[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
   const commandId = `reminder-resolution:${plan.activationId}`;
   let mutation;
   try {
@@ -87,17 +89,18 @@ async function executeReminderResolution({
       sideEffects: plan.sideEffects,
       sceneMetadataPreconditions: plan.sceneMetadataPreconditions,
       requireChanges: true,
-        history: {
-          kind: "reminder-resolution",
-          label: `Reminder: ${labelName} · ${outcomeLabel}`,
-          payload: {
-            activationId: plan.activationId,
-            targetId: plan.targetId,
-            outcome: plan.outcome,
-            damage: plan.damage.amount,
-            damageFactor: plan.damage.factor,
-          },
+      deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED,
+      history: {
+        kind: "reminder-resolution",
+        label: `Reminder: ${labelName} · ${outcomeLabel}`,
+        payload: {
+          activationId: plan.activationId,
+          targetId: plan.targetId,
+          outcome: plan.outcome,
+          damage: plan.damage.amount,
+          damageFactor: plan.damage.factor,
         },
+      },
     });
   } catch (error) {
     return {

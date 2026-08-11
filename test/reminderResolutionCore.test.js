@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { ID } from "../src/constants.js";
 import {
   buildEffectSaveReminderResolution,
+  buildMovementEscapeReminderResolution,
   buildReminderResolutionPlan,
   buildZoneTriggerReminderResolution,
   REMINDER_OUTCOMES,
@@ -90,6 +91,25 @@ test("i controlli di risoluzione sono disponibili solo al GM", () => {
   );
 });
 
+test("il danno automatico espone soltanto il controllo Conferma al GM", () => {
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "flame-controls",
+      resolution: "manual-effect",
+      damage: { dice: "1d10", type: "fuoco", onSave: "none" },
+    },
+    targetId: "target",
+  });
+  assert.deepEqual(
+    reminderResolutionControls({ role: "GM", resolution }),
+    ["confirmed"],
+  );
+  assert.deepEqual(
+    reminderResolutionControls({ role: "PLAYER", resolution }),
+    [],
+  );
+});
+
 test("un reminder informativo resta privo di una risoluzione", () => {
   const instance = {
     id: "informational-effect",
@@ -158,6 +178,67 @@ test("il successo rimuove la condizione indicata e marca il reminder", () => {
   );
 });
 
+test("Libertà di movimento propone la fuga non magica al turno del bersaglio", () => {
+  const resolution = buildMovementEscapeReminderResolution({
+    targetId: "target",
+    restrictionInstanceId: "grappled",
+    activationId: "freedom-escape-1",
+    turnKey: "1:0:target",
+  });
+  assert.deepEqual(resolution.choiceLabels, {
+    passed: "Spendi 1,5 m",
+    failed: "Non ora",
+  });
+  assert.deepEqual(resolution.outcomes.passed.actions.map((action) => action.kind), [
+    "movement",
+    "condition",
+  ]);
+});
+
+test("la risoluzione di fuga rimuove la restrizione e aggiorna il movimento nello stesso piano", () => {
+  const resolution = buildMovementEscapeReminderResolution({
+    targetId: "target",
+    restrictionInstanceId: "grappled",
+    activationId: "freedom-escape-1",
+    turnKey: "1:0:target",
+  });
+  const targetMeta = {
+    conditions: [{ id: "grappled", condition: "Afferrato", active: true }],
+    speedCheckMovement: {
+      version: 2,
+      turnKey: "1:0:target",
+      totalMeters: 3,
+      activeMode: "walk",
+    },
+  };
+  const plan = buildReminderResolutionPlan({
+    notice: {
+      activationId: "freedom-escape-1",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: [token("target", targetMeta)],
+    outcome: REMINDER_OUTCOMES.PASSED,
+    sceneMetadata: {
+      [STATE_KEY]: { order: ["target"], current: 0, round: 1 },
+    },
+  });
+
+  assert.equal(plan.status, "ready");
+  assert.deepEqual(plan.operations, [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "target", instanceId: "grappled" }],
+  }]);
+  const movementPatch = plan.metadataPatches.find((patch) =>
+    patch.fields?.speedCheckMovement,
+  );
+  assert.equal(movementPatch.fields.speedCheckMovement.value.totalMeters, 4.5);
+  assert.equal(
+    plan.metadataPatches[0].fields.reminderResolutions.value["freedom-escape-1"].outcome,
+    "passed",
+  );
+});
+
 test("il fallimento applica la condizione modellata e mantiene il reminder idempotente", () => {
   const plan = planForZone({
     outcome: REMINDER_OUTCOMES.FAILED,
@@ -212,6 +293,39 @@ test("il danno pieno, dimezzato per difetto e nullo segue l'esito", () => {
     zeroPlan.operations.some((operation) => operation.type === "condition:add"),
     false,
   );
+});
+
+test("il danno automatico di zona richiede Conferma e applica il tiro pieno", () => {
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "flame-activation",
+      resolution: "manual-effect",
+      zoneItemId: "zone",
+      targetIds: ["target"],
+      damage: { dice: "1d10", type: "fuoco", onSave: "none" },
+    },
+    targetId: "target",
+    sourceId: "caster",
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+  assert.equal(resolution.mode, "manual-damage");
+  assert.equal(reminderResolutionDamage(resolution, "confirmed", 7).amount, 7);
+
+  const plan = buildReminderResolutionPlan({
+    notice: {
+      activationId: "flame-activation",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 20, hpMax: 20 }, "flame-activation"),
+    outcome: "confirmed",
+    damageRoll: 7,
+    sceneMetadata: { [STATE_KEY]: { round: 1, current: 0 } },
+  });
+  assert.equal(plan.status, "ready");
+  assert.equal(plan.resolutionMode, "manual-damage");
+  assert.equal(plan.damage.amount, 7);
+  assert.deepEqual(plan.hpChange, { before: 20, after: 13, hpMax: 20 });
 });
 
 test("l'immunita non applica danni né condizioni", () => {

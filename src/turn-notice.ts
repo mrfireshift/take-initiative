@@ -100,7 +100,6 @@ const announcedEffectActivationIds = new Set<string>();
 let zonePendingBaselineReady = false;
 let zonePendingSyncRequested = false;
 let zonePendingSyncRunning = false;
-let unsubscribeZoneItems: (() => void) | null = null;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
 let unsubscribeUiBroadcast: (() => void) | null = null;
 let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
@@ -347,15 +346,8 @@ function dismissResolvedReminder(activationId: string) {
 }
 
 function buildResolutionControls(line: HTMLElement, row: any) {
-  if (
-    noticeRole !== "GM"
-    || !row?.resolution
-    || row.resolution?.mode === "consume"
-    || !Array.isArray(row.targets)
-    || row.targets.length !== 1
-  ) return;
+  if (!reminderRowRequiresResponse(row)) return;
   const activationId = String(row.activationId || "").trim();
-  if (!activationId) return;
   const completed = resolutionStatus.get(activationId);
   if (completed) {
     setResolutionStatus(line, activationId, completed);
@@ -363,6 +355,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   }
   const draft = resolutionDraftFor(activationId);
   const manualHeal = row.resolution?.mode === "manual-heal";
+  const manualDamage = row.resolution?.mode === "manual-damage";
   const controls = document.createElement("div");
   controls.dataset.resolutionControls = "1";
   controls.className = "zone-resolution";
@@ -371,11 +364,11 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   if (reminderResolutionNeedsDamage(row.resolution) || manualHeal) {
     const damageLabel = document.createElement("label");
     damageLabel.className = "zone-resolution-damage";
-    damageLabel.textContent = `Risultato dadi (${manualHeal
+    damageLabel.textContent = `${manualDamage ? "Danni" : "Risultato dadi"} (${manualHeal
       ? row.resolution.healing?.dice
       : row.resolution.damage.dice})`;
     damageInput = document.createElement("input");
-    damageInput.type = "number";
+    damageInput.type = manualDamage ? "text" : "number";
     damageInput.min = "0";
     damageInput.step = "1";
     damageInput.inputMode = "numeric";
@@ -453,24 +446,38 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     }
   };
 
-  const outcomeOptions = manualHeal
-    ? [{ value: "apply", label: "Applica cura" }, { value: "ignore", label: "Ignora" }]
-    : RESOLUTION_BUTTON_OUTCOMES.map((value) => ({
+  const outcomeOptions = manualDamage
+    ? [{ value: "confirmed", label: "Conferma" }]
+    : manualHeal
+      ? [{ value: "apply", label: "Applica cura" }, { value: "ignore", label: "Ignora" }]
+      : RESOLUTION_BUTTON_OUTCOMES.map((value) => ({
       value,
-      label: RESOLUTION_LABELS[value] || value,
-    }));
+      label: row.resolution?.choiceLabels?.[value]
+        || RESOLUTION_LABELS[value]
+        || value,
+      }));
   for (const option of outcomeOptions) {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.outcome = option.value;
     button.textContent = option.label;
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
       void resolve(option.value);
     });
     outcomes.appendChild(button);
   }
   controls.append(outcomes);
   line.appendChild(controls);
+}
+
+function reminderRowRequiresResponse(row: any) {
+  return noticeRole === "GM"
+    && !!row?.resolution
+    && row.resolution?.mode !== "consume"
+    && Array.isArray(row.targets)
+    && row.targets.length === 1
+    && !!String(row.activationId || "").trim();
 }
 
 function renderSaveReminderBatch(batch: any) {
@@ -529,25 +536,29 @@ function renderSaveReminderBatch(batch: any) {
     detail.append(line);
   }
 
-  const timer = document.createElement("div");
-  timer.className = "zone-timer";
+  const requiresResponse = presentation.rows.some(reminderRowRequiresResponse);
   panel.append(portrait, copy, detail);
-  panel.appendChild(timer);
   window.clearTimeout(zoneHideTimer);
+  zoneHideTimer = 0;
   app.replaceChildren(panel);
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
   announceNoticeLayout();
-  zoneHideTimer = window.setTimeout(() => {
-    if (currentZonePanel === panel) {
-      currentZonePanel = null;
-      currentZoneTurnKey = "";
-      currentSaveReminderBatch = null;
-      zoneHideTimer = 0;
-      announceNoticeLayout();
-    }
-    panel.remove();
-  }, ZONE_AUTO_CLOSE_MS);
+  if (!requiresResponse) {
+    const timer = document.createElement("div");
+    timer.className = "zone-timer";
+    panel.appendChild(timer);
+    zoneHideTimer = window.setTimeout(() => {
+      if (currentZonePanel === panel) {
+        currentZonePanel = null;
+        currentZoneTurnKey = "";
+        currentSaveReminderBatch = null;
+        zoneHideTimer = 0;
+        announceNoticeLayout();
+      }
+      panel.remove();
+    }, ZONE_AUTO_CLOSE_MS);
+  }
   return true;
 }
 
@@ -785,16 +796,12 @@ OBR.onReady(async () => {
   });
   announceNoticeLayout();
   if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
-  unsubscribeZoneItems = OBR.scene.items.onChange(
-    requestPendingZoneNoticeSync,
-  );
   requestPendingZoneNoticeSync();
 });
 
 window.addEventListener("beforeunload", () => {
   clearTurnNotice();
   clearPendingSaveReminderNotices();
-  unsubscribeZoneItems?.();
   unsubscribeZoneSceneReady?.();
   unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();

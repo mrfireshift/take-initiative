@@ -3,21 +3,27 @@ import { ID } from "./constants.js";
 
 export const POPOVER_DRAG_CHANNEL = `${ID}/popover-drag`;
 
-const root = document.querySelector("[data-popover-id]");
-
-function findDragHandle() {
-  return root?.querySelector("[data-drag-handle], header, .header, h1, .title") || null;
+function pointerCoordinate(event, primary, fallback) {
+  const first = Number(event?.[primary]);
+  if (Number.isFinite(first)) return first;
+  const second = Number(event?.[fallback]);
+  return Number.isFinite(second) ? second : null;
 }
 
-function markDragHandle() {
-  const handle = findDragHandle();
-  if (!handle) return;
-  handle.dataset.dragHandle = "1";
-  handle.draggable = true;
-  if (!handle.title) handle.title = "Trascina per spostare";
-}
+export function initializePopoverDrag(popoverRoot = document.querySelector("[data-popover-id]")) {
+  const root = popoverRoot;
+  if (!root || root.dataset.popoverDragReady === "1") return;
+  root.dataset.popoverDragReady = "1";
 
-if (root) {
+  const findDragHandle = () => root.querySelector("[data-drag-handle], header, .header, h1, .title") || null;
+  const markDragHandle = () => {
+    const handle = findDragHandle();
+    if (!handle) return;
+    handle.dataset.dragHandle = "1";
+    handle.draggable = true;
+    if (!handle.title) handle.title = "Trascina per spostare";
+  };
+
   let dragState = null;
   markDragHandle();
 
@@ -31,8 +37,8 @@ if (root) {
       event.preventDefault();
       return;
     }
-    const startX = Number.isFinite(event.screenX) ? event.screenX : event.clientX;
-    const startY = Number.isFinite(event.screenY) ? event.screenY : event.clientY;
+    const startX = pointerCoordinate(event, "clientX", "screenX");
+    const startY = pointerCoordinate(event, "clientY", "screenY");
     const rect = root.getBoundingClientRect();
     dragState = { startX, startY, handle };
     event.dataTransfer.effectAllowed = "move";
@@ -50,8 +56,8 @@ if (root) {
     const state = dragState;
     dragState = null;
     state.handle.classList.remove("is-dragging");
-    const endX = Number.isFinite(event.screenX) ? event.screenX : event.clientX;
-    const endY = Number.isFinite(event.screenY) ? event.screenY : event.clientY;
+    const endX = pointerCoordinate(event, "clientX", "screenX");
+    const endY = pointerCoordinate(event, "clientY", "screenY");
     if (!Number.isFinite(endX) || !Number.isFinite(endY)) return;
     const deltaX = endX - state.startX;
     const deltaY = endY - state.startY;
@@ -64,3 +70,5 @@ if (root) {
     }, { destination: "LOCAL" }).catch(() => {});
   });
 }
+
+initializePopoverDrag();

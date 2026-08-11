@@ -2,6 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import { EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, ID } from "./constants.js";
 import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import {
+  readSceneItemsSnapshot,
+  subscribeSceneItemChanges,
+} from "./sceneItemEvents.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 
 const STATE_KEY = `${ID}/state`;
@@ -9,7 +13,10 @@ const announcedActivationIds = new Set();
 let mounted = false;
 let sceneReady = false;
 let previousInitiativeState = null;
-let reconcileQueue = Promise.resolve();
+let reconcileRunning = false;
+let reconcileRequested = false;
+let queuedSceneMetadata = null;
+let queuedItems = null;
 let unsubscribeMetadata = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
@@ -27,7 +34,7 @@ function snapshot(state) {
   };
 }
 
-async function reconcileEffectSaveReminders(sceneMetadata = null) {
+async function reconcileEffectSaveReminders(sceneMetadata = null, sceneItems = null) {
   const sceneEpoch = currentSceneEpoch();
   if (!sceneReady) {
     previousInitiativeState = null;
@@ -40,7 +47,12 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
     : await OBR.scene.getMetadata().catch(() => ({}));
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const initiativeState = snapshot(metadata?.[STATE_KEY]);
-  const items = await OBR.scene.items.getItems();
+  const sharedSnapshot = readSceneItemsSnapshot(sceneEpoch);
+  const items = Array.isArray(sceneItems)
+    ? sceneItems
+    : sharedSnapshot.complete
+      ? sharedSnapshot.items
+      : await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const previousState = previousInitiativeState;
   const notices = planEffectSaveReminderNotices({
@@ -65,14 +77,35 @@ async function reconcileEffectSaveReminders(sceneMetadata = null) {
   );
 }
 
-function enqueueReconcile(sceneMetadata = null) {
-  const run = () => reconcileEffectSaveReminders(sceneMetadata);
-  reconcileQueue = reconcileQueue.then(run, run).catch((error) => {
-    console.warn(
-      "[effect-save-reminder] reconcile:",
-      error?.message || error,
-    );
-  });
+function enqueueReconcile(sceneMetadata = null, sceneItems = null) {
+  if (sceneMetadata && typeof sceneMetadata === "object") {
+    queuedSceneMetadata = sceneMetadata;
+  }
+  if (Array.isArray(sceneItems)) queuedItems = sceneItems;
+  reconcileRequested = true;
+  if (reconcileRunning) return;
+  reconcileRunning = true;
+  const run = async () => {
+    try {
+      while (reconcileRequested) {
+        reconcileRequested = false;
+        const metadata = queuedSceneMetadata;
+        const items = queuedItems;
+        queuedSceneMetadata = null;
+        queuedItems = null;
+        await reconcileEffectSaveReminders(metadata, items);
+      }
+    } catch (error) {
+      console.warn(
+        "[effect-save-reminder] reconcile:",
+        error?.message || error,
+      );
+    } finally {
+      reconcileRunning = false;
+      if (reconcileRequested) enqueueReconcile();
+    }
+  };
+  void run();
 }
 
 export async function mountEffectSaveReminderController() {
@@ -81,7 +114,9 @@ export async function mountEffectSaveReminderController() {
   if (role !== "GM") return false;
   mounted = true;
   unsubscribeMetadata = OBR.scene.onMetadataChange(enqueueReconcile);
-  unsubscribeItems = OBR.scene.items.onChange(() => enqueueReconcile());
+  unsubscribeItems = subscribeSceneItemChanges((event) => {
+    enqueueReconcile(null, event?.allItems);
+  });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     sceneReady = !!ready;
     if (!ready) {
@@ -106,6 +141,9 @@ export function unmountEffectSaveReminderController() {
   sceneReady = false;
   previousInitiativeState = null;
   announcedActivationIds.clear();
-  reconcileQueue = Promise.resolve();
+  reconcileRunning = false;
+  reconcileRequested = false;
+  queuedSceneMetadata = null;
+  queuedItems = null;
   mounted = false;
 }

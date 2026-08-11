@@ -6,6 +6,50 @@ const uniqueIds = (values = []) => Array.from(new Set(
     .filter(Boolean)
 ));
 
+function effectMechanicsWithMovementContext(
+  effect,
+  { sourceId = "", instanceId = "", zoneId = "" } = {},
+) {
+  const mechanics = effect?.mechanics;
+  if (!mechanics || typeof mechanics !== "object") return null;
+  const movement = mechanics.movement;
+  if (!movement || typeof movement !== "object") return { ...mechanics };
+  const directionalKey = ["directional", "directionalCosts", "directionalCost"]
+    .find((key) => movement[key] !== undefined);
+  if (!directionalKey) return { ...mechanics, movement: { ...movement } };
+  const rawEntries = Array.isArray(movement[directionalKey])
+    ? movement[directionalKey]
+    : [movement[directionalKey]];
+  const directional = rawEntries.map((entry) => (
+    entry && typeof entry === "object"
+      ? {
+        ...entry,
+        ...(entry.sourceId || !sourceId ? {} : { sourceId: String(sourceId) }),
+        ...(entry.instanceId || !instanceId
+          ? {}
+          : { instanceId: String(instanceId) }),
+        ...(entry.zoneId || !zoneId ? {} : { zoneId: String(zoneId) }),
+      }
+      : entry
+  ));
+  return {
+    ...mechanics,
+    movement: {
+      ...movement,
+      [directionalKey]: directional,
+    },
+  };
+}
+
+function sameEffectMechanics(left, right) {
+  if (!right || typeof right !== "object") return true;
+  try {
+    return JSON.stringify(left || null) === JSON.stringify(right || null);
+  } catch {
+    return false;
+  }
+}
+
 function conditionInstances(item, metaKey) {
   const conditions = item?.metadata?.[metaKey]?.conditions;
   if (Array.isArray(conditions)) return conditions;
@@ -124,6 +168,7 @@ export function areaMembershipTargetIds({
 export function areaMembershipPlan({
   instanceId = "",
   sourceId = "",
+  zoneId = "",
   rule = null,
   desiredTargetIds = [],
   items = [],
@@ -148,6 +193,11 @@ export function areaMembershipPlan({
   for (const effect of effects) {
     const effectId = String(effect?.id || "").trim();
     if (!effectId) continue;
+    const expectedMechanics = effectMechanicsWithMovementContext(effect, {
+      sourceId,
+      instanceId: parentEffectId,
+      zoneId,
+    });
     const expectedConditionName = String(
       effect?.condition || effect?.label || ""
     ).trim();
@@ -176,6 +226,7 @@ export function areaMembershipPlan({
           currentConditionName !== expectedConditionName
           || currentEffectKind !== expectedEffectKind
           || !effectThemeMatches(instance?.theme, effect?.theme)
+          || !sameEffectMechanics(instance?.mechanics, expectedMechanics)
         ) {
           removals.push({
             itemId: targetId,
@@ -234,9 +285,7 @@ export function areaMembershipPlan({
           ...(effect?.theme && typeof effect.theme === "object"
             ? { theme: { ...effect.theme } }
             : {}),
-          ...(effect.mechanics && typeof effect.mechanics === "object"
-            ? { mechanics: effect.mechanics }
-            : {}),
+          ...(expectedMechanics ? { mechanics: expectedMechanics } : {}),
           expiry: effect.expiry && typeof effect.expiry === "object"
             ? { ...effect.expiry }
             : { ...(defaultExpiry || { mode: "manual" }) },

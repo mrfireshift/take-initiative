@@ -214,6 +214,24 @@ test("la revisione conserva il raggio reale della sagoma circolare", () => {
   assert.equal(review.preview.radius, 600);
 });
 
+test("la revisione conserva il centro confermato di una pedina magica", () => {
+  const rule = getSpellAreaRuleById("spiritual-weapon:board-token");
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-board-token",
+    rule,
+    casterId: "caster",
+  });
+  const review = reviewSpellAreaPlacement(session, {
+    type: "square",
+    start: { x: 225, y: 375 },
+    end: { x: 225, y: 375 },
+    position: { x: 225, y: 375 },
+    gridOrigin: { x: 0, y: 0 },
+    dpi: 150,
+  });
+  assert.deepEqual(review.preview.position, { x: 225, y: 375 });
+});
+
 test("non conferma una sessione priva di anteprima", () => {
   const session = createSpellAreaPlacementSession({
     requestId: "request-2",

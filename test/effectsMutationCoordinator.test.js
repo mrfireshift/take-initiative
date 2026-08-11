@@ -326,6 +326,30 @@ test("reports a History failure as pending after commit, never as an uncommitted
   assert.equal(result.historyError.message, "history unavailable");
 });
 
+test("a deferred History does not delay the canonical mutation result", async () => {
+  let commits = 0;
+  let historyWrites = 0;
+  const coordinator = createEffectsMutationCoordinator({
+    prepare: async () => ({
+      changedIds: ["token-1"],
+      changes: [{ id: "token-1", fields: { conditions: true }, before: {}, after: {} }],
+    }),
+    commit: async () => { commits += 1; },
+    recordHistory: async () => { historyWrites += 1; },
+  });
+  const result = await coordinator.enqueue({
+    commandId: "deferred-history",
+    deferHistory: true,
+    operations: [{ type: "condition:add" }],
+  });
+  assert.equal(commits, 1);
+  assert.equal(historyWrites, 0);
+  assert.equal(result.status, EFFECTS_MUTATION_STATUS.APPLIED);
+  assert.equal(result.committed, true);
+  assert.equal(result.historyPending, true);
+  assert.equal(result.historyError.name, "DeferredEffectsHistory");
+});
+
 test("a scene change after the persistent write never turns an applied command into rejected", async () => {
   let current = true;
   let writes = 0;

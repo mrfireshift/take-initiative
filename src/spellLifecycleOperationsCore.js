@@ -87,6 +87,9 @@ export function spellLifecycleOperations({
       instanceId,
       spellId,
       ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
+      ...(castContext && typeof castContext === "object"
+        ? { castContext: clone(castContext) }
+        : {}),
     });
   }
   if (automatedSubjectIds.length) {

@@ -1,5 +1,6 @@
 import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
+import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 
 export const SPELL_AREA_KINDS = Object.freeze([
   "instant",
@@ -558,6 +559,7 @@ const difficultTerrainEffect = (id, label, detail, costMultiplier = 2) => ({
   mechanics: {
     movement: {
       costMultiplier,
+      category: "difficult-terrain",
       label,
     },
   },
@@ -1686,6 +1688,16 @@ function catalogAreaRule(spec) {
       kind: "debuff",
       label: "Movimento verso il caster ×2",
       detail: "Nell'area, ogni metro di movimento verso il caster costa due metri.",
+      mechanics: {
+        movement: {
+          directional: {
+            direction: "toward-source",
+            costMultiplier: 2,
+            label: "Folata di vento: movimento verso il caster ×2",
+          },
+          label: "Folata di vento: costo direzionale",
+        },
+      },
     }],
     "incendiary-cloud": [
       conditionMembershipEffect(
@@ -1920,6 +1932,62 @@ export const SPELL_AREA_RULES = Object.freeze([
     lifecycle: PREVIEW_LIFECYCLE,
     targeting: areaSaveTargeting("fireball"),
     effectPolicy: ON_CONFIRM,
+  }),
+  defineRule({
+    id: "call-lightning:cast",
+    spellId: "call-lightning",
+    trigger: CAST_TRIGGER,
+    kind: "instant",
+    geometry: {
+      shape: "circle",
+      size: meters(1.5, "radius"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(36, "range"),
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: areaSaveTargeting("call-lightning"),
+    effectPolicy: ON_CONFIRM,
+  }),
+  defineRule({
+    id: "call-lightning:cloud",
+    spellId: "call-lightning",
+    trigger: CAST_TRIGGER,
+    kind: "zone",
+    geometry: {
+      shape: "circle",
+      size: meters(18, "radius"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(36, "range"),
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: false,
+    },
+    effectPolicy: {
+      mode: "manual-trigger",
+    },
+    zonePolicy: {
+      placementOptional: true,
+      owner: "caster",
+      movement: "fixed",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: false,
+      },
+      membershipEffects: [],
+      triggers: [],
+    },
   }),
   defineRule({
     id: "burning-hands:cast",
@@ -2220,6 +2288,90 @@ export const SPELL_AREA_RULES = Object.freeze([
     },
   }),
   defineRule({
+    id: "xanathar-investitura-della-fiamma:aura",
+    spellId: "xanathar-investitura-della-fiamma",
+    trigger: CAST_TRIGGER,
+    kind: "aura",
+    geometry: {
+      shape: "circle",
+      size: meters(1.5, "radius"),
+    },
+    placement: {
+      origin: "caster",
+      direction: "none",
+      anchor: "caster",
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "hostile",
+      includeCaster: false,
+      confirmTargets: false,
+    },
+    effectPolicy: {
+      mode: "manual-trigger",
+    },
+    triggerPolicy: {
+      triggers: [
+        {
+          id: "flame-investiture-damage-on-entry",
+          group: "flame-investiture-damage",
+          label: "1d10 fuoco entrando nell'aura",
+          event: "enter",
+          frequency: "once-per-turn",
+          resolution: "manual-effect",
+          failureEffect: "1d10 danni da fuoco (nessun TS).",
+          requiresOwnTurn: false,
+          triggerOnAreaMove: false,
+          damage: {
+            dice: "1d10",
+            type: "fuoco",
+            onSave: "none",
+          },
+        },
+        {
+          id: "flame-investiture-damage-on-turn-end",
+          group: "flame-investiture-damage",
+          label: "1d10 fuoco a fine turno nell'aura",
+          event: "turn-end",
+          frequency: "once-per-turn",
+          resolution: "manual-effect",
+          failureEffect: "1d10 danni da fuoco (nessun TS).",
+          damage: {
+            dice: "1d10",
+            type: "fuoco",
+            onSave: "none",
+          },
+        },
+      ],
+    },
+  }),
+  defineRule({
+    id: "xanathar-investitura-della-fiamma:linea-di-fuoco",
+    spellId: "xanathar-investitura-della-fiamma",
+    trigger: {
+      type: "active-action",
+      actionId: "flame-investiture-line",
+    },
+    kind: "emission",
+    geometry: {
+      shape: "line",
+      size: meters(4.5, "length"),
+      width: meters(1.5, "width"),
+    },
+    placement: {
+      origin: "caster-adjacent",
+      direction: "pointer",
+      anchor: "caster",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: true,
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
+  defineRule({
     id: "xanathar-investitura-del-ghiaccio:aura",
     spellId: "xanathar-investitura-del-ghiaccio",
     trigger: CAST_TRIGGER,
@@ -2249,6 +2401,7 @@ export const SPELL_AREA_RULES = Object.freeze([
         mechanics: {
           movement: {
             costMultiplier: 2,
+            category: "difficult-terrain",
             label: "Aura ghiacciata: terreno difficile",
           },
         },
@@ -2301,7 +2454,10 @@ for (const [spellId, rules] of RULES_BY_SPELL_ID.entries()) {
 }
 
 export function getSpellAreaRuleById(ruleId) {
-  return RULES_BY_ID.get(String(ruleId || "").trim()) || null;
+  const normalizedRuleId = String(ruleId || "").trim();
+  return RULES_BY_ID.get(normalizedRuleId)
+    || getSpellBoardTokenPlacementRuleById(normalizedRuleId)
+    || null;
 }
 
 export function getSpellAreaPlacementChoices(value) {

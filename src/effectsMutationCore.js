@@ -25,6 +25,74 @@ const uniqueIds = (values = []) => Array.from(new Set(
 
 const spellKey = (value) => String(value || "").trim().toLocaleLowerCase("it");
 
+const FREEDOM_OF_MOVEMENT_KEYS = new Set([
+  "freedom-of-movement",
+  "freedom of movement",
+  "libertà di movimento",
+  "liberta di movimento",
+]);
+
+const FREEDOM_OF_MOVEMENT_IMMUNITIES = Object.freeze({
+  names: Object.freeze(["paralizzato", "trattenuto"]),
+  magicalOnly: true,
+});
+
+function conditionImmunityRules(state) {
+  const rules = [];
+  for (const instance of Array.isArray(state?.conditions) ? state.conditions : []) {
+    if (!instance || instance.active === false) continue;
+    const raw = instance?.mechanics?.conditionImmunities
+      ?? instance?.mechanics?.conditions?.immunities;
+    const definition = Array.isArray(raw)
+      ? { names: raw }
+      : raw && typeof raw === "object"
+        ? raw
+        : null;
+    const names = Array.isArray(definition?.names)
+      ? definition.names.map(conditionKey).filter(Boolean)
+      : [];
+    if (names.length) {
+      rules.push({
+        names: new Set(names),
+        magicalOnly: definition.magicalOnly === true,
+      });
+    }
+  }
+
+  const freedomSpellActive = (Array.isArray(state?.spells) ? state.spells : [])
+    .some((spell) => FREEDOM_OF_MOVEMENT_KEYS.has(spellKey(
+      typeof spell === "string" ? spell : spell?.spellId,
+    )) || FREEDOM_OF_MOVEMENT_KEYS.has(spellKey(
+      typeof spell === "string" ? spell : spell?.name,
+    )));
+  if (freedomSpellActive) {
+    rules.push({
+      names: new Set(FREEDOM_OF_MOVEMENT_IMMUNITIES.names),
+      magicalOnly: true,
+    });
+  }
+  return rules;
+}
+
+function magicalConditionApplication(options = {}) {
+  const type = String(options?.type || options?.effectType || "")
+    .trim()
+    .toLocaleLowerCase("it");
+  return options?.magical === true
+    || String(options?.sourceType || "").trim().toLocaleLowerCase("it") === "spell"
+    || type === "spell"
+    || type === "spell-effect";
+}
+
+function conditionBlockedByImmunity(state, conditionName, options = {}) {
+  const name = conditionKey(conditionName);
+  if (!name) return false;
+  const magical = magicalConditionApplication(options);
+  return conditionImmunityRules(state).some((rule) =>
+    rule.names.has(name) && (!rule.magicalOnly || magical)
+  );
+}
+
 function sameValue(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -132,6 +200,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.effectKind === "buff" || options.effectKind === "debuff") {
     instance.effectKind = options.effectKind;
   }
+  if (options.magical === true) instance.magical = true;
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
   if (options.theme && typeof options.theme === "object") {
     instance.theme = clone(options.theme);
@@ -161,6 +230,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
     instance.mechanics = clone(options.mechanics);
   }
   if (options.manualRemoval === true) instance.manualRemoval = true;
+  if (options.mapVisible === false) instance.mapVisible = false;
   if (options.endsParentOnRemoval === true) instance.endsParentOnRemoval = true;
   if (options.parentRemoval === "target" || options.parentRemoval === "spell") {
     instance.parentRemoval = options.parentRemoval;
@@ -181,6 +251,11 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
 }
 
 function appendCondition(state, operation, targetId) {
+  if (conditionBlockedByImmunity(
+    state,
+    operation?.conditionName,
+    operation?.options || {},
+  )) return;
   const instanceId = String(operation?.instanceIds?.[targetId] || "").trim();
   const instance = conditionInstance(operation, targetId, instanceId, operation.conditionName);
   if (!instance) return;
@@ -751,6 +826,9 @@ function applyOperation(states, operation, options) {
       if (operation.spellId) entry.spellId = String(operation.spellId);
       const appliedAt = normalizedAppliedAt(operation.appliedAt);
       if (appliedAt) entry.appliedAt = appliedAt;
+      if (operation.castContext && typeof operation.castContext === "object") {
+        entry.castContext = clone(operation.castContext);
+      }
       caster.concentrations[key] = entry;
       break;
     }
@@ -786,6 +864,11 @@ function applyOperation(states, operation, options) {
         for (const instance of additions) {
           const id = String(instance?.id || "").trim();
           if (!id || known.has(id)) continue;
+          if (conditionBlockedByImmunity(
+            state,
+            instance?.condition || instance?.name,
+            instance,
+          )) continue;
           state.conditions.push(clone(instance));
           known.add(id);
         }

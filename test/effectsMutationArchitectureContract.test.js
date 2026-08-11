@@ -8,6 +8,7 @@ const conditions = read("../src/conditions.js");
 const classRuntime = read("../src/classFeatureRuntime.js");
 const initiativeCards = read("../src/initiativeCards.js");
 const quickHp = read("../src/quick-hp-modal.js");
+const reminderResolution = read("../src/reminderResolution.js");
 
 function section(source, start, end) {
   const from = source.indexOf(start);
@@ -86,6 +87,24 @@ test("i side effect persistenti iniziano soltanto dopo il commit canonico", () =
     commit.indexOf("commitEffectsMutationPlan(plan")
       < commit.indexOf("runPostCommitSideEffects(sideEffects"),
   );
+});
+
+test("gli esiti reminder rinviano solo History fuori dalla lane critica", () => {
+  const resolution = section(
+    reminderResolution,
+    "async function executeReminderResolution({",
+    "export function resolveReminder(",
+  );
+  assert.match(resolution, /kind: "reminder-resolution"/);
+  assert.match(reminderResolution, /REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED = true/);
+  assert.match(resolution, /deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED/);
+  const mount = section(
+    effects,
+    "export async function mountEffectsMutationCoordinatorService()",
+    "export function unmountEffectsMutationCoordinatorService()",
+  );
+  assert.match(mount, /beforeExecute: enqueuePendingEffectsSideEffectRetry/);
+  assert.doesNotMatch(mount, /beforeExecute: enqueuePendingEffectsPostCommitRetry/);
 });
 
 test("la transazione composita Quick HP produce una sola entry effectsMutation", () => {

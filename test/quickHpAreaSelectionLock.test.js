@@ -31,16 +31,17 @@ test("il lock è visibile, reversibile e ignora la selezione esterna", () => {
   );
 });
 
-test("zone vuote e aure conservano il lifecycle con reminder governati dal feature flag", () => {
+test("zone vuote, aure e token magici conservano il lifecycle", () => {
   assert.match(
     source,
-    /if \(!candidateIds\.length && !staticZonePlacement && !mobileAuraPlacement\) return;/,
+    /&& !boardTokenPlacement\s*\n\s*&& !cloudPending\s*\n\s*\) return;/,
   );
   assert.match(
     source,
-    /allowEmptyTargets: !!staticZonePlacement \|\| mobileAuraPlacement/,
+    /allowEmptyTargets:[\s\S]*cloudPending/,
   );
-  assert.match(source, /castContext: mobileAuraPlacement/);
+  assert.match(source, /castContext: mobileAuraPlacement\s*\n\s*\|\| boardTokenPlacement/);
+  assert.match(source, /type: "spell-board-token:place"/);
   assert.match(source, /SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED/);
 });
 
@@ -59,6 +60,13 @@ test("il visual Fireball parte prima della pipeline di mutazione HP", () => {
   assert.ok(visualStart > noOpGuard);
   assert.ok(historyStart > visualStart);
   assert.equal(source.lastIndexOf("void emitFireballVisual"), visualStart);
+});
+
+test("Invocare il fulmine alimenta il visual persistente con il preview della nube", () => {
+  assert.match(
+    source,
+    /if \(matchedVisualContext && spell\?\.id === "call-lightning"\) \{\s*\/\/ Il loop persistente rappresenta la nube, non la scarica istantanea\.\s*matchedVisualContext\.preview = callLightningCloudPlacement\.preview;\s*\}/,
+  );
 });
 
 test("Catena di fulmini usa il primario, il riferimento temporaneo e la rivalidazione finale", () => {

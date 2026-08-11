@@ -117,6 +117,26 @@ test("Catena di fulmini e Gabbia di forza hanno workflow distinti e coperti", ()
   assert.ok(!forcecage?.gaps.some((entry) => entry.code === "BOUNDARY_REJECTION"));
 });
 
+test("Lotto I copre le attivazioni offensive ripetibili", () => {
+  const audit = buildSpellAutomationAudit();
+  const gust = audit.rows.find((row) => row.id === "gust-of-wind");
+  const freedom = audit.rows.find((row) => row.id === "freedom-of-movement");
+  const callLightning = audit.rows.find((row) => row.id === "call-lightning");
+  const flameInvestiture = audit.rows.find((row) => row.id === "xanathar-investitura-della-fiamma");
+  const stormSphere = audit.rows.find((row) => row.id === "xanathar-sfera-della-tempesta");
+
+  assert.deepEqual(gust?.gaps, []);
+  assert.deepEqual(freedom?.gaps, []);
+  for (const row of [callLightning, flameInvestiture, stormSphere]) {
+    assert.deepEqual(row?.gaps, [], row?.id);
+  }
+  assert.match(callLightning?.curatedNote || "", /raggio 18 m/);
+  assert.match(flameInvestiture?.curatedNote || "", /reminder manuali da 1d10/);
+  assert.match(stormSphere?.curatedNote || "", /rivalida 18 m/);
+  assert.ok(!stormSphere?.gaps.some((entry) => entry.code === "REPEATED_ACTION"));
+  assert.ok(!stormSphere?.gaps.some((entry) => entry.code === "TURN_EFFECT_MISSING"));
+});
+
 test("il report espone metodo, priorità e matrice completa", () => {
   const markdown = renderSpellAutomationMarkdown(buildSpellAutomationAudit());
   assert.match(markdown, /P1 — lacune confermate sul testo RAW/);

@@ -7,12 +7,14 @@ const SIGHT_RANGE_METERS = 1500;
 const EXPLICIT_RULE_SPELL_IDS = new Set([
   "burning-hands",
   "cone-of-cold",
+  "call-lightning",
   "entangle",
   "fireball",
   "lightning-bolt",
   "moonbeam",
   "spirit-guardians",
   "web",
+  "xanathar-investitura-della-fiamma",
   "xanathar-investitura-del-ghiaccio",
 ]);
 
@@ -88,6 +90,7 @@ const MOBILE_AURA_SPELL_IDS = new Set([
   "globe-of-invulnerability",
   "speak-with-plants",
   "xanathar-vento-di-interdizione",
+  "xanathar-investitura-della-fiamma",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
   "phb2014-aura-di-vitalita",

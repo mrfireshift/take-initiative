@@ -27,11 +27,15 @@ const turnNoticeHost = readFileSync(
   "utf8",
 );
 
-test("il background monta il controller GM e serializza gli avanzamenti", () => {
+test("il background monta il controller GM e compatta gli avanzamenti", () => {
   assert.match(background, /mountEffectSaveReminderController/);
   assert.match(controller, /OBR\.player\.getRole\(\)/);
   assert.match(controller, /OBR\.scene\.onMetadataChange\(enqueueReconcile\)/);
-  assert.match(controller, /reconcileQueue = reconcileQueue\.then\(run, run\)/);
+  assert.match(controller, /subscribeSceneItemChanges\(\(event\) =>/);
+  assert.match(controller, /readSceneItemsSnapshot\(sceneEpoch\)/);
+  assert.match(controller, /while \(reconcileRequested\)/);
+  assert.doesNotMatch(controller, /OBR\.scene\.items\.onChange/);
+  assert.doesNotMatch(controller, /reconcileQueue = reconcileQueue\.then/);
   assert.match(controller, /announcedActivationIds\.has\(notice\.activationId\)/);
   assert.match(controller, /currentSceneEpoch/);
   assert.match(controller, /isCurrentSceneEpoch\(sceneEpoch\)/);

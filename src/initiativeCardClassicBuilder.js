@@ -21,6 +21,7 @@ export function buildClassicTrackerCard(e, context) {
   const {
     state,
     nextId,
+    boardTokenItems = [],
     isGM: IS_GM,
     constants: {
       BADGE_RIGHT,
@@ -41,6 +42,8 @@ export function buildClassicTrackerCard(e, context) {
       __applyTrackerSelectionState,
       __bindInitiativeCardContextMenu,
       __buildConditionChipsSafe,
+      __bindSpellBoardTokenHPEditor,
+      __findSpellBoardToken,
       __groupKey,
       __instaTransform,
       __safeConditions,
@@ -712,9 +715,24 @@ if (hasAny) {
 if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
   const canTerminate = IS_GM && !isLairId(e.id) && !isEpicActionId(e.id);
   for (const spell of e.spells) {
-    const fragSp = buildSpellChips([spell], canTerminate
+    const boardToken = typeof __findSpellBoardToken === "function"
+      ? __findSpellBoardToken(boardTokenItems, e.id, spell)
+      : null;
+    const spellChipOptions = canTerminate
       ? { onTerminate: (entry) => __terminateSpellOnTrackerCard(e.id, entry) }
-      : {});
+      : {};
+    if (boardToken?.state?.hpMax > 0) {
+      spellChipOptions.boardTokenHP = {
+        itemId: boardToken.itemId,
+        hp: boardToken.state.hp,
+        hpMax: boardToken.state.hpMax,
+      };
+    }
+    const fragSp = buildSpellChips([spell], spellChipOptions);
+    if (boardToken && typeof __bindSpellBoardTokenHPEditor === "function") {
+      const hpPill = fragSp.querySelector?.('[data-spell-board-token-hp="1"]');
+      if (hpPill) __bindSpellBoardTokenHPEditor(hpPill, boardToken, spell);
+    }
 
   // colore pieno = stesso del badge "C"
     const chips = Array.from(fragSp.childNodes).filter(n => n.nodeType === 1);

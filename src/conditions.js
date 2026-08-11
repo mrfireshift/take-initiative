@@ -183,6 +183,7 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.effectKind === "buff" || value.effectKind === "debuff") {
     instance.effectKind = value.effectKind;
   }
+  if (value.magical === true) instance.magical = true;
   if (value.resourceDie) instance.resourceDie = String(value.resourceDie).trim();
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);
   if (value.theme && typeof value.theme === "object") {
@@ -343,6 +344,7 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
   if (opts.effectKind === "buff" || opts.effectKind === "debuff") {
     instance.effectKind = opts.effectKind;
   }
+  if (opts.magical === true) instance.magical = true;
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
   if (opts.theme && typeof opts.theme === "object") {
     instance.theme = { ...opts.theme };
@@ -357,6 +359,7 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
     instance.mechanics = { ...opts.mechanics };
   }
   if (opts.manualRemoval === true) instance.manualRemoval = true;
+  if (opts.mapVisible === false) instance.mapVisible = false;
   if (opts.parentRemoval === "target" || opts.parentRemoval === "spell") {
     instance.parentRemoval = opts.parentRemoval;
   }

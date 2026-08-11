@@ -10,9 +10,17 @@ const turnNoticeHtml = readFileSync(
   new URL("../turn-notice.html", import.meta.url),
   "utf8",
 );
+const reminderRender = turnNotice.slice(
+  turnNotice.indexOf("function renderSaveReminderBatch(batch: any)"),
+  turnNotice.indexOf("function flushSaveReminderNotices()"),
+);
 
 test("la UI integra i controlli solo nel reminder GM", () => {
-  assert.match(turnNotice, /noticeRole !== "GM"[\s\S]{0,140}!row\?\.resolution[\s\S]{0,140}row\.targets\.length !== 1/);
+  assert.match(turnNotice, /function reminderRowRequiresResponse\(row: any\)/);
+  assert.match(turnNotice, /noticeRole === "GM"/);
+  assert.match(turnNotice, /!!row\?\.resolution/);
+  assert.match(turnNotice, /row\.targets\.length === 1/);
+  assert.match(turnNotice, /if \(!reminderRowRequiresResponse\(row\)\) return;/);
   assert.match(turnNotice, /const RESOLUTION_BUTTON_OUTCOMES = \[/);
   assert.match(turnNotice, /for \(const option of outcomeOptions\)/);
   assert.doesNotMatch(turnNotice, /dismissOnly/);
@@ -28,11 +36,11 @@ test("il rerender conserva bozza di esito e risultato dadi", () => {
   assert.match(turnNotice, /renderSaveReminderBatch\(currentSaveReminderBatch\)/);
 });
 
-test("l'esito viene inviato direttamente dal pulsante senza conferma", () => {
+test("i TS mantengono i pulsanti diretti e il danno automatico usa Conferma", () => {
   assert.match(turnNotice, /const resolve = async \(outcome: string\)/);
-  assert.match(turnNotice, /button\.addEventListener\("click", \(\) => \{\s*void resolve\(option\.value\);/);
-  assert.doesNotMatch(turnNotice, /textContent = "Conferma"/);
-  assert.doesNotMatch(turnNotice, /zone-resolution-confirm/);
+  assert.match(turnNotice, /button\.addEventListener\("click", \(event\) => \{\s*event\.stopPropagation\(\);\s*void resolve\(option\.value\);/);
+  assert.match(turnNotice, /row\.resolution\?\.mode === "manual-damage"/);
+  assert.match(turnNotice, /label: "Conferma"/);
 });
 
 test("una risoluzione riuscita rimuove subito il reminder risolto", () => {
@@ -44,11 +52,12 @@ test("una risoluzione riuscita rimuove subito il reminder risolto", () => {
   assert.match(turnNotice, /if \(!entries\.length\) \{\s*clearZoneNotice\(\);/);
 });
 
-test("ogni reminder usa il timer automatico e non espone una chiusura manuale", () => {
-  assert.doesNotMatch(turnNotice, /const requiresResolution = noticeRole === "GM"/);
-  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
-  assert.match(turnNotice, /panel\.appendChild\(timer\)/);
-  assert.match(turnNotice, /zoneHideTimer = window\.setTimeout/);
+test("i reminder con risposta GM restano aperti senza timer automatico", () => {
+  assert.match(turnNotice, /function reminderRowRequiresResponse\(row: any\)/);
+  assert.match(turnNotice, /if \(!reminderRowRequiresResponse\(row\)\) return;/);
+  assert.match(turnNotice, /const requiresResponse = presentation\.rows\.some\(reminderRowRequiresResponse\)/);
+  assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
+  assert.match(reminderRender, /if \(!requiresResponse\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
   assert.match(turnNotice, /shouldClearZoneNoticeAtTurn\(currentZoneTurnKey, notice\.turnKey\)/);
   assert.match(turnNotice, /clearZoneNotice\(\);/);
@@ -69,8 +78,7 @@ test("il modal mantiene il click solo sui controlli e il layer zona sopra l'iniz
 });
 
 test("un reminder consumabile non mostra Chiudi e usa il timer automatico", () => {
-  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
-  assert.match(turnNotice, /row\.resolution\?\.mode === "consume"/);
-  assert.match(turnNotice, /panel\.appendChild\(timer\)/);
-  assert.match(turnNotice, /zoneHideTimer = window\.setTimeout/);
+  assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
+  assert.match(reminderRender, /if \(!requiresResponse\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
+  assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
 });

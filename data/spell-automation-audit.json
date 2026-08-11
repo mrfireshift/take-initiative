@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "ruleset": "D&D 5e 2014",
   "methodology": "Confronto deterministico tra testi regolamentari locali e contratti runtime per spell lanciabili con 1 azione, 1 azione bonus o 1 reazione; i P1 sono revisionati manualmente sul testo RAW. Il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
-  "fingerprint": "e670bda8c1ea7b4a",
+  "fingerprint": "b580f9abbf9a2c17",
   "summary": {
     "catalogTotal": 477,
     "catalog": 374,
@@ -16,21 +16,21 @@
     },
     "trackable": 280,
     "withAreaRules": 114,
-    "openRows": 53,
-    "confirmed": 52,
+    "openRows": 44,
+    "confirmed": 43,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 52,
+    "curatedP1": 43,
     "manuallyReviewed": 71,
     "byPriority": {
-      "—": 321,
-      "P1": 52,
+      "—": 330,
+      "P1": 43,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 244,
+      "coperto": 253,
       "istantaneo: gestione manuale": 57,
-      "parziale: revisione curata": 52,
+      "parziale: revisione curata": 43,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 20
     },
@@ -42,7 +42,6 @@
     },
     "byGap": {
       "AREA_GEOMETRY_MISSING": 2,
-      "AREA_SMOKE_TEST": 1,
       "AURA_HEAL_ACTION": 1,
       "AURA_PASSIVE_RUNTIME": 1,
       "BOUNDARY_REJECTION": 1,
@@ -50,15 +49,13 @@
       "CHOICE_WORKFLOW_MISSING": 5,
       "CONDITIONAL_TRIGGER": 13,
       "CROSSING_DETECTION": 4,
-      "DIRECTIONAL_MOVEMENT_COST": 1,
       "ENDING_DETONATION": 1,
       "ENTRY_EXIT_FALL": 2,
       "HOT_SIDE_GEOMETRY": 1,
       "LAYER_STATE_MACHINE": 1,
-      "MOBILE_ZONE_ACTION": 4,
       "MODE_SPECIFIC_RUNTIME": 2,
       "MOVABLE_ZONE_RUNTIME": 1,
-      "MOVEMENT_IMMUNITY": 2,
+      "MOVEMENT_IMMUNITY": 1,
       "MOVEMENT_MECHANICS_MISSING": 7,
       "MULTI_SAVE_SEQUENCE": 3,
       "MULTI_SAVE_STATE": 2,
@@ -67,15 +64,15 @@
       "PROJECTILE_BOUNDARY": 1,
       "RANDOM_RESULT_STATE": 1,
       "RANDOM_TURN_STATE": 1,
-      "REPEATED_ACTION": 23,
-      "RESOURCE_STATE": 6,
+      "REPEATED_ACTION": 16,
+      "RESOURCE_STATE": 5,
       "ROUND_STATE_MACHINE": 1,
       "SLOT_SCALING": 1,
       "STATUS_MISSING": 6,
       "TEXT_MISSING": 1,
-      "TURN_EFFECT_MISSING": 4,
+      "TURN_EFFECT_MISSING": 3,
       "VARIANT_ZONE_RUNTIME": 1,
-      "ZONE_TRIGGER_MISSING": 3
+      "ZONE_TRIGGER_MISSING": 2
     }
   },
   "rows": [
@@ -947,26 +944,14 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Come azione bonus nel suo turno, l'incantatore può muovere l'arma di un massimo di 6 metri e ripetere l'attacco contro una creatura situata entro 1,5 metri da essa."
-          ]
-        },
-        {
-          "code": "MOBILE_ZONE_ACTION",
-          "label": "azione di spostamento della zona assente",
-          "evidence": [
-            "Come azione bonus nel suo turno, l'incantatore può muovere l'arma di un massimo di 6 metri e ripetere l'attacco contro una creatura situata entro 1,5 metri da essa."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -979,9 +964,12 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "spiritual-weapon-attack"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true,
+        "boardToken": true
       },
       "evidence": {
         "area": [],
@@ -994,7 +982,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "L'arma è una sorgente mobile: ogni azione bonus può spostarla di 6 m e ripetere l'attacco da quella posizione."
+      "curatedNote": "Effetti ad Area posiziona e conferma entro gittata una pedina magica persistente, poi liberamente trascinabile e collegata all'istanza. La scheda mostra movimento 6 m, portata 1,5 m, attacco 1d8 + modificatore e scaling dello slot; una mini-card subordinata del tracker indica l'azione bonus senza alterare l'ordine."
     },
     {
       "id": "phb2014-armatura-di-agathys",
@@ -6603,28 +6591,9 @@
         "movimento",
         "turni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "DIRECTIONAL_MOVEMENT_COST",
-          "label": "costo di movimento direzionale non calcolato",
-          "evidence": [
-            "Una linea di vento forte lunga 18 metri e ampia 3 metri viene indirizzata dall'incantatore in una direzione a sua scelta per la durata dell'incantesimo.",
-            "Ogni creatura che inizia il suo turno nella linea deve superare un tiro salvezza su Forza o viene spinta per 4,5 metri lontano dall'incantatore nella direzione della linea.",
-            "Qualsiasi creatura nella linea deve usare 60 cm di movimento per ogni 30 cm percorsi per avvicinarsi all'incantatore."
-          ]
-        },
-        {
-          "code": "AREA_SMOKE_TEST",
-          "label": "smoke test geometrico e lifecycle ancora richiesto",
-          "evidence": [
-            "Una linea di vento forte lunga 18 metri e ampia 3 metri viene indirizzata dall'incantatore in una direzione a sua scelta per la durata dell'incantesimo.",
-            "Ogni creatura che inizia il suo turno nella linea deve superare un tiro salvezza su Forza o viene spinta per 4,5 metri lontano dall'incantatore nella direzione della linea.",
-            "Qualsiasi creatura nella linea deve usare 60 cm di movimento per ogni 30 cm percorsi per avvicinarsi all'incantatore."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -6663,7 +6632,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La linea, il TS a inizio turno e il cambio di direzione esistono; manca il costo raddoppiato soltanto avvicinandosi al caster e serve lo smoke test completo."
+      "curatedNote": "La zona persistente e il TS a inizio turno restano invariati; il contratto dello Speed Tracker raddoppia soltanto la porzione di ogni segmento realmente percorsa verso il caster, usa la posizione corrente della sorgente, conserva il costo nel percorso per Undo e deduplica la stessa istanza. Geometria, membership, cambio direzione e lifecycle sono coperti dai test logici dedicati."
     },
     {
       "id": "etherealness",
@@ -9339,31 +9308,15 @@
       ],
       "coverage": [
         "tracking",
-        "aree:instant",
-        "TS"
+        "aree:aura/emission",
+        "lifecycle",
+        "TS",
+        "turni",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Una cortina di fiamme corre lungo il corpo dell'incantatore, diffondendo luce intensa in un raggio di 9 metri e luce fioca per 9 metri aggiuntivi per la durata dell'incantesimo.",
-            "L'incantatore può usare la sua azione per creare una linea di fuoco lunga 4,5 metri e larga 1,5 metri, che si estende da lui in una direzione a sua scelta.",
-            "Ogni creatura sulla linea deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 4d8 danni da fuoco, mentre se lo supera, subisce la metà di quei danni."
-          ]
-        },
-        {
-          "code": "ZONE_TRIGGER_MISSING",
-          "label": "trigger spaziali o di turno assenti",
-          "evidence": [
-            "Una cortina di fiamme corre lungo il corpo dell'incantatore, diffondendo luce intensa in un raggio di 9 metri e luce fioca per 9 metri aggiuntivi per la durata dell'incantesimo.",
-            "L'incantatore può usare la sua azione per creare una linea di fuoco lunga 4,5 metri e larga 1,5 metri, che si estende da lui in una direzione a sua scelta.",
-            "Ogni creatura sulla linea deve effettuare un tiro salvezza su Destrezza; se lo fallisce, subisce 4d8 danni da fuoco, mentre se lo supera, subisce la metà di quei danni."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -9371,16 +9324,23 @@
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
-          "xanathar-investitura-della-fiamma:cast"
+          "xanathar-investitura-della-fiamma:aura",
+          "xanathar-investitura-della-fiamma:linea-di-fuoco"
         ],
         "areaKinds": [
-          "instant"
+          "aura",
+          "emission"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "flame-investiture-damage-on-entry",
+          "flame-investiture-damage-on-turn-end"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "flame-investiture-line"
+        ],
         "phaseOptions": [],
         "movementMechanics": false
       },
@@ -9400,7 +9360,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Mancano il danno automatico a ingresso/fine turno nell'aura e la linea di fuoco ripetibile come azione."
+      "curatedNote": "L'aura mobile di 1,5 m considera solo le creature ostili e produce reminder manuali da 1d10 fuoco all'ingresso e a fine turno con input danno e Conferma; il caster riceve la pill informativa di immunità al fuoco e resistenza al freddo. Dal turno successivo al lancio, la Linea di fuoco opzionale usa il popup dedicato con TS Destrezza e 4d8 fuoco."
     },
     {
       "id": "xanathar-investitura-della-pietra",
@@ -9681,20 +9641,15 @@
       ],
       "coverage": [
         "tracking",
-        "aree:instant",
-        "TS"
+        "aree:instant/zone",
+        "lifecycle",
+        "TS",
+        "movimento",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "In ogni suoi turno finché l'incantesimo non termina, l'incantatore può usare un'azione per richiamare il fulmine in questo modo, bersagliando lo stesso punto o un punto diverso."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -9702,18 +9657,22 @@
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
-          "call-lightning:cast"
+          "call-lightning:cast",
+          "call-lightning:cloud"
         ],
         "areaKinds": [
-          "instant"
+          "instant",
+          "zone"
         ],
         "triggerIds": [],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "call-lightning-strike"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true
       },
       "evidence": {
         "area": [],
@@ -9728,7 +9687,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Dopo il lancio il caster può scegliere ogni turno un nuovo punto sotto la nube e risolvere nuovamente area, TS e danni."
+      "curatedNote": "Il lancio crea una nube temporalesca persistente di raggio 18 m collegata alla concentrazione del caster e conserva la scarica iniziale da 1,5 m; il prompt per richiamare i fulmini appare all'inizio di ogni turno del caster, fuori dal pannello Spells, si chiude al cambio di turno e risolve TS Destrezza, danni e scaling dello slot in una transazione."
     },
     {
       "id": "xanathar-invulnerabilita",
@@ -9901,35 +9860,18 @@
       "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
-        "area",
         "ingresso/attraversamento",
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Una volta lanciato questo incantesimo, l'incantatore può effettuare con la lama evocata fino a due attacchi in mischia con incantesimo, ognuno dei quali può essere lanciato contro una creatura, un oggetto non equipaggiato o una struttura posti entro un ragg…",
-            "Come azione bonus nel suo turno, l'incantatore può muovere la lama fino a un massimo di 9 metri verso uno spazio libero entro gittata che egli sia in grado di vedere, dopodiché, sempre durante la stessa azione, può effettuare fino a due attacchi in mischia …",
-            "La lama è in grado di attraversare indisturbata qualsiasi barriera, incluso un muro di forza."
-          ]
-        },
-        {
-          "code": "MOBILE_ZONE_ACTION",
-          "label": "azione di spostamento della zona assente",
-          "evidence": [
-            "Una volta lanciato questo incantesimo, l'incantatore può effettuare con la lama evocata fino a due attacchi in mischia con incantesimo, ognuno dei quali può essere lanciato contro una creatura, un oggetto non equipaggiato o una struttura posti entro un ragg…",
-            "Come azione bonus nel suo turno, l'incantatore può muovere la lama fino a un massimo di 9 metri verso uno spazio libero entro gittata che egli sia in grado di vedere, dopodiché, sempre durante la stessa azione, può effettuare fino a due attacchi in mischia …",
-            "La lama è in grado di attraversare indisturbata qualsiasi barriera, incluso un muro di forza."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -9942,9 +9884,12 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "blade-of-disaster-attacks"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true,
+        "boardToken": true
       },
       "evidence": {
         "area": [
@@ -9962,7 +9907,7 @@
           "La lama è in grado di attraversare indisturbata qualsiasi barriera, incluso un muro di forza."
         ]
       },
-      "curatedNote": "Manca l'azione bonus ricorrente che sposta la lama di 9 m e risolve due attacchi, inclusa la soglia di critico 18–20 e i dadi critici speciali."
+      "curatedNote": "Effetti ad Area posiziona e conferma entro gittata una pedina persistente trascinabile con movimento 9 m e portata 1,5 m. La scheda espone i due attacchi da 4d12, il critico 18–20 da 12d12 e l'attraversamento delle barriere; la risoluzione dei tiri resta manuale."
     },
     {
       "id": "flame-blade",
@@ -10409,19 +10354,12 @@
         "movimento"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MOVEMENT_IMMUNITY",
-          "label": "eccezioni e immunità ai costi di movimento assenti",
-          "evidence": [
-            "Per la durata dell'incantesimo, il movimento del bersaglio non è influenzato dal terreno difficile, inoltre incantesimi e altri effetti magici non possono né ridurne la velocità né trattenerlo o provocarne la paralisi."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -10433,10 +10371,10 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true
       },
       "evidence": {
         "area": [],
@@ -10449,7 +10387,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Lo Speed Tracker deve ignorare terreno difficile e riduzioni magiche, oltre a rappresentare l'uscita automatica spendendo 1,5 m."
+      "curatedNote": "Lo Speed Tracker applica le immunità selettive a terreno difficile e riduzioni magiche della velocità; le applicazioni magiche di Paralizzato e Trattenuto vengono rifiutate. Al turno del bersaglio un reminder propone di spendere 1,5 m per rimuovere una singola restrizione non magica Afferrato o Trattenuto e aggiorna il consumo quando il tracker è attivo; senza tracker resta una conferma manuale del costo RAW."
     },
     {
       "id": "tongues",
@@ -11054,39 +10992,15 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni",
+        "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": [
-            "Il bersaglio non può muoversi nello spazio della mano se il suo punteggio di Forza è pari o inferiore a quello della mano.",
-            "Se il punteggio di Forza del bersaglio è superiore a quello della mano, esso si può muovere verso l'incantatore attraversando il suo spazio, che tuttavia risulta per lui un terreno difficile.",
-            "Mentre la mano afferra il bersaglio, l'incantatore può usare un'azione bonus per ordinarle di stritolarlo."
-          ]
-        },
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Il bersaglio non può muoversi nello spazio della mano se il suo punteggio di Forza è pari o inferiore a quello della mano.",
-            "Se il punteggio di Forza del bersaglio è superiore a quello della mano, esso si può muovere verso l'incantatore attraversando il suo spazio, che tuttavia risulta per lui un terreno difficile.",
-            "Mentre la mano afferra il bersaglio, l'incantatore può usare un'azione bonus per ordinarle di stritolarlo."
-          ]
-        },
-        {
-          "code": "MOBILE_ZONE_ACTION",
-          "label": "azione di spostamento della zona assente",
-          "evidence": [
-            "Il bersaglio non può muoversi nello spazio della mano se il suo punteggio di Forza è pari o inferiore a quello della mano.",
-            "Se il punteggio di Forza del bersaglio è superiore a quello della mano, esso si può muovere verso l'incantatore attraversando il suo spazio, che tuttavia risulta per lui un terreno difficile.",
-            "Mentre la mano afferra il bersaglio, l'incantatore può usare un'azione bonus per ordinarle di stritolarlo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -11099,9 +11013,15 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "arcane-hand-interposing",
+          "arcane-hand-forceful",
+          "arcane-hand-grasping",
+          "arcane-hand-clenched"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true,
+        "boardToken": true
       },
       "evidence": {
         "area": [],
@@ -11117,7 +11037,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La mano è una sorgente mobile con PF/CA propri e quattro modalità ripetibili: interposizione, spinta, presa/stritolamento e pugno."
+      "curatedNote": "Effetti ad Area posiziona e conferma entro gittata la Mano come pedina persistente trascinabile con movimento 18 m, CA 20 e PF propri pari ai PF massimi del caster. Le quattro modalità, il bersaglio associato, lo scaling e gli aggiornamenti dei PF sono esposti nella scheda e inclusi in cronologia e Undo."
     },
     {
       "id": "mage-hand",
@@ -18433,30 +18353,12 @@
         "lifecycle",
         "TS",
         "movimento",
-        "turni"
+        "turni",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Dal nulla si forma una sfera di aria turbinante del raggio di 6 metri, centrata su un punto entro gittata a scelta dell'incantatore.",
-            "La sfera permane per la durata dell'incantesimo.",
-            "Ogni creatura che si trova nella sfera quando questa compare o che vi termina il proprio turno deve superare un tiro salvezza su Forza, altrimenti subisce 2d6 danni contundenti."
-          ]
-        },
-        {
-          "code": "TURN_EFFECT_MISSING",
-          "label": "effetto ricorrente di turno assente",
-          "evidence": [
-            "Dal nulla si forma una sfera di aria turbinante del raggio di 6 metri, centrata su un punto entro gittata a scelta dell'incantatore.",
-            "La sfera permane per la durata dell'incantesimo.",
-            "Ogni creatura che si trova nella sfera quando questa compare o che vi termina il proprio turno deve superare un tiro salvezza su Forza, altrimenti subisce 2d6 danni contundenti."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -18475,7 +18377,9 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "storm-sphere-lightning"
+        ],
         "phaseOptions": [],
         "movementMechanics": true
       },
@@ -18497,7 +18401,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La zona applica TS/danni a fine turno e il caster può lanciare un fulmine ogni round con vantaggio contro bersagli interni."
+      "curatedNote": "Il trigger di TS e danni a fine turno resta invariato; l'azione bonus Fulmine usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera."
     },
     {
       "id": "resilient-sphere",
@@ -19000,26 +18904,14 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "movimento",
+        "pedina magica",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, l'incantatore può usare un'azione bonus in ogni suo turno per muovere la spada per un massimo di 6 metri fino aun punto che è in grado di vedere e ripetere questo attacco contro lo stesso bersaglio o contro uno diverso."
-          ]
-        },
-        {
-          "code": "MOBILE_ZONE_ACTION",
-          "label": "azione di spostamento della zona assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, l'incantatore può usare un'azione bonus in ogni suo turno per muovere la spada per un massimo di 6 metri fino aun punto che è in grado di vedere e ripetere questo attacco contro lo stesso bersaglio o contro uno diverso."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -19032,9 +18924,12 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "arcane-sword-attack"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false
+        "movementMechanics": true,
+        "boardToken": true
       },
       "evidence": {
         "area": [],
@@ -19047,7 +18942,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Ogni azione bonus sposta la sorgente di 6 m e ripete l'attacco dallo spazio della spada."
+      "curatedNote": "Effetti ad Area posiziona e conferma entro gittata una pedina magica persistente collegata alla concentrazione. Movimento 6 m, portata 1,5 m e attacco ricorrente da 3d10 forza restano riferimenti da tabellone; terminazione e Undo includono la pedina."
     },
     {
       "id": "xanathar-spirito-guaritore",

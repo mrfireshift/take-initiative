@@ -7,6 +7,7 @@ import {
   getSpellAreaRules,
   validateSpellAreaRule,
 } from "../src/spellAreaRules.js";
+import { buildArea } from "../src/aoeGeometryCore.js";
 import {
   AREA_FIELD_NON_POPOVER_REASONS,
   AREA_PLACEABLE_SPELL_IDS,
@@ -48,6 +49,30 @@ test("il lookup distingue cast e attivazioni della stessa spell", () => {
   assert.equal(actionRules[0].geometry.size.value, 4.5);
 });
 
+test("Investitura della Fiamma separa aura persistente e linea dell'attivazione", () => {
+  const castRule = getSpellAreaRuleById("xanathar-investitura-della-fiamma:aura");
+  const actionRule = getSpellAreaRuleById("xanathar-investitura-della-fiamma:linea-di-fuoco");
+  assert.equal(castRule.kind, "aura");
+  assert.equal(castRule.lifecycle.persistence, "spell");
+  assert.equal(castRule.geometry.size.value, 1.5);
+  assert.equal(castRule.targeting.filter, "hostile");
+  assert.equal(castRule.targeting.includeCaster, false);
+  assert.deepEqual(
+    castRule.triggerPolicy.triggers.map((trigger) => [trigger.event, trigger.resolution]),
+    [["enter", "manual-effect"], ["turn-end", "manual-effect"]],
+  );
+  assert.deepEqual(
+    castRule.triggerPolicy.triggers.map((trigger) => trigger.damage),
+    [
+      { dice: "1d10", type: "fuoco", onSave: "none" },
+      { dice: "1d10", type: "fuoco", onSave: "none" },
+    ],
+  );
+  assert.equal(actionRule.kind, "emission");
+  assert.equal(actionRule.trigger.actionId, "flame-investiture-line");
+  assert.equal(actionRule.geometry.width.value, 1.5);
+});
+
 test("le quattro geometrie pilota hanno misure e vincoli espliciti", () => {
   const fireball = getSpellAreaRuleById("fireball:cast");
   const burningHands = getSpellAreaRuleById("burning-hands:cast");
@@ -78,6 +103,26 @@ test("le quattro geometrie pilota hanno misure e vincoli espliciti", () => {
   assert.equal(entangle.zonePolicy.owner, "caster");
   assert.equal(entangle.zonePolicy.movement, "fixed");
   assert.equal(entangle.zonePolicy.initialResolution, "manual-save");
+});
+
+test("Invocare il fulmine separa il punto della scarica dalla nube persistente", () => {
+  const cast = getSpellAreaRuleById("call-lightning:cast");
+  const cloud = getSpellAreaRuleById("call-lightning:cloud");
+
+  assert.equal(cast.kind, "instant");
+  assert.equal(cast.geometry.size.value, 1.5);
+  assert.equal(cast.placement.range.value, 36);
+  assert.equal(cloud.kind, "zone");
+  assert.equal(cloud.geometry.size.value, 18);
+  assert.equal(cloud.placement.origin, "point");
+  assert.equal(cloud.placement.range.value, 36);
+  assert.equal(cloud.lifecycle.persistence, "spell");
+  assert.equal(cloud.zonePolicy.initialResolution, "none");
+  assert.deepEqual(
+    getSpellAreaRules("call-lightning", { triggerType: "cast" })
+      .map((rule) => rule.id),
+    ["call-lightning:cast", "call-lightning:cloud"],
+  );
 });
 
 test("le aree ostili includono il caster salvo immunità esplicite", () => {
@@ -566,9 +611,13 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
     gust.zonePolicy.triggers.map((trigger) => trigger.event),
     ["turn-start"],
   );
-  assert.equal(
-    gust.zonePolicy.membershipEffects[0].mechanics,
-    undefined,
+  assert.deepEqual(
+    gust.zonePolicy.membershipEffects[0].mechanics.movement.directional,
+    {
+      direction: "toward-source",
+      costMultiplier: 2,
+      label: "Folata di vento: movimento verso il caster ×2",
+    },
   );
   assert.equal(
     gust.zonePolicy.membershipEffects[0].label,
@@ -613,6 +662,34 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
     trigger.ruleChoice === "downdraft"
     && trigger.requiresRuleChoices.includes("downdraft")
   ));
+});
+
+test("lo smoke test logico di Folata copre sagoma, direzioni e lifecycle di membership", () => {
+  const rule = getSpellAreaRuleById("gust-of-wind:cast");
+  for (const dpi of [100, 150]) {
+    for (const direction of [
+      { x: 12 * dpi, y: 0 },
+      { x: -12 * dpi, y: 0 },
+      { x: 0, y: 12 * dpi },
+      { x: 12 * dpi / Math.SQRT2, y: 12 * dpi / Math.SQRT2 },
+    ]) {
+      const area = buildArea(
+        "rectangle",
+        { x: 0, y: 0 },
+        direction,
+        dpi,
+        { x: 0, y: 0 },
+        { widthSquares: 2 },
+      );
+      assert.equal(area.squares, 12);
+      assert.equal(area.widthSquares, 2);
+      assert.ok(area.cells.length > 0);
+    }
+  }
+  assert.equal(rule.lifecycle.persistence, "spell");
+  assert.equal(rule.lifecycle.endsWithSpell, true);
+  assert.equal(rule.zonePolicy.membershipEffects.length, 1);
+  assert.equal(rule.zonePolicy.triggers[0].event, "turn-start");
 });
 
 test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio tracciano movimento e attraversamento", () => {

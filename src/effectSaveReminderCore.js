@@ -2,6 +2,7 @@ import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import {
   buildEffectSaveReminderResolution,
+  buildMovementEscapeReminderResolution,
   buildDeferredEffectResolution,
   normalizeReminderResolution,
   REMINDER_RESOLUTIONS_FIELD,
@@ -113,6 +114,138 @@ function conditionInstances(item) {
   const conditions = item?.metadata?.[META_KEY]?.conditions;
   if (Array.isArray(conditions)) return conditions;
   return Array.isArray(conditions?.instances) ? conditions.instances : [];
+}
+
+function spellInstances(item) {
+  const spells = item?.metadata?.[META_KEY]?.[`${ID}/spells`];
+  return Array.isArray(spells) ? spells : [];
+}
+
+function normalizedConditionKey(value) {
+  return String(value?.condition || value?.name || value || "")
+    .trim()
+    .toLocaleLowerCase("it")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
+const FREEDOM_OF_MOVEMENT_KEYS = new Set([
+  "freedom-of-movement",
+  "freedom of movement",
+  "liberta di movimento",
+]);
+
+function freedomEscapeDefinition(item) {
+  const condition = conditionInstances(item).find((instance) =>
+    instance?.active !== false
+      && instance?.mechanics?.movement?.escape
+      && typeof instance.mechanics.movement.escape === "object"
+  );
+  if (condition) {
+    return {
+      instance: condition,
+      escape: condition.mechanics.movement.escape,
+    };
+  }
+
+  const spell = spellInstances(item).find((entry) =>
+    FREEDOM_OF_MOVEMENT_KEYS.has(String(entry?.spellId || "").trim().toLocaleLowerCase("it"))
+    || FREEDOM_OF_MOVEMENT_KEYS.has(normalizedConditionKey(entry?.name))
+  );
+  return spell
+    ? {
+      instance: {
+        id: `spell:${String(spell.instanceId || spell.id || "freedom-of-movement")}`,
+        appliedAt: spell.appliedAt,
+      },
+      escape: {
+        costMeters: 1.5,
+        conditions: ["Afferrato", "Trattenuto"],
+        prompt: "Spendere 1,5 m di movimento per liberarsi?",
+      },
+    }
+    : null;
+}
+
+function magicalRestriction(instance) {
+  const type = String(instance?.type || instance?.effectType || "")
+    .trim()
+    .toLocaleLowerCase("it");
+  return instance?.magical === true
+    || instance?.mechanics?.magical === true
+    || String(instance?.sourceType || "").trim().toLocaleLowerCase("it") === "spell"
+    || type === "spell"
+    || type === "spell-effect";
+}
+
+function freedomEscapeNoticesForTiming({
+  item,
+  timing,
+  boundaryActorId,
+  eventKey,
+  noticeTurnKey,
+}) {
+  if (timing !== "turn-start" || String(item?.id || "") !== boundaryActorId) return [];
+  const definition = freedomEscapeDefinition(item);
+  if (!definition) return [];
+  if (String(definition.instance?.appliedAt?.turnKey || "").trim() === eventKey) return [];
+
+  const cost = Number(definition.escape?.costMeters);
+  const conditionKeys = new Set(
+    (Array.isArray(definition.escape?.conditions) ? definition.escape.conditions : [])
+      .map(normalizedConditionKey)
+      .filter(Boolean),
+  );
+  if (!Number.isFinite(cost) || cost <= 0 || !conditionKeys.size) return [];
+
+  return conditionInstances(item)
+    .filter((restriction) => (
+      restriction?.active !== false
+      && restriction?.id
+      && conditionKeys.has(normalizedConditionKey(restriction))
+      && !magicalRestriction(restriction)
+    ))
+    .map((restriction) => {
+      const activationId = `${item.id}:${restriction.id}:movement-escape:${eventKey}`;
+      const resolutions = item?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD];
+      if (
+        resolutions
+        && typeof resolutions === "object"
+        && Object.prototype.hasOwnProperty.call(resolutions, activationId)
+      ) return null;
+      const conditionName = String(restriction.condition || restriction.name || "restrizione")
+        .trim() || "restrizione";
+      const defaultPrompt = `Spendere ${String(cost).replace(".", ",")} m di movimento per liberarsi da ${conditionName}?`;
+      const configuredPrompt = String(definition.escape?.prompt || "").trim();
+      const instruction = configuredPrompt
+        ? configuredPrompt.replace(/\?\s*$/u, ` da ${conditionName}?`)
+        : defaultPrompt;
+      const resolution = buildMovementEscapeReminderResolution({
+        targetId: item.id,
+        restrictionInstanceId: restriction.id,
+        activationId,
+        turnKey: noticeTurnKey,
+        costMeters: cost,
+      });
+      if (!resolution) return null;
+      return {
+        activationId,
+        turnKey: noticeTurnKey,
+        effectName: "Libertà di movimento",
+        saveLabel: `Movimento ${String(cost).replace(".", ",")} m`,
+        instruction,
+        timing,
+        kind: "effect-reminder",
+        eyebrow: "Libertà di movimento",
+        resolution,
+        target: {
+          id: item.id,
+          name: String(item.name || "Token").trim().slice(0, 100) || "Token",
+          portrait: itemPortrait(item),
+        },
+      };
+    })
+    .filter(Boolean);
 }
 
 function concentrationEntries(item) {
@@ -354,6 +487,13 @@ function noticesForTiming(
 ) {
   const notices = [];
   for (const item of Array.isArray(items) ? items : []) {
+    notices.push(...freedomEscapeNoticesForTiming({
+      item,
+      timing,
+      boundaryActorId,
+      eventKey,
+      noticeTurnKey,
+    }));
     for (const instance of conditionInstances(item)) {
       if (instance?.active === false || !instance?.id) continue;
       for (const reminder of normalizeEffectSaveReminders(

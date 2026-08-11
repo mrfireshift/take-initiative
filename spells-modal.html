@@ -158,6 +158,12 @@
     }
     .spell-overview-meta { color:rgba(255,255,255,.82); }
     .spell-overview-targets { display:flex; align-items:center; gap:3px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.68); }
+    .spell-board-token-state { display:flex; align-items:center; flex-wrap:wrap; gap:5px; color:rgba(191,219,254,.92); }
+    .spell-board-token-state--missing { color:rgba(253,186,116,.96); }
+    .spell-board-token-summary { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .spell-board-token-ac, .spell-board-token-mode { padding:2px 5px; border:1px solid rgba(125,211,252,.32); border-radius:6px; background:rgba(14,116,144,.18); }
+    .spell-board-token-hp { width:52px; min-height:24px; padding:3px 5px; text-align:center; }
+    .spell-board-token-save { min-height:24px; padding:3px 7px; border-radius:6px; background:rgba(14,116,144,.28); border-color:rgba(125,211,252,.42); }
     .spell-overview-target { display:inline-flex; align-items:center; gap:2px; min-width:0; }
     .spell-overview-target > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .terminate-spell-target { min-height:18px; padding:0 4px; border-radius:5px; color:rgba(248,113,113,.95); border-color:rgba(248,113,113,.34); font-size:11px; line-height:1; }
@@ -193,6 +199,8 @@
     .activate-spell:hover { background:rgba(37,99,235,.56); }
     .resolve-spell:disabled,
     .activate-spell:disabled { opacity:.48; cursor:not-allowed; }
+    .spell-action-reference { min-height:28px; padding:5px 9px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid rgba(167,139,250,.40); background:rgba(76,29,149,.24); color:rgba(243,232,255,.96); white-space:nowrap; }
+    .spell-overview-actions--grid .spell-action-reference { min-width:0; overflow:hidden; text-overflow:ellipsis; }
     .active-spell-choice { width:auto; max-width:132px; min-height:28px; padding:4px 7px; }
     .overview-empty { padding:18px 10px; text-align:center; color:rgba(255,255,255,.68); }
     @media (max-width:520px) {

@@ -294,6 +294,18 @@ test("una spell oltre dieci round non mostra il contatore nella card compatta", 
   assert.match(effects[0].title, /durata estesa/);
 });
 
+test("Arma spirituale usa la pill spell normale e non una micro-card", () => {
+  const [effect] = __compactEffectItems([], [{
+    name: "Arma spirituale",
+    spellId: "spiritual-weapon",
+    instanceId: "spiritual-weapon-1",
+    turns: 10,
+  }], false);
+  assert.equal(effect.label, "Arma spirituale (10)");
+  assert.equal(effect.turnCompanion, undefined);
+  assert.match(effect.title, /10 round rimanenti/);
+});
+
 test("una card compatta non mostra pill buff o debuff collegate alla spell", () => {
   const instance = {
     condition: "Lentezza: -2 CA/TS Des · no reazioni",

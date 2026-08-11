@@ -393,8 +393,8 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
   "xanathar-investitura-della-fiamma": Object.freeze([Object.freeze({
     id: "flame-investiture",
     kind: "buff",
-    label: "Imm. fuoco · Res. freddo · aura fuoco",
-    detail: "Immunità al fuoco, resistenza al freddo e danni da fuoco alle creature vicine.",
+    label: "Imm. fuoco · Res. freddo",
+    detail: "L'incantatore è immune ai danni da fuoco e possiede resistenza ai danni da freddo.",
   })]),
   "xanathar-investitura-della-pietra": Object.freeze([Object.freeze({
     id: "stone-investiture",

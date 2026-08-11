@@ -32,6 +32,11 @@ import {
   getSpellSaveWorkflowChoiceAutomation,
   SPELL_SAVE_WORKFLOW_SPELL_IDS,
 } from "./spellSaveWorkflowRules.js";
+import {
+  getSpellBoardTokenRule,
+  SPELL_BOARD_TOKEN_RULES,
+} from "./spellBoardTokenCore.js";
+import { SPELL_ACTIVE_RESOLUTION_ACTIONS } from "./spellActiveResolutionRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -467,6 +472,10 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-punizione-collerica": "selected",
   "phb2014-punizione-tonante": "selected",
   "phb2014-allucinazione-di-forza": "selected",
+  "spiritual-weapon": "self",
+  "arcane-sword": "self",
+  "arcane-hand": "self",
+  "tasha-lama-del-disastro": "self",
 });
 
 const CONCENTRATION_EXPIRY = Object.freeze({ mode: "concentration" });
@@ -609,6 +618,34 @@ const SPELL_END_CONSEQUENCES = Object.freeze({
 });
 
 const SPELL_EFFECTS = Object.freeze({
+  "freedom-of-movement": Object.freeze([
+    Object.freeze({
+      id: "freedom-of-movement-immunities",
+      kind: "buff",
+      mapVisible: false,
+      label: "Libertà di movimento",
+      detail: "Ignora il terreno difficile e le riduzioni magiche della velocità; può spendere 1,5 m per sfuggire alle restrizioni non magiche.",
+      mechanics: Object.freeze({
+        conditionImmunities: Object.freeze({
+          names: Object.freeze(["Paralizzato", "Trattenuto"]),
+          magicalOnly: true,
+          label: "Libertà di movimento: immunità agli effetti magici",
+        }),
+        movement: Object.freeze({
+          immunities: Object.freeze([
+            "difficult-terrain",
+            "magical-speed-reduction",
+          ]),
+          escape: Object.freeze({
+            costMeters: 1.5,
+            conditions: Object.freeze(["Afferrato", "Trattenuto"]),
+            prompt: "Spendere 1,5 m di movimento per liberarsi?",
+          }),
+          label: "Libertà di movimento: immunità selettive",
+        }),
+      }),
+    }),
+  ]),
   "fly": Object.freeze([
     Object.freeze({
       id: "flying-speed-18",
@@ -1436,7 +1473,10 @@ const ALL_SPELLS = [
     automation,
     activeActions: SRD_ACTIVE_ACTIONS[spell.id]
       || SUPPLEMENT_ACTIVE_ACTIONS[spell.id]
+      || SPELL_ACTIVE_RESOLUTION_ACTIONS[spell.id]
+      || SPELL_BOARD_TOKEN_RULES[spell.id]?.actions
       || Object.freeze([]),
+    boardToken: getSpellBoardTokenRule(spell.id),
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),
     expiry: SPELL_EXPIRY[spell.id] || null,
@@ -1510,14 +1550,16 @@ export function getQuickActionSpellOptions() {
 
 export function getAreaSaveSpellOptions() {
   return ALL_SPELLS
-    .filter((spell) => AREA_POPOVER_SPELL_ID_SET.has(spell.id))
+    .filter((spell) => AREA_POPOVER_SPELL_ID_SET.has(spell.id) || !!spell.boardToken)
     .map((spell) => ({
       id: spell.id,
       value: spell.catalogLabel || spell.displayName,
       label: spell.catalogLabel || spell.displayName,
       level: spell.level,
       concentration: spell.concentration === true,
-      automated: !!spell.saveAutomation || SPELL_SAVE_WORKFLOW_SPELL_IDS.includes(spell.id),
+      automated: !!spell.saveAutomation
+        || SPELL_SAVE_WORKFLOW_SPELL_IDS.includes(spell.id)
+        || !!spell.boardToken,
     }));
 }
 

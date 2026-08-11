@@ -1,5 +1,6 @@
 import { getSpellAreaRules } from "./spellAreaRules.js";
 import { MULTI_TARGET_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
+import { getSpellBoardTokenPlacementRule } from "./spellBoardTokenCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -13,6 +14,8 @@ export function getQuickHpInstantAreaRule(spellId) {
 }
 
 export function getQuickHpPlaceableAreaRule(spellId) {
+  const boardTokenRule = getSpellBoardTokenPlacementRule(spellId);
+  if (boardTokenRule) return boardTokenRule;
   const castRules = getSpellAreaRules(spellId, { triggerType: "cast" });
   return castRules.find((rule) =>
     rule.kind === "instant" || rule.kind === "zone"
@@ -55,15 +58,19 @@ export function quickHpAreaPlacementPresentation({
   const multiTargetWithoutTemplate = MULTI_TARGET_SAVE_SPELL_ID_SET.has(
     String(spellId || "").trim(),
   );
-  const placementTitle = rule
-    ? `Posiziona la sagoma di ${rule.spellId}`
-      + (rule.placementNote ? `. ${rule.placementNote}` : "")
-    : "Seleziona un incantesimo con area posizionabile";
+  const boardToken = rule?.kind === "board-token";
+  let placementTitle = "Seleziona un incantesimo con area posizionabile";
+  if (rule) {
+    placementTitle = boardToken
+      ? `Posiziona il token di ${rule.spellId}`
+      : `Posiziona la sagoma di ${rule.spellId}`
+        + (rule.placementNote ? `. ${rule.placementNote}` : "");
+  }
   return {
     rule,
-    hidden: multiTargetWithoutTemplate,
+    hidden: multiTargetWithoutTemplate && !boardToken,
     disabled: !!busy || !rule || !String(casterId || "").trim(),
-    text: "Posiziona area",
+    text: boardToken ? "Posiziona token" : "Posiziona area",
     title: !rule
       ? placementTitle
       : casterId

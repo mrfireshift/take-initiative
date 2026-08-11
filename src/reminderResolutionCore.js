@@ -19,7 +19,7 @@ const OUTCOME_KEYS = Object.freeze([
   REMINDER_OUTCOMES.FAILED,
   REMINDER_OUTCOMES.IMMUNE,
 ]);
-const ACTION_KINDS = new Set(["condition", "spell", "concentration"]);
+const ACTION_KINDS = new Set(["condition", "spell", "concentration", "movement"]);
 const ACTIONS = new Set([
   "apply",
   "keep",
@@ -30,6 +30,7 @@ const ACTIONS = new Set([
   "reconcile-exhaustion",
   "break",
   "break-targets",
+  "spend",
 ]);
 const DAMAGE_FACTORS = new Set(["full", "half", "zero"]);
 const ABILITIES = Object.freeze({
@@ -246,7 +247,14 @@ export function normalizeReminderResolution(value, context = {}) {
     : context.effect && typeof context.effect === "object"
       ? clone(context.effect)
       : null;
-  const mode = ["consume", "manual-heal"].includes(value.mode) ? value.mode : "";
+  const mode = ["consume", "manual-heal", "manual-damage", "choice"].includes(value.mode)
+    ? value.mode
+    : "";
+  const choiceLabels = value.choiceLabels && typeof value.choiceLabels === "object"
+    ? Object.fromEntries(OUTCOME_KEYS
+      .map((key) => [key, text(value.choiceLabels[key], "", 80)])
+      .filter(([, label]) => label))
+    : {};
   const slotLevel = Number(value.slotLevel ?? context.slotLevel);
   if (!ability && dc === null && !damage && !healing && !Object.keys(outcomes).length && !mode) return null;
   return {
@@ -258,6 +266,7 @@ export function normalizeReminderResolution(value, context = {}) {
     ...(damage ? { damage } : {}),
     ...(healing ? { healing } : {}),
     ...(Number.isInteger(slotLevel) && slotLevel >= 0 ? { slotLevel } : {}),
+    ...(Object.keys(choiceLabels).length ? { choiceLabels } : {}),
     ...(Object.keys(outcomes).length ? { outcomes } : {}),
     ...(activation ? { activation } : {}),
     ...(effect ? { effect } : {}),
@@ -392,6 +401,54 @@ export function buildEffectSaveReminderResolution({
   };
 }
 
+export function buildMovementEscapeReminderResolution({
+  targetId = "",
+  restrictionInstanceId = "",
+  activationId = "",
+  turnKey = "",
+  costMeters = 1.5,
+} = {}) {
+  const target = text(targetId, "", 200);
+  const restriction = text(restrictionInstanceId, "", 200);
+  const activation = text(activationId, "", 300);
+  const cost = Number(costMeters);
+  if (!target || !restriction || !activation || !Number.isFinite(cost) || cost <= 0) {
+    return null;
+  }
+  return normalizeReminderResolution({
+    mode: "choice",
+    target: { id: target },
+    activation: {
+      kind: "movement-escape",
+      activationId: activation,
+      turnKey: text(turnKey, "", 300),
+    },
+    choiceLabels: {
+      passed: `Spendi ${String(cost).replace(".", ",")} m`,
+      failed: "Non ora",
+    },
+    outcomes: {
+      passed: {
+        actions: [
+          {
+            kind: "movement",
+            action: "spend",
+            targetId: target,
+            options: { meters: cost },
+          },
+          {
+            kind: "condition",
+            action: "remove-instance",
+            targetId: target,
+            instanceId: restriction,
+          },
+        ],
+      },
+      failed: { actions: [] },
+    },
+  });
+}
+
 export function buildDeferredEffectResolution({
   item = null,
   instance = null,
@@ -480,7 +537,9 @@ export function buildZoneTriggerReminderResolution({
   metadataKey = "",
   slotLevel = null,
 } = {}) {
-  if (!["manual-save", "manual-heal"].includes(activation?.resolution)) return null;
+  if (!["manual-save", "manual-heal", "manual-effect"].includes(activation?.resolution)) {
+    return null;
+  }
   const normalizedTargetId = text(targetId, "", 200);
   const normalizedSourceId = text(sourceId || activation?.casterId, "", 200);
   const resolutionData = activation?.resolutionData
@@ -506,6 +565,17 @@ export function buildZoneTriggerReminderResolution({
     return normalizeReminderResolution({
       mode: "manual-heal",
       healing: scaled.healing,
+      slotLevel: scaled.slotLevel,
+      target: { id: normalizedTargetId },
+      source: { id: normalizedSourceId },
+      activation: activationContext,
+    });
+  }
+  if (activation?.resolution === "manual-effect") {
+    if (!normalizedTargetId || !scaled.damage) return null;
+    return normalizeReminderResolution({
+      mode: "manual-damage",
+      damage: scaled.damage,
       slotLevel: scaled.slotLevel,
       target: { id: normalizedTargetId },
       source: { id: normalizedSourceId },
@@ -571,8 +641,10 @@ export function reminderResolutionDamage(resolution, outcome, roll) {
   const damage = resolution?.damage;
   if (!damage) return { roll: 0, factor: "zero", amount: 0 };
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
-  const factor = normalizedOutcome === REMINDER_OUTCOMES.FAILED
-    ? damage.onFailed
+  const factor = resolution?.mode === "manual-damage"
+    ? "full"
+    : normalizedOutcome === REMINDER_OUTCOMES.FAILED
+      ? damage.onFailed
     : normalizedOutcome === REMINDER_OUTCOMES.IMMUNE
       ? damage.onImmune
       : damage.onPassed;
@@ -590,9 +662,10 @@ export function reminderResolutionNeedsDamage(resolution) {
 }
 
 export function reminderResolutionControls({ role = "PLAYER", resolution = null } = {}) {
-  return String(role || "").toUpperCase() === "GM" && !!resolution
-    ? OUTCOME_KEYS
-    : [];
+  if (String(role || "").toUpperCase() !== "GM" || !resolution) return [];
+  return resolution.mode === "manual-damage"
+    ? ["confirmed"]
+    : OUTCOME_KEYS;
 }
 
 function conditionNameKey(instance) {
@@ -612,6 +685,19 @@ function actionTargetId(action, targetId) {
   return text(action?.targetId || targetId, "", 200);
 }
 
+function sceneTurnKey(sceneMetadata) {
+  const state = sceneMetadata?.[`${ID}/state`];
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const current = Math.max(0, Math.min(
+    order.length - 1,
+    Math.floor(Number(state?.current) || 0),
+  ));
+  const actorId = String(order[current] || "").trim();
+  return actorId
+    ? [Math.max(1, Math.floor(Number(state?.round) || 1)), current, actorId].join(":")
+    : "";
+}
+
 function spellByInstance(item, instanceId) {
   const wanted = text(instanceId, "", 200);
   return spellInstances(item).find((spell) =>
@@ -629,7 +715,7 @@ function outcomeActions(resolution, outcome) {
   return Array.isArray(value?.actions) ? value.actions : [];
 }
 
-function actionOperations({ action, targetId, itemsById }) {
+function actionOperations({ action, targetId, itemsById, sceneMetadata = null }) {
   const resolvedTargetId = actionTargetId(action, targetId);
   const targetItem = itemsById.get(resolvedTargetId);
   if (!resolvedTargetId || !targetItem) {
@@ -638,6 +724,42 @@ function actionOperations({ action, targetId, itemsById }) {
   const kind = text(action?.kind, "", 32).toLowerCase();
   const type = text(action?.action, "", 40).toLowerCase();
   if (type === "none" || type === "keep") return { operations: [] };
+  if (kind === "movement" && type === "spend") {
+    const meters = Number(action?.options?.meters ?? action?.meters);
+    if (!Number.isFinite(meters) || meters <= 0) {
+      return { error: "Il reminder non indica un costo di movimento valido." };
+    }
+    const meta = targetItem?.metadata?.[META_KEY] || {};
+    const payload = meta.speedCheckMovement && typeof meta.speedCheckMovement === "object"
+      ? meta.speedCheckMovement
+      : null;
+    const currentTurnKey = sceneTurnKey(sceneMetadata);
+    const sameTurn = payload?.turnKey
+      && currentTurnKey
+      && String(payload.turnKey) === currentTurnKey
+      && String(currentTurnKey.split(":").slice(2).join(":"))
+        .replace(/::p\d+$/u, "") === resolvedTargetId;
+    if (!sameTurn || !Number.isFinite(Number(payload?.totalMeters))) {
+      // Se lo Speed Tracker non sta seguendo questo attore, il pulsante
+      // resta comunque una conferma manuale del costo RAW.
+      return { operations: [] };
+    }
+    return {
+      operations: [],
+      metadataPatches: [{
+        id: resolvedTargetId,
+        fields: {
+          speedCheckMovement: {
+            expected: { present: true, value: clone(payload) },
+            value: {
+              ...clone(payload),
+              totalMeters: Math.round((Number(payload.totalMeters) + meters) * 1000) / 1000,
+            },
+          },
+        },
+      }],
+    };
+  }
   if (kind === "condition" && type === "remove-instance") {
     const instanceId = text(action?.instanceId, "", 200);
     if (!findCondition(targetItem, instanceId)) {
@@ -791,9 +913,12 @@ export function buildReminderResolutionPlan({
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
   const consumeOnly = resolution?.mode === "consume";
   const manualHeal = resolution?.mode === "manual-heal";
+  const manualDamage = resolution?.mode === "manual-damage";
   const validOutcome = manualHeal
     ? ["apply", "ignore"].includes(normalizedOutcome)
-    : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
+    : manualDamage
+      ? normalizedOutcome === "confirmed"
+      : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
   if (!resolution || !validOutcome) {
     return { status: "informational", message: "Questo reminder è solo informativo." };
   }
@@ -938,11 +1063,13 @@ export function buildReminderResolutionPlan({
 
   const operations = [];
   const actionSideEffects = [];
+  const actionMetadataPatches = [];
   for (const action of outcomeActions(resolution, normalizedOutcome)) {
-    const result = actionOperations({ action, targetId, itemsById });
+    const result = actionOperations({ action, targetId, itemsById, sceneMetadata });
     if (result.error) return { status: "stale", message: result.error };
     operations.push(...result.operations);
     actionSideEffects.push(...(result.sideEffects || []));
+    actionMetadataPatches.push(...(result.metadataPatches || []));
   }
 
   if (
@@ -1022,6 +1149,7 @@ export function buildReminderResolutionPlan({
     outcome: normalizedOutcome,
     ...(consumeOnly ? { resolutionMode: "consume" } : {}),
     ...(manualHeal ? { resolutionMode: "manual-heal" } : {}),
+    ...(manualDamage ? { resolutionMode: "manual-damage" } : {}),
     targetId,
     sourceId,
     activationId,
@@ -1029,7 +1157,10 @@ export function buildReminderResolutionPlan({
     healing,
     hpChange,
     operations,
-    metadataPatches: [{ id: targetId, fields: metadataFields }],
+    metadataPatches: [
+      { id: targetId, fields: metadataFields },
+      ...actionMetadataPatches,
+    ],
     sideEffects: [
       ...(zoneSideEffect ? [zoneSideEffect] : []),
       ...actionSideEffects,

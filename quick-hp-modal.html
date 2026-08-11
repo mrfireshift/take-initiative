@@ -195,6 +195,40 @@
     .target-context-field select:disabled,.target-context-field input:disabled{background:var(--disabled);color:rgba(255,255,255,.62)}
     @media(max-width:760px){.target-context-submenu{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:520px){.target-context-submenu{grid-template-columns:1fr}}
+
+    /* Controlli incantesimo: selezione e concentrazione in alto, posizionamento sotto. */
+    .area-spell-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(170px,190px) auto;grid-template-areas:"spell caster reference" "choice slot ." "placement placement placement";align-items:end;gap:8px}
+    .area-spell-field{grid-area:spell;width:auto;flex:none}
+    .spell-control-row{display:flex;min-width:0;align-items:flex-end;gap:8px}
+    .spell-control-row>.select-field{flex:1 1 auto}
+    .spell-reference-button{width:40px!important;min-width:40px!important;height:48px!important;min-height:48px!important;border-radius:11px!important}
+    .spell-reference-slot{grid-area:reference;display:flex;align-items:flex-end}
+    .spell-reference-slot[hidden]{display:none!important}
+    .spell-combobox .spell-search{padding-right:72px}
+    .spell-combobox .concentration-badge{position:absolute;top:50%;right:42px;z-index:2;transform:translateY(-50%)}
+    #spellCasterWrap{grid-area:caster;width:100%;flex:none}
+    #spellSlotWrap{grid-area:slot;width:100%;min-width:0;flex:none}
+    #spellRuleChoiceWrap{grid-area:choice;width:100%;min-width:0}
+    .area-placement-row{grid-area:placement;display:flex;justify-content:flex-end}
+    .area-placement-row[hidden]{display:none!important}
+    .area-placement{width:100%;max-width:none;flex:1 1 auto;margin-left:0}
+    .area-tab-panel{gap:4px;padding:8px 10px 8px}
+    .area-spell-row{gap:4px;row-gap:4px}
+    .area-feedback{gap:4px}
+    .bulk-row{min-height:48px;padding:6px 8px}
+    .bulk-panel>.status{min-height:30px;padding:6px 8px}
+    @media(max-width:760px){
+      .area-spell-row{grid-template-columns:minmax(0,1fr) minmax(150px,190px) auto;grid-template-areas:"spell caster reference" "choice slot ." "placement placement placement"}
+      .spell-reference-button{width:32px!important;min-width:32px!important;height:32px!important;min-height:32px!important;border-radius:8px!important}
+    }
+    @media(max-width:520px){
+      .area-spell-row{grid-template-columns:1fr;grid-template-areas:"spell" "caster" "reference" "choice" "slot" "placement"}
+      .area-placement-row{justify-content:stretch}
+      .area-placement{width:100%}
+    }
+    .target-lock{min-height:0;padding:0;border:0;border-radius:0;background:transparent}
+    .target-lock button{min-height:28px;padding:4px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:#bfdbfe}
+    .target-lock button:hover{background:rgba(255,255,255,.1)}
   </style>
 </head>
 <body>
@@ -218,21 +252,23 @@
           <div class="area-spell-row">
             <div class="area-spell-field">
               <span class="caption">Incantesimi</span>
-              <label class="select-field">
+              <div class="spell-control-row"><label class="select-field">
                 <div class="spell-combobox">
                   <input class="spell-search" id="spellSearch" type="text" placeholder="Cerca incantesimo..." role="combobox" aria-autocomplete="list" aria-controls="spellMenu" aria-expanded="false" aria-label="Cerca o seleziona un incantesimo ad area" autocomplete="off" />
+                  <span class="concentration-badge" id="concentrationNotice" aria-label="Incantesimo a concentrazione" hidden>C</span>
                   <button class="spell-menu-toggle obrt-select-caret-toggle" id="spellMenuToggle" type="button" aria-label="Mostra tutti gli incantesimi ad area" aria-controls="spellMenu" aria-expanded="false">▾</button>
                   <div class="spell-menu" id="spellMenu" role="listbox" hidden></div>
                 </div>
                 <select id="spellSelect" aria-hidden="true" tabindex="-1" hidden><option value="">Configurazione manuale</option></select>
-              </label>
+              </label></div>
             </div>
-            <label class="select-field with-caption" id="spellCasterWrap"><span class="caption">Caster</span><span class="caster-select-row"><select id="spellCaster" aria-label="Caster dell'incantesimo"><option value="">Nessun caster</option></select><span class="concentration-badge" id="concentrationNotice" aria-label="Incantesimo a concentrazione" hidden>C</span></span></label>
+            <label class="select-field with-caption" id="spellCasterWrap"><span class="caption">Caster</span><span class="caster-select-row"><select id="spellCaster" aria-label="Caster dell'incantesimo"><option value="">Nessun caster</option></select></span></label>
+            <span class="spell-reference-slot" id="spellReferenceSlot" hidden></span>
             <label class="select-field with-caption" id="spellSlotWrap" hidden><span class="caption">Livello slot</span><select id="spellSlot" aria-label="Livello dello slot"></select></label>
-            <button class="small area-placement" id="areaPlacement" type="button" hidden>Posiziona area</button>
+            <label class="select-field with-caption" id="spellRuleChoiceWrap" hidden><span class="caption">Effetto / variante</span><select id="spellRuleChoice" aria-label="Effetto o variante dell'incantesimo"></select></label>
+            <div class="area-placement-row" id="areaPlacementRow" hidden><button class="small area-placement" id="areaPlacement" type="button" hidden>Posiziona area</button></div>
           </div>
           <div class="area-feedback">
-            <label class="select-field with-caption" id="spellRuleChoiceWrap" hidden><span class="caption">Effetto / variante</span><select id="spellRuleChoice" aria-label="Effetto o variante dell'incantesimo"></select></label>
             <div class="spell-rule-summary" id="spellRuleSummary" hidden></div>
             <div class="spell-target-limit" id="spellTargetLimit" hidden></div>
             <div class="chain-lightning-controls" id="chainLightningControls" hidden>
@@ -251,7 +287,7 @@
       </section>
     </section>
     <section class="target-section">
-      <div class="target-header"><div class="target-heading"><span class="caption">Bersagli</span><span class="target-lock" id="targetLock" hidden>Selezione da sagoma <button id="unlockTargets" type="button" title="Consenti la modifica manuale dei bersagli">Sblocca</button></span></div><div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div></div>
+      <div class="target-header"><div class="target-heading"><span class="caption">Bersagli</span><span class="target-lock" id="targetLock" hidden><button id="unlockTargets" type="button" title="Sblocca la selezione dei bersagli">Sblocca</button></span></div><div class="target-actions"><input class="target-name-filter" id="targetNameFilter" type="search" placeholder="Cerca nome…" aria-label="Filtra bersagli per nome" /><button class="small faction-toggle" type="button" data-hp-faction="pc" aria-pressed="false">PG</button><button class="small faction-toggle" type="button" data-hp-faction="ally" aria-pressed="false">Alleati</button><button class="small faction-toggle" type="button" data-hp-faction="neutral" aria-pressed="false">Neutrali</button><button class="small faction-toggle" type="button" data-hp-faction="enemy" aria-pressed="false">Nemici</button></div></div>
       <div class="target-list" id="targetList"></div>
       <div class="bulk-panel"><div class="bulk-row"><span class="caption">Imposta selezionati</span><div class="bulk-actions" id="bulkActions"></div></div><div class="status" id="status" role="status"></div></div>
     </section>

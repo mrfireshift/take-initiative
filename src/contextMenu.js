@@ -369,7 +369,7 @@ async function toggleEpicBossOn(ids) {
       }],
       embed: {
         url: "/ctx-elevation.html",
-        height: 44,
+        height: 72,
       },
     });
 

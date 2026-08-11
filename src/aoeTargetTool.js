@@ -79,6 +79,10 @@ function areaModeId(shape) {
   return MODE_IDS[shape === "rectangle" ? "line" : shape];
 }
 
+function isBoardTokenPlacement(value = spellPlacementSession?.rule) {
+  return value?.kind === "board-token";
+}
+
 function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
@@ -108,7 +112,10 @@ async function sendSpellPlacementResult(payload) {
 async function casterGeometry(casterId) {
   if (!casterId) return null;
   try {
-    const bounds = await OBR.scene.items.getItemBounds([casterId]);
+    const [bounds, items] = await Promise.all([
+      OBR.scene.items.getItemBounds([casterId]),
+      OBR.scene.items.getItems([casterId]).catch(() => []),
+    ]);
     const min = point(bounds?.min);
     const max = point(bounds?.max);
     const center = point(bounds?.center)
@@ -116,7 +123,13 @@ async function casterGeometry(casterId) {
         x: (Number(bounds.min.x) + Number(bounds.max.x)) / 2,
         y: (Number(bounds.min.y) + Number(bounds.max.y)) / 2,
       } : null);
-    if (center && min && max) return { center, bounds: { min, max } };
+    if (center && min && max) {
+      return {
+        center,
+        bounds: { min, max },
+        name: String(items?.[0]?.name || "").trim(),
+      };
+    }
   } catch {}
   return null;
 }
@@ -251,8 +264,8 @@ async function beginSpellPlacement(data) {
   };
   let runtime = null;
   try {
-    runtime = {
-      session: createSpellAreaPlacementSession({
+      runtime = {
+        session: createSpellAreaPlacementSession({
         requestId,
         rule,
         casterId,
@@ -260,8 +273,9 @@ async function beginSpellPlacement(data) {
         previousToolId,
         previousModeId,
       }),
-      rule,
-      casterOrigin: caster?.center || null,
+        rule,
+        casterName: caster?.name || "",
+        casterOrigin: caster?.center || null,
       casterBounds: caster?.bounds || null,
       rangePreview: null,
     };
@@ -600,6 +614,36 @@ function renderDrag(state) {
   return area;
 }
 
+function boardTokenGridVertex(pointer, gridOrigin, dpi) {
+  return nearestGridCorner(pointer, gridOrigin, dpi)?.position || null;
+}
+
+function boardTokenPlacementSnap(pointer, gridOrigin, dpi, rule) {
+  const spaceCells = Math.max(1, Math.floor(Number(rule?.boardToken?.spaceCells) || 1));
+  return spaceCells > 1
+    ? boardTokenGridVertex(pointer, gridOrigin, dpi)
+    : nearestGridCellCenter(pointer, gridOrigin, dpi)?.position || null;
+}
+
+function renderBoardTokenPlacement(state) {
+  if (!state?.ready || !state.interaction || !state.gridOrigin) return null;
+  const position = boardTokenPlacementSnap(
+    state.rawEnd || state.rawStart,
+    state.gridOrigin,
+    state.dpi,
+    state.rule,
+  ) || state.start;
+  if (!position) return null;
+  state.start = position;
+  state.end = position;
+  state.boardTokenPosition = position;
+  const [update] = state.interaction;
+  update((items) => {
+    if (items[0]) items[0].position = { ...position };
+  });
+  return position;
+}
+
 function proposedMovementPosition(state) {
   const runtime = spellMovementSession;
   if (!runtime?.initialPosition || !state?.rawStart || !state?.rawEnd) return null;
@@ -682,8 +726,14 @@ async function prepareDrag(state) {
     state.multiplier = Math.max(0, Number(scale?.parsed?.multiplier) || 1.5);
     state.unit = String(scale?.parsed?.unit || "m").trim();
     const corner = point(cornerStart) || state.rawStart;
+    const boardTokenPlacement = isBoardTokenPlacement(state.rule);
     const snapped = state.rule?.placement?.origin === "caster-adjacent"
       ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
+      : boardTokenPlacement
+        ? {
+          position: boardTokenPlacementSnap(state.rawStart, corner, state.dpi, state.rule),
+          gridOrigin: corner,
+        }
       : !state.spellPlacementRequestId && state.type === "cone"
         ? nearestGridSnap(state.rawStart, corner, state.dpi)
         : state.spellPlacementRequestId && state.type === "square"
@@ -740,6 +790,29 @@ async function prepareDrag(state) {
     state.style = state.spellPlacementRequestId
       ? spellAreaStyle(state.rule?.spellId, currentStyle)
       : { ...currentStyle };
+    if (boardTokenPlacement) {
+      const { buildSpellBoardTokenItem } = await import("./spellBoardToken.js");
+      const previewToken = buildSpellBoardTokenItem({
+        spellId: state.rule.spellId,
+        instanceId: `preview:${state.spellPlacementRequestId}`,
+        casterId: spellPlacementSession?.session?.casterId || "preview-caster",
+        casterName: spellPlacementSession?.casterName || "",
+        casterHpMax: 1,
+        position: state.start,
+      });
+      previewToken.locked = true;
+      previewToken.disableHit = true;
+      previewToken.name = `Anteprima: ${state.rule.boardToken?.label || state.rule.spellId}`;
+      state.interaction = await OBR.interaction.startItemInteraction([previewToken]);
+      if (activeDrag !== state || state.cancelled) {
+        state.interaction[1]();
+        return;
+      }
+      state.ready = true;
+      renderBoardTokenPlacement(state);
+      if (state.ended) await finishDrag(state);
+      return;
+    }
     const outlineWidth = Math.max(2, state.dpi * 0.035 * state.style.strokeWidth);
     state.interaction = await OBR.interaction.startItemInteraction([
       previewPath("Area sagomata", state.style.fillOpacity, 0.95, outlineWidth, state.style.fillColor, state.style.strokeColor),
@@ -968,6 +1041,41 @@ async function mountPersistentAreaListener() {
 async function finishDrag(state) {
   if (activeDrag !== state || state.finishing || !state.ready) return;
   state.finishing = true;
+  if (
+    state.spellPlacementRequestId
+    && isBoardTokenPlacement(state.rule)
+    && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
+  ) {
+    const position = renderBoardTokenPlacement(state);
+    if (!position) return;
+    if (!spellAreaOriginWithinRange({
+      origin: position,
+      casterOrigin: spellPlacementSession.casterOrigin,
+      range: state.rule.placement.range,
+      dpi: state.dpi,
+      scale: { multiplier: state.multiplier, unit: state.unit },
+    })) {
+      state.finishing = false;
+      await OBR.notification.show(
+        "La casella scelta supera la portata dell'incantesimo.",
+        "WARNING",
+      );
+      return;
+    }
+    spellPlacementSession.session = reviewSpellAreaPlacement(
+      spellPlacementSession.session,
+      {
+        type: "square",
+        start: position,
+        end: position,
+        position,
+        dpi: state.dpi,
+        gridOrigin: state.gridOrigin,
+        targetIds: [],
+      },
+    );
+    return;
+  }
   const area = renderDrag(state);
   if (
     area
@@ -1091,6 +1199,7 @@ function moveDrag(event) {
   activeDrag.rawEnd = pointer;
   activeDrag.end = pointer;
   if (activeDrag.movement) renderMovementDrag(activeDrag);
+  else if (isBoardTokenPlacement(activeDrag.rule)) renderBoardTokenPlacement(activeDrag);
   else renderDrag(activeDrag);
 }
 
@@ -1119,6 +1228,19 @@ async function confirmSpellZoneMovement() {
 async function confirmSpellPlacement() {
   const runtime = spellPlacementSession;
   const state = activeDrag;
+  if (runtime && isBoardTokenPlacement(runtime.rule)) {
+    if (
+      !state?.ended
+      || !state?.boardTokenPosition
+      || state.spellPlacementRequestId !== runtime.session.requestId
+      || !runtime.session.preview
+    ) {
+      await OBR.notification.show("Scegli prima la casella del token.", "WARNING");
+      return;
+    }
+    await closeSpellPlacement("confirmed");
+    return;
+  }
   if (
     !runtime
     || !state?.ended
@@ -1210,7 +1332,7 @@ OBR.onReady(async () => {
     id: SPELL_PLACEMENT_CONFIRM_ACTION_ID,
     icons: [{
       icon: "/aoe-confirm.svg",
-      label: "Conferma sagoma",
+      label: "Conferma posizionamento",
       filter: {
         activeTools: [TOOL_ID],
         roles: ["GM"],

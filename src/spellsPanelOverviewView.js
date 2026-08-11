@@ -13,6 +13,7 @@ export function renderSpellOverview({
   overviewList = null,
   overviewCount = null,
   groups = [],
+  currentTurnKey = "",
   createReferenceButton,
   getSelectedTargetIds = () => [],
   getActionChoiceValue = () => "",
@@ -21,6 +22,9 @@ export function renderSpellOverview({
   onTerminateTarget = async () => {},
   onResolve = async () => {},
   onActivate = async () => {},
+  onOpenActiveResolution = async () => {},
+  onUpdateBoardToken = async () => {},
+  onRecreateBoardToken = async () => {},
   onTerminate = async () => {},
   onActionError = () => {},
 } = {}) {
@@ -46,6 +50,9 @@ export function renderSpellOverview({
       casterId: group.casterId,
       targetIds,
       effectInstances: group.effectInstances,
+      zoneItemId: group.zoneItemId,
+      appliedAt: group.appliedAt,
+      currentTurnKey,
     });
     const manualActions = overviewActions.filter(
       (candidate) => candidate.type === "manual",
@@ -125,6 +132,76 @@ export function renderSpellOverview({
         .join(", ")}`
       : "Nessun bersaglio registrato";
     content.append(heading, caster, targets);
+    if (group.boardToken) {
+      const boardToken = group.boardToken;
+      const tokenRow = documentRef.createElement("div");
+      tokenRow.className = "spell-board-token-state";
+      const summary = documentRef.createElement("span");
+      summary.className = "spell-board-token-summary";
+      summary.textContent = [
+        "Pedina sul campo",
+        `Mov. ${boardToken.movementMeters} m`,
+        `Portata ${String(boardToken.reachMeters).replace(".", ",")} m`,
+        boardToken.ignoresBarriers ? "attraversa barriere" : "",
+      ].filter(Boolean).join(" · ");
+      tokenRow.appendChild(summary);
+      const hpMaximum = Math.max(0, Math.floor(Number(boardToken.state?.hpMax) || 0));
+      if (hpMaximum > 0) {
+        const armorClass = documentRef.createElement("span");
+        armorClass.className = "spell-board-token-ac";
+        armorClass.textContent = `CA ${boardToken.armorClass}`;
+        const hpInput = documentRef.createElement("input");
+        hpInput.className = "spell-board-token-hp";
+        hpInput.type = "number";
+        hpInput.min = "0";
+        hpInput.max = String(hpMaximum);
+        hpInput.value = String(Math.max(0, Math.floor(Number(boardToken.state?.hp) || 0)));
+        hpInput.setAttribute("aria-label", `Punti ferita di ${group.name}`);
+        const hpMaximumLabel = documentRef.createElement("span");
+        hpMaximumLabel.textContent = `/ ${hpMaximum} PF`;
+        const saveHp = documentRef.createElement("button");
+        saveHp.type = "button";
+        saveHp.className = "spell-board-token-save";
+        saveHp.textContent = "Aggiorna";
+        saveHp.addEventListener("click", async () => {
+          saveHp.disabled = true;
+          try {
+            await onUpdateBoardToken({ group, hp: Number(hpInput.value) });
+          } catch (error) {
+            onActionError("update spell board token", error);
+            saveHp.disabled = false;
+          }
+        });
+        tokenRow.append(armorClass, hpInput, hpMaximumLabel, saveHp);
+      }
+      if (boardToken.state?.mode) {
+        const mode = documentRef.createElement("span");
+        mode.className = "spell-board-token-mode";
+        mode.textContent = `Modalità: ${String(boardToken.modeLabel || boardToken.state.mode)}`;
+        tokenRow.appendChild(mode);
+      }
+      content.appendChild(tokenRow);
+    } else if (group.boardTokenRule) {
+      const missingToken = documentRef.createElement("div");
+      missingToken.className = "spell-board-token-state spell-board-token-state--missing";
+      const warning = documentRef.createElement("span");
+      warning.textContent = "Token non ancora posizionato";
+      const recreate = documentRef.createElement("button");
+      recreate.type = "button";
+      recreate.className = "spell-board-token-save";
+      recreate.textContent = "Posiziona token";
+      recreate.addEventListener("click", async () => {
+        recreate.disabled = true;
+        try {
+          await onRecreateBoardToken(group);
+        } catch (error) {
+          onActionError("recreate spell board token", error);
+          recreate.disabled = false;
+        }
+      });
+      missingToken.append(warning, recreate);
+      content.appendChild(missingToken);
+    }
 
     const actions = documentRef.createElement("div");
     actions.className = hasMultipleActions
@@ -182,6 +259,14 @@ export function renderSpellOverview({
     }
 
     for (const action of manualActions) {
+      if (action.displayOnly === true) {
+        const reference = documentRef.createElement("span");
+        reference.className = "spell-action-reference";
+        reference.textContent = String(action.buttonLabel || action.label || "Azione");
+        reference.title = String(action.detail || reference.textContent);
+        actions.appendChild(reference);
+        continue;
+      }
       const actionChoice = action.choice && typeof action.choice === "object"
         ? action.choice
         : null;
@@ -261,13 +346,17 @@ export function renderSpellOverview({
         if (action.requiresTargets && !selectedTargetIds.length) return;
         activate.disabled = true;
         try {
-          await onActivate({
-            group,
-            spell: groupSpell,
-            action,
-            targetIds: selectedTargetIds,
-            choiceValue: actionChoiceSelect?.value || "",
-          });
+          if (action.resolutionKind) {
+            await onOpenActiveResolution({ group, spell: groupSpell, action });
+          } else {
+            await onActivate({
+              group,
+              spell: groupSpell,
+              action,
+              targetIds: selectedTargetIds,
+              choiceValue: actionChoiceSelect?.value || "",
+            });
+          }
         } catch (error) {
           onActionError("activate overview spell", error);
           updatePresentation();

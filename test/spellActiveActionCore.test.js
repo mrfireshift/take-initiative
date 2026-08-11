@@ -50,6 +50,46 @@ test("la stessa API espone risoluzioni preparate e attivazioni manuali", () => {
   }), []);
 });
 
+test("le attivazioni offensive usano il popup dedicato e Sfera richiede la radice", () => {
+  const callLightning = getSpellDefinition("Invocare il fulmine");
+  assert.deepEqual(getSpellOverviewActions({
+    spell: callLightning,
+    casterId: "caster",
+    targetIds: [],
+  }), []);
+
+  const flame = getSpellDefinition("Investitura della Fiamma");
+  assert.deepEqual(getSpellOverviewActions({
+    spell: flame,
+    casterId: "caster",
+    targetIds: [],
+    appliedAt: { turnKey: "1:0:caster" },
+    currentTurnKey: "1:0:caster",
+  }), []);
+  const storm = getSpellDefinition("Sfera della Tempesta");
+  const manualStorm = {
+    ...storm,
+    activeActions: storm.activeActions.map((action) => ({
+      ...action,
+      turnStartPrompt: false,
+    })),
+  };
+  assert.deepEqual(getSpellOverviewActions({
+    spell: manualStorm,
+    casterId: "caster",
+  }), []);
+  assert.equal(getSpellOverviewActions({
+    spell: manualStorm,
+    casterId: "caster",
+    zoneItemId: "storm-root",
+  })[0].resolutionKind, "single-attack");
+  assert.deepEqual(getSpellOverviewActions({
+    spell: storm,
+    casterId: "caster",
+    zoneItemId: "storm-root",
+  }), []);
+});
+
 test("Colpo dello Zefiro consuma la carica e applica +9 m al caster", () => {
   const spell = getSpellDefinition("Colpo dello Zefiro");
   const plan = buildSpellActiveActionPlan({

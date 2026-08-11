@@ -23,6 +23,7 @@ export const TRACKER_LOCAL_METADATA_KEYS = new Set([
   "legendaryResistances",
   "initTouched",
   "elevation",
+  "climbing",
   "customAuras",
 ]);
 

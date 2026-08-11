@@ -33,6 +33,10 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("xanathar-investitura-del-ghiaccio"), true);
   assert.equal(ids.has("xanathar-investitura-del-vento"), true);
   assert.equal(ids.has("xanathar-investitura-della-fiamma"), true);
+  assert.equal(ids.has("spiritual-weapon"), true);
+  assert.equal(ids.has("arcane-sword"), true);
+  assert.equal(ids.has("tasha-lama-del-disastro"), true);
+  assert.equal(ids.has("arcane-hand"), true);
   assert.equal(ids.has("xanathar-investitura-della-pietra"), true);
   assert.equal(ids.has("xanathar-trabocchetto"), true);
   assert.equal(ids.has("phb2014-cordone-di-frecce"), true);
@@ -161,6 +165,9 @@ test("le nuove aree collegano condizioni e casi senza effetto persistente", () =
       .failed[0].effectId,
     "ice-investiture-slow",
   );
+  const flame = getSpellDefinition("xanathar-investitura-della-fiamma");
+  assert.equal(flame.effects[0].label, "Imm. fuoco · Res. freddo");
+  assert.match(flame.effects[0].detail, /immune ai danni da fuoco/i);
   assert.equal(
     getAreaSaveAutomation("xanathar-investitura-della-pietra")
       .failed[0].condition,

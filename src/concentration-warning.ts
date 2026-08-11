@@ -3,6 +3,8 @@ import { ID } from "./constants.js";
 import { resolveReminder } from "./reminderResolution.js";
 
 const POPOVER_ID = ID + "/concentration-warning-modal";
+const UI_CHANNEL = ID + "/concentration-warning/ui";
+const HOST_CHANNEL = ID + "/concentration-warning/host";
 const AUTO_CLOSE_MS = 6000;
 
 type Warning = {
@@ -17,6 +19,9 @@ type Warning = {
 
 let hideTimer = 0;
 let activeWarnings: Warning[] = [];
+let noticeRole = "PLAYER";
+let roleReady = false;
+let pendingWarnings: Warning[] | null = null;
 
 function warningsFromURL(): Warning[] {
   try {
@@ -38,6 +43,11 @@ function warningsFromURL(): Warning[] {
 
 function closePopover() {
   window.clearTimeout(hideTimer);
+  void OBR.broadcast.sendMessage(
+    HOST_CHANNEL,
+    { type: "concentration-warning-closed" },
+    { destination: "LOCAL" },
+  ).catch(() => {});
   void OBR.popover.close(POPOVER_ID).catch(() => {});
 }
 
@@ -138,6 +148,11 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
             const remaining = activeWarnings.filter((entry) =>
               String(entry.notice?.activationId || "") !== activationId,
             );
+            void OBR.broadcast.sendMessage(
+              HOST_CHANNEL,
+              { type: "concentration-warning-resolved", activationId },
+              { destination: "LOCAL" },
+            ).catch(() => {});
             render(role, remaining);
             return;
           }
@@ -153,7 +168,10 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = label;
-        button.addEventListener("click", () => void resolve(outcome));
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void resolve(outcome);
+        });
         buttons.push(button);
         resolution.appendChild(button);
       }
@@ -176,6 +194,18 @@ OBR.onReady(async () => {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePopover();
   });
+  OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
+    if (event?.data?.type !== "update-concentration-warnings") return;
+    pendingWarnings = normalizeWarnings(event.data?.warnings);
+    if (roleReady) render(noticeRole, pendingWarnings);
+  });
+  void OBR.broadcast.sendMessage(
+    HOST_CHANNEL,
+    { type: "concentration-warning-ready" },
+    { destination: "LOCAL" },
+  ).catch(() => {});
   const role = await OBR.player.getRole().catch(() => "PLAYER");
-  render(String(role || "PLAYER").toUpperCase());
+  noticeRole = String(role || "PLAYER").toUpperCase();
+  roleReady = true;
+  render(noticeRole, pendingWarnings || warningsFromURL());
 });

@@ -65,6 +65,26 @@ test("la membership di zona usa geometria, fazione e inclusione caster", () => {
   }), ["enemy"]);
 });
 
+test("l'aura di Investitura della Fiamma considera soltanto creature ostili", () => {
+  const rule = getSpellAreaRuleById("xanathar-investitura-della-fiamma:aura");
+  const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
+  const caster = token("caster", { attitude: "pc" });
+  const ally = token("ally", { attitude: "ally" });
+  const enemy = token("enemy", { attitude: "enemy" });
+
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates: [
+      { item: caster, bounds: bounds(0, 0) },
+      { item: ally, bounds: bounds(100, 0) },
+      { item: enemy, bounds: bounds(200, 0) },
+    ],
+  }), ["enemy"]);
+});
+
 test("il caster nell'area resta incluso anche nella membership persistente", () => {
   const rule = getSpellAreaRuleById("web:cast");
   const caster = token("caster", { attitude: "pc" });
@@ -178,6 +198,27 @@ test("entrata e uscita applicano e rimuovono il terreno difficile della zona", (
   assert.equal(plan.operations[1].options.parentEffectId, "spell-1");
   assert.equal(plan.operations[1].options.mechanics.movement.costMultiplier, 2);
   assert.deepEqual(plan.operations[1].options.expiry, { mode: "manual" });
+});
+
+test("Folata di vento persiste sourceId, istanza e zona nel modificatore direzionale", () => {
+  const plan = areaMembershipPlan({
+    instanceId: "gust-instance",
+    sourceId: "caster",
+    zoneId: "gust-zone",
+    rule: getSpellAreaRuleById("gust-of-wind:cast"),
+    desiredTargetIds: ["target"],
+    items: [],
+    metaKey: META,
+  });
+  const directional = plan.operations[0].options.mechanics.movement.directional;
+  assert.deepEqual(directional, [{
+    direction: "toward-source",
+    costMultiplier: 2,
+    label: "Folata di vento: movimento verso il caster ×2",
+    sourceId: "caster",
+    instanceId: "gust-instance",
+    zoneId: "gust-zone",
+  }]);
 });
 
 test("gli effetti passivi sono dichiarativi e il cleanup rispetta le istanze attive", () => {

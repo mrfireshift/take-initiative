@@ -30,7 +30,14 @@ import {
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
+import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
+import {
+  SPELL_BOARD_TOKEN_META_KEY,
+  getSpellBoardTokenRule,
+  planSpellBoardTokenStateUpdate,
+  spellBoardTokenItemsEndedByPlan,
+} from "./spellBoardTokenCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { CLASS_FEATURE_AURA_META_KEY } from "./classFeatureAuraCore.js";
 import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
@@ -669,6 +676,7 @@ const pendingSideEffectRecords = new Map();
 const recoveredPostCommitResults = new Map();
 let backgroundCommandBroker = null;
 let pendingHistoryRetryTimer = null;
+let pendingHistoryRetryQueue = Promise.resolve();
 
 function sameValue(left, right) {
   try {
@@ -742,16 +750,265 @@ async function zoneItemsForSelectors(selectors = []) {
   return [...byId.values()];
 }
 
+async function boardTokenItemsForSelectors(selectors = []) {
+  const { getSpellBoardTokenItems } = await import("./spellBoardToken.js");
+  const byId = new Map();
+  for (const selector of Array.isArray(selectors) ? selectors : []) {
+    const items = selector?.all === true
+      ? await getSpellBoardTokenItems()
+      : await getSpellBoardTokenItems({
+        instanceId: selector?.instanceId || "",
+        casterId: selector?.casterId || "",
+      });
+    for (const item of items) if (item?.id) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
+function itemCenter(bounds, item) {
+  const x = Number(bounds?.center?.x ?? item?.position?.x);
+  const y = Number(bounds?.center?.y ?? item?.position?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function boardTokenStartPosition(bounds, item, dpi = 1) {
+  const center = itemCenter(bounds, item);
+  if (!center) return null;
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const maximumX = Number(bounds?.max?.x);
+  return {
+    x: Number.isFinite(maximumX) ? maximumX + safeDpi / 2 : center.x + safeDpi,
+    y: center.y,
+  };
+}
+
 async function prepareEffectsSideEffects(plan, command) {
   const descriptors = Array.isArray(command?.sideEffects) ? command.sideEffects : [];
   const prepared = [];
   for (const descriptor of descriptors) {
-    if (descriptor?.type === "static-zone:remove-ended") {
+    if (descriptor?.type === "spell-active-resolution:validate") {
+      const { validateSpellActiveResolutionCommit } = await import(
+        "./spellActiveResolutionValidation.js"
+      );
+      const validation = await validateSpellActiveResolutionCommit(descriptor);
+      if (!validation.valid) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: validation.errors.map((reason) => ({ reason })),
+        };
+      }
+      prepared.push({ type: descriptor.type });
+    } else if (descriptor?.type === "static-zone:remove-ended") {
       const candidates = await zoneItemsForSelectors(descriptor.selectors || []);
+      const boardTokenCandidates = await boardTokenItemsForSelectors(
+        descriptor.selectors || [],
+      );
       const { staticSpellZoneItemsEndedByPlan } = await import("./spellStaticZoneCore.js");
       prepared.push({
         type: descriptor.type,
-        items: staticSpellZoneItemsEndedByPlan(candidates, plan),
+        items: [
+          ...staticSpellZoneItemsEndedByPlan(candidates, plan),
+          ...spellBoardTokenItemsEndedByPlan(boardTokenCandidates, plan),
+        ],
+      });
+    } else if (descriptor?.type === "spell-board-token:place") {
+      const spellId = String(descriptor.spellId || "").trim();
+      const instanceId = String(descriptor.instanceId || "").trim();
+      const casterId = String(descriptor.casterId || "").trim();
+      const entityId = String(descriptor.entityId || "").trim();
+      const position = {
+        x: Number(descriptor.position?.x),
+        y: Number(descriptor.position?.y),
+      };
+      const rule = getSpellBoardTokenRule(spellId);
+      if (
+        !rule
+        || !instanceId
+        || !casterId
+        || !entityId
+        || !Number.isFinite(position.x)
+        || !Number.isFinite(position.y)
+      ) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-placement-required" }],
+        };
+      }
+      const existing = await boardTokenItemsForSelectors([{ instanceId }]);
+      if (existing.length > 1) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "duplicate-spell-board-token", itemId: existing[0]?.id || null }],
+        };
+      }
+      const [caster] = await OBR.scene.items.getItems([casterId]);
+      const [bounds, dpi, scale] = await Promise.all([
+        caster
+          ? OBR.scene.items.getItemBounds([casterId]).catch(() => null)
+          : null,
+        OBR.scene.grid.getDpi().catch(() => 150),
+        OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+      ]);
+      const casterOrigin = itemCenter(bounds, caster);
+      if (!caster || !casterOrigin) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-caster-missing", itemId: casterId || null }],
+        };
+      }
+      if (!spellAreaOriginWithinRange({
+        origin: position,
+        casterOrigin,
+        range: { value: rule.creationRangeMeters, unit: "m" },
+        dpi,
+        scale: scale?.parsed || scale,
+      })) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-out-of-range", itemId: casterId }],
+        };
+      }
+      if (existing.length === 1) {
+        const before = clone(existing[0]);
+        const after = { ...clone(existing[0]), position: clone(position) };
+        prepared.push({ type: descriptor.type, before, after });
+        continue;
+      }
+      const [idCollision] = await OBR.scene.items.getItems([entityId]);
+      if (idCollision) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-id-conflict", itemId: entityId }],
+        };
+      }
+      const { buildSpellBoardTokenItem } = await import("./spellBoardToken.js");
+      const item = buildSpellBoardTokenItem({
+        entityId,
+        spellId,
+        instanceId,
+        casterId,
+        slotLevel: descriptor.slotLevel,
+        casterHpMax: caster?.metadata?.[META_KEY]?.hpMax,
+        casterName: caster?.name || "",
+        position,
+      });
+      prepared.push({ type: descriptor.type, before: null, after: item });
+    } else if (descriptor?.type === "spell-board-token:create") {
+      const spellId = String(descriptor.spellId || "").trim();
+      const instanceId = String(descriptor.instanceId || "").trim();
+      const casterId = String(descriptor.casterId || "").trim();
+      const entityId = String(descriptor.entityId || "").trim();
+      const rule = getSpellBoardTokenRule(spellId);
+      if (!rule || !instanceId || !casterId || !entityId) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-context-required" }],
+        };
+      }
+      const existing = await boardTokenItemsForSelectors([{ instanceId }]);
+      if (existing.length > 1) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "duplicate-spell-board-token", itemId: existing[0]?.id || null }],
+        };
+      }
+      if (existing.length === 1) {
+        prepared.push({ type: descriptor.type, item: null });
+        continue;
+      }
+      const [caster] = await OBR.scene.items.getItems([casterId]);
+      const [bounds, dpi] = await Promise.all([
+        caster
+          ? OBR.scene.items.getItemBounds([casterId]).catch(() => null)
+          : null,
+        OBR.scene.grid.getDpi().catch(() => 150),
+      ]);
+      const position = boardTokenStartPosition(bounds, caster, dpi);
+      if (!caster || !position) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-caster-missing", itemId: casterId || null }],
+        };
+      }
+      const [idCollision] = await OBR.scene.items.getItems([entityId]);
+      if (idCollision) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-id-conflict", itemId: entityId }],
+        };
+      }
+      const { buildSpellBoardTokenItem } = await import("./spellBoardToken.js");
+      const item = buildSpellBoardTokenItem({
+        entityId,
+        spellId,
+        instanceId,
+        casterId,
+        slotLevel: descriptor.slotLevel,
+        casterHpMax: caster?.metadata?.[META_KEY]?.hpMax,
+        casterName: caster?.name || "",
+        position,
+      });
+      prepared.push({ type: descriptor.type, item });
+    } else if (descriptor?.type === "spell-board-token:update-state") {
+      const instanceId = String(descriptor.instanceId || "").trim();
+      const items = await boardTokenItemsForSelectors([{ instanceId }]);
+      const item = items[0] || null;
+      if (items.length !== 1) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-missing", itemId: item?.id || null }],
+        };
+      }
+      const statePlan = planSpellBoardTokenStateUpdate({
+        item,
+        instanceId,
+        action: descriptor.action,
+        hp: descriptor.hp,
+        targetIds: descriptor.targetIds,
+      });
+      if (!statePlan.valid) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: statePlan.errors.map((reason) => ({ reason, itemId: item.id })),
+        };
+      }
+      const boardTokenRule = getSpellBoardTokenRule(
+        item.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.spellId,
+      );
+      const syncCanonicalHp = descriptor.hp !== undefined && boardTokenRule?.hasHitPoints === true;
+      const canonicalBefore = syncCanonicalHp
+        ? sceneItemMetadataSnapshot(item, META_KEY)
+        : null;
+      const canonicalBase = canonicalBefore?.present && canonicalBefore.value
+        && typeof canonicalBefore.value === "object"
+        ? clone(canonicalBefore.value)
+        : {};
+      const canonicalAfter = syncCanonicalHp
+        ? {
+          present: true,
+          value: {
+            ...canonicalBase,
+            hp: statePlan.after.hp,
+            hpMax: statePlan.after.hpMax,
+          },
+        }
+        : null;
+      prepared.push({
+        type: descriptor.type,
+        id: item.id,
+        metadataKey: SPELL_BOARD_TOKEN_META_KEY,
+        before: sceneItemMetadataSnapshot(item, SPELL_BOARD_TOKEN_META_KEY),
+        after: { present: true, value: clone(statePlan.metadata) },
+        ...(syncCanonicalHp
+          ? {
+            canonicalMetadataKey: META_KEY,
+            canonicalBefore,
+            canonicalAfter,
+          }
+          : {}),
+        ...(descriptor.removeWhenZero === true && statePlan.after.hp === 0
+          ? { removeWhenZero: true, beforeItem: clone(item) }
+          : {}),
       });
     } else if (descriptor?.type === "static-zone:set-rule-choice") {
       const items = await zoneItemsForSelectors([descriptor.selector || {}]);
@@ -999,6 +1256,98 @@ function staticZoneRuleChoiceAfterSnapshot(item, ruleChoice) {
 
 async function applyPreparedSideEffect(sideEffect, isCurrent) {
   if (!isCurrent()) throw new Error("stale-before-side-effect");
+  if (sideEffect.type === "spell-active-resolution:validate") return [];
+  if (sideEffect.type === "spell-board-token:place") {
+    const before = sideEffect.before || null;
+    const after = sideEffect.after || null;
+    if (!after?.id) return [];
+    const [actual] = await OBR.scene.items.getItems([after.id]);
+    if (before === null) {
+      if (actual) throw new Error("spell-board-token-place-create-conflict");
+      if (!isCurrent()) throw new Error("stale-before-spell-board-token-place-create");
+      await OBR.scene.items.addItems([clone(after)]);
+    } else {
+      if (!actual || !sameValue(actual, before)) {
+        throw new Error("spell-board-token-place-update-conflict");
+      }
+      if (!isCurrent()) throw new Error("stale-before-spell-board-token-place-update");
+      await OBR.scene.items.updateItems([after.id], (drafts) => {
+        for (const draft of drafts) {
+          if (draft.id === after.id) draft.position = clone(after.position);
+        }
+      });
+    }
+    return [{
+      id: after.id,
+      type: "item",
+      before: clone(before),
+      after: clone(after),
+    }];
+  }
+  if (sideEffect.type === "spell-board-token:create") {
+    const item = sideEffect.item;
+    if (!item?.id) return [];
+    const [existing] = await OBR.scene.items.getItems([item.id]);
+    if (existing) {
+      if (sameValue(existing, item)) return [];
+      throw new Error("spell-board-token-create-conflict");
+    }
+    if (!isCurrent()) throw new Error("stale-before-spell-board-token-create");
+    await OBR.scene.items.addItems([clone(item)]);
+    return [{ id: item.id, type: "item", before: null, after: clone(item) }];
+  }
+  if (sideEffect.type === "spell-board-token:update-state") {
+    const [item] = await OBR.scene.items.getItems([sideEffect.id]);
+    if (!item) throw new Error("spell-board-token-update-missing");
+    const actual = sceneItemMetadataSnapshot(item, sideEffect.metadataKey);
+    if (!metadataSnapshotMatches(actual, sideEffect.before)) {
+      throw new Error("spell-board-token-update-stale");
+    }
+    if (sideEffect.canonicalMetadataKey && !metadataSnapshotMatches(
+      sceneItemMetadataSnapshot(item, sideEffect.canonicalMetadataKey),
+      sideEffect.canonicalBefore,
+    )) {
+      throw new Error("spell-board-token-canonical-hp-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-spell-board-token-update");
+    if (sideEffect.removeWhenZero === true) {
+      await OBR.scene.items.deleteItems([sideEffect.id]);
+      return [{
+        id: sideEffect.id,
+        type: "item",
+        before: clone(sideEffect.beforeItem || item),
+        after: null,
+      }];
+    }
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        const metadata = { ...(draft.metadata || {}) };
+        metadata[sideEffect.metadataKey] = clone(sideEffect.after.value);
+        if (sideEffect.canonicalMetadataKey) {
+          metadata[sideEffect.canonicalMetadataKey] = clone(sideEffect.canonicalAfter.value);
+        }
+        draft.metadata = metadata;
+      }
+    });
+    const changes = [{
+      id: sideEffect.id,
+      type: "metadata",
+      metadataKey: sideEffect.metadataKey,
+      before: clone(sideEffect.before),
+      after: clone(sideEffect.after),
+    }];
+    if (sideEffect.canonicalMetadataKey) {
+      changes.push({
+        id: sideEffect.id,
+        type: "metadata",
+        metadataKey: sideEffect.canonicalMetadataKey,
+        before: clone(sideEffect.canonicalBefore),
+        after: clone(sideEffect.canonicalAfter),
+      });
+    }
+    return changes;
+  }
   if (sideEffect.type === "static-zone:remove-ended") {
     const items = sideEffect.items || [];
     const ids = items.map((item) => item?.id).filter(Boolean);
@@ -1341,17 +1690,29 @@ async function retryPendingEffectsHistory() {
   }
 }
 
-async function retryPendingEffectsPostCommit() {
-  await retryPendingEffectsSideEffects();
-  await retryPendingEffectsHistory();
+function enqueuePendingEffectsSideEffectRetry() {
+  if (
+    !effectsMutationCoordinator
+    || !pendingSideEffectRecords.size
+  ) return Promise.resolve();
+  return effectsMutationCoordinator.enqueueMaintenance(retryPendingEffectsSideEffects);
+}
+
+function enqueuePendingEffectsHistoryRetry() {
+  if (!pendingHistoryRecords.size) return Promise.resolve();
+  const task = pendingHistoryRetryQueue.then(
+    retryPendingEffectsHistory,
+    retryPendingEffectsHistory,
+  );
+  pendingHistoryRetryQueue = task.catch(() => {});
+  return task;
 }
 
 function enqueuePendingEffectsPostCommitRetry() {
-  if (
-    !effectsMutationCoordinator
-    || (!pendingHistoryRecords.size && !pendingSideEffectRecords.size)
-  ) return Promise.resolve();
-  return effectsMutationCoordinator.enqueueMaintenance(retryPendingEffectsPostCommit);
+  return Promise.all([
+    enqueuePendingEffectsSideEffectRetry(),
+    enqueuePendingEffectsHistoryRetry(),
+  ]);
 }
 
 function schedulePendingEffectsHistoryRetry() {
@@ -1361,7 +1722,11 @@ function schedulePendingEffectsHistoryRetry() {
   ) return;
   pendingHistoryRetryTimer = setTimeout(() => {
     pendingHistoryRetryTimer = null;
-    void enqueuePendingEffectsPostCommitRetry();
+    void enqueuePendingEffectsPostCommitRetry().finally(() => {
+      if (pendingHistoryRecords.size || pendingSideEffectRecords.size) {
+        schedulePendingEffectsHistoryRetry();
+      }
+    });
   }, 750);
 }
 
@@ -1384,7 +1749,7 @@ export async function mountEffectsMutationCoordinatorService() {
     invalidateSceneEpoch("scene-unavailable-at-mount");
   }
   backgroundCommandBroker = createEffectsMutationBackgroundBroker({
-    beforeExecute: enqueuePendingEffectsPostCommitRetry,
+    beforeExecute: enqueuePendingEffectsSideEffectRetry,
     executeApply: (operations, command) => {
       const { operations: _operations, ...options } = command;
       return runEffectsMutation(operations, {
@@ -1522,6 +1887,7 @@ export function unmountEffectsMutationCoordinatorService() {
   pendingHistoryRecords.clear();
   pendingSideEffectRecords.clear();
   recoveredPostCommitResults.clear();
+  pendingHistoryRetryQueue = Promise.resolve();
   clearTimeout(pendingHistoryRetryTimer);
   pendingHistoryRetryTimer = null;
 }

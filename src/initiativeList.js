@@ -20,6 +20,16 @@ import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMem
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import { spellColorFor } from "./spellColorCore.js";
+import { getSpellBoardTokenItems } from "./spellBoardToken.js";
+import {
+  appendSpellBoardTokenCompanions,
+  hasSpellBoardTokenChange,
+  spellBoardTokenForSpell,
+  spellBoardTokenCompanionsByCasterId,
+  spellBoardTokenCompanionsForEntry,
+  spellBoardTokenTrackerItems,
+  updateSpellBoardTokenSnapshot,
+} from "./spellBoardTokenTrackerCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import {
@@ -40,6 +50,7 @@ import {
   buildTurnNoticePayload,
   isInitiativeTurnTransition,
 } from "./turnNotice.js";
+import { shouldSuppressTurnNoticeBroadcast } from "./turnNoticeHostCore.js";
 import {
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
@@ -127,6 +138,7 @@ import {
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
+import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
 import {
   CLASS_FEATURE_BY_ID,
@@ -217,6 +229,8 @@ const COND_DOCK_CFG = {
   const CONC_META_KEY = `${ID}/concentration`; // { [spellKey]: { targets: [...] } }
   const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
   const CONCENTRATION_WARNING_MODAL_ID = `${ID}/concentration-warning-modal`;
+  const CONCENTRATION_WARNING_UI_CHANNEL = `${CONCENTRATION_WARNING_CHANNEL}/ui`;
+  const CONCENTRATION_WARNING_HOST_CHANNEL = `${CONCENTRATION_WARNING_CHANNEL}/host`;
   const TURN_NOTICE_CHANNEL = ID + "/turn-notice";
   // —— CHIP STYLE PRESET (condizioni + spell)
 const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
@@ -365,6 +379,7 @@ let __activeTurnLabelInitialized = false;
 let __activeTurnLabelDpi = null;
 let __activeLabelEntriesById = new Map();
 let __latestInitiativeState = null;
+let __spellBoardTokenItems = [];
 let __activeTurnLabelDesired = null;
 let __activeTurnLabelPumpRunning = false;
 let __activeTurnLabelRetryTimer = null;
@@ -565,6 +580,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __activeTurnLabelDpi = null;
   __activeLabelEntriesById = new Map();
   __latestInitiativeState = null;
+  __spellBoardTokenItems = [];
   __activeTurnLabelDesired = null;
   __activeTurnLabelLatestKey = null;
   __activeTurnLabelRevision += 1;
@@ -1600,8 +1616,8 @@ Object.assign(globalPanelsWrap.style, {
 });
 const globalEffectsButton = makeGlobalPanelButton("Conditions", "conditions-panel.svg");
 const globalSpellsButton = makeGlobalPanelButton("Spells", "spells-panel.svg");
-const globalQuickHPButton = makeGlobalPanelButton("Danno rapido", "quick-damage.svg");
-globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Danno";
+const globalQuickHPButton = makeGlobalPanelButton("Effetti", "quick-damage.svg");
+globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Effetti";
 const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
 const SPELLS_POPUP_ID = `${ID}/spells-modal`;
 const QUICK_HP_POPUP_ID = `${ID}/quick-hp-modal`;
@@ -3709,6 +3725,7 @@ async function __flushNavigationState() {
   __navigationDesiredEpoch = null;
   if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
   __navigationPumpRunning = true;
+  const flushNavigationRevision = __navigationRevision;
   __initiativeDiag("navigation:flush-start", {
     activeId: __activeIdForState(desired),
     round: desired.round,
@@ -3718,11 +3735,27 @@ async function __flushNavigationState() {
   try {
     await setSceneState(desired, sceneEpoch);
     if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
-    void broadcastTurnNotice(desired, sceneEpoch).catch((err) => {
-      console.warn("[turn-notice] navigation broadcast error:", err?.message || err);
-    });
     const desiredActiveId = __activeIdForState(desired);
     const latestActiveId = __activeIdForState(__latestInitiativeState);
+    const suppressTurnNotice = shouldSuppressTurnNoticeBroadcast({
+      flushRevision: flushNavigationRevision,
+      currentRevision: __navigationRevision,
+      hasPendingNavigation: !!__navigationDesiredState,
+      flushedActiveId: desiredActiveId,
+      latestActiveId,
+    });
+    if (!suppressTurnNotice) {
+      void broadcastTurnNotice(desired, sceneEpoch).catch((err) => {
+        console.warn("[turn-notice] navigation broadcast error:", err?.message || err);
+      });
+    } else {
+      __initiativeDiag("turn-notice:skipped-superseded", {
+        activeId: desiredActiveId,
+        latestActiveId,
+        flushNavigationRevision,
+        navigationRevision: __navigationRevision,
+      });
+    }
     if (!__navigationDesiredState && desiredActiveId === latestActiveId) {
       syncActiveTurnLabel(desiredActiveId);
     }
@@ -4601,7 +4634,12 @@ function parseRelativeHPDelta(value) {
 }
 
 let __concentrationWarningListenerMounted = false;
-let __concentrationWarningModalQueue = Promise.resolve();
+let __concentrationWarningPopoverOpen = false;
+let __concentrationWarningUiReady = false;
+let __concentrationWarningPumpRunning = false;
+let __concentrationWarningPumpRequested = false;
+let __concentrationWarningCleanupPromise = null;
+const __concentrationWarningsByActivationId = new Map();
 
 function normalizeConcentrationWarnings(values = []) {
   return (Array.isArray(values) ? values : []).slice(0, 20).map((warning) => ({
@@ -4621,6 +4659,19 @@ async function openConcentrationWarningModal(data) {
   const warnings = normalizeConcentrationWarnings(data?.warnings);
   if (!warnings.length) return;
 
+  const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
+  if (__concentrationWarningPopoverOpen) {
+    void OBR.popover.setHeight(CONCENTRATION_WARNING_MODAL_ID, height).catch(() => {});
+    if (__concentrationWarningUiReady) {
+      await OBR.broadcast.sendMessage(
+        CONCENTRATION_WARNING_UI_CHANNEL,
+        { type: "update-concentration-warnings", warnings },
+        { destination: "LOCAL" },
+      );
+    }
+    return;
+  }
+
   let viewportWidth = 1200;
   let viewportHeight = 800;
   const [reportedWidth, reportedHeight] = await Promise.all([
@@ -4631,10 +4682,7 @@ async function openConcentrationWarningModal(data) {
   viewportHeight = Number(reportedHeight) || viewportHeight;
   const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
   const width = cardWidth + 8;
-  const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
   const top = Math.max(12, Math.round(viewportHeight * 0.09));
-  try { await OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID); } catch {}
-  try { await OBR.popover.close(CONCENTRATION_WARNING_MODAL_ID); } catch {}
   const payload = encodeURIComponent(JSON.stringify({ warnings }));
   await OBR.popover.open({
     id: CONCENTRATION_WARNING_MODAL_ID,
@@ -4649,21 +4697,84 @@ async function openConcentrationWarningModal(data) {
     disableClickAway: true,
     marginThreshold: 12,
   });
+  __concentrationWarningPopoverOpen = true;
+  if (__concentrationWarningUiReady) {
+    await OBR.broadcast.sendMessage(
+      CONCENTRATION_WARNING_UI_CHANNEL,
+      { type: "update-concentration-warnings", warnings },
+      { destination: "LOCAL" },
+    );
+  }
+}
+
+function concentrationWarningActivationId(warning, index, createdAt) {
+  return String(warning?.notice?.activationId || "").trim()
+    || `${createdAt}:${index}:${warning?.name || "Token"}`;
+}
+
+function requestConcentrationWarningPump() {
+  __concentrationWarningPumpRequested = true;
+  if (__concentrationWarningPumpRunning) return;
+  __concentrationWarningPumpRunning = true;
+  const run = async () => {
+    try {
+      if (__concentrationWarningCleanupPromise) {
+        await __concentrationWarningCleanupPromise;
+        __concentrationWarningCleanupPromise = null;
+      }
+      while (__concentrationWarningPumpRequested) {
+        __concentrationWarningPumpRequested = false;
+        await openConcentrationWarningModal({
+          warnings: [...__concentrationWarningsByActivationId.values()],
+        });
+      }
+    } catch (err) {
+      console.warn("[concentration] warning popover:", err?.message || err);
+    } finally {
+      __concentrationWarningPumpRunning = false;
+      if (__concentrationWarningPumpRequested) requestConcentrationWarningPump();
+    }
+  };
+  void run();
 }
 
 function mountConcentrationWarningBroadcast() {
   if (__concentrationWarningListenerMounted) return;
   __concentrationWarningListenerMounted = true;
+  __concentrationWarningCleanupPromise = Promise.all([
+    OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
+    OBR.popover.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
+  ]).then(() => {});
   OBR.broadcast.onMessage(CONCENTRATION_WARNING_CHANNEL, (event) => {
     if (event?.data?.type !== "show-concentration-warning") return;
-    const run = async () => {
-      try {
-        await openConcentrationWarningModal(event.data);
-      } catch (err) {
-        console.warn("[concentration] warning modal error:", err?.message || err);
-      }
-    };
-    __concentrationWarningModalQueue = __concentrationWarningModalQueue.then(run, run);
+    const createdAt = Math.max(0, Math.floor(Number(event.data?.createdAt) || Date.now()));
+    const warnings = normalizeConcentrationWarnings(event.data?.warnings);
+    warnings.forEach((warning, index) => {
+      __concentrationWarningsByActivationId.set(
+        concentrationWarningActivationId(warning, index, createdAt),
+        warning,
+      );
+    });
+    if (warnings.length) requestConcentrationWarningPump();
+  });
+  OBR.broadcast.onMessage(CONCENTRATION_WARNING_HOST_CHANNEL, (event) => {
+    const data = event?.data;
+    if (data?.type === "concentration-warning-ready") {
+      __concentrationWarningUiReady = true;
+      if (__concentrationWarningsByActivationId.size) requestConcentrationWarningPump();
+      return;
+    }
+    if (data?.type === "concentration-warning-resolved") {
+      const activationId = String(data?.activationId || "").trim();
+      if (activationId) __concentrationWarningsByActivationId.delete(activationId);
+      if (__concentrationWarningsByActivationId.size) requestConcentrationWarningPump();
+      return;
+    }
+    if (data?.type === "concentration-warning-closed") {
+      __concentrationWarningPopoverOpen = false;
+      __concentrationWarningUiReady = false;
+      __concentrationWarningsByActivationId.clear();
+    }
   });
 }
 
@@ -4886,6 +4997,12 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
   const nHPMax = Math.max(0, Math.floor(Number(hpMax) || 0));
   const hasHP = nHPMax > 0;
   const pct = hasHP ? Math.max(0, Math.min(1, nHP / nHPMax)) : 0;
+  for (const pill of document.querySelectorAll('[data-spell-board-token-hp="1"]')) {
+    if (pill.dataset.itemId !== String(itemId) || pill.dataset.hpEditing === "1") continue;
+    pill.textContent = `HP ${nHP} / ${nHPMax}`;
+    const label = pill.dataset.spellBoardTokenLabel || "Mano arcana";
+    pill.title = `Punti ferita di ${label}. Clicca per modificare`;
+  }
   const cards = Array.from(document.querySelectorAll("[data-tracker-card='1']"))
     .filter((card) => card.dataset.itemId === String(itemId) ||
       card.__selectionItemIds?.includes(String(itemId)));
@@ -5110,7 +5227,17 @@ function bindHPEditorForEntry(
   hpFill,
   setHPDeltaButtonActive,
   entry,
+  options = {},
 ) {
+  const customSaveValues = typeof options.saveValues === "function"
+    ? options.saveValues
+    : null;
+  const customAfterCommit = typeof options.afterCommit === "function"
+    ? options.afterCommit
+    : null;
+  const customCommitAndOpenNeighbor = typeof options.commitAndOpenNeighbor === "function"
+    ? options.commitAndOpenNeighbor
+    : null;
   bindClassicHPEditor({
     pill,
     itemId: entry.id,
@@ -5165,9 +5292,9 @@ function bindHPEditorForEntry(
     parseRelativeDelta: parseRelativeHPDelta,
     setDeltaButtonActive: setHPDeltaButtonActive,
     shouldIgnoreDocumentClick: () => Date.now() < __ignoreDocClickUntil,
-    formatHP: formatHPHTML,
+    formatHP: options.formatHP || formatHPHTML,
     hpColorByPct,
-    saveValues: async ({
+    saveValues: customSaveValues || (async ({
       nextHP,
       nextHPMax,
       recalibratesMax,
@@ -5201,8 +5328,8 @@ function bindHPEditorForEntry(
           console.warn("[hp] group seed error:", error?.message || error);
         }
       });
-    },
-    afterCommit: async ({
+    }),
+    afterCommit: customAfterCommit || (async ({
       recalibratesMax,
       concentrationDamage,
     }) => {
@@ -5218,8 +5345,9 @@ function bindHPEditorForEntry(
           error?.message || error
         );
       }
-    },
-    commitAndOpenNeighbor: async ({ goPrev, commit }) => {
+    }),
+    editableHPMax: options.editableHPMax !== false,
+    commitAndOpenNeighbor: customCommitAndOpenNeighbor || (async ({ goPrev, commit }) => {
       const direction = goPrev ? -1 : 1;
       let targetId = null;
       __suspendRenders = true;
@@ -5282,8 +5410,62 @@ function bindHPEditorForEntry(
         __suspendRenders = false;
         throw error;
       }
-    },
+    }),
   });
+}
+
+function bindSpellBoardTokenHPEditor(pill, boardToken, spell) {
+  if (!IS_GM || !pill || !boardToken?.itemId) return;
+  const hp = Math.max(0, Math.floor(Number(boardToken.state?.hp) || 0));
+  const hpMax = Math.max(0, Math.floor(Number(boardToken.state?.hpMax) || 0));
+  if (!hpMax) return;
+  const entry = {
+    id: boardToken.itemId,
+    hp,
+    hpMax,
+    name: String(spell?.name || boardToken.label || "Mano arcana").trim(),
+  };
+  bindHPEditorForEntry(
+    pill,
+    null,
+    () => {},
+    entry,
+    {
+      editableHPMax: false,
+      formatHP: (current, maximum) => (
+        `HP ${Math.max(0, Math.floor(Number(current) || 0))} / ${Math.max(0, Math.floor(Number(maximum) || 0))}`
+      ),
+      saveValues: async ({ nextHP }) => {
+        await executeSpellBoardTokenStateUpdate({
+          group: {
+            casterId: boardToken.casterId,
+            instanceId: boardToken.instanceId,
+            spellId: boardToken.spellId,
+            name: entry.name,
+          },
+          hp: Math.max(0, Math.min(hpMax, Math.floor(Number(nextHP) || 0))),
+        });
+      },
+      afterCommit: async ({ nextHP, nextHPMax }) => {
+        __suspendRenders = false;
+        syncTrackerHPNow(
+          boardToken.itemId,
+          Math.max(0, Math.min(hpMax, Math.floor(Number(nextHP) || 0))),
+          nextHPMax,
+        );
+        await renderAll("spell-board-token-hp");
+      },
+      commitAndOpenNeighbor: async ({ commit }) => {
+        await commit();
+        __suspendRenders = false;
+      },
+    },
+  );
+}
+
+function bindSpellBoardTokenCompanionHPEditor(pill, companion) {
+  if (!IS_GM || !pill || !companion?.itemId) return;
+  bindSpellBoardTokenHPEditor(pill, companion, { name: companion.label });
 }
 
 async function saveClassicTrackerEntryName(entry, nextName) {
@@ -7615,7 +7797,15 @@ async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effect
   }
 }
 
-function renderCompactTrack(entries, state, { animateActive = false, itemIds = null } = {}) {
+function renderCompactTrack(
+  entries,
+  state,
+  {
+    animateActive = false,
+    itemIds = null,
+    boardTokenCompanionMap = null,
+  } = {},
+) {
   const order = Array.isArray(state?.order) ? state.order : [];
   const activeIndex = Math.max(0, Math.min(order.length - 1, Number(state?.current) || 0));
   const activeId = order[activeIndex] || null;
@@ -7627,6 +7817,8 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
   const entriesToRender = incrementalItemIds
     ? visibleEntries.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
     : visibleEntries;
+  const companionsByCasterId = boardTokenCompanionMap
+    || spellBoardTokenCompanionsByCasterId(__spellBoardTokenItems);
 
   track.style.justifyContent = "safe center";
   const nodes = entriesToRender.map((entry) => {
@@ -7798,6 +7990,15 @@ function renderCompactTrack(entries, state, { animateActive = false, itemIds = n
 
     card.append(portrait, name, hpText, hpTrack, status);
     __mountTrackerQuickActions(card, entry, { compact: true });
+    appendSpellBoardTokenCompanions(
+      card,
+      spellBoardTokenCompanionsForEntry(entry, companionsByCasterId),
+      {
+        compact: true,
+        faction,
+        onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
+      },
+    );
     if (hasExpandableEffects && !previewPill?.dataset.referenceEntry) {
       bindCompactEffectsToggle({
         previewPill,
@@ -7854,6 +8055,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
   return buildClassicTrackerCard(entry, {
     state,
     nextId,
+    boardTokenItems: __spellBoardTokenItems,
     isGM: IS_GM,
     constants: {
       BADGE_RIGHT,
@@ -7872,8 +8074,10 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
     },
     operations: {
       __applyTrackerSelectionState,
+      __bindSpellBoardTokenHPEditor: bindSpellBoardTokenHPEditor,
       __bindInitiativeCardContextMenu,
       __buildConditionChipsSafe,
+      __findSpellBoardToken: spellBoardTokenForSpell,
       __groupKey,
       __instaTransform,
       __safeConditions,
@@ -7925,9 +8129,11 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       bossDetails: projectionPolicy.bossDetails,
     });
     if (compactLayout) {
+      const boardTokenCompanionMap = spellBoardTokenCompanionsByCasterId(__spellBoardTokenItems);
       return renderCompactTrack(projectedEntries, state, {
         animateActive,
         itemIds: opts.itemIds,
+        boardTokenCompanionMap,
       });
     }
     entries = projectedEntries;
@@ -7976,9 +8182,19 @@ for (const e of entries) {
     const renderEntries = incrementalItemIds
       ? entriesForRender.filter((entry) => __entryMatchesTrackerItemIds(entry, incrementalItemIds))
       : entriesForRender;
-    const nodes = renderEntries.map((entry) =>
-      buildClassicTrackerCardForRender(entry, state, nextId)
-    );
+    const boardTokenCompanionMap = spellBoardTokenCompanionsByCasterId(__spellBoardTokenItems);
+    const nodes = renderEntries.map((entry) => {
+      const card = buildClassicTrackerCardForRender(entry, state, nextId);
+      appendSpellBoardTokenCompanions(
+        card,
+        spellBoardTokenCompanionsForEntry(entry, boardTokenCompanionMap),
+        {
+          faction: factionColors(entry.attitude),
+          onBindHP: IS_GM ? bindSpellBoardTokenCompanionHPEditor : null,
+        },
+      );
+      return card;
+    });
 
     if (incrementalItemIds) {
       if (!__replaceTrackCardsIncremental(nodes)) return false;
@@ -8431,7 +8647,10 @@ async function __executeFullRenderRequest(request) {
     return;
   }
   __latestAcceptedRenderRevision = renderRevision;
-  const baseEntries  = await getEntriesWithLair(stateRaw);
+  const [baseEntries, boardTokenItems] = await Promise.all([
+    getEntriesWithLair(stateRaw),
+    getSpellBoardTokenItems().catch(() => __spellBoardTokenItems),
+  ]);
   if (!__isCurrentSceneOperation(sceneEpoch, "render-read-items", { reason, renderRevision })) return;
   if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
     __initiativeDiag("render:skipped-superseded", {
@@ -8441,6 +8660,7 @@ async function __executeFullRenderRequest(request) {
     });
     return;
   }
+  __spellBoardTokenItems = spellBoardTokenTrackerItems(boardTokenItems);
   const entries = expandParagonEntries(baseEntries, stateRaw);
 
   // Costruisci le entry VIRTUALI EPIC corrispondenti all’ordine che inietteremo
@@ -9002,6 +9222,17 @@ OBR.scene.onMetadataChange((meta) => {
   }, {
     filter: (event) => event.flags.hpMemoryAutofill,
     immediate: true,
+  });
+
+  subscribeSceneItemChanges((event) => {
+    const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "spell-board-token-render")) return;
+    __spellBoardTokenItems = updateSpellBoardTokenSnapshot(__spellBoardTokenItems, event);
+    void renderAll("spell-board-token").catch((error) => {
+      console.warn("[initiative] spell board token render:", error?.message || error);
+    });
+  }, {
+    filter: (event) => hasSpellBoardTokenChange(event),
   });
 
   subscribeSceneItemChanges(async (event) => {

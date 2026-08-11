@@ -51,12 +51,33 @@ function movementRules(instances) {
     if (!instance || instance.active === false) continue;
     const movement = instance.mechanics?.movement;
     if (!movement || typeof movement !== "object") continue;
-    const identity = String(
-      instance.effectId || instance.condition || instance.name || instance.id || ""
-    ).trim().toLocaleLowerCase("it");
+    const identity = [
+      instance.sourceId || "",
+      instance.parentEffectId || instance.parentInstanceId || "",
+      instance.effectId || instance.condition || instance.name || instance.id || "",
+    ].join("|").trim().toLocaleLowerCase("it");
     if (identity && seen.has(identity)) continue;
     if (identity) seen.add(identity);
-    rules.push(movement);
+    rules.push({
+      ...movement,
+      ...(instance.condition || instance.name
+        ? { conditionName: String(instance.condition || instance.name).trim() }
+        : {}),
+      ...(instance.sourceId && !movement.sourceId
+        ? { sourceId: String(instance.sourceId) }
+        : {}),
+      ...(instance.parentEffectId && !movement.instanceId
+        ? { instanceId: String(instance.parentEffectId) }
+        : instance.parentInstanceId && !movement.instanceId
+          ? { instanceId: String(instance.parentInstanceId) }
+          : {}),
+      ...(instance.type && !movement.sourceType
+        ? { sourceType: String(instance.type) }
+        : {}),
+      ...(instance.type === "spell" && movement.magical !== true
+        ? { magical: true }
+        : {}),
+    });
   }
   return rules;
 }
@@ -82,6 +103,59 @@ function pushUnique(values, value) {
   if (label && !values.includes(label)) values.push(label);
 }
 
+function normalizedMovementImmunity(value) {
+  const key = String(value || "").trim().toLocaleLowerCase("it");
+  if (["difficult-terrain", "difficult terrain", "terreno difficile"].includes(key)) {
+    return "difficult-terrain";
+  }
+  if ([
+    "magical-speed-reduction",
+    "magical speed reduction",
+    "riduzione velocità magica",
+    "riduzione velocita magica",
+  ].includes(key)) {
+    return "magical-speed-reduction";
+  }
+  return "";
+}
+
+function movementImmunities(rule) {
+  const values = [
+    ...(Array.isArray(rule?.immunities) ? rule.immunities : []),
+    ...(Array.isArray(rule?.immuneTo) ? rule.immuneTo : []),
+    ...(rule?.ignoreDifficultTerrain === true ? ["difficult-terrain"] : []),
+    ...(rule?.ignoreMagicalSpeedReductions === true
+      ? ["magical-speed-reduction"]
+      : []),
+  ];
+  return values.map(normalizedMovementImmunity).filter(Boolean);
+}
+
+function directionalMovementEntries(rule, inherited = {}) {
+  const raw = rule?.directional
+    ?? rule?.directionalCosts
+    ?? rule?.directionalCost
+    ?? [];
+  const entries = Array.isArray(raw) ? raw : [raw];
+  return entries.map((entry) => {
+    if (!entry || typeof entry !== "object") return null;
+    const costMultiplier = Number(entry.costMultiplier);
+    if (!Number.isFinite(costMultiplier) || costMultiplier < 1) return null;
+    const direction = String(entry.direction || "toward-source").trim().toLocaleLowerCase("it");
+    if (direction !== "toward-source") return null;
+    return {
+      direction,
+      costMultiplier,
+      sourceId: String(entry.sourceId || rule?.sourceId || inherited.sourceId || "").trim(),
+      instanceId: String(
+        entry.instanceId || rule?.instanceId || inherited.instanceId || ""
+      ).trim(),
+      zoneId: String(entry.zoneId || rule?.zoneId || "").trim(),
+      label: String(entry.label || rule?.label || "Costo direzionale").trim(),
+    };
+  }).filter(Boolean);
+}
+
 function halvedSpeedInWholeCells(baseSpeedMeters) {
   const baseCells = Math.max(0, Number(baseSpeedMeters) || 0) / SPEED_CHECK_METERS_PER_CELL;
   return Math.floor((baseCells / 2) + 1e-9) * SPEED_CHECK_METERS_PER_CELL;
@@ -99,6 +173,9 @@ function spellFlags(spellKeys) {
       || spellKeys.has("velocita")
       || spellKeys.has("velocità"),
     slow: spellKeys.has("slow") || spellKeys.has("lentezza"),
+    freedomOfMovement: spellKeys.has("freedom-of-movement")
+      || spellKeys.has("libertà di movimento")
+      || spellKeys.has("liberta di movimento"),
     hypnoticPattern: spellKeys.has("hypnotic-pattern")
       || spellKeys.has("hypnotic pattern")
       || spellKeys.has("trama ipnotica"),
@@ -171,6 +248,50 @@ function resolveMode({
   let setMeters = null;
   let movementMultiplier = 1;
   let movementCostMultiplier = 1;
+  const movementImmunitySet = new Set(
+    rules.flatMap((rule) => movementImmunities(rule))
+  );
+  if (flags.freedomOfMovement) {
+    movementImmunitySet.add("difficult-terrain");
+    movementImmunitySet.add("magical-speed-reduction");
+  }
+  const directionalCostModifiers = [];
+  const directionalKeys = new Set();
+  const ignoreDifficultTerrain = movementImmunitySet.has("difficult-terrain");
+  const ignoreMagicalSpeedReductions = movementImmunitySet.has("magical-speed-reduction");
+  const isMagicalReduction = (rule, value, property) => {
+    if (rule?.magical !== true && rule?.sourceType !== "spell") return false;
+    if (property === "multiplier") return Number(value) < 1;
+    return (property === "maximum" || property === "setMeters")
+      && Number(value) < sourceMeters;
+  };
+  const isDifficultTerrain = (rule) => (
+    rule?.category === "difficult-terrain"
+      || rule?.movementCategory === "difficult-terrain"
+      || /\bterreno difficile\b/iu.test(
+        String(rule?.conditionName || rule?.label || ""),
+      )
+  );
+  const collectDirectional = (rule, definition = null) => {
+    const entries = directionalMovementEntries(definition || rule, {
+      sourceId: rule?.sourceId,
+      instanceId: rule?.instanceId,
+    });
+    for (const entry of entries) {
+      const key = [
+        entry.sourceId,
+        entry.instanceId,
+        entry.zoneId,
+        entry.direction,
+        entry.costMultiplier,
+      ].join("|");
+      if (directionalKeys.has(key)) continue;
+      directionalKeys.add(key);
+      directionalCostModifiers.push(entry);
+      pushUnique(reasons, entry.label);
+    }
+    return entries.length > 0;
+  };
 
   for (const rule of rules) {
     const definition = rule?.modes?.[mode];
@@ -182,25 +303,36 @@ function resolveMode({
         touched = true;
       }
       const maximum = finiteNonNegative(rule.maximumMeters);
-      if (maximum != null) {
+      if (maximum != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, maximum, "maximum")
+      )) {
         maximumMeters = Math.min(maximumMeters, maximum);
         touched = true;
       }
       const fixed = finiteNonNegative(rule.setMeters);
-      if (fixed != null) {
+      if (fixed != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, fixed, "setMeters")
+      )) {
         setMeters = setMeters == null ? fixed : Math.min(setMeters, fixed);
         touched = true;
       }
       const multiplier = finiteNonNegative(rule.multiplier);
-      if (multiplier != null) {
+      if (multiplier != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, multiplier, "multiplier")
+      )) {
         movementMultiplier *= multiplier;
         touched = true;
       }
       const costMultiplier = finiteNonNegative(rule.costMultiplier);
-      if (costMultiplier != null && costMultiplier >= 1) {
+      if (
+        costMultiplier != null
+        && costMultiplier >= 1
+        && !(ignoreDifficultTerrain && isDifficultTerrain(rule))
+      ) {
         movementCostMultiplier = Math.max(movementCostMultiplier, costMultiplier);
         touched = true;
       }
+      touched ||= collectDirectional(rule);
     }
     if (definition && typeof definition === "object") {
       const addition = Number(definition.addMeters);
@@ -209,25 +341,36 @@ function resolveMode({
         touched = true;
       }
       const maximum = finiteNonNegative(definition.maximumMeters);
-      if (maximum != null) {
+      if (maximum != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, maximum, "maximum")
+      )) {
         maximumMeters = Math.min(maximumMeters, maximum);
         touched = true;
       }
       const fixed = finiteNonNegative(definition.setMeters);
-      if (fixed != null) {
+      if (fixed != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, fixed, "setMeters")
+      )) {
         setMeters = setMeters == null ? fixed : Math.min(setMeters, fixed);
         touched = true;
       }
       const multiplier = finiteNonNegative(definition.multiplier);
-      if (multiplier != null) {
+      if (multiplier != null && !(
+        ignoreMagicalSpeedReductions && isMagicalReduction(rule, multiplier, "multiplier")
+      )) {
         movementMultiplier *= multiplier;
         touched = true;
       }
       const costMultiplier = finiteNonNegative(definition.costMultiplier);
-      if (costMultiplier != null && costMultiplier >= 1) {
+      if (
+        costMultiplier != null
+        && costMultiplier >= 1
+        && !(ignoreDifficultTerrain && isDifficultTerrain({ ...rule, ...definition }))
+      ) {
         movementCostMultiplier = Math.max(movementCostMultiplier, costMultiplier);
         touched = true;
       }
+      touched ||= collectDirectional(rule, definition);
       touched ||= finiteNonNegative(definition.grantMeters) != null
         || !!definition.copyFrom
         || !!definition.copy;
@@ -249,12 +392,12 @@ function resolveMode({
     speed += 3;
     pushUnique(reasons, "Passo Veloce (+3m)");
   }
-  if (flags.rayOfFrost) {
+  if (flags.rayOfFrost && !flags.freedomOfMovement) {
     speed = Math.max(0, speed - 3);
     pushUnique(reasons, "Raggio di Gelo (-3m)");
   }
 
-  const halved = exhaustionLevel >= 2 || flags.slow;
+  const halved = exhaustionLevel >= 2 || (flags.slow && !flags.freedomOfMovement);
   if (flags.haste) {
     speed *= 2;
     pushUnique(reasons, "Velocità (×2)");
@@ -296,6 +439,8 @@ function resolveMode({
     summary: allReasons.join(" · "),
     movementMultiplier,
     movementCostMultiplier,
+    movementImmunities: [...movementImmunitySet],
+    directionalCostModifiers,
   };
 }
 
@@ -336,10 +481,12 @@ export function resolveMovementProfile(
       blocked: true,
       blocksSpeedBonuses: true,
       movementMultiplier: 1,
+      movementImmunities: [],
+      directionalCostModifiers: [],
       reasons: [],
       summary: "",
     };
-  const halved = exhaustionLevel >= 2 || flags.slow;
+  const halved = exhaustionLevel >= 2 || (flags.slow && !flags.freedomOfMovement);
   const multiplier = active.blocked
     ? 0
     : (flags.haste ? 2 : 1) * (halved ? 0.5 : 1) * (active.movementMultiplier ?? 1);
@@ -360,6 +507,15 @@ export function resolveMovementProfile(
     prone,
     movementCostMultiplier: Math.max(1, active.movementCostMultiplier || 1)
       + (prone ? 1 : 0),
+    movementImmunities: [
+      ...new Set([
+        ...(active.movementImmunities || []),
+        ...(flags.freedomOfMovement
+          ? ["difficult-terrain", "magical-speed-reduction"]
+          : []),
+      ]),
+    ],
+    directionalCostModifiers: active.directionalCostModifiers || [],
     reasons: [...active.reasons],
     summary: active.summary,
   };

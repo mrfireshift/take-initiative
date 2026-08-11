@@ -17,11 +17,16 @@ import {
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
+  activeSpellInstanceIds,
   isStaticSpellZoneRule,
   staticSpellZoneItems,
   staticSpellZoneMetadata,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import {
+  SPELL_BOARD_TOKEN_META_KEY,
+  spellBoardTokenItems,
+} from "./spellBoardTokenCore.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
 } from "./spellZoneTriggerCore.js";
@@ -507,6 +512,17 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     && !Array.isArray(sceneMetadataOverride)
     ? sceneMetadataOverride
     : fetchedSceneMetadata;
+  const activeInstances = activeSpellInstanceIds(items);
+  const orphanBoardTokenIds = spellBoardTokenItems(items)
+    .filter((item) => !activeInstances.has(String(
+      item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.instanceId || "",
+    ).trim()))
+    .map((item) => item.id)
+    .filter(Boolean);
+  if (orphanBoardTokenIds.length) {
+    await OBR.scene.items.deleteItems(orphanBoardTokenIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  }
   const currentTurnKey = currentInitiativeTurnKey(sceneMetadata?.[STATE_KEY]);
   const expiredSubzoneIds = staticSpellZoneItems(items)
     .filter((item) => {
@@ -612,6 +628,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     operations.push(...areaMembershipPlan({
       instanceId: zoneMetadata.instanceId,
       sourceId: zoneMetadata.casterId,
+      zoneId: item.id,
       rule,
       desiredTargetIds,
       items,

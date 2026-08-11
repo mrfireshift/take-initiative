@@ -6,7 +6,8 @@ export function elevationMovementCells(
   gridScaleMultiplier,
   activeMode,
 ) {
-  if (String(activeMode || "").trim().toLocaleLowerCase("it") !== "fly") return 0;
+  const mode = String(activeMode || "").trim().toLocaleLowerCase("it");
+  if (mode !== "fly" && mode !== "climb") return 0;
   const before = Number(beforeElevation);
   const after = Number(afterElevation);
   const scale = Math.abs(Number(gridScaleMultiplier));
@@ -14,6 +15,15 @@ export function elevationMovementCells(
     return 0;
   }
   return Math.abs(after - before) / scale;
+}
+
+export function hasClimbingSpeed(movementModes = []) {
+  return (Array.isArray(movementModes) ? movementModes : [])
+    .some((entry) => entry?.id === "climb" && Number(entry?.speedMeters) > 0);
+}
+
+export function climbingMovementCostMultiplier(climbing, movementModes = []) {
+  return climbing === true && !hasClimbingSpeed(movementModes) ? 2 : 1;
 }
 
 export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited = false) {
@@ -39,6 +49,9 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     .filter((entry) => entry.id);
   const activeMode = String(source.activeMode || movementModes[0]?.id || "walk");
   const activeModeEntry = movementModes.find((entry) => entry.id === activeMode);
+  const climbing = source.climbing === true;
+  const hasClimbing = hasClimbingSpeed(movementModes);
+  const climbingCostMultiplier = climbingMovementCostMultiplier(climbing, movementModes);
   const modeBaseSpeedMeters = Math.max(
     0,
     Number(source.modeBaseSpeedMeters ?? activeModeEntry?.baseSpeedMeters ?? baseSpeedMeters) || 0
@@ -65,6 +78,9 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     activeModeLabel: String(
       source.activeModeLabel || activeModeEntry?.label || "Camminare"
     ),
+    climbing,
+    hasClimbingSpeed: hasClimbing,
+    climbingCostMultiplier,
     movementModes,
     hasMovementModes,
     usedMeters,
@@ -82,6 +98,12 @@ export function buildSpeedCheckSnapshot(state, enabled = true, movementLimited =
     blocksSpeedBonuses: !!source.blocksSpeedBonuses,
     prone: !!source.prone,
     movementCostMultiplier: Math.max(1, Number(source.movementCostMultiplier) || 1),
+    movementImmunities: Array.isArray(source.movementImmunities)
+      ? [...source.movementImmunities]
+      : [],
+    directionalCostModifiers: Array.isArray(source.directionalCostModifiers)
+      ? source.directionalCostModifiers.map((modifier) => ({ ...modifier }))
+      : [],
     conditionSummary: String(source.conditionSummary || ""),
     conditionReasons: Array.isArray(source.conditionReasons) ? [...source.conditionReasons] : [],
     completedCycles,
@@ -223,6 +245,198 @@ export function measureSquareGridCells(from, to, dpi) {
   const dx = Math.abs((Number(to.x) || 0) - (Number(from.x) || 0)) / gridDpi;
   const dy = Math.abs((Number(to.y) || 0) - (Number(from.y) || 0)) / gridDpi;
   return Math.max(dx, dy);
+}
+
+function lineRectInterval(from, to, cell) {
+  const minX = Number(cell?.x);
+  const minY = Number(cell?.y);
+  const maxX = minX + Number(cell?.width);
+  const maxY = minY + Number(cell?.height);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  let start = 0;
+  let end = 1;
+  for (const [origin, delta, min, max] of [
+    [from.x, dx, minX, maxX],
+    [from.y, dy, minY, maxY],
+  ]) {
+    if (Math.abs(delta) <= 1e-9) {
+      if (origin < min || origin > max) return null;
+      continue;
+    }
+    const first = (min - origin) / delta;
+    const second = (max - origin) / delta;
+    const axisStart = Math.min(first, second);
+    const axisEnd = Math.max(first, second);
+    start = Math.max(start, axisStart);
+    end = Math.min(end, axisEnd);
+    if (start > end + 1e-9) return null;
+  }
+  return [Math.max(0, start), Math.min(1, end)];
+}
+
+function areaIntervals(from, to, area) {
+  if (!area) return [[0, 1]];
+  const intervals = (Array.isArray(area.cells) ? area.cells : [])
+    .map((cell) => lineRectInterval(from, to, cell))
+    .filter(Boolean)
+    .sort((left, right) => left[0] - right[0]);
+  const merged = [];
+  for (const interval of intervals) {
+    const previous = merged[merged.length - 1];
+    if (previous && interval[0] <= previous[1] + 1e-7) {
+      previous[1] = Math.max(previous[1], interval[1]);
+    } else {
+      merged.push([...interval]);
+    }
+  }
+  return merged;
+}
+
+function distanceBetweenPoints(left, right) {
+  return Math.hypot(
+    Number(right?.x) - Number(left?.x),
+    Number(right?.y) - Number(left?.y),
+  );
+}
+
+function towardRatio(from, to, source) {
+  const pathLength = distanceBetweenPoints(from, to);
+  if (!Number.isFinite(pathLength) || pathLength <= 1e-9) return 0;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const denominator = (dx * dx) + (dy * dy);
+  if (denominator <= 1e-9) return 0;
+  const projection = Math.max(0, Math.min(1, (
+    ((Number(source?.x) - from.x) * dx)
+      + ((Number(source?.y) - from.y) * dy)
+  ) / denominator));
+  const closest = {
+    x: from.x + (dx * projection),
+    y: from.y + (dy * projection),
+  };
+  const startDistance = distanceBetweenPoints(from, source);
+  const endDistance = distanceBetweenPoints(to, source);
+  const closestDistance = distanceBetweenPoints(closest, source);
+  const towardMeters = Math.max(0, startDistance - closestDistance)
+    + Math.max(0, closestDistance - endDistance);
+  return Math.max(0, Math.min(1, towardMeters / pathLength));
+}
+
+export function movementCostForSegment({
+  movedCells = 0,
+  beforePosition = null,
+  afterPosition = null,
+  baseMultiplier = 1,
+  directionalModifiers = [],
+} = {}) {
+  const cells = Math.max(0, Number(movedCells) || 0);
+  const before = beforePosition && Number.isFinite(Number(beforePosition.x))
+    && Number.isFinite(Number(beforePosition.y))
+    ? { x: Number(beforePosition.x), y: Number(beforePosition.y) }
+    : null;
+  const after = afterPosition && Number.isFinite(Number(afterPosition.x))
+    && Number.isFinite(Number(afterPosition.y))
+    ? { x: Number(afterPosition.x), y: Number(afterPosition.y) }
+    : null;
+  const baseCost = cells * Math.max(1, Number(baseMultiplier) || 1);
+  if (!cells || !before || !after) {
+    return {
+      chargedCells: baseCost,
+      baseCells: cells,
+      directionalCells: 0,
+      appliedModifiers: [],
+    };
+  }
+
+  const unique = new Map();
+  for (const modifier of Array.isArray(directionalModifiers) ? directionalModifiers : []) {
+    if (String(modifier?.direction || "toward-source") !== "toward-source") continue;
+    const costMultiplier = Number(modifier?.costMultiplier);
+    const source = modifier?.sourcePosition;
+    if (!Number.isFinite(costMultiplier) || costMultiplier < 1
+      || !Number.isFinite(Number(source?.x)) || !Number.isFinite(Number(source?.y))) {
+      continue;
+    }
+    const key = [
+      modifier.sourceId || "",
+      modifier.instanceId || "",
+      modifier.zoneId || "",
+      modifier.direction || "toward-source",
+      costMultiplier,
+    ].join("|");
+    if (!unique.has(key)) unique.set(key, {
+      ...modifier,
+      costMultiplier,
+      sourcePosition: { x: Number(source.x), y: Number(source.y) },
+      intervals: areaIntervals(before, after, modifier.area),
+    });
+  }
+  const modifiers = [...unique.values()].filter((modifier) => modifier.intervals.length);
+  if (!modifiers.length) {
+    return {
+      chargedCells: baseCost,
+      baseCells: cells,
+      directionalCells: 0,
+      appliedModifiers: [],
+    };
+  }
+
+  const breakpoints = new Set([0, 1]);
+  for (const modifier of modifiers) {
+    for (const [start, end] of modifier.intervals) {
+      breakpoints.add(start);
+      breakpoints.add(end);
+    }
+  }
+  const sortedBreakpoints = [...breakpoints].sort((left, right) => left - right);
+  let chargedCells = 0;
+  let directionalCells = 0;
+  const appliedModifiers = [];
+  for (let index = 1; index < sortedBreakpoints.length; index += 1) {
+    const start = sortedBreakpoints[index - 1];
+    const end = sortedBreakpoints[index];
+    if (end - start <= 1e-9) continue;
+    const from = {
+      x: before.x + ((after.x - before.x) * start),
+      y: before.y + ((after.y - before.y) * start),
+    };
+    const to = {
+      x: before.x + ((after.x - before.x) * end),
+      y: before.y + ((after.y - before.y) * end),
+    };
+    let multiplier = Math.max(1, Number(baseMultiplier) || 1);
+    let segmentDirectional = false;
+    for (const modifier of modifiers) {
+      const inside = modifier.intervals.some(([rangeStart, rangeEnd]) => (
+        start >= rangeStart - 1e-7 && end <= rangeEnd + 1e-7
+      ));
+      if (!inside) continue;
+      const ratio = towardRatio(from, to, modifier.sourcePosition);
+      if (ratio <= 0) continue;
+      multiplier *= 1 + ((modifier.costMultiplier - 1) * ratio);
+      directionalCells += cells * (end - start) * ratio;
+      segmentDirectional = true;
+      if (!appliedModifiers.includes(modifier)) appliedModifiers.push(modifier);
+    }
+    if (segmentDirectional) {
+      chargedCells += cells * (end - start) * multiplier;
+    } else {
+      chargedCells += cells * (end - start) * Math.max(1, Number(baseMultiplier) || 1);
+    }
+  }
+  return {
+    chargedCells,
+    baseCells: cells,
+    directionalCells,
+    appliedModifiers: appliedModifiers.map((modifier) => ({
+      sourceId: String(modifier.sourceId || ""),
+      instanceId: String(modifier.instanceId || ""),
+      zoneId: String(modifier.zoneId || ""),
+      label: String(modifier.label || ""),
+    })),
+  };
 }
 
 export function reversedPathStart(path, movement) {

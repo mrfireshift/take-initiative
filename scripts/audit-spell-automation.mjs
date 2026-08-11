@@ -152,10 +152,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["REPEATED_ACTION"],
     note: "La spell non espone l'arma creata né l'azione bonus che la fa ricomparire nella mano dopo che è stata lasciata cadere o lanciata.",
   },
-  "tasha-lama-del-disastro": {
-    gaps: ["REPEATED_ACTION", "MOBILE_ZONE_ACTION"],
-    note: "Manca l'azione bonus ricorrente che sposta la lama di 9 m e risolve due attacchi, inclusa la soglia di critico 18–20 e i dadi critici speciali.",
-  },
   "flame-blade": {
     gaps: ["REPEATED_ACTION"],
     note: "La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata.",
@@ -192,10 +188,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["MULTI_SAVE_STATE", "STATUS_MISSING"],
     note: "Richiede Trattenuto iniziale, conteggio indipendente di tre successi o fallimenti e transizione a Pietrificato permanente dopo concentrazione completa.",
   },
-  "spiritual-weapon": {
-    gaps: ["REPEATED_ACTION", "MOBILE_ZONE_ACTION"],
-    note: "L'arma è una sorgente mobile: ogni azione bonus può spostarla di 6 m e ripetere l'attacco da quella posizione.",
-  },
   "holy-aura": {
     gaps: ["CONDITIONAL_TRIGGER", "STATUS_MISSING"],
     note: "Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell.",
@@ -228,25 +220,9 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["REPEATED_ACTION", "POST_EXPIRY_EFFECT"],
     note: "La velocità di volo è modellabile, ma mancano il cubo offensivo ripetibile e la caduta se la spell termina mentre il caster è in volo.",
   },
-  "xanathar-investitura-della-fiamma": {
-    gaps: ["REPEATED_ACTION", "ZONE_TRIGGER_MISSING"],
-    note: "Mancano il danno automatico a ingresso/fine turno nell'aura e la linea di fuoco ripetibile come azione.",
-  },
   "xanathar-investitura-della-pietra": {
     gaps: ["REPEATED_ACTION", "MOVEMENT_IMMUNITY", "POST_EXPIRY_EFFECT"],
     note: "Servono terremoto ripetibile, immunità al costo del terreno difficile, attraversamento della pietra ed espulsione con Stordito se il movimento termina al suo interno.",
-  },
-  "call-lightning": {
-    gaps: ["REPEATED_ACTION"],
-    note: "Dopo il lancio il caster può scegliere ogni turno un nuovo punto sotto la nube e risolvere nuovamente area, TS e danni.",
-  },
-  "freedom-of-movement": {
-    gaps: ["MOVEMENT_IMMUNITY"],
-    note: "Lo Speed Tracker deve ignorare terreno difficile e riduzioni magiche, oltre a rappresentare l'uscita automatica spendendo 1,5 m.",
-  },
-  "arcane-hand": {
-    gaps: ["RESOURCE_STATE", "REPEATED_ACTION", "MOBILE_ZONE_ACTION"],
-    note: "La mano è una sorgente mobile con PF/CA propri e quattro modalità ripetibili: interposizione, spinta, presa/stritolamento e pugno.",
   },
   "xanathar-muro-di-luce": {
     gaps: ["RESOURCE_STATE", "REPEATED_ACTION", "TURN_EFFECT_MISSING"],
@@ -256,14 +232,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["ENDING_DETONATION", "RESOURCE_STATE", "CONDITIONAL_TRIGGER"],
     note: "La sfera accumula 1d6 a fine turno, esplode alla terminazione o al contatto e può essere lanciata altrove dopo un TS riuscito.",
   },
-  "xanathar-sfera-della-tempesta": {
-    gaps: ["REPEATED_ACTION", "TURN_EFFECT_MISSING"],
-    note: "La zona applica TS/danni a fine turno e il caster può lanciare un fulmine ogni round con vantaggio contro bersagli interni.",
-  },
-  "arcane-sword": {
-    gaps: ["REPEATED_ACTION", "MOBILE_ZONE_ACTION"],
-    note: "Ogni azione bonus sposta la sorgente di 6 m e ripete l'attacco dallo spazio della spada.",
-  },
   "tasha-sudario-spirituale": {
     gaps: ["CONDITIONAL_TRIGGER", "MOVEMENT_MECHANICS_MISSING", "TURN_EFFECT_MISSING"],
     note: "Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo.",
@@ -271,10 +239,6 @@ const CURATED_REVIEW = Object.freeze({
   telekinesis: {
     gaps: ["REPEATED_ACTION", "STATUS_MISSING"],
     note: "Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo.",
-  },
-  "gust-of-wind": {
-    gaps: ["DIRECTIONAL_MOVEMENT_COST", "AREA_SMOKE_TEST"],
-    note: "La linea, il TS a inizio turno e il cambio di direzione esistono; manca il costo raddoppiato soltanto avvicinandosi al caster e serve lo smoke test completo.",
   },
   "control-water": {
     gaps: ["CHILD_ZONE_GEOMETRY", "MODE_SPECIFIC_RUNTIME"],
@@ -335,7 +299,12 @@ const CURATED_COMPLETE = Object.freeze({
   "xanathar-immolazione": "Il TS iniziale è single-target e resta manuale; il runtime copre già l'effetto In Fiamme, il TS ricorrente di fine turno e la relativa conclusione.",
   "legacy-tashas-mind-whip": "Il workflow batch del TS Intelligenza, il limite di un bersaglio al 2° livello (+1 per slot superiore), il danno dimezzato ai successi e l'effetto di turno sui soli fallimenti sono dichiarati e operativi.",
   "chain-lightning": "Il workflow dedicato seleziona un primario entro 45 m dal caster e secondari distinti entro 9 m dal primario, scala il massimo con lo slot e rivalida le distanze alla conferma; ogni bersaglio mantiene il proprio esito del TS Destrezza e il riferimento da 9 m non crea una zona persistente. Gli oggetti restano una gestione manuale futura.",
+  "freedom-of-movement": "Lo Speed Tracker applica le immunità selettive a terreno difficile e riduzioni magiche della velocità; le applicazioni magiche di Paralizzato e Trattenuto vengono rifiutate. Al turno del bersaglio un reminder propone di spendere 1,5 m per rimuovere una singola restrizione non magica Afferrato o Trattenuto e aggiorna il consumo quando il tracker è attivo; senza tracker resta una conferma manuale del costo RAW.",
   "command": "Il workflow batch del TS Saggezza scala da un bersaglio al 1° livello (+1 per slot superiore), conserva una sola scelta di comando per il cast, applica gli effetti ai soli fallimenti e attiva Prono di Supplica all'inizio del turno successivo, lasciandolo persistente; la pill tecnica scade alla fine di quel turno.",
+  "call-lightning": "Il lancio crea una nube temporalesca persistente di raggio 18 m collegata alla concentrazione del caster e conserva la scarica iniziale da 1,5 m; il prompt per richiamare i fulmini appare all'inizio di ogni turno del caster, fuori dal pannello Spells, si chiude al cambio di turno e risolve TS Destrezza, danni e scaling dello slot in una transazione.",
+  "xanathar-investitura-della-fiamma": "L'aura mobile di 1,5 m considera solo le creature ostili e produce reminder manuali da 1d10 fuoco all'ingresso e a fine turno con input danno e Conferma; il caster riceve la pill informativa di immunità al fuoco e resistenza al freddo. Dal turno successivo al lancio, la Linea di fuoco opzionale usa il popup dedicato con TS Destrezza e 4d8 fuoco.",
+  "xanathar-sfera-della-tempesta": "Il trigger di TS e danni a fine turno resta invariato; l'azione bonus Fulmine usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera.",
+  "gust-of-wind": "La zona persistente e il TS a inizio turno restano invariati; il contratto dello Speed Tracker raddoppia soltanto la porzione di ogni segmento realmente percorsa verso il caster, usa la posizione corrente della sorgente, conserva il costo nel percorso per Undo e deduplica la stessa istanza. Geometria, membership, cambio direzione e lifecycle sono coperti dai test logici dedicati.",
   "banishment": "Il workflow batch del TS Carisma, il limite con slot superiori, il contesto dell'origine del piano, Incapacitato per i nativi del piano e la distinzione fra interruzione anticipata e scadenza naturale sono operativi; il ritorno o la permanenza fuori piano restano una gestione fisica manuale intenzionale.",
   "acid-arrow": "La risoluzione assistita Colpito/Mancato mostra il danno iniziale manuale, applica la metà sul mancato e crea sul colpito un solo reminder differito indipendente, con scaling 4d4/2d4 dal 2° livello e +1d4 per slot superiore; non viene creata una spell persistente né viene applicato danno automaticamente.",
   "xanathar-sfera-al-vetriolo": "Il TS fallito crea soltanto il reminder indipendente 5d4 danni da acido alla fine del prossimo turno; il notice precede la scadenza della condizione, il consumo è persistito per token e non viene applicato danno automaticamente.",
@@ -346,6 +315,10 @@ const CURATED_COMPLETE = Object.freeze({
   "flaming-sphere": "La zona usa l'azione bonus fino a 9 m, rileva il primo contatto diretto lungo il percorso con arresto e un solo reminder, mentre la corona da 1,5 m continua a usare il TS di fine turno; dadi e scelta di eventuali ambiguità restano manuali.",
   "xanathar-spirito-guaritore": "La zona usa l'azione bonus fino a 9 m senza attivare cure durante il riposizionamento; ingresso autonomo e inizio turno producono reminder manuali di cura con scaling 1d6 per slot, esclusioni di Costrutti/Non Morti e consumo una tantum.",
   "xanathar-diavoletto-di-polvere": "La zona usa l'azione bonus fino a 9 m; il TS Forza a fine turno mostra il danno strutturato 1d8 con scaling e spinta solo sul fallimento. La scelta esplicita del terreno crea o sostituisce una nube di detriti da 3 m, oscuramento pesante e scadenza al turno successivo del caster.",
+  "spiritual-weapon": "Effetti ad Area posiziona e conferma entro gittata una pedina magica persistente, poi liberamente trascinabile e collegata all'istanza. La scheda mostra movimento 6 m, portata 1,5 m, attacco 1d8 + modificatore e scaling dello slot; una mini-card subordinata del tracker indica l'azione bonus senza alterare l'ordine.",
+  "arcane-sword": "Effetti ad Area posiziona e conferma entro gittata una pedina magica persistente collegata alla concentrazione. Movimento 6 m, portata 1,5 m e attacco ricorrente da 3d10 forza restano riferimenti da tabellone; terminazione e Undo includono la pedina.",
+  "tasha-lama-del-disastro": "Effetti ad Area posiziona e conferma entro gittata una pedina persistente trascinabile con movimento 9 m e portata 1,5 m. La scheda espone i due attacchi da 4d12, il critico 18–20 da 12d12 e l'attraversamento delle barriere; la risoluzione dei tiri resta manuale.",
+  "arcane-hand": "Effetti ad Area posiziona e conferma entro gittata la Mano come pedina persistente trascinabile con movimento 18 m, CA 20 e PF propri pari ai PF massimi del caster. Le quattro modalità, il bersaglio associato, lo scaling e gli aggiornamenti dei PF sono esposti nella scheda e inclusi in cronologia e Undo.",
 });
 
 const SIGNAL_PATTERNS = Object.freeze({
@@ -665,7 +638,8 @@ function deriveSpellAudit(spell, reference, trackableIds) {
     || triggers.some((trigger) => trigger.resolution === "manual-save")
     || objectHasKey(spell.activeActions, new Set(["savingThrow"]))
     || ((spell.activeActions || []).length > 0 && saveText);
-  const movementImplemented = EXTERNAL_MOVEMENT_SPELL_IDS.has(spell.id) || objectHasKey({
+  const movementImplemented = !!spell.boardToken
+    || EXTERNAL_MOVEMENT_SPELL_IDS.has(spell.id) || objectHasKey({
     effects: spell.effects,
     effectChoices: spell.effectChoices,
     actions: spell.activeActions,
@@ -813,6 +787,7 @@ function deriveSpellAudit(spell, reference, trackableIds) {
     saveImplemented && "TS",
     implementedConditions.length && `status:${implementedConditions.join("/")}`,
     movementImplemented && "movimento",
+    spell.boardToken && "pedina magica",
     turnImplemented && "turni",
     phaseImplemented && "fasi/azioni",
     choiceImplemented && "varianti",
@@ -868,6 +843,7 @@ function deriveSpellAudit(spell, reference, trackableIds) {
       activeActionIds: (spell.activeActions || []).map((action) => action.id),
       phaseOptions: phaseOptions.map((option) => option.value),
       movementMechanics: movementImplemented,
+      ...(spell.boardToken ? { boardToken: true } : {}),
     },
     evidence: {
       area: areaEvidence,

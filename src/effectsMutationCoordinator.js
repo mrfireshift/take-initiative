@@ -159,16 +159,23 @@ export function createEffectsMutationCoordinator({
       const hasLogicalChanges = !!plan?.changedIds?.length;
       const hasSideEffectChanges = !!commitResult?.sideEffectChanges?.length;
       if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges) && isCommandCurrent()) {
-        try {
-          historyEntry = await recordHistory({
-            command,
-            plan,
-            commitResult,
-            sceneEpoch: command.sceneEpoch,
-            isCurrent: isCommandCurrent,
-          });
-        } catch (error) {
-          historyError = serializeError(error);
+        if (command.deferHistory === true) {
+          historyError = {
+            name: "DeferredEffectsHistory",
+            message: "effects-history-deferred",
+          };
+        } else {
+          try {
+            historyEntry = await recordHistory({
+              command,
+              plan,
+              commitResult,
+              sceneEpoch: command.sceneEpoch,
+              isCurrent: isCommandCurrent,
+            });
+          } catch (error) {
+            historyError = serializeError(error);
+          }
         }
       } else if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges)) {
         historySkipped = true;

@@ -270,6 +270,7 @@ export function reviewSpellAreaPlacement(session, preview) {
       end: finitePoint(preview.end),
       gridOrigin: finitePoint(preview.gridOrigin),
       dpi: Math.max(1, Number(preview.dpi) || 1),
+      ...(preview.position ? { position: finitePoint(preview.position) } : {}),
       ...(type === "circle" && Number.isFinite(radius) && radius > 0
         ? { radius }
         : {}),

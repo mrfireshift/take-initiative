@@ -121,8 +121,18 @@ test("il background apre il turn notice on demand e lo chiude quando è invisibi
   assert.match(sender, /return __sendTurnNoticePayload\(notice, sceneEpoch\)/);
   assert.match(sender, /const deliveryKey = `\$\{sceneEpoch\}:\$\{notice\.turnKey\}`/);
   assert.match(backgroundSource, /mountTurnNoticeHost\(\)/);
-  assert.match(turnNoticeHostSource, /pendingPayloads\.push\(payload\)/);
-  assert.match(turnNoticeHostSource, /await openTurnNoticePopover\(payload\)/);
+  assert.match(turnNoticeHostSource, /enqueueTurnNoticeHostPayload\(pendingPayloads, payload\)/);
+  assert.match(turnNoticeHostSource, /await openTurnNoticePopover\(pendingPayloads\[0\]\)/);
+  const receiveNotice = sourceSectionIn(
+    turnNoticeHostSource,
+    "function receiveNoticePayload(payload)",
+    "function receiveReadyMessage(payload)",
+  );
+  assert.doesNotMatch(receiveNotice, /enqueueHostTask/);
+  assert.ok(
+    receiveNotice.indexOf("enqueueTurnNoticeHostPayload")
+      < receiveNotice.indexOf("scheduleNoticePump()"),
+  );
   assert.match(turnNoticeHostSource, /OBR\.popover\.open\(\{/);
   assert.match(turnNoticeHostSource, /OBR\.popover\.close\(TURN_NOTICE_POPOVER_ID\)/);
   assert.match(turnNoticeHostSource, /TURN_NOTICE_UI_CHANNEL/);
@@ -172,6 +182,7 @@ test("il reminder di turno precede render e tick; i TS restano al solo backgroun
   );
   assertOrdered(navigation, [
     "await setSceneState(desired, sceneEpoch);",
+    "shouldSuppressTurnNoticeBroadcast({",
     "broadcastTurnNotice(desired, sceneEpoch)",
   ]);
   assert.equal((source.match(/prewarmSpeedCheckTurn\(next\)/g) || []).length, 2);
@@ -289,10 +300,9 @@ test("i reminder di zona usano il layer persistente del turno senza un secondo p
     turnNoticeSource,
     /if \(!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED\) return;/
   );
-  assert.ok(
-    turnNoticeSource.indexOf("if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;")
-      < turnNoticeSource.indexOf("unsubscribeZoneItems ="),
-  );
+  assert.match(turnNoticeSource, /requestPendingZoneNoticeSync\(\);/);
+  assert.doesNotMatch(turnNoticeSource, /unsubscribeZoneItems/);
+  assert.doesNotMatch(turnNoticeSource, /OBR\.scene\.items\.onChange\(/);
   assert.doesNotMatch(turnNoticeSource, /PENDING_SYNC_INTERVAL_MS|setInterval/);
   assert.match(turnNoticeSource, /app\.replaceChildren\(panel\)/);
   assert.match(turnNoticeSource, /function clearZoneNotice\(\)/);

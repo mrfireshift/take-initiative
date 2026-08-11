@@ -53,6 +53,9 @@ export function getSpellOverviewActions({
   casterId = "",
   targetIds = [],
   effectInstances = [],
+  zoneItemId = "",
+  appliedAt = null,
+  currentTurnKey = "",
 } = {}) {
   if (!spell) return [];
   const actions = [];
@@ -73,10 +76,20 @@ export function getSpellOverviewActions({
 
   const availableEffectIds = linkedEffectIds(effectInstances);
   for (const action of manualActions(spell)) {
+    if (action.turnStartPrompt === true) continue;
+    if (action.requiresZoneRoot === true && !String(zoneItemId || "").trim()) {
+      continue;
+    }
     const consumedIds = consumedEffectIds(action);
     if (consumedIds.length && !consumedIds.every((id) => availableEffectIds.has(id))) {
       continue;
     }
+    const castTurnKey = String(appliedAt?.turnKey || "").trim();
+    const unavailableReason = action.availableAfterCast === true
+      && castTurnKey
+      && String(currentTurnKey || "").trim() === castTurnKey
+      ? "Disponibile dal turno successivo al lancio."
+      : "";
     const unavailableTargetIds = [];
     if (action.rejectRememberedTargets === true) {
       unavailableTargetIds.push(
@@ -95,12 +108,16 @@ export function getSpellOverviewActions({
     if (action.forbidCasterTarget === true && casterId) {
       unavailableTargetIds.push(casterId);
     }
+    const subjectMode = action.subjectMode === "caster" || action.subjectMode === "none"
+      ? action.subjectMode
+      : "selected";
     actions.push({
       ...action,
       type: "manual",
-      subjectMode: action.subjectMode === "caster" ? "caster" : "selected",
-      requiresTargets: action.subjectMode !== "caster",
+      subjectMode,
+      requiresTargets: subjectMode === "selected",
       unavailableTargetIds: uniqueIds(unavailableTargetIds),
+      ...(unavailableReason ? { unavailableReason } : {}),
     });
   }
   return actions;
@@ -138,10 +155,12 @@ export function spellActiveActionPresentation(
   const choiceUnknown = !!choice
     && normalizedChoiceValue !== ""
     && !choiceOptions.some((option) => option?.value === normalizedChoiceValue);
+  const unavailableReason = String(action?.unavailableReason || "").trim();
   const singular = String(action?.countLabelSingular || "bersaglio").trim();
   const plural = String(action?.countLabelPlural || "bersagli").trim();
   return {
-    disabled: needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget)
+    disabled: !!unavailableReason
+      || needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget)
       || choiceMissing
       || choiceUnknown,
     text: needsTargets ? `${label} · ${count} ${count === 1 ? singular : plural}` : label,
@@ -159,6 +178,8 @@ export function spellActiveActionPresentation(
               || "La selezione contiene un bersaglio non disponibile."
             ).trim()
           : String(action?.detail || label).trim()
+      : unavailableReason
+        ? unavailableReason
       : choiceMissing
         ? "Scegli una variante prima di confermare."
         : choiceUnknown
@@ -181,7 +202,9 @@ export function buildSpellActiveActionPlan({
   const parentInstanceId = String(group?.instanceId || "").trim();
   const subjectIds = action?.subjectMode === "caster"
     ? uniqueIds([casterId])
-    : uniqueIds(selectedTargetIds);
+    : action?.subjectMode === "none"
+      ? uniqueIds([casterId])
+      : uniqueIds(selectedTargetIds);
   const errors = [];
   if (!action) errors.push("action-required");
   if (!casterId) errors.push("caster-required");
@@ -294,7 +317,10 @@ export function buildSpellActiveActionPlan({
   const spellName = String(spell?.displayName || spell?.name || group?.name || "Incantesimo");
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione");
   const zoneRuleChoice = String(action.zoneRuleChoice || "").trim();
-  const hasAction = operations.length > 0 || !!zoneRuleChoice;
+  const entityAction = action.entityAction && typeof action.entityAction === "object"
+    ? { ...clone(action.entityAction), actionId: String(action.id || "").trim() }
+    : null;
+  const hasAction = operations.length > 0 || !!zoneRuleChoice || !!entityAction;
   return {
     valid: hasAction,
     errors: hasAction ? [] : ["operations-required"],
@@ -302,6 +328,7 @@ export function buildSpellActiveActionPlan({
     operations,
     subjectIds,
     ...(zoneRuleChoice ? { zoneRuleChoice } : {}),
+    ...(entityAction ? { entityAction } : {}),
     historyLabel: `Attivazione: ${spellName} · ${actionLabel}`,
   };
 }
