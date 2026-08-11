@@ -20,6 +20,8 @@ const popoverIdFromPayload = (payload) => spellActiveResolutionPopoverId(
 
 let payload = null;
 let placement = null;
+let childPlacements = [];
+let childActivationId = "";
 let sceneItems = [];
 let outcomes = new Map();
 let selectedAttackTarget = "";
@@ -37,13 +39,48 @@ function isFlameInvestiture() {
   return payload?.spellId === "xanathar-investitura-della-fiamma";
 }
 
+function isChildZone() {
+  return payload?.action?.resolutionKind === "child-zone";
+}
+
+function childZone() {
+  return isChildZone() && payload?.action?.childZone
+    && typeof payload.action.childZone === "object"
+    ? payload.action.childZone
+    : null;
+}
+
+function childKindLabel(value) {
+  return String(value || "").trim() === "fissure" ? "Fessura" : "Vortice";
+}
+
+function childPlacementCount() {
+  const config = childZone();
+  if (!config) return 0;
+  const minimum = Math.max(1, Math.floor(Number(config.placementCount?.min) || 1));
+  const maximum = Math.max(minimum, Math.floor(Number(config.placementCount?.max) || minimum));
+  const selected = Math.floor(Number($("childCount")?.value) || minimum);
+  return Math.max(minimum, Math.min(maximum, selected));
+}
+
+function createChildActivationId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${payload.instanceId}:${payload.actionId}:${Date.now()}`;
+}
+
 function renderContext() {
   const callLightning = isCallLightning();
   const flameInvestiture = isFlameInvestiture();
+  const child = childZone();
+  const childLabel = childKindLabel(child?.childKind);
   $("eyebrow").textContent = callLightning
     ? "Invocare il fulmine"
     : flameInvestiture
       ? "Investitura della Fiamma"
+      : child
+        ? payload.spellName || "Sottozona incantesimo"
     : "Attivazione incantesimo";
   $("attackTitle").textContent = "Fulmine";
   $("saveTitle").hidden = callLightning;
@@ -51,17 +88,34 @@ function renderContext() {
     ? "Richiama il fulmine"
     : flameInvestiture
       ? "Linea di fuoco"
+      : child
+        ? `${childLabel}: posizionamento e bersagli`
     : "Sagoma e tiri salvezza";
   $("place").textContent = callLightning
     ? "Posiziona il fulmine"
     : flameInvestiture
       ? "Posiziona la linea di fuoco"
+      : child
+        ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
     : "Posiziona sagoma";
   $("damageLabel").textContent = callLightning
     ? "Danno del fulmine"
     : flameInvestiture
       ? "Danno della linea di fuoco"
     : "Danno pieno";
+  if (child) {
+    const minimum = Math.max(1, Math.floor(Number(child.placementCount?.min) || 1));
+    const maximum = Math.max(minimum, Math.floor(Number(child.placementCount?.max) || minimum));
+    $("childCountField").hidden = minimum === maximum;
+    $("childCount").min = String(minimum);
+    $("childCount").max = String(maximum);
+    if (!$("childCount").value) $("childCount").value = String(minimum);
+    $("childCountLabel").textContent = child.childKind === "fissure"
+      ? "Numero di fessure"
+      : "Numero di vortici";
+  } else {
+    $("childCountField").hidden = true;
+  }
 }
 
 function decodePayload() {
@@ -146,11 +200,47 @@ function renderSave() {
   const targetWrap = $("targets");
   targetWrap.replaceChildren();
   const targets = currentTargetItems();
-  $("placementStatus").textContent = placement && targets.length
-    ? `${targets.length} bersagli`
-    : "";
-  $("damageField").hidden = targets.length === 0;
-  $("bulkOutcomes").hidden = !targets.length;
+  const child = childZone();
+  const childCount = childPlacementCount();
+  const childLabel = childKindLabel(child?.childKind);
+  $("placementStatus").textContent = child
+    ? `${childLabel} ${childPlacements.length} di ${childCount}${targets.length ? ` Â· ${targets.length} bersagli` : ""}`
+    : placement && targets.length
+      ? `${targets.length} bersagli`
+      : "";
+  $("damageField").hidden = child || targets.length === 0;
+  $("bulkOutcomes").hidden = child
+    ? child.resolution !== "save"
+    : !targets.length;
+  $("targets").hidden = !!child && child.resolution !== "save";
+  const depthField = $("childDepths");
+  depthField.replaceChildren();
+  depthField.hidden = !child?.depth || !childPlacements.length;
+  if (child?.depth) {
+    const minimumDepth = Math.max(1, Math.floor(Number(child.depth.min) || 1));
+    const maximumDepth = Math.max(minimumDepth, Math.floor(Number(child.depth.max) || 10));
+    childPlacements.forEach((entry, index) => {
+      const field = document.createElement("div");
+      field.className = "child-depth";
+      const label = document.createElement("label");
+      label.textContent = `${childKindLabel(child.childKind)} ${index + 1} · ${child.depth.label || "Profondità"}`;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(minimumDepth);
+      input.max = String(maximumDepth);
+      input.step = "1";
+      input.placeholder = "—";
+      input.value = entry.depthRoll === undefined || entry.depthRoll === ""
+        ? ""
+        : String(entry.depthRoll);
+      input.addEventListener("input", (event) => {
+        entry.depthRoll = event.target.value;
+        render();
+      });
+      field.append(label, input);
+      depthField.appendChild(field);
+    });
+  }
   for (const item of targets) {
     const row = document.createElement("div");
     row.className = "target";
@@ -175,6 +265,11 @@ function renderSave() {
     targetWrap.appendChild(row);
   }
   $("damage").value = $("damage").dataset.value || "";
+  $("place").textContent = child && childPlacements.length >= childCount
+    ? `Riposiziona ultima ${childLabel.toLocaleLowerCase("it-IT")}`
+    : child
+      ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
+      : $("place").textContent;
 }
 
 async function renderStorm() {
@@ -215,16 +310,29 @@ function render() {
   $("title").textContent = `Risolvi: ${payload.spellName || payload.spellId}`;
   $("economy").textContent = economyLabel(payload.action.economy);
   $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
-  const save = payload.action.resolutionKind === "save-area";
+  const child = childZone();
+  const save = payload.action.resolutionKind === "save-area" || !!child;
+  const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   $("saveSection").hidden = !save;
   $("attackSection").hidden = save;
   $("footer").hidden = !save;
   if (save) {
+    const selectedCount = child ? childPlacements.length : 1;
+    const requiredCount = child ? childPlacementCount() : 1;
+    const depthValid = !child?.depth || childPlacements.every((entry) => {
+      if (entry.depthRoll === undefined || entry.depthRoll === "") return true;
+      const value = Number(entry.depthRoll);
+      const minimum = Number(child.depth.min ?? 1);
+      const maximum = Number(child.depth.max ?? 10);
+      return Number.isInteger(value) && value >= minimum && value <= maximum;
+    });
     $("apply").disabled = busy
       || !placement
-      || !placement.targetIds?.length
-      || currentTargetItems().some((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id)))
-      || !$("damage").value.trim();
+      || (child ? selectedCount !== requiredCount : !placement.targetIds?.length)
+      || requiresSave && currentTargetItems().some((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id)))
+      || !depthValid
+      || !child && !$("damage").value.trim();
+    $("apply").textContent = child ? "Conferma" : "Applica";
     $("summary").textContent = "";
     renderSave();
   } else {
@@ -236,28 +344,67 @@ function render() {
 
 async function placeArea() {
   if (busy) return;
+  const child = childZone();
+  const childCount = childPlacementCount();
+  const replacingIndex = child && childPlacements.length >= childCount
+    ? childPlacements.length - 1
+    : -1;
+  if (child && !childCount) return;
   busy = true;
   render();
-  setStatus(isCallLightning()
+  setStatus(child
+    ? `${childKindLabel(child.childKind)} ${Math.min(childPlacements.length + 1, childCount)} di ${childCount}: posiziona e conferma sulla mappa.`
+    : isCallLightning()
     ? "Scegli e conferma il punto del fulmine sulla mappa."
     : isFlameInvestiture()
       ? "Scegli e conferma la linea di fuoco sulla mappa."
       : "Posiziona e conferma la sagoma sulla mappa.");
   try {
     const result = await requestSpellAreaPlacement({
-      ruleId: payload.action.placementRuleId,
+      ruleId: child?.placementRuleId || payload.action.placementRuleId,
       casterId: payload.casterId,
+      context: child
+        ? {
+          parentZoneId: payload.zoneItemId,
+          parentInstanceId: payload.instanceId,
+          casterId: payload.casterId,
+          spellId: payload.spellId,
+          childKind: child.childKind,
+          childIndex: replacingIndex >= 0 ? replacingIndex : childPlacements.length,
+          activationId: childActivationId || (childActivationId = createChildActivationId()),
+          sceneEpoch: payload.sceneEpoch,
+        }
+        : null,
     }, { broadcast: OBR.broadcast, windowRef: window });
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.");
       return;
     }
-    placement = {
-      ...result.preview,
-      targetIds: Array.from(new Set(result.preview.targetIds || [])),
-    };
-    outcomes = new Map();
-    setStatus(isCallLightning()
+    if (child) {
+      const nextPreview = {
+        ...result.preview,
+        childIndex: replacingIndex >= 0 ? replacingIndex : childPlacements.length,
+      };
+      childPlacements = replacingIndex >= 0
+        ? childPlacements.map((entry, index) => index === replacingIndex ? nextPreview : entry)
+        : [...childPlacements, nextPreview];
+      placement = {
+        children: childPlacements,
+        activationId: childActivationId,
+        targetIds: Array.from(new Set(childPlacements.flatMap((entry) => entry.targetIds || []))),
+      };
+      const allowedIds = new Set(placement.targetIds);
+      outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
+    } else {
+      placement = {
+        ...result.preview,
+        targetIds: Array.from(new Set(result.preview.targetIds || [])),
+      };
+      outcomes = new Map();
+    }
+    setStatus(child
+      ? `${childKindLabel(child.childKind)} confermato. ${childPlacements.length} di ${childCount}.`
+      : isCallLightning()
       ? "Fulmine confermato. I bersagli sono ora bloccati."
       : isFlameInvestiture()
         ? "Linea di fuoco confermata. I bersagli sono ora bloccati."
@@ -282,7 +429,9 @@ async function apply() {
         ? [selectedAttackTarget]
         : currentTargetItems().map((item) => item.id),
       outcomes: Object.fromEntries(outcomes),
-      damageRoll: payload.action.resolutionKind === "single-attack"
+      damageRoll: payload.action.resolutionKind === "child-zone"
+        ? 0
+        : payload.action.resolutionKind === "single-attack"
         ? $("attackDamage").value
         : $("damage").value,
       attackOutcome,
@@ -314,6 +463,25 @@ if (!payload) {
   $("apply").addEventListener("click", () => void apply());
   $("damage").addEventListener("input", (event) => {
     event.target.dataset.value = event.target.value;
+    render();
+  });
+  $("childCount").addEventListener("input", (event) => {
+    const config = childZone();
+    if (!config) return;
+    const minimum = Math.max(1, Math.floor(Number(config.placementCount?.min) || 1));
+    const maximum = Math.max(minimum, Math.floor(Number(config.placementCount?.max) || minimum));
+    const value = Math.max(minimum, Math.min(maximum, Math.floor(Number(event.target.value) || minimum)));
+    event.target.value = String(value);
+    if (childPlacements.length > value) childPlacements = childPlacements.slice(0, value);
+    if (childActivationId) {
+      placement = childPlacements.length
+        ? {
+          children: childPlacements,
+          activationId: childActivationId,
+          targetIds: Array.from(new Set(childPlacements.flatMap((entry) => entry.targetIds || []))),
+        }
+        : null;
+    }
     render();
   });
   $("attackDamage").addEventListener("input", render);

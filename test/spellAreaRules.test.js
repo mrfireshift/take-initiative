@@ -880,11 +880,19 @@ test("le tre zone con varianti separano le modalita dagli effetti concorrenti", 
     [
       ["enter", "whirlpool"],
       ["turn-start", "whirlpool"],
+      ["turn-start", "flood"],
     ],
   );
-  assert.ok(water.zonePolicy.triggers.every((trigger) =>
+  assert.ok(water.zonePolicy.triggers
+    .filter((trigger) => trigger.ruleChoice === "whirlpool")
+    .every((trigger) =>
     trigger.requiresRuleChoices.includes("whirlpool")
-  ));
+    ));
+  assert.equal(
+    water.zonePolicy.triggers.find((trigger) => trigger.ruleChoice === "flood")
+      ?.requiresRuleChoices?.includes("flood"),
+    true,
+  );
 
   const earthquake = getSpellAreaRuleById("earthquake:cast");
   assert.equal(earthquake.zonePolicy.initialResolution, "manual-save");

@@ -5,6 +5,7 @@ export const SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE = `${ID}/spell-active-resoluti
 export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "save-area",
   "single-attack",
+  "child-zone",
 ]);
 export const SPELL_ACTIVE_RESOLUTION_ECONOMIES = Object.freeze([
   "action",
@@ -79,13 +80,16 @@ export function validateSpellActiveResolutionAction(action) {
   if (!SPELL_ACTIVE_RESOLUTION_RANGE_ORIGINS.includes(rangeOrigin)) {
     errors.push("action-range-origin-invalid");
   }
-  if (kind === "save-area" && !String(action?.placementRuleId || "").trim()) {
+  if (
+    (kind === "save-area" || kind === "child-zone")
+    && !String(action?.placementRuleId || action?.childZone?.placementRuleId || "").trim()
+  ) {
     errors.push("action-placement-rule-required");
   }
   if (action?.requiresParentInstance !== true) {
     errors.push("action-parent-instance-required");
   }
-  if (kind === "single-attack" && action?.requiresZoneRoot !== true) {
+  if (["single-attack", "child-zone"].includes(kind) && action?.requiresZoneRoot !== true) {
     errors.push("action-zone-root-required");
   }
   if (rangeOrigin === "root" && (
@@ -96,7 +100,8 @@ export function validateSpellActiveResolutionAction(action) {
   )) {
     errors.push("action-range-required");
   }
-  if (!String(damageRule?.formula || "").trim() || !String(damageRule?.type || "").trim()) {
+  if (kind !== "child-zone"
+    && (!String(damageRule?.formula || "").trim() || !String(damageRule?.type || "").trim())) {
     errors.push("action-damage-required");
   }
   const baseSlot = integer(damageRule?.baseSlot, 0);
@@ -110,6 +115,32 @@ export function validateSpellActiveResolutionAction(action) {
     if (!Array.isArray(action?.attack?.outcomes)
       || action.attack.outcomes.some((outcome) => !SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES.includes(outcome))) {
       errors.push("action-attack-outcomes-invalid");
+    }
+  }
+  if (kind === "child-zone") {
+    const childZone = action?.childZone;
+    const childKind = String(childZone?.childKind || "").trim();
+    const childPlacementRuleId = String(
+      childZone?.placementRuleId || action?.placementRuleId || "",
+    ).trim();
+    const minimum = integer(childZone?.placementCount?.min, 0);
+    const maximum = integer(childZone?.placementCount?.max, 0);
+    if (!childZone || typeof childZone !== "object") {
+      errors.push("action-child-zone-required");
+    }
+    if (!childKind) errors.push("action-child-kind-required");
+    if (!childPlacementRuleId) errors.push("action-child-placement-rule-required");
+    if (minimum < 1 || maximum < minimum) {
+      errors.push("action-child-placement-count-invalid");
+    }
+    if (childZone?.resolution === "save") {
+      const ability = String(childZone?.save?.ability || "").trim();
+      if (!SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.length || !ability) {
+        errors.push("action-child-save-invalid");
+      }
+      if (!String(childZone?.failureEffect?.label || "").trim()) {
+        errors.push("action-child-failure-effect-invalid");
+      }
     }
   }
   return { valid: errors.length === 0, errors: Object.freeze(errors) };

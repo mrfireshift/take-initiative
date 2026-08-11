@@ -2,6 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { areaHitsBounds, buildArea } from "./aoeGeometryCore.js";
 import {
+  clipChildZoneAreaToParent,
+  validateChildZoneContainment,
+} from "./spellChildZoneCore.js";
+import {
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
 } from "./spellAreaPlacementCore.js";
@@ -62,11 +66,11 @@ function activeParentInstance(items, payload) {
     ));
 }
 
-function placementArea(placement) {
+function placementArea(placement, { parentArea = null, childKind = "" } = {}) {
   if (!placement?.start || !placement?.end || !placement?.gridOrigin) return null;
   const dpi = Number(placement.dpi);
   if (!Number.isFinite(dpi) || dpi <= 0) return null;
-  return buildArea(
+  let area = buildArea(
     String(placement.type || "circle"),
     placement.start,
     placement.end,
@@ -74,6 +78,17 @@ function placementArea(placement) {
     placement.gridOrigin,
     { widthSquares: placement.widthSquares },
   );
+  if (String(childKind || "").trim() === "fissure") {
+    area = clipChildZoneAreaToParent({
+      parentArea: placement.parentClip || parentArea,
+      childArea: {
+        ...area,
+        centerlineStart: point(placement.start),
+        centerlineEnd: point(placement.end),
+      },
+    });
+  }
+  return area;
 }
 
 function numericRoll(value) {
@@ -191,6 +206,109 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
   };
 }
 
+function childPlacementEntries(placement) {
+  if (Array.isArray(placement?.children)) return placement.children.filter(Boolean);
+  return placement?.start && placement?.end ? [placement] : [];
+}
+
+async function validateChildZone({
+  payload,
+  placement,
+  targetIds,
+  outcomes,
+  allItems,
+}) {
+  const errors = [];
+  const childZone = payload?.action?.childZone || {};
+  const rootId = String(payload?.zoneItemId || "").trim();
+  const root = allItems.find((item) => item?.id === rootId);
+  const rootMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  if (
+    !root
+    || rootMetadata?.role !== "root"
+    || String(rootMetadata.instanceId || "") !== String(payload.instanceId || "")
+    || String(rootMetadata.casterId || "") !== String(payload.casterId || "")
+  ) {
+    errors.push("zone-root-missing");
+  }
+  const rootArea = root ? translatedZoneArea(root) : null;
+  if (!rootArea) errors.push("zone-root-geometry-missing");
+  const entries = childPlacementEntries(placement);
+  const minimum = Number(childZone.placementCount?.min);
+  const maximum = Number(childZone.placementCount?.max);
+  if (!Number.isInteger(minimum) || !Number.isInteger(maximum)
+    || entries.length < minimum || entries.length > maximum) {
+    errors.push("child-placement-count-invalid");
+  }
+  const ruleId = String(childZone.placementRuleId || payload.action.placementRuleId || "").trim();
+  const rule = getSpellAreaRuleForPlacement(ruleId);
+  const areas = [];
+  for (const entry of entries) {
+    const area = placementArea(entry, {
+      parentArea: rootArea,
+      childKind: childZone.childKind,
+    });
+    if (!area || !rule || area.type !== rule.geometry.shape) {
+      errors.push("child-placement-invalid");
+      continue;
+    }
+    if (!validateChildZoneContainment({
+      parentArea: rootArea,
+      childArea: area,
+      childKind: childZone.childKind,
+    })) {
+      errors.push("child-placement-outside-parent");
+    }
+    if (entry.depthRoll !== undefined && entry.depthRoll !== "") {
+      const depth = numericRoll(entry.depthRoll);
+      const minimumDepth = Number(childZone.depth?.min ?? 1);
+      const maximumDepth = Number(childZone.depth?.max ?? 10);
+      if (depth === null || !Number.isInteger(depth)
+        || depth < minimumDepth || depth > maximumDepth) {
+        errors.push("child-depth-invalid");
+      }
+    }
+    areas.push(area);
+  }
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== targetIds.length) errors.push("duplicate-targets");
+  if (childZone.resolution === "save") {
+    errors.push(...validateOutcomes({
+      targetIds: ids,
+      outcomes,
+      allowed: SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
+    }));
+  }
+  if (ids.length && areas.length) {
+    const targetItems = await OBR.scene.items.getItems(ids);
+    if (targetItems.length !== ids.length) errors.push("target-missing");
+    const bounds = await Promise.all(targetItems.map((item) =>
+      OBR.scene.items.getItemBounds([item.id]).catch(() => null)
+    ));
+    if (targetItems.some((item, index) =>
+      !areas.some((area) => areaHitsBounds(area, bounds[index]))
+    )) {
+      errors.push("target-outside-child-placement");
+    }
+  }
+  if (childZone.singleActivation === true) {
+    const existing = allItems.filter((item) => {
+      const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      return metadata?.role === "subzone"
+        && String(metadata.parentZoneId || metadata.parentId || "") === rootId
+        && String(metadata.parentInstanceId || metadata.instanceId || "")
+          === String(payload.instanceId || "")
+        && String(metadata.childKind || "") === String(childZone.childKind || "");
+    });
+    if (existing.length) errors.push("child-activation-already-used");
+  }
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    areas,
+  };
+}
+
 export async function validateSpellActiveResolutionCommit({
   payload = null,
   placement = null,
@@ -214,7 +332,9 @@ export async function validateSpellActiveResolutionCommit({
   const ids = uniqueIds(targetIds);
   const result = payload.action.resolutionKind === "single-attack"
     ? await validateStorm({ payload, targetIds: ids, outcomes, damageRoll, attackOutcome })
-    : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });
+    : payload.action.resolutionKind === "child-zone"
+      ? await validateChildZone({ payload, placement, targetIds: ids, outcomes, allItems })
+      : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });
   errors.push(...result.errors);
   return {
     valid: errors.length === 0,

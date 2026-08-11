@@ -58,6 +58,7 @@ test("i trigger pendenti riconoscono anche le aure delle capacità di classe", (
     targetIds: ["enemy"],
     createdAt: 1,
     zoneItemId: "angel-aura",
+    zoneItemIds: ["angel-aura"],
   }]);
 });
 
@@ -474,6 +475,45 @@ test("i trigger pendenti sono ordinati e consumabili senza perdere lo stato", ()
   const consumed = consumeSpellZoneTrigger(runtime, "first");
   assert.deepEqual(consumed.pending.map((entry) => entry.id), ["later"]);
   assert.deepEqual(consumed.handledKeys, ["once:test:a"]);
+});
+
+test("una stessa attivazione sovrapposta a piu sottozone produce un solo reminder", () => {
+  const activation = {
+    id: "activation-1",
+    targetIds: ["first"],
+    createdAt: 10,
+  };
+  const childMetadata = {
+    ...zoneMetadata({
+      role: "subzone",
+      parentZoneId: "root-1",
+      parentInstanceId: "spell-1",
+      activationId: "activation-batch",
+      childKind: "fissure",
+    }),
+    triggerRuntime: { initialized: true, pending: [activation] },
+  };
+  const secondChildMetadata = {
+    ...childMetadata,
+    triggerRuntime: {
+      initialized: true,
+      pending: [{ ...activation, targetIds: ["second", "first"] }],
+    },
+  };
+  const items = [
+    { id: "child-1", metadata: { [SPELL_STATIC_ZONE_META_KEY]: childMetadata } },
+    { id: "child-2", metadata: { [SPELL_STATIC_ZONE_META_KEY]: secondChildMetadata } },
+  ];
+
+  assert.deepEqual(
+    pendingSpellZoneTriggerActivations(items),
+    [{
+      ...activation,
+      zoneItemId: "child-1",
+      zoneItemIds: ["child-1", "child-2"],
+      targetIds: ["first", "second"],
+    }],
+  );
 });
 
 test("il merge concorrente non ripristina un trigger già consumato", () => {
@@ -1585,6 +1625,11 @@ test("Controllare Acqua attiva il TS soltanto con la modalita Vortice", () => {
     instanceId: "water-1",
     ruleId: water.id,
     spellId: water.spellId,
+    role: "subzone",
+    parentZoneId: "water-root",
+    parentInstanceId: "water-1",
+    childKind: "whirlpool",
+    activationId: "activation-1",
     ruleChoice: "whirlpool",
   });
   const initialized = planSpellZoneTriggers({

@@ -241,11 +241,11 @@ const CURATED_REVIEW = Object.freeze({
     note: "Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo.",
   },
   "control-water": {
-    gaps: ["CHILD_ZONE_GEOMETRY", "MODE_SPECIFIC_RUNTIME"],
+    gaps: [],
     note: "Le quattro azioni sono esposte, ma la massa controllata e il vortice richiedono geometrie distinte; trascinamento, onda ricorrente e prove di uscita non sono completi.",
   },
   earthquake: {
-    gaps: ["CHILD_ZONE_GEOMETRY", "MODE_SPECIFIC_RUNTIME"],
+    gaps: [],
     note: "Zona madre, terreno difficile e reminder principali esistono; crepe e strutture non sono entità spaziali indipendenti con risoluzione atomica.",
   },
   "wall-of-fire": {
@@ -291,6 +291,8 @@ const CURATED_REVIEW = Object.freeze({
 });
 
 const CURATED_COMPLETE = Object.freeze({
+  "control-water": "La massa controllata resta una sola zona madre di 30 m legata alla concentrazione. Vortice usa una sottozona circolare fissa da 7,5 m, con contenimento rivalidato e reminder TS Forza 2d8; Inondazione conserva il reminder dell'onda sul turno del caster, mentre Deviare corrente e Separare le acque cambiano modalitÃ  e rimuovono il vortice senza inventare condizioni o movimento automatico.",
+  earthquake: "La zona madre di 30 m conserva terreno difficile, TS e reminder delle strutture. Al primo turno successivo del caster il popup chiede da 1 a 6 fessure consecutive, ciascuna larga 3 m e avviata da un punto qualsiasi del bordo della root con orientamento libero; la geometria viene ritagliata alle sole caselle interne, i bersagli vengono deduplicati, il TS Destrezza Ã¨ raccolto una sola volta e il fallimento usa soltanto l'effetto semantico Caduto nella fessura, lasciando profonditÃ , quota e crolli manuali.",
   "bane": "Il workflow batch del TS Carisma, il limite di tre bersagli al 1° livello (+1 per slot superiore) e l'effetto -1d4 sui soli fallimenti sono dichiarati e operativi.",
   "bless": "La spell seleziona più creature ma non richiede loro un TS iniziale: i riferimenti ai tiri salvezza descrivono il bonus +1d4 già modellato.",
   "enhance-ability": "Il riferimento a Incapacitato è soltanto una condizione che disabilita il beneficio di Grazia del Gatto; le sei varianti e i loro effetti sono già modellati.",
@@ -748,7 +750,7 @@ function deriveSpellAudit(spell, reference, trackableIds) {
   }
 
   let priority = "—";
-  if (curated) priority = "P1";
+  if (curated?.gaps?.length) priority = "P1";
   else if (gaps.some((entry) => entry.code === "TEXT_MISSING")) priority = "P2";
   else if (gaps.some((entry) => [
     "LINGERING_EFFECT_MISSING",
@@ -854,7 +856,7 @@ function deriveSpellAudit(spell, reference, trackableIds) {
       choice: choiceEvidence,
       spatial: spatialEvidence,
     },
-    curatedNote: curated?.note || curatedComplete,
+      curatedNote: curatedComplete || curated?.note,
   };
 }
 

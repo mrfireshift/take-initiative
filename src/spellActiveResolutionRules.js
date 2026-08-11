@@ -16,6 +16,68 @@ const damage = ({ formula, type, onSave = "none", baseSlot = 0, additionalPerSlo
 // dalla Console HP: il pannello usa soltanto questa dichiarazione per
 // esporre il comando e delega la risoluzione al popup dedicato.
 export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
+  "control-water": [
+    {
+      id: "control-water-whirlpool",
+      label: "Crea Vortice",
+      buttonLabel: "Vortice",
+      detail: "Usa l'azione per posizionare un vortice di raggio 7,5 m dentro la zona di Controllare acqua.",
+      economy: "action",
+      resolutionKind: "child-zone",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
+      range: { value: 30, unit: "m" },
+      requiresParentInstance: true,
+      placementRuleId: "control-water:whirlpool",
+      childZone: {
+        childKind: "whirlpool",
+        placementRuleId: "control-water:whirlpool",
+        placementCount: { min: 1, max: 1 },
+        replaceChildKind: "whirlpool",
+        ruleChoice: "whirlpool",
+        resolution: "none",
+      },
+    },
+  ],
+  earthquake: [
+    {
+      id: "earthquake-fissures",
+      label: "Crea Fessure",
+      buttonLabel: "Fessure",
+      detail: "Dal turno successivo al lancio, scegli da 1 a 6 fessure che attraversino la zona di Terremoto.",
+      economy: "action",
+      resolutionKind: "child-zone",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
+      range: { value: 30, unit: "m" },
+      requiresParentInstance: true,
+      availableAfterCast: true,
+      placementRuleId: "earthquake:fissure",
+      childZone: {
+        childKind: "fissure",
+        placementRuleId: "earthquake:fissure",
+        placementCount: { min: 1, max: 6 },
+        singleActivation: true,
+        resolution: "save",
+        save: { ability: "dex" },
+        depth: {
+          label: "Profondità (d10)",
+          min: 1,
+          max: 10,
+          multiplierMeters: 3,
+        },
+        failureEffect: {
+          label: "Caduto nella fessura",
+          detail: "Il bersaglio cade nella fessura; la gestione della profondità e dell'uscita resta manuale.",
+          effectId: "earthquake-fissure-fall",
+        },
+      },
+    },
+  ],
   "call-lightning": [
     {
       id: "call-lightning-strike",

@@ -605,6 +605,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
       persistsAfterExit: true,
+      requiresChildZone: true,
       requiresRuleChoices: ["whirlpool"],
       ruleChoice: "whirlpool",
       damage: {
@@ -622,12 +623,25 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       resolution: "manual-save",
       failureEffect: "2d8 contundenti e resta intrappolato; metà danni e non resta intrappolato se supera.",
       requiresRuleChoices: ["whirlpool"],
+      requiresChildZone: true,
       ruleChoice: "whirlpool",
       damage: {
         dice: "2d8",
         type: "contundenti",
         onSave: "half",
       },
+    },
+    {
+      id: "control-water-flood-wave-on-source-turn-start",
+      group: "control-water-flood-wave",
+      label: "Inondazione: ripeti l'onda all'inizio del turno del caster",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "informational",
+      requiresSourceTurn: true,
+      targetMode: "caster",
+      ruleChoice: "flood",
+      requiresRuleChoices: ["flood"],
     },
   ],
   "earthquake": [
@@ -658,6 +672,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       resolution: "informational",
       requiresSourceTurn: true,
       targetMode: "caster",
+      resolutionData: { actionId: "earthquake-fissures" },
     },
     {
       id: "earthquake-structure-damage-on-source-turn-start",
@@ -1466,11 +1481,11 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
 const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "control-water-whirlpool-save-on-entry": {
     ability: "str",
-    failureCondition: { condition: "Trattenuto" },
+    failureCondition: { condition: "Intrappolato nel vortice" },
   },
   "control-water-whirlpool-save-on-turn-start": {
     ability: "str",
-    failureCondition: { condition: "Trattenuto" },
+    failureCondition: { condition: "Intrappolato nel vortice" },
   },
   "earthquake-ground-save-on-source-turn-end": {
     ability: "dex",
@@ -1910,6 +1925,53 @@ function catalogAreaRule(spec) {
       }
       : {}),
     ...(spec.note ? { placementNote: spec.note } : {}),
+  });
+}
+
+function childZoneRule({
+  id,
+  spellId,
+  actionId,
+  shape,
+  size,
+  width = null,
+  triggers = [],
+}) {
+  return defineRule({
+    id,
+    spellId,
+    trigger: { type: "active-action", actionId },
+    kind: "zone",
+    geometry: {
+      shape,
+      size: meters(size, MEASURE_BY_SHAPE[shape]),
+      ...(width === null ? {} : { width: meters(width, "width") }),
+    },
+    placement: {
+      origin: "point",
+      direction: ["line", "rectangle"].includes(shape) ? "pointer" : "none",
+      anchor: "world",
+      range: meters(1500, "range"),
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: true,
+    },
+    effectPolicy: { mode: "manual-trigger" },
+    zonePolicy: {
+      placementOptional: false,
+      owner: "caster",
+      movement: "fixed",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: true,
+      },
+      membershipEffects: [],
+      triggers,
+    },
   });
 }
 
@@ -2432,6 +2494,22 @@ export const SPELL_AREA_RULES = Object.freeze([
       confirmTargets: true,
     },
     effectPolicy: ON_CONFIRM,
+  }),
+  childZoneRule({
+    id: "control-water:whirlpool",
+    spellId: "control-water",
+    actionId: "control-water-whirlpool",
+    shape: "circle",
+    size: 7.5,
+    triggers: CATALOG_ZONE_TRIGGERS["control-water"],
+  }),
+  childZoneRule({
+    id: "earthquake:fissure",
+    spellId: "earthquake",
+    actionId: "earthquake-fissures",
+    shape: "rectangle",
+    size: 60,
+    width: 3,
   }),
   ...CATALOG_SPELL_AREA_SPECS.map(catalogAreaRule),
 ]);

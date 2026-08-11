@@ -627,7 +627,11 @@ async function init() {
           id: popoverId,
           url: `/spell-active-resolution.html?payload=${query}`,
           width: 360,
-          height: action?.resolutionKind === "single-attack" ? 320 : 520,
+          height: action?.resolutionKind === "single-attack"
+            ? 320
+            : action?.resolutionKind === "child-zone"
+              ? 600
+              : 520,
           anchorReference: "POSITION",
           anchorPosition: await activeResolutionAnchor(payload.casterId),
           anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },

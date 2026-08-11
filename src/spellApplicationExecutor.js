@@ -34,6 +34,8 @@ import {
   createSpellBoardTokenId,
   getSpellBoardTokenRule,
 } from "./spellBoardTokenCore.js";
+import { buildStaticSpellChildZoneItem } from "./spellStaticZone.js";
+import { translatedZoneArea } from "./spellStaticZoneCore.js";
 
 const STATE_KEY = `${ID}/state`;
 
@@ -144,6 +146,16 @@ export async function executeSpellActiveAction({
       ruleChoice: actionPlan.zoneRuleChoice,
       requireMatch: true,
     });
+    if (actionPlan.action?.clearChildZones === true) {
+      sideEffects.push({
+        type: "static-zone:child-zones",
+        parentZoneId: String(group?.zoneItemId || "").trim(),
+        parentInstanceId: String(group?.instanceId || "").trim(),
+        casterId: String(group?.casterId || "").trim(),
+        removeAllChildren: true,
+        items: [],
+      });
+    }
   }
   if (actionPlan.entityAction) {
     sideEffects.push({
@@ -183,6 +195,11 @@ function activeResolutionOutcome(payload, targetId, attackOutcome) {
     : String(payload?.outcomes?.[targetId] || "").trim();
 }
 
+function childPlacementEntries(placement) {
+  if (Array.isArray(placement?.children)) return placement.children.filter(Boolean);
+  return placement?.start && placement?.end ? [placement] : [];
+}
+
 export async function executeSpellActiveResolution({
   payload = null,
   placement = null,
@@ -201,7 +218,9 @@ export async function executeSpellActiveResolution({
     throw new Error("Invalid active spell resolution: " + payloadValidation.errors.join(", "));
   }
   const ids = normalizeActiveResolutionTargetIds(targetIds);
-  if (!ids.length) throw new Error("active-resolution-targets-required");
+  if (!ids.length && payload?.action?.resolutionKind !== "child-zone") {
+    throw new Error("active-resolution-targets-required");
+  }
   const commitInput = {
     payload: normalizedPayload,
     placement,
@@ -222,53 +241,129 @@ export async function executeSpellActiveResolution({
   const unconsciousIds = [];
   const unconsciousRemovals = [];
   const action = activeResolutionAction(payload);
-  for (const targetId of ids) {
-    const item = byId.get(targetId);
-    const meta = item?.metadata?.[`${ID}/meta`] || {};
-    const outcome = activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
-    const damage = resolveSpellActiveResolutionDamage({
-      action,
-      slotLevel: payload.slotLevel,
-      outcome,
-      roll: damageRoll,
+  const sideEffects = [{
+    type: "spell-active-resolution:validate",
+    ...commitInput,
+    naturalStormBonus: naturalStormBonus === true,
+  }];
+  if (action?.childZone?.ruleChoice) {
+    sideEffects.push({
+      type: "static-zone:set-rule-choice",
+      selector: { instanceId: payload.instanceId },
+      ruleChoice: action.childZone.ruleChoice,
+      requireMatch: true,
     });
-    if (!damage.valid) throw new Error("active-resolution-damage-invalid");
-    if (damage.amount <= 0) continue;
-    if (!item
-      || !Object.prototype.hasOwnProperty.call(meta, "hp")
-      || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
-      throw new Error("active-resolution-hp-required");
-    }
-    const hpChange = calculateQuickHPChange({
-      mode: QUICK_HP_MODES.DAMAGE,
-      value: damage.amount,
-      factor: QUICK_HP_FACTORS.FULL,
-      hp: meta.hp,
-      hpMax: meta.hpMax,
-    });
-    if (!hpChange.changed) continue;
-    metadataPatches.push({
-      id: targetId,
-      fields: {
-        hp: {
-          expected: metadataSnapshot(meta, "hp"),
-          value: hpChange.afterHP,
-        },
-        hpMax: {
-          expected: metadataSnapshot(meta, "hpMax"),
-          value: hpChange.hpMax,
-        },
-      },
-    });
-    const zeroAction = resolveZeroHPUnconsciousAction(
-      { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
-      getConditionInstances(meta.conditions || {}),
+  }
+  if (action?.resolutionKind === "child-zone") {
+    const childZone = action.childZone || {};
+    const [parentZone] = payload.zoneItemId
+      ? await OBR.scene.items.getItems([payload.zoneItemId])
+      : [];
+    const parentArea = translatedZoneArea(parentZone);
+    const activationId = String(
+      placement?.activationId
+      || `${payload.instanceId}:${payload.actionId}:${Date.now()}`,
+    ).trim();
+    const childItems = childPlacementEntries(placement).map((preview, index) =>
+      buildStaticSpellChildZoneItem({
+        ruleId: childZone.placementRuleId || action.placementRuleId,
+        instanceId: payload.instanceId,
+        casterId: payload.casterId,
+        parentId: payload.zoneItemId,
+        parentArea,
+        spellName: payload.spellName,
+        preview,
+        childKind: childZone.childKind,
+        childIndex: index,
+        activationId,
+        sceneEpoch: payload.sceneEpoch,
+        variant: childZone.ruleChoice || "",
+        depthRoll: preview?.depthRoll,
+      })
     );
-    if (zeroAction.add) unconsciousIds.push(targetId);
-    unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
-      itemId: targetId,
-      instanceId,
-    })));
+    sideEffects.push({
+      type: "static-zone:child-zones",
+      parentZoneId: payload.zoneItemId,
+      parentInstanceId: payload.instanceId,
+      casterId: payload.casterId,
+      items: childItems,
+      ...(childZone.replaceChildKind
+        ? { replaceChildKind: childZone.replaceChildKind }
+        : {}),
+      ...(childZone.singleActivation === true
+        ? { singleActivation: true }
+        : {}),
+    });
+    const failureEffect = childZone.failureEffect;
+    const failedIds = ids.filter((targetId) => outcomes?.[targetId] === "failed");
+    if (failureEffect && failedIds.length) {
+      operations.push({
+        type: "condition:add",
+        targetIds: failedIds,
+        conditionName: String(failureEffect.label || "Caduto nella fessura").trim(),
+        options: {
+          sourceId: payload.casterId,
+          sourceName: payload.casterName,
+          parentEffectId: payload.instanceId,
+          type: "spell",
+          effectId: String(failureEffect.effectId || `${payload.spellId}-${childZone.childKind}`).trim(),
+          effectDetail: String(failureEffect.detail || "").trim(),
+          manualRemoval: true,
+          endsParentOnRemoval: true,
+          expiry: { mode: "concentration" },
+        },
+      });
+      operations.push({ type: "condition:automate", subjectIds: failedIds });
+    }
+  } else {
+    for (const targetId of ids) {
+      const item = byId.get(targetId);
+      const meta = item?.metadata?.[`${ID}/meta`] || {};
+      const outcome = activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
+      const damage = resolveSpellActiveResolutionDamage({
+        action,
+        slotLevel: payload.slotLevel,
+        outcome,
+        roll: damageRoll,
+      });
+      if (!damage.valid) throw new Error("active-resolution-damage-invalid");
+      if (damage.amount <= 0) continue;
+      if (!item
+        || !Object.prototype.hasOwnProperty.call(meta, "hp")
+        || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
+        throw new Error("active-resolution-hp-required");
+      }
+      const hpChange = calculateQuickHPChange({
+        mode: QUICK_HP_MODES.DAMAGE,
+        value: damage.amount,
+        factor: QUICK_HP_FACTORS.FULL,
+        hp: meta.hp,
+        hpMax: meta.hpMax,
+      });
+      if (!hpChange.changed) continue;
+      metadataPatches.push({
+        id: targetId,
+        fields: {
+          hp: {
+            expected: metadataSnapshot(meta, "hp"),
+            value: hpChange.afterHP,
+          },
+          hpMax: {
+            expected: metadataSnapshot(meta, "hpMax"),
+            value: hpChange.hpMax,
+          },
+        },
+      });
+      const zeroAction = resolveZeroHPUnconsciousAction(
+        { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
+        getConditionInstances(meta.conditions || {}),
+      );
+      if (zeroAction.add) unconsciousIds.push(targetId);
+      unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
+        itemId: targetId,
+        instanceId,
+      })));
+    }
   }
   if (unconsciousIds.length) {
     operations.push({
@@ -290,11 +385,7 @@ export async function executeSpellActiveResolution({
     label: `Attivazione: ${spellName} · ${actionLabel}`,
     targetIds: [payload.casterId, ...ids],
     metadataPatches,
-    sideEffects: [{
-      type: "spell-active-resolution:validate",
-      ...commitInput,
-      naturalStormBonus: naturalStormBonus === true,
-    }],
+    sideEffects,
     history: {
       kind: "spell-active-resolution",
       label: `Attivazione: ${spellName} · ${actionLabel}`,

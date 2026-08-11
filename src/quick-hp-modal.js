@@ -1804,7 +1804,7 @@ async function loadPendingZoneTriggerPreset(
 ) {
   if (busy && !allowBusy) return false;
   const zoneItems = await OBR.scene.items.getItems((item) =>
-    item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
+    ["root", "subzone"].includes(item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role)
     || !!item?.metadata?.[SPELL_AURA_META_KEY]
   );
   const pending = pendingSpellZoneTriggerActivations(zoneItems);
@@ -1894,8 +1894,12 @@ function zoneTriggerMatchesForm(activation, spell, targetIds) {
 }
 
 async function zoneTriggerRootItems(activation) {
-  if (!activation?.zoneItemId) return [];
-  const items = await OBR.scene.items.getItems([activation.zoneItemId]);
+  const zoneItemIds = uniqueIds([
+    ...(activation?.zoneItemIds || []),
+    activation?.zoneItemId,
+  ]);
+  if (!zoneItemIds.length) return [];
+  const items = await OBR.scene.items.getItems(zoneItemIds);
   return items.filter((item) =>
     pendingSpellZoneTriggerActivations([item]).some(
       (entry) => entry.id === activation.id
@@ -1904,7 +1908,12 @@ async function zoneTriggerRootItems(activation) {
 }
 
 async function consumeZoneTriggerActivation(activation) {
-  await OBR.scene.items.updateItems([activation.zoneItemId], (drafts) => {
+  const zoneItemIds = uniqueIds([
+    ...(activation?.zoneItemIds || []),
+    activation?.zoneItemId,
+  ]);
+  if (!zoneItemIds.length) return;
+  await OBR.scene.items.updateItems(zoneItemIds, (drafts) => {
     for (const item of drafts) {
       const metadataKey = item.metadata?.[SPELL_STATIC_ZONE_META_KEY]
         ? SPELL_STATIC_ZONE_META_KEY
@@ -1928,16 +1937,20 @@ async function consumeZoneTriggerActivation(activation) {
 }
 
 async function restoreZoneTriggerRoot(snapshot) {
-  if (!snapshot?.id) return;
-  await OBR.scene.items.updateItems([snapshot.id], (drafts) => {
+  const snapshots = Array.isArray(snapshot) ? snapshot : [snapshot];
+  const ids = snapshots.map((entry) => entry?.id).filter(Boolean);
+  if (!ids.length) return;
+  const snapshotsById = new Map(snapshots.map((entry) => [entry?.id, entry]));
+  await OBR.scene.items.updateItems(ids, (drafts) => {
     for (const item of drafts) {
-      if (item.id !== snapshot.id) continue;
-      const metadataKey = snapshot.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+      const currentSnapshot = snapshotsById.get(item.id);
+      if (!currentSnapshot) continue;
+      const metadataKey = currentSnapshot.metadata?.[SPELL_STATIC_ZONE_META_KEY]
         ? SPELL_STATIC_ZONE_META_KEY
-        : snapshot.metadata?.[SPELL_AURA_META_KEY]
+        : currentSnapshot.metadata?.[SPELL_AURA_META_KEY]
           ? SPELL_AURA_META_KEY
           : "";
-      const metadata = snapshot.metadata?.[metadataKey];
+      const metadata = currentSnapshot.metadata?.[metadataKey];
       if (!metadataKey || !metadata) continue;
       item.metadata = {
         ...(item.metadata || {}),
@@ -2712,7 +2725,7 @@ async function applyOperation() {
           await OBR.scene.items.addItems(previousStaticZoneItems).catch(() => {});
         }
         if (consumedZoneTrigger) {
-          await restoreZoneTriggerRoot(triggerRootItems[0]).catch(() => {});
+          await restoreZoneTriggerRoot(triggerRootItems).catch(() => {});
         }
         throw error;
       }

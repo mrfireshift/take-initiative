@@ -282,6 +282,9 @@ export function reviewSpellAreaPlacement(session, preview) {
           ),
         }
         : {}),
+      ...(preview.parentClip && typeof preview.parentClip === "object"
+        ? { parentClip: preview.parentClip }
+        : {}),
       targetIds: Array.from(new Set(
         (Array.isArray(preview.targetIds) ? preview.targetIds : [])
           .map((id) => String(id || "").trim())

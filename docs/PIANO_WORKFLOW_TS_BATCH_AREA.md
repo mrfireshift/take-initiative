@@ -244,6 +244,42 @@ una sola mutazione con cronologia e Undo.
 Le attivazioni non creano nuove istanze, non sostituiscono la concentrazione e
 non modificano ordine, round o attore corrente.
 
+Il Lotto I è chiuso: popup, placement, payload, reminder, lifecycle e
+coordinamento atomico delle attivazioni sono ora la base condivisa per le
+sottozone del lotto successivo.
+
+### Lotto J — sottozone figlie (in corso)
+
+Il contratto comune `spellChildZoneCore.js` rappresenta una o più sottozone
+come proiezioni della stessa root, usando il metadata esistente delle zone e
+il ruolo `subzone`. Ogni figlio conserva `parentZoneId`, `parentInstanceId`,
+`casterId`, `spellId`, `childKind`, indice, `activationId`, geometria, variante,
+stile, trigger e `sceneEpoch`; non entra nell'ordine d'iniziativa e non crea
+una seconda concentrazione.
+
+La conferma del gruppo usa il popup del Lotto I, placement consecutivi,
+contenimento verificato sia durante il placement sia al commit, deduplicazione
+dei bersagli nella stessa attivazione e una sola mutazione con Undo/Redo.
+La terminazione della root include i figli e il reconciler elimina i figli
+orfani senza toccare aree estranee.
+
+- Controllare acqua conserva la massa madre quadrata di 30 m. Vortice crea una
+  sottozona circolare fissa da 7,5 m con TS Forza e stato semantico
+  `Intrappolato nel vortice`; Inondazione mantiene il reminder dell'onda sul
+  turno del caster; Deviare corrente e Separare le acque cambiano la modalità
+  della stessa istanza e rimuovono il vortice.
+- Terremoto genera le Fessure una sola volta all'inizio del turno successivo
+  del caster. Il GM indica da 1 a 6 fessure consecutive; ciascuna è larga 3 m,
+  parte da un punto qualsiasi del bordo della root e può avere orientamento
+  libero. La geometria viene ritagliata alle sole caselle interne alla root e
+  può conservare una profondità d10 manuale. I bersagli intercettati sono unici
+  nel batch, ricevono TS Destrezza indipendenti e il fallimento usa soltanto
+  `Caduto nella fessura`; quota, movimento e crolli restano manuali.
+
+Il Lotto J resta in verifica smoke test: la copertura dichiarativa e il
+runtime sono presenti, mentre le interazioni fisiche dell'acqua, la profondità
+e la gestione delle strutture non vengono simulate automaticamente.
+
 ## Intervento indipendente — Gabbia di forza (completato)
 
 Gabbia di forza riusa il lifecycle delle zone statiche ma richiede una scelta
@@ -313,5 +349,10 @@ movimento.
 - Lotto F: completato per Bagliore Lunare, Sfera Infuocata, Spirito Guaritore
   e Diavoletto di Polvere; dadi, spinta, bersagli ambigui e movimento fisico
   restano manuali dove indicato dal contratto.
+- Lotto I: chiuso; le attivazioni offensive ripetibili condividono popup,
+  placement, payload e transazione atomica.
+- Lotto J: in corso per Controllare acqua e Terremoto; il contratto delle
+  sottozone, il Vortice e le Fessure sono implementati, con smoke test manuale
+  ancora da completare.
 - Gabbia di forza: completato e indipendente dal workflow batch; `ruleChoice` e
   membership collegano geometria e pill specifica senza bloccare il movimento.

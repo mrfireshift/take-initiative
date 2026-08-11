@@ -29,6 +29,10 @@ import {
   SPELL_ZONE_MOVEMENT_CONTROL_FIELD,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import {
+  isSpellChildZoneMetadata,
+  validateChildZoneContainment,
+} from "./spellChildZoneCore.js";
 import { getSpellAreaRuleById } from "./spellAreaRules.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { planSpellZoneMovement } from "./spellZoneMovementCore.js";
@@ -1020,6 +1024,92 @@ async function prepareEffectsSideEffects(plan, command) {
         items,
         ruleChoice: String(descriptor.ruleChoice || "").trim(),
       });
+    } else if (descriptor?.type === "static-zone:child-zones") {
+      const rootId = String(descriptor.parentZoneId || descriptor.rootId || "").trim();
+      const instanceId = String(descriptor.parentInstanceId || descriptor.instanceId || "").trim();
+      const casterId = String(descriptor.casterId || "").trim();
+      const [root] = rootId ? await OBR.scene.items.getItems([rootId]) : [];
+      const rootMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      const allItems = await OBR.scene.items.getItems();
+      const existingChildren = allItems.filter((item) => {
+        const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+        return metadata?.role === "subzone"
+          && String(metadata.parentZoneId || metadata.parentId || "") === rootId
+          && String(metadata.parentInstanceId || metadata.instanceId || "") === instanceId;
+      });
+      if (
+        !root
+        || rootMetadata?.role !== "root"
+        || String(rootMetadata.instanceId || "") !== instanceId
+        || String(rootMetadata.casterId || "") !== casterId
+        || !instanceId
+        || !casterId
+      ) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "child-zone-parent-missing", itemId: rootId || null }],
+        };
+      }
+      const parentArea = translatedZoneArea(root);
+      const requested = Array.isArray(descriptor.items)
+        ? descriptor.items.filter(Boolean)
+        : [];
+      const requestedIds = new Set();
+      for (const item of requested) {
+        const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+        if (
+          !item?.id
+          || requestedIds.has(item.id)
+          || !isSpellChildZoneMetadata(metadata)
+          || metadata.parentZoneId !== rootId
+          || metadata.parentInstanceId !== instanceId
+          || metadata.casterId !== casterId
+          || !parentArea
+          || !validateChildZoneContainment({
+            parentArea,
+            childArea: translatedZoneArea(item),
+            childKind: metadata.childKind,
+          })
+        ) {
+          return {
+            status: EFFECTS_MUTATION_STATUS.CONFLICT,
+            conflicts: [{ reason: "child-zone-geometry-invalid", itemId: item?.id || null }],
+          };
+        }
+        requestedIds.add(item.id);
+      }
+      const replaceKind = String(descriptor.replaceChildKind || "").trim();
+      const beforeItems = existingChildren.filter((item) =>
+        descriptor.removeAllChildren === true
+        || (replaceKind
+          && String(item.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.childKind || "") === replaceKind)
+        || (Array.isArray(descriptor.removeChildKinds)
+          && descriptor.removeChildKinds.includes(
+            String(item.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.childKind || ""),
+          ))
+      );
+      if (descriptor.singleActivation === true && existingChildren.length) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "child-zone-activation-already-used", itemId: existingChildren[0]?.id || null }],
+        };
+      }
+      for (const item of requested) {
+        const collision = allItems.find((candidate) => candidate.id === item.id);
+        if (collision && !beforeItems.some((before) => before.id === item.id)) {
+          return {
+            status: EFFECTS_MUTATION_STATUS.CONFLICT,
+            conflicts: [{ reason: "child-zone-item-id-conflict", itemId: item.id }],
+          };
+        }
+      }
+      prepared.push({
+        type: descriptor.type,
+        parentZoneId: rootId,
+        parentInstanceId: instanceId,
+        beforeItems: beforeItems.map((item) => clone(item)),
+        afterItems: requested.map((item) => clone(item)),
+      });
     } else if (descriptor?.type === "static-zone:move") {
       const zoneItemId = String(descriptor.zoneItemId || "").trim();
       const instanceId = String(descriptor.instanceId || "").trim();
@@ -1370,6 +1460,44 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       before: sceneItemMetadataSnapshot(item, SPELL_STATIC_ZONE_META_KEY),
       after: staticZoneRuleChoiceAfterSnapshot(item, sideEffect.ruleChoice),
     }));
+  }
+  if (sideEffect.type === "static-zone:child-zones") {
+    const beforeItems = Array.isArray(sideEffect.beforeItems)
+      ? sideEffect.beforeItems
+      : [];
+    const afterItems = Array.isArray(sideEffect.afterItems)
+      ? sideEffect.afterItems
+      : [];
+    const beforeIds = beforeItems.map((item) => item?.id).filter(Boolean);
+    const current = beforeIds.length
+      ? await OBR.scene.items.getItems(beforeIds)
+      : [];
+    if (
+      current.length !== beforeItems.length
+      || current.some((item) => {
+        const expected = beforeItems.find((candidate) => candidate?.id === item.id);
+        return !expected || !sameValue(item, expected);
+      })
+    ) {
+      throw new Error("child-zone-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-child-zone");
+    if (beforeIds.length) await OBR.scene.items.deleteItems(beforeIds);
+    if (afterItems.length) await OBR.scene.items.addItems(afterItems.map((item) => clone(item)));
+    return [
+      ...beforeItems.map((item) => ({
+        id: item.id,
+        type: "item",
+        before: clone(item),
+        after: null,
+      })),
+      ...afterItems.map((item) => ({
+        id: item.id,
+        type: "item",
+        before: null,
+        after: clone(item),
+      })),
+    ];
   }
   if (sideEffect.type === "static-zone:move") {
     const [current] = await OBR.scene.items.getItems([sideEffect.id]);

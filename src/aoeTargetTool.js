@@ -38,6 +38,10 @@ import {
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import {
+  clipChildZoneAreaToParent,
+  validateChildZoneContainment,
+} from "./spellChildZoneCore.js";
+import {
   spellZoneMovementDistanceMeters,
 } from "./spellZoneMovementCore.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
@@ -161,6 +165,9 @@ async function closeSpellPlacement(status, {
     spellId: completed.spellId,
     casterId: completed.casterId,
     ...(completed.ruleChoice ? { ruleChoice: completed.ruleChoice } : {}),
+    ...(runtime.context && typeof runtime.context === "object"
+      ? { context: runtime.context }
+      : {}),
     status: completed.phase,
     preview: completed.preview,
     ...(completed.error ? { error: completed.error } : {}),
@@ -219,6 +226,24 @@ async function beginSpellPlacement(data) {
   }
   const baseRule = getSpellAreaRuleById(ruleId);
   const rule = getSpellAreaRuleForPlacement(ruleId, ruleChoice);
+  const placementContext = data?.context && typeof data.context === "object"
+    ? data.context
+    : null;
+  const parentZoneId = String(placementContext?.parentZoneId || "").trim();
+  const [parentZone] = parentZoneId
+    ? await OBR.scene.items.getItems([parentZoneId]).catch(() => [])
+    : [];
+  const parentArea = parentZone ? translatedZoneArea(parentZone) : null;
+  if (placementContext && (!parentZone || !parentArea)) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-parent-zone-unavailable",
+      context: placementContext,
+    });
+    return;
+  }
   if (
     baseRule?.placementChoices?.length
     && ruleChoice
@@ -275,6 +300,10 @@ async function beginSpellPlacement(data) {
       }),
         rule,
         casterName: caster?.name || "",
+        context: data?.context && typeof data.context === "object"
+          ? data.context
+          : null,
+        parentArea,
         casterOrigin: caster?.center || null,
       casterBounds: caster?.bounds || null,
       rangePreview: null,
@@ -424,6 +453,7 @@ function boundaryCommands(cells) {
 }
 
 function geometryCommands(area) {
+  if (area?.clippedToParent) return boundaryCommands(area.cells);
   if (area?.type === "circle") {
     const { x, y } = area.origin;
     const radius = area.radius;
@@ -576,19 +606,88 @@ function updateConeOrigin(state) {
   ).position;
 }
 
+function fissureEndpoints(parentArea, rawStart, rawEnd) {
+  const center = point(parentArea?.origin);
+  const radius = Number(parentArea?.radius);
+  if (!center || !Number.isFinite(radius) || radius <= 0) return null;
+  const radial = {
+    x: Number(rawStart?.x) - center.x,
+    y: Number(rawStart?.y) - center.y,
+  };
+  const fallbackRadial = {
+    x: Number(rawEnd?.x) - center.x,
+    y: Number(rawEnd?.y) - center.y,
+  };
+  const radialLength = Math.hypot(radial.x, radial.y)
+    || Math.hypot(fallbackRadial.x, fallbackRadial.y)
+    || 1;
+  const radialSource = Math.hypot(radial.x, radial.y) > 1e-9
+    ? radial
+    : fallbackRadial;
+  const start = {
+    x: center.x + radialSource.x * radius / radialLength,
+    y: center.y + radialSource.y * radius / radialLength,
+  };
+  let direction = {
+    x: Number(rawEnd?.x) - start.x,
+    y: Number(rawEnd?.y) - start.y,
+  };
+  const inward = { x: center.x - start.x, y: center.y - start.y };
+  if (
+    !(Math.hypot(direction.x, direction.y) > 1e-9)
+    || direction.x * inward.x + direction.y * inward.y <= 0
+  ) {
+    direction = inward;
+  }
+  const directionLength = Math.hypot(direction.x, direction.y) || 1;
+  const normalized = {
+    x: direction.x / directionLength,
+    y: direction.y / directionLength,
+  };
+  const offset = { x: start.x - center.x, y: start.y - center.y };
+  const distanceToExit = -2 * (
+    offset.x * normalized.x + offset.y * normalized.y
+  );
+  if (!(distanceToExit > 0)) return null;
+  return {
+    start,
+    end: {
+      x: start.x + normalized.x * distanceToExit,
+      y: start.y + normalized.y * distanceToExit,
+    },
+  };
+}
+
 function renderDrag(state) {
   if (!state?.ready || !state.interaction || !state.start || !state.end) return null;
   updateConeOrigin(state);
   if (state.spellPlacementRequestId) {
-    state.end = constrainedSpellAreaEnd({
-      shape: state.type,
-      start: state.start,
-      pointer: state.rawEnd,
-      dpi: state.dpi,
-      sizeCells: state.sizeCells,
-    });
+    if (
+      state.context?.childKind === "fissure"
+      && state.parentArea?.type === "circle"
+      && point(state.parentArea.origin)
+      && Number(state.parentArea.radius) > 0
+    ) {
+      const endpoints = fissureEndpoints(
+        state.parentArea,
+        state.rawStart,
+        state.rawEnd,
+      );
+      if (endpoints) {
+        state.start = endpoints.start;
+        state.end = endpoints.end;
+      }
+    } else {
+      state.end = constrainedSpellAreaEnd({
+        shape: state.type,
+        start: state.start,
+        pointer: state.rawEnd,
+        dpi: state.dpi,
+        sizeCells: state.sizeCells,
+      });
+    }
   }
-  const area = buildArea(
+  let area = buildArea(
     state.type,
     state.start,
     state.end,
@@ -596,6 +695,16 @@ function renderDrag(state) {
     state.gridOrigin,
     { widthSquares: state.widthCells },
   );
+  if (state.context?.childKind === "fissure") {
+    area = clipChildZoneAreaToParent({
+      parentArea: state.parentArea,
+      childArea: {
+        ...area,
+        centerlineStart: state.start,
+        centerlineEnd: state.end,
+      },
+    });
+  }
   state.area = area;
   const [update] = state.interaction;
   update((items) => {
@@ -796,7 +905,7 @@ async function prepareDrag(state) {
         spellId: state.rule.spellId,
         instanceId: `preview:${state.spellPlacementRequestId}`,
         casterId: spellPlacementSession?.session?.casterId || "preview-caster",
-        casterName: spellPlacementSession?.casterName || "",
+    casterName: spellPlacementSession?.casterName || "",
         casterHpMax: 1,
         position: state.start,
       });
@@ -1183,6 +1292,8 @@ function startDrag(type, event) {
     originSnapKind: "center",
     spellPlacementRequestId: constrained ? placement.session.requestId : "",
     rule: constrained ? placement.rule : null,
+    context: constrained ? placement.context : null,
+    parentArea: constrained ? placement.parentArea : null,
     casterOrigin: constrained ? placement.casterOrigin : null,
     casterBounds: constrained ? placement.casterBounds : null,
     sizeCells: 0,
@@ -1251,6 +1362,17 @@ async function confirmSpellPlacement() {
     return;
   }
   const area = renderDrag(state);
+  if (runtime.context?.childKind && !validateChildZoneContainment({
+    parentArea: runtime.parentArea,
+    childArea: area,
+    childKind: runtime.context.childKind,
+  })) {
+    await OBR.notification.show(
+      "La sottozona deve restare contenuta nella zona madre e attraversarla da bordo a bordo.",
+      "WARNING",
+    );
+    return;
+  }
   const hitTargetIds = await findHitTargetIds(area, runtime.rule);
   const targetIds = runtime.rule.targeting.includeCaster
     ? hitTargetIds
@@ -1263,6 +1385,15 @@ async function confirmSpellPlacement() {
     dpi: state.dpi,
     gridOrigin: state.gridOrigin,
     widthSquares: state.widthCells,
+    ...(state.context?.childKind === "fissure" && state.parentArea?.type === "circle"
+      ? {
+        parentClip: {
+          type: "circle",
+          origin: point(state.parentArea.origin),
+          radius: Number(state.parentArea.radius),
+        },
+      }
+      : {}),
     targetIds,
   });
   await closeSpellPlacement("confirmed");

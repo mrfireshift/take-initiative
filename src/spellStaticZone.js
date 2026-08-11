@@ -31,6 +31,11 @@ import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
 } from "./spellZoneTriggerCore.js";
 import {
+  clipChildZoneAreaToParent,
+  isSpellChildZoneMetadata,
+  spellChildZoneMetadata,
+} from "./spellChildZoneCore.js";
+import {
   mergeStaticSpellZoneReminderMetadata,
   planStaticSpellZoneReminder,
 } from "./spellStaticZoneReminderCore.js";
@@ -77,6 +82,7 @@ function boundaryCommands(cells) {
 }
 
 function geometryCommands(area) {
+  if (area?.clippedToParent) return boundaryCommands(area.cells);
   if (area?.type === "circle") {
     const { x, y } = area.origin;
     const radius = area.radius;
@@ -440,6 +446,137 @@ export function buildStaticSpellZoneSubzoneItem({
   });
 }
 
+export function buildStaticSpellChildZoneItem({
+  ruleId = "",
+  instanceId = "",
+  casterId = "",
+  parentId = "",
+  parentArea = null,
+  spellName = "",
+  preview = null,
+  childKind = "",
+  childIndex = 0,
+  activationId = "",
+  sceneEpoch = 0,
+  variant = "",
+  triggers = null,
+  style = null,
+  depthRoll = null,
+} = {}) {
+  const rule = getSpellAreaRuleById(ruleId);
+  const type = String(preview?.type || "").trim();
+  const start = preview?.start;
+  const end = preview?.end;
+  const gridOrigin = preview?.gridOrigin || start;
+  const dpi = Number(preview?.dpi);
+  if (
+    !rule
+    || !String(instanceId || "").trim()
+    || !String(parentId || "").trim()
+    || !String(childKind || "").trim()
+    || !String(activationId || "").trim()
+    || type !== rule.geometry.shape
+    || !start
+    || !end
+    || !Number.isFinite(dpi)
+    || dpi <= 0
+  ) {
+    throw new Error("static-zone-child-preview-invalid");
+  }
+  let area = buildArea(
+    type,
+    start,
+    end,
+    dpi,
+    gridOrigin,
+    { widthSquares: preview?.widthSquares },
+  );
+  if (String(childKind || "").trim() === "fissure") {
+    area = clipChildZoneAreaToParent({
+      parentArea: preview?.parentClip || parentArea,
+      childArea: {
+        ...area,
+        centerlineStart: start,
+        centerlineEnd: end,
+      },
+    });
+  }
+  const parentClip = area?.parentClip || preview?.parentClip || null;
+  const resolvedStyle = spellAreaStyle(
+    rule.spellId,
+    normalizeAoEStyle(style || loadAoEStyle()),
+  );
+  const outlineWidth = Math.max(2, dpi * 0.035 * resolvedStyle.strokeWidth);
+  const label = String(spellName || rule.spellId || "Incantesimo").trim();
+  const metadata = spellChildZoneMetadata({
+    parentZoneId: parentId,
+    parentInstanceId: instanceId,
+    casterId,
+    spellId: rule.spellId,
+    ruleId: rule.id,
+    childKind,
+    childIndex,
+    activationId,
+    sceneEpoch,
+    variant,
+    ruleChoice: variant,
+    geometry: {
+      type,
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      ...(parentClip ? { parentClip } : {}),
+      ...(String(childKind || "").trim() === "fissure"
+        ? { centerlineStart: start, centerlineEnd: end }
+        : {}),
+      ...(Number(preview?.widthSquares) > 0
+        ? { widthSquares: Math.max(1, Math.round(Number(preview.widthSquares))) }
+        : {}),
+      ...(Number.isInteger(Number(depthRoll))
+        ? {
+          depthRoll: Math.max(1, Math.floor(Number(depthRoll))),
+          depthMeters: Math.max(1, Math.floor(Number(depthRoll))) * 3,
+        }
+        : {}),
+    },
+    style: resolvedStyle,
+    triggers: triggers || rule.zonePolicy?.triggers || [],
+  });
+  return buildZonePath({
+    name: `${label} · ${childKind}`,
+    commands: boundaryCommands(area.cells),
+    style: resolvedStyle,
+    fillOpacity: Math.min(0.32, Math.max(0.08, resolvedStyle.fillOpacity * 1.2)),
+    strokeOpacity: 0.9,
+    strokeWidth: outlineWidth,
+    metadata: {
+      [AOE_AREA_META_KEY]: {
+        version: 2,
+        singlePath: true,
+        type,
+        start,
+        end,
+        dpi,
+        gridOrigin,
+        basePosition: { x: 0, y: 0 },
+        style: resolvedStyle,
+        subzone: childKind,
+        ...(parentClip ? { parentClip } : {}),
+        ...(String(childKind || "").trim() === "fissure"
+          ? { centerlineStart: start, centerlineEnd: end }
+          : {}),
+        ...(Number(preview?.widthSquares) > 0
+          ? { widthSquares: Math.max(1, Math.round(Number(preview.widthSquares))) }
+          : {}),
+      },
+      [SPELL_STATIC_ZONE_META_KEY]: metadata,
+    },
+    locked: true,
+    disableHit: true,
+  });
+}
+
 export async function getStaticSpellZoneItems({
   instanceId = "",
   casterId = "",
@@ -538,10 +675,36 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     await OBR.scene.items.deleteItems(expiredSubzoneIds);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
   }
-  const zoneRoots = staticSpellZoneItems(items)
+  let currentItems = items.filter((item) => !expiredSubzoneIds.includes(item.id));
+  const zoneRoots = staticSpellZoneItems(currentItems)
     .filter((item) =>
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
     );
+  const rootsById = new Map(zoneRoots.map((item) => [item.id, item]));
+  const childBelongsToRoot = (item) => {
+    const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    const root = rootsById.get(metadata?.parentZoneId);
+    const rootMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    return isSpellChildZoneMetadata(metadata)
+      && !!rootMetadata
+      && metadata.parentInstanceId === rootMetadata.instanceId
+      && metadata.casterId === rootMetadata.casterId
+      && metadata.spellId === rootMetadata.spellId;
+  };
+  const childZones = staticSpellZoneItems(currentItems)
+    .filter(childBelongsToRoot);
+  const orphanChildIds = staticSpellZoneItems(currentItems)
+    .filter((item) => isSpellChildZoneMetadata(
+      item?.metadata?.[SPELL_STATIC_ZONE_META_KEY],
+    ) && !childBelongsToRoot(item))
+    .map((item) => item.id)
+    .filter(Boolean);
+  if (orphanChildIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    await OBR.scene.items.deleteItems(orphanChildIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    currentItems = currentItems.filter((item) => !orphanChildIds.includes(item.id));
+  }
   if (!zoneRoots.length) {
     const zoneEffectIds = SPELL_AREA_RULES
       .filter((rule) => rule.kind === "zone")
@@ -567,8 +730,8 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   const orderedIds = new Set(
     order.map((id) => String(id || "").split("::p")[0])
   );
-  const creatures = items.filter((item) => trackedCreature(item, orderedIds));
-  const byId = new Map(items.map((item) => [item.id, item]));
+  const creatures = currentItems.filter((item) => trackedCreature(item, orderedIds));
+  const byId = new Map(currentItems.map((item) => [item.id, item]));
   const requiredIds = new Set([
     ...creatures.map((item) => item.id),
     ...zoneRoots.map((item) =>
@@ -600,7 +763,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   const newTriggerNotices = [];
   const initiativeState = sceneMetadata?.[STATE_KEY] || {};
 
-  for (const item of zoneRoots) {
+  for (const item of [...zoneRoots, ...childZones]) {
     const zoneMetadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
     const rule = getSpellAreaRuleById(zoneMetadata.ruleId);
     const area = translatedZoneArea(item);
@@ -631,7 +794,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       zoneId: item.id,
       rule,
       desiredTargetIds,
-      items,
+      items: currentItems,
       metaKey: META_KEY,
       sourceName: caster?.name || "",
       defaultExpiry: { mode: "manual" },

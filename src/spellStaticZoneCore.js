@@ -1,6 +1,7 @@
 import { ID } from "./constants.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import { AOE_AREA_META_KEY } from "./aoeStyle.js";
+import { clipChildZoneAreaToParent } from "./spellChildZoneCore.js";
 
 export const SPELL_STATIC_ZONE_META_KEY = `${ID}/spellStaticZone`;
 export const SPELL_ZONE_MOVEMENT_CONTROL_FIELD = "movementControl";
@@ -23,7 +24,7 @@ export function translatedZoneArea(item, positionOverride = null) {
     x: Number(entry.x) + delta.x,
     y: Number(entry.y) + delta.y,
   });
-  return buildArea(
+  let area = buildArea(
     metadata.type,
     translate(metadata.start),
     translate(metadata.end),
@@ -31,6 +32,17 @@ export function translatedZoneArea(item, positionOverride = null) {
     translate(metadata.gridOrigin || metadata.start),
     { widthSquares: metadata.widthSquares },
   );
+  if (metadata.parentClip && typeof metadata.parentClip === "object") {
+    area = clipChildZoneAreaToParent({
+      parentArea: metadata.parentClip,
+      childArea: area,
+    });
+  }
+  if (metadata.centerlineStart && metadata.centerlineEnd) {
+    area.centerlineStart = point(metadata.centerlineStart);
+    area.centerlineEnd = point(metadata.centerlineEnd);
+  }
+  return area;
 }
 
 export function staticSpellZoneMetadata({

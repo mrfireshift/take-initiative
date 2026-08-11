@@ -11,6 +11,7 @@ export function requestSpellAreaPlacement({
   ruleId = "",
   casterId = "",
   ruleChoice = "",
+  context = null,
   requestId = createSpellAreaPlacementRequestId(),
 } = {}, {
   broadcast = null,
@@ -71,6 +72,7 @@ export function requestSpellAreaPlacement({
         ...(String(ruleChoice || "").trim()
           ? { ruleChoice: String(ruleChoice).trim() }
           : {}),
+        ...(context && typeof context === "object" ? { context } : {}),
       },
       { destination: "LOCAL" },
     ).catch((error) => finish(reject, error));

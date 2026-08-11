@@ -325,21 +325,13 @@ const EYEBITE_ACTION_TRACKING = Object.freeze({
 const SRD_ACTIVE_ACTIONS = Object.freeze({
   "control-water": Object.freeze([
     Object.freeze({
-      id: "control-water-whirlpool",
-      label: "Passa a Vortice",
-      buttonLabel: "Vortice",
-      detail: "Usa l'azione per creare il vortice. I reminder restano condizionali alla sua area effettiva di raggio 7,5 m.",
-      subjectMode: "caster",
-      zoneRuleChoice: "whirlpool",
-      effects: Object.freeze([]),
-    }),
-    Object.freeze({
       id: "control-water-flood",
       label: "Passa a Inondazione",
       buttonLabel: "Inondazione",
       detail: "Usa l'azione per attivare Inondazione.",
       subjectMode: "caster",
       zoneRuleChoice: "flood",
+      clearChildZones: true,
       effects: Object.freeze([]),
     }),
     Object.freeze({
@@ -349,6 +341,7 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
       detail: "Usa l'azione per far scorrere l'acqua nella direzione scelta.",
       subjectMode: "caster",
       zoneRuleChoice: "redirect",
+      clearChildZones: true,
       effects: Object.freeze([]),
     }),
     Object.freeze({
@@ -358,6 +351,7 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
       detail: "Usa l'azione per creare un varco nell'acqua.",
       subjectMode: "caster",
       zoneRuleChoice: "part",
+      clearChildZones: true,
       effects: Object.freeze([]),
     }),
   ]),
@@ -1471,11 +1465,13 @@ const ALL_SPELLS = [
       || spell.targetModeCandidate
       || (exactSelf ? "self" : "selected"),
     automation,
-    activeActions: SRD_ACTIVE_ACTIONS[spell.id]
-      || SUPPLEMENT_ACTIVE_ACTIONS[spell.id]
-      || SPELL_ACTIVE_RESOLUTION_ACTIONS[spell.id]
-      || SPELL_BOARD_TOKEN_RULES[spell.id]?.actions
-      || Object.freeze([]),
+    activeActions: Object.freeze([
+      ...(SPELL_ACTIVE_RESOLUTION_ACTIONS[spell.id] || []),
+      ...(SRD_ACTIVE_ACTIONS[spell.id] || []),
+      ...(!SRD_ACTIVE_ACTIONS[spell.id] && !SPELL_ACTIVE_RESOLUTION_ACTIONS[spell.id]
+        ? (SUPPLEMENT_ACTIVE_ACTIONS[spell.id] || SPELL_BOARD_TOKEN_RULES[spell.id]?.actions || [])
+        : []),
+    ]),
     boardToken: getSpellBoardTokenRule(spell.id),
     effects: SPELL_EFFECTS[spell.id] || Object.freeze([]),
     effectChoices: SPELL_EFFECT_CHOICES[spell.id] || Object.freeze([]),

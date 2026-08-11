@@ -44,7 +44,9 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /Linea di fuoco confermata\. I bersagli sono ora bloccati/);
   assert.match(popupController, /\$\("saveTitle"\)\.hidden = callLightning/);
   assert.match(popupController, /targets\.length\} bersagli/);
-  assert.match(popupController, /\$\("damageField"\)\.hidden = targets\.length === 0/);
+  assert.match(popupController, /\$\("damageField"\)\.hidden = child \|\| targets\.length === 0/);
+  assert.match(popupController, /\$\{childLabel\} \$\{childPlacements\.length\} di/);
+  assert.match(popupController, /depthRoll/);
   assert.match(popupController, /dataset\.popoverId/);
   assert.match(popupController, /initializePopoverDrag/);
   assert.match(popupController, /void apply\(\)/);

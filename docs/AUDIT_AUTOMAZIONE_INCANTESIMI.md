@@ -10,8 +10,8 @@
 - Catalogo sorgente: **477** definizioni; perimetro operativo: **374**; testi disponibili nel perimetro: **373**.
 - Fuori perimetro: **103** definizioni. Sono escluse a priori le spell con casting time maggiore di 1 azione e le esclusioni curate dal perimetro operativo.
 - Definizioni tracciabili: **280**; definizioni con almeno una regola di area: **114**.
-- Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **43**.
-- Impronta deterministica dello snapshot: `b580f9abbf9a2c17`.
+- Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **41**.
+- Impronta deterministica dello snapshot: `d622790653c8fd30`.
 - P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.
 - Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.
 - I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.
@@ -30,9 +30,9 @@
 
 | Stato | Totale |
 | --- | ---: |
-| coperto | 253 |
+| coperto | 255 |
 | istantaneo: gestione manuale | 57 |
-| parziale: revisione curata | 43 |
+| parziale: revisione curata | 41 |
 | revisione: testo mancante | 1 |
 | riferimento/utilità | 20 |
 
@@ -40,8 +40,8 @@
 
 | Stato | Totale |
 | --- | ---: |
-| — | 330 |
-| P1 | 43 |
+| — | 332 |
+| P1 | 41 |
 | P2 | 1 |
 
 ### Ambito dei tiri salvezza
@@ -64,7 +64,6 @@
 | Carne in pietra | SRD 5.1 | stato di successi/fallimenti multipli assente; condizione o stato RAW non rappresentato | Richiede Trattenuto iniziale, conteggio indipendente di tre successi o fallimenti e transizione a Pietrificato permanente dopo concentrazione completa. |
 | Compulsione | SRD 5.1 | azione ripetibile della spell assente; meccanica di movimento assente | Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento. |
 | Contagio | SRD 5.1 | stato di successi/fallimenti multipli assente; trigger condizionale durante la durata assente | Occorrono conteggio 3 successi/3 fallimenti, sei malattie alternative e trigger specifici come Stordito quando il bersaglio subisce danni. |
-| Controllare acqua | SRD 5.1 | sottozona figlia non modellata; runtime specifico delle modalità incompleto | Le quattro azioni sono esposte, ma la massa controllata e il vortice richiedono geometrie distinte; trascinamento, onda ricorrente e prove di uscita non sono completi. |
 | Corona di Stelle | Xanathar | contatore o risorsa interna della spell assente; azione ripetibile della spell assente | La spell parte con sette scintille, ne consuma una per azione bonus e termina alla settima; anche la luce dipende dal residuo. |
 | Debilitazione | Xanathar | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell. |
 | Dominare bestie | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
@@ -96,7 +95,6 @@
 | Sudario Spirituale | Tasha | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente | Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo. |
 | Telecinesi | SRD 5.1 | azione ripetibile della spell assente; condizione o stato RAW non rappresentato | Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo. |
 | Tempesta di vendetta | SRD 5.1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente | L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento. |
-| Terremoto | SRD 5.1 | sottozona figlia non modellata; runtime specifico delle modalità incompleto | Zona madre, terreno difficile e reminder principali esistono; crepe e strutture non sono entità spaziali indipendenti con risoluzione atomica. |
 | Trasformazione | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW. |
 | Trasmutare Roccia | Xanathar | varianti della zona e relativi trigger incomplete; meccanica di movimento assente; trigger spaziali o di turno assenti | Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia. |
 | Turbine | Xanathar | movimento manuale della zona non risolto; sequenza di più TS e uscita dalla condizione incompleta; ingresso, sospensione e caduta finale non risolti | Servono zona mobile, doppio TS, trascinamento verticale, movimento con la zona, prova di fuga e caduta finale. |
@@ -179,7 +177,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Cono di freddo | `cone-of-cold` | SRD 5.1 / 5 | combattimento | area | area, TS:area | aree:instant, TS | coperto | — | — |
 | Contagio | `contagion` | SRD 5.1 / 5 | combattimento | singolo | TS:singolo, turni | tracking | parziale: revisione curata | P1 | stato di successi/fallimenti multipli assente; trigger condizionale durante la durata assente |
 | Controincantesimo | `counterspell` | SRD 5.1 / 3 | utilità/riferimento | — | — | — | riferimento/utilità | — | — |
-| Controllare acqua | `control-water` | SRD 5.1 / 4 | combattimento | area | TS:area, turni, fasi/azioni, varianti | tracking, aree:zone, lifecycle, TS, status:Trattenuto, movimento, turni, fasi/azioni, varianti | parziale: revisione curata | P1 | sottozona figlia non modellata; runtime specifico delle modalità incompleto |
+| Controllare acqua | `control-water` | SRD 5.1 / 4 | combattimento | area | TS:area, turni, fasi/azioni, varianti | tracking, aree:zone/zone, lifecycle, TS, movimento, turni, fasi/azioni, varianti | coperto | — | — |
 | Controllare Fiamme | `xanathar-controllare-fiamme` | Xanathar / 0 | utilità/riferimento | — | area, effetto istantaneo persistente | tracking | coperto | — | — |
 | Controllare Venti | `xanathar-controllare-venti` | Xanathar / 5 | combattimento | area | area, TS:area, turni, varianti | tracking, aree:zone, lifecycle, TS, status:Prono, movimento, turni, fasi/azioni, varianti | coperto | — | — |
 | Cordone di Frecce | `phb2014-cordone-di-frecce` | PHB 2014 / 2 | combattimento | area | TS:area | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
@@ -466,7 +464,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Tempesta di nevischio | `sleet-storm` | SRD 5.1 / 3 | combattimento | area | area, TS:area, movimento, ingresso/attraversamento | tracking, aree:zone, lifecycle, TS, status:Accecato/Prono, movimento, turni | coperto | — | — |
 | Tempesta di vendetta | `storm-of-vengeance` | SRD 5.1 / 9 | combattimento | area | area, TS:area, movimento, turni | tracking, aree:zone, lifecycle, TS, status:Assordato, movimento, varianti | parziale: revisione curata | P1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente |
 | Tentacoli neri | `black-tentacles` | SRD 5.1 / 4 | combattimento | area | area, TS:area, movimento, ingresso/attraversamento | tracking, aree:zone, lifecycle, TS, status:Trattenuto, movimento, turni | coperto | — | — |
-| Terremoto | `earthquake` | SRD 5.1 / 8 | combattimento | area | area, TS:area, movimento, turni | tracking, aree:zone, lifecycle, TS, status:Prono, movimento, turni | parziale: revisione curata | P1 | sottozona figlia non modellata; runtime specifico delle modalità incompleto |
+| Terremoto | `earthquake` | SRD 5.1 / 8 | combattimento | area | area, TS:area, movimento, turni | tracking, aree:zone/zone, lifecycle, TS, status:Prono, movimento, turni, fasi/azioni | coperto | — | — |
 | Tocco del vampiro | `vampiric-touch` | SRD 5.1 / 3 | combattimento | — | — | tracking | coperto | — | — |
 | Tocco gelido | `chill-touch` | SRD 5.1 / 0 | combattimento | — | turni | tracking, turni | coperto | — | — |
 | Trama ipnotica | `hypnotic-pattern` | SRD 5.1 / 3 | combattimento | area | TS:area, movimento | tracking, aree:instant, TS, status:Affascinato/Incapacitato, movimento | coperto | — | — |

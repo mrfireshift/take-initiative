@@ -306,6 +306,12 @@ export function planSpellZoneTriggers({
   let sequence = previous.sequence;
 
   for (const trigger of triggers) {
+    if (
+      trigger?.requiresChildZone === true
+      && zoneMetadata?.role === "root"
+    ) {
+      continue;
+    }
     const requiredRuleChoices = uniqueIds(trigger?.requiresRuleChoices);
     if (
       requiredRuleChoices.length
@@ -344,8 +350,13 @@ export function planSpellZoneTriggers({
     if (!eligible.length) continue;
 
     sequence += 1;
+    const activationScope = String(
+      zoneMetadata?.activationId
+      || zoneMetadata?.instanceId
+      || "zone",
+    );
     const activationId = [
-      String(zoneMetadata?.instanceId || "zone"),
+      activationScope,
       String(trigger.id || "trigger"),
       String(turnKey || "event"),
       sequence,
@@ -490,25 +501,38 @@ export function mergePlannedSpellZoneTriggerRuntime(
 }
 
 export function pendingSpellZoneTriggerActivations(items = []) {
-  const pending = [];
+  const pendingById = new Map();
   for (const item of Array.isArray(items) ? items : []) {
     const staticMetadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
     const auraMetadata = item?.metadata?.[SPELL_AURA_META_KEY];
     const classFeatureAuraMetadata = item?.metadata?.[CLASS_FEATURE_AURA_META_KEY];
     const customAuraMetadata = item?.metadata?.[CUSTOM_AURA_META_KEY];
-    const metadata = staticMetadata?.role === "root"
+    const metadata = staticMetadata
+      && ["root", "subzone"].includes(staticMetadata.role)
       ? staticMetadata
       : auraMetadata || classFeatureAuraMetadata || customAuraMetadata;
     if (!metadata) continue;
     const runtime = normalizeSpellZoneTriggerRuntime(metadata.triggerRuntime);
     for (const activation of runtime.pending) {
-      pending.push({
+      const zoneItemId = String(item?.id || "").trim();
+      const current = pendingById.get(activation.id);
+      const next = {
         ...activation,
-        zoneItemId: item.id,
-      });
+        zoneItemId: current?.zoneItemId || zoneItemId,
+        zoneItemIds: uniqueIds([
+          ...(current?.zoneItemIds || []),
+          ...(current?.zoneItemId ? [current.zoneItemId] : []),
+          zoneItemId,
+        ]),
+        targetIds: uniqueIds([
+          ...(current?.targetIds || []),
+          ...activation.targetIds,
+        ]),
+      };
+      pendingById.set(activation.id, next);
     }
   }
-  return pending.sort((left, right) =>
+  return [...pendingById.values()].sort((left, right) =>
     left.createdAt - right.createdAt || left.id.localeCompare(right.id)
   );
 }

@@ -187,6 +187,7 @@ test("Sguardo Penetrante applica una variante a un solo fallito", () => {
       spell,
       casterId: "caster",
       targetIds: ["caster"],
+      zoneItemId: "water-root",
     }).map((action) => action.id),
     [
       "eyebite-saved",
@@ -365,6 +366,7 @@ test("Controllare Acqua espone le quattro modalita come cambi della stessa zona"
       spell,
       casterId: "caster",
       targetIds: ["caster"],
+      zoneItemId: "water-root",
     }).map((action) => action.id),
     [
       "control-water-whirlpool",

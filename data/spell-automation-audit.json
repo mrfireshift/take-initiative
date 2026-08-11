@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "ruleset": "D&D 5e 2014",
   "methodology": "Confronto deterministico tra testi regolamentari locali e contratti runtime per spell lanciabili con 1 azione, 1 azione bonus o 1 reazione; i P1 sono revisionati manualmente sul testo RAW. Il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
-  "fingerprint": "b580f9abbf9a2c17",
+  "fingerprint": "d622790653c8fd30",
   "summary": {
     "catalogTotal": 477,
     "catalog": 374,
@@ -16,21 +16,21 @@
     },
     "trackable": 280,
     "withAreaRules": 114,
-    "openRows": 44,
-    "confirmed": 43,
+    "openRows": 42,
+    "confirmed": 41,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 43,
+    "curatedP1": 41,
     "manuallyReviewed": 71,
     "byPriority": {
-      "—": 330,
-      "P1": 43,
+      "—": 332,
+      "P1": 41,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 253,
+      "coperto": 255,
       "istantaneo: gestione manuale": 57,
-      "parziale: revisione curata": 43,
+      "parziale: revisione curata": 41,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 20
     },
@@ -45,7 +45,6 @@
       "AURA_HEAL_ACTION": 1,
       "AURA_PASSIVE_RUNTIME": 1,
       "BOUNDARY_REJECTION": 1,
-      "CHILD_ZONE_GEOMETRY": 2,
       "CHOICE_WORKFLOW_MISSING": 5,
       "CONDITIONAL_TRIGGER": 13,
       "CROSSING_DETECTION": 4,
@@ -53,7 +52,6 @@
       "ENTRY_EXIT_FALL": 2,
       "HOT_SIDE_GEOMETRY": 1,
       "LAYER_STATE_MACHINE": 1,
-      "MODE_SPECIFIC_RUNTIME": 2,
       "MOVABLE_ZONE_RUNTIME": 1,
       "MOVEMENT_IMMUNITY": 1,
       "MOVEMENT_MECHANICS_MISSING": 7,
@@ -120,8 +118,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-abito-ultraterreno-di-tasha",
@@ -173,8 +170,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-aculeo-mentale",
@@ -224,8 +220,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "aid",
@@ -271,8 +266,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-alba",
@@ -338,8 +332,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-allucinazione-di-forza",
@@ -396,8 +389,7 @@
         "spatial": [
           "Per esempio, un bersaglio che tenta di camminare su un ponte fittizio che attraversa un baratro cadrà non appena mette piede sul ponte."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phantasmal-killer",
@@ -455,8 +447,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-amicizia",
@@ -502,8 +493,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "animal-friendship",
@@ -557,8 +547,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "bane",
@@ -715,8 +704,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "nondetection",
@@ -762,8 +750,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-arma-elementale",
@@ -810,8 +797,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "magic-weapon",
@@ -857,8 +843,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-arma-sacra",
@@ -924,8 +909,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "spiritual-weapon",
@@ -1028,8 +1012,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mage-armor",
@@ -1075,8 +1058,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "druidcraft",
@@ -1125,8 +1107,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-assorbire-elementi",
@@ -1179,8 +1160,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-aura-di-purezza",
@@ -1238,8 +1218,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-aura-di-vita",
@@ -1438,8 +1417,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "holy-aura",
@@ -1566,8 +1544,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "moonbeam",
@@ -1711,8 +1688,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "blade-barrier",
@@ -1782,8 +1758,7 @@
         "spatial": [
           "Quando una creatura entra nell'area del muro per la prima volta in un turno o inizia il suo turno qui, deve superare un tiro salvezza su Destrezza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "vicious-mockery",
@@ -1834,8 +1809,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "bless",
@@ -1941,8 +1915,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "hold-person",
@@ -1997,8 +1970,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-braccia-di-hadar",
@@ -2058,8 +2030,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "calm-emotions",
@@ -2119,8 +2090,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "antimagic-field",
@@ -2181,8 +2151,7 @@
         "spatial": [
           "Se un'arma magica o una munizione magica esce interamente dalla sfera (per esempio, se l'incantatore scaglia una freccia magica o una lancia magica contro un bersaglio fuori dalla sfera), la magia dell'oggetto cessa di essere soppressa dal momento stesso in…"
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "disguise-self",
@@ -2232,8 +2201,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "enhance-ability",
@@ -2402,8 +2370,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "chain-lightning",
@@ -2514,8 +2481,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "sequester",
@@ -2561,8 +2527,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "circle-of-death",
@@ -2620,8 +2585,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-cerchio-di-potere",
@@ -2682,8 +2646,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "charm-person",
@@ -2740,8 +2703,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-charme-sui-mostri",
@@ -2795,8 +2757,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-collera-della-natura",
@@ -2885,8 +2846,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "true-strike",
@@ -2937,8 +2897,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-colpo-del-vento-dacciaio",
@@ -2982,8 +2941,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-colpo-dello-zefiro",
@@ -3038,8 +2996,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "flame-strike",
@@ -3097,8 +3054,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-colpo-intrappolante",
@@ -3160,8 +3116,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-coltello-di-ghiaccio",
@@ -3216,8 +3171,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "command",
@@ -3326,8 +3280,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "compulsion",
@@ -3471,8 +3424,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "cone-of-cold",
@@ -3530,8 +3482,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "contagion",
@@ -3644,8 +3595,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "control-water",
@@ -3668,46 +3618,25 @@
       ],
       "coverage": [
         "tracking",
-        "aree:zone",
+        "aree:zone/zone",
         "lifecycle",
         "TS",
-        "status:Trattenuto",
         "movimento",
         "turni",
         "fasi/azioni",
         "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "CHILD_ZONE_GEOMETRY",
-          "label": "sottozona figlia non modellata",
-          "evidence": [
-            "Fino al termine dell'incantesimo, l'incantatore controlla una massa libera d'acqua all'interno di un'area a sua scelta, con un volume massimo pari a un cubo di 30 metri per lato.",
-            "Quando lancia questo incantesimo, l'incantatore può scegliere uno dei seguenti effetti e, con un'azione durante il suo turno, può ripetere il medesimo effetto o sceglierne uno differente.",
-            "Se questo effetto produce un'onda, questa si ripete all'inizio del turno successivo dell'incantatore finché l'effetto di inondazione permane."
-          ]
-        },
-        {
-          "code": "MODE_SPECIFIC_RUNTIME",
-          "label": "runtime specifico delle modalità incompleto",
-          "evidence": [
-            "Fino al termine dell'incantesimo, l'incantatore controlla una massa libera d'acqua all'interno di un'area a sua scelta, con un volume massimo pari a un cubo di 30 metri per lato.",
-            "Quando lancia questo incantesimo, l'incantatore può scegliere uno dei seguenti effetti e, con un'azione durante il suo turno, può ripetere il medesimo effetto o sceglierne uno differente.",
-            "Se questo effetto produce un'onda, questa si ripete all'inizio del turno successivo dell'incantatore finché l'effetto di inondazione permane."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
-        "implemented": [
-          "Trattenuto"
-        ]
+        "implemented": []
       },
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
+          "control-water:whirlpool",
           "control-water:cast"
         ],
         "areaKinds": [
@@ -3715,7 +3644,11 @@
         ],
         "triggerIds": [
           "control-water-whirlpool-save-on-entry",
-          "control-water-whirlpool-save-on-turn-start"
+          "control-water-whirlpool-save-on-turn-start",
+          "control-water-flood-wave-on-source-turn-start",
+          "control-water-whirlpool-save-on-entry",
+          "control-water-whirlpool-save-on-turn-start",
+          "control-water-flood-wave-on-source-turn-start"
         ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
@@ -3750,7 +3683,7 @@
         ],
         "spatial": []
       },
-      "curatedNote": "Le quattro azioni sono esposte, ma la massa controllata e il vortice richiedono geometrie distinte; trascinamento, onda ricorrente e prove di uscita non sono completi."
+      "curatedNote": "La massa controllata resta una sola zona madre di 30 m legata alla concentrazione. Vortice usa una sottozona circolare fissa da 7,5 m, con contenimento rivalidato e reminder TS Forza 2d8; Inondazione conserva il reminder dell'onda sul turno del caster, mentre Deviare corrente e Separare le acque cambiano modalitÃ  e rimuovono il vortice senza inventare condizioni o movimento automatico."
     },
     {
       "id": "xanathar-controllare-fiamme",
@@ -3802,8 +3735,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-controllare-venti",
@@ -3886,8 +3818,7 @@
           "Quando l'incantatore lancia l'incantesimo, sceglie uno degli effetti seguenti."
         ],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-cordone-di-frecce",
@@ -3949,8 +3880,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-corona-di-follia",
@@ -4009,8 +3939,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-corona-di-stelle",
@@ -4129,8 +4058,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-creare-falo",
@@ -4199,8 +4127,7 @@
         "spatial": [
           "Una creatura deve effettuare il tiro salvezza anche quando entra nello spazio del falò per la prima volta in un turno o vi termina il proprio turno."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "create-or-destroy-water",
@@ -4247,8 +4174,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "spike-growth",
@@ -4319,8 +4245,7 @@
         "spatial": [
           "Quando una creatura entra nell'area o si muove al suo interno, subisce 2d4 danni perforanti ogni 1,5 metri di movimento."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "plant-growth",
@@ -4367,8 +4292,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "cure-wounds",
@@ -4412,8 +4336,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mass-cure-wounds",
@@ -4466,8 +4389,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "irresistible-dance",
@@ -4521,8 +4443,7 @@
         "spatial": [
           "Una creatura danzante deve usare tutti i suoi movimenti per ballare senza uscire dal suo spazio e subisce svantaggio ai tiri salvezza e ai tiri per colpire su Destrezza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-dardo-di-caos",
@@ -4566,8 +4487,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fire-bolt",
@@ -4611,8 +4531,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "magic-missile",
@@ -4656,8 +4575,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-dardo-stregato",
@@ -4703,8 +4621,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "guiding-bolt",
@@ -4755,8 +4672,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-debilitazione",
@@ -4869,8 +4785,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-diavoletto-di-polvere",
@@ -4990,8 +4905,7 @@
         "spatial": [
           "Per esempio, il disco non può attraversare una fossa profonda 3 metri o uscirne se si trovasse sul fondo."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "disintegrate",
@@ -5042,8 +4956,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "dispel-evil-and-good",
@@ -5093,8 +5006,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "dispel-magic",
@@ -5138,8 +5050,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "finger-of-death",
@@ -5190,8 +5101,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "divination",
@@ -5235,8 +5145,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "dominate-beast",
@@ -5555,8 +5464,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-duello-obbligato",
@@ -5608,8 +5516,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "heroism",
@@ -5655,8 +5562,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-eruzione-terrestre",
@@ -5718,8 +5624,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "banishment",
@@ -5840,8 +5745,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "enthrall",
@@ -5892,8 +5796,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-fame-di-hadar",
@@ -5964,8 +5867,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-faretra-rapida",
@@ -6016,8 +5918,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "beacon-of-hope",
@@ -6063,8 +5964,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "weird",
@@ -6128,8 +6028,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "divine-favor",
@@ -6175,8 +6074,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "harm",
@@ -6224,8 +6122,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "time-stop",
@@ -6269,8 +6166,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-ferocia-primordiale",
@@ -6314,8 +6210,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "continual-flame",
@@ -6361,8 +6256,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "sacred-flame",
@@ -6411,8 +6305,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "acid-splash",
@@ -6460,8 +6353,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-flusso-di-energia-negativa",
@@ -6513,8 +6405,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-folata",
@@ -6562,8 +6453,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "gust-of-wind",
@@ -6678,8 +6568,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "animal-shapes",
@@ -6794,8 +6683,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "shatter",
@@ -6854,8 +6742,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-frecce-infuocate",
@@ -7031,8 +6918,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-frusta-di-spine",
@@ -7076,8 +6962,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-fulgore-nauseante",
@@ -7152,8 +7037,7 @@
         "spatial": [
           "Quando una creatura entra nell'area dell'incantesimo per la prima volta in un turno o vi inizia il proprio turno, quella creatura deve superare un tiro salvezza su Costituzione, altrimenti subisce 4d10 danni radiosi, subisce un livello di indebolimento ed e…"
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "lightning-bolt",
@@ -7212,8 +7096,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mislead",
@@ -7471,8 +7354,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "globe-of-invulnerability",
@@ -7527,8 +7409,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "spirit-guardians",
@@ -7593,8 +7474,7 @@
         "spatial": [
           "La velocità di una creatura influenzata viene dimezzata all'interno dell'area e quando essa vi entra per la prima volta in un turno o vi inizia il proprio turno, deve effettuare un tiro salvezza su Saggezza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "guardian-of-faith",
@@ -7655,8 +7535,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-guardiano-della-natura",
@@ -7714,8 +7593,7 @@
           "L'incantatore può scegliere di assumere una delle forme seguenti: Bestia Primordiale o Grande Albero."
         ],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "heal",
@@ -7759,8 +7637,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mass-heal",
@@ -7804,8 +7681,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "guidance",
@@ -7851,8 +7727,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "antilife-shell",
@@ -7979,8 +7854,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "programmed-illusion",
@@ -8032,8 +7906,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "major-image",
@@ -8085,8 +7958,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mirror-image",
@@ -8132,8 +8004,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-immolazione",
@@ -8238,8 +8109,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-incuti-paura",
@@ -8297,8 +8167,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "detect-thoughts",
@@ -8350,8 +8219,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "detect-evil-and-good",
@@ -8397,8 +8265,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "detect-magic",
@@ -8448,8 +8315,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "detect-poison-and-disease",
@@ -8495,8 +8361,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-infestazione",
@@ -8547,8 +8412,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "inflict-wounds",
@@ -8592,8 +8456,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "enlarge-reduce",
@@ -8644,8 +8507,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "giant-insect",
@@ -8691,8 +8553,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "death-ward",
@@ -8738,8 +8599,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-interdizione-alle-lame",
@@ -8790,8 +8650,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-interdizione-primordiale",
@@ -8971,8 +8830,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "entangle",
@@ -9038,8 +8896,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "reverse-gravity",
@@ -9197,8 +9054,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-investitura-del-vento",
@@ -9509,8 +9365,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "invisibility",
@@ -9564,8 +9419,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "greater-invisibility",
@@ -9619,8 +9473,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "call-lightning",
@@ -9733,8 +9586,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "maze",
@@ -9780,8 +9632,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-lama-dombra",
@@ -10022,8 +9873,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-lama-verdefiamma",
@@ -10070,8 +9920,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-legame-con-le-bestie",
@@ -10119,8 +9968,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "telepathic-bond",
@@ -10166,8 +10014,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "slow",
@@ -10231,8 +10078,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-lenza-elettrizzante",
@@ -10283,8 +10129,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "levitate",
@@ -10334,8 +10179,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "freedom-of-movement",
@@ -10433,8 +10277,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "locate-animals-or-plants",
@@ -10478,8 +10321,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "locate-creature",
@@ -10525,8 +10367,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "locate-object",
@@ -10572,8 +10413,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "glibness",
@@ -10619,8 +10459,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "light",
@@ -10672,8 +10511,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "daylight",
@@ -10730,8 +10568,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "dancing-lights",
@@ -10783,8 +10620,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "faerie-fire",
@@ -10844,8 +10680,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-maelstrom",
@@ -10912,8 +10747,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "burning-hands",
@@ -10971,8 +10805,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "arcane-hand",
@@ -11083,8 +10916,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "legacy-crusaders-mantle",
@@ -11136,8 +10968,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "message",
@@ -11186,8 +11017,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "polymorph",
@@ -11237,8 +11067,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "true-polymorph",
@@ -11288,8 +11117,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-minuscole-meteore-di-melf",
@@ -11348,8 +11176,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-miscela-caustica-di-tasha",
@@ -11409,8 +11236,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-modellare-acqua",
@@ -11614,8 +11440,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-morte-apparente",
@@ -11724,8 +11549,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "move-earth",
@@ -11785,8 +11609,7 @@
           "Al termine di ogni 10 minuti trascorsi a concentrarsi sull'incantesimo, l'incantatore può scegliere una nuova area di terreno da influenzare."
         ],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-muro-dacqua",
@@ -11915,8 +11738,7 @@
         "spatial": [
           "Nulla può fisicamente attraversare il muro, che è immune a tutti i danni e non può essere dissolto con dissolvi magie."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "wall-of-fire",
@@ -12085,8 +11907,7 @@
         "spatial": [
           "Una creatura che attraversa questa cortina per la prima volta in un turno deve effettuare un tiro salvezza su Costituzione e subisce 5d6 danni da freddo in caso di fallimento, o la metà dei danni in caso di successo."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-muro-di-luce",
@@ -12242,8 +12063,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-muro-di-sabbia",
@@ -12292,8 +12112,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "wall-of-thorns",
@@ -12363,8 +12182,7 @@
         "spatial": [
           "Inoltre, la prima volta che una creatura entra nel muro inun turno o vi termina il suo turno, deve superare un tiro salvezza su Destrezza, subendo 7d8 danni taglienti in caso di fallimento, o la metà dei danni in caso di successo."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "wind-wall",
@@ -12607,8 +12425,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fog-cloud",
@@ -12668,8 +12485,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-nube-di-pugnali",
@@ -12734,8 +12550,7 @@
         "spatial": [
           "Una creatura subisce 4d4 danni taglienti quando entra nell'area dell'incantesimo per la prima volta in un turno o inizia il proprio turno al suo interno."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "incendiary-cloud",
@@ -12807,8 +12622,7 @@
         "spatial": [
           "Inoltre, una creatura deve superare tale tiro salvezza anche quando entra nell'area dell'incantesimo per la prima volta in un turno o termina il suo turno qui."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "stinking-cloud",
@@ -12878,8 +12692,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "cloudkill",
@@ -12950,8 +12763,7 @@
         "spatial": [
           "Quando una creatura entra nell'area dell'incantesimo per la prima volta in un turno o inizia il suo turno qui, deve superare un tiro salvezza su Costituzione."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "arcane-eye",
@@ -13001,8 +12813,7 @@
         "spatial": [
           "Non c'è limite alla distanza di cui l'occhio può allontanarsi dall'incantatore, purché non entri in un altro piano di esistenza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-ombra-di-moil",
@@ -13048,8 +12859,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-onda-di-marea",
@@ -13107,8 +12917,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-onda-distruttiva",
@@ -13168,8 +12977,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "thunderwave",
@@ -13227,8 +13035,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-orrido-avvizzimento-di-abi-dalzim",
@@ -13287,8 +13094,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "darkness",
@@ -13347,8 +13153,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-oscurita-della-follia",
@@ -13416,8 +13221,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-ossa-della-terra",
@@ -13472,8 +13276,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fireball",
@@ -13531,8 +13334,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "delayed-blast-fireball",
@@ -13671,8 +13473,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "speak-with-dead",
@@ -13718,8 +13519,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "speak-with-plants",
@@ -13851,8 +13651,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-parola-del-potere-guarire",
@@ -13896,8 +13695,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "power-word-stun",
@@ -13954,8 +13752,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "power-word-kill",
@@ -13999,8 +13796,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "word-of-recall",
@@ -14044,8 +13840,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "divine-word",
@@ -14102,8 +13897,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "healing-word",
@@ -14147,8 +13941,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mass-healing-word",
@@ -14192,8 +13985,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-parola-radiosa",
@@ -14248,8 +14040,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "passwall",
@@ -14295,8 +14086,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "pass-without-trace",
@@ -14342,8 +14132,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-passo-del-tuono",
@@ -14398,8 +14187,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-passo-remoto",
@@ -14445,8 +14233,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "misty-step",
@@ -14490,8 +14277,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "longstrider",
@@ -14542,8 +14328,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fear",
@@ -14607,8 +14392,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "barkskin",
@@ -14654,8 +14438,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "stoneskin",
@@ -14701,8 +14484,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-percezione-delle-bestie",
@@ -14758,8 +14540,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "insect-plague",
@@ -14832,8 +14613,7 @@
         "spatial": [
           "Inoltre, una creatura deve superare tale tiro salvezza anche quando entra nell'area dell'incantesimo per la prima volta in un turno o termina il suo turno qui."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-pietra-magica",
@@ -14879,8 +14659,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-pirotecnica",
@@ -14949,8 +14728,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "dimension-door",
@@ -14996,8 +14774,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "gate",
@@ -15047,8 +14824,7 @@
         "spatial": [
           "Tutto ciò che lo attraversa è trasportato immediatamente sull'altro piano, apparendo nello spazio libero più vicino al portale."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-portale-arcano",
@@ -15101,8 +14877,7 @@
         "spatial": [
           "Qualsiasi creatura o oggetto che entra nel portale esce dall'altro portale come se i due fossero adiacenti l'uno all'altro."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "prestidigitation",
@@ -15155,8 +14930,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-prigione-mentale",
@@ -15214,8 +14988,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "produce-flame",
@@ -15267,8 +15040,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "protection-from-poison",
@@ -15314,8 +15086,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "protection-from-evil-and-good",
@@ -15365,8 +15136,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "protection-from-energy",
@@ -15413,8 +15183,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-punizione-accecante",
@@ -15474,8 +15243,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-punizione-collerica",
@@ -15537,8 +15305,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-punizione-demoralizzante",
@@ -15597,8 +15364,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-punizione-esiliante",
@@ -15656,8 +15422,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-punizione-incandescente",
@@ -15712,8 +15477,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "branding-smite",
@@ -15842,8 +15606,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "purify-food-and-drink",
@@ -15889,8 +15652,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-raffica-di-spine",
@@ -15950,8 +15712,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "ray-of-enfeeblement",
@@ -16002,8 +15763,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "ray-of-frost",
@@ -16059,8 +15819,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-raggio-di-infermita",
@@ -16121,8 +15880,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "scorching-ray",
@@ -16166,8 +15924,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "web",
@@ -16246,8 +16003,7 @@
         "spatial": [
           "Ogni creatura che inizia il suo turno nelle ragnatele o che vi entra durante il proprio turno deve effettuare un tiro salvezza su Destrezza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-rampicante-afferrante",
@@ -16298,8 +16054,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "shillelagh",
@@ -16345,8 +16100,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "feeblemind",
@@ -16395,8 +16149,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "resistance",
@@ -16447,8 +16200,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "water-breathing",
@@ -16494,8 +16246,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "remove-curse",
@@ -16539,8 +16290,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "revivify",
@@ -16584,8 +16334,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-rintocco-dei-morti",
@@ -16633,8 +16382,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "gentle-repose",
@@ -16680,8 +16428,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "hideous-laughter",
@@ -16741,8 +16488,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "heat-metal",
@@ -16804,8 +16550,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "lesser-restoration",
@@ -16849,8 +16594,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "greater-restoration",
@@ -16894,8 +16638,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "expeditious-retreat",
@@ -16941,8 +16684,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-rombo-di-tuono",
@@ -16997,8 +16739,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "jump",
@@ -17044,8 +16785,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "spare-the-dying",
@@ -17089,8 +16829,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "sanctuary",
@@ -17140,8 +16879,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "bestow-curse",
@@ -17194,8 +16932,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "knock",
@@ -17241,8 +16978,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-scheggia-della-mente",
@@ -17296,8 +17032,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "meteor-swarm",
@@ -17356,8 +17091,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-sciame-di-palle-di-neve-di-snilloc",
@@ -17415,8 +17149,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "stone-shape",
@@ -17460,8 +17193,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "find-traps",
@@ -17505,8 +17237,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-scossa-sinaptica",
@@ -17568,8 +17299,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-scossa-tellurica",
@@ -17633,8 +17363,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "secret-chest",
@@ -17682,8 +17411,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-scritta-celeste",
@@ -17729,8 +17457,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "legacy-tashas-mind-whip",
@@ -17839,8 +17566,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "shield-of-faith",
@@ -17886,8 +17612,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fire-shield",
@@ -17937,8 +17662,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "darkvision",
@@ -17984,8 +17708,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "seeming",
@@ -18036,8 +17759,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "demiplane",
@@ -18083,8 +17805,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "arcane-lock",
@@ -18130,8 +17851,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-sfera-acquea",
@@ -18200,8 +17920,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-sfera-al-vetriolo",
@@ -18325,8 +18044,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-sfera-della-tempesta",
@@ -18457,8 +18175,7 @@
         "spatial": [
           "Nulla può attraversare la barriera in entrata e inuscita (oggetti fisici, energia o altri effetti magici), ma una creatura all'interno può respirare liberamente."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "flaming-sphere",
@@ -18580,8 +18297,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "eyebite",
@@ -18652,8 +18368,7 @@
         ],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "silence",
@@ -18715,8 +18430,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-soffio-del-drago",
@@ -18775,8 +18489,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-sonnellino",
@@ -18826,8 +18539,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "sleep",
@@ -18884,8 +18596,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "arcane-sword",
@@ -19115,8 +18826,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "prismatic-spray",
@@ -19258,8 +18968,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-stretta-della-terra-di-maximilian",
@@ -19319,8 +19028,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "shocking-grasp",
@@ -19368,8 +19076,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "tasha-sudario-spirituale",
@@ -19501,8 +19208,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mass-suggestion",
@@ -19552,8 +19258,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "phb2014-sussurri-dissonanti",
@@ -19602,8 +19307,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "thaumaturgy",
@@ -19649,8 +19353,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "telekinesis",
@@ -19767,8 +19470,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "teleport",
@@ -19814,8 +19516,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fire-storm",
@@ -19873,8 +19574,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "ice-storm",
@@ -19939,8 +19639,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "sleet-storm",
@@ -20019,8 +19718,7 @@
         "spatial": [
           "Quando una creatura entra nell'area dell'incantesimo per la prima volta in un turno o inizia il suo turno qui, deve superare un tiro salvezza su Destrezza."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "storm-of-vengeance",
@@ -20196,8 +19894,7 @@
         "spatial": [
           "Quando una creatura entra nell'area influenzata per la prima volta in un turno o inizia il suo turno qui, deve superare un tiro salvezza su Destrezza, altrimenti subisce 3d6 danni contundenti ed è trattenuta dai tentacoli fino alla fine dell'incantesimo."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "earthquake",
@@ -20220,35 +19917,17 @@
       ],
       "coverage": [
         "tracking",
-        "aree:zone",
+        "aree:zone/zone",
         "lifecycle",
         "TS",
         "status:Prono",
         "movimento",
-        "turni"
+        "turni",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "CHILD_ZONE_GEOMETRY",
-          "label": "sottozona figlia non modellata",
-          "evidence": [
-            "per la durata dell'incantesimo, una scossa intensa sconquassa il terreno in un raggio di 30 metri centrato su quel punto e scuote creature e strutture a contatto con il terreno di quell'area.",
-            "Il terreno nell'area diventa terreno difficile: qualsiasi creatura si stia concentrando all'interno dell'area deve effettuare un tiro salvezza su Costituzione.",
-            "Quando l'incantatore lancia questo incantesimo e alla fine di ogni turno trascorso a concentrarsi su di esso, ogni creatura sul terreno nell'area deve effettuare un tiro salvezza su Destrezza."
-          ]
-        },
-        {
-          "code": "MODE_SPECIFIC_RUNTIME",
-          "label": "runtime specifico delle modalità incompleto",
-          "evidence": [
-            "per la durata dell'incantesimo, una scossa intensa sconquassa il terreno in un raggio di 30 metri centrato su quel punto e scuote creature e strutture a contatto con il terreno di quell'area.",
-            "Il terreno nell'area diventa terreno difficile: qualsiasi creatura si stia concentrando all'interno dell'area deve effettuare un tiro salvezza su Costituzione.",
-            "Quando l'incantatore lancia questo incantesimo e alla fine di ogni turno trascorso a concentrarsi su di esso, ogni creatura sul terreno nell'area deve effettuare un tiro salvezza su Destrezza."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": [
@@ -20258,6 +19937,7 @@
       "runtime": {
         "trackable": true,
         "areaRuleIds": [
+          "earthquake:fissure",
           "earthquake:cast"
         ],
         "areaKinds": [
@@ -20273,7 +19953,9 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "earthquake-fissures"
+        ],
         "phaseOptions": [],
         "movementMechanics": true
       },
@@ -20296,7 +19978,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Zona madre, terreno difficile e reminder principali esistono; crepe e strutture non sono entità spaziali indipendenti con risoluzione atomica."
+      "curatedNote": "La zona madre di 30 m conserva terreno difficile, TS e reminder delle strutture. Al primo turno successivo del caster il popup chiede da 1 a 6 fessure consecutive, ciascuna larga 3 m e avviata da un punto qualsiasi del bordo della root con orientamento libero; la geometria viene ritagliata alle sole caselle interne, i bersagli vengono deduplicati, il TS Destrezza Ã¨ raccolto una sola volta e il fallimento usa soltanto l'effetto semantico Caduto nella fessura, lasciando profonditÃ , quota e crolli manuali."
     },
     {
       "id": "vampiric-touch",
@@ -20342,8 +20024,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "chill-touch",
@@ -20395,8 +20076,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "hypnotic-pattern",
@@ -20462,8 +20142,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-trasferimento-di-vita",
@@ -20507,8 +20186,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "shapechange",
@@ -20677,8 +20355,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-trasmutare-roccia",
@@ -20823,8 +20500,7 @@
         "spatial": [
           "Per la durata dell'incantesimo, qualsiasi creatura può entrare nel vegetale bersaglio e uscire da quello di destinazione usando 1,5 metri di movimento."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "rope-trick",
@@ -20874,8 +20550,7 @@
         "spatial": [
           "Gli attacchi e gli incantesimi non possono attraversare lo spazio extradimensionale in entrata o uscita, ma coloro che si trovano all'interno possono vedere all'esterno come da una finestra di 90 cm per 1,5 metri centrata sulla corda."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-turbine",
@@ -21026,8 +20701,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "grease",
@@ -21100,8 +20774,7 @@
         "spatial": [
           "Anche una creatura che entra nell'area o vi termina il proprio turno deve superare un tiro salvezza su Destrezza, altrimenti cade prona."
         ]
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-urlo-psichico",
@@ -21159,8 +20832,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-vampa-di-aganazzar",
@@ -21218,8 +20890,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "see-invisibility",
@@ -21265,8 +20936,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "haste",
@@ -21384,8 +21054,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "xanathar-vincolo-della-terra",
@@ -21439,8 +21108,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "warding-bond",
@@ -21486,8 +21154,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "true-seeing",
@@ -21535,8 +21202,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "false-life",
@@ -21582,8 +21248,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "fly",
@@ -21634,8 +21299,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     },
     {
       "id": "mind-blank",
@@ -21681,8 +21345,7 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      },
-      "curatedNote": ""
+      }
     }
   ],
   "excluded": [

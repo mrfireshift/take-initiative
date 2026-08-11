@@ -505,8 +505,6 @@ function __groupConditionInstances(cond = {}) {
       ? `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${compactSpellEffectLabel(group.name)}`
       : group.name === EXHAUSTION_CONDITION
       ? `${formatConditionName(group.name, group.theme?.emoji)} ${exhaustionLevelFromInstances(group.instances)}`
-      : group.instances.length > 1
-      ? `${formatConditionName(group.name, group.theme?.emoji)} x${group.instances.length}`
       : `${formatConditionName(group.name, group.theme?.emoji)}${__compactExpiryLabel(group.instances[0])}`,
   }));
 }

@@ -47,6 +47,11 @@
       button:disabled { cursor: default; opacity: .45; }
       .primary { border-color: #ddd6fe; background: linear-gradient(#8b5cf6,#6d28d9); }
       .toolbar { flex-wrap: wrap; }
+      .toolbar .field { flex: 1 1 150px; }
+      .child-depths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+      .child-depth { display: grid; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; gap: 5px; }
+      .child-depth label { overflow: hidden; color: rgba(226,232,240,.78); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+      .toolbar .field { flex: 1 1 150px; }
       .outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
       .outcomes button.active { border-color: #f5d0fe; background: rgba(126,34,206,.85); }
       .targets { display: flex; flex-direction: column; gap: 5px; min-height: 0; max-height: 205px; overflow: auto; padding-right: 2px; }
@@ -73,6 +78,8 @@
       <section id="saveSection" class="section" hidden>
         <div id="saveTitle" class="section-title">Sagoma e tiri salvezza</div>
         <div class="toolbar"><button id="place" type="button">Posiziona sagoma</button><span id="placementStatus" class="hint"></span></div>
+        <div id="childCountField" class="field" hidden><label id="childCountLabel" for="childCount">Numero</label><input id="childCount" type="number" min="1" max="6" step="1" inputmode="numeric" /></div>
+        <div id="childDepths" class="child-depths" hidden></div>
         <div id="bulkOutcomes" class="toolbar" hidden>
           <span class="hint">Imposta tutti:</span>
           <button type="button" data-bulk-outcome="passed">Superato</button>
