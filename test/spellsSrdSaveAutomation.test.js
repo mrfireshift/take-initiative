@@ -22,6 +22,7 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("command"), true);
   assert.equal(ids.has("xanathar-anatema-elementale"), true);
   assert.equal(ids.has("banishment"), true);
+  assert.equal(ids.has("xanathar-aculeo-mentale"), true);
   assert.equal(ids.has("xanathar-disperdere"), false);
   assert.equal(ids.has("xanathar-metamorfosi-di-massa"), false);
   assert.equal(ids.has("xanathar-muro-di-luce"), true);
@@ -84,6 +85,16 @@ test("i workflow multi-bersaglio senza sagoma riusano gli effetti esistenti", ()
   assert.deepEqual(chainLightning.trackOutcomes, []);
 });
 
+test("Aculeo Mentale applica Localizzato soltanto ai TS falliti", () => {
+  const automation = getAreaSaveAutomation("xanathar-aculeo-mentale");
+
+  assert.deepEqual(automation.trackOutcomes, ["failed"]);
+  assert.equal(automation.passed, undefined);
+  assert.equal(automation.immune, undefined);
+  assert.deepEqual(automation.failed.map((rule) => rule.effectId), ["location-known"]);
+  assert.equal(automation.failed[0].condition, "Localizzato · invis. inefficace");
+});
+
 test("Anatema Elementale riusa l'effetto del tipo scelto soltanto sui fallimenti", () => {
   const automation = getAreaSaveAutomation("xanathar-anatema-elementale", "fuoco");
 
@@ -143,6 +154,10 @@ test("le nuove aree collegano condizioni e casi senza effetto persistente", () =
   assert.equal(
     getAreaSaveAutomation("holy-aura").failed[0].effectKind,
     "buff",
+  );
+  assert.equal(
+    getAreaSaveAutomation("holy-aura").failed[0].condition,
+    "Vantaggio TS · svantaggio Att",
   );
   assert.deepEqual(
     getAreaSaveAutomation("mass-cure-wounds").trackOutcomes,

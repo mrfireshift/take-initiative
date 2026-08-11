@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, RUNTIME_CACHE_CLEANUP_CHANNEL } from "./constants.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
   pendingSpellZoneTriggerActivations,
@@ -19,7 +19,8 @@ import {
   reminderResolutionNeedsDamage,
 } from "./reminderResolutionCore.js";
 import { resolveReminder } from "./reminderResolution.js";
-import { currentSceneEpoch } from "./sceneEpoch.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
 import { isTurnNoticeForScene } from "./turnNotice.js";
 import { projectReminderNotices } from "./options/optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
@@ -103,6 +104,7 @@ let zonePendingSyncRunning = false;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
 let unsubscribeUiBroadcast: (() => void) | null = null;
 let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
+let unsubscribeRuntimeCacheCleanup: (() => void) | null = null;
 let noticeSceneEpoch = 0;
 let noticeSceneReady = true;
 let noticeRole = "PLAYER";
@@ -116,6 +118,30 @@ let lastNoticeLayoutKey = "";
 const resolutionDrafts = new Map<string, { outcome: string; damageRoll: string }>();
 const resolutionStatus = new Map<string, string>();
 const resolvingActivations = new Set<string>();
+
+const MAX_ANNOUNCED_ACTIVATION_IDS = 512;
+
+function rememberAnnouncementIds(target: Set<string>, ids: Iterable<string>) {
+  for (const value of ids || []) {
+    const activationId = String(value || "").trim();
+    if (activationId) target.add(activationId);
+  }
+  if (target.size <= MAX_ANNOUNCED_ACTIVATION_IDS) return;
+  const recent = [...target].slice(-Math.floor(MAX_ANNOUNCED_ACTIVATION_IDS / 2));
+  target.clear();
+  for (const activationId of recent) target.add(activationId);
+}
+
+function clearRuntimeReminderCaches() {
+  announcedZoneActivationIds.clear();
+  announcedEffectActivationIds.clear();
+  resolutionDrafts.clear();
+  resolutionStatus.clear();
+  resolvingActivations.clear();
+  zonePendingBaselineReady = false;
+  clearPendingSaveReminderNotices();
+  clearZoneNotice();
+}
 
 const RESOLUTION_LABELS: Record<string, string> = {
   [REMINDER_OUTCOMES.PASSED]: "Superato",
@@ -642,8 +668,11 @@ function showEffectSaveNotices(raw: any) {
       continue;
     }
     notices.push(notice);
-    announcedEffectActivationIds.add(notice.activationId);
   }
+  rememberAnnouncementIds(
+    announcedEffectActivationIds,
+    notices.map((notice) => notice.activationId),
+  );
   queueSaveReminderNotices(notices);
 }
 
@@ -658,15 +687,11 @@ function showZoneNotices(raw: any, { baseline = false } = {}) {
     [...announcedZoneActivationIds],
   );
   if (baseline) {
-    for (const activationId of plan.announcedIds) {
-      announcedZoneActivationIds.add(activationId);
-    }
+    rememberAnnouncementIds(announcedZoneActivationIds, plan.announcedIds);
     return;
   }
   if (queueSaveReminderNotices(plan.notices as ZoneTriggerNotice[])) {
-    for (const activationId of plan.announcedIds) {
-      announcedZoneActivationIds.add(activationId);
-    }
+    rememberAnnouncementIds(announcedZoneActivationIds, plan.announcedIds);
   }
 }
 
@@ -678,7 +703,12 @@ async function syncPendingZoneNotices() {
     clearZoneNotice();
     return;
   }
-  const items = await OBR.scene.items.getItems();
+  const sceneEpoch = currentSceneEpoch();
+  const sharedSnapshot = readSceneItemsSnapshot(sceneEpoch);
+  const items = sharedSnapshot.complete
+    ? sharedSnapshot.items
+    : await OBR.scene.items.getItems();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const itemsById = new Map(items.map((item) => [item.id, item]));
   const notices = pendingSpellZoneTriggerActivations(items)
     .map((activation) => zoneTriggerNoticeFromActivation(
@@ -758,6 +788,14 @@ OBR.onReady(async () => {
       showZoneNotices(data);
     }
   });
+  unsubscribeRuntimeCacheCleanup = OBR.broadcast.onMessage(
+    RUNTIME_CACHE_CLEANUP_CHANNEL,
+    (event) => {
+      if (event?.data?.type !== "clear-runtime-caches") return;
+      clearRuntimeReminderCaches();
+      if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) requestPendingZoneNoticeSync();
+    },
+  );
   const announceReady = () => OBR.broadcast.sendMessage(
     READY_CHANNEL,
     { type: "turn-notice-ready", sceneEpoch: noticeSceneEpoch },
@@ -781,13 +819,7 @@ OBR.onReady(async () => {
       noticeSceneReady = false;
       clearTurnNotice();
       zonePendingBaselineReady = false;
-      announcedZoneActivationIds.clear();
-      announcedEffectActivationIds.clear();
-      resolutionDrafts.clear();
-      resolutionStatus.clear();
-      resolvingActivations.clear();
-      clearPendingSaveReminderNotices();
-      clearZoneNotice();
+      clearRuntimeReminderCaches();
       return;
     }
     noticeSceneReady = true;
@@ -805,5 +837,6 @@ window.addEventListener("beforeunload", () => {
   unsubscribeZoneSceneReady?.();
   unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();
+  unsubscribeRuntimeCacheCleanup?.();
   unsubscribeOptions?.();
 });

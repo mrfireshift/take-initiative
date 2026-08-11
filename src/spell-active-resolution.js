@@ -4,12 +4,23 @@ import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
 } from "./spellActiveResolutionCore.js";
-import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
+import {
+  cancelSpellAreaPlacementRequest,
+  confirmSpellAreaPlacementRequest,
+  createSpellAreaPlacementRequestId,
+  requestSpellAreaPlacement,
+} from "./spellAreaPlacementClient.js";
 import { executeSpellActiveResolution } from "./spellApplicationExecutor.js";
+import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
 import { areaHitsBounds } from "./aoeGeometryCore.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
+import {
+  buildSpellUnifiedPopupEvent,
+  SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
+  SPELL_UNIFIED_PANEL_POPUP_STATUSES,
+} from "./spellUnifiedPopupProtocol.js";
 
 const META_KEY = `${ID}/meta`;
 const params = new URLSearchParams(globalThis.location?.search || "");
@@ -26,8 +37,11 @@ let sceneItems = [];
 let outcomes = new Map();
 let selectedAttackTarget = "";
 let attackOutcome = "";
+let attackEntries = [];
 let busy = false;
+let pendingPlacementRequestId = "";
 let statusMessage = "";
+let parentNotified = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,8 +53,20 @@ function isFlameInvestiture() {
   return payload?.spellId === "xanathar-investitura-della-fiamma";
 }
 
+function isHolyWeapon() {
+  return payload?.spellId === "xanathar-arma-sacra";
+}
+
 function isChildZone() {
   return payload?.action?.resolutionKind === "child-zone";
+}
+
+function maxAttackCount() {
+  return Math.max(1, Math.floor(Number(payload?.action?.maxAttacks) || 1));
+}
+
+function isMultiAttack() {
+  return payload?.action?.resolutionKind === "single-attack" && maxAttackCount() > 1;
 }
 
 function childZone() {
@@ -73,21 +99,26 @@ function createChildActivationId() {
 function renderContext() {
   const callLightning = isCallLightning();
   const flameInvestiture = isFlameInvestiture();
+  const holyWeapon = isHolyWeapon();
   const child = childZone();
   const childLabel = childKindLabel(child?.childKind);
   $("eyebrow").textContent = callLightning
     ? "Invocare il fulmine"
     : flameInvestiture
       ? "Investitura della Fiamma"
+      : holyWeapon
+        ? "Arma Sacra"
       : child
         ? payload.spellName || "Sottozona incantesimo"
     : "Attivazione incantesimo";
-  $("attackTitle").textContent = "Fulmine";
+  $("attackTitle").textContent = payload?.action?.label || "Risoluzione dell'attacco";
   $("saveTitle").hidden = callLightning;
   $("saveTitle").textContent = callLightning
-    ? "Richiama il fulmine"
-    : flameInvestiture
-      ? "Linea di fuoco"
+      ? "Richiama il fulmine"
+      : flameInvestiture
+        ? "Linea di fuoco"
+        : holyWeapon
+        ? "Esplosione radiosa · TS Costituzione"
       : child
         ? `${childLabel}: posizionamento e bersagli`
     : "Sagoma e tiri salvezza";
@@ -95,14 +126,20 @@ function renderContext() {
     ? "Posiziona il fulmine"
     : flameInvestiture
       ? "Posiziona la linea di fuoco"
+      : holyWeapon
+        ? "Posiziona l'esplosione"
       : child
         ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
     : "Posiziona sagoma";
+  const damage = payload?.action?.damage || {};
+  const damageLabel = [damage.formula || "Danno", damage.type || ""].join(" ").trim();
   $("damageLabel").textContent = callLightning
     ? "Danno del fulmine"
     : flameInvestiture
       ? "Danno della linea di fuoco"
-    : "Danno pieno";
+      : holyWeapon
+        ? "Danno dell'esplosione"
+    : damageLabel ? "Danno " + damageLabel : "Danno pieno";
   if (child) {
     const minimum = Math.max(1, Math.floor(Number(child.placementCount?.min) || 1));
     const maximum = Math.max(minimum, Math.floor(Number(child.placementCount?.max) || minimum));
@@ -126,9 +163,41 @@ function decodePayload() {
   }
 }
 
+async function notifyParent(status, message = "", executionResult = null) {
+  if (!payload || parentNotified) return;
+  parentNotified = true;
+  const history = spellExecutionHistoryDetails(executionResult);
+  await OBR.broadcast.sendMessage(
+    SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
+    buildSpellUnifiedPopupEvent({
+      source: "spell-active-resolution",
+      status,
+      instanceId: payload.instanceId,
+      actionId: payload.actionId,
+      popoverId: popoverIdFromPayload(payload),
+      message,
+      ...(history.historyEntryId
+        ? {
+          historyEntryId: history.historyEntryId,
+          undoAvailable: history.undoAvailable,
+        }
+        : {}),
+    }),
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
 async function closePopup() {
   if (!payload) return;
-  await OBR.popover.close(popoverIdFromPayload(payload));
+  if (pendingPlacementRequestId) {
+    await cancelSpellAreaPlacementRequest(
+      pendingPlacementRequestId,
+      { broadcast: OBR.broadcast },
+    ).catch(() => {});
+    pendingPlacementRequestId = "";
+  }
+  await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
+  await OBR.popover.close(popoverIdFromPayload(payload)).catch(() => {});
 }
 
 function displayName(item) {
@@ -166,7 +235,14 @@ function economyLabel(value) {
 async function stormTargetData() {
   const root = sceneItems.find((item) => item.id === payload?.zoneItemId);
   const area = root ? translatedZoneArea(root) : null;
-  const origin = point(area?.origin);
+  const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
+  const caster = sceneItems.find((item) => item.id === payload?.casterId);
+  const casterBounds = caster
+    ? await OBR.scene.items.getItemBounds([caster.id]).catch(() => null)
+    : null;
+  const origin = point(area?.origin)
+    || point(root?.position)
+    || (!requiresZoneRoot ? itemCenter(casterBounds, caster) : null);
   if (!origin) return { area: null, entries: [] };
   const dpi = await OBR.scene.grid.getDpi().catch(() => 150);
   const scale = await OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } }));
@@ -175,15 +251,17 @@ async function stormTargetData() {
     const bounds = await OBR.scene.items.getItemBounds([item.id]).catch(() => null);
     const center = itemCenter(bounds, item);
     if (!center) return null;
-    const inRange = spellAreaOriginWithinRange({
-      origin: center,
-      casterOrigin: origin,
-      range: payload.action.range,
-      dpi,
-      scale: scale?.parsed || scale,
-    });
+    const inRange = payload.action.range
+      ? spellAreaOriginWithinRange({
+        origin: center,
+        casterOrigin: origin,
+        range: payload.action.range,
+        dpi,
+        scale: scale?.parsed || scale,
+      })
+      : true;
     if (!inRange) return null;
-    const inside = areaHitsBounds(area, bounds);
+    const inside = !!(area && areaHitsBounds(area, bounds));
     return { item, inside };
   }));
   return { area, entries: entries.filter(Boolean) };
@@ -275,8 +353,34 @@ function renderSave() {
 async function renderStorm() {
   const select = $("attackTarget");
   const previous = selectedAttackTarget;
-  select.replaceChildren(new Option("Seleziona il bersaglio", ""));
   const { entries, area } = await stormTargetData();
+  const multi = isMultiAttack();
+  const outcomeDefinitions = Array.isArray(payload?.action?.attack?.outcomes)
+    ? payload.action.attack.outcomes
+    : [];
+  const outcomeLabels = { hit: "Colpito", miss: "Mancato", critical: "Critico" };
+  attackEntries = Array.from({ length: maxAttackCount() }, (_, index) => {
+    const current = attackEntries[index] || {};
+    return {
+      targetId: entries.some(({ item }) => item.id === current.targetId)
+        ? current.targetId
+        : "",
+      attackOutcome: outcomeDefinitions.includes(current.attackOutcome)
+        ? current.attackOutcome
+        : "",
+      damageRoll: current.damageRoll || "",
+    };
+  });
+
+  const attackRows = $("attackRows");
+  const attackField = $("attackDamage").closest(".field");
+  attackRows.hidden = !multi;
+  $("attackTarget").hidden = multi;
+  $("attackAdvantage").hidden = multi;
+  $("attackOutcomes").hidden = multi;
+  if (attackField) attackField.hidden = multi;
+
+  select.replaceChildren(new Option("Seleziona il bersaglio", ""));
   for (const { item, inside } of entries) {
     const option = new Option(`${displayName(item)}${inside ? " · vantaggio" : ""}`, item.id);
     option.dataset.inside = String(inside);
@@ -290,18 +394,79 @@ async function renderStorm() {
     : selectedAttackTarget
       ? "Tiro per colpire normale."
       : "Scegli una creatura entro 18 m dal centro della sfera.";
+  const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
   const canResolve = !busy
     && !!selectedAttackTarget
-    && !!area
+    && (!requiresZoneRoot || !!area)
     && !!$("attackDamage").value.trim();
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     button.classList.toggle("active", button.dataset.attackOutcome === attackOutcome);
+    button.hidden = !payload?.action?.attack?.outcomes?.includes(button.dataset.attackOutcome);
     button.disabled = !canResolve;
   }
-  $("status").textContent = area
+  attackRows.replaceChildren();
+  if (multi) {
+    for (let index = 0; index < attackEntries.length; index += 1) {
+      const entry = attackEntries[index];
+      const row = document.createElement("div");
+      row.className = "attack-row";
+      const title = document.createElement("div");
+      title.className = "attack-row__title";
+      title.textContent = `Attacco ${index + 1}`;
+      const rowSelect = document.createElement("select");
+      rowSelect.setAttribute("aria-label", `Bersaglio attacco ${index + 1}`);
+      rowSelect.appendChild(new Option("Nessun attacco", ""));
+      for (const { item, inside } of entries) {
+        rowSelect.appendChild(new Option(
+          `${displayName(item)}${inside ? " · vantaggio" : ""}`,
+          item.id,
+        ));
+      }
+      rowSelect.value = entry.targetId;
+      rowSelect.disabled = busy;
+      rowSelect.addEventListener("change", (event) => {
+        attackEntries[index] = { ...attackEntries[index], targetId: event.target.value };
+        render();
+      });
+      const rowOutcomes = document.createElement("div");
+      rowOutcomes.className = "outcomes";
+      for (const value of outcomeDefinitions) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = outcomeLabels[value] || value;
+        button.classList.toggle("active", entry.attackOutcome === value);
+        button.disabled = busy || !entry.targetId || (requiresZoneRoot && !area);
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          attackEntries[index] = { ...attackEntries[index], attackOutcome: value };
+          render();
+        });
+        rowOutcomes.appendChild(button);
+      }
+      const damageField = document.createElement("div");
+      damageField.className = "field";
+      const damageLabel = document.createElement("label");
+      damageLabel.textContent = `Danno ${payload?.action?.damage?.formula || ""} ${payload?.action?.damage?.type || ""}`.trim();
+      const damageInput = document.createElement("input");
+      damageInput.type = "number";
+      damageInput.min = "0";
+      damageInput.step = "1";
+      damageInput.inputMode = "numeric";
+      damageInput.placeholder = "Totale";
+      damageInput.value = entry.damageRoll;
+      damageInput.addEventListener("input", (event) => {
+        attackEntries[index] = { ...attackEntries[index], damageRoll: event.target.value };
+        render();
+      });
+      damageField.append(damageLabel, damageInput);
+      row.append(title, rowSelect, rowOutcomes, damageField);
+      attackRows.appendChild(row);
+    }
+  }
+  $("status").textContent = area || !requiresZoneRoot
     ? ""
-    : "La Sfera della Tempesta non è più disponibile.";
-  $("status").hidden = !!area;
+    : "La zona dell'incantesimo non è più disponibile.";
+  $("status").hidden = !!area || !requiresZoneRoot;
 }
 
 function render() {
@@ -313,9 +478,21 @@ function render() {
   const child = childZone();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
+  const multiAttack = !save && isMultiAttack();
   $("saveSection").hidden = !save;
   $("attackSection").hidden = save;
-  $("footer").hidden = !save;
+  $("footer").hidden = !save && !multiAttack;
+  const placementPending = !!pendingPlacementRequestId;
+  const confirmPlacementButton = $("confirmPlacement");
+  const cancelPlacementButton = $("cancelPlacement");
+  if (confirmPlacementButton) {
+    confirmPlacementButton.hidden = !placementPending;
+    confirmPlacementButton.disabled = !placementPending;
+  }
+  if (cancelPlacementButton) {
+    cancelPlacementButton.hidden = !placementPending;
+    cancelPlacementButton.disabled = !placementPending;
+  }
   if (save) {
     const selectedCount = child ? childPlacements.length : 1;
     const requiredCount = child ? childPlacementCount() : 1;
@@ -336,7 +513,17 @@ function render() {
     $("summary").textContent = "";
     renderSave();
   } else {
-    $("summary").textContent = selectedAttackTarget ? "Bersaglio selezionato" : "Nessun bersaglio";
+    const completeAttacks = attackEntries.filter((entry) => (
+      entry.targetId && entry.attackOutcome && String(entry.damageRoll).trim() !== ""
+    ));
+    if (multiAttack) {
+      $("apply").disabled = busy || !completeAttacks.length
+        || completeAttacks.length < attackEntries.filter((entry) => entry.targetId).length;
+      $("apply").textContent = "Applica attacchi";
+      $("summary").textContent = `${completeAttacks.length}/${maxAttackCount()} attacchi pronti`;
+    } else {
+      $("summary").textContent = selectedAttackTarget ? "Bersaglio selezionato" : "Nessun bersaglio";
+    }
     void renderStorm();
   }
   if (statusMessage) $("status").textContent = statusMessage;
@@ -350,6 +537,8 @@ async function placeArea() {
     ? childPlacements.length - 1
     : -1;
   if (child && !childCount) return;
+  const requestId = createSpellAreaPlacementRequestId();
+  pendingPlacementRequestId = requestId;
   busy = true;
   render();
   setStatus(child
@@ -375,6 +564,7 @@ async function placeArea() {
           sceneEpoch: payload.sceneEpoch,
         }
         : null,
+      requestId,
     }, { broadcast: OBR.broadcast, windowRef: window });
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.");
@@ -412,8 +602,30 @@ async function placeArea() {
   } catch (error) {
     setStatus(`Posizionamento non riuscito: ${error?.message || error}`);
   } finally {
+    pendingPlacementRequestId = "";
     busy = false;
     render();
+  }
+}
+
+async function confirmPlacement() {
+  const requestId = pendingPlacementRequestId;
+  if (!requestId) return;
+  try {
+    await confirmSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast });
+    setStatus("Conferma della sagoma richiesta: completa il calcolo dei bersagli…");
+  } catch (error) {
+    setStatus("Conferma della sagoma non riuscita: " + (error?.message || error));
+  }
+}
+
+async function cancelPlacement() {
+  const requestId = pendingPlacementRequestId;
+  if (!requestId) return;
+  try {
+    await cancelSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast });
+  } catch (error) {
+    setStatus("Annullamento della sagoma non riuscito: " + (error?.message || error));
   }
 }
 
@@ -422,10 +634,12 @@ async function apply() {
   busy = true;
   render();
   try {
-    await executeSpellActiveResolution({
+    const executionResult = await executeSpellActiveResolution({
       payload,
       placement,
-      targetIds: payload.action.resolutionKind === "single-attack"
+      targetIds: isMultiAttack()
+        ? attackEntries.filter((entry) => entry.targetId).map((entry) => entry.targetId)
+        : payload.action.resolutionKind === "single-attack"
         ? [selectedAttackTarget]
         : currentTargetItems().map((item) => item.id),
       outcomes: Object.fromEntries(outcomes),
@@ -435,10 +649,26 @@ async function apply() {
         ? $("attackDamage").value
         : $("damage").value,
       attackOutcome,
+      attacks: isMultiAttack()
+        ? attackEntries.filter((entry) => entry.targetId).map((entry) => ({
+          targetId: entry.targetId,
+          attackOutcome: entry.attackOutcome,
+          damageRoll: entry.damageRoll,
+        }))
+        : [],
     });
-    await OBR.popover.close(popoverIdFromPayload(payload));
+    await notifyParent(
+      SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
+      "",
+      executionResult,
+    );
+    await OBR.popover.close(popoverIdFromPayload(payload)).catch(() => {});
   } catch (error) {
     busy = false;
+    await notifyParent(
+      SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED,
+      error?.message || error,
+    );
     setStatus(`Risoluzione non riuscita: ${error?.message || error}`);
     render();
   }
@@ -459,7 +689,14 @@ if (!payload) {
     initializePopoverDrag($("app"));
   });
   $("close").addEventListener("click", () => void closePopup());
+  window.addEventListener(
+    "beforeunload",
+    () => void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED),
+    { once: true },
+  );
   $("place").addEventListener("click", () => void placeArea());
+  $("confirmPlacement")?.addEventListener("click", () => void confirmPlacement());
+  $("cancelPlacement")?.addEventListener("click", () => void cancelPlacement());
   $("apply").addEventListener("click", () => void apply());
   $("damage").addEventListener("input", (event) => {
     event.target.dataset.value = event.target.value;

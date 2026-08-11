@@ -37,6 +37,7 @@ export function resolveSpellMechanics(value, castContext = {}) {
     ["abilityCheck", "bonus"],
     ["tempHp", "amount"],
     ["retaliationDamage", "amount"],
+    ["weaponBonus", "bonus"],
   ]) {
     const [group, field] = path;
     if (!mechanics[group] || mechanics[group][field] === undefined) continue;
@@ -78,6 +79,10 @@ export function spellMechanicsLabel(mechanics, fallback = "") {
   }
   if (Number.isFinite(Number(mechanics.armorClass?.bonus))) {
     parts.push(`+${Number(mechanics.armorClass.bonus)} CA`);
+  }
+  if (Number.isFinite(Number(mechanics.weaponBonus?.bonus))) {
+    const label = String(mechanics.weaponBonus?.label || "Bonus arma").trim();
+    parts.push(`${label} · +${Number(mechanics.weaponBonus.bonus)}`);
   }
   if (mechanics.damageBonus?.dice) {
     const type = String(mechanics.damageBonus.type || "danni").trim();

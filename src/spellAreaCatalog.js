@@ -5,6 +5,7 @@ const FEET_TO_METERS = 0.3;
 const SIGHT_RANGE_METERS = 1500;
 
 const EXPLICIT_RULE_SPELL_IDS = new Set([
+  "phb2014-allucinazione-di-forza",
   "burning-hands",
   "cone-of-cold",
   "call-lightning",

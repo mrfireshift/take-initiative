@@ -78,7 +78,8 @@ test("iniziativa, concentrazione e velocita conservano la card da 500 px con mar
   assert.match(turnNoticeHost, /const TURN_NOTICE_CARD_WIDTH = 500;/);
   assert.match(turnNoticeHost, /const TURN_NOTICE_FRAME_GUTTER = 4;/);
   assert.match(turnNoticeHost, /return 122;/);
-  assert.match(initiative, /const width = cardWidth \+ 8;[\s\S]{0,100}const height = Math\.min\(288, 122/);
+  assert.match(initiative, /const width = cardWidth \+ 8;/);
+  assert.match(initiative, /const height = Math\.min\(288, 122/);
   assert.match(speedCheck, /const width = cardWidth \+ 8;/);
   assert.match(speedCheck, /height: 122,/);
   assert.match(speedCheck, /export function prewarmSpeedCheckTurn\(state\)/);
@@ -89,11 +90,6 @@ test("iniziativa, concentrazione e velocita conservano la card da 500 px con mar
   }
 });
 
-test("il posizionamento area conserva il lifecycle nativo della build Git", () => {
-  const placement = quickHp.slice(
-    quickHp.indexOf("async function placeSelectedSpellArea()"),
-    quickHp.indexOf("function syncHPVisualUpdates"),
-  );
-  assert.match(placement, /await requestSpellAreaPlacement\(/);
-  assert.doesNotMatch(placement, /popover\.setWidth|popover\.setHeight|visibility = "hidden"/);
+test("la Console HP manuale non gestisce il posizionamento area", () => {
+  assert.doesNotMatch(quickHp, /requestSpellAreaPlacement|placeSelectedSpellArea|areaPlacement/);
 });

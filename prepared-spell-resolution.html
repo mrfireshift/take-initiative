@@ -61,6 +61,20 @@
         min-width: 0;
         gap: 8px;
       }
+      #close {
+        flex: none;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 1px solid rgba(196, 181, 253, .45);
+        border-radius: 6px;
+        background: rgba(15, 23, 42, .55);
+        color: rgba(248, 250, 252, .82);
+        cursor: pointer;
+        font-size: 15px;
+        line-height: 18px;
+      }
+      #close:hover { background: rgba(139, 92, 246, .5); }
       #spellName {
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
@@ -129,6 +143,7 @@
       <div class="heading">
         <strong id="spellName">Caricamento…</strong>
         <span id="casterName"></span>
+        <button id="close" type="button" aria-label="Chiudi">×</button>
       </div>
       <select id="resolutionChoice" aria-label="Variante di risoluzione" hidden></select>
       <div class="action-row">

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  cancelSpellAreaPlacementRequest,
+  confirmSpellAreaPlacementRequest,
   createSpellAreaPlacementRequestId,
   requestSpellAreaPlacement,
 } from "../src/spellAreaPlacementClient.js";
@@ -56,6 +58,47 @@ test("il client correla la risposta alla singola richiesta", async () => {
   assert.equal((await pending).status, "confirmed");
 });
 
+test("il client ritenta il primo handoff finché il tool non conferma la presa in carico", async () => {
+  const broadcast = fakeBroadcast();
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-retry",
+    ruleId: "fireball:cast",
+    casterId: "caster",
+  }, {
+    broadcast,
+    windowRef: null,
+    retryDelaysMs: [0],
+    requestTimeoutMs: 20,
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(broadcast.sent.length, 2);
+  broadcast.emit({ type: "accepted", requestId: "request-retry" });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  broadcast.emit({
+    type: "result",
+    requestId: "request-retry",
+    status: "cancelled",
+  });
+  assert.equal((await pending).status, "cancelled");
+});
+
+test("il client termina con un errore esplicito se il background non risponde", async () => {
+  const result = await requestSpellAreaPlacement({
+    requestId: "request-timeout",
+    ruleId: "fireball:cast",
+    casterId: "caster",
+  }, {
+    broadcast: fakeBroadcast(),
+    windowRef: null,
+    retryDelaysMs: [],
+    requestTimeoutMs: 5,
+  });
+
+  assert.equal(result.status, "error");
+  assert.equal(result.error, "placement-transport-timeout");
+});
+
 test("gli id generati sono valorizzati e distinti", () => {
   const first = createSpellAreaPlacementRequestId();
   const second = createSpellAreaPlacementRequestId();
@@ -84,4 +127,37 @@ test("il client propaga la variante scelta della sagoma", async () => {
     ruleChoice: "box",
   });
   assert.equal((await pending).ruleChoice, "box");
+});
+
+test("il client annulla una richiesta pendente usando lo stesso canale", async () => {
+  const broadcast = fakeBroadcast();
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-cancel",
+    ruleId: "arcane-hand:board-token",
+    casterId: "caster",
+  }, {
+    broadcast,
+    windowRef: null,
+  });
+
+  await Promise.resolve();
+  assert.equal(await cancelSpellAreaPlacementRequest("request-cancel", { broadcast }), true);
+  assert.deepEqual(broadcast.sent[1].data, {
+    type: "cancel",
+    requestId: "request-cancel",
+  });
+  broadcast.emit({ type: "result", requestId: "request-cancel", status: "cancelled" });
+  assert.equal((await pending).status, "cancelled");
+});
+
+test("il client conferma una sagoma pendente usando lo stesso canale", async () => {
+  const broadcast = fakeBroadcast();
+  assert.equal(
+    await confirmSpellAreaPlacementRequest("request-confirm", { broadcast }),
+    true,
+  );
+  assert.deepEqual(broadcast.sent[0].data, {
+    type: "confirm",
+    requestId: "request-confirm",
+  });
 });

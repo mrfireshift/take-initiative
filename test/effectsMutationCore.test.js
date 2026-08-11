@@ -206,6 +206,65 @@ test("rompere la concentrazione rimuove anche l'incantesimo applicato al caster"
   assert.deepEqual(state(plan, "caster").conditions, []);
 });
 
+test("il congedo di Arma Sacra conserva Accecato indipendente dalla concentrazione", () => {
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        armaSacra: {
+          name: "Arma Sacra",
+          instanceId: "holy-weapon-instance",
+          targets: ["caster"],
+        },
+      },
+      spells: [{
+        id: "holy-weapon-entry",
+        name: "Arma Sacra",
+        turns: 10,
+        conc: true,
+        casterId: "caster",
+        instanceId: "holy-weapon-instance",
+      }],
+    }),
+    token("target"),
+  ], [
+    {
+      type: "concentration:break",
+      casterIds: ["caster"],
+      reference: "holy-weapon-instance",
+    },
+    {
+      type: "spell:remove-instance",
+      targetIds: ["caster"],
+      instanceId: "holy-weapon-instance",
+    },
+    {
+      type: "condition:add",
+      targetIds: ["target"],
+      conditionName: "Accecato",
+      instanceIds: { target: "blinded-instance" },
+      options: {
+        type: "spell",
+        parentEffectId: "",
+        effectId: "holy-weapon-blinded",
+        expiry: { mode: "rounds", remaining: 10 },
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+        },
+      },
+    },
+  ]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "caster").spells, []);
+  assert.equal(String(state(plan, "target").conditions[0].parentEffectId || ""), "");
+  assert.deepEqual(state(plan, "target").conditions[0].expiry, {
+    mode: "rounds",
+    remaining: 10,
+  });
+});
+
 test("una pill buff collegata alla spell conserva semantica e rimozione manuale indipendente", () => {
   const applied = buildEffectsMutationPlan([token("target")], [
     {

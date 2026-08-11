@@ -1,4 +1,4 @@
-export const QUICK_ACTION_VERSION = 1;
+export const QUICK_ACTION_VERSION = 2;
 export const MAX_QUICK_ACTIONS = 12;
 
 export const QUICK_ACTION_KINDS = Object.freeze([
@@ -12,9 +12,9 @@ export const QUICK_ACTION_TARGET_MODES = Object.freeze([
   "selection",
 ]);
 
-export const QUICK_ACTION_SPELL_WORKFLOWS = Object.freeze([
-  "spell",
-  "area",
+export const QUICK_ACTION_SPELL_LAUNCH_MODES = Object.freeze([
+  "auto",
+  "review",
 ]);
 
 export const QUICK_ACTION_EXPIRY_MODES = Object.freeze([
@@ -26,7 +26,7 @@ export const QUICK_ACTION_EXPIRY_MODES = Object.freeze([
 
 const kindSet = new Set(QUICK_ACTION_KINDS);
 const targetModeSet = new Set(QUICK_ACTION_TARGET_MODES);
-const spellWorkflowSet = new Set(QUICK_ACTION_SPELL_WORKFLOWS);
+const spellLaunchModeSet = new Set(QUICK_ACTION_SPELL_LAUNCH_MODES);
 const expiryModeSet = new Set(QUICK_ACTION_EXPIRY_MODES);
 
 function shortText(value, maxLength) {
@@ -59,20 +59,21 @@ export function sanitizeQuickAction(value) {
   if (kind === "spell") {
     const spellId = shortText(value.spellId, 160);
     if (!spellId) return null;
-    const workflow = spellWorkflowSet.has(value.workflow)
-      ? value.workflow
-      : "spell";
+    const legacyLaunchMode = value.workflow === "area" ? "review" : "auto";
+    const launchMode = spellLaunchModeSet.has(value.launchMode)
+      ? value.launchMode
+      : legacyLaunchMode;
     return {
       version: QUICK_ACTION_VERSION,
       id,
       label,
       kind,
       spellId,
-      workflow,
       targetMode,
       slotLevel: optionalInteger(value.slotLevel, 1, 9),
       turns: optionalInteger(value.turns, 1, 999),
       applyAutomations: value.applyAutomations !== false,
+      launchMode,
     };
   }
 
@@ -128,14 +129,6 @@ export function findQuickAction(profile, actionId) {
   if (!wantedId) return null;
   return sanitizeQuickActions(profile?.quickActions)
     .find((action) => action.id === wantedId) || null;
-}
-
-export function quickActionPanel(action) {
-  const normalized = sanitizeQuickAction(action);
-  if (!normalized) return "";
-  if (normalized.kind === "condition") return "conditions";
-  if (normalized.kind === "feature") return "features";
-  return normalized.workflow === "area" ? "quick-hp" : "spells";
 }
 
 export function quickActionInitialTargetIds(action, sourceId, selectedIds = []) {

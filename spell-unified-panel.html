@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Incantesimi</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <link rel="stylesheet" href="/spell-unified-panel.css" />
+  </head>
+  <body class="unified-panel-body">
+    <main
+      class="glass-shell unified-panel-shell"
+      data-glass-popover="1"
+      data-popover-id="com.thebigpicture.initiative/spells-modal"
+      role="dialog"
+      aria-labelledby="unified-panel-title"
+    >
+      <div class="unified-panel-topbar">
+        <h1 id="unified-panel-title">Incantesimi</h1>
+        <button
+          id="spell-unified-close"
+          class="unified-close-button"
+          type="button"
+          aria-label="Chiudi pannello Spells"
+        >
+          X
+        </button>
+      </div>
+      <div id="spell-unified-panel-root" class="unified-panel-scroll" tabindex="-1"></div>
+    </main>
+    <script type="module" src="/src/spell-unified-panel.js"></script>
+  </body>
+</html>

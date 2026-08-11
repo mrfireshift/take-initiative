@@ -11,16 +11,50 @@ import {
   getSpellCatalog,
   getTrackableSpellOptions,
 } from "../src/spells-srd.js";
+import { ID } from "../src/constants.js";
+import {
+  buildSpellApplicationIntent,
+  buildSpellApplicationPlan,
+} from "../src/spellApplicationPlanCore.js";
+import { getSpellOverviewActions } from "../src/spellActiveActionCore.js";
 import { getSpellAreaRules } from "../src/spellAreaRules.js";
 import { getSpellCastPhaseOptions } from "../src/spellCastPhaseCore.js";
+import { callLightningTurnPromptPayloads } from "../src/callLightningTurnPromptCore.js";
 import {
   getSpellSaveWorkflowChoiceOptions,
   getSpellSaveWorkflowRule,
 } from "../src/spellSaveWorkflowRules.js";
+import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
+import {
+  buildSpellUnifiedAreaCommand,
+  getSpellUnifiedAreaEligibility,
+} from "../src/spellUnifiedAreaAdapter.js";
+import {
+  buildSpellUnifiedLifecycleRequest,
+  getSpellUnifiedLifecycleEligibility,
+} from "../src/spellUnifiedLifecycleAdapter.js";
+import {
+  buildSpellUnifiedPanelContract,
+  createSpellPanelSession,
+  getSpellUnifiedActiveActionDeclarations,
+} from "../src/spellUnifiedPanelCore.js";
+import { buildSpellUnifiedCatalogEntries } from "../src/spellUnifiedPanelCatalogCore.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const JSON_OUTPUT = path.join(ROOT, "data", "spell-automation-audit.json");
 const MARKDOWN_OUTPUT = path.join(ROOT, "docs", "AUDIT_AUTOMAZIONE_INCANTESIMI.md");
+const META_KEY = `${ID}/meta`;
+const SPELLS_KEY = `${ID}/spells`;
+
+const INTEGRATION_ISSUE_LABELS = Object.freeze({
+  UNIFIED_CATALOG_MISSING: "incantesimo non esposto nella console unificata",
+  CONTRACT_MISSING: "contratto della console unificata non costruibile",
+  CAST_PATH_INVALID: "nessun percorso di cast valido nella console unificata",
+  CAST_NO_MUTATIONS: "il cast non produce alcuna mutazione significativa",
+  PERSISTENCE_UNDECLARED: "l'azione successiva richiede un'istanza che il cast non dichiara persistente",
+  ACTIVE_ACTION_UNREACHABLE: "azione successiva dichiarata ma non raggiungibile dalla UI",
+  ACTIVE_ACTION_REMINDER_ONLY: "azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva",
+});
 
 const CONDITIONS = Object.freeze([
   "Accecato",
@@ -304,7 +338,7 @@ const CURATED_COMPLETE = Object.freeze({
   "freedom-of-movement": "Lo Speed Tracker applica le immunità selettive a terreno difficile e riduzioni magiche della velocità; le applicazioni magiche di Paralizzato e Trattenuto vengono rifiutate. Al turno del bersaglio un reminder propone di spendere 1,5 m per rimuovere una singola restrizione non magica Afferrato o Trattenuto e aggiorna il consumo quando il tracker è attivo; senza tracker resta una conferma manuale del costo RAW.",
   "command": "Il workflow batch del TS Saggezza scala da un bersaglio al 1° livello (+1 per slot superiore), conserva una sola scelta di comando per il cast, applica gli effetti ai soli fallimenti e attiva Prono di Supplica all'inizio del turno successivo, lasciandolo persistente; la pill tecnica scade alla fine di quel turno.",
   "call-lightning": "Il lancio crea una nube temporalesca persistente di raggio 18 m collegata alla concentrazione del caster e conserva la scarica iniziale da 1,5 m; il prompt per richiamare i fulmini appare all'inizio di ogni turno del caster, fuori dal pannello Spells, si chiude al cambio di turno e risolve TS Destrezza, danni e scaling dello slot in una transazione.",
-  "xanathar-investitura-della-fiamma": "L'aura mobile di 1,5 m considera solo le creature ostili e produce reminder manuali da 1d10 fuoco all'ingresso e a fine turno con input danno e Conferma; il caster riceve la pill informativa di immunità al fuoco e resistenza al freddo. Dal turno successivo al lancio, la Linea di fuoco opzionale usa il popup dedicato con TS Destrezza e 4d8 fuoco.",
+  "xanathar-investitura-della-fiamma": "L'aura mobile di 1,5 m include tutte le creature nell'area tranne il caster, compresi gli alleati, e produce reminder manuali da 1d10 fuoco all'ingresso e a fine turno con input danno e Conferma; il caster riceve la pill informativa di immunità al fuoco e resistenza al freddo. Dal turno successivo al lancio, la Linea di fuoco opzionale usa il popup dedicato con TS Destrezza e 4d8 fuoco.",
   "xanathar-sfera-della-tempesta": "Il trigger di TS e danni a fine turno resta invariato; l'azione bonus Fulmine usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera.",
   "gust-of-wind": "La zona persistente e il TS a inizio turno restano invariati; il contratto dello Speed Tracker raddoppia soltanto la porzione di ogni segmento realmente percorsa verso il caster, usa la posizione corrente della sorgente, conserva il costo nel percorso per Undo e deduplica la stessa istanza. Geometria, membership, cambio direzione e lifecycle sono coperti dai test logici dedicati.",
   "banishment": "Il workflow batch del TS Carisma, il limite con slot superiori, il contesto dell'origine del piano, Incapacitato per i nativi del piano e la distinzione fra interruzione anticipata e scadenza naturale sono operativi; il ritorno o la permanenza fuori piano restano una gestione fisica manuale intenzionale.",
@@ -570,7 +604,408 @@ function gap(code, evidence = []) {
   };
 }
 
-function deriveSpellAudit(spell, reference, trackableIds) {
+function integrationIssue(code, severity = "P0") {
+  return {
+    code,
+    severity,
+    label: INTEGRATION_ISSUE_LABELS[code] || code,
+  };
+}
+
+function validSyntheticContextValue(field) {
+  if (Array.isArray(field?.options) && field.options.length) return field.options[0].value;
+  if (["number", "integer", "numeric"].includes(field?.type)) return 1;
+  if (["boolean", "checkbox"].includes(field?.type)) return true;
+  return "current-plane";
+}
+
+function syntheticTargetIds(contract) {
+  const inputs = contract?.presentation?.inputs || {};
+  const targeting = contract?.presentation?.targeting || {};
+  const required = inputs.targets?.required === true
+    || targeting.mode !== "none"
+    || targeting.confirmTargets === true;
+  if (!required) return [];
+  const maximum = Number.isInteger(inputs.targets?.maximum) && inputs.targets.maximum > 0
+    ? inputs.targets.maximum
+    : Number.isInteger(targeting.limit?.maximum) && targeting.limit.maximum > 0
+      ? targeting.limit.maximum
+      : 1;
+  const count = contract?.spell?.id === "chain-lightning" ? Math.min(2, maximum) : 1;
+  return Array.from({ length: count }, (_, index) => index ? `target-${index}` : "target");
+}
+
+function syntheticPlacement(contract, targetIds) {
+  const placement = contract?.presentation?.placement || {};
+  if (placement.policy === "unavailable") return null;
+  const rule = placement.rules?.[0] || {};
+  if (placement.policy === "automatic") {
+    return {
+      status: "automatic",
+      state: "automatic",
+      policy: "automatic",
+      ruleId: rule.ruleId || placement.ruleId,
+      spellId: contract.spell.id,
+      casterId: "caster",
+      confirmed: true,
+      targetIds,
+    };
+  }
+  return {
+    status: "confirmed",
+    state: "confirmed",
+    confirmed: true,
+    policy: placement.policy,
+    ruleId: rule.ruleId || placement.ruleId,
+    spellId: contract.spell.id,
+    casterId: "caster",
+    targetIds,
+    targetLocked: true,
+    preview: {
+      type: rule.shape || "circle",
+      start: { x: 0, y: 0 },
+      end: { x: 50, y: 0 },
+      gridOrigin: { x: 0, y: 0 },
+      dpi: 50,
+      position: { x: 0, y: 0 },
+      targetIds,
+    },
+  };
+}
+
+function syntheticSession(contract) {
+  const inputs = contract?.presentation?.inputs || {};
+  const targetIds = syntheticTargetIds(contract);
+  const contextFields = contract?.presentation?.targeting?.workflow?.context?.fields || [];
+  const targetContext = Object.fromEntries(targetIds.map((targetId) => [
+    targetId,
+    Object.fromEntries(contextFields
+      .filter((field) => field.required === true)
+      .map((field) => [field.id, validSyntheticContextValue(field)])),
+  ]));
+  const attack = contract?.presentation?.outcomes?.mode === "attack";
+  return createSpellPanelSession({
+    contract,
+    casterId: "caster",
+    slotLevel: inputs.slot?.required ? contract.presentation.slot.default : null,
+    variant: inputs.variant?.required
+      ? contract.presentation.variant.options?.[0]?.value
+      : "",
+    durationTurns: inputs.duration?.required ? 1 : null,
+    targetIds,
+    primaryTargetId: inputs.primaryTarget?.required ? targetIds[0] : "",
+    outcomes: attack ? {} : Object.fromEntries(targetIds.map((id) => [id, "failed"])),
+    attackOutcome: attack ? "hit" : "",
+    targetContext,
+    placement: syntheticPlacement(contract, targetIds),
+    hpValues: {
+      damage: inputs.damage?.required ? 12 : null,
+      healing: inputs.healing?.required ? 12 : null,
+    },
+    requestedConcentration: contract?.presentation?.concentration?.required === true,
+    phase: contract?.presentation?.phase?.selected,
+  });
+}
+
+function syntheticCastAudit(contract) {
+  const session = syntheticSession(contract);
+  const lifecycle = getSpellUnifiedLifecycleEligibility(contract);
+  if (lifecycle.eligible) {
+    try {
+      const request = buildSpellUnifiedLifecycleRequest({ contract, session });
+      const intent = buildSpellApplicationIntent(request);
+      const plan = buildSpellApplicationPlan({
+        intent,
+        instanceId: "audit-instance",
+        casterName: "Caster",
+      });
+      const operationTypes = (plan?.operations || []).map((operation) => operation.type || "unknown");
+      const trackingOnly = operationTypes.length > 0 && operationTypes.every((type) => [
+        "spell:upsert",
+        "spell:remove",
+        "concentration:break",
+        "concentration:register",
+      ].includes(type));
+      return {
+        adapter: "spell-lifecycle",
+        valid: operationTypes.length > 0,
+        operationTypes,
+        mutationMode: operationTypes.length ? (trackingOnly ? "tracking" : "mechanical") : "none",
+        errors: operationTypes.length ? [] : ["cast-no-mutations"],
+      };
+    } catch (error) {
+      return {
+        adapter: "spell-lifecycle",
+        valid: false,
+        operationTypes: [],
+        mutationMode: "none",
+        errors: [String(error?.code || error?.message || error)],
+      };
+    }
+  }
+
+  const area = getSpellUnifiedAreaEligibility(contract, session);
+  if (area.eligible) {
+    try {
+      const command = buildSpellUnifiedAreaCommand({
+        contract,
+        session,
+        source: { sceneEpoch: 1 },
+        candidateTargetIds: ["target", "target-1", "target-2", "target-3"],
+        spatialValidation: {
+          primaryDistanceMeters: 1,
+          casterDistancesMeters: {
+            target: 1,
+            "target-1": 1,
+            "target-2": 1,
+            "target-3": 1,
+          },
+          secondaryDistancesMeters: {
+            "target-1": 1,
+            "target-2": 1,
+            "target-3": 1,
+          },
+          pairwiseDistancesMeters: [],
+        },
+      });
+      return {
+        adapter: "area-transaction",
+        valid: command.valid === true,
+        operationTypes: [],
+        mutationMode: "executor-deferred",
+        errors: (command.errors || []).map((error) => error.code || error.message),
+      };
+    } catch (error) {
+      return {
+        adapter: "area-transaction",
+        valid: false,
+        operationTypes: [],
+        mutationMode: "none",
+        errors: [String(error?.code || error?.message || error)],
+      };
+    }
+  }
+
+  return {
+    adapter: "none",
+    valid: false,
+    operationTypes: [],
+    mutationMode: "none",
+    errors: unique([lifecycle.code, area.code]),
+  };
+}
+
+function syntheticReminderActionIds(spell, areaRules) {
+  const instanceId = "audit-instance";
+  const casterId = "caster";
+  const persistentRule = areaRules.find((rule) => ["zone", "aura"].includes(rule.kind));
+  const ownerSpell = {
+    name: spell.displayName || spell.name,
+    storedName: spell.name,
+    spellId: spell.id,
+    instanceId,
+    casterId,
+    conc: spell.concentration === true,
+    appliedAt: { round: 1, actorId: casterId, turnKey: "1:0:caster" },
+    castContext: {
+      staticZoneOwner: true,
+      staticZoneRuleId: persistentRule?.id || "",
+      mobileAura: true,
+      slotLevel: Math.max(1, Number(spell.level) || 1),
+    },
+  };
+  const items = [{
+    id: casterId,
+    name: "Caster",
+    metadata: {
+      [META_KEY]: {
+        [SPELLS_KEY]: [ownerSpell],
+      },
+    },
+  }];
+  if (persistentRule) {
+    items.push({
+      id: "zone-root",
+      name: spell.displayName || spell.name,
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: {
+          role: "root",
+          instanceId,
+          casterId,
+          spellId: spell.id,
+        },
+      },
+    });
+  }
+  return unique(callLightningTurnPromptPayloads({
+    items,
+    actorId: casterId,
+    sceneEpoch: 1,
+    turnKey: "2:0:caster",
+  }).filter((payload) => payload.spellId === spell.id).map((payload) => payload.actionId));
+}
+
+function activeActionReachability(spell, areaRules) {
+  const declarations = getSpellUnifiedActiveActionDeclarations(spell.id);
+  if (!declarations.length) {
+    return {
+      declaredActionIds: [],
+      panelActionIds: [],
+      reminderActionIds: [],
+      unreachableActionIds: [],
+      mode: "none",
+    };
+  }
+  const effectIds = unique(declarations.flatMap((action) => action.consumesEffectIds || []));
+  const panelActionIds = new Set(getSpellOverviewActions({
+    spell,
+    castContext: { slotLevel: Math.max(1, Number(spell.level) || 1) },
+    casterId: "caster",
+    targetIds: ["target"],
+    effectInstances: effectIds.map((effectId, index) => ({
+      effectId,
+      itemId: `effect-${index}`,
+      active: true,
+    })),
+    zoneItemId: "zone-root",
+    appliedAt: { turnKey: "1:0:caster" },
+    currentTurnKey: "2:0:other",
+  }).map((action) => action.id));
+  for (const action of declarations) {
+    if (action.resolutionKind === "zone-movement") panelActionIds.add(action.id);
+  }
+  const reminderActionIds = syntheticReminderActionIds(spell, areaRules);
+  const reachable = new Set([...panelActionIds, ...reminderActionIds]);
+  const unreachableActionIds = declarations
+    .map((action) => action.id)
+    .filter((actionId) => !reachable.has(actionId));
+  const reminderOnly = reminderActionIds.length > 0
+    && declarations.every((action) => reminderActionIds.includes(action.id));
+  return {
+    declaredActionIds: declarations.map((action) => action.id),
+    panelActionIds: [...panelActionIds],
+    reminderActionIds,
+    unreachableActionIds,
+    mode: unreachableActionIds.length
+      ? "unreachable"
+      : reminderOnly
+        ? "reminder-only"
+        : reminderActionIds.length
+          ? "panel-and-reminder"
+          : "panel",
+  };
+}
+
+function buildIntegrationAudit({
+  spell,
+  areaRules,
+  unifiedCatalogById,
+  excluded,
+  regulatoryGaps,
+  trackable,
+}) {
+  if (excluded) {
+    return {
+      status: "excluded",
+      priority: "—",
+      issues: [],
+      catalog: { exposed: false, sources: [] },
+      contract: null,
+      cast: null,
+      persistence: null,
+      actions: null,
+      smokeRequired: false,
+    };
+  }
+
+  const catalogEntry = unifiedCatalogById.get(spell.id) || null;
+  const issues = [];
+  if (!catalogEntry) issues.push(integrationIssue("UNIFIED_CATALOG_MISSING"));
+
+  let contract = null;
+  try {
+    contract = buildSpellUnifiedPanelContract({ spellId: spell.id });
+  } catch {
+    contract = null;
+  }
+  if (!contract) {
+    issues.push(integrationIssue("CONTRACT_MISSING"));
+    return {
+      status: "disconnected",
+      priority: "P0",
+      issues,
+      catalog: { exposed: !!catalogEntry, sources: [...(catalogEntry?.sources || [])] },
+      contract: null,
+      cast: null,
+      persistence: null,
+      actions: null,
+      smokeRequired: false,
+    };
+  }
+
+  const cast = syntheticCastAudit(contract);
+  if (!cast.valid) {
+    issues.push(integrationIssue(
+      cast.errors.includes("cast-no-mutations") ? "CAST_NO_MUTATIONS" : "CAST_PATH_INVALID",
+    ));
+  }
+  const actions = activeActionReachability(spell, areaRules);
+  if (actions.unreachableActionIds.length) {
+    issues.push(integrationIssue("ACTIVE_ACTION_UNREACHABLE"));
+  } else if (actions.mode === "reminder-only") {
+    issues.push(integrationIssue("ACTIVE_ACTION_REMINDER_ONLY", "P1"));
+  }
+
+  const requiresPersistentInstance = spell.concentration === true
+    || areaRules.some((rule) => ["zone", "aura"].includes(rule.kind))
+    || actions.declaredActionIds.length > 0;
+  const persistenceDeclared = trackable
+    || contract.execution?.hasZones === true
+    || contract.execution?.hasTokens === true
+    || cast.operationTypes.includes("spell:upsert");
+  if (actions.declaredActionIds.length && !persistenceDeclared) {
+    issues.push(integrationIssue("PERSISTENCE_UNDECLARED"));
+  }
+
+  const severe = issues.some((issue) => issue.severity === "P0");
+  const fragile = issues.some((issue) => issue.code === "ACTIVE_ACTION_REMINDER_ONLY");
+  const status = severe
+    ? "disconnected"
+    : fragile
+      ? "fragile"
+      : regulatoryGaps.length
+        ? "partial"
+        : "reachable";
+  return {
+    status,
+    priority: severe ? "P0" : fragile ? "P1" : "—",
+    issues,
+    catalog: {
+      exposed: !!catalogEntry,
+      sources: [...(catalogEntry?.sources || [])],
+    },
+    contract: {
+      lane: contract.execution?.lane || "",
+      targetingMode: contract.presentation?.targeting?.mode || "none",
+      placementPolicy: contract.presentation?.placement?.policy || "unavailable",
+      visibleInputs: Object.entries(contract.presentation?.inputs || {})
+        .filter(([, input]) => input?.visible === true)
+        .map(([name]) => name),
+    },
+    cast,
+    persistence: {
+      required: requiresPersistentInstance,
+      declared: persistenceDeclared,
+      ruleIds: areaRules
+        .filter((rule) => ["zone", "aura", "board-token"].includes(rule.kind))
+        .map((rule) => rule.id),
+    },
+    actions,
+    smokeRequired: requiresPersistentInstance || actions.declaredActionIds.length > 0,
+  };
+}
+
+function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
   const text = [reference?.description, reference?.higherLevels]
     .filter(Boolean)
     .join("\n\n")
@@ -794,6 +1229,14 @@ function deriveSpellAudit(spell, reference, trackableIds) {
     phaseImplemented && "fasi/azioni",
     choiceImplemented && "varianti",
   ]);
+  const integration = buildIntegrationAudit({
+    spell,
+    areaRules,
+    unifiedCatalogById,
+    excluded,
+    regulatoryGaps: gaps,
+    trackable: trackingImplemented,
+  });
 
   return {
     id: spell.id,
@@ -847,6 +1290,7 @@ function deriveSpellAudit(spell, reference, trackableIds) {
       movementMechanics: movementImplemented,
       ...(spell.boardToken ? { boardToken: true } : {}),
     },
+    integration,
     evidence: {
       area: areaEvidence,
       save: saveEvidence,
@@ -872,11 +1316,15 @@ function countBy(rows, read) {
 export function buildSpellAutomationAudit() {
   const references = referenceMap();
   const trackableIds = new Set(getTrackableSpellOptions().map((entry) => entry.id));
+  const unifiedCatalogById = new Map(
+    buildSpellUnifiedCatalogEntries().map((entry) => [entry.key, entry]),
+  );
   const allRows = getSpellCatalog()
     .map((spell) => deriveSpellAudit(
       spell,
       references.get(spell.id) || spell.italianReference || null,
       trackableIds,
+      unifiedCatalogById,
     ))
     .sort((a, b) => a.name.localeCompare(b.name, "it") || a.id.localeCompare(b.id));
   const rows = allRows.filter((row) => row.inAuditScope);
@@ -887,9 +1335,9 @@ export function buildSpellAutomationAudit() {
     .digest("hex")
     .slice(0, 16);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     ruleset: "D&D 5e 2014",
-    methodology: "Confronto deterministico tra testi regolamentari locali e contratti runtime per spell lanciabili con 1 azione, 1 azione bonus o 1 reazione; i P1 sono revisionati manualmente sul testo RAW. Il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
+    methodology: "Audit a due assi: conformità al testo regolamentare e raggiungibilità nella console unificata. Per ogni spell lanciabile con 1 azione, 1 azione bonus o 1 reazione verifica catalogo, contratto UI, adapter di cast, mutazioni, persistenza e raggiungibilità di azioni o reminder. I P1 RAW restano revisionati manualmente; il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
     fingerprint,
     summary: {
       catalogTotal: allRows.length,
@@ -909,6 +1357,16 @@ export function buildSpellAutomationAudit() {
       byAssessment: countBy(rows, (row) => row.assessment),
       bySaveScope: countBy(rows, (row) => row.saveScope),
       byGap: countBy(openRows.flatMap((row) => row.gaps), (entry) => entry.code),
+      byIntegrationStatus: countBy(rows, (row) => row.integration.status),
+      byIntegrationPriority: countBy(rows, (row) => row.integration.priority),
+      byIntegrationIssue: countBy(
+        rows.flatMap((row) => row.integration.issues),
+        (entry) => entry.code,
+      ),
+      unifiedCatalogExposed: rows.filter((row) => row.integration.catalog?.exposed).length,
+      integrationDisconnected: rows.filter((row) => row.integration.status === "disconnected").length,
+      integrationFragile: rows.filter((row) => row.integration.status === "fragile").length,
+      runtimeSmokeRequired: rows.filter((row) => row.integration.smokeRequired).length,
     },
     rows,
     excluded: excludedRows.map((row) => ({
@@ -948,6 +1406,28 @@ function renderPrioritySection(audit, priority, title) {
   return lines.join("\n");
 }
 
+function renderIntegrationSection(audit) {
+  const rows = audit.rows.filter((row) => row.integration.issues.length > 0);
+  const lines = ["## Integrazione con la console unificata", ""];
+  if (!rows.length) return [...lines, "Nessuna disconnessione rilevata.", ""].join("\n");
+  lines.push(
+    "Questa sezione è indipendente dalle lacune RAW: segnala workflow presenti nel codice ma non raggiungibili, cast senza mutazioni e spell assenti dalla console.",
+    "",
+    "| Incantesimo | Console | Cast | Azioni successive | Stato | Problemi |",
+    "| --- | --- | --- | --- | --- | --- |",
+  );
+  for (const row of rows) {
+    const integration = row.integration;
+    const actions = integration.actions;
+    const actionSummary = actions?.declaredActionIds?.length
+      ? `${actions.mode}: ${actions.declaredActionIds.join(", ")}`
+      : "nessuna";
+    lines.push(`| ${mdCell(row.name)} | ${integration.catalog?.exposed ? "esposto" : "assente"} | ${mdCell(integration.cast?.adapter || "—")} | ${mdCell(actionSummary)} | ${mdCell(integration.status)} | ${mdCell(integration.issues.map((issue) => issue.label).join("; "))} |`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
 export function renderSpellAutomationMarkdown(audit) {
   const lines = [
     "# Audit automazione incantesimi",
@@ -962,6 +1442,8 @@ export function renderSpellAutomationMarkdown(audit) {
     `- Catalogo sorgente: **${audit.summary.catalogTotal}** definizioni; perimetro operativo: **${audit.summary.catalog}**; testi disponibili nel perimetro: **${audit.summary.textsAvailable}**.`,
     `- Fuori perimetro: **${audit.summary.excluded}** definizioni. Sono escluse a priori le spell con casting time maggiore di 1 azione e le esclusioni curate dal perimetro operativo.`,
     `- Definizioni tracciabili: **${audit.summary.trackable}**; definizioni con almeno una regola di area: **${audit.summary.withAreaRules}**.`,
+    `- Esposte nella console unificata: **${audit.summary.unifiedCatalogExposed}**; disconnesse: **${audit.summary.integrationDisconnected}**; fragili: **${audit.summary.integrationFragile}**.`,
+    `- Workflow che richiedono smoke test runtime: **${audit.summary.runtimeSmokeRequired}**.`,
     `- Casi revisionati manualmente sul testo RAW: **${audit.summary.manuallyReviewed}**; lacune confermate P1: **${audit.summary.curatedP1}**.`,
     `- Impronta deterministica dello snapshot: \`${audit.fingerprint}\`.`,
     "- P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.",
@@ -985,6 +1467,15 @@ export function renderSpellAutomationMarkdown(audit) {
     "",
     renderCountTable(audit.summary.bySaveScope),
     "",
+    "### Stato di integrazione nella console unificata",
+    "",
+    renderCountTable(audit.summary.byIntegrationStatus),
+    "",
+    "### Problemi di integrazione",
+    "",
+    renderCountTable(audit.summary.byIntegrationIssue),
+    "",
+    renderIntegrationSection(audit),
     renderPrioritySection(audit, "P1", "P1 — lacune confermate sul testo RAW"),
     renderPrioritySection(audit, "P2", "P2 — discrepanze ad alta confidenza"),
     renderPrioritySection(audit, "P3", "P3 — candidate da revisionare"),
@@ -992,11 +1483,11 @@ export function renderSpellAutomationMarkdown(audit) {
     "",
     "La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclusivamente dai dati e dalle regole effettivamente importate dal plugin.",
     "",
-    "| Incantesimo | ID | Fonte/Liv. | Ambito | Ambito TS | Segnali RAW | Copertura runtime | Valutazione | Priorità | Lacune |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Incantesimo | ID | Fonte/Liv. | Ambito | Ambito TS | Console | Integrazione | Segnali RAW | Copertura runtime | Valutazione | Priorità | Lacune |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of audit.rows) {
-    lines.push(`| ${mdCell(row.name)} | \`${mdCell(row.id)}\` | ${mdCell(`${row.source} / ${row.level}`)} | ${mdCell(row.scope)} | ${mdCell(row.saveScope)} | ${mdCell(row.signals.join(", "))} | ${mdCell(row.coverage.join(", "))} | ${mdCell(row.assessment)} | ${row.priority} | ${mdCell(row.gaps.map((entry) => entry.label).join("; "))} |`);
+    lines.push(`| ${mdCell(row.name)} | \`${mdCell(row.id)}\` | ${mdCell(`${row.source} / ${row.level}`)} | ${mdCell(row.scope)} | ${mdCell(row.saveScope)} | ${row.integration.catalog?.exposed ? "esposto" : "assente"} | ${mdCell(row.integration.status)} | ${mdCell(row.signals.join(", "))} | ${mdCell(row.coverage.join(", "))} | ${mdCell(row.assessment)} | ${row.priority} | ${mdCell(row.gaps.map((entry) => entry.label).join("; "))} |`);
   }
   lines.push(
     "",
@@ -1030,6 +1521,8 @@ if (isMain) {
     confirmed: audit.summary.confirmed,
     curatedP1: audit.summary.curatedP1,
     manuallyReviewed: audit.summary.manuallyReviewed,
+    integrationDisconnected: audit.summary.integrationDisconnected,
+    integrationFragile: audit.summary.integrationFragile,
     fingerprint: audit.fingerprint,
     markdown: path.relative(ROOT, MARKDOWN_OUTPUT),
     json: path.relative(ROOT, JSON_OUTPUT),

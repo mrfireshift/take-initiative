@@ -14,9 +14,16 @@ const clone = (value) => {
 };
 
 function manualActions(spell) {
-  return Array.isArray(spell?.activeActions)
-    ? spell.activeActions.filter((action) => String(action?.id || "").trim())
-    : [];
+  const byId = new Map();
+  for (const action of Array.isArray(spell?.activeActions) ? spell.activeActions : []) {
+    const id = String(action?.id || "").trim();
+    if (!id) continue;
+    byId.set(id, {
+      ...(byId.get(id) || {}),
+      ...clone(action),
+    });
+  }
+  return [...byId.values()];
 }
 
 function linkedEffectIds(effectInstances = []) {
@@ -75,9 +82,18 @@ export function getSpellOverviewActions({
   }
 
   const availableEffectIds = linkedEffectIds(effectInstances);
-  for (const action of manualActions(spell)) {
+  const boardTokenReferences = new Map(
+    (Array.isArray(spell?.boardToken?.actions) ? spell.boardToken.actions : [])
+      .map((action) => [String(action?.id || "").trim(), action]),
+  );
+  for (const candidate of manualActions(spell)) {
+    const action = candidate?.requiresZoneRoot === true && !String(zoneItemId || "").trim()
+      ? boardTokenReferences.get(String(candidate?.id || "").trim()) || candidate
+      : candidate;
     if (action.turnStartPrompt === true) continue;
-    if (action.requiresZoneRoot === true && !String(zoneItemId || "").trim()) {
+    if (candidate.requiresZoneRoot === true
+      && !String(zoneItemId || "").trim()
+      && action === candidate) {
       continue;
     }
     const consumedIds = consumedEffectIds(action);
@@ -196,11 +212,16 @@ export function buildSpellActiveActionPlan({
   appliedAt = null,
   casterName = "",
 } = {}) {
-  const action = manualActions(spell)
-    .find((candidate) => String(candidate?.id || "") === String(actionId || ""));
+  const actionCandidates = manualActions(spell)
+    .filter((candidate) => String(candidate?.id || "") === String(actionId || ""));
+  const action = actionCandidates.length
+    ? actionCandidates.reduce((merged, candidate) => ({ ...merged, ...candidate }), {})
+    : null;
   const casterId = String(group?.casterId || "").trim();
   const parentInstanceId = String(group?.instanceId || "").trim();
-  const subjectIds = action?.subjectMode === "caster"
+  const subjectIds = action?.id === "heat-metal-repeat"
+    ? uniqueIds(selectedTargetIds)
+    : action?.subjectMode === "caster"
     ? uniqueIds([casterId])
     : action?.subjectMode === "none"
       ? uniqueIds([casterId])
@@ -320,7 +341,13 @@ export function buildSpellActiveActionPlan({
   const entityAction = action.entityAction && typeof action.entityAction === "object"
     ? { ...clone(action.entityAction), actionId: String(action.id || "").trim() }
     : null;
-  const hasAction = operations.length > 0 || !!zoneRuleChoice || !!entityAction;
+  const delegatedResolution = ["save-area", "single-attack", "child-zone"]
+    .includes(String(action?.resolutionKind || "").trim())
+    && action?.id !== "heat-metal-repeat";
+  const hasAction = operations.length > 0
+    || !!zoneRuleChoice
+    || !!entityAction
+    || delegatedResolution;
   return {
     valid: hasAction,
     errors: hasAction ? [] : ["operations-required"],
@@ -329,6 +356,10 @@ export function buildSpellActiveActionPlan({
     subjectIds,
     ...(zoneRuleChoice ? { zoneRuleChoice } : {}),
     ...(entityAction ? { entityAction } : {}),
+    ...(delegatedResolution ? {
+      delegatedResolution: true,
+      resolutionKind: String(action.resolutionKind).trim(),
+    } : {}),
     historyLabel: `Attivazione: ${spellName} · ${actionLabel}`,
   };
 }

@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, RUNTIME_CACHE_CLEANUP_CHANNEL } from "./constants.js";
 import { FACTION_CONFIGURATOR_ID } from "./factionRegistry.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import {
@@ -15,6 +15,7 @@ import {
 } from "./options/optionsRuntime.js";
 import { selectOptionsPanelModel } from "./options/optionsSelectors.js";
 import { setTrackerLayout } from "./trackerPopover.js";
+import { planPluginDerivedDataCleanup } from "./pluginDataCleanupCore.js";
 
 const MODAL_ID = `${ID}/options-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
@@ -42,10 +43,12 @@ const statusNode = document.getElementById("save-status");
 const previewNode = document.getElementById("player-preview");
 const hpMatrix = document.getElementById("hp-matrix");
 const saveButton = document.querySelector('[data-action="save"]');
+const cleanupButton = document.querySelector('[data-action="cleanup-runtime"]');
 let draft = null;
 let editScope = "room";
 let dirty = false;
 let saving = false;
+let cleaning = false;
 let savedLayout = "classic";
 
 function clone(value) {
@@ -289,6 +292,49 @@ async function save() {
   }
 }
 
+async function cleanRuntimeData() {
+  if (cleaning) return;
+  const confirmed = window.confirm(
+    "Pulire i dati derivati orfani di questa scena? I metadata dei token, HP, condizioni, incantesimi, concentrazione e iniziativa non verranno modificati.",
+  );
+  if (!confirmed) return;
+  cleaning = true;
+  if (cleanupButton) cleanupButton.disabled = true;
+  errorNode.hidden = true;
+  statusNode.textContent = "Pulizia in corso…";
+  try {
+    const items = await OBR.scene.items.getItems();
+    const plan = planPluginDerivedDataCleanup(items);
+    if (plan.deleteIds.length) {
+      await OBR.scene.items.deleteItems(plan.deleteIds);
+    }
+    await OBR.broadcast.sendMessage(
+      RUNTIME_CACHE_CLEANUP_CHANNEL,
+      { type: "clear-runtime-caches", reason: "options-maintenance" },
+      { destination: "ALL" },
+    ).catch((error) => {
+      console.warn("[options-panel] runtime cleanup broadcast:", error?.message || error);
+    });
+    const zones = plan.staleZoneIds.length;
+    const boardTokens = plan.staleBoardTokenIds.length;
+    const total = plan.deleteIds.length;
+    const message = total
+      ? `Pulizia completata: ${total} derivati rimossi (${zones} zone, ${boardTokens} pedine).`
+      : "Pulizia completata: nessun derivato orfano trovato.";
+    statusNode.textContent = message;
+    await OBR.notification.show(message, "SUCCESS").catch(() => {});
+  } catch (error) {
+    const message = `Pulizia non riuscita: ${error?.message || error}`;
+    errorNode.textContent = message;
+    errorNode.hidden = false;
+    statusNode.textContent = message;
+    await OBR.notification.show(message, "ERROR").catch(() => {});
+  } finally {
+    cleaning = false;
+    if (cleanupButton) cleanupButton.disabled = false;
+  }
+}
+
 function bindControls() {
   root.addEventListener("click", (event) => {
     const scope = event.target.closest("[data-scope]")?.dataset.scope;
@@ -300,6 +346,7 @@ function bindControls() {
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (action === "close") closeModal();
     if (action === "open-faction-configurator") void openFactionConfigurator();
+    if (action === "cleanup-runtime") void cleanRuntimeData();
     if (action === "save") void save();
   });
   root.addEventListener("change", (event) => {

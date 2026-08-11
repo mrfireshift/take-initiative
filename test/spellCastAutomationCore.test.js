@@ -10,6 +10,7 @@ import {
   getSpellEffectChoices,
   getSpellEffects,
 } from "../src/spells-srd.js";
+import { getSpellAreaRules } from "../src/spellAreaRules.js";
 
 function planFor(spellId, choice = "") {
   const spell = getSpellDefinition(spellId);
@@ -53,6 +54,14 @@ test("gli effetti generali già coperti dalle regole TS producono una sola pill"
   }
 });
 
+test("Aura Sacra usa una sola pill esplicativa senza duplicare il nome spell", () => {
+  const plan = planFor("holy-aura");
+
+  assert.equal(plan.conditions.length, 1);
+  assert.equal(plan.effects.length, 0);
+  assert.equal(plan.conditions[0].name, "Vantaggio TS · svantaggio Att");
+});
+
 test("Pirotecnica distingue Fuochi d'Artificio dalla nube di fumo", () => {
   const fireworks = planFor("xanathar-pirotecnica", "fireworks");
   const smoke = planFor("xanathar-pirotecnica", "smoke");
@@ -72,6 +81,26 @@ test("un'attivazione secondaria non sostituisce il normale cast da Spells", () =
   assert.equal(holyWeapon.usedSaveAutomation, false);
   assert.equal(holyWeapon.conditions.length, 0);
   assert.equal(holyWeapon.effects[0].id, "holy-weapon");
+});
+
+test("Arma Sacra è self cast e riserva l'area alla detonazione", () => {
+  const spell = getSpellDefinition("xanathar-arma-sacra");
+  const areaRules = getSpellAreaRules(spell.id);
+
+  assert.equal(spell.targetMode, "self");
+  assert.equal(areaRules.some((rule) => rule.trigger.type === "cast"), false);
+  assert.deepEqual(
+    areaRules.map((rule) => rule.id),
+    ["xanathar-arma-sacra:burst"],
+  );
+  assert.equal(spell.effects[0].label, "Arma magica · +2d8 radiosi");
+  assert.equal(getAreaSaveAutomation(spell), null);
+});
+
+test("Arma magica espone il bonus dell'arma in base allo slot", () => {
+  assert.equal(getSpellEffects("magic-weapon", "", { slotLevel: 2 })[0].label, "Arma magica · +1");
+  assert.equal(getSpellEffects("magic-weapon", "", { slotLevel: 4 })[0].label, "Arma magica · +2");
+  assert.equal(getSpellEffects("magic-weapon", "", { slotLevel: 6 })[0].label, "Arma magica · +3");
 });
 
 test("le punizioni risolte sul colpo applicano l'esito e chiudono la concentrazione", () => {

@@ -1,5 +1,13 @@
 import { SPELL_AREA_PLACEMENT_CHANNEL } from "./spellAreaPlacementCore.js";
 
+const DEFAULT_PLACEMENT_REQUEST_TIMEOUT_MS = 12000;
+const DEFAULT_PLACEMENT_START_RETRY_DELAYS_MS = Object.freeze([
+  150,
+  300,
+  600,
+  1000,
+]);
+
 export function createSpellAreaPlacementRequestId() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
@@ -16,6 +24,8 @@ export function requestSpellAreaPlacement({
 } = {}, {
   broadcast = null,
   windowRef = globalThis.window,
+  requestTimeoutMs = DEFAULT_PLACEMENT_REQUEST_TIMEOUT_MS,
+  retryDelaysMs = DEFAULT_PLACEMENT_START_RETRY_DELAYS_MS,
 } = {}) {
   const normalizedRuleId = String(ruleId || "").trim();
   const normalizedRequestId = String(requestId || "").trim();
@@ -26,11 +36,39 @@ export function requestSpellAreaPlacement({
     return Promise.reject(new Error("placement-broadcast-required"));
   }
 
+  const retryDelays = (Array.isArray(retryDelaysMs)
+    ? retryDelaysMs
+    : DEFAULT_PLACEMENT_START_RETRY_DELAYS_MS)
+    .map((delay) => Math.max(0, Number(delay) || 0));
+  const timeoutMs = Math.max(
+    0,
+    Number(requestTimeoutMs) || DEFAULT_PLACEMENT_REQUEST_TIMEOUT_MS,
+  );
+
   return new Promise((resolve, reject) => {
     let settled = false;
+    let accepted = false;
+    let retryTimer = null;
+    let timeoutTimer = null;
+    let retryIndex = 0;
+    const setTimer = (callback, delay) => (
+      typeof windowRef?.setTimeout === "function"
+        ? windowRef.setTimeout(callback, delay)
+        : globalThis.setTimeout(callback, delay)
+    );
+    const clearTimer = (timer) => {
+      if (timer === null || timer === undefined) return;
+      if (typeof windowRef?.clearTimeout === "function") {
+        windowRef.clearTimeout(timer);
+      } else {
+        globalThis.clearTimeout(timer);
+      }
+    };
     const cleanup = () => {
       unsubscribe?.();
       windowRef?.removeEventListener?.("beforeunload", cancelOnUnload);
+      clearTimer(retryTimer);
+      clearTimer(timeoutTimer);
     };
     const finish = (callback, value) => {
       if (settled) return;
@@ -48,10 +86,49 @@ export function requestSpellAreaPlacement({
         { destination: "LOCAL" },
       ).catch(() => {});
     };
+    const startPayload = {
+      type: "start",
+      requestId: normalizedRequestId,
+      ruleId: normalizedRuleId,
+      casterId: String(casterId || "").trim(),
+      ...(String(ruleChoice || "").trim()
+        ? { ruleChoice: String(ruleChoice).trim() }
+        : {}),
+      ...(context && typeof context === "object" ? { context } : {}),
+    };
+    const sendStart = () => {
+      if (settled || accepted) return;
+      void broadcast.sendMessage(
+        SPELL_AREA_PLACEMENT_CHANNEL,
+        startPayload,
+        { destination: "LOCAL" },
+      ).catch((error) => finish(reject, error));
+    };
+    const scheduleRetry = () => {
+      if (settled || accepted || retryIndex >= retryDelays.length) return;
+      const delay = retryDelays[retryIndex];
+      retryIndex += 1;
+      retryTimer = setTimer(() => {
+        retryTimer = null;
+        sendStart();
+        scheduleRetry();
+      }, delay);
+    };
     const unsubscribe = broadcast.onMessage(
       SPELL_AREA_PLACEMENT_CHANNEL,
       (event) => {
         const data = event?.data || {};
+        if (
+          data.type === "accepted"
+          && String(data.requestId || "") === normalizedRequestId
+        ) {
+          accepted = true;
+          clearTimer(retryTimer);
+          retryTimer = null;
+          clearTimer(timeoutTimer);
+          timeoutTimer = null;
+          return;
+        }
         if (
           data.type !== "result"
           || String(data.requestId || "") !== normalizedRequestId
@@ -62,21 +139,56 @@ export function requestSpellAreaPlacement({
       },
     );
     windowRef?.addEventListener?.("beforeunload", cancelOnUnload, { once: true });
-    void broadcast.sendMessage(
-      SPELL_AREA_PLACEMENT_CHANNEL,
-      {
-        type: "start",
+    if (timeoutMs > 0) {
+      timeoutTimer = setTimer(() => finish(resolve, {
+        type: "result",
         requestId: normalizedRequestId,
         ruleId: normalizedRuleId,
-        casterId: String(casterId || "").trim(),
-        ...(String(ruleChoice || "").trim()
-          ? { ruleChoice: String(ruleChoice).trim() }
-          : {}),
-        ...(context && typeof context === "object" ? { context } : {}),
-      },
-      { destination: "LOCAL" },
-    ).catch((error) => finish(reject, error));
+        status: "error",
+        error: "placement-transport-timeout",
+      }), timeoutMs);
+    }
+    sendStart();
+    scheduleRetry();
   });
+}
+
+export async function cancelSpellAreaPlacementRequest(
+  requestId,
+  {
+    broadcast = null,
+  } = {},
+) {
+  const normalizedRequestId = String(requestId || "").trim();
+  if (!normalizedRequestId || !broadcast?.sendMessage) return false;
+  await broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    {
+      type: "cancel",
+      requestId: normalizedRequestId,
+    },
+    { destination: "LOCAL" },
+  );
+  return true;
+}
+
+export async function confirmSpellAreaPlacementRequest(
+  requestId,
+  {
+    broadcast = null,
+  } = {},
+) {
+  const normalizedRequestId = String(requestId || "").trim();
+  if (!normalizedRequestId || !broadcast?.sendMessage) return false;
+  await broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    {
+      type: "confirm",
+      requestId: normalizedRequestId,
+    },
+    { destination: "LOCAL" },
+  );
+  return true;
 }
 
 export function requestSpellZoneMovement({

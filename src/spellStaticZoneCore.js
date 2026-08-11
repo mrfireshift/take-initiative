@@ -7,6 +7,11 @@ export const SPELL_STATIC_ZONE_META_KEY = `${ID}/spellStaticZone`;
 export const SPELL_ZONE_MOVEMENT_CONTROL_FIELD = "movementControl";
 
 const normalizedId = (value) => String(value || "").trim();
+const normalizedIds = (values = []) => Array.from(new Set(
+  (Array.isArray(values) ? values : [])
+    .map(normalizedId)
+    .filter(Boolean),
+));
 
 const point = (value) => {
   const x = Number(value?.x);
@@ -53,6 +58,7 @@ export function staticSpellZoneMetadata({
   role = "root",
   parentId = "",
   ruleChoice = "",
+  targetIds = [],
 } = {}) {
   const metadata = {
     version: 1,
@@ -66,7 +72,20 @@ export function staticSpellZoneMetadata({
   if (normalizedParentId) metadata.parentId = normalizedParentId;
   const normalizedRuleChoice = normalizedId(ruleChoice);
   if (normalizedRuleChoice) metadata.ruleChoice = normalizedRuleChoice;
+  const scopedTargetIds = normalizedIds(targetIds);
+  if (scopedTargetIds.length) metadata.targetIds = scopedTargetIds;
   return metadata;
+}
+
+export function scopedStaticSpellZoneTargetIds({
+  rule = null,
+  zoneMetadata = null,
+  targetIds = [],
+} = {}) {
+  const candidates = normalizedIds(targetIds);
+  if (rule?.zonePolicy?.targetScope !== "spell-targets") return candidates;
+  const spellTargets = new Set(normalizedIds(zoneMetadata?.targetIds));
+  return candidates.filter((targetId) => spellTargets.has(targetId));
 }
 
 export function isStaticSpellZoneRule(rule) {

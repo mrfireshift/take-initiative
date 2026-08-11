@@ -74,7 +74,7 @@ test("tutti gli ingressi di danno usano il dispatcher condiviso", () => {
 
   assert.match(runtime, /await getItems\(\[\.\.\.damageById\.keys\(\)\]\)/);
   assert.match(runtime, /type: "show-concentration-warning"[\s\S]*destination: "ALL"/);
-  assert.match(quickHP, /showConcentrationWarnings[\s\S]*broadcastConcentrationSaveWarnings\(entries/);
+  assert.match(quickHP, /async function showConcentrationWarnings\(entries\)[\s\S]*broadcastConcentrationSaveWarnings\(damage/);
   assert.match(initiative, /showConcentrationDamageWarning[\s\S]*broadcastConcentrationSaveWarnings\(/);
   assert.match(reminder, /plan\.hpChange\.after < plan\.hpChange\.before[\s\S]*broadcastConcentrationSaveWarnings\(/);
 });

@@ -65,7 +65,7 @@ test("la membership di zona usa geometria, fazione e inclusione caster", () => {
   }), ["enemy"]);
 });
 
-test("l'aura di Investitura della Fiamma considera soltanto creature ostili", () => {
+test("l'aura di Investitura della Fiamma include anche gli alleati ma esclude il caster", () => {
   const rule = getSpellAreaRuleById("xanathar-investitura-della-fiamma:aura");
   const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
   const caster = token("caster", { attitude: "pc" });
@@ -82,7 +82,7 @@ test("l'aura di Investitura della Fiamma considera soltanto creature ostili", ()
       { item: ally, bounds: bounds(100, 0) },
       { item: enemy, bounds: bounds(200, 0) },
     ],
-  }), ["enemy"]);
+  }), ["ally", "enemy"]);
 });
 
 test("il caster nell'area resta incluso anche nella membership persistente", () => {

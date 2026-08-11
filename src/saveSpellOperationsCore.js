@@ -15,6 +15,7 @@ export function saveSpellResolutionOperations({
   appliedAt = null,
   castContext = null,
   concentrationAction = "replace",
+  concentrationReference = null,
 } = {}) {
   if (!resolution?.valid) {
     const reasons = Array.isArray(resolution?.errors) ? resolution.errors.join(", ") : "invalid-resolution";
@@ -85,6 +86,7 @@ export function saveSpellResolutionOperations({
     replaceNames: [resolution.spellName],
     conditionApplications,
     concentrationAction,
+    concentrationReference,
   });
 }
 

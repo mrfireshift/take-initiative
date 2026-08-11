@@ -24,6 +24,7 @@ import {
   nearestGridCellSideCenter,
   nearestGridCorner,
   reviewSpellAreaPlacement,
+  spellAreaPlacementParentUnavailable,
   spellAreaGridCells,
   spellAreaRangeCells,
   spellAreaOriginAdjacentToCaster,
@@ -73,6 +74,7 @@ const SPELL_MOVEMENT_CANCEL_ACTION_ID = `${ID}/spell-zone-move-cancel`;
 let activeDrag = null;
 let spellPlacementSession = null;
 let spellMovementSession = null;
+const spellPlacementStartingRequests = new Set();
 let currentStyle = loadAoEStyle();
 let areaSelectionRevision = 0;
 let areaSelectionTimer = null;
@@ -109,6 +111,18 @@ async function sendSpellPlacementResult(payload) {
   await OBR.broadcast.sendMessage(
     SPELL_AREA_PLACEMENT_CHANNEL,
     { type: "result", ...payload },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
+async function sendSpellPlacementAccepted(payload = {}) {
+  await OBR.broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    {
+      type: "accepted",
+      requestId: String(payload?.requestId || "").trim(),
+      ruleId: String(payload?.ruleId || "").trim(),
+    },
     { destination: "LOCAL" },
   ).catch(() => {});
 }
@@ -234,7 +248,7 @@ async function beginSpellPlacement(data) {
     ? await OBR.scene.items.getItems([parentZoneId]).catch(() => [])
     : [];
   const parentArea = parentZone ? translatedZoneArea(parentZone) : null;
-  if (placementContext && (!parentZone || !parentArea)) {
+  if (spellAreaPlacementParentUnavailable(placementContext, parentZone, parentArea)) {
     await sendSpellPlacementResult({
       requestId,
       ruleId,
@@ -943,12 +957,12 @@ async function prepareDrag(state) {
 
 function trackedInitiativeItem(item, orderedSet) {
   const meta = item?.metadata?.[META_KEY];
+  // La membership geometrica identifica i token nell'area; la disponibilità
+  // di hp/hpMax appartiene alla validazione dell'effetto che verrà applicato.
   return item?.layer === "CHARACTER"
     && !item?.attachedTo
     && !!meta
-    && (meta.inInitiative === true || orderedSet.has(item.id))
-    && Number.isFinite(Number(meta.hp))
-    && Number.isFinite(Number(meta.hpMax));
+    && (meta.inInitiative === true || orderedSet.has(item.id));
 }
 
 async function findHitTargetIds(area, rule = null) {
@@ -1543,7 +1557,38 @@ OBR.onReady(async () => {
   });
   OBR.broadcast.onMessage(SPELL_AREA_PLACEMENT_CHANNEL, (event) => {
     const data = event?.data || {};
-    if (data.type === "start") void beginSpellPlacement(data);
+    if (data.type === "start") {
+      const requestId = String(data.requestId || "").trim();
+      const activeRequestId = String(
+        spellPlacementSession?.session?.requestId || "",
+      ).trim();
+      if (
+        requestId
+        && (
+          spellPlacementStartingRequests.has(requestId)
+          || activeRequestId === requestId
+        )
+      ) {
+        void sendSpellPlacementAccepted(data);
+      } else if (
+        requestId
+        && spellPlacementStartingRequests.size
+      ) {
+        void sendSpellPlacementAccepted(data);
+        void sendSpellPlacementResult({
+          requestId,
+          ruleId: String(data.ruleId || "").trim(),
+          status: "error",
+          error: "placement-session-busy",
+        });
+      } else {
+        if (requestId) spellPlacementStartingRequests.add(requestId);
+        void sendSpellPlacementAccepted(data);
+        void beginSpellPlacement(data).finally(() => {
+          if (requestId) spellPlacementStartingRequests.delete(requestId);
+        });
+      }
+    }
     if (data.type === "move-start") void beginSpellZoneMovement(data);
     if (
       data.type === "cancel"

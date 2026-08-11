@@ -59,7 +59,6 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "wind-wall",
   "zone-of-truth",
   "xanathar-alba",
-  "xanathar-arma-sacra",
   "xanathar-collera-della-natura",
   "xanathar-coltello-di-ghiaccio",
   "xanathar-controllare-venti",
@@ -111,15 +110,23 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "command",
   "xanathar-anatema-elementale",
   "banishment",
+  "xanathar-aculeo-mentale",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
   MULTI_TARGET_SAVE_SPELL_IDS,
 );
 
+// Incantesimi a bersaglio singolo il cui effetto persistente richiede anche
+// una sagoma indipendente sulla mappa.
+export const SINGLE_TARGET_PLACED_SAVE_SPELL_IDS = Object.freeze([
+  "phb2014-allucinazione-di-forza",
+]);
+
 export const AREA_POPOVER_SAVE_SPELL_ID_SET = new Set([
   ...AREA_SAVE_SPELL_IDS,
   ...MULTI_TARGET_SAVE_SPELL_IDS,
+  ...SINGLE_TARGET_PLACED_SAVE_SPELL_IDS,
 ]);
 
 // Zone e aure reali che non richiedono un TS al momento del lancio, ma che
@@ -175,6 +182,7 @@ export const AREA_PLACEABLE_SPELL_IDS = Object.freeze(
   Array.from(new Set([
     ...AREA_SAVE_SPELL_IDS,
     ...AREA_PLACEMENT_ONLY_SPELL_IDS,
+    ...SINGLE_TARGET_PLACED_SAVE_SPELL_IDS,
   ])),
 );
 
@@ -200,6 +208,7 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "fire-shield": "light-radius",
   "forbiddance": "complex-footprint",
   "guards-and-wards": "complex-footprint",
+  "xanathar-arma-sacra": "active-dismissal-area",
   "magnificent-mansion": "created-portal-volume",
   "programmed-illusion": "illusion-volume",
   "silent-image": "illusion-volume",
@@ -215,7 +224,6 @@ export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "tasha-lama-verdefiamma": "single-target-reach",
   "tasha-lenza-elettrizzante": "single-target-reach",
   "tasha-sudario-spirituale": "attack-bonus-radius",
-  "phb2014-allucinazione-di-forza": "illusion-volume",
 });
 
 // Sono gli effetti già presenti nel catalogo generale che appartengono ai
@@ -227,6 +235,12 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   }),
   "legacy-tashas-mind-whip": Object.freeze({
     failedEffectIds: Object.freeze(["no-reaction-and-limited-turn-options"]),
+  }),
+  "xanathar-aculeo-mentale": Object.freeze({
+    failedEffectIds: Object.freeze(["location-known"]),
+  }),
+  "holy-aura": Object.freeze({
+    failedEffectIds: Object.freeze(["holy-aura-protection"]),
   }),
   "xanathar-anatema-elementale": Object.freeze({
     failedEffectIds: Object.freeze([
@@ -334,16 +348,6 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       manualRemoval: true,
     }),
   ], { track: false }),
-  "holy-aura": failedAutomation([
-    conditionRule("Aura Sacra", {
-      expiry: concentration,
-      effectId: "holy-aura-protection",
-      effectKind: "buff",
-      effectDetail: "Vantaggio ai TS; gli attacchi contro il bersaglio hanno svantaggio.",
-      manualRemoval: true,
-      endsParentOnRemoval: true,
-    }),
-  ]),
   "mass-cure-wounds": noPersistentEffect,
   "sleep": failedAutomation([
     conditionRule("Privo di sensi", {
@@ -496,19 +500,6 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       { expiry: rounds(100), manualRemoval: true, endsParentOnRemoval: true },
     ),
   ]),
-  "xanathar-arma-sacra": failedAutomation([
-    conditionRule("Accecato", {
-      expiry: rounds(10),
-      independent: true,
-      manualRemoval: true,
-      saveReminder: Object.freeze({
-        ability: "con",
-        timing: "turn-end",
-        dcSource: "source-spell",
-        label: "Se supera il TS, termina Accecato su di sé.",
-      }),
-    }),
-  ], { track: false, concentrationAction: "dismiss" }),
   "xanathar-fulgore-nauseante": failedAutomation([
     conditionRule("Indebolimento", {
       expiry: concentration,

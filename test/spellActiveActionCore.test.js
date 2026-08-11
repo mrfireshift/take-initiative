@@ -159,6 +159,13 @@ test("Investitura del Ghiaccio richiede i falliti selezionati e prepara il dimez
 
 test("Riscaldare il Metallo applica il debuff temporaneo al solo portatore selezionato", () => {
   const spell = getSpellDefinition("heat-metal");
+  const overviewActions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+  });
+  assert.equal(overviewActions.filter((action) => action.id === "heat-metal-repeat").length, 1);
+  assert.equal(overviewActions[0].resolutionKind, "single-attack");
+  assert.equal(overviewActions[0].effects[0].label, "Svant. attacchi e prove");
   const plan = buildSpellActiveActionPlan({
     spell,
     actionId: "heat-metal-repeat",

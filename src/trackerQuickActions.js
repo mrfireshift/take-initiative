@@ -1,4 +1,4 @@
-import { sanitizeQuickActions } from "./quickActionsCore.js";
+import { sanitizeQuickAction, sanitizeQuickActions } from "./quickActionsCore.js";
 
 const QUICK_ACTION_BUTTON_SIZE = 22;
 const CLASSIC_COMBAT_BADGE_SIZE = 18;
@@ -7,14 +7,16 @@ const CLASSIC_QUICK_ACTION_LEFT = CLASSIC_COMBAT_BADGE_LEFT
   - ((QUICK_ACTION_BUTTON_SIZE - CLASSIC_COMBAT_BADGE_SIZE) / 2);
 
 export function trackerQuickActionSummary(action) {
-  const target = action?.targetMode === "self" ? "su di sé" : "bersaglio selezionato";
-  if (action?.kind === "condition") {
-    return `${action.conditionName} · ${target}`;
+  const normalized = sanitizeQuickAction(action) || action || {};
+  const target = normalized.targetMode === "self" ? "su di sé" : "bersaglio selezionato";
+  if (normalized.kind === "condition") {
+    return `${normalized.conditionName} · ${target}`;
   }
-  if (action?.kind === "feature") {
+  if (normalized.kind === "feature") {
     return `Capacità · ${target}`;
   }
-  return `${action?.workflow === "area" ? "Area" : "Incantesimo"} · ${target}`;
+  const launch = normalized.launchMode === "review" ? "revisione" : "lancio rapido";
+  return `Incantesimo · ${launch} · ${target}`;
 }
 
 export function buildTrackerQuickActionLauncher({

@@ -120,3 +120,93 @@ test("Undo di una zona aggiornata confronta solo il metadata posseduto", () => {
     expected: snapshot(afterZone),
   });
 });
+
+test("Undo non crea un conflitto per il diverso ordine delle chiavi metadata", () => {
+  const entry = {
+    id: "effects-order",
+    effectsMutation: {
+      changes: [{
+        id: "token-1",
+        fields: { conditions: true },
+        before: { conditions: [] },
+        after: {
+          conditions: [{
+            id: "condition-1",
+            condition: "Benedizione",
+            active: true,
+            targetId: "token-1",
+            expiry: {
+              mode: "concentration",
+              actor: "target",
+              actorId: "token-1",
+              anchor: "next-turn",
+            },
+          }],
+        },
+      }],
+    },
+  };
+  const plan = buildCoordinatedEffectsUndoPlan({
+    currentStates: [state("token-1", [{
+      condition: "Benedizione",
+      id: "condition-1",
+      active: true,
+      targetId: "token-1",
+      expiry: {
+        actorId: "token-1",
+        anchor: "next-turn",
+        actor: "target",
+        mode: "concentration",
+      },
+    }])],
+    entryOrEntries: entry,
+    metadataKeys,
+    normalizeConditions,
+  });
+  assert.equal(plan.status, undefined);
+  assert.deepEqual(plan.states[0].conditions, []);
+});
+
+test("Undo confronta anche i reminder differiti delle condizioni", () => {
+  const condition = {
+    id: "condition-1",
+    condition: "Acido ritardato",
+    active: true,
+    targetId: "token-1",
+    expiry: { mode: "turn-end", remaining: 1, actor: "target", anchor: "next-turn" },
+    deferredEffects: [{
+      id: "acid-1",
+      timing: "turn-end",
+      actor: "target",
+      anchor: "next-turn",
+      reminder: "2d4 danni da acido",
+      damage: { dice: "2d4", type: "acido" },
+      once: true,
+    }],
+  };
+  const plan = buildCoordinatedEffectsUndoPlan({
+    currentStates: [state("token-1", [{
+      ...condition,
+      expiry: { anchor: "next-turn", actor: "target", remaining: 1, mode: "turn-end" },
+      deferredEffects: [{
+        ...condition.deferredEffects[0],
+        damage: { type: "acido", dice: "2d4" },
+      }],
+    }])],
+    entryOrEntries: {
+      id: "effects-deferred",
+      effectsMutation: {
+        changes: [{
+          id: "token-1",
+          fields: { conditions: true },
+          before: { conditions: [] },
+          after: { conditions: [condition] },
+        }],
+      },
+    },
+    metadataKeys,
+    normalizeConditions,
+  });
+  assert.equal(plan.status, undefined);
+  assert.deepEqual(plan.states[0].conditions, []);
+});

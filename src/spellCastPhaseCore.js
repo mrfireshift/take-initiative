@@ -68,6 +68,15 @@ const PHASED_SPELLS = Object.freeze({
         savingThrow: { ability: "Destrezza", successDamage: "half" },
       },
     }),
+    resolution: (slot) => freezeEffect({
+      id: "hail-of-thorns-resolution",
+      label: `Raffica di Spine / area ${Math.min(6, slot)}d10 perforanti`,
+      detail: `Risolvi il TS Destrezza dell'area da ${Math.min(6, slot)}d10.`,
+      mechanics: {
+        areaDamage: { dice: `${Math.min(6, slot)}d10`, type: "perforanti" },
+        savingThrow: { ability: "Destrezza", successDamage: "half" },
+      },
+    }),
   }),
   "phb2014-freccia-folgorante": Object.freeze({
     resolveAction: "dismiss",
@@ -76,6 +85,16 @@ const PHASED_SPELLS = Object.freeze({
       id: "lightning-arrow-trigger",
       label: `Prossimo attacco a distanza / ${slot + 1}d8 / area ${slot - 1}d8 fulmine`,
       detail: `Il prossimo attacco a distanza infligge ${slot + 1}d8 fulmine al bersaglio e ${slot - 1}d8 alle creature vicine.`,
+      mechanics: {
+        damageReplacement: { dice: `${slot + 1}d8`, type: "fulmine" },
+        areaDamage: { dice: `${slot - 1}d8`, type: "fulmine" },
+        savingThrow: { ability: "Destrezza", successDamage: "half" },
+      },
+    }),
+    resolution: (slot) => freezeEffect({
+      id: "lightning-arrow-resolution",
+      label: `Freccia Folgorante / ${slot + 1}d8 + area ${slot - 1}d8 fulmine`,
+      detail: `Risolvi il bersaglio colpito e il TS dell'area da ${slot - 1}d8.`,
       mechanics: {
         damageReplacement: { dice: `${slot + 1}d8`, type: "fulmine" },
         areaDamage: { dice: `${slot - 1}d8`, type: "fulmine" },
@@ -176,6 +195,7 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
       subjectMode: "caster",
       useCatalogAutomation: false,
       effects: [rule.prepared(slotLevel(spell, castContext))],
+      resolution: null,
       concentrationAction: "replace",
     };
   }
@@ -184,6 +204,9 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
     subjectMode: "selected",
     useCatalogAutomation: true,
     effects: rule.excludeResolvedEffects ? [] : null,
+    resolution: typeof rule.resolution === "function"
+      ? rule.resolution(slotLevel(spell, castContext))
+      : null,
     concentrationAction: rule.resolveAction,
   };
 }

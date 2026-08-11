@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildSpellActiveResolutionFailureOperations,
   buildSpellActiveResolutionPayload,
   getSpellResolutionAction,
   resolveSpellActiveResolutionDamage,
@@ -10,6 +11,7 @@ import {
   validateSpellActiveResolutionPayload,
 } from "../src/spellActiveResolutionCore.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
+import { getSpellOverviewActions } from "../src/spellActiveActionCore.js";
 
 function group(overrides = {}) {
   return {
@@ -27,6 +29,7 @@ test("le tre attivazioni hanno un contratto dichiarativo congelato", () => {
     "Invocare il fulmine",
     "Investitura della Fiamma",
     "Sfera della Tempesta",
+    "Arma Sacra",
   ]) {
     const spell = getSpellDefinition(spellName);
     assert.equal(spell.activeActions.length, 1);
@@ -71,6 +74,37 @@ test("il contratto dichiara economia, geometria, gittata e risoluzione proprie",
   assert.deepEqual(storm.attack, {
     outcomes: ["hit", "miss"],
     advantageWhen: "inside-root",
+  });
+
+  const holyWeapon = getSpellDefinition("Arma Sacra").activeActions[0];
+  assert.deepEqual({
+    economy: holyWeapon.economy,
+    kind: holyWeapon.resolutionKind,
+    placement: holyWeapon.placementRuleId,
+    rangeOrigin: holyWeapon.rangeOrigin,
+    save: holyWeapon.save.ability,
+    damage: holyWeapon.damage.formula,
+    dismissesConcentration: holyWeapon.concentrationAction,
+  }, {
+    economy: "bonus-action",
+    kind: "save-area",
+    placement: "xanathar-arma-sacra:burst",
+    rangeOrigin: "caster",
+    save: "con",
+    damage: "4d8",
+    dismissesConcentration: "dismiss",
+  });
+  assert.equal(holyWeapon.failureEffects.length, 1);
+  assert.equal(holyWeapon.failureEffects[0].label, "Accecato");
+  assert.deepEqual(holyWeapon.failureEffects[0].expiry, {
+    mode: "rounds",
+    remaining: 10,
+  });
+  assert.deepEqual(holyWeapon.failureEffects[0].saveReminder, {
+    ability: "con",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    label: "Se supera il TS, termina Accecato su di sé.",
   });
 });
 
@@ -182,4 +216,63 @@ test("un attacco mancato non infligge danno e lo scaling della Sfera usa lo slot
     outcome: "miss",
     roll: 24,
   }).amount, 0);
+});
+
+test("Arma Sacra applica Accecato solo ai fallimenti e lo rende indipendente dalla concentrazione", () => {
+  const spell = getSpellDefinition("Arma Sacra");
+  const action = spell.activeActions[0];
+  const operations = buildSpellActiveResolutionFailureOperations({
+    action,
+    payload: {
+      casterId: "caster-1",
+      casterName: "Omar",
+      instanceId: "holy-weapon-1",
+    },
+    targetIds: ["failed-1", "passed-1", "immune-1"],
+    outcomes: {
+      "failed-1": "failed",
+      "passed-1": "passed",
+      "immune-1": "immune",
+    },
+  });
+
+  assert.equal(operations.length, 2);
+  assert.deepEqual(operations[0].targetIds, ["failed-1"]);
+  assert.equal(operations[0].conditionName, "Accecato");
+  assert.equal(operations[0].options.parentEffectId, "");
+  assert.deepEqual(operations[0].options.expiry, {
+    mode: "rounds",
+    remaining: 10,
+  });
+  assert.deepEqual(operations[0].options.saveReminder, {
+    ability: "con",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    label: "Se supera il TS, termina Accecato su di sé.",
+  });
+  assert.deepEqual(operations[1], {
+    type: "condition:automate",
+    subjectIds: ["failed-1"],
+  });
+});
+
+test("il congedo di Arma Sacra compare dal turno successivo al lancio", () => {
+  const spell = getSpellDefinition("Arma Sacra");
+  const sameTurn = getSpellOverviewActions({
+    spell,
+    casterId: "caster-1",
+    appliedAt: { turnKey: "round-1:caster-1" },
+    currentTurnKey: "round-1:caster-1",
+  });
+  const nextTurn = getSpellOverviewActions({
+    spell,
+    casterId: "caster-1",
+    appliedAt: { turnKey: "round-1:caster-1" },
+    currentTurnKey: "round-1:other",
+  });
+
+  assert.equal(sameTurn.length, 1);
+  assert.equal(sameTurn[0].unavailableReason, "Disponibile dal turno successivo al lancio.");
+  assert.equal(nextTurn.length, 1);
+  assert.equal(nextTurn[0].unavailableReason, undefined);
 });

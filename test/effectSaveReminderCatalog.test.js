@@ -185,3 +185,16 @@ test("l'audit supplementi e PHB 2014 copre i debuff ricorrenti già modellati", 
     "con",
   );
 });
+
+test("Allucinazione Mortale risolve danno e fine della concentrazione dal reminder", () => {
+  const frightened = proposed("phantasmal-killer")[0];
+
+  assert.equal(frightened.name, "Spaventato");
+  assert.equal(frightened.options.parentRemoval, "spell");
+  assert.equal(frightened.options.endsParentOnRemoval, true);
+  assert.deepEqual(frightened.options.saveReminder.damage, {
+    dice: "4d10",
+    type: "psichici",
+    onSave: "none",
+  });
+});

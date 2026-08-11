@@ -142,4 +142,54 @@ test("il report espone metodo, priorità e matrice completa", () => {
   assert.match(markdown, /P1 — lacune confermate sul testo RAW/);
   assert.match(markdown, /\| Muro di fuoco \|/);
   assert.match(markdown, /## Matrice completa/);
+  assert.match(markdown, /## Integrazione con la console unificata/);
+  assert.match(markdown, /Invocare il fulmine/);
+});
+
+test("l'audit separa conformita RAW e raggiungibilita nella console unificata", () => {
+  const audit = buildSpellAutomationAudit();
+  assert.equal(audit.schemaVersion, 4);
+  assert.ok(audit.rows.every((row) => row.integration?.status));
+  assert.ok(audit.summary.unifiedCatalogExposed > 0);
+  assert.ok(audit.summary.integrationDisconnected > 0);
+  assert.ok(audit.summary.byIntegrationStatus.reachable > 0);
+  assert.ok(audit.summary.byIntegrationIssue.UNIFIED_CATALOG_MISSING > 0);
+});
+
+test("Invocare il Fulmine segnala i workflow raggiungibili solo via reminder", () => {
+  const audit = buildSpellAutomationAudit();
+  const callLightning = audit.rows.find((row) => row.id === "call-lightning");
+
+  assert.equal(callLightning?.integration.catalog.exposed, true);
+  assert.equal(callLightning?.integration.contract.lane, "area-transaction");
+  assert.equal(callLightning?.integration.cast.adapter, "area-transaction");
+  assert.equal(callLightning?.integration.cast.valid, true);
+  assert.ok(callLightning?.integration.persistence.ruleIds.includes("call-lightning:cloud"));
+  assert.deepEqual(callLightning?.integration.actions.declaredActionIds, ["call-lightning-strike"]);
+  assert.deepEqual(callLightning?.integration.actions.panelActionIds, []);
+  assert.deepEqual(callLightning?.integration.actions.reminderActionIds, ["call-lightning-strike"]);
+  assert.equal(callLightning?.integration.actions.mode, "reminder-only");
+  assert.equal(callLightning?.integration.status, "fragile");
+  assert.ok(callLightning?.integration.issues.some((issue) =>
+    issue.code === "ACTIVE_ACTION_REMINDER_ONLY"
+  ));
+});
+
+test("l'audit intercetta cast senza mutazioni e spell non esposte", () => {
+  const audit = buildSpellAutomationAudit();
+  const immolation = audit.rows.find((row) => row.id === "xanathar-immolazione");
+  const planeShift = audit.rows.find((row) => row.id === "plane-shift");
+
+  assert.equal(immolation?.integration.cast.valid, false);
+  assert.equal(immolation?.integration.cast.mutationMode, "none");
+  assert.equal(immolation?.integration.status, "disconnected");
+  assert.ok(immolation?.integration.issues.some((issue) =>
+    issue.code === "CAST_NO_MUTATIONS"
+  ));
+
+  assert.equal(planeShift?.integration.catalog.exposed, false);
+  assert.equal(planeShift?.integration.status, "disconnected");
+  assert.ok(planeShift?.integration.issues.some((issue) =>
+    issue.code === "UNIFIED_CATALOG_MISSING"
+  ));
 });

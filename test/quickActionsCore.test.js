@@ -6,12 +6,11 @@ import {
   findQuickAction,
   quickActionDirectTargetIds,
   quickActionInitialTargetIds,
-  quickActionPanel,
   sanitizeQuickAction,
   sanitizeQuickActions,
 } from "../src/quickActionsCore.js";
 
-test("normalizza un preset incantesimo senza memorizzare stato runtime", () => {
+test("migra in lettura un preset incantesimo v1 nel modello v2 senza workflow", () => {
   assert.deepEqual(sanitizeQuickAction({
     version: 99,
     id: " fireball/action ",
@@ -26,17 +25,31 @@ test("normalizza un preset incantesimo senza memorizzare stato runtime", () => {
     targetIds: ["enemy"],
     operations: [{ type: "hp:set" }],
   }), {
-    version: 1,
+    version: 2,
     id: "fireballaction",
     label: "Palla di Fuoco",
     kind: "spell",
     spellId: "fireball",
-    workflow: "area",
     targetMode: "selection",
     slotLevel: 9,
     turns: 1,
     applyAutomations: false,
+    launchMode: "review",
   });
+});
+
+test("mappa workflow v1 e assenza di workflow su launchMode v2", () => {
+  const base = {
+    id: "spell-action",
+    label: "Incantesimo",
+    kind: "spell",
+    spellId: "shield-of-faith",
+    targetMode: "self",
+  };
+  assert.equal(sanitizeQuickAction({ ...base, workflow: "spell" }).launchMode, "auto");
+  assert.equal(sanitizeQuickAction({ ...base, workflow: "area" }).launchMode, "review");
+  assert.equal(sanitizeQuickAction(base).launchMode, "auto");
+  assert.equal(sanitizeQuickAction({ ...base, workflow: "area", launchMode: "auto" }).launchMode, "auto");
 });
 
 test("normalizza condizioni e limita durata e modalità", () => {
@@ -49,7 +62,7 @@ test("normalizza condizioni e limita durata e modalità", () => {
     expiryMode: "turn-end",
     duration: "3.7",
   }), {
-    version: 1,
+    version: 2,
     id: "vow",
     label: "Giuramento",
     kind: "condition",
@@ -86,17 +99,16 @@ test("normalizza una capacità attiva senza stato runtime", () => {
     resourceCurrent: 2,
   });
   assert.deepEqual(action, {
-    version: 1,
+    version: 2,
     id: "feature:barbaro-ira",
     label: "Ira",
     kind: "feature",
     featureId: "barbaro-ira",
     targetMode: "self",
   });
-  assert.equal(quickActionPanel(action), "features");
 });
 
-test("risolve pannello, lookup e bersagli iniziali", () => {
+test("risolve lookup e bersagli iniziali senza conoscere pannelli", () => {
   const profile = {
     quickActions: [{
       id: "shield",
@@ -122,10 +134,10 @@ test("risolve pannello, lookup e bersagli iniziali", () => {
   };
 
   const shield = findQuickAction(profile, "shield");
-  assert.equal(quickActionPanel(shield), "spells");
+  assert.equal(shield.launchMode, "auto");
   assert.deepEqual(quickActionInitialTargetIds(shield, "paladin", ["enemy"]), ["paladin"]);
-  assert.equal(quickActionPanel(findQuickAction(profile, "fireball")), "quick-hp");
-  assert.equal(quickActionPanel(findQuickAction(profile, "vow")), "conditions");
+  assert.equal(findQuickAction(profile, "fireball").launchMode, "review");
+  assert.equal(findQuickAction(profile, "vow").kind, "condition");
   assert.deepEqual(
     quickActionInitialTargetIds(findQuickAction(profile, "vow"), "paladin", ["enemy", "enemy"]),
     ["enemy"],

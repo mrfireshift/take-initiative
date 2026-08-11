@@ -41,6 +41,35 @@ test("l'inizializzazione fotografa la membership senza generare trigger retroatt
   assert.equal(plan.runtime.evaluatedActorId, "target");
 });
 
+test("Allucinazione di Forza ricorda il danno nel turno successivo del caster", () => {
+  const rule = getSpellAreaRuleById("phb2014-allucinazione-di-forza:cast");
+  const metadata = zoneMetadata({
+    ruleId: rule.id,
+    spellId: rule.spellId,
+    targetIds: ["target"],
+  });
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: ["target"],
+    initiativeState: state(1),
+    now: 100,
+  });
+  const casterTurn = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    initiativeState: state(0, 2),
+    now: 200,
+  });
+
+  assert.equal(casterTurn.newActivations.length, 1);
+  assert.deepEqual(casterTurn.newActivations[0].targetIds, ["target"]);
+  assert.equal(casterTurn.newActivations[0].resolution, "manual-effect");
+  assert.equal(casterTurn.newActivations[0].damage.dice, "1d6");
+});
+
 test("i trigger pendenti riconoscono anche le aure delle capacità di classe", () => {
   const pending = pendingSpellZoneTriggerActivations([{
     id: "angel-aura",

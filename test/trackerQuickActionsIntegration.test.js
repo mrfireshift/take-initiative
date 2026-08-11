@@ -82,7 +82,18 @@ test("il fallback conserva i pannelli esistenti per le azioni non dirette", () =
   assert.match(initiativeSource, /result\.mode !== "review"/);
   assert.match(initiativeSource, /openCardEffectsPopup\(sourceEntry/);
   assert.match(initiativeSource, /openCardSpellsPopup\(sourceEntry/);
-  assert.match(initiativeSource, /openQuickHPPopup\(\{\s*sourceId,\s*quickActionId\s*\}\)/);
+  assert.match(initiativeSource, /openGlobalQuickHPPopup\(\{\s*sourceId,\s*quickActionId\s*\}\)/);
+});
+
+test("il routing delle quick action spell risolve l'azione dal catalogo della card", () => {
+  assert.match(
+    initiativeSource,
+    /findQuickAction,\s*\n\s*sanitizeQuickActions/,
+  );
+  assert.match(initiativeSource, /const quickAction = quickActionId\s*\n\s*\? findQuickAction\(sourceEntry, quickActionId\)/);
+  assert.match(initiativeSource, /routeRequest: result\.route\?\.request \|\| \{\}/);
+  assert.match(initiativeSource, /data\.intent === "spell-cast"/);
+  assert.doesNotMatch(initiativeSource, /action\.kind === "spell"[\s\S]{0,240}openQuickHPPopup/);
 });
 
 test("il pulsante apre e richiude un popover dedicato alle macro", () => {

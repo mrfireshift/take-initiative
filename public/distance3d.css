@@ -52,7 +52,7 @@ body { padding: 0; }
   gap: 8px;
   padding: 8px;
 }
-.origin-select-label { gap: 8px; min-width: 0; }
+.origin-select-label { gap: 5px; min-width: 0; }
 .origin-select-label > span {
   color: rgba(226,232,240,.72);
   font-size: var(--obrt-type-caption);

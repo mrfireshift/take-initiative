@@ -2,6 +2,15 @@ import { ID } from "./constants.js";
 
 export const SPELL_AREA_PLACEMENT_CHANNEL = `${ID}/spell-area-placement`;
 
+export function spellAreaPlacementParentUnavailable(
+  context = null,
+  parentZone = null,
+  parentArea = null,
+) {
+  const parentZoneId = String(context?.parentZoneId || "").trim();
+  return !!parentZoneId && (!parentZone || !parentArea);
+}
+
 const DEFAULT_METERS_PER_CELL = 1.5;
 const UNIT_METERS = Object.freeze({
   m: 1,

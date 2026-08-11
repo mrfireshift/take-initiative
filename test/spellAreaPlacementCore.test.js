@@ -9,6 +9,7 @@ import {
   nearestGridCellSideCenter,
   nearestGridCorner,
   reviewSpellAreaPlacement,
+  spellAreaPlacementParentUnavailable,
   spellAreaGridCells,
   spellAreaRangeCells,
   spellAreaOriginAdjacentToCaster,
@@ -19,6 +20,21 @@ import {
   getSpellAreaRuleById,
   getSpellAreaRuleForPlacement,
 } from "../src/spellAreaRules.js";
+
+test("il contesto di un cast normale non richiede una zona parent", () => {
+  assert.equal(spellAreaPlacementParentUnavailable({
+    phase: "cast",
+    spellId: "fireball",
+  }), false);
+  assert.equal(spellAreaPlacementParentUnavailable({
+    phase: "cast",
+    spellId: "call-lightning",
+    parentZoneId: "root-zone",
+  }), true);
+  assert.equal(spellAreaPlacementParentUnavailable({
+    parentZoneId: "root-zone",
+  }, { id: "root-zone" }, { type: "circle" }), false);
+});
 
 test("converte le misure delle spell nelle scale metriche e imperiali della griglia", () => {
   const radius = { value: 6, unit: "m", measure: "radius" };

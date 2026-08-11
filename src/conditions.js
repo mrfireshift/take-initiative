@@ -16,6 +16,7 @@ import {
 } from "./conditionRulesCore.js";
 import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
 import { compactSpellEffectLabel } from "./effectLabelCore.js";
+import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import {
   CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS,
@@ -192,6 +193,10 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.mechanics && typeof value.mechanics === "object") {
     instance.mechanics = { ...value.mechanics };
   }
+  const deferredEffects = normalizeDeferredEffects(
+    value.deferredEffects ?? value.deferredEffect,
+  );
+  if (deferredEffects.length) instance.deferredEffects = deferredEffects;
   if (value.manualRemoval === true) instance.manualRemoval = true;
   if (value.mapVisible === false) instance.mapVisible = false;
   if (value.parentRemoval === "target" || value.parentRemoval === "spell") {

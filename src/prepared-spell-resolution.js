@@ -13,8 +13,14 @@ import {
   executeSpellActiveAction,
   executeSpellApplication,
 } from "./spellApplicationExecutor.js";
+import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { spellActiveActionPresentation } from "./spellActiveActionCore.js";
 import { spellResolveActionPresentation } from "./spellsPanelTargetPicker.js";
+import {
+  buildSpellUnifiedPopupEvent,
+  SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
+  SPELL_UNIFIED_PANEL_POPUP_STATUSES,
+} from "./spellUnifiedPopupProtocol.js";
 
 const META_KEY = `${ID}/meta`;
 const instanceId = new URLSearchParams(window.location.search).get("instance") || "";
@@ -32,14 +38,43 @@ let currentTargetIds = [];
 let resolving = false;
 let unsubscribeItems = null;
 let unsubscribePlayer = null;
-let selectionTimer = null;
 let refreshQueued = false;
+let parentNotified = false;
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
     .map((value) => String(value || "").trim())
     .filter(Boolean)
 ));
+
+async function notifyParent(status, message = "", executionResult = null) {
+  if (parentNotified) return;
+  parentNotified = true;
+  const history = spellExecutionHistoryDetails(executionResult);
+  await OBR.broadcast.sendMessage(
+    SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
+    buildSpellUnifiedPopupEvent({
+      source: "prepared-spell-resolution",
+      status,
+      instanceId,
+      actionId: preparedSpellResolutionAction(currentGroup)?.id || "",
+      popoverId: preparedSpellResolutionPopoverId(instanceId),
+      message,
+      ...(history.historyEntryId
+        ? {
+          historyEntryId: history.historyEntryId,
+          undoAvailable: history.undoAvailable,
+        }
+        : {}),
+    }),
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
+async function closePopup() {
+  await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
+  await OBR.popover.close(preparedSpellResolutionPopoverId(instanceId)).catch(() => {});
+}
 
 async function spellItems() {
   return OBR.scene.items.getItems((item) =>
@@ -168,8 +203,9 @@ async function resolvePreparedSpell() {
       : spellResolveActionPresentation(targetIds.length);
     if (presentation.disabled) throw new Error("prepared-spell-targets-invalid");
 
+    let executionResult;
     if (action.type === "manual") {
-      await executeSpellActiveAction({
+      executionResult = await executeSpellActiveAction({
         spell: preparedSpellDefinition(latestGroup),
         actionId: action.id,
         group: latestGroup,
@@ -182,20 +218,26 @@ async function resolvePreparedSpell() {
         targetIds,
         selectedChoice: choice.hidden ? "" : choice.value,
       });
-      await executeSpellApplication({
+      executionResult = await executeSpellApplication({
         ...request,
         casterName: latestGroup.casterName,
       });
     }
+    await notifyParent(
+      SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
+      "",
+      executionResult,
+    );
     await requestControllerSync();
     await refresh();
     if (!currentGroup) {
-      await OBR.popover.close(preparedSpellResolutionPopoverId(instanceId));
+      await closePopup();
     }
   } catch (error) {
     const code = String(error?.message || error);
     if (code === "prepared-spell-stale") {
       renderGroup(null);
+      await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED, code);
       await requestControllerSync();
     } else if (
       code === "prepared-spell-targets-required"
@@ -203,6 +245,7 @@ async function resolvePreparedSpell() {
     ) {
       status.textContent = "Seleziona un bersaglio valido.";
     } else {
+      await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED, code);
       status.textContent = "Attivazione non riuscita. Riprova dal pannello Spells.";
       console.warn("[prepared-spell-resolution] resolve:", code);
     }
@@ -218,18 +261,17 @@ OBR.onReady(async () => {
     renderGroup(null);
     return;
   }
+  document.getElementById("close")?.addEventListener("click", () => void closePopup());
   resolveButton.addEventListener("click", resolvePreparedSpell);
   unsubscribeItems = OBR.scene.items.onChange(queueRefresh);
   unsubscribePlayer = OBR.player.onChange((player) => {
     if (Array.isArray(player?.selection)) void refreshSelection(player.selection);
   });
-  selectionTimer = window.setInterval(() => void refreshSelection(), 300);
   await refresh();
 });
 
 window.addEventListener("beforeunload", () => {
+  void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
   unsubscribeItems?.();
   unsubscribePlayer?.();
-  if (selectionTimer !== null) window.clearInterval(selectionTimer);
-  selectionTimer = null;
 });

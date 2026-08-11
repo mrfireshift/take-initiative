@@ -2,6 +2,7 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSpellInstanceId } from "./spells.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
+import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
@@ -12,6 +13,7 @@ import {
 } from "./spellApplicationPlanCore.js";
 import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
 import {
+  buildSpellActiveResolutionFailureOperations,
   normalizeActiveResolutionTargetIds,
   resolveSpellActiveResolutionDamage,
   validateSpellActiveResolutionPayload,
@@ -36,6 +38,9 @@ import {
 } from "./spellBoardTokenCore.js";
 import { buildStaticSpellChildZoneItem } from "./spellStaticZone.js";
 import { translatedZoneArea } from "./spellStaticZoneCore.js";
+import {
+  attachSpellExecutionHistory,
+} from "./spellExecutionHistoryCore.js";
 
 const STATE_KEY = `${ID}/state`;
 
@@ -96,7 +101,7 @@ export async function executeSpellZoneMovement({
     },
   });
   requireAppliedEffectsMutation(movement);
-  return movement.changedIds || [];
+  return attachSpellExecutionHistory(movement.changedIds || [], movement);
 }
 
 export async function getCurrentSpellAppliedAt() {
@@ -174,7 +179,7 @@ export async function executeSpellActiveAction({
   requireAppliedEffectsMutation(mutation);
   const changedIds = mutation.changedIds;
   await refreshConditionLabels(changedIds);
-  return changedIds;
+  return attachSpellExecutionHistory(changedIds, mutation);
 }
 
 function metadataSnapshot(meta, field) {
@@ -207,6 +212,7 @@ export async function executeSpellActiveResolution({
   outcomes = {},
   damageRoll = 0,
   attackOutcome = "",
+  attacks = [],
   naturalStormBonus = false,
 } = {}) {
   const normalizedPayload = {
@@ -217,7 +223,17 @@ export async function executeSpellActiveResolution({
   if (!payloadValidation.valid) {
     throw new Error("Invalid active spell resolution: " + payloadValidation.errors.join(", "));
   }
-  const ids = normalizeActiveResolutionTargetIds(targetIds);
+  const attackEntries = (Array.isArray(attacks) ? attacks : [])
+    .map((entry) => ({
+      targetId: String(entry?.targetId || entry?.id || "").trim(),
+      attackOutcome: String(entry?.attackOutcome || entry?.outcome || "").trim(),
+      damageRoll: entry?.damageRoll ?? entry?.damage ?? 0,
+    }))
+    .filter((entry) => entry.targetId);
+  const ids = normalizeActiveResolutionTargetIds([
+    ...targetIds,
+    ...attackEntries.map((entry) => entry.targetId),
+  ]);
   if (!ids.length && payload?.action?.resolutionKind !== "child-zone") {
     throw new Error("active-resolution-targets-required");
   }
@@ -228,6 +244,7 @@ export async function executeSpellActiveResolution({
     outcomes,
     damageRoll,
     attackOutcome,
+    attacks: attackEntries,
   };
   const preflight = await validateSpellActiveResolutionCommit(commitInput);
   if (!preflight.valid) {
@@ -241,6 +258,20 @@ export async function executeSpellActiveResolution({
   const unconsciousIds = [];
   const unconsciousRemovals = [];
   const action = activeResolutionAction(payload);
+  if (action?.concentrationAction === "dismiss") {
+    operations.push(
+      {
+        type: "concentration:break",
+        casterIds: [payload.casterId],
+        reference: payload.instanceId,
+      },
+      {
+        type: "spell:remove-instance",
+        targetIds: [payload.casterId],
+        instanceId: payload.instanceId,
+      },
+    );
+  }
   const sideEffects = [{
     type: "spell-active-resolution:validate",
     ...commitInput,
@@ -316,15 +347,22 @@ export async function executeSpellActiveResolution({
       operations.push({ type: "condition:automate", subjectIds: failedIds });
     }
   } else {
-    for (const targetId of ids) {
+    const resolutionEntries = attackEntries.length
+      ? attackEntries
+      : ids.map((targetId) => ({ targetId, attackOutcome, damageRoll }));
+    const currentHpById = new Map();
+    for (const entry of resolutionEntries) {
+      const targetId = entry.targetId;
       const item = byId.get(targetId);
       const meta = item?.metadata?.[`${ID}/meta`] || {};
-      const outcome = activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
+      const outcome = action?.resolutionKind === "single-attack"
+        ? entry.attackOutcome
+        : activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
       const damage = resolveSpellActiveResolutionDamage({
         action,
         slotLevel: payload.slotLevel,
         outcome,
-        roll: damageRoll,
+        roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
       });
       if (!damage.valid) throw new Error("active-resolution-damage-invalid");
       if (damage.amount <= 0) continue;
@@ -333,36 +371,89 @@ export async function executeSpellActiveResolution({
         || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
         throw new Error("active-resolution-hp-required");
       }
+      const currentHp = currentHpById.has(targetId)
+        ? currentHpById.get(targetId)
+        : meta.hp;
       const hpChange = calculateQuickHPChange({
         mode: QUICK_HP_MODES.DAMAGE,
         value: damage.amount,
         factor: QUICK_HP_FACTORS.FULL,
-        hp: meta.hp,
+        hp: currentHp,
         hpMax: meta.hpMax,
       });
+      currentHpById.set(targetId, hpChange.afterHP);
       if (!hpChange.changed) continue;
-      metadataPatches.push({
-        id: targetId,
-        fields: {
-          hp: {
-            expected: metadataSnapshot(meta, "hp"),
-            value: hpChange.afterHP,
+      const existingPatch = metadataPatches.find((patch) => patch.id === targetId);
+      if (existingPatch) {
+        existingPatch.fields.hp.value = hpChange.afterHP;
+        existingPatch.fields.hpMax.value = hpChange.hpMax;
+      } else {
+        metadataPatches.push({
+          id: targetId,
+          fields: {
+            hp: {
+              expected: metadataSnapshot(meta, "hp"),
+              value: hpChange.afterHP,
+            },
+            hpMax: {
+              expected: metadataSnapshot(meta, "hpMax"),
+              value: hpChange.hpMax,
+            },
           },
-          hpMax: {
-            expected: metadataSnapshot(meta, "hpMax"),
-            value: hpChange.hpMax,
-          },
-        },
-      });
+        });
+      }
+    }
+    for (const patch of metadataPatches) {
+      const item = byId.get(patch.id);
+      const meta = item?.metadata?.[`${ID}/meta`] || {};
       const zeroAction = resolveZeroHPUnconsciousAction(
-        { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
+        { ...meta, hp: patch.fields.hp.value, hpMax: patch.fields.hpMax.value },
         getConditionInstances(meta.conditions || {}),
       );
-      if (zeroAction.add) unconsciousIds.push(targetId);
+      if (zeroAction.add) unconsciousIds.push(patch.id);
       unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
-        itemId: targetId,
+        itemId: patch.id,
         instanceId,
       })));
+    }
+    operations.push(...buildSpellActiveResolutionFailureOperations({
+      action,
+      payload,
+      targetIds: ids,
+      outcomes,
+    }));
+    const actionEffects = Array.isArray(action?.effects) ? action.effects : [];
+    const hitEffectTargetIds = attackEntries.length
+      ? normalizeActiveResolutionTargetIds(
+        attackEntries
+          .filter((entry) => ["hit", "critical"].includes(entry.attackOutcome))
+          .map((entry) => entry.targetId),
+      )
+      : attackOutcome === "hit" && action?.resolutionKind === "single-attack"
+        ? ids
+        : [];
+    if (hitEffectTargetIds.length && action?.effectOn === "hit") {
+      for (const effect of actionEffects) {
+        const conditionName = String(effect?.label || "").trim();
+        if (!conditionName) continue;
+        operations.push({
+          type: "condition:add",
+          targetIds: hitEffectTargetIds,
+          conditionName,
+          options: spellEffectConditionOptions(
+            effect,
+            {
+              sourceId: payload.casterId,
+              sourceName: payload.casterName,
+              expiry: effect.expiry || { mode: "manual" },
+            },
+            payload.instanceId,
+          ),
+        });
+      }
+      if (operations.some((operation) => operation.type === "condition:add")) {
+        operations.push({ type: "condition:automate", subjectIds: hitEffectTargetIds });
+      }
     }
   }
   if (unconsciousIds.length) {
@@ -400,13 +491,14 @@ export async function executeSpellActiveResolution({
         outcomes,
         attackOutcome: String(attackOutcome || ""),
         damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)),
+        attacks: attackEntries,
         naturalStormBonus: naturalStormBonus === true,
       },
     },
   });
   requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(mutation.changedIds || []);
-  return mutation;
+  return attachSpellExecutionHistory(mutation, mutation);
 }
 
 export async function executeSpellBoardTokenStateUpdate({
@@ -450,7 +542,10 @@ export async function executeSpellBoardTokenStateUpdate({
     }],
   });
   requireAppliedEffectsMutation(mutation);
-  return mutation.commitResult?.sideEffectChanges || [];
+  return attachSpellExecutionHistory(
+    mutation.commitResult?.sideEffectChanges || [],
+    mutation,
+  );
 }
 
 export async function executeSpellBoardTokenRecreate({
@@ -485,7 +580,10 @@ export async function executeSpellBoardTokenRecreate({
     }],
   });
   requireAppliedEffectsMutation(mutation);
-  return mutation.commitResult?.sideEffectChanges || [];
+  return attachSpellExecutionHistory(
+    mutation.commitResult?.sideEffectChanges || [],
+    mutation,
+  );
 }
 
 export async function executeSpellApplication({
@@ -564,5 +662,5 @@ export async function executeSpellApplication({
     });
   }
   await refreshConditionLabels(changedIds);
-  return changedIds;
+  return attachSpellExecutionHistory([...changedIds], mutation);
 }

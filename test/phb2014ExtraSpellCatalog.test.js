@@ -84,7 +84,7 @@ test("il tracker include le durate persistenti e il solo istantaneo con effetto 
   assert.equal(spell("Tsunami").defaultTurns, 6);
 });
 
-test("HP rapidi riceve le 14 spell PHB con area o trigger spaziale", () => {
+test("HP rapidi riceve le 15 spell PHB con area o trigger spaziale", () => {
   const ids = getAreaSaveSpellOptions()
     .filter((option) => spell(option.id).source === "phb2014")
     .map((option) => option.id);
@@ -92,6 +92,7 @@ test("HP rapidi riceve le 14 spell PHB con area o trigger spaziale", () => {
   assert.deepEqual(ids, [
     "phb2014-braccia-di-hadar",
     "phb2014-raffica-di-spine",
+    "phb2014-allucinazione-di-forza",
     "phb2014-cordone-di-frecce",
     "phb2014-nube-di-pugnali",
     "phb2014-evoca-raffica",

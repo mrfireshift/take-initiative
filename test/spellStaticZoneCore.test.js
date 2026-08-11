@@ -5,6 +5,7 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   activeSpellInstanceIds,
   isStaticSpellZoneRule,
+  scopedStaticSpellZoneTargetIds,
   staleStaticSpellZoneItemIds,
   staticSpellZoneOwnerOperation,
   staticSpellZoneItems,
@@ -214,4 +215,22 @@ test("la zona conserva la variante di regola scelta e la registra nel contesto d
     ruleChoice: "downdraft",
   });
   assert.equal(operation.castContext.choice, "downdraft");
+});
+
+test("una zona target-scoped ignora le altre creature nella sagoma", () => {
+  const rule = getSpellAreaRuleById("phb2014-allucinazione-di-forza:cast");
+  const metadata = staticSpellZoneMetadata({
+    instanceId: "phantasmal-force-1",
+    ruleId: rule.id,
+    spellId: rule.spellId,
+    casterId: "caster",
+    targetIds: ["target", "target"],
+  });
+
+  assert.deepEqual(metadata.targetIds, ["target"]);
+  assert.deepEqual(scopedStaticSpellZoneTargetIds({
+    rule,
+    zoneMetadata: metadata,
+    targetIds: ["target", "bystander"],
+  }), ["target"]);
 });

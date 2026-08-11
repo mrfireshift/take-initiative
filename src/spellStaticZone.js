@@ -2,7 +2,11 @@ import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import { buildArea, buildCellBoundaryLoops } from "./aoeGeometryCore.js";
 import { AOE_AREA_META_KEY, loadAoEStyle, normalizeAoEStyle } from "./aoeStyle.js";
-import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
+import {
+  ID,
+  RUNTIME_CACHE_CLEANUP_CHANNEL,
+  SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
+} from "./constants.js";
 import { queueSpellAreaEffectsMutation } from "./spellAreaMutationQueue.js";
 import {
   areaMembershipEffects,
@@ -19,8 +23,10 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   activeSpellInstanceIds,
   isStaticSpellZoneRule,
+  staleStaticSpellZoneItemIds,
   staticSpellZoneItems,
   staticSpellZoneMetadata,
+  scopedStaticSpellZoneTargetIds,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import {
@@ -46,7 +52,7 @@ import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const RECONCILE_DELAY_MS = 80;
-const RECONCILE_WATCHDOG_MS = 1000;
+const RECONCILE_WATCHDOG_MS = 5000;
 const RECONCILE_RECOVERY_DELAY_MS = 250;
 const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 const META_KEY = `${ID}/meta`;
@@ -62,11 +68,22 @@ let recoveryTimer = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
+let unsubscribeRuntimeCacheCleanup = null;
 let queuedSceneMetadata = null;
 const sceneItemBounds = createSceneItemBoundsCache(
   (itemId) => OBR.scene.items.getItemBounds([itemId]),
   { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
 );
+
+function scheduleStaticSpellZoneWatchdog(needsWatchdog) {
+  if (watchdogTimer) clearTimeout(watchdogTimer);
+  watchdogTimer = null;
+  if (!mounted || !needsWatchdog) return;
+  watchdogTimer = setTimeout(() => {
+    watchdogTimer = null;
+    requestStaticSpellZoneReconcile();
+  }, RECONCILE_WATCHDOG_MS);
+}
 
 function boundaryCommands(cells) {
   const commands = [];
@@ -251,6 +268,7 @@ export function buildStaticSpellZoneItems({
   preview = null,
   style = null,
   ruleChoice = "",
+  targetIds = [],
 } = {}) {
   const rule = getSpellAreaRuleById(ruleId);
   if (!isStaticSpellZoneRule(rule)) throw new Error("static-zone-rule-invalid");
@@ -290,6 +308,7 @@ export function buildStaticSpellZoneItems({
     spellId: rule.spellId,
     casterId,
     ruleChoice,
+    targetIds,
   });
   const rootAreaMetadata = {
     version: 2,
@@ -346,6 +365,7 @@ export function buildStaticSpellZoneItems({
         role: "geometry",
         parentId: root.id,
         ruleChoice,
+        targetIds,
       }),
     },
     locked: true,
@@ -644,20 +664,26 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     OBR.scene.getMetadata().catch(() => ({})),
   ]);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  scheduleStaticSpellZoneWatchdog(staticSpellZoneItems(items).length > 0);
   const sceneMetadata = sceneMetadataOverride
     && typeof sceneMetadataOverride === "object"
     && !Array.isArray(sceneMetadataOverride)
     ? sceneMetadataOverride
     : fetchedSceneMetadata;
   const activeInstances = activeSpellInstanceIds(items);
+  const staleZoneIds = staleStaticSpellZoneItemIds(items);
   const orphanBoardTokenIds = spellBoardTokenItems(items)
     .filter((item) => !activeInstances.has(String(
       item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.instanceId || "",
     ).trim()))
     .map((item) => item.id)
     .filter(Boolean);
-  if (orphanBoardTokenIds.length) {
-    await OBR.scene.items.deleteItems(orphanBoardTokenIds);
+  const initialDerivedCleanupIds = [...new Set([
+    ...staleZoneIds,
+    ...orphanBoardTokenIds,
+  ])];
+  if (initialDerivedCleanupIds.length) {
+    await OBR.scene.items.deleteItems(initialDerivedCleanupIds);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
   }
   const currentTurnKey = currentInitiativeTurnKey(sceneMetadata?.[STATE_KEY]);
@@ -675,7 +701,10 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     await OBR.scene.items.deleteItems(expiredSubzoneIds);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
   }
-  let currentItems = items.filter((item) => !expiredSubzoneIds.includes(item.id));
+  let currentItems = items.filter((item) => (
+    !initialDerivedCleanupIds.includes(item.id)
+    && !expiredSubzoneIds.includes(item.id)
+  ));
   const zoneRoots = staticSpellZoneItems(currentItems)
     .filter((item) =>
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
@@ -768,23 +797,31 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     const rule = getSpellAreaRuleById(zoneMetadata.ruleId);
     const area = translatedZoneArea(item);
     if (!rule || !area) continue;
-    const desiredTargetIds = areaMembershipTargetIds({
-      sourceId: zoneMetadata.casterId,
+    const desiredTargetIds = scopedStaticSpellZoneTargetIds({
       rule,
-      area,
-      candidates,
-      metaKey: META_KEY,
-    });
-    const directTargetIds = rule.zonePolicy?.triggers?.some(
-      (trigger) => trigger?.targetMode === "direct-members"
-    )
-      ? areaMembershipTargetIds({
+      zoneMetadata,
+      targetIds: areaMembershipTargetIds({
         sourceId: zoneMetadata.casterId,
         rule,
         area,
         candidates,
         metaKey: META_KEY,
-        membershipPaddingSquares: 0,
+      }),
+    });
+    const directTargetIds = rule.zonePolicy?.triggers?.some(
+      (trigger) => trigger?.targetMode === "direct-members"
+    )
+      ? scopedStaticSpellZoneTargetIds({
+        rule,
+        zoneMetadata,
+        targetIds: areaMembershipTargetIds({
+          sourceId: zoneMetadata.casterId,
+          rule,
+          area,
+          candidates,
+          metaKey: META_KEY,
+          membershipPaddingSquares: 0,
+        }),
       })
       : [];
     const caster = byId.get(zoneMetadata.casterId);
@@ -958,6 +995,7 @@ export async function mountStaticSpellZoneController() {
       sceneItemBounds.clear();
       if (recoveryTimer) clearTimeout(recoveryTimer);
       recoveryTimer = null;
+      scheduleStaticSpellZoneWatchdog(false);
       return;
     }
     requestStaticSpellZoneReconcile();
@@ -966,9 +1004,13 @@ export async function mountStaticSpellZoneController() {
     queuedSceneMetadata = metadata;
     requestStaticSpellZoneReconcile();
   });
-  watchdogTimer = setInterval(
-    requestStaticSpellZoneReconcile,
-    RECONCILE_WATCHDOG_MS,
+  unsubscribeRuntimeCacheCleanup = OBR.broadcast.onMessage(
+    RUNTIME_CACHE_CLEANUP_CHANNEL,
+    (event) => {
+      if (event?.data?.type !== "clear-runtime-caches") return;
+      sceneItemBounds.clear();
+      requestStaticSpellZoneReconcile();
+    },
   );
   requestStaticSpellZoneReconcile();
   return true;
@@ -981,7 +1023,9 @@ export function unmountStaticSpellZoneController() {
   unsubscribeSceneReady = null;
   unsubscribeSceneMetadata?.();
   unsubscribeSceneMetadata = null;
-  if (watchdogTimer) clearInterval(watchdogTimer);
+  unsubscribeRuntimeCacheCleanup?.();
+  unsubscribeRuntimeCacheCleanup = null;
+  if (watchdogTimer) clearTimeout(watchdogTimer);
   watchdogTimer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;

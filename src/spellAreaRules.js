@@ -27,6 +27,7 @@ const SPELL_AREA_DIRECTIONS = Object.freeze(["none", "pointer"]);
 const SPELL_AREA_ANCHORS = Object.freeze(["world", "caster"]);
 const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
 const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly"]);
+const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
   "while-inside",
@@ -61,6 +62,7 @@ const SPELL_ZONE_TARGET_MODES = Object.freeze([
   "direct-members",
   "caster",
 ]);
+const SPELL_ZONE_TARGET_SCOPES = Object.freeze(["spell-targets"]);
 const SPELL_ZONE_INITIAL_RESOLUTIONS = Object.freeze([
   "none",
   "manual-save",
@@ -344,6 +346,12 @@ function validateZonePolicy(policy, errors) {
     errors.push("zone-membership-padding-invalid");
   }
   if (
+    policy.targetScope !== undefined
+    && !allowed(SPELL_ZONE_TARGET_SCOPES, policy.targetScope)
+  ) {
+    errors.push("zone-target-scope-invalid");
+  }
+  if (
     !policy.membershipTargeting
     || typeof policy.membershipTargeting !== "object"
   ) {
@@ -462,6 +470,12 @@ export function validateSpellAreaRule(rule) {
   }
   if (typeof rule?.targeting?.confirmTargets !== "boolean") {
     errors.push("confirm-targets-required");
+  }
+  if (
+    rule?.targeting?.selectionMode !== undefined
+    && !allowed(SPELL_AREA_SELECTION_MODES, rule.targeting.selectionMode)
+  ) {
+    errors.push("target-selection-mode-invalid");
   }
   if (!allowed(SPELL_AREA_EFFECT_MODES, rule?.effectPolicy?.mode)) {
     errors.push("effect-mode-invalid");
@@ -1977,6 +1991,53 @@ function childZoneRule({
 
 export const SPELL_AREA_RULES = Object.freeze([
   defineRule({
+    id: "phb2014-allucinazione-di-forza:cast",
+    spellId: "phb2014-allucinazione-di-forza",
+    trigger: CAST_TRIGGER,
+    kind: "zone",
+    geometry: {
+      shape: "square",
+      size: meters(3, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(18, "range"),
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: true,
+      selectionMode: "manual",
+    },
+    effectPolicy: { mode: "manual-trigger" },
+    zonePolicy: {
+      placementOptional: false,
+      owner: "caster",
+      movement: "fixed",
+      membershipPaddingSquares: 1,
+      targetScope: "spell-targets",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: true,
+      },
+      membershipEffects: [],
+      triggers: [{
+        id: "phantasmal-force-caster-turn-damage",
+        label: "Allucinazione di Forza: 1d6 danni psichici opzionali",
+        event: "turn-start",
+        frequency: "once-per-turn",
+        resolution: "manual-effect",
+        targetMode: "members",
+        requiresSourceTurn: true,
+        damage: { dice: "1d6", type: "psichici", onSave: "none" },
+      }],
+    },
+  }),
+  defineRule({
     id: "fireball:cast",
     spellId: "fireball",
     trigger: CAST_TRIGGER,
@@ -2050,6 +2111,32 @@ export const SPELL_AREA_RULES = Object.freeze([
       membershipEffects: [],
       triggers: [],
     },
+  }),
+  defineRule({
+    id: "xanathar-arma-sacra:burst",
+    spellId: "xanathar-arma-sacra",
+    trigger: {
+      type: "active-action",
+      actionId: "holy-weapon-dismiss",
+    },
+    kind: "emission",
+    geometry: {
+      shape: "circle",
+      size: meters(9, "radius"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(1500, "range"),
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: true,
+    },
+    effectPolicy: ON_CONFIRM,
   }),
   defineRule({
     id: "burning-hands:cast",
@@ -2365,7 +2452,7 @@ export const SPELL_AREA_RULES = Object.freeze([
     },
     lifecycle: SPELL_LIFECYCLE,
     targeting: {
-      filter: "hostile",
+      filter: "all",
       includeCaster: false,
       confirmTargets: false,
     },

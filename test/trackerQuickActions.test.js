@@ -91,7 +91,7 @@ test("non monta il pulsante senza azioni valide", () => {
 test("riassume tipo e bersaglio senza dipendere dal pannello", () => {
   assert.equal(
     trackerQuickActionSummary(action),
-    "Incantesimo · bersaglio selezionato",
+    "Incantesimo · lancio rapido · bersaglio selezionato",
   );
   assert.equal(trackerQuickActionSummary({
     id: "vow",

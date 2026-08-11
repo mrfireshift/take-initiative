@@ -1,9 +1,8 @@
-import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
+import OBR from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
-  TRACKER_PANEL_REQUEST_CHANNEL,
 } from "./constants.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
@@ -13,7 +12,6 @@ import {
   QUICK_HP_MODES,
   calculateQuickHPChange,
   createQuickHPVisualTransaction,
-  failedQuickHPTargetIds,
   quickHPVisualUpdates,
   quickHPZeroReconcileTargetIds,
   shouldHandleQuickHPUndoShortcut,
@@ -25,134 +23,48 @@ import {
   conditionMutationOperations,
   requireAppliedEffectsMutation,
   runEffectsMutation,
-  saveSpellResolutionOperations,
-  saveSpellTriggerResolutionOperations,
 } from "./effectsMutations.js";
-import {
-  getZeroHPConditionHistoryIds,
-} from "./hpConditionAutomation.js";
+import { getZeroHPConditionHistoryIds } from "./hpConditionAutomation.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
-import { createSpellInstanceId } from "./spells.js";
-import { gridGeometryFromBounds, gridPlanarDistance } from "./distance3dCore.js";
-import {
-  getAreaSaveAutomation,
-  getAreaSaveRuleChoices,
-  getAreaSaveSpellOptions,
-  getSpellDefinition,
-} from "./spells-srd.js";
-import {
-  AREA_HEALING_SPELL_ID_SET,
-  AREA_POPOVER_SAVE_SPELL_ID_SET,
-  AREA_SAVE_SPELL_ID_SET,
-} from "./areaSaveSpellRules.js";
-import { normalizeSaveSpellAutomation, resolveSaveSpellResolution } from "./saveSpellCore.js";
-import { spellEffectConditionOptions } from "./spellEffectCore.js";
-import {
-  CHAIN_LIGHTNING_TARGETING,
-  resolveChainLightningTargeting,
-} from "./chainLightningTargetingCore.js";
-import {
-  getSpellSaveWorkflowChoiceOptions,
-  getSpellSaveWorkflowRule,
-} from "./spellSaveWorkflowRules.js";
-import { resolveSpellSaveTargeting } from "./spellSaveTargetingCore.js";
-import {
-  confirmedSpellAreaTargetIds,
-  quickHpAreaPlacementPresentation,
-  quickHpSpellUsesSaveOutcomes,
-} from "./quickHpAreaWorkflowCore.js";
-import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
-import { requestSpellAreaPlacement } from "./spellAreaPlacementClient.js";
-import {
-  buildStaticSpellZoneItems,
-  getStaticSpellZoneItems,
-} from "./spellStaticZone.js";
-import { areaMembershipPlan } from "./spellAreaMembershipCore.js";
-import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
-import {
-  SPELL_STATIC_ZONE_META_KEY,
-  staticSpellZoneOwnerOperation,
-} from "./spellStaticZoneCore.js";
-import {
-  getSpellAreaPlacementChoices,
-  getSpellAreaRuleById,
-} from "./spellAreaRules.js";
-import {
-  SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
-  consumeSpellZoneTrigger,
-  pendingSpellZoneTriggerActivations,
-} from "./spellZoneTriggerCore.js";
 import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js";
-import { spellColorFor } from "./spellColorCore.js";
-import { getInitiativeCard, loadInitiativeCard } from "./initiativeCards.js";
-import { findQuickAction } from "./quickActionsCore.js";
+import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
-import { emitFireballVisual } from "./fireballVisualRenderer.js";
-import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
-import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
-import { openReferencePopover } from "./referencePopover.js";
-import { makeReferenceButton } from "./referenceButton.js";
-import { getSpellBoardTokenItems } from "./spellBoardToken.js";
-import {
-  createSpellBoardTokenId,
-  spellBoardTokenPlacementPosition,
-} from "./spellBoardTokenCore.js";
+import "./popoverDrag.js";
 
-const META_KEY = ID + "/meta";
-const STATE_KEY = ID + "/state";
-const SPELLS_KEY = ID + "/spells";
-const CONCENTRATION_KEY = ID + "/concentration";
-
-function quickHpEffectsHistoryEntry(entry, mutation = null) {
-  return decorateCompositeEffectsHistoryEntry({
-    entry,
-    mutation,
-    effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
-  });
-}
-const MODAL_ID = ID + "/quick-hp-modal";
-const TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
-const QUICK_ACTION_QUERY = new URLSearchParams(window.location.search);
-const QUICK_ACTION_SOURCE_ID = QUICK_ACTION_QUERY.get("source") || "";
-const QUICK_ACTION_ID = QUICK_ACTION_QUERY.get("quickAction") || "";
-const LAIR_ID = "__LAIR__";
-const EPIC_PREFIX = "__EPIC__";
-const factorOptions = [
-  { value: QUICK_HP_FACTORS.DOUBLE, label: "\u00d72", title: "Doppio" },
-  { value: QUICK_HP_FACTORS.FULL, label: "1", title: "Intero" },
-  { value: QUICK_HP_FACTORS.HALF, label: "\u00bd", title: "Meta" },
-  { value: QUICK_HP_FACTORS.QUARTER, label: "\u00bc", title: "Quarto" },
-];
-const SAVE_OUTCOMES = Object.freeze({ PASSED: "passed", FAILED: "failed", IMMUNE: "immune" });
+const META_KEY = `${ID}/meta`;
+const STATE_KEY = `${ID}/state`;
+const MODAL_ID = `${ID}/quick-hp-modal`;
+const TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
+const SAVE_OUTCOMES = Object.freeze({
+  PASSED: "passed",
+  FAILED: "failed",
+  IMMUNE: "immune",
+});
 const outcomeOptions = [
   { value: SAVE_OUTCOMES.PASSED, label: "Superato", shortLabel: "Superato" },
   { value: SAVE_OUTCOMES.FAILED, label: "Fallito", shortLabel: "Fallito" },
   { value: SAVE_OUTCOMES.IMMUNE, label: "Immune", shortLabel: "Immune" },
 ];
+const factorOptions = [
+  { value: QUICK_HP_FACTORS.DOUBLE, label: "×2", title: "Doppio" },
+  { value: QUICK_HP_FACTORS.FULL, label: "1", title: "Intero" },
+  { value: QUICK_HP_FACTORS.HALF, label: "½", title: "Metà" },
+  { value: QUICK_HP_FACTORS.QUARTER, label: "¼", title: "Quarto" },
+];
 
 let mode = QUICK_HP_MODES.SAVE;
-let areaEffectTab = "spell";
-let effectSaveDamageSequence = 0;
 let targets = [];
 let selectedIds = new Set();
 let factors = new Map();
 let saveOutcomes = new Map();
-let targetContexts = new Map();
-let chainPrimaryId = "";
-let chainLightningReferenceCleanup = null;
-let chainLightningReferenceSequence = 0;
 let selectionWriteDepth = 0;
 let selectionPollBusy = false;
 let selectionUnsubscribe = null;
 let selectionTimer = null;
 let busy = false;
-let targetSelectionLocked = false;
 let lastEntryId = "";
-let pendingSpellAreaPlacement = null;
-let activeZoneTrigger = null;
-let lastZoneTriggerActivationId = "";
-let zoneTriggerRequestUnsubscribe = null;
+let effectSaveDamageSequence = 0;
 
 const closeButton = document.getElementById("close");
 const amountInput = document.getElementById("amount");
@@ -163,936 +75,72 @@ const status = document.getElementById("status");
 const applyButton = document.getElementById("apply");
 const undoButton = document.getElementById("undo");
 const targetNameFilter = document.getElementById("targetNameFilter");
-const targetLock = document.getElementById("targetLock");
-const unlockTargetsButton = document.getElementById("unlockTargets");
 const saveOptions = document.getElementById("saveOptions");
-const areaEffectTabButtons = Array.from(document.querySelectorAll("[data-area-effect-tab]"));
-const areaSpellPanel = document.getElementById("areaSpellPanel");
-const spellSelect = document.getElementById("spellSelect");
-const spellSearch = document.getElementById("spellSearch");
-const spellMenuToggle = document.getElementById("spellMenuToggle");
-const spellMenu = document.getElementById("spellMenu");
-const spellRuleChoiceWrap = document.getElementById("spellRuleChoiceWrap");
-const spellRuleChoice = document.getElementById("spellRuleChoice");
-const spellRuleSummary = document.getElementById("spellRuleSummary");
-const spellSlotWrap = document.getElementById("spellSlotWrap");
-const spellSlotSelect = document.getElementById("spellSlot");
-const spellTargetLimit = document.getElementById("spellTargetLimit");
-const chainLightningControls = document.getElementById("chainLightningControls");
-const chainPrimarySelect = document.getElementById("chainPrimary");
-const areaPlacementButton = document.getElementById("areaPlacement");
-const areaPlacementRow = document.getElementById("areaPlacementRow");
-const spellReferenceSlot = document.getElementById("spellReferenceSlot");
-const spellCasterWrap = document.getElementById("spellCasterWrap");
-const spellCasterSelect = document.getElementById("spellCaster");
-const manualConditionWrap = document.getElementById("manualConditionWrap");
 const conditionSelect = document.getElementById("conditionSelect");
-const conditionDetails = document.getElementById("conditionDetails");
-const concentrationNotice = document.getElementById("concentrationNotice");
-const conditionSourceWrap = document.getElementById("conditionSourceWrap");
 const conditionSourceSelect = document.getElementById("conditionSource");
-const conditionExpiryWrap = document.getElementById("conditionExpiryWrap");
 const conditionExpirySelect = document.getElementById("conditionExpiry");
-const conditionConcentrationExpiryOption = conditionExpirySelect.querySelector("[value='concentration']");
-const conditionActorWrap = document.getElementById("conditionActorWrap");
 const conditionActorSelect = document.getElementById("conditionActor");
-const conditionDurationWrap = document.getElementById("conditionDurationWrap");
-const conditionDurationCaption = document.getElementById("conditionDurationCaption");
 const conditionDurationInput = document.getElementById("conditionDuration");
+const conditionDurationWrap = document.getElementById("conditionDurationWrap");
+const conditionActorWrap = document.getElementById("conditionActorWrap");
+const conditionSourceWrap = document.getElementById("conditionSourceWrap");
 const factionFilterButtons = Array.from(document.querySelectorAll("[data-hp-faction]"));
 const activeFactionFilters = new Set();
-const spellIdsBySearchLabel = new Map();
-const spellSearchEntries = [];
 
-const spellReferenceButton = makeReferenceButton("Apri Enciclopedia", () => {
-  const spell = selectedAreaSpell();
-  if (!spell) return;
-  const entry = spell.displayName || spell.name || spell.id;
-  void openReferencePopover({
-    tab: "spells",
+function quickHpEffectsHistoryEntry(entry, mutation = null) {
+  return decorateCompositeEffectsHistoryEntry({
     entry,
-  }).catch((error) => console.warn("[quick-hp] reference open error:", error?.message || error));
-});
-spellReferenceButton.classList.add("spell-reference-button");
-spellReferenceButton.hidden = true;
-spellReferenceSlot?.appendChild(spellReferenceButton);
+    mutation,
+    effectMetadataFields: ["conditions"],
+  });
+}
 
-for (const conditionName of APPLICABLE_CONDITION_LIST) {
-  const option = document.createElement("option");
-  option.value = conditionName;
-  option.textContent = conditionName;
-  conditionSelect.appendChild(option);
+function text(value) {
+  return String(value ?? "").trim();
 }
-const areaSaveSpells = getAreaSaveSpellOptions();
-const spellsByLevel = new Map();
-for (const spell of areaSaveSpells) {
-  const level = Math.max(0, Math.floor(Number(spell.level) || 0));
-  if (!spellsByLevel.has(level)) spellsByLevel.set(level, []);
-  spellsByLevel.get(level).push(spell);
-}
-for (const [level, spells] of [...spellsByLevel.entries()].sort((a, b) => a[0] - b[0])) {
-  const group = document.createElement("optgroup");
-  group.label = level === 0 ? "Trucchetti" : `Livello ${level}`;
-  for (const spell of spells) {
-    const markers = [spell.concentration ? "C" : "", spell.automated ? "auto" : ""].filter(Boolean);
-    const option = document.createElement("option");
-    option.value = spell.id;
-    option.textContent = `${spell.label}${markers.length ? ` (${markers.join(", ")})` : ""}`;
-    group.appendChild(option);
-    spellSearchEntries.push({ id: spell.id, label: option.textContent, inputLabel: spell.label, level });
-    spellIdsBySearchLabel.set(option.textContent.trim().toLocaleLowerCase("it"), spell.id);
-    spellIdsBySearchLabel.set(spell.label.trim().toLocaleLowerCase("it"), spell.id);
-  }
-  spellSelect.appendChild(group);
+
+function uniqueIds(values = []) {
+  return Array.from(new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => text(value))
+      .filter(Boolean),
+  ));
 }
 
 function splitVirtualId(value) {
-  const id = String(value || "");
+  const id = text(value);
   const index = id.indexOf("::p");
   return index >= 0 ? id.slice(0, index) : id;
 }
-function isRealTokenId(id) {
-  return !!id && id !== LAIR_ID && !id.startsWith(EPIC_PREFIX);
-}
-function itemForId(id) {
-  return targets.find((item) => item.id === id) || null;
-}
-async function currentInitiativeActorId() {
-  try {
-    const metadata = await OBR.scene.getMetadata();
-    const state = metadata && metadata[STATE_KEY] || {};
-    const order = Array.isArray(state.order) ? state.order : [];
-    const activeId = splitVirtualId(order[state.current]);
-    return isRealTokenId(activeId) && itemForId(activeId) ? activeId : "";
-  } catch {
-    return "";
-  }
-}
-function selectedAreaSpell() {
-  if (areaEffectTab !== "spell") return null;
-  return getSpellDefinition(spellSelect.value) || null;
-}
-function selectedSpellSaveWorkflowRule(spell = selectedAreaSpell()) {
-  return getSpellSaveWorkflowRule(spell?.id);
-}
-function isChainLightningSpell(spell = selectedAreaSpell()) {
-  return spell?.id === CHAIN_LIGHTNING_TARGETING.spellId;
-}
-function selectedSpellPlacementChoice(spell = selectedAreaSpell()) {
-  const choices = getSpellAreaPlacementChoices(spell);
-  const selected = spellRuleChoice.value.trim();
-  return choices.some((choice) => choice.value === selected) ? selected : "";
-}
-function selectedSpellSlotLevel(spell = selectedAreaSpell()) {
-  const rule = selectedSpellSaveWorkflowRule(spell);
-  const slotRule = rule?.targeting || (isChainLightningSpell(spell)
-    ? CHAIN_LIGHTNING_TARGETING
-    : null);
-  if (!slotRule) return null;
-  const selected = Number(spellSlotSelect.value);
-  return Number.isInteger(selected)
-    ? selected
-    : slotRule.baseSlot;
-}
-const SAVE_ABILITY_LABELS = Object.freeze({
-  cha: "Carisma",
-  con: "Costituzione",
-  int: "Intelligenza",
-  wis: "Saggezza",
-});
-function syncSpellSaveWorkflowControls() {
-  const spell = selectedAreaSpell();
-  const rule = selectedSpellSaveWorkflowRule(spell);
-  const slotRule = rule?.targeting || (isChainLightningSpell(spell)
-    ? CHAIN_LIGHTNING_TARGETING
-    : null);
-  const visible = mode === QUICK_HP_MODES.SAVE && !!slotRule;
-  spellSlotWrap.hidden = !visible;
-  if (!slotRule) {
-    spellSlotSelect.replaceChildren();
-    return;
-  }
-  const previous = Number(spellSlotSelect.value);
-  spellSlotSelect.replaceChildren();
-  for (let level = slotRule.baseSlot; level <= (slotRule.maxSlot || 9); level += 1) {
-    spellSlotSelect.appendChild(new Option(`${level}° livello`, String(level)));
-  }
-  const nextLevel = Number.isInteger(previous)
-    && previous >= slotRule.baseSlot
-    && previous <= (slotRule.maxSlot || 9)
-    ? previous
-    : slotRule.baseSlot;
-  spellSlotSelect.value = String(nextLevel);
-  spellSlotSelect.disabled = busy || !visible;
-}
-function currentChainLightningTargeting({
-  targetIds = selectedTargetItems().map((item) => item.id),
-  validateDistances = false,
-  primaryDistanceMeters = null,
-  secondaryDistancesMeters = {},
-} = {}) {
-  const normalizedTargetIds = Array.from(new Set(
-    (Array.isArray(targetIds) ? targetIds : [])
-      .map((id) => String(id || "").trim())
-      .filter(Boolean),
-  ));
-  const primaryId = String(chainPrimaryId || "").trim();
-  const result = resolveChainLightningTargeting({
-    spellId: CHAIN_LIGHTNING_TARGETING.spellId,
-    slotLevel: selectedSpellSlotLevel(),
-    primaryId,
-    secondaryIds: normalizedTargetIds.filter((id) => id !== primaryId),
-    primaryDistanceMeters,
-    secondaryDistancesMeters,
-    validateDistances,
-  });
-  const errors = [...result.errors];
-  if (primaryId && !normalizedTargetIds.includes(primaryId)) {
-    errors.push("primary-not-selected");
-  }
-  return {
-    ...result,
-    valid: errors.length === 0,
-    errors: Object.freeze(errors),
-    selectedTargetIds: Object.freeze(normalizedTargetIds),
-  };
-}
-function syncChainLightningControls() {
-  const spell = selectedAreaSpell();
-  const visible = mode === QUICK_HP_MODES.SAVE && isChainLightningSpell(spell);
-  chainLightningControls.hidden = !visible;
-  if (!visible) {
-    chainPrimarySelect.replaceChildren();
-    return;
-  }
-  const previous = itemForId(chainPrimaryId) ? chainPrimaryId : chainPrimarySelect.value;
-  chainPrimarySelect.replaceChildren(new Option("Seleziona il primario", ""));
-  for (const item of targets) {
-    chainPrimarySelect.appendChild(new Option(displayName(item), item.id));
-  }
-  chainPrimaryId = itemForId(previous)?.id || "";
-  chainPrimarySelect.value = chainPrimaryId;
-  chainPrimarySelect.disabled = busy;
-}
-const GRID_UNIT_METERS = Object.freeze({
-  m: 1,
-  meter: 1,
-  meters: 1,
-  metro: 1,
-  metri: 1,
-  ft: 0.3048,
-  foot: 0.3048,
-  feet: 0.3048,
-});
-function gridMetersPerCell(scale = {}) {
-  const multiplier = Number(scale?.parsed?.multiplier);
-  const unit = String(scale?.parsed?.unit || "m").trim().toLocaleLowerCase();
-  return (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.5)
-    * (GRID_UNIT_METERS[unit] || 1);
-}
-function chainLightningCircleCommands(radius) {
-  const handle = radius * 0.5522847498;
-  return [
-    [Command.MOVE, radius, 0],
-    [Command.CUBIC, radius, handle, handle, radius, 0, radius],
-    [Command.CUBIC, -handle, radius, -radius, handle, -radius, 0],
-    [Command.CUBIC, -radius, -handle, -handle, -radius, 0, -radius],
-    [Command.CUBIC, handle, -radius, radius, -handle, radius, 0],
-    [Command.CLOSE],
-  ];
-}
-function clearChainLightningReference() {
-  chainLightningReferenceSequence += 1;
-  chainLightningReferenceCleanup?.();
-  chainLightningReferenceCleanup = null;
-}
-async function refreshChainLightningReference() {
-  clearChainLightningReference();
-  const requestSequence = chainLightningReferenceSequence;
-  if (mode !== QUICK_HP_MODES.SAVE || !isChainLightningSpell() || !chainPrimaryId) return;
-  try {
-    const [bounds, dpiValue, scale] = await Promise.all([
-      OBR.scene.items.getItemBounds([chainPrimaryId]),
-      OBR.scene.grid.getDpi().catch(() => 150),
-      OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
-    ]);
-    if (requestSequence !== chainLightningReferenceSequence) return;
-    const geometry = gridGeometryFromBounds(bounds, Math.max(1, Number(dpiValue) || 150));
-    const dpi = Math.max(1, Number(dpiValue) || 150);
-    const radius = CHAIN_LIGHTNING_TARGETING.secondaryRangeMeters
-      / gridMetersPerCell(scale)
-      * dpi;
-    const reference = buildPath()
-      .commands(chainLightningCircleCommands(radius))
-      .fillRule("evenodd")
-      .fillColor("#38bdf8")
-      .fillOpacity(0.04)
-      .strokeColor("#38bdf8")
-      .strokeOpacity(0.8)
-      .strokeWidth(Math.max(2, dpi * 0.025))
-      .position(geometry.position)
-      .locked(true)
-      .disableHit(true)
-      .layer("DRAWING")
-      .name("Riferimento 9 m / Catena di fulmini")
-      .build();
-    const interaction = await OBR.interaction.startItemInteraction([reference]);
-    if (requestSequence !== chainLightningReferenceSequence) {
-      interaction?.[1]?.();
-      return;
-    }
-    chainLightningReferenceCleanup = interaction?.[1] || null;
-  } catch (error) {
-    if (requestSequence === chainLightningReferenceSequence) {
-      console.warn("[quick-hp] Catena di fulmini reference:", error?.message || error);
-    }
-  }
-}
-async function resolveChainLightningSceneTargeting({
-  targetIds = selectedTargetItems().map((item) => item.id),
-  casterId = spellCasterSelect.value.trim(),
-} = {}) {
-  const normalizedTargetIds = Array.from(new Set(
-    (Array.isArray(targetIds) ? targetIds : [])
-      .map((id) => String(id || "").trim())
-      .filter(Boolean),
-  ));
-  const normalizedCasterId = String(casterId || "").trim();
-  const ids = Array.from(new Set([
-    normalizedCasterId,
-    ...normalizedTargetIds,
-  ].filter(Boolean)));
-  const [liveItems, dpiValue, scale, boundsEntries] = await Promise.all([
-    OBR.scene.items.getItems(ids),
-    OBR.scene.grid.getDpi().catch(() => 150),
-    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
-    Promise.all(ids.map(async (id) => [
-      id,
-      await OBR.scene.items.getItemBounds([id]).catch(() => null),
-    ])),
-  ]);
-  const dpi = Math.max(1, Number(dpiValue) || 150);
-  const metersPerCell = gridMetersPerCell(scale);
-  const itemById = new Map((Array.isArray(liveItems) ? liveItems : []).map((item) => [item.id, item]));
-  const boundsById = new Map(boundsEntries.filter(([, bounds]) => bounds));
-  const geometryFor = (id) => {
-    const bounds = boundsById.get(id);
-    return bounds
-      ? gridGeometryFromBounds(bounds, dpi)
-      : itemById.get(id)?.position
-        ? {
-          position: itemById.get(id).position,
-          size: { width: dpi, height: dpi },
-        }
-        : null;
-  };
-  const casterGeometry = geometryFor(normalizedCasterId);
-  const primaryGeometry = geometryFor(chainPrimaryId);
-  const primaryDistance = casterGeometry && primaryGeometry
-    ? gridPlanarDistance(
-      casterGeometry.position,
-      primaryGeometry.position,
-      dpi,
-      metersPerCell,
-      casterGeometry.size,
-      primaryGeometry.size,
-    ).distance
-    : null;
-  const secondaryDistances = {};
-  for (const targetId of normalizedTargetIds.filter((id) => id !== chainPrimaryId)) {
-    const targetGeometry = geometryFor(targetId);
-    if (primaryGeometry && targetGeometry) {
-      secondaryDistances[targetId] = gridPlanarDistance(
-        primaryGeometry.position,
-        targetGeometry.position,
-        dpi,
-        metersPerCell,
-        primaryGeometry.size,
-        targetGeometry.size,
-      ).distance;
-    }
-  }
-  const targeting = currentChainLightningTargeting({
-    targetIds: normalizedTargetIds,
-    validateDistances: true,
-    primaryDistanceMeters: primaryDistance,
-    secondaryDistancesMeters: secondaryDistances,
-  });
-  const errors = [...targeting.errors];
-  if (!normalizedCasterId && !errors.includes("caster-required")) errors.push("caster-required");
-  return {
-    ...targeting,
-    valid: errors.length === 0,
-    errors: Object.freeze(errors),
-    casterId: normalizedCasterId,
-  };
-}
-async function resolveSpellSaveSceneTargeting({
-  spell = selectedAreaSpell(),
-  targetIds = selectedTargetItems().map((item) => item.id),
-  casterId = spellCasterSelect.value.trim(),
-  targetContexts: contextValues = targetContexts,
-} = {}) {
-  const rule = selectedSpellSaveWorkflowRule(spell);
-  const spatialRule = rule?.targeting?.spatial;
-  const baseInput = {
-    spellId: spell?.id,
-    rule,
-    slotLevel: selectedSpellSlotLevel(spell),
-    targetIds,
-    choiceValue: selectedSaveRuleChoice(),
-    targetContexts: contextValues,
-  };
-  if (!spatialRule) return resolveSpellSaveTargeting(baseInput);
 
-  const normalizedTargetIds = Array.from(new Set(
-    (Array.isArray(targetIds) ? targetIds : [])
-      .map((id) => String(id || "").trim())
-      .filter(Boolean),
-  ));
-  const normalizedCasterId = String(casterId || "").trim();
-  if (spatialRule.mode === "caster-range" && !normalizedCasterId) {
-    return {
-      ...resolveSpellSaveTargeting(baseInput),
-      valid: false,
-      errors: Object.freeze(["caster-required"]),
-    };
+function isRealTokenId(id) {
+  const value = text(id);
+  return !!value && value !== "__LAIR__" && !value.startsWith("__EPIC__");
+}
+
+function itemForId(id) {
+  const wanted = text(id);
+  return targets.find((item) => item.id === wanted) || null;
+}
+
+async function currentInitiativeActorId() {
+  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  const state = metadata?.[STATE_KEY] || {};
+  const order = Array.isArray(state.order) ? state.order : [];
+  const current = Math.max(0, Math.min(order.length - 1, Number(state.current) || 0));
+  for (let index = current; index < order.length; index += 1) {
+    const id = splitVirtualId(order[index]);
+    if (isRealTokenId(id) && itemForId(id)) return id;
   }
-  const ids = Array.from(new Set([
-    ...(spatialRule.mode === "caster-range" ? [normalizedCasterId] : []),
-    ...normalizedTargetIds,
-  ].filter(Boolean)));
-  const [liveItems, dpiValue, scale, boundsEntries] = await Promise.all([
-    OBR.scene.items.getItems(ids),
-    OBR.scene.grid.getDpi().catch(() => 150),
-    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
-    Promise.all(ids.map(async (id) => [
-      id,
-      await OBR.scene.items.getItemBounds([id]).catch(() => null),
-    ])),
-  ]);
-  const dpi = Math.max(1, Number(dpiValue) || 150);
-  const metersPerCell = gridMetersPerCell(scale);
-  const itemById = new Map((Array.isArray(liveItems) ? liveItems : []).map((item) => [item.id, item]));
-  const boundsById = new Map(boundsEntries.filter(([, bounds]) => bounds));
-  const geometryFor = (id) => {
-    const bounds = boundsById.get(id);
-    return bounds
-      ? gridGeometryFromBounds(bounds, dpi)
-      : itemById.get(id)?.position
-        ? {
-          position: itemById.get(id).position,
-          size: { width: dpi, height: dpi },
-        }
-        : null;
-  };
-  const pairwiseDistancesMeters = [];
-  const casterDistancesMeters = {};
-  if (spatialRule.mode === "pairwise-distance") {
-    for (let index = 0; index < normalizedTargetIds.length; index += 1) {
-      for (let nextIndex = index + 1; nextIndex < normalizedTargetIds.length; nextIndex += 1) {
-        const firstId = normalizedTargetIds[index];
-        const secondId = normalizedTargetIds[nextIndex];
-        const firstGeometry = geometryFor(firstId);
-        const secondGeometry = geometryFor(secondId);
-        if (!firstGeometry || !secondGeometry) continue;
-        pairwiseDistancesMeters.push({
-          targetIds: [firstId, secondId],
-          distanceMeters: gridPlanarDistance(
-            firstGeometry.position,
-            secondGeometry.position,
-            dpi,
-            metersPerCell,
-            firstGeometry.size,
-            secondGeometry.size,
-          ).distance,
-        });
-      }
-    }
-  } else if (spatialRule.mode === "caster-range") {
-    const casterGeometry = geometryFor(normalizedCasterId);
-    for (const targetId of normalizedTargetIds) {
-      const targetGeometry = geometryFor(targetId);
-      if (!casterGeometry || !targetGeometry) continue;
-      casterDistancesMeters[targetId] = gridPlanarDistance(
-        casterGeometry.position,
-        targetGeometry.position,
-        dpi,
-        metersPerCell,
-        casterGeometry.size,
-        targetGeometry.size,
-      ).distance;
-    }
-  }
-  return {
-    ...resolveSpellSaveTargeting({
-      ...baseInput,
-      pairwiseDistancesMeters,
-      casterDistancesMeters,
-    }),
-    pairwiseDistancesMeters,
-    casterDistancesMeters,
-  };
+  return "";
 }
-function spellUsesSaveOutcomes(spell = selectedAreaSpell()) {
-  return quickHpSpellUsesSaveOutcomes({
-    spellId: spell?.id,
-    castSaveSpellIds: AREA_POPOVER_SAVE_SPELL_ID_SET,
-    activeZoneTrigger,
-  });
+
+function displayName(item) {
+  return text(item?.name) || "Token";
 }
-function spellUsesAreaHealing(spell = selectedAreaSpell()) {
-  return !!spell && AREA_HEALING_SPELL_ID_SET.has(spell.id);
-}
-function areaOutcomeFor(targetId, spell = selectedAreaSpell()) {
-  return spellUsesSaveOutcomes(spell)
-    ? saveOutcomes.get(targetId)
-    : SAVE_OUTCOMES.FAILED;
-}
-function pendingStaticZonePlacement(
-  rule,
-  spell,
-  casterId,
-  ruleChoice = selectedSpellPlacementChoice(spell),
-) {
-  if (rule?.kind !== "zone" || !pendingSpellAreaPlacement) return null;
-  return pendingSpellAreaPlacement.ruleId === rule.id
-    && pendingSpellAreaPlacement.spellId === spell?.id
-    && pendingSpellAreaPlacement.casterId === String(casterId || "").trim()
-    && (!pendingSpellAreaPlacement.ruleChoice
-      || pendingSpellAreaPlacement.ruleChoice === String(ruleChoice || "").trim())
-    ? pendingSpellAreaPlacement
-    : null;
-}
-function callLightningCloudPending(spell, casterId) {
-  return spell?.id === "call-lightning"
-    && pendingSpellAreaPlacement?.spellId === "call-lightning"
-    && pendingSpellAreaPlacement?.ruleId === "call-lightning:cast"
-    && pendingSpellAreaPlacement?.casterId === String(casterId || "").trim();
-}
-function finitePoint(value) {
-  const x = Number(value?.x);
-  const y = Number(value?.y);
-  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
-}
-async function buildCallLightningCloudPlacement(casterId, strikePreview = null) {
-  const rule = getSpellAreaRuleById("call-lightning:cloud");
-  const normalizedCasterId = String(casterId || "").trim();
-  if (!rule || !normalizedCasterId) return null;
-  const bounds = await OBR.scene.items.getItemBounds([normalizedCasterId]).catch(() => null);
-  const min = finitePoint(bounds?.min);
-  const max = finitePoint(bounds?.max);
-  const origin = finitePoint(strikePreview?.start)
-    || finitePoint(bounds?.center)
-    || (min && max
-      ? { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 }
-      : null);
-  if (!origin) return null;
-  const [dpiValue, scaleValue, gridOriginValue] = await Promise.all([
-    Number.isFinite(Number(strikePreview?.dpi))
-      ? Number(strikePreview.dpi)
-      : OBR.scene.grid.getDpi().catch(() => 150),
-    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
-    finitePoint(strikePreview?.gridOrigin)
-      || OBR.scene.grid.snapPosition(origin, 1, true, false).catch(() => origin),
-  ]);
-  const dpi = Math.max(1, Number(dpiValue) || 150);
-  const scale = scaleValue?.parsed || scaleValue;
-  const radiusCells = spellAreaGridCells(rule.geometry.size, scale);
-  const gridOrigin = finitePoint(gridOriginValue) || origin;
-  if (!radiusCells || !gridOrigin) return null;
-  return {
-    ruleId: rule.id,
-    spellId: rule.spellId,
-    casterId: normalizedCasterId,
-    preview: {
-      type: rule.geometry.shape,
-      start: origin,
-      end: { x: origin.x + radiusCells * dpi, y: origin.y },
-      gridOrigin,
-      dpi,
-    },
-  };
-}
-function pendingBoardTokenPlacement(rule, spell, casterId) {
-  if (rule?.kind !== "board-token" || !pendingSpellAreaPlacement) return null;
-  return pendingSpellAreaPlacement.ruleId === rule.id
-    && pendingSpellAreaPlacement.spellId === spell?.id
-    && pendingSpellAreaPlacement.casterId === String(casterId || "").trim()
-    && !!spellBoardTokenPlacementPosition(pendingSpellAreaPlacement.preview)
-    ? pendingSpellAreaPlacement
-    : null;
-}
-function selectedSaveRuleChoice() {
-  return spellRuleChoice.value.trim();
-}
-function selectedSpellTargetContextContract(spell = selectedAreaSpell()) {
-  return selectedSpellSaveWorkflowRule(spell)?.targeting?.context || null;
-}
-function targetContextFor(targetId) {
-  return targetContexts.get(String(targetId || "").trim()) || {};
-}
-function targetContextResolution(spell, targetIds = selectedTargetItems().map((item) => item.id)) {
-  const rule = selectedSpellSaveWorkflowRule(spell);
-  if (!rule) return null;
-  return resolveSpellSaveTargeting({
-    spellId: spell?.id,
-    rule,
-    slotLevel: selectedSpellSlotLevel(spell),
-    targetIds,
-    choiceValue: selectedSaveRuleChoice(),
-    targetContexts,
-    validateSpatial: false,
-  });
-}
-function catalogSaveAutomation(spell) {
-  if (!spellUsesSaveOutcomes(spell)) return null;
-  return getAreaSaveAutomation(spell, selectedSaveRuleChoice());
-}
-function refreshSpellRuleChoices() {
-  const spell = selectedAreaSpell();
-  const workflowRule = selectedSpellSaveWorkflowRule(spell);
-  const workflowChoices = getSpellSaveWorkflowChoiceOptions(workflowRule);
-  const saveChoices = workflowChoices.length
-    ? workflowChoices
-    : getAreaSaveRuleChoices(spell);
-  const choices = saveChoices.length ? saveChoices : getSpellAreaPlacementChoices(spell);
-  const requiredWorkflowChoice = !!workflowRule?.choice?.required && workflowChoices.length > 0;
-  const previous = selectedSaveRuleChoice();
-  spellRuleChoice.replaceChildren();
-  if (requiredWorkflowChoice) {
-    spellRuleChoice.appendChild(new Option("Seleziona una scelta", ""));
-  }
-  for (const choice of choices) {
-    spellRuleChoice.appendChild(new Option(choice.label, choice.value || choice.id));
-  }
-  if (choices.some((choice) => choice.value === previous)) {
-    spellRuleChoice.value = previous;
-  } else if (!requiredWorkflowChoice && choices.length) {
-    spellRuleChoice.value = choices[0].value || choices[0].id;
-  }
-  spellRuleChoiceWrap.hidden = !choices.length;
-}
-function closeSpellMenu() {
-  spellMenu.hidden = true;
-  spellSearch.setAttribute("aria-expanded", "false");
-  spellMenuToggle.setAttribute("aria-expanded", "false");
-}
-function openSpellMenu(query = "") {
-  const normalizedQuery = query.trim().toLocaleLowerCase("it");
-  const matches = spellSearchEntries.filter((entry) =>
-    !normalizedQuery || entry.label.toLocaleLowerCase("it").includes(normalizedQuery)
-  );
-  spellMenu.replaceChildren();
-  const entriesByLevel = new Map();
-  for (const entry of matches) {
-    if (!entriesByLevel.has(entry.level)) entriesByLevel.set(entry.level, []);
-    entriesByLevel.get(entry.level).push(entry);
-  }
-  for (const [level, entries] of entriesByLevel) {
-    const group = document.createElement("div");
-    group.className = "spell-menu-group";
-    const heading = document.createElement("div");
-    heading.className = "spell-menu-level";
-    heading.textContent = level === 0 ? "Trucchetti" : `Livello ${level}`;
-    group.appendChild(heading);
-    for (const entry of entries) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "spell-menu-option" + (spellSelect.value === entry.id ? " active" : "");
-      button.textContent = entry.label;
-      button.title = entry.label;
-      button.dataset.spellId = entry.id;
-      button.setAttribute("role", "option");
-      button.setAttribute("aria-selected", String(spellSelect.value === entry.id));
-      button.addEventListener("click", () => {
-        spellSearch.value = entry.inputLabel || entry.label;
-        spellSelect.value = entry.id;
-        closeSpellMenu();
-        spellSelect.dispatchEvent(new Event("change"));
-        spellSearch.focus();
-      });
-      group.appendChild(button);
-    }
-    spellMenu.appendChild(group);
-  }
-  if (!matches.length) {
-    const empty = document.createElement("div");
-    empty.className = "spell-menu-empty";
-    empty.textContent = "Nessun incantesimo trovato.";
-    spellMenu.appendChild(empty);
-  }
-  spellMenu.hidden = false;
-  spellSearch.setAttribute("aria-expanded", "true");
-  spellMenuToggle.setAttribute("aria-expanded", "true");
-}
-function syncSpellSelectionFromSearch(settle = false) {
-  const searchLabel = spellSearch.value.trim().toLocaleLowerCase("it");
-  const nextId = searchLabel ? spellIdsBySearchLabel.get(searchLabel) || "" : "";
-  if (settle && searchLabel && !nextId) spellSearch.value = "";
-  if (spellSelect.value === nextId) return;
-  spellSelect.value = nextId;
-  spellSelect.dispatchEvent(new Event("change"));
-}
-function conditionExpiry() {
-  const mode = conditionExpirySelect.value || "manual";
-  const expiry = { mode };
-  if (["rounds", "turn-start", "turn-end"].includes(mode)) {
-    expiry.remaining = Math.max(1, Math.floor(Number(conditionDurationInput.value) || 1));
-  }
-  if (mode === "turn-start" || mode === "turn-end") {
-    const sourceId = conditionSourceSelect.value.trim();
-    const actor = conditionActorSelect.value === "source" && sourceId ? "source" : "target";
-    expiry.actor = actor;
-    if (actor === "source") {
-      expiry.actorId = sourceId;
-      const source = itemForId(sourceId);
-      if (source) expiry.actorName = displayName(source);
-    }
-  }
-  return expiry;
-}
-function conditionOptions(appliedAt) {
-  const sourceId = conditionSourceSelect.value.trim();
-  const source = itemForId(sourceId);
-  return {
-    sourceId,
-    sourceName: sourceId && source ? displayName(source) : "",
-    appliedAt,
-    expiry: conditionExpiry(),
-  };
-}
-function expirySummary(expiry = {}) {
-  const mode = String(expiry?.mode || "manual");
-  const remaining = Math.max(1, Math.floor(Number(expiry?.remaining) || 1));
-  if (mode === "concentration") return "fino a fine concentrazione";
-  if (mode === "rounds") return `per ${remaining} round`;
-  if (mode === "turn-start" || mode === "turn-end") {
-    const boundary = mode === "turn-start" ? "inizio" : "fine";
-    const actor = expiry?.actor === "source" ? "della fonte" : "del bersaglio";
-    return `fino a ${boundary} turno ${actor}`;
-  }
-  return "rimozione manuale";
-}
-function activeConcentrationForSpell(caster, spell) {
-  const concentrations = caster?.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
-  if (!spell || !concentrations || typeof concentrations !== "object") return null;
-  const names = new Set([
-    spell.id,
-    spell.name,
-    spell.displayName,
-    spell.catalogLabel,
-  ].map((value) => String(value || "").trim().toLocaleLowerCase("it")).filter(Boolean));
-  return Object.entries(concentrations)
-    .map(([key, entry]) => ({ key, ...(entry && typeof entry === "object" ? entry : {}) }))
-    .find((entry) =>
-      String(entry.spellId || "").trim() === spell.id
-      || names.has(String(entry.name || entry.key || "").trim().toLocaleLowerCase("it"))
-    ) || null;
-}
-function remainingSpellTurnsForInstance(instanceId, fallback = 1) {
-  const wanted = String(instanceId || "").trim();
-  const values = targets.flatMap((item) => {
-    const spells = item?.metadata?.[META_KEY]?.[SPELLS_KEY];
-    if (!Array.isArray(spells)) return [];
-    return spells
-      .filter((entry) => String(entry?.instanceId || "") === wanted)
-      .map((entry) => Math.floor(Number(entry?.turns) || 0))
-      .filter((turns) => turns > 0);
-  });
-  return values.length
-    ? Math.min(...values)
-    : Math.max(1, Math.floor(Number(fallback) || 1));
-}
-function conditionExpirySummary() {
-  return expirySummary(conditionExpiry()).replace("del bersaglio", "dei bersagli");
-}
-function currentSaveAutomation(spell) {
-  const catalogAutomation = catalogSaveAutomation(spell);
-  if (catalogAutomation) return catalogAutomation;
-  const conditionName = conditionSelect.value.trim();
-  return {
-    trackOutcomes: conditionName ? [SAVE_OUTCOMES.FAILED] : [],
-    failed: conditionName ? [{ condition: conditionName, expiry: conditionExpiry() }] : [],
-  };
-}
-function updateSpellRuleSummary() {
-  const spell = selectedAreaSpell();
-  const automation = catalogSaveAutomation(spell);
-  if (!automation) {
-    spellRuleSummary.hidden = true;
-    spellRuleSummary.textContent = "";
-    return;
-  }
-  const normalized = normalizeSaveSpellAutomation(automation);
-  const labels = {
-    [SAVE_OUTCOMES.PASSED]: "Superato",
-    [SAVE_OUTCOMES.FAILED]: "Fallito",
-    [SAVE_OUTCOMES.IMMUNE]: "Immune",
-  };
-  const lines = [];
-  for (const outcome of Object.values(SAVE_OUTCOMES)) {
-    const rules = normalized.rulesByOutcome[outcome] || [];
-    if (!rules.length) continue;
-    lines.push(`${labels[outcome]}: ${rules.map((rule) => {
-      const duration = rule.options?.expiry ? ` (${expirySummary(rule.options.expiry)})` : "";
-      return rule.conditionName + duration;
-    }).join(", ")}`);
-  }
-  spellRuleSummary.hidden = !lines.length;
-  spellRuleSummary.textContent = lines.length ? lines.join("\n") : "";
-}
-function updateConcentrationNotice() {
-  const spell = selectedAreaSpell();
-  if (!spell?.concentration || mode !== QUICK_HP_MODES.SAVE) {
-    concentrationNotice.hidden = true;
-    concentrationNotice.textContent = "";
-    concentrationNotice.title = "";
-    return;
-  }
-  concentrationNotice.hidden = false;
-  concentrationNotice.textContent = "C";
-  concentrationNotice.style.background = spellColorFor(spell).solid;
-  let title = "Incantesimo a concentrazione";
-  if (activeZoneTrigger) {
-    title = "Zona a concentrazione già attiva: la risoluzione non la rilancia";
-    concentrationNotice.title = title;
-    concentrationNotice.setAttribute("aria-label", title);
-    return;
-  }
-  const casterId = spellCasterSelect.value.trim();
-  const caster = itemForId(casterId);
-  if (!casterId || !caster) {
-    title = "Incantesimo a concentrazione: seleziona il caster";
-    concentrationNotice.title = title;
-    concentrationNotice.setAttribute("aria-label", title);
-    return;
-  }
-  const concentration = caster.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
-  const names = concentration && typeof concentration === "object"
-    ? Array.from(new Set(Object.entries(concentration).map(([key, entry]) =>
-      String(entry?.name || key || "").trim()
-    ).filter(Boolean)))
-    : [];
-  const concentrationAction = catalogSaveAutomation(spell)?.concentrationAction;
-  if (concentrationAction === "dismiss") {
-    title = names.length
-      ? `L'effetto interromperà la concentrazione di ${displayName(caster)} su ${names.join(", ")}.`
-      : `L'effetto conclusivo non registrerà una nuova concentrazione su ${displayName(caster)}.`;
-  } else if (activeConcentrationForSpell(caster, spell)?.instanceId) {
-    title =
-      `Verrà aggiornata la concentrazione già attiva di ${displayName(caster)} su ${spell.displayName}.`;
-  } else if (names.length) {
-    title = `${displayName(caster)} interromperà la concentrazione su ${names.join(", ")}.`;
-  }
-  concentrationNotice.title = title;
-  concentrationNotice.setAttribute("aria-label", title);
-}
-function syncSpellReferenceButton(spell = selectedAreaSpell()) {
-  const visible = mode === QUICK_HP_MODES.SAVE && !!spell;
-  spellReferenceSlot.hidden = !visible;
-  spellReferenceButton.hidden = !visible;
-  if (!visible) return;
-  const entry = spell.displayName || spell.name || spell.id;
-  const title = `Apri Enciclopedia: ${entry}`;
-  spellReferenceButton.title = title;
-  spellReferenceButton.setAttribute("aria-label", title);
-}
-function syncConditionDetailControls() {
-  const spell = selectedAreaSpell();
-  const hasCatalogRules = !!catalogSaveAutomation(spell);
-  const hasManualCondition = mode === QUICK_HP_MODES.SAVE
-    && !hasCatalogRules
-    && !!conditionSelect.value.trim();
-  syncSpellSaveWorkflowControls();
-  syncChainLightningControls();
-  manualConditionWrap.hidden = false;
-  for (const button of areaEffectTabButtons) {
-    const active = button.dataset.areaEffectTab === areaEffectTab;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
-    button.disabled = busy;
-  }
-  areaSpellPanel.hidden = areaEffectTab !== "spell";
-  conditionDetails.hidden = areaEffectTab !== "condition";
-  spellCasterWrap.hidden = false;
-  conditionSourceWrap.hidden = false;
-  conditionExpiryWrap.hidden = false;
-  conditionConcentrationExpiryOption.hidden = !spell?.concentration;
-  conditionConcentrationExpiryOption.disabled = !spell?.concentration;
-  if (!spell?.concentration && conditionExpirySelect.value === "concentration") {
-    conditionExpirySelect.value = "manual";
-  }
-  const expiryMode = conditionExpirySelect.value || "manual";
-  const hasDuration = hasManualCondition && ["rounds", "turn-start", "turn-end"].includes(expiryMode);
-  const hasActor = hasManualCondition && (expiryMode === "turn-start" || expiryMode === "turn-end");
-  conditionActorWrap.hidden = false;
-  conditionDurationWrap.hidden = false;
-  conditionDurationCaption.textContent = "Occorrenze";
-  const sourceId = conditionSourceSelect.value.trim();
-  if (!sourceId && conditionActorSelect.value === "source") conditionActorSelect.value = "target";
-  spellSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
-  spellSearch.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
-  spellMenuToggle.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
-  spellRuleChoice.disabled = busy || mode !== QUICK_HP_MODES.SAVE;
-  if (spellSearch.disabled) closeSpellMenu();
-  spellCasterSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE || !spell;
-  conditionSelect.disabled = busy || mode !== QUICK_HP_MODES.SAVE || hasCatalogRules;
-  conditionSourceSelect.disabled = busy || !hasManualCondition;
-  conditionExpirySelect.disabled = busy || !hasManualCondition;
-  conditionActorSelect.disabled = busy || !hasActor || !sourceId;
-  conditionDurationInput.disabled = busy || !hasDuration;
-  const areaPlacement = quickHpAreaPlacementPresentation({
-    spellId: spell?.id,
-    casterId: spellCasterSelect.value.trim(),
-    busy,
-  });
-  areaPlacementButton.hidden = areaPlacement.hidden || !!activeZoneTrigger;
-  areaPlacementRow.hidden = areaPlacementButton.hidden;
-  areaPlacementButton.disabled = areaPlacement.disabled || !!activeZoneTrigger;
-  areaPlacementButton.textContent = areaPlacement.text;
-  areaPlacementButton.title = areaPlacement.title;
-  if (areaPlacement.rule?.kind === "zone") {
-    areaPlacementButton.title += ". La creazione della zona è facoltativa";
-  }
-  if (pendingStaticZonePlacement(
-    areaPlacement.rule,
-    spell,
-    spellCasterSelect.value.trim(),
-  )) {
-    areaPlacementButton.textContent = "Riposiziona area";
-    areaPlacementButton.title = "Sostituisci la zona statica già posizionata";
-  } else if (pendingBoardTokenPlacement(
-    areaPlacement.rule,
-    spell,
-    spellCasterSelect.value.trim(),
-  )) {
-    areaPlacementButton.textContent = "Riposiziona token";
-    areaPlacementButton.title = "Scegli un'altra casella prima di applicare l'incantesimo";
-  }
-  updateSpellRuleSummary();
-  syncSpellReferenceButton(spell);
-  updateConcentrationNotice();
-}
-async function refreshConditionSourceOptions() {
-  const previousSource = conditionSourceSelect.value.trim();
-  const previousCaster = spellCasterSelect.value.trim();
-  const activeId = await currentInitiativeActorId();
-  conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
-  spellCasterSelect.replaceChildren(new Option("Nessun caster", ""));
-  for (const item of targets) {
-    conditionSourceSelect.appendChild(new Option(displayName(item), item.id));
-    spellCasterSelect.appendChild(new Option(displayName(item), item.id));
-  }
-  const nextSource = previousSource && itemForId(previousSource) ? previousSource : activeId;
-  const nextCaster = previousCaster && itemForId(previousCaster) ? previousCaster : activeId;
-  conditionSourceSelect.value = nextSource || "";
-  spellCasterSelect.value = nextCaster || "";
-  if (!nextSource) conditionActorSelect.value = "target";
-  syncConditionDetailControls();
-}
+
 function hasTrackedHP(item) {
-  const meta = item && item.metadata && item.metadata[META_KEY];
+  const meta = item?.metadata?.[META_KEY];
   return !!meta
     && Object.prototype.hasOwnProperty.call(meta, "hp")
     && Object.prototype.hasOwnProperty.call(meta, "hpMax")
@@ -1100,514 +148,249 @@ function hasTrackedHP(item) {
     && Number.isFinite(Number(meta.hpMax))
     && Number(meta.hpMax) > 0;
 }
-function displayName(item) {
-  return String(item && item.name || "").trim() || "Token";
-}
+
 function factionKey(item) {
-  const meta = item && item.metadata && item.metadata[META_KEY] || {};
-  const attitude = String(meta.attitude || "neutral").toLowerCase();
+  const attitude = text(item?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
   return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
 }
+
 function factionColor(item) {
-  const attitude = factionKey(item);
-  if (attitude === "enemy") return "#ef4444";
-  if (attitude === "ally") return "#22c55e";
-  if (attitude === "pc") return "#38bdf8";
-  return "#eab308";
+  return {
+    enemy: "#ef4444",
+    ally: "#22c55e",
+    pc: "#38bdf8",
+    neutral: "#eab308",
+  }[factionKey(item)];
 }
+
 function currentValue() {
   return Math.max(0, Math.floor(Number(amountInput.value) || 0));
 }
+
 function factorFor(id) {
   return factors.get(id) || QUICK_HP_FACTORS.FULL;
 }
-function factorForOutcome(outcome) {
-  if (outcome === SAVE_OUTCOMES.PASSED) return QUICK_HP_FACTORS.HALF;
-  return QUICK_HP_FACTORS.FULL;
+
+function conditionExpiry() {
+  const expiryMode = conditionExpirySelect.value || "manual";
+  const expiry = { mode: expiryMode };
+  if (["rounds", "turn-start", "turn-end"].includes(expiryMode)) {
+    expiry.remaining = Math.max(1, Math.floor(Number(conditionDurationInput.value) || 1));
+  }
+  if (["turn-start", "turn-end"].includes(expiryMode)) {
+    const sourceId = text(conditionSourceSelect.value);
+    expiry.actor = conditionActorSelect.value === "source" && sourceId
+      ? "source"
+      : "target";
+    if (expiry.actor === "source") {
+      expiry.actorId = sourceId;
+      expiry.actorName = displayName(itemForId(sourceId));
+    }
+  }
+  return expiry;
 }
+
+function conditionOptions(appliedAt) {
+  const sourceId = text(conditionSourceSelect.value);
+  const source = itemForId(sourceId);
+  return {
+    sourceId,
+    sourceName: sourceId ? displayName(source) : "",
+    appliedAt,
+    expiry: conditionExpiry(),
+  };
+}
+
+function expirySummary() {
+  const expiry = conditionExpiry();
+  if (expiry.mode === "concentration") return "fino a fine concentrazione";
+  if (expiry.mode === "rounds") return `per ${expiry.remaining} round`;
+  if (["turn-start", "turn-end"].includes(expiry.mode)) {
+    const boundary = expiry.mode === "turn-start" ? "inizio" : "fine";
+    const actor = expiry.actor === "source" ? "della fonte" : "del bersaglio";
+    return `fino a ${boundary} turno ${actor}`;
+  }
+  return "rimozione manuale";
+}
+
+function appliedAtFromState(state) {
+  return {
+    round: Math.max(1, Number(state?.round) || 1),
+    actorId: "",
+    phase: "turn",
+    turnKey: currentInitiativeTurnKey(state || {}),
+  };
+}
+
+function saveOutcomeRequired() {
+  return mode === QUICK_HP_MODES.SAVE && (
+    !!text(conditionSelect.value)
+    || currentValue() > 0
+  );
+}
+
+function selectedTargetItems() {
+  return targets.filter((item) => selectedIds.has(item.id));
+}
+
+function targetSelectable(item) {
+  return mode === QUICK_HP_MODES.SAVE || hasTrackedHP(item);
+}
+
 function previewFor(item) {
-  const meta = item.metadata[META_KEY] || {};
-  if (
-    mode === QUICK_HP_MODES.SAVE
-    && spellUsesSaveOutcomes()
-    && !saveOutcomes.has(item.id)
-  ) return null;
-  const outcome = areaOutcomeFor(item.id);
+  const meta = item?.metadata?.[META_KEY] || {};
+  const outcome = saveOutcomes.get(item.id);
+  if (saveOutcomeRequired() && !outcome) return null;
+  const effectiveMode = mode === QUICK_HP_MODES.SAVE
+    ? QUICK_HP_MODES.DAMAGE
+    : mode;
+  const factor = mode === QUICK_HP_MODES.SAVE
+    ? outcome === SAVE_OUTCOMES.PASSED
+      ? QUICK_HP_FACTORS.HALF
+      : QUICK_HP_FACTORS.FULL
+    : factorFor(item.id);
   return calculateQuickHPChange({
-    mode: mode === QUICK_HP_MODES.SAVE
-      ? spellUsesAreaHealing()
-        ? QUICK_HP_MODES.HEAL
-        : QUICK_HP_MODES.DAMAGE
-      : mode,
-    value: mode === QUICK_HP_MODES.SAVE && outcome === SAVE_OUTCOMES.IMMUNE ? 0 : currentValue(),
-    factor: mode === QUICK_HP_MODES.SAVE ? factorForOutcome(outcome) : factorFor(item.id),
+    mode: effectiveMode,
+    value: outcome === SAVE_OUTCOMES.IMMUNE ? 0 : currentValue(),
+    factor,
     hp: meta.hp,
     hpMax: meta.hpMax,
   });
 }
-function targetSelectable(item) {
-  return mode === QUICK_HP_MODES.SAVE || hasTrackedHP(item);
-}
-function selectedTargetItems() {
-  return targets.filter((item) => selectedIds.has(item.id) && targetSelectable(item));
-}
-function sameSelection(nextIds) {
-  if (nextIds.size !== selectedIds.size) return false;
-  for (const id of nextIds) if (!selectedIds.has(id)) return false;
-  return true;
-}
-function orderedTargets() {
-  const selected = [];
-  const unselected = [];
-  for (const item of targets) {
-    if (selectedIds.has(item.id) && targetSelectable(item)) selected.push(item);
-    else unselected.push(item);
-  }
-  return selected.concat(unselected);
-}
+
 function activeChanges() {
   return selectedTargetItems()
     .filter(hasTrackedHP)
     .map((item) => ({ item, change: previewFor(item) }))
     .filter((entry) => entry.change?.changed);
 }
+
+function sameSelection(nextIds) {
+  if (nextIds.size !== selectedIds.size) return false;
+  return [...nextIds].every((id) => selectedIds.has(id));
+}
+
+function orderedTargets() {
+  return [
+    ...targets.filter((item) => selectedIds.has(item.id)),
+    ...targets.filter((item) => !selectedIds.has(item.id)),
+  ];
+}
+
 function signed(value) {
   const number = Math.floor(Number(value) || 0);
-  return number > 0 ? "+" + number : String(number);
+  return number > 0 ? `+${number}` : String(number);
 }
+
 function modeLabel() {
   if (mode === QUICK_HP_MODES.HEAL) return "cura";
   if (mode === QUICK_HP_MODES.TEMP) return "HP temporanei";
-  if (mode === QUICK_HP_MODES.SAVE) return "effetti ad area";
+  if (mode === QUICK_HP_MODES.SAVE) return "effetto manuale";
   return "danno";
 }
-function currentSpellResolution(selected) {
-  const spell = selectedAreaSpell();
-  if (!spell) return null;
-  const saveWorkflowRule = selectedSpellSaveWorkflowRule(spell);
-  const placementRule = quickHpAreaPlacementPresentation({
-    spellId: spell.id,
-    casterId: spellCasterSelect.value.trim(),
-  }).rule;
-  const cloudPending = callLightningCloudPending(
-    spell,
-    spellCasterSelect.value.trim(),
-  );
-  const areaLifecycleOnly = placementRule?.kind === "aura"
-    || cloudPending
-    || !!pendingStaticZonePlacement(
-      placementRule,
-      spell,
-      spellCasterSelect.value.trim(),
-    )
-    || !!pendingBoardTokenPlacement(
-      placementRule,
-      spell,
-      spellCasterSelect.value.trim(),
-    );
-  return resolveSaveSpellResolution({
-    spell,
-    casterId: spellCasterSelect.value.trim(),
-    targetIds: selected.map((item) => item.id),
-    outcomes: spellUsesSaveOutcomes(spell)
-      ? saveOutcomes
-      : new Map(selected.map((item) => [item.id, SAVE_OUTCOMES.FAILED])),
-    automation: currentSaveAutomation(spell),
-    allowEmptyTargets: areaLifecycleOnly,
-    saveWorkflowRule,
-    slotLevel: selectedSpellSlotLevel(spell),
-    choiceValue: selectedSaveRuleChoice(),
-    validateSpatial: false,
-    targetContexts,
-  });
-}
-function manualSpellResolutionSummary(spell, resolution, items = selectedTargetItems()) {
-  const action = resolution?.targeting?.targetContext?.manualAction;
-  const involvedIds = new Set(resolution?.involvedTargetIds || []);
-  if (!action || !involvedIds.size) return "";
-  const names = items
-    .filter((item) => involvedIds.has(item.id))
-    .map((item) => displayName(item));
-  const targetLabel = names.length
-    ? names.join(", ")
-    : `${involvedIds.size} bersagli coinvolti`;
-  return `${action.label}: ${targetLabel}. ${action.detail || ""}`.trim();
-}
-function spellSaveOutcomesComplete(spell, selected, spellResolution) {
-  if (!spellUsesSaveOutcomes(spell)) return true;
-  const saveTargetIds = new Set(
-    spellResolution?.targeting?.targetContext?.saveTargetIds
-      || selected.map((item) => item.id),
-  );
-  return selected.every((item) =>
-    !saveTargetIds.has(item.id) || saveOutcomes.has(item.id)
-  ) && (selected.length > 0 || !!spellResolution?.targeting?.targetContext?.contract);
-}
-function updateSpellSaveWorkflowTargetLimit(spell, selected, spellResolution) {
-  if (mode === QUICK_HP_MODES.SAVE && isChainLightningSpell(spell)) {
-    const targeting = currentChainLightningTargeting({
-      targetIds: selected.map((item) => item.id),
-    });
-    spellTargetLimit.hidden = false;
-    spellTargetLimit.textContent = `Slot ${targeting.slotLevel || CHAIN_LIGHTNING_TARGETING.baseSlot}° · TS Destrezza · Primario 1 · Secondari ${targeting.secondaryIds.length}/${targeting.maximumSecondaryTargets}`;
-    spellTargetLimit.classList.toggle("invalid", targeting.errors.some((error) => [
-      "slot-level-invalid",
-      "primary-required",
-      "primary-not-selected",
-      "secondary-limit-exceeded",
-    ].includes(error)));
-    return;
-  }
-  const rule = selectedSpellSaveWorkflowRule(spell);
-  if (mode !== QUICK_HP_MODES.SAVE || !rule) {
-    spellTargetLimit.hidden = true;
-    spellTargetLimit.textContent = "";
-    spellTargetLimit.classList.remove("invalid");
-    return;
-  }
-  const targeting = spellResolution?.targeting || resolveSpellSaveTargeting({
-    spellId: spell.id,
-    rule,
-    slotLevel: selectedSpellSlotLevel(spell),
-    targetIds: selected.map((item) => item.id),
-    choiceValue: selectedSaveRuleChoice(),
-    targetContexts,
-    validateSpatial: false,
-  });
-  const ability = SAVE_ABILITY_LABELS[rule.ability] || rule.ability;
-  spellTargetLimit.hidden = false;
-  spellTargetLimit.textContent = `Slot ${targeting.slotLevel}° · TS ${ability} · ${selected.length}/${targeting.maximumTargets} bersagli`;
-  spellTargetLimit.classList.toggle("invalid", targeting.errors.some((error) => [
-    "slot-level-invalid",
-    "duplicate-targets",
-    "target-limit-exceeded",
-    "choice-required",
-    "choice-invalid",
-  ].includes(error)));
-}
-function updateControls() {
-  document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
-  applyButton.className = "apply " + (
-    mode === QUICK_HP_MODES.SAVE
-      ? spellUsesAreaHealing()
-        ? QUICK_HP_MODES.HEAL
-        : QUICK_HP_MODES.DAMAGE
-      : mode
-  );
-  applyButton.textContent = mode === QUICK_HP_MODES.HEAL
-    ? "Applica cura"
-    : mode === QUICK_HP_MODES.TEMP
-      ? "Applica HP temp."
-      : mode === QUICK_HP_MODES.SAVE
-        ? spellUsesAreaHealing()
-          ? "Applica cura"
-          : "Applica effetti"
-        : "Applica danno";
-  const selected = selectedTargetItems();
-  const changes = activeChanges();
-  const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
-  saveOptions.hidden = mode !== QUICK_HP_MODES.SAVE;
-  syncConditionDetailControls();
-  const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
-  const spellResolution = spell ? currentSpellResolution(selected) : null;
-  updateSpellSaveWorkflowTargetLimit(spell, selected, spellResolution);
-  const placementRule = spell
-    ? quickHpAreaPlacementPresentation({
-      spellId: spell.id,
-      casterId: spellCasterSelect.value.trim(),
-    }).rule
-    : null;
-  const cloudPending = callLightningCloudPending(
-    spell,
-    spellCasterSelect.value.trim(),
-  );
-  const hasAreaLifecycle = placementRule?.kind === "aura"
-    || cloudPending
-    || !!pendingStaticZonePlacement(
-      placementRule,
-      spell,
-      spellCasterSelect.value.trim(),
-    )
-    || !!pendingBoardTokenPlacement(
-      placementRule,
-      spell,
-      spellCasterSelect.value.trim(),
-    );
-  if (
-    mode === QUICK_HP_MODES.SAVE
-    && selected.length
-    && spellUsesSaveOutcomes(spell)
-  ) {
-    const counts = outcomeOptions.map((option) => selected.filter((item) => saveOutcomes.get(item.id) === option.value).length);
-    const missing = selected.length - counts.reduce((sum, count) => sum + count, 0);
-    const condition = !catalogSaveAutomation(spell) ? conditionSelect.value.trim() : "";
-    summary.textContent = `${selected.length} bersagli - Superati ${counts[0]} - Falliti ${counts[1]} - Immune ${counts[2]}${missing ? ` - ${missing} senza esito` : ""}${condition && counts[1] ? ` · ${condition}, ${conditionExpirySummary()}` : ""}`;
-  } else {
-    summary.textContent = placementRule?.kind === "board-token" && hasAreaLifecycle
-      ? "Posizione token confermata"
-      : !selected.length
-        ? "Nessun bersaglio selezionato"
-        : selected.length + " bersagli - " + changes.length + " modificati - " + total + " HP";
-  }
-  const manualSummary = manualSpellResolutionSummary(spell, spellResolution, selected);
-  if (manualSummary) summary.textContent = manualSummary;
-  const outcomesComplete = mode !== QUICK_HP_MODES.SAVE
-    || spellSaveOutcomesComplete(spell, selected, spellResolution)
-    || (cloudPending && selected.length === 0)
-    || (!spellUsesSaveOutcomes(spell) && (selected.length > 0 || hasAreaLifecycle));
-  const failedWithManualCondition = mode === QUICK_HP_MODES.SAVE
-    && !spell
-    && conditionSelect.value.trim()
-    && selected.some((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED);
-  const hasSpellEffect = !!spellResolution?.valid
-    && (spellResolution.spellTargetIds.length > 0 || spellResolution.conditionApplications.length > 0);
-  const hasManualSpellResolution = !!manualSpellResolutionSummary(spell, spellResolution, selected);
-  const hasSaveEffect = failedWithManualCondition || hasSpellEffect || hasManualSpellResolution;
-  const saveWorkflowInvalid = mode === QUICK_HP_MODES.SAVE
-    && !!spellResolution?.targeting
-    && !spellResolution.targeting.valid;
-  const chainWorkflowInvalid = mode === QUICK_HP_MODES.SAVE
-    && isChainLightningSpell(spell)
-    && (
-      !currentChainLightningTargeting().valid
-      || !spellCasterSelect.value.trim()
-    );
-  const hasZoneTrigger = zoneTriggerMatchesForm(
-    activeZoneTrigger,
-    spell,
-    selected.map((item) => item.id),
-  );
-  const zoneTriggerRequiresDamage = hasZoneTrigger
-    && !!activeZoneTrigger?.damage?.dice;
-  const casterMissing = !!spell?.concentration && !spellCasterSelect.value.trim();
-  applyButton.disabled = busy
-    || !outcomesComplete
-    || casterMissing
-    || (mode === QUICK_HP_MODES.SAVE
-      ? hasZoneTrigger
-        ? zoneTriggerRequiresDamage && (
-          currentValue() <= 0 || changes.length === 0
-        )
-        : (changes.length === 0 && !hasSaveEffect && !hasAreaLifecycle)
-          || (currentValue() <= 0 && !hasSaveEffect && !hasAreaLifecycle)
-      : currentValue() <= 0 || changes.length === 0);
-  applyButton.disabled = applyButton.disabled || saveWorkflowInvalid;
-  applyButton.disabled = applyButton.disabled || chainWorkflowInvalid;
-  targetNameFilter.disabled = busy;
-  for (const button of factionFilterButtons) button.disabled = busy;
-  amountInput.disabled = busy;
-  renderBulkActions();
-}
-async function updateSceneSelection(ids, selected, replace) {
+
+async function updateSceneSelection(ids, selected, replace = false) {
   selectionWriteDepth += 1;
   try {
-    if (selected) await OBR.player.select(ids, !!replace);
+    if (selected) await OBR.player.select(ids, replace);
     else await OBR.player.deselect(ids);
   } finally {
     selectionWriteDepth -= 1;
     await refreshSelectionFromScene();
   }
 }
+
 function setSelectedFromScene(ids) {
-  if (targetSelectionLocked) return;
   const available = new Set(targets.map((item) => item.id));
-  const nextIds = new Set((Array.isArray(ids) ? ids : []).map(splitVirtualId).filter((id) => available.has(id)));
+  const nextIds = new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map(splitVirtualId)
+      .filter((id) => available.has(id)),
+  );
   if (sameSelection(nextIds)) return;
   for (const id of selectedIds) {
-    if (!nextIds.has(id)) {
-      saveOutcomes.delete(id);
-      targetContexts.delete(id);
-    }
+    if (!nextIds.has(id)) saveOutcomes.delete(id);
   }
   selectedIds = nextIds;
-  if (chainPrimaryId && !nextIds.has(chainPrimaryId)) {
-    chainPrimaryId = "";
-    clearChainLightningReference();
-  }
   renderTargets();
 }
+
 async function refreshSelectionFromScene() {
   if (selectionPollBusy || selectionWriteDepth > 0) return;
   selectionPollBusy = true;
   try {
     setSelectedFromScene(await OBR.player.getSelection());
-  } catch {
-  } finally {
+  } catch {}
+  finally {
     selectionPollBusy = false;
   }
 }
+
 function mountSelectionSync() {
   if (!selectionUnsubscribe) {
     selectionUnsubscribe = OBR.player.onChange((player) => {
-      if (selectionWriteDepth === 0 && Array.isArray(player && player.selection)) setSelectedFromScene(player.selection);
+      if (selectionWriteDepth === 0 && Array.isArray(player?.selection)) {
+        setSelectedFromScene(player.selection);
+      }
     });
   }
   if (!selectionTimer) selectionTimer = window.setInterval(refreshSelectionFromScene, 150);
 }
+
 function renderFactorButtons(item, disabled) {
   const group = document.createElement("div");
   group.className = "factor-group";
-  const current = factorFor(item.id);
   for (const option of factorOptions) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "factor" + (current === option.value ? " active" : "");
+    button.className = `factor${factorFor(item.id) === option.value ? " active" : ""}`;
     button.textContent = option.label;
     button.title = option.title;
-    button.dataset.factor = option.value;
     button.disabled = disabled || busy;
+    button.dataset.factor = option.value;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      if (disabled || busy) return;
+      if (button.disabled) return;
       factors.set(item.id, option.value);
       if (!selectedIds.has(item.id)) {
         selectedIds.add(item.id);
-        renderTargets();
-        void updateSceneSelection([item.id], true, false);
-      } else renderTargets();
+        void updateSceneSelection([item.id], true);
+      }
+      renderTargets();
     });
     group.appendChild(button);
   }
   return group;
 }
-function targetOutcomeState(spell, targetId) {
-  const resolution = targetContextResolution(spell, [targetId]);
-  const context = resolution?.targeting?.targetContext;
-  if (!context) return { kind: "save" };
-  if (context.automaticOutcomeByTarget?.[targetId]) {
-    return {
-      kind: "automatic-outcome",
-      outcome: context.automaticOutcomeByTarget[targetId],
-    };
-  }
-  if (context.automaticInvolvedIds?.includes(targetId)) {
-    return { kind: "automatic-involved" };
-  }
-  if (context.saveTargetIds?.includes(targetId)) return { kind: "save" };
-  return { kind: "context-required" };
-}
-function renderTargetContextFields(item, disabled) {
-  const contract = selectedSpellTargetContextContract();
-  if (!contract?.fields?.length || !item) return null;
-  const fields = document.createElement("div");
-  fields.className = "target-context-submenu";
-  fields.dataset.targetContext = "true";
-  const current = targetContextFor(item.id);
-  for (const field of contract.fields) {
-    const fieldId = String(field?.id || "").trim();
-    if (!fieldId) continue;
-    const label = document.createElement("label");
-    label.className = "target-context-field";
-    label.dataset.targetContext = "true";
-    const caption = document.createElement("span");
-    caption.className = "caption";
-    caption.textContent = field.label || fieldId;
-    let control;
-    if (field.type === "text" || field.type === "number") {
-      control = document.createElement("input");
-      control.type = field.type === "number" ? "number" : "text";
-      if (field.type === "number") {
-        control.min = "0";
-        control.step = "1";
-      }
-      control.placeholder = field.placeholder || "";
-    } else {
-      control = document.createElement("select");
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = field.placeholder || "Seleziona";
-      control.appendChild(placeholder);
-      for (const option of field.options || []) {
-        control.appendChild(new Option(option.label, option.value));
-      }
-    }
-    control.value = current[fieldId] === undefined || current[fieldId] === null
-      ? ""
-      : String(current[fieldId]);
-    control.dataset.targetContext = fieldId;
-    control.setAttribute("aria-label", `${field.label || fieldId} di ${displayName(item)}`);
-    control.disabled = disabled || busy;
-    control.addEventListener("click", (event) => event.stopPropagation());
-    control.addEventListener("change", (event) => {
-      event.stopPropagation();
-      const next = { ...targetContextFor(item.id) };
-      next[fieldId] = field.type === "number" && control.value !== ""
-        ? Number(control.value)
-        : control.value;
-      targetContexts.set(item.id, next);
-      renderTargets();
-    });
-    label.append(caption, control);
-    fields.appendChild(label);
-  }
-  return fields;
-}
+
 function renderOutcomeButtons(item, disabled) {
   const group = document.createElement("div");
   group.className = "outcome-group";
-  if (!spellUsesSaveOutcomes()) {
-    group.classList.add("area-inside-group");
-    const included = document.createElement("span");
-    included.className = "outcome active area-inside";
-    included.textContent = "All'interno dell'area";
-    included.title = "Bersaglio incluso nell'area";
-    group.appendChild(included);
-    return group;
-  }
-  const spell = selectedAreaSpell();
-  const targetState = targetOutcomeState(spell, item.id);
-  if (targetState.kind !== "save") {
-    group.classList.add("area-inside-group");
-    const included = document.createElement("span");
-    included.className = "outcome active area-inside";
-    included.textContent = targetState.kind === "automatic-outcome"
-      ? "Superato automatico"
-      : targetState.kind === "automatic-involved"
-        ? "Consenziente · coinvolto"
-        : "Completa il contesto";
-    included.title = targetState.kind === "automatic-involved"
-      ? "Il bersaglio non effettua il tiro salvezza"
-      : "Il contesto del bersaglio determina la risoluzione";
-    group.appendChild(included);
-    return group;
-  }
-  const current = saveOutcomes.get(item.id);
   for (const option of outcomeOptions) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "outcome" + (current === option.value ? " active" : "");
+    button.className = `outcome${saveOutcomes.get(item.id) === option.value ? " active" : ""}`;
     button.textContent = option.shortLabel;
     button.title = option.label;
     button.dataset.outcome = option.value;
     button.disabled = disabled || busy;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      if (disabled || busy) return;
+      if (button.disabled) return;
       saveOutcomes.set(item.id, option.value);
-      if (option.value !== SAVE_OUTCOMES.IMMUNE) factors.set(item.id, factorForOutcome(option.value));
       if (!selectedIds.has(item.id)) {
         selectedIds.add(item.id);
-        renderTargets();
-        void updateSceneSelection([item.id], true, false);
-      } else renderTargets();
+        void updateSceneSelection([item.id], true);
+      }
+      renderTargets();
     });
     group.appendChild(button);
   }
   return group;
 }
+
 function renderTargets() {
   targetList.replaceChildren();
-  const selectedPlacementRule = quickHpAreaPlacementPresentation({
-    spellId: selectedAreaSpell()?.id,
-    casterId: spellCasterSelect.value.trim(),
-  }).rule;
-  const boardTokenTargetsLocked = !!pendingBoardTokenPlacement(
-    selectedPlacementRule,
-    selectedAreaSpell(),
-    spellCasterSelect.value.trim(),
-  );
-  targetLock.hidden = !targetSelectionLocked || mode !== QUICK_HP_MODES.SAVE || boardTokenTargetsLocked;
-  unlockTargetsButton.hidden = false;
   if (!targets.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -1616,13 +399,14 @@ function renderTargets() {
     updateControls();
     return;
   }
-  const nameQuery = targetNameFilter.value.trim().toLocaleLowerCase("it");
-  const visibleTargets = orderedTargets().filter((item) => {
-    const matchesFaction = activeFactionFilters.size === 0 || activeFactionFilters.has(factionKey(item));
-    const matchesName = !nameQuery || displayName(item).toLocaleLowerCase("it").includes(nameQuery);
-    return matchesFaction && matchesName;
+  const query = text(targetNameFilter.value).toLocaleLowerCase("it");
+  const visible = orderedTargets().filter((item) => {
+    const factionMatch = activeFactionFilters.size === 0
+      || activeFactionFilters.has(factionKey(item));
+    const nameMatch = !query || displayName(item).toLocaleLowerCase("it").includes(query);
+    return factionMatch && nameMatch;
   });
-  if (!visibleTargets.length) {
+  if (!visible.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = "Nessun bersaglio corrisponde ai filtri.";
@@ -1630,23 +414,19 @@ function renderTargets() {
     updateControls();
     return;
   }
-  for (const item of visibleTargets) {
+  for (const item of visible) {
     const trackedHP = hasTrackedHP(item);
     const disabled = mode !== QUICK_HP_MODES.SAVE && !trackedHP;
     const selected = selectedIds.has(item.id) && !disabled;
-    const selectionLocked = targetSelectionLocked && mode === QUICK_HP_MODES.SAVE;
     const row = document.createElement("div");
-    row.className = "target"
-      + (mode === QUICK_HP_MODES.SAVE ? " save-target" : "")
-      + (selected ? " selected" : "")
-      + (disabled ? " disabled" : "")
-      + (selectionLocked ? " selection-locked" : "");
+    row.className = `target${mode === QUICK_HP_MODES.SAVE ? " save-target" : ""}${selected ? " selected" : ""}${disabled ? " disabled" : ""}`;
     row.dataset.itemId = item.id;
+
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = selected;
-    checkbox.disabled = disabled || busy || selectionLocked;
-    checkbox.setAttribute("aria-label", "Seleziona " + displayName(item));
+    checkbox.disabled = disabled || busy;
+    checkbox.setAttribute("aria-label", `Seleziona ${displayName(item)}`);
     const identity = document.createElement("div");
     identity.className = "identity";
     const faction = document.createElement("span");
@@ -1657,85 +437,45 @@ function renderTargets() {
     name.className = "name";
     name.textContent = displayName(item);
     identity.append(faction, name);
+
     const preview = document.createElement("div");
     preview.className = "hp-preview";
     if (!trackedHP) {
       preview.textContent = mode === QUICK_HP_MODES.SAVE
-        ? "HP non tracciati · solo effetti"
+        ? "HP non tracciati · solo condizioni"
         : "HP non tracciati";
-    } else if (mode === QUICK_HP_MODES.SAVE) {
-      const outcome = areaOutcomeFor(item.id);
-      const result = previewFor(item);
-      const areaHealing = spellUsesAreaHealing();
-      if (!spellUsesSaveOutcomes() && !areaHealing && currentValue() <= 0) {
-        preview.hidden = true;
-      } else if (!outcome) {
-        preview.textContent = "Esito mancante";
-      } else if (outcome === SAVE_OUTCOMES.IMMUNE) {
-        preview.textContent = "Immune · nessun danno";
-      } else {
-        const before = document.createElement("span");
-        before.className = "before";
-        before.textContent = result.hp + "/" + result.hpMax + " -> ";
-        const after = document.createElement("strong");
-        after.textContent = result.afterHP;
-        const delta = document.createElement("span");
-        delta.className = "delta " + (
-          areaHealing ? QUICK_HP_MODES.HEAL : QUICK_HP_MODES.DAMAGE
-        );
-        delta.textContent = areaHealing
-          ? " (" + signed(result.delta) + ")"
-          : " (" + (outcome === SAVE_OUTCOMES.PASSED ? "½" : "1") + ")";
-        preview.append(before, after, delta);
-      }
+    } else if (saveOutcomeRequired() && !saveOutcomes.has(item.id)) {
+      preview.textContent = "Esito mancante";
     } else {
       const result = previewFor(item);
-      const before = document.createElement("span");
-      before.className = "before";
-      before.textContent = result.hp + "/" + result.hpMax + " -> ";
-      const after = document.createElement("strong");
-      after.textContent = result.afterHP;
-      const delta = document.createElement("span");
-      delta.className = "delta " + mode;
-      delta.textContent = " (" + signed(result.delta) + ")";
-      preview.append(before, after, delta);
+      if (result) {
+        const before = document.createElement("span");
+        before.className = "before";
+        before.textContent = `${result.hp}/${result.hpMax} → `;
+        const after = document.createElement("strong");
+        after.textContent = String(result.afterHP);
+        const delta = document.createElement("span");
+        delta.className = `delta ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
+        delta.textContent = ` (${signed(result.delta)})`;
+        preview.append(before, after, delta);
+      }
     }
     row.append(
       checkbox,
       identity,
       preview,
       mode === QUICK_HP_MODES.SAVE
-        ? renderOutcomeButtons(item, disabled || (selectionLocked && !selected))
+        ? renderOutcomeButtons(item, disabled)
         : renderFactorButtons(item, disabled),
     );
-    const entry = document.createElement("div");
-    entry.className = "target-entry";
-    entry.appendChild(row);
-    if (mode === QUICK_HP_MODES.SAVE && selected) {
-      const contextFields = renderTargetContextFields(
-        item,
-        disabled || busy || selectionLocked,
-      );
-      if (contextFields) {
-        entry.classList.add("has-target-context");
-        entry.appendChild(contextFields);
-      }
-    }
+
     const toggle = () => {
-      if (disabled || busy || selectionLocked) return;
+      if (disabled || busy) return;
       const next = !selectedIds.has(item.id);
       if (next) selectedIds.add(item.id);
-      else {
-        selectedIds.delete(item.id);
-        saveOutcomes.delete(item.id);
-        targetContexts.delete(item.id);
-        if (chainPrimaryId === item.id) {
-          chainPrimaryId = "";
-          clearChainLightningReference();
-        }
-      }
+      else saveOutcomes.delete(item.id), selectedIds.delete(item.id);
       renderTargets();
-      void updateSceneSelection([item.id], next, false);
+      void updateSceneSelection([item.id], next);
     };
     checkbox.addEventListener("click", (event) => {
       event.preventDefault();
@@ -1743,43 +483,91 @@ function renderTargets() {
       toggle();
     });
     row.addEventListener("click", (event) => {
-      if (event.target.closest("[data-factor], [data-outcome], [data-target-context]")) return;
+      if (event.target.closest("[data-factor], [data-outcome]")) return;
       toggle();
     });
-    targetList.appendChild(entry);
+    targetList.appendChild(row);
   }
   updateControls();
 }
+
 function renderBulkActions() {
   bulkActions.replaceChildren();
-  if (mode === QUICK_HP_MODES.SAVE && !spellUsesSaveOutcomes()) return;
   const options = mode === QUICK_HP_MODES.SAVE ? outcomeOptions : factorOptions;
   for (const option of options) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "small";
     button.textContent = mode === QUICK_HP_MODES.SAVE ? option.label : option.title;
-    button.title = "Imposta " + (mode === QUICK_HP_MODES.SAVE ? option.label.toLowerCase() : option.title.toLowerCase()) + " sui bersagli selezionati";
+    button.title = `Imposta ${option.title || option.label} sui bersagli selezionati`;
     button.addEventListener("click", () => {
       for (const item of selectedTargetItems()) {
-        if (mode === QUICK_HP_MODES.SAVE) {
-          saveOutcomes.set(item.id, option.value);
-          if (option.value !== SAVE_OUTCOMES.IMMUNE) factors.set(item.id, factorForOutcome(option.value));
-        } else factors.set(item.id, option.value);
+        if (mode === QUICK_HP_MODES.SAVE) saveOutcomes.set(item.id, option.value);
+        else factors.set(item.id, option.value);
       }
       renderTargets();
     });
     bulkActions.appendChild(button);
   }
 }
+
+function updateControls() {
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === mode);
+  });
+  saveOptions.hidden = mode !== QUICK_HP_MODES.SAVE;
+  const selected = selectedTargetItems();
+  const changes = activeChanges();
+  const failedIds = mode === QUICK_HP_MODES.SAVE
+    ? selected.filter((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED).map((item) => item.id)
+    : [];
+  const counts = outcomeOptions.map((option) => selected.filter(
+    (item) => saveOutcomes.get(item.id) === option.value,
+  ).length);
+  const missing = selected.length - counts.reduce((sum, count) => sum + count, 0);
+  if (mode === QUICK_HP_MODES.SAVE) {
+    const condition = text(conditionSelect.value);
+    summary.textContent = `${selected.length} bersagli · Superati ${counts[0]} · Falliti ${counts[1]} · Immune ${counts[2]}${missing ? ` · ${missing} senza esito` : ""}${condition && failedIds.length ? ` · ${condition}, ${expirySummary()}` : ""}`;
+  } else {
+    const total = changes.reduce((sum, entry) => sum + Math.abs(entry.change.delta), 0);
+    summary.textContent = !selected.length
+      ? "Nessun bersaglio selezionato"
+      : `${selected.length} bersagli · ${changes.length} modificati · ${total} HP`;
+  }
+  const outcomesComplete = !saveOutcomeRequired()
+    || selected.every((item) => saveOutcomes.has(item.id));
+  const hasManualCondition = mode === QUICK_HP_MODES.SAVE && failedIds.length > 0 && !!text(conditionSelect.value);
+  const hasEffect = changes.length > 0 || hasManualCondition;
+  applyButton.className = `apply ${mode === QUICK_HP_MODES.SAVE ? QUICK_HP_MODES.DAMAGE : mode}`;
+  applyButton.textContent = mode === QUICK_HP_MODES.HEAL
+    ? "Applica cura"
+    : mode === QUICK_HP_MODES.TEMP
+      ? "Applica HP temp."
+      : mode === QUICK_HP_MODES.SAVE
+        ? "Applica effetti"
+        : "Applica danno";
+  applyButton.disabled = busy
+    || !selected.length
+    || !outcomesComplete
+    || !hasEffect;
+  targetNameFilter.disabled = busy;
+  amountInput.disabled = busy;
+  for (const button of factionFilterButtons) button.disabled = busy;
+  renderBulkActions();
+}
+
 async function loadTargets() {
-  const metadata = await OBR.scene.getMetadata();
-  const state = metadata && metadata[STATE_KEY] || { order: [] };
-  const orderedIds = Array.from(new Set((Array.isArray(state.order) ? state.order : []).map(splitVirtualId).filter(isRealTokenId)));
+  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  const state = metadata?.[STATE_KEY] || { order: [] };
+  const orderedIds = uniqueIds(
+    (Array.isArray(state.order) ? state.order : [])
+      .map(splitVirtualId)
+      .filter(isRealTokenId),
+  );
   const orderIndex = new Map(orderedIds.map((id, index) => [id, index]));
   const orderedSet = new Set(orderedIds);
   const items = await OBR.scene.items.getItems((item) => {
-    const meta = item.metadata && item.metadata[META_KEY];
+    const meta = item?.metadata?.[META_KEY];
     return !!meta && (meta.inInitiative === true || orderedSet.has(item.id));
   });
   items.sort((a, b) => {
@@ -1788,199 +576,60 @@ async function loadTargets() {
     return ai !== bi ? ai - bi : displayName(a).localeCompare(displayName(b), "it");
   });
   targets = items;
-  for (const item of targets) if (!factors.has(item.id)) factors.set(item.id, QUICK_HP_FACTORS.FULL);
-}
-
-function zoneTriggerDamageSummary(activation) {
-  const damage = activation?.damage;
-  if (!damage?.dice || !damage?.type) return "";
-  const save = damage.onSave === "half" ? ", metà se superato" : "";
-  return ` Danno suggerito: ${damage.dice} ${damage.type}${save}.`;
-}
-
-async function loadPendingZoneTriggerPreset(
-  preferredActivationId = "",
-  { allowBusy = false } = {},
-) {
-  if (busy && !allowBusy) return false;
-  const zoneItems = await OBR.scene.items.getItems((item) =>
-    ["root", "subzone"].includes(item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role)
-    || !!item?.metadata?.[SPELL_AURA_META_KEY]
-  );
-  const pending = pendingSpellZoneTriggerActivations(zoneItems);
-  const preferred = String(preferredActivationId || "").trim();
-  const activation = pending.find((entry) => entry.id === preferred)
-    || pending[0]
-    || null;
-  if (!activation) return false;
-  const spell = getSpellDefinition(activation.spellId);
-  const availableIds = new Set(targets.map((item) => item.id));
-  const targetIds = activation.targetIds.filter((id) => availableIds.has(id));
-  if (!spell || !targetIds.length) return false;
-  const casterAvailable = !activation.casterId
-    || targets.some((item) => item.id === activation.casterId);
-  if (!casterAvailable) return false;
-
-  activeZoneTrigger = activation;
-  pendingSpellAreaPlacement = null;
-  mode = QUICK_HP_MODES.SAVE;
-  areaEffectTab = "spell";
-  spellSelect.value = spell.id;
-  const searchEntry = spellSearchEntries.find((entry) => entry.id === spell.id);
-  spellSearch.value = searchEntry?.inputLabel || spell.displayName || spell.name || "";
-  refreshSpellRuleChoices();
-  if (
-    activation.ruleChoice
-    && [...spellRuleChoice.options].some(
-      (option) => option.value === activation.ruleChoice
-    )
-  ) {
-    spellRuleChoice.value = activation.ruleChoice;
+  for (const item of targets) {
+    if (!factors.has(item.id)) factors.set(item.id, QUICK_HP_FACTORS.FULL);
   }
-  spellCasterSelect.value = activation.casterId || "";
-  selectedIds = new Set(targetIds);
-  saveOutcomes.clear();
-  amountInput.value = "0";
-  renderTargets();
-  await updateSceneSelection(targetIds, true, true);
-  status.textContent = `${activation.label}. Imposta gli esiti del tiro salvezza.${zoneTriggerDamageSummary(activation)}`;
-  amountInput.focus();
-  amountInput.select();
-  return true;
 }
 
-async function loadQuickActionPreset() {
-  if (!QUICK_ACTION_SOURCE_ID || !QUICK_ACTION_ID) return false;
-  const [source] = await OBR.scene.items.getItems([QUICK_ACTION_SOURCE_ID]).catch(() => []);
-  if (!source) return false;
-  const profile = await loadInitiativeCard(source).catch(() => getInitiativeCard(source));
-  const action = findQuickAction(profile, QUICK_ACTION_ID);
-  if (action?.kind !== "spell" || action.workflow !== "area") return false;
-  const spell = getSpellDefinition(action.spellId);
-  if (!spell || !areaSaveSpells.some((entry) => entry.id === spell.id)) return false;
-
-  activeZoneTrigger = null;
-  pendingSpellAreaPlacement = null;
-  targetSelectionLocked = false;
-  mode = QUICK_HP_MODES.SAVE;
-  areaEffectTab = "spell";
-  spellSelect.value = spell.id;
-  const searchEntry = spellSearchEntries.find((entry) => entry.id === spell.id);
-  spellSearch.value = searchEntry?.inputLabel || spell.displayName || spell.name || "";
-  refreshSpellRuleChoices();
-  if ([...spellCasterSelect.options].some((option) => option.value === source.id)) {
-    spellCasterSelect.value = source.id;
+async function refreshConditionSourceOptions() {
+  const previous = text(conditionSourceSelect.value);
+  const activeId = await currentInitiativeActorId();
+  conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
+  for (const item of targets) {
+    conditionSourceSelect.appendChild(new Option(displayName(item), item.id));
   }
-  if (action.targetMode === "self" && itemForId(source.id)) {
-    selectedIds = new Set([source.id]);
-  }
-  saveOutcomes.clear();
-  amountInput.value = "0";
-  status.textContent = `Azione rapida: ${action.label}. Verifica bersagli, danno ed esiti.`;
-  renderTargets();
-  amountInput.focus();
-  amountInput.select();
-  return true;
+  const next = previous && itemForId(previous) ? previous : activeId;
+  conditionSourceSelect.value = next || "";
+  conditionActorSelect.value = next ? conditionActorSelect.value : "target";
 }
 
-function zoneTriggerMatchesForm(activation, spell, targetIds) {
-  if (!activation || !spell) return false;
-  if (activation.spellId !== spell.id) return false;
-  if (activation.casterId !== spellCasterSelect.value.trim()) return false;
-  const selected = Array.from(new Set(targetIds)).sort();
-  const expected = Array.from(new Set(activation.targetIds)).sort();
-  return selected.length === expected.length
-    && selected.every((targetId, index) => targetId === expected[index]);
+async function appliedAt() {
+  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  return appliedAtFromState(metadata?.[STATE_KEY] || {});
 }
 
-async function zoneTriggerRootItems(activation) {
-  const zoneItemIds = uniqueIds([
-    ...(activation?.zoneItemIds || []),
-    activation?.zoneItemId,
-  ]);
-  if (!zoneItemIds.length) return [];
-  const items = await OBR.scene.items.getItems(zoneItemIds);
-  return items.filter((item) =>
-    pendingSpellZoneTriggerActivations([item]).some(
-      (entry) => entry.id === activation.id
-    )
-  );
+function syncHPVisualUpdates(updates = []) {
+  for (const update of updates) syncHPBarNow(update.tokenId, update.hp, update.hpMax);
+  return syncHPTextBatchNow(updates);
 }
 
-async function consumeZoneTriggerActivation(activation) {
-  const zoneItemIds = uniqueIds([
-    ...(activation?.zoneItemIds || []),
-    activation?.zoneItemId,
-  ]);
-  if (!zoneItemIds.length) return;
-  await OBR.scene.items.updateItems(zoneItemIds, (drafts) => {
-    for (const item of drafts) {
-      const metadataKey = item.metadata?.[SPELL_STATIC_ZONE_META_KEY]
-        ? SPELL_STATIC_ZONE_META_KEY
-        : item.metadata?.[SPELL_AURA_META_KEY]
-          ? SPELL_AURA_META_KEY
-          : "";
-      const metadata = item.metadata?.[metadataKey];
-      if (!metadataKey || !metadata) continue;
-      item.metadata = {
-        ...(item.metadata || {}),
-        [metadataKey]: {
-          ...metadata,
-          triggerRuntime: consumeSpellZoneTrigger(
-            metadata.triggerRuntime,
-            activation.id,
-          ),
-        },
-      };
-    }
-  });
-}
-
-async function restoreZoneTriggerRoot(snapshot) {
-  const snapshots = Array.isArray(snapshot) ? snapshot : [snapshot];
-  const ids = snapshots.map((entry) => entry?.id).filter(Boolean);
-  if (!ids.length) return;
-  const snapshotsById = new Map(snapshots.map((entry) => [entry?.id, entry]));
-  await OBR.scene.items.updateItems(ids, (drafts) => {
-    for (const item of drafts) {
-      const currentSnapshot = snapshotsById.get(item.id);
-      if (!currentSnapshot) continue;
-      const metadataKey = currentSnapshot.metadata?.[SPELL_STATIC_ZONE_META_KEY]
-        ? SPELL_STATIC_ZONE_META_KEY
-        : currentSnapshot.metadata?.[SPELL_AURA_META_KEY]
-          ? SPELL_AURA_META_KEY
-          : "";
-      const metadata = currentSnapshot.metadata?.[metadataKey];
-      if (!metadataKey || !metadata) continue;
-      item.metadata = {
-        ...(item.metadata || {}),
-        [metadataKey]: metadata,
-      };
-    }
-  });
+async function readAuthoritativeHPVisualUpdates(itemIds = [], sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  const ids = uniqueIds(itemIds);
+  if (!ids.length) return [];
+  const items = await OBR.scene.items.getItems(ids);
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  return items.filter(hasTrackedHP).map((item) => ({
+    tokenId: item.id,
+    hp: Math.max(0, Math.floor(Number(item.metadata?.[META_KEY]?.hp) || 0)),
+    hpMax: Math.max(0, Math.floor(Number(item.metadata?.[META_KEY]?.hpMax) || 0)),
+  }));
 }
 
 async function showConcentrationWarnings(entries) {
-  if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
-  if (mode === QUICK_HP_MODES.SAVE && spellUsesAreaHealing()) return;
-  await broadcastConcentrationSaveWarnings(entries
+  const damage = entries
     .filter((entry) => entry.change.requested > 0)
-    .map((entry) => ({
-      itemId: entry.item.id,
-      damage: entry.change.requested,
-    })));
+    .map((entry) => ({ itemId: entry.item.id, damage: entry.change.requested }));
+  if (damage.length) await broadcastConcentrationSaveWarnings(damage);
 }
+
 async function showEffectSaveDamageWarnings(entries) {
-  if (mode !== QUICK_HP_MODES.DAMAGE && mode !== QUICK_HP_MODES.SAVE) return;
-  if (mode === QUICK_HP_MODES.SAVE && spellUsesAreaHealing()) return;
   const damageById = new Map(entries
     .filter((entry) => entry.change.requested > 0)
     .map((entry) => [entry.item.id, entry.change.requested]));
   if (!damageById.size) return;
-  const itemsById = new Map(targets.map((item) => [item.id, item]));
-  for (const entry of entries) itemsById.set(entry.item.id, entry.item);
   const notices = effectSaveReminderNoticesForDamage({
-    items: [...itemsById.values()],
+    items: targets,
     damageById,
     eventId: `${Date.now()}-${++effectSaveDamageSequence}`,
   });
@@ -1990,755 +639,113 @@ async function showEffectSaveDamageWarnings(entries) {
     notices,
   });
 }
-function setBusy(next) {
-  busy = !!next;
-  renderTargets();
-}
-async function placeSelectedSpellArea() {
-  if (busy) return;
-  const presentation = quickHpAreaPlacementPresentation({
-    spellId: selectedAreaSpell()?.id,
-    casterId: spellCasterSelect.value.trim(),
-  });
-  if (!presentation.rule || presentation.disabled) return;
-  const boardTokenPlacement = presentation.rule.kind === "board-token";
-
-  setBusy(true);
-  status.textContent = boardTokenPlacement
-    ? "Scegli una casella sulla mappa e conferma la posizione del token."
-    : "Posiziona la sagoma sulla mappa e confermala.";
-  try {
-    const result = await requestSpellAreaPlacement({
-      ruleId: presentation.rule.id,
-      casterId: spellCasterSelect.value.trim(),
-      ruleChoice: selectedSpellPlacementChoice(),
-    }, {
-      broadcast: OBR.broadcast,
-      windowRef: window,
-    });
-    if (result.status === "cancelled") {
-      status.textContent = boardTokenPlacement
-        ? "Posizionamento del token annullato."
-        : "Posizionamento della sagoma annullato.";
-      return;
-    }
-    if (result.status !== "confirmed") {
-      status.textContent = boardTokenPlacement
-        ? "Impossibile completare il posizionamento del token."
-        : "Impossibile completare il posizionamento della sagoma.";
-      return;
-    }
-
-    const targetIds = confirmedSpellAreaTargetIds(
-      result,
-      targets.map((item) => item.id),
-    );
-    pendingSpellAreaPlacement = {
-      ruleId: presentation.rule.id,
-      spellId: presentation.rule.spellId,
-      casterId: spellCasterSelect.value.trim(),
-      ruleChoice: result.ruleChoice || selectedSpellPlacementChoice(),
-      preview: result.preview,
-    };
-    saveOutcomes.clear();
-    selectedIds = new Set(targetIds);
-    if (!AREA_SAVE_SPELL_ID_SET.has(presentation.rule.spellId)) {
-      for (const targetId of targetIds) {
-        saveOutcomes.set(targetId, SAVE_OUTCOMES.FAILED);
-      }
-    }
-    targetSelectionLocked = true;
-    if (targetIds.length) {
-      await updateSceneSelection(targetIds, true, true);
-    } else {
-      await OBR.player.deselect();
-    }
-    status.textContent = boardTokenPlacement
-      ? "Posizione del token confermata. Applica gli effetti per completare il lancio."
-      : targetIds.length
-        ? `Sagoma confermata: ${targetIds.length} ${targetIds.length === 1 ? "bersaglio" : "bersagli"}.`
-        : "Sagoma confermata: nessun bersaglio nell'area.";
-  } catch (error) {
-    console.error("[quick-hp] spell area placement:", error);
-    status.textContent = boardTokenPlacement
-      ? "Impossibile avviare il posizionamento del token."
-      : "Impossibile avviare il posizionamento della sagoma.";
-  } finally {
-    busy = false;
-    renderTargets();
-  }
-}
-
-function syncHPVisualUpdates(updates = []) {
-  for (const update of updates) {
-    syncHPBarNow(update.tokenId, update.hp, update.hpMax);
-  }
-  return syncHPTextBatchNow(updates);
-}
-
-async function readAuthoritativeHPVisualUpdates(itemIds = [], sceneEpoch = currentSceneEpoch()) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  const ids = Array.from(new Set(itemIds.filter(Boolean)));
-  if (!ids.length) return [];
-  const items = await OBR.scene.items.getItems(ids);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  return items.filter(hasTrackedHP).map((item) => {
-    const meta = item.metadata?.[META_KEY] || {};
-    return {
-      tokenId: item.id,
-      hp: Math.max(0, Math.floor(Number(meta.hp) || 0)),
-      hpMax: Math.max(0, Math.floor(Number(meta.hpMax) || 0)),
-    };
-  });
-}
 
 async function applyOperation() {
   if (busy) return;
-  const selectedItems = selectedTargetItems();
-  const candidateIds = selectedItems.map((item) => item.id);
-  const spell = mode === QUICK_HP_MODES.SAVE ? selectedAreaSpell() : null;
-  const placementRule = quickHpAreaPlacementPresentation({
-    spellId: spell?.id,
-    casterId: spellCasterSelect.value.trim(),
-  }).rule;
-  const staticZonePlacement = pendingStaticZonePlacement(
-    placementRule,
-    spell,
-    spellCasterSelect.value.trim(),
-  );
-  const boardTokenPlacement = pendingBoardTokenPlacement(
-    placementRule,
-    spell,
-    spellCasterSelect.value.trim(),
-  );
-  const mobileAuraPlacement = placementRule?.kind === "aura";
-  const cloudPending = callLightningCloudPending(
-    spell,
-    spellCasterSelect.value.trim(),
-  );
-  if (
-    !candidateIds.length
-    && !staticZonePlacement
-    && !mobileAuraPlacement
-    && !boardTokenPlacement
-    && !cloudPending
-  ) return;
-  if (
-    mode === QUICK_HP_MODES.SAVE
-    && spellUsesSaveOutcomes(spell)
-    && !spellSaveOutcomesComplete(
-      spell,
-      selectedItems,
-      currentSpellResolution(selectedItems),
-    )
-    && !(cloudPending && selectedItems.length === 0)
-  ) {
+  const selected = selectedTargetItems();
+  const conditionName = text(conditionSelect.value);
+  const failedIds = mode === QUICK_HP_MODES.SAVE
+    ? selected.filter((item) => saveOutcomes.get(item.id) === SAVE_OUTCOMES.FAILED).map((item) => item.id)
+    : [];
+  if (saveOutcomeRequired() && selected.some((item) => !saveOutcomes.has(item.id))) {
     status.textContent = "Imposta un esito per ogni bersaglio.";
     return;
   }
-  setBusy(true);
-  status.textContent = "";
+
   const operationSceneEpoch = currentSceneEpoch();
+  const liveItems = await OBR.scene.items.getItems(selected.map((item) => item.id));
+  const entries = liveItems.filter(hasTrackedHP).map((item) => ({
+    item,
+    change: previewFor(item),
+  })).filter((entry) => entry.change?.changed);
+  const effectOperations = failedIds.length && conditionName
+    ? conditionMutationOperations({
+      targetIds: failedIds,
+      conditionName,
+      options: conditionOptions(await appliedAt()),
+      automate: true,
+    })
+    : [];
+  if (!entries.length && !effectOperations.length) {
+    status.textContent = "Nessuna modifica da applicare.";
+    return;
+  }
+
+  busy = true;
+  renderTargets();
   let hpVisualTransaction = null;
-  let chainLightningVisualTargetIds = [];
-  let sceneSpellTargeting = null;
-  try {
-    if (isChainLightningSpell(spell)) {
-      const chainTargeting = await resolveChainLightningSceneTargeting({
-        targetIds: candidateIds,
-        casterId: spellCasterSelect.value.trim(),
-      });
-      if (!chainTargeting.valid) {
-        status.textContent = chainTargeting.errors.includes("caster-required")
-          ? "Seleziona il caster di Catena di fulmini."
-          : chainTargeting.errors.includes("primary-required")
-            || chainTargeting.errors.includes("primary-not-selected")
-            ? "Seleziona il bersaglio primario e includilo tra i bersagli."
-            : chainTargeting.errors.includes("primary-out-of-range")
-              ? "Il bersaglio primario supera la gittata di 45 m."
-              : chainTargeting.errors.includes("secondary-out-of-range")
-                ? "Un bersaglio secondario supera il raggio di 9 m dal primario."
-                : chainTargeting.errors.includes("secondary-limit-exceeded")
-                  ? "Il numero di bersagli secondari supera il limite dello slot."
-                  : "Impossibile rivalidare le distanze di Catena di fulmini.";
-        return;
-      }
-      chainLightningVisualTargetIds = [...chainTargeting.targetIds];
-      clearChainLightningReference();
-    }
-    if (
-      mode === QUICK_HP_MODES.SAVE
-      && selectedSpellSaveWorkflowRule(spell)?.targeting?.spatial
-    ) {
-      sceneSpellTargeting = await resolveSpellSaveSceneTargeting({
-        spell,
-        targetIds: candidateIds,
-        casterId: spellCasterSelect.value.trim(),
-      });
-      if (sceneSpellTargeting.errors.includes("pairwise-distance-exceeded")) {
-        status.textContent = "I bersagli devono trovarsi tutti entro 9 m l'uno dall'altro.";
-        return;
-      }
-      if (sceneSpellTargeting.errors.includes("pairwise-distance-unavailable")) {
-        status.textContent = "Impossibile rivalidare le distanze tra i bersagli.";
-        return;
-      }
-      if (sceneSpellTargeting.errors.includes("caster-range-exceeded")) {
-        status.textContent = "Un bersaglio supera la gittata dell'incantesimo.";
-        return;
-      }
-      if (sceneSpellTargeting.errors.includes("caster-distance-unavailable")) {
-        status.textContent = "Impossibile rivalidare la gittata dal caster.";
-        return;
-      }
-    }
-    const liveItems = await OBR.scene.items.getItems(candidateIds);
-    const factorSnapshot = new Map(factors);
-    const entries = liveItems.filter(hasTrackedHP).map((item) => {
-      const meta = item.metadata[META_KEY] || {};
-      const outcome = areaOutcomeFor(item.id, spell);
-      const change = calculateQuickHPChange({
-        mode: mode === QUICK_HP_MODES.SAVE
-          ? spellUsesAreaHealing(spell)
-            ? QUICK_HP_MODES.HEAL
-            : QUICK_HP_MODES.DAMAGE
-          : mode,
-        value: mode === QUICK_HP_MODES.SAVE && outcome === SAVE_OUTCOMES.IMMUNE
-          ? 0
-          : currentValue(),
-        factor: mode === QUICK_HP_MODES.SAVE
-          ? factorForOutcome(outcome)
-          : factorSnapshot.get(item.id) || QUICK_HP_FACTORS.FULL,
-        hp: meta.hp,
-        hpMax: meta.hpMax,
-      });
-      return { item, change };
-    }).filter((entry) => entry.change.changed);
-    const requestedZoneTrigger = mode === QUICK_HP_MODES.SAVE
-      && zoneTriggerMatchesForm(activeZoneTrigger, spell, candidateIds)
-      ? activeZoneTrigger
-      : null;
-    const triggerRootItems = requestedZoneTrigger
-      ? await zoneTriggerRootItems(requestedZoneTrigger)
-      : [];
-    if (requestedZoneTrigger && !triggerRootItems.length) {
-      activeZoneTrigger = null;
-      status.textContent = "L'attivazione della zona non è più disponibile.";
-      return;
-    }
-    const conditionName = mode === QUICK_HP_MODES.SAVE && !catalogSaveAutomation(spell)
-      ? conditionSelect.value.trim()
-      : "";
-    const initiativeState = mode === QUICK_HP_MODES.SAVE
-      ? (await OBR.scene.getMetadata())?.[STATE_KEY] || {}
-      : null;
-    const appliedAt = initiativeState
-      ? {
-        round: Math.max(1, Number(initiativeState.round || 1)),
-        actorId: await currentInitiativeActorId() || null,
-        phase: "turn",
-        turnKey: currentInitiativeTurnKey(initiativeState),
-      }
-      : null;
-    let effectOperations = [];
-    let effectSubjectIds = [];
-    let spellInstanceId = "";
-    let concentrationAction = "";
-  let fireballVisualContext = null;
-  let matchedVisualContext = null;
-  let manualSpellResolutionMessage = "";
-  let callLightningCloudPlacement = null;
-  let callLightningCloudRule = null;
-    if (mode === QUICK_HP_MODES.SAVE && spell) {
-      const automation = currentSaveAutomation(spell);
-      const saveWorkflowRule = selectedSpellSaveWorkflowRule(spell);
-      const resolution = resolveSaveSpellResolution({
-        spell,
-        casterId: spellCasterSelect.value.trim(),
-        targetIds: liveItems.map((item) => item.id),
-        outcomes: spellUsesSaveOutcomes(spell)
-          ? saveOutcomes
-          : new Map(liveItems.map((item) => [item.id, SAVE_OUTCOMES.FAILED])),
-        automation,
-        allowEmptyTargets: !!staticZonePlacement
-          || mobileAuraPlacement
-          || !!boardTokenPlacement
-          || cloudPending,
-          saveWorkflowRule,
-          slotLevel: selectedSpellSlotLevel(spell),
-          choiceValue: selectedSaveRuleChoice(),
-          pairwiseDistancesMeters: sceneSpellTargeting?.pairwiseDistancesMeters,
-          casterDistancesMeters: sceneSpellTargeting?.casterDistancesMeters,
-          targetContexts,
-        });
-      if (!resolution.valid) {
-        status.textContent = resolution.errors.includes("caster-required")
-          ? "Seleziona il caster dello spell concentrato."
-          : resolution.errors.includes("choice-required")
-            ? "Seleziona un effetto o una variante."
-          : resolution.errors.includes("choice-invalid")
-              ? "La scelta dell'effetto non è valida."
-          : resolution.errors.includes("target-context-required")
-            ? "Completa il contesto richiesto per ogni bersaglio."
-          : resolution.errors.includes("target-context-invalid")
-            ? "Il contesto di un bersaglio non è valido."
-          : resolution.errors.includes("target-limit-exceeded")
-            ? "Il numero di bersagli supera il limite dello slot selezionato."
-            : resolution.errors.includes("slot-level-invalid")
-              ? "Seleziona un livello di slot valido per questo incantesimo."
-          : resolution.errors.includes("outcomes-incomplete")
-            ? "Imposta un esito per ogni bersaglio."
-            : "La configurazione dello spell non è completa.";
-        return;
-      }
-      manualSpellResolutionMessage = manualSpellResolutionSummary(
-        spell,
-        resolution,
-        liveItems,
-      );
-      if (mobileAuraPlacement && resolution.casterId) {
-        resolution.spellTargetIds = Array.from(new Set([
-          ...resolution.spellTargetIds,
-          resolution.casterId,
-        ]));
-      }
-      if (boardTokenPlacement && resolution.casterId) {
-        resolution.spellTargetIds = Array.from(new Set([
-          ...resolution.spellTargetIds,
-          resolution.casterId,
-        ]));
-      }
-      effectSubjectIds = Array.from(new Set([
-        ...resolution.spellTargetIds,
-        ...resolution.conditionApplications.flatMap((application) => application.targetIds),
-      ]));
-      const caster = itemForId(resolution.casterId);
-      if (requestedZoneTrigger) {
-        concentrationAction = "trigger";
-        spellInstanceId = requestedZoneTrigger.instanceId;
-        effectOperations = saveSpellTriggerResolutionOperations({
-          resolution,
-          instanceId: spellInstanceId,
-          casterName: caster ? displayName(caster) : "",
-          turns: remainingSpellTurnsForInstance(
-            spellInstanceId,
-            spell.defaultTurns || 1,
-          ),
-          spellExpiry: spell.concentration
-            ? { mode: "concentration" }
-            : spell.expiry || null,
-          appliedAt,
-        });
-      } else {
-        const activeSpellConcentration = activeConcentrationForSpell(caster, spell);
-        concentrationAction = automation?.concentrationAction === "dismiss"
-          ? "dismiss"
-          : activeSpellConcentration?.instanceId
-            ? "extend"
-            : "replace";
-        spellInstanceId = concentrationAction === "extend"
-          ? String(activeSpellConcentration.instanceId)
-          : createSpellInstanceId();
-        effectOperations = saveSpellResolutionOperations({
-          resolution,
-          instanceId: spellInstanceId,
-          casterName: caster ? displayName(caster) : "",
-          turns: spell.defaultTurns || 1,
-          spellExpiry: spell.concentration ? { mode: "concentration" } : spell.expiry || null,
-          appliedAt,
-          concentrationAction,
-          castContext: mobileAuraPlacement
-            || boardTokenPlacement
-            || spell?.activeActions?.some((action) => action?.resolutionKind)
-            || resolution.targeting
-            || resolution.choice
-            ? {
-              ...(spell?.activeActions?.some((action) => action?.resolutionKind)
-                ? { slotLevel: selectedSpellSlotLevel(spell) }
-                : {}),
-              ...(mobileAuraPlacement ? { mobileAura: true } : {}),
-              ...(boardTokenPlacement ? { boardToken: true } : {}),
-              ...(resolution.targeting
-                ? { slotLevel: resolution.targeting.slotLevel }
-                : {}),
-              ...(resolution.choice?.value
-                ? { choice: resolution.choice.value }
-                : {}),
-              ...(resolution.targetContexts && Object.keys(resolution.targetContexts).length
-                ? { targetContexts: resolution.targetContexts }
-                : {}),
-            }
-            : null,
-        });
-        if (mobileAuraPlacement && resolution.casterId && Array.isArray(spell.effects)) {
-          const personalEffects = spell.effects
-            .filter((effect) => (
-              (effect?.kind === "buff" || effect?.kind === "debuff")
-              && String(effect?.label || "").trim()
-            ))
-            .map((effect) => ({
-              type: "condition:add",
-              targetIds: [resolution.casterId],
-              conditionName: String(effect.label).trim(),
-              options: spellEffectConditionOptions(effect, {
-                sourceId: resolution.casterId,
-                sourceName: caster ? displayName(caster) : "",
-                appliedAt,
-                expiry: spell.concentration
-                  ? { mode: "concentration" }
-                  : { mode: "manual" },
-              }, spellInstanceId),
-            }));
-          if (personalEffects.length) {
-            effectOperations.push(...personalEffects, {
-              type: "condition:automate",
-              subjectIds: [resolution.casterId],
-            });
-          }
-        }
-        if (isChainLightningSpell(spell)) {
-          matchedVisualContext = {
-            spellId: spell.id,
-            casterId: resolution.casterId,
-            targetIds: chainLightningVisualTargetIds.length
-              ? chainLightningVisualTargetIds
-              : resolution.targetIds,
-            eventId: spellInstanceId,
-            lifecycleId: spellInstanceId,
-            sceneEpoch: operationSceneEpoch,
-          };
-        } else if (
-          spell.id === "banishment"
-          && resolution.spellTargetIds.length
-        ) {
-          // Esilio è un workflow target con contesto, non una sagoma area:
-          // usa i bersagli falliti già tracciati dal lifecycle per mantenere
-          // il portale agganciato al token e chiuderlo alla rimozione.
-          matchedVisualContext = {
-            spellId: spell.id,
-            casterId: resolution.casterId,
-            targetIds: resolution.spellTargetIds,
-            eventId: spellInstanceId,
-            lifecycleId: spellInstanceId,
-            sceneEpoch: operationSceneEpoch,
-          };
-        } else if (
-          spell.id === "fireball"
-          && pendingSpellAreaPlacement?.spellId === spell.id
-          && pendingSpellAreaPlacement?.ruleId === placementRule?.id
-        ) {
-          fireballVisualContext = {
-            casterId: resolution.casterId,
-            eventId: spellInstanceId,
-            preview: pendingSpellAreaPlacement.preview,
-            sceneEpoch: operationSceneEpoch,
-          };
-        } else if (
-          placementRule?.kind !== "board-token"
-          &&
-          pendingSpellAreaPlacement?.spellId === spell.id
-          && pendingSpellAreaPlacement?.ruleId === placementRule?.id
-        ) {
-          matchedVisualContext = {
-            spellId: spell.id,
-            casterId: resolution.casterId,
-            targetIds: resolution.spellTargetIds,
-            eventId: spellInstanceId,
-            lifecycleId: spellInstanceId,
-            preview: pendingSpellAreaPlacement.preview,
-            sceneEpoch: operationSceneEpoch,
-          };
-        }
-      }
-    } else if (mode === QUICK_HP_MODES.SAVE && conditionName) {
-      effectSubjectIds = failedQuickHPTargetIds(liveItems, saveOutcomes);
-      if (effectSubjectIds.length) {
-        effectOperations = conditionMutationOperations({
-          targetIds: effectSubjectIds,
-          conditionName,
-          options: conditionOptions(appliedAt),
-          automate: true,
-        });
-      }
-    }
-    if (cloudPending) {
-      callLightningCloudPlacement = await buildCallLightningCloudPlacement(
-        spellCasterSelect.value.trim(),
-        pendingSpellAreaPlacement?.preview,
-      );
-      callLightningCloudRule = callLightningCloudPlacement
-        ? getSpellAreaRuleById(callLightningCloudPlacement.ruleId)
-        : null;
-      if (!callLightningCloudPlacement || !callLightningCloudRule) {
-        throw new Error("call-lightning-cloud-placement-unavailable");
-      }
-      if (matchedVisualContext && spell?.id === "call-lightning") {
-        // Il loop persistente rappresenta la nube, non la scarica istantanea.
-        matchedVisualContext.preview = callLightningCloudPlacement.preview;
-      }
-    }
-    if (staticZonePlacement) {
-      const hasTrackedSpellInstance = effectOperations.some(
-        (operation) => operation?.type === "spell:upsert"
-          && String(operation?.instanceId || "").trim() === spellInstanceId
-      );
-      const ownerOperation = staticSpellZoneOwnerOperation({
-        rule: placementRule,
-        spell,
-        instanceId: spellInstanceId,
-        casterId: spellCasterSelect.value.trim(),
-        appliedAt,
-        trackConcentration: spell?.concentration === true && !hasTrackedSpellInstance,
-        ruleChoice: selectedSaveRuleChoice(),
-        slotLevel: selectedSpellSlotLevel(spell),
-      });
-      if (ownerOperation) effectOperations.push(ownerOperation);
-      const passiveTargetIds = confirmedSpellAreaTargetIds({
-        status: "confirmed",
-        preview: staticZonePlacement.preview,
-      }, targets.map((item) => item.id));
-      const caster = itemForId(spellCasterSelect.value.trim());
-      const passivePlan = areaMembershipPlan({
-        instanceId: spellInstanceId,
-        sourceId: spellCasterSelect.value.trim(),
-        rule: placementRule,
-        desiredTargetIds: passiveTargetIds,
-        items: targets,
-        metaKey: META_KEY,
-        sourceName: caster ? displayName(caster) : "",
-        defaultExpiry: { mode: "manual" },
-      });
-      effectOperations.push(...passivePlan.operations);
-      effectSubjectIds = Array.from(new Set([
-        ...effectSubjectIds,
-        ...passiveTargetIds,
-      ]));
-    }
-    if (callLightningCloudPlacement && callLightningCloudRule) {
-      const ownerOperation = staticSpellZoneOwnerOperation({
-        rule: callLightningCloudRule,
-        spell,
-        instanceId: spellInstanceId,
-        casterId: spellCasterSelect.value.trim(),
-        appliedAt,
-        trackConcentration: true,
-        slotLevel: selectedSpellSlotLevel(spell),
-      });
-      if (ownerOperation) effectOperations.push(ownerOperation);
-    }
-    const breaksExistingConcentration = effectOperations.some(
-      (operation) => operation.type === "concentration:break"
-    );
-    const previousBoardTokenItems = breaksExistingConcentration
-      ? await getSpellBoardTokenItems({
-        casterId: spellCasterSelect.value.trim(),
-      })
-      : boardTokenPlacement
-        ? await getSpellBoardTokenItems({ instanceId: spellInstanceId })
-        : [];
-    const boardTokenEntityId = boardTokenPlacement
-      ? createSpellBoardTokenId()
-      : "";
-    const boardTokenPosition = boardTokenPlacement
-      ? spellBoardTokenPlacementPosition(boardTokenPlacement.preview)
-      : null;
-    const spellBoardTokenSideEffects = [
-      ...(breaksExistingConcentration ? [{
-        type: "static-zone:remove-ended",
-        selectors: [{ casterId: spellCasterSelect.value.trim() }],
-      }] : []),
-      ...(boardTokenPlacement && boardTokenPosition ? [{
-        type: "spell-board-token:place",
-        entityId: boardTokenEntityId,
-        spellId: spell.id,
-        instanceId: spellInstanceId,
-        casterId: spellCasterSelect.value.trim(),
-        slotLevel: selectedSpellSlotLevel(spell),
-        position: boardTokenPosition,
-      }] : []),
-    ];
-    const previousStaticZoneItems = breaksExistingConcentration
-      ? await getStaticSpellZoneItems({
-        casterId: spellCasterSelect.value.trim(),
-      })
-      : (staticZonePlacement || callLightningCloudPlacement)
-        ? await getStaticSpellZoneItems({ instanceId: spellInstanceId })
-        : [];
-    const nextStaticZoneItems = [
-      ...(staticZonePlacement
-        ? buildStaticSpellZoneItems({
-          ruleId: staticZonePlacement.ruleId,
-          instanceId: spellInstanceId,
-          casterId: spellCasterSelect.value.trim(),
-          spellName: spell?.displayName || spell?.name,
-          preview: staticZonePlacement.preview,
-          ruleChoice: selectedSaveRuleChoice(),
-        })
-        : []),
-      ...(callLightningCloudPlacement
-        ? buildStaticSpellZoneItems({
-          ruleId: callLightningCloudPlacement.ruleId,
-          instanceId: spellInstanceId,
-          casterId: spellCasterSelect.value.trim(),
-          spellName: spell?.displayName || spell?.name,
-          preview: callLightningCloudPlacement.preview,
-        })
-        : []),
-    ];
-    if (
-      matchedVisualContext
-      && spell?.id !== "call-lightning"
-      && nextStaticZoneItems.length
-    ) {
-      const zoneRoot = nextStaticZoneItems.find((item) =>
-        item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
-      );
-      if (zoneRoot?.id) matchedVisualContext.zoneId = zoneRoot.id;
-    }
-    if (
-      !entries.length
-      && !effectOperations.length
-      && !nextStaticZoneItems.length
-      && !requestedZoneTrigger
-    ) {
-      if (manualSpellResolutionMessage) {
-        status.textContent = manualSpellResolutionMessage;
-      } else {
-        status.textContent = "Nessuna modifica da applicare.";
-      }
-      return;
-    }
-    if (fireballVisualContext) {
-      // Avvia il visual dopo la validazione dell'input, senza aspettare la
-      // transazione HP, la cronologia o la riconciliazione degli effetti.
-      void emitFireballVisual(fireballVisualContext).catch((error) => {
-        console.warn("[quick-hp] Fireball visual:", error?.message || error);
-      });
-    }
-    let recordedEntry = null;
-    const ids = entries.map((entry) => entry.item.id);
-    const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
-      const meta = entry.item.metadata?.[META_KEY] || {};
-      return resolveZeroHPUnconsciousAction(
-        {
-          ...meta,
-          hp: entry.change.afterHP,
-          hpMax: entry.change.hpMax,
-        },
-        getConditionInstances(meta.conditions || {}),
-      );
+  let recordedEntry = null;
+  let coordinatedMutation = null;
+  const ids = entries.map((entry) => entry.item.id);
+  const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
+    const meta = entry.item.metadata?.[META_KEY] || {};
+    return resolveZeroHPUnconsciousAction({
+      ...meta,
+      hp: entry.change.afterHP,
+      hpMax: entry.change.hpMax,
+    }, getConditionInstances(meta.conditions || {}));
+  });
+  const affectedIds = uniqueIds([...ids, ...failedIds]);
+  const historyIds = uniqueIds([
+    ...affectedIds,
+    ...await getZeroHPConditionHistoryIds(ids),
+  ]);
+  const optimisticUpdates = quickHPVisualUpdates(entries);
+  if (optimisticUpdates.length && isCurrentSceneEpoch(operationSceneEpoch)) {
+    hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
+      syncVisuals: syncHPVisualUpdates,
+      onPreviewError: (error) => console.warn("[quick-hp] visual sync:", error?.message || error),
     });
-    const affectedIds = Array.from(new Set([
-      ...ids,
-      ...effectSubjectIds,
-      ...(requestedZoneTrigger ? candidateIds : []),
-    ]));
-    const historyIds = Array.from(new Set([
-      ...ids,
-      ...effectSubjectIds,
-      ...(cloudPending ? [spellCasterSelect.value.trim()] : []),
-      ...await getZeroHPConditionHistoryIds(ids),
-    ]));
-    const staticZoneSceneItemIds = Array.from(new Set([
-      ...previousStaticZoneItems.map((item) => item.id),
-      ...nextStaticZoneItems.map((item) => item.id),
-      ...previousBoardTokenItems.map((item) => item.id),
-      boardTokenEntityId,
-      ...triggerRootItems.map((item) => item.id),
-    ].filter(Boolean)));
-    let coordinatedMutation = null;
-    const optimisticHPVisualUpdates = quickHPVisualUpdates(entries);
-    if (optimisticHPVisualUpdates.length && isCurrentSceneEpoch(operationSceneEpoch)) {
-      hpVisualTransaction = createQuickHPVisualTransaction(optimisticHPVisualUpdates, {
-        syncVisuals: syncHPVisualUpdates,
-        onPreviewError: (error) => {
-          console.warn("[quick-hp] optimistic HP visual sync:", error?.message || error);
-        },
-      });
-    }
+  }
+
+  try {
     await withItemMetaHistory({
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
-        ? "Effetti ad area: " + currentValue() + (spell ? " · " + spell.displayName : "") + " - " + affectedIds.length + " bersagli"
-        : modeLabel().charAt(0).toUpperCase() + modeLabel().slice(1) + " rapido: " + currentValue() + " - " + ids.length + " bersagli",
+        ? `Effetto manuale: ${conditionName || currentValue()} · ${affectedIds.length} bersagli`
+        : `${modeLabel().replace(/^./, (value) => value.toUpperCase())} rapido: ${currentValue()} · ${ids.length} bersagli`,
       itemIds: historyIds,
-      sceneItemIds: staticZoneSceneItemIds,
-      fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
+      fields: ["hp", "hpMax", "conditions"],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => quickHpEffectsHistoryEntry(entry, coordinatedMutation),
     }, async () => {
-      let removedPreviousZone = false;
-      let addedNextZone = false;
-      let consumedZoneTrigger = false;
-      try {
-        if (previousStaticZoneItems.length) {
-          await OBR.scene.items.deleteItems(previousStaticZoneItems.map((item) => item.id));
-          removedPreviousZone = true;
-        }
-        if (nextStaticZoneItems.length) {
-          await OBR.scene.items.addItems(nextStaticZoneItems);
-          addedNextZone = true;
-        }
-        if (entries.length) {
-          const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
-          await OBR.scene.items.updateItems(ids, (drafts) => {
-            for (const item of drafts) {
-              const update = updates.get(item.id);
-              if (!update) continue;
-              const previous = item.metadata && item.metadata[META_KEY] || {};
-              item.metadata = Object.assign({}, item.metadata || {}, {
-                [META_KEY]: Object.assign({}, previous, { hp: update.afterHP, hpMax: update.hpMax }),
-              });
-            }
-          });
-        }
-        const coordinatedOperations = [
-          ...(zeroHPReconcileIds.length ? [{
-            type: "condition:reconcile-zero-hp",
-            targetIds: zeroHPReconcileIds,
-          }] : []),
-          ...effectOperations,
-        ];
-        if (coordinatedOperations.length || spellBoardTokenSideEffects.length) {
-          // Il coordinatore legge e prepara sullo stato post-HP in testa alla
-          // propria coda; non esiste piu un piano preparato prima dell'azione.
-          coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
-            history: false,
-            kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp-effects",
-            label: "Effetti collegati alla modifica HP",
-            targetIds: Array.from(new Set([...ids, ...effectSubjectIds])),
-            sideEffects: spellBoardTokenSideEffects,
-          });
-          requireAppliedEffectsMutation(coordinatedMutation);
-        }
-        if (requestedZoneTrigger) {
-          await consumeZoneTriggerActivation(requestedZoneTrigger);
-          consumedZoneTrigger = true;
-        }
-      } catch (error) {
-        if (addedNextZone) {
-          await OBR.scene.items.deleteItems(
-            nextStaticZoneItems.map((item) => item.id)
-          ).catch(() => {});
-        }
-        if (removedPreviousZone) {
-          await OBR.scene.items.addItems(previousStaticZoneItems).catch(() => {});
-        }
-        if (consumedZoneTrigger) {
-          await restoreZoneTriggerRoot(triggerRootItems).catch(() => {});
-        }
-        throw error;
+      if (entries.length) {
+        const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
+        await OBR.scene.items.updateItems(ids, (drafts) => {
+          for (const item of drafts) {
+            const update = updates.get(item.id);
+            if (!update) continue;
+            const previous = item.metadata?.[META_KEY] || {};
+            item.metadata = {
+              ...(item.metadata || {}),
+              [META_KEY]: {
+                ...previous,
+                hp: update.afterHP,
+                hpMax: update.hpMax,
+              },
+            };
+          }
+        });
+      }
+      const coordinatedOperations = [
+        ...(zeroHPReconcileIds.length ? [{
+          type: "condition:reconcile-zero-hp",
+          targetIds: zeroHPReconcileIds,
+        }] : []),
+        ...effectOperations,
+      ];
+      if (coordinatedOperations.length) {
+        coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
+          history: false,
+          kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp-effects",
+          label: "Effetti collegati alla modifica HP",
+          targetIds: affectedIds,
+        });
+        requireAppliedEffectsMutation(coordinatedMutation);
       }
     });
-    if (matchedVisualContext) {
-      // I loop persistenti partono solo dopo il commit dell'istanza canonica;
-      // Fireball resta invece anticipata per non ritardare la risposta visiva
-      // alla console del danno.
-      void emitMatchedSpellVisual(matchedVisualContext).catch((error) => {
-        console.warn("[quick-hp] matched visual:", error?.message || error);
-      });
-    }
-    const derivedSync = Promise.all([
+    if (hpVisualTransaction) await hpVisualTransaction.completion;
+    await Promise.all([
       syncHPBatchToMemory(entries.map((entry) => ({
         itemId: entry.item.id,
         hp: entry.change.afterHP,
@@ -2746,35 +753,23 @@ async function applyOperation() {
       })), {
         sceneEpoch: operationSceneEpoch,
         items: entries.map((entry) => entry.item),
-      }).catch((error) => console.warn("[quick-hp] HP memory:", error && error.message || error)),
-      showConcentrationWarnings(entries).catch((error) => console.warn("[quick-hp] concentration warning:", error && error.message || error)),
-      showEffectSaveDamageWarnings(entries).catch((error) => console.warn("[quick-hp] effect save reminder:", error && error.message || error)),
+      }),
+      showConcentrationWarnings(entries),
+      showEffectSaveDamageWarnings(entries),
     ]);
-    if (hpVisualTransaction) await hpVisualTransaction.completion;
-    await derivedSync;
-    lastEntryId = recordedEntry && recordedEntry.id || "";
-    lastZoneTriggerActivationId = requestedZoneTrigger?.id || "";
-    if (requestedZoneTrigger) activeZoneTrigger = null;
+    lastEntryId = recordedEntry?.id || "";
     undoButton.hidden = !lastEntryId;
-    const affectedCount = affectedIds.length;
     status.textContent = mode === QUICK_HP_MODES.SAVE
-      ? "Risoluzione applicata a " + affectedCount + " bersagli."
-      : "Applicato a " + entries.length + " bersagli.";
-    pendingSpellAreaPlacement = null;
-    targetSelectionLocked = false;
+      ? `Risoluzione applicata a ${affectedIds.length} bersagli.`
+      : `Applicato a ${entries.length} bersagli.`;
     await loadTargets();
     await refreshConditionSourceOptions();
-    if (requestedZoneTrigger) {
-      await loadPendingZoneTriggerPreset("", { allowBusy: true });
-    }
   } catch (error) {
     console.error("[quick-hp] apply:", error);
     if (hpVisualTransaction) {
       await hpVisualTransaction.recover((itemIds) => (
         readAuthoritativeHPVisualUpdates(itemIds, operationSceneEpoch)
-      )).catch((syncError) => {
-        console.warn("[quick-hp] HP visual recovery:", syncError?.message || syncError);
-      });
+      )).catch(() => {});
     }
     status.textContent = "Applicazione non riuscita.";
   } finally {
@@ -2782,11 +777,12 @@ async function applyOperation() {
     renderTargets();
   }
 }
+
 async function undoLastOperation() {
   if (busy || !lastEntryId) return;
-  setBusy(true);
+  busy = true;
+  renderTargets();
   try {
-    const zoneTriggerActivationId = lastZoneTriggerActivationId;
     const history = await getHistoryEntries();
     const latest = history[history.length - 1];
     if (!latest || latest.id !== lastEntryId) {
@@ -2797,17 +793,10 @@ async function undoLastOperation() {
     }
     await undoHistoryThrough(lastEntryId);
     lastEntryId = "";
-    lastZoneTriggerActivationId = "";
     undoButton.hidden = true;
     status.textContent = "Ultima applicazione annullata.";
     await loadTargets();
     await refreshConditionSourceOptions();
-    if (zoneTriggerActivationId) {
-      await loadPendingZoneTriggerPreset(
-        zoneTriggerActivationId,
-        { allowBusy: true },
-      );
-    }
   } catch (error) {
     console.error("[quick-hp] undo:", error);
     status.textContent = "Undo non riuscito.";
@@ -2816,114 +805,65 @@ async function undoLastOperation() {
     renderTargets();
   }
 }
+
 function closePopover() {
-  clearChainLightningReference();
-  void OBR.broadcast.sendMessage(TOGGLE_CHANNEL, { type: "closed", id: MODAL_ID }, { destination: "LOCAL" }).catch(() => {});
+  void OBR.broadcast.sendMessage(
+    TOGGLE_CHANNEL,
+    { type: "closed", id: MODAL_ID },
+    { destination: "LOCAL" },
+  ).catch(() => {});
   void OBR.popover.close(MODAL_ID);
 }
+
+function populateConditionOptions() {
+  conditionSelect.replaceChildren(new Option("Nessuna condizione", ""));
+  for (const condition of APPLICABLE_CONDITION_LIST) {
+    conditionSelect.appendChild(new Option(condition, condition));
+  }
+}
+
 document.querySelectorAll("[data-mode]").forEach((button) => {
   button.addEventListener("click", () => {
     if (busy) return;
     mode = button.dataset.mode;
-    if (mode !== QUICK_HP_MODES.SAVE) targetSelectionLocked = false;
-    if (mode !== QUICK_HP_MODES.SAVE) activeZoneTrigger = null;
-    if (mode !== QUICK_HP_MODES.SAVE) {
-      chainPrimaryId = "";
-      clearChainLightningReference();
-    }
-    status.textContent = "";
-    renderTargets();
-  });
-});
-for (const button of areaEffectTabButtons) {
-  button.addEventListener("click", () => {
-    if (busy) return;
-    areaEffectTab = button.dataset.areaEffectTab;
-    status.textContent = "";
-    renderTargets();
-  });
-}
-areaPlacementButton.addEventListener("click", () => void placeSelectedSpellArea());
-spellSelect.addEventListener("change", () => {
-  activeZoneTrigger = null;
-  pendingSpellAreaPlacement = null;
-  targetSelectionLocked = false;
-  targetContexts.clear();
-  if (!isChainLightningSpell()) {
-    chainPrimaryId = "";
-    clearChainLightningReference();
-  }
-  status.textContent = "";
-  refreshSpellRuleChoices();
-  renderTargets();
-});
-spellSlotSelect.addEventListener("change", () => {
-  status.textContent = "";
-  renderTargets();
-});
-chainPrimarySelect.addEventListener("change", () => {
-  chainPrimaryId = chainPrimarySelect.value.trim();
-  if (chainPrimaryId) {
-    selectedIds = new Set([chainPrimaryId]);
     saveOutcomes.clear();
+    status.textContent = "";
     renderTargets();
-    void updateSceneSelection([chainPrimaryId], true, true);
-  } else {
-    renderTargets();
-  }
-  void refreshChainLightningReference();
-});
-spellRuleChoice.addEventListener("change", () => {
-  status.textContent = "";
-  renderTargets();
-});
-spellSearch.addEventListener("input", () => {
-  syncSpellSelectionFromSearch(false);
-  openSpellMenu(spellSearch.value);
-});
-spellSearch.addEventListener("change", () => syncSpellSelectionFromSearch(true));
-spellSearch.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeSpellMenu();
-  else if (event.key === "ArrowDown" && spellMenu.hidden) {
-    event.preventDefault();
-    openSpellMenu(spellSearch.value);
-  }
-});
-spellMenuToggle.addEventListener("click", () => {
-  if (spellMenu.hidden) {
-    openSpellMenu("");
-    spellSearch.focus();
-  } else closeSpellMenu();
-});
-document.addEventListener("click", (event) => {
-  if (!event.target.closest(".spell-combobox")) closeSpellMenu();
+  });
 });
 conditionSelect.addEventListener("change", () => {
   status.textContent = "";
   renderTargets();
 });
-spellCasterSelect.addEventListener("change", () => {
-  activeZoneTrigger = null;
-  pendingSpellAreaPlacement = null;
-  targetSelectionLocked = false;
-  status.textContent = "";
-  renderTargets();
-});
 conditionSourceSelect.addEventListener("change", () => {
-  conditionActorSelect.value = conditionSourceSelect.value.trim() ? "source" : "target";
+  conditionActorSelect.value = conditionSourceSelect.value ? "source" : "target";
   renderTargets();
 });
 conditionExpirySelect.addEventListener("change", renderTargets);
 conditionActorSelect.addEventListener("change", renderTargets);
 conditionDurationInput.addEventListener("input", renderTargets);
 amountInput.addEventListener("input", () => {
-  amountInput.value = String(amountInput.value || "").replace(/\D+/g, "").slice(0, 5);
+  amountInput.value = text(amountInput.value).replace(/\D+/g, "").slice(0, 5);
   status.textContent = "";
   renderTargets();
 });
 amountInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !applyButton.disabled) void applyOperation();
 });
+targetNameFilter.addEventListener("input", renderTargets);
+for (const button of factionFilterButtons) {
+  button.addEventListener("click", () => {
+    const faction = button.dataset.hpFaction;
+    if (activeFactionFilters.has(faction)) activeFactionFilters.delete(faction);
+    else activeFactionFilters.add(faction);
+    button.classList.toggle("active", activeFactionFilters.has(faction));
+    button.setAttribute("aria-pressed", String(activeFactionFilters.has(faction)));
+    renderTargets();
+  });
+}
+applyButton.addEventListener("click", () => void applyOperation());
+undoButton.addEventListener("click", () => void undoLastOperation());
+closeButton.addEventListener("click", closePopover);
 window.addEventListener("keydown", (event) => {
   if (!shouldHandleQuickHPUndoShortcut({
     key: event.key,
@@ -2937,62 +877,24 @@ window.addEventListener("keydown", (event) => {
   event.stopImmediatePropagation();
   void undoLastOperation();
 }, true);
-targetNameFilter.addEventListener("input", renderTargets);
-unlockTargetsButton.addEventListener("click", () => {
-  if (busy || !targetSelectionLocked) return;
-  targetSelectionLocked = false;
-  status.textContent = "Selezione bersagli sbloccata per la correzione manuale.";
-  renderTargets();
-});
-for (const button of factionFilterButtons) {
-  button.addEventListener("click", () => {
-    const faction = button.dataset.hpFaction;
-    if (activeFactionFilters.has(faction)) activeFactionFilters.delete(faction);
-    else activeFactionFilters.add(faction);
-    const active = activeFactionFilters.has(faction);
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-    renderTargets();
-  });
-}
-applyButton.addEventListener("click", () => void applyOperation());
-undoButton.addEventListener("click", () => void undoLastOperation());
-closeButton.addEventListener("click", closePopover);
 window.addEventListener("beforeunload", () => {
-  clearChainLightningReference();
   if (selectionUnsubscribe) selectionUnsubscribe();
   if (selectionTimer) window.clearInterval(selectionTimer);
-  zoneTriggerRequestUnsubscribe?.();
 });
+
 OBR.onReady(async () => {
   await mountCombatLogEventSink();
   if (await OBR.player.getRole() !== "GM") {
-    targetList.textContent = "La console HP rapida e disponibile solo per il GM.";
+    targetList.textContent = "La console HP rapida è disponibile solo per il GM.";
     return;
   }
+  populateConditionOptions();
   renderBulkActions();
   mountSelectionSync();
   await loadTargets();
   await refreshConditionSourceOptions();
   renderTargets();
   await refreshSelectionFromScene();
-  if (await loadQuickActionPreset()) return;
-  if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) {
-    zoneTriggerRequestUnsubscribe = OBR.broadcast.onMessage(
-      TRACKER_PANEL_REQUEST_CHANNEL,
-      (event) => {
-        const data = event?.data;
-        if (
-          data?.type === "open"
-          && data.panel === "quick-hp"
-          && data.zoneTrigger?.activationId
-        ) {
-          void loadPendingZoneTriggerPreset(data.zoneTrigger.activationId);
-        }
-      },
-    );
-    if (await loadPendingZoneTriggerPreset()) return;
-  }
   amountInput.focus();
   amountInput.select();
 });

@@ -53,6 +53,63 @@ test("calcola i limiti RAW in base allo slot", () => {
   assert.equal(getSpellSaveTargetMaximum("xanathar-anatema-elementale", 4), 1);
   assert.equal(getSpellSaveTargetMaximum("xanathar-anatema-elementale", 5), 2);
   assert.equal(getSpellSaveTargetMaximum("xanathar-anatema-elementale", 9), 6);
+  assert.equal(getSpellSaveTargetMaximum("xanathar-aculeo-mentale", 2), 1);
+  assert.equal(getSpellSaveTargetMaximum("xanathar-aculeo-mentale", 9), 1);
+});
+
+test("Aculeo Mentale dichiara TS Saggezza, gittata e un solo bersaglio", () => {
+  const rule = getSpellSaveWorkflowRule("xanathar-aculeo-mentale");
+
+  assert.equal(rule.ability, "wis");
+  assert.deepEqual(rule.targeting.spatial, {
+    mode: "caster-range",
+    maxMeters: 18,
+  });
+  assert.equal(rule.targeting.baseSlot, 2);
+  assert.equal(rule.targeting.baseMaximum, 1);
+  assert.equal(rule.targeting.additionalPerSlotAbove, 0);
+
+  const valid = resolveSpellSaveTargeting({
+    spellId: "xanathar-aculeo-mentale",
+    slotLevel: 5,
+    targetIds: ["target"],
+    casterDistancesMeters: { target: 18 },
+  });
+  assert.equal(valid.valid, true);
+
+  const tooMany = resolveSpellSaveTargeting({
+    spellId: "xanathar-aculeo-mentale",
+    slotLevel: 5,
+    targetIds: ["target-a", "target-b"],
+  });
+  assert.equal(tooMany.valid, false);
+  assert.ok(tooMany.errors.includes("target-limit-exceeded"));
+});
+
+test("Aculeo Mentale non applica Localizzato a successi o immunità", () => {
+  for (const [targetId, outcome, expectedApplications] of [
+    ["failed", "failed", [["failed"]]],
+    ["passed", "passed", []],
+    ["immune", "immune", []],
+  ]) {
+    const resolution = resolveSaveSpellResolution({
+      spell: getSpellDefinition("xanathar-aculeo-mentale"),
+      casterId: "caster",
+      targetIds: [targetId],
+      outcomes: { [targetId]: outcome },
+      automation: getAreaSaveAutomation("xanathar-aculeo-mentale"),
+      saveWorkflowRule: getSpellSaveWorkflowRule("xanathar-aculeo-mentale"),
+      slotLevel: 2,
+      validateSpatial: false,
+    });
+
+    assert.equal(resolution.valid, true, outcome);
+    assert.deepEqual(
+      resolution.conditionApplications.map((application) => application.targetIds),
+      expectedApplications,
+      outcome,
+    );
+  }
 });
 
 test("Anatema Elementale dichiara una scelta condivisa e vincolo pairwise", () => {

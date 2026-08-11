@@ -7,6 +7,7 @@ const uniqueIds = (values = []) => Array.from(new Set(
 export const CHAIN_LIGHTNING_TARGETING = Object.freeze({
   spellId: "chain-lightning",
   saveAbility: "dex",
+  selectionMode: "primary-then-secondary",
   baseSlot: 6,
   maxSlot: 9,
   primaryRangeMeters: 45,

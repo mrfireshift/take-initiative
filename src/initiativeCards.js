@@ -174,6 +174,20 @@ function profileForStorage(name, value, conditions) {
   };
 }
 
+function hasLegacyQuickActionStorage(value) {
+  return Array.isArray(value?.quickActions)
+    && value.quickActions.some((action) => (
+      action?.kind === "spell"
+      && !Object.prototype.hasOwnProperty.call(action, "launchMode")
+    ));
+}
+
+function storageQuickActions(cleanProfile, sourceProfile) {
+  return hasLegacyQuickActionStorage(sourceProfile)
+    ? sourceProfile.quickActions
+    : cleanProfile.quickActions;
+}
+
 function writeLocalInitiativeCards(registry) {
   try {
     if (typeof localStorage === "undefined") return false;
@@ -302,8 +316,14 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
   });
   const winner = roomWins ? (roomDeleted ? null : roomProfile) : (hasTokenProfile ? tokenRaw : null);
   const profile = profileWithConditionFallback(item?.name, winner, tokenConditions);
+  const hasLegacyQuickActions = [winner, tokenRaw, roomProfile]
+    .some((candidate) => hasLegacyQuickActionStorage(candidate));
 
-  if (hydrate && keys.length && (hasRoomVersion || hasTokenProfile || legacyExhaustion > 0)) {
+  // La lettura di una quick action spell v1 deve restare read-only: la
+  // normalizzazione vive nel profilo restituito e viene persistita solo da
+  // saveInitiativeCard dopo un salvataggio esplicito della scheda.
+  if (hydrate && keys.length && !hasLegacyQuickActions
+    && (hasRoomVersion || hasTokenProfile || legacyExhaustion > 0)) {
     const updatedAt = roomWins
       ? (roomUpdatedAt || Date.now())
       : (tokenUpdatedAt || Date.now());
@@ -314,9 +334,21 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
     const cleanWinner = sanitizeInitiativeCard(
       profileForStorage(item?.name, winner, tokenConditions)
     );
-    const storedProfile = { ...cleanWinner, updatedAt };
+    const storedProfile = {
+      ...cleanWinner,
+      quickActions: storageQuickActions(cleanWinner, winner),
+      updatedAt,
+    };
+    const storedProfileWithoutTimestamp = { ...storedProfile };
+    delete storedProfileWithoutTimestamp.updatedAt;
+    const tokenProfileComparable = sanitizeInitiativeCard(tokenRaw);
+    tokenProfileComparable.quickActions = storageQuickActions(
+      tokenProfileComparable,
+      tokenRaw,
+    );
     const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt ||
-      JSON.stringify(sanitizeInitiativeCard(tokenRaw)) !== JSON.stringify(cleanWinner);
+      JSON.stringify(tokenProfileComparable) !==
+        JSON.stringify(storedProfileWithoutTimestamp);
     const desiredConditions = reconcileExhaustionCondition(
       tokenConditions,
       cleanWinner.exhaustion,
@@ -330,7 +362,7 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
     await updateRoomCards((next) => {
       const entry = {
         name: String(item?.name || ""),
-        profile: cleanWinner,
+        profile: storedProfileWithoutTimestamp,
         updatedAt,
       };
       for (const key of keys) next[key] = entry;
@@ -437,9 +469,17 @@ export async function syncInitiativeCardRegistryFromItems(itemIds) {
         raw,
         item.metadata?.[META_KEY]?.conditions
       );
-      const entry = { name: String(item.name || ""), profile, updatedAt };
+      const storedProfile = {
+        ...profile,
+        quickActions: storageQuickActions(profile, raw),
+      };
+      const entry = {
+        name: String(item.name || ""),
+        profile: storedProfile,
+        updatedAt,
+      };
       for (const key of keys) next[key] = entry;
-      stampById.set(item.id, { ...profile, updatedAt });
+      stampById.set(item.id, { ...storedProfile, updatedAt });
     }
     return next;
   });

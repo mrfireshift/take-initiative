@@ -76,6 +76,25 @@ test("dismiss non crea mai una pill spell anche se conserva bersagli ed effetti 
   assert.equal(operations.some((operation) => operation.type === "spell:upsert"), false);
 });
 
+test("una risoluzione preparata spezza soltanto l'istanza parent", () => {
+  const operations = spellLifecycleOperations({
+    targetIds: ["target"],
+    casterId: "caster",
+    name: "Raffica di Spine",
+    concentration: true,
+    instanceId: "prepared-1",
+    spellId: "phb2014-raffica-di-spine",
+    concentrationAction: "dismiss",
+    concentrationReference: "prepared-1",
+  });
+
+  assert.deepEqual(operations, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "prepared-1",
+  }]);
+});
+
 test("il cast di catalogo materializza condizioni ed effetti nello stesso builder", () => {
   const operations = catalogSpellApplicationOperations({
     targetIds: ["target"],

@@ -179,6 +179,28 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     additionalPerSlotAbove: 1,
     baseSlot: 2,
   }),
+  "xanathar-aculeo-mentale": workflowRule({
+    spellId: "xanathar-aculeo-mentale",
+    ability: "wis",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 2,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  "phb2014-allucinazione-di-forza": workflowRule({
+    spellId: "phb2014-allucinazione-di-forza",
+    ability: "int",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 2,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
   "command": workflowRule({
     spellId: "command",
     ability: "wis",

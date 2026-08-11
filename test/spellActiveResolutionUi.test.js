@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const popupHtml = read("../spell-active-resolution.html");
 const popupController = read("../src/spell-active-resolution.js");
-const spellsPanel = read("../src/spells-panel.js");
+const unifiedPanel = read("../src/spell-unified-panel.js");
+const activeAdapter = read("../src/spellUnifiedActiveAdapter.js");
 const executor = read("../src/spellApplicationExecutor.js");
 const validation = read("../src/spellActiveResolutionValidation.js");
 const popoverDrag = read("../src/popoverDrag.js");
@@ -52,21 +53,26 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /void apply\(\)/);
   assert.match(popupController, /button\.addEventListener\("click", \(event\) => \{\s*event\.stopPropagation\(\);/);
   assert.match(popupController, /\$\("footer"\)\.hidden = !save/);
+  assert.match(popupController, /isMultiAttack/);
+  assert.match(popupController, /attackEntries/);
+  assert.match(popupController, /Applica attacchi/);
+  assert.match(popupController, /attacks: isMultiAttack\(\)/);
   assert.doesNotMatch(popupController, /naturalStorm/);
   assert.doesNotMatch(validation, /currentSceneEpoch/);
   assert.match(popoverDrag, /export function initializePopoverDrag/);
   assert.match(popoverDrag, /clientX/);
   assert.match(vite, /spellActiveResolution:\s*path\.resolve/);
-  assert.match(quickHp, /slotLevel: selectedSpellSlotLevel\(spell\)/);
+  assert.doesNotMatch(quickHp, /spell|area|placement|chain|board/i);
   assert.doesNotMatch(popupHtml, /quick-hp-modal|Effetti ad Area|Tab Danno/iu);
   assert.doesNotMatch(popupController, /quick-hp-modal/iu);
 });
 
 test("il pannello costruisce un payload immutabile e apre il popup tracciato", () => {
-  assert.match(spellsPanel, /buildSpellActiveResolutionPayload/);
-  assert.match(spellsPanel, /openTrackedPopover/);
-  assert.match(spellsPanel, /disableClickAway: true/);
-  assert.match(spellsPanel, /zoneItemId: group\?\.zoneItemId/);
+  assert.match(activeAdapter, /buildSpellActiveResolutionPayload/);
+  assert.match(activeAdapter, /zoneItemId/);
+  assert.match(unifiedPanel, /openTrackedPopover/);
+  assert.match(unifiedPanel, /disableClickAway: true/);
+  assert.doesNotMatch(unifiedPanel, /spells-panel\.js/);
 });
 
 test("una conferma di attivazione passa da una sola mutazione coordinata", () => {
@@ -79,5 +85,6 @@ test("una conferma di attivazione passa da una sola mutazione coordinata", () =>
   assert.match(apply, /metadataPatches/);
   assert.match(apply, /type: "spell-active-resolution:validate"/);
   assert.match(apply, /history: \{/);
-  assert.doesNotMatch(apply, /createSpellInstanceId|spell:upsert|concentration:break/);
+  assert.doesNotMatch(apply, /createSpellInstanceId|spell:upsert/);
+  assert.match(apply, /concentration:break/);
 });

@@ -21,7 +21,6 @@ import {
 import { getSpellsFromItem } from "./spells.js";
 import {
   MAX_QUICK_ACTIONS,
-  quickActionPanel,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
@@ -105,7 +104,6 @@ let activeCardTab = "stats";
 let editing = false;
 
 const spellOptions = getQuickActionSpellOptions();
-const spellOptionsById = new Map(spellOptions.map((entry) => [entry.id, entry]));
 
 const SORCERY_SOURCE_FEATURE_ID = "stregone-fonte-di-magia";
 const BARDIC_INSPIRATION_FEATURE_ID = "bardo-ispirazione-bardica";
@@ -269,8 +267,8 @@ function quickActionSummary(action) {
     const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
     return `${feature ? classFeatureDisplayName(feature) : "Capacità"} · ${target}`;
   }
-  const workflow = action.workflow === "area" ? "Console area" : "Incantesimi";
-  return `${workflow} · ${target}`;
+  const launch = action.launchMode === "review" ? "revisione" : "lancio rapido";
+  return `Incantesimo · ${launch} · ${target}`;
 }
 
 function classFeatureChoiceControl(feature, { compact = false, label = "" } = {}) {
@@ -397,8 +395,6 @@ async function launchSpecialClassFeature(feature, targetIds) {
 
 async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
   if (!item || quickActionLaunching) return;
-  const panel = quickActionPanel(action);
-  if (!panel) return;
   quickActionLaunching = true;
   const status = $("quickActionRunStatus");
   const setStatus = (message, tone = "") => {
@@ -461,14 +457,19 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
       return;
     }
 
-    if (action.targetMode === "self") {
-      await OBR.player.select([item.id], true);
+    if (result.mode === "invalid") {
+      throw new Error(result.reason || "quick-action-invalid");
     }
+    const routeRequest = action.kind === "spell"
+      ? result.route?.request
+      : null;
     await OBR.broadcast.sendMessage(TRACKER_PANEL_REQUEST_CHANNEL, {
       type: "open",
-      panel,
-      sourceId: item.id,
-      quickActionId: action.id,
+      ...(routeRequest || {
+        panel: "conditions",
+        sourceId: item.id,
+        quickActionId: action.id,
+      }),
     }, { destination: "LOCAL" });
     closeInitiativeCardPopover();
   } catch (error) {
@@ -1855,7 +1856,7 @@ function buildQuickActionEditorRow(action = null) {
     label: "",
     kind: "spell",
     targetMode: "selection",
-    workflow: "spell",
+    launchMode: "auto",
     slotLevel: null,
     turns: null,
     conditionName: "",
@@ -1932,12 +1933,11 @@ function buildQuickActionEditorRow(action = null) {
   const featureSelect = selectControl(featureOptions, current.featureId || "");
   featureSelect.dataset.quickActionField = "featureId";
 
-  const workflowSelect = selectControl([
-    ["spell", "Pannello Incantesimi"],
-    ["area", "Console effetti ad area"],
-  ], current.workflow || "spell");
-  workflowSelect.dataset.quickActionField = "workflow";
-  workflowSelect.dataset.touched = action ? "1" : "0";
+  const launchModeSelect = selectControl([
+    ["auto", "Lancia subito se possibile"],
+    ["review", "Apri il pannello prima del lancio"],
+  ], current.launchMode || "auto");
+  launchModeSelect.dataset.quickActionField = "launchMode";
 
   const slotInput = document.createElement("input");
   slotInput.type = "number";
@@ -1980,7 +1980,7 @@ function buildQuickActionEditorRow(action = null) {
   const targetLabel = makeLabel("Bersaglio", targetSelect);
   const referenceLabel = makeLabel("Incantesimo", referenceInput, "wide");
   const featureLabel = makeLabel("Capacità", featureSelect, "wide");
-  const workflowLabel = makeLabel("Apertura", workflowSelect);
+  const launchModeLabel = makeLabel("Lancio", launchModeSelect);
   const slotLabel = makeLabel("Slot", slotInput);
   const turnsLabel = makeLabel("Durata in round", turnsInput);
   const expiryLabel = makeLabel("Scadenza", expirySelect);
@@ -1990,7 +1990,7 @@ function buildQuickActionEditorRow(action = null) {
     targetLabel,
     referenceLabel,
     featureLabel,
-    workflowLabel,
+    launchModeLabel,
     slotLabel,
     turnsLabel,
     expiryLabel,
@@ -2013,7 +2013,7 @@ function buildQuickActionEditorRow(action = null) {
     if (feature && selectedFeature) {
       targetSelect.value = classFeatureTargetMode(selectedFeature);
     }
-    workflowLabel.hidden = !spell;
+    launchModeLabel.hidden = !spell;
     slotLabel.hidden = !spell;
     turnsLabel.hidden = !spell;
     expiryLabel.hidden = spell || feature;
@@ -2034,18 +2034,12 @@ function buildQuickActionEditorRow(action = null) {
     }
     syncKind();
   });
-  workflowSelect.addEventListener("change", () => {
-    workflowSelect.dataset.touched = "1";
-  });
   referenceInput.addEventListener("change", () => {
     if (kindSelect.value === "spell") {
       const spell = getSpellDefinition(referenceInput.value);
       if (spell) {
         referenceInput.value = spell.catalogLabel || spell.displayName || spell.name;
         if (!labelInput.value.trim()) labelInput.value = spell.displayName || spell.name;
-        if (workflowSelect.dataset.touched !== "1") {
-          workflowSelect.value = spellOptionsById.get(spell.id)?.area ? "area" : "spell";
-        }
       }
     } else if (kindSelect.value === "condition" && !labelInput.value.trim()) {
       labelInput.value = referenceInput.value.trim();
@@ -2108,7 +2102,7 @@ function collectQuickActions() {
         label,
         kind,
         spellId: spell.id,
-        workflow: field("workflow").value,
+        launchMode: field("launchMode").value,
         targetMode: field("targetMode").value,
         slotLevel: field("slotLevel").value,
         turns: field("turns").value,

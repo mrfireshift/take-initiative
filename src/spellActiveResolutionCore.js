@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
 
 export const SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE = `${ID}/spell-active-resolution`;
@@ -23,7 +24,9 @@ export const SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES = Object.freeze([
 export const SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES = Object.freeze([
   "hit",
   "miss",
+  "critical",
 ]);
+const SPELL_SAVE_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
 
 export function spellActiveResolutionPopoverId(instanceId, actionId) {
   const instance = String(instanceId || "").trim().replaceAll("/", "_");
@@ -89,7 +92,11 @@ export function validateSpellActiveResolutionAction(action) {
   if (action?.requiresParentInstance !== true) {
     errors.push("action-parent-instance-required");
   }
-  if (["single-attack", "child-zone"].includes(kind) && action?.requiresZoneRoot !== true) {
+  if (
+    ["single-attack", "child-zone"].includes(kind)
+    && action?.requiresZoneRoot !== true
+    && action?.requiresZoneRoot !== false
+  ) {
     errors.push("action-zone-root-required");
   }
   if (rangeOrigin === "root" && (
@@ -110,8 +117,24 @@ export function validateSpellActiveResolutionAction(action) {
   if (kind === "save-area" && !["half", "none"].includes(damageRule?.onSave)) {
     errors.push("action-save-damage-invalid");
   }
+  if (kind === "save-area") {
+    const ability = String(action?.save?.ability || "").trim().toLowerCase();
+    if (!SPELL_SAVE_ABILITIES.has(ability)) errors.push("action-save-ability-invalid");
+  }
+  if (action?.failureEffects !== undefined) {
+    if (!Array.isArray(action.failureEffects)) {
+      errors.push("action-failure-effects-invalid");
+    } else {
+      for (const effect of action.failureEffects) {
+        if (!String(effect?.id || "").trim()) errors.push("action-failure-effect-id-required");
+        if (!String(effect?.label || "").trim()) errors.push("action-failure-effect-label-required");
+      }
+    }
+  }
   if (kind === "single-attack") {
     if (integer(action?.maxTargets, 0) !== 1) errors.push("action-single-target-invalid");
+    const maxAttacks = integer(action?.maxAttacks, 1);
+    if (maxAttacks < 1) errors.push("action-max-attacks-invalid");
     if (!Array.isArray(action?.attack?.outcomes)
       || action.attack.outcomes.some((outcome) => !SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES.includes(outcome))) {
       errors.push("action-attack-outcomes-invalid");
@@ -227,6 +250,44 @@ export function validateSpellActiveResolutionPayload(payload) {
   return { valid: errors.length === 0, errors: Object.freeze(errors) };
 }
 
+export function buildSpellActiveResolutionFailureOperations({
+  action = null,
+  payload = null,
+  targetIds = [],
+  outcomes = {},
+} = {}) {
+  if (action?.resolutionKind !== "save-area") return [];
+  const failedIds = normalizeActiveResolutionTargetIds(
+    (Array.isArray(targetIds) ? targetIds : [])
+      .filter((targetId) => outcomes?.[targetId] === "failed"),
+  );
+  const effects = Array.isArray(action?.failureEffects) ? action.failureEffects : [];
+  if (!failedIds.length || !effects.length) return [];
+  const operations = [];
+  for (const effect of effects) {
+    const conditionName = String(effect?.label || "").trim();
+    if (!conditionName) continue;
+    operations.push({
+      type: "condition:add",
+      targetIds: failedIds,
+      conditionName,
+      options: spellEffectConditionOptions(
+        effect,
+        {
+          sourceId: payload?.casterId,
+          sourceName: payload?.casterName,
+          expiry: effect.expiry || { mode: "manual" },
+        },
+        payload?.instanceId,
+      ),
+    });
+  }
+  if (operations.length) {
+    operations.push({ type: "condition:automate", subjectIds: failedIds });
+  }
+  return operations;
+}
+
 export function resolveSpellActiveResolutionDamage({
   action = null,
   slotLevel = 0,
@@ -241,18 +302,43 @@ export function resolveSpellActiveResolutionDamage({
   const baseSlot = Math.max(0, integer(rule?.baseSlot, 0));
   const perSlot = Math.max(0, integer(rule?.additionalPerSlotAbove, 0));
   const level = Math.max(baseSlot, integer(slotLevel, baseSlot));
-  const scaledDice = Math.max(0, perSlot * Math.max(0, level - baseSlot));
+  const everySlotLevels = Math.max(
+    1,
+    integer(action?.damageScaling?.everySlotLevels, 1),
+  );
+  const scaledDice = Math.max(
+    0,
+    perSlot * Math.floor(Math.max(0, level - baseSlot) / everySlotLevels),
+  );
   const formula = String(rule?.formula || "").trim();
-  const scaledFormula = scaledDice > 0
+  let scaledFormula = scaledDice > 0
     ? formula.replace(/^(\d+)d/iu, (_, count) => `${Number(count) + scaledDice}d`)
     : formula;
+  if (normalizedOutcome === "critical" && String(action?.critical?.additionalDice || "").trim()) {
+    const [baseCount, baseSides] = scaledFormula.split("d").map(Number);
+    const [additionalCount, additionalSides] = String(action.critical.additionalDice)
+      .trim()
+      .split("d")
+      .map(Number);
+    if (
+      Number.isInteger(baseCount)
+      && Number.isInteger(baseSides)
+      && Number.isInteger(additionalCount)
+      && Number.isInteger(additionalSides)
+      && baseSides === additionalSides
+    ) {
+      scaledFormula = `${baseCount + additionalCount}d${baseSides}`;
+    }
+  }
   const numericRoll = Number(roll);
   const valid = validOutcomes.includes(normalizedOutcome)
     && Number.isFinite(numericRoll)
     && numericRoll >= 0
     && !!rule;
   if (!valid) return { valid: false, errors: Object.freeze(["resolution-damage-input-invalid"]) };
-  const factor = normalizedOutcome === "failed" || normalizedOutcome === "hit"
+  const factor = normalizedOutcome === "failed"
+    || normalizedOutcome === "hit"
+    || normalizedOutcome === "critical"
     ? 1
     : normalizedOutcome === "passed" && rule.onSave === "half"
       ? 0.5

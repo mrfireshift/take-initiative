@@ -6,6 +6,7 @@ import {
   getSpellCatalog,
   getSpellChoiceTiming,
   getSpellDefinition,
+  getSpellEffectChoices,
   getSpellEffects,
   getTrackableSpellOptions,
 } from "../src/spells-srd.js";
@@ -72,6 +73,35 @@ test("gli effetti persistenti istantanei dichiarano consumo e scadenza", () => {
     mode: "rounds",
     remaining: 10,
   });
+});
+
+test("Abilità Potenziata espone tutte le abilità SRD come scelta", () => {
+  const choices = getSpellEffectChoices("Abilità Potenziata");
+
+  assert.equal(choices.length, 18);
+  assert.deepEqual(choices.map((choice) => choice.label), [
+    "Acrobazia",
+    "Addestrare Animali",
+    "Arcano",
+    "Atletica",
+    "Furtività",
+    "Indagare",
+    "Inganno",
+    "Intimidire",
+    "Intrattenere",
+    "Intuizione",
+    "Medicina",
+    "Natura",
+    "Percezione",
+    "Persuasione",
+    "Rapidità di Mano",
+    "Religione",
+    "Sopravvivenza",
+    "Storia",
+  ]);
+
+  const selected = getSpellEffects("Abilità Potenziata", "furtivita");
+  assert.deepEqual(selected.map((effect) => effect.label), ["Maestria: Furtività"]);
 });
 
 test("l'audit iniziale dichiara i reminder TS ricorrenti nelle regole spell", () => {

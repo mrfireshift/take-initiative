@@ -1020,6 +1020,7 @@ function decorateUndoResult(entries, result = {}) {
 }
 
 async function undoHistoryThroughNow(entryId, sceneEpoch) {
+  const through = arguments[2]?.through !== false;
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   if (await OBR.player.getRole() !== "GM") {
     throw new Error("Solo il GM puo usare Undo.");
@@ -1036,7 +1037,9 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     : history.entries.length - 1;
   if (targetIndex < 0) throw new Error("Voce cronologia non trovata.");
 
-  const selected = history.entries.slice(targetIndex);
+  const selected = through
+    ? history.entries.slice(targetIndex)
+    : [history.entries[targetIndex]];
   const undoOrder = [...selected].reverse();
 
   // ARCH-003 entries are undone by the effects coordinator.  This validates
@@ -1219,18 +1222,31 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
   return decorateUndoResult(undoOrder, { status: "applied" });
 }
 
-export async function undoHistoryThrough(entryId) {
+function enqueueHistoryUndo(entryId, { through = true } = {}) {
   const sceneEpoch = currentSceneEpoch();
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   // Anche Undo deve attendere un'eventuale operazione metadata in corso:
   // altrimenti il suo ripristino può essere seguito dallo snapshot finale
   // dell'azione e sembrare inefficace fino a un secondo tentativo.
-  const task = __historyActionQueue.then(
-    () => undoHistoryThroughNow(entryId, sceneEpoch),
-    () => undoHistoryThroughNow(entryId, sceneEpoch),
-  );
+  const task = through
+    ? __historyActionQueue.then(
+      () => undoHistoryThroughNow(entryId, sceneEpoch),
+      () => undoHistoryThroughNow(entryId, sceneEpoch),
+    )
+    : __historyActionQueue.then(
+      () => undoHistoryThroughNow(entryId, sceneEpoch, { through: false }),
+      () => undoHistoryThroughNow(entryId, sceneEpoch, { through: false }),
+    );
   __historyActionQueue = task.catch(() => {});
   return task;
+}
+
+export async function undoHistoryThrough(entryId) {
+  return enqueueHistoryUndo(entryId, { through: true });
+}
+
+export async function undoHistoryEntry(entryId) {
+  return enqueueHistoryUndo(entryId, { through: false });
 }
 
 export async function undoLastHistoryEntry() {

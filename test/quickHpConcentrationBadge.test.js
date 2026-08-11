@@ -5,29 +5,28 @@ import { readFile } from "node:fs/promises";
 const htmlPath = new URL("../quick-hp-modal.html", import.meta.url);
 const scriptPath = new URL("../src/quick-hp-modal.js", import.meta.url);
 
-test("il pip concentrazione vive nel combobox dello spell e replica lo stile classico", async () => {
+test("la Console manuale conserva condizioni, scadenze e HP senza catalogo spell", async () => {
   const [html, script] = await Promise.all([
     readFile(htmlPath, "utf8"),
     readFile(scriptPath, "utf8"),
   ]);
 
-  assert.equal(
-    (html.match(/id="concentrationNotice"/g) || []).length,
-    1,
-  );
-  assert.match(
-    html,
-    /class="spell-combobox"[\s\S]*id="concentrationNotice"/,
-  );
-  assert.match(
-    html,
-    /class="caster-select-row"[\s\S]*id="spellCaster"/,
-  );
-  assert.doesNotMatch(
-    html,
-    /class="caster-select-row"[\s\S]*id="concentrationNotice"/,
-  );
-  assert.match(html, /\.concentration-badge\{[^}]*width:18px[^}]*border:2px solid rgba\(0,0,0,1\)[^}]*box-shadow:0 0 0 1px rgba\(0,0,0,.5\)/);
-  assert.match(script, /concentrationNotice\.style\.background = spellColorFor\(spell\)\.solid/);
-  assert.doesNotMatch(html, /class="concentration-note" id="concentrationNotice"/);
+  assert.doesNotMatch(html, /spell|area|zone|placement|chain|board/i);
+  assert.doesNotMatch(script, /spell|area|zone|placement|chain|board/i);
+  assert.match(html, /id="conditionSelect"/);
+  assert.match(html, /id="conditionExpiry"/);
+  assert.match(html, /id="conditionSource"/);
+  assert.match(script, /function conditionExpiry\(/);
+  assert.match(script, /conditionMutationOperations/);
+});
+
+test("la pipeline manuale usa HP canonici, hpMemory, effetti e undo", async () => {
+  const script = await readFile(scriptPath, "utf8");
+
+  assert.match(script, /syncHPBatchToMemory/);
+  assert.match(script, /withItemMetaHistory/);
+  assert.match(script, /runEffectsMutation/);
+  assert.match(script, /undoHistoryThrough/);
+  assert.match(script, /META_KEY/);
+  assert.match(script, /hpMax/);
 });

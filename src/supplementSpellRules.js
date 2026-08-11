@@ -304,13 +304,28 @@ export const SUPPLEMENT_EXPIRY = Object.freeze({
   "xanathar-urlo-psichico": manual,
 });
 
+const SKILL_EMPOWERMENT_OPTIONS = Object.freeze([
+  Object.freeze({ id: "acrobazia", label: "Acrobazia" }),
+  Object.freeze({ id: "addestrare-animali", label: "Addestrare Animali" }),
+  Object.freeze({ id: "arcano", label: "Arcano" }),
+  Object.freeze({ id: "atletica", label: "Atletica" }),
+  Object.freeze({ id: "furtivita", label: "Furtività" }),
+  Object.freeze({ id: "indagare", label: "Indagare" }),
+  Object.freeze({ id: "inganno", label: "Inganno" }),
+  Object.freeze({ id: "intimidire", label: "Intimidire" }),
+  Object.freeze({ id: "intrattenere", label: "Intrattenere" }),
+  Object.freeze({ id: "intuizione", label: "Intuizione" }),
+  Object.freeze({ id: "medicina", label: "Medicina" }),
+  Object.freeze({ id: "natura", label: "Natura" }),
+  Object.freeze({ id: "percezione", label: "Percezione" }),
+  Object.freeze({ id: "persuasione", label: "Persuasione" }),
+  Object.freeze({ id: "rapidita-di-mano", label: "Rapidità di Mano" }),
+  Object.freeze({ id: "religione", label: "Religione" }),
+  Object.freeze({ id: "sopravvivenza", label: "Sopravvivenza" }),
+  Object.freeze({ id: "storia", label: "Storia" }),
+]);
+
 export const SUPPLEMENT_EFFECTS = Object.freeze({
-  "xanathar-abilita-potenziata": Object.freeze([Object.freeze({
-    id: "chosen-skill-expertise",
-    kind: "buff",
-    label: "Maestria: abilità scelta",
-    detail: "Raddoppia il bonus di competenza nelle prove dell'abilità scelta.",
-  })]),
   "xanathar-aculeo-mentale": Object.freeze([Object.freeze({
     id: "location-known",
     kind: "debuff",
@@ -516,6 +531,18 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
 });
 
 export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
+  "xanathar-abilita-potenziata": Object.freeze(
+    SKILL_EMPOWERMENT_OPTIONS.map(({ id, label }) => Object.freeze({
+      id,
+      label,
+      effects: Object.freeze([Object.freeze({
+        id: `chosen-skill-expertise-${id}`,
+        kind: "buff",
+        label: `Maestria: ${label}`,
+        detail: `Raddoppia il bonus di competenza nelle prove di ${label}.`,
+      })]),
+    })),
+  ),
   "xanathar-anatema-elementale": Object.freeze(
     ["acido", "freddo", "fulmine", "fuoco", "tuono"].map((type) => Object.freeze({
       id: type,

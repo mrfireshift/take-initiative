@@ -1,5 +1,9 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, ID } from "./constants.js";
+import {
+  EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+  ID,
+  RUNTIME_CACHE_CLEANUP_CHANNEL,
+} from "./constants.js";
 import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
@@ -20,6 +24,7 @@ let queuedItems = null;
 let unsubscribeMetadata = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
+let unsubscribeRuntimeCacheCleanup = null;
 
 function snapshot(state) {
   const order = Array.isArray(state?.order) ? [...state.order] : [];
@@ -126,6 +131,15 @@ export async function mountEffectSaveReminderController() {
     }
     enqueueReconcile();
   });
+  unsubscribeRuntimeCacheCleanup = OBR.broadcast.onMessage(
+    RUNTIME_CACHE_CLEANUP_CHANNEL,
+    (event) => {
+      if (event?.data?.type !== "clear-runtime-caches") return;
+      previousInitiativeState = null;
+      announcedActivationIds.clear();
+      if (sceneReady) enqueueReconcile();
+    },
+  );
   sceneReady = await OBR.scene.isReady().catch(() => false);
   if (sceneReady) enqueueReconcile();
   return true;
@@ -138,6 +152,8 @@ export function unmountEffectSaveReminderController() {
   unsubscribeItems = null;
   unsubscribeSceneReady?.();
   unsubscribeSceneReady = null;
+  unsubscribeRuntimeCacheCleanup?.();
+  unsubscribeRuntimeCacheCleanup = null;
   sceneReady = false;
   previousInitiativeState = null;
   announcedActivationIds.clear();

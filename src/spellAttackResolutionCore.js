@@ -6,6 +6,27 @@ const ATTACK_RESOLUTIONS = Object.freeze({
     sides: 4,
     damageType: "acido",
   }),
+  "chill-touch": Object.freeze({
+    baseSlot: 0,
+    initialDice: 1,
+    sides: 8,
+    damageType: "necrotico",
+    missFactor: "zero",
+  }),
+  "guiding-bolt": Object.freeze({
+    baseSlot: 1,
+    initialDice: 4,
+    sides: 6,
+    damageType: "radiante",
+    missFactor: "zero",
+  }),
+  "ray-of-frost": Object.freeze({
+    baseSlot: 0,
+    initialDice: 1,
+    sides: 8,
+    damageType: "freddo",
+    missFactor: "zero",
+  }),
 });
 
 const clone = (value) => {
@@ -16,6 +37,11 @@ const clone = (value) => {
 
 function dice(count, sides) {
   return `${Math.max(1, Math.floor(Number(count) || 1))}d${Math.max(1, Math.floor(Number(sides) || 1))}`;
+}
+
+function hitEffects(spell) {
+  const effects = Array.isArray(spell?.effects) ? spell.effects : [];
+  return effects.map(clone).filter(Boolean);
 }
 
 export function getSpellAttackResolution(spell, choiceValue = "", castContext = {}) {
@@ -39,8 +65,14 @@ export function getSpellAttackResolution(spell, choiceValue = "", castContext = 
     initialDamage: {
       dice: initialDamage,
       type: definition.damageType,
-      factor: outcome === "hit" ? "full" : "half",
+      factor: outcome === "hit" ? "full" : definition.missFactor || "half",
     },
+    ...(outcome === "hit" && hitEffects(spell).length
+      ? {
+        effects: hitEffects(spell),
+        effect: hitEffects(spell)[0],
+      }
+      : {}),
     ...(outcome === "hit"
       ? {
         deferredEffect: {

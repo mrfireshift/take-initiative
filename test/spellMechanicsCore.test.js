@@ -63,6 +63,22 @@ test("scala bonus al colpire e dadi di danno dagli slot dispari", () => {
   assert.equal(effect.label, "+2 Att / +2d4 fuoco");
 });
 
+test("scala il bonus di Arma magica secondo la progressione RAW", () => {
+  const effect = resolveSpellEffect({
+    label: "Arma magica · +1",
+    mechanics: {
+      deriveLabel: true,
+      weaponBonus: {
+        label: "Arma magica",
+        bonus: { base: 1, baseSlot: 2, perSlotAbove: 1, step: 2, max: 3 },
+      },
+    },
+  }, { slotLevel: 6 });
+
+  assert.equal(effect.mechanics.weaponBonus.bonus, 3);
+  assert.equal(effect.label, "Arma magica · +3");
+});
+
 test("le meccaniche non dichiarate per la derivazione conservano la label curata", () => {
   assert.equal(
     resolveSpellEffect({

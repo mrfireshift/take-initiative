@@ -10,8 +10,12 @@ const popover = readFileSync(
   new URL("../src/prepared-spell-resolution.js", import.meta.url),
   "utf8",
 );
-const spellsPanel = readFileSync(
-  new URL("../src/spells-panel.js", import.meta.url),
+const unifiedPanel = readFileSync(
+  new URL("../src/spell-unified-panel.js", import.meta.url),
+  "utf8",
+);
+const activeAdapter = readFileSync(
+  new URL("../src/spellUnifiedActiveAdapter.js", import.meta.url),
   "utf8",
 );
 const background = readFileSync(
@@ -49,5 +53,7 @@ test("il refresh mantiene solo il lavoro più recente senza coda di frame stale"
 
 test("popover e pannello condividono lo stesso executor delle azioni attive", () => {
   assert.match(popover, /executeSpellActiveAction/);
-  assert.match(spellsPanel, /executeSpellActiveAction/);
+  assert.match(unifiedPanel, /executeSpellUnifiedActiveAction/);
+  assert.match(activeAdapter, /importedExecutor\("executeSpellActiveAction"\)/);
+  assert.doesNotMatch(unifiedPanel, /spells-panel\.js/);
 });

@@ -55,7 +55,7 @@ test("Investitura della Fiamma separa aura persistente e linea dell'attivazione"
   assert.equal(castRule.kind, "aura");
   assert.equal(castRule.lifecycle.persistence, "spell");
   assert.equal(castRule.geometry.size.value, 1.5);
-  assert.equal(castRule.targeting.filter, "hostile");
+  assert.equal(castRule.targeting.filter, "all");
   assert.equal(castRule.targeting.includeCaster, false);
   assert.deepEqual(
     castRule.triggerPolicy.triggers.map((trigger) => [trigger.event, trigger.resolution]),
@@ -105,6 +105,27 @@ test("le quattro geometrie pilota hanno misure e vincoli espliciti", () => {
   assert.equal(entangle.zonePolicy.initialResolution, "manual-save");
 });
 
+test("Allucinazione di Forza limita area e reminder al bersaglio della spell", () => {
+  const rule = getSpellAreaRuleById("phb2014-allucinazione-di-forza:cast");
+  const [trigger] = rule.zonePolicy.triggers;
+
+  assert.equal(rule.kind, "zone");
+  assert.equal(rule.geometry.shape, "square");
+  assert.equal(rule.geometry.size.value, 3);
+  assert.equal(rule.placement.range.value, 18);
+  assert.equal(rule.targeting.selectionMode, "manual");
+  assert.equal(rule.zonePolicy.targetScope, "spell-targets");
+  assert.equal(rule.zonePolicy.membershipPaddingSquares, 1);
+  assert.equal(trigger.event, "turn-start");
+  assert.equal(trigger.requiresSourceTurn, true);
+  assert.equal(trigger.targetMode, "members");
+  assert.deepEqual(trigger.damage, {
+    dice: "1d6",
+    type: "psichici",
+    onSave: "none",
+  });
+});
+
 test("Invocare il fulmine separa il punto della scarica dalla nube persistente", () => {
   const cast = getSpellAreaRuleById("call-lightning:cast");
   const cloud = getSpellAreaRuleById("call-lightning:cloud");
@@ -122,6 +143,24 @@ test("Invocare il fulmine separa il punto della scarica dalla nube persistente",
     getSpellAreaRules("call-lightning", { triggerType: "cast" })
       .map((rule) => rule.id),
     ["call-lightning:cast", "call-lightning:cloud"],
+  );
+});
+
+test("Arma Sacra usa un'esplosione mobile di 9 m solo al congedo", () => {
+  const rule = getSpellAreaRuleById("xanathar-arma-sacra:burst");
+
+  assert.equal(rule.trigger.type, "active-action");
+  assert.equal(rule.trigger.actionId, "holy-weapon-dismiss");
+  assert.equal(rule.kind, "emission");
+  assert.equal(rule.geometry.shape, "circle");
+  assert.equal(rule.geometry.size.value, 9);
+  assert.equal(rule.placement.origin, "point");
+  assert.equal(rule.placement.anchor, "world");
+  assert.equal(rule.targeting.includeCaster, true);
+  assert.equal(rule.lifecycle.persistence, "preview");
+  assert.equal(
+    getSpellAreaRules("xanathar-arma-sacra", { triggerType: "cast" }).length,
+    0,
   );
 });
 
@@ -738,11 +777,11 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 });
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 98);
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 97);
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 34);
   assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 132);
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 6);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 138);
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 7);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 139);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

@@ -14,6 +14,7 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
@@ -166,16 +167,31 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
 async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackOutcome }) {
   const errors = [];
   const rootId = String(payload?.zoneItemId || "").trim();
+  const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
   const [root] = rootId ? await OBR.scene.items.getItems([rootId]) : [];
   const metadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
-  if (
+  const boardMetadata = root?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  const staticRoot = metadata?.role === "root"
+    && String(metadata.instanceId || "") === String(payload.instanceId)
+    && String(metadata.casterId || "") === String(payload.casterId);
+  const boardRoot = boardMetadata?.kind === "spell-board-token"
+    && String(boardMetadata.instanceId || "") === String(payload.instanceId)
+    && String(boardMetadata.casterId || "") === String(payload.casterId)
+    && String(boardMetadata.spellId || "") === String(payload.spellId);
+  if (requiresZoneRoot && (
     !root
-    || metadata?.role !== "root"
-    || String(metadata.instanceId || "") !== String(payload.instanceId)
-    || String(metadata.casterId || "") !== String(payload.casterId)
-  ) errors.push("zone-root-missing");
-  const rootArea = root ? translatedZoneArea(root) : null;
-  const rootOrigin = point(rootArea?.origin);
+    || (!staticRoot && !boardRoot)
+  )) errors.push("zone-root-missing");
+  const rootArea = staticRoot && root ? translatedZoneArea(root) : null;
+  const [caster] = !requiresZoneRoot
+    ? await OBR.scene.items.getItems([payload.casterId])
+    : [];
+  const casterBounds = caster
+    ? await OBR.scene.items.getItemBounds([caster.id]).catch(() => null)
+    : null;
+  const rootOrigin = point(rootArea?.origin)
+    || point(root?.position)
+    || (!requiresZoneRoot ? itemCenter(casterBounds, caster) : null);
   if (!rootOrigin) errors.push("zone-root-geometry-missing");
   const ids = uniqueIds(targetIds);
   if (ids.length !== 1) errors.push("single-target-required");
@@ -192,7 +208,8 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
   ]);
   const targetOrigin = itemCenter(targetBounds, target);
   if (!target || !targetBounds) errors.push("target-missing");
-  if (rootOrigin && targetOrigin && !spellAreaOriginWithinRange({
+  if (rootOrigin && targetOrigin && payload.action.range
+    && !spellAreaOriginWithinRange({
     origin: targetOrigin,
     casterOrigin: rootOrigin,
     range: payload.action.range,
@@ -204,6 +221,16 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
     errors: [...new Set(errors)],
     insideRoot: !!(rootArea && targetBounds && areaHitsBounds(rootArea, targetBounds)),
   };
+}
+
+function normalizedAttackEntries(attacks = []) {
+  return (Array.isArray(attacks) ? attacks : [])
+    .map((entry) => ({
+      targetId: String(entry?.targetId || entry?.id || "").trim(),
+      attackOutcome: String(entry?.attackOutcome || entry?.outcome || "").trim(),
+      damageRoll: entry?.damageRoll ?? entry?.damage ?? 0,
+    }))
+    .filter((entry) => entry.targetId);
 }
 
 function childPlacementEntries(placement) {
@@ -316,6 +343,7 @@ export async function validateSpellActiveResolutionCommit({
   outcomes = {},
   damageRoll = 0,
   attackOutcome = "",
+  attacks = [],
 } = {}) {
   const payloadValidation = validateSpellActiveResolutionPayload(payload);
   const errors = [...payloadValidation.errors];
@@ -330,11 +358,31 @@ export async function validateSpellActiveResolutionCommit({
   const caster = allItems.find((item) => item?.id === payload.casterId);
   if (!caster) errors.push("caster-missing");
   const ids = uniqueIds(targetIds);
+  const attackEntries = normalizedAttackEntries(attacks);
+  const maxAttacks = Math.max(1, Math.floor(Number(payload.action.maxAttacks) || 1));
   const result = payload.action.resolutionKind === "single-attack"
-    ? await validateStorm({ payload, targetIds: ids, outcomes, damageRoll, attackOutcome })
+    ? attackEntries.length
+      ? {
+        valid: attackEntries.length <= maxAttacks,
+        errors: attackEntries.length <= maxAttacks ? [] : ["attacks-maximum"],
+        insideRoot: false,
+      }
+      : await validateStorm({ payload, targetIds: ids, outcomes, damageRoll, attackOutcome })
     : payload.action.resolutionKind === "child-zone"
       ? await validateChildZone({ payload, placement, targetIds: ids, outcomes, allItems })
       : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });
+  if (payload.action.resolutionKind === "single-attack" && attackEntries.length) {
+    for (const entry of attackEntries) {
+      const attackResult = await validateStorm({
+        payload,
+        targetIds: [entry.targetId],
+        outcomes,
+        damageRoll: entry.damageRoll,
+        attackOutcome: entry.attackOutcome,
+      });
+      result.errors.push(...attackResult.errors);
+    }
+  }
   errors.push(...result.errors);
   return {
     valid: errors.length === 0,

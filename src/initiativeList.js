@@ -134,9 +134,12 @@ import {
   restoreInitiativeCardQuickActionsFromMemory,
 } from "./initiativeCards.js";
 import {
-  quickActionPanel,
+  findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
+import {
+  buildSpellUnifiedPanelRouteQuery,
+} from "./spellUnifiedPanelRoutingCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
 import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
@@ -6027,9 +6030,9 @@ async function openGlobalEffectsPopup() {
   if (sourceEntry) await openCardEffectsPopup(sourceEntry);
 }
 
-async function openGlobalSpellsPopup() {
+async function openGlobalSpellsPopup(options = {}) {
   const sourceEntry = await resolveGlobalPopupSourceEntry();
-  if (sourceEntry) await openCardSpellsPopup(sourceEntry);
+  if (sourceEntry) await openCardSpellsPopup(sourceEntry, options);
 }
 
 async function openReferencePopup() {
@@ -6122,21 +6125,60 @@ function mountTrackerPopoverToggleListener() {
     if (data?.type !== "open") return;
     const sourceId = String(data.sourceId || "").trim();
     const quickActionId = String(data.quickActionId || "").trim();
+    const quickActionRequest = Boolean(quickActionId || data.quickAction);
+    const spellIntent = data.intent === "spell-cast"
+      || data.intent === "spell"
+      || Boolean(String(data.spellId || "").trim());
+    const canonicalSpellRequest = spellIntent
+      && [undefined, "spells", "quick-hp"].includes(data.panel)
+      ? {
+        ...data,
+        intent: "spell-cast",
+        panel: "spells",
+      }
+      : data;
     const requestedSource = sourceId ? { id: sourceId } : null;
     if (data.panel === "conditions" && __openTrackerPopoverId !== EFFECTS_POPUP_ID) {
       void (requestedSource
         ? openCardEffectsPopup(requestedSource, undefined, { quickActionId })
         : openGlobalEffectsPopup());
     }
-    if (data.panel === "spells" && __openTrackerPopoverId !== SPELLS_POPUP_ID) {
+    if (canonicalSpellRequest.intent === "spell-cast"
+      && canonicalSpellRequest.panel === "spells"
+      && (__openTrackerPopoverId !== SPELLS_POPUP_ID || quickActionRequest)) {
       void (requestedSource
-        ? openCardSpellsPopup(requestedSource, { quickActionId })
-        : openGlobalSpellsPopup());
+        ? openCardSpellsPopup(requestedSource, {
+          quickActionId,
+          routeRequest: canonicalSpellRequest,
+        })
+        : openGlobalSpellsPopup({
+          quickActionId,
+          routeRequest: canonicalSpellRequest,
+        }));
+    }
+    if (
+      data.panel === "spells"
+      && !spellIntent
+      && __openTrackerPopoverId !== SPELLS_POPUP_ID
+    ) {
+      void (requestedSource
+        ? openCardSpellsPopup(requestedSource, {
+          quickActionId,
+          routeRequest: data,
+        })
+        : openGlobalSpellsPopup({
+          quickActionId,
+          routeRequest: data,
+        }));
     }
     if (data.panel === "reference" && __openTrackerPopoverId !== REFERENCE_POPUP_ID) {
       void openReferencePopup();
     }
-    if (data.panel === "quick-hp" && __openTrackerPopoverId !== QUICK_HP_POPUP_ID) {
+    if (
+      data.panel === "quick-hp"
+      && !spellIntent
+      && __openTrackerPopoverId !== QUICK_HP_POPUP_ID
+    ) {
       void openGlobalQuickHPPopup({ sourceId, quickActionId });
     }
   });
@@ -6226,6 +6268,7 @@ async function openCardEffectsPopup(sourceEntry, entries, {
 
 async function openCardSpellsPopup(sourceEntry, {
   quickActionId = "",
+  routeRequest = {},
 } = {}) {
   if (!sourceEntry || isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
@@ -6233,10 +6276,45 @@ async function openCardSpellsPopup(sourceEntry, {
   if (!sourceId) return;
 
   const popupId = SPELLS_POPUP_ID;
-  if (!await beginTrackerPopoverToggle(popupId)) return;
-  const popupQuery = new URLSearchParams({ source: sourceId });
-  if (quickActionId) popupQuery.set("quickAction", quickActionId);
-  const popupUrl = `/spells-modal.html?${popupQuery}`;
+  const quickAction = quickActionId
+    ? findQuickAction(sourceEntry, quickActionId)
+    : null;
+  const route = routeRequest && typeof routeRequest === "object"
+    ? routeRequest
+    : {};
+  const quickActionRequest = Boolean(
+    quickActionId
+      || route.quickActionId
+      || route.quickAction,
+  );
+  if (quickActionRequest && __openTrackerPopoverId === popupId) {
+    try { await OBR.popover.close(popupId); } catch {}
+    setOpenTrackerPopoverId();
+  } else if (!await beginTrackerPopoverToggle(popupId)) {
+    return;
+  }
+  const routeTargetIds = route.targetIds ?? route.targetIdsCsv;
+  const popupQuery = buildSpellUnifiedPanelRouteQuery({
+    ...route,
+    sourceId,
+    quickActionId: quickActionId || route.quickActionId || route.quickAction,
+    spellId: quickAction?.kind === "spell" ? quickAction.spellId : route.spellId || "",
+    ...(quickAction?.kind === "spell"
+      ? {
+        spellId: quickAction.spellId,
+        slotLevel: quickAction.slotLevel,
+        durationTurns: quickAction.turns,
+        applyAutomatedConditions: quickAction.applyAutomations !== false,
+      }
+      : {}),
+    targetIds: routeTargetIds !== undefined
+      ? routeTargetIds
+      : quickAction?.kind === "spell" && quickAction.targetMode === "self"
+        ? [sourceId]
+        : [],
+    origin: route.origin || (quickActionId ? "quick-action" : "tracker-spells"),
+  });
+  const popupUrl = `/spell-unified-panel.html${popupQuery.size ? `?${popupQuery}` : ""}`;
   const [anchorPosition] = await Promise.all([
     getTrackerPopoverAnchor(),
     fetch(popupUrl, { cache: "force-cache" }).catch(() => null),
@@ -6574,16 +6652,17 @@ async function __runTrackerQuickAction(sourceEntry, action) {
     sourceItem: { id: sourceId, name: sourceEntry?.name || "" },
     confirmConcentration: (message) => window.confirm(message),
   });
+  if (result.mode === "invalid") return result;
   if (result.mode !== "review") return result;
 
   const quickActionId = String(action?.id || "").trim();
-  const panel = quickActionPanel(action);
-  if (panel === "conditions") {
+  if (action?.kind === "condition") {
     await openCardEffectsPopup(sourceEntry, undefined, { quickActionId });
-  } else if (panel === "spells") {
-    await openCardSpellsPopup(sourceEntry, { quickActionId });
-  } else if (panel === "quick-hp") {
-    await openQuickHPPopup({ sourceId, quickActionId });
+  } else if (action?.kind === "spell") {
+    await openCardSpellsPopup(sourceEntry, {
+      quickActionId,
+      routeRequest: result.route?.request || {},
+    });
   }
   return result;
 }

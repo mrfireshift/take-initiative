@@ -254,10 +254,19 @@ const AUTOMATION = Object.freeze({
     conditions: ["Spaventato"],
     conditionOptions: {
       Spaventato: {
+        expiry: { mode: "concentration" },
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "spell",
         saveReminder: {
           ability: "wis",
           timing: "turn-end",
           dcSource: "source-spell",
+          damage: {
+            dice: "4d10",
+            type: "psichici",
+            onSave: "none",
+          },
           label: "4d10 psichici se fallisce; se supera, termina la spell.",
         },
       },
@@ -362,7 +371,15 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
     detail: "Infliggi manualmente 2d8 danni da fuoco. Seleziona il bersaglio che, dopo il TS, non lascia o non può lasciare l'oggetto per applicare lo svantaggio.",
     emptySelectionTitle: "Seleziona il bersaglio che non lascia o non può lasciare l'oggetto.",
     tooManySelectionTitle: "Riscaldare il Metallo può interessare un solo portatore alla volta.",
-    subjectMode: "selected",
+    resolutionKind: "single-attack",
+    requiresTargets: false,
+    requiresParentInstance: true,
+    requiresZoneRoot: false,
+    rangeOrigin: "caster",
+    attack: Object.freeze({ outcomes: Object.freeze(["hit", "miss"]) }),
+    damage: Object.freeze({ formula: "2d8", type: "fuoco", onSave: "none", baseSlot: 2 }),
+    effectOn: "hit",
+    subjectMode: "none",
     maxTargets: 1,
     countLabelSingular: "penalizzato",
     countLabelPlural: "penalizzati",
@@ -470,6 +487,18 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "arcane-sword": "self",
   "arcane-hand": "self",
   "tasha-lama-del-disastro": "self",
+  "xanathar-arma-sacra": "self",
+});
+
+const TARGETING_OVERRIDES = Object.freeze({
+  "bless": Object.freeze({
+    baseMaximum: 3,
+    additionalPerSlotAbove: 1,
+    baseSlot: 1,
+  }),
+  "magic-weapon": Object.freeze({
+    maxTargets: 1,
+  }),
 });
 
 const CONCENTRATION_EXPIRY = Object.freeze({ mode: "concentration" });
@@ -801,6 +830,37 @@ const SPELL_EFFECTS = Object.freeze({
       mechanics: Object.freeze({
         deriveLabel: true,
         damageBonus: Object.freeze({ dice: "1d6", type: "danni", sourceOnly: true }),
+      }),
+    }),
+  ]),
+  "holy-aura": Object.freeze([
+    Object.freeze({
+      id: "holy-aura-protection",
+      kind: "buff",
+      label: "Vantaggio TS · svantaggio Att",
+      detail: "Vantaggio ai tiri salvezza; gli attacchi contro il bersaglio hanno svantaggio.",
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    }),
+  ]),
+  "magic-weapon": Object.freeze([
+    Object.freeze({
+      id: "magic-weapon-bonus",
+      kind: "buff",
+      label: "Arma magica · +1",
+      detail: "L'arma diventa magica e riceve un bonus di +1 ai tiri per colpire e ai danni.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        weaponBonus: Object.freeze({
+          label: "Arma magica",
+          bonus: Object.freeze({
+            base: 1,
+            baseSlot: 2,
+            perSlotAbove: 1,
+            step: 2,
+            max: 3,
+          }),
+        }),
       }),
     }),
   ]),
@@ -1285,6 +1345,7 @@ const LEGACY_MANUAL = Object.freeze([
     duration: "1 round",
     defaultTurns: 1,
     concentration: false,
+    damageType: "psychic",
     range: TASHAS_MIND_WHIP.range,
     area: null,
     source: "legacy",
@@ -1464,6 +1525,9 @@ const ALL_SPELLS = [
       || automation?.targetMode
       || spell.targetModeCandidate
       || (exactSelf ? "self" : "selected"),
+    ...(TARGETING_OVERRIDES[spell.id]
+      ? { targeting: TARGETING_OVERRIDES[spell.id] }
+      : {}),
     automation,
     activeActions: Object.freeze([
       ...(SPELL_ACTIVE_RESOLUTION_ACTIONS[spell.id] || []),

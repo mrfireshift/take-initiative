@@ -4,9 +4,22 @@ const clone = (value) => {
   return JSON.parse(JSON.stringify(value));
 };
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalize(value[key])]),
+  );
+}
+
 const same = (left, right) => {
   try {
-    return JSON.stringify(left) === JSON.stringify(right);
+    // OBR metadata is semantically an object tree: SDK normalization can
+    // change insertion order without changing the stored effect. Comparing
+    // raw JSON would turn that harmless ordering difference into a conflict.
+    return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
   } catch {
     return left === right;
   }

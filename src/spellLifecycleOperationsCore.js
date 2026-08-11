@@ -32,6 +32,7 @@ export function spellLifecycleOperations({
   replaceNames = [],
   conditionApplications = [],
   concentrationAction = "replace",
+  concentrationReference = null,
   persistSpell = true,
 } = {}) {
   const targets = uniqueIds(targetIds);
@@ -41,7 +42,13 @@ export function spellLifecycleOperations({
   const operations = [];
 
   if (mode !== "extend" && tracksConcentration) {
-    operations.push({ type: "concentration:break", casterIds: [caster] });
+    operations.push({
+      type: "concentration:break",
+      casterIds: [caster],
+      ...(String(concentrationReference || "").trim()
+        ? { reference: String(concentrationReference).trim() }
+        : {}),
+    });
   }
   if (persistSpell === true && mode !== "dismiss" && targets.length) {
     operations.push({
