@@ -2,7 +2,7 @@
   "schemaVersion": 4,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit a due assi: conformità al testo regolamentare e raggiungibilità nella console unificata. Per ogni spell lanciabile con 1 azione, 1 azione bonus o 1 reazione verifica catalogo, contratto UI, adapter di cast, mutazioni, persistenza e raggiungibilità di azioni o reminder. I P1 RAW restano revisionati manualmente; il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
-  "fingerprint": "d7e1f51dfd6e6c8e",
+  "fingerprint": "2b5c2073159156ec",
   "summary": {
     "catalogTotal": 477,
     "catalog": 374,
@@ -3630,6 +3630,8 @@
             "targets",
             "placement",
             "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },
@@ -5689,7 +5691,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -11691,7 +11695,8 @@
         "lifecycle",
         "TS",
         "movimento",
-        "turni"
+        "turni",
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -11714,7 +11719,9 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "gust-of-wind-direction"
+        ],
         "phaseOptions": [],
         "movementMechanics": true
       },
@@ -11756,11 +11763,15 @@
           ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "gust-of-wind-direction"
+          ],
+          "panelActionIds": [
+            "gust-of-wind-direction"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true
       },
@@ -23200,6 +23211,8 @@
             "targets",
             "placement",
             "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },
@@ -31168,6 +31181,8 @@
             "targets",
             "placement",
             "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },

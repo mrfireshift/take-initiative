@@ -19,6 +19,18 @@ const point = (value) => {
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 };
 
+export function spellStaticZoneFollowCasterPosition(metadata, casterPosition) {
+  if (metadata?.followCaster !== true) return null;
+  const caster = point(casterPosition);
+  const casterOrigin = point(metadata.casterOrigin);
+  if (!caster || !casterOrigin) return null;
+  const zoneOrigin = point(metadata.zoneOrigin) || { x: 0, y: 0 };
+  return {
+    x: zoneOrigin.x + caster.x - casterOrigin.x,
+    y: zoneOrigin.y + caster.y - casterOrigin.y,
+  };
+}
+
 export function translatedZoneArea(item, positionOverride = null) {
   const metadata = item?.metadata?.[AOE_AREA_META_KEY];
   if (!metadata?.type || !metadata?.start || !metadata?.end) return null;
@@ -59,6 +71,9 @@ export function staticSpellZoneMetadata({
   parentId = "",
   ruleChoice = "",
   targetIds = [],
+  followCaster = false,
+  casterOrigin = null,
+  zoneOrigin = null,
 } = {}) {
   const metadata = {
     version: 1,
@@ -74,6 +89,13 @@ export function staticSpellZoneMetadata({
   if (normalizedRuleChoice) metadata.ruleChoice = normalizedRuleChoice;
   const scopedTargetIds = normalizedIds(targetIds);
   if (scopedTargetIds.length) metadata.targetIds = scopedTargetIds;
+  if (followCaster === true) {
+    metadata.followCaster = true;
+    const normalizedCasterOrigin = point(casterOrigin);
+    if (normalizedCasterOrigin) metadata.casterOrigin = normalizedCasterOrigin;
+    const normalizedZoneOrigin = point(zoneOrigin);
+    if (normalizedZoneOrigin) metadata.zoneOrigin = normalizedZoneOrigin;
+  }
   return metadata;
 }
 

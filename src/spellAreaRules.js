@@ -333,6 +333,12 @@ function validateZonePolicy(policy, errors) {
   if (!validSpellZoneMovement(policy.movement)) {
     errors.push("zone-movement-invalid");
   }
+  if (
+    policy.followCaster !== undefined
+    && typeof policy.followCaster !== "boolean"
+  ) {
+    errors.push("zone-follow-caster-invalid");
+  }
   if (!allowed(SPELL_ZONE_INITIAL_RESOLUTIONS, policy.initialResolution)) {
     errors.push("zone-initial-resolution-invalid");
   }
@@ -556,6 +562,8 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-vita",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
+  "phb2014-braccia-di-hadar",
+  "phb2014-onda-distruttiva",
   "xanathar-rombo-di-tuono",
   "xanathar-scossa-tellurica",
 ]);
@@ -1921,6 +1929,7 @@ function catalogAreaRule(spec) {
           placementOptional: true,
           owner: "caster",
           movement: spec.movement,
+          ...(spec.followCaster === true ? { followCaster: true } : {}),
           ...(Number.isInteger(spec.membershipPaddingSquares)
             ? { membershipPaddingSquares: spec.membershipPaddingSquares }
             : {}),

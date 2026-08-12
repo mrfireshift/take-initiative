@@ -1273,6 +1273,73 @@ async function prepareEffectsSideEffects(plan, command) {
         movementPlan,
         ...(subzone ? { subzone } : {}),
       });
+    } else if (descriptor?.type === "static-zone:reorient") {
+      const zoneItemId = String(descriptor.zoneItemId || "").trim();
+      const instanceId = String(descriptor.instanceId || "").trim();
+      const ruleId = String(descriptor.ruleId || "").trim();
+      const casterId = String(descriptor.casterId || "").trim();
+      const allItems = await OBR.scene.items.getItems();
+      const root = allItems.find((item) => item?.id === zoneItemId);
+      const rootMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+      const rule = getSpellAreaRuleById(ruleId);
+      const geometry = allItems.find((item) => {
+        const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+        return metadata?.role === "geometry"
+          && metadata.parentId === zoneItemId
+          && metadata.instanceId === instanceId
+          && metadata.ruleId === ruleId
+          && metadata.casterId === casterId;
+      });
+      const caster = allItems.find((item) => item?.id === casterId);
+      if (
+        !root
+        || !rootMetadata
+        || rootMetadata.role !== "root"
+        || rootMetadata.instanceId !== instanceId
+        || rootMetadata.ruleId !== ruleId
+        || rootMetadata.casterId !== casterId
+        || !rule
+        || rule.kind !== "zone"
+        || !caster
+      ) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "static-zone-reorientation-context-invalid", itemId: zoneItemId || null }],
+        };
+      }
+      try {
+        const { buildStaticSpellZoneReorientationItems } = await import(
+          "./spellStaticZone.js"
+        );
+        const reorientation = buildStaticSpellZoneReorientationItems({
+          root,
+          geometry,
+          preview: descriptor.preview,
+          casterPosition: caster.position,
+        });
+        const items = [
+          { before: clone(root), after: clone(reorientation.root) },
+          ...(reorientation.geometry
+            ? [{ before: clone(geometry), after: clone(reorientation.geometry) }]
+            : []),
+        ];
+        prepared.push({
+          type: descriptor.type,
+          zoneItemId,
+          instanceId,
+          ruleId,
+          casterId,
+          items,
+        });
+      } catch (error) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{
+            reason: String(error?.message || "static-zone-reorientation-invalid"),
+            itemId: zoneItemId || null,
+          }],
+        };
+      }
     } else if (descriptor?.type === "reminder:consume-zone-activation") {
       const itemId = String(descriptor.itemId || "").trim();
       const metadataKey = String(descriptor.metadataKey || "").trim();
@@ -1324,7 +1391,21 @@ async function restoreUpdatedSceneItems(snapshots = []) {
   await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
     for (const draft of drafts) {
       const snapshot = byId.get(draft.id);
-      if (snapshot) draft.metadata = clone(snapshot.metadata || {});
+      if (!snapshot) continue;
+      if (Object.prototype.hasOwnProperty.call(snapshot, "position")) {
+        draft.position = clone(snapshot.position);
+      }
+      if (Object.prototype.hasOwnProperty.call(snapshot, "commands")) {
+        draft.commands = clone(snapshot.commands);
+      }
+      if (snapshot.metadata && typeof snapshot.metadata === "object") {
+        draft.metadata = {
+          ...(draft.metadata || {}),
+          ...Object.fromEntries(
+            Object.entries(snapshot.metadata).map(([key, value]) => [key, clone(value)]),
+          ),
+        };
+      }
     }
   });
 }
@@ -1486,6 +1567,50 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const existingIds = existing.map((item) => item?.id).filter(Boolean);
     if (existingIds.length) await OBR.scene.items.deleteItems(existingIds);
     return items.map((item) => ({ id: item.id, before: clone(item), after: null }));
+  }
+  if (sideEffect.type === "static-zone:reorient") {
+    const entries = Array.isArray(sideEffect.items) ? sideEffect.items : [];
+    const ids = entries.map((entry) => entry?.before?.id).filter(Boolean);
+    const currentItems = ids.length ? await OBR.scene.items.getItems(ids) : [];
+    if (
+      currentItems.length !== entries.length
+      || currentItems.some((item) => {
+        const entry = entries.find((candidate) => candidate?.before?.id === item.id);
+        return !entry || !sameValue(item, entry.before);
+      })
+    ) {
+      throw new Error("static-zone-reorientation-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-static-zone-reorientation");
+    const afterById = new Map(
+      entries.map((entry) => [entry.after?.id || entry.before?.id, entry.after]),
+    );
+    await OBR.scene.items.updateItems(ids, (drafts) => {
+      for (const draft of drafts) {
+        const after = afterById.get(draft.id);
+        if (!after) continue;
+        if (Object.prototype.hasOwnProperty.call(after, "position")) {
+          draft.position = clone(after.position);
+        }
+        if (Object.prototype.hasOwnProperty.call(after, "commands")) {
+          draft.commands = clone(after.commands);
+        }
+        if (after.metadata && typeof after.metadata === "object") {
+          draft.metadata = {
+            ...(draft.metadata || {}),
+            ...Object.fromEntries(
+              Object.entries(after.metadata).map(([key, value]) => [key, clone(value)]),
+            ),
+          };
+        }
+      }
+    });
+    return entries.flatMap((entry) => [{
+      id: entry.before.id,
+      type: "item",
+      before: clone(entry.before),
+      after: clone(entry.after),
+    }]);
   }
   if (sideEffect.type === "static-zone:set-rule-choice") {
     const items = sideEffect.items || [];

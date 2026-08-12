@@ -11,6 +11,7 @@ import {
   staticSpellZoneItems,
   staticSpellZoneItemsEndedByPlan,
   staticSpellZoneMetadata,
+  spellStaticZoneFollowCasterPosition,
 } from "../src/spellStaticZoneCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
@@ -36,6 +37,27 @@ test("la regola di Web espone il lifecycle di una zona statica", () => {
   assert.equal(isStaticSpellZoneRule(getSpellAreaRuleById("entangle:cast")), true);
   assert.equal(isStaticSpellZoneRule(getSpellAreaRuleById("moonbeam:cast")), true);
   assert.equal(isStaticSpellZoneRule(getSpellAreaRuleById("fireball:cast")), false);
+});
+
+test("una zona dichiarata mobile segue il delta di posizione del caster", () => {
+  const metadata = staticSpellZoneMetadata({
+    instanceId: "gust-1",
+    ruleId: "gust-of-wind:cast",
+    spellId: "gust-of-wind",
+    casterId: "caster",
+    followCaster: true,
+    casterOrigin: { x: 100, y: 200 },
+    zoneOrigin: { x: 0, y: 0 },
+  });
+
+  assert.deepEqual(
+    spellStaticZoneFollowCasterPosition(metadata, { x: 250, y: 125 }),
+    { x: 150, y: -75 },
+  );
+  assert.equal(
+    spellStaticZoneFollowCasterPosition({ ...metadata, followCaster: false }, { x: 250, y: 125 }),
+    null,
+  );
 });
 
 test("le zone sono ricercabili per istanza e caster", () => {

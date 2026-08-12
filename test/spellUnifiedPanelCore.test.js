@@ -185,6 +185,51 @@ test("Scossa Sinaptica espone il danno iniziale nella Console unificata", () => 
   assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
 });
 
+test("Coltello di Ghiaccio espone il danno della risoluzione iniziale", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "xanathar-coltello-di-ghiaccio",
+    phase: "cast",
+    castContext: { slotLevel: 2 },
+  });
+
+  assert.equal(model.presentation.placement.ruleId, "xanathar-coltello-di-ghiaccio:cast");
+  assert.equal(model.presentation.inputs.damage.required, true);
+  assert.equal(model.presentation.inputs.damage.visible, true);
+  assert.equal(model.execution.castHasHP, true);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+});
+
+test("Braccia di Hadar espone il danno iniziale nella Console unificata", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "phb2014-braccia-di-hadar",
+    phase: "cast",
+  });
+
+  assert.equal(model.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC);
+  assert.equal(model.presentation.targeting.includeCaster, false);
+  assert.equal(model.presentation.placement.ruleId, "phb2014-braccia-di-hadar:cast");
+  assert.equal(model.presentation.inputs.damage.required, true);
+  assert.equal(model.presentation.inputs.damage.visible, true);
+  assert.equal(model.execution.castHasHP, true);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+});
+
+test("Onda Distruttiva esclude il caster e collega il danno iniziale", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "phb2014-onda-distruttiva",
+    phase: "cast",
+    castContext: { slotLevel: 5 },
+  });
+
+  assert.equal(model.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC);
+  assert.equal(model.presentation.targeting.includeCaster, false);
+  assert.equal(model.presentation.placement.ruleId, "phb2014-onda-distruttiva:cast");
+  assert.equal(model.presentation.inputs.damage.required, true);
+  assert.equal(model.presentation.inputs.damage.visible, true);
+  assert.equal(model.execution.castHasHP, true);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+});
+
 test("Arma magica limita la selezione a un bersaglio", () => {
   const model = buildSpellUnifiedPanelContract({ spellId: "magic-weapon" });
 
@@ -354,6 +399,22 @@ test("Investitura della Fiamma distingue aura e linea attiva", () => {
   assert.equal(action.presentation.placement.required, true);
   has(action.presentation.controls, "save-outcomes");
   assert.equal(action.execution.lane, SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION);
+});
+
+test("Folata di Vento espone il riorientamento come azione bonus", () => {
+  const model = buildSpellUnifiedPanelContract({ spellId: "gust-of-wind" });
+  const action = model.presentation.activeActions.find(
+    (entry) => entry.id === "gust-of-wind-direction",
+  );
+
+  assert.ok(action);
+  assert.equal(action.resolution.kind, "zone-direction");
+  assert.equal(action.economy, "bonus-action");
+  assert.equal(action.zone.root, true);
+  assert.equal(action.placementRuleId, "gust-of-wind:cast");
+  assert.equal(action.capabilities.placement, true);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+  has(model.execution.lanes, SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION);
 });
 
 test("Sfera della Tempesta distingue zona iniziale e fulmine su bersaglio", () => {

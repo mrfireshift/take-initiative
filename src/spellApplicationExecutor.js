@@ -31,7 +31,10 @@ import {
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
-import { requestSpellZoneMovement } from "./spellAreaPlacementClient.js";
+import {
+  requestSpellAreaPlacement,
+  requestSpellZoneMovement,
+} from "./spellAreaPlacementClient.js";
 import {
   createSpellBoardTokenId,
   getSpellBoardTokenRule,
@@ -64,6 +67,9 @@ export async function executeSpellZoneMovement({
     zoneItemId,
     movementChoice,
     sceneEpoch: currentSceneEpoch(),
+  }, {
+    broadcast: OBR.broadcast,
+    windowRef: globalThis.window,
   });
   if (result?.status !== "confirmed" || !result?.preview) {
     if (result?.status === "cancelled") return [];
@@ -102,6 +108,62 @@ export async function executeSpellZoneMovement({
   });
   requireAppliedEffectsMutation(movement);
   return attachSpellExecutionHistory(movement.changedIds || [], movement);
+}
+
+export async function executeSpellZoneDirection({
+  group = null,
+  action = null,
+  casterName = "",
+} = {}) {
+  const ruleId = String(action?.ruleId || "").trim();
+  const instanceId = String(group?.instanceId || action?.instanceId || "").trim();
+  const zoneItemId = String(action?.zoneItemId || "").trim();
+  const casterId = String(group?.casterId || "").trim();
+  if (!ruleId || !instanceId || !zoneItemId || !casterId) {
+    throw new Error("Invalid spell zone direction: context-required");
+  }
+  const result = await requestSpellAreaPlacement({
+    ruleId,
+    casterId,
+    context: {
+      instanceId,
+      zoneItemId,
+      directionChange: true,
+    },
+  }, {
+    broadcast: OBR.broadcast,
+    windowRef: globalThis.window,
+  });
+  if (result?.status !== "confirmed" || !result?.preview) {
+    if (result?.status === "cancelled") return [];
+    throw new Error(
+      String(result?.error || "La nuova direzione della zona non è stata confermata."),
+    );
+  }
+  const preview = result.preview;
+  const direction = await runEffectsMutation([], {
+    sceneEpoch: Number.isFinite(Number(preview.sceneEpoch))
+      ? Number(preview.sceneEpoch)
+      : undefined,
+    kind: "spell-zone-direction",
+    label: `Cambia direzione: ${String(group?.name || "Incantesimo").trim()}`,
+    targetIds: [casterId],
+    sideEffects: [{
+      type: "static-zone:reorient",
+      zoneItemId,
+      instanceId,
+      ruleId,
+      casterId,
+      preview,
+    }],
+    history: {
+      kind: "spell-zone-direction",
+      label: `Cambia direzione: ${String(group?.name || casterName || "Incantesimo").trim()}`,
+      payload: { instanceId, zoneItemId, ruleId },
+    },
+  });
+  requireAppliedEffectsMutation(direction);
+  return attachSpellExecutionHistory(direction.changedIds || [], direction);
 }
 
 export async function getCurrentSpellAppliedAt() {

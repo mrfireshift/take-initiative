@@ -192,6 +192,24 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       requiresParentInstance: true,
     },
   ],
+  "gust-of-wind": [
+    {
+      id: "gust-of-wind-direction",
+      label: "Cambia direzione",
+      buttonLabel: "Cambia direzione",
+      detail: "Azione bonus: riorienta la Folata di Vento.",
+      economy: "bonus-action",
+      resolutionKind: "zone-direction",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      availableAfterCast: true,
+      showInOverview: true,
+      placementRuleId: "gust-of-wind:cast",
+      rangeOrigin: "caster",
+    },
+  ],
   "xanathar-investitura-della-fiamma": [
     {
       id: "flame-investiture-line",

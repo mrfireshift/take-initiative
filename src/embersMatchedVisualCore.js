@@ -453,6 +453,13 @@ const circle = (effectId, anchor = "area", options = {}) => ({
   effectId,
   anchor,
   scale: Number(options.scale) > 0 ? Number(options.scale) : 1,
+  ...(Number(options.radiusCells) > 0
+    ? { radiusCells: Number(options.radiusCells) }
+    : {}),
+  ...(String(options.replicate || "").trim()
+    ? { replicate: String(options.replicate).trim() }
+    : {}),
+  ...(options.firstTargetIsCaster === true ? { firstTargetIsCaster: true } : {}),
   delay: Number(options.delay) || 0,
   persistent: options.persistent === true,
   attachedTo: options.attachedTo || "",
@@ -573,7 +580,17 @@ const VISUALS = freeze({
   cloudkill: [circle("cloudkill", "area", persistent())],
   "xanathar-aculeo-mentale": [circle("genericHealingPurple", "target")],
   "xanathar-rintocco-dei-morti": [circle("tollTheDead", "target")],
-  "phb2014-braccia-di-hadar": [circle("armsOfHadar", "area", persistent({ attachedTo: "caster" }))],
+  // Embers resolves this as one-shot circles replicated to every selected
+  // target, with the caster inserted as the first target. Each blueprint's
+  // size is `radius + target.size` (4 cells by default), not the placed area
+  // preview and not a concentration loop.
+  "phb2014-braccia-di-hadar": [circle("armsOfHadar", "target", {
+    radiusCells: 4,
+    replicate: "all",
+    firstTargetIsCaster: true,
+    attachedTo: "target",
+    layer: "ATTACHMENT",
+  })],
   "phb2014-sortilegio": [
     circle("genericMarkerPurple", "target", { scale: 2, layer: "PROP" }),
     circle("markerHorror", "target", persistent({ delay: 2000, attachedTo: "target" })),
@@ -684,6 +701,34 @@ function areaRadius(preview, targets, source, dpi, fallbackRadius = 0) {
   const target = fallbackTarget(targets);
   if (target) return targetSize(target, dpi) / 2;
   return source ? dpi : dpi;
+}
+
+function expandedCircleRadius(visual, targetDiameter, dpi) {
+  const radiusCells = positiveNumber(visual?.radiusCells, 0);
+  if (!radiusCells) return targetDiameter / 2;
+  return (radiusCells * dpi + targetDiameter) / 2;
+}
+
+function targetCircleCenters(visual, targetPoints, source, sourceDiameter, dpi, casterId) {
+  const centers = [];
+  const replicatesCaster = visual?.replicate === "all"
+    && visual.firstTargetIsCaster === true;
+  if (replicatesCaster && source) {
+    centers.push({
+      center: source,
+      radius: expandedCircleRadius(visual, sourceDiameter, dpi),
+      targetId: casterId,
+    });
+  }
+  for (const targetValue of targetPoints) {
+    if (replicatesCaster && casterId && targetValue.id === casterId) continue;
+    centers.push({
+      center: targetValue.center,
+      radius: expandedCircleRadius(visual, targetSize(targetValue, dpi), dpi),
+      targetId: targetValue.id,
+    });
+  }
+  return centers;
 }
 
 function buildTargetLayer(effectId, effect, source, destination, delay, index, visual, targetId = "") {
@@ -888,13 +933,16 @@ export function buildMatchedVisualEvent({
     if (visual.kind === "circle") {
       const anchor = visual.anchor;
       const centers = anchor === "target"
-        ? targetPoints.map((targetValue) => ({
-          center: targetValue.center,
-          radius: targetSize(targetValue, dpi) / 2,
-          targetId: targetValue.id,
-        }))
+        ? targetCircleCenters(
+          visual,
+          targetPoints,
+          source,
+          sourceDiameter,
+          dpi,
+          normalizedCasterId,
+        )
           : anchor === "caster"
-          ? source ? [{ center: source, radius: sourceDiameter / 2 }] : []
+          ? source ? [{ center: source, radius: expandedCircleRadius(visual, sourceDiameter, dpi) }] : []
           : [{
             center: areaCenter(previewData, targetPoints, source),
             radius: areaRadius(

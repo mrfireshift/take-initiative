@@ -233,7 +233,11 @@ export function planEffectsLayout({
       caster,
       { ...assignment, casterId: caster.id },
     );
-    const counter = spellEntry === null ? "" : spellExpiryCounter(spellEntry);
+    const isGustOfWind = key === "gust-of-wind" || key === "folata di vento";
+    const hideTargetCounter = isGustOfWind && target.id !== caster.id;
+    const counter = spellEntry === null || hideTargetCounter
+      ? ""
+      : spellExpiryCounter(spellEntry);
     const text = counter ? `${title} (${counter})` : title;
     const sortPrefix = `0|${key}|${caster.id}`;
     const context = {

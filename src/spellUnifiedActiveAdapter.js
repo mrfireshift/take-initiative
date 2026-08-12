@@ -588,15 +588,20 @@ export async function executeSpellUnifiedActiveAction({
   const context = validation.context;
   const normalized = validation.normalizedAction;
   const group = groupFromContext(context);
-  if (normalized.resolutionKind === "zone-movement") {
-    const movementExecutor = runtime.zoneMovementExecutor
-      || await importedExecutor("executeSpellZoneMovement");
+  if (["zone-movement", "zone-direction"].includes(normalized.resolutionKind)) {
+    const directionAction = normalized.resolutionKind === "zone-direction";
+    const movementExecutor = runtime[directionAction ? "zoneDirectionExecutor" : "zoneMovementExecutor"]
+      || await importedExecutor(
+        directionAction ? "executeSpellZoneDirection" : "executeSpellZoneMovement",
+      );
     if (typeof movementExecutor !== "function") return {
       status: SPELL_UNIFIED_ACTIVE_STATUS.REJECTED,
       validation,
       errors: [{
         code: SPELL_UNIFIED_ACTIVE_ERROR_CODES.EXECUTOR_UNAVAILABLE,
-        message: "L'executor del movimento zona non è disponibile.",
+        message: directionAction
+          ? "L'executor della direzione zona non è disponibile."
+          : "L'executor del movimento zona non è disponibile.",
       }],
       changedIds: [],
     };

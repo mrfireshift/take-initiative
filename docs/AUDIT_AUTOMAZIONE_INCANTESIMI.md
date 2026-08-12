@@ -13,7 +13,7 @@
 - Esposte nella console unificata: **311**; disconnesse: **67**; fragili: **2**.
 - Workflow che richiedono smoke test runtime: **194**.
 - Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **41**.
-- Impronta deterministica dello snapshot: `d7e1f51dfd6e6c8e`.
+- Impronta deterministica dello snapshot: `2b5c2073159156ec`.
 - P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.
 - Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.
 - I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.
@@ -323,7 +323,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Fiotto acido | `acid-splash` | SRD 5.1 / 0 | combattimento | singolo | assente | disconnected | TS:singolo | — | istantaneo: gestione manuale | — | — |
 | Flusso di Energia Negativa | `xanathar-flusso-di-energia-negativa` | Xanathar / 5 | combattimento | singolo | assente | disconnected | TS:singolo, turni | — | istantaneo: gestione manuale | — | — |
 | Folata | `xanathar-folata` | Xanathar / 0 | combattimento | singolo | assente | disconnected | TS:singolo | — | istantaneo: gestione manuale | — | — |
-| Folata di vento | `gust-of-wind` | SRD 5.1 / 2 | combattimento | area | esposto | reachable | area, TS:area, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni | coperto | — | — |
+| Folata di vento | `gust-of-wind` | SRD 5.1 / 2 | combattimento | area | esposto | reachable | area, TS:area, fasi/azioni | tracking, aree:zone, lifecycle, TS, movimento, turni, fasi/azioni | coperto | — | — |
 | Forma eterea | `etherealness` | SRD 5.1 / 7 | combattimento | — | esposto | reachable | — | tracking | coperto | — | — |
 | Forme animali | `animal-shapes` | SRD 5.1 / 8 | combattimento | — | esposto | partial | fasi/azioni, varianti | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente; varianti rilevanti non modellate |
 | Fortezza della Mente | `tasha-fortezza-della-mente` | Tasha / 3 | combattimento | — | esposto | reachable | — | tracking | coperto | — | — |

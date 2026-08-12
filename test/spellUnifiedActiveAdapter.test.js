@@ -243,6 +243,27 @@ test("azione manuale, movimento zona e popup annullato non duplicano la risoluzi
   assert.equal(movementInput.action.ruleId, "moonbeam:cast");
   assert.equal(movementInput.action.zoneItemId, "moon-root");
 
+  const direction = actionFor("gust-of-wind", "gust-of-wind-direction");
+  const directionOverview = overviewFor("gust-of-wind", direction, {
+    zoneItemId: "gust-root",
+  });
+  let directionInput = null;
+  const directionResult = await executeSpellUnifiedActiveAction({
+    overview: directionOverview,
+    action: direction,
+    actionId: direction.id,
+    sceneEpoch: 7,
+    runtime: {
+      zoneDirectionExecutor: async (input) => {
+        directionInput = input;
+        return ["gust-root"];
+      },
+    },
+  });
+  assert.equal(directionResult.status, SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED);
+  assert.equal(directionInput.action.ruleId, "gust-of-wind:cast");
+  assert.equal(directionInput.action.zoneItemId, "gust-root");
+
   let executorCalled = false;
   const popupResult = await executeSpellUnifiedActiveAction({
     overview: overviewFor(

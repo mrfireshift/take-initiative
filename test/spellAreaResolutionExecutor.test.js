@@ -137,6 +137,46 @@ test("Scossa Sinaptica collega danno iniziale, TS e penalità ai fallimenti", ()
   assert.equal(passed.resolution.conditionApplications.length, 0);
 });
 
+test("Braccia di Hadar collega danno iniziale e No reazioni ai fallimenti", () => {
+  const command = commandFor("phb2014-braccia-di-hadar", { slotLevel: 1 });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.mode, "damage");
+  assert.equal(command.hp.amount, 12);
+  assert.equal(command.hp.outcomeFactors["target-1"], "full");
+  assert.equal(
+    command.resolution.conditionApplications[0].options.effectId,
+    "arms-of-hadar-no-reactions",
+  );
+
+  const passed = commandFor("phb2014-braccia-di-hadar", {
+    slotLevel: 1,
+    input: { outcomes: { "target-1": "passed" } },
+  });
+  assert.equal(passed.valid, true, passed.errors?.join(", "));
+  assert.equal(passed.hp.outcomeFactors["target-1"], "half");
+  assert.equal(passed.resolution.conditionApplications.length, 0);
+});
+
+test("Onda Distruttiva collega danno iniziale e Prono ai fallimenti", () => {
+  const command = commandFor("phb2014-onda-distruttiva", { slotLevel: 5 });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.mode, "damage");
+  assert.equal(command.hp.amount, 12);
+  assert.equal(command.hp.outcomeFactors["target-1"], "full");
+  assert.equal(
+    command.resolution.conditionApplications[0].conditionName,
+    "Prono",
+  );
+
+  const passed = commandFor("phb2014-onda-distruttiva", {
+    slotLevel: 5,
+    input: { outcomes: { "target-1": "passed" } },
+  });
+  assert.equal(passed.valid, true, passed.errors?.join(", "));
+  assert.equal(passed.hp.outcomeFactors["target-1"], "half");
+  assert.equal(passed.resolution.conditionApplications.length, 0);
+});
+
 test("Invocare il fulmine usa il danno del primo fulmine", () => {
   const command = commandFor("call-lightning", { slotLevel: 3 });
   assert.equal(command.valid, true, command.errors?.join(", "));

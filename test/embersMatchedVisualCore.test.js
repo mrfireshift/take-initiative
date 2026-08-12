@@ -82,6 +82,58 @@ test("l'area usa il raggio scena e il target mantiene la rotazione", () => {
   assert.deepEqual(projectilePlan.position, { x: 100, y: 100 });
 });
 
+test("Braccia di Hadar replica il blueprint Embers su caster e bersagli", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "phb2014-braccia-di-hadar",
+    eventId: "arms-of-hadar-event",
+    lifecycleId: "arms-of-hadar-instance",
+    casterId: "caster-1",
+    caster: { id: "caster-1", center: { x: 700, y: 700 }, diameter: 150 },
+    targets: [{ id: "target-1", center: { x: 1000, y: 700 }, diameter: 150 }],
+    targetIds: ["target-1"],
+    sceneDpi: 150,
+  });
+
+  assert.equal(event.layers.length, 2);
+  const [casterLayer, targetLayer] = event.layers;
+  assert.deepEqual(event.layers.map((layer) => ({
+    effectId: layer.effectId,
+    anchor: layer.anchor,
+    attachedTo: layer.attachedTo,
+    layer: layer.layer,
+    persistent: layer.persistent,
+    targetId: layer.targetId,
+    radius: layer.radius,
+  })), [
+    {
+      effectId: "armsOfHadar",
+      anchor: "target",
+      attachedTo: "target",
+      layer: "ATTACHMENT",
+      persistent: false,
+      targetId: "caster-1",
+      // Embers: size = radius (4 cells) + caster.size (1 cell) => 5 cells.
+      radius: 375,
+    },
+    {
+      effectId: "armsOfHadar",
+      anchor: "target",
+      attachedTo: "target",
+      layer: "ATTACHMENT",
+      persistent: false,
+      targetId: "target-1",
+      // Embers: size = radius (4 cells) + target.size (1 cell) => 5 cells.
+      radius: 375,
+    },
+  ]);
+  assert.deepEqual(casterLayer.center, { x: 700, y: 700 });
+  assert.deepEqual(targetLayer.center, { x: 1000, y: 700 });
+
+  const plan = matchedVisualLayerPlan(casterLayer, event.dpi);
+  assert.match(plan.url, /ArmsOfHadar_01_Dark_Purple_75OPA_500x500\.webm$/);
+  assert.equal(plan.duration, 5000);
+});
+
 test("Catena di fulmini costruisce un primario e rimbalzi dal primario", () => {
   const event = buildMatchedVisualEvent({
     spellId: "chain-lightning",

@@ -1594,6 +1594,9 @@ export function bootSpellUnifiedPanel(
           ...(runtimeOverrides.zoneMovementExecutor
             ? { zoneMovementExecutor: runtimeOverrides.zoneMovementExecutor }
             : {}),
+          ...(runtimeOverrides.zoneDirectionExecutor
+            ? { zoneDirectionExecutor: runtimeOverrides.zoneDirectionExecutor }
+            : {}),
         },
       });
     } catch (error) {

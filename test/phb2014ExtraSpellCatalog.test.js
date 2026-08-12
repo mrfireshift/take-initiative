@@ -204,7 +204,7 @@ test("le pill con scadenza speciale non ereditano una durata errata dal parent",
     anchor: "next-turn",
   });
   assert.deepEqual(getAreaSaveAutomation("Braccia di Hadar").failed[0].expiry, {
-    mode: "turn-start",
+    mode: "turn-end",
     actor: "target",
     remaining: 1,
     anchor: "next-turn",

@@ -183,6 +183,16 @@ test("le aree ostili includono il caster salvo immunità esplicite", () => {
       .targeting.includeCaster,
     false,
   );
+  assert.equal(
+    getSpellAreaRuleById("phb2014-braccia-di-hadar:cast")
+      .targeting.includeCaster,
+    false,
+  );
+  assert.equal(
+    getSpellAreaRuleById("phb2014-onda-distruttiva:cast")
+      .targeting.includeCaster,
+    false,
+  );
 });
 
 test("il validatore rifiuta lifecycle incoerenti senza correggerli implicitamente", () => {
@@ -645,6 +655,7 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
   assert.equal(gust.geometry.size.value, 18);
   assert.equal(gust.geometry.width.value, 3);
   assert.equal(gust.zonePolicy.movement, "manual");
+  assert.equal(gust.zonePolicy.followCaster, true);
   assert.equal(gust.zonePolicy.initialResolution, "none");
   assert.deepEqual(
     gust.zonePolicy.triggers.map((trigger) => trigger.event),

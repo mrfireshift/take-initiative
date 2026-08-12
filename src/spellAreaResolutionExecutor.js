@@ -898,6 +898,8 @@ async function buildPlan(command, runtime) {
       preview: placement.preview,
       ruleChoice: text(command?.spell?.choiceValue),
       targetIds: staticZoneTargetIds,
+      followCaster: placementRule?.zonePolicy?.followCaster === true,
+      casterOrigin: caster?.position,
     }) : []),
     ...(cloudPlacement ? runtime.buildStaticZoneItems({
       ruleId: cloudPlacement.ruleId,

@@ -21,6 +21,15 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "xanathar-scossa-sinaptica": Object.freeze({
     initialHP: true,
   }),
+  "xanathar-coltello-di-ghiaccio": Object.freeze({
+    initialHP: true,
+  }),
+  "phb2014-braccia-di-hadar": Object.freeze({
+    initialHP: true,
+  }),
+  "phb2014-onda-distruttiva": Object.freeze({
+    initialHP: true,
+  }),
   "branding-smite": { initialHP: false, deferredHP: "next-weapon-hit" },
   "call-lightning": { initialHP: true, deferredHP: "active-action" },
   "chill-touch": { initialHP: true, resolution: "single-attack" },

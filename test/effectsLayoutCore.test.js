@@ -248,6 +248,46 @@ test("l'ingresso in una zona ricostruisce la pill spell prima dell'effetto colle
   );
 });
 
+test("Folata di vento non mostra la durata sulla pill dei bersagli", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        spellEntries: [{
+          name: "Folata di vento",
+          instanceId: "gust-zone",
+          casterId: "caster",
+          turns: 3,
+        }],
+        assignments: [{
+          key: "Folata di vento",
+          displayName: "Folata di vento",
+          instanceId: "gust-zone",
+          targets: ["caster", "target"],
+          color: { solid: "#b91c1c", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        spellEntries: [{
+          name: "Folata di vento",
+          instanceId: "gust-zone",
+          casterId: "caster",
+          turns: 10,
+        }],
+      }),
+    ],
+  });
+
+  assert.equal(
+    rows.find((entry) => entry.kind === "spell" && entry.targetId === "caster").text,
+    "Folata di vento (3)",
+  );
+  assert.equal(
+    rows.find((entry) => entry.kind === "spell" && entry.targetId === "target").text,
+    "Folata di vento",
+  );
+});
+
 test("le pill mappa nascondono i contatori superiori a dieci round", () => {
   const rows = planEffectsLayout({
     measureText,

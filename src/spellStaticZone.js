@@ -27,6 +27,7 @@ import {
   staticSpellZoneItems,
   staticSpellZoneMetadata,
   scopedStaticSpellZoneTargetIds,
+  spellStaticZoneFollowCasterPosition,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import {
@@ -126,6 +127,12 @@ function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function clone(value) {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
 }
 
 function boundsCenter(bounds) {
@@ -269,6 +276,8 @@ export function buildStaticSpellZoneItems({
   style = null,
   ruleChoice = "",
   targetIds = [],
+  followCaster = false,
+  casterOrigin = null,
 } = {}) {
   const rule = getSpellAreaRuleById(ruleId);
   if (!isStaticSpellZoneRule(rule)) throw new Error("static-zone-rule-invalid");
@@ -309,6 +318,9 @@ export function buildStaticSpellZoneItems({
     casterId,
     ruleChoice,
     targetIds,
+    followCaster,
+    casterOrigin,
+    ...(followCaster === true ? { zoneOrigin: { x: 0, y: 0 } } : {}),
   });
   const rootAreaMetadata = {
     version: 2,
@@ -373,6 +385,80 @@ export function buildStaticSpellZoneItems({
   });
   geometry.attachedTo = root.id;
   return [root, geometry];
+}
+
+export function buildStaticSpellZoneReorientationItems({
+  root = null,
+  geometry = null,
+  preview = null,
+  casterPosition = null,
+} = {}) {
+  const zoneMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  const areaMetadata = root?.metadata?.[AOE_AREA_META_KEY];
+  const rule = getSpellAreaRuleById(zoneMetadata?.ruleId);
+  const type = String(preview?.type || "").trim();
+  const start = point(preview?.start);
+  const end = point(preview?.end);
+  const gridOrigin = point(preview?.gridOrigin) || start;
+  const dpi = Number(preview?.dpi);
+  if (
+    !root
+    || !zoneMetadata
+    || !areaMetadata
+    || !rule
+    || type !== rule.geometry.shape
+    || !start
+    || !end
+    || !gridOrigin
+    || !Number.isFinite(dpi)
+    || dpi <= 0
+  ) {
+    throw new Error("static-zone-reorientation-invalid");
+  }
+  const widthSquares = Number(preview?.widthSquares) > 0
+    ? Math.max(1, Math.round(Number(preview.widthSquares)))
+    : areaMetadata.widthSquares;
+  const area = buildArea(
+    type,
+    start,
+    end,
+    Math.max(1, dpi),
+    gridOrigin,
+    { widthSquares },
+  );
+  const nextRoot = clone(root);
+  const rootMetadata = { ...(root.metadata || {}) };
+  rootMetadata[AOE_AREA_META_KEY] = {
+    ...(areaMetadata || {}),
+    version: 2,
+    singlePath: true,
+    type,
+    start,
+    end,
+    dpi: Math.max(1, dpi),
+    gridOrigin,
+    basePosition: { x: 0, y: 0 },
+    ...(Number.isInteger(widthSquares) ? { widthSquares } : {}),
+  };
+  rootMetadata[SPELL_STATIC_ZONE_META_KEY] = {
+    ...(zoneMetadata || {}),
+    ...(zoneMetadata.followCaster === true
+      ? {
+        casterOrigin: point(casterPosition) || point(zoneMetadata.casterOrigin),
+        zoneOrigin: { x: 0, y: 0 },
+      }
+      : {}),
+  };
+  nextRoot.position = { x: 0, y: 0 };
+  nextRoot.commands = boundaryCommands(area.cells);
+  nextRoot.metadata = rootMetadata;
+
+  const nextGeometry = geometry ? clone(geometry) : null;
+  if (nextGeometry) {
+    nextGeometry.position = { x: 0, y: 0 };
+    nextGeometry.commands = geometryCommands(area);
+  }
+  return { root: nextRoot, geometry: nextGeometry };
 }
 
 export function buildStaticSpellZoneSubzoneItem({
@@ -705,7 +791,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     !initialDerivedCleanupIds.includes(item.id)
     && !expiredSubzoneIds.includes(item.id)
   ));
-  const zoneRoots = staticSpellZoneItems(currentItems)
+  let zoneRoots = staticSpellZoneItems(currentItems)
     .filter((item) =>
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
     );
@@ -733,6 +819,41 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     await OBR.scene.items.deleteItems(orphanChildIds);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
     currentItems = currentItems.filter((item) => !orphanChildIds.includes(item.id));
+  }
+  const currentItemsById = new Map(currentItems.map((item) => [item.id, item]));
+  const followCasterUpdates = zoneRoots
+    .map((item) => {
+      const metadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
+      const desiredPosition = spellStaticZoneFollowCasterPosition(
+        metadata,
+        currentItemsById.get(metadata.casterId)?.position,
+      );
+      const currentPosition = point(item.position) || { x: 0, y: 0 };
+      return desiredPosition
+        && (desiredPosition.x !== currentPosition.x || desiredPosition.y !== currentPosition.y)
+        ? { id: item.id, position: desiredPosition }
+        : null;
+    })
+    .filter(Boolean);
+  if (followCasterUpdates.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    const positionsById = new Map(followCasterUpdates.map((entry) => [entry.id, entry.position]));
+    await OBR.scene.items.updateItems(
+      followCasterUpdates.map((entry) => entry.id),
+      (drafts) => {
+        for (const draft of drafts) {
+          const position = positionsById.get(draft.id);
+          if (position) draft.position = { ...position };
+        }
+      },
+    );
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    currentItems = currentItems.map((item) => {
+      const position = positionsById.get(item.id);
+      return position ? { ...item, position: { ...position } } : item;
+    });
+    zoneRoots = staticSpellZoneItems(currentItems)
+      .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root");
   }
   if (!zoneRoots.length) {
     const zoneEffectIds = SPELL_AREA_RULES

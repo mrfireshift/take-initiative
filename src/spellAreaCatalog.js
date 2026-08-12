@@ -214,6 +214,7 @@ const AREA_OVERRIDES = Object.freeze({
     sizeMeters: 18,
     widthMeters: 3,
     origin: "caster-adjacent",
+    followCaster: true,
   },
   "glyph-of-warding": {
     shape: "circle",
@@ -469,6 +470,7 @@ function catalogSpec(spell) {
     ...(Array.isArray(override.placementChoices)
       ? { placementChoices: override.placementChoices }
       : {}),
+    ...(override.followCaster === true ? { followCaster: true } : {}),
     ...(override.note ? { note: override.note } : {}),
   });
 }
