@@ -33,6 +33,11 @@ export const METADATA_OWNERSHIP = Object.freeze({
     domain: "room-memory",
     owners: Object.freeze(["hpMemory.js"]),
   }),
+  ACTOR_VITALS: Object.freeze({
+    key: `${ID}/actorVitals`,
+    domain: "actor-vitals",
+    owners: Object.freeze(["actorVitalsStore.js"]),
+  }),
   REGISTRY: Object.freeze({
     key: `${ID}/factionRegistry`,
     domain: "registry",

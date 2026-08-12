@@ -18,6 +18,9 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "xanathar-aculeo-mentale": Object.freeze({
     initialHP: true,
   }),
+  "xanathar-scossa-sinaptica": Object.freeze({
+    initialHP: true,
+  }),
   "branding-smite": { initialHP: false, deferredHP: "next-weapon-hit" },
   "call-lightning": { initialHP: true, deferredHP: "active-action" },
   "chill-touch": { initialHP: true, resolution: "single-attack" },

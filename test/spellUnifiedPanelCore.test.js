@@ -171,6 +171,20 @@ test("Aculeo Mentale usa il workflow TS/danno senza sagoma", () => {
   assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
 });
 
+test("Scossa Sinaptica espone il danno iniziale nella Console unificata", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "xanathar-scossa-sinaptica",
+    phase: "cast",
+  });
+
+  assert.equal(model.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC);
+  assert.equal(model.presentation.placement.ruleId, "xanathar-scossa-sinaptica:cast");
+  assert.equal(model.presentation.inputs.damage.required, true);
+  assert.equal(model.presentation.inputs.damage.visible, true);
+  assert.equal(model.execution.castHasHP, true);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+});
+
 test("Arma magica limita la selezione a un bersaglio", () => {
   const model = buildSpellUnifiedPanelContract({ spellId: "magic-weapon" });
 

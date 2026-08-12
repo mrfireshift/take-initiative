@@ -59,6 +59,7 @@ Contiene i dati specifici della creatura, tra cui:
 - `attitude`
 - `conditions`
 - `initiativeCard`
+- `actorProfileId` (identità persistente cross-scena, quando il token è collegato)
 - `elevation`
 - `legendary`
 - `legendaryResistances`
@@ -110,6 +111,7 @@ riconciliare e pulire questi item senza dedurre la relazione dal nome visibile.
 | Chiave | Scopo |
 | --- | --- |
 | `com.thebigpicture.initiative/hpMemory` | Fallback persistente HP/fazione per attori riconosciuti |
+| `com.thebigpicture.initiative/actorVitals` | Snapshot HP cross-scena indicizzato da `actorProfileId` |
 | `com.thebigpicture.initiative/factionRegistry` | Associazione room tra asset/nome e fazione |
 | `com.thebigpicture.initiative/initiativeCards` | Registry delle schede tra scene |
 | `com.thebigpicture.initiative/ui` | Stato UI condiviso richiesto dall'action launcher |
@@ -192,7 +194,7 @@ dispatcher degli eventi scena
 card del lister      attachment HP sulla mappa
 ```
 
-Le larghezze visive delle barre non sono dati persistenti. `src/hpbar-items.js` aggiorna gli attachment derivati in batch e protegge gli aggiornamenti da eventi stantii. `src/hpMemory.js` conserva un fallback persistente per i PG senza diventare una seconda fonte concorrente durante il normale aggiornamento.
+Le larghezze visive delle barre non sono dati persistenti. `src/hpbar-items.js` aggiorna gli attachment derivati in batch e protegge gli aggiornamenti da eventi stantii. `meta.hp`/`meta.hpMax` restano canonici nel token; `src/actorVitalsStore.js` conserva uno snapshot cross-scena per i token collegati, mentre `src/hpMemory.js` resta il fallback legacy per i token senza `actorProfileId`.
 
 ## Condizioni, incantesimi e widget
 

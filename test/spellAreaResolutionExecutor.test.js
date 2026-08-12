@@ -117,6 +117,26 @@ test("Palla di fuoco produce il comando area-transaction con placement required"
   assert.equal(command.hp.amount, 12);
 });
 
+test("Scossa Sinaptica collega danno iniziale, TS e penalità ai fallimenti", () => {
+  const command = commandFor("xanathar-scossa-sinaptica", { slotLevel: 5 });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.mode, "damage");
+  assert.equal(command.hp.amount, 12);
+  assert.equal(command.hp.outcomeFactors["target-1"], "full");
+  assert.equal(
+    command.resolution.conditionApplications[0].options.effectId,
+    "synaptic-static-penalty",
+  );
+
+  const passed = commandFor("xanathar-scossa-sinaptica", {
+    slotLevel: 5,
+    input: { outcomes: { "target-1": "passed" } },
+  });
+  assert.equal(passed.valid, true, passed.errors?.join(", "));
+  assert.equal(passed.hp.outcomeFactors["target-1"], "half");
+  assert.equal(passed.resolution.conditionApplications.length, 0);
+});
+
 test("Invocare il fulmine usa il danno del primo fulmine", () => {
   const command = commandFor("call-lightning", { slotLevel: 3 });
   assert.equal(command.valid, true, command.errors?.join(", "));

@@ -19,7 +19,18 @@ import {
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
   normalizeInitiativeCardRegistry,
+  resolveInitiativeCardActorMatch,
 } from "./initiativeCardRegistryCore.js";
+import {
+  ACTOR_PROFILE_ID_FIELD,
+  actorProfileIdFromItem,
+  actorProfileIdForCardSave,
+  actorProfileIdFromProfile,
+  actorProfileIdFromRegistryEntry,
+  createActorProfileId,
+  isLegacyActorMigrationEligible,
+  normalizeActorProfileId,
+} from "./actorIdentityCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
 import {
   sanitizeCharacterBuild,
@@ -64,7 +75,7 @@ export function sanitizeInitiativeCard(value) {
   const saves = source.savingThrows && typeof source.savingThrows === "object"
     ? source.savingThrows
     : {};
-  return {
+  const normalized = {
     armorClass: optionalInteger(source.armorClass, 0, 99),
     passivePerception: optionalInteger(source.passivePerception, 0, 99),
     speed: normalizeSpeedMeters(source.speed),
@@ -80,6 +91,9 @@ export function sanitizeInitiativeCard(value) {
       SAVE_KEYS.map((key) => [key, optionalInteger(saves[key], -99, 99)])
     ),
   };
+  const actorProfileId = actorProfileIdFromProfile(source);
+  if (actorProfileId) normalized[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+  return normalized;
 }
 
 const defaultsByName = new Map(
@@ -93,7 +107,7 @@ function mergeProfile(base, value) {
   if (!value || typeof value !== "object") return sanitizeInitiativeCard(base);
   const cleanBase = sanitizeInitiativeCard(base);
   const cleanValue = sanitizeInitiativeCard(value);
-  return {
+  const merged = {
     armorClass: value.armorClass !== undefined ? cleanValue.armorClass : cleanBase.armorClass,
     passivePerception: value.passivePerception !== undefined
       ? cleanValue.passivePerception
@@ -126,6 +140,9 @@ function mergeProfile(base, value) {
         : cleanBase.savingThrows[key],
     ])),
   };
+  const actorProfileId = actorProfileIdFromProfile(value) || actorProfileIdFromProfile(base);
+  if (actorProfileId) merged[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+  return merged;
 }
 
 function profileWithDefaults(name, value) {
@@ -165,12 +182,53 @@ function profileWithConditionFallback(name, value, conditions) {
 
 function profileForStorage(name, value, conditions) {
   const profile = profileWithConditionFallback(name, value, conditions);
-  return {
+  const normalized = {
     ...profile,
     exhaustion: Math.max(
       0,
       Number(profile.exhaustion || 0) - getExhaustionContributionLevel(conditions),
     ),
+  };
+  return normalized;
+}
+
+const INITIATIVE_CARD_KNOWN_FIELDS = new Set([
+  "armorClass",
+  "passivePerception",
+  "speed",
+  "spellSaveDC",
+  "spellAttackBonus",
+  "notes",
+  "exhaustion",
+  "quickActions",
+  "characterBuild",
+  "enabledClassFeatureIds",
+  "classFeaturesConfigured",
+  "savingThrows",
+  ACTOR_PROFILE_ID_FIELD,
+  "updatedAt",
+]);
+
+function preserveCardProfileUnknowns(...values) {
+  const unknown = {};
+  for (const value of values) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    for (const [key, candidate] of Object.entries(value)) {
+      if (!INITIATIVE_CARD_KNOWN_FIELDS.has(key)) unknown[key] = candidate;
+    }
+  }
+  return unknown;
+}
+
+function mergeStoredCardProfile(base, value) {
+  const merged = mergeProfile(base, value);
+  const actorProfileId = actorProfileIdFromProfile(merged)
+    || actorProfileIdFromProfile(value)
+    || actorProfileIdFromProfile(base);
+  return {
+    ...preserveCardProfileUnknowns(base, value),
+    ...merged,
+    ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}),
   };
 }
 
@@ -186,6 +244,25 @@ function storageQuickActions(cleanProfile, sourceProfile) {
   return hasLegacyQuickActionStorage(sourceProfile)
     ? sourceProfile.quickActions
     : cleanProfile.quickActions;
+}
+
+function storageQuickActionsForHydration(...profiles) {
+  const sources = profiles.filter((value) => value && typeof value === "object");
+  const legacySource = sources.find((source) => (
+    hasLegacyQuickActionStorage(source)
+    && source.quickActions.length > 0
+  ));
+  if (legacySource) return legacySource.quickActions;
+
+  for (const source of sources) {
+    const actions = sanitizeQuickActions(source.quickActions);
+    if (actions.length) return actions;
+  }
+
+  const explicitEmpty = sources.find((source) => (
+    Object.prototype.hasOwnProperty.call(source, "quickActions")
+  ));
+  return explicitEmpty ? sanitizeQuickActions(explicitEmpty.quickActions) : [];
 }
 
 function writeLocalInitiativeCards(registry) {
@@ -210,9 +287,11 @@ async function readInitiativeCardRegistry() {
   };
 }
 
-async function updateRoomCards(updater) {
+async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
   const write = async () => {
+    if (!isCurrent()) return null;
     const metadata = await OBR.room.getMetadata().catch(() => ({}));
+    if (!isCurrent()) return null;
     const previous = mergeInitiativeCardRegistries(
       readLocalInitiativeCards(),
       metadata?.[ROOM_CARD_KEY]
@@ -220,6 +299,7 @@ async function updateRoomCards(updater) {
     const next = normalizeInitiativeCardRegistry(updater({ ...previous }) || previous);
     const localWritten = writeLocalInitiativeCards(next);
     try {
+      if (!isCurrent()) return next;
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.INITIATIVE_CARDS,
@@ -235,7 +315,19 @@ async function updateRoomCards(updater) {
   return initiativeCardWriteQueue;
 }
 
-async function writeTokenProfile(itemId, storedProfile) {
+async function writeTokenProfile(itemId, storedProfile, actorProfileId = "") {
+  const normalizedActorProfileId = normalizeActorProfileId(
+    actorProfileId || actorProfileIdFromProfile(storedProfile),
+  );
+  const fields = {
+    [INITIATIVE_CARD_FIELD]: { mode: "set", value: storedProfile },
+  };
+  if (normalizedActorProfileId) {
+    fields[ACTOR_PROFILE_ID_FIELD] = {
+      mode: "set",
+      value: normalizedActorProfileId,
+    };
+  }
   const mutation = await runEffectsMutation([{
     type: "condition:reconcile-exhaustion",
     targetIds: [itemId],
@@ -246,9 +338,7 @@ async function writeTokenProfile(itemId, storedProfile) {
     targetIds: [itemId],
     metadataPatches: [{
       id: itemId,
-      fields: {
-        [INITIATIVE_CARD_FIELD]: { mode: "set", value: storedProfile },
-      },
+      fields,
     }],
   });
   requireAppliedEffectsMutation(mutation);
@@ -280,7 +370,12 @@ async function removeTokenProfile(itemId) {
 export function getInitiativeCard(item) {
   const storedRaw = item?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
   const conditions = item?.metadata?.[META_KEY]?.conditions;
-  return profileWithConditionFallback(item?.name, storedRaw, conditions);
+  const profile = profileWithConditionFallback(item?.name, storedRaw, conditions);
+  const actorProfileId = actorProfileIdFromItem(item)
+    || actorProfileIdFromProfile(storedRaw)
+    || actorProfileIdFromProfile(profile);
+  if (actorProfileId) profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+  return profile;
 }
 
 export async function loadInitiativeCard(item, { hydrate = false } = {}) {
@@ -296,6 +391,11 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
   const legacyExhaustion = getExhaustionLevel(tokenConditions);
   const hasTokenProfile = !!(tokenRaw && typeof tokenRaw === "object");
   const tokenUpdatedAt = Math.max(0, Number(tokenRaw?.updatedAt) || 0);
+  const legacyActorMatch = resolveInitiativeCardActorMatch(registry, item);
+  let actorProfileId = actorProfileIdFromItem(item)
+    || actorProfileIdFromProfile(tokenRaw)
+    || actorProfileIdFromRegistryEntry(roomEntry)
+    || legacyActorMatch.actorProfileId;
   const roomHasValues = !roomDeleted && !!roomProfile &&
     hasInitiativeCardValues(sanitizeInitiativeCard(roomProfile));
   const tokenHasValues = hasTokenProfile &&
@@ -315,7 +415,17 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
     tokenUpdatedAt,
   });
   const winner = roomWins ? (roomDeleted ? null : roomProfile) : (hasTokenProfile ? tokenRaw : null);
-  const profile = profileWithConditionFallback(item?.name, winner, tokenConditions);
+  const winnerWithIdentity = winner && actorProfileId
+    ? { ...winner, [ACTOR_PROFILE_ID_FIELD]: actorProfileId }
+    : winner;
+  const profile = profileWithConditionFallback(item?.name, winnerWithIdentity, tokenConditions);
+  if (actorProfileId) profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+  const hydrationQuickActions = roomWins && roomDeleted
+    ? []
+    : storageQuickActionsForHydration(winner, tokenRaw, roomProfile);
+  if (hydrationQuickActions.length) {
+    profile.quickActions = sanitizeQuickActions(hydrationQuickActions);
+  }
   const hasLegacyQuickActions = [winner, tokenRaw, roomProfile]
     .some((candidate) => hasLegacyQuickActionStorage(candidate));
 
@@ -332,20 +442,30 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
       return profile;
     }
     const cleanWinner = sanitizeInitiativeCard(
-      profileForStorage(item?.name, winner, tokenConditions)
+      profileForStorage(item?.name, winnerWithIdentity, tokenConditions)
+    );
+    const storedQuickActions = storageQuickActionsForHydration(
+      winner,
+      tokenRaw,
+      roomProfile,
     );
     const storedProfile = {
+      // La normalizzazione conosce soltanto i campi del contratto corrente,
+      // ma una hydrate esplicita non deve scartare estensioni future già
+      // persistite nel profilo vincente o nelle copie legacy.
+      ...preserveCardProfileUnknowns(winner, roomProfile, tokenRaw),
       ...cleanWinner,
-      quickActions: storageQuickActions(cleanWinner, winner),
+      quickActions: storedQuickActions.length
+        ? storedQuickActions
+        : storageQuickActions(cleanWinner, winner),
+      ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}),
       updatedAt,
     };
     const storedProfileWithoutTimestamp = { ...storedProfile };
     delete storedProfileWithoutTimestamp.updatedAt;
     const tokenProfileComparable = sanitizeInitiativeCard(tokenRaw);
-    tokenProfileComparable.quickActions = storageQuickActions(
-      tokenProfileComparable,
-      tokenRaw,
-    );
+    if (actorProfileId) tokenProfileComparable[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+    tokenProfileComparable.quickActions = storedProfile.quickActions;
     const needsTokenSync = !hasTokenProfile || tokenUpdatedAt !== updatedAt ||
       JSON.stringify(tokenProfileComparable) !==
         JSON.stringify(storedProfileWithoutTimestamp);
@@ -360,15 +480,21 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
     // Read-through migration: ogni apertura GM riallinea chiave asset, fallback
     // nome, metadata stanza e backup locale, anche per schede legacy.
     await updateRoomCards((next) => {
+      const previousEntry = roomEntry && typeof roomEntry === "object" ? roomEntry : {};
       const entry = {
+        ...previousEntry,
         name: String(item?.name || ""),
         profile: storedProfileWithoutTimestamp,
         updatedAt,
       };
+      if (actorProfileId) entry[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
+      delete entry.deleted;
       for (const key of keys) next[key] = entry;
       return next;
     });
-    if (needsTokenSync || needsConditionSync) await writeTokenProfile(item.id, storedProfile);
+    if (needsTokenSync || needsConditionSync || !!actorProfileId && actorProfileIdFromItem(item) !== actorProfileId) {
+      await writeTokenProfile(item.id, storedProfile, actorProfileId);
+    }
   }
 
   return profile;
@@ -413,8 +539,22 @@ export function hasInitiativeCardValues(profile) {
 }
 
 export async function saveInitiativeCard(itemId, name, value) {
-  const profile = sanitizeInitiativeCard(value);
   const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
+  const sourceRawProfile = sourceItem?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+  const profile = mergeStoredCardProfile(sourceRawProfile, value);
+  const { registry } = await readInitiativeCardRegistry();
+  const legacyMatch = resolveInitiativeCardActorMatch(
+    registry,
+    sourceItem || { name },
+  );
+  const actorProfileId = actorProfileIdForCardSave({
+    item: sourceItem,
+    existingProfile: sourceRawProfile,
+    value,
+    registryMatch: legacyMatch,
+    create: createActorProfileId,
+  });
+  profile[ACTOR_PROFILE_ID_FIELD] = actorProfileId;
   const contributionLevel = getExhaustionContributionLevel(
     sourceItem?.metadata?.[META_KEY]?.conditions
   );
@@ -429,16 +569,132 @@ export async function saveInitiativeCard(itemId, name, value) {
   const storedProfile = { ...storedBaseProfile, updatedAt };
 
   await updateRoomCards((next) => {
-    const entry = {
-      name: String(sourceItem?.name || name || ""),
-      profile: storedBaseProfile,
-      updatedAt,
-    };
-    for (const key of keys) next[key] = entry;
+    for (const key of keys) {
+      const previousEntry = next[key] && typeof next[key] === "object" ? next[key] : {};
+      const previousProfile = roomEntryProfile(previousEntry) || {};
+      const entry = {
+        ...previousEntry,
+        [ACTOR_PROFILE_ID_FIELD]: actorProfileId,
+        name: String(sourceItem?.name || name || ""),
+        profile: {
+          ...mergeStoredCardProfile(previousProfile, storedBaseProfile),
+          [ACTOR_PROFILE_ID_FIELD]: actorProfileId,
+        },
+        updatedAt,
+      };
+      delete entry.deleted;
+      next[key] = entry;
+    }
     return next;
   });
-  await writeTokenProfile(itemId, storedProfile);
+  await writeTokenProfile(itemId, storedProfile, actorProfileId);
   return profile;
+}
+
+/*
+ * Collega token legacy a una scheda soltanto quando il risultato è
+ * inequivocabile. È una migrazione esplicita del runtime, non una lettura:
+ * l'ID viene generato qui e mai in una funzione read-only.
+ */
+export async function migrateInitiativeCardActorIdentities(
+  items = [],
+  { isCurrent = () => true } = {},
+) {
+  const candidates = (Array.isArray(items) ? items : []).filter((item) => (
+    item?.id
+    && !actorProfileIdFromItem(item)
+    && isLegacyActorMigrationEligible(item)
+  ));
+  if (!candidates.length || !isCurrent()) return { changedIds: [], ambiguousIds: [], links: [] };
+
+  const { registry } = await readInitiativeCardRegistry();
+  if (!isCurrent()) return { changedIds: [], ambiguousIds: [], links: [] };
+  const decisions = [];
+  const ambiguousIds = [];
+  for (const item of candidates) {
+    const match = resolveInitiativeCardActorMatch(registry, item);
+    if (match.status === "ambiguous" || match.status === "none") {
+      if (match.status === "ambiguous") ambiguousIds.push(item.id);
+      continue;
+    }
+    decisions.push({ item, match });
+  }
+
+  // Lo stesso asset/nome presente in più token non identifica un singolo
+  // personaggio. Anche se la scheda è una sola, la migrazione resta sospesa.
+  const byMatch = new Map();
+  for (const decision of decisions) {
+    const matchKey = decision.match.actorProfileId
+      ? `actor:${decision.match.actorProfileId}`
+      : `legacy:${decision.match.keys.map((key) => key).sort().join("\u001f")}`;
+    const group = byMatch.get(matchKey) || [];
+    group.push(decision);
+    byMatch.set(matchKey, group);
+  }
+
+  const links = [];
+  for (const group of byMatch.values()) {
+    if (group.length !== 1) {
+      ambiguousIds.push(...group.map(({ item }) => item.id));
+      continue;
+    }
+    const [{ item, match }] = group;
+    links.push({
+      item,
+      match,
+      actorProfileId: match.actorProfileId || createActorProfileId(),
+    });
+  }
+  if (!links.length || !isCurrent()) {
+    return { changedIds: [], ambiguousIds: Array.from(new Set(ambiguousIds)), links: [] };
+  }
+
+  await updateRoomCards((next) => {
+    for (const link of links) {
+      for (const key of link.match.keys) {
+        const previousEntry = next[key];
+        if (!previousEntry || typeof previousEntry !== "object") continue;
+        const previousProfile = roomEntryProfile(previousEntry) || {};
+        next[key] = {
+          ...previousEntry,
+          [ACTOR_PROFILE_ID_FIELD]: link.actorProfileId,
+          profile: {
+            ...previousProfile,
+            [ACTOR_PROFILE_ID_FIELD]: link.actorProfileId,
+          },
+        };
+      }
+    }
+    return next;
+  }, { isCurrent });
+  if (!isCurrent()) return { changedIds: [], ambiguousIds: Array.from(new Set(ambiguousIds)), links: [] };
+
+  const linksById = new Map(links.map((link) => [link.item.id, link]));
+  await OBR.scene.items.updateItems([...linksById.keys()], (drafts) => {
+    if (!isCurrent()) return;
+    for (const item of drafts) {
+      const link = linksById.get(item.id);
+      if (!link) continue;
+      const meta = { ...(item.metadata?.[META_KEY] || {}) };
+      meta[ACTOR_PROFILE_ID_FIELD] = link.actorProfileId;
+      if (meta[INITIATIVE_CARD_FIELD] && typeof meta[INITIATIVE_CARD_FIELD] === "object") {
+        meta[INITIATIVE_CARD_FIELD] = {
+          ...meta[INITIATIVE_CARD_FIELD],
+          [ACTOR_PROFILE_ID_FIELD]: link.actorProfileId,
+        };
+      }
+      item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+    }
+  });
+  if (!isCurrent()) return { changedIds: [], ambiguousIds: Array.from(new Set(ambiguousIds)), links: [] };
+  return {
+    changedIds: [...linksById.keys()],
+    ambiguousIds: Array.from(new Set(ambiguousIds)),
+    links: links.map(({ item, actorProfileId }) => ({
+      itemId: item.id,
+      actorProfileId,
+    })),
+  };
 }
 
 export async function syncInitiativeCardRegistryFromItems(itemIds) {
@@ -454,31 +710,54 @@ export async function syncInitiativeCardRegistryFromItems(itemIds) {
       const keys = initiativeCardRegistryKeys(item);
       if (!keys.length) continue;
       const raw = item.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+      const actorProfileId = actorProfileIdFromItem(item)
+        || actorProfileIdFromProfile(raw);
       if (!raw || typeof raw !== "object") {
-        const entry = {
-          name: String(item.name || ""),
-          deleted: true,
-          updatedAt: Date.now() + offset++,
-        };
-        for (const key of keys) next[key] = entry;
+        for (const key of keys) {
+          const previousEntry = next[key] && typeof next[key] === "object" ? next[key] : {};
+          const entry = {
+            ...previousEntry,
+            ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}),
+            name: String(item.name || ""),
+            deleted: true,
+            updatedAt: Date.now() + offset++,
+          };
+          next[key] = entry;
+        }
         continue;
       }
       const updatedAt = Date.now() + offset++;
       const profile = profileForStorage(
         item.name,
-        raw,
+        { ...raw, ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}) },
         item.metadata?.[META_KEY]?.conditions
       );
+      const previousProfiles = keys
+        .map((key) => roomEntryProfile(next[key]))
+        .filter((value) => value && typeof value === "object");
+      const preservedQuickActions = storageQuickActionsForHydration(
+        raw,
+        ...previousProfiles,
+      );
       const storedProfile = {
-        ...profile,
-        quickActions: storageQuickActions(profile, raw),
+        ...mergeStoredCardProfile(raw, profile),
+        quickActions: preservedQuickActions.length
+          ? preservedQuickActions
+          : storageQuickActions(profile, raw),
+        ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}),
       };
-      const entry = {
-        name: String(item.name || ""),
-        profile: storedProfile,
-        updatedAt,
-      };
-      for (const key of keys) next[key] = entry;
+      for (const key of keys) {
+        const previousEntry = next[key] && typeof next[key] === "object" ? next[key] : {};
+        const entry = {
+          ...previousEntry,
+          ...(actorProfileId ? { [ACTOR_PROFILE_ID_FIELD]: actorProfileId } : {}),
+          name: String(item.name || ""),
+          profile: storedProfile,
+          updatedAt,
+        };
+        delete entry.deleted;
+        next[key] = entry;
+      }
       stampById.set(item.id, { ...storedProfile, updatedAt });
     }
     return next;

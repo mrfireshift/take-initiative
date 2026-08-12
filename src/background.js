@@ -49,6 +49,19 @@ import {
   createOptionalRuntimeLifecycle,
 } from "./options/optionalRuntimeLifecycle.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
+import { readLegacyHPMemoryForItem } from "./hpMemory.js";
+import { migrateInitiativeCardActorIdentities } from "./initiativeCards.js";
+import {
+  actorVitalsRecordFor,
+  isValidActorVitalsRecord,
+} from "./actorVitalsCore.js";
+import {
+  actorVitalsStore,
+  saveActorCanonicalHP,
+  startActorVitalsRuntime,
+} from "./actorVitalsStore.js";
+import { isLegacyActorMigrationEligible } from "./actorIdentityCore.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
   mountFireballVisualRenderer,
   unmountFireballVisualRenderer,
@@ -68,6 +81,45 @@ async function unmountEmbersVisualRenderers() {
     unmountFireballVisualRenderer(),
     unmountEmbersMatchedVisualRenderer(),
   ]);
+}
+
+async function bootstrapActorVitalsRuntime() {
+  try {
+    if (await OBR.player.getRole() === "GM") {
+      const migrationEpoch = currentSceneEpoch();
+      const items = await OBR.scene.items.getItems();
+      const legacyHPByItemId = new Map();
+      for (const item of items) {
+        if (!isLegacyActorMigrationEligible(item)) continue;
+        const legacyHP = await readLegacyHPMemoryForItem(item, migrationEpoch);
+        if (legacyHP) legacyHPByItemId.set(item.id, legacyHP);
+      }
+      const migration = await migrateInitiativeCardActorIdentities(items, {
+        isCurrent: () => isCurrentSceneEpoch(migrationEpoch),
+      });
+      if (isCurrentSceneEpoch(migrationEpoch)) {
+        const existingVitals = await actorVitalsStore.read();
+        for (const link of migration.links || []) {
+          if (!isCurrentSceneEpoch(migrationEpoch)) break;
+          const legacyHP = legacyHPByItemId.get(link.itemId);
+          if (!legacyHP || isValidActorVitalsRecord(
+            actorVitalsRecordFor(existingVitals, link.actorProfileId),
+          )) continue;
+          await saveActorCanonicalHP(
+            link.actorProfileId,
+            legacyHP.hp,
+            legacyHP.hpMax,
+            { sceneEpoch: migrationEpoch, force: true },
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.warn("[initiative-card] actor identity migration:", error?.message || error);
+  }
+  await startActorVitalsRuntime().catch((error) => {
+    console.warn("[actorVitals] runtime bootstrap:", error?.message || error);
+  });
 }
 
 const optionalRuntimes = [
@@ -110,6 +162,7 @@ OBR.onReady(() => {
   void startRuntimeOptions().catch(() => {});
   mountCombatLogEventSink();
   mountTurnNoticeHost();
+  void bootstrapActorVitalsRuntime();
   void mountEffectsMutationCoordinatorService().then(async () => {
     await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (
       bindOptionalRuntimeOption({

@@ -1,5 +1,10 @@
 import { canonicalImageUrl, normalizedItemName } from "./factionRegistryCore.js";
 import { sanitizeQuickActions } from "./quickActionsCore.js";
+import {
+  actorProfileIdFromItem,
+  actorProfileIdFromRegistryEntry,
+  legacyActorIdentityKeys,
+} from "./actorIdentityCore.js";
 
 export function initiativeCardRegistryKeys(item) {
   const imageKey = canonicalImageUrl(item);
@@ -34,6 +39,18 @@ export function mergeInitiativeCardRegistries(...sources) {
 }
 
 export function findInitiativeCardRegistryEntry(registry, item) {
+  const actorProfileId = actorProfileIdFromItem(item);
+  if (actorProfileId) {
+    let actorWinner = null;
+    for (const entry of Object.values(normalizeInitiativeCardRegistry(registry))) {
+      if (actorProfileIdFromRegistryEntry(entry) !== actorProfileId) continue;
+      if (!actorWinner || Number(entry.updatedAt || 0) > Number(actorWinner.updatedAt || 0)) {
+        actorWinner = entry;
+      }
+    }
+    if (actorWinner) return actorWinner;
+  }
+
   let winner = null;
   for (const key of initiativeCardRegistryKeys(item)) {
     const entry = registry?.[key];
@@ -43,6 +60,56 @@ export function findInitiativeCardRegistryEntry(registry, item) {
     }
   }
   return winner;
+}
+
+function registryEntryFingerprint(entry) {
+  try {
+    return JSON.stringify(entry, Object.keys(entry || {}).sort());
+  } catch {
+    return String(entry?.updatedAt || "legacy");
+  }
+}
+
+/**
+ * Risolve il collegamento legacy senza generare ID e senza scrivere nulla.
+ * Un risultato "legacy" è una sola scheda priva di actorProfileId; il caller
+ * può assegnare un ID soltanto durante una migrazione esplicita.
+ */
+export function resolveInitiativeCardActorMatch(registry, item) {
+  const candidates = [];
+  for (const key of legacyActorIdentityKeys(item)) {
+    const entry = registry?.[key];
+    if (!entry || typeof entry !== "object" || entry.deleted === true) continue;
+    candidates.push({ key, entry });
+  }
+
+  const unique = new Map();
+  for (const candidate of candidates) {
+    const actorProfileId = actorProfileIdFromRegistryEntry(candidate.entry);
+    const identity = actorProfileId
+      ? `actor:${actorProfileId}`
+      : `legacy:${registryEntryFingerprint(candidate.entry)}`;
+    if (!unique.has(identity)) unique.set(identity, {
+      ...candidate,
+      actorProfileId,
+      keys: [candidate.key],
+    });
+    else unique.get(identity).keys.push(candidate.key);
+  }
+
+  const matches = [...unique.values()];
+  if (matches.length > 1) {
+    return { status: "ambiguous", matches };
+  }
+  if (!matches.length) return { status: "none", matches: [] };
+  const match = matches[0];
+  return {
+    status: match.actorProfileId ? "matched" : "legacy",
+    actorProfileId: match.actorProfileId || "",
+    entry: match.entry,
+    keys: match.keys,
+    matches,
+  };
 }
 
 export function initiativeCardQuickActionMemoryCandidates(
@@ -64,7 +131,11 @@ export function initiativeCardQuickActionMemoryCandidates(
       return false;
     }
     const tokenProfile = item.metadata?.[metadataKey]?.[profileField];
-    if (tokenProfile && typeof tokenProfile === "object") return false;
+    if (
+      tokenProfile
+      && typeof tokenProfile === "object"
+      && sanitizeQuickActions(tokenProfile.quickActions).length > 0
+    ) return false;
 
     const roomEntry = findInitiativeCardRegistryEntry(registry, item);
     if (!roomEntry || roomEntry.deleted === true) return false;

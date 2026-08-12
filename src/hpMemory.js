@@ -1,6 +1,7 @@
 // hpMemory.js
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { actorProfileIdFromItem } from "./actorIdentityCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileZeroHPConditionsForItems } from "./hpConditionAutomation.js";
 import {
@@ -67,6 +68,9 @@ function memoryKeyFromItem(item) {
 
 function pcKeyFromItem(item) {
   if (!item) return null;
+  // Un token già collegato al nuovo profilo non deve aggiornare né leggere la
+  // memoria legacy come seconda fonte concorrente.
+  if (actorProfileIdFromItem(item, META_KEY)) return null;
   const meta = item.metadata?.[META_KEY] || {};
   // Il tracker tratta un token in iniziativa senza attitude esplicita come Ally.
   // Manteniamo lo stesso fallback anche per la memoria HP; le attitude esplicite
@@ -234,6 +238,7 @@ async function rescanAndPersistAttitudes(sceneEpoch = currentSceneEpoch()) {
 
   const updates = new Map(); // key -> {attitude}
   for (const it of items) {
+    if (actorProfileIdFromItem(it, META_KEY)) continue;
     const meta = it.metadata?.[META_KEY] || {};
     const att = meta?.attitude;
     if (!att || typeof att !== "string" || !att.trim()) continue;
@@ -384,6 +389,30 @@ export async function removeHPFromMemoryByItemId(
   ], { sceneEpoch });
 }
 
+/**
+ * Legge il fallback legacy per la sola fase di migrazione. La funzione non
+ * scrive e restituisce dati soltanto per token ancora privi di actorProfileId.
+ */
+export async function readLegacyHPMemoryForItem(
+  item,
+  sceneEpoch = currentSceneEpoch(),
+) {
+  if (!item || actorProfileIdFromItem(item, META_KEY)) return null;
+  const key = pcKeyFromItem(item);
+  if (!key || !isCurrentSceneEpoch(sceneEpoch)) return null;
+  const map = await readRoomHPMap(sceneEpoch);
+  const entry = map?.[key];
+  if (!entry || !isCurrentSceneEpoch(sceneEpoch)) return null;
+  const hp = Math.max(0, Math.floor(Number(entry.hp)));
+  const hpMax = Math.max(0, Math.floor(Number(entry.hpMax)));
+  if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) return null;
+  return {
+    hp,
+    hpMax,
+    updatedAt: Math.max(0, Number(entry.t) || 0),
+  };
+}
+
 export async function applyHPMemoryToSceneForMissingHP(sceneEpoch = currentSceneEpoch()) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (__hpApplyBusyEpoch === sceneEpoch) return;
@@ -399,6 +428,7 @@ export async function applyHPMemoryToSceneForMissingHP(sceneEpoch = currentScene
 
     for (const it of all) {
       const meta = it.metadata?.[`${ID}/meta`] || {};
+      if (actorProfileIdFromItem(it, META_KEY)) continue;
       const hasHP = (meta.hp ?? null) != null || (meta.hpMax ?? null) != null;
       if (hasHP) continue;
 

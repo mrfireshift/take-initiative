@@ -5,7 +5,9 @@ import {
   initiativeCardQuickActionMemoryCandidates,
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
+  resolveInitiativeCardActorMatch,
 } from "../src/initiativeCardRegistryCore.js";
+import { isLegacyActorMigrationEligible } from "../src/actorIdentityCore.js";
 
 test("initiative card identity survives scene-specific names and URL query changes", () => {
   const first = { name: "Edelbrand", image: { url: "https://assets.test/hero.png?version=1" } };
@@ -28,6 +30,35 @@ test("registry merge preserves the newest copy from room or local storage", () =
   const newer = { profile: { armorClass: 19 }, updatedAt: 200 };
   assert.deepEqual(mergeInitiativeCardRegistries({ hero: older }, { hero: newer }), { hero: newer });
   assert.deepEqual(mergeInitiativeCardRegistries({ hero: newer }, { hero: older }), { hero: newer });
+});
+
+test("dopo il collegamento il cambio di nome e ritratto usa actorProfileId", () => {
+  const metadataKey = "com.thebigpicture.initiative/meta";
+  const item = {
+    id: "scene-b",
+    name: "Nome nuovo",
+    image: { url: "https://assets.test/new.png?rev=2" },
+    metadata: { [metadataKey]: { actorProfileId: "actor-aria" } },
+  };
+  const entry = {
+    actorProfileId: "actor-aria",
+    profile: { armorClass: 18 },
+    updatedAt: 20,
+  };
+  assert.equal(findInitiativeCardRegistryEntry({ old: entry }, item), entry);
+});
+
+test("un mostro con lo stesso asset non viene collegato alla migrazione PC/alleati", () => {
+  const metadataKey = "com.thebigpicture.initiative/meta";
+  const monster = {
+    id: "monster",
+    name: "Goblin",
+    image: { url: "https://assets.test/goblin.png" },
+    metadata: { [metadataKey]: { attitude: "enemy" } },
+  };
+  const [assetKey] = initiativeCardRegistryKeys(monster);
+  resolveInitiativeCardActorMatch({ [assetKey]: { profile: { armorClass: 15 } } }, monster);
+  assert.equal(isLegacyActorMigrationEligible(monster), false);
 });
 
 test("un token ricreato in iniziativa recupera le azioni rapide dalla memoria", () => {
@@ -108,5 +139,36 @@ test("un token ricreato recupera anche la configurazione multiclasse", () => {
       { metadataKey },
     ).map((item) => item.id),
     ["new-paladin"],
+  );
+});
+
+test("un profilo token vuoto non impedisce il recupero delle azioni rapide dalla Room", () => {
+  const metadataKey = "com.thebigpicture.initiative/meta";
+  const quickAction = {
+    id: "fireball",
+    label: "Palla di fuoco",
+    kind: "spell",
+    spellId: "fireball",
+    targetMode: "selection",
+  };
+  const token = {
+    id: "token-with-empty-profile",
+    name: "Omar",
+    layer: "CHARACTER",
+    metadata: {
+      [metadataKey]: {
+        inInitiative: true,
+        initiativeCard: { quickActions: [] },
+      },
+    },
+  };
+
+  assert.deepEqual(
+    initiativeCardQuickActionMemoryCandidates(
+      [token],
+      { omar: { profile: { quickActions: [quickAction] }, updatedAt: 100 } },
+      { metadataKey },
+    ).map((item) => item.id),
+    ["token-with-empty-profile"],
   );
 });

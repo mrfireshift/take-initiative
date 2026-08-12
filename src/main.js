@@ -47,6 +47,7 @@ OBR.onReady(() => {
   void startRuntimeOptions().catch(() => {});
   mountCombatLogEventSink();
   setupContextMenu();
+  // Il runtime actorVitals vive nel background persistente; qui resta solo il fallback legacy.
   initHPMemory();
   mountInitiativeList(list);
 });
