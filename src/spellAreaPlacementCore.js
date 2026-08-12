@@ -12,6 +12,7 @@ export function spellAreaPlacementParentUnavailable(
 }
 
 const DEFAULT_METERS_PER_CELL = 1.5;
+const CALL_LIGHTNING_CLOUD_RADIUS_RATIO = 18 / 1.5;
 const UNIT_METERS = Object.freeze({
   m: 1,
   meter: 1,
@@ -39,6 +40,43 @@ function gridMetersPerCell(scale = {}) {
     return DEFAULT_METERS_PER_CELL;
   }
   return multiplier * unitMeters;
+}
+
+function finitePointOrNull(value) {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+export function buildCallLightningCloudPreview(preview = null) {
+  if (!preview || (preview.type && preview.type !== "circle")) return null;
+  const start = finitePointOrNull(preview.start);
+  const end = finitePointOrNull(preview.end);
+  if (!start || !end) return null;
+
+  const direction = {
+    x: end.x - start.x,
+    y: end.y - start.y,
+  };
+  const castRadius = Number(preview.radius);
+  const fallbackRadius = Math.hypot(direction.x, direction.y);
+  const radius = Number.isFinite(castRadius) && castRadius > 0
+    ? castRadius
+    : fallbackRadius;
+  if (!(radius > 0)) return null;
+
+  const length = Math.hypot(direction.x, direction.y);
+  const cloudRadius = radius * CALL_LIGHTNING_CLOUD_RADIUS_RATIO;
+  return {
+    ...preview,
+    type: "circle",
+    end: {
+      x: start.x + direction.x / length * cloudRadius,
+      y: start.y + direction.y / length * cloudRadius,
+    },
+    radius: cloudRadius,
+    targetIds: [],
+  };
 }
 
 export function nearestGridCellCenter(rawPosition, cornerAnchor, dpi = 1) {
@@ -280,6 +318,16 @@ export function reviewSpellAreaPlacement(session, preview) {
       gridOrigin: finitePoint(preview.gridOrigin),
       dpi: Math.max(1, Number(preview.dpi) || 1),
       ...(preview.position ? { position: finitePoint(preview.position) } : {}),
+      ...(Array.isArray(preview.positions) && preview.positions.length
+        ? {
+          positions: preview.positions
+            .map((entry) => ({
+              ...(entry && typeof entry === "object" ? entry : {}),
+              position: finitePointOrNull(entry?.position || entry),
+            }))
+            .filter((entry) => entry.position),
+        }
+        : {}),
       ...(type === "circle" && Number.isFinite(radius) && radius > 0
         ? { radius }
         : {}),

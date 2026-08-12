@@ -130,6 +130,24 @@ export function renderAutomationAndVariantPanel(documentRef, model, callbacks = 
     attributes: { "aria-label": "Opzioni dell'incantesimo" },
   });
   const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
+  if (context.variant.visible) {
+    const select = createSelect(documentRef, {
+      id: "spell-unified-variant",
+      options: context.variant.options,
+      value: context.variant.value,
+      invalid: model.workflow.validation.firstInvalidField === "variant",
+      attributes: { "data-field": "variant" },
+    });
+    select.addEventListener("change", (event) => callbacks.onVariantChange?.(event.target.value));
+    grid.append(createField(documentRef, {
+      id: select.id,
+      label: context.variant.label,
+      control: select,
+      hint: context.variant.hint,
+      invalid: model.workflow.validation.firstInvalidField === "variant",
+      className: "unified-field unified-automation-variant",
+    }));
+  }
   if (context.automation.applyVisible) {
     const checkbox = createNode(documentRef, "input", {
       id: "spell-unified-apply-automation",
@@ -147,25 +165,65 @@ export function renderAutomationAndVariantPanel(documentRef, model, callbacks = 
       label: "Applica condizioni dell'incantesimo",
       control: checkbox,
       hint: "",
-    }));
-  }
-  if (context.variant.visible) {
-    const select = createSelect(documentRef, {
-      id: "spell-unified-variant",
-      options: context.variant.options,
-      value: context.variant.value,
-      invalid: model.workflow.validation.firstInvalidField === "variant",
-      attributes: { "data-field": "variant" },
-    });
-    select.addEventListener("change", (event) => callbacks.onVariantChange?.(event.target.value));
-    grid.append(createField(documentRef, {
-      id: select.id,
-      label: context.variant.label,
-      control: select,
-      hint: context.variant.hint,
-      invalid: model.workflow.validation.firstInvalidField === "variant",
+      className: "unified-field unified-automation-toggle",
     }));
   }
   section.append(grid);
+  return section;
+}
+
+export function renderCompositionPanel(documentRef, model, callbacks = {}) {
+  const context = model.context.composition;
+  if (!context?.visible) return null;
+  const section = createNode(documentRef, "section", {
+    className: "unified-section unified-composition",
+    attributes: { "aria-label": context.label },
+  });
+  section.append(createNode(documentRef, "h3", {
+    className: "unified-section__heading",
+    text: context.label,
+  }));
+  section.append(createNode(documentRef, "p", {
+    className: "unified-section__description",
+    text: `Componi fino a ${context.maximumCost} oggetti-peso, poi posizionali uno alla volta sulla mappa.`,
+  }));
+  const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
+  for (const option of context.options || []) {
+    const input = createNode(documentRef, "input", {
+      id: `spell-unified-composition-${option.id}`,
+      attributes: {
+        type: "number",
+        min: "0",
+        max: String(Math.floor(context.maximumCost / Math.max(1, Number(option.cost) || 1))),
+        step: "1",
+        inputmode: "numeric",
+        "data-field": "composition",
+        "data-composition-size": option.id,
+      },
+    });
+    input.value = String(Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0)));
+    input.addEventListener("change", (event) => callbacks.onCompositionChange?.(
+      option.id,
+      event.target.value,
+    ));
+    grid.append(createField(documentRef, {
+      id: input.id,
+      label: `${option.label} · ${option.cost} peso`,
+      control: input,
+      hint: `PF ${option.hp} · CA ${option.armorClass} · Schianto ${option.attackDamage}`,
+      invalid: model.workflow.validation.firstInvalidField === "composition",
+    }));
+  }
+  const cost = (context.options || []).reduce((total, option) => (
+    total + Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0))
+      * Math.max(1, Number(option.cost) || 1)
+  ), 0);
+  const count = (context.options || []).reduce((total, option) => (
+    total + Math.max(0, Math.floor(Number(context.counts?.[option.id]) || 0))
+  ), 0);
+  section.append(
+    grid,
+    createStatusChip(documentRef, "Combinazione", `${count} oggetti · ${cost}/${context.maximumCost}`),
+  );
   return section;
 }

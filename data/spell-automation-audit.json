@@ -2,7 +2,7 @@
   "schemaVersion": 4,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit a due assi: conformità al testo regolamentare e raggiungibilità nella console unificata. Per ogni spell lanciabile con 1 azione, 1 azione bonus o 1 reazione verifica catalogo, contratto UI, adapter di cast, mutazioni, persistenza e raggiungibilità di azioni o reminder. I P1 RAW restano revisionati manualmente; il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
-  "fingerprint": "82f5222bfe99a972",
+  "fingerprint": "d7e1f51dfd6e6c8e",
   "summary": {
     "catalogTotal": 477,
     "catalog": 374,
@@ -74,23 +74,23 @@
     },
     "byIntegrationStatus": {
       "disconnected": 67,
-      "fragile": 3,
+      "fragile": 2,
       "partial": 40,
-      "reachable": 264
+      "reachable": 265
     },
     "byIntegrationPriority": {
-      "—": 304,
+      "—": 305,
       "P0": 67,
-      "P1": 3
+      "P1": 2
     },
     "byIntegrationIssue": {
-      "ACTIVE_ACTION_REMINDER_ONLY": 3,
+      "ACTIVE_ACTION_REMINDER_ONLY": 2,
       "CAST_NO_MUTATIONS": 4,
       "UNIFIED_CATALOG_MISSING": 63
     },
     "unifiedCatalogExposed": 311,
     "integrationDisconnected": 67,
-    "integrationFragile": 3,
+    "integrationFragile": 2,
     "runtimeSmokeRequired": 194
   },
   "rows": [
@@ -2176,8 +2176,7 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -2195,7 +2194,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -2220,7 +2219,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement",
             "automation"
           ]
@@ -2280,8 +2278,7 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
       "assessment": "parziale: revisione curata",
       "priority": "P1",
@@ -2318,7 +2315,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -2343,7 +2340,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement",
             "automation"
           ]
@@ -17114,15 +17110,9 @@
         "movementMechanics": true
       },
       "integration": {
-        "status": "fragile",
-        "priority": "P1",
-        "issues": [
-          {
-            "code": "ACTIVE_ACTION_REMINDER_ONLY",
-            "severity": "P1",
-            "label": "azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva"
-          }
-        ],
+        "status": "reachable",
+        "priority": "—",
+        "issues": [],
         "catalog": {
           "exposed": true,
           "sources": [
@@ -17139,7 +17129,9 @@
             "slot",
             "targets",
             "placement",
-            "outcomes"
+            "outcomes",
+            "hp",
+            "damage"
           ]
         },
         "cast": {
@@ -17160,12 +17152,14 @@
           "declaredActionIds": [
             "call-lightning-strike"
           ],
-          "panelActionIds": [],
+          "panelActionIds": [
+            "call-lightning-strike"
+          ],
           "reminderActionIds": [
             "call-lightning-strike"
           ],
           "unreachableActionIds": [],
-          "mode": "reminder-only"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true
       },

@@ -879,7 +879,8 @@ function activeActionReachability(spell, areaRules) {
   const unreachableActionIds = declarations
     .map((action) => action.id)
     .filter((actionId) => !reachable.has(actionId));
-  const reminderOnly = reminderActionIds.length > 0
+  const reminderOnly = panelActionIds.size === 0
+    && reminderActionIds.length > 0
     && declarations.every((action) => reminderActionIds.includes(action.id));
   return {
     declaredActionIds: declarations.map((action) => action.id),

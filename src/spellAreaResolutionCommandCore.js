@@ -23,6 +23,7 @@ import {
   CHAIN_LIGHTNING_TARGETING,
   resolveChainLightningTargeting,
 } from "./chainLightningTargetingCore.js";
+import { validateAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import {
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
@@ -80,6 +81,8 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
   PLACEMENT_LOCK_REQUIRED: "placement-target-lock-required",
   PLACEMENT_STALE: "placement-stale",
   PLACEMENT_POSITION_REQUIRED: "placement-position-required",
+  COMPOSITION_REQUIRED: "composition-required",
+  COMPOSITION_INVALID: "composition-invalid",
   TARGET_LOCK_REQUIRED: "target-lock-required",
   HP_REQUIRED: "hp-required",
   HP_INVALID: "hp-invalid",
@@ -375,6 +378,7 @@ function normalizePreview(value) {
     "gridOrigin",
     "dpi",
     "position",
+    "positions",
     "radius",
     "widthSquares",
     "parentClip",
@@ -582,6 +586,12 @@ function placementValidation({
     && !spellBoardTokenPlacementPosition(payload.preview || payload.raw)
   ) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_POSITION_REQUIRED);
+  }
+  if (rule?.kind === "board-token" && rule?.composition && confirmed) {
+    const positions = Array.isArray(payload.preview?.positions)
+      ? payload.preview.positions
+      : [];
+    if (!positions.length) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.COMPOSITION_INVALID);
   }
 
   const targetIds = confirmed ? payload.targetIds : [];
@@ -1081,6 +1091,22 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     && !variantOptions.some((option) => text(option.value) === choiceValue)) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.CHOICE_INVALID);
   }
+  const boardComposition = contract?.presentation?.composition;
+  if (boardComposition?.required === true) {
+    const compositionKey = text(boardComposition.key) || "composition";
+    const composition = firstDefined(
+      sourceInput.castContext?.[compositionKey],
+      session.castContext?.[compositionKey],
+      sourceInput[compositionKey],
+      session[compositionKey],
+      null,
+    );
+    const compositionValidation = validateAnimatedObjectComposition(composition);
+    if (!composition) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.COMPOSITION_REQUIRED);
+    else if (!compositionValidation.valid) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.COMPOSITION_INVALID);
+    }
+  }
 
   const targetingContract = contract?.presentation?.targeting || {};
   const targetMode = text(targetingContract.mode) || SPELL_UNIFIED_TARGETING_MODES.NONE;
@@ -1340,6 +1366,11 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       phase: phase || null,
       actionId: actionId || null,
       choiceValue: choiceValue || null,
+      ...(session.castContext && Object.keys(session.castContext).length
+        ? { castContext: serializable(session.castContext) }
+        : sourceInput.castContext && Object.keys(sourceInput.castContext).length
+          ? { castContext: serializable(sourceInput.castContext) }
+          : {}),
     },
     targeting: {
       mode: [

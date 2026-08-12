@@ -399,7 +399,7 @@ export const PHB2014_EFFECTS = Object.freeze({
   "phb2014-aura-di-purezza": Object.freeze([Object.freeze({
     id: "aura-of-purity",
     kind: "buff",
-    label: "Res. veleno / vant. TS condizioni / no malattie",
+    label: "Res. veleno / vant. TS / no malattie",
     detail: "Resistenza al veleno, immunità alle malattie e vantaggio ai TS contro accecato, affascinato, assordato, avvelenato, paralizzato, spaventato e stordito.",
     mechanics: Object.freeze({
       damageResistances: Object.freeze(["poison"]),
@@ -420,7 +420,7 @@ export const PHB2014_EFFECTS = Object.freeze({
   "phb2014-aura-di-vita": Object.freeze([Object.freeze({
     id: "aura-of-life",
     kind: "buff",
-    label: "Res. necrotici / max PF protetto / +1 PF a 0",
+    label: "Res. necrotici / max PF / +1 PF a 0",
     detail: "Resistenza ai danni necrotici, massimo PF non riducibile e recupero di 1 PF a inizio turno quando si è a 0 PF.",
     mechanics: Object.freeze({
       damageResistances: Object.freeze(["necrotic"]),

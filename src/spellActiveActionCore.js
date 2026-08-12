@@ -90,7 +90,7 @@ export function getSpellOverviewActions({
     const action = candidate?.requiresZoneRoot === true && !String(zoneItemId || "").trim()
       ? boardTokenReferences.get(String(candidate?.id || "").trim()) || candidate
       : candidate;
-    if (action.turnStartPrompt === true) continue;
+    if (action.turnStartPrompt === true && action.showInOverview !== true) continue;
     if (candidate.requiresZoneRoot === true
       && !String(zoneItemId || "").trim()
       && action === candidate) {

@@ -7,6 +7,8 @@ import {
   spellBoardTokenCanonicalMetadata,
   spellBoardTokenDisplayName,
   spellBoardTokenMetadata,
+  spellBoardTokenAssetPath,
+  spellBoardTokenAssetPixelSize,
   spellBoardTokenScale,
 } from "./spellBoardTokenCore.js";
 
@@ -24,7 +26,9 @@ export function buildSpellBoardTokenItem({
   casterId = "",
   slotLevel = null,
   casterHpMax = null,
+  casterAttitude = "",
   casterName = "",
+  objectSize = "",
   position = null,
 } = {}) {
   const rule = getSpellBoardTokenRule(spellId);
@@ -39,18 +43,29 @@ export function buildSpellBoardTokenItem({
     casterId,
     slotLevel,
     casterHpMax,
+    objectSize,
   });
-  const canonicalMetadata = spellBoardTokenCanonicalMetadata({ spellId, casterHpMax });
+  const canonicalMetadata = spellBoardTokenCanonicalMetadata({
+    spellId,
+    casterHpMax,
+    objectSize,
+    attitude: casterAttitude,
+  });
+  const assetPath = spellBoardTokenAssetPath(spellId, objectSize);
+  const imageSize = spellBoardTokenAssetPixelSize(spellId, objectSize);
+  const imageMime = assetPath.toLowerCase().endsWith(".webp")
+    ? "image/webp"
+    : "image/svg+xml";
   const builder = buildImage(
     {
-      width: 512,
-      height: 512,
-      url: assetUrl(rule.assetPath),
-      mime: "image/svg+xml",
+      width: imageSize,
+      height: imageSize,
+      url: assetUrl(assetPath),
+      mime: imageMime,
     },
     {
-      dpi: 512,
-      offset: { x: 256, y: 256 },
+      dpi: imageSize,
+      offset: { x: imageSize / 2, y: imageSize / 2 },
     },
   );
   if (String(entityId || "").trim()) builder.id(String(entityId).trim());
@@ -68,7 +83,7 @@ export function buildSpellBoardTokenItem({
     .textFillColor("#f8fafc")
     .textStrokeColor("rgba(2,6,23,.9)")
     .textStrokeWidth(2)
-    .scale(spellBoardTokenScale(spellId))
+    .scale(spellBoardTokenScale(spellId, objectSize))
     .rotation(0)
     .locked(false)
     .disableHit(false)

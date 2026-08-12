@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildCallLightningCloudPreview,
   completeSpellAreaPlacement,
   constrainedSpellAreaEnd,
   createSpellAreaPlacementSession,
@@ -41,6 +42,24 @@ test("converte le misure delle spell nelle scale metriche e imperiali della grig
   assert.equal(spellAreaGridCells(radius, { multiplier: 1.5, unit: "m" }), 4);
   assert.equal(spellAreaGridCells(radius, { multiplier: 5, unit: "ft" }), 4);
   assert.equal(spellAreaGridCells(null, { multiplier: 1.5, unit: "m" }), 0);
+});
+
+test("Invocare il fulmine deriva la nube da 18 m dal punto della scarica", () => {
+  const cloud = buildCallLightningCloudPreview({
+    type: "circle",
+    start: { x: 300, y: 450 },
+    end: { x: 450, y: 450 },
+    radius: 150,
+    dpi: 150,
+    gridOrigin: { x: 0, y: 0 },
+    targetIds: ["target-1"],
+  });
+
+  assert.deepEqual(cloud.start, { x: 300, y: 450 });
+  assert.deepEqual(cloud.end, { x: 2100, y: 450 });
+  assert.equal(cloud.radius, 1800);
+  assert.deepEqual(cloud.targetIds, []);
+  assert.equal(buildCallLightningCloudPreview({ type: "line" }), null);
 });
 
 test("converte la portata massima in celle senza arrotondarla", () => {
@@ -246,6 +265,31 @@ test("la revisione conserva il centro confermato di una pedina magica", () => {
     dpi: 150,
   });
   assert.deepEqual(review.preview.position, { x: 225, y: 375 });
+});
+
+test("la revisione conserva le posizioni del placement batch di Animare oggetti", () => {
+  const rule = getSpellAreaRuleById("animate-objects:board-token");
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-animated-objects",
+    rule,
+    casterId: "caster",
+  });
+  const review = reviewSpellAreaPlacement(session, {
+    type: "square",
+    start: { x: 0, y: 0 },
+    end: { x: 150, y: 0 },
+    gridOrigin: { x: 0, y: 0 },
+    dpi: 150,
+    positions: [
+      { objectSize: "tiny", ordinal: 0, position: { x: 75, y: 75 } },
+      { objectSize: "large", ordinal: 1, position: { x: 300, y: 300 } },
+    ],
+  });
+
+  assert.deepEqual(review.preview.positions, [
+    { objectSize: "tiny", ordinal: 0, position: { x: 75, y: 75 } },
+    { objectSize: "large", ordinal: 1, position: { x: 300, y: 300 } },
+  ]);
 });
 
 test("non conferma una sessione priva di anteprima", () => {

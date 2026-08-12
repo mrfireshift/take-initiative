@@ -201,6 +201,7 @@ export async function getActiveConcentration(obr, casterId, spell) {
 
 function targetCandidate(item) {
   const meta = item?.metadata?.[META_KEY] || {};
+  const boardToken = spellBoardTokenView(item);
   const faction = factionKey(meta.attitude);
   const attitude = FACTION_LABELS[faction];
   const hp = Number(meta.hp);
@@ -214,12 +215,28 @@ function targetCandidate(item) {
   return {
     key: item.id,
     label,
-    subtitle: `Creatura · ${attitude}`,
+    subtitle: boardToken
+      ? `Pedina · ${boardToken.objectSizeLabel || boardToken.sizeCategory || "Oggetto"}`
+      : `Creatura · ${attitude}`,
     faction,
     factionLabel: FACTION_LABELS[faction],
     hp: Number.isFinite(hp) ? hp : null,
     hpMax: Number.isFinite(hpMax) ? hpMax : null,
   };
+}
+
+export async function getAllSpellTargetItems(obr) {
+  const characters = await getAllInitiativeCharacters(obr, "");
+  const boardTokens = await sceneApi(obr).getItems((item) => (
+    item?.layer === "PROP"
+      && item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token"
+      && Number.isFinite(Number(item?.metadata?.[META_KEY]?.hpMax))
+  )).catch(() => []);
+  const byId = new Map();
+  for (const item of [...characters, ...boardTokens]) {
+    if (item?.id) byId.set(item.id, item);
+  }
+  return [...byId.values()];
 }
 
 function gridMetersPerCell(scale = {}) {
@@ -571,6 +588,9 @@ function persistentProjection(group, spell) {
       : itemPresent ? "lifecycle-missing" : "orphaned",
     itemId: text(item?.itemId || item?.id),
     token: kind === "board-token" ? item : null,
+    tokens: kind === "board-token"
+      ? cloneValue(group?.boardTokens || (item ? [item] : []))
+      : [],
   };
 }
 
@@ -682,12 +702,12 @@ export async function getSpellOverviewSnapshot(obr, sourceId = "") {
   const auraItems = await sceneApi(obr).getItems((item) => (
     !!item?.metadata?.[SPELL_AURA_META_KEY]
   )).catch(() => []);
-  const boardTokenByInstance = new Map(
-    boardTokenItems
-      .map((item) => spellBoardTokenView(item))
-      .filter(Boolean)
-      .map((view) => [view.instanceId, view]),
-  );
+  const boardTokenByInstance = new Map();
+  for (const view of boardTokenItems.map((item) => spellBoardTokenView(item)).filter(Boolean)) {
+    const list = boardTokenByInstance.get(view.instanceId) || [];
+    list.push(view);
+    boardTokenByInstance.set(view.instanceId, list);
+  }
   const zoneRootByContext = new Map(
     staticZoneItems
       .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root")
@@ -737,8 +757,9 @@ export async function getSpellOverviewSnapshot(obr, sourceId = "") {
       lifecyclePresent: false,
     });
   }
-  for (const view of boardTokenByInstance.values()) {
-    if (!view.instanceId || groupByInstance.has(view.instanceId)) continue;
+  for (const views of boardTokenByInstance.values()) {
+    const view = views[0];
+    if (!view?.instanceId || groupByInstance.has(view.instanceId)) continue;
     const spell = getSpellDefinition(view.spellId);
     syntheticGroups.push({
       key: `scene-token:${view.instanceId}`,
@@ -761,7 +782,8 @@ export async function getSpellOverviewSnapshot(obr, sourceId = "") {
     });
   }
   return [...groups, ...syntheticGroups].map((group) => {
-    group.boardToken = boardTokenByInstance.get(group.instanceId) || null;
+    group.boardTokens = boardTokenByInstance.get(group.instanceId) || [];
+    group.boardToken = group.boardTokens[0] || null;
     group.boardTokenRule = getSpellDefinition(group.spellId || group.storedName)?.boardToken || null;
     group.zoneRoot = zoneRootByContext.get(
       `${group.instanceId}\u0000${group.casterId}`,
@@ -820,6 +842,7 @@ export function createSpellUnifiedPanelSceneProvider(obr) {
   return {
     getCatalogEntries: () => buildSpellCatalogEntries(),
     getCasters: (sourceId = "") => getAllInitiativeCharacters(obr, sourceId),
+    getTargetCandidates: () => getAllSpellTargetItems(obr),
     getContextOrSelectionIds: () => getContextOrSelectionIds(obr),
     getCardTargetIds: (sourceId, casters) => getCardTargetIds(obr, sourceId, casters),
     getAppliedAt: () => getAppliedAt(obr),

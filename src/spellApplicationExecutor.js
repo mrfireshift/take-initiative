@@ -507,9 +507,14 @@ export async function executeSpellBoardTokenStateUpdate({
 } = {}) {
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
+  const itemId = String(group?.itemId || "").trim();
   if (!instanceId || !casterId) throw new Error("Invalid spell board token state: context-required");
   const rule = getSpellBoardTokenRule(group?.spellId);
   const endsAtZero = rule?.spellId === "arcane-hand"
+    && hp !== undefined
+    && Number.isFinite(Number(hp))
+    && Number(hp) === 0;
+  const removesAtZero = (endsAtZero || rule?.spellId === "animate-objects")
     && hp !== undefined
     && Number.isFinite(Number(hp))
     && Number(hp) === 0;
@@ -537,8 +542,9 @@ export async function executeSpellBoardTokenStateUpdate({
     sideEffects: [{
       type: "spell-board-token:update-state",
       instanceId,
+      ...(itemId ? { itemId } : {}),
       hp,
-      ...(endsAtZero ? { removeWhenZero: true } : {}),
+      ...(removesAtZero ? { removeWhenZero: true } : {}),
     }],
   });
   requireAppliedEffectsMutation(mutation);

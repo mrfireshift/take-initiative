@@ -103,6 +103,8 @@ test("l'executor ha un confine runtime e un risultato serializzabile", () => {
   assert.doesNotMatch(executorSource, /applyOperation\s*\(/);
   assert.match(executorSource, /history\.some\(\(entry\) => entry\?\.id === recordedEntry\.id\)/);
   assert.doesNotMatch(executorSource, /history\[history\.length - 1\]\?\.id === recordedEntry\.id/);
+  assert.match(executorSource, /buildCallLightningCloudPlacement: async \(_casterId, preview\)/);
+  assert.match(executorSource, /buildCallLightningCloudPreview\(preview\)/);
 });
 
 test("Palla di fuoco produce il comando area-transaction con placement required", () => {
@@ -113,6 +115,21 @@ test("Palla di fuoco produce il comando area-transaction con placement required"
   assert.equal(command.placement.status, "confirmed");
   assert.equal(command.hp.mode, "damage");
   assert.equal(command.hp.amount, 12);
+});
+
+test("Invocare il fulmine usa il danno del primo fulmine", () => {
+  const command = commandFor("call-lightning", { slotLevel: 3 });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.mode, "damage");
+  assert.equal(command.hp.amount, 12);
+  assert.equal(command.hp.outcomeFactors["target-1"], "full");
+
+  const passed = commandFor("call-lightning", {
+    slotLevel: 3,
+    input: { outcomes: { "target-1": "passed" } },
+  });
+  assert.equal(passed.valid, true, passed.errors?.join(", "));
+  assert.equal(passed.hp.outcomeFactors["target-1"], "half");
 });
 
 test("Anatema resta discreto e non inventa un placement", () => {
@@ -230,12 +247,91 @@ test("Investitura automatica e Sfera opzionale non richiedono una sagoma fittizi
   assert.equal(optional.placement, null);
 });
 
+test("le aure self non richiedono bersagli discreti e persistono lo spell sul caster", () => {
+  for (const spellId of ["phb2014-aura-di-purezza", "phb2014-aura-di-vita"]) {
+    const contract = buildSpellUnifiedPanelContract({ spellId, phase: "cast" });
+    assert.equal(contract.presentation.inputs.targets.required, false, spellId);
+    const command = commandFor(spellId, {
+      placement: null,
+      targetIds: [],
+    });
+    assert.equal(command.valid, true, `${spellId}: ${command.errors?.join(", ")}`);
+  }
+  const branchStart = executorSource.indexOf("if ((mobileAura || boardToken) && casterId)");
+  const branchEnd = executorSource.indexOf("const effectSubjectIds", branchStart);
+  const branch = executorSource.slice(branchStart, branchEnd);
+  assert.match(branch, /mobileAura && placementRule\?\.targeting\?\.confirmTargets === false/);
+  assert.match(branch, /resolved\.spellTargetIds = .*\? \[casterId\]/s);
+});
+
 test("board token usa la lane lifecycle dichiarata dal contratto", () => {
   const command = commandFor("arcane-hand", { slotLevel: 5 });
   assert.equal(command.valid, true);
   assert.equal(command.execution.lane, "spell-lifecycle");
   assert.equal(command.execution.hasTokens, true);
   assert.equal(command.placement.ruleId, "arcane-hand:board-token");
+});
+
+test("Animare oggetti valida la composizione e serializza tutte le posizioni", () => {
+  const castContext = {
+    slotLevel: 5,
+    animatedObjects: { counts: { tiny: 1, large: 1 } },
+  };
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "animate-objects",
+    phase: "cast",
+    castContext,
+  });
+  const placement = {
+    status: "confirmed",
+    confirmed: true,
+    ruleId: "animate-objects:board-token",
+    spellId: "animate-objects",
+    casterId: "caster-1",
+    targetLocked: true,
+    preview: {
+      type: "square",
+      start: { x: 0, y: 0 },
+      end: { x: 150, y: 0 },
+      gridOrigin: { x: 0, y: 0 },
+      dpi: 150,
+      position: { x: 75, y: 75 },
+      positions: [
+        { objectSize: "tiny", ordinal: 0, position: { x: 75, y: 75 } },
+        { objectSize: "large", ordinal: 1, position: { x: 300, y: 300 } },
+      ],
+    },
+  };
+  const command = buildSpellAreaResolutionCommand({
+    contract,
+    spellId: "animate-objects",
+    phase: "cast",
+    source: { kind: "cast", sceneEpoch: 3 },
+    casterId: "caster-1",
+    slotLevel: 5,
+    castContext,
+    targetIds: [],
+    candidateTargetIds: [],
+    targetLocked: true,
+    placement,
+    sceneEpoch: 3,
+    currentSceneEpoch: 3,
+    validateSpatial: false,
+  });
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.deepEqual(command.spell.castContext, castContext);
+  assert.deepEqual(command.placement.preview.positions, placement.preview.positions);
+  assert.equal(command.execution.hasTokens, true);
+
+  const missingComposition = buildSpellAreaResolutionCommand({
+    ...command,
+    contract: buildSpellUnifiedPanelContract({ spellId: "animate-objects" }),
+    spell: undefined,
+    castContext: undefined,
+  });
+  assert.equal(missingComposition.valid, false);
+  assert.ok(missingComposition.errors.includes("composition-required"));
 });
 
 test("il comando conserva il contesto di una zone trigger senza eseguirlo", () => {

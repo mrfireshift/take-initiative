@@ -26,6 +26,7 @@ export function requestSpellAreaPlacement({
   windowRef = globalThis.window,
   requestTimeoutMs = DEFAULT_PLACEMENT_REQUEST_TIMEOUT_MS,
   retryDelaysMs = DEFAULT_PLACEMENT_START_RETRY_DELAYS_MS,
+  onProgress = null,
 } = {}) {
   const normalizedRuleId = String(ruleId || "").trim();
   const normalizedRequestId = String(requestId || "").trim();
@@ -133,6 +134,12 @@ export function requestSpellAreaPlacement({
           data.type !== "result"
           || String(data.requestId || "") !== normalizedRequestId
         ) {
+          if (
+            data.type === "progress"
+            && String(data.requestId || "") === normalizedRequestId
+          ) {
+            onProgress?.(data);
+          }
           return;
         }
         finish(resolve, data);

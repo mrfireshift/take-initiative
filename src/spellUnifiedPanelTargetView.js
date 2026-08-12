@@ -64,7 +64,7 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         text: "Bersagli",
       }),
       createNode(documentRef, "span", {
-        className: "unified-section__eyebrow",
+        className: "unified-section__eyebrow unified-target-count",
         text: targets.countLabel,
       }),
     ],
@@ -101,10 +101,11 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
   }
   section.append(filterBar);
 
-  if (targets.spatialRules) {
+  const spatialLabel = String(targets.spatialLabel || "").trim();
+  if (targets.spatialRules && spatialLabel) {
     section.append(createNode(documentRef, "div", {
       className: "unified-target-spatial",
-      text: targets.spatialLabel,
+      text: spatialLabel,
     }));
   }
 
@@ -251,13 +252,7 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       button.addEventListener("click", () => callbacks.onOutcomeBulkChange?.(option.value));
       actions.append(button);
     }
-    bulk.append(actions, createNode(documentRef, "span", {
-      className: "unified-target-bulk__status",
-      text: selectedCount
-        ? `${selectedCount} bersagli selezionati`
-        : "Nessun bersaglio selezionato",
-      attributes: { role: "status", "aria-live": "polite" },
-    }));
+    bulk.append(actions);
     section.append(bulk);
   }
 
@@ -346,9 +341,17 @@ export function renderPlacementStage(documentRef, model, callbacks = {}) {
     const controls = createNode(documentRef, "div", {
       className: "unified-placement-controls",
     });
+    if (placement.progressLabel) {
+      controls.append(createNode(documentRef, "span", {
+        className: "unified-placement-progress",
+        text: placement.progressLabel,
+        attributes: { "aria-live": "polite" },
+      }));
+    }
     const confirm = createButton(documentRef, {
-      label: "Conferma sagoma",
+      label: placement.isBatch ? "Conferma oggetti" : "Conferma sagoma",
       className: "unified-primary-button unified-placement-action",
+      disabled: placement.isBatch && !placement.batchComplete,
       attributes: {
         "data-placement-confirm": "true",
       },

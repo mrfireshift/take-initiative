@@ -169,6 +169,15 @@ test("l'overview espone solo proiezioni read-only per spell attive e pedine", as
       conc: true,
       turns: 10,
     },
+    {
+      instanceId: "lightning-1",
+      spellId: "call-lightning",
+      name: "Invocare il fulmine",
+      casterId: "caster",
+      conc: true,
+      turns: 10,
+      castContext: { slotLevel: 5 },
+    },
   ];
   const items = [
     character("caster", "Caster", {
@@ -208,6 +217,7 @@ test("l'overview espone solo proiezioni read-only per spell attive e pedine", as
   const overview = await getSpellOverviewSnapshot(obr);
   const bless = overview.find((entry) => entry.key === "instance:bless-1");
   const hand = overview.find((entry) => entry.key === "instance:hand-1");
+  const callLightning = overview.find((entry) => entry.key === "instance:lightning-1");
 
   assert.equal(bless.name, "Benedizione");
   assert.deepEqual(bless.targetNames, ["Bersaglio"]);
@@ -218,6 +228,11 @@ test("l'overview espone solo proiezioni read-only per spell attive e pedine", as
   assert.equal(hand.persistent.token.state.mode, "");
   assert.equal(typeof hand.key, "string");
   assert.equal(Object.prototype.hasOwnProperty.call(hand, "spellId"), false);
+  assert.deepEqual(callLightning.actions.map((action) => action.id), [
+    "call-lightning-strike",
+  ]);
+  assert.equal(callLightning.actions[0].buttonLabel, "Invoca fulmine");
+  assert.equal(callLightning.actions[0].availability.turnStartPrompt, true);
 });
 
 test("l'overview distingue zona, aura automatica e scene item senza lifecycle", async () => {

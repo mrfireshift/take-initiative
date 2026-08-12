@@ -43,6 +43,7 @@ import {
 import {
   spellAttackResolutionChoiceOptions,
 } from "./spellAttackResolutionCore.js";
+import { validateAnimatedObjectComposition } from "./animatedObjectsCore.js";
 
 export const SPELL_UNIFIED_PANEL_LANES = Object.freeze({
   SPELL_LIFECYCLE: "spell-lifecycle",
@@ -148,6 +149,7 @@ const CONTROL_ORDER = Object.freeze([
   "placement",
   "rule-choice",
   "variant",
+  "composition",
   "save-workflow",
   "save-outcomes",
   "attack-outcomes",
@@ -969,6 +971,7 @@ function inputDescriptor({
   selectedAction,
   automation,
   execution,
+  composition,
 }) {
   const healing = AREA_HEALING_SPELL_ID_SET.has(text(spell?.id));
   const persistentInitialWithoutHp = placement?.mode === "board-token"
@@ -999,6 +1002,7 @@ function inputDescriptor({
   const choiceRequired = choices.length > 0;
   const damageRequired = hpInputVisible && !healing;
   const healingRequired = hpInputVisible && healing;
+  const compositionRequired = !!composition;
   return {
     phase: { required: phasePlan?.phase === "prepare", visible: false },
     caster: { required: caster.required, visible: caster.required },
@@ -1008,6 +1012,7 @@ function inputDescriptor({
       visible: duration.editable,
     },
     variant: { required: choiceRequired, visible: choices.length > 0 },
+    composition: { required: compositionRequired, visible: compositionRequired },
     targets: {
       required: targetSelectionRequired,
       visible: targetSelectionRequired,
@@ -1073,6 +1078,7 @@ function controlList({
   choices,
   workflowRule,
   workflowContext,
+  composition,
   selectedAction,
   activeActions,
   saveOutcomes,
@@ -1107,6 +1113,7 @@ function controlList({
     controls.add("attack-outcomes");
   }
   if (workflowContext) controls.add("target-context");
+  if (composition) controls.add("composition");
   if (automation.available) controls.add("automations");
   if (activeActions.length) controls.add("active-action");
   return CONTROL_ORDER.filter((control) => controls.has(control));
@@ -1271,6 +1278,7 @@ export function buildSpellUnifiedPanelContract({
     choices: allChoices,
     workflowRule,
     workflowContext,
+    composition: boardTokenRule?.composition || null,
     selectedAction,
     activeActions: actions,
     saveOutcomes,
@@ -1315,6 +1323,7 @@ export function buildSpellUnifiedPanelContract({
     ...choices.area,
     ...choices.effect,
   ].filter((choice) => text(choice?.value)), "value");
+  const composition = boardTokenRule?.composition || null;
   const inputs = inputDescriptor({
     spell,
     phasePlan,
@@ -1329,7 +1338,12 @@ export function buildSpellUnifiedPanelContract({
     selectedAction,
     automation,
     execution,
+    composition,
   });
+  const compositionKey = text(composition?.key) || "composition";
+  const selectedComposition = composition
+    ? cloneValue(castContext?.[compositionKey] || null)
+    : null;
 
   return immutable({
     spell: {
@@ -1357,6 +1371,19 @@ export function buildSpellUnifiedPanelContract({
         options: variantOptions,
         required: inputs.variant.required,
       },
+      composition: composition
+        ? {
+          ...cloneValue(composition),
+          key: compositionKey,
+          visible: inputs.composition.visible,
+          required: inputs.composition.required,
+          selected: selectedComposition,
+        }
+        : {
+          visible: false,
+          required: false,
+          selected: null,
+        },
       duration,
       slot,
       caster,
@@ -1610,6 +1637,12 @@ export function updateSpellPanelSession(session, patch = {}) {
   return createSpellPanelSession({
     ...current,
     ...patch,
+    castContext: patch.castContext === undefined
+      ? current.castContext
+      : {
+        ...recordValue(current.castContext),
+        ...recordValue(patch.castContext),
+      },
     hpValues: patch.hpValues === undefined ? current.hpValues : patch.hpValues,
     targetIds: patch.targetIds === undefined ? current.targetIds : patch.targetIds,
     outcomes: patch.outcomes === undefined ? current.outcomes : patch.outcomes,
@@ -1678,6 +1711,7 @@ function transitionSession(currentSession, contract, {
   resetSlot = false,
   validCasterIds = [],
   validSlotLevels = [],
+  resetCastContext = false,
 } = {}) {
   const current = createSpellPanelSession(currentSession || {});
   const next = resetRuntimeState(current);
@@ -1702,7 +1736,7 @@ function transitionSession(currentSession, contract, {
     slotLevel,
     variant: text(variant),
     castContext: {
-      ...recordValue(current.castContext),
+      ...(resetCastContext ? {} : recordValue(current.castContext)),
       phase: contractPhase(contract, phase),
       ...(slotLevel === null || slotLevel === undefined ? {} : { slotLevel }),
     },
@@ -1720,6 +1754,7 @@ export function changeSpellPanelSpell(session, contract, options = {}) {
     variant: "",
     resetDuration: true,
     resetSlot: true,
+    resetCastContext: true,
   });
 }
 
@@ -1866,6 +1901,8 @@ function placementView(contract, session) {
     required: policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED,
     mode: descriptor.mode || "none",
     kind: descriptor.rules?.[0]?.kind || null,
+    batchIndex: Math.max(0, Math.floor(Number(runtime?.batchIndex) || 0)),
+    batchTotal: Math.max(0, Math.floor(Number(runtime?.batchTotal) || 0)),
     preview: runtime?.preview ? cloneValue(runtime.preview) : null,
     error: text(runtime?.error) || null,
   };
@@ -1902,6 +1939,14 @@ function validationFor(contract, session, placement) {
     contract.presentation.variant.options,
     session.variant,
   )) add("variant", "variant-required");
+  if (inputs.composition?.required) {
+    const key = text(contract.presentation.composition?.key) || "composition";
+    const value = session.castContext?.[key];
+    if (!value) add("composition", "composition-required");
+    else if (!validateAnimatedObjectComposition(value).valid) {
+      add("composition", "composition-invalid");
+    }
+  }
   if (inputs.targets?.required && session.targetIds.length < 1) {
     add("targets", "targets-required");
   }
@@ -1958,6 +2003,7 @@ function visibleControlsFor(contract, session, placement) {
   addInputControl("targets");
   addInputControl("primaryTarget", "primary-target");
   addInputControl("variant");
+  addInputControl("composition");
   if (placement.available) controls.add("placement");
   addInputControl("targetContext", "target-context");
   addInputControl("outcomes", "save-outcomes");

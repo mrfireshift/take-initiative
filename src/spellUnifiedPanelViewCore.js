@@ -18,6 +18,7 @@ import {
 } from "./spellUnifiedPanelDom.js";
 import {
   renderAutomationAndVariantPanel,
+  renderCompositionPanel,
   renderPhaseSelector,
   renderWorkflowContextBar,
 } from "./spellUnifiedPanelContextView.js";
@@ -125,6 +126,14 @@ function normalizeCasterOptions(options = []) {
 function placementLabels(placement) {
   const policy = asText(placement?.policy) || "unavailable";
   const state = asText(placement?.state) || "idle";
+  const batchTotal = Math.max(0, Math.floor(Number(placement?.batchTotal) || 0));
+  const batchIndex = batchTotal > 0
+    ? Math.max(0, Math.min(
+      batchTotal,
+      Math.floor(Number(placement?.batchIndex) || 0),
+    ))
+    : 0;
+  const isBatch = batchTotal > 0;
   const pendingStates = new Set(["pending", "placing", "review"]);
   const stateLabels = {
     unavailable: "Non prevista",
@@ -169,6 +178,8 @@ function placementLabels(placement) {
       ? "La posizione segue il soggetto dell'incantesimo."
       : policy === "optional"
         ? "Puoi confermare il lancio senza aggiungere una posizione geometrica."
+      : isBatch
+        ? "Posiziona tutti gli oggetti sulla mappa e conferma il gruppo."
       : "Disegna l'area sulla mappa e confermala per acquisire i bersagli.",
     rules: clone(placement?.rules || []),
     rulesLabel: ruleNames.join(" / "),
@@ -178,6 +189,11 @@ function placementLabels(placement) {
     unlockVisible: placement?.targetLocked === true,
     preview: clone(placement?.preview),
     previewLabel,
+    isBatch,
+    batchIndex,
+    batchTotal,
+    batchComplete: !isBatch || batchIndex >= batchTotal,
+    progressLabel: isBatch ? `${batchIndex}/${batchTotal} oggetti posizionati` : "",
     error: asText(placement?.error),
     confirmVisible: pendingStates.has(state) && !!asText(placement?.requestId),
     cancelVisible: pendingStates.has(state) && !!asText(placement?.requestId),
@@ -188,6 +204,8 @@ function placementLabels(placement) {
       ? "Riprova area"
       : policy === "optional"
         ? "Aggiungi area"
+        : isBatch
+          ? "Posiziona oggetti"
         : "Posiziona area",
   };
 }
@@ -204,7 +222,7 @@ function normalizeTargetCandidates(
 ) {
   const selected = new Set(targetIds);
   const selectedCount = selected.size;
-  return (Array.isArray(candidates) ? candidates : []).map((candidate) => {
+  const normalized = (Array.isArray(candidates) ? candidates : []).map((candidate) => {
     const key = asText(candidate?.key || candidate?.value);
     const label = [candidate?.label, candidate?.name, key, "Token"]
       .map(asText)
@@ -240,6 +258,7 @@ function normalizeTargetCandidates(
       outcomeOptions: clone(outcomeOptions),
     };
   }).filter((candidate) => candidate.key);
+  return normalized.sort((left, right) => Number(right.selected) - Number(left.selected));
 }
 
 function targetFilterModel(candidates, targetFilters = {}) {
@@ -559,6 +578,15 @@ export function buildUnifiedPanelViewModel({
   const placement = placementLabels(workflow.placement);
   const phase = presentation.phase || {};
   const variant = presentation.variant || {};
+  const composition = presentation.composition || {};
+  const compositionSelected = session?.castContext?.[asText(composition.key) || "composition"]
+    || (composition.selected && typeof composition.selected === "object"
+      ? composition.selected
+      : {});
+  const compositionCounts = compositionSelected.counts
+    && typeof compositionSelected.counts === "object"
+    ? compositionSelected.counts
+    : compositionSelected;
   const concentration = presentation.concentration || {};
   const manualCapability = presentation.capabilities?.manualSpellEffect || {};
   const triggerRuntime = session?.triggerRuntime || null;
@@ -723,6 +751,17 @@ export function buildUnifiedPanelViewModel({
         value: asText(session?.variant),
         options: optionList(variant.options, "Seleziona variante"),
       },
+      composition: {
+        visible: inputs.composition?.visible === true,
+        required: inputs.composition?.required === true,
+        key: asText(composition.key) || "composition",
+        label: asText(composition.label) || "Combinazione",
+        hint: "Il costo totale non può superare 10 oggetti.",
+        maximumCost: Number(composition.maximumCost) || 10,
+        placement: asText(composition.placement) || "one-by-one",
+        counts: clone(compositionCounts),
+        options: Array.isArray(composition.options) ? clone(composition.options) : [],
+      },
     },
     targets: {
       visible: activeActionDelegatesResolution ? false : targetVisible,
@@ -886,6 +925,8 @@ function renderHero(documentRef, model) {
 export function renderSpellUnifiedPanel(documentRef, root, model, callbacks = {}) {
   const previousScrollTop = Number(root.scrollTop) || 0;
   const previousScrollLeft = Number(root.scrollLeft) || 0;
+  const previousTargetList = root.querySelector?.(".unified-target-list");
+  const previousTargetListScrollTop = Number(previousTargetList?.scrollTop) || 0;
   clearNode(root);
   const setup = createNode(documentRef, "div", { className: "unified-cast-setup" });
   setup.append(...[
@@ -893,6 +934,7 @@ export function renderSpellUnifiedPanel(documentRef, root, model, callbacks = {}
     renderWorkflowContextBar(documentRef, model, callbacks),
     renderPhaseSelector(documentRef, model, callbacks),
     renderAutomationAndVariantPanel(documentRef, model, callbacks),
+    renderCompositionPanel(documentRef, model, callbacks),
     renderManualSpellEffectPanel(documentRef, model, callbacks),
     renderPlacementStage(documentRef, model, callbacks),
   ].filter(Boolean));
@@ -908,5 +950,7 @@ export function renderSpellUnifiedPanel(documentRef, root, model, callbacks = {}
   root.dataset.firstInvalidField = model.workflow.validation.firstInvalidField || "";
   root.scrollTop = previousScrollTop;
   root.scrollLeft = previousScrollLeft;
+  const nextTargetList = root.querySelector?.(".unified-target-list");
+  if (nextTargetList) nextTargetList.scrollTop = previousTargetListScrollTop;
   return root;
 }

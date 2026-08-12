@@ -488,6 +488,8 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "arcane-hand": "self",
   "tasha-lama-del-disastro": "self",
   "xanathar-arma-sacra": "self",
+  "phb2014-aura-di-purezza": "self",
+  "phb2014-aura-di-vita": "self",
 });
 
 const TARGETING_OVERRIDES = Object.freeze({

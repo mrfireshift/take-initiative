@@ -51,6 +51,7 @@ import {
 } from "./spellAreaPlacementClient.js";
 import { SPELL_AREA_PLACEMENT_CHANNEL } from "./spellAreaPlacementCore.js";
 import { spellBoardTokenPlacementPosition } from "./spellBoardTokenCore.js";
+import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { undoHistoryEntry, undoHistoryThrough } from "./history.js";
 import { refreshConditionLabels } from "./conditions.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
@@ -201,13 +202,19 @@ function areaMessageForResult(result) {
       : "Applicazione non riuscita.");
 }
 
-function buildContract(spellId, { phase = "", actionId = "", variant = "", slotLevel = null } = {}) {
+function buildContract(
+  spellId,
+  { phase = "", actionId = "", variant = "", slotLevel = null, castContext = {} } = {},
+) {
   return buildSpellUnifiedPanelContract({
     spellId,
     phase,
     actionId,
     choiceValue: variant,
-    castContext: slotLevel === null ? {} : { slotLevel },
+    castContext: {
+      ...(castContext && typeof castContext === "object" ? castContext : {}),
+      ...(slotLevel === null ? {} : { slotLevel }),
+    },
   });
 }
 
@@ -273,10 +280,13 @@ export function bootSpellUnifiedPanel(
     actionId: route.session?.activeActionId || "",
     variant: route.session?.variant || "",
     slotLevel: route.session?.slotLevel ?? null,
+    castContext: route.session?.castContext || {},
   });
   const state = initialState(firstContract, catalogEntries, sourceId, route);
   let selectionWriteDepth = 0;
   let refreshTimer = null;
+  let refreshInFlight = null;
+  let refreshQueued = false;
   let destroyed = false;
   let unsubscribeSelection = null;
   let unsubscribeItems = null;
@@ -573,14 +583,16 @@ export function bootSpellUnifiedPanel(
     });
   };
 
-  const refreshScene = async ({ initial = false } = {}) => {
-    const [casters, overview] = await Promise.all([
+  const refreshSceneData = async ({ initial = false } = {}) => {
+    const [casters, targetItems, overview] = await Promise.all([
       provider.getCasters?.(sourceId) || [],
+      provider.getTargetCandidates?.() || null,
       provider.getOverview?.(sourceId) || [],
     ]);
     state.casters = Array.isArray(casters) ? casters : [];
-    state.targetCandidates = state.casters
-      .map((item) => provider.targetCandidate?.(item))
+    const candidateItems = Array.isArray(targetItems) ? targetItems : state.casters;
+    state.targetCandidates = candidateItems
+      .map((item) => item?.key ? item : provider.targetCandidate?.(item))
       .filter(Boolean);
     if (initial) {
       const contextIds = sourceId
@@ -664,6 +676,27 @@ export function bootSpellUnifiedPanel(
     }
     state.revision += 1;
     render();
+  };
+
+  const refreshScene = async (options = {}) => {
+    if (destroyed) return;
+    if (refreshInFlight) {
+      refreshQueued = true;
+      return refreshInFlight;
+    }
+    const currentRefresh = refreshSceneData(options);
+    refreshInFlight = currentRefresh;
+    try {
+      return await currentRefresh;
+    } finally {
+      if (refreshInFlight === currentRefresh) refreshInFlight = null;
+      if (refreshQueued && !destroyed && !refreshInFlight) {
+        refreshQueued = false;
+        void refreshScene().catch((error) => {
+          console.warn("[spell-unified-panel] scene refresh:", error?.message || error);
+        });
+      }
+    }
   };
 
   const focusFirstInvalid = (model) => {
@@ -770,6 +803,166 @@ export function bootSpellUnifiedPanel(
     }
   };
 
+  const animatedObjectPlacementPlan = () => {
+    const composition = state.contract?.presentation?.composition;
+    if (!composition?.visible) return [];
+    return expandAnimatedObjectComposition(
+      state.session.castContext?.[composition.key || "composition"],
+    );
+  };
+
+  const startAnimatedObjectBatchPlacement = async ({
+    descriptor,
+    manualTargetSelection,
+    retainedTargetIds,
+    objects,
+  }) => {
+    if (!objects.length) return false;
+    if (!manualTargetSelection) {
+      await writeSelection([]);
+      state.session = updateSpellPanelSession(state.session, {
+        targetIds: [],
+        primaryTargetId: "",
+        outcomes: {},
+        targetContext: {},
+      });
+    }
+    const requestId = createSpellAreaPlacementRequestId();
+    const batchObjects = objects.map((object) => ({
+      id: object.id,
+      label: object.label,
+    }));
+    pendingPlacementRequests.add(requestId);
+    state.session = updateSpellPanelSession(state.session, {
+      placement: {
+        ...placementIdentity(requestId),
+        targetLocked: manualTargetSelection,
+        targetIds: retainedTargetIds,
+        batchIndex: 0,
+        batchTotal: objects.length,
+      },
+      feedback: {
+        state: "loading",
+        message: `Posiziona gli oggetti sulla mappa (0/${objects.length}).`,
+      },
+      commitState: { state: "idle" },
+    });
+    state.revision += 1;
+    render();
+    let result;
+    try {
+      result = await requestSpellAreaPlacement({
+        requestId,
+        ruleId: descriptor.ruleId,
+        casterId: state.session.casterId,
+        ruleChoice: state.session.variant || descriptor.choice || "",
+        context: {
+          phase: state.session.phase,
+          spellId: state.contract?.spell?.id || "",
+          batch: {
+            objects: batchObjects,
+            total: batchObjects.length,
+            placement: "one-by-one",
+          },
+        },
+      }, {
+        broadcast: runtimeOverrides.broadcast || OBR.broadcast,
+        windowRef: runtimeOverrides.windowRef || globalThis.window,
+        onProgress: (progress) => {
+          if (destroyed || state.session.placement?.requestId !== requestId) return;
+          const batchIndex = Math.max(
+            0,
+            Math.min(objects.length, Math.floor(Number(progress?.batchIndex) || 0)),
+          );
+          state.session = updateSpellPanelSession(state.session, {
+            placement: {
+              ...placementIdentity(requestId),
+              ...(progress || {}),
+              state: "pending",
+              status: "pending",
+              confirmed: false,
+              targetLocked: manualTargetSelection,
+              targetIds: retainedTargetIds,
+              batchIndex,
+              batchTotal: objects.length,
+              preview: progress?.preview || null,
+            },
+            feedback: {
+              state: "info",
+              message: progress?.message || `Posiziona gli oggetti sulla mappa (${batchIndex}/${objects.length}).`,
+            },
+          });
+          state.revision += 1;
+          render();
+        },
+      });
+    } catch (error) {
+      result = { status: "failed", error: String(error?.message || error || "placement-failed") };
+    } finally {
+      pendingPlacementRequests.delete(requestId);
+    }
+    if (destroyed) return true;
+    const status = String(result?.status || "error").trim() === "error"
+      ? "failed"
+      : String(result?.status || "error").trim();
+    if (status !== "confirmed") {
+      const rawError = String(result?.error || "").trim();
+      state.session = updateSpellPanelSession(state.session, {
+        placement: {
+          ...placementIdentity(requestId, status),
+          batchIndex: state.session.placement?.batchIndex || 0,
+          batchTotal: objects.length,
+          error: AREA_FEEDBACK_MESSAGES[rawError]
+            || (rawError.includes(" ") ? rawError : "Posizionamento degli oggetti non riuscito."),
+        },
+        feedback: {
+          state: status === "cancelled" ? "info" : "error",
+          message: status === "cancelled"
+            ? "Posizionamento annullato."
+            : "Posizionamento degli oggetti non riuscito.",
+        },
+      });
+      state.revision += 1;
+      render();
+      return true;
+    }
+    const positions = Array.isArray(result?.preview?.positions)
+      ? result.preview.positions
+      : [];
+    if (positions.length !== objects.length) {
+      state.session = updateSpellPanelSession(state.session, {
+        placement: {
+          ...placementIdentity(requestId, "failed"),
+          batchIndex: positions.length,
+          batchTotal: objects.length,
+          error: "Non tutti gli oggetti sono stati posizionati.",
+        },
+        feedback: { state: "error", message: "Non tutti gli oggetti sono stati posizionati." },
+      });
+      state.revision += 1;
+      render();
+      return true;
+    }
+    const finalPlacement = {
+      ...placementIdentity(requestId, "confirmed"),
+      ...result,
+      state: "confirmed",
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      targetIds: retainedTargetIds,
+      batchIndex: objects.length,
+      batchTotal: objects.length,
+    };
+    state.session = updateSpellPanelSession(state.session, {
+      placement: finalPlacement,
+      feedback: { state: "success", message: `${objects.length} oggetti posizionati.` },
+    });
+    state.revision += 1;
+    render();
+    return true;
+  };
+
   const startPlacement = async () => {
     const eligibility = getSpellUnifiedAreaEligibility(state.contract, state.session);
     const descriptor = placementDescriptor();
@@ -787,6 +980,17 @@ export function bootSpellUnifiedPanel(
           message: "Seleziona il bersaglio prima di posizionare l'area.",
         },
       }, { clearFeedback: false });
+      return;
+    }
+
+    const objects = animatedObjectPlacementPlan();
+    if (objects.length) {
+      await startAnimatedObjectBatchPlacement({
+        descriptor,
+        manualTargetSelection,
+        retainedTargetIds,
+        objects,
+      });
       return;
     }
 
@@ -1188,6 +1392,36 @@ export function bootSpellUnifiedPanel(
     patchSession({
       feedback: { state: "loading", message: `Termino ${overview.name}…` },
     }, { clearFeedback: false });
+    const selectedActiveInstance = Boolean(instanceId)
+      && String(state.session?.activeInstanceId || "").trim() === instanceId;
+    const selectedActionState = String(state.session?.activeActionState?.state || "").trim();
+    const selectedActionId = String(state.session?.activeActionId || "").trim();
+    const selectedAction = selectedActiveInstance
+      ? (Array.isArray(overview.actions) ? overview.actions : [])
+        .find((entry) => String(entry?.id || "").trim() === selectedActionId)
+      : null;
+    let activePopoverId = "";
+    if (selectedActiveInstance && selectedActionState === "opened") {
+      try {
+        activePopoverId = selectedAction?.type === "resolve"
+          ? buildSpellUnifiedPreparedPopoverRequest(overview).id
+          : spellActiveResolutionPopoverId(instanceId, selectedActionId);
+      } catch (error) {
+        console.warn("[spell-unified-panel] active resolution id:", error?.message || error);
+      }
+    }
+    const closeActivePopover = () => {
+      if (!activePopoverId) return;
+      const closePopover = runtimeOverrides.closePopover || ((id) => OBR.popover.close(id));
+      try {
+        void Promise.resolve(closePopover(activePopoverId)).catch((error) => {
+          console.warn("[spell-unified-panel] active resolution close:", error?.message || error);
+        });
+      } catch (error) {
+        console.warn("[spell-unified-panel] active resolution close:", error?.message || error);
+      }
+    };
+    let mutationApplied = false;
     try {
       const mutationRunner = runtimeOverrides.runEffectsMutation || runEffectsMutation;
       const mutation = await mutationRunner(operations, {
@@ -1202,14 +1436,21 @@ export function bootSpellUnifiedPanel(
       const requireMutation = runtimeOverrides.requireAppliedEffectsMutation
         || requireAppliedEffectsMutation;
       requireMutation(mutation);
-      const refreshLabels = runtimeOverrides.refreshConditionLabels || refreshConditionLabels;
-      if (targetIds.length) await refreshLabels(targetIds);
+      mutationApplied = true;
+      closeActivePopover();
+      if (instanceId) {
+        state.activeOverview = state.activeOverview.filter((entry) => (
+          String(entry?.instanceId || entry?.context?.instanceId || "").trim() !== instanceId
+        ));
+      }
       state.session = updateSpellPanelSession(state.session, {
+        ...(selectedActiveInstance ? {
+          activeInstanceId: "",
+          activeActionId: "",
+          activeActionState: null,
+        } : {}),
         feedback: { state: "success", message: `${overview.name} terminato.` },
       });
-      state.revision += 1;
-      render();
-      await refreshScene();
     } catch (error) {
       state.session = updateSpellPanelSession(state.session, {
         feedback: {
@@ -1217,10 +1458,24 @@ export function bootSpellUnifiedPanel(
           message: error?.message || "Terminazione dell'incantesimo non riuscita.",
         },
       });
-      state.revision += 1;
-      render();
     } finally {
       state.committing = false;
+      state.revision += 1;
+      render();
+    }
+    if (!mutationApplied) return;
+    if (targetIds.length) {
+      const refreshLabels = runtimeOverrides.refreshConditionLabels || refreshConditionLabels;
+      void Promise.resolve()
+        .then(() => refreshLabels(targetIds))
+        .catch((error) => {
+          console.warn("[spell-unified-panel] condition labels refresh:", error?.message || error);
+        });
+    }
+    try {
+      await refreshScene();
+    } catch (error) {
+      console.warn("[spell-unified-panel] scene refresh after termination:", error?.message || error);
     }
   };
 
@@ -1491,6 +1746,7 @@ export function bootSpellUnifiedPanel(
     unsubscribePopup = null;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = null;
+    refreshQueued = false;
   };
 
   const resetConfiguration = () => {
@@ -1515,6 +1771,12 @@ export function bootSpellUnifiedPanel(
       targetContext: {},
       placement: null,
       hpValues: { hp: null, damage: null, healing: null },
+      castContext: {
+        ...state.session.castContext,
+        ...(state.contract?.presentation?.composition?.key
+          ? { [state.contract.presentation.composition.key]: null }
+          : {}),
+      },
       triggerRuntime: null,
       commitState: { state: "idle" },
       feedback: { state: "info", message: "Configurazione azzerata." },
@@ -1690,11 +1952,30 @@ export function bootSpellUnifiedPanel(
         actionId: state.session.activeActionId,
         variant: state.session.variant,
         slotLevel,
+        castContext: { ...state.session.castContext, slotLevel },
       });
       state.contract = nextContract;
       patchSession({ slotLevel, castContext: { slotLevel } });
     },
     onDurationChange: (value) => patchSession({ durationTurns: numeric(value) }),
+    onCompositionChange: (sizeId, value) => {
+      const key = String(state.contract?.presentation?.composition?.key || "composition").trim();
+      const current = state.session.castContext?.[key];
+      const counts = current?.counts && typeof current.counts === "object"
+        ? current.counts
+        : {};
+      patchSession({
+        castContext: {
+          [key]: {
+            ...(current && typeof current === "object" ? current : {}),
+            counts: {
+              ...counts,
+              [sizeId]: Math.max(0, Math.floor(Number(value) || 0)),
+            },
+          },
+        },
+      });
+    },
     onAutomationChange: (enabled) => patchSession({ applyAutomatedConditions: enabled }),
     onPhaseChange: async (phase) => {
       const nextContract = buildContract(state.contract.spell.id, { phase });
@@ -2069,7 +2350,12 @@ export function bootSpellUnifiedPanel(
   });
   unsubscribeItems = provider.onSceneItemsChange?.(() => {
     if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => void refreshScene(), 80);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      void refreshScene().catch((error) => {
+        console.warn("[spell-unified-panel] scene refresh:", error?.message || error);
+      });
+    }, 80);
   });
   const popupBroadcast = runtimeOverrides.broadcast || OBR.broadcast;
   unsubscribePopup = popupBroadcast?.onMessage?.(

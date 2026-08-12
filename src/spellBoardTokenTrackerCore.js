@@ -5,6 +5,7 @@ import {
 } from "./spellBoardTokenCore.js";
 
 const normalizedId = (value) => String(value || "").trim();
+const collapsedCompanionGroups = new Set();
 
 function rawItem(value) {
   return value?.item || value || null;
@@ -97,15 +98,16 @@ export function spellBoardTokenCompanionsByCasterId(items = []) {
     const list = companions.get(casterId) || [];
     const actionLabel = (rule.actions || []).some((action) =>
       action?.actionEconomy === "bonus"
-    ) ? "(Azione Bonus)" : "";
+    ) || rule.command?.actionEconomy === "bonus" ? "(Azione Bonus)" : "";
     list.push({
       itemId: item.id,
       instanceId: normalizedId(metadata.instanceId),
       casterId,
       spellId: rule.spellId,
       label: rule.label,
+      objectSizeLabel: view?.objectSizeLabel || "",
       iconUrl: item.image?.url || rule.assetPath,
-      actionLabel,
+      actionLabel: [view?.objectSizeLabel, actionLabel].filter(Boolean).join(" · "),
       state: view?.state || {},
       hp: view?.state?.hp,
       hpMax: view?.state?.hpMax,
@@ -199,6 +201,7 @@ export function buildSpellBoardTokenCompanionCard(
   Object.assign(card.style, {
     height: `${height}px`,
     minHeight: `${height}px`,
+    position: "relative",
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
@@ -317,9 +320,10 @@ export function appendSpellBoardTokenCompanions(
   const list = Array.isArray(companions) ? companions : [];
   if (!card || !list.length) return 0;
   const stackHeight = spellBoardTokenCompanionStackHeight(list, { compact });
+  const groupKey = normalizedId(list[0]?.casterId) || "unknown-caster";
   card.style.position = card.style.position || "relative";
   card.style.overflow = "visible";
-  card.style.marginBottom = `${stackHeight}px`;
+  const children = [];
   let offset = 2;
   list.forEach((companion) => {
     const child = buildSpellBoardTokenCompanionCard(companion, {
@@ -333,7 +337,55 @@ export function appendSpellBoardTokenCompanions(
     child.style.right = "0";
     child.style.top = `calc(100% + ${offset}px)`;
     card.appendChild(child);
+    children.push(child);
     offset += companionDimensions(companion, compact).height + 2;
   });
+  if (list.length > 1) {
+    const toggle = documentRef.createElement("button");
+    toggle.type = "button";
+    toggle.dataset.spellBoardTokenCompanionToggle = "1";
+    toggle.title = "Comprimi o espandi le pedine evocate";
+    toggle.setAttribute("aria-label", "Comprimi o espandi le pedine evocate");
+    Object.assign(toggle.style, {
+      position: "absolute",
+      right: "4px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: "16px",
+      height: "16px",
+      padding: "0",
+      border: "0",
+      borderRadius: "50%",
+      background: "rgba(15,23,42,.55)",
+      color: "#fff",
+      fontSize: "12px",
+      lineHeight: "16px",
+      textAlign: "center",
+      pointerEvents: "auto",
+      cursor: "pointer",
+      zIndex: "8",
+    });
+    const applyGroupState = () => {
+      const isCollapsed = collapsedCompanionGroups.has(groupKey);
+      card.style.marginBottom = `${isCollapsed
+        ? companionDimensions(list[0], compact).height + 2
+        : stackHeight}px`;
+      children.forEach((child, index) => {
+        child.style.display = isCollapsed && index > 0 ? "none" : "";
+      });
+      toggle.textContent = isCollapsed ? "▸" : "▾";
+      toggle.setAttribute("aria-expanded", String(!isCollapsed));
+    };
+    toggle.addEventListener?.("click", (event) => {
+      event?.stopPropagation?.();
+      if (collapsedCompanionGroups.has(groupKey)) collapsedCompanionGroups.delete(groupKey);
+      else collapsedCompanionGroups.add(groupKey);
+      applyGroupState();
+    });
+    children[0].appendChild(toggle);
+    applyGroupState();
+  } else {
+    card.style.marginBottom = `${stackHeight}px`;
+  }
   return stackHeight;
 }

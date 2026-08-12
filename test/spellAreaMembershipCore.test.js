@@ -85,6 +85,42 @@ test("l'aura di Investitura della Fiamma include anche gli alleati ma esclude il
   }), ["ally", "enemy"]);
 });
 
+test("le aure self applicano la pill buff agli alleati senza duplicarla sul caster", () => {
+  const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
+  const caster = token("caster", { attitude: "pc" });
+  const ally = token("ally", { attitude: "ally" });
+
+  for (const spellId of ["phb2014-aura-di-purezza", "phb2014-aura-di-vita"]) {
+    const rule = getSpellAreaRuleById(`${spellId}:cast`);
+    const candidates = [
+      { item: caster, bounds: bounds(0, 0) },
+      { item: ally, bounds: bounds(100, 0) },
+    ];
+    assert.deepEqual(areaMembershipTargetIds({
+      sourceId: "caster",
+      rule,
+      area,
+      metaKey: META,
+      candidates,
+    }), ["ally"], spellId);
+
+    const additions = areaMembershipPlan({
+      instanceId: `${spellId}-instance`,
+      sourceId: "caster",
+      rule,
+      desiredTargetIds: ["ally"],
+      items: candidates.map(({ item }) => item),
+      metaKey: META,
+    }).operations.filter((operation) => operation.type === "condition:add");
+    assert.deepEqual(additions.map((operation) => operation.targetIds), [["ally"]], spellId);
+    assert.equal(
+      additions[0].conditionName,
+      rule.effectPolicy.effect.label,
+      spellId,
+    );
+  }
+});
+
 test("il caster nell'area resta incluso anche nella membership persistente", () => {
   const rule = getSpellAreaRuleById("web:cast");
   const caster = token("caster", { attitude: "pc" });

@@ -156,7 +156,7 @@ test("l'audit separa conformita RAW e raggiungibilita nella console unificata", 
   assert.ok(audit.summary.byIntegrationIssue.UNIFIED_CATALOG_MISSING > 0);
 });
 
-test("Invocare il Fulmine segnala i workflow raggiungibili solo via reminder", () => {
+test("Invocare il Fulmine resta raggiungibile sia dalla scheda sia dal reminder", () => {
   const audit = buildSpellAutomationAudit();
   const callLightning = audit.rows.find((row) => row.id === "call-lightning");
 
@@ -166,13 +166,13 @@ test("Invocare il Fulmine segnala i workflow raggiungibili solo via reminder", (
   assert.equal(callLightning?.integration.cast.valid, true);
   assert.ok(callLightning?.integration.persistence.ruleIds.includes("call-lightning:cloud"));
   assert.deepEqual(callLightning?.integration.actions.declaredActionIds, ["call-lightning-strike"]);
-  assert.deepEqual(callLightning?.integration.actions.panelActionIds, []);
+  assert.deepEqual(callLightning?.integration.actions.panelActionIds, ["call-lightning-strike"]);
   assert.deepEqual(callLightning?.integration.actions.reminderActionIds, ["call-lightning-strike"]);
-  assert.equal(callLightning?.integration.actions.mode, "reminder-only");
-  assert.equal(callLightning?.integration.status, "fragile");
-  assert.ok(callLightning?.integration.issues.some((issue) =>
+  assert.equal(callLightning?.integration.actions.mode, "panel-and-reminder");
+  assert.equal(callLightning?.integration.status, "reachable");
+  assert.equal(callLightning?.integration.issues.some((issue) =>
     issue.code === "ACTIVE_ACTION_REMINDER_ONLY"
-  ));
+  ), false);
 });
 
 test("l'audit intercetta cast senza mutazioni e spell non esposte", () => {

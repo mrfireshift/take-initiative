@@ -547,12 +547,22 @@ const CASTER_INCLUDED_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   includeCaster: true,
 });
+const SELF_CAST_AURA_TARGETING = Object.freeze({
+  ...COMMON_TARGETING,
+  confirmTargets: false,
+});
+const SELF_CAST_AURA_SPELL_IDS = new Set([
+  "phb2014-aura-di-purezza",
+  "phb2014-aura-di-vita",
+]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "xanathar-rombo-di-tuono",
   "xanathar-scossa-tellurica",
 ]);
 const areaSaveTargeting = (spellId) =>
-  AREA_SAVE_SPELL_ID_SET.has(spellId)
+  SELF_CAST_AURA_SPELL_IDS.has(spellId)
+    ? SELF_CAST_AURA_TARGETING
+    : AREA_SAVE_SPELL_ID_SET.has(spellId)
     && !CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
     ? CASTER_INCLUDED_TARGETING
     : COMMON_TARGETING;
@@ -1838,13 +1848,13 @@ function catalogAreaRule(spec) {
     "phb2014-aura-di-purezza": [{
       id: "aura-of-purity-zone",
       kind: "buff",
-      label: "Aura di Purezza",
+      label: "Res. veleno / vant. TS / no malattie",
       detail: "Resistenza ai veleni e vantaggio ai TS contro varie condizioni.",
     }],
     "phb2014-aura-di-vita": [{
       id: "aura-of-life-zone",
       kind: "buff",
-      label: "Aura di Vita",
+      label: "Res. necrotici / max PF / +1 PF a 0",
       detail: "Resistenza ai danni necrotici e protezione della vita nell'aura.",
     }],
     "phb2014-cerchio-di-potere": [{

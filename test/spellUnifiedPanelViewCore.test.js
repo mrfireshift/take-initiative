@@ -156,6 +156,17 @@ test("la primary action e la visibilita bersagli derivano dal placement normaliz
   assert.equal(placedStorm.workflow.primaryAction.label, "Crea zona e applica");
 });
 
+test("i bersagli selezionati vengono proiettati in cima alla lista mantenendo l'ordine stabile", () => {
+  const view = modelFor("fireball", { targetIds: ["target-b"] });
+  assert.deepEqual(
+    view.targets.candidates.map((target) => ({ key: target.key, selected: target.selected })),
+    [
+      { key: "target-b", selected: true },
+      { key: "target-a", selected: false },
+    ],
+  );
+});
+
 test("un placement pendente espone conferma e annullamento senza riavviare la sagoma", () => {
   const view = modelFor("fireball", {
     placement: {
@@ -168,6 +179,26 @@ test("un placement pendente espone conferma e annullamento senza riavviare la sa
   assert.equal(view.placement.confirmVisible, true);
   assert.equal(view.placement.cancelVisible, true);
   assert.equal(view.placement.visibleAction, false);
+});
+
+test("Animare oggetti espone il progresso batch e blocca la conferma prima di N/N", () => {
+  const view = modelFor("animate-objects", {
+    castContext: {
+      animatedObjects: { counts: { tiny: 1, large: 1 } },
+    },
+    placement: {
+      state: "pending",
+      status: "pending",
+      requestId: "placement-batch",
+      batchIndex: 1,
+      batchTotal: 2,
+    },
+  });
+  assert.equal(view.context.composition.visible, true);
+  assert.deepEqual(view.context.composition.counts, { tiny: 1, large: 1 });
+  assert.equal(view.placement.isBatch, true);
+  assert.equal(view.placement.progressLabel, "1/2 oggetti posizionati");
+  assert.equal(view.placement.batchComplete, false);
 });
 
 test("la preview HP usa i dati canonici e distingue pieno, meta e immune", () => {

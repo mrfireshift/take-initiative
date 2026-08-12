@@ -39,12 +39,19 @@ function testDocument() {
         style: {},
         dataset: {},
         children: [],
+        listeners: {},
         appendChild(child) {
           this.children.push(child);
           child.parentNode = this;
           return child;
         },
-        setAttribute() {},
+        addEventListener(name, callback) {
+          this.listeners[name] = callback;
+        },
+        setAttribute(name, value) {
+          this.attributes ||= {};
+          this.attributes[name] = value;
+        },
       };
     },
   };
@@ -207,22 +214,56 @@ test("la card figlia è sottile, visiva e non trascinabile come una card tracker
   assert.equal(classic.children[1].style.flexDirection, "row");
 });
 
+test("le mini-card dello stesso caster si comprimono dal primo elemento", () => {
+  const items = [
+    boardToken({ id: "weapon-a", instanceId: "cast-a-1", casterId: "caster-a" }),
+    boardToken({
+      id: "sword-a",
+      spellId: "arcane-sword",
+      instanceId: "cast-a-2",
+      casterId: "caster-a",
+    }),
+  ];
+  const companions = spellBoardTokenCompanionsByCasterId(items).get("caster-a");
+  const card = { style: {}, children: [], appendChild(child) { this.children.push(child); } };
+  appendSpellBoardTokenCompanions(card, companions, {
+    compact: true,
+    documentRef: testDocument(),
+  });
+  assert.equal(card.children.length, 2);
+  assert.equal(card.style.marginBottom, "44px");
+  const toggle = card.children[0].children[2];
+  assert.equal(toggle.dataset.spellBoardTokenCompanionToggle, "1");
+  assert.equal(toggle.textContent, "▾");
+  toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(card.style.marginBottom, "22px");
+  assert.equal(card.children[1].style.display, "none");
+  assert.equal(toggle.textContent, "▸");
+  toggle.listeners.click({ stopPropagation() {} });
+  assert.equal(card.children[1].style.display, "");
+  assert.equal(toggle.textContent, "▾");
+});
+
 test("il nome della PROP di Arma spirituale usa il caster corrente con fallback", () => {
   assert.equal(
     spellBoardTokenDisplayName("spiritual-weapon", "Omar"),
-    "Arma spirituale-Omar",
+    "Arma spirituale (Omar)",
   );
   assert.equal(
     spellBoardTokenDisplayName("spiritual-weapon", ""),
-    "Arma spirituale-Caster",
+    "Arma spirituale (Caster)",
   );
   assert.equal(
     spellBoardTokenDisplayName("arcane-sword", "Omar"),
-    "Spada arcana-Omar",
+    "Spada arcana (Omar)",
   );
   assert.equal(
     spellBoardTokenDisplayName("arcane-hand", "Omar"),
-    "Mano arcana-Omar",
+    "Mano arcana (Omar)",
+  );
+  assert.equal(
+    spellBoardTokenDisplayName("animate-objects", "Omar"),
+    "Animare oggetti-Omar",
   );
 });
 
@@ -232,14 +273,15 @@ test("la PROP porta la label testuale OBR sotto l'immagine", () => {
 });
 
 test("la PROP di Mano arcana usa la scala Large e gli HP canonici", () => {
-  assert.match(spellBoardTokenSource, /\.scale\(spellBoardTokenScale\(spellId\)\)/);
+  assert.match(spellBoardTokenSource, /\.scale\(spellBoardTokenScale\(spellId(?:, objectSize)?\)\)/);
   assert.match(spellBoardTokenSource, /\[META_KEY\]: canonicalMetadata/);
 });
 
 test("le pedine vengono agganciate ai vertici della griglia", () => {
   assert.match(aoeTargetToolSource, /function boardTokenGridVertex\(pointer, gridOrigin, dpi\)/);
   assert.match(aoeTargetToolSource, /function boardTokenPlacementSnap\(pointer, gridOrigin, dpi, rule\)/);
-  assert.match(aoeTargetToolSource, /spaceCells > 1\s*\n\s*\? boardTokenGridVertex/);
+  assert.match(aoeTargetToolSource, /const snapToVertex = spaceCells === 0\.5 \|\| spaceCells > 1;/);
+  assert.match(aoeTargetToolSource, /return snapToVertex\s*\n\s*\? boardTokenGridVertex/);
   assert.match(aoeTargetToolSource, /: nearestGridCellCenter\(pointer, gridOrigin, dpi\)/);
   assert.doesNotMatch(aoeTargetToolSource, /conferma posizione/);
 });

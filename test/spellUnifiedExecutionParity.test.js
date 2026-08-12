@@ -67,7 +67,7 @@ function validContextValue(field) {
   return "current-plane";
 }
 
-function syntheticPlacement(contract, targetIds) {
+function syntheticPlacement(contract, targetIds, castContext = {}) {
   const placement = contract.presentation.placement || {};
   if (placement.policy === "unavailable") return null;
   const rule = placement.rules?.[0] || {};
@@ -82,7 +82,7 @@ function syntheticPlacement(contract, targetIds) {
       targetIds,
     };
   }
-  return {
+  const placementResult = {
     status: "confirmed",
     confirmed: true,
     policy: placement.policy,
@@ -101,6 +101,21 @@ function syntheticPlacement(contract, targetIds) {
       targetIds,
     },
   };
+  const composition = contract.presentation.composition;
+  if (composition?.required) {
+    const selected = castContext[composition.key || "composition"] || {};
+    const counts = selected.counts && typeof selected.counts === "object"
+      ? selected.counts
+      : selected;
+    placementResult.preview.positions = (composition.options || []).flatMap((option) => (
+      Array.from({ length: Math.max(0, Math.floor(Number(counts?.[option.id]) || 0)) }, (_, index) => ({
+        objectSize: option.id,
+        ordinal: index,
+        position: { x: index * 50, y: index * 50 },
+      }))
+    ));
+  }
+  return placementResult;
 }
 
 function completeSession(contract, overrides = {}) {
@@ -114,6 +129,14 @@ function completeSession(contract, overrides = {}) {
       .map((field) => [field.id, validContextValue(field)])),
   ]));
   const attack = contract.presentation.outcomes?.mode === "attack";
+  const composition = contract.presentation.composition;
+  const castContext = composition?.required
+    ? {
+      [composition.key || "composition"]: {
+        counts: { tiny: 1 },
+      },
+    }
+    : {};
   return createSpellPanelSession({
     contract,
     casterId: "caster",
@@ -127,7 +150,8 @@ function completeSession(contract, overrides = {}) {
     outcomes: attack ? {} : Object.fromEntries(targetIds.map((id) => [id, "failed"])),
     attackOutcome: attack ? "hit" : "",
     targetContext,
-    placement: syntheticPlacement(contract, targetIds),
+    castContext,
+    placement: syntheticPlacement(contract, targetIds, castContext),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       healing: inputs.healing?.required ? 12 : null,

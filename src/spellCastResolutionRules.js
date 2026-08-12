@@ -19,7 +19,7 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     initialHP: true,
   }),
   "branding-smite": { initialHP: false, deferredHP: "next-weapon-hit" },
-  "call-lightning": { initialHP: false, deferredHP: "active-action" },
+  "call-lightning": { initialHP: true, deferredHP: "active-action" },
   "chill-touch": { initialHP: true, resolution: "single-attack" },
   "divine-favor": { initialHP: false, deferredHP: "weapon-hit" },
   "dream": { initialHP: false, deferredHP: "variant" },

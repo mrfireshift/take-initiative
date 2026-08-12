@@ -823,6 +823,7 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
   const darkness = getSpellAreaRuleById("darkness:cast");
   const spikeGrowth = getSpellAreaRuleById("spike-growth:cast");
   const purityAura = getSpellAreaRuleById("phb2014-aura-di-purezza:cast");
+  const lifeAura = getSpellAreaRuleById("phb2014-aura-di-vita:cast");
   const vitalityAura = getSpellAreaRuleById("phb2014-aura-di-vitalita:cast");
 
   assert.equal(darkness.kind, "zone");
@@ -837,6 +838,20 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
   assert.equal(purityAura.kind, "aura");
   assert.equal(purityAura.placement.anchor, "caster");
   assert.equal(purityAura.effectPolicy.effect.id, "aura-of-purity-zone");
+  assert.equal(purityAura.targeting.confirmTargets, false);
+  assert.equal(purityAura.targeting.includeCaster, false);
+  assert.equal(getSpellDefinition("Aura di Purezza").targetMode, "self");
+  assert.equal(
+    purityAura.effectPolicy.effect.label,
+    "Res. veleno / vant. TS / no malattie",
+  );
+  assert.equal(lifeAura.targeting.confirmTargets, false);
+  assert.equal(lifeAura.targeting.includeCaster, false);
+  assert.equal(getSpellDefinition("Aura di Vita").targetMode, "self");
+  assert.equal(
+    lifeAura.effectPolicy.effect.label,
+    "Res. necrotici / max PF / +1 PF a 0",
+  );
   assert.equal(vitalityAura.kind, "aura");
   assert.deepEqual(vitalityAura.geometry.size, {
     value: 9,

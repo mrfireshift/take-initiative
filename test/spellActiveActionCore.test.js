@@ -52,11 +52,16 @@ test("la stessa API espone risoluzioni preparate e attivazioni manuali", () => {
 
 test("le attivazioni offensive usano il popup dedicato e Sfera richiede la radice", () => {
   const callLightning = getSpellDefinition("Invocare il fulmine");
-  assert.deepEqual(getSpellOverviewActions({
+  const callLightningActions = getSpellOverviewActions({
     spell: callLightning,
     casterId: "caster",
     targetIds: [],
-  }), []);
+  });
+  assert.deepEqual(callLightningActions.map((action) => action.id), [
+    "call-lightning-strike",
+  ]);
+  assert.equal(callLightningActions[0].buttonLabel, "Invoca fulmine");
+  assert.equal(callLightningActions[0].turnStartPrompt, true);
 
   const flame = getSpellDefinition("Investitura della Fiamma");
   assert.deepEqual(getSpellOverviewActions({

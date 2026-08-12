@@ -38,6 +38,8 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
+import { getAnimatedObjectSize } from "./animatedObjectsCore.js";
 import {
   clipChildZoneAreaToParent,
   validateChildZoneContainment,
@@ -127,6 +129,47 @@ async function sendSpellPlacementAccepted(payload = {}) {
   ).catch(() => {});
 }
 
+function normalizedBatchObjects(context) {
+  return (Array.isArray(context?.batch?.objects) ? context.batch.objects : [])
+    .map((object) => ({
+      id: String(object?.id || "").trim(),
+      label: String(object?.label || object?.id || "oggetto").trim(),
+    }))
+    .filter((object) => object.id);
+}
+
+function currentBatchObject(runtime) {
+  const objects = runtime?.batch?.objects || [];
+  const index = Number(runtime?.batch?.positions?.length) || 0;
+  return objects[index] || null;
+}
+
+async function sendSpellPlacementProgress(runtime) {
+  const batch = runtime?.batch;
+  if (!batch?.objects?.length) return;
+  const placed = batch.positions.length;
+  const next = currentBatchObject(runtime);
+  await OBR.broadcast.sendMessage(
+    SPELL_AREA_PLACEMENT_CHANNEL,
+    {
+      type: "progress",
+      requestId: runtime.session.requestId,
+      ruleId: runtime.session.ruleId,
+      spellId: runtime.session.spellId,
+      casterId: runtime.session.casterId,
+      status: "placing",
+      context: runtime.context,
+      preview: runtime.session.preview,
+      batchIndex: placed,
+      batchTotal: batch.objects.length,
+      message: next
+        ? `Posiziona ${next.label.toLocaleLowerCase("it")} (${placed + 1}/${batch.objects.length}).`
+        : "Tutti gli oggetti sono posizionati. Conferma il gruppo.",
+    },
+    { destination: "LOCAL" },
+  ).catch(() => {});
+}
+
 async function casterGeometry(casterId) {
   if (!casterId) return null;
   try {
@@ -168,6 +211,8 @@ async function closeSpellPlacement(status, {
   const runtime = spellPlacementSession;
   if (!runtime) return;
   cancelDrag();
+  for (const interaction of runtime.previewInteractions || []) interaction?.[1]?.();
+  runtime.previewInteractions = [];
   runtime.rangePreview?.[1]?.();
   runtime.rangePreview = null;
   spellPlacementSession = null;
@@ -303,8 +348,8 @@ async function beginSpellPlacement(data) {
   };
   let runtime = null;
   try {
-      runtime = {
-        session: createSpellAreaPlacementSession({
+    runtime = {
+      session: createSpellAreaPlacementSession({
         requestId,
         rule,
         casterId,
@@ -312,15 +357,22 @@ async function beginSpellPlacement(data) {
         previousToolId,
         previousModeId,
       }),
-        rule,
-        casterName: caster?.name || "",
-        context: data?.context && typeof data.context === "object"
-          ? data.context
-          : null,
-        parentArea,
-        casterOrigin: caster?.center || null,
+      rule,
+      casterName: caster?.name || "",
+      context: data?.context && typeof data.context === "object"
+        ? data.context
+        : null,
+      parentArea,
+      casterOrigin: caster?.center || null,
       casterBounds: caster?.bounds || null,
       rangePreview: null,
+      batch: normalizedBatchObjects(data?.context).length
+        ? {
+          objects: normalizedBatchObjects(data?.context),
+          positions: [],
+        }
+        : null,
+      previewInteractions: [],
     };
     spellPlacementSession = runtime;
     const [dpiValue, scale] = await Promise.all([
@@ -742,8 +794,14 @@ function boardTokenGridVertex(pointer, gridOrigin, dpi) {
 }
 
 function boardTokenPlacementSnap(pointer, gridOrigin, dpi, rule) {
-  const spaceCells = Math.max(1, Math.floor(Number(rule?.boardToken?.spaceCells) || 1));
-  return spaceCells > 1
+  const objectSize = getAnimatedObjectSize(
+    activeDrag?.context?.objectSize || spellPlacementSession?.context?.objectSize,
+  );
+  const spaceCells = Math.max(0.5, Number(
+    objectSize?.spaceCells || rule?.boardToken?.spaceCells,
+  ) || 1);
+  const snapToVertex = spaceCells === 0.5 || spaceCells > 1;
+  return snapToVertex
     ? boardTokenGridVertex(pointer, gridOrigin, dpi)
     : nearestGridCellCenter(pointer, gridOrigin, dpi)?.position || null;
 }
@@ -919,13 +977,18 @@ async function prepareDrag(state) {
         spellId: state.rule.spellId,
         instanceId: `preview:${state.spellPlacementRequestId}`,
         casterId: spellPlacementSession?.session?.casterId || "preview-caster",
-    casterName: spellPlacementSession?.casterName || "",
+        casterName: spellPlacementSession?.casterName || "",
         casterHpMax: 1,
+        objectSize: state.context?.objectSize || "",
         position: state.start,
       });
       previewToken.locked = true;
       previewToken.disableHit = true;
-      previewToken.name = `Anteprima: ${state.rule.boardToken?.label || state.rule.spellId}`;
+      const batch = spellPlacementSession?.batch;
+      const currentObject = currentBatchObject(spellPlacementSession);
+      previewToken.name = batch
+        ? `Anteprima: ${currentObject?.label || state.rule.boardToken?.label || state.rule.spellId} (${batch.positions.length + 1}/${batch.objects.length})`
+        : `Anteprima: ${state.rule.boardToken?.label || state.rule.spellId}`;
       state.interaction = await OBR.interaction.startItemInteraction([previewToken]);
       if (activeDrag !== state || state.cancelled) {
         state.interaction[1]();
@@ -957,12 +1020,19 @@ async function prepareDrag(state) {
 
 function trackedInitiativeItem(item, orderedSet) {
   const meta = item?.metadata?.[META_KEY];
+  const boardToken = item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY];
+  const isHPBoardToken = item?.layer === "PROP"
+    && !item?.attachedTo
+    && boardToken?.kind === "spell-board-token"
+    && Number.isFinite(Number(meta?.hpMax));
   // La membership geometrica identifica i token nell'area; la disponibilità
   // di hp/hpMax appartiene alla validazione dell'effetto che verrà applicato.
-  return item?.layer === "CHARACTER"
-    && !item?.attachedTo
-    && !!meta
-    && (meta.inInitiative === true || orderedSet.has(item.id));
+  return isHPBoardToken || (
+    item?.layer === "CHARACTER"
+      && !item?.attachedTo
+      && !!meta
+      && (meta.inInitiative === true || orderedSet.has(item.id))
+  );
 }
 
 async function findHitTargetIds(area, rule = null) {
@@ -1185,6 +1255,40 @@ async function finishDrag(state) {
       );
       return;
     }
+    const batch = spellPlacementSession.batch;
+    if (batch?.objects?.length) {
+      const object = currentBatchObject(spellPlacementSession);
+      if (!object) {
+        state.finishing = false;
+        return;
+      }
+      batch.positions = [
+        ...batch.positions,
+        {
+          position,
+          objectSize: object.id,
+          ordinal: batch.positions.length,
+        },
+      ];
+      spellPlacementSession.session = reviewSpellAreaPlacement(
+        spellPlacementSession.session,
+        {
+          type: "square",
+          start: position,
+          end: position,
+          position,
+          dpi: state.dpi,
+          gridOrigin: state.gridOrigin,
+          positions: batch.positions,
+          targetIds: [],
+        },
+      );
+      if (state.interaction) spellPlacementSession.previewInteractions.push(state.interaction);
+      state.interaction = null;
+      activeDrag = null;
+      await sendSpellPlacementProgress(spellPlacementSession);
+      return;
+    }
     spellPlacementSession.session = reviewSpellAreaPlacement(
       spellPlacementSession.session,
       {
@@ -1285,6 +1389,19 @@ function startDrag(type, event) {
   const rawStart = constrained && placement.rule.placement.origin === "caster"
     ? placement.casterOrigin
     : pointer;
+  const batchObject = currentBatchObject(placement);
+  const placementContext = placement
+    ? {
+      ...(placement.context && typeof placement.context === "object" ? placement.context : {}),
+      ...(batchObject
+        ? {
+          objectSize: batchObject.id,
+          objectIndex: placement.batch.positions.length,
+          objectCount: placement.batch.objects.length,
+        }
+        : {}),
+    }
+    : null;
   const state = {
     type: effectiveType,
     rawStart,
@@ -1306,7 +1423,7 @@ function startDrag(type, event) {
     originSnapKind: "center",
     spellPlacementRequestId: constrained ? placement.session.requestId : "",
     rule: constrained ? placement.rule : null,
-    context: constrained ? placement.context : null,
+    context: placementContext,
     parentArea: constrained ? placement.parentArea : null,
     casterOrigin: constrained ? placement.casterOrigin : null,
     casterBounds: constrained ? placement.casterBounds : null,
@@ -1354,6 +1471,17 @@ async function confirmSpellPlacement() {
   const runtime = spellPlacementSession;
   const state = activeDrag;
   if (runtime && isBoardTokenPlacement(runtime.rule)) {
+    if (runtime.batch?.objects?.length) {
+      if (runtime.batch.positions.length !== runtime.batch.objects.length || !runtime.session.preview) {
+        await OBR.notification.show(
+          `Posiziona tutti gli oggetti prima di confermare (${runtime.batch.positions.length}/${runtime.batch.objects.length}).`,
+          "WARNING",
+        );
+        return;
+      }
+      await closeSpellPlacement("confirmed");
+      return;
+    }
     if (
       !state?.ended
       || !state?.boardTokenPosition

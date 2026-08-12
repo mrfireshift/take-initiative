@@ -437,9 +437,11 @@ test("il controller completa cast area, placement, undo e reset senza duplicare 
   const outcome = requiredNode(targetRow(root, "target-a"), '[data-outcome="failed"]');
   root.scrollTop = 123;
   root.scrollLeft = 7;
+  requiredNode(root, ".unified-target-list").scrollTop = 41;
   await outcome.click();
   assert.equal(root.scrollTop, 123);
   assert.equal(root.scrollLeft, 7);
+  assert.equal(requiredNode(root, ".unified-target-list").scrollTop, 41);
   const damage = requiredNode(root, '[data-field="damage"]');
   assert.equal(damage.getAttribute("type"), "text");
   assert.equal(damage.getAttribute("min"), null);
@@ -700,4 +702,99 @@ test("il controller collega popup, completamento, chiusura e terminazione ai con
     mutations[0].some((operation) => operation.type === "spell:remove-instance"),
     true,
   );
+});
+
+test("la terminazione non lascia il pannello bloccato se il refresh delle label resta in attesa", async () => {
+  const provider = createProvider({
+    overview: [{
+      instanceId: "bless-lock-1",
+      name: "Benedizione",
+      casterName: "Caster A",
+      context: {
+        spellId: "bless",
+        instanceId: "bless-lock-1",
+        casterId: "caster-a",
+        targetIds: ["target-a"],
+        concentration: true,
+      },
+    }],
+  });
+  const openedReferences = [];
+  const { root, panel: terminationPanel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: { status: "ready", spellId: "bless", session: { casterId: "caster-a" } },
+    runEffectsMutation: async () => {
+      provider.setOverview([]);
+      return { status: "applied" };
+    },
+    requireAppliedEffectsMutation: () => {},
+    refreshConditionLabels: () => new Promise(() => {}),
+    openReferencePopover: async (payload) => openedReferences.push(payload),
+  });
+  await settle();
+  await requiredNode(
+    root,
+    '[data-terminate-instance="bless-lock-1"]',
+  ).click();
+  await settle(10);
+
+  assert.equal(terminationPanel.state.committing, false);
+  assert.equal(terminationPanel.state.session.feedback.state, "success");
+  await requiredNode(root, ".unified-combobox-toggle").click();
+  assert.equal(terminationPanel.state.catalogState.expanded, true);
+  await requiredNode(root, ".unified-reference-button").click();
+  await settle(2);
+  assert.deepEqual(openedReferences, [{ tab: "spells", entry: "bless" }]);
+});
+
+test("la terminazione chiude l'eventuale risoluzione attiva della stessa spell", async () => {
+  const provider = createProvider({
+    overview: [{
+      instanceId: "bless-popup-1",
+      name: "Benedizione",
+      casterName: "Caster A",
+      context: {
+        spellId: "bless",
+        instanceId: "bless-popup-1",
+        casterId: "caster-a",
+        targetIds: ["target-a"],
+        concentration: true,
+      },
+      actions: [{ id: "resolve-bless", type: "resolve", label: "Risolvi" }],
+    }],
+  });
+  const closedPopovers = [];
+  const { root, panel } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: {
+      status: "ready",
+      spellId: "bless",
+      session: {
+        casterId: "caster-a",
+        activeInstanceId: "bless-popup-1",
+        activeActionId: "resolve-bless",
+        activeActionState: {
+          state: "opened",
+          instanceId: "bless-popup-1",
+          actionId: "resolve-bless",
+        },
+      },
+    },
+    runEffectsMutation: async () => {
+      provider.setOverview([]);
+      return { status: "applied" };
+    },
+    requireAppliedEffectsMutation: () => {},
+    refreshConditionLabels: async () => {},
+    closePopover: async (id) => closedPopovers.push(id),
+  });
+  await settle();
+  await requiredNode(root, '[data-terminate-instance="bless-popup-1"]').click();
+  await settle(10);
+
+  assert.equal(closedPopovers.length, 1);
+  assert.equal(panel.state.session.activeInstanceId, "");
+  assert.equal(panel.state.session.activeActionState.state, "idle");
 });

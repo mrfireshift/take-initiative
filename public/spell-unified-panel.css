@@ -224,6 +224,11 @@ select:disabled {
   text-transform: none;
 }
 
+.unified-target-count {
+  color: var(--unified-text);
+  font-weight: var(--obrt-weight-bold);
+}
+
 .unified-section__description,
 .unified-field__hint,
 .unified-action-item__detail,
@@ -588,6 +593,10 @@ select:disabled {
   font-size: var(--obrt-type-caption);
 }
 
+.unified-target-spatial:empty {
+  display: none;
+}
+
 .unified-target-selection-stage {
   display: flex;
   align-items: center;
@@ -740,22 +749,17 @@ select:disabled {
 
 .unified-target-bulk {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 38%);
+  grid-template-columns: minmax(0, 1fr) auto minmax(180px, 38%);
   align-items: center;
   gap: 5px 7px;
-  margin-top: 5px;
+  margin: 5px 14px 0;
 }
 
 .unified-target-bulk__actions {
+  grid-column: 3;
+  grid-row: 1;
   justify-self: stretch;
   min-width: 0;
-}
-
-.unified-target-bulk__status {
-  grid-column: 1 / -1;
-  min-height: 16px;
-  color: #bfdbfe;
-  font-size: var(--obrt-type-caption);
 }
 
 .unified-target-context {
@@ -801,8 +805,18 @@ select:disabled {
   gap: 7px;
 }
 
-.unified-automation .unified-field__label {
-  letter-spacing: .03em;
+.unified-automation .unified-automation-toggle .unified-field__label {
+  flex: 1 1 auto;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-align: right;
+  text-transform: none;
+}
+
+.unified-automation .unified-automation-variant {
+  display: grid;
+  align-content: start;
+  gap: 5px;
 }
 
 .unified-automation input[type="checkbox"] {
@@ -816,9 +830,9 @@ select:disabled {
   accent-color: var(--unified-primary);
 }
 
-.unified-automation .unified-field > select {
-  flex: 1 1 auto;
-  width: auto;
+.unified-automation .unified-automation-variant > select {
+  flex: none;
+  width: 100%;
 }
 
 .unified-hp-preview {
@@ -1131,6 +1145,8 @@ select:disabled {
   }
 
   .unified-target-bulk__actions {
+    grid-column: 1;
+    grid-row: auto;
     justify-self: stretch;
     min-width: 0;
   }

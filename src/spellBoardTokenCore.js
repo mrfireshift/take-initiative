@@ -1,4 +1,9 @@
 import { ID } from "./constants.js";
+import {
+  ANIMATED_OBJECT_COMMON_STATS,
+  ANIMATED_OBJECT_SIZES,
+  getAnimatedObjectSize,
+} from "./animatedObjectsCore.js";
 
 export const SPELL_BOARD_TOKEN_META_KEY = `${ID}/spellBoardToken`;
 const META_KEY = `${ID}/meta`;
@@ -36,10 +41,38 @@ const handMode = ({ id, label, mode, detail }) => freezeAction({
 });
 
 export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
+  "animate-objects": Object.freeze({
+    spellId: "animate-objects",
+    label: "Animare oggetti",
+    assetPath: "/spell-token-animated-medium.webp",
+    assetPixelSize: 1067,
+    creationRangeMeters: 36,
+    movementMeters: 9,
+    reachMeters: 1.5,
+    concentration: true,
+    hasHitPoints: true,
+    command: Object.freeze({
+      actionEconomy: "bonus",
+      rangeMeters: 150,
+      mode: "all-or-none",
+      noCommand: "defend",
+    }),
+    composition: Object.freeze({
+      id: "animated-objects",
+      key: "animatedObjects",
+      label: "Combinazione degli oggetti",
+      maximumCost: 10,
+      placement: "one-by-one",
+      options: ANIMATED_OBJECT_SIZES,
+    }),
+  }),
   "spiritual-weapon": Object.freeze({
     spellId: "spiritual-weapon",
     label: "Arma spirituale",
-    assetPath: "/spell-token-spiritual-weapon.svg",
+    assetPath: "/spell-token-spiritual-weapon.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1067,
+    spaceCells: 1,
     creationRangeMeters: 18,
     movementMeters: 6,
     reachMeters: 1.5,
@@ -53,7 +86,10 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
   "arcane-sword": Object.freeze({
     spellId: "arcane-sword",
     label: "Spada arcana",
-    assetPath: "/spell-token-arcane-sword.svg",
+    assetPath: "/spell-token-arcane-sword.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1067,
+    spaceCells: 1,
     creationRangeMeters: 18,
     movementMeters: 6,
     reachMeters: 1.5,
@@ -67,7 +103,10 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
   "tasha-lama-del-disastro": Object.freeze({
     spellId: "tasha-lama-del-disastro",
     label: "Lama del Disastro",
-    assetPath: "/spell-token-blade-of-disaster.svg",
+    assetPath: "/spell-token-blade-of-disaster.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 1254,
+    spaceCells: 1,
     creationRangeMeters: 18,
     movementMeters: 9,
     reachMeters: 1.5,
@@ -82,7 +121,9 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
   "arcane-hand": Object.freeze({
     spellId: "arcane-hand",
     label: "Mano arcana",
-    assetPath: "/spell-token-arcane-hand.svg",
+    assetPath: "/spell-token-arcane-hand.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 560,
     sizeCategory: "Large",
     spaceCells: 2,
     fillsSpace: false,
@@ -131,8 +172,10 @@ const clone = (value) => {
 
 const normalizedId = (value) => String(value || "").trim();
 
-function maximumHitPoints(rule, casterHpMax) {
+function maximumHitPoints(rule, casterHpMax, objectSize = "") {
   if (!rule?.hasHitPoints) return null;
+  const animatedSize = rule.composition ? getAnimatedObjectSize(objectSize) : null;
+  if (rule.composition && animatedSize) return animatedSize.hp;
   const value = Number(casterHpMax);
   return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
 }
@@ -142,10 +185,30 @@ export function getSpellBoardTokenRule(spellOrId) {
   return SPELL_BOARD_TOKEN_RULES[id] || null;
 }
 
+export function spellBoardTokenAssetPath(spellOrId, objectSize = "") {
+  const rule = getSpellBoardTokenRule(spellOrId);
+  if (!rule) return "";
+  const animatedSize = rule.composition ? getAnimatedObjectSize(objectSize) : null;
+  return animatedSize?.assetPath || rule.assetPath || "";
+}
+
+export function spellBoardTokenAssetPixelSize(spellOrId, objectSize = "") {
+  const rule = getSpellBoardTokenRule(spellOrId);
+  if (!rule) return 512;
+  const animatedSize = rule.composition ? getAnimatedObjectSize(objectSize) : null;
+  return Math.max(
+    1,
+    Number(animatedSize?.assetPixelSize || rule.assetPixelSize) || 512,
+  );
+}
+
 export function spellBoardTokenDisplayName(spellOrId, casterName = "") {
   const rule = getSpellBoardTokenRule(spellOrId);
   if (!rule) return "";
-  return `${rule.label}-${normalizedId(casterName) || "Caster"}`;
+  const caster = normalizedId(casterName) || "Caster";
+  return rule.displayNameFormat === "parenthesized-caster"
+    ? `${rule.label} (${caster})`
+    : `${rule.label}-${caster}`;
 }
 
 export function getSpellBoardTokenPlacementRule(spellOrId) {
@@ -176,6 +239,7 @@ export function getSpellBoardTokenPlacementRule(spellOrId) {
       confirmTargets: false,
     }),
     boardToken: rule,
+    ...(rule.composition ? { composition: rule.composition } : {}),
   });
 }
 
@@ -201,15 +265,31 @@ export function createSpellBoardTokenId() {
   return `spell-board-token:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
 }
 
-export function spellBoardTokenCanonicalMetadata({ spellId = "", casterHpMax = null } = {}) {
+export function spellBoardTokenCanonicalMetadata({
+  spellId = "",
+  casterHpMax = null,
+  objectSize = "",
+  attitude = "",
+} = {}) {
   const rule = getSpellBoardTokenRule(spellId);
-  const maximumHp = maximumHitPoints(rule, casterHpMax);
-  return maximumHp === null ? null : { hp: maximumHp, hpMax: maximumHp };
+  const maximumHp = maximumHitPoints(rule, casterHpMax, objectSize);
+  const normalizedAttitude = String(attitude || "").trim().toLowerCase();
+  const canonicalAttitude = ["pc", "ally", "neutral", "enemy"].includes(normalizedAttitude)
+    ? normalizedAttitude
+    : "";
+  return maximumHp === null
+    ? null
+    : {
+      hp: maximumHp,
+      hpMax: maximumHp,
+      ...(canonicalAttitude ? { attitude: canonicalAttitude } : {}),
+    };
 }
 
-export function spellBoardTokenScale(spellOrId) {
+export function spellBoardTokenScale(spellOrId, objectSize = "") {
   const rule = getSpellBoardTokenRule(spellOrId);
-  const cells = Math.max(1, Math.floor(Number(rule?.spaceCells) || 1));
+  const animatedSize = rule?.composition ? getAnimatedObjectSize(objectSize) : null;
+  const cells = Math.max(0.5, Number(animatedSize?.spaceCells || rule?.spaceCells) || 1);
   return { x: cells, y: cells };
 }
 
@@ -219,6 +299,7 @@ export function spellBoardTokenMetadata({
   casterId = "",
   slotLevel = null,
   casterHpMax = null,
+  objectSize = "",
 } = {}) {
   const rule = getSpellBoardTokenRule(spellId);
   const normalizedInstanceId = normalizedId(instanceId);
@@ -226,7 +307,11 @@ export function spellBoardTokenMetadata({
   if (!rule) throw new Error("spell-board-token-rule-required");
   if (!normalizedInstanceId) throw new Error("spell-board-token-instance-required");
   if (!normalizedCasterId) throw new Error("spell-board-token-caster-required");
-  const maximumHp = maximumHitPoints(rule, casterHpMax);
+  const animatedSize = rule.composition ? getAnimatedObjectSize(objectSize) : null;
+  const maximumHp = maximumHitPoints(rule, casterHpMax, objectSize);
+  if (rule.composition && !animatedSize) {
+    throw new Error("spell-board-token-object-size-required");
+  }
   return {
     version: 1,
     kind: "spell-board-token",
@@ -236,8 +321,20 @@ export function spellBoardTokenMetadata({
     slotLevel: Math.max(0, Math.floor(Number(slotLevel) || 0)),
     movementMeters: rule.movementMeters,
     reachMeters: rule.reachMeters,
-    ...(rule.sizeCategory ? { sizeCategory: rule.sizeCategory } : {}),
-    ...(rule.spaceCells ? { spaceCells: rule.spaceCells } : {}),
+    ...(animatedSize
+      ? {
+        ...ANIMATED_OBJECT_COMMON_STATS,
+        objectSize: animatedSize.id,
+        sizeCategory: animatedSize.sizeCategory,
+        spaceCells: animatedSize.spaceCells,
+        armorClass: animatedSize.armorClass,
+        attackBonus: animatedSize.attackBonus,
+        attackDamage: animatedSize.attackDamage,
+        strength: animatedSize.strength,
+        dexterity: animatedSize.dexterity,
+      }
+      : rule.sizeCategory ? { sizeCategory: rule.sizeCategory } : {}),
+    ...(animatedSize ? {} : rule.spaceCells ? { spaceCells: rule.spaceCells } : {}),
     ...(rule.fillsSpace !== undefined ? { fillsSpace: rule.fillsSpace } : {}),
     state: {
       revision: 0,
@@ -301,6 +398,7 @@ export function spellBoardTokenView(item) {
   const rule = getSpellBoardTokenRule(metadata?.spellId);
   if (!item?.id || !metadata || !rule) return null;
   const canonicalMetadata = item?.metadata?.[META_KEY] || {};
+  const animatedSize = rule.composition ? getAnimatedObjectSize(metadata.objectSize) : null;
   const state = {
     ...clone(metadata.state || {}),
     ...(rule.hasHitPoints && Object.prototype.hasOwnProperty.call(canonicalMetadata, "hp")
@@ -322,12 +420,17 @@ export function spellBoardTokenView(item) {
     movementMeters: rule.movementMeters,
     reachMeters: rule.reachMeters,
     creationRangeMeters: rule.creationRangeMeters,
-    sizeCategory: rule.sizeCategory || null,
-    spaceCells: Math.max(1, Math.floor(Number(rule.spaceCells) || 1)),
+    objectSize: animatedSize?.id || null,
+    objectSizeLabel: animatedSize?.label || null,
+    sizeCategory: animatedSize?.sizeCategory || rule.sizeCategory || null,
+    spaceCells: Math.max(0.5, Number(animatedSize?.spaceCells || rule.spaceCells) || 1),
     fillsSpace: rule.fillsSpace !== false,
-    armorClass: rule.armorClass || null,
-    strength: rule.strength || null,
-    dexterity: rule.dexterity ?? null,
+    armorClass: animatedSize?.armorClass || rule.armorClass || null,
+    attackBonus: animatedSize?.attackBonus || null,
+    attackDamage: animatedSize?.attackDamage || null,
+    strength: animatedSize?.strength || rule.strength || null,
+    dexterity: animatedSize?.dexterity ?? rule.dexterity ?? null,
+    ...(animatedSize ? ANIMATED_OBJECT_COMMON_STATS : {}),
     ignoresBarriers: rule.ignoresBarriers === true,
     state,
     modeLabel,

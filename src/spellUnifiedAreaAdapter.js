@@ -299,6 +299,7 @@ export function buildSpellUnifiedAreaCommand({
     casterId: text(session?.casterId),
     slotLevel: session?.slotLevel,
     choiceValue: text(session?.variant),
+    castContext: session?.castContext || {},
     activeActionId: "",
     targetIds,
     candidateTargetIds: uniqueIds(candidateTargetIds.length ? candidateTargetIds : targetIds),

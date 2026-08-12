@@ -115,6 +115,19 @@ test("Catena di fulmini usa targeting discreto e conserva la lane HP area", () =
   assert.equal(model.execution.hasTokens, false);
 });
 
+test("Invocare il fulmine espone il danno del primo fulmine", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "call-lightning",
+    phase: "cast",
+    castContext: { slotLevel: 3 },
+  });
+
+  assert.equal(model.presentation.inputs.damage.required, true);
+  assert.equal(model.presentation.inputs.damage.visible, true);
+  assert.equal(model.execution.castHasHP, true);
+  assert.equal(model.execution.deferredHP, true);
+});
+
 test("gli input danno e l'upcasting usano le dichiarazioni del workflow", () => {
   const command = buildSpellUnifiedPanelContract({
     spellId: "command",
@@ -215,6 +228,70 @@ test("Mano arcana compone placement pedina, HP e azioni della pedina", () => {
   assert.equal(action.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.DISCRETE);
   assert.equal(action.execution.lane, SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION);
   assert.equal(action.execution.selectedActionId, "arcane-hand-clenched");
+});
+
+test("Animare oggetti espone composizione obbligatoria e placement batch", () => {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "animate-objects",
+    castContext: {
+      slotLevel: 5,
+      animatedObjects: { counts: { tiny: 2, large: 2 } },
+    },
+  });
+
+  assert.equal(contract.presentation.placement.mode, "board-token");
+  assert.equal(contract.presentation.placement.ruleId, "animate-objects:board-token");
+  assert.equal(contract.presentation.composition.required, true);
+  assert.deepEqual(contract.presentation.composition.selected, {
+    counts: { tiny: 2, large: 2 },
+  });
+  assert.equal(contract.presentation.composition.maximumCost, 10);
+  assert.equal(contract.presentation.composition.options.find((option) => option.id === "large").cost, 4);
+  has(contract.presentation.controls, "composition");
+  has(contract.presentation.controls, "placement");
+  assert.equal(contract.execution.hasTokens, true);
+  assert.equal(contract.execution.hasHP, true);
+  assert.equal(contract.execution.lane, SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE);
+
+  const empty = buildSpellPanelViewModel(
+    buildSpellUnifiedPanelContract({ spellId: "animate-objects" }),
+    { casterId: "caster", slotLevel: 5 },
+  );
+  assert.equal(empty.validation.firstInvalidField, "composition");
+  assert.equal(empty.primaryAction.disabled, true);
+
+  const invalid = buildSpellPanelViewModel(contract, {
+    casterId: "caster",
+    slotLevel: 5,
+    castContext: { animatedObjects: { counts: { huge: 2 } } },
+  });
+  assert.equal(invalid.validation.firstInvalidField, "composition");
+  assert.equal(invalid.validation.errors.includes("composition-invalid"), true);
+});
+
+test("il contesto della composizione sopravvive al cambio slot e si azzera cambiando spell", () => {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "animate-objects",
+    castContext: { slotLevel: 5, animatedObjects: { counts: { small: 3 } } },
+  });
+  const session = createSpellPanelSession({
+    contract,
+    casterId: "caster",
+    slotLevel: 5,
+    castContext: { animatedObjects: { counts: { small: 3 } } },
+  });
+  const slotChanged = updateSpellPanelSession(session, {
+    slotLevel: 6,
+    castContext: { slotLevel: 6 },
+  });
+  assert.deepEqual(slotChanged.castContext.animatedObjects, {
+    counts: { small: 3 },
+  });
+  const switched = changeSpellPanelSpell(
+    slotChanged,
+    buildSpellUnifiedPanelContract({ spellId: "arcane-hand" }),
+  );
+  assert.equal(switched.castContext.animatedObjects, undefined);
 });
 
 test("Raffica di Spine separa preparazione e risoluzione", () => {

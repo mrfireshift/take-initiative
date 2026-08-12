@@ -820,6 +820,8 @@ async function prepareEffectsSideEffects(plan, command) {
       const instanceId = String(descriptor.instanceId || "").trim();
       const casterId = String(descriptor.casterId || "").trim();
       const entityId = String(descriptor.entityId || "").trim();
+      const objectSize = String(descriptor.objectSize || "").trim();
+      const batch = descriptor.batch === true;
       const position = {
         x: Number(descriptor.position?.x),
         y: Number(descriptor.position?.y),
@@ -839,7 +841,7 @@ async function prepareEffectsSideEffects(plan, command) {
         };
       }
       const existing = await boardTokenItemsForSelectors([{ instanceId }]);
-      if (existing.length > 1) {
+      if (!batch && existing.length > 1) {
         return {
           status: EFFECTS_MUTATION_STATUS.CONFLICT,
           conflicts: [{ reason: "duplicate-spell-board-token", itemId: existing[0]?.id || null }],
@@ -872,9 +874,11 @@ async function prepareEffectsSideEffects(plan, command) {
           conflicts: [{ reason: "spell-board-token-out-of-range", itemId: casterId }],
         };
       }
-      if (existing.length === 1) {
-        const before = clone(existing[0]);
-        const after = { ...clone(existing[0]), position: clone(position) };
+      const existingItem = existing.find((item) => item.id === entityId)
+        || (!batch && existing.length === 1 ? existing[0] : null);
+      if (existingItem) {
+        const before = clone(existingItem);
+        const after = { ...clone(existingItem), position: clone(position) };
         prepared.push({ type: descriptor.type, before, after });
         continue;
       }
@@ -893,10 +897,26 @@ async function prepareEffectsSideEffects(plan, command) {
         casterId,
         slotLevel: descriptor.slotLevel,
         casterHpMax: caster?.metadata?.[META_KEY]?.hpMax,
+        casterAttitude: caster?.metadata?.[META_KEY]?.attitude,
         casterName: caster?.name || "",
+        objectSize,
         position,
       });
       prepared.push({ type: descriptor.type, before: null, after: item });
+    } else if (descriptor?.type === "spell-board-token:remove") {
+      const itemId = String(descriptor.itemId || "").trim();
+      const [item] = itemId ? await OBR.scene.items.getItems([itemId]) : [];
+      if (
+        !item
+        || item.layer !== "PROP"
+        || item.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind !== "spell-board-token"
+      ) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "spell-board-token-missing", itemId: itemId || null }],
+        };
+      }
+      prepared.push({ type: descriptor.type, item: clone(item) });
     } else if (descriptor?.type === "spell-board-token:create") {
       const spellId = String(descriptor.spellId || "").trim();
       const instanceId = String(descriptor.instanceId || "").trim();
@@ -949,15 +969,20 @@ async function prepareEffectsSideEffects(plan, command) {
         casterId,
         slotLevel: descriptor.slotLevel,
         casterHpMax: caster?.metadata?.[META_KEY]?.hpMax,
+        casterAttitude: caster?.metadata?.[META_KEY]?.attitude,
         casterName: caster?.name || "",
         position,
       });
       prepared.push({ type: descriptor.type, item });
     } else if (descriptor?.type === "spell-board-token:update-state") {
       const instanceId = String(descriptor.instanceId || "").trim();
-      const items = await boardTokenItemsForSelectors([{ instanceId }]);
+      const itemId = String(descriptor.itemId || "").trim();
+      const candidates = await boardTokenItemsForSelectors([{ instanceId }]);
+      const items = itemId
+        ? candidates.filter((candidate) => candidate.id === itemId)
+        : candidates;
       const item = items[0] || null;
-      if (items.length !== 1) {
+      if ((itemId && items.length !== 1) || (!itemId && candidates.length !== 1)) {
         return {
           status: EFFECTS_MUTATION_STATUS.CONFLICT,
           conflicts: [{ reason: "spell-board-token-missing", itemId: item?.id || null }],
@@ -1385,6 +1410,21 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     if (!isCurrent()) throw new Error("stale-before-spell-board-token-create");
     await OBR.scene.items.addItems([clone(item)]);
     return [{ id: item.id, type: "item", before: null, after: clone(item) }];
+  }
+  if (sideEffect.type === "spell-board-token:remove") {
+    const expected = sideEffect.item;
+    if (!expected?.id) return [];
+    const [actual] = await OBR.scene.items.getItems([expected.id]);
+    if (!actual) return [];
+    if (!sameValue(actual, expected)) throw new Error("spell-board-token-remove-conflict");
+    if (!isCurrent()) throw new Error("stale-before-spell-board-token-remove");
+    await OBR.scene.items.deleteItems([expected.id]);
+    return [{
+      id: expected.id,
+      type: "item",
+      before: clone(expected),
+      after: null,
+    }];
   }
   if (sideEffect.type === "spell-board-token:update-state") {
     const [item] = await OBR.scene.items.getItems([sideEffect.id]);

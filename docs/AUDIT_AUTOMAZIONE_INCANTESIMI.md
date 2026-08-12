@@ -10,10 +10,10 @@
 - Catalogo sorgente: **477** definizioni; perimetro operativo: **374**; testi disponibili nel perimetro: **373**.
 - Fuori perimetro: **103** definizioni. Sono escluse a priori le spell con casting time maggiore di 1 azione e le esclusioni curate dal perimetro operativo.
 - Definizioni tracciabili: **280**; definizioni con almeno una regola di area: **115**.
-- Esposte nella console unificata: **311**; disconnesse: **67**; fragili: **3**.
+- Esposte nella console unificata: **311**; disconnesse: **67**; fragili: **2**.
 - Workflow che richiedono smoke test runtime: **194**.
 - Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **41**.
-- Impronta deterministica dello snapshot: `82f5222bfe99a972`.
+- Impronta deterministica dello snapshot: `d7e1f51dfd6e6c8e`.
 - P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.
 - Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.
 - I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.
@@ -60,15 +60,15 @@
 | Stato | Totale |
 | --- | ---: |
 | disconnected | 67 |
-| fragile | 3 |
+| fragile | 2 |
 | partial | 40 |
-| reachable | 264 |
+| reachable | 265 |
 
 ### Problemi di integrazione
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION_REMINDER_ONLY | 3 |
+| ACTIVE_ACTION_REMINDER_ONLY | 2 |
 | CAST_NO_MUTATIONS | 4 |
 | UNIFIED_CATALOG_MISSING | 63 |
 
@@ -114,7 +114,6 @@ Questa sezione è indipendente dalle lacune RAW: segnala workflow presenti nel c
 | Infliggi ferite | assente | spell-lifecycle | nessuna | disconnected | incantesimo non esposto nella console unificata |
 | Intimorire infernale | assente | spell-lifecycle | nessuna | disconnected | incantesimo non esposto nella console unificata |
 | Investitura della Fiamma | esposto | area-transaction | reminder-only: flame-investiture-line | fragile | azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva |
-| Invocare il fulmine | esposto | area-transaction | reminder-only: call-lightning-strike | fragile | azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva |
 | Lama Verdefiamma | assente | spell-lifecycle | nessuna | disconnected | incantesimo non esposto nella console unificata |
 | Lenza Elettrizzante | assente | spell-lifecycle | nessuna | disconnected | incantesimo non esposto nella console unificata |
 | Localizza animali o vegetali | assente | spell-lifecycle | nessuna | disconnected | incantesimo non esposto nella console unificata |
@@ -232,8 +231,8 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Armatura magica | `mage-armor` | SRD 5.1 / 1 | utilità/riferimento | — | esposto | reachable | — | tracking | coperto | — | — |
 | Artificio druidico | `druidcraft` | SRD 5.1 / 0 | utilità/riferimento | — | assente | disconnected | effetto istantaneo persistente | — | riferimento/utilità | — | — |
 | Assorbire Elementi | `xanathar-assorbire-elementi` | Xanathar / 1 | combattimento | — | esposto | reachable | turni | tracking, turni, varianti | coperto | — | — |
-| Aura di Purezza | `phb2014-aura-di-purezza` | PHB 2014 / 4 | combattimento | — | esposto | reachable | area | tracking, aree:aura, lifecycle, TS | coperto | — | — |
-| Aura di Vita | `phb2014-aura-di-vita` | PHB 2014 / 4 | combattimento | — | esposto | partial | area | tracking, aree:aura, lifecycle, TS | parziale: revisione curata | P1 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente |
+| Aura di Purezza | `phb2014-aura-di-purezza` | PHB 2014 / 4 | combattimento | — | esposto | reachable | area | tracking, aree:aura, lifecycle | coperto | — | — |
+| Aura di Vita | `phb2014-aura-di-vita` | PHB 2014 / 4 | combattimento | — | esposto | partial | area | tracking, aree:aura, lifecycle | parziale: revisione curata | P1 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente |
 | Aura di Vitalità | `phb2014-aura-di-vitalita` | PHB 2014 / 3 | combattimento | — | esposto | partial | area, fasi/azioni | tracking, aree:aura, lifecycle, TS | parziale: revisione curata | P1 | azione di cura entro l'aura assente |
 | Aura magica dell'arcanista | `arcanists-magic-aura` | SRD 5.1 / 2 | utilità/riferimento | — | esposto | reachable | — | tracking | coperto | — | — |
 | Aura sacra | `holy-aura` | SRD 5.1 / 8 | combattimento | area | esposto | partial | area, TS:area, status:Accecato | tracking, aree:instant, TS | parziale: revisione curata | P1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato |
@@ -376,7 +375,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Inviare | `sending` | SRD 5.1 / 3 | utilità/riferimento | — | esposto | reachable | — | tracking, turni | coperto | — | — |
 | Invisibilità | `invisibility` | SRD 5.1 / 2 | combattimento | — | esposto | reachable | status:Invisibile | tracking, TS, status:Invisibile | coperto | — | — |
 | Invisibilità superiore | `greater-invisibility` | SRD 5.1 / 4 | combattimento | — | esposto | reachable | status:Invisibile | tracking, TS, status:Invisibile | coperto | — | — |
-| Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | combattimento | area | esposto | fragile | TS:area, fasi/azioni | tracking, aree:instant/zone, lifecycle, TS, movimento, fasi/azioni | coperto | — | — |
+| Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | combattimento | area | esposto | reachable | TS:area, fasi/azioni | tracking, aree:instant/zone, lifecycle, TS, movimento, fasi/azioni | coperto | — | — |
 | Invulnerabilità | `xanathar-invulnerabilita` | Xanathar / 9 | combattimento | — | esposto | reachable | — | tracking | coperto | — | — |
 | Labirinto | `maze` | SRD 5.1 / 8 | utilità/riferimento | — | esposto | reachable | — | tracking | coperto | — | — |
 | Lama d'Ombra | `xanathar-lama-dombra` | Xanathar / 2 | combattimento | — | esposto | partial | turni, fasi/azioni | tracking | parziale: revisione curata | P1 | azione ripetibile della spell assente |

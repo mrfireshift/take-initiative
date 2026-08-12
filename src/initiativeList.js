@@ -5441,6 +5441,7 @@ function bindSpellBoardTokenHPEditor(pill, boardToken, spell) {
       saveValues: async ({ nextHP }) => {
         await executeSpellBoardTokenStateUpdate({
           group: {
+            itemId: boardToken.itemId,
             casterId: boardToken.casterId,
             instanceId: boardToken.instanceId,
             spellId: boardToken.spellId,

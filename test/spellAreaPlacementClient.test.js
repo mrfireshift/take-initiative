@@ -58,6 +58,36 @@ test("il client correla la risposta alla singola richiesta", async () => {
   assert.equal((await pending).status, "confirmed");
 });
 
+test("il client inoltra soltanto l'avanzamento del placement batch correlato", async () => {
+  const broadcast = fakeBroadcast();
+  let progress = null;
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-batch",
+    ruleId: "animate-objects:board-token",
+    casterId: "caster",
+    context: { batch: { total: 2 } },
+  }, {
+    broadcast,
+    windowRef: null,
+    onProgress: (value) => { progress = value; },
+  });
+
+  await Promise.resolve();
+  broadcast.emit({ type: "progress", requestId: "other", batchIndex: 1 });
+  assert.equal(progress, null);
+  broadcast.emit({
+    type: "progress",
+    requestId: "request-batch",
+    batchIndex: 1,
+    batchTotal: 2,
+    preview: { positions: [{ objectSize: "tiny" }] },
+  });
+  assert.equal(progress.batchIndex, 1);
+  assert.equal(progress.batchTotal, 2);
+  broadcast.emit({ type: "result", requestId: "request-batch", status: "confirmed" });
+  assert.equal((await pending).status, "confirmed");
+});
+
 test("il client ritenta il primo handoff finché il tool non conferma la presa in carico", async () => {
   const broadcast = fakeBroadcast();
   const pending = requestSpellAreaPlacement({

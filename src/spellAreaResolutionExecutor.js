@@ -32,6 +32,9 @@ import {
   confirmedSpellAreaTargetIds,
 } from "./quickHpAreaWorkflowCore.js";
 import {
+  buildCallLightningCloudPreview,
+} from "./spellAreaPlacementCore.js";
+import {
   getSpellAreaRuleById,
   getSpellAreaRuleForPlacement,
   getSpellAreaRules,
@@ -53,8 +56,10 @@ import {
 } from "./spellBoardToken.js";
 import {
   createSpellBoardTokenId,
+  SPELL_BOARD_TOKEN_META_KEY,
   spellBoardTokenPlacementPosition,
 } from "./spellBoardTokenCore.js";
+import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import {
   getZeroHPConditionHistoryIds,
@@ -258,6 +263,9 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken }) 
   if (!hasActiveResolution && !mobileAura && !boardToken
     && !resolution?.targeting && !resolution?.choice) return null;
   return {
+    ...(command?.spell?.castContext && typeof command.spell.castContext === "object"
+      ? clone(command.spell.castContext)
+      : {}),
     ...(hasActiveResolution ? { slotLevel: command.spell.slotLevel } : {}),
     ...(mobileAura ? { mobileAura: true } : {}),
     ...(boardToken ? { boardToken: true } : {}),
@@ -332,7 +340,16 @@ function defaultRuntime(overrides = {}) {
     getZeroHPConditionHistoryIds,
     onConcentrationWarnings: async () => {},
     onEffectSaveWarnings: async () => {},
-    buildCallLightningCloudPlacement: async () => null,
+    buildCallLightningCloudPlacement: async (_casterId, preview) => {
+      const cloudPreview = buildCallLightningCloudPreview(preview);
+      return cloudPreview
+        ? {
+          ruleId: "call-lightning:cloud",
+          spellId: "call-lightning",
+          preview: cloudPreview,
+        }
+        : null;
+    },
     getInitiativeActorId: async () => null,
     validateSpatial: async () => ({ valid: true, errors: [] }),
     zoneTriggerRootItems: async (activation, runtime) => defaultZoneTriggerRootItems(
@@ -596,7 +613,9 @@ async function buildPlan(command, runtime) {
     spellTargetIds: [...(resolution.spellTargetIds || [])],
   };
   if ((mobileAura || boardToken) && casterId) {
-    resolved.spellTargetIds = uniqueIds([...resolved.spellTargetIds, casterId]);
+    resolved.spellTargetIds = mobileAura && placementRule?.targeting?.confirmTargets === false
+      ? [casterId]
+      : uniqueIds([...resolved.spellTargetIds, casterId]);
   }
   const effectSubjectIds = uniqueIds([
     ...resolved.spellTargetIds,
@@ -818,24 +837,52 @@ async function buildPlan(command, runtime) {
     : boardToken
       ? await runtime.getBoardTokenItems({ instanceId: spellInstanceId })
       : [];
-  const boardTokenEntityId = boardToken ? createSpellBoardTokenId() : "";
-  const boardTokenPosition = boardToken
-    ? spellBoardTokenPlacementPosition(placement?.preview)
-    : null;
+  const compositionKey = text(placementRule?.composition?.key) || "composition";
+  const compositionObjects = boardToken && placementRule?.composition
+    ? expandAnimatedObjectComposition(command?.spell?.castContext?.[compositionKey])
+    : [];
+  const batchPlacements = boardToken && placementRule?.composition
+    ? (Array.isArray(placement?.preview?.positions) ? placement.preview.positions : [])
+      .map((entry, index) => ({
+        position: spellBoardTokenPlacementPosition(entry),
+        objectSize: text(entry?.objectSize || compositionObjects[index]?.id),
+        ordinal: Number.isInteger(Number(entry?.ordinal)) ? Number(entry.ordinal) : index,
+      }))
+      .filter((entry) => entry.position)
+    : boardToken
+      ? [{ position: spellBoardTokenPlacementPosition(placement?.preview), objectSize: "", ordinal: 0 }]
+      : [];
+  if (boardToken && placementRule?.composition
+    && (batchPlacements.length !== compositionObjects.length
+      || compositionObjects.some((object, index) => (
+        text(batchPlacements[index]?.objectSize) !== object.id
+      )))) {
+    return {
+      valid: false,
+      errors: [{
+        code: "animated-objects-placement-incomplete",
+        message: "Ogni oggetto animato deve avere una posizione confermata.",
+      }],
+    };
+  }
+  const boardTokenEntityIds = batchPlacements.map(() => createSpellBoardTokenId());
+  const boardTokenEntityId = boardTokenEntityIds[0] || "";
   const spellBoardTokenSideEffects = [
     ...(breaksExistingConcentration ? [{
       type: "static-zone:remove-ended",
       selectors: [{ casterId }],
     }] : []),
-    ...(boardToken && boardTokenPosition ? [{
+    ...batchPlacements.map((entry, index) => ({
       type: "spell-board-token:place",
-      entityId: boardTokenEntityId,
+      entityId: boardTokenEntityIds[index],
       spellId: spell.id,
       instanceId: spellInstanceId,
       casterId,
       slotLevel: command?.spell?.slotLevel,
-      position: boardTokenPosition,
-    }] : []),
+      position: entry.position,
+      ...(entry.objectSize ? { objectSize: entry.objectSize } : {}),
+      ...(placementRule?.composition ? { batch: true } : {}),
+    })),
   ];
   const previousStaticZoneItems = breaksExistingConcentration
     ? await runtime.getStaticZoneItems({ casterId })
@@ -874,14 +921,28 @@ async function buildPlan(command, runtime) {
     ]),
   );
   const entries = hpEntries({ command, items: liveItems, spell });
-  const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
-    const meta = itemMeta(entry.item);
-    return resolveZeroHPUnconsciousAction({
-      ...meta,
-      hp: entry.change.afterHP,
-      hpMax: entry.change.hpMax,
-    }, getConditionInstances(meta.conditions || {}));
-  });
+  const zeroHPBoardTokenIds = uniqueIds(entries
+    .filter((entry) => (
+      entry.change.afterHP === 0
+      && entry.item?.layer === "PROP"
+      && entry.item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token"
+    ))
+    .map((entry) => entry.item.id));
+  const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(
+    entries.filter((entry) => !zeroHPBoardTokenIds.includes(entry.item.id)),
+    (entry) => {
+      const meta = itemMeta(entry.item);
+      return resolveZeroHPUnconsciousAction({
+        ...meta,
+        hp: entry.change.afterHP,
+        hpMax: entry.change.hpMax,
+      }, getConditionInstances(meta.conditions || {}));
+    },
+  );
+  spellBoardTokenSideEffects.push(...zeroHPBoardTokenIds.map((itemId) => ({
+    type: "spell-board-token:remove",
+    itemId,
+  })));
   const requestedZoneTrigger = trigger ? (rawTrigger || trigger) : null;
   const triggerRootItems = requestedZoneTrigger
     ? await runtime.zoneTriggerRootItems(requestedZoneTrigger, runtime)
@@ -908,7 +969,8 @@ async function buildPlan(command, runtime) {
     ...previousStaticZoneItems.map((item) => item.id),
     ...nextStaticZoneItems.map((item) => item.id),
     ...previousBoardTokenItems.map((item) => item.id),
-    boardTokenEntityId,
+    ...boardTokenEntityIds,
+    ...zeroHPBoardTokenIds,
     ...triggerRootItems.map((item) => item.id),
   ]);
   return {
@@ -931,6 +993,7 @@ async function buildPlan(command, runtime) {
     nextStaticZoneItems,
     previousBoardTokenItems,
     boardTokenEntityId,
+    boardTokenEntityIds,
     spellBoardTokenSideEffects,
     zeroHPReconcileIds,
     affectedIds,
