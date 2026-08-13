@@ -170,6 +170,9 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       }),
     })]),
   }),
+  "tasha-scheggia-della-mente": Object.freeze({
+    trackOutcomes: Object.freeze(["passed", "failed"]),
+  }),
 });
 
 export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({

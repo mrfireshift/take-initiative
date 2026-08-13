@@ -108,6 +108,7 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "legacy-tashas-mind-whip",
   "chain-lightning",
   "command",
+  "tasha-scheggia-della-mente",
   "xanathar-anatema-elementale",
   "banishment",
   "xanathar-aculeo-mentale",
@@ -238,6 +239,9 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   }),
   "xanathar-aculeo-mentale": Object.freeze({
     failedEffectIds: Object.freeze(["location-known"]),
+  }),
+  "tasha-scheggia-della-mente": Object.freeze({
+    failedEffectIds: Object.freeze(["next-saving-throw-penalty"]),
   }),
   "holy-aura": Object.freeze({
     failedEffectIds: Object.freeze(["holy-aura-protection"]),

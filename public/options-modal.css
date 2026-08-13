@@ -29,6 +29,7 @@ button, select, input { font: inherit; }
 .option-grid { display: grid; gap: 7px; }
 .option-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .option-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.option-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .option-field, .option-toggle { min-width: 0; }
 .option-field { display: grid; gap: 5px; color: var(--obrt-muted); font-size: var(--obrt-type-caption); font-weight: var(--obrt-weight-bold); line-height: 1.25; }
 select { width: 100%; min-height: 32px; height: 32px; padding: 6px 30px 6px 8px; border: 1px solid rgba(148,163,184,.28); border-radius: 10px; background: #0f172a; color: inherit; font-size: var(--obrt-type-body); font-weight: var(--obrt-weight-regular); line-height: 1.2; outline: none; }
@@ -84,4 +85,4 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .message.error { border: 1px solid rgba(248,113,113,.4); background: rgba(127,29,29,.28); color: #fecaca; }
 [hidden] { display: none !important; }
 @media (max-width: 680px) { .turn-options-grid { grid-template-columns: 1fr; } }
-@media (max-width: 620px) { .option-grid.two, .option-grid.three, .player-preview { grid-template-columns: 1fr; } .option-card-actions.inline { grid-template-columns: 1fr; } .hp-matrix { grid-template-columns: 92px repeat(4, minmax(70px, 1fr)); overflow-x: auto; } .options-toolbar { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 620px) { .option-grid.two, .option-grid.three, .option-grid.four, .player-preview { grid-template-columns: 1fr; } .option-card-actions.inline { grid-template-columns: 1fr; } .hp-matrix { grid-template-columns: 92px repeat(4, minmax(70px, 1fr)); overflow-x: auto; } .options-toolbar { align-items: flex-start; flex-direction: column; } }

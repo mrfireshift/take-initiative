@@ -54,7 +54,11 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
     visibility: "full", showDc: true, showCaster: true,
   });
   assert.equal(room.playerView.bossDetails, "full");
-  assert.deepEqual(room.turn, { popup: true, directReminderResolution: "assisted" });
+  assert.deepEqual(room.turn, {
+    popup: true,
+    directReminderResolution: "assisted",
+    movementReminder: true,
+  });
   assert.deepEqual(room.map, {
     hpBars: true, effectLabels: true, activeTurnLabel: true, elevationLabels: true,
   });

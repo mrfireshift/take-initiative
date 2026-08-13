@@ -18,6 +18,7 @@ export const SCENE_OVERRIDE_PATHS = Object.freeze([
   "playerView.bossDetails",
   "turn.popup",
   "turn.directReminderResolution",
+  "turn.movementReminder",
   "map.hpBars",
   "map.effectLabels",
   "map.activeTurnLabel",
@@ -97,6 +98,7 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   turn: {
     popup: true,
     directReminderResolution: "assisted",
+    movementReminder: true,
   },
   map: {
     hpBars: true,

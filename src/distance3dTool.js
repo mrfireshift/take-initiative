@@ -131,7 +131,9 @@ export async function cleanupDistance3dTool() {
 export async function mountDistance3dTool() {
   if (mounted) return roleAllowed;
   mounted = true;
-  roleAllowed = await OBR.player.getRole().then((role) => role === "GM").catch(() => false);
+  roleAllowed = await OBR.player.getRole()
+    .then((role) => ["GM", "PLAYER"].includes(String(role).toUpperCase()))
+    .catch(() => false);
   if (!roleAllowed) return false;
   unsubscribeBroadcast = OBR.broadcast.onMessage(DISTANCE_3D_CHANNEL, (event) => {
     if (event?.data?.type === "opened") popoverOpen = true;

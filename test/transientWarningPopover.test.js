@@ -29,7 +29,17 @@ test("concentrazione e velocità aprono popover transienti on demand", () => {
   assert.match(speedHost, /OBR\.broadcast\.onMessage\(SPEED_WARNING_CHANNEL/);
   assert.match(speedHost, /await OBR\.popover\.open\(\{/);
   assert.doesNotMatch(speedHost, /await OBR\.modal\.open\(\{/);
-  assert.match(speedHost, /disableClickAway: false/);
+  assert.match(speedHost, /disableClickAway: true/);
+});
+
+test("il warning movimento usa un broadcast ordinato e un iframe solo on-demand", () => {
+  assert.match(speedCheck, /function broadcastSpeedWarning\(payload\)/);
+  assert.match(speedCheck, /speedWarningBroadcastQueue = speedWarningBroadcastQueue\.then\(send, send\)/);
+  assert.match(speedCheck, /destination: "ALL"/);
+  assert.match(speedCheck, /await broadcastSpeedWarning\(\{/);
+  assert.doesNotMatch(speedCheck, /SPEED_WARNING_MAX_AGE_MS|SPEED_WARNING_UI_CHANNEL|SPEED_WARNING_HOST_CHANNEL/);
+  assert.doesNotMatch(speed, /OBR\.broadcast\.onMessage/);
+  assert.match(speed, /renderWarning\(warningFromURL\(\)\)/);
 });
 
 test("i warning chiudono il proprio popover e non lasciano iframe vuoti", () => {

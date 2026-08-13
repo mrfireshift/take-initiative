@@ -78,6 +78,10 @@ export function selectDirectReminderResolution(options) {
   return resolved(options).shared.turn.directReminderResolution;
 }
 
+export function selectMovementReminderEnabled(options) {
+  return resolved(options).shared.turn.movementReminder;
+}
+
 export function selectMapHpBarsEnabled(options) {
   return resolved(options).shared.map.hpBars;
 }
@@ -164,6 +168,7 @@ export function selectOptionsPanelModel(options) {
       reminders: room.playerView.reminders,
       popup: room.turn.popup,
       directResolution: room.turn.directReminderResolution,
+      movementReminder: room.turn.movementReminder,
       activeTurnLabel: room.map.activeTurnLabel,
     },
     scene: {
@@ -175,6 +180,11 @@ export function selectOptionsPanelModel(options) {
         value,
         "turn.directReminderResolution",
         room.turn.directReminderResolution,
+      ),
+      movementReminder: panelSceneEntry(
+        value,
+        "turn.movementReminder",
+        room.turn.movementReminder,
       ),
       activeTurnLabel: panelSceneEntry(
         value,

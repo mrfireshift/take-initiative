@@ -29,6 +29,7 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { QUICK_HP_FACTORS } from "./quickHpCore.js";
+import { spellSaveDamageFactor } from "./spellCastResolutionRules.js";
 
 export const SPELL_AREA_RESOLUTION_COMMAND_TYPE = "spell-area-resolution";
 
@@ -773,7 +774,7 @@ function normalizeHp(
           ? QUICK_HP_FACTORS.HALF
           : QUICK_HP_FACTORS.FULL
       : outcome === SAVE_SPELL_OUTCOMES.PASSED
-      ? QUICK_HP_FACTORS.HALF
+      ? spellSaveDamageFactor(contract?.spell?.id, outcome) || QUICK_HP_FACTORS.HALF
       : outcome === SAVE_SPELL_OUTCOMES.IMMUNE
         ? "zero"
         : QUICK_HP_FACTORS.FULL;

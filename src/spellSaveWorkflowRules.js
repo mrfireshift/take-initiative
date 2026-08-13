@@ -190,6 +190,17 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  "tasha-scheggia-della-mente": workflowRule({
+    spellId: "tasha-scheggia-della-mente",
+    ability: "int",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 0,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
   "phb2014-allucinazione-di-forza": workflowRule({
     spellId: "phb2014-allucinazione-di-forza",
     ability: "int",

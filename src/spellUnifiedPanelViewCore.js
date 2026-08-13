@@ -36,6 +36,7 @@ import {
 import {
   spellUnifiedActiveActionPresentation,
 } from "./spellUnifiedActiveAdapter.js";
+import { spellSaveDamageFactor } from "./spellCastResolutionRules.js";
 
 const SUBJECT_LABELS = Object.freeze({
   none: "Nessun soggetto",
@@ -312,7 +313,13 @@ function spatialRuleLabel(spatial = null) {
   return "";
 }
 
-function hpPreviewFor(presentation, session, candidates, outcomeMode = "save") {
+function hpPreviewFor(
+  presentation,
+  session,
+  candidates,
+  outcomeMode = "save",
+  spellId = "",
+) {
   const inputs = presentation?.inputs || {};
   const isHealing = inputs.healing?.visible === true;
   const isDamage = inputs.damage?.visible === true;
@@ -361,11 +368,12 @@ function hpPreviewFor(presentation, session, candidates, outcomeMode = "save") {
         : immune
           ? QUICK_HP_FACTORS.FULL
           : outcome === "passed"
-            ? QUICK_HP_FACTORS.HALF
+            ? spellSaveDamageFactor(spellId, outcome) || QUICK_HP_FACTORS.HALF
             : QUICK_HP_FACTORS.FULL;
+      const noDamage = !isHealing && factor === "zero";
       const change = calculateQuickHPChange({
         mode,
-        value: immune || attackMiss ? 0 : value,
+        value: immune || attackMiss || noDamage ? 0 : value,
         factor: attackMiss ? QUICK_HP_FACTORS.FULL : factor,
         hp: beforeHP,
         hpMax,
@@ -379,6 +387,8 @@ function hpPreviewFor(presentation, session, candidates, outcomeMode = "save") {
             ? "Mancato"
           : immune
             ? "Immune"
+            : noDamage
+              ? "No danno"
             : factor === QUICK_HP_FACTORS.HALF
               ? "Metà"
               : "Pieno",
@@ -622,7 +632,13 @@ export function buildUnifiedPanelViewModel({
     inputs.automation?.visible === true
       || manualControlsVisible,
   );
-  const hpPreview = hpPreviewFor(presentation, session, allCandidates, outcomeMode);
+  const hpPreview = hpPreviewFor(
+    presentation,
+    session,
+    allCandidates,
+    outcomeMode,
+    contract?.spell?.id,
+  );
   const hpPreviewByKey = new Map(
     (hpPreview.targets || []).map((target) => [target.key, target]),
   );

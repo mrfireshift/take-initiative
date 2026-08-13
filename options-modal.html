@@ -109,7 +109,7 @@
             <div><h2 id="turn-title">Turno e mappa</h2></div>
             <span class="scope-badge shared" data-current-scope-badge>Room</span>
           </div>
-          <div class="option-grid three turn-options-grid">
+          <div class="option-grid four turn-options-grid">
             <article class="option-card compact-card" data-family-card="popup">
               <div class="option-card-heading"><div><h3>Popup cambio turno</h3><p>Mostra il cambio turno. I reminder restano attivi.</p></div></div>
               <label class="option-field room-value"><span>Impostazione</span><select data-family="popup" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
@@ -119,6 +119,11 @@
               <div class="option-card-heading"><div><h3>Risoluzione reminder</h3><p>Azioni guidate o sola informazione.</p></div></div>
               <label class="option-field room-value"><span>Impostazione</span><select data-family="directResolution" data-path="value"><option value="assisted">Assistita</option><option value="informational">Informativa</option></select></label>
               <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="directResolution"><option value="inherit">Eredita</option><option value="assisted">Assistita</option><option value="informational">Informativa</option></select></label>
+            </article>
+            <article class="option-card compact-card" data-family-card="movementReminder">
+              <div class="option-card-heading"><div><h3>Reminder movimento</h3><p>Avvisa quando il token supera la velocità massima.</p></div></div>
+              <label class="option-field room-value"><span>Impostazione</span><select data-family="movementReminder" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
+              <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="movementReminder" data-value-type="boolean"><option value="inherit">Eredita</option><option value="true">On</option><option value="false">Off</option></select></label>
             </article>
             <article class="option-card compact-card" data-family-card="activeTurnLabel">
               <div class="option-card-heading"><div><h3>Nome del turno sulla mappa</h3><p>Mostra il nome del token attivo.</p></div></div>

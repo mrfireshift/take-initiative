@@ -874,9 +874,10 @@ function slotDescriptor({ spell, workflowRule, selectedAction }) {
   };
 }
 
-function casterDescriptor({ spell, targeting, placement, selectedAction }) {
+function casterDescriptor({ spell, targeting, placement, selectedAction, saveOutcomes = false }) {
   const reasons = [];
   if (spell?.concentration === true) reasons.push("concentration");
+  if (saveOutcomes) reasons.push("save");
   if (["self", "caster"].includes(targeting.subjectMode)) reasons.push("subject");
   if (["caster-range", "primary-and-secondary-range", "action-range"].includes(
     targeting.spatialRules?.mode,
@@ -1094,6 +1095,7 @@ function controlList({
       || !!rule.range)
     || selectedAction?.requiresParentInstance === true
     || ["caster", "root"].includes(selectedAction?.rangeOrigin)
+    || saveOutcomes
   ) {
     controls.add("caster");
   }
@@ -1309,6 +1311,7 @@ export function buildSpellUnifiedPanelContract({
     targeting,
     placement: areaPlacement,
     selectedAction,
+    saveOutcomes,
   });
   const concentration = concentrationDescriptor({ spell, phasePlan });
   const zoneTrigger = zoneTriggerCapability(allAreaRules);

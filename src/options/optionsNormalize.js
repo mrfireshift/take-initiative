@@ -243,6 +243,7 @@ export function normalizeRoomOptions(value) {
         ["assisted", "informational"],
         defaults.turn.directReminderResolution,
       ),
+      movementReminder: booleanOr(turn.movementReminder, defaults.turn.movementReminder),
     },
     map: {
       ...map,
@@ -293,6 +294,7 @@ const overrideValueNormalizers = Object.freeze({
   "playerView.bossDetails": (value) => normalizeRoomOptions({ playerView: { bossDetails: value } }).playerView.bossDetails,
   "turn.popup": (value) => normalizeRoomOptions({ turn: { popup: value } }).turn.popup,
   "turn.directReminderResolution": (value) => normalizeRoomOptions({ turn: { directReminderResolution: value } }).turn.directReminderResolution,
+  "turn.movementReminder": (value) => normalizeRoomOptions({ turn: { movementReminder: value } }).turn.movementReminder,
   "map.hpBars": (value) => normalizeRoomOptions({ map: { hpBars: value } }).map.hpBars,
   "map.effectLabels": (value) => normalizeRoomOptions({ map: { effectLabels: value } }).map.effectLabels,
   "map.activeTurnLabel": (value) => normalizeRoomOptions({ map: { activeTurnLabel: value } }).map.activeTurnLabel,

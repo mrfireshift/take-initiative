@@ -21,6 +21,10 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "xanathar-scossa-sinaptica": Object.freeze({
     initialHP: true,
   }),
+  "tasha-scheggia-della-mente": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "none",
+  }),
   "xanathar-coltello-di-ghiaccio": Object.freeze({
     initialHP: true,
   }),
@@ -65,4 +69,12 @@ export function spellHasExplicitInitialHP(spellOrId) {
 export function spellHasExplicitInitialHPPolicy(spellOrId) {
   const rule = getSpellCastResolutionRule(spellOrId);
   return rule && typeof rule.initialHP === "boolean" ? rule.initialHP : null;
+}
+
+export function spellSaveDamageFactor(spellOrId, outcome) {
+  const normalizedOutcome = String(outcome || "").trim().toLocaleLowerCase("it");
+  const rule = getSpellCastResolutionRule(spellOrId);
+  return normalizedOutcome === "passed" && rule?.successfulSaveDamage === "none"
+    ? "zero"
+    : null;
 }

@@ -12,6 +12,7 @@ export const OPTIONS_PANEL_SCENE_FAMILIES = Object.freeze({
   reminders: "playerView.reminders",
   popup: "turn.popup",
   directResolution: "turn.directReminderResolution",
+  movementReminder: "turn.movementReminder",
   activeTurnLabel: "map.activeTurnLabel",
 });
 
@@ -41,6 +42,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
     turn: {
       popup: roomInput.popup,
       directReminderResolution: roomInput.directResolution,
+      movementReminder: roomInput.movementReminder,
     },
     map: { activeTurnLabel: roomInput.activeTurnLabel },
     automation: {
@@ -76,6 +78,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       reminders: room.playerView.reminders,
       popup: room.turn.popup,
       directResolution: room.turn.directReminderResolution,
+      movementReminder: room.turn.movementReminder,
       activeTurnLabel: room.map.activeTurnLabel,
     },
     scene: Object.fromEntries(Object.entries(OPTIONS_PANEL_SCENE_FAMILIES).map(
@@ -96,6 +99,7 @@ function roomValueForFamily(room, family) {
   if (family === "reminders") return room.playerView.reminders;
   if (family === "popup") return room.turn.popup;
   if (family === "directResolution") return room.turn.directReminderResolution;
+  if (family === "movementReminder") return room.turn.movementReminder;
   return room.map.activeTurnLabel;
 }
 
@@ -120,6 +124,7 @@ export function buildOptionsPanelPatches(draft) {
       turn: {
         popup: normalized.room.popup,
         directReminderResolution: normalized.room.directResolution,
+        movementReminder: normalized.room.movementReminder,
       },
       map: { activeTurnLabel: normalized.room.activeTurnLabel },
       automation: {

@@ -154,7 +154,7 @@ const RESOLUTION_BUTTON_OUTCOMES = [
   REMINDER_OUTCOMES.FAILED,
 ] as const;
 
-function announceNoticeLayout() {
+function announceNoticeLayout({ force = false } = {}) {
   const hasTurnNotice = !!currentPanel;
   const hasZoneNotice = !!currentZonePanel;
   const fallbackHeight = !hasTurnNotice && !hasZoneNotice
@@ -175,7 +175,7 @@ function announceNoticeLayout() {
     )
     : 1;
   const key = `${hasTurnNotice ? 1 : 0}:${hasZoneNotice ? 1 : 0}:${height}`;
-  if (key === lastNoticeLayoutKey) return;
+  if (!force && key === lastNoticeLayoutKey) return;
   lastNoticeLayoutKey = key;
   void OBR.broadcast.sendMessage(
     LAYOUT_CHANNEL,
@@ -191,7 +191,7 @@ function announceNoticeLayout() {
 window.addEventListener("resize", () => {
   if (!currentPanel && !currentZonePanel) return;
   lastNoticeLayoutKey = "";
-  window.requestAnimationFrame(announceNoticeLayout);
+  window.requestAnimationFrame(() => announceNoticeLayout());
 });
 
 function buildPanel(notice: TurnNotice) {
@@ -315,7 +315,7 @@ function showNotice(raw: any) {
     window.setTimeout(() => previous.remove(), FADE_MS);
   }
   hideTimer = window.setTimeout(hideCurrent, AUTO_CLOSE_MS);
-  announceNoticeLayout();
+  announceNoticeLayout({ force: true });
 }
 
 function resolutionDraftFor(activationId: string) {
@@ -569,7 +569,7 @@ function renderSaveReminderBatch(batch: any) {
   app.replaceChildren(panel);
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
-  announceNoticeLayout();
+  announceNoticeLayout({ force: true });
   if (!requiresResponse) {
     const timer = document.createElement("div");
     timer.className = "zone-timer";
@@ -780,12 +780,18 @@ OBR.onReady(async () => {
       showNotice(data);
       return;
     }
+    if (data?.type === "show-turn-notice") {
+      announceNoticeLayout({ force: true });
+      return;
+    }
     if (data?.type === "show-effect-save-notices") {
       showEffectSaveNotices(data);
+      announceNoticeLayout({ force: true });
       return;
     }
     if (data?.type === "show-zone-trigger-notices") {
       showZoneNotices(data);
+      announceNoticeLayout({ force: true });
     }
   });
   unsubscribeRuntimeCacheCleanup = OBR.broadcast.onMessage(

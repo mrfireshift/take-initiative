@@ -15,6 +15,7 @@ const TURN_NOTICE_CARD_WIDTH = 500;
 const TURN_NOTICE_FRAME_GUTTER = 4;
 const TURN_NOTICE_POPOVER_TOP_RATIO = 0.09;
 const TURN_NOTICE_READY_RETRY_MS = 800;
+const TURN_NOTICE_LAYOUT_ACK_TIMEOUT_MS = 1800;
 
 let mounted = false;
 let popoverOpen = false;
@@ -27,6 +28,8 @@ let hostQueue = Promise.resolve();
 let noticePumpQueued = false;
 let noticeAwaitingReady = false;
 let readyRetryTimer = null;
+let layoutAckTimer = null;
+let layoutAckToken = 0;
 
 function enqueueHostTask(task) {
   hostQueue = hostQueue.then(task, task);
@@ -36,6 +39,43 @@ function enqueueHostTask(task) {
 function clearReadyRetry() {
   if (readyRetryTimer !== null) clearTimeout(readyRetryTimer);
   readyRetryTimer = null;
+}
+
+function clearLayoutAckTimer() {
+  if (layoutAckTimer !== null) clearTimeout(layoutAckTimer);
+  layoutAckTimer = null;
+  layoutAckToken += 1;
+}
+
+function scheduleLayoutAckTimeout() {
+  clearLayoutAckTimer();
+  const token = layoutAckToken;
+  const revision = activityRevision;
+  layoutAckTimer = setTimeout(() => {
+    layoutAckTimer = null;
+    if (
+      token !== layoutAckToken
+      || !popoverOpen
+      || !awaitingVisibleLayout
+      || revision !== activityRevision
+      || pendingPayloads.length
+    ) return;
+    awaitingVisibleLayout = false;
+    void enqueueHostTask(async () => {
+      if (
+        !popoverOpen
+        || token !== layoutAckToken
+        || revision !== activityRevision
+        || pendingPayloads.length
+      ) return;
+      await OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
+      popoverOpen = false;
+      readySceneEpoch = null;
+      awaitingVisibleLayout = false;
+      noticeAwaitingReady = false;
+      clearReadyRetry();
+    }).catch(() => {});
+  }, TURN_NOTICE_LAYOUT_ACK_TIMEOUT_MS);
 }
 
 function scheduleReadyRetry() {
@@ -93,6 +133,8 @@ async function openTurnNoticePopover(payload) {
   });
   popoverOpen = true;
   readySceneEpoch = null;
+  awaitingVisibleLayout = false;
+  clearLayoutAckTimer();
 }
 
 async function requestReadySceneEpoch() {
@@ -111,6 +153,7 @@ async function flushPendingPayloads() {
   while (pendingPayloads.length) {
     const payload = pendingPayloads.shift();
     awaitingVisibleLayout = true;
+    scheduleLayoutAckTimeout();
     try {
       await OBR.broadcast.sendMessage(
         TURN_NOTICE_UI_CHANNEL,
@@ -192,6 +235,7 @@ function receiveLayoutMessage(payload) {
   if (!popoverOpen) return;
   if (payload?.visible === true) {
     awaitingVisibleLayout = false;
+    clearLayoutAckTimer();
     const requestedHeight = Number(payload?.height);
     const height = Math.min(
       428,
@@ -208,6 +252,7 @@ function receiveLayoutMessage(payload) {
     readySceneEpoch = null;
     awaitingVisibleLayout = false;
     noticeAwaitingReady = false;
+    clearLayoutAckTimer();
     clearReadyRetry();
   }).catch(() => {});
 }

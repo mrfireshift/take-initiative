@@ -1660,6 +1660,42 @@ globalQuickHPButton.addEventListener("click", () => void openGlobalQuickHPPopup(
 globalPanelsWrap.append(globalEffectsButton, globalSpellsButton, globalQuickHPButton);
 toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
 
+function ensureGlobalPanelControls() {
+  if (!globalPanelsWrap.isConnected || globalPanelsWrap.parentElement !== toolOptionsGroup) {
+    toolOptionsGroup.append(globalPanelsWrap, trackedMoveButton);
+  } else if (!trackedMoveButton.isConnected || trackedMoveButton.parentElement !== toolOptionsGroup) {
+    toolOptionsGroup.append(trackedMoveButton);
+  }
+  const controls = [
+    [globalEffectsButton, "Conditions", "conditions-panel.svg"],
+    [globalSpellsButton, "Spells", "spells-panel.svg"],
+    [globalQuickHPButton, "Effetti", "quick-damage.svg"],
+    [trackedMoveButton, "Movimento", "speed-panel.svg"],
+  ];
+  for (const [control, label, iconPath] of controls) {
+    if (!globalPanelsWrap.contains(control) && control !== trackedMoveButton) {
+      globalPanelsWrap.append(control);
+    }
+    if (!control.querySelector("img")) {
+      const icon = document.createElement("img");
+      icon.alt = "";
+      control.prepend(icon);
+    }
+    const icon = control.querySelector("img");
+    icon.src = `${import.meta.env.BASE_URL || "/"}${iconPath}`;
+    icon.alt = "";
+    icon.style.display = "block";
+    icon.style.objectFit = "contain";
+    icon.style.pointerEvents = "none";
+    let caption = control.querySelector("[data-toolbar-caption='1']");
+    if (!caption) {
+      decorateToolbarControl(control, label);
+      caption = control.querySelector("[data-toolbar-caption='1']");
+    }
+    if (caption) caption.textContent = label;
+  }
+}
+
 const movementReadout = document.createElement("div");
 Object.assign(movementReadout.style, {
   width: "calc(100% - 24px)",
@@ -2333,6 +2369,10 @@ lairChk.addEventListener("change", async (e) => {
 zoomChk.addEventListener("change", async (e) => {
   const enabled = !!e.target.checked;
   setCompactToggleVisual(zoomToggleWrap, enabled);
+  await setSceneState((previous) => ({
+    ...(previous || {}),
+    ui: { ...(previous?.ui || {}), autoFocus: enabled },
+  }));
   await runtimeOptionsService.updateLocal((current) => ({
     ...current,
     tracker: { ...current.tracker, followActiveTurn: enabled },
@@ -2465,6 +2505,7 @@ function mountCompactAdminMenuListener() {
 }
 
 function applyToolbarLayoutPresentation(compact) {
+  ensureGlobalPanelControls();
   applyToolbarLayoutPresentationView(compact, {
     isGM: IS_GM,
     viewOptionsRow,
@@ -3214,7 +3255,13 @@ async function centerOnItem(itemId, expectedNavigationRevision = null, sceneEpoc
   }
 }
 
-function isAutoFocusEnabled() {
+function isAutoFocusEnabled(state = null) {
+  const candidate = state && typeof state === "object"
+    ? state
+    : __latestInitiativeState;
+  if (candidate?.ui && Object.hasOwn(candidate.ui, "autoFocus")) {
+    return candidate.ui.autoFocus !== false;
+  }
   return runtimeOptionsService.get(selectFollowActiveTurn);
 }
 
@@ -8312,10 +8359,29 @@ async function ensureState(sceneEpoch = currentSceneEpoch()) {
     seededGroups: {},
     collapsed: {},
     ui: {
+      ...(IS_GM ? {
+        autoFocus: runtimeOptionsService.get(selectFollowActiveTurn),
+      } : {}),
     activeBadge: { x: 0.12, y: 0.60 }, // 12% da sinistra, 60% dall’alto
     tagsDock:    { x: 0.72, y: 0.50 }  // badge EPIC a destra, centrato
     }
   }, sceneEpoch);
+}
+
+async function ensureSharedAutoFocusPreference(sceneEpoch = currentSceneEpoch()) {
+  if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "follow-state")) return false;
+  const state = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "follow-state")) return false;
+  if (state?.ui && Object.hasOwn(state.ui, "autoFocus")) return false;
+  const enabled = runtimeOptionsService.get(selectFollowActiveTurn);
+  await setSceneState((previous) => {
+    if (previous?.ui && Object.hasOwn(previous.ui, "autoFocus")) return previous;
+    return {
+      ...(previous || {}),
+      ui: { ...(previous?.ui || {}), autoFocus: enabled },
+    };
+  }, sceneEpoch);
+  return __isCurrentSceneOperation(sceneEpoch, "follow-state");
 }
 
   function arraysEqual(a, b) {
@@ -8704,6 +8770,7 @@ async function __executeFullRenderRequest(request) {
   const renderStartedAt = performance.now();
   const renderDurationMs = () => Math.round((performance.now() - renderStartedAt) * 100) / 100;
   const renderRevision = ++__renderRequestRevision;
+  ensureGlobalPanelControls();
   __initiativeDiag("render:requested", { renderRevision, reason });
   const stateRaw = await getSceneState();
   if (!__isCurrentSceneOperation(sceneEpoch, "render-read-state", { reason, renderRevision })) return;
@@ -8900,7 +8967,7 @@ try {
           __trackerLayout = presentation.layout;
           updateLayoutToggleButton();
           applyTrackerLayout();
-          zoomChk.checked = presentation.followActiveTurn;
+          zoomChk.checked = isAutoFocusEnabled(__latestInitiativeState);
           setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
           if (layoutChanged) {
             __syncTrackerPopoverSizeForLayout();
@@ -8982,6 +9049,8 @@ try {
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-ensure-state")) return;
   await reconcileStateWithItems(bootstrapSceneEpoch);
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-reconcile")) return;
+  await ensureSharedAutoFocusPreference(bootstrapSceneEpoch);
+  if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-follow-state")) return;
   await enforceUniqueNamePrefixes();
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-names")) return;
   await renderAll("boot");

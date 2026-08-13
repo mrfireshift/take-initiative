@@ -30,15 +30,14 @@ import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
+import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
+import { selectMovementReminderEnabled } from "./options/optionsSelectors.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
 const STATE_KEY = ID + "/state";
 const SPEED_WARNING_CHANNEL = ID + "/speed-warning";
 const SPEED_WARNING_MODAL_ID = ID + "/speed-warning-modal";
-const SPEED_WARNING_UI_CHANNEL = SPEED_WARNING_CHANNEL + "/ui";
-const SPEED_WARNING_HOST_CHANNEL = SPEED_WARNING_CHANNEL + "/host";
-const SPEED_WARNING_MAX_AGE_MS = 2500;
 const SPEED_DRAG_CHANNEL = ID + "/speed-drag";
 const SPEED_STATE_CHANNEL = ID + "/speed-state";
 const SPEED_CHECK_META_FIELD = "speedCheckMovement";
@@ -46,6 +45,14 @@ const ELEVATION_META_FIELD = "elevation";
 const CLIMBING_META_FIELD = "climbing";
 const SPEED_CHECK_META_VERSION = 2;
 const MAX_MOVEMENT_SEGMENTS = 500;
+
+function isMovementReminderEnabled() {
+  try {
+    return runtimeOptionsService.get(selectMovementReminderEnabled) !== false;
+  } catch {
+    return true;
+  }
+}
 
 
 let movementState = null;
@@ -57,6 +64,8 @@ let processorEnabled = false;
 let speedCheckEnabled = false;
 let movementLimitEnabled = false;
 let warningLayerPromise = null;
+let speedWarningBroadcastQueue = Promise.resolve();
+let speedWarningSequence = 0;
 let speedDragListenerMounted = false;
 let speedStateListenerMounted = false;
 let speedMetadataListenerMounted = false;
@@ -67,6 +76,23 @@ const rejectedMovementRollbacks = new Map();
 const rejectedElevationRollbacks = new Map();
 const suppressedElevationResets = new Map();
 const movementStateListeners = new Set();
+
+function broadcastSpeedWarning(payload) {
+  if (!isMovementReminderEnabled()) return Promise.resolve();
+  const warning = {
+    type: "show-speed-warning",
+    ...payload,
+    warningId: `${String(payload?.turnKey || currentTurn?.turnKey || "movement")}:${++speedWarningSequence}`,
+    createdAt: Date.now(),
+  };
+  const send = () => OBR.broadcast.sendMessage(
+    SPEED_WARNING_CHANNEL,
+    warning,
+    { destination: "ALL" },
+  );
+  speedWarningBroadcastQueue = speedWarningBroadcastQueue.then(send, send);
+  return speedWarningBroadcastQueue.catch(() => {});
+}
 
 function emitMovementSnapshot(snapshot) {
   for (const listener of movementStateListeners) {
@@ -862,8 +888,7 @@ async function processSpeedCheckMovement(movement, turn) {
     }
     notifyMovementState();
     if (rejection.blocked) state.blockedWarningSent = true;
-    void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
-      type: "show-speed-warning",
+    await broadcastSpeedWarning({
       blocked: rejection.blocked,
       reason: rejection.blocked ? state.conditionSummary : "",
       name: state.name,
@@ -872,8 +897,8 @@ async function processSpeedCheckMovement(movement, turn) {
       limitMeters: beforeSnapshot.allowanceMeters,
       cycle: beforeSnapshot.cycle,
       cyclesCrossed: 1,
-      createdAt: Date.now(),
-    }, { destination: "ALL" }).catch(() => {});
+      turnKey,
+    });
     return;
   }
   const next = advanceSpeedCycle(state, chargedCells, state.speedMeters);
@@ -896,21 +921,18 @@ async function processSpeedCheckMovement(movement, turn) {
   if (state.blocked && state.speedMeters <= 0) {
     notifyMovementState();
     const persistTask = sample.toolSynthetic ? null : persistMovementState(state);
-    if (!state.blockedWarningSent) {
-      state.blockedWarningSent = true;
-      void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
-        type: "show-speed-warning",
-        blocked: true,
-        reason: state.conditionSummary,
-        name: state.name,
-        portrait: state.portrait,
-        speedMeters: 0,
-        limitMeters: 0,
-        cycle: 0,
-        cyclesCrossed: 1,
-        createdAt: Date.now(),
-      }, { destination: "ALL" }).catch(() => {});
-    }
+    state.blockedWarningSent = true;
+    await broadcastSpeedWarning({
+      blocked: true,
+      reason: state.conditionSummary,
+      name: state.name,
+      portrait: state.portrait,
+      speedMeters: 0,
+      limitMeters: 0,
+      cycle: 0,
+      cyclesCrossed: 1,
+      turnKey,
+    });
     if (persistTask) await persistTask;
     return;
   }
@@ -922,21 +944,21 @@ async function processSpeedCheckMovement(movement, turn) {
   );
   notifyMovementState();
   const persistTask = sample.toolSynthetic ? null : persistMovementState(state);
-  if (limitCrossings <= 0) {
+  const overAllowance = afterSnapshot.totalMeters > afterSnapshot.allowanceMeters + 1e-9;
+  if (!overAllowance) {
     if (persistTask) await persistTask;
     return;
   }
 
-  void OBR.broadcast.sendMessage(SPEED_WARNING_CHANNEL, {
-    type: "show-speed-warning",
+  await broadcastSpeedWarning({
     name: state.name,
     portrait: state.portrait,
     speedMeters: state.speedMeters,
     limitMeters: afterSnapshot.allowanceMeters,
     cycle: next.cycle,
-    cyclesCrossed: limitCrossings,
-    createdAt: Date.now(),
-  }, { destination: "ALL" }).catch(() => {});
+    cyclesCrossed: Math.max(1, limitCrossings),
+    turnKey,
+  });
   if (persistTask) await persistTask;
 }
 
@@ -1111,48 +1133,46 @@ export function resetSpeedCheckMovement() {
 export function mountSpeedWarningBroadcast() {
   if (warningLayerPromise) return warningLayerPromise;
   warningLayerPromise = (async () => {
-    try { await OBR.modal.close(SPEED_WARNING_MODAL_ID); } catch {}
-    try { await OBR.popover.close(SPEED_WARNING_MODAL_ID); } catch {}
-    let warningPopoverOpen = false;
-    let warningUiReady = false;
-    let warningPumpRunning = false;
-    let warningPumpRequested = false;
-    let latestWarning = null;
-    const initialCleanup = Promise.all([
+    await startRuntimeOptions().catch(() => {});
+    await Promise.all([
       OBR.modal.close(SPEED_WARNING_MODAL_ID).catch(() => {}),
       OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {}),
     ]);
+    let warningPumpRunning = false;
+    let warningPumpRequested = false;
+    let pendingWarning = null;
+    let renderRevision = 0;
+    let movementReminderEnabled = isMovementReminderEnabled();
+    runtimeOptionsService.subscribe(
+      selectMovementReminderEnabled,
+      (enabled) => {
+        movementReminderEnabled = enabled !== false;
+        if (movementReminderEnabled) return;
+        pendingWarning = null;
+        warningPumpRequested = false;
+        renderRevision += 1;
+        void OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {});
+      },
+      { emitCurrent: false },
+    );
 
-    const sendLatestWarning = async () => {
-      const warning = latestWarning;
-      if (!warning) return;
-      if (Date.now() - warning.createdAt > SPEED_WARNING_MAX_AGE_MS) {
-        if (latestWarning === warning) latestWarning = null;
-        return;
-      }
-      if (warningPopoverOpen) {
-        if (warningUiReady) {
-          await OBR.broadcast.sendMessage(
-            SPEED_WARNING_UI_CHANNEL,
-            warning,
-            { destination: "LOCAL" },
-          );
-        }
-        return;
-      }
+    const openWarning = async (warning) => {
+      const revision = ++renderRevision;
       let viewportWidth = 1200;
       let viewportHeight = 800;
       const [reportedWidth, reportedHeight] = await Promise.all([
         OBR.viewport.getWidth().catch(() => viewportWidth),
         OBR.viewport.getHeight().catch(() => viewportHeight),
       ]);
-      if (latestWarning !== warning) return;
+      if (!movementReminderEnabled || revision !== renderRevision) return;
       viewportWidth = Number(reportedWidth) || viewportWidth;
       viewportHeight = Number(reportedHeight) || viewportHeight;
       const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
       const width = cardWidth + 8;
       const top = Math.max(12, Math.round(viewportHeight * 0.09));
       const payload = encodeURIComponent(JSON.stringify(warning));
+      await OBR.popover.close(SPEED_WARNING_MODAL_ID).catch(() => {});
+      if (!movementReminderEnabled || revision !== renderRevision) return;
       await OBR.popover.open({
         id: SPEED_WARNING_MODAL_ID,
         url: `/speed-warning.html?payload=${payload}`,
@@ -1163,17 +1183,9 @@ export function mountSpeedWarningBroadcast() {
         anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
         transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
         hidePaper: true,
-        disableClickAway: false,
+        disableClickAway: true,
         marginThreshold: 12,
       });
-      warningPopoverOpen = true;
-      if (warningUiReady && latestWarning) {
-        await OBR.broadcast.sendMessage(
-          SPEED_WARNING_UI_CHANNEL,
-          latestWarning,
-          { destination: "LOCAL" },
-        );
-      }
     };
 
     const requestWarningPump = () => {
@@ -1182,10 +1194,11 @@ export function mountSpeedWarningBroadcast() {
       warningPumpRunning = true;
       const run = async () => {
         try {
-          await initialCleanup;
           while (warningPumpRequested) {
             warningPumpRequested = false;
-            await sendLatestWarning();
+            const warning = pendingWarning;
+            pendingWarning = null;
+            if (movementReminderEnabled && warning) await openWarning(warning);
           }
         } catch (error) {
           console.warn("[speed-check] warning popover:", error?.message || error);
@@ -1199,23 +1212,9 @@ export function mountSpeedWarningBroadcast() {
 
     OBR.broadcast.onMessage(SPEED_WARNING_CHANNEL, (event) => {
       if (event?.data?.type !== "show-speed-warning") return;
-      const createdAt = Math.max(0, Math.floor(Number(event.data?.createdAt) || Date.now()));
-      if (Date.now() - createdAt > SPEED_WARNING_MAX_AGE_MS) return;
-      latestWarning = { ...event.data, createdAt };
+      if (!movementReminderEnabled) return;
+      pendingWarning = { ...event.data };
       requestWarningPump();
-    });
-    OBR.broadcast.onMessage(SPEED_WARNING_HOST_CHANNEL, (event) => {
-      const data = event?.data;
-      if (data?.type === "speed-warning-ready") {
-        warningUiReady = true;
-        if (latestWarning) requestWarningPump();
-        return;
-      }
-      if (data?.type === "speed-warning-closed") {
-        warningPopoverOpen = false;
-        warningUiReady = false;
-        latestWarning = null;
-      }
     });
   })().catch((error) => {
     warningLayerPromise = null;

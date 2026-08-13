@@ -143,7 +143,7 @@ function renderPreview() {
   const cards = [
     ["Tracker", `HP nemici: ${hpModeLabels[hp.trackerClassic.enemy]}. Effetti: ${effectLabels[shared.effects.conditions]}.`],
     ["Reminder", `${reminderLabels[shared.reminders.visibility]}${reminderDetails}.`],
-    ["Turno e mappa", `Popup ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; label ${shared.activeTurnLabel ? "attiva" : "disattiva"}.`],
+    ["Turno e mappa", `Popup ${shared.popup ? "attivo" : "disattivo"}; risoluzione ${shared.directResolution === "assisted" ? "assistita" : "informativa"}; reminder movimento ${shared.movementReminder ? "attivo" : "disattivo"}; label ${shared.activeTurnLabel ? "attiva" : "disattiva"}.`],
   ];
   previewNode.replaceChildren(...cards.map(([title, copy]) => {
     const card = document.createElement("article");
