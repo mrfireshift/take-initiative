@@ -1,10 +1,10 @@
 # Audit capacità di classe
 
-Report generato il 2026-08-02 dai tre overlay meccanici locali.
+Report generato il 2026-08-13 dai tre overlay meccanici locali.
 
 ## Perimetro
 
-Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **542**. Le risorse non sono un obiettivo di questo audit.
+Il catalogo contiene **860 record**. Il catalogo runtime attuale ne espone **551**. Le risorse non sono un obiettivo di questo audit.
 
 | Categoria | Record |
 |---|---:|
@@ -64,6 +64,6 @@ Il dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersagli
 
 | Categoria | Record |
 |---|---:|
-| not-automated | 483 |
+| not-automated | 492 |
 | implemented | 59 |
-| non_esposta | 318 |
+| non_esposta | 309 |

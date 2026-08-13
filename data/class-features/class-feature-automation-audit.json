@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-02",
+  "generatedAt": "2026-08-13",
   "scope": {
     "sources": [
       {
@@ -33,7 +33,7 @@
       }
     ],
     "totalMechanics": 860,
-    "runtimeCatalogRecords": 542,
+    "runtimeCatalogRecords": 551,
     "runtimeImplemented": 59
   },
   "criteria": {
@@ -70,12 +70,12 @@
       "curata": 109
     },
     "byRuntimeStatus": {
-      "not-automated": 483,
-      "non_esposta": 318,
+      "not-automated": 492,
+      "non_esposta": 309,
       "implemented": 59
     },
     "blockerCounts": {
-      "adapter_runtime_mancante": 483,
+      "adapter_runtime_mancante": 492,
       "scelta_giocatore_o_opzione": 146,
       "non_esposta_nel_catalogo_runtime": 7
     },
@@ -13702,7 +13702,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -13733,8 +13735,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -14434,7 +14436,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -14463,8 +14467,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -14563,7 +14567,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -14592,8 +14598,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -14848,7 +14854,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -14877,8 +14885,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -14974,7 +14982,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -15003,8 +15013,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -15853,7 +15863,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -15882,8 +15894,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -16609,7 +16621,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -16638,8 +16652,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -16674,7 +16688,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -16703,8 +16719,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {
@@ -16738,7 +16754,9 @@
         "rationale": "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.",
         "scopeExclusion": "solo_riferimento",
         "requiresDataWork": true,
-        "blockers": [],
+        "blockers": [
+          "adapter_runtime_mancante"
+        ],
         "dataBlockers": [
           "completezza_non_curata",
           "effetti_non_strutturati",
@@ -16767,8 +16785,8 @@
         "sourceEffectTypeSet": []
       },
       "runtime": {
-        "exposed": false,
-        "status": null,
+        "exposed": true,
+        "status": "not-automated",
         "adapter": null
       },
       "sourceData": {

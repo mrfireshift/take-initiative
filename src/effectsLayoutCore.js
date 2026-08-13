@@ -14,6 +14,7 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   conditionPadX: 9,
   conditionStroke: 1,
   conditionMaxWidth: 300,
+  compactConditionIconLimit: 3,
   conditionBackground: "#0e131f",
   conditionBackgroundOpacity: 0.9,
   buffBackground: "#15803d",
@@ -25,8 +26,10 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   stackGap: 1,
   stackClearanceScale: 1,
   stackTopInset: -4 / 70,
+  compactStackTopInset: 0,
   stackOffsetY: -1,
   labelOffsetX: 0.42,
+  compactLabelOffsetX: 1,
   conditionZIndex: 100000,
   spellZIndex: 220000,
   dotDiameter: 42,
@@ -150,6 +153,92 @@ function spellWidth(label, measureText, config) {
   );
 }
 
+function compactConditionIcon(row) {
+  const explicitIcon = String(row?.icon || row?.theme?.emoji || "").trim();
+  if (explicitIcon) return explicitIcon;
+
+  const firstToken = String(row?.text || "").trim().split(/\s+/)[0];
+  return firstToken && !/^[\p{L}\p{N}]/u.test(firstToken) ? firstToken : "•";
+}
+
+function compactRowsForTarget(rows, { measureText, config }) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const conditionRows = sourceRows.filter((row) => row.kind === "condition");
+  const spellRows = sourceRows.filter((row) => row.kind === "spell");
+  const spellEffectRows = sourceRows.filter((row) => row.kind === "spell-effect");
+  const configuredLimit = Number(config.compactConditionIconLimit);
+  const limit = Math.max(
+    0,
+    Math.floor(Number.isFinite(configuredLimit)
+      ? configuredLimit
+      : EFFECTS_LAYOUT_CONFIG.compactConditionIconLimit),
+  );
+  const targetId = sourceRows[0]?.targetId || "";
+
+  const compactRows = conditionRows.slice(0, limit).map((row, index) => {
+    const text = compactConditionIcon(row);
+    const key = `compact:icon:${row.key}`;
+
+    return {
+      ...row,
+      identity: `condition|${targetId}|${key}`,
+      key,
+      kind: "condition",
+      compactMode: "condition-icon",
+      text,
+      width: conditionWidth(text, measureText, config),
+      sortKey: `1|${String(index).padStart(3, "0")}|${row.key}`,
+      offsetY: 0,
+    };
+  });
+
+  const summaryParts = [];
+  const hiddenConditionCount = Math.max(0, conditionRows.length - limit);
+  if (hiddenConditionCount > 0) summaryParts.push(`+${hiddenConditionCount}`);
+  if (spellRows.length > 0) summaryParts.push(`✨${spellRows.length}`);
+  if (spellEffectRows.length > 0) summaryParts.push(`✦${spellEffectRows.length}`);
+
+  if (summaryParts.length > 0) {
+    const text = summaryParts.join(" · ");
+    compactRows.push({
+      identity: `condition|${targetId}|compact:count`,
+      kind: "condition",
+      compactMode: "effect-count",
+      targetId,
+      casterId: null,
+      key: "compact:count",
+      text,
+      width: conditionWidth(text, measureText, config),
+      height: config.labelHeight,
+      backgroundColor: config.conditionBackground,
+      backgroundOpacity: config.conditionBackgroundOpacity,
+      fontFamily: config.fontFamily,
+      fontSize: config.fontSize,
+      fontWeight: config.fontWeight,
+      lineHeight: config.lineHeight,
+      textFill: config.textFill,
+      textStroke: config.textStroke,
+      textStrokeWidth: config.textStrokeWidth,
+      maxViewScale: config.maxViewScale,
+      pointerDirection: "LEFT",
+      zIndex: config.conditionZIndex,
+      sortKey: "2|compact-count",
+      offsetY: 0,
+    });
+  }
+
+  return compactRows;
+}
+
+function fitCompactRowToBox(row, box) {
+  if (row.width <= box.width) return row;
+
+  return {
+    ...row,
+    width: Math.min(row.width, box.width),
+  };
+}
+
 function findSpellEntry(target, assignment) {
   const entries = Array.isArray(target?.spellEntries) ? target.spellEntries : [];
   const match = entries.find((spell) => {
@@ -210,7 +299,18 @@ export function planEffectsLayout({
   sceneDpi = 70,
   measureText = (text, fontSize) => String(text || "").length * fontSize * 0.55,
   config = EFFECTS_LAYOUT_CONFIG,
+  compact = false,
+  expandedTargetIds = [],
 } = {}) {
+  const expandedIds = new Set(
+    (expandedTargetIds instanceof Set
+      ? [...expandedTargetIds]
+      : Array.isArray(expandedTargetIds)
+        ? expandedTargetIds
+        : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
   const tokenById = new Map(tokens.filter((token) => token?.id).map((token) => [token.id, token]));
   const rowsByTarget = new Map();
   const spellContextByTarget = new Map();
@@ -352,6 +452,7 @@ export function planEffectsLayout({
         targetId: token.id,
         casterId: null,
         key,
+        icon: String(condition?.icon || theme?.emoji || "").trim(),
         text,
         width: conditionWidth(text, measureText, config),
         height: config.labelHeight,
@@ -379,25 +480,39 @@ export function planEffectsLayout({
     }
   }
 
-  for (const [targetId, rows] of rowsByTarget) {
+  for (const [targetId, sourceRows] of rowsByTarget) {
     const target = tokenById.get(targetId);
     if (!target) continue;
+    const compactTarget = compact && !expandedIds.has(targetId);
+    const rows = compactTarget
+      ? compactRowsForTarget(sourceRows, { measureText, config })
+      : sourceRows;
     const box = visualTokenBox(target, sceneDpi);
-    const baseY = box.top + box.diameter * config.stackTopInset;
-    const x = Math.round(box.left + box.diameter * config.labelOffsetX);
+    const baseY = compactTarget
+      ? box.top + box.height * config.compactStackTopInset
+      : box.top + box.diameter * config.stackTopInset;
+    const fullStackX = Math.round(box.left + box.diameter * config.labelOffsetX);
+    const compactRight = Math.min(
+      box.left + box.width,
+      Math.max(box.left, box.left + box.width * config.compactLabelOffsetX),
+    );
     let centerY = baseY;
     let previousStackHeight = 0;
     rows.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
 
     for (let index = 0; index < rows.length; index += 1) {
-      const row = rows[index];
+      const row = compactTarget
+        ? fitCompactRowToBox(rows[index], box)
+        : rows[index];
       const stackHeight = Math.ceil(row.height * config.stackClearanceScale);
       centerY = index === 0
         ? baseY + stackHeight / 2
         : centerY + previousStackHeight / 2 + config.stackGap + stackHeight / 2;
       desired.push({
         ...row,
-        x,
+        x: compactTarget
+          ? Math.round(Math.max(box.left, compactRight - row.width))
+          : fullStackX,
         y: Math.round(centerY + row.offsetY),
       });
       previousStackHeight = stackHeight;

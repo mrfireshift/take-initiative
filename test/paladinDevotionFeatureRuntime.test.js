@@ -369,5 +369,5 @@ test("le capacità di Devozione attivabili hanno emoji calzanti e nessuna tracci
 test("il catalogo include le cinque capacità di Devozione e i quattro privilegi implementati incrementano i conteggi derivati", () => {
   assert.equal(DEVOTION_IDS.every((id) => CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === id)), true);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 59);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 483);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 492);
 });

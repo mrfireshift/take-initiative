@@ -9,7 +9,7 @@ const audit = JSON.parse(fs.readFileSync(
 
 test("l'audit copre tutti i record dei quattro overlay", () => {
   assert.equal(audit.scope.totalMechanics, 860);
-  assert.equal(audit.scope.runtimeCatalogRecords, 542);
+  assert.equal(audit.scope.runtimeCatalogRecords, 551);
   assert.equal(audit.features.length, 860);
   assert.equal(new Set(audit.features.map((feature) => feature.id)).size, 860);
 });

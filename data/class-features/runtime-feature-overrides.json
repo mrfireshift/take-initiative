@@ -2139,6 +2139,84 @@
       "defaultEnabled": false,
       "quickActionEligible": false,
       "optionGroup": "ranger-revised-conclave-del-cacciatore-difesa-superiore-del-cacciatore"
+    },
+    "mago-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-recupero-arcano": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-tradizione-arcana": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-aumento-dei-punteggi-di-caratteristica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-maestria-negli-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false,
+      "duration": {}
+    },
+    "mago-incantesimi-personali": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-invocazione-invocatore-sapiente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-invocazione-plasmare-incantesimi": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-invocazione-trucchetto-potente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-invocazione-invocazione-potente": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
+    },
+    "mago-scuola-di-invocazione-saturazione-magica": {
+      "include": true,
+      "status": "not-automated",
+      "automationLevel": "riferimento",
+      "defaultEnabled": true,
+      "quickActionEligible": false
     }
   }
 }

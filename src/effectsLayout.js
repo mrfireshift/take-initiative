@@ -44,12 +44,36 @@ let sceneGridDpi = null;
 let effectsProjection = {
   role: "GM",
   policy: { conditions: "all", spells: "all", concentration: "all" },
+  expandedTargetIds: new Set(),
 };
 
-export function configureEffectsLayoutProjection({ role, policy } = {}) {
+export function configureEffectsLayoutProjection({ role, policy, expandedTargetIds } = {}) {
+  const nextExpandedTargetIds = expandedTargetIds === undefined
+    ? effectsProjection.expandedTargetIds
+    : new Set(
+      (expandedTargetIds instanceof Set
+        ? [...expandedTargetIds]
+        : Array.isArray(expandedTargetIds)
+          ? expandedTargetIds
+          : [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    );
   effectsProjection = {
-    role: role === "GM" ? "GM" : "PLAYER",
-    policy: policy && typeof policy === "object" ? policy : effectsProjection.policy,
+    role: role === undefined
+      ? effectsProjection.role
+      : role === "GM" ? "GM" : "PLAYER",
+    policy: policy === undefined
+      ? effectsProjection.policy
+      : policy && typeof policy === "object" ? policy : effectsProjection.policy,
+    expandedTargetIds: nextExpandedTargetIds,
+  };
+}
+
+export function resetEffectsLayoutProjection() {
+  effectsProjection = {
+    ...effectsProjection,
+    expandedTargetIds: new Set(),
   };
 }
 
@@ -542,7 +566,13 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
     const sceneDpi = await getEffectsLayoutGridDpi();
     if (stopIfStale("after-grid-read")) return { outcome, desiredWidgets: 0 };
     desired = effectsLayoutDesiredInScope(
-      planEffectsLayout({ tokens, sceneDpi, measureText: measureTextWidth }),
+      planEffectsLayout({
+        tokens,
+        sceneDpi,
+        measureText: measureTextWidth,
+        compact: true,
+        expandedTargetIds: effectsProjection.expandedTargetIds,
+      }),
       targetScope,
     );
     globalLegacyWidgets = sceneItems.map(classifyExistingWidget).filter(Boolean);

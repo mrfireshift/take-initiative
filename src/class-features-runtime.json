@@ -18595,6 +18595,55 @@
       ]
     },
     {
+      "id": "mago-incantesimi",
+      "name": "Incantesimi",
+      "description": "Il mago lancia incantesimi usando Intelligenza come caratteristica da incantatore. Al 1° livello possiede un libro degli incantesimi contenente sei incantesimi da mago di 1° livello e aggiunge gratuitamente due incantesimi da mago al libro ogni volta che acquisisce un livello da mago; può inoltre copiarne altri nel corso del gioco. Dopo un riposo lungo prepara un numero di incantesimi pari al proprio livello da mago + modificatore di Intelligenza, fino a un minimo di uno. Recupera tutti gli slot spesi con un riposo lungo. Può lanciare come rituale un incantesimo da mago presente nel libro anche se non lo ha preparato e può usare un focus arcano come focus da incantatore.",
+      "classId": "mago",
+      "subclassId": "",
+      "minimumLevel": 1,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 83,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
       "id": "mago-recupero-arcano",
       "name": "Recupero Arcano",
       "description": "Hai imparato a recuperare parte della tua energia magica studiando il tuo libro degli incantesimi. Una volta al giorno, quando termini un riposo breve puoi scegliere di recuperare slot incantesimo spesi. Gli slot incantesimo possono avere un livello combinato pari o inferiore a metà del tuo livello da mago (arrotondato per eccesso), e nessuno slot può essere di 6° livello o più alto. Per esempio, se sei un mago di 4° livello, puoi recuperare fino a due livelli di slot incantesimo. Puoi recuperare uno slot incantesimo di 2° livello o due slot incantesimo di 1° livello.",
@@ -18605,8 +18654,8 @@
       "sourceLabel": "Manuale del Giocatore 2014",
       "page": 84,
       "collection": "privilegi",
-      "defaultEnabled": false,
-      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
       "completenessStatus": "curated",
       "runtimeRequirements": [
         "slot_spesi",
@@ -18624,6 +18673,7 @@
       "trackedResourcePoolIds": [
         "mago-recupero-arcano-usi"
       ],
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -18840,6 +18890,55 @@
       "resourceCosts": []
     },
     {
+      "id": "mago-scuola-di-invocazione-invocatore-sapiente",
+      "name": "Invocatore Sapiente",
+      "description": "A partire da quando scegli questa scuola al 2° livello, il tempo e il denaro che spendi per copiare un incantesimo di evocazione nel tuo libro degli incantesimi è dimezzato.",
+      "classId": "mago",
+      "subclassId": "mago-scuola-di-invocazione",
+      "minimumLevel": 2,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 87,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
       "id": "mago-ordine-degli-scribi-libro-degli-incantesimi-risvegliato",
       "name": "Libro degli Incantesimi Risvegliato",
       "description": "Usando speciali inchiostri e antiche formule tramandate nel suo ordine, il mago ha risvegliato un'arcana coscienza nel suo libro degli incantesimi. Quando impugna il libro, può usarlo come focus da incantatore per i suoi incantesimi da mago. Quando lancia un incantesimo da mago usando uno slot, può sostituirne il tipo di danno con un tipo che compare in un altro incantesimo del libro; il secondo incantesimo deve essere dello stesso livello dello slot speso. Quando lancia un incantesimo da mago come rituale, può usare il normale tempo di lancio dell'incantesimo invece di aggiungere 10 minuti; dopo aver usato quest'ultimo beneficio, non può usarlo di nuovo prima di aver completato un riposo lungo. Se necessario, può sostituire il libro nell'arco di un riposo breve usando il Calamo Incantato per scrivere sigilli arcani su un libro vuoto o su un libro degli incantesimi magico con cui è in sintonia. Al termine del riposo, la coscienza si sposta nel nuovo libro, che diventa il libro degli incantesimi del mago e contiene tutti i suoi incantesimi. Se il precedente libro esiste ancora, gli incantesimi svaniscono dalle sue pagine.",
@@ -18937,6 +19036,55 @@
         "rounds": 10
       },
       "trackingMode": "active",
+      "resourceCosts": []
+    },
+    {
+      "id": "mago-scuola-di-invocazione-plasmare-incantesimi",
+      "name": "Plasmare Incantesimi",
+      "description": "A partire dal 2° livello, puoi creare tasche di relativa sicurezza all'interno degli effetti dei tuoi incantesimi di invocazione. Quando lanci un incantesimo di invocazione che agisce su altre creature che puoi vedere, puoi scegliere un numero di creature pari ad 1 + il livello dell'incantesimo. Le creature scelte superano automaticamente i loro tiri salvezza contro l'incantesimo, e non subiscono danni se normalmente subirebbero metà danni da un tiro salvezza superato.",
+      "classId": "mago",
+      "subclassId": "mago-scuola-di-invocazione",
+      "minimumLevel": 2,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 87,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
       "resourceCosts": []
     },
     {
@@ -19051,6 +19199,104 @@
           "amount": 1
         }
       ]
+    },
+    {
+      "id": "mago-tradizione-arcana",
+      "name": "Tradizione Arcana",
+      "description": "Quando raggiungi il 2° livello, puoi scegliere una tradizione arcana, che modellerà la tua pratica della magia tramite una delle otto scuole, per esempio l'Invocazione. La scelta ti conferisce privilegi al 2° livello e ancora al 6°, 10° e 14° livello.",
+      "classId": "mago",
+      "subclassId": "",
+      "minimumLevel": 2,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 84,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
+      "id": "mago-aumento-dei-punteggi-di-caratteristica",
+      "name": "Aumento dei Punteggi di Caratteristica",
+      "description": "Quando arriva al 4° livello, e poi di nuovo all'8°, 12°, 16° e 19° livello, il personaggio può aumentare di 2 un punteggio di caratteristica a sua scelta, oppure può aumentare di 1 due punteggi di caratteristica a sua scelta. Come di consueto, non è consentito aumentare un punteggio di caratteristica a più di 20 utilizzando questo privilegio.",
+      "classId": "mago",
+      "subclassId": "",
+      "minimumLevel": 4,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 84,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
     },
     {
       "id": "mago-canto-della-lama-attacco-extra",
@@ -19420,8 +19666,8 @@
       "sourceLabel": "Manuale del Giocatore 2014",
       "page": 87,
       "collection": "privilegi",
-      "defaultEnabled": false,
-      "automationLevel": "assistita",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -19436,6 +19682,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19531,6 +19778,55 @@
       "activation": {
         "primary": "reazione"
       },
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
+      "id": "mago-scuola-di-invocazione-invocazione-potente",
+      "name": "Invocazione Potente",
+      "description": "A partire dal 10° livello, puoi sommare il tuo modificatore di Intelligenza a un singolo tiro di danno di qualsiasi incantesimo di invocazione da mago da te lanciato.",
+      "classId": "mago",
+      "subclassId": "mago-scuola-di-invocazione",
+      "minimumLevel": 10,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 87,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -19911,6 +20207,55 @@
       "resourceCosts": []
     },
     {
+      "id": "mago-scuola-di-invocazione-saturazione-magica",
+      "name": "Saturazione Magica",
+      "description": "Dal 14° livello, quando il mago lancia un incantesimo da mago di livello compreso tra il 1° e il 5° che infligge danni, può infliggere il massimo dei danni anziché tirarli. La prima volta che usa il privilegio non subisce conseguenze. Se lo usa di nuovo prima di completare un riposo lungo, subito dopo il lancio subisce 2d12 danni necrotici per livello dell'incantesimo. Ogni ulteriore uso prima del riposo aumenta questi danni di 1d12 per livello dell'incantesimo. I danni ignorano resistenze e immunità.",
+      "classId": "mago",
+      "subclassId": "mago-scuola-di-invocazione",
+      "minimumLevel": 14,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 87,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
       "id": "mago-magia-della-guerra-sudario-di-deviazione",
       "name": "Sudario di Deviazione",
       "description": "Al 14° livello, la Deviazione Arcana del mago è pervasa da una magia letale. Quando il mago usa il suo privilegio Deviazione Arcana, può fare in modo che una scarica di energia magica si sprigioni da lui. Fino a tre creature a sua scelta, situate entro 18 metri da lui e che egli sia in grado di vedere, subiscono un ammontare di danni da forza a testa pari alla metà del livello da mago del personaggio.",
@@ -19936,6 +20281,104 @@
       "activation": {
         "primary": "innesco"
       },
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
+      "id": "mago-maestria-negli-incantesimi",
+      "name": "Maestria negli Incantesimi",
+      "description": "Al 18° livello, il mago raggiunge una tale maestria nell'uso di certi incantesimi da poterli lanciare a volontà. Il personaggio sceglie un incantesimo da mago di 1° livello e un incantesimo da mago di 2° livello contenuti nel suo libro degli incantesimi. Può lanciare quegli incantesimi al loro livello più basso senza spendere uno slot incantesimo quando li ha preparati. Se desidera lanciare uno di quegli incantesimi a un livello superiore, deve spendere uno slot incantesimo come di consueto. Dedicando 8 ore allo studio, il mago può cambiare uno o entrambi gli incantesimi scelti con incantesimi diversi degli stessi livelli.",
+      "classId": "mago",
+      "subclassId": "",
+      "minimumLevel": 18,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 84,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
+      "targetMode": "self",
+      "targeting": {
+        "mode": "self",
+        "rangeMeters": null,
+        "maxTargets": 1,
+        "excludeSource": false
+      },
+      "theme": {
+        "emoji": "✨",
+        "accent": "#38bdf8",
+        "background": "#0c4a6e",
+        "text": "#ecfeff"
+      },
+      "effectPlan": null,
+      "breaksConcentration": false,
+      "duration": {
+        "rounds": null
+      },
+      "trackingMode": "instant",
+      "resourceCosts": []
+    },
+    {
+      "id": "mago-incantesimi-personali",
+      "name": "Incantesimi Personali",
+      "description": "Quando raggiungi il 20° livello, ottieni la padronanza di due potenti incantesimi e li potrai lanciare con pochi sforzi. Scegli due incantesimi da mago di 3° livello contenuti nel tuo libro degli incantesimi come incantesimi distintivi. Questi incantesimi sono sempre preparati, non sono conteggiati nel numero di incantesimi preparati, e puoi lanciare ciascuno di essi una volta al 3° livello senza spendere uno slot incantesimo. Dopo averlo fatto, non potrai riutilizzarli in questa maniera prima di aver terminato un riposo breve o lungo. Se vuoi lanciare uno di questi incantesimi a un livello più alto, devi spendere uno slot incantesimo come di norma.",
+      "classId": "mago",
+      "subclassId": "",
+      "minimumLevel": 20,
+      "source": "phb2014",
+      "sourceLabel": "Manuale del Giocatore 2014",
+      "page": 84,
+      "collection": "privilegi",
+      "defaultEnabled": true,
+      "automationLevel": "riferimento",
+      "completenessStatus": "reference",
+      "runtimeRequirements": [],
+      "missingForExecution": [
+        "effects",
+        "activation_semantics"
+      ],
+      "runtimeSupport": {
+        "status": "not-automated",
+        "adapter": null,
+        "reason": "adapter-not-implemented"
+      },
+      "activation": {
+        "primary": "passiva"
+      },
+      "quickActionEligible": false,
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -33126,9 +33569,9 @@
   "validation": {
     "catalogRecords": 860,
     "mechanicRecords": 860,
-    "activeFeatures": 542,
+    "activeFeatures": 551,
     "resourcePools": 104,
     "runtimeImplemented": 59,
-    "runtimeNotAutomated": 483
+    "runtimeNotAutomated": 492
   }
 }

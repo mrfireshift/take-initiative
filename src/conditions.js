@@ -876,6 +876,7 @@ function __orderedParts(cond = {}) {
     tone: group.effectKind || "",
     parentEffectId: group.parentEffectId,
     sourceId: String(group.instances[0]?.sourceId || ""),
+    icon: String(group.theme?.emoji || CONDITION_EMOJI[group.name] || "").trim(),
     theme: group.theme,
   }));
 }

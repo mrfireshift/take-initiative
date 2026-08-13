@@ -593,6 +593,10 @@ test("il reconciler pill riusa lo snapshot versionato dell'Event Hub con fallbac
     new URL("../src/effectsReconciler.js", import.meta.url),
     "utf8",
   );
+  const hoverSource = readFileSync(
+    new URL("../src/effectsHoverTool.js", import.meta.url),
+    "utf8",
+  );
   const layoutSource = readFileSync(
     new URL("../src/effectsLayout.js", import.meta.url),
     "utf8",
@@ -601,6 +605,14 @@ test("il reconciler pill riusa lo snapshot versionato dell'Event Hub con fallbac
   assert.match(eventsSource, /export function readSceneItemsSnapshot/);
   assert.match(eventsSource, /__sceneSnapshotEpoch !== null/);
   assert.match(reconcilerSource, /sceneItemsSnapshotGeneration:\s*snapshot\.complete/);
+  assert.match(reconcilerSource, /syncPlayerSelection\(player\?\.selection\)/);
+  assert.match(reconcilerSource, /nextSelection = await OBR\.player\?\.getSelection\?\.\(\) \|\| \[\]/);
+  assert.match(reconcilerSource, /selectionSyncRevision/);
+  assert.match(reconcilerSource, /effective\.size === 0 && hoveredTargetId/);
+  assert.match(reconcilerSource, /targetIds: \[previousTargetId, next\]\.filter\(Boolean\)/);
+  assert.match(hoverSource, /onToolMove/);
+  assert.match(hoverSource, /onDeactivate: clearHoverTarget/);
+  assert.match(hoverSource, /HOVER_DELAY_MS/);
   assert.match(layoutSource, /resolveEffectsLayoutSceneItems\(\{/);
   assert.match(layoutSource, /readItems:\s*async \(\) => \{/);
   assert.match(layoutSource, /OBR\.scene\.items\.getItems\(\)/);

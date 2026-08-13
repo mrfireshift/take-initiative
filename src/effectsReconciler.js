@@ -11,6 +11,7 @@ import {
   configureEffectsLayoutProjection,
   inspectEffectsLayoutStores,
   reconcileEffectsLayout,
+  resetEffectsLayoutProjection,
   setEffectsLayoutGridDpi,
 } from "./effectsLayout.js";
 import {
@@ -24,6 +25,10 @@ import {
   isEffectsLocalRendererRole,
   isEffectsWidgetWriterRole,
 } from "./effectsReconcilerCore.js";
+import {
+  mountEffectsHoverTool,
+  unmountEffectsHoverTool,
+} from "./effectsHoverTool.js";
 import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
@@ -43,6 +48,10 @@ let unsubscribeDiagnostics = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeOptions = null;
+let unsubscribePlayer = null;
+let expandedTargetIds = new Set();
+let hoveredTargetId = "";
+let selectionSyncRevision = 0;
 
 const queue = createEffectsReconcileQueue({
   async run(batch, context) {
@@ -84,6 +93,76 @@ async function getPlayerRole() {
     "PLAYER";
 }
 
+function normalizeSelection(selection) {
+  return new Set(
+    (Array.isArray(selection) ? selection : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
+}
+
+function sameIdSet(left, right) {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
+}
+
+function effectiveExpandedTargetIds() {
+  const effective = new Set(expandedTargetIds);
+  if (effective.size === 0 && hoveredTargetId) effective.add(hoveredTargetId);
+  return effective;
+}
+
+function requestSelectionReconcile({ full = false, targetIds = [] } = {}) {
+  const request = full
+    ? queue.request({ full: true })
+    : queue.request({ conditions: targetIds });
+  request.done.catch((error) => {
+    console.error("[effects] selection reconcile", error);
+  });
+}
+
+function applyPlayerSelection(selection) {
+  const next = normalizeSelection(selection);
+  const previousEffective = effectiveExpandedTargetIds();
+  if (sameIdSet(expandedTargetIds, next)) return;
+  expandedTargetIds = next;
+  const nextEffective = effectiveExpandedTargetIds();
+  if (sameIdSet(previousEffective, nextEffective)) return;
+  configureEffectsLayoutProjection({ expandedTargetIds: nextEffective });
+  requestSelectionReconcile({ full: true });
+}
+
+function applyHoverTarget(targetId) {
+  const next = String(targetId || "").trim();
+  if (hoveredTargetId === next) return;
+  const previousTargetId = hoveredTargetId;
+  const previousEffective = effectiveExpandedTargetIds();
+  hoveredTargetId = next;
+  const nextEffective = effectiveExpandedTargetIds();
+  if (sameIdSet(previousEffective, nextEffective)) return;
+  configureEffectsLayoutProjection({ expandedTargetIds: nextEffective });
+  requestSelectionReconcile({
+    targetIds: [previousTargetId, next].filter(Boolean),
+  });
+}
+
+async function syncPlayerSelection(selection) {
+  const revision = ++selectionSyncRevision;
+  let nextSelection = selection;
+  if (!Array.isArray(nextSelection)) {
+    try {
+      nextSelection = await OBR.player?.getSelection?.() || [];
+    } catch {
+      nextSelection = [];
+    }
+  }
+  if (revision !== selectionSyncRevision || !mounted || !writer) return;
+  applyPlayerSelection(nextSelection);
+}
+
 export async function mountEffectsReconciler() {
   if (mounted) return writer;
   mounted = true;
@@ -94,9 +173,14 @@ export async function mountEffectsReconciler() {
   globalCleanupOwner = isEffectsWidgetWriterRole(role);
   if (!writer) return false;
 
+  let initialSelection = [];
+  try { initialSelection = await OBR.player?.getSelection?.() || []; } catch {}
+  expandedTargetIds = normalizeSelection(initialSelection);
+  hoveredTargetId = "";
   configureEffectsLayoutProjection({
     role: String(role).toUpperCase() === "GM" ? "GM" : "PLAYER",
     policy: runtimeOptionsService.get(selectPlayerEffectsPolicy),
+    expandedTargetIds,
   });
   unsubscribeOptions = runtimeOptionsService.subscribe(
     selectPlayerEffectsPolicy,
@@ -111,6 +195,20 @@ export async function mountEffectsReconciler() {
     },
     { emitCurrent: false },
   );
+
+  if (typeof OBR.player?.onChange === "function") {
+    unsubscribePlayer = OBR.player.onChange((player) => {
+      void syncPlayerSelection(player?.selection).catch((error) => {
+        console.error("[effects] selection sync", error);
+      });
+    });
+  }
+
+  try {
+    await mountEffectsHoverTool(applyHoverTarget);
+  } catch (error) {
+    console.warn("[effects] hover tool unavailable:", error?.message || error);
+  }
 
   configureConditionWidgetWriter(requestConditions);
   configureConcentrationWidgetWriter(requestConcentration);
@@ -203,12 +301,19 @@ export async function unmountEffectsReconciler() {
   unsubscribeSceneReady = null;
   unsubscribeOptions?.();
   unsubscribeOptions = null;
+  unsubscribePlayer?.();
+  unsubscribePlayer = null;
+  hoveredTargetId = "";
+  selectionSyncRevision += 1;
+  await unmountEffectsHoverTool();
   configureConditionWidgetWriter(null);
   configureConcentrationWidgetWriter(null);
   mounted = false;
   writer = false;
   globalCleanupOwner = false;
   await queue.idle();
+  expandedTargetIds = new Set();
+  resetEffectsLayoutProjection();
 }
 
 export async function cleanupOwnedEffectsLabels() {

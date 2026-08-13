@@ -27,7 +27,7 @@ test("il catalogo runtime copre PHB, Xanathar, Tasha e Ranger Revised", () => {
   );
   assert.equal(CLASS_FEATURE_CATALOG.validation.catalogRecords, 860);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 59);
-  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 483);
+  assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 492);
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === rageId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === vowId));
   assert.ok(CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === twilightId));

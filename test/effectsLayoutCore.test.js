@@ -67,6 +67,133 @@ test("il planner unificato ordina spell e condizioni nello stesso stack", () => 
   assert.deepEqual(rows.map((entry) => entry.y), [74, 102, 131, 159]);
 });
 
+test("la vista compatta mostra icone di condizione e un conteggio distinto", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Ragnatela",
+          displayName: "Ragnatela",
+          targets: ["target"],
+          color: { solid: "#7e22ce", fillOpacity: 0.84 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [
+          { key: "flag:Prono", label: "Prono", icon: "⬇️", kind: "condition" },
+          { key: "flag:Accecato", label: "Accecato", icon: "👁️", kind: "condition" },
+          { key: "flag:Spaventato", label: "Spaventato", icon: "😨", kind: "condition" },
+          { key: "flag:Stordito", label: "Stordito", icon: "💥", kind: "condition" },
+          {
+            key: "spell-effect:web",
+            label: "Terreno difficile",
+            kind: "spell-effect",
+            tone: "debuff",
+          },
+        ],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "⬇️",
+    "👁️",
+    "😨",
+    "+1 · ✨1 · ✦1",
+  ]);
+  assert.ok(rows.every((entry) => entry.x + entry.width <= 135));
+  assert.ok(rows.every((entry) => entry.x >= 65));
+  assert.ok(rows.every((entry) => entry.x + entry.width === 135));
+  assert.equal(rows.some((entry) => entry.text === "Prono"), false);
+  assert.equal(rows.find((entry) => entry.compactMode === "effect-count").key, "compact:count");
+});
+
+test("la selezione del token mantiene tutte le label estese", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    expandedTargetIds: new Set(["target"]),
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Ragnatela",
+          displayName: "Ragnatela",
+          targets: ["target"],
+          color: { solid: "#7e22ce", fillOpacity: 0.84 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [
+          { key: "flag:Prono", label: "Prono", icon: "⬇️", kind: "condition" },
+          {
+            key: "spell-effect:web",
+            label: "Terreno difficile",
+            kind: "spell-effect",
+            tone: "debuff",
+          },
+        ],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Terreno difficile",
+    "Ragnatela",
+    "Prono",
+  ]);
+  assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
+  assert.equal(rows[0].x, 94);
+  assert.equal(rows.some((entry) => entry.compactMode), false);
+});
+
+test("le pill compatte restano dentro la footprint anche su un token multicasella", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    tokens: [token("large-target", {
+      position: { x: 200, y: 200 },
+      width: 140,
+      height: 210,
+      conditionParts: [
+        { key: "condition:a", label: "A", icon: "A", kind: "condition" },
+        { key: "condition:b", label: "B", icon: "B", kind: "condition" },
+        { key: "condition:c", label: "C", icon: "C", kind: "condition" },
+        { key: "condition:d", label: "D", icon: "D", kind: "condition" },
+      ],
+    })],
+  }).filter((entry) => entry.targetId === "large-target");
+
+  assert.ok(rows.every((entry) => entry.x >= 130));
+  assert.ok(rows.every((entry) => entry.x + entry.width <= 270));
+  assert.ok(rows.every((entry) => entry.x + entry.width === 270));
+  const topmost = Math.min(...rows.map((entry) => entry.y - entry.height / 2));
+  assert.ok(topmost >= 95 && topmost < 96);
+});
+
+test("il pallino C resta invariato nella vista compatta", () => {
+  const tokens = [token("caster", {
+    concentrationKey: "Ragnatela",
+    assignments: [{
+      key: "Ragnatela",
+      displayName: "Ragnatela",
+      isConc: true,
+      targets: ["target"],
+      color: { solid: "#7e22ce", fillOpacity: 0.84 },
+    }],
+  }), token("target")];
+
+  const fullDot = planEffectsLayout({ tokens, measureText })
+    .find((entry) => entry.kind === "dot");
+  const compactDot = planEffectsLayout({ tokens, measureText, compact: true })
+    .find((entry) => entry.kind === "dot");
+
+  assert.deepEqual(compactDot, fullDot);
+});
+
 test("le pill buff e debuff precedono lo stack senza cambiare il colore della spell", () => {
   const rows = planEffectsLayout({
     measureText,
