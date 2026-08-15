@@ -1,4 +1,5 @@
-import { lookupSpellTheme } from "./spellThemeIndex.js";
+import fs from "node:fs";
+import { getSpellCatalog } from "../src/spells-srd.js";
 
 const THEMES = Object.freeze({
   arcane: { hue: 218, saturation: 34, lightness: 31 },
@@ -102,6 +103,54 @@ function normalized(value) {
   return String(value || "").trim().toLocaleLowerCase("it");
 }
 
+function findElement(text) {
+  const matches = ELEMENT_TERMS
+    .filter(([, terms]) => terms.some((term) => text.includes(term)))
+    .map(([theme]) => theme);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function themeForSpell(spell) {
+  const reference = spell?.italianReference && typeof spell.italianReference === "object"
+    ? spell.italianReference
+    : {};
+  const idAndName = normalized([
+    spell?.id,
+    spell?.name,
+    spell?.displayName,
+  ].filter(Boolean).join(" "));
+  const description = normalized(spell?.description || reference.description);
+  const damageType = normalized(spell?.damageType || reference.damageType);
+
+  const explicitTheme = SPELL_THEME_OVERRIDES[normalized(spell?.id)];
+  if (explicitTheme) return explicitTheme;
+
+  const structuredElement = findElement(damageType);
+  if (structuredElement) return structuredElement;
+
+  if (idAndName.includes("forza") || idAndName.includes("force")) return "force";
+
+  const namedElement = findElement(idAndName);
+  if (namedElement) return namedElement;
+
+  const allText = `${idAndName} ${description}`;
+  const describedElement = findElement(allText);
+  if (describedElement) return describedElement;
+
+  if (SUPPORT_TERMS.some((term) => allText.includes(term))) return "healing";
+
+  const school = normalized(spell?.school || reference.school);
+  for (const [term, theme] of SCHOOL_THEMES) {
+    if (school.includes(term)) return theme;
+  }
+
+  for (const [theme, terms] of NAME_THEME_HINTS) {
+    if (terms.some((term) => idAndName.includes(term))) return theme;
+  }
+
+  return "arcane";
+}
+
 function normalizeLookup(value) {
   return String(value || "")
     .trim()
@@ -113,115 +162,31 @@ function normalizeLookup(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-function findElement(text) {
-  const matches = ELEMENT_TERMS
-    .filter(([, terms]) => terms.some((term) => text.includes(term)))
-    .map(([theme]) => theme);
-  return matches.length === 1 ? matches[0] : null;
-}
+const catalog = getSpellCatalog();
+const index = {};
 
-function themeForSpell(value) {
-  if (value && typeof value === "object") {
-    const directId = normalizeLookup(value.id);
-    const directName = normalizeLookup(value.name);
-    const directDisplay = normalizeLookup(value.displayName);
-    const indexed = lookupSpellTheme(directId)
-      || lookupSpellTheme(directName)
-      || lookupSpellTheme(directDisplay);
-    if (indexed) return indexed;
-
-    const reference = value.italianReference && typeof value.italianReference === "object"
-      ? value.italianReference
-      : {};
-    const idAndName = normalized([
-      value.id,
-      value.name,
-      value.displayName,
-    ].filter(Boolean).join(" "));
-    const description = normalized(value.description || reference.description);
-    const damageType = normalized(value.damageType || reference.damageType);
-
-    const explicitTheme = SPELL_THEME_OVERRIDES[normalized(value.id)];
-    if (explicitTheme) return explicitTheme;
-
-    const structuredElement = findElement(damageType);
-    if (structuredElement) return structuredElement;
-
-    if (idAndName.includes("forza") || idAndName.includes("force")) return "force";
-
-    const namedElement = findElement(idAndName);
-    if (namedElement) return namedElement;
-
-    const allText = `${idAndName} ${description}`;
-    const describedElement = findElement(allText);
-    if (describedElement) return describedElement;
-
-    if (SUPPORT_TERMS.some((term) => allText.includes(term))) return "healing";
-
-    const school = normalized(value.school || reference.school);
-    for (const [term, theme] of SCHOOL_THEMES) {
-      if (school.includes(term)) return theme;
-    }
-
-    for (const [theme, terms] of NAME_THEME_HINTS) {
-      if (terms.some((term) => idAndName.includes(term))) return theme;
-    }
-
-    return "arcane";
+for (const spell of catalog) {
+  const theme = themeForSpell(spell);
+  const aliases = Array.isArray(spell.aliases) ? spell.aliases : (spell.alias ? [spell.alias] : []);
+  for (const val of [spell.id, spell.name, spell.displayName, spell.catalogLabel, ...aliases]) {
+    const key = normalizeLookup(val);
+    if (key && !index[key]) index[key] = theme;
   }
-
-  const lookupKey = normalizeLookup(value);
-  const knownTheme = lookupSpellTheme(lookupKey);
-  if (knownTheme) return knownTheme;
-
-  const explicitTheme = SPELL_THEME_OVERRIDES[lookupKey];
-  if (explicitTheme) return explicitTheme;
-
-  const text = normalized(value);
-  const namedElement = findElement(text);
-  if (namedElement) return namedElement;
-  if (text.includes("forza") || text.includes("force")) return "force";
-  if (SUPPORT_TERMS.some((term) => text.includes(term))) return "healing";
-
-  for (const [term, theme] of SCHOOL_THEMES) {
-    if (text.includes(term)) return theme;
-  }
-  for (const [theme, terms] of NAME_THEME_HINTS) {
-    if (terms.some((term) => text.includes(term))) return theme;
-  }
-
-  return "arcane";
 }
 
-export function spellColorFor(value) {
-  const themeName = themeForSpell(value);
-  const theme = THEMES[themeName] || THEMES.arcane;
-  const { hue, saturation, lightness } = theme;
-  return {
-    theme: themeName,
-    solid: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
-    border: `hsl(${hue}, ${Math.min(92, saturation + 16)}%, ${Math.min(78, lightness + 31)}%)`,
-    soft: `hsla(${hue}, ${saturation}%, ${Math.min(62, lightness + 12)}%, .30)`,
-  };
-}
+const sortedKeys = Object.keys(index).sort();
+const lines = [
+  "// Generated by scripts/generate-spell-theme-index.mjs - DO NOT EDIT MANUALLY",
+  "export const SPELL_THEMES_BY_KEY = Object.freeze({",
+  ...sortedKeys.map((k) => `  ${JSON.stringify(k)}: ${JSON.stringify(index[k])},`),
+  "});",
+  "",
+  "export function lookupSpellTheme(key) {",
+  "  return SPELL_THEMES_BY_KEY[key] || null;",
+  "}",
+  "",
+];
 
-const ACID_EFFECT_THEME = Object.freeze({
-  background: "#65a30d",
-  accent: "#bef264",
-  text: "#f7fee7",
-});
-
-const SPELL_EFFECT_THEMES = Object.freeze({
-  "acid-arrow": ACID_EFFECT_THEME,
-  "freccia-acida": ACID_EFFECT_THEME,
-  "xanathar-sfera-al-vetriolo": ACID_EFFECT_THEME,
-  "sfera-al-vetriolo": ACID_EFFECT_THEME,
-  "sfera-al-vetriolo-di-melf": ACID_EFFECT_THEME,
-  "melfs-acid-arrow": ACID_EFFECT_THEME,
-});
-
-export function spellEffectThemeFor(value) {
-  const key = normalizeLookup(value && typeof value === "object" ? (value.id || value.name || "") : value);
-  const theme = SPELL_EFFECT_THEMES[key];
-  return theme ? { ...theme } : null;
-}
+const outputPath = "src/spellThemeIndex.js";
+fs.writeFileSync(outputPath, lines.join("\n"), "utf8");
+console.log(`Wrote ${sortedKeys.length} spell themes to ${outputPath}`);

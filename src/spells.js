@@ -5,7 +5,6 @@ import {
   runEffectsMutation,
   tickRoundEffects,
 } from "./effectsMutations.js";
-import { getSpellDefinition } from "./spells-srd.js";
 import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
 import { spellColorFor } from "./spellColorCore.js";
 
@@ -215,7 +214,7 @@ export function buildSpellChips(spells, options = {}) {
   const list = Array.isArray(spells) ? spells : [];
   const onTerminate = typeof options.onTerminate === "function" ? options.onTerminate : null;
   for (const spell of list) {
-    const displayName = getSpellDefinition(spell.name)?.displayName || spell.name;
+    const displayName = spell?.displayName || spell?.name || "";
     const chip = document.createElement("span");
     chip.className = "chip spell-chip";
     chip.dataset.referenceType = "spells";
