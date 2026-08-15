@@ -242,8 +242,8 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     catalogState: {
       query: "",
       filter: "all",
-      expanded: !contract?.spell?.id,
-      activeIndex: 0,
+      expanded: false,
+      activeIndex: -1,
       loading: false,
     },
     targetFilters: {
@@ -2149,7 +2149,7 @@ export function bootSpellUnifiedPanel(
         validCasterIds: validCasterIds(),
         validSlotLevels: slotOptions(nextContract),
       });
-      state.catalogState = { ...state.catalogState, expanded: false, query: "" };
+      state.catalogState = { ...state.catalogState, expanded: false, query: "", activeIndex: -1 };
       ++targetingSelectionSequence;
       provider.clearTargetingReference?.();
       await clearSelection();
@@ -2157,17 +2157,21 @@ export function bootSpellUnifiedPanel(
       render();
     },
     onEscape: () => {
-      state.catalogState = { ...state.catalogState, expanded: false };
+      state.catalogState = { ...state.catalogState, expanded: false, activeIndex: -1 };
       state.focusCatalog = true;
       render();
     },
     onToggle: () => {
-      state.catalogState = { ...state.catalogState, expanded: !state.catalogState.expanded };
+      state.catalogState = {
+        ...state.catalogState,
+        expanded: !state.catalogState.expanded,
+        activeIndex: -1,
+      };
       state.focusCatalog = true;
       render();
     },
     onFilterChange: (filter) => {
-      state.catalogState = { ...state.catalogState, filter, activeIndex: 0, expanded: true };
+      state.catalogState = { ...state.catalogState, filter, activeIndex: -1, expanded: true };
       state.focusCatalog = true;
       render();
     },

@@ -103,22 +103,23 @@ export function buildCatalogViewModel({
   query = "",
   filter = "all",
   selectedKey = "",
-  expanded = true,
-  activeIndex = 0,
+  expanded = false,
+  activeIndex = -1,
   loading = false,
 } = {}) {
   const allEntries = sortCatalogEntries(dedupeCatalogEntries(entries));
   const visibleEntries = filterCatalogEntries(allEntries, { query, filter });
   const selectedEntry = allEntries.find((entry) => entry.key === selectedKey) || null;
-  const safeIndex = visibleEntries.length
-    ? Math.min(Math.max(Number(activeIndex) || 0, 0), visibleEntries.length - 1)
+  const parsedIndex = Number(activeIndex);
+  const safeIndex = visibleEntries.length && Number.isInteger(parsedIndex) && parsedIndex >= 0
+    ? Math.min(parsedIndex, visibleEntries.length - 1)
     : -1;
   return {
     entries: allEntries,
     visibleEntries: visibleEntries.map((entry, index) => ({
       ...entry,
       selected: entry.key === selectedKey,
-      active: index === safeIndex,
+      active: safeIndex >= 0 && index === safeIndex,
     })),
     filters: buildCatalogFilters(allEntries, filter),
     query: String(query || ""),
@@ -126,7 +127,7 @@ export function buildCatalogViewModel({
     selectedConcentration: selectedEntry?.flags?.concentration === true,
     filter,
     selectedKey: String(selectedKey || ""),
-    expanded: expanded !== false,
+    expanded: expanded === true,
     activeIndex: safeIndex,
     loading: loading === true,
   };
@@ -180,16 +181,19 @@ export function renderSpellCatalogCombobox(
   input.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      callbacks.onActiveIndexChange?.(Math.min(
-        Math.max(model.activeIndex + 1, 0),
-        model.visibleEntries.length - 1,
-      ));
+      const nextIndex = model.activeIndex < 0
+        ? 0
+        : Math.min(model.activeIndex + 1, model.visibleEntries.length - 1);
+      callbacks.onActiveIndexChange?.(nextIndex);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      callbacks.onActiveIndexChange?.(Math.max(model.activeIndex - 1, 0));
+      const prevIndex = model.activeIndex < 0
+        ? model.visibleEntries.length - 1
+        : Math.max(model.activeIndex - 1, 0);
+      callbacks.onActiveIndexChange?.(prevIndex);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const active = model.visibleEntries[model.activeIndex];
+      const active = model.activeIndex >= 0 ? model.visibleEntries[model.activeIndex] : null;
       if (active) callbacks.onSelect?.(active.key);
     } else if (event.key === "Escape") {
       event.preventDefault();
