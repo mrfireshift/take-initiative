@@ -32,6 +32,10 @@ import {
 } from "./spellStaticZoneCore.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
 import { selectMovementReminderEnabled } from "./options/optionsSelectors.js";
+import {
+  METADATA_OWNERSHIP,
+  writeRoomMetadataKey,
+} from "./metadataKeyScoped.js";
 
 const META_KEY = ID + "/meta";
 const SPELLS_META_KEY = ID + "/spells";
@@ -40,6 +44,7 @@ const SPEED_WARNING_CHANNEL = ID + "/speed-warning";
 const SPEED_WARNING_MODAL_ID = ID + "/speed-warning-modal";
 const SPEED_DRAG_CHANNEL = ID + "/speed-drag";
 const SPEED_STATE_CHANNEL = ID + "/speed-state";
+const SPEED_CHECK_CONTROL_KEY = METADATA_OWNERSHIP.SPEED_CHECK_CONTROL.key;
 const SPEED_CHECK_META_FIELD = "speedCheckMovement";
 const ELEVATION_META_FIELD = "elevation";
 const CLIMBING_META_FIELD = "climbing";
@@ -69,6 +74,10 @@ let speedWarningSequence = 0;
 let speedDragListenerMounted = false;
 let speedStateListenerMounted = false;
 let speedMetadataListenerMounted = false;
+let speedCheckControlMounted = false;
+let speedCheckControlAuthority = false;
+let speedCheckControlUpdatedAt = 0;
+let speedCheckControlWriteQueue = Promise.resolve();
 let remoteMovementSnapshot = null;
 let movementPersistQueue = Promise.resolve();
 const trackedDrags = new Map();
@@ -76,6 +85,77 @@ const rejectedMovementRollbacks = new Map();
 const rejectedElevationRollbacks = new Map();
 const suppressedElevationResets = new Map();
 const movementStateListeners = new Set();
+const speedCheckEnabledListeners = new Set();
+
+function notifySpeedCheckEnabled() {
+  for (const listener of speedCheckEnabledListeners) {
+    try { listener(speedCheckEnabled); } catch {}
+  }
+}
+
+function applySpeedCheckEnabled(enabled) {
+  const next = !!enabled;
+  if (speedCheckEnabled === next) return false;
+  speedCheckEnabled = next;
+  movementState = null;
+  movementStatePromise = null;
+  movementStatePrefetch = null;
+  trackedDrags.clear();
+  notifySpeedCheckEnabled();
+  notifyMovementState();
+  if (next && processorEnabled) {
+    void ensureSpeedCheckMovementState().catch((error) => {
+      console.warn("[speed-check] state activation:", error?.message || error);
+    });
+  }
+  return true;
+}
+
+function applySpeedCheckControlMetadata(metadata) {
+  const control = metadata?.[SPEED_CHECK_CONTROL_KEY];
+  if (!control || typeof control.enabled !== "boolean") return false;
+  const updatedAt = Math.max(0, Math.floor(Number(control.updatedAt) || 0));
+  if (updatedAt < speedCheckControlUpdatedAt) return false;
+  speedCheckControlUpdatedAt = updatedAt;
+  return applySpeedCheckEnabled(control.enabled);
+}
+
+function persistSpeedCheckEnabled(enabled) {
+  if (!speedCheckControlAuthority) return;
+  const updatedAt = Math.max(Date.now(), speedCheckControlUpdatedAt + 1);
+  speedCheckControlUpdatedAt = updatedAt;
+  const payload = { version: 1, enabled: !!enabled, updatedAt };
+  const write = () => writeRoomMetadataKey(
+    OBR.room,
+    METADATA_OWNERSHIP.SPEED_CHECK_CONTROL,
+    payload,
+    { runtime: "speedCheck" },
+  );
+  speedCheckControlWriteQueue = speedCheckControlWriteQueue.then(write, write);
+  void speedCheckControlWriteQueue.catch((error) => {
+    console.warn("[speed-check] activation sync:", error?.message || error);
+  });
+}
+
+export function subscribeSpeedCheckEnabled(listener, { emitCurrent = true } = {}) {
+  if (typeof listener !== "function") return () => {};
+  speedCheckEnabledListeners.add(listener);
+  if (emitCurrent) listener(speedCheckEnabled);
+  return () => speedCheckEnabledListeners.delete(listener);
+}
+
+export async function mountSpeedCheckEnabledSync({ authority = false } = {}) {
+  speedCheckControlAuthority = authority === true;
+  if (!speedCheckControlMounted) {
+    speedCheckControlMounted = true;
+    OBR.room.onMetadataChange((metadata) => {
+      applySpeedCheckControlMetadata(metadata);
+    });
+  }
+  const metadata = await OBR.room.getMetadata().catch(() => ({}));
+  applySpeedCheckControlMetadata(metadata);
+  return speedCheckEnabled;
+}
 
 function broadcastSpeedWarning(payload) {
   if (!isMovementReminderEnabled()) return Promise.resolve();
@@ -746,18 +826,8 @@ export function enableSpeedCheckProcessor() {
 
 export function setSpeedCheckEnabled(enabled) {
   const next = !!enabled;
-  if (speedCheckEnabled === next) return;
-  speedCheckEnabled = next;
-  movementState = null;
-  movementStatePromise = null;
-  movementStatePrefetch = null;
-  trackedDrags.clear();
-  notifyMovementState();
-  if (next) {
-    void ensureSpeedCheckMovementState().catch((error) => {
-      console.warn("[speed-check] state activation:", error?.message || error);
-    });
-  }
+  const changed = applySpeedCheckEnabled(next);
+  if (changed) persistSpeedCheckEnabled(next);
 }
 
 export function setSpeedCheckMovementLimit(enabled) {

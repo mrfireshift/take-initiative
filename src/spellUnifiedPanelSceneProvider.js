@@ -812,7 +812,7 @@ export async function getPendingSpellZoneTriggers(
   ));
 }
 
-export function createSpellUnifiedPanelSceneProvider(obr) {
+export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = null } = {}) {
   let targetingReferenceCleanup = null;
   let targetingReferenceSequence = 0;
   const clearTargetingReference = () => {
@@ -821,10 +821,16 @@ export function createSpellUnifiedPanelSceneProvider(obr) {
     targetingReferenceCleanup = null;
   };
   const showTargetingReference = async (options = {}) => {
+    const operation = sceneLifecycle?.capture?.({ operationId: "spell-panel-targeting-reference" }) || null;
+    if (sceneLifecycle && !sceneLifecycle.isCurrent(operation)) return;
     clearTargetingReference();
     const requestSequence = targetingReferenceSequence;
     try {
       const interaction = await startSpellUnifiedTargetingReference(obr, options);
+      if (sceneLifecycle && !sceneLifecycle.isCurrent(operation)) {
+        interaction?.[1]?.();
+        return;
+      }
       if (requestSequence !== targetingReferenceSequence) {
         interaction?.[1]?.();
         return;
@@ -851,8 +857,11 @@ export function createSpellUnifiedPanelSceneProvider(obr) {
     getOverview: (sourceId = "") => getSpellOverviewSnapshot(obr, sourceId),
     getPendingZoneTriggers: (filters = {}) => getPendingSpellZoneTriggers(obr, filters),
     getAreaExecutionRuntime: () => ({
-      sceneEpoch: currentSceneEpoch(),
-      isCurrent: (epoch) => isCurrentSceneEpoch(epoch),
+      sceneEpoch: sceneLifecycle?.currentEpoch?.() ?? currentSceneEpoch(),
+      isCurrent: (epoch) => sceneLifecycle
+        ? sceneLifecycle.isCurrent(sceneLifecycle.capture({}))
+          && Number(epoch) === Number(sceneLifecycle.currentEpoch?.())
+        : isCurrentSceneEpoch(epoch),
       getSpatialValidation: (input) => getSpellAreaSpatialValidation(obr, input),
       validateSpatial: (input) => validateSpellAreaSceneSpatial(obr, input),
       getInitiativeActorId: async () => (await getAppliedAt(obr))?.actorId || null,

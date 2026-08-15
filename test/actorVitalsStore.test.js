@@ -66,6 +66,11 @@ class RoomHarness {
     operation.resolve();
     for (const listener of this.listeners) listener(structuredClone(this.metadata));
   }
+
+  emit(metadata = this.metadata) {
+    this.metadata = structuredClone(metadata);
+    for (const listener of this.listeners) listener(structuredClone(this.metadata));
+  }
 }
 
 function alwaysCurrent() {
@@ -133,7 +138,7 @@ test("la coda serializza aggiornamenti concorrenti e conserva entrambi", async (
   assert.equal(snapshot.actors["actor-b"].hp, 7);
 });
 
-test("al cambio scena lo stato Room sostituisce HP presenti ma obsoleti", async () => {
+test("la hydration GM di una nuova scena ripristina HP da un record valido", async () => {
   const room = new RoomHarness({
     [ACTOR_VITALS_ROOM_KEY]: {
       schemaVersion: 1,
@@ -167,6 +172,149 @@ test("al cambio scena lo stato Room sostituisce HP presenti ma obsoleti", async 
   await store.reconcileCurrentScene(2);
   assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hp, 12);
   assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hpMax, 27);
+});
+
+test("un evento Room dopo la baseline aggiorna la cache ma non riscrive gli HP", async () => {
+  const room = new RoomHarness({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 12, hpMax: 27, updatedAt: 20, revision: 4 } },
+    },
+  });
+  const item = {
+    id: "scene-token",
+    metadata: {
+      "com.thebigpicture.initiative/meta": {
+        actorProfileId: "actor-a",
+        hp: 12,
+        hpMax: 27,
+      },
+    },
+  };
+  let updateCalls = 0;
+  const store = createActorVitalsStore({
+    api: room.api(),
+    itemsApi: {
+      getItems: async () => [item],
+      updateItems: async () => { updateCalls += 1; },
+    },
+    storage: new Storage(),
+    getSceneEpoch: () => 1,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: () => () => {},
+    subscribeEpoch: () => () => {},
+  });
+  await store.start();
+  item.metadata["com.thebigpicture.initiative/meta"].hp = 5;
+
+  room.emit({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 7, hpMax: 27, updatedAt: 30, revision: 5 } },
+    },
+  });
+  await flush();
+
+  assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hp, 5);
+  assert.equal(store.getSnapshot().actors["actor-a"].hp, 7);
+  assert.equal(updateCalls, 0);
+  store.stop();
+});
+
+test("un evento Room di altro attore o metadata estranei non ripristina HP obsoleti", async () => {
+  const room = new RoomHarness({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 12, hpMax: 27, updatedAt: 20, revision: 4 } },
+    },
+  });
+  const item = {
+    id: "scene-token",
+    metadata: {
+      "com.thebigpicture.initiative/meta": {
+        actorProfileId: "actor-a",
+        hp: 12,
+        hpMax: 27,
+      },
+    },
+  };
+  let updateCalls = 0;
+  const store = createActorVitalsStore({
+    api: room.api(),
+    itemsApi: {
+      getItems: async () => [item],
+      updateItems: async () => { updateCalls += 1; },
+    },
+    storage: new Storage(),
+    getSceneEpoch: () => 1,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: () => () => {},
+    subscribeEpoch: () => () => {},
+  });
+  await store.start();
+  item.metadata["com.thebigpicture.initiative/meta"].hp = 5;
+
+  room.emit({
+    otherRoomState: { keep: true },
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: {
+        "actor-a": { hp: 12, hpMax: 27, updatedAt: 20, revision: 4 },
+        "actor-b": { hp: 3, hpMax: 9, updatedAt: 31, revision: 1 },
+      },
+    },
+  });
+  await flush();
+
+  assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hp, 5);
+  assert.equal(store.getSnapshot().actors["actor-b"].hp, 3);
+  assert.equal(updateCalls, 0);
+  store.stop();
+});
+
+test("una modifica token piÃ¹ recente dello snapshot di hydration vince", async () => {
+  const room = new RoomHarness({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 12, hpMax: 27, updatedAt: 20, revision: 4 } },
+    },
+  });
+  const item = {
+    id: "scene-token",
+    metadata: {
+      "com.thebigpicture.initiative/meta": {
+        actorProfileId: "actor-a",
+        hp: 5,
+        hpMax: 27,
+      },
+    },
+  };
+  let reads = 0;
+  let updateCalls = 0;
+  const store = createActorVitalsStore({
+    api: room.api(),
+    itemsApi: {
+      getItems: async () => {
+        reads += 1;
+        if (reads === 2) item.metadata["com.thebigpicture.initiative/meta"].hp = 3;
+        return [item];
+      },
+      updateItems: async () => { updateCalls += 1; },
+    },
+    storage: new Storage(),
+    getSceneEpoch: () => 1,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: () => () => {},
+    subscribeEpoch: () => () => {},
+  });
+  const hydration = store.reconcileCurrentScene(1);
+  await flush();
+  room.commitNext();
+  await hydration;
+
+  assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hp, 3);
+  assert.equal(store.getSnapshot().actors["actor-a"].hp, 3);
+  assert.equal(updateCalls, 0);
 });
 
 test("un record actorVitals parziale non blocca l'inizializzazione canonica", async () => {
@@ -206,6 +354,52 @@ test("un record actorVitals parziale non blocca l'inizializzazione canonica", as
   assert.equal(store.getSnapshot().actors["actor-a"].future, "keep");
 });
 
+test("il Player legge la cache ma non scrive nÃ© token nÃ© Room", async () => {
+  const room = new RoomHarness({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 8, hpMax: 10, updatedAt: 1, revision: 1 } },
+    },
+  });
+  let updateCalls = 0;
+  const store = createActorVitalsStore({
+    authority: "PLAYER",
+    api: room.api(),
+    itemsApi: {
+      getItems: async () => [{
+        id: "player-token",
+        metadata: {
+          "com.thebigpicture.initiative/meta": {
+            actorProfileId: "actor-a",
+            hp: 2,
+            hpMax: 10,
+          },
+        },
+      }],
+      updateItems: async () => { updateCalls += 1; },
+    },
+    storage: new Storage(),
+    getSceneEpoch: () => 1,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: () => () => {},
+    subscribeEpoch: () => () => {},
+  });
+
+  await store.start();
+  await store.saveCanonicalHP("actor-a", 2, 10, { sceneEpoch: 1 });
+  await store.write({
+    schemaVersion: 1,
+    actors: { "actor-a": { hp: 2, hpMax: 10 } },
+  }, { sceneEpoch: 1 });
+
+  assert.equal(store.getState().authority, "PLAYER");
+  assert.equal(store.getState().canWrite, false);
+  assert.equal(updateCalls, 0);
+  assert.equal(room.setCalls.length, 0);
+  assert.equal(store.getSnapshot().actors["actor-a"].hp, 8);
+  store.stop();
+});
+
 test("due token attivi con lo stesso actorProfileId usano il primario deterministico", async () => {
   const room = new RoomHarness();
   const first = {
@@ -235,6 +429,64 @@ test("due token attivi con lo stesso actorProfileId usano il primario determinis
   await reconcile;
   assert.equal(store.getSnapshot().actors["actor-a"].hp, 5);
   assert.equal(second.metadata["com.thebigpicture.initiative/meta"].hp, 5);
+});
+
+test("un token aggiunto dopo la baseline viene idratato una sola volta", async () => {
+  const room = new RoomHarness({
+    [ACTOR_VITALS_ROOM_KEY]: {
+      schemaVersion: 1,
+      actors: { "actor-a": { hp: 12, hpMax: 27, updatedAt: 20, revision: 4 } },
+    },
+  });
+  const item = {
+    id: "added-token",
+    metadata: {
+      "com.thebigpicture.initiative/meta": {
+        actorProfileId: "actor-a",
+        hp: 4,
+        hpMax: 27,
+      },
+    },
+  };
+  let sceneItems = [];
+  let itemHandler = null;
+  let updateCalls = 0;
+  const store = createActorVitalsStore({
+    api: room.api(),
+    itemsApi: {
+      getItems: async () => sceneItems,
+      updateItems: async (_ids, updater) => {
+        updateCalls += 1;
+        updater([item]);
+      },
+    },
+    storage: new Storage(),
+    getSceneEpoch: () => 1,
+    isSceneEpochCurrent: alwaysCurrent,
+    subscribeItems: (handler) => {
+      itemHandler = handler;
+      return () => { itemHandler = null; };
+    },
+    subscribeEpoch: () => () => {},
+  });
+
+  await store.start();
+  sceneItems = [item];
+  const addedEvent = {
+    sceneEpoch: 1,
+    revision: 1,
+    items: [item],
+    allItems: [item],
+    flags: { added: true },
+    domains: ["tracker"],
+  };
+  await itemHandler(addedEvent);
+  await itemHandler(addedEvent);
+
+  assert.equal(item.metadata["com.thebigpicture.initiative/meta"].hp, 12);
+  assert.equal(updateCalls, 1);
+  assert.equal(room.setCalls.length, 0);
+  store.stop();
 });
 
 test("subscription Room riallinea il token e un evento riflesso non crea un loop", async () => {

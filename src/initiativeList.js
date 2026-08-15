@@ -20,7 +20,6 @@ import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMem
 import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
 import { spellColorFor } from "./spellColorCore.js";
-import { getSpellBoardTokenItems } from "./spellBoardToken.js";
 import {
   appendSpellBoardTokenCompanions,
   hasSpellBoardTokenChange,
@@ -30,6 +29,7 @@ import {
   spellBoardTokenTrackerItems,
   updateSpellBoardTokenSnapshot,
 } from "./spellBoardTokenTrackerCore.js";
+import { readFullRenderItemSnapshot } from "./initiativeFullRenderSnapshotCore.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import {
@@ -39,10 +39,11 @@ import {
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
-import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
+import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
 import {
   isCurrentSceneItemEvent,
+  readSceneItemsSnapshot,
   sceneItemEventCorrelation,
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
@@ -96,9 +97,11 @@ import {
   isCurrentRenderRevision,
 } from "./initiativeRenderCore.js";
 import {
-  METADATA_OWNERSHIP,
-  writeSceneMetadataKey,
-} from "./metadataKeyScoped.js";
+  enqueueInitiativeStatePatch,
+  enqueueInitiativeStateReducer,
+  initiativeStateResultApplied,
+  nextInitiativeStateCommandId,
+} from "./initiativeStateGateway.js";
 import { planIncrementalTrackerItemRender } from "./initiativeIncrementalRenderCore.js";
 import {
   createDirtyItemSet,
@@ -113,6 +116,7 @@ import {
   runSceneEpochSteps,
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
+import { createInitiativeReadinessHandshake } from "./initiativeBootstrapLifecycleCore.js";
 import { cancelSceneEditorsWithoutCommit } from "./sceneEditorResetCore.js";
 import {
   createMenuRequestId,
@@ -199,9 +203,13 @@ import {
   compactTrackerWidth,
 } from "./trackerCompactSizingCore.js";
 import { projectTrackerEntries } from "./options/optionsProjection.js";
-import { runtimeOptionsService } from "./options/optionsRuntime.js";
+import {
+  broadcastRuntimeOptionsInvalidation,
+  runtimeOptionsService,
+} from "./options/optionsRuntime.js";
 import {
   selectActiveTurnLabelEnabled,
+  selectEffectsDisplayMode,
   selectFollowActiveTurn,
   selectKnownFactionAssignmentEnabled,
   selectMapHpBarsEnabled,
@@ -403,6 +411,7 @@ const __editorDirtyTrackerItemIds = createDirtyItemSet();
 let __fullRenderDirty = false;
 let __initiativeRenderScheduler = null;
 let __latestSceneItemEventRevision = 0;
+let __latestSceneItemEventGeneration = 0;
 let __latestSceneItemEventCorrelation = null;
 let __lastInitiativeMetadataDigest;
 let __lastQueuedInitiativeMetadataDigest;
@@ -416,6 +425,8 @@ let __conditionNavigationHint = null;
 let __sceneBaselineEpoch = null;
 let __sceneEpochLifecycleMounted = false;
 let __sceneEpochUnsubscribe = null;
+let __sceneReadinessHandshake = null;
+let __initiativeBootstrapStarted = false;
 let __selectedSceneItemIds = new Set();
 let __trackerSelectionAnchorId = null;
 let __playerSelectionUnsubscribe = null;
@@ -611,6 +622,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __editorDirtyTrackerItemIds.clear();
   __fullRenderDirty = false;
   __latestSceneItemEventRevision = 0;
+  __latestSceneItemEventGeneration = 0;
   __latestSceneItemEventCorrelation = null;
   __lastInitiativeMetadataDigest = undefined;
   __lastQueuedInitiativeMetadataDigest = undefined;
@@ -679,29 +691,32 @@ async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-read
 }
 
 function __mountSceneEpochLifecycle() {
-  if (__sceneEpochLifecycleMounted) return;
+  if (__sceneEpochLifecycleMounted) return __sceneReadinessHandshake;
   __sceneEpochLifecycleMounted = true;
   __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch, reason }) => {
     if (phase === "unload") {
       __resetInitiativeSceneRuntime(epoch, reason);
       return;
     }
+    if (!__initiativeBootstrapStarted) return;
     __requestTurnNoticeReady(epoch);
     void __acquireInitiativeSceneBaseline(epoch, reason).catch((error) => {
       console.warn("[initiative] scene baseline:", error?.message || error);
     });
   });
-  OBR.scene.onReadyChange((ready) => {
-    if (!ready) {
-      invalidateSceneEpoch("scene-unload");
-      return;
-    }
-    markSceneEpochReady("scene-ready");
+  __sceneReadinessHandshake = createInitiativeReadinessHandshake({
+    subscribeReadiness: (listener) => OBR.scene.onReadyChange(listener),
+    readInitialReadiness: () => OBR.scene.isReady(),
+    onState: ({ ready, reason }) => {
+      if (!ready) {
+        invalidateSceneEpoch("scene-unload");
+        return;
+      }
+      markSceneEpochReady(reason || "scene-ready");
+    },
   });
-  const initialEpoch = currentSceneEpoch();
-  void __acquireInitiativeSceneBaseline(initialEpoch, "runtime-mount", false).catch((error) => {
-    console.warn("[initiative] initial scene baseline:", error?.message || error);
-  });
+  void __sceneReadinessHandshake.mount();
+  return __sceneReadinessHandshake;
 }
 
 
@@ -973,7 +988,7 @@ container.addEventListener("mousedown", (e) => {
   const t = e.target;
   if (t.closest('[data-item-id]') || t.closest('[draggable="true"]')) return;
 
-  const interactive = t.closest("input, textarea, [contenteditable='true'], button, [role='button']");
+  const interactive = t.closest("input, textarea, select, [contenteditable='true'], button, [role='button']");
   if (!interactive) {
     e.preventDefault();
     try { window.getSelection?.().removeAllRanges?.(); } catch {}
@@ -1556,15 +1571,17 @@ topRow.append(roundPill, viewOptionsRow);
 const zoomToggleWrap = document.createElement("label");
 Object.assign(zoomToggleWrap.style, {
   position: "relative",
-  width: "28px",
-  minHeight: "28px",
+  width: "100%",
+  minHeight: "24px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
-  padding: "0",
+  justifyContent: "flex-start",
+  gap: "6px",
+  padding: "0 7px",
+  boxSizing: "border-box",
   background: "transparent",
-  border: "1px solid transparent",
-  borderRadius: "8px",
+  border: "1px solid rgba(148,163,184,.24)",
+  borderRadius: "7px",
   userSelect: "none",
   cursor: "pointer",
 });
@@ -1573,21 +1590,27 @@ const zoomChk = document.createElement("input");
 zoomChk.type = "checkbox";
 zoomChk.checked = true;
 Object.assign(zoomChk.style, {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  opacity: "0",
-  pointerEvents: "none",
+  position: "static",
+  width: "13px",
+  height: "13px",
+  margin: "0",
+  opacity: "1",
+  pointerEvents: "auto",
+  accentColor: "#60a5fa",
 });
 zoomChk.title = "Centra automaticamente la scena sul token attivo";
 
-const zoomLbl = document.createElement("img");
-zoomLbl.src = `${import.meta.env.BASE_URL || "/"}zoom-on-token.svg`;
-zoomLbl.alt = "";
+const zoomLbl = document.createElement("span");
+zoomLbl.textContent = "Focus token";
 Object.assign(zoomLbl.style, {
-  width: "15px",
-  height: "15px",
-  objectFit: "contain",
+  minWidth: "0",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: "8px",
+  fontWeight: "600",
+  lineHeight: "1",
+  color: "rgba(255,255,255,.88)",
   pointerEvents: "none",
 });
 
@@ -1598,7 +1621,6 @@ function setCompactToggleVisual(wrap, active) {
 }
 
 zoomToggleWrap.append(zoomChk, zoomLbl);
-decorateToolbarControl(zoomToggleWrap, "Follow");
 zoomToggleWrap.title = zoomChk.title;
 zoomToggleWrap.setAttribute("aria-label", zoomChk.title);
 setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
@@ -1617,8 +1639,8 @@ Object.assign(globalPanelsWrap.style, {
   alignItems: "center",
   gap: "2px",
 });
-const globalEffectsButton = makeGlobalPanelButton("Conditions", "conditions-panel.svg");
-const globalSpellsButton = makeGlobalPanelButton("Spells", "spells-panel.svg");
+const globalEffectsButton = makeGlobalPanelButton("Condizioni", "conditions-panel.svg");
+const globalSpellsButton = makeGlobalPanelButton("Incantesimi", "spells-panel.svg");
 const globalQuickHPButton = makeGlobalPanelButton("Effetti", "quick-damage.svg");
 globalQuickHPButton.querySelector("[data-toolbar-caption='1']").textContent = "Effetti";
 const EFFECTS_POPUP_ID = `${ID}/effects-modal`;
@@ -1635,21 +1657,24 @@ trackedMoveButton.querySelector("[data-toolbar-caption='1']").textContent = "Mov
 trackedMoveButton.setAttribute("aria-pressed", "false");
 let trackedMoveActive = false;
 
-function setTrackedMoveButtonActive(active) {
-  const classic = !isCompactTrackerLayout();
+function setTrackedMoveButtonActive(active, { commit = true } = {}) {
   trackedMoveActive = !!active;
-  setSpeedCheckEnabled(trackedMoveActive);
+  if (commit) setSpeedCheckEnabled(trackedMoveActive);
   trackedMoveButton.setAttribute("aria-pressed", active ? "true" : "false");
   trackedMoveButton.style.background = active
     ? "linear-gradient(180deg, rgba(37,99,235,.88), rgba(30,64,175,.72))"
-    : classic ? "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))" : "transparent";
+    : "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))";
   trackedMoveButton.style.borderColor = active
     ? "rgba(147,197,253,.8)"
-    : classic ? "rgba(148,163,184,.24)" : "transparent";
+    : "rgba(148,163,184,.24)";
   trackedMoveButton.style.boxShadow = active
     ? "inset 0 1px 0 rgba(255,255,255,.2), 0 5px 14px rgba(30,64,175,.26)"
-    : classic ? "inset 0 1px 0 rgba(255,255,255,.04)" : "none";
+    : "inset 0 1px 0 rgba(255,255,255,.04)";
 }
+
+subscribeSpeedCheckEnabled((active) => {
+  setTrackedMoveButtonActive(active, { commit: false });
+});
 
 trackedMoveButton.addEventListener("click", () => {
   setTrackedMoveButtonActive(!trackedMoveActive);
@@ -1667,8 +1692,8 @@ function ensureGlobalPanelControls() {
     toolOptionsGroup.append(trackedMoveButton);
   }
   const controls = [
-    [globalEffectsButton, "Conditions", "conditions-panel.svg"],
-    [globalSpellsButton, "Spells", "spells-panel.svg"],
+    [globalEffectsButton, "Condizioni", "conditions-panel.svg"],
+    [globalSpellsButton, "Incantesimi", "spells-panel.svg"],
     [globalQuickHPButton, "Effetti", "quick-damage.svg"],
     [trackedMoveButton, "Movimento", "speed-panel.svg"],
   ];
@@ -1953,7 +1978,10 @@ const movementResetButton = document.createElement("button");
 movementResetButton.type = "button";
 movementResetButton.textContent = "Reset movimento";
 Object.assign(movementResetButton.style, {
+  width: "100%",
+  minWidth: "0",
   minHeight: "28px",
+  boxSizing: "border-box",
   border: "1px solid rgba(255,255,255,.2)",
   borderRadius: "999px",
   background: "rgba(255,255,255,.09)",
@@ -1961,11 +1989,17 @@ Object.assign(movementResetButton.style, {
   font: "inherit",
   fontSize: "11px",
   fontWeight: "700",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
   cursor: "pointer",
+  padding: "0 8px",
 });
 const movementActions = document.createElement("div");
 Object.assign(movementActions.style, {
   gridColumn: "1 / -1",
+  width: "100%",
+  minWidth: "0",
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
   alignItems: "stretch",
@@ -1973,6 +2007,8 @@ Object.assign(movementActions.style, {
 });
 const movementLimitControl = document.createElement("label");
 Object.assign(movementLimitControl.style, {
+  width: "100%",
+  minWidth: "0",
   minHeight: "28px",
   display: "flex",
   alignItems: "center",
@@ -2085,6 +2121,7 @@ document.addEventListener("click", (event) => {
 });
 
 let latestMovementSnapshot = null;
+let movementReadoutVisible = false;
 
 function movementNumber(value) {
   return Number(value || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
@@ -2152,8 +2189,10 @@ subscribeSpeedCheckState((snapshot) => {
   const previousSnapshot = latestMovementSnapshot;
   latestMovementSnapshot = snapshot;
   queueMicrotask(() => updateActiveCardMovementIndicator(snapshot));
-  const visible = shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot);
-  movementReadout.style.display = visible ? "flex" : "none";
+  movementReadoutVisible = shouldKeepSpeedReadoutOpen(snapshot, previousSnapshot);
+  movementReadout.style.display = movementReadoutVisible && !isCompactTrackerLayout()
+    ? "flex"
+    : "none";
   if (!snapshot.available) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
   movementReadoutMeta.textContent = movementReadoutSummary(snapshot);
@@ -2313,15 +2352,17 @@ track.addEventListener("dragend", () => {
 const lairToggleWrap = document.createElement("label");
 Object.assign(lairToggleWrap.style, {
   position: "relative",
-  width: "28px",
-  minHeight: "28px",
+  width: "100%",
+  minHeight: "24px",
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
-  padding: "0",
+  justifyContent: "flex-start",
+  gap: "6px",
+  padding: "0 7px",
+  boxSizing: "border-box",
   background: "transparent",
-  border: "1px solid transparent",
-  borderRadius: "8px",
+  border: "1px solid rgba(148,163,184,.24)",
+  borderRadius: "7px",
   userSelect: "none",
   cursor: "pointer",
 });
@@ -2329,27 +2370,32 @@ Object.assign(lairToggleWrap.style, {
 const lairChk = document.createElement("input");
 lairChk.type = "checkbox";
 Object.assign(lairChk.style, {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  opacity: "0",
-  pointerEvents: "none",
+  position: "static",
+  width: "13px",
+  height: "13px",
+  margin: "0",
+  opacity: "1",
+  pointerEvents: "auto",
+  accentColor: "#a78bfa",
 });
 
-const lairLbl = document.createElement("img");
-lairLbl.src = `${import.meta.env.BASE_URL || "/"}lair-actions.svg`;
-lairLbl.alt = "";
+const lairLbl = document.createElement("span");
+lairLbl.textContent = "Tana";
 Object.assign(lairLbl.style, {
-  width: "16px",
-  height: "16px",
-  objectFit: "contain",
+  minWidth: "0",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: "10px",
+  fontWeight: "700",
+  color: "rgba(255,255,255,.88)",
   pointerEvents: "none",
 });
 
 lairToggleWrap.append(lairChk, lairLbl);
-decorateToolbarControl(lairToggleWrap, "Tana");
 lairToggleWrap.title = "Azioni di Tana";
 lairToggleWrap.setAttribute("aria-label", lairToggleWrap.title);
+lairToggleWrap.style.display = "none";
 
 // inizializza lo stato visivo dal metadata
 (async () => {
@@ -2379,10 +2425,181 @@ zoomChk.addEventListener("change", async (e) => {
   }));
 });
 
+const EFFECTS_DISPLAY_MODE_LABELS = Object.freeze({
+  compact: "Pill compatte",
+  all: "Pill espanse",
+  selected: "Pill selezionate",
+});
+const EFFECTS_DISPLAY_MODE_VALUES = Object.freeze(["compact", "all", "selected"]);
+const effectsDisplayModeControl = document.createElement("div");
+Object.assign(effectsDisplayModeControl.style, {
+  position: "relative",
+  width: "100%",
+  minHeight: "24px",
+  display: "flex",
+  alignItems: "center",
+  gap: "2px",
+  padding: "0 3px",
+  boxSizing: "border-box",
+  border: "1px solid rgba(148,163,184,.24)",
+  borderRadius: "7px",
+  background: "rgba(255,255,255,.045)",
+  color: "rgba(255,255,255,.88)",
+  cursor: "pointer",
+  userSelect: "none",
+  overflow: "hidden",
+});
+const effectsDisplayModeIcon = document.createElement("span");
+effectsDisplayModeIcon.textContent = "☷";
+effectsDisplayModeIcon.setAttribute("aria-hidden", "true");
+Object.assign(effectsDisplayModeIcon.style, {
+  display: "none",
+  fontSize: "16px",
+  lineHeight: "1",
+  pointerEvents: "none",
+});
+const effectsDisplayModeValue = document.createElement("span");
+effectsDisplayModeValue.setAttribute("aria-live", "polite");
+Object.assign(effectsDisplayModeValue.style, {
+  flex: "1 1 auto",
+  minWidth: "0",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  fontSize: "8px",
+  fontWeight: "600",
+  lineHeight: "1",
+  textAlign: "center",
+  pointerEvents: "none",
+});
+function buildEffectsDisplayModeArrow(symbol, label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = symbol;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  Object.assign(button.style, {
+    flex: "0 0 16px",
+    width: "16px",
+    height: "20px",
+    padding: "0",
+    border: "0",
+    borderRadius: "5px",
+    background: "transparent",
+    color: "rgba(255,255,255,.78)",
+    fontFamily: "inherit",
+    fontSize: "15px",
+    fontWeight: "700",
+    lineHeight: "18px",
+    textAlign: "center",
+    cursor: "pointer",
+    userSelect: "none",
+    transition: "background 140ms ease, color 140ms ease, transform 140ms ease",
+  });
+  button.addEventListener("pointerenter", () => {
+    button.style.background = "rgba(96,165,250,.18)";
+    button.style.color = "#ffffff";
+  });
+  button.addEventListener("pointerleave", () => {
+    button.style.background = "transparent";
+    button.style.color = "rgba(255,255,255,.78)";
+  });
+  button.addEventListener("pointerdown", () => {
+    button.style.transform = "scale(.9)";
+  });
+  button.addEventListener("pointerup", () => {
+    button.style.transform = "scale(1)";
+  });
+  return button;
+}
+const effectsDisplayModePreviousButton = buildEffectsDisplayModeArrow(
+  "‹",
+  "Vista pill precedente",
+);
+const effectsDisplayModeNextButton = buildEffectsDisplayModeArrow(
+  "›",
+  "Vista pill successiva",
+);
+effectsDisplayModeControl.append(
+  effectsDisplayModeIcon,
+  effectsDisplayModePreviousButton,
+  effectsDisplayModeValue,
+  effectsDisplayModeNextButton,
+);
+sceneOptionsGroup.append(effectsDisplayModeControl);
+
+function normalizeEffectsDisplayModeControlValue(value) {
+  return EFFECTS_DISPLAY_MODE_VALUES.includes(value) ? value : "selected";
+}
+
+function updateEffectsDisplayModeControl(value) {
+  const mode = normalizeEffectsDisplayModeControlValue(value);
+  effectsDisplayModeControl.dataset.mode = mode;
+  effectsDisplayModeValue.textContent = EFFECTS_DISPLAY_MODE_LABELS[mode];
+  effectsDisplayModeControl.title = `Vista pill: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`;
+  effectsDisplayModeControl.setAttribute(
+    "aria-label",
+    `Vista pill: ${EFFECTS_DISPLAY_MODE_LABELS[mode]}`,
+  );
+  const currentIndex = EFFECTS_DISPLAY_MODE_VALUES.indexOf(mode);
+  const previousMode = EFFECTS_DISPLAY_MODE_VALUES[
+    (currentIndex - 1 + EFFECTS_DISPLAY_MODE_VALUES.length)
+      % EFFECTS_DISPLAY_MODE_VALUES.length
+  ];
+  const nextMode = EFFECTS_DISPLAY_MODE_VALUES[
+    (currentIndex + 1) % EFFECTS_DISPLAY_MODE_VALUES.length
+  ];
+  effectsDisplayModePreviousButton.title = `Passa a ${EFFECTS_DISPLAY_MODE_LABELS[previousMode]}`;
+  effectsDisplayModePreviousButton.setAttribute("aria-label", effectsDisplayModePreviousButton.title);
+  effectsDisplayModeNextButton.title = `Passa a ${EFFECTS_DISPLAY_MODE_LABELS[nextMode]}`;
+  effectsDisplayModeNextButton.setAttribute("aria-label", effectsDisplayModeNextButton.title);
+}
+
+function persistEffectsDisplayMode(value) {
+  if (!IS_GM) return;
+  const mode = normalizeEffectsDisplayModeControlValue(value);
+  updateEffectsDisplayModeControl(mode);
+  void runtimeOptionsService.updateRoom((current) => ({
+    ...current,
+    uiSync: { ...current.uiSync, effectsDisplayMode: mode },
+  })).then(() => broadcastRuntimeOptionsInvalidation("effects-display-mode", { scope: "shared" }))
+    .catch((error) => {
+      console.warn("[effects-display-mode] preferenza non salvata:", error?.message || error);
+    });
+}
+
+function stepEffectsDisplayMode(direction) {
+  const currentMode = normalizeEffectsDisplayModeControlValue(effectsDisplayModeControl.dataset.mode);
+  const currentIndex = EFFECTS_DISPLAY_MODE_VALUES.indexOf(currentMode);
+  const nextIndex = (currentIndex + direction + EFFECTS_DISPLAY_MODE_VALUES.length)
+    % EFFECTS_DISPLAY_MODE_VALUES.length;
+  persistEffectsDisplayMode(EFFECTS_DISPLAY_MODE_VALUES[nextIndex]);
+}
+
+effectsDisplayModePreviousButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  stepEffectsDisplayMode(-1);
+});
+effectsDisplayModeNextButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  stepEffectsDisplayMode(1);
+});
+
 // Inserisci il toggle tra Turno e Lista
 const compactNavigationRow = document.createElement("div");
 const classicNavigationRow = document.createElement("div");
 const compactRoundControls = document.createElement("div");
+const compactBottomControls = document.createElement("div");
+const compactHeaderRow = document.createElement("div");
+Object.assign(compactHeaderRow.style, {
+  position: "absolute",
+  top: "2px",
+  left: "0",
+  right: "0",
+  height: "30px",
+  zIndex: "20",
+  pointerEvents: "none",
+});
 const compactAdminMenu = document.createElement("div");
 const compactMoreButton = mkBtn("…");
 const COMPACT_ADMIN_MENU_ID = `${ID}/compact-admin-menu`;
@@ -2504,6 +2721,132 @@ function mountCompactAdminMenuListener() {
   });
 }
 
+function applyEncounterCheckboxPresentation(compact) {
+  const classic = !compact;
+  Object.assign(sceneOptionsGroup.style, {
+    width: "100%",
+    minWidth: "0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    justifyContent: classic ? "center" : "flex-start",
+    gap: classic ? "3px" : "4px",
+  });
+
+  for (const [wrap, input, label] of [
+    [zoomToggleWrap, zoomChk, zoomLbl],
+    [lairToggleWrap, lairChk, lairLbl],
+  ]) {
+    Object.assign(wrap.style, {
+      width: "100%",
+      minWidth: "0",
+      maxWidth: "100%",
+      height: "24px",
+      minHeight: "24px",
+      padding: "0 7px",
+      flexDirection: "row",
+      justifyContent: "flex-start",
+      gap: "6px",
+      borderRadius: "7px",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    });
+    Object.assign(input.style, {
+      position: "static",
+      width: "13px",
+      height: "13px",
+      margin: "0",
+      opacity: "1",
+      pointerEvents: "auto",
+      flex: "0 0 auto",
+    });
+    Object.assign(label.style, {
+      display: "block",
+      maxWidth: "100%",
+      fontSize: "8px",
+      fontWeight: "600",
+      lineHeight: "1",
+      textAlign: "left",
+    });
+  }
+
+  setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
+  setCompactToggleVisual(lairToggleWrap, lairChk.checked);
+}
+
+function applyEffectsDisplayModeControlPresentation(compact) {
+  if (compact) {
+    Object.assign(effectsDisplayModeControl.style, {
+      position: "relative",
+      width: "26px",
+      minWidth: "26px",
+      maxWidth: "26px",
+      height: "26px",
+      minHeight: "26px",
+      padding: "0",
+      justifyContent: "center",
+      gap: "0",
+      borderRadius: "9px",
+      background: "linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.025))",
+    });
+    effectsDisplayModeIcon.style.display = "inline";
+    effectsDisplayModeIcon.style.fontSize = "10px";
+    effectsDisplayModeValue.style.display = "none";
+    for (const button of [effectsDisplayModePreviousButton, effectsDisplayModeNextButton]) {
+      Object.assign(button.style, {
+        display: "block",
+        flex: "0 0 7px",
+        width: "7px",
+        height: "22px",
+        fontSize: "11px",
+        lineHeight: "20px",
+      });
+    }
+    return;
+  }
+
+  Object.assign(effectsDisplayModeControl.style, {
+    position: "relative",
+    width: "100%",
+    minWidth: "0",
+    maxWidth: "100%",
+    height: "24px",
+    minHeight: "24px",
+    padding: "0 3px",
+    justifyContent: "flex-start",
+    gap: "2px",
+    borderRadius: "7px",
+    background: "rgba(255,255,255,.045)",
+  });
+  effectsDisplayModeIcon.style.display = "none";
+  effectsDisplayModeIcon.style.fontSize = "16px";
+  effectsDisplayModeValue.style.display = "inline";
+  for (const button of [effectsDisplayModePreviousButton, effectsDisplayModeNextButton]) {
+    Object.assign(button.style, {
+      display: "block",
+      flex: "0 0 16px",
+      width: "16px",
+      height: "20px",
+      fontSize: "15px",
+      lineHeight: "18px",
+    });
+  }
+}
+
+function placeEffectsDisplayModeControl(compact) {
+  if (compact) {
+    if (IS_GM && effectsDisplayModeControl.parentElement !== sceneOptionsGroup) {
+      sceneOptionsGroup.append(effectsDisplayModeControl);
+    }
+  } else if (IS_GM) {
+    const controls = [zoomToggleWrap];
+    if (lairToggleWrap.isConnected) controls.push(lairToggleWrap);
+    controls.push(effectsDisplayModeControl);
+    sceneOptionsGroup.append(...controls);
+  }
+  applyEffectsDisplayModeControlPresentation(false);
+}
+
 function applyToolbarLayoutPresentation(compact) {
   ensureGlobalPanelControls();
   applyToolbarLayoutPresentationView(compact, {
@@ -2515,6 +2858,11 @@ function applyToolbarLayoutPresentation(compact) {
     toolOptionsGroup,
     globalPanelsWrap,
   });
+  encounterToolbar.heading.style.display = "none";
+  trackersToolbar.heading.style.display = "none";
+  viewOptionsRow.style.minHeight = compact ? "0" : "58px";
+  applyEncounterCheckboxPresentation(compact);
+  placeEffectsDisplayModeControl(compact);
 }
 
 function ensureAdminMenuLabel(control, text) {
@@ -2618,19 +2966,53 @@ function applyAdminMenuPresentation(compact) {
   roundActions.style.display = compactAdminMenu.contains(roundActions) ? "contents" : "flex";
 }
 
+function applyClassicRoundButtonColors() {
+  const styles = [
+    [roundPill.querySelector('[data-reset-round="1"]'), {
+      border: "1px solid rgba(255,255,255,.18)",
+      background: "rgba(0,0,0,.45)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    }],
+    [roundPill.querySelector('[data-add-all-initiative="1"]'), {
+      border: "1px solid rgba(74,222,128,.68)",
+      background: "rgba(21,128,61,.62)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    }],
+    [roundPill.querySelector('[data-options-panel="1"]'), {
+      border: "1px solid rgba(147,197,253,.55)",
+      background: "rgba(30,64,175,.48)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    }],
+    [roundPill.querySelector('[data-clear-initiative="1"]'), {
+      border: "1px solid rgba(248,113,113,.55)",
+      background: "rgba(127,29,29,.55)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    }],
+    [roundPill.querySelector('[data-history="1"]'), {
+      border: "1px solid rgba(147,197,253,.62)",
+      background: "rgba(30,64,175,.58)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
+    }],
+  ];
+  for (const [button, buttonStyle] of styles) {
+    if (button) Object.assign(button.style, buttonStyle);
+  }
+  updateInitiativeFillButton();
+}
+
 function applyHeaderLayoutPresentation(compact) {
   const classic = !compact;
   roundPill.style.gap = classic ? "3px" : "4px";
   roundPill.style.overflow = classic ? "hidden" : "visible";
   roundStatus.style.flex = classic ? "1 1 72px" : "0 0 auto";
-  roundStatus.style.width = classic ? "auto" : "100%";
+  roundStatus.style.width = "auto";
   roundStatus.style.minWidth = classic ? "70px" : "0";
   roundStatus.style.overflow = classic ? "hidden" : "visible";
-  roundStatus.style.flexDirection = classic ? "row" : "column";
+  roundStatus.style.flexDirection = "row";
   roundStatus.style.justifyContent = classic ? "flex-start" : "center";
-  roundStatus.style.gap = classic ? "4px" : "1px";
-  roundStatus.style.paddingBottom = classic ? "0" : "4px";
-  roundStatus.style.borderBottom = classic ? "none" : "1px solid rgba(148,163,184,.22)";
+  roundStatus.style.gap = classic ? "4px" : "3px";
+  roundStatus.style.paddingBottom = "0";
+  roundStatus.style.borderBottom = "none";
   roundLabel.style.fontSize = classic ? "15px" : "13px";
   roundLabel.style.whiteSpace = "nowrap";
   roundActions.style.width = classic ? "auto" : "100%";
@@ -2654,6 +3036,7 @@ function applyHeaderLayoutPresentation(compact) {
   });
 
   roundPill.querySelectorAll("button").forEach((button) => {
+    if (movementReadout.contains(button)) return;
     const primary = button === btnPrev || button === btnNext || button === compactMoreButton;
     const admin = compactAdminMenu.contains(button);
     button.style.width = classic ? (button === layoutToggleButton ? "66px" : "26px") : admin ? "30px" : "26px";
@@ -2687,6 +3070,9 @@ function applyHeaderLayoutPresentation(compact) {
     height: compact ? "26px" : "",
     justifyContent: "center",
     padding: "0",
+    border: compact ? "none" : "1px solid rgba(148,163,184,.28)",
+    background: compact ? "transparent" : "rgba(0,0,0,.34)",
+    boxShadow: compact ? "none" : "",
   });
   Object.assign(layoutToggleButton.style, classic ? {
     width: "28px",
@@ -2738,25 +3124,32 @@ function applyHeaderLayoutPresentation(compact) {
     Object.assign(btnPrev.style, {
       border: "1px solid rgba(148,163,184,.28)",
       background: "rgba(255,255,255,.055)",
+      boxShadow: "none",
     });
   }
+  if (classic) applyClassicRoundButtonColors();
 }
 
 function mountCompactSideControls() {
   setCompactAdminMenuOpen(false);
+  roundStatus.remove();
+  compactHeaderRow.replaceChildren();
   if (IS_GM) {
     compactAdminMenu.replaceChildren(roundResetSlot, roundHistorySlot, roundActions);
-    compactRoundControls.replaceChildren(trackerDragHandle, layoutToggleButton, compactMoreButton);
+    compactBottomControls.replaceChildren(layoutToggleButton, compactMoreButton);
   } else {
     compactAdminMenu.replaceChildren();
-    compactRoundControls.replaceChildren(trackerDragHandle, layoutToggleButton);
+    compactBottomControls.replaceChildren(layoutToggleButton);
   }
-  roundPill.replaceChildren(roundStatus, compactRoundControls, movementReadout, compactAdminMenu);
+  compactRoundControls.replaceChildren(trackerDragHandle, compactBottomControls);
+  roundPill.replaceChildren(compactRoundControls, compactAdminMenu);
 }
 
 function restoreClassicHeader() {
   setCompactAdminMenuOpen(false);
+  compactHeaderRow.replaceChildren();
   compactAdminMenu.replaceChildren();
+  compactBottomControls.replaceChildren();
   compactRoundControls.replaceChildren(compactMoreButton);
   roundPill.replaceChildren(
     roundResetSlot,
@@ -2779,14 +3172,16 @@ function applyTrackerLayout() {
   if (compact) {
     mountCompactSideControls();
     Object.assign(col.style, {
+      position: "relative",
       flexDirection: "row",
       alignItems: "stretch",
       gap: "2px",
       padding: "2px",
       boxSizing: "border-box",
-      border: "1px solid rgba(148,163,184,.26)",
+      border: "1px solid var(--obrt-popover-border, rgba(255,255,255,.16))",
       borderRadius: "16px",
-      background: "linear-gradient(180deg, rgba(28,35,46,.68), rgba(16,22,31,.60))",
+      backgroundColor: "var(--obrt-popover-glass, rgba(42,47,64,.62))",
+      backgroundImage: "var(--obrt-tracker-frost-image, none)",
       boxShadow: "0 8px 20px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.05)",
     });
     Object.assign(topRow.style, {
@@ -2798,29 +3193,46 @@ function applyTrackerLayout() {
       border: "0",
       borderRadius: "0",
       background: "transparent",
+      backdropFilter: "none",
+      WebkitBackdropFilter: "none",
       boxShadow: "none",
     });
     Object.assign(roundPill.style, {
       position: "relative",
-      flex: "0 0 118px",
-      width: "118px",
-      maxWidth: "118px",
+      flex: "0 0 48px",
+      width: "48px",
+      maxWidth: "48px",
       height: "100%",
       minHeight: "0",
       flexDirection: "column",
-      justifyContent: "center",
-      padding: "4px",
+      alignItems: "center",
+      justifyContent: "flex-start",
+      gap: "5px",
+      padding: "6px 4px",
       boxSizing: "border-box",
       borderRadius: "11px",
       background: "linear-gradient(180deg, rgba(39,48,61,.92), rgba(22,29,40,.92))",
     });
     Object.assign(compactRoundControls.style, {
       width: "100%",
+      height: "100%",
+      flex: "1 1 auto",
       display: "grid",
       gridTemplateColumns: "26px",
+      gridTemplateRows: "26px minmax(0, 1fr)",
       placeItems: "center",
       justifyContent: "center",
-      gap: "3px",
+      gap: "0",
+    });
+    Object.assign(compactBottomControls.style, {
+      width: "26px",
+      height: "100%",
+      minHeight: "0",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      gap: "6px",
     });
     Object.assign(compactAdminMenu.style, {
       position: "absolute",
@@ -2843,14 +3255,20 @@ function applyTrackerLayout() {
       boxShadow: "0 12px 30px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.07)",
     });
     Object.assign(movementReadout.style, {
-      width: "100%",
+      position: "absolute",
+      left: "calc(50% + 52px)",
+      top: "3px",
+      width: "180px",
+      maxWidth: "calc(50% - 58px)",
       minWidth: "0",
+      flex: "0 1 auto",
       gap: "3px",
-      padding: "3px 4px",
+      padding: "3px 8px",
       borderRadius: "10px",
       fontSize: "9px",
       textAlign: "center",
       cursor: "default",
+      pointerEvents: "auto",
     });
     movementDetailsOpen = false;
     movementDetails.style.display = "none";
@@ -2925,14 +3343,23 @@ function applyTrackerLayout() {
     compactNavigationRow.replaceChildren(
       ...(IS_GM ? [btnPrev, trackWrap, btnNext] : [trackWrap]),
     );
-    col.replaceChildren(roundPill, compactNavigationRow, viewOptionsRow);
+    col.replaceChildren(compactHeaderRow, roundPill, compactNavigationRow, viewOptionsRow);
   } else {
     restoreClassicHeader();
     delete trackWrap.dataset.compactScroll;
     Object.assign(movementReadout.style, {
+      position: "static",
+      left: "",
+      top: "",
+      width: "calc(100% - 24px)",
+      maxWidth: "440px",
+      minWidth: "",
+      flex: "",
+      pointerEvents: "auto",
       gap: "6px",
       padding: "8px 12px",
       borderRadius: "12px",
+      textAlign: "left",
       cursor: "pointer",
     });
     movementReadoutValue.style.display = "block";
@@ -2949,6 +3376,7 @@ function applyTrackerLayout() {
       textOverflow: "clip",
     });
     Object.assign(col.style, {
+      position: "static",
       flexDirection: "column",
       alignItems: "stretch",
       gap: "5px",
@@ -3041,6 +3469,7 @@ function applyTrackerLayout() {
     classicNavigationRow.replaceChildren(...(IS_GM ? [btnPrev, btnNext] : []));
     col.replaceChildren(topRow, trackWrap, classicNavigationRow);
   }
+  movementReadout.style.display = movementReadoutVisible && !compact ? "flex" : "none";
   applyHeaderLayoutPresentation(compact);
   applyToolbarLayoutPresentation(compact);
 }
@@ -3078,8 +3507,10 @@ trackWrap.classList.add("tbp-scroll");
 
 // HP Memory: riempi HP mancanti dei token da memoria (all'avvio)
 (async () => {
+  const sceneEpoch = currentSceneEpoch();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   try {
-    await applyHPMemoryToSceneForMissingHP();
+    await applyHPMemoryToSceneForMissingHP(sceneEpoch);
   } catch (err) {
     console.warn("[hpMemory] apply on mount:", err?.message || err);
   }
@@ -3087,14 +3518,6 @@ trackWrap.classList.add("tbp-scroll");
 
 
 // ——— HP Memory: riempi HP mancanti dei PG da memoria stanza
-(async () => {
-  try {
-    await applyHPMemoryToSceneForMissingHP();
-  } catch (err) {
-    console.warn("[hpMemory] apply on mount:", err?.message || err);
-  }
-})();
-
 // opzionale: isola la rotellina (niente scroll “a cascata”)
 let __compactScrollActivityTimer = null;
 function markCompactCarouselScrolling() {
@@ -3124,21 +3547,42 @@ trackWrap.addEventListener("scroll", () => {
       const md = await OBR.scene.getMetadata();
       return md[STATE_KEY];
     }
-    async function setSceneState(next, sceneEpoch = currentSceneEpoch()) {
-  if (!__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
-  const md   = await OBR.scene.getMetadata();
-  if (!__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
-  const prev = md[STATE_KEY] || { order: [], current: 0, collapsed: {} };
-  const raw  = (typeof next === "function") ? next(prev) : next;
-  const value = { ...prev, ...(raw || {}) }; // <- MERGE: non perdiamo campi extra
-  await writeSceneMetadataKey(
-    OBR.scene,
-    METADATA_OWNERSHIP.INITIATIVE_STATE,
-    value,
-    { runtime: "initiativeList" },
-  );
-  return __isCurrentSceneOperation(sceneEpoch, "scene-state-write");
-}
+    async function setSceneState(next, sceneEpoch = currentSceneEpoch(), options = {}) {
+      if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
+      const commandId = options.commandId || nextInitiativeStateCommandId(options.kind || "set");
+      const payload = options.payload || {
+        kind: options.kind || (typeof next === "function" ? "reducer" : "patch"),
+        ownedFields: options.ownedFields,
+        patch: typeof next === "function" ? undefined : next,
+        reducer: typeof next === "function" ? String(next) : undefined,
+      };
+      const result = typeof next === "function"
+        ? await enqueueInitiativeStateReducer({
+          commandId,
+          reducer: next,
+          ownedFields: options.ownedFields,
+          expected: options.expected,
+          payload,
+          sceneEpoch,
+          kind: options.kind || "reducer",
+        })
+        : await enqueueInitiativeStatePatch({
+          commandId,
+          patch: next,
+          ownedFields: options.ownedFields,
+          expected: options.expected,
+          payload,
+          sceneEpoch,
+          kind: options.kind || "patch",
+      });
+      if (!__isCurrentSceneOperation(sceneEpoch, "scene-state-write")) return false;
+      if (!initiativeStateResultApplied(result) && options.throwOnFailure) {
+        const error = new Error(`initiative state command ${result?.status || "failed"}`);
+        error.result = result;
+        throw error;
+      }
+      return options.returnResult ? result : initiativeStateResultApplied(result);
+    }
 
 async function __unmountActiveTurnLabelRuntime() {
   __activeTurnLabelRuntimeEnabled = false;
@@ -3182,18 +3626,15 @@ function __reconcileActiveTurnLabelRuntime() {
     // ===== Hard reset dello stato iniziativa (quando non resta alcun token tracciato)
 async function resetTrackerState(sceneEpoch = currentSceneEpoch()) {
   if (!__isCurrentSceneOperation(sceneEpoch, "tracker-state-reset")) return false;
-  await writeSceneMetadataKey(
-    OBR.scene,
-    METADATA_OWNERSHIP.INITIATIVE_STATE,
-    {
-      order: [],
-      current: 0,
-      round: 1,
-      seededGroups: {},   // azzera anche i seed per gruppi
-    },
-    { runtime: "initiativeList" },
-  );
-  return __isCurrentSceneOperation(sceneEpoch, "tracker-state-reset");
+  return setSceneState({
+    order: [],
+    current: 0,
+    round: 1,
+    seededGroups: {},   // azzera anche i seed per gruppi
+  }, sceneEpoch, {
+    kind: "hard-reset",
+    ownedFields: ["order", "current", "round", "seededGroups"],
+  });
 }
 
 // ===== Selezione + centratura viewport (robusta) =====
@@ -3783,7 +4224,33 @@ async function __flushNavigationState() {
     navigationRevision: __navigationRevision,
   });
   try {
-    await setSceneState(desired, sceneEpoch);
+    const applied = await setSceneState({
+      order: desired.order,
+      current: desired.current,
+      round: desired.round,
+      collapsed: desired.collapsed,
+    }, sceneEpoch, {
+      kind: "advance-turn",
+      ownedFields: ["order", "current", "round", "collapsed"],
+      commandId: `initiative-navigation:${sceneEpoch}:${flushNavigationRevision}`,
+      payload: {
+        kind: "advance-turn",
+        order: desired.order,
+        current: desired.current,
+        round: desired.round,
+        collapsed: desired.collapsed,
+      },
+      returnResult: true,
+      throwOnFailure: true,
+    });
+    if (!initiativeStateResultApplied(applied)) return;
+    if (applied.status === "duplicate" || applied.status === "unchanged") {
+      __initiativeDiag("navigation:side-effects-skipped-noop", {
+        status: applied.status,
+        navigationRevision: flushNavigationRevision,
+      });
+      return;
+    }
     if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
     const desiredActiveId = __activeIdForState(desired);
     const latestActiveId = __activeIdForState(__latestInitiativeState);
@@ -4078,17 +4545,19 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
 }
 
 // ===== Leggi token tracciati (senza ordinare qui)
-async function readEntries() {
-  const items = await OBR.scene.items.getItems();
+async function readEntries(items = null) {
+  const sourceItems = Array.isArray(items)
+    ? items
+    : await OBR.scene.items.getItems();
   const out = [];
   const seen = new Set();
   const characterBuildBySourceId = new Map(
-    items
+    sourceItems
       .filter((item) => item?.id)
       .map((item) => [item.id, getInitiativeCard(item).characterBuild])
   );
 
-  for (const it of items) {
+  for (const it of sourceItems) {
     if (seen.has(it?.id)) continue;
     const entry = entryFromSceneItem(it, characterBuildBySourceId);
     if (!entry) continue;
@@ -4099,8 +4568,8 @@ async function readEntries() {
 }
 
 // Unisce entries reali + lair (se attiva a stato)
-async function getEntriesWithLair(state) {
-  const base = await readEntries();
+async function getEntriesWithLair(state, items = null) {
+  const base = await readEntries(items);
   if (state?.lairEnabled) base.push(makeLairEntry());
   return base;
 }
@@ -6587,6 +7056,34 @@ async function __clearCardConditions(ids) {
   await refreshConditionLabels(scopeIds);
 }
 
+async function __removeConditionOnTrackerCard(itemId, group) {
+  if (!IS_GM || !itemId || !group) return;
+
+  const conditionName = String(group?.name || "").trim();
+  const removals = (Array.isArray(group?.instances) ? group.instances : [])
+    .map((instance) => ({
+      itemId,
+      instanceId: String(instance?.id || "").trim(),
+    }))
+    .filter((removal) => removal.instanceId);
+  if (!conditionName && !removals.length) return;
+
+  const operations = removals.length
+    ? [{ type: "condition:remove-instances", removals }]
+    : [{
+      type: "condition:remove-name",
+      targetIds: [itemId],
+      conditionName,
+    }];
+  const mutation = await runEffectsMutation(operations, {
+    kind: "condition",
+    label: `Rimossa: ${conditionName || "Condizione"}`,
+    targetIds: [itemId],
+  });
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels([itemId]);
+}
+
 async function __terminateSpellOnTrackerCard(itemId, spell) {
   if (!IS_GM || !itemId || !spell) return;
 
@@ -8207,6 +8704,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
       __findSpellBoardToken: spellBoardTokenForSpell,
       __groupKey,
       __instaTransform,
+      __removeConditionOnTrackerCard,
       __safeConditions,
       __selectTrackerEntry,
       __selectionIdsForEntry,
@@ -8365,7 +8863,10 @@ async function ensureState(sceneEpoch = currentSceneEpoch()) {
     activeBadge: { x: 0.12, y: 0.60 }, // 12% da sinistra, 60% dall’alto
     tagsDock:    { x: 0.72, y: 0.50 }  // badge EPIC a destra, centrato
     }
-  }, sceneEpoch);
+  }, sceneEpoch, {
+    kind: "ensure-state",
+    ownedFields: ["order", "current", "round", "seededGroups", "collapsed", "ui"],
+  });
 }
 
 async function ensureSharedAutoFocusPreference(sceneEpoch = currentSceneEpoch()) {
@@ -8457,10 +8958,10 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
   }
 
   const round = Math.max(1, state?.round || 1);
-  const seededGroups = state?.seededGroups || {};
-  const collapsed = state?.collapsed || {};
-  const paragonInits = state?.paragonInits || {};
-  await setSceneState({ order: newOrder, current: newCurrent, round, seededGroups, collapsed, paragonInits }, sceneEpoch);
+  await setSceneState({ order: newOrder, current: newCurrent, round }, sceneEpoch, {
+    kind: "reconcile-order",
+    ownedFields: ["order", "current", "round"],
+  });
   return __isCurrentSceneOperation(sceneEpoch, "reconcile-state");
 }
 
@@ -8730,6 +9231,7 @@ async function __requestIncrementalTrackerItems(event, plan, reason = "items") {
   const ticket = scheduler.requestIncremental({
     sceneEpoch,
     sourceRevision: Number(event?.revision) || __latestSceneItemEventRevision,
+    sourceGeneration: Number(event?.generation) || __latestSceneItemEventGeneration,
     correlationId: sceneItemEventCorrelation(event),
     itemIds: plan.itemIds,
     reason,
@@ -8752,6 +9254,7 @@ async function renderAll(reason = "unspecified") {
   const ticket = scheduler.requestFull({
     sceneEpoch,
     sourceRevision: __latestSceneItemEventRevision,
+    sourceGeneration: __latestSceneItemEventGeneration,
     correlationId: __latestSceneItemEventCorrelation,
     reason,
     execute: __executeFullRenderRequest,
@@ -8794,9 +9297,18 @@ async function __executeFullRenderRequest(request) {
     return;
   }
   __latestAcceptedRenderRevision = renderRevision;
+  const itemSnapshot = readSceneItemsSnapshot(sceneEpoch);
+  const itemRead = await readFullRenderItemSnapshot({
+    snapshot: itemSnapshot,
+    sceneEpoch,
+    sourceRevision: request?.sourceRevision,
+    sourceGeneration: request?.sourceGeneration,
+    readItems: () => OBR.scene.items.getItems(),
+  });
+  const rawItems = itemRead.items;
   const [baseEntries, boardTokenItems] = await Promise.all([
-    getEntriesWithLair(stateRaw),
-    getSpellBoardTokenItems().catch(() => __spellBoardTokenItems),
+    getEntriesWithLair(stateRaw, rawItems),
+    Promise.resolve(spellBoardTokenTrackerItems(rawItems)),
   ]);
   if (!__isCurrentSceneOperation(sceneEpoch, "render-read-items", { reason, renderRevision })) return;
   if (!isCurrentRenderRevision(renderRevision, __latestAcceptedRenderRevision)) {
@@ -8913,8 +9425,7 @@ try {
   }
 
     OBR.onReady(async () => {
-      __mountSceneEpochLifecycle();
-      const bootstrapSceneEpoch = currentSceneEpoch();
+      const sceneReadiness = __mountSceneEpochLifecycle();
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();
       mountTrackerQuickActionsPopoverListener();
@@ -8923,14 +9434,17 @@ try {
     mountConcentrationWarningBroadcast();
     const speedWarningBootstrap = mountSpeedWarningBroadcast().catch(() => {});
     await speedWarningBootstrap;
-    if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-listeners")) return;
-    setTrackedMoveButtonActive(false);
     try {
       const role =
         (await OBR.player?.getRole?.()) ||
         (await OBR.room?.getRole?.()) ||
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
+      await mountSpeedCheckEnabledSync({ authority: IS_GM });
+      OBR.broadcast.onMessage(`${ID}/compact-speed-readout`, (event) => {
+        if (!IS_GM || event?.data?.type !== "set-movement-limit") return;
+        setSpeedCheckMovementLimit(event.data.enabled === true);
+      });
       const hpBarsBinding = bindOptionalRuntimeOption({
         service: runtimeOptionsService,
         selector: selectMapHpBarsEnabled,
@@ -8944,6 +9458,7 @@ try {
       });
       await Promise.all([hpBarsBinding.ready, activeTurnLabelBinding.ready]);
       __trackerLayout = runtimeOptionsService.get(selectTrackerLayout);
+      updateEffectsDisplayModeControl(runtimeOptionsService.get(selectEffectsDisplayMode));
       updateLayoutToggleButton();
       applyTrackerLayout();
       const projectionPolicy = runtimeOptionsService.get(selectTrackerProjectionPolicy);
@@ -8961,15 +9476,17 @@ try {
         (options) => ({
           layout: selectTrackerLayout(options),
           followActiveTurn: selectFollowActiveTurn(options),
+          effectsDisplayMode: selectEffectsDisplayMode(options),
         }),
         (presentation) => {
           const layoutChanged = __trackerLayout !== presentation.layout;
           __trackerLayout = presentation.layout;
-          updateLayoutToggleButton();
-          applyTrackerLayout();
+          updateEffectsDisplayModeControl(presentation.effectsDisplayMode);
           zoomChk.checked = isAutoFocusEnabled(__latestInitiativeState);
           setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
           if (layoutChanged) {
+            updateLayoutToggleButton();
+            applyTrackerLayout();
             __syncTrackerPopoverSizeForLayout();
             void renderAll("options-presentation");
           }
@@ -9033,6 +9550,11 @@ try {
     } catch {
       IS_GM = false;
     }
+    const readinessState = await sceneReadiness?.waitUntilReady();
+    if (!readinessState?.ready) return;
+    __initiativeBootstrapStarted = true;
+    const bootstrapSceneEpoch = currentSceneEpoch();
+    if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-listeners")) return;
     await __mountTrackerSelectionSync();
     if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-selection")) return;
     try {
@@ -9043,6 +9565,11 @@ try {
   if (IS_GM) {
     enableSpeedCheckProcessor();
     subscribeMovementSegments(queueSpeedCheckMovements);
+    try {
+      await mountMovementHistoryWatcher();
+    } catch (err) {
+      console.warn("[history] speed-check watcher mount:", err?.message || err);
+    }
   }
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-speed-check")) return;
   await ensureState(bootstrapSceneEpoch);
@@ -9073,11 +9600,6 @@ try {
         console.warn("[hpbar] deferred boot sync error:", err?.message || err);
       }
       if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-hp-bars")) return;
-      try {
-        await mountMovementHistoryWatcher();
-      } catch (err) {
-        console.warn("[history] deferred boot mount:", err?.message || err);
-      }
       if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "deferred-bootstrap-history")) return;
       try {
         const initiativeCardItems = await OBR.scene.items.getItems((item) => (
@@ -9359,23 +9881,40 @@ OBR.scene.onMetadataChange((meta) => {
     const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
     if (!__isCurrentSceneOperation(sceneEpoch, "quick-action-restore")) return null;
     if (!IS_GM) return null;
-    const candidateIds = (event.items || [])
-      .filter((item) => (
-        item?.layer === "CHARACTER"
-        && !item.attachedTo
-        && item.metadata?.[META_KEY]?.inInitiative === true
-      ))
-      .map((item) => item.id);
+    const candidateIds = event?.invalidations?.quickActionHydration
+      || event?.candidateIds?.quickActionHydration
+      || [];
     if (!candidateIds.length) return null;
-    return restoreInitiativeCardQuickActionsFromMemory(candidateIds);
+    return restoreInitiativeCardQuickActionsFromMemory(candidateIds, {
+      items: event?.allItems,
+      itemsComplete: true,
+      generation: event?.generation,
+      sceneEpoch,
+      isGM: true,
+      isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "quick-action-restore-current"),
+    });
   }, {
-    filter: (event) => event.flags.hpMemoryAutofill,
+    filter: (event) => event.flags.quickActionHydration,
     immediate: true,
   });
 
   subscribeSceneItemChanges((event) => {
     const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
     if (!__isCurrentSceneOperation(sceneEpoch, "spell-board-token-render")) return;
+    if (!isCurrentSceneItemEvent(event, {
+      sceneEpoch,
+      revision: __latestSceneItemEventRevision,
+    })) return;
+    __latestSceneItemEventRevision = Math.max(
+      __latestSceneItemEventRevision,
+      Number(event?.revision) || 0,
+    );
+    __latestSceneItemEventGeneration = Math.max(
+      __latestSceneItemEventGeneration,
+      Number(event?.generation) || 0,
+    );
+    __latestSceneItemEventCorrelation = sceneItemEventCorrelation(event)
+      || __latestSceneItemEventCorrelation;
     __spellBoardTokenItems = updateSpellBoardTokenSnapshot(__spellBoardTokenItems, event);
     void renderAll("spell-board-token").catch((error) => {
       console.warn("[initiative] spell board token render:", error?.message || error);
@@ -9393,6 +9932,10 @@ OBR.scene.onMetadataChange((meta) => {
     __latestSceneItemEventRevision = Math.max(
       __latestSceneItemEventRevision,
       Number(event?.revision) || 0,
+    );
+    __latestSceneItemEventGeneration = Math.max(
+      __latestSceneItemEventGeneration,
+      Number(event?.generation) || 0,
     );
     __latestSceneItemEventCorrelation = sceneItemEventCorrelation(event)
       || __latestSceneItemEventCorrelation;
@@ -9433,8 +9976,18 @@ try {
   subscribeSceneItemChanges((event) => {
     const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
     if (!__isCurrentSceneOperation(sceneEpoch, "hp-memory-autofill")) return;
-    scheduleHPMemoryAutofill(150, sceneEpoch); // 150ms debounce
-  }, { filter: (event) => event.flags.hpMemoryAutofill });
+    if (!IS_GM) return;
+    const candidateIds = event?.invalidations?.legacyHpHydration
+      || event?.candidateIds?.legacyHpHydration
+      || [];
+    if (!candidateIds.length) return;
+    scheduleHPMemoryAutofill(150, sceneEpoch, {
+      candidateIds,
+      items: event?.allItems,
+      itemsComplete: true,
+      isCurrent: (epoch) => __isCurrentSceneOperation(epoch, "hp-memory-autofill-current"),
+    });
+  }, { filter: (event) => event.flags.legacyHpHydration });
 } catch (e) {
   console.warn("[hpMemory] onChange subscribe failed", e);
 }
@@ -9466,6 +10019,7 @@ try {
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
     prewarmSpeedCheckTurn(next);
+    syncSpeedCheckTurn(next);
 
     queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}
@@ -9504,6 +10058,7 @@ try {
     syncActiveTurnLabel(activeId);
     __renderOptimisticNavigationState(next);
     prewarmSpeedCheckTurn(next);
+    syncSpeedCheckTurn(next);
 
     queueNavigationState(next, sceneEpoch);
     try { delete document.__tbpZoomStamp; } catch {}

@@ -11,6 +11,7 @@ import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
+import { buildSpellCausality } from "./combatLogCausalityCore.js";
 
 const STATE_KEY = `${ID}/state`;
 const pendingResolutions = new Map();
@@ -22,6 +23,82 @@ function staleMessage(result) {
     return "La scena o il turno sono cambiati: il reminder non è più corrente. Puoi chiuderlo.";
   }
   return "Il reminder non è più corrente. Nessuna conseguenza è stata applicata; puoi chiuderlo.";
+}
+
+function reminderDamageFactor(value) {
+  const number = Number(value);
+  if (Number.isFinite(number)) return number;
+  return {
+    zero: 0,
+    none: 0,
+    quarter: 0.25,
+    half: 0.5,
+    full: 1,
+    double: 2,
+  }[String(value || "").trim().toLowerCase()];
+}
+
+function reminderCausality(notice, plan) {
+  const resolution = notice?.resolution && typeof notice.resolution === "object"
+    ? notice.resolution
+    : {};
+  const effect = resolution.effect && typeof resolution.effect === "object"
+    ? resolution.effect
+    : {};
+  const activation = resolution.activation && typeof resolution.activation === "object"
+    ? resolution.activation
+    : {};
+  const target = Array.isArray(notice?.targets)
+    ? notice.targets.find((entry) => String(entry?.id || "") === String(plan?.targetId || ""))
+    : null;
+  const hpDelta = plan?.hpChange
+    && Number.isFinite(Number(plan.hpChange.before))
+    && Number.isFinite(Number(plan.hpChange.after))
+    ? Number(plan.hpChange.after) - Number(plan.hpChange.before)
+    : undefined;
+  const concentrationAction = notice?.concentrationAction
+    || resolution.concentrationAction
+    || effect.concentrationAction;
+  const action = resolution.action && typeof resolution.action === "object"
+    ? resolution.action
+    : {
+      ...(resolution.actionId ? { id: resolution.actionId } : {}),
+      ...(resolution.actionLabel || resolution.label
+        ? { label: resolution.actionLabel || resolution.label }
+        : {}),
+    };
+  return buildSpellCausality({
+    eventType: "reminder-resolution",
+    spellId: notice?.spellId || resolution.spellId || effect.spellId,
+    spellName: notice?.spellName || notice?.effectName || resolution.spellName || effect.spellName,
+    instanceId: notice?.instanceId || effect.instanceId,
+    slotLevel: notice?.slotLevel || resolution.slotLevel || effect.slotLevel,
+    phase: notice?.phase || resolution.phase,
+    casterId: notice?.casterId || plan?.sourceId || resolution.source?.id,
+    casterName: notice?.casterName || notice?.sourceName || resolution.source?.name,
+    actorRole: notice?.casterId ? "caster" : "source",
+    targets: [{
+      id: plan?.targetId,
+      name: target?.name,
+      outcome: plan?.outcome,
+      requestedDamage: resolution.damage ? plan?.damage?.roll : undefined,
+      appliedHpDelta: hpDelta,
+      damageFactor: resolution.damage ? reminderDamageFactor(plan?.damage?.factor) : undefined,
+    }],
+    targetIds: plan?.targetId ? [plan.targetId] : [],
+    action,
+    damageRoll: resolution.damage ? plan?.damage?.roll : undefined,
+    concentrationAction,
+    concentrationInstanceId: effect.instanceId || notice?.instanceId,
+    zone: activation.kind === "zone"
+      ? {
+        action: "resolve",
+        zoneItemId: activation.zoneItemId,
+        ruleId: activation.ruleId,
+      }
+      : undefined,
+    reminder: { activationId: plan?.activationId || notice?.activationId },
+  });
 }
 
 async function executeReminderResolution({
@@ -99,6 +176,7 @@ async function executeReminderResolution({
           outcome: plan.outcome,
           damage: plan.damage.amount,
           damageFactor: plan.damage.factor,
+          causality: reminderCausality(notice, plan),
         },
       },
     });

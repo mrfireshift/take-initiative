@@ -19,6 +19,12 @@ function mountOptionsInvalidationListener() {
   OBR.broadcast.onMessage(OPTIONS_INVALIDATION_CHANNEL, (event) => {
     if (event?.data?.type !== "options-invalidated") return;
     if (event.data.sourceInstanceId === runtimeInstanceId) return;
+    if (event.data.scope === "local") {
+      void runtimeOptionsService.refresh("broadcast-local-invalidation").catch((error) => {
+        console.warn("[options] local invalidation refresh:", error?.message || error);
+      });
+      return;
+    }
     void refreshOptionsUntilRevision(
       runtimeOptionsService,
       event.data.revision,
@@ -38,13 +44,14 @@ export function startRuntimeOptions() {
   return startPromise;
 }
 
-export function broadcastRuntimeOptionsInvalidation(reason = "save") {
+export function broadcastRuntimeOptionsInvalidation(reason = "save", { scope = "shared" } = {}) {
   const revision = runtimeOptionsService.get(selectOptionsRevision);
   return OBR.broadcast.sendMessage(
     OPTIONS_INVALIDATION_CHANNEL,
     {
       type: "options-invalidated",
       reason,
+      scope,
       revision,
       sourceInstanceId: runtimeInstanceId,
     },

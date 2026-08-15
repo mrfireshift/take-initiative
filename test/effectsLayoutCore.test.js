@@ -150,6 +150,42 @@ test("la selezione del token mantiene tutte le label estese", () => {
   assert.equal(rows.some((entry) => entry.compactMode), false);
 });
 
+test("la modalità globale tutte espanse ignora il filtro di selezione", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    expansionMode: "all",
+    tokens: [token("target", {
+      conditionParts: [
+        { key: "flag:Prono", label: "Prono", icon: "⬇️", kind: "condition" },
+        { key: "flag:Accecato", label: "Accecato", icon: "👁️", kind: "condition" },
+      ],
+    })],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), ["Accecato", "Prono"]);
+  assert.equal(rows.some((entry) => entry.compactMode), false);
+});
+
+test("la modalità globale compatta prevale anche su un token selezionato", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    expansionMode: "compact",
+    expandedTargetIds: new Set(["target"]),
+    tokens: [token("target", {
+      conditionParts: [
+        { key: "flag:Prono", label: "Prono", icon: "⬇️", kind: "condition" },
+        { key: "flag:Accecato", label: "Accecato", icon: "👁️", kind: "condition" },
+      ],
+    })],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot");
+
+  assert.equal(rows.some((entry) => entry.text === "Prono"), false);
+  assert.ok(rows.every((entry) => entry.compactMode));
+});
+
 test("le pill compatte restano dentro la footprint anche su un token multicasella", () => {
   const rows = planEffectsLayout({
     measureText,

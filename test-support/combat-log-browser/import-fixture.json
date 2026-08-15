@@ -1,0 +1,28 @@
+{
+  "format": "take-initiative-combat-log",
+  "version": 2,
+  "exportedAt": 1700000000000,
+  "source": { "roomId": "performance-room" },
+  "session": {
+    "id": "browser-session",
+    "version": 1,
+    "roomId": "performance-room",
+    "name": "Import UI collision",
+    "startedAt": 1600000000000,
+    "updatedAt": 1600000000100,
+    "nextSequence": 2,
+    "customField": "preserve"
+  },
+  "events": [
+    {
+      "id": "browser-event-1",
+      "sessionId": "browser-session",
+      "sequence": 1,
+      "at": 1600000000001,
+      "kind": "note",
+      "category": "note",
+      "label": "Import collision",
+      "payload": { "text": "Import collision", "causality": { "instanceId": "import-instance" } }
+    }
+  ]
+}

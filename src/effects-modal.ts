@@ -9,9 +9,11 @@ import {
 } from "./conditions.js";
 import {
   conditionMutationOperations,
+  getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { makeReferenceButton } from "./referenceButton.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
@@ -24,6 +26,11 @@ const STATE_KEY = `${ID}/state`;
 const MODAL_ID = `${ID}/effects-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
 const QUICK_ACTION_ID = new URLSearchParams(window.location.search).get("quickAction") || "";
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+
+function sceneOperationId(prefix = "effects-modal") {
+  return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
 
 function closeEffectsPopover() {
   void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
@@ -42,10 +49,14 @@ let effectsSelectionWriteDepth = 0;
 
 async function refreshEffectsSelectionFromScene() {
   if (effectsSelectionPollBusy || effectsSelectionWriteDepth > 0) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("selection-read") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   effectsSelectionPollBusy = true;
   try {
     const selected = await OBR.player.getSelection();
-    effectsSelectionApply?.(Array.isArray(selected) ? selected : []);
+    if (sceneLifecycle.isCurrent(operation)) {
+      effectsSelectionApply?.(Array.isArray(selected) ? selected : []);
+    }
   } catch {} finally {
     effectsSelectionPollBusy = false;
   }
@@ -54,7 +65,7 @@ async function refreshEffectsSelectionFromScene() {
 function mountEffectsSelectionSync() {
   if (effectsSelectionUnsubscribe) return;
   effectsSelectionUnsubscribe = OBR.player.onChange((player) => {
-    if (effectsSelectionWriteDepth === 0 && Array.isArray(player?.selection)) {
+    if (sceneLifecycle.isReady() && effectsSelectionWriteDepth === 0 && Array.isArray(player?.selection)) {
       effectsSelectionApply?.(player.selection);
     }
   });
@@ -62,14 +73,18 @@ function mountEffectsSelectionSync() {
 }
 
 async function updateSceneTargetSelection(ids: string[], selected: boolean, replace = false) {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("selection-write") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   effectsSelectionWriteDepth += 1;
   try {
     if (selected) await OBR.player.select(ids, replace);
     else await OBR.player.deselect(ids);
+    if (!sceneLifecycle.isCurrent(operation)) return false;
   } finally {
     effectsSelectionWriteDepth -= 1;
-    await refreshEffectsSelectionFromScene();
+    if (sceneLifecycle.isCurrent(operation)) await refreshEffectsSelectionFromScene();
   }
+  return true;
 }
 
 function splitParagonId(id: string) {
@@ -250,10 +265,13 @@ function setButtonEnabled(button: HTMLButtonElement, enabled: boolean) {
 }
 
 async function render(sourceId: string, preservedTargetIds: string[] | null = null) {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("render") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   effectsSelectionApply = null;
   const app = document.getElementById("app");
   if (!app) return;
   const { source, targets, conditionTargets, state } = await loadData(sourceId);
+  if (!sceneLifecycle.isCurrent(operation)) return;
   if (!source) {
     app.textContent = "Token non trovato.";
     return;
@@ -715,10 +733,16 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   };
 
   const removeRows = async (rows: ReturnType<typeof conditionRows>) => {
+    const operation = sceneLifecycle.capture({ operationId: sceneOperationId("remove-effects") });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     rows = rows.filter((row) => !row.managed);
     if (!rows.length) return;
     const targetIds = selectedTargetIds();
     const label = rows.length > 1 ? "Rimossi effetti multipli" : `Rimossa: ${rows[0].name}`;
+    const ownerSceneContext = await getEffectsMutationSceneContext({
+      commandId: operation.operationId,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const mutation = await runEffectsMutation([{
       type: "condition:remove-instances",
       removals: rows.map((row) => ({ itemId: row.targetId, instanceId: row.id })),
@@ -726,11 +750,15 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       kind: "condition",
       label,
       targetIds,
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
       history: { kind: "condition", label },
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     requireAppliedEffectsMutation(mutation);
     const changedIds = mutation.changedIds;
     await refreshConditionLabels(changedIds);
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await render(sourceId, targetIds);
   };
 
@@ -903,6 +931,9 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   expirySelect.addEventListener("change", syncExpiryControls);
 
   addButton.addEventListener("click", async () => {
+    if (!sceneLifecycle.isReady()) return;
+    const operation = sceneLifecycle.capture({ operationId: sceneOperationId("add-effect") });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const ids = selectedTargetIds();
     if (!ids.length) return;
     const effectName = selectedEffectName();
@@ -928,6 +959,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
     const order = Array.isArray(state?.order) ? state.order : [];
     const activeId = order[state?.current] || null;
+    const ownerSceneContext = await getEffectsMutationSceneContext({
+      commandId: operation.operationId,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await executeConditionApplication({
       conditionName: effectName,
       targetIds: ids,
@@ -941,7 +976,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
         turnKey: currentInitiativeTurnKey(state),
       },
       expiry,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
+      commandId: ownerSceneContext.commandId,
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await render(sourceId, ids);
   });
 
@@ -970,7 +1008,36 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
 OBR.onReady(async () => {
   styleBase();
-  mountEffectsSelectionSync();
   const sourceId = new URLSearchParams(window.location.search).get("source") || "";
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      effectsSelectionApply = null;
+      if (effectsSelectionPollTimer) window.clearInterval(effectsSelectionPollTimer);
+      effectsSelectionPollTimer = null;
+      document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement | HTMLTextAreaElement>(
+        "input, select, textarea, button",
+      ).forEach((control) => {
+        if (control.id !== "close") control.disabled = true;
+      });
+    } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      void render(sourceId);
+      mountEffectsSelectionSync();
+    }
+  });
+  sceneLifecycle.registerSceneCleanup(() => {
+    if (effectsSelectionPollTimer) window.clearInterval(effectsSelectionPollTimer);
+    effectsSelectionPollTimer = null;
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) return;
+  mountEffectsSelectionSync();
   await render(sourceId);
+});
+
+window.addEventListener("pagehide", () => {
+  effectsSelectionUnsubscribe?.();
+  effectsSelectionUnsubscribe = null;
+  if (effectsSelectionPollTimer) window.clearInterval(effectsSelectionPollTimer);
+  effectsSelectionPollTimer = null;
+  sceneLifecycle.dispose();
 });

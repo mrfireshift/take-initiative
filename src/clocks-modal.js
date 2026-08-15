@@ -12,9 +12,11 @@ import {
   moveClock,
   normalizeClocksState,
 } from "./clocksCore.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const COMPACT_KEY = "com.thebigpicture.initiative/clocks-compact";
 const app = document.querySelector("#app");
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 let state = normalizeClocksState(null);
 let isGM = false;
 let compact = localStorage.getItem(COMPACT_KEY) === "1";
@@ -139,6 +141,7 @@ async function resizePopover() {
 }
 
 function render() {
+  if (!sceneLifecycle.isReady()) return;
   if (renderQueued) return;
   renderQueued = true;
   requestAnimationFrame(() => {
@@ -159,16 +162,21 @@ function render() {
 }
 
 async function mutateClock(id, updater) {
-  state = await updateClocksState((current) => ({
+  const operation = sceneLifecycle.capture({ operationId: `clock-mutate:${id}:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const next = await updateClocksState((current) => ({
     ...current,
     clocks: current.clocks.map((clock) => clock.id === id
       ? { ...clock, ...updater(clock), updatedAt: Date.now() }
       : clock),
-  }));
+  }), { isCurrent: () => sceneLifecycle.isCurrent(operation) });
+  if (!next || !sceneLifecycle.isCurrent(operation)) return;
+  state = next;
   render();
 }
 
 async function handleAction(button) {
+  if (!sceneLifecycle.isReady()) return;
   const action = button.dataset.action;
   const id = button.dataset.id;
   if (action === "toggle-compact") {
@@ -186,7 +194,14 @@ async function handleAction(button) {
   if (action === "visibility") await mutateClock(id, (clock) => ({ visible: !clock.visible }));
   if (action === "color") await mutateClock(id, () => ({ color: button.dataset.color }));
   if (action === "move-up" || action === "move-down") {
-    state = await updateClocksState((current) => ({ ...current, clocks: moveClock(current.clocks, id, action === "move-up" ? -1 : 1) }));
+    const operation = sceneLifecycle.capture({ operationId: `clock-reorder:${id}:${Date.now().toString(36)}` });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const next = await updateClocksState(
+      (current) => ({ ...current, clocks: moveClock(current.clocks, id, action === "move-up" ? -1 : 1) }),
+      { isCurrent: () => sceneLifecycle.isCurrent(operation) },
+    );
+    if (!next || !sceneLifecycle.isCurrent(operation)) return;
+    state = next;
     render();
   }
   if (action === "delete") {
@@ -201,7 +216,14 @@ async function handleAction(button) {
       }, 2500);
       return;
     }
-    state = await updateClocksState((current) => ({ ...current, clocks: current.clocks.filter((clock) => clock.id !== id) }));
+    const operation = sceneLifecycle.capture({ operationId: `clock-delete:${id}:${Date.now().toString(36)}` });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const next = await updateClocksState(
+      (current) => ({ ...current, clocks: current.clocks.filter((clock) => clock.id !== id) }),
+      { isCurrent: () => sceneLifecycle.isCurrent(operation) },
+    );
+    if (!next || !sceneLifecycle.isCurrent(operation)) return;
+    state = next;
     render();
   }
 }
@@ -213,8 +235,9 @@ app.addEventListener("click", (event) => {
 
 app.addEventListener("submit", async (event) => {
   const form = event.target.closest("[data-create-form]");
-  if (!form || !isGM) return;
+  if (!form || !isGM || !sceneLifecycle.isReady()) return;
   event.preventDefault();
+  const operation = sceneLifecycle.capture({ operationId: `clock-create:${Date.now().toString(36)}` });
   const data = new FormData(form);
   const now = Date.now();
   const newClock = {
@@ -227,7 +250,11 @@ app.addEventListener("submit", async (event) => {
     createdAt: now,
     updatedAt: now,
   };
-  state = await updateClocksState((current) => ({ ...current, clocks: [...current.clocks, newClock] }));
+  const next = await updateClocksState((current) => ({ ...current, clocks: [...current.clocks, newClock] }), {
+    isCurrent: () => sceneLifecycle.isCurrent(operation),
+  });
+  if (!next || !sceneLifecycle.isCurrent(operation)) return;
+  state = next;
   render();
 });
 
@@ -291,22 +318,39 @@ app.addEventListener("dragend", (event) => {
 });
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      state = normalizeClocksState(null);
+      renderQueued = false;
+      app.replaceChildren();
+      app.textContent = "Scena non disponibile: riapri i clock.";
+    } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      void loadClocksState().then((next) => {
+        if (!sceneLifecycle.isReady()) return;
+        state = next;
+        render();
+      });
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    app.textContent = "Scena non disponibile: riapri i clock.";
+    return;
+  }
   isGM = await OBR.player.getRole().then((role) => role === "GM").catch(() => false);
   state = await loadClocksState();
+  if (!sceneLifecycle.isReady()) return;
   render();
   await OBR.broadcast.sendMessage(CLOCKS_POPOVER_CHANNEL, { type: "opened" }, { destination: "LOCAL" }).catch(() => {});
 
   OBR.scene.onMetadataChange((metadata) => {
+    if (!sceneLifecycle.isReady()) return;
     state = normalizeClocksState(metadata?.[CLOCKS_KEY]);
-    render();
-  });
-  OBR.scene.onReadyChange(async (ready) => {
-    if (!ready) return;
-    state = await loadClocksState();
     render();
   });
 });
 
 window.addEventListener("pagehide", () => {
   void OBR.broadcast.sendMessage(CLOCKS_POPOVER_CHANNEL, { type: "closed" }, { destination: "LOCAL" }).catch(() => {});
+  sceneLifecycle.dispose();
 });

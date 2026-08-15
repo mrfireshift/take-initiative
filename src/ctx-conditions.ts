@@ -8,11 +8,14 @@ import {
 } from "./conditions.js";
 import {
   conditionMutationOperations,
+  getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 // --- UI helpers -----------------------------------------------------------
 function makeChip(name) {
@@ -49,9 +52,12 @@ function durationOpts(input: HTMLInputElement | null) {
 }
 
 function queueRefresh(grid: HTMLElement) {
+  if (!sceneLifecycle.isReady()) return;
   clearTimeout(__REFRESH_TIMER);
   __REFRESH_TIMER = setTimeout(async () => {
+    if (!sceneLifecycle.isReady()) return;
     const ids = __CURRENT_IDS.length ? __CURRENT_IDS : await getSelectedIdsSafe({ robust: false });
+    if (!sceneLifecycle.isReady()) return;
     await refreshChipsState(grid, ids);
   }, 5);
 }
@@ -87,6 +93,7 @@ async function getSelectedIdsSafe(opts: { robust?: boolean } = {}): Promise<stri
 
 
 async function readFlagsFor(ids) {
+  if (!sceneLifecycle.isReady()) return { byCond: new Map(), anyCustom: false };
   if (!ids.length) return { byCond: new Map(), anyCustom: false };
   const idset = new Set(ids.filter(Boolean));
   const items = await OBR.scene.items.getItems(i => idset.has(i.id));
@@ -112,7 +119,9 @@ async function readFlagsFor(ids) {
   return { byCond, anyCustom };
 }
 async function refreshChipsState(grid, ids) {
+  if (!sceneLifecycle.isReady()) return;
   const { byCond } = await readFlagsFor(ids);
+  if (!sceneLifecycle.isReady()) return;
   grid.querySelectorAll(".chip").forEach(chip => {
     const name = chip.dataset.name;
     const s = byCond.get(name) || { all: false, some: false };
@@ -133,6 +142,8 @@ async function applyTheme() {
 // --- MOUNT ---------------------------------------------------------------
 async function mount() {
   await OBR.onReady();
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) return;
 
   await applyTheme();
 
@@ -150,7 +161,10 @@ async function mount() {
 APPLICABLE_CONDITION_LIST.forEach((name) => {
   const chip = makeChip(name);
 
-chip.addEventListener("click", () => {
+  chip.addEventListener("click", () => {
+  if (!sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: `ctx-condition:${name}:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   // 1) UI ottimistica immediata
   const wasOn = chip.querySelector(".dot")?.classList.contains("on");
   paintChip(chip, wasOn ? "off" : "on");
@@ -158,6 +172,7 @@ chip.addEventListener("click", () => {
   // 2) prendi gli ID dalla cache (istantaneo); fallback leggero se vuota
   const run = async () => {
     let ids = __CURRENT_IDS.length ? __CURRENT_IDS : await getSelectedIdsSafe({ robust: false });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (!ids.length) {
       // nessun target reale → revert visivo e stop
       paintChip(chip, wasOn ? "on" : "off");
@@ -165,8 +180,12 @@ chip.addEventListener("click", () => {
     }
 
     // 3) fire‑and‑forget: non bloccare il listener
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const mutation = await runEffectsMutation(conditionMutationOperations({
       targetIds: ids,
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
       conditionName: name,
       options: wasOn ? {} : durationOpts(turnsInput),
       mode: "toggle",
@@ -179,6 +198,7 @@ chip.addEventListener("click", () => {
         label: `${wasOn ? "Rimossa" : "Applicata"}: ${name}`,
       },
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     requireAppliedEffectsMutation(mutation);
     queueRefresh(grid);
   };
@@ -201,12 +221,19 @@ chip.addEventListener("click", () => {
   const btnClear = document.getElementById("btnClear");
 
   btnAdd?.addEventListener("click", async () => {
+    const operation = sceneLifecycle.capture({ operationId: `ctx-condition-add:${Date.now().toString(36)}` });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const text = (input?.value || "").trim();
     if (!text) return;
     const ids = await getSelectedIdsSafe();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (!ids.length) return;
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const mutation = await runEffectsMutation(conditionMutationOperations({
       targetIds: ids,
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
       conditionName: text,
       options: durationOpts(turnsInput),
       mode: "custom",
@@ -216,23 +243,32 @@ chip.addEventListener("click", () => {
       targetIds: ids,
       history: { kind: "condition", label: `Applicata: ${text}` },
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     requireAppliedEffectsMutation(mutation);
     input.value = "";
     await refreshChipsState(grid, ids);
   });
 
   btnClear?.addEventListener("click", async () => {
+    const operation = sceneLifecycle.capture({ operationId: `ctx-condition-clear:${Date.now().toString(36)}` });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const ids = await getSelectedIdsSafe();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (!ids.length) return;
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const mutation = await runEffectsMutation([{
       type: "condition:clear",
       targetIds: ids,
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
     }], {
       kind: "condition",
       label: "Rimosse tutte le condizioni",
       targetIds: ids,
       history: { kind: "condition", label: "Rimosse tutte le condizioni" },
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     requireAppliedEffectsMutation(mutation);
     await refreshChipsState(grid, ids);
   });
@@ -242,13 +278,16 @@ __CURRENT_IDS = await getSelectedIdsSafe({ robust: true });
 await refreshChipsState(grid, __CURRENT_IDS);
 
 // Quando il popup riprende focus, riallinea gli ID e lo stato
-window.addEventListener("focus", async () => {
+  window.addEventListener("focus", async () => {
+  if (!sceneLifecycle.isReady()) return;
   __CURRENT_IDS = await getSelectedIdsSafe({ robust: true });
+  if (!sceneLifecycle.isReady()) return;
   await refreshChipsState(grid, __CURRENT_IDS);
 });
 
   // aggiorna i dot se cambiano i metadata dei selezionati (best-effort)
   OBR.scene.items.onChange(() => {
+  if (!sceneLifecycle.isReady()) return;
   queueRefresh(grid);
 });
 
@@ -256,6 +295,17 @@ window.addEventListener("focus", async () => {
   OBR.theme.onChange(applyTheme);
 }
 
+sceneLifecycle.subscribe((event) => {
+  if (event.phase === "unavailable") {
+    clearTimeout(__REFRESH_TIMER);
+    __REFRESH_TIMER = null;
+    __CURRENT_IDS = [];
+    document.querySelectorAll("button, input").forEach((element) => { element.disabled = true; });
+  }
+});
+
 mount().catch((e) => {
   console.error("[ctx-conditions] mount error:", e);
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

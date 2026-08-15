@@ -17,6 +17,7 @@ import { resolveOptions } from "../src/options/optionsResolve.js";
 import {
   selectActiveTurnLabelEnabled,
   selectEmbersAnimationsEnabled,
+  selectEffectsDisplayMode,
   selectFollowActiveTurn,
   selectMapHpBarsEnabled,
   selectPlayerHpVisibility,
@@ -33,7 +34,12 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   assert.deepEqual(local, {
     version: 1,
     updatedAt: 0,
-    tracker: { layout: "classic", followActiveTurn: true, toolbarPreset: "full" },
+    tracker: {
+      layout: "classic",
+      followActiveTurn: true,
+      toolbarPreset: "full",
+      effectsDisplayMode: "selected",
+    },
     windows: { clocksCompact: false },
     tools: { distance3d: true, reference: true },
     runtime: { combatLog: true },
@@ -65,7 +71,10 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   assert.equal(room.tools.clocks, true);
   assert.equal(room.automation.knownFactionAssignment, true);
   assert.equal(room.integrations.embersAnimations, true);
-  assert.equal(room.uiSync.trackerOpen, true);
+  assert.deepEqual(room.uiSync, {
+    trackerOpen: true,
+    effectsDisplayMode: "selected",
+  });
   assert.ok(Object.values(scene.overrides).every((entry) => entry.mode === "inherit"));
 });
 
@@ -174,6 +183,7 @@ test("OPTIONS-001: la precedenza è default, Room, override scena e locale solo 
     room: {
       turn: { popup: false },
       map: { hpBars: false, activeTurnLabel: false },
+      uiSync: { effectsDisplayMode: "compact" },
       playerView: { hp: { trackerClassic: { enemy: "hidden" } } },
     },
     scene: {
@@ -189,6 +199,7 @@ test("OPTIONS-001: la precedenza è default, Room, override scena e locale solo 
   assert.equal(selectTurnPopupEnabled(resolved), true);
   assert.equal(selectMapHpBarsEnabled(resolved), false);
   assert.equal(selectActiveTurnLabelEnabled(resolved), true);
+  assert.equal(selectEffectsDisplayMode(resolved), "compact");
   assert.equal(selectPlayerHpVisibility(resolved, {
     surface: "trackerClassic", attitude: "enemy",
   }), "hidden");

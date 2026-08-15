@@ -36,6 +36,9 @@ export async function recordCombatTurnForEpoch({
       kind: "round",
       action: "start",
       label: `Inizio Round ${round}`,
+      // The turn recorder can run in more than one Owlbear runtime. Keep the
+      // storage identity stable so a retry/concurrent recorder is a no-op.
+      dedupeKey: `round:${round}`,
       targets: [],
       payload: {},
     });
@@ -47,6 +50,9 @@ export async function recordCombatTurnForEpoch({
     kind: "turn",
     action: "start",
     label: `Turno di ${turn?.name || "Token"}`,
+    // lastTurnKey is an in-memory fast path; this key is the cross-runtime
+    // idempotency boundary enforced by appendEventsNow/IndexedDB.
+    dedupeKey: `turn:${turnKey}`,
     targets: turn ? [turn] : [],
     payload: { actorId: activeId, actorName: turn?.name || "Token" },
   });

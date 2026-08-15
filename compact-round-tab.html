@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Round</title>
+    <link rel="stylesheet" href="/ui-typography.css" />
+    <link rel="stylesheet" href="/popover-glass.css" />
+    <style>
+      :root,
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: visible;
+        background: transparent;
+      }
+
+      body {
+        font-family: var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif);
+      }
+
+      #compact-round-hud {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        width: 100%;
+        height: 100%;
+      }
+
+      :root[data-part="round"] #compact-round-hud,
+      :root[data-part="speed"] #compact-round-hud {
+        display: block;
+      }
+
+      :root[data-part="round"] #compact-round-tab {
+        display: grid;
+      }
+
+      :root[data-part="speed"] #compact-speed-readout:not([hidden]) {
+        display: flex;
+        flex: none;
+        width: 100%;
+      }
+
+      #compact-round-tab {
+        position: relative;
+        display: none;
+        place-items: center;
+        flex: 0 0 124px;
+        width: 124px;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0 8px;
+        color: #fff;
+        background: transparent;
+        clip-path: polygon(22px 0, 102px 0, 114px 20px, 114px 21px, 10px 21px, 10px 20px);
+      }
+
+      #compact-round-tab::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-color: var(--obrt-popover-glass, rgba(42, 47, 64, .62));
+        background-image: var(--obrt-tracker-frost-image, none);
+        pointer-events: none;
+      }
+
+      #compact-round-tab-shape {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      #round-label {
+        position: relative;
+        z-index: 1;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      #compact-speed-readout {
+        position: relative;
+        display: none;
+        flex: 0 0 154px;
+        width: 154px;
+        height: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        padding: 1px 7px 3px;
+        overflow: hidden;
+        color: #fff;
+        border: 1px solid var(--obrt-popover-border, rgba(255, 255, 255, .16));
+        border-radius: 7px 7px 2px 2px;
+        background-color: var(--obrt-popover-glass, rgba(42, 47, 64, .62));
+        background-image: var(--obrt-tracker-frost-image, none);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+      }
+
+      #compact-speed-readout[hidden] {
+        display: none;
+      }
+
+      #speed-line {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+
+      #speed-summary {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 8.5px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      #speed-limit-control {
+        display: none;
+        flex: 0 0 auto;
+        width: 12px;
+        height: 12px;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      #speed-limit-control[data-visible="1"] {
+        display: inline-flex;
+      }
+
+      #speed-limit {
+        width: 11px;
+        height: 11px;
+        margin: 0;
+        accent-color: #3b82f6;
+        cursor: pointer;
+      }
+
+      #speed-track {
+        position: absolute;
+        right: 7px;
+        bottom: 1px;
+        left: 7px;
+        height: 2px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, .38);
+      }
+
+      #speed-bar {
+        display: block;
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: #3b82f6;
+        transition: width 80ms linear, background-color 120ms ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compact-round-hud">
+      <div id="compact-round-tab" role="status" aria-live="polite" aria-label="Round">
+        <svg
+          id="compact-round-tab-shape"
+          viewBox="0 0 124 21"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M 23 1 H 101"
+            fill="none"
+            stroke="rgba(255,255,255,.07)"
+            stroke-linecap="round"
+            stroke-width=".7"
+          />
+        </svg>
+        <span id="round-label">Round 1</span>
+      </div>
+      <div id="compact-speed-readout" role="status" aria-live="polite" hidden>
+        <div id="speed-line">
+          <span id="speed-summary"></span>
+          <label id="speed-limit-control" title="Limita movimento">
+            <input
+              id="speed-limit"
+              type="checkbox"
+              aria-label="Limita movimento alla disponibilità del turno"
+            />
+          </label>
+        </div>
+        <div id="speed-track" aria-hidden="true"><span id="speed-bar"></span></div>
+      </div>
+    </div>
+    <script type="module" src="/src/compactRoundTab.js"></script>
+  </body>
+</html>

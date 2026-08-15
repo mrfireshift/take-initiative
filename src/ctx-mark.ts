@@ -2,8 +2,10 @@
 import OBR, { type Theme } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { rememberFactionForIds } from "./factionRegistry.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 /* ----------------------- THEME (come in ctx-add) ----------------------- */
 function applyTheme(t: Theme) {
@@ -24,8 +26,11 @@ function closeContextMenuSoon() {
 
 /* --------------------------- Azione principale ------------------------- */
 async function setAttitude(attitude: "ally" | "neutral" | "enemy" | "pc") { // NEW: pc
+  const operation = sceneLifecycle.capture({ operationId: `ctx-mark:${attitude}:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   try {
     const ids = await OBR.player.getSelection();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (!ids || ids.length === 0) return;
 
     await OBR.scene.items.updateItems(ids, (items) => {
@@ -35,7 +40,10 @@ async function setAttitude(attitude: "ally" | "neutral" | "enemy" | "pc") { // N
         (it.metadata as any)[META_KEY] = { ...prev, attitude };
       }
     });
-    await rememberFactionForIds(ids, attitude).catch(() => {});
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    await rememberFactionForIds(ids, attitude, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+    }).catch(() => {});
   } catch (e) {
     console.warn("[ctx-mark] update error:", (e as any)?.message || e);
   } finally {
@@ -60,6 +68,11 @@ declare global { interface Window { __TBP_CTX_MARK_WIRED__?: boolean } }
 
 OBR.onReady(async () => {
   if (!OBR.isAvailable) return; // se aperto fuori da OBR, non fare nulla
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    document.querySelectorAll<HTMLElement>("[data-att]").forEach((element) => { element.style.pointerEvents = "none"; });
+    return;
+  }
 
   // Tema (identico a ctx-add)
   try {
@@ -79,4 +92,11 @@ OBR.onReady(async () => {
       wireUI();
     }
   }
+  sceneLifecycle.subscribe((event) => {
+    document.querySelectorAll<HTMLElement>("[data-att]").forEach((element) => {
+      element.style.pointerEvents = event.phase === "ready" ? "auto" : "none";
+    });
+  });
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

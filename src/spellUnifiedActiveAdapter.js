@@ -606,6 +606,19 @@ export async function executeSpellUnifiedActiveAction({
       changedIds: [],
     };
     try {
+      const sceneContext = typeof runtime.getSceneContext === "function"
+        ? await runtime.getSceneContext()
+        : null;
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_ACTIVE_STATUS.REJECTED,
+          validation,
+          errors: [{ code: "scene-epoch-stale", message: "La scena è cambiata prima del movimento." }],
+          changedIds: [],
+        };
+      }
       const result = await movementExecutor({
         group,
         action: {
@@ -616,7 +629,23 @@ export async function executeSpellUnifiedActiveAction({
         },
         casterName: context.casterName,
         movementChoice: choiceValue,
+        sceneEpoch: runtime.sceneEpoch ?? validation.sceneEpoch,
+        sceneIdentity: sceneContext?.sceneIdentity || runtime.sceneIdentity || null,
+        commandId: sceneContext?.commandId || runtime.commandId || "",
+        isCurrent: runtime.isCurrent,
       });
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,
+          validation,
+          result,
+          changedIds: uniqueIds(Array.isArray(result) ? result : result?.changedIds),
+          stale: true,
+          postCommitPending: true,
+        };
+      }
       const history = spellExecutionHistoryDetails(result);
       return {
         status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,
@@ -727,10 +756,40 @@ export async function executeSpellUnifiedActiveAction({
       changedIds: [],
     };
     try {
+      const sceneContext = typeof runtime.getSceneContext === "function"
+        ? await runtime.getSceneContext()
+        : null;
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_ACTIVE_STATUS.REJECTED,
+          validation,
+          errors: [{ code: "scene-epoch-stale", message: "La scena è cambiata prima della risoluzione." }],
+          changedIds: [],
+        };
+      }
       const result = await preparedExecutor({
         ...built.request,
         casterName: context.casterName,
+        sceneEpoch: runtime.sceneEpoch ?? validation.sceneEpoch,
+        sceneIdentity: sceneContext?.sceneIdentity || runtime.sceneIdentity || null,
+        commandId: sceneContext?.commandId || runtime.commandId || "",
+        isCurrent: runtime.isCurrent,
       });
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,
+          validation,
+          request: built.request,
+          result,
+          changedIds: uniqueIds(Array.isArray(result) ? result : result?.changedIds),
+          stale: true,
+          postCommitPending: true,
+        };
+      }
       const history = spellExecutionHistoryDetails(result);
       return {
         status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,
@@ -763,6 +822,19 @@ export async function executeSpellUnifiedActiveAction({
   };
   const spell = getSpellDefinition(context.spellId);
   try {
+    const sceneContext = typeof runtime.getSceneContext === "function"
+      ? await runtime.getSceneContext()
+      : null;
+    if (typeof runtime.isCurrent === "function"
+      && runtime.sceneEpoch != null
+      && !runtime.isCurrent(runtime.sceneEpoch)) {
+      return {
+        status: SPELL_UNIFIED_ACTIVE_STATUS.REJECTED,
+        validation,
+        errors: [{ code: "scene-epoch-stale", message: "La scena è cambiata prima dell'azione." }],
+        changedIds: [],
+      };
+    }
     const result = await activeExecutor({
       spell,
       actionId: normalized.id,
@@ -770,7 +842,23 @@ export async function executeSpellUnifiedActiveAction({
       selectedTargetIds: uniqueIds(selectedTargetIds),
       appliedAt: context.appliedAt,
       casterName: context.casterName,
+      sceneEpoch: runtime.sceneEpoch ?? validation.sceneEpoch,
+      sceneIdentity: sceneContext?.sceneIdentity || runtime.sceneIdentity || null,
+      commandId: sceneContext?.commandId || runtime.commandId || "",
+      isCurrent: runtime.isCurrent,
     });
+    if (typeof runtime.isCurrent === "function"
+      && runtime.sceneEpoch != null
+      && !runtime.isCurrent(runtime.sceneEpoch)) {
+      return {
+        status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,
+        validation,
+        result,
+        changedIds: uniqueIds(result?.changedIds || result),
+        stale: true,
+        postCommitPending: true,
+      };
+    }
     const history = spellExecutionHistoryDetails(result);
     return {
       status: SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED,

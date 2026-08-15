@@ -6,6 +6,8 @@ export const SPELL_ZONE_TRIGGER_NOTICE_CHANNEL = `${ID}/spell-zone-trigger-notic
 export const EFFECT_SAVE_REMINDER_NOTICE_CHANNEL = `${ID}/effect-save-reminder-notice`;
 export const EFFECTS_MUTATION_COMMAND_CHANNEL = `${ID}/effects-mutation-command`;
 export const EFFECTS_MUTATION_RESULT_CHANNEL = `${ID}/effects-mutation-result`;
+export const HISTORY_OWNER_COMMAND_CHANNEL = `${ID}/history-owner-command`;
+export const HISTORY_OWNER_RESULT_CHANNEL = `${ID}/history-owner-result`;
 export const RUNTIME_CACHE_CLEANUP_CHANNEL = `${ID}/runtime-cache-cleanup`;
 
 export function isOnlyActiveTurnLabelChange(changes) {

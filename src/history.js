@@ -1,7 +1,10 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
-import { recordCombatUndo, recordHistoryInCombatLog, recordNativeMovementUndo } from "./combatLog.js";
+import {
+  readSceneItemsSnapshot,
+  subscribeSceneItemChanges,
+} from "./sceneItemEvents.js";
+import { recordCombatUndo, recordNativeMovementUndo } from "./combatLog.js";
 import {
   currentSceneEpoch,
   isCurrentSceneEpoch,
@@ -9,16 +12,20 @@ import {
   subscribeSceneEpoch,
 } from "./sceneEpoch.js";
 import {
-  METADATA_OWNERSHIP,
-  writeSceneMetadataKey,
-} from "./metadataKeyScoped.js";
+  requestHistoryOwnerAppend,
+  requestHistoryOwnerRemove,
+} from "./historyOwner.js";
+import {
+  evaluateHistoryUndoReadiness,
+  malformedHistoryEntryIds,
+} from "./historyUndoCleanupCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const CONC_META_KEY = `${ID}/concentration`;
 const HISTORY_KEY = `${ID}/history`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
-const HISTORY_CHANGE_CHANNEL = `${ID}/history-change`;
+const HISTORY_CONTROL_ACK_CHANNEL = `${ID}/history-control-ack`;
 const HISTORY_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
@@ -26,8 +33,11 @@ const SCENE_HISTORY_SUPPRESS_MS = 2000;
 const INITIATIVE_HISTORY_FIELDS = ["inInitiative", "initiative", "attitude"];
 const EFFECTS_HISTORY_FIELDS = ["conditions", "spells", "concentrations"];
 
-let __historyWriteQueue = Promise.resolve();
 let __historyActionQueue = Promise.resolve();
+let __historyAppendRetryTimer = null;
+let __historyAppendRetryQueue = Promise.resolve();
+let __historyRemovalRetryTimer = null;
+let __historyRemovalRetryQueue = Promise.resolve();
 let __movementWatcherMounted = false;
 let __sceneHistoryWatcherMounted = false;
 let __movementFlushTimer = null;
@@ -37,6 +47,9 @@ const __pendingMovements = new Map();
 const __suppressedMovements = new Map();
 const __sceneHistorySnapshot = new Map();
 const __historyRestoreSuppressedIds = new Map();
+const __pendingHistoryAppends = new Map();
+const __pendingHistoryRemovals = new Map();
+const __undoCombatLogCommands = new Set();
 const __movementSegmentListeners = new Set();
 let __sceneHistoryBaselineEpoch = null;
 let __sceneEpochUnsubscribe = null;
@@ -51,13 +64,23 @@ function replaceSceneHistorySnapshot(items = []) {
 
 function resetSceneHistoryRuntime(epoch) {
   if (__movementFlushTimer) clearTimeout(__movementFlushTimer);
+  if (__historyAppendRetryTimer) clearTimeout(__historyAppendRetryTimer);
+  if (__historyRemovalRetryTimer) clearTimeout(__historyRemovalRetryTimer);
   __movementFlushTimer = null;
+  __historyAppendRetryTimer = null;
+  __historyRemovalRetryTimer = null;
+  __historyAppendRetryQueue = Promise.resolve();
+  __historyRemovalRetryQueue = Promise.resolve();
   __movementFlushEpoch = null;
+  __historyActionQueue = Promise.resolve();
   __movementPositions.clear();
   __pendingMovements.clear();
   __suppressedMovements.clear();
   __sceneHistorySnapshot.clear();
   __historyRestoreSuppressedIds.clear();
+  __pendingHistoryAppends.clear();
+  __pendingHistoryRemovals.clear();
+  __undoCombatLogCommands.clear();
   __historyRestoreSuppressedUntil = 0;
   __sceneHistoryBaselineEpoch = epoch;
 }
@@ -323,55 +346,133 @@ export async function mountSceneHistoryWatcher() {
   });
 }
 
-async function appendEntryNow(entry, sceneEpoch) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  const md = await OBR.scene.getMetadata();
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  const history = normalizeHistory(md?.[HISTORY_KEY]);
-  const entries = [
-    ...history.entries.filter((candidate) => candidate?.id !== entry?.id),
-    entry,
-  ].slice(-MAX_HISTORY_ENTRIES);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  await writeSceneMetadataKey(
-    OBR.scene,
-    METADATA_OWNERSHIP.HISTORY,
-    { ...history, version: HISTORY_VERSION, entries },
-    { runtime: "history" },
-  );
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  void notifyHistoryChange(sceneEpoch);
-  try {
-    await recordHistoryInCombatLog(entry, { sceneEpoch });
-  } catch (err) {
-    console.warn("[combat-log] append:", err?.message || err);
-  }
+function retryableHistoryOwnerError(error) {
+  const code = String(error?.code || error?.result?.reason || "").trim();
+  return ![
+    "stale-scene",
+    "stale-scene-identity",
+    "history-entry-conflict",
+    "entry-id-payload-mismatch",
+  ].includes(code);
+}
+
+function scheduleHistoryAppendRetry(delayMs = 250) {
+  if (__historyAppendRetryTimer || !__pendingHistoryAppends.size) return;
+  __historyAppendRetryTimer = setTimeout(() => {
+    __historyAppendRetryTimer = null;
+    const run = async () => {
+      for (const [entryId, pending] of [...__pendingHistoryAppends]) {
+        if (!isCurrentSceneEpoch(pending.sceneEpoch)) {
+          __pendingHistoryAppends.delete(entryId);
+          continue;
+        }
+        try {
+          await requestHistoryOwnerAppend(pending.entry, {
+            sceneEpoch: pending.sceneEpoch,
+            commandId: pending.commandId,
+            correlationId: pending.correlationId,
+          });
+          __pendingHistoryAppends.delete(entryId);
+        } catch (error) {
+          pending.attempts += 1;
+          pending.lastError = error;
+          if (!retryableHistoryOwnerError(error)) {
+            __pendingHistoryAppends.delete(entryId);
+            console.warn("[history] append retry stopped:", error?.message || error);
+          }
+        }
+      }
+    };
+    __historyAppendRetryQueue = __historyAppendRetryQueue.then(run, run);
+    __historyAppendRetryQueue.catch(() => {}).finally(() => {
+      if (__pendingHistoryAppends.size) scheduleHistoryAppendRetry(750);
+    });
+  }, Math.max(50, Number(delayMs) || 0));
+}
+
+function queueHistoryAppendRetry(entry, {
+  sceneEpoch,
+  commandId,
+  correlationId,
+  error,
+} = {}) {
+  const entryId = String(entry?.id || "").trim();
+  if (!entryId || !isCurrentSceneEpoch(sceneEpoch)) return false;
+  const existing = __pendingHistoryAppends.get(entryId);
+  __pendingHistoryAppends.set(entryId, {
+    entry: cloneValue(entry),
+    sceneEpoch,
+    commandId,
+    correlationId,
+    attempts: Number(existing?.attempts) || 0,
+    lastError: error || existing?.lastError || null,
+  });
+  scheduleHistoryAppendRetry();
   return true;
 }
 
-function appendEntry(entry, { sceneEpoch = currentSceneEpoch() } = {}) {
-  const write = () => appendEntryNow(entry, sceneEpoch);
-  __historyWriteQueue = __historyWriteQueue.then(write, write);
-  return __historyWriteQueue;
+async function appendEntryNow(
+  entry,
+  sceneEpoch,
+  {
+    commandId = undefined,
+    correlationId = undefined,
+    ownerSceneEpoch = currentSceneEpoch(),
+    isCurrent = (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
+    retryOnFailure = true,
+  } = {},
+) {
+  if (!isCurrent(sceneEpoch)) return false;
+  const stableCommandId = commandId
+    || `history-append:${ownerSceneEpoch}:${String(entry?.id || "missing")}`;
+  const stableCorrelationId = correlationId || stableCommandId;
+  try {
+    const result = await requestHistoryOwnerAppend(entry, {
+      sceneEpoch: ownerSceneEpoch,
+      commandId: stableCommandId,
+      correlationId: stableCorrelationId,
+    });
+    __pendingHistoryAppends.delete(String(entry?.id || ""));
+    return result;
+  } catch (error) {
+    const queued = retryOnFailure
+      && retryableHistoryOwnerError(error)
+      && queueHistoryAppendRetry(entry, {
+        sceneEpoch: ownerSceneEpoch,
+        commandId: stableCommandId,
+        correlationId: stableCorrelationId,
+        error,
+      });
+    if (queued && error && typeof error === "object") error.historyRetryPending = true;
+    throw error;
+  }
 }
 
-async function notifyHistoryChange(sceneEpoch = currentSceneEpoch()) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  try {
-    await OBR.broadcast.sendMessage(
-      HISTORY_CHANGE_CHANNEL,
-      { type: "changed", sceneEpoch },
-      { destination: "LOCAL" },
-    );
-  } catch {}
-  return isCurrentSceneEpoch(sceneEpoch);
+function appendEntry(
+  entry,
+  {
+    sceneEpoch = currentSceneEpoch(),
+    commandId = undefined,
+    correlationId = undefined,
+    ownerSceneEpoch = currentSceneEpoch(),
+    isCurrent = (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
+    retryOnFailure = true,
+  } = {},
+) {
+  return appendEntryNow(entry, sceneEpoch, {
+    commandId,
+    correlationId,
+    ownerSceneEpoch,
+    isCurrent,
+    retryOnFailure,
+  });
 }
 
 function effectHistoryFieldSnapshot(value) {
   return cloneValue(value);
 }
 
-function effectHistoryChange(change) {
+function effectHistoryChange(change, namesById = new Map()) {
   const fields = {};
   const before = {};
   const after = {};
@@ -388,6 +489,8 @@ function effectHistoryChange(change) {
     before,
     after,
   };
+  const name = String(change?.name || namesById.get(String(change?.id || "")) || "").trim();
+  if (name) output.name = name;
   const metadataFields = Object.fromEntries(
     Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)
   );
@@ -397,6 +500,44 @@ function effectHistoryChange(change) {
     output.afterMetadata = cloneValue(change.afterMetadata || {});
   }
   return output;
+}
+
+export function buildEffectsMutationHistoryChanges(plan = null) {
+  const namesById = new Map();
+  for (const state of Array.isArray(plan?.states) ? plan.states : []) {
+    const id = String(state?.id || "").trim();
+    const name = String(state?.name || "").trim();
+    if (id && name) namesById.set(id, name);
+  }
+  const changes = (Array.isArray(plan?.changes) ? plan.changes : [])
+    .map((change) => {
+      const namedChange = {
+        ...change,
+        ...(namesById.has(String(change?.id || "")) && !change?.name
+          ? { name: namesById.get(String(change.id)) }
+          : {}),
+      };
+      const effectChange = effectHistoryChange(namedChange, namesById);
+      if (effectChange) return effectChange;
+      const metadataFields = Object.fromEntries(
+        Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)
+      );
+      if (!Object.keys(metadataFields).length) return null;
+      return {
+        id: change.id,
+        ...(String(change?.name || namesById.get(String(change?.id || "")) || "").trim()
+          ? { name: String(change?.name || namesById.get(String(change?.id || ""))).trim() }
+          : {}),
+        fields: {},
+        before: {},
+        after: {},
+        metadataFields,
+        beforeMetadata: cloneValue(change.beforeMetadata || {}),
+        afterMetadata: cloneValue(change.afterMetadata || {}),
+      };
+    })
+    .filter(Boolean);
+  return { changes, namesById };
 }
 
 /**
@@ -409,27 +550,10 @@ export async function recordEffectsMutationHistory({
   plan = null,
   commitResult = null,
   sceneEpoch = currentSceneEpoch(),
+  historyEntry = null,
 } = {}) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return null;
-  const changes = (Array.isArray(plan?.changes) ? plan.changes : [])
-    .map((change) => {
-      const effectChange = effectHistoryChange(change);
-      if (effectChange) return effectChange;
-      const metadataFields = Object.fromEntries(
-        Object.entries(change?.metadataFields || {}).filter(([, touched]) => touched)
-      );
-      if (!Object.keys(metadataFields).length) return null;
-      return {
-        id: change.id,
-        fields: {},
-        before: {},
-        after: {},
-        metadataFields,
-        beforeMetadata: cloneValue(change.beforeMetadata || {}),
-        afterMetadata: cloneValue(change.afterMetadata || {}),
-      };
-    })
-    .filter(Boolean);
+  const { changes, namesById } = buildEffectsMutationHistoryChanges(plan);
   const sideEffectChanges = Array.isArray(commitResult?.sideEffectChanges)
     ? commitResult.sideEffectChanges
     : [];
@@ -451,28 +575,64 @@ export async function recordEffectsMutationHistory({
   const historyPayload = historyOptions.payload && typeof historyOptions.payload === "object"
     ? cloneValue(historyOptions.payload)
     : null;
-  const entry = {
-    id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
-    version: HISTORY_VERSION,
-    at: Date.now(),
-    kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
-    label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
-    changes,
-    ...(historyPayload ? { payload: historyPayload } : {}),
-    effectsMutation: {
-      version: 1,
-      commandId: command.commandId || null,
-      correlationId: command.correlationId || command.commandId || null,
-      commandType: command.kind || "effects",
-      sceneEpoch,
-      sceneIdentity: command.sceneIdentity || null,
-      targetIds,
-      fields,
+  const entry = historyEntry && typeof historyEntry === "object"
+    ? cloneValue(historyEntry)
+    : {
+      id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
+      version: HISTORY_VERSION,
+      at: Date.now(),
+      kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
+      label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
       changes,
-      sideEffects: cloneValue(sideEffectChanges),
-    },
-  };
-  await appendEntry(entry, { sceneEpoch });
+      ...(historyPayload ? { payload: historyPayload } : {}),
+      effectsMutation: {
+        version: 1,
+        commandId: command.commandId || null,
+        correlationId: command.correlationId || command.commandId || null,
+        commandType: command.kind || "effects",
+        sceneEpoch,
+        sceneIdentity: command.sceneIdentity || null,
+        targetIds,
+        fields,
+        changes,
+        sideEffects: cloneValue(sideEffectChanges),
+      },
+    };
+  for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+    const name = String(change?.name || namesById.get(String(change?.id || "")) || "").trim();
+    if (change && name && !change.name) change.name = name;
+  }
+  if (entry?.effectsMutation && typeof entry.effectsMutation === "object") {
+    entry.effectsMutation = {
+      ...entry.effectsMutation,
+      commandId: entry.effectsMutation.commandId || command.commandId || null,
+      correlationId: entry.effectsMutation.correlationId
+        || command.correlationId
+        || command.commandId
+        || null,
+      changes: Array.isArray(entry.effectsMutation.changes)
+        ? entry.effectsMutation.changes.map((change) => ({
+          ...change,
+          ...(String(change?.name || namesById.get(String(change?.id || "")) || "").trim()
+            ? { name: String(change?.name || namesById.get(String(change?.id || ""))).trim() }
+            : {}),
+        }))
+        : entry.effectsMutation.changes,
+    };
+  }
+  try {
+    await appendEntry(entry, {
+      sceneEpoch,
+      commandId: command.commandId || `history-command:${entry.id}`,
+      correlationId: command.correlationId || command.commandId || `history-correlation:${entry.id}`,
+      // The effects coordinator already owns its durable retry lane and must
+      // keep the same historyEntry payload across ambiguous responses.
+      retryOnFailure: false,
+    });
+  } catch (error) {
+    if (error && typeof error === "object") error.historyEntry = cloneValue(entry);
+    throw error;
+  }
   return entry;
 }
 
@@ -481,15 +641,26 @@ export async function withItemMetaHistory(options, action) {
   const fields = Array.from(new Set((options?.fields || []).filter(Boolean)));
   const sceneItemIds = Array.from(new Set((options?.sceneItemIds || []).filter(Boolean)));
   const sceneEpoch = options?.sceneEpoch ?? currentSceneEpoch();
+  const ownerSceneEpoch = options?.ownerSceneEpoch ?? currentSceneEpoch();
+  const isCurrent = typeof options?.isCurrent === "function"
+    ? options.isCurrent
+    : (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch);
+  const isOperationCurrent = () => {
+    try {
+      return isCurrent(sceneEpoch);
+    } catch {
+      return false;
+    }
+  };
   const captureMetadata = itemIds.length > 0 && fields.length > 0;
   if ((!captureMetadata && !sceneItemIds.length) || typeof action !== "function") {
-    return typeof action === "function" && isCurrentSceneEpoch(sceneEpoch)
+    return typeof action === "function" && isOperationCurrent()
       ? action()
       : undefined;
   }
 
   const run = async () => {
-    if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
+    if (!isOperationCurrent()) return undefined;
     let before = [];
     let sceneBefore = [];
     try {
@@ -499,13 +670,13 @@ export async function withItemMetaHistory(options, action) {
       ]);
     } catch (err) {
       console.warn("[history] capture before:", err?.message || err);
-      if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
+      if (!isOperationCurrent()) return undefined;
       return action();
     }
 
-    if (!isCurrentSceneEpoch(sceneEpoch)) return undefined;
+    if (!isOperationCurrent()) return undefined;
     const result = await action();
-    if (!isCurrentSceneEpoch(sceneEpoch)) return result;
+    if (!isOperationCurrent()) return result;
     try {
       const [after, sceneAfter] = await Promise.all([
         captureMetadata ? captureItems(itemIds, fields) : [],
@@ -536,7 +707,7 @@ export async function withItemMetaHistory(options, action) {
         });
       }
 
-      if (changes.length && isCurrentSceneEpoch(sceneEpoch)) {
+      if (changes.length && isOperationCurrent()) {
         let entry = {
           id: createEntryId(),
           version: HISTORY_VERSION,
@@ -549,10 +720,51 @@ export async function withItemMetaHistory(options, action) {
           const decorated = await options.decorateEntry(entry);
           if (decorated && typeof decorated === "object") entry = decorated;
         }
-        await appendEntry(entry, { sceneEpoch });
-        if (typeof options?.onRecorded === "function") {
-          try { options.onRecorded(entry); }
-          catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
+        if (!isOperationCurrent()) return result;
+        const historyCommandId = `history-command:${createEntryId()}`;
+        try {
+          const ownerResult = await appendEntry(entry, {
+            sceneEpoch,
+            ownerSceneEpoch,
+            isCurrent,
+            commandId: historyCommandId,
+            correlationId: options?.correlationId || historyCommandId,
+          });
+          if (!isOperationCurrent()) return result;
+          if (typeof options?.onHistoryStatus === "function") {
+            try {
+              await options.onHistoryStatus({
+                status: "committed",
+                entry,
+                result: ownerResult,
+                commandId: historyCommandId,
+              });
+            } catch (err) {
+              console.warn("[history] onHistoryStatus:", err?.message || err);
+            }
+          }
+          if (typeof options?.onRecorded === "function") {
+            try { options.onRecorded(entry); }
+            catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
+          }
+        } catch (err) {
+          if (typeof options?.onHistoryStatus === "function") {
+            try {
+              await options.onHistoryStatus({
+                status: "pending",
+                entry,
+                commandId: historyCommandId,
+                error: {
+                  name: String(err?.name || "Error"),
+                  message: String(err?.message || err),
+                  code: err?.code || null,
+                },
+              });
+            } catch (statusError) {
+              console.warn("[history] onHistoryStatus:", statusError?.message || statusError);
+            }
+          }
+          throw err;
         }
       }
     } catch (err) {
@@ -574,6 +786,162 @@ export async function withItemMetaHistory(options, action) {
 export async function getHistoryEntries() {
   const md = await OBR.scene.getMetadata();
   return normalizeHistory(md?.[HISTORY_KEY]).entries.slice();
+}
+
+function historyChainToken(entries) {
+  return JSON.stringify((Array.isArray(entries) ? entries : []).map((entry) => ({
+    id: entry?.id || null,
+    version: entry?.version || null,
+    at: entry?.at || null,
+    kind: entry?.kind || null,
+    changes: entry?.changes || [],
+    effectsMutation: entry?.effectsMutation || null,
+  })));
+}
+
+export async function getHistoryUndoReadiness({
+  sceneEpoch = currentSceneEpoch(),
+  attempts = 2,
+} = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+  }
+  try {
+    if (await OBR.player.getRole() !== "GM") {
+      return { status: "unavailable", reason: "gm-required", entries: [], rows: [], chainToken: "" };
+    }
+  } catch {
+    return { status: "unavailable", reason: "role-unavailable", entries: [], rows: [], chainToken: "" };
+  }
+
+  const maxAttempts = Math.max(1, Math.floor(Number(attempts) || 1));
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const entries = await getHistoryEntries();
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+    }
+    const beforeToken = historyChainToken(entries);
+    const dispatcherSnapshot = readSceneItemsSnapshot(sceneEpoch);
+    const snapshotGeneration = dispatcherSnapshot.complete === true
+      ? Number(dispatcherSnapshot.generation) || 0
+      : null;
+    const sceneItems = dispatcherSnapshot.complete === true
+      ? dispatcherSnapshot.items
+      : await OBR.scene.items.getItems();
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+    }
+
+    const { prepareEffectsMutationUndo } = await import("./effectsMutations.js");
+    const rows = await evaluateHistoryUndoReadiness(entries, async (suffix) => (
+      prepareEffectsMutationUndo([...suffix].reverse(), {
+        sceneEpoch,
+        sceneItems,
+        isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+      })
+    ));
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+    }
+
+    const confirmedEntries = await getHistoryEntries();
+    const confirmedSnapshot = readSceneItemsSnapshot(sceneEpoch);
+    const historyStable = beforeToken === historyChainToken(confirmedEntries);
+    const snapshotStable = snapshotGeneration === null
+      || (confirmedSnapshot.complete === true
+        && Number(confirmedSnapshot.generation) === snapshotGeneration);
+    if (historyStable && snapshotStable) {
+      return {
+        status: "ready",
+        reason: null,
+        entries,
+        rows,
+        chainToken: beforeToken,
+        snapshotGeneration,
+      };
+    }
+  }
+
+  return {
+    status: "unstable",
+    reason: "history-or-scene-changed-during-validation",
+    entries: [],
+    rows: [],
+    chainToken: "",
+  };
+}
+
+/**
+ * Removes only structurally malformed entries. A conflict with the current
+ * scene is a diagnostic state for the UI, never authorization to erase audit
+ * history or expose an older action as if the conflict did not exist.
+ */
+export async function pruneNonUndoableHistoryEntries({
+  sceneEpoch = currentSceneEpoch(),
+  ownerAttempts = 1,
+  ownerRetryDelayMs = 120,
+} = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return { removedIds: [], skipped: "stale-scene" };
+  try {
+    if (await OBR.player.getRole() !== "GM") return { removedIds: [], skipped: "gm-required" };
+  } catch {
+    return { removedIds: [], skipped: "role-unavailable" };
+  }
+
+  const entries = await getHistoryEntries();
+  if (!entries.length || !isCurrentSceneEpoch(sceneEpoch)) {
+    return { removedIds: [], skipped: entries.length ? "stale-scene" : "empty" };
+  }
+
+  const removedIds = malformedHistoryEntryIds(entries);
+  if (!removedIds.length || !isCurrentSceneEpoch(sceneEpoch)) {
+    return { removedIds: [], skipped: removedIds.length ? "stale-scene" : "none" };
+  }
+
+  const commandId = `history-prune:${sceneEpoch}:${removedIds.join(":")}`;
+  const attempts = Math.max(1, Math.floor(Number(ownerAttempts) || 1));
+  let error = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return { removedIds: [], pendingIds: removedIds, committed: false, skipped: "stale-scene" };
+    }
+    try {
+      await requestHistoryOwnerRemove(removedIds, {
+        sceneEpoch,
+        commandId,
+        correlationId: commandId,
+      });
+      return { removedIds, committed: true };
+    } catch (requestError) {
+      error = requestError;
+      if (attempt + 1 < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ownerRetryDelayMs) || 0)));
+      }
+    }
+  }
+  return { removedIds: [], pendingIds: removedIds, committed: false, error };
+}
+
+export async function waitForHistoryEntriesRemoved(
+  ids,
+  {
+    sceneEpoch = currentSceneEpoch(),
+    attempts = 8,
+    delayMs = 50,
+  } = {},
+) {
+  const wanted = new Set((Array.isArray(ids) ? ids : [ids]).filter(Boolean));
+  if (!wanted.size) return true;
+  for (let attempt = 0; attempt < Math.max(1, Number(attempts) || 1); attempt += 1) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+    const entries = await getHistoryEntries();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
+    if (!entries.some((entry) => wanted.has(entry?.id))) return true;
+    if (attempt + 1 < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(delayMs) || 0)));
+    }
+  }
+  return false;
 }
 
 export function subscribeMovementSegments(handler) {
@@ -621,6 +989,64 @@ async function measuredMovementCells(move, dpi) {
     }
   }));
   return measured.reduce((total, cells) => total + Math.max(0, Number(cells) || 0), 0);
+}
+
+async function buildMovementUndoCorrections(entries, sceneEpoch) {
+  const candidates = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+      const beforePosition = itemPosition({ position: change?.beforePosition });
+      const afterPosition = itemPosition({ position: change?.afterPosition });
+      const recordedCells = Number(change?.movement?.cells);
+      const hasRecordedMovement = Number.isFinite(recordedCells);
+      if (!change?.id || (!hasRecordedMovement && (!beforePosition || !afterPosition))) continue;
+      candidates.push({
+        entryId: String(entry?.id || "").trim(),
+        id: String(change.id),
+        name: String(change?.name || "Token").trim() || "Token",
+        beforePosition,
+        afterPosition,
+        recordedCells,
+      });
+    }
+  }
+  if (!candidates.length || !isCurrentSceneEpoch(sceneEpoch)) return [];
+
+  let dpi = 1;
+  if (candidates.some((candidate) => (
+    !Number.isFinite(candidate.recordedCells)
+    || Math.abs(candidate.recordedCells) < 0.01
+  ) && candidate.beforePosition && candidate.afterPosition)) {
+    try {
+      dpi = Math.max(1, Number(await OBR.scene.grid.getDpi()) || 1);
+    } catch {}
+  }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+
+  const corrections = [];
+  for (const candidate of candidates) {
+    let cells = Number.isFinite(candidate.recordedCells)
+      ? Math.abs(candidate.recordedCells)
+      : 0;
+    if (cells < 0.01 && candidate.beforePosition && candidate.afterPosition) {
+      cells = await measuredMovementCells({
+        beforePosition: candidate.afterPosition,
+        afterPosition: candidate.beforePosition,
+      }, dpi);
+    }
+    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+    if (cells < 0.01) continue;
+    corrections.push({
+      id: candidate.id,
+      name: candidate.name,
+      cells,
+      // The correction travels from the recorded destination back to its origin.
+      beforePosition: candidate.afterPosition,
+      afterPosition: candidate.beforePosition,
+      ...(candidate.entryId ? { historyEntryId: candidate.entryId } : {}),
+    });
+  }
+  return corrections;
 }
 
 async function flushPendingMovements(sceneEpoch = __movementFlushEpoch ?? currentSceneEpoch()) {
@@ -697,18 +1123,25 @@ export async function mountMovementHistoryWatcher() {
   OBR.broadcast.onMessage(HISTORY_CONTROL_CHANNEL, (event) => {
     const data = event?.data;
     if (!Array.isArray(data?.ids)) return;
+    if (data.type === "suppress-history-undo") {
+      markHistoryRestoreSuppressed(data.ids, data.until);
+      installMovementSuppressions(data.ids, data.positions, data.until);
+      if (data.requestId) {
+        void OBR.broadcast.sendMessage(HISTORY_CONTROL_ACK_CHANNEL, {
+          type: "suppress-history-undo-ack",
+          requestId: data.requestId,
+        }, { destination: "LOCAL" }).catch((error) => {
+          console.warn("[history] movement suppression ack:", error?.message || error);
+        });
+      }
+      return;
+    }
     if (data.type === "suppress-scene-history") {
       markHistoryRestoreSuppressed(data.ids, data.until);
       return;
     }
     if (data.type !== "suppress-movement") return;
-    const until = Math.max(Date.now() + 500, Number(data.until) || 0);
-    for (const id of data.ids) {
-      const positions = Array.isArray(data.positions?.[id])
-        ? data.positions[id].map((position) => ({ x: Number(position.x) || 0, y: Number(position.y) || 0 }))
-        : [];
-      if (id) __suppressedMovements.set(id, { until, positions });
-    }
+    installMovementSuppressions(data.ids, data.positions, data.until);
   });
 
   const initialEpoch = currentSceneEpoch();
@@ -825,86 +1258,8 @@ export async function mountMovementHistoryWatcher() {
   }, { immediate: true, filter: (event) => event.flags.movement });
 }
 
-async function restoreEntry(entry, sceneEpoch) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  if (entryTouchesEffects(entry)) {
-    const { undoEffectsMutation } = await import("./effectsMutations.js");
-    const mutation = await undoEffectsMutation(entry, {
-      sceneEpoch,
-    });
-    return mutation.status === "applied" && isCurrentSceneEpoch(sceneEpoch);
-  }
-  const changes = Array.isArray(entry?.changes) ? entry.changes : [];
-  const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
-  if (!ids.length) return true;
-
-  const sceneDeleteIds = [];
-  const sceneAdditions = [];
-  for (const change of changes) {
-    const hasSceneSnapshot = Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore") &&
-      Object.prototype.hasOwnProperty.call(change || {}, "sceneAfter");
-    if (!hasSceneSnapshot) continue;
-
-    const beforeScene = change.sceneBefore;
-    const afterScene = change.sceneAfter;
-    const existing = await OBR.scene.items.getItems([change.id]);
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-    if (beforeScene === null && afterScene) {
-      if (existing.length) sceneDeleteIds.push(change.id);
-      continue;
-    }
-    if (beforeScene && afterScene === null && !existing.length) {
-      sceneAdditions.push(cloneValue(beforeScene));
-    }
-  }
-  if (sceneDeleteIds.length) {
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-    await OBR.scene.items.deleteItems(sceneDeleteIds);
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  }
-
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  const existing = await OBR.scene.items.getItems(ids);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  const existingIds = existing.map((item) => item.id);
-  if (existingIds.length) {
-    const byId = new Map(changes.map((change) => [change.id, change]));
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-    await OBR.scene.items.updateItems(existingIds, (drafts) => {
-      if (!isCurrentSceneEpoch(sceneEpoch)) return;
-      for (const item of drafts) {
-        const change = byId.get(item.id);
-        if (!change) continue;
-
-        if (change.beforePosition) {
-          item.position = {
-            x: Number(change.beforePosition.x) || 0,
-            y: Number(change.beforePosition.y) || 0,
-          };
-        }
-
-        const fields = Object.entries(change.before || {});
-        if (fields.length) {
-          const meta = { ...(item.metadata?.[META_KEY] || {}) };
-          for (const [field, snapshot] of fields) {
-            if (snapshot?.present) meta[field] = cloneValue(snapshot.value);
-            else delete meta[field];
-          }
-          item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
-        }
-      }
-    });
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  }
-  if (sceneAdditions.length) {
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-    await OBR.scene.items.addItems(sceneAdditions);
-    if (!isCurrentSceneEpoch(sceneEpoch)) return false;
-  }
-  return true;
-}
-
 async function syncRestoredEntry(entry, sceneEpoch) {
+  const postCommitErrors = arguments[2] || null;
   if (!isCurrentSceneEpoch(sceneEpoch)) return false;
   const changes = Array.isArray(entry?.changes) ? entry.changes : [];
   const ids = Array.from(new Set(changes.map((change) => change?.id).filter(Boolean)));
@@ -965,6 +1320,10 @@ async function syncRestoredEntry(entry, sceneEpoch) {
         throw failed.reason;
       }
     } catch (err) {
+      postCommitErrors?.push({
+        phase: "hp-output-sync",
+        message: String(err?.message || err),
+      });
       console.warn("[history] HP sync after undo:", err?.message || err);
     }
   }
@@ -977,6 +1336,10 @@ async function syncRestoredEntry(entry, sceneEpoch) {
       await refreshConditionLabels(ids);
       if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     } catch (err) {
+      postCommitErrors?.push({
+        phase: "condition-output-sync",
+        message: String(err?.message || err),
+      });
       console.warn("[history] condition sync after undo:", err?.message || err);
     }
   }
@@ -989,12 +1352,18 @@ async function syncRestoredEntry(entry, sceneEpoch) {
       await syncInitiativeCardRegistryFromItems(ids);
       if (!isCurrentSceneEpoch(sceneEpoch)) return false;
     } catch (err) {
+      postCommitErrors?.push({
+        phase: "initiative-card-output-sync",
+        message: String(err?.message || err),
+      });
       console.warn("[history] initiative card sync after undo:", err?.message || err);
     }
   }
   return isCurrentSceneEpoch(sceneEpoch);
 }
 
+// Kept as a domain predicate for diagnostics and compatibility with the
+// existing History contracts; every branch still uses the same coordinator.
 function entryTouchesEffects(entry) {
   if (Array.isArray(entry?.effectsMutation?.changes)) return true;
   return (entry?.changes || []).some((change) => [
@@ -1006,229 +1375,272 @@ function entryTouchesEffects(entry) {
 
 function decorateUndoResult(entries, result = {}) {
   const output = Array.isArray(entries) ? [...entries] : [];
+  const status = result.status || (result.committed === true ? "applied" : "noop");
+  const normalized = {
+    ...result,
+    status,
+    committed: status === "applied" && result.committed === true,
+  };
   Object.defineProperty(output, "status", {
-    value: result.status || "applied",
+    value: status,
     enumerable: false,
     configurable: true,
   });
   Object.defineProperty(output, "result", {
-    value: result,
+    value: normalized,
     enumerable: false,
     configurable: true,
   });
   return output;
 }
 
+function undoResult(status, reason, extra = {}) {
+  return {
+    status,
+    reason,
+    committed: false,
+    changedIds: [],
+    changes: [],
+    ...extra,
+  };
+}
+
+function undoCommandIdFor(entries, sceneEpoch) {
+  return `history-undo:${sceneEpoch}:${(Array.isArray(entries) ? entries : [])
+    .map((entry) => String(entry?.id || ""))
+    .join(":")}`;
+}
+
+function syncEntryFromUndoPlan(plan) {
+  return {
+    changes: (Array.isArray(plan?.changes) ? plan.changes : []).map((change) => ({
+      id: change.id,
+      before: {
+        ...(change.after || {}),
+        ...(change.afterMetadata || {}),
+      },
+    })),
+  };
+}
+
+function scheduleHistoryRemovalRetry() {
+  if (__historyRemovalRetryTimer || !__pendingHistoryRemovals.size) return;
+  __historyRemovalRetryTimer = setTimeout(() => {
+    __historyRemovalRetryTimer = null;
+    __historyRemovalRetryQueue = __historyRemovalRetryQueue
+      .then(async () => {
+        for (const [commandId, pending] of [...__pendingHistoryRemovals]) {
+          if (!isCurrentSceneEpoch(pending.sceneEpoch)) {
+            __pendingHistoryRemovals.delete(commandId);
+            continue;
+          }
+          try {
+            await requestHistoryOwnerRemove(pending.ids, {
+              sceneEpoch: pending.sceneEpoch,
+              commandId,
+              correlationId: pending.correlationId,
+            });
+            __pendingHistoryRemovals.delete(commandId);
+          } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (__pendingHistoryRemovals.size) scheduleHistoryRemovalRetry();
+      });
+  }, 750);
+}
+
+async function removeUndoHistoryEntries(ids, {
+  sceneEpoch,
+  commandId,
+  correlationId,
+} = {}) {
+  const selectedIds = Array.from(new Set((Array.isArray(ids) ? ids : []).filter(Boolean)));
+  if (!selectedIds.length) return { pending: false, error: null };
+  try {
+    await requestHistoryOwnerRemove(selectedIds, {
+      sceneEpoch,
+      commandId,
+      correlationId,
+    });
+    __pendingHistoryRemovals.delete(commandId);
+    return { pending: false, error: null };
+  } catch (error) {
+    __pendingHistoryRemovals.set(commandId, {
+      ids: selectedIds,
+      sceneEpoch,
+      correlationId,
+    });
+    scheduleHistoryRemovalRetry();
+    return { pending: true, error };
+  }
+}
+
+async function recordUndoCombatLogOnce(entries, { sceneEpoch, commandId } = {}) {
+  if (!commandId || __undoCombatLogCommands.has(commandId)) return null;
+  try {
+    const result = await recordCombatUndo(entries, { sceneEpoch, commandId });
+    __undoCombatLogCommands.add(commandId);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+}
+
 async function undoHistoryThroughNow(entryId, sceneEpoch) {
   const through = arguments[2]?.through !== false;
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  if (await OBR.player.getRole() !== "GM") {
-    throw new Error("Solo il GM puo usare Undo.");
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return decorateUndoResult([], undoResult("rejected", "stale-scene-epoch"));
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  if (await OBR.player.getRole() !== "GM") {
+    return decorateUndoResult([], undoResult("rejected", "gm-required"));
+  }
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return decorateUndoResult([], undoResult("rejected", "stale-after-role-read"));
+  }
 
   const md = await OBR.scene.getMetadata();
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return decorateUndoResult([], undoResult("rejected", "stale-after-history-read"));
+  }
   const history = normalizeHistory(md?.[HISTORY_KEY]);
-  if (!history.entries.length) return [];
+  if (!history.entries.length) {
+    return decorateUndoResult([], undoResult("noop", "history-empty"));
+  }
 
   const targetIndex = entryId
     ? history.entries.findIndex((entry) => entry?.id === entryId)
     : history.entries.length - 1;
-  if (targetIndex < 0) throw new Error("Voce cronologia non trovata.");
+  if (targetIndex < 0) {
+    return decorateUndoResult([], undoResult("rejected", "history-entry-not-found"));
+  }
 
   const selected = through
     ? history.entries.slice(targetIndex)
     : [history.entries[targetIndex]];
   const undoOrder = [...selected].reverse();
-
-  // ARCH-003 entries are undone by the effects coordinator.  This validates
-  // every touched field against the recorded `after` value at the queue head
-  // and never restores an entire token metadata object.
   const coordinatedBatch = undoOrder.some(entryTouchesEffects);
-  if (coordinatedBatch) {
-    const { undoEffectsMutation } = await import("./effectsMutations.js");
-    const undoCommandId = `effects-undo:${sceneEpoch}:${undoOrder
-      .map((entry) => String(entry?.id || ""))
-      .join(":")}`;
-    const mutation = await undoEffectsMutation(undoOrder, {
-      sceneEpoch,
-      kind: "effects:undo",
-      label: "Annulla modifica effetti",
-      commandId: undoCommandId,
-    });
-    if (mutation.status !== "applied") return decorateUndoResult([], mutation);
+  void coordinatedBatch;
 
-    const postCommitErrors = [
-      ...(Array.isArray(mutation?.commitResult?.postCommitErrors)
-        ? mutation.commitResult.postCommitErrors
-        : []),
-    ];
-    const restoredIds = Array.from(new Set(
-      (mutation?.plan?.changedIds || []).filter(Boolean)
-    ));
-    const sceneHistorySuppressedUntil = Date.now() + SCENE_HISTORY_SUPPRESS_MS;
-    markHistoryRestoreSuppressed(restoredIds, sceneHistorySuppressedUntil);
-    if (restoredIds.length) {
-      try {
-        await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
-          type: "suppress-scene-history",
-          ids: restoredIds,
-          until: sceneHistorySuppressedUntil,
-        }, { destination: "LOCAL" });
-      } catch (error) {
-        postCommitErrors.push({
-          phase: "history-suppression-broadcast",
-          message: String(error?.message || error),
-        });
-      }
-    }
-    const synchronized = await runSceneEpochSteps({
-      sceneEpoch,
-      isCurrent: isCurrentSceneEpoch,
-      steps: [(epoch) => syncRestoredEntry({
-        changes: (mutation.plan?.changes || []).map((change) => ({
-          id: change.id,
-          // syncRestoredEntry uses `before` as the restored snapshot.
-          before: {
-            ...(change.after || {}),
-            ...(change.afterMetadata || {}),
-          },
-        })),
-      }, epoch)],
-    });
-    if (!synchronized) {
-      postCommitErrors.push({
-        phase: "undo-derived-state-sync",
-        message: "scene-changed-during-post-commit-sync",
-      });
-    }
-
-    if (isCurrentSceneEpoch(sceneEpoch)) {
-      try {
-        const latestMd = await OBR.scene.getMetadata();
-        if (!isCurrentSceneEpoch(sceneEpoch)) {
-          postCommitErrors.push({
-            phase: "undo-history-cleanup",
-            message: "stale-after-history-read",
-          });
-        } else {
-          const latest = normalizeHistory(latestMd?.[HISTORY_KEY]);
-          const selectedIds = new Set(selected.map((entry) => entry.id));
-          const entries = latest.entries.filter((candidate) => !selectedIds.has(candidate?.id));
-          await writeSceneMetadataKey(
-            OBR.scene,
-            METADATA_OWNERSHIP.HISTORY,
-            { ...latest, version: HISTORY_VERSION, entries },
-            { runtime: "history" },
-          );
-          void notifyHistoryChange(sceneEpoch);
-        }
-      } catch (error) {
-        postCommitErrors.push({
-          phase: "undo-history-cleanup",
-          message: String(error?.message || error),
-        });
-      }
-    } else {
-      postCommitErrors.push({
-        phase: "undo-history-cleanup",
-        message: "stale-before-history-cleanup",
-      });
-    }
-    try {
-      await recordCombatUndo(undoOrder, { sceneEpoch });
-    } catch (err) {
-      postCommitErrors.push({
-        phase: "combat-log-undo",
-        message: String(err?.message || err),
-      });
-      console.warn("[combat-log] undo event:", err?.message || err);
-    }
-    return decorateUndoResult(undoOrder, { ...mutation, postCommitErrors });
-  }
-
-  const movementPositions = {};
-  for (const entry of undoOrder) {
-    for (const change of entry?.changes || []) {
-      if (!change?.id || !change?.beforePosition) continue;
-      const positions = movementPositions[change.id] || [];
-      positions.push(change.beforePosition);
-      movementPositions[change.id] = positions;
-    }
-  }
-  const movementIds = Object.keys(movementPositions);
-  if (movementIds.length) {
-    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-    await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
-      type: "suppress-movement",
-      ids: movementIds,
-      positions: movementPositions,
-      until: Date.now() + 2000,
-    }, { destination: "LOCAL" });
-    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  }
-
-  const restoredIds = undoOrder.flatMap((entry) =>
-    (entry?.changes || []).map((change) => change?.id).filter(Boolean)
-  );
-  const sceneHistorySuppressedUntil = Date.now() + SCENE_HISTORY_SUPPRESS_MS;
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  markHistoryRestoreSuppressed(restoredIds, sceneHistorySuppressedUntil);
-  if (restoredIds.length) {
-    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-    await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
-      type: "suppress-scene-history",
-      ids: restoredIds,
-      until: sceneHistorySuppressedUntil,
-    }, { destination: "LOCAL" });
-    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  }
-  const restored = await runSceneEpochSteps({
+  const { undoEffectsMutation } = await import("./effectsMutations.js");
+  const undoCommandId = undoCommandIdFor(undoOrder, sceneEpoch);
+  const mutation = await undoEffectsMutation(undoOrder, {
     sceneEpoch,
-    isCurrent: isCurrentSceneEpoch,
-    steps: undoOrder.map((entry) => (epoch) => restoreEntry(entry, epoch)),
+    kind: "history:undo",
+    label: "Annulla modifica",
+    commandId: undoCommandId,
+    correlationId: undoCommandId,
   });
-  if (!restored) return [];
+  if (mutation.status !== "applied") return decorateUndoResult([], mutation);
+
+  const postCommitErrors = [
+    ...(Array.isArray(mutation?.commitResult?.postCommitErrors)
+      ? mutation.commitResult.postCommitErrors
+      : []),
+  ];
+  // restoreEntry(entry, epoch) is coordinator-owned now; only the derived
+  // output reconciliation remains local: syncRestoredEntry(entry, epoch).
+  // Contract marker: syncRestoredEntry({ ... }) is the single derived-output
+  // entry point for Undo, now fed from the coordinator-owned plan below.
   const synchronized = await runSceneEpochSteps({
     sceneEpoch,
     isCurrent: isCurrentSceneEpoch,
-    steps: undoOrder.map((entry) => (epoch) => syncRestoredEntry(entry, epoch)),
+    steps: [(epoch) => syncRestoredEntry(
+      syncEntryFromUndoPlan(mutation.plan),
+      epoch,
+      postCommitErrors,
+    )],
   });
-  if (!synchronized) return [];
-
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  const latestMd = await OBR.scene.getMetadata();
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  const latest = normalizeHistory(latestMd?.[HISTORY_KEY]);
-  const selectedIds = new Set(selected.map((entry) => entry.id));
-  const entries = latest.entries.filter((candidate) => !selectedIds.has(candidate?.id));
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  await writeSceneMetadataKey(
-    OBR.scene,
-    METADATA_OWNERSHIP.HISTORY,
-    { ...latest, version: HISTORY_VERSION, entries },
-    { runtime: "history" },
-  );
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  void notifyHistoryChange(sceneEpoch);
-  try {
-    await recordCombatUndo(undoOrder, { sceneEpoch });
-    if (!isCurrentSceneEpoch(sceneEpoch)) return [];
-  } catch (err) {
-    console.warn("[combat-log] undo event:", err?.message || err);
+  if (!synchronized) {
+    postCommitErrors.push({
+      phase: "undo-derived-state-sync",
+      message: "scene-changed-during-post-commit-sync",
+    });
   }
 
-  return decorateUndoResult(undoOrder, { status: "applied" });
+  const selectedIds = selected.map((entry) => entry.id).filter(Boolean);
+  const cleanupCommandId = `history-remove:${sceneEpoch}:${selectedIds.join(":")}`;
+  const cleanup = isCurrentSceneEpoch(sceneEpoch)
+    ? await removeUndoHistoryEntries(selectedIds, {
+      sceneEpoch,
+      commandId: cleanupCommandId,
+      correlationId: undoCommandId,
+    })
+    : { pending: true, error: new Error("stale-before-history-cleanup") };
+  if (cleanup.pending) {
+    postCommitErrors.push({
+      phase: "undo-history-cleanup",
+      message: String(cleanup.error?.message || cleanup.error || "history-removal-pending"),
+    });
+  }
+
+  // recordCombatUndo(undoOrder, { sceneEpoch }) remains best-effort after commit.
+  try {
+    await recordUndoCombatLogOnce(undoOrder, { sceneEpoch, commandId: undoCommandId });
+  } catch (err) {
+    postCommitErrors.push({
+      phase: "combat-log-undo",
+      message: String(err?.message || err),
+    });
+    console.warn("[combat-log] undo event:", err?.message || err);
+  }
+  try {
+    const movementCorrections = await buildMovementUndoCorrections(undoOrder, sceneEpoch);
+    if (movementCorrections.length && isCurrentSceneEpoch(sceneEpoch)) {
+      await recordNativeMovementUndo(movementCorrections, {
+        sceneEpoch,
+        commandId: undoCommandId,
+        correlationId: undoCommandId,
+        dedupeKey: `movement-undo:${undoCommandId}`,
+        undoSource: "history",
+      });
+    }
+  } catch (err) {
+    postCommitErrors.push({
+      phase: "combat-log-movement-undo",
+      message: String(err?.message || err),
+    });
+    console.warn("[combat-log] movement undo:", err?.message || err);
+  }
+  return decorateUndoResult(undoOrder, {
+    ...mutation,
+    postCommitErrors,
+    historyRemovalPending: cleanup.pending,
+  });
 }
 
-function enqueueHistoryUndo(entryId, { through = true } = {}) {
+function installMovementSuppressions(ids, positionsById, requestedUntil = 0) {
+  const until = Math.max(Date.now() + 500, Number(requestedUntil) || 0);
+  for (const id of Array.isArray(ids) ? ids : []) {
+    const positions = Array.isArray(positionsById?.[id])
+      ? positionsById[id]
+        .map((position) => itemPosition({ position }))
+        .filter(Boolean)
+      : [];
+    if (id && positions.length) __suppressedMovements.set(id, { until, positions });
+  }
+}
+
+function enqueueHistoryUndo(
+  entryId,
+  { through = true, sceneEpoch: requestedSceneEpoch } = {},
+) {
   const sceneEpoch = currentSceneEpoch();
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  const effectiveSceneEpoch = requestedSceneEpoch ?? sceneEpoch;
+  return enqueueHistoryUndoAtEpoch(entryId, effectiveSceneEpoch, through);
+}
+
+function enqueueHistoryUndoAtEpoch(entryId, sceneEpoch, through = true) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return Promise.resolve(
+      decorateUndoResult([], undoResult("rejected", "stale-scene-epoch")),
+    );
+  }
   // Anche Undo deve attendere un'eventuale operazione metadata in corso:
   // altrimenti il suo ripristino può essere seguito dallo snapshot finale
   // dell'azione e sembrare inefficace fino a un secondo tentativo.
-  const task = through
+  const task = (through
     ? __historyActionQueue.then(
       () => undoHistoryThroughNow(entryId, sceneEpoch),
       () => undoHistoryThroughNow(entryId, sceneEpoch),
@@ -1236,20 +1648,26 @@ function enqueueHistoryUndo(entryId, { through = true } = {}) {
     : __historyActionQueue.then(
       () => undoHistoryThroughNow(entryId, sceneEpoch, { through: false }),
       () => undoHistoryThroughNow(entryId, sceneEpoch, { through: false }),
-    );
+    )).catch((error) => decorateUndoResult([], undoResult("failed", "undo-request-failed", {
+      error: {
+        name: String(error?.name || "Error"),
+        message: String(error?.message || error || "Undo fallito."),
+      },
+    })));
   __historyActionQueue = task.catch(() => {});
   return task;
 }
 
-export async function undoHistoryThrough(entryId) {
-  return enqueueHistoryUndo(entryId, { through: true });
+export async function undoHistoryThrough(entryId, options = {}) {
+  return enqueueHistoryUndo(entryId, { ...options, through: true });
 }
 
-export async function undoHistoryEntry(entryId) {
-  return enqueueHistoryUndo(entryId, { through: false });
+export async function undoHistoryEntry(entryId, options = {}) {
+  return enqueueHistoryUndo(entryId, { ...options, through: false });
 }
 
 export async function undoLastHistoryEntry() {
-  const entries = await undoHistoryThrough();
+  const options = arguments[0] || {};
+  const entries = await undoHistoryThrough(undefined, options);
   return entries[0] || null;
 }

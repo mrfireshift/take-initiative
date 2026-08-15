@@ -88,6 +88,10 @@ Ogni modifica canonica osservata dal dispatcher scena aggiorna il record
 continuano a leggere gli HP del token; il registro non contiene larghezze o
 altri dati visuali.
 
+Il runtime ActorVitals ha autorità esplicita: solo il background GM può
+scrivere il registry Room o aggiornare gli HP canonici dei token. Il Player può
+leggere e normalizzare la cache locale, ma non esegue scritture ActorVitals.
+
 Il registro è quindi uno snapshot di continuità tra scene, non una seconda
 fonte usata per correggere ogni modifica locale.
 
@@ -123,6 +127,15 @@ Durante la migrazione legacy, la vecchia `hpMemory` viene consultata solo per
 token ancora privi di ID, solo dopo un matching inequivocabile e solo se non
 esiste già uno snapshot nuovo. La vecchia chiave resta leggibile e non viene
 cancellata o riscritta per i token già collegati.
+
+La hydration Room → token è autorizzata soltanto nella baseline GM di una
+nuova scena o nella prima hydration GM di un token apparso o collegato dopo la
+baseline, al massimo una volta per token/attore. Prima del commit il token viene
+riletto: se gli HP sono cambiati dallo snapshot usato per pianificare il restore,
+il restore viene scartato e il valore canonico più recente aggiorna il registry.
+
+Dopo la hydration il flusso live è soltanto token → registry. Un normale evento
+Room aggiorna la cache normalizzata, ma non avvia un restore sugli item di scena.
 
 ## Conflitti e duplicati
 

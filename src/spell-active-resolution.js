@@ -11,6 +11,7 @@ import {
   requestSpellAreaPlacement,
 } from "./spellAreaPlacementClient.js";
 import { executeSpellActiveResolution } from "./spellApplicationExecutor.js";
+import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
 import { areaHitsBounds } from "./aoeGeometryCore.js";
@@ -21,6 +22,7 @@ import {
   SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
   SPELL_UNIFIED_PANEL_POPUP_STATUSES,
 } from "./spellUnifiedPopupProtocol.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 const params = new URLSearchParams(globalThis.location?.search || "");
@@ -42,6 +44,11 @@ let busy = false;
 let pendingPlacementRequestId = "";
 let statusMessage = "";
 let parentNotified = false;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+
+function sceneOperationId(prefix = "spell-active") {
+  return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -189,6 +196,7 @@ async function notifyParent(status, message = "", executionResult = null) {
 
 async function closePopup() {
   if (!payload) return;
+  sceneLifecycle.dispose();
   if (pendingPlacementRequestId) {
     await cancelSpellAreaPlacementRequest(
       pendingPlacementRequestId,
@@ -233,6 +241,8 @@ function economyLabel(value) {
 }
 
 async function stormTargetData() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("storm-read") });
+  if (!sceneLifecycle.isCurrent(operation)) return { area: null, entries: [] };
   const root = sceneItems.find((item) => item.id === payload?.zoneItemId);
   const area = root ? translatedZoneArea(root) : null;
   const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
@@ -264,6 +274,7 @@ async function stormTargetData() {
     const inside = !!(area && areaHitsBounds(area, bounds));
     return { item, inside };
   }));
+  if (!sceneLifecycle.isCurrent(operation)) return { area: null, entries: [] };
   return { area, entries: entries.filter(Boolean) };
 }
 
@@ -332,7 +343,7 @@ function renderSave() {
       button.type = "button";
       button.textContent = outcomeLabels[outcome];
       button.classList.toggle("active", outcomes.get(item.id) === outcome);
-      button.disabled = busy;
+      button.disabled = busy || !sceneLifecycle.isReady();
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         outcomes.set(item.id, outcome);
@@ -351,9 +362,12 @@ function renderSave() {
 }
 
 async function renderStorm() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("storm-render") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const select = $("attackTarget");
   const previous = selectedAttackTarget;
   const { entries, area } = await stormTargetData();
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const multi = isMultiAttack();
   const outcomeDefinitions = Array.isArray(payload?.action?.attack?.outcomes)
     ? payload.action.attack.outcomes
@@ -395,7 +409,7 @@ async function renderStorm() {
       ? "Tiro per colpire normale."
       : "Scegli una creatura entro 18 m dal centro della sfera.";
   const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
-  const canResolve = !busy
+  const canResolve = sceneLifecycle.isReady() && !busy
     && !!selectedAttackTarget
     && (!requiresZoneRoot || !!area)
     && !!$("attackDamage").value.trim();
@@ -479,6 +493,7 @@ function render() {
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   const multiAttack = !save && isMultiAttack();
+  const sceneReady = sceneLifecycle.isReady();
   $("saveSection").hidden = !save;
   $("attackSection").hidden = save;
   $("footer").hidden = !save && !multiAttack;
@@ -487,11 +502,11 @@ function render() {
   const cancelPlacementButton = $("cancelPlacement");
   if (confirmPlacementButton) {
     confirmPlacementButton.hidden = !placementPending;
-    confirmPlacementButton.disabled = !placementPending;
+    confirmPlacementButton.disabled = !placementPending || !sceneReady;
   }
   if (cancelPlacementButton) {
     cancelPlacementButton.hidden = !placementPending;
-    cancelPlacementButton.disabled = !placementPending;
+    cancelPlacementButton.disabled = !placementPending || !sceneReady;
   }
   if (save) {
     const selectedCount = child ? childPlacements.length : 1;
@@ -503,7 +518,7 @@ function render() {
       const maximum = Number(child.depth.max ?? 10);
       return Number.isInteger(value) && value >= minimum && value <= maximum;
     });
-    $("apply").disabled = busy
+    $("apply").disabled = !sceneReady || busy
       || !placement
       || (child ? selectedCount !== requiredCount : !placement.targetIds?.length)
       || requiresSave && currentTargetItems().some((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id)))
@@ -517,7 +532,7 @@ function render() {
       entry.targetId && entry.attackOutcome && String(entry.damageRoll).trim() !== ""
     ));
     if (multiAttack) {
-      $("apply").disabled = busy || !completeAttacks.length
+      $("apply").disabled = !sceneReady || busy || !completeAttacks.length
         || completeAttacks.length < attackEntries.filter((entry) => entry.targetId).length;
       $("apply").textContent = "Applica attacchi";
       $("summary").textContent = `${completeAttacks.length}/${maxAttackCount()} attacchi pronti`;
@@ -530,7 +545,9 @@ function render() {
 }
 
 async function placeArea() {
-  if (busy) return;
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const child = childZone();
   const childCount = childPlacementCount();
   const replacingIndex = child && childPlacements.length >= childCount
@@ -561,11 +578,11 @@ async function placeArea() {
           childKind: child.childKind,
           childIndex: replacingIndex >= 0 ? replacingIndex : childPlacements.length,
           activationId: childActivationId || (childActivationId = createChildActivationId()),
-          sceneEpoch: payload.sceneEpoch,
         }
         : null,
       requestId,
     }, { broadcast: OBR.broadcast, windowRef: window });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.");
       return;
@@ -609,10 +626,13 @@ async function placeArea() {
 }
 
 async function confirmPlacement() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement-confirm") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const requestId = pendingPlacementRequestId;
   if (!requestId) return;
   try {
     await confirmSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     setStatus("Conferma della sagoma richiesta: completa il calcolo dei bersagli…");
   } catch (error) {
     setStatus("Conferma della sagoma non riuscita: " + (error?.message || error));
@@ -620,20 +640,32 @@ async function confirmPlacement() {
 }
 
 async function cancelPlacement() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement-cancel") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const requestId = pendingPlacementRequestId;
   if (!requestId) return;
   try {
     await cancelSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast });
+    if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
     setStatus("Annullamento della sagoma non riuscito: " + (error?.message || error));
   }
 }
 
 async function apply() {
-  if (busy) return;
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("active-resolution") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   busy = true;
   render();
   try {
+    const ownerSceneContext = await getEffectsMutationSceneContext({
+      commandId: operation.operationId,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) {
+      busy = false;
+      return;
+    }
     const executionResult = await executeSpellActiveResolution({
       payload,
       placement,
@@ -656,7 +688,15 @@ async function apply() {
           damageRoll: entry.damageRoll,
         }))
         : [],
+      sceneEpoch: operation.epoch,
+      sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+      commandId: ownerSceneContext?.commandId || operation.operationId,
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
     });
+    if (!sceneLifecycle.isCurrent(operation)) {
+      busy = false;
+      return;
+    }
     await notifyParent(
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
       "",
@@ -664,6 +704,10 @@ async function apply() {
     );
     await OBR.popover.close(popoverIdFromPayload(payload)).catch(() => {});
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) {
+      busy = false;
+      return;
+    }
     busy = false;
     await notifyParent(
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED,
@@ -671,12 +715,19 @@ async function apply() {
     );
     setStatus(`Risoluzione non riuscita: ${error?.message || error}`);
     render();
+  } finally {
+    busy = false;
+    if (sceneLifecycle.isReady()) render();
   }
 }
 
 async function loadScene() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("scene-load") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   sceneItems = await OBR.scene.items.getItems();
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   render();
+  return true;
 }
 
 payload = decodePayload();
@@ -691,7 +742,10 @@ if (!payload) {
   $("close").addEventListener("click", () => void closePopup());
   window.addEventListener(
     "beforeunload",
-    () => void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED),
+    () => {
+      sceneLifecycle.dispose();
+      void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
+    },
     { once: true },
   );
   $("place").addEventListener("click", () => void placeArea());
@@ -742,7 +796,42 @@ if (!payload) {
     });
   }
   void OBR.onReady(async () => {
+    sceneLifecycle.subscribe((event) => {
+      if (event.phase === "unavailable") {
+        if (pendingPlacementRequestId) {
+          void cancelSpellAreaPlacementRequest(
+            pendingPlacementRequestId,
+            { broadcast: OBR.broadcast },
+          ).catch(() => {});
+        }
+        pendingPlacementRequestId = "";
+        placement = null;
+        childPlacements = [];
+        childActivationId = "";
+        sceneItems = [];
+        outcomes.clear();
+        busy = false;
+        setStatus("Scena cambiata: riapri la risoluzione dal pannello Spells.", true);
+        render();
+      } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+        placement = null;
+        childPlacements = [];
+        childActivationId = "";
+        outcomes.clear();
+        selectedAttackTarget = "";
+        setStatus("Nuova scena pronta: posiziona di nuovo la risoluzione.");
+        void loadScene();
+      }
+    });
+    await sceneLifecycle.mount();
+    if (!sceneLifecycle.isReady()) {
+      setStatus("Scena non disponibile: riapri la risoluzione.");
+      render();
+      return;
+    }
     await loadScene();
-    OBR.scene.items.onChange(() => void loadScene());
+    OBR.scene.items.onChange(() => {
+      if (sceneLifecycle.isReady()) void loadScene();
+    });
   });
 }

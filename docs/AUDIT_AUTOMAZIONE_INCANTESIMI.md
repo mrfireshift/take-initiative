@@ -13,7 +13,7 @@
 - Esposte nella console unificata: **311**; disconnesse: **67**; fragili: **2**.
 - Workflow che richiedono smoke test runtime: **194**.
 - Casi revisionati manualmente sul testo RAW: **71**; lacune confermate P1: **41**.
-- Impronta deterministica dello snapshot: `2b5c2073159156ec`.
+- Impronta deterministica dello snapshot: `2142d01877cc6c81`.
 - P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.
 - Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.
 - I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.
@@ -509,7 +509,7 @@ La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclus
 | Santuario | `sanctuary` | SRD 5.1 / 1 | combattimento | singolo | esposto | reachable | TS:singolo | tracking | coperto | — | — |
 | Scagliare maledizione | `bestow-curse` | SRD 5.1 / 3 | combattimento | singolo | esposto | reachable | TS:singolo | tracking, turni, varianti | coperto | — | — |
 | Scassinare | `knock` | SRD 5.1 / 2 | utilità/riferimento | — | assente | disconnected | effetto istantaneo persistente | — | riferimento/utilità | — | — |
-| Scheggia della Mente | `tasha-scheggia-della-mente` | Tasha / 0 | combattimento | singolo | esposto | reachable | TS:singolo, turni | tracking, turni | coperto | — | — |
+| Scheggia della Mente | `tasha-scheggia-della-mente` | Tasha / 0 | combattimento | singolo | esposto | reachable | TS:singolo, turni | tracking, TS, turni | coperto | — | — |
 | Sciame di meteore | `meteor-swarm` | SRD 5.1 / 9 | combattimento | area | esposto | reachable | area, TS:area | aree:instant, TS | coperto | — | — |
 | Sciame di Palle di Neve di Snilloc | `xanathar-sciame-di-palle-di-neve-di-snilloc` | Xanathar / 2 | combattimento | area | esposto | reachable | area, TS:area | aree:instant, TS | coperto | — | — |
 | Scolpire pietra | `stone-shape` | SRD 5.1 / 4 | utilità/riferimento | — | assente | disconnected | — | — | riferimento/utilità | — | — |

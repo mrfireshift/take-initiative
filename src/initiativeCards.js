@@ -15,6 +15,7 @@ import {
 import { shouldRoomInitiativeCardWin } from "./initiativeCardConflict.js";
 import {
   findInitiativeCardRegistryEntry,
+  initiativeCardQuickActionMemoryEligibleItems,
   initiativeCardQuickActionMemoryCandidates,
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
@@ -46,6 +47,8 @@ const ROOM_CARD_KEY = `${ID}/initiativeCards`;
 const LOCAL_CARD_KEY = `${ID}/initiativeCards/local`;
 let initiativeCardWriteQueue = Promise.resolve();
 let initiativeCardHydrationQueue = Promise.resolve();
+const initiativeCardHydrationCompleted = new Set();
+const initiativeCardHydrationInFlight = new Map();
 export const INITIATIVE_CARD_FIELD = "initiativeCard";
 export const SAVE_KEYS = ["str", "dex", "con", "int", "wis", "cha"];
 
@@ -315,7 +318,13 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
   return initiativeCardWriteQueue;
 }
 
-async function writeTokenProfile(itemId, storedProfile, actorProfileId = "") {
+async function writeTokenProfile(
+  itemId,
+  storedProfile,
+  actorProfileId = "",
+  { isCurrent = () => true, commandId = "", sceneIdentity = null } = {},
+) {
+  if (!isCurrent()) throw new Error("scene-stale-before-card-token-write");
   const normalizedActorProfileId = normalizeActorProfileId(
     actorProfileId || actorProfileIdFromProfile(storedProfile),
   );
@@ -340,10 +349,16 @@ async function writeTokenProfile(itemId, storedProfile, actorProfileId = "") {
       id: itemId,
       fields,
     }],
+    ...(commandId ? { commandId } : {}),
+    ...(sceneIdentity ? { sceneIdentity } : {}),
   });
+  if (!isCurrent()) throw new Error("scene-stale-after-card-token-write");
   requireAppliedEffectsMutation(mutation);
   const conditionsChanged = mutation.changes.some((change) => change.fields?.conditions);
-  if (conditionsChanged) await refreshConditionLabels([itemId]);
+  if (conditionsChanged) {
+    await refreshConditionLabels([itemId]);
+    if (!isCurrent()) throw new Error("scene-stale-after-card-condition-refresh");
+  }
 }
 
 async function removeTokenProfile(itemId) {
@@ -378,10 +393,12 @@ export function getInitiativeCard(item) {
   return profile;
 }
 
-export async function loadInitiativeCard(item, { hydrate = false } = {}) {
-  const { registry } = await readInitiativeCardRegistry();
+export async function loadInitiativeCard(item, { hydrate = false, registry } = {}) {
+  const resolvedRegistry = registry === undefined
+    ? (await readInitiativeCardRegistry()).registry
+    : registry;
   const keys = initiativeCardRegistryKeys(item);
-  const roomEntry = findInitiativeCardRegistryEntry(registry, item);
+  const roomEntry = findInitiativeCardRegistryEntry(resolvedRegistry, item);
   const roomProfile = roomEntryProfile(roomEntry);
   const roomDeleted = roomEntry?.deleted === true;
   const hasRoomVersion = !!roomProfile || roomDeleted;
@@ -391,7 +408,7 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
   const legacyExhaustion = getExhaustionLevel(tokenConditions);
   const hasTokenProfile = !!(tokenRaw && typeof tokenRaw === "object");
   const tokenUpdatedAt = Math.max(0, Number(tokenRaw?.updatedAt) || 0);
-  const legacyActorMatch = resolveInitiativeCardActorMatch(registry, item);
+  const legacyActorMatch = resolveInitiativeCardActorMatch(resolvedRegistry, item);
   let actorProfileId = actorProfileIdFromItem(item)
     || actorProfileIdFromProfile(tokenRaw)
     || actorProfileIdFromRegistryEntry(roomEntry)
@@ -500,28 +517,108 @@ export async function loadInitiativeCard(item, { hydrate = false } = {}) {
   return profile;
 }
 
+async function initiativeCardHydrationIsGM(options = {}) {
+  if (options.isGM === false) return false;
+  if (options.isGM === true) return true;
+  const getRole = OBR?.player?.getRole;
+  if (typeof getRole !== "function") return true;
+  const role = await getRole.call(OBR.player).catch(() => "PLAYER");
+  return String(role || "").toUpperCase() === "GM";
+}
+
+function hydrationKey(sceneEpoch, sceneIdentity, generation, itemId) {
+  return [
+    sceneIdentity || `epoch:${sceneEpoch ?? "unknown"}`,
+    generation ?? "legacy",
+    itemId,
+  ].join("|");
+}
+
 export function restoreInitiativeCardQuickActionsFromMemory(itemIds) {
-  const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
+  const options = arguments[1] && typeof arguments[1] === "object"
+    ? arguments[1]
+    : {};
+  const ids = Array.from(new Set((itemIds || []).filter(Boolean).map(String)));
   if (!ids.length) return Promise.resolve([]);
 
+  const keys = ids.map((itemId) => hydrationKey(
+    options.sceneEpoch,
+    options.sceneIdentity,
+    options.generation,
+    itemId,
+  ));
+  const pendingIds = ids.filter((itemId, index) => {
+    const key = keys[index];
+    return !initiativeCardHydrationCompleted.has(key) && !initiativeCardHydrationInFlight.has(key);
+  });
+  if (!pendingIds.length) return Promise.resolve([]);
+
   const restore = async () => {
-    const items = await OBR.scene.items.getItems(ids);
+    if (!await initiativeCardHydrationIsGM(options)) {
+      throw new Error("initiative-card-hydration-requires-gm");
+    }
+    if (typeof options.isCurrent === "function" && !options.isCurrent()) {
+      throw new Error("scene-stale-before-card-hydration");
+    }
+    const suppliedItems = Array.isArray(options.items) ? options.items : [];
+    const itemsById = new Map(suppliedItems
+      .filter((item) => item?.id && pendingIds.includes(String(item.id)))
+      .map((item) => [String(item.id), item]));
+    const missingIds = pendingIds.filter((itemId) => !itemsById.has(itemId));
+    if (missingIds.length) {
+      const loadedItems = await OBR.scene.items.getItems(missingIds);
+      if (typeof options.isCurrent === "function" && !options.isCurrent()) {
+        throw new Error("scene-stale-after-card-item-read");
+      }
+      for (const item of loadedItems) itemsById.set(String(item.id), item);
+    }
+    const items = pendingIds.map((itemId) => itemsById.get(itemId)).filter(Boolean);
     if (!items.length) return [];
+    const eligible = initiativeCardQuickActionMemoryEligibleItems(items, {
+      metadataKey: META_KEY,
+      profileField: INITIATIVE_CARD_FIELD,
+    });
+    if (!eligible.length) return [];
     const { registry } = await readInitiativeCardRegistry();
-    const candidates = initiativeCardQuickActionMemoryCandidates(items, registry, {
+    if (typeof options.isCurrent === "function" && !options.isCurrent()) {
+      throw new Error("scene-stale-after-card-registry-read");
+    }
+    const candidates = initiativeCardQuickActionMemoryCandidates(eligible, registry, {
       metadataKey: META_KEY,
       profileField: INITIATIVE_CARD_FIELD,
     });
     const restoredIds = [];
     for (const item of candidates) {
-      const profile = await loadInitiativeCard(item, { hydrate: true });
+      if (typeof options.isCurrent === "function" && !options.isCurrent()) {
+        throw new Error("scene-stale-before-card-hydrate");
+      }
+      const profile = await loadInitiativeCard(item, { hydrate: true, registry });
+      if (typeof options.isCurrent === "function" && !options.isCurrent()) {
+        throw new Error("scene-stale-after-card-hydrate");
+      }
       if (profile.quickActions.length) restoredIds.push(item.id);
     }
     return restoredIds;
   };
 
-  initiativeCardHydrationQueue = initiativeCardHydrationQueue.then(restore, restore);
-  return initiativeCardHydrationQueue;
+  const queued = initiativeCardHydrationQueue.then(restore, restore);
+  for (const key of keys.filter((_, index) => pendingIds.includes(ids[index]))) {
+    initiativeCardHydrationInFlight.set(key, queued);
+  }
+  const settled = queued.then((result) => {
+    for (const key of keys.filter((_, index) => pendingIds.includes(ids[index]))) {
+      initiativeCardHydrationCompleted.add(key);
+      initiativeCardHydrationInFlight.delete(key);
+    }
+    return result;
+  }, (error) => {
+    for (const key of keys.filter((_, index) => pendingIds.includes(ids[index]))) {
+      initiativeCardHydrationInFlight.delete(key);
+    }
+    throw error;
+  });
+  initiativeCardHydrationQueue = settled.catch(() => {});
+  return settled;
 }
 
 export function hasInitiativeCardValues(profile) {
@@ -538,11 +635,19 @@ export function hasInitiativeCardValues(profile) {
     SAVE_KEYS.some((key) => profile?.savingThrows?.[key] !== null);
 }
 
-export async function saveInitiativeCard(itemId, name, value) {
+export async function saveInitiativeCard(
+  itemId,
+  name,
+  value,
+  { isCurrent = () => true, commandId = "", sceneIdentity = null } = {},
+) {
+  if (!isCurrent()) throw new Error("scene-stale-before-card-save");
   const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
+  if (!isCurrent()) throw new Error("scene-stale-after-card-read");
   const sourceRawProfile = sourceItem?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
   const profile = mergeStoredCardProfile(sourceRawProfile, value);
   const { registry } = await readInitiativeCardRegistry();
+  if (!isCurrent()) throw new Error("scene-stale-after-card-registry-read");
   const legacyMatch = resolveInitiativeCardActorMatch(
     registry,
     sourceItem || { name },
@@ -568,7 +673,7 @@ export async function saveInitiativeCard(itemId, name, value) {
   const updatedAt = Date.now();
   const storedProfile = { ...storedBaseProfile, updatedAt };
 
-  await updateRoomCards((next) => {
+  const roomResult = await updateRoomCards((next) => {
     for (const key of keys) {
       const previousEntry = next[key] && typeof next[key] === "object" ? next[key] : {};
       const previousProfile = roomEntryProfile(previousEntry) || {};
@@ -586,8 +691,14 @@ export async function saveInitiativeCard(itemId, name, value) {
       next[key] = entry;
     }
     return next;
+  }, { isCurrent });
+  if (!roomResult || !isCurrent()) throw new Error("scene-stale-after-card-room-write");
+  await writeTokenProfile(itemId, storedProfile, actorProfileId, {
+    isCurrent,
+    commandId,
+    sceneIdentity,
   });
-  await writeTokenProfile(itemId, storedProfile, actorProfileId);
+  if (!isCurrent()) throw new Error("scene-stale-after-card-save");
   return profile;
 }
 

@@ -301,6 +301,7 @@ export function planEffectsLayout({
   config = EFFECTS_LAYOUT_CONFIG,
   compact = false,
   expandedTargetIds = [],
+  expansionMode = "selected",
 } = {}) {
   const expandedIds = new Set(
     (expandedTargetIds instanceof Set
@@ -312,6 +313,7 @@ export function planEffectsLayout({
       .filter(Boolean),
   );
   const tokenById = new Map(tokens.filter((token) => token?.id).map((token) => [token.id, token]));
+  const expandAll = expansionMode === "all";
   const rowsByTarget = new Map();
   const spellContextByTarget = new Map();
   const spellContextByInstance = new Map();
@@ -483,7 +485,9 @@ export function planEffectsLayout({
   for (const [targetId, sourceRows] of rowsByTarget) {
     const target = tokenById.get(targetId);
     if (!target) continue;
-    const compactTarget = compact && !expandedIds.has(targetId);
+    const expandedTarget = expandAll
+      || (expansionMode === "selected" && expandedIds.has(targetId));
+    const compactTarget = compact && !expandedTarget;
     const rows = compactTarget
       ? compactRowsForTarget(sourceRows, { measureText, config })
       : sourceRows;

@@ -9,9 +9,11 @@
   import { ID } from "./constants.js";
   import { openTrackedPopover } from "./popoverDragHost.js";
   import {
-    METADATA_OWNERSHIP,
-    writeSceneMetadataKey,
-  } from "./metadataKeyScoped.js";
+    enqueueInitiativeStateReducer,
+    nextInitiativeStateCommandId,
+  } from "./initiativeStateGateway.js";
+  import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+  import { createParagonToggleExecutor } from "./paragonToggleCore.js";
   import { runtimeOptionsService } from "./options/optionsRuntime.js";
   import { selectElevationLabelsEnabled } from "./options/optionsSelectors.js";
   import {
@@ -22,7 +24,6 @@
 
   /** Chiavi e util */
   const META_KEY = `${ID}/meta`;
-  const STATE_KEY = `${ID}/state`;
   const elevationLabelsLifecycle = createOptionalRuntimeLifecycle({
     name: "elevation-labels",
     mount: mountElevationLabelWatcher,
@@ -171,54 +172,53 @@ async function toggleLegendaryDefault(itemIds) {
     }
   });
 }
-async function toggleParagonBossOn(ids) {
-  if (!ids?.length) return;
+const paragonToggleExecutor = createParagonToggleExecutor({
+  readItems: (ids) => OBR.scene.items.getItems(ids),
+  updateItems: (ids, updater) => OBR.scene.items.updateItems(ids, updater),
+  readBackItems: (ids) => OBR.scene.items.getItems(ids),
+  getRole: async () => {
+    try { return await OBR.player.getRole(); } catch { return "PLAYER"; }
+  },
+  getSceneContext: () => {
+    const epoch = currentSceneEpoch();
+    return { ready: isCurrentSceneEpoch(epoch), identity: null, epoch };
+  },
+  isSceneCurrent: (captured) => isCurrentSceneEpoch(captured.epoch),
+  patchParagonInits: ({ commandId, disabledIds, scene }) => enqueueInitiativeStateReducer({
+    commandId: commandId || nextInitiativeStateCommandId("paragon-cleanup"),
+    kind: "paragon-cleanup",
+    ownedFields: ["paragonInits"],
+    payload: { kind: "paragon-cleanup", disabledIds: [...disabledIds] },
+    sceneEpoch: scene.epoch,
+    reducer: (previous) => {
+      const paragonInits = {
+        ...(previous?.paragonInits && typeof previous.paragonInits === "object"
+          ? previous.paragonInits
+          : {}),
+      };
+      for (const id of disabledIds) {
+        if (Object.hasOwn(paragonInits, id)) delete paragonInits[id];
+      }
+      return { paragonInits };
+    },
+  }),
+});
 
-  const idset = new Set(ids);
-  const items = await OBR.scene.items.getItems(i => idset.has(i.id));
-
-  const blocked = items.some(it => {
-    const me   = it.metadata?.[META_KEY];
-    const leg  = me?.legendary && Number(me.legendary.max) > 0;
-    const epic = !!me?.epic;
-    return leg || epic;
+async function toggleParagonBossOn(ids, desiredEnabled = null, options = {}) {
+  const commandId = options.commandId || nextInitiativeStateCommandId("paragon-toggle");
+  const result = await paragonToggleExecutor.enqueue({
+    ids,
+    desiredEnabled,
+    commandId,
   });
-  if (blocked) {
+  if (result?.status === "blocked") {
     console.warn("[paragon] impossibile attivare: token con Legendary/Epic attive");
-    return;
+  } else if (result?.status === "failed") {
+    console.warn("[paragon] comando fallito", result.reason || result.error?.message || "errore sconosciuto");
+  } else if (result?.cleanupPending) {
+    console.warn("[paragon] token applicato, cleanup state pending");
   }
-
-  await OBR.scene.items.updateItems(ids, (draft) => {
-    for (const it of draft) {
-      const me = { ...(it.metadata?.[META_KEY] || {}) };
-      const cur = me.paragon && typeof me.paragon === "object" ? me.paragon : null;
-      if (!cur) me.paragon = { actions: 2 };
-      else delete me.paragon;
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
-    }
-  });
-
-  // cleanup stato scena se disattivo
-  try {
-    const st = await OBR.scene.getMetadata();
-    const prev = st?.[STATE_KEY] || {};
-    const par = { ...(prev.paragonInits || {}) };
-    let changed = false;
-    for (const id of ids) {
-      const stillOn = items.find(x => x.id === id)?.metadata?.[META_KEY]?.paragon;
-      if (!stillOn && par[id]) { delete par[id]; changed = true; }
-    }
-    if (changed) {
-      await writeSceneMetadataKey(
-        OBR.scene,
-        METADATA_OWNERSHIP.INITIATIVE_STATE,
-        { ...(prev || {}), paragonInits: par },
-        { runtime: "contextMenu" },
-      );
-    }
-  } catch (e) {
-    console.warn("[paragon] cleanup stato fallito", e?.message || e);
-  }
+  return result;
 }
 
 async function toggleEpicBossOn(ids) {
@@ -478,6 +478,7 @@ async function toggleEpicBossOn(ids) {
       label: "Abilita Paragon Boss",
       // Mostra solo su CHARACTER tracciati, senza Legendary e senza Paragon
       filter: {
+        roles: ["GM"],
         every: [
           isCharacter(),
           hasMeta("!="),
@@ -490,7 +491,7 @@ async function toggleEpicBossOn(ids) {
     }],
     onClick: async ({ items }) => {
       try {
-        await toggleParagonBossOn(items.map(i => i.id)); // ON (perché assente)
+        await toggleParagonBossOn(items.map(i => i.id), true); // ON esplicito
       } finally {
         try { await OBR.player.deselect(); } catch {}
       }
@@ -506,6 +507,7 @@ async function toggleEpicBossOn(ids) {
       label: "Disabilita Paragon Boss",
       // Mostra solo su CHARACTER tracciati, senza Legendary e con Paragon presente
       filter: {
+        roles: ["GM"],
         every: [
           isCharacter(),
           hasMeta("!="),
@@ -517,7 +519,7 @@ async function toggleEpicBossOn(ids) {
     }],
     onClick: async ({ items }) => {
       try {
-        await toggleParagonBossOn(items.map(i => i.id)); // OFF (perché presente)
+        await toggleParagonBossOn(items.map(i => i.id), false); // OFF esplicito
       } finally {
         try { await OBR.player.deselect(); } catch {}
       }

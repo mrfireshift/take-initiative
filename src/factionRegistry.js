@@ -46,22 +46,28 @@ function mergeFactionRegistries(...sources) {
   return merged;
 }
 
-export async function readFactionRegistry() {
+export async function readFactionRegistry({ isCurrent = () => true } = {}) {
+  if (!isCurrent()) return {};
   const local = readLocalFactionRegistry();
   const metadata = await OBR.room.getMetadata().catch(() => ({}));
+  if (!isCurrent()) return {};
   return mergeFactionRegistries(local, metadata?.[FACTION_REGISTRY_KEY]);
 }
 
-async function updateFactionRegistry(updater) {
+async function updateFactionRegistry(updater, { isCurrent = () => true } = {}) {
   const write = async () => {
+    if (!isCurrent()) return null;
     const metadata = await OBR.room.getMetadata().catch(() => ({}));
+    if (!isCurrent()) return null;
     const previous = mergeFactionRegistries(
       readLocalFactionRegistry(),
       metadata?.[FACTION_REGISTRY_KEY]
     );
     const next = normalizeFactionRegistry(updater(previous) || previous);
+    if (!isCurrent()) return null;
     const localWritten = writeLocalFactionRegistry(next);
     try {
+      if (!isCurrent()) return next;
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.REGISTRY,
@@ -71,25 +77,26 @@ async function updateFactionRegistry(updater) {
     } catch (error) {
       if (!localWritten) throw error;
     }
+    if (!isCurrent()) return null;
     return next;
   };
   factionRegistryWriteQueue = factionRegistryWriteQueue.then(write, write);
   return factionRegistryWriteQueue;
 }
 
-export function registerFactionAssets(attitude, assets) {
-  return updateFactionRegistry((registry) => mergeFactionAssets(registry, attitude, assets));
+export function registerFactionAssets(attitude, assets, options = {}) {
+  return updateFactionRegistry((registry) => mergeFactionAssets(registry, attitude, assets), options);
 }
 
-export function clearRegisteredFaction(attitude) {
-  return updateFactionRegistry((registry) => removeFactionFromRegistry(registry, attitude));
+export function clearRegisteredFaction(attitude, options = {}) {
+  return updateFactionRegistry((registry) => removeFactionFromRegistry(registry, attitude), options);
 }
 
-export async function clearFactionRegistry() {
-  return updateFactionRegistry(() => ({}));
+export async function clearFactionRegistry(options = {}) {
+  return updateFactionRegistry(() => ({}), options);
 }
 
-export async function rememberKnownItemFactions(items) {
+export async function rememberKnownItemFactions(items, options = {}) {
   const groups = new Map();
   for (const item of Array.isArray(items) ? items : []) {
     const attitude = String(item?.metadata?.[`${ID}/meta`]?.attitude || "")
@@ -107,17 +114,21 @@ export async function rememberKnownItemFactions(items) {
       registry = mergeFactionAssets(registry, attitude, assets);
     }
     return registry;
-  });
+  }, options);
 }
 
-export async function rememberFactionForIds(ids, attitude) {
+export async function rememberFactionForIds(ids, attitude, options = {}) {
+  const isCurrent = options?.isCurrent || (() => true);
   const uniqueIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!uniqueIds.length) return readFactionRegistry();
+  if (!isCurrent()) return null;
+  if (!uniqueIds.length) return readFactionRegistry(options);
   const items = await OBR.scene.items.getItems(uniqueIds);
-  const registry = await registerFactionAssets(attitude, items);
+  if (!isCurrent()) return null;
+  const registry = await registerFactionAssets(attitude, items, options);
+  if (!isCurrent()) return null;
   try {
     const { reconcileZeroHPConditionsForItems } = await import("./hpConditionAutomation.js");
-    await reconcileZeroHPConditionsForItems(uniqueIds);
+    if (isCurrent()) await reconcileZeroHPConditionsForItems(uniqueIds);
   } catch (error) {
     console.warn("[factions] zero HP condition sync:", error?.message || error);
   }

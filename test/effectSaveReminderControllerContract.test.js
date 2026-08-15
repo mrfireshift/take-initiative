@@ -30,8 +30,12 @@ const turnNoticeHost = readFileSync(
 test("il background monta il controller GM e compatta gli avanzamenti", () => {
   assert.match(background, /mountEffectSaveReminderController/);
   assert.match(controller, /OBR\.player\.getRole\(\)/);
-  assert.match(controller, /OBR\.scene\.onMetadataChange\(enqueueReconcile\)/);
+  assert.match(controller, /OBR\.scene\.onMetadataChange\(\(metadata\) =>/);
+  assert.match(controller, /createSceneMetadataKeyWatcher\(STATE_KEY\)/);
+  assert.match(controller, /observed\.changed\) enqueueReconcile/);
   assert.match(controller, /subscribeSceneItemChanges\(\(event\) =>/);
+  assert.match(controller, /domains: \["effects"\]/);
+  assert.match(controller, /filter: \(event\) => !event\?\.derived\?\.output/);
   assert.match(controller, /readSceneItemsSnapshot\(sceneEpoch\)/);
   assert.match(controller, /while \(reconcileRequested\)/);
   assert.doesNotMatch(controller, /OBR\.scene\.items\.onChange/);

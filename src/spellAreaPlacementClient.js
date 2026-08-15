@@ -8,6 +8,18 @@ const DEFAULT_PLACEMENT_START_RETRY_DELAYS_MS = Object.freeze([
   1000,
 ]);
 
+// sceneEpoch belongs to the realm that owns the placement tool. It must not
+// be used as a cross-realm scene identity by the popup receiving the result.
+function withoutSceneEpoch(value) {
+  if (Array.isArray(value)) return value.map(withoutSceneEpoch);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "sceneEpoch")
+      .map(([key, entry]) => [key, withoutSceneEpoch(entry)]),
+  );
+}
+
 export function createSpellAreaPlacementRequestId() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
     return globalThis.crypto.randomUUID();
@@ -45,6 +57,9 @@ export function requestSpellAreaPlacement({
     0,
     Number(requestTimeoutMs) || DEFAULT_PLACEMENT_REQUEST_TIMEOUT_MS,
   );
+  const safeContext = context && typeof context === "object"
+    ? withoutSceneEpoch(context)
+    : null;
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -95,7 +110,7 @@ export function requestSpellAreaPlacement({
       ...(String(ruleChoice || "").trim()
         ? { ruleChoice: String(ruleChoice).trim() }
         : {}),
-      ...(context && typeof context === "object" ? { context } : {}),
+      ...(safeContext && typeof safeContext === "object" ? { context: safeContext } : {}),
     };
     const sendStart = () => {
       if (settled || accepted) return;
@@ -138,11 +153,11 @@ export function requestSpellAreaPlacement({
             data.type === "progress"
             && String(data.requestId || "") === normalizedRequestId
           ) {
-            onProgress?.(data);
+            onProgress?.(withoutSceneEpoch(data));
           }
           return;
         }
-        finish(resolve, data);
+        finish(resolve, withoutSceneEpoch(data));
       },
     );
     windowRef?.addEventListener?.("beforeunload", cancelOnUnload, { once: true });
@@ -206,7 +221,6 @@ export function requestSpellZoneMovement({
   initialPosition = null,
   contactTargetId = "",
   movementChoice = "",
-  sceneEpoch = null,
   ruleChoice = "",
   requestId = createSpellAreaPlacementRequestId(),
 } = {}, options = {}) {
@@ -220,7 +234,6 @@ export function requestSpellZoneMovement({
     initialPosition,
     contactTargetId,
     movementChoice,
-    sceneEpoch,
     ruleChoice,
   }, options);
 }
@@ -265,14 +278,15 @@ function requestPlacementRequest(payload, {
           data.type !== "result"
           || String(data.requestId || "") !== normalizedRequestId
         ) return;
-        finish(resolve, data);
+        finish(resolve, withoutSceneEpoch(data));
       },
     );
     windowRef?.addEventListener?.("beforeunload", cancelOnUnload, { once: true });
+    const { sceneEpoch: _sceneEpoch, ...safePayload } = payload || {};
     void broadcast.sendMessage(
       SPELL_AREA_PLACEMENT_CHANNEL,
       {
-        ...payload,
+        ...withoutSceneEpoch(safePayload),
         ruleId: normalizedRuleId,
         requestId: normalizedRequestId,
         casterId: String(payload?.casterId || "").trim(),
@@ -284,9 +298,6 @@ function requestPlacementRequest(payload, {
           : {}),
         ...(String(payload?.movementChoice || "").trim()
           ? { movementChoice: String(payload.movementChoice).trim() }
-          : {}),
-        ...(Number.isFinite(Number(payload?.sceneEpoch))
-          ? { sceneEpoch: Number(payload.sceneEpoch) }
           : {}),
         ...(String(payload?.ruleChoice || "").trim()
           ? { ruleChoice: String(payload.ruleChoice).trim() }

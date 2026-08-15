@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Action launcher readiness fixture</title>
+    <style>
+      :root { color-scheme: dark; font: 14px/1.4 system-ui, sans-serif; }
+      body { margin: 0; padding: 24px; background: #020617; color: #e2e8f0; }
+      main { display: grid; gap: 12px; max-width: 520px; }
+      button { width: fit-content; padding: 8px 12px; border: 1px solid #475569; border-radius: 8px; background: #1e293b; color: inherit; cursor: pointer; }
+      output { white-space: pre-wrap; padding: 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Take Initiative · reload readiness</h1>
+      <button id="take-initiative" type="button">Clicca Take Initiative</button>
+      <button id="scene-ready" type="button">Rendi pronta la scena</button>
+      <button id="scene-reload" type="button">Simula reload scena</button>
+      <output id="status" aria-live="polite"></output>
+    </main>
+    <script type="module">
+      import OBR from "/test-support/action-launcher-browser/fake-obr-sdk.js";
+      if (location.search.includes("reset=1")) {
+        localStorage.removeItem("com.thebigpicture.initiative/tracker-popover-open");
+      }
+      await import("/src/action-launcher.js");
+      if (location.search.includes("hang-probe")) {
+        globalThis.__actionLauncherBrowserFixture.state.probeHangs = true;
+        localStorage.setItem("com.thebigpicture.initiative/tracker-popover-open", "1");
+      }
+
+      const status = document.querySelector("#status");
+      const render = () => {
+        const { state } = globalThis.__actionLauncherBrowserFixture;
+        status.textContent = JSON.stringify({
+          sceneReady: state.sceneReady,
+          actionOpen: state.actionOpen,
+          trackerOpen: state.trackerOpen,
+          actionListenerCount: state.actionListenerCount,
+          toggleCount: state.toggleCount,
+        }, null, 2);
+      };
+      document.querySelector("#take-initiative").addEventListener("click", () => OBR.__fixture.setActionOpen(true));
+      document.querySelector("#scene-ready").addEventListener("click", () => OBR.__fixture.setSceneReady(true));
+      document.querySelector("#scene-reload").addEventListener("click", () => {
+        OBR.__fixture.setSceneReady(false);
+        OBR.__fixture.setSceneReady(true);
+      });
+      window.addEventListener("action-launcher-fixture-change", render);
+      render();
+    </script>
+  </body>
+</html>

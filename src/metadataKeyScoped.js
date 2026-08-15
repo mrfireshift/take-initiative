@@ -6,12 +6,12 @@ export const METADATA_OWNERSHIP = Object.freeze({
   INITIATIVE_STATE: Object.freeze({
     key: `${ID}/state`,
     domain: "initiative-state",
-    owners: Object.freeze(["initiativeList.js", "contextMenu.js"]),
+    owners: Object.freeze(["initiativeStateGateway.js"]),
   }),
   HISTORY: Object.freeze({
     key: `${ID}/history`,
     domain: "history",
-    owners: Object.freeze(["history.js"]),
+    owners: Object.freeze(["historyOwner.js"]),
   }),
   CLOCKS: Object.freeze({
     key: `${ID}/clocks`,
@@ -52,6 +52,11 @@ export const METADATA_OWNERSHIP = Object.freeze({
     key: `${ID}/options-room`,
     domain: "options-room",
     owners: Object.freeze(["options/roomOptionsStore.js"]),
+  }),
+  SPEED_CHECK_CONTROL: Object.freeze({
+    key: `${ID}/speed-check-control`,
+    domain: "speed-check-control",
+    owners: Object.freeze(["speedCheck.js"]),
   }),
   SCENE_OPTIONS: Object.freeze({
     key: `${ID}/options-scene`,

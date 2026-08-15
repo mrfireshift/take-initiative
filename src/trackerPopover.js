@@ -4,6 +4,8 @@ import { openTrackedPopover } from "./popoverDragHost.js";
 import { compactTrackerViewportWidth } from "./trackerCompactSizingCore.js";
 
 export const TRACKER_POPOVER_ID = `${ID}/tracker-popover`;
+export const COMPACT_ROUND_TAB_POPOVER_ID = `${ID}/compact-round-tab`;
+export const COMPACT_SPEED_READOUT_POPOVER_ID = `${ID}/compact-speed-readout`;
 const COMPACT_EFFECTS_POPOVER_ID = `${ID}/compact-effects-popover`;
 const COMPACT_ADMIN_MENU_POPOVER_ID = `${ID}/compact-admin-menu`;
 export const TRACKER_LAYOUT_CHANNEL = `${ID}/tracker-layout-change`;
@@ -15,6 +17,11 @@ const TRACKER_COMPACT_MANUAL_WIDTH_KEY = `${ID}/tracker-compact-manual-width`;
 const COMPACT_DEFAULT_WIDTH = 1180;
 const COMPACT_MAX_WIDTH = 1180;
 const COMPACT_HEIGHT = 156;
+const COMPACT_ROUND_TAB_WIDTH = 124;
+const COMPACT_SPEED_READOUT_WIDTH = 154;
+const COMPACT_SPEED_READOUT_RIGHT_INSET = 18;
+const COMPACT_ROUND_TAB_HEIGHT = 21;
+const COMPACT_ROUND_TAB_OVERLAP = 4;
 const COMPACT_EDGE_MARGIN = 18;
 
 function clamp(value, min, max) {
@@ -107,11 +114,75 @@ export function isTrackerPopoverOpen() {
   return localStorage.getItem(TRACKER_OPEN_KEY) === "1";
 }
 
+export function markTrackerPopoverClosed() {
+  localStorage.setItem(TRACKER_OPEN_KEY, "0");
+}
+
+async function openCompactRoundTabPopover(anchorPosition, trackerHeight) {
+  const top = Math.round(
+    Number(anchorPosition?.top || 0)
+      - Math.max(0, Number(trackerHeight) || COMPACT_HEIGHT)
+      + COMPACT_ROUND_TAB_OVERLAP,
+  );
+  try {
+    await OBR.popover.open({
+      id: COMPACT_ROUND_TAB_POPOVER_ID,
+      url: "/compact-round-tab.html?part=round",
+      width: COMPACT_ROUND_TAB_WIDTH,
+      height: COMPACT_ROUND_TAB_HEIGHT,
+      anchorReference: "POSITION",
+      anchorPosition: {
+        left: Math.round(Number(anchorPosition?.left) || 0),
+        top: Math.max(0, top),
+      },
+      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      disableClickAway: true,
+      marginThreshold: 0,
+      hidePaper: true,
+    });
+  } catch (error) {
+    console.warn("[tracker-layout] linguetta round non aperta:", error?.message || error);
+  }
+}
+
+async function openCompactSpeedReadoutPopover(anchorPosition, trackerWidth, trackerHeight) {
+  const top = Math.round(
+    Number(anchorPosition?.top || 0)
+      - Math.max(0, Number(trackerHeight) || COMPACT_HEIGHT)
+      + COMPACT_ROUND_TAB_OVERLAP,
+  );
+  const right = Math.round(
+    (Number(anchorPosition?.left) || 0)
+      + Math.max(0, Number(trackerWidth) || COMPACT_DEFAULT_WIDTH) / 2
+      - COMPACT_SPEED_READOUT_RIGHT_INSET,
+  );
+  try {
+    await OBR.popover.open({
+      id: COMPACT_SPEED_READOUT_POPOVER_ID,
+      url: "/compact-round-tab.html?part=speed",
+      width: COMPACT_SPEED_READOUT_WIDTH,
+      height: COMPACT_ROUND_TAB_HEIGHT,
+      anchorReference: "POSITION",
+      anchorPosition: { left: right, top: Math.max(0, top) },
+      anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+      transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+      disableClickAway: true,
+      marginThreshold: 0,
+      hidePaper: true,
+    });
+  } catch (error) {
+    console.warn("[tracker-layout] tracker velocità micro non aperto:", error?.message || error);
+  }
+}
+
 export async function openTrackerPopover({ refresh = false, compactSize = null } = {}) {
   if (isTrackerPopoverOpen() && !refresh) return;
   if (refresh) {
     await Promise.all([
       OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_ROUND_TAB_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_SPEED_READOUT_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_ADMIN_MENU_POPOVER_ID).catch(() => {}),
     ]);
@@ -160,6 +231,25 @@ export async function openTrackerPopover({ refresh = false, compactSize = null }
     marginThreshold: 12,
     hidePaper: true,
   });
+  if (compact) {
+    const [actualHeight, actualWidth] = await Promise.all([
+      OBR.popover.getHeight(TRACKER_POPOVER_ID).catch(() => height),
+      OBR.popover.getWidth(TRACKER_POPOVER_ID).catch(() => width),
+    ]);
+    await Promise.all([
+      openCompactRoundTabPopover(compactAnchor, Number(actualHeight) || height),
+      openCompactSpeedReadoutPopover(
+        compactAnchor,
+        Number(actualWidth) || width,
+        Number(actualHeight) || height,
+      ),
+    ]);
+  } else {
+    await Promise.all([
+      OBR.popover.close(COMPACT_ROUND_TAB_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_SPEED_READOUT_POPOVER_ID).catch(() => {}),
+    ]);
+  }
   localStorage.setItem(TRACKER_OPEN_KEY, "1");
 }
 
@@ -167,6 +257,8 @@ export async function closeTrackerPopover() {
   try {
     await Promise.all([
       OBR.popover.close(TRACKER_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_ROUND_TAB_POPOVER_ID).catch(() => {}),
+      OBR.popover.close(COMPACT_SPEED_READOUT_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {}),
       OBR.popover.close(COMPACT_ADMIN_MENU_POPOVER_ID).catch(() => {}),
     ]);

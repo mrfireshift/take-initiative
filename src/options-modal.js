@@ -16,6 +16,7 @@ import {
 import { selectOptionsPanelModel } from "./options/optionsSelectors.js";
 import { setTrackerLayout } from "./trackerPopover.js";
 import { planPluginDerivedDataCleanup } from "./pluginDataCleanupCore.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const MODAL_ID = `${ID}/options-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = `${ID}/tracker-popover-toggle`;
@@ -44,6 +45,7 @@ const previewNode = document.getElementById("player-preview");
 const hpMatrix = document.getElementById("hp-matrix");
 const saveButton = document.querySelector('[data-action="save"]');
 const cleanupButton = document.querySelector('[data-action="cleanup-runtime"]');
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 let draft = null;
 let editScope = "room";
 let dirty = false;
@@ -158,7 +160,7 @@ function renderPreview() {
 }
 
 function render() {
-  if (!draft) return;
+  if (!draft || !sceneLifecycle.isReady()) return;
   for (const button of document.querySelectorAll("[data-scope]")) {
     button.setAttribute("aria-pressed", String(button.dataset.scope === editScope));
   }
@@ -216,8 +218,12 @@ function closeModal() {
 }
 
 async function openFactionConfigurator() {
+  if (!sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: `options-open-factions:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const viewportWidth = Number(await OBR.viewport.getWidth().catch(() => 1200)) || 1200;
   const viewportHeight = Number(await OBR.viewport.getHeight().catch(() => 900)) || 900;
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const width = 420;
   const height = 420;
   try {
@@ -237,7 +243,9 @@ async function openFactionConfigurator() {
       marginThreshold: 12,
       hidePaper: true,
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) return;
     console.warn("[options-panel] configuratore fazioni:", error?.message || error);
     await OBR.notification.show("Impossibile aprire il configuratore fazioni.", "ERROR").catch(() => {});
   }
@@ -245,6 +253,8 @@ async function openFactionConfigurator() {
 
 async function save() {
   if (saving || !draft) return;
+  const operation = sceneLifecycle.capture({ operationId: `options-save:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   saving = true;
   saveButton.disabled = true;
   errorNode.hidden = true;
@@ -252,8 +262,12 @@ async function save() {
   const layout = draft.local.layout;
   const requestedDraft = normalizeOptionsPanelDraft(draft);
   try {
-    await saveOptionsPanelDraft(runtimeOptionsService, requestedDraft);
+    await saveOptionsPanelDraft(runtimeOptionsService, requestedDraft, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+    });
+    if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-save");
     draft = await verifyOptionsPanelDraft(runtimeOptionsService, requestedDraft);
+    if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-verify");
     await broadcastRuntimeOptionsInvalidation("options-panel-save").catch((error) => {
       console.warn("[options-panel] invalidation broadcast:", error?.message || error);
     });
@@ -262,12 +276,21 @@ async function save() {
         console.warn("[options-panel] bridge layout:", error?.message || error);
       });
     }
+    if (!sceneLifecycle.isCurrent(operation)) throw new Error("scene-stale-after-options-layout");
     savedLayout = draft.local.layout;
     dirty = false;
     statusNode.textContent = "Opzioni salvate.";
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await OBR.notification.show("Opzioni salvate.", "SUCCESS").catch(() => {});
+    if (!sceneLifecycle.isCurrent(operation)) return;
     render();
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) {
+      errorNode.hidden = false;
+      errorNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+      statusNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+      return;
+    }
     let details = "";
     if (String(error?.message || error).includes("Room")) {
       const diagnostics = await runtimeOptionsService.inspectRoomStorage().catch(() => null);
@@ -288,12 +311,14 @@ async function save() {
     await OBR.notification.show(message, "ERROR").catch(() => {});
   } finally {
     saving = false;
-    saveButton.disabled = false;
+    saveButton.disabled = !sceneLifecycle.isReady();
   }
 }
 
 async function cleanRuntimeData() {
   if (cleaning) return;
+  const operation = sceneLifecycle.capture({ operationId: `options-cleanup:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const confirmed = window.confirm(
     "Pulire i dati derivati orfani di questa scena? I metadata dei token, HP, condizioni, incantesimi, concentrazione e iniziativa non verranno modificati.",
   );
@@ -304,10 +329,13 @@ async function cleanRuntimeData() {
   statusNode.textContent = "Pulizia in corso…";
   try {
     const items = await OBR.scene.items.getItems();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const plan = planPluginDerivedDataCleanup(items);
     if (plan.deleteIds.length) {
+      if (!sceneLifecycle.isCurrent(operation)) return;
       await OBR.scene.items.deleteItems(plan.deleteIds);
     }
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await OBR.broadcast.sendMessage(
       RUNTIME_CACHE_CLEANUP_CHANNEL,
       { type: "clear-runtime-caches", reason: "options-maintenance" },
@@ -322,8 +350,15 @@ async function cleanRuntimeData() {
       ? `Pulizia completata: ${total} derivati rimossi (${zones} zone, ${boardTokens} pedine).`
       : "Pulizia completata: nessun derivato orfano trovato.";
     statusNode.textContent = message;
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await OBR.notification.show(message, "SUCCESS").catch(() => {});
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) {
+      errorNode.hidden = false;
+      errorNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+      statusNode.textContent = "Scena cambiata: riapri il pannello Opzioni.";
+      return;
+    }
     const message = `Pulizia non riuscita: ${error?.message || error}`;
     errorNode.textContent = message;
     errorNode.hidden = false;
@@ -331,7 +366,7 @@ async function cleanRuntimeData() {
     await OBR.notification.show(message, "ERROR").catch(() => {});
   } finally {
     cleaning = false;
-    if (cleanupButton) cleanupButton.disabled = false;
+    if (cleanupButton) cleanupButton.disabled = !sceneLifecycle.isReady();
   }
 }
 
@@ -387,6 +422,20 @@ buildHpMatrix();
 bindControls();
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      document.querySelectorAll("input, select, textarea, button").forEach((control) => { control.disabled = true; });
+      statusNode.textContent = "Scena non disponibile: riapri il pannello Opzioni.";
+    } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      document.querySelectorAll("input, select, textarea, button").forEach((control) => { control.disabled = false; });
+      statusNode.textContent = "Scena pronta: riapri il pannello Opzioni se necessario.";
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    statusNode.textContent = "Scena non disponibile: riapri il pannello Opzioni.";
+    return;
+  }
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") {
     await OBR.notification.show("Le opzioni condivise sono disponibili solo al GM.", "WARNING").catch(() => {});
@@ -395,6 +444,7 @@ OBR.onReady(async () => {
   }
   try {
     await startRuntimeOptions();
+    if (!sceneLifecycle.isReady()) return;
     draft = normalizeOptionsPanelDraft(runtimeOptionsService.get(selectOptionsPanelModel));
     savedLayout = draft.local.layout;
     runtimeOptionsService.subscribe(selectOptionsPanelModel, (model) => {
@@ -410,3 +460,5 @@ OBR.onReady(async () => {
     saveButton.disabled = true;
   }
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

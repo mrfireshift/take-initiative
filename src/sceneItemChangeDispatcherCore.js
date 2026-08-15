@@ -61,6 +61,17 @@ function metadataObject(value) {
     : {};
 }
 
+function hasCanonicalHP(snapshot) {
+  const meta = snapshot?.item?.metadata?.[META_KEY] || {};
+  return meta.hp !== undefined && meta.hp !== null
+    || meta.hpMax !== undefined && meta.hpMax !== null;
+}
+
+function hasQuickActions(snapshot) {
+  const actions = snapshot?.item?.metadata?.[META_KEY]?.initiativeCard?.quickActions;
+  return Array.isArray(actions) && actions.length > 0;
+}
+
 function derivedItemKind(item) {
   const metadata = metadataObject(item?.metadata);
   for (const key of DERIVED_ITEM_METADATA_KEYS) {
@@ -177,6 +188,13 @@ function snapshotItem(item) {
     conditionsSignature: metadataSignature("conditions"),
     spellsSignature: metadataSignature(SPELLS_META_KEY),
     concentrationSignature: metadataSignature(CONCENTRATION_META_KEY),
+    cardSignature: metadataSignature("initiativeCard"),
+    actorProfileSignature: metadataSignature("actorProfileId"),
+    initiativeSignature: metadataSignature("inInitiative"),
+    hasActorProfileId: !!String(pluginMeta?.actorProfileId || "").trim(),
+    hasQuickActions: hasQuickActions({ item }),
+    isCharacter: item?.layer === "CHARACTER" && !item?.attachedTo,
+    isInInitiative: pluginMeta?.inInitiative === true,
     contentSignature: [
       fingerprint(item?.type),
       fingerprint(item?.name),
@@ -213,6 +231,8 @@ function createFlags() {
     hpBars: false,
     hpMemory: false,
     hpMemoryAutofill: false,
+    quickActionHydration: false,
+    legacyHpHydration: false,
     conditions: false,
     concentration: false,
     widgets: false,
@@ -249,6 +269,13 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   const conditionsChanged = lifecycleChange || before?.conditionsSignature !== after?.conditionsSignature;
   const spellsChanged = lifecycleChange || before?.spellsSignature !== after?.spellsSignature;
   const concentrationChanged = lifecycleChange || before?.concentrationSignature !== after?.concentrationSignature;
+  const cardChanged = lifecycleChange || before?.cardSignature !== after?.cardSignature;
+  const actorProfileChanged = lifecycleChange
+    || before?.actorProfileSignature !== after?.actorProfileSignature;
+  const initiativeChanged = lifecycleChange
+    || before?.initiativeSignature !== after?.initiativeSignature;
+  const hpBecameMissing = hasCanonicalHP(before) && !hasCanonicalHP(after);
+  const pluginMetadataRemoved = before?.isPluginToken && !after?.isPluginToken;
   const changedKeys = changedSceneItemMetadataKeys(before, after);
   const trackerStructureChanged = lifecycleChange
     || nameChanged
@@ -262,7 +289,33 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.hpBars ||= hpChanged || attitudeChanged;
   flags.attitude ||= attitudeChanged;
   flags.hpMemory ||= nameChanged || imageChanged || attitudeChanged;
-  flags.hpMemoryAutofill ||= nameChanged || imageChanged || metaChanged;
+  const quickActionCandidate = after?.isCharacter
+    && (after?.isInInitiative || (pluginMetadataRemoved && before?.isInInitiative))
+    && !after?.hasQuickActions
+    && (nameChanged || imageChanged || cardChanged || actorProfileChanged || initiativeChanged
+      || pluginMetadataRemoved);
+  const afterAttitude = String(after?.item?.metadata?.[META_KEY]?.attitude || "")
+    .trim()
+    .toLowerCase();
+  const beforeAttitude = String(before?.item?.metadata?.[META_KEY]?.attitude || "")
+    .trim()
+    .toLowerCase();
+  const legacyEligible = after?.isCharacter
+    && !after?.hasActorProfileId
+    && (after?.isInInitiative
+      || afterAttitude === "pc"
+      || afterAttitude === "ally"
+      || pluginMetadataRemoved && (before?.isInInitiative
+        || beforeAttitude === "pc"
+        || beforeAttitude === "ally"));
+  const legacyHpCandidate = after?.isCharacter
+    && legacyEligible
+    && !hasCanonicalHP(after)
+    && (lifecycleChange || nameChanged || imageChanged || attitudeChanged || hpBecameMissing
+      || pluginMetadataRemoved);
+  flags.quickActionHydration ||= !!quickActionCandidate;
+  flags.legacyHpHydration ||= !!legacyHpCandidate;
+  flags.hpMemoryAutofill ||= flags.quickActionHydration || flags.legacyHpHydration;
   flags.conditions ||= conditionsChanged;
   flags.concentration ||= spellsChanged || concentrationChanged;
   flags.aura ||= lifecycleChange
@@ -302,6 +355,8 @@ function deriveEventDomains(flags) {
   if (flags.hpBars) domains.add("hp");
   if (flags.hpMemory) domains.add("hp-memory");
   if (flags.hpMemoryAutofill) domains.add("hp-memory-autofill");
+  if (flags.quickActionHydration) domains.add("quick-action-hydration");
+  if (flags.legacyHpHydration) domains.add("legacy-hp-hydration");
   if (flags.speedCheck) domains.add("speed-check");
   if (flags.conditions || flags.concentration) domains.add("effects");
   if (flags.widgets) domains.add("effects-widgets");
@@ -345,6 +400,9 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
     changedRecords.push({ before: previous || null, after: next });
     if (!previous) {
       flags.added = true;
+      // CompatibilitÃ  con consumer legacy: il flag storico resta informativo
+      // per ogni nuovo CHARACTER, mentre i subscriber produttivi usano i due
+      // domini precisi calcolati piÃ¹ sotto.
       flags.hpMemoryAutofill ||= next?.item?.layer === "CHARACTER" && !next?.item?.attachedTo;
     }
   }
@@ -367,6 +425,7 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
       flags,
       domains: [],
       invalidations: {},
+      candidateIds: { quickActionHydration: [], legacyHpHydration: [] },
       derived: { output: false, effects: false },
       items: [],
       removedItems: [],
@@ -385,6 +444,7 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
       flags,
       domains,
       invalidations: { "active-label": [...changedIds] },
+      candidateIds: { quickActionHydration: [], legacyHpHydration: [] },
       derived: { output: true, effects: false },
       items: changedItems,
       removedItems,
@@ -422,10 +482,19 @@ export function classifySceneItemSnapshots(beforeSnapshot, afterSnapshot) {
   });
 
   const domains = [...new Set(changedRecords.flatMap((record) => record.domains || []))];
+  const invalidations = domainItemIds(changedRecords);
   return {
     flags,
     domains,
-    invalidations: domainItemIds(changedRecords),
+    invalidations: {
+      ...invalidations,
+      quickActionHydration: invalidations["quick-action-hydration"] || [],
+      legacyHpHydration: invalidations["legacy-hp-hydration"] || [],
+    },
+    candidateIds: {
+      quickActionHydration: invalidations["quick-action-hydration"] || [],
+      legacyHpHydration: invalidations["legacy-hp-hydration"] || [],
+    },
     derived: {
       output: flags.derivedOutput,
       effects: flags.derivedEffects,
@@ -502,12 +571,14 @@ export function createSceneItemChangeDispatcher({
   function attachContext(event, {
     epoch,
     revision = sourceRevision,
+    generation = snapshotGeneration,
     batchId = null,
     correlationId = null,
     commandId = null,
   } = {}) {
     if (epoch !== undefined) event.sceneEpoch = epoch;
     event.revision = revision;
+    event.generation = generation;
     event.batchId = batchId || `scene-items:${revision}`;
     if (correlationId) event.correlationId = correlationId;
     if (commandId) event.commandId = commandId;
@@ -594,9 +665,16 @@ export function createSceneItemChangeDispatcher({
         || "",
     ).trim() || null;
     const commandId = String(sourceContext?.commandId || "").trim() || null;
+    const nextGeneration = snapshotGeneration + 1;
     const immediateEvent = attachContext(
       classifySceneItemSnapshots(currentSnapshot, nextSnapshot),
-      { epoch: sourceEpoch, revision, correlationId, commandId },
+      {
+        epoch: sourceEpoch,
+        revision,
+        generation: nextGeneration,
+        correlationId,
+        commandId,
+      },
     );
     if (!immediateEvent.flags.any) return;
     if (!batchBaseSnapshot) {
@@ -605,7 +683,7 @@ export function createSceneItemChangeDispatcher({
     }
     if (batchEpoch === null) batchEpoch = sourceEpoch;
     currentSnapshot = nextSnapshot;
-    snapshotGeneration += 1;
+    snapshotGeneration = nextGeneration;
 
     for (const subscriber of subscribers) {
       if (subscriber.immediate) runSubscriber(subscriber, immediateEvent, true);

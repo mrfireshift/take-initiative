@@ -130,7 +130,7 @@ test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda",
   );
   assert.match(
     initiativeCardsSource,
-    /loadInitiativeCard\(item,\s*\{\s*hydrate:\s*true\s*\}\)/,
+    /loadInitiativeCard\(item,\s*\{\s*hydrate:\s*true,\s*registry\s*\}\)/,
   );
   assert.match(
     initiativeSource,
@@ -138,6 +138,6 @@ test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda",
   );
   assert.match(
     initiativeSource,
-    /filter:\s*\(event\) => event\.flags\.hpMemoryAutofill,\s*immediate:\s*true/,
+    /filter:\s*\(event\) => event\.flags\.quickActionHydration,\s*immediate:\s*true/,
   );
 });

@@ -57,9 +57,11 @@ import { refreshConditionLabels } from "./conditions.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import {
   requireAppliedEffectsMutation,
+  getEffectsMutationSceneContext,
   runEffectsMutation,
 } from "./effectsMutations.js";
 import { currentSceneEpoch } from "./sceneEpoch.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
@@ -264,13 +266,18 @@ export function bootSpellUnifiedPanel(
   const root = documentRef.getElementById("spell-unified-panel-root");
   if (!root) return null;
 
+  const sceneLifecycle = runtimeOverrides.sceneLifecycle
+    || createSceneLifecycleAdapter({
+      obr: runtimeOverrides.obr || OBR,
+    });
+  const ownsSceneLifecycle = !runtimeOverrides.sceneLifecycle;
   const provider = runtimeOverrides.provider
-    || createSpellUnifiedPanelSceneProvider(OBR);
+    || createSpellUnifiedPanelSceneProvider(OBR, { sceneLifecycle });
   const route = runtimeOverrides.route
     || (runtimeOverrides.routeRequest
       ? routeSpellUnifiedPanelOpenRequest(runtimeOverrides.routeRequest)
       : panelRouteFromLocation());
-  const sourceId = runtimeOverrides.sourceId ?? route.sourceId ?? "";
+  let sourceId = runtimeOverrides.sourceId ?? route.sourceId ?? "";
   const catalogEntries = runtimeOverrides.catalogEntries
     || provider.getCatalogEntries?.()
     || buildSpellCatalogEntries();
@@ -291,8 +298,18 @@ export function bootSpellUnifiedPanel(
   let unsubscribeSelection = null;
   let unsubscribeItems = null;
   let unsubscribePopup = null;
+  let unsubscribeSceneLifecycle = null;
   let targetingSelectionSequence = 0;
   const pendingPlacementRequests = new Set();
+  let activePopupOperation = null;
+
+  const sceneOperationId = (prefix = "spell-panel") => (
+    `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`
+  );
+  const sceneAvailable = () => sceneLifecycle.isReady();
+  const captureSceneOperation = (prefix) => sceneLifecycle.capture({
+    operationId: sceneOperationId(prefix),
+  });
 
   const validCasterIds = () => state.casters.map((item) => item.id);
 
@@ -316,11 +333,18 @@ export function bootSpellUnifiedPanel(
     const eligibility = usesPersistentCastAdapter()
       ? areaEligibility
       : lifecycleEligibility;
+    const sceneGate = sceneAvailable()
+      ? null
+      : {
+        allowed: false,
+        code: "scene-unavailable",
+        message: "La scena è cambiata: riapri o attendi una nuova baseline.",
+      };
     state.session = updateSpellPanelSession(state.session, {
       executionGate: {
-        allowed: eligibility.eligible,
-        code: eligibility.code,
-        message: eligibility.message,
+        allowed: sceneGate ? sceneGate.allowed : eligibility.eligible,
+        code: sceneGate ? sceneGate.code : eligibility.code,
+        message: sceneGate ? sceneGate.message : eligibility.message,
       },
     });
   };
@@ -372,6 +396,20 @@ export function bootSpellUnifiedPanel(
     };
   };
 
+  const closeActiveResolutionPopover = async () => {
+    const { overview, action } = activeActionForSession();
+    const popoverId = action?.type === "resolve"
+      ? buildSpellUnifiedPreparedPopoverRequest(overview).id
+      : spellActiveResolutionPopoverId(
+        overview?.instanceId,
+        state.session?.activeActionId,
+      );
+    if (!popoverId) return;
+    const closePopover = runtimeOverrides.closePopover
+      || ((id) => OBR.popover.close(id));
+    await Promise.resolve(closePopover(popoverId)).catch(() => {});
+  };
+
   const openActiveResolution = async (payload) => {
     if (typeof runtimeOverrides.openActiveResolution === "function") {
       return runtimeOverrides.openActiveResolution(payload);
@@ -414,18 +452,24 @@ export function bootSpellUnifiedPanel(
   };
 
   const clearSelection = async () => {
+    const operation = captureSceneOperation("spell-panel-selection-clear");
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     selectionWriteDepth += 1;
     try {
       await provider.setSelection?.([], true);
+      return sceneLifecycle.isCurrent(operation);
     } finally {
       selectionWriteDepth -= 1;
     }
   };
 
   const writeSelection = async (ids) => {
+    const operation = captureSceneOperation("spell-panel-selection-write");
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     selectionWriteDepth += 1;
     try {
       await provider.setSelection?.(ids, true);
+      return sceneLifecycle.isCurrent(operation);
     } finally {
       selectionWriteDepth -= 1;
     }
@@ -474,7 +518,11 @@ export function bootSpellUnifiedPanel(
   };
 
   const applyPrimarySecondarySelection = async (ids) => {
-    if (!usesPrimarySecondarySelection() || state.session.placement?.targetLocked === true) return;
+    if (!sceneAvailable()
+      || !usesPrimarySecondarySelection()
+      || state.session.placement?.targetLocked === true) return;
+    const operation = captureSceneOperation("spell-panel-target-selection");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const requestSequence = ++targetingSelectionSequence;
     const sceneIds = targetIdsForCandidates(ids, state.targetCandidates);
     const currentPrimary = String(state.session.primaryTargetId || "").trim();
@@ -499,7 +547,7 @@ export function bootSpellUnifiedPanel(
         },
         targetIds: [primaryTargetId],
       });
-      if (requestSequence !== targetingSelectionSequence) return;
+      if (requestSequence !== targetingSelectionSequence || !sceneLifecycle.isCurrent(operation)) return;
       if (validation?.errors?.includes("primary-out-of-range")) {
         provider.clearTargetingReference?.();
         patchSession({
@@ -524,7 +572,9 @@ export function bootSpellUnifiedPanel(
         radiusMeters: spatial.secondaryRangeMeters,
         label: "Raggio bersagli secondari",
       });
-      if (requestSequence === targetingSelectionSequence) await writeSelection([primaryTargetId]);
+      if (requestSequence === targetingSelectionSequence && sceneLifecycle.isCurrent(operation)) {
+        await writeSelection([primaryTargetId]);
+      }
       return;
     }
 
@@ -538,7 +588,7 @@ export function bootSpellUnifiedPanel(
       session: { ...state.session, targetIds: nextIds, primaryTargetId: currentPrimary },
       targetIds: nextIds,
     });
-    if (requestSequence !== targetingSelectionSequence) return;
+    if (requestSequence !== targetingSelectionSequence || !sceneLifecycle.isCurrent(operation)) return;
     const invalidIds = new Set(validation?.invalidDistanceTargetIds || []);
     nextIds = nextIds.filter((id) => id === currentPrimary || !invalidIds.has(id));
     const targetSet = new Set(nextIds);
@@ -555,11 +605,13 @@ export function bootSpellUnifiedPanel(
         ? { feedback: { state: "error", message: targetingSelectionFeedback(validation.errors) } }
         : {}),
     }, { clearFeedback: !(validation?.errors?.length && invalidIds.size) });
-    if (requestSequence === targetingSelectionSequence) await writeSelection(nextIds);
+    if (requestSequence === targetingSelectionSequence && sceneLifecycle.isCurrent(operation)) {
+      await writeSelection(nextIds);
+    }
   };
 
   const applySelection = (ids) => {
-    if (state.session.placement?.targetLocked === true) return;
+    if (!sceneAvailable() || state.session.placement?.targetLocked === true) return;
     const nextIds = targetIdsForCandidates(ids, state.targetCandidates);
     const targetSet = new Set(nextIds);
     const outcomes = Object.fromEntries(
@@ -584,11 +636,14 @@ export function bootSpellUnifiedPanel(
   };
 
   const refreshSceneData = async ({ initial = false } = {}) => {
+    const operation = captureSceneOperation(initial ? "spell-panel-bootstrap" : "spell-panel-refresh");
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     const [casters, targetItems, overview] = await Promise.all([
       provider.getCasters?.(sourceId) || [],
       provider.getTargetCandidates?.() || null,
       provider.getOverview?.(sourceId) || [],
     ]);
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     state.casters = Array.isArray(casters) ? casters : [];
     const candidateItems = Array.isArray(targetItems) ? targetItems : state.casters;
     state.targetCandidates = candidateItems
@@ -598,6 +653,7 @@ export function bootSpellUnifiedPanel(
       const contextIds = sourceId
         ? await provider.getCardTargetIds?.(sourceId, state.casters)
         : await provider.getContextOrSelectionIds?.();
+      if (!sceneLifecycle.isCurrent(operation)) return false;
       const routeIds = targetIdsForCandidates(
         state.session.targetIds,
         state.targetCandidates,
@@ -619,6 +675,7 @@ export function bootSpellUnifiedPanel(
       });
     }
     const concentrations = await provider.getCasterConcentrations?.(state.session.casterId) || {};
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     state.concentrationSummary = concentrationSummary(concentrations);
     state.activeOverview = Array.isArray(overview) ? overview : [];
     if (state.contract?.spell?.id && typeof provider.getPendingZoneTriggers === "function") {
@@ -630,6 +687,7 @@ export function bootSpellUnifiedPanel(
             || state.session.triggerRuntime?.id
             || "",
         }) || [];
+        if (!sceneLifecycle.isCurrent(operation)) return false;
         const currentId = String(
           state.session.triggerRuntime?.activationId
             || state.session.triggerRuntime?.id
@@ -646,6 +704,7 @@ export function bootSpellUnifiedPanel(
         // A temporary trigger lookup failure must not destroy the main panel state.
       }
     }
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     const selectedActiveInstanceId = String(state.session.activeInstanceId || "").trim();
     const selectedActiveActionId = String(state.session.activeActionId || "").trim();
     if (selectedActiveInstanceId) {
@@ -673,13 +732,16 @@ export function bootSpellUnifiedPanel(
         radiusMeters: spatial.secondaryRangeMeters,
         label: "Raggio bersagli secondari",
       });
+      if (!sceneLifecycle.isCurrent(operation)) return false;
     }
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     state.revision += 1;
     render();
+    return true;
   };
 
   const refreshScene = async (options = {}) => {
-    if (destroyed) return;
+    if (destroyed || !sceneAvailable()) return false;
     if (refreshInFlight) {
       refreshQueued = true;
       return refreshInFlight;
@@ -711,7 +773,7 @@ export function bootSpellUnifiedPanel(
     return true;
   };
 
-  const areaRuntime = () => {
+  const areaRuntime = (operation = null, ownerSceneContext = null) => {
     const providerRuntime = provider.getAreaExecutionRuntime?.() || {};
     const areaOverrides = runtimeOverrides.areaRuntime || {};
     const customThrough = typeof runtimeOverrides.undoHistoryThrough === "function"
@@ -725,6 +787,14 @@ export function bootSpellUnifiedPanel(
     return {
       ...providerRuntime,
       ...areaOverrides,
+      ...(operation ? {
+        sceneEpoch: operation.epoch,
+        isCurrent: () => sceneLifecycle.isCurrent(operation),
+        operationId: operation.operationId,
+      } : {}),
+      ...(ownerSceneContext?.sceneIdentity
+        ? { sceneIdentity: ownerSceneContext.sceneIdentity }
+        : {}),
       undoHistoryEntry: selectedUndoEntry,
       undoHistoryThrough: runtimeOverrides.undoHistoryThrough || undoHistoryThrough,
       ...(runtimeOverrides.areaExecutor
@@ -780,6 +850,8 @@ export function bootSpellUnifiedPanel(
   };
 
   const sendPlacementControl = async (type) => {
+    const operation = captureSceneOperation(`spell-panel-placement-${type}`);
+    if (!sceneLifecycle.isCurrent(operation)) return false;
     const requestId = String(state.session?.placement?.requestId || "").trim();
     const broadcast = runtimeOverrides.broadcast || OBR.broadcast;
     if (!requestId || !broadcast?.sendMessage) return false;
@@ -789,7 +861,7 @@ export function bootSpellUnifiedPanel(
         { type, requestId },
         { destination: "LOCAL" },
       );
-      return true;
+      return sceneLifecycle.isCurrent(operation);
     } catch (error) {
       patchSession({
         feedback: {
@@ -817,9 +889,11 @@ export function bootSpellUnifiedPanel(
     retainedTargetIds,
     objects,
   }) => {
-    if (!objects.length) return false;
+    const operation = captureSceneOperation("spell-panel-animated-placement");
+    if (!sceneLifecycle.isCurrent(operation) || !objects.length) return false;
     if (!manualTargetSelection) {
       await writeSelection([]);
+      if (!sceneLifecycle.isCurrent(operation)) return false;
       state.session = updateSpellPanelSession(state.session, {
         targetIds: [],
         primaryTargetId: "",
@@ -869,7 +943,8 @@ export function bootSpellUnifiedPanel(
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
         windowRef: runtimeOverrides.windowRef || globalThis.window,
         onProgress: (progress) => {
-          if (destroyed || state.session.placement?.requestId !== requestId) return;
+          if (destroyed || !sceneLifecycle.isCurrent(operation)
+            || state.session.placement?.requestId !== requestId) return;
           const batchIndex = Math.max(
             0,
             Math.min(objects.length, Math.floor(Number(progress?.batchIndex) || 0)),
@@ -901,7 +976,7 @@ export function bootSpellUnifiedPanel(
     } finally {
       pendingPlacementRequests.delete(requestId);
     }
-    if (destroyed) return true;
+    if (destroyed || !sceneLifecycle.isCurrent(operation)) return true;
     const status = String(result?.status || "error").trim() === "error"
       ? "failed"
       : String(result?.status || "error").trim();
@@ -964,6 +1039,8 @@ export function bootSpellUnifiedPanel(
   };
 
   const startPlacement = async () => {
+    const operation = captureSceneOperation("spell-panel-placement");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const eligibility = getSpellUnifiedAreaEligibility(state.contract, state.session);
     const descriptor = placementDescriptor();
     const manualTargetSelection = state.contract?.presentation?.targeting?.selectionMode === "manual";
@@ -1018,6 +1095,7 @@ export function bootSpellUnifiedPanel(
 
     try {
       if (!manualTargetSelection) await writeSelection([]);
+      if (!sceneLifecycle.isCurrent(operation)) return;
       const result = await requestSpellAreaPlacement({
         requestId,
         ruleId: descriptor.ruleId,
@@ -1031,7 +1109,8 @@ export function bootSpellUnifiedPanel(
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
         windowRef: runtimeOverrides.windowRef || globalThis.window,
       });
-      if (destroyed || state.session.placement?.requestId !== requestId) return;
+      if (destroyed || !sceneLifecycle.isCurrent(operation)
+        || state.session.placement?.requestId !== requestId) return;
       const rawStatus = String(result?.status || "error").trim();
       const status = rawStatus === "error" ? "failed" : rawStatus;
       const confirmed = status === "confirmed";
@@ -1070,8 +1149,10 @@ export function bootSpellUnifiedPanel(
       state.revision += 1;
       render();
       await writeSelection(nextIds);
+      if (!sceneLifecycle.isCurrent(operation)) return;
     } catch (error) {
-      if (destroyed || state.session.placement?.requestId !== requestId) return;
+      if (destroyed || !sceneLifecycle.isCurrent(operation)
+        || state.session.placement?.requestId !== requestId) return;
       state.session = updateSpellPanelSession(state.session, {
         ...(error ? {
           feedback: {
@@ -1092,10 +1173,30 @@ export function bootSpellUnifiedPanel(
   };
 
   const commitArea = async () => {
-    if (state.committing || state.session.commitState.state === "committing") return;
+    if (!sceneAvailable()
+      || state.committing
+      || state.session.commitState.state === "committing") return;
+    const operation = captureSceneOperation("spell-panel-area-commit");
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    let ownerSceneContext = null;
+    if (!runtimeOverrides.areaExecutor) {
+      try {
+        ownerSceneContext = await getEffectsMutationSceneContext({
+          commandId: operation.operationId,
+        });
+      } catch (error) {
+        if (sceneLifecycle.isCurrent(operation)) {
+          patchSession({
+            feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
+          }, { clearFeedback: false });
+        }
+        return;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     state.committing = true;
-    const runtime = areaRuntime();
-    const sceneEpoch = runtime.sceneEpoch ?? null;
+    const runtime = areaRuntime(operation, ownerSceneContext);
+    const sceneEpoch = operation.epoch;
     state.session = updateSpellPanelSession(state.session, {
       commitState: { state: "committing" },
       feedback: { state: "loading", message: "Applicazione in corso…" },
@@ -1110,6 +1211,7 @@ export function bootSpellUnifiedPanel(
         runtime,
         candidateTargetIds: candidateTargetIds(),
       });
+      if (!sceneLifecycle.isCurrent(operation)) return;
       state.lastAreaResult = result;
       const success = result.status === SPELL_UNIFIED_AREA_STATUS.APPLIED
         || result.status === SPELL_UNIFIED_AREA_STATUS.NOOP;
@@ -1182,6 +1284,7 @@ export function bootSpellUnifiedPanel(
         await refreshScene();
       }
     } catch (error) {
+      if (!sceneLifecycle.isCurrent(operation)) return;
       state.session = updateSpellPanelSession(state.session, {
         commitState: { state: "failed", error: "Applicazione non riuscita." },
         feedback: { state: "error", message: "Applicazione non riuscita." },
@@ -1194,7 +1297,11 @@ export function bootSpellUnifiedPanel(
   };
 
   const undo = async () => {
-    if (state.committing || state.session.undoState?.available !== true) return;
+    if (!sceneAvailable()
+      || state.committing
+      || state.session.undoState?.available !== true) return;
+    const operation = captureSceneOperation("spell-panel-area-undo");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     state.session = updateSpellPanelSession(state.session, {
       undoState: { ...state.session.undoState, state: "undoing" },
       feedback: { state: "loading", message: "Undo in corso…" },
@@ -1203,8 +1310,9 @@ export function bootSpellUnifiedPanel(
     render();
     const result = await undoSpellUnifiedArea({
       session: state.session,
-      runtime: areaRuntime(),
+      runtime: areaRuntime(operation),
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (result.status === SPELL_UNIFIED_AREA_STATUS.UNDONE) {
       state.session = updateSpellPanelSession(state.session, {
         undoState: { state: "undone", available: false },
@@ -1223,8 +1331,16 @@ export function bootSpellUnifiedPanel(
     render();
   };
 
-  const persistentRuntime = (executor) => ({
+  const persistentRuntime = (executor, operation = null, ownerSceneContext = null) => ({
     ...(typeof executor === "function" ? { executor } : {}),
+    ...(operation ? {
+      sceneEpoch: operation.epoch,
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+      commandId: operation.operationId,
+    } : {}),
+    ...(ownerSceneContext?.sceneIdentity
+      ? { sceneIdentity: ownerSceneContext.sceneIdentity }
+      : {}),
   });
 
   const persistentResultMessage = (result, fallback) => (
@@ -1232,7 +1348,9 @@ export function bootSpellUnifiedPanel(
   );
 
   const updateBoardToken = async ({ overview, hp }) => {
-    if (destroyed) return;
+    if (destroyed || !sceneAvailable()) return;
+    const operation = captureSceneOperation("spell-panel-board-token-update");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     state.session = updateSpellPanelSession(state.session, {
       feedback: { state: "loading", message: "Aggiornamento HP della pedina in corso…" },
     });
@@ -1241,8 +1359,9 @@ export function bootSpellUnifiedPanel(
     const result = await executeSpellUnifiedBoardTokenStateUpdate({
       overview,
       hp,
-      runtime: persistentRuntime(runtimeOverrides.boardTokenStateExecutor),
+      runtime: persistentRuntime(runtimeOverrides.boardTokenStateExecutor, operation),
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (result.status === SPELL_UNIFIED_PERSISTENT_STATUS.UPDATED) {
       state.session = updateSpellPanelSession(state.session, {
         feedback: { state: "success", message: "HP della pedina aggiornati." },
@@ -1263,6 +1382,8 @@ export function bootSpellUnifiedPanel(
   };
 
   const recreateBoardToken = async (overview) => {
+    const operation = captureSceneOperation("spell-panel-board-token-recreate");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const persistent = overview?.persistent || {};
     const requestId = createSpellAreaPlacementRequestId();
     if (!persistent.ruleId || !persistent.casterId) return;
@@ -1287,7 +1408,7 @@ export function bootSpellUnifiedPanel(
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
         windowRef: runtimeOverrides.windowRef || globalThis.window,
       });
-      if (destroyed) return;
+      if (destroyed || !sceneLifecycle.isCurrent(operation)) return;
       if (placement?.status !== "confirmed") {
         state.session = updateSpellPanelSession(state.session, {
           feedback: {
@@ -1305,8 +1426,9 @@ export function bootSpellUnifiedPanel(
       const result = await executeSpellUnifiedBoardTokenRecreate({
         overview,
         position,
-        runtime: persistentRuntime(runtimeOverrides.boardTokenRecreateExecutor),
+        runtime: persistentRuntime(runtimeOverrides.boardTokenRecreateExecutor, operation),
       });
+      if (!sceneLifecycle.isCurrent(operation)) return;
       if (result.status === SPELL_UNIFIED_PERSISTENT_STATUS.RECREATED) {
         state.session = updateSpellPanelSession(state.session, {
           feedback: { state: "success", message: "Pedina ricreata." },
@@ -1345,7 +1467,9 @@ export function bootSpellUnifiedPanel(
   );
 
   const terminateActiveSpell = async (overview) => {
-    if (state.committing || !overview) return;
+    if (!sceneAvailable() || state.committing || !overview) return;
+    const operation = captureSceneOperation("spell-panel-spell-terminate");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const context = overview.context || {};
     const instanceId = String(overview.instanceId || context.instanceId || "").trim();
     const casterId = String(context.casterId || "").trim();
@@ -1356,6 +1480,23 @@ export function bootSpellUnifiedPanel(
       || (context.concentration === true && !!casterId)
       || ["present", "lifecycle-missing"].includes(overview.persistent?.state);
     if (!canTerminate) return;
+
+    let ownerSceneContext = null;
+    if (!runtimeOverrides.runEffectsMutation) {
+      try {
+        ownerSceneContext = await getEffectsMutationSceneContext({
+          commandId: operation.operationId,
+        });
+      } catch (error) {
+        if (sceneLifecycle.isCurrent(operation)) {
+          patchSession({
+            feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
+          }, { clearFeedback: false });
+        }
+        return;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
 
     const operations = [];
     if (context.concentration === true && casterId) {
@@ -1432,7 +1573,10 @@ export function bootSpellUnifiedPanel(
           type: "static-zone:remove-ended",
           selectors: [{ instanceId }],
         }] : [],
+        commandId: ownerSceneContext?.commandId || operation.operationId,
+        sceneIdentity: ownerSceneContext?.sceneIdentity || null,
       });
+      if (!sceneLifecycle.isCurrent(operation)) return;
       const requireMutation = runtimeOverrides.requireAppliedEffectsMutation
         || requireAppliedEffectsMutation;
       requireMutation(mutation);
@@ -1452,6 +1596,7 @@ export function bootSpellUnifiedPanel(
         feedback: { state: "success", message: `${overview.name} terminato.` },
       });
     } catch (error) {
+      if (!sceneLifecycle.isCurrent(operation)) return;
       state.session = updateSpellPanelSession(state.session, {
         feedback: {
           state: "error",
@@ -1480,9 +1625,11 @@ export function bootSpellUnifiedPanel(
   };
 
   const executeActiveAction = async () => {
-    if (state.committing || ["loading", "opened"].includes(
+    if (!sceneAvailable() || state.committing || ["loading", "opened"].includes(
       String(state.session?.activeActionState?.state || "").trim(),
     )) return;
+    const operation = captureSceneOperation("spell-panel-active-action");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const { overview, action } = activeActionForSession();
     const actionId = String(state.session?.activeActionId || "").trim();
     if (!overview || !actionId || !action) {
@@ -1567,6 +1714,7 @@ export function bootSpellUnifiedPanel(
     state.revision += 1;
     render();
 
+    activePopupOperation = null;
     let result;
     try {
       const liveSceneEpoch = currentSceneEpoch();
@@ -1583,6 +1731,20 @@ export function bootSpellUnifiedPanel(
         revision: context.revision,
         currentRevision: runtimeOverrides.currentRevision,
         runtime: {
+          sceneEpoch: operation.epoch,
+          sceneIdentity: null,
+          commandId: operation.operationId,
+          isCurrent: () => sceneLifecycle.isCurrent(operation),
+          ...(!runtimeOverrides.activeExecutor
+            && !runtimeOverrides.preparedExecutor
+            && !runtimeOverrides.zoneMovementExecutor
+            && !runtimeOverrides.zoneDirectionExecutor
+            ? {
+              getSceneContext: () => getEffectsMutationSceneContext({
+                commandId: operation.operationId,
+              }),
+            }
+            : {}),
           openActiveResolution,
           openPreparedResolution,
           ...(runtimeOverrides.activeExecutor
@@ -1605,9 +1767,11 @@ export function bootSpellUnifiedPanel(
         errors: [{ message: error?.message || "Risoluzione dell'azione non riuscita." }],
       };
     }
+    if (!sceneLifecycle.isCurrent(operation)) return;
     state.committing = false;
 
     if (result.status === SPELL_UNIFIED_ACTIVE_STATUS.POPUP_OPENED) {
+      activePopupOperation = operation;
       state.session = updateSpellPanelSession(state.session, {
         activeActionState: {
           state: "opened",
@@ -1670,6 +1834,9 @@ export function bootSpellUnifiedPanel(
   };
 
   const handlePopupResult = async (event) => {
+    if (!sceneAvailable()) return;
+    const popupOperation = activePopupOperation;
+    if (!popupOperation || !sceneLifecycle.isCurrent(popupOperation)) return;
     const data = event?.data && typeof event.data === "object" ? event.data : event;
     const status = String(data?.status || "").trim();
     if (!Object.values(SPELL_UNIFIED_PANEL_POPUP_STATUSES).includes(status)) return;
@@ -1677,6 +1844,7 @@ export function bootSpellUnifiedPanel(
     const actionId = String(state.session?.activeActionId || "").trim();
     if (!isSpellUnifiedPopupEvent(event, { instanceId, actionId })) return;
     if (String(state.session?.activeActionState?.state || "").trim() !== "opened") return;
+    activePopupOperation = null;
 
     const nextState = status === SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED
       ? "failed"
@@ -1727,12 +1895,61 @@ export function bootSpellUnifiedPanel(
     });
     state.revision += 1;
     render();
-    if (status !== SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED) await refreshScene();
+    if (status !== SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED && sceneAvailable()) {
+      await refreshScene();
+    }
+  };
+
+  const resetSceneBaseline = (message, { ready: nextReady = false } = {}) => {
+    ++targetingSelectionSequence;
+    activePopupOperation = null;
+    void closeActiveResolutionPopover();
+    provider.clearTargetingReference?.();
+    const requestIds = [...pendingPlacementRequests];
+    pendingPlacementRequests.clear();
+    void Promise.all(requestIds.map((requestId) => (
+      cancelSpellAreaPlacementRequest(requestId, {
+        broadcast: runtimeOverrides.broadcast || OBR.broadcast,
+      }).catch(() => false)
+    )));
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = null;
+    refreshQueued = false;
+    sourceId = "";
+    state.casters = [];
+    state.targetCandidates = [];
+    state.activeOverview = [];
+    state.concentrationSummary = {};
+    state.loading = !nextReady;
+    state.committing = false;
+    state.session = updateSpellPanelSession(state.session, {
+      casterId: "",
+      targetIds: [],
+      primaryTargetId: "",
+      outcomes: {},
+      targetContext: {},
+      placement: null,
+      triggerRuntime: null,
+      activeInstanceId: "",
+      activeActionId: "",
+      activeActionState: null,
+      commitState: { state: "idle" },
+      undoState: { state: "unavailable", available: false, activationId: null },
+      feedback: { state: nextReady ? "info" : "error", message },
+    });
+    updateEligibility();
+    state.revision += 1;
+    render();
   };
 
   const destroy = async () => {
     if (destroyed) return;
     destroyed = true;
+    if (ownsSceneLifecycle) sceneLifecycle.dispose();
+    unsubscribeSceneLifecycle?.();
+    unsubscribeSceneLifecycle = null;
+    activePopupOperation = null;
+    await closeActiveResolutionPopover();
     ++targetingSelectionSequence;
     provider.clearTargetingReference?.();
     await Promise.all([...pendingPlacementRequests].map((requestId) => (
@@ -1790,7 +2007,11 @@ export function bootSpellUnifiedPanel(
   };
 
   const commit = async () => {
-    if (state.committing || state.session.commitState.state === "committing") return;
+    if (!sceneAvailable()
+      || state.committing
+      || state.session.commitState.state === "committing") return;
+    const operation = captureSceneOperation("spell-panel-lifecycle-commit");
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const model = state.model || render();
     if (model?.workflow?.validation?.firstInvalidField) {
       if (model.workflow.validation.firstInvalidField === "execution") {
@@ -1811,6 +2032,22 @@ export function bootSpellUnifiedPanel(
       await commitArea();
       return;
     }
+    let ownerSceneContext = null;
+    if (!runtimeOverrides.lifecycleExecutor) {
+      try {
+        ownerSceneContext = await getEffectsMutationSceneContext({
+          commandId: operation.operationId,
+        });
+      } catch (error) {
+        if (sceneLifecycle.isCurrent(operation)) {
+          patchSession({
+            feedback: { state: "error", message: "La scena non è disponibile per la mutazione." },
+          }, { clearFeedback: false });
+        }
+        return;
+      }
+      if (!sceneLifecycle.isCurrent(operation)) return;
+    }
     state.committing = true;
     state.session = updateSpellPanelSession(state.session, {
       commitState: { state: "committing" },
@@ -1823,6 +2060,9 @@ export function bootSpellUnifiedPanel(
       contract: state.contract,
       session: state.session,
         runtime: {
+          sceneEpoch: operation.epoch,
+          sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+          isCurrent: () => sceneLifecycle.isCurrent(operation),
           spell: getSpellDefinition(state.contract?.spell?.id),
           casterName: caster?.name || "",
           getAppliedAt: () => provider.getAppliedAt?.(),
@@ -1831,8 +2071,9 @@ export function bootSpellUnifiedPanel(
           ...(runtimeOverrides.lifecycleExecutor
             ? { executor: runtimeOverrides.lifecycleExecutor }
             : {}),
-        },
+      },
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     state.committing = false;
     if (result.status === SPELL_UNIFIED_LIFECYCLE_STATUS.COMMITTED) {
       const hasUndo = result.undoAvailable === true && !!result.historyEntryId;
@@ -2273,17 +2514,14 @@ export function bootSpellUnifiedPanel(
     onBoardTokenRecreate: (overview) => void recreateBoardToken(overview),
     onActiveTerminate: (overview) => void terminateActiveSpell(overview),
     onCancel: async () => {
+      if (!sceneAvailable()) return;
       if (state.session?.activeActionState?.state === "opened") {
-        const { overview, action } = activeActionForSession();
-        const popoverId = action?.type === "resolve"
-          ? buildSpellUnifiedPreparedPopoverRequest(overview).id
-          : spellActiveResolutionPopoverId(
-            overview?.instanceId,
-            state.session?.activeActionId,
-          );
-        const closePopover = runtimeOverrides.closePopover
-          || ((id) => OBR.popover.close(id));
-        if (popoverId) await closePopover(popoverId).catch(() => {});
+        const operation = captureSceneOperation("spell-panel-popup-cancel");
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        await closeActiveResolutionPopover();
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        activePopupOperation = null;
+        const { overview } = activeActionForSession();
         patchSession({
           activeActionState: {
             state: "selected",
@@ -2321,10 +2559,14 @@ export function bootSpellUnifiedPanel(
   };
 
   const load = async () => {
+    if (!sceneAvailable()) return false;
     try {
       await refreshScene({ initial: true });
+      if (!sceneAvailable()) return false;
+      const selectedSceneIds = await provider.getSelection?.();
+      if (!sceneAvailable()) return false;
       const selectedIds = targetIdsForCandidates(
-        await provider.getSelection?.(),
+        selectedSceneIds,
         state.targetCandidates,
       );
       if (selectedIds.length && !state.session.targetIds.length) {
@@ -2333,7 +2575,9 @@ export function bootSpellUnifiedPanel(
       if (spellUnifiedPanelShouldAutoStartPlacement(route)) {
         await startPlacement();
       }
+      return true;
     } catch (error) {
+      if (!sceneAvailable()) return false;
       state.loading = false;
       state.session = updateSpellPanelSession(state.session, {
         feedback: {
@@ -2345,6 +2589,21 @@ export function bootSpellUnifiedPanel(
       console.warn("[spell-unified-panel] load:", error?.message || error);
     }
   };
+
+  unsubscribeSceneLifecycle = sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      resetSceneBaseline("Scena cambiata: riapri il pannello per una nuova baseline.");
+      return;
+    }
+    if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      resetSceneBaseline("Nuova scena pronta: seleziona di nuovo caster e bersagli.", { ready: true });
+      void load();
+    }
+  });
+  sceneLifecycle.registerSceneCleanup(() => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = null;
+  });
 
   unsubscribeSelection = provider.onSelectionChange?.((ids) => {
     if (selectionWriteDepth > 0) return;
@@ -2381,7 +2640,7 @@ export function bootSpellUnifiedPanel(
   });
   updateEligibility();
   render();
-  void load();
+  void sceneLifecycle.mount().then(() => load());
   return { state, render, refreshScene: load, destroy };
 }
 

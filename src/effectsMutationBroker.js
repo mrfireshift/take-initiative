@@ -4,6 +4,24 @@ const clone = (value) => {
   return JSON.parse(JSON.stringify(value));
 };
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalize(value[key])]),
+  );
+}
+
+function commandFingerprint(kind, command) {
+  try {
+    return JSON.stringify(canonicalize({ kind, command }));
+  } catch {
+    return "[unfingerprintable-command]";
+  }
+}
+
 function rejected(commandId, reason) {
   return {
     status: "rejected",
@@ -25,6 +43,7 @@ export function createEffectsMutationBackgroundBroker({
   executeApply,
   executeUndo,
   beforeExecute = async () => {},
+  shouldCacheResult = () => true,
   maxResults = 256,
 } = {}) {
   if (typeof executeApply !== "function") throw new TypeError("executeApply must be a function");
@@ -32,12 +51,14 @@ export function createEffectsMutationBackgroundBroker({
 
   let sceneIdentity = null;
   const results = new Map();
+  const fingerprints = new Map();
 
   function setSceneIdentity(value) {
     const next = String(value || "").trim() || null;
     if (next === sceneIdentity) return sceneIdentity;
     sceneIdentity = next;
     results.clear();
+    fingerprints.clear();
     return sceneIdentity;
   }
 
@@ -65,19 +86,48 @@ export function createEffectsMutationBackgroundBroker({
       return { duplicate: false, command, result: rejected(commandId, "stale-scene-identity") };
     }
 
+    const fingerprint = commandFingerprint(kind, command);
+    const previousFingerprint = fingerprints.get(commandId);
+    if (previousFingerprint && previousFingerprint !== fingerprint) {
+      return {
+        duplicate: false,
+        command,
+        result: {
+          status: "conflict",
+          commandId,
+          correlationId: command.correlationId || commandId,
+          reason: "command-id-payload-conflict",
+          committed: false,
+          changedIds: [],
+          changes: [],
+        },
+      };
+    }
+
     await beforeExecute(command);
     let task = results.get(commandId);
     const duplicate = !!task;
     if (!task) {
+      fingerprints.set(commandId, fingerprint);
       task = kind === "undo"
         ? Promise.resolve().then(() => executeUndo(command.entry, command))
         : Promise.resolve().then(() => executeApply(command.operations || [], command));
       results.set(commandId, task);
       if (results.size > Math.max(1, Number(maxResults) || 256)) {
-        results.delete(results.keys().next().value);
+        const oldest = results.keys().next().value;
+        results.delete(oldest);
+        fingerprints.delete(oldest);
       }
     }
-    return { duplicate, command, result: await task };
+    const result = await task;
+    if (
+      shouldCacheResult(result, { kind, command }) === false
+      && results.get(commandId) === task
+    ) {
+      results.delete(commandId);
+      fingerprints.delete(commandId);
+    }
+    return { duplicate, command, result };
   }
 
   return {

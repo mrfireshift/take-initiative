@@ -54,6 +54,12 @@ import {
 import { createEffectsMutationBackgroundBroker } from "./effectsMutationBroker.js";
 import { buildCoordinatedEffectsUndoPlan } from "./effectsMutationUndoCore.js";
 import {
+  buildHistoryUndoPlan,
+  historyUndoItemMatches,
+  historyUndoPlanConflicts,
+  historyUndoSame,
+} from "./historyUndoCore.js";
+import {
   currentSceneEpoch,
   invalidateSceneEpoch,
   isCurrentSceneEpoch,
@@ -65,6 +71,10 @@ import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const CONC_META_KEY = `${ID}/concentration`;
+const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
+const HISTORY_CONTROL_ACK_CHANNEL = `${ID}/history-control-ack`;
+const HISTORY_UNDO_SUPPRESSION_ACK_MS = 1500;
+const HISTORY_UNDO_SUPPRESSION_MS = 5000;
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -178,6 +188,29 @@ async function requestBackgroundSceneIdentity(commandId) {
     throw mutationResultError(result);
   }
   return result.sceneIdentity;
+}
+
+// Clients use the existing background context handshake before a scene
+// mutation. The returned identity is opaque and must not be compared with a
+// numeric epoch from another iframe.
+export async function getEffectsMutationSceneContext({
+  commandId = "",
+  sceneIdentity = null,
+} = {}) {
+  const resolvedCommandId = String(commandId || "").trim() || createId("effects-context");
+  if (isBackgroundRuntime()) {
+    return {
+      commandId: resolvedCommandId,
+      sceneIdentity: sceneIdentity || backgroundSceneIdentity,
+    };
+  }
+  if (sceneIdentity) {
+    return { commandId: resolvedCommandId, sceneIdentity: String(sceneIdentity) };
+  }
+  return {
+    commandId: resolvedCommandId,
+    sceneIdentity: await requestBackgroundSceneIdentity(resolvedCommandId),
+  };
 }
 
 const uniqueIds = (values = []) => Array.from(new Set(
@@ -584,6 +617,8 @@ export async function prepareEffectsMutation(operations = [], {
   return plan;
 }
 
+const updateSceneItemsForUndo = (...args) => OBR.scene.items.updateItems(...args);
+
 async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
   const canCommit = () => typeof isCurrent !== "function" || isCurrent();
   if (!backgroundServiceMounted) throw new Error("effects-commit-requires-background-runtime");
@@ -668,6 +703,528 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
   }
 }
 
+function historyPlanEntries(plan, phase) {
+  return new Map(
+    (Array.isArray(plan?.[phase === "final" ? "finalItems" : "initialItems"])
+      ? plan[phase === "final" ? "finalItems" : "initialItems"]
+      : [])
+      .map((entry) => [entry?.id, entry?.item || null]),
+  );
+}
+
+function historyPlanIds(plan) {
+  return Array.from(new Set([
+    ...(Array.isArray(plan?.initialItems) ? plan.initialItems : []).map((entry) => entry?.id),
+    ...(Array.isArray(plan?.finalItems) ? plan.finalItems : []).map((entry) => entry?.id),
+  ].filter(Boolean)));
+}
+
+function historyPlanChanges(plan) {
+  return new Map((Array.isArray(plan?.changes) ? plan.changes : [])
+    .map((change) => [change.id, change]));
+}
+
+function historyPlanMovementSuppression(plan) {
+  const positions = {};
+  for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
+    if (change?.position !== true || !change?.id) continue;
+    const x = Number(change?.afterPosition?.x);
+    const y = Number(change?.afterPosition?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    positions[change.id] = [{ x, y }];
+  }
+  return positions;
+}
+
+async function broadcastHistoryUndoSuppression({ ids, positions, until }) {
+  const movementIds = Object.keys(positions || {});
+  const requestId = movementIds.length
+    ? `history-undo-suppression:${Date.now()}:${Math.random().toString(36).slice(2)}`
+    : "";
+  let unsubscribe = null;
+  let timeout = null;
+  const acknowledged = requestId
+    ? new Promise((resolve) => {
+      unsubscribe = OBR.broadcast.onMessage(HISTORY_CONTROL_ACK_CHANNEL, (event) => {
+        const data = event?.data;
+        if (data?.type !== "suppress-history-undo-ack" || data?.requestId !== requestId) return;
+        resolve(true);
+      });
+      timeout = setTimeout(() => resolve(false), HISTORY_UNDO_SUPPRESSION_ACK_MS);
+    })
+    : null;
+
+  try {
+    await OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
+      type: "suppress-history-undo",
+      ids,
+      positions,
+      until,
+      ...(requestId ? { requestId } : {}),
+    }, { destination: "LOCAL" });
+    if (acknowledged && !await acknowledged) {
+      throw new Error("history-undo-suppression-not-acknowledged");
+    }
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    unsubscribe?.();
+  }
+}
+
+function historyPlanLifecycle(plan) {
+  return new Map((Array.isArray(plan?.lifecycle) ? plan.lifecycle : [])
+    .map((change) => [change.id, change]));
+}
+
+function applyHistoryItemSnapshot(item, snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return;
+  for (const key of new Set([...Object.keys(item || {}), ...Object.keys(snapshot)])) {
+    if (key === "id") continue;
+    if (Object.prototype.hasOwnProperty.call(snapshot, key)) item[key] = clone(snapshot[key]);
+  }
+}
+
+function applyHistoryChangeToDraft(item, change, targetPhase) {
+  if (change?.lifecycle) {
+    applyHistoryItemSnapshot(
+      item,
+      targetPhase === "final" ? change.lifecycle.after : change.lifecycle.before,
+    );
+    return;
+  }
+  const targetEffects = targetPhase === "final" ? change?.after || {} : change?.before || {};
+  const targetMetadata = targetPhase === "final"
+    ? change?.afterMetadata || {}
+    : change?.beforeMetadata || {};
+  const meta = { ...(item.metadata?.[META_KEY] || {}) };
+  for (const field of Object.keys(change?.fields || {}).filter((field) => change.fields[field])) {
+    if (field === "conditions") {
+      const values = Array.isArray(targetEffects[field]) ? clone(targetEffects[field]) : [];
+      if (values.length) {
+        meta.conditions = {
+          version: EFFECTS_MUTATION_CONDITION_VERSION,
+          instances: values,
+        };
+      } else {
+        delete meta.conditions;
+      }
+    } else if (field === "spells") {
+      meta[SPELLS_META_KEY] = Array.isArray(targetEffects[field])
+        ? clone(targetEffects[field])
+        : [];
+    } else if (field === "concentrations") {
+      meta[CONC_META_KEY] = targetEffects[field] && typeof targetEffects[field] === "object"
+        ? clone(targetEffects[field])
+        : {};
+    }
+  }
+  for (const field of Object.keys(change?.metadataFields || {}).filter((field) => change.metadataFields[field])) {
+    const descriptor = targetMetadata[field];
+    if (descriptor?.present) meta[field] = clone(descriptor.value);
+    else delete meta[field];
+  }
+  if (
+    Object.keys(change?.fields || {}).length
+    || Object.keys(change?.metadataFields || {}).length
+  ) {
+    item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
+  }
+  if (change?.position) {
+    item.position = clone(targetPhase === "final" ? change.afterPosition : change.beforePosition);
+  }
+  for (const patch of change?.externalMetadata || []) {
+    const descriptor = targetPhase === "final" ? patch.after : patch.before;
+    const nextMetadata = { ...(item.metadata || {}) };
+    if (descriptor?.present) nextMetadata[patch.metadataKey] = clone(descriptor.value);
+    else delete nextMetadata[patch.metadataKey];
+    item.metadata = nextMetadata;
+  }
+}
+
+async function readHistoryUndoPlanState(plan, isCurrent) {
+  if (!isCurrent()) return { stale: true, items: [] };
+  const ids = historyPlanIds(plan);
+  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  if (!isCurrent()) return { stale: true, items: [] };
+  return {
+    stale: false,
+    items,
+    conflicts: historyUndoPlanConflicts(plan, items, {
+      phase: "before",
+      normalizeConditions: getConditionInstances,
+    }),
+  };
+}
+
+async function writeHistoryUndoExistingItems(
+  plan,
+  targetPhase,
+  isCurrent,
+  onlyIds = null,
+) {
+  const initial = historyPlanEntries(plan, "before");
+  const final = historyPlanEntries(plan, "final");
+  const wanted = new Set(Array.isArray(onlyIds) ? onlyIds : historyPlanIds(plan));
+  const ids = historyPlanIds(plan).filter((id) => initial.get(id) && final.get(id) && wanted.has(id));
+  if (!ids.length) return { changedIds: [], committed: false };
+  const changes = historyPlanChanges(plan);
+  const lifecycle = historyPlanLifecycle(plan);
+  let writeAuthorized = false;
+  await updateSceneItemsForUndo(ids, (drafts) => {
+    if (!isCurrent()) throw new Error("stale-before-history-undo-update");
+    const validationErrors = [];
+    const draftIds = new Set((drafts || []).map((draft) => draft?.id).filter(Boolean));
+    for (const id of ids) {
+      if (!draftIds.has(id)) validationErrors.push({ itemId: id, reason: "missing-item" });
+    }
+    for (const draft of drafts) {
+      const change = changes.get(draft.id) || (lifecycle.has(draft.id)
+        ? { id: draft.id, lifecycle: lifecycle.get(draft.id) }
+        : null);
+      const expectedPhase = targetPhase === "final" ? "before" : "after";
+      const expected = targetPhase === "final" ? initial.get(draft.id) : final.get(draft.id);
+      const matches = change?.lifecycle
+        ? historyUndoSame(draft, expected)
+        : historyUndoItemMatches(draft, change || {}, {
+          phase: expectedPhase,
+          metadataKey: plan.metadataKey,
+          effectKeys: plan.effectKeys,
+          normalizeConditions: getConditionInstances,
+        });
+      if (!matches) {
+        validationErrors.push({
+          itemId: draft.id,
+          reason: "draft-value-mismatch",
+          phase: expectedPhase,
+        });
+      }
+    }
+    if (validationErrors.length) {
+      const error = new Error("history-undo-draft-conflict");
+      error.conflicts = validationErrors;
+      throw error;
+    }
+    if (!isCurrent()) throw new Error("stale-before-history-undo-update");
+    for (const draft of drafts) {
+      const change = changes.get(draft.id) || (lifecycle.has(draft.id)
+        ? { id: draft.id, lifecycle: lifecycle.get(draft.id) }
+        : null);
+      applyHistoryChangeToDraft(draft, change || {}, targetPhase);
+    }
+    writeAuthorized = true;
+  });
+  if (!writeAuthorized) throw new Error("stale-before-history-undo-update");
+  return { changedIds: ids, committed: true };
+}
+
+async function writeHistoryUndoLifecycle(plan, isCurrent) {
+  const initial = historyPlanEntries(plan, "before");
+  const final = historyPlanEntries(plan, "final");
+  const deleteIds = historyPlanIds(plan).filter((id) => initial.get(id) && !final.get(id));
+  const additions = historyPlanIds(plan)
+    .filter((id) => !initial.get(id) && final.get(id))
+    .map((id) => clone(final.get(id)));
+  const lifecycleIds = [...deleteIds, ...additions.map((item) => item?.id).filter(Boolean)];
+  if (lifecycleIds.length) {
+    if (!isCurrent()) throw new Error("stale-before-history-undo-lifecycle-read");
+    const current = await OBR.scene.items.getItems(lifecycleIds);
+    if (!isCurrent()) throw new Error("stale-after-history-undo-lifecycle-read");
+    const currentById = new Map(current.map((item) => [item?.id, item]));
+    const lifecycleConflicts = [];
+    for (const id of deleteIds) {
+      if (!historyUndoSame(currentById.get(id), initial.get(id))) {
+        lifecycleConflicts.push({ itemId: id, field: "scene-item", reason: "scene-item-snapshot-mismatch" });
+      }
+    }
+    for (const item of additions) {
+      if (currentById.has(item?.id)) {
+        lifecycleConflicts.push({ itemId: item.id, field: "scene-item", reason: "item-id-collision" });
+      }
+    }
+    if (lifecycleConflicts.length) {
+      const error = new Error("history-undo-lifecycle-conflict");
+      error.conflicts = lifecycleConflicts;
+      throw error;
+    }
+  }
+  if (deleteIds.length) {
+    if (!isCurrent()) throw new Error("stale-before-history-undo-delete");
+    await OBR.scene.items.deleteItems(deleteIds);
+  }
+  if (additions.length) {
+    if (!isCurrent()) throw new Error("stale-before-history-undo-add");
+    await OBR.scene.items.addItems(additions);
+  }
+  return { deleteIds, addedIds: additions.map((item) => item?.id).filter(Boolean) };
+}
+
+function historyUndoPhaseMatches(plan, items, phase) {
+  return historyUndoPlanConflicts(plan, items, {
+    phase,
+    normalizeConditions: getConditionInstances,
+  }).length === 0;
+}
+
+async function compensateHistoryUndoPlan(plan, isCurrent, currentItems) {
+  const initial = historyPlanEntries(plan, "before");
+  const final = historyPlanEntries(plan, "final");
+  const changes = historyPlanChanges(plan);
+  const lifecycle = historyPlanLifecycle(plan);
+  const actualById = new Map(currentItems.map((item) => [item?.id, item]));
+  const updateIds = [];
+  const deleteIds = [];
+  const additions = [];
+  const nonConvergent = [];
+  for (const id of historyPlanIds(plan)) {
+    const actual = actualById.get(id) || null;
+    const change = changes.get(id) || (lifecycle.has(id)
+      ? { id, lifecycle: lifecycle.get(id) }
+      : null);
+    const matchesInitial = !initial.get(id)
+      ? !actual
+      : change?.lifecycle
+        ? !!actual && historyUndoSame(actual, initial.get(id))
+        : !!actual && historyUndoItemMatches(actual, change || {}, {
+          phase: "before",
+          metadataKey: plan.metadataKey,
+          effectKeys: plan.effectKeys,
+          normalizeConditions: getConditionInstances,
+        });
+    const matchesFinal = !final.get(id)
+      ? !actual
+      : change?.lifecycle
+        ? !!actual && historyUndoSame(actual, final.get(id))
+        : !!actual && historyUndoItemMatches(actual, change || {}, {
+          phase: "after",
+          metadataKey: plan.metadataKey,
+          effectKeys: plan.effectKeys,
+          normalizeConditions: getConditionInstances,
+        });
+    if (matchesInitial) continue;
+    if (!matchesFinal) {
+      nonConvergent.push({ itemId: id, reason: "state-not-at-plan-boundary" });
+      continue;
+    }
+    if (initial.get(id) && final.get(id)) updateIds.push(id);
+    else if (!initial.get(id) && final.get(id)) deleteIds.push(id);
+    else if (initial.get(id) && !final.get(id)) additions.push(clone(initial.get(id)));
+  }
+  if (nonConvergent.length) return { converged: false, nonConvergent };
+  try {
+    if (updateIds.length) await writeHistoryUndoExistingItems(plan, "before", isCurrent, updateIds);
+    if (deleteIds.length) {
+      if (!isCurrent()) throw new Error("stale-before-history-undo-recovery-delete");
+      await OBR.scene.items.deleteItems(deleteIds);
+    }
+    if (additions.length) {
+      if (!isCurrent()) throw new Error("stale-before-history-undo-recovery-add");
+      await OBR.scene.items.addItems(additions);
+    }
+    if (!isCurrent()) return { converged: false, nonConvergent: [{ reason: "stale-after-history-undo-recovery" }] };
+    const readBack = await OBR.scene.items.getItems(historyPlanIds(plan));
+    if (!isCurrent()) return { converged: false, nonConvergent: [{ reason: "stale-after-history-undo-recovery-read" }] };
+    if (historyUndoPhaseMatches(plan, readBack, "before")) {
+      return { converged: true, items: readBack };
+    }
+    return { converged: false, nonConvergent: [{ reason: "history-undo-recovery-readback-mismatch" }] };
+  } catch (error) {
+    return {
+      converged: false,
+      nonConvergent: [{ ...postCommitError("history-undo-recovery", error), phase: "compensation" }],
+    };
+  }
+}
+
+async function commitHistoryUndoPlan(plan, { isCurrent }) {
+  if (!isCurrent()) {
+    return {
+      status: EFFECTS_MUTATION_STATUS.REJECTED,
+      reason: "stale-before-history-undo-commit",
+      committed: false,
+      changedIds: [],
+    };
+  }
+  const beforeState = await readHistoryUndoPlanState(plan, isCurrent);
+  if (beforeState.stale) {
+    return {
+      status: EFFECTS_MUTATION_STATUS.REJECTED,
+      reason: "stale-after-history-undo-prepare",
+      committed: false,
+      changedIds: [],
+    };
+  }
+  if (beforeState.conflicts.length) {
+    return {
+      status: EFFECTS_MUTATION_STATUS.CONFLICT,
+      conflicts: beforeState.conflicts,
+      committed: false,
+      changedIds: [],
+    };
+  }
+
+  // Every History watcher must know that this is a restore before the first
+  // item event arrives. In particular, a position restore must not be counted
+  // as a new movement with the inverse distance.
+  const suppressionIds = historyPlanIds(plan);
+  if (suppressionIds.length) {
+    const until = Date.now() + HISTORY_UNDO_SUPPRESSION_MS;
+    const positions = historyPlanMovementSuppression(plan);
+    try {
+      await broadcastHistoryUndoSuppression({ ids: suppressionIds, positions, until });
+    } catch (error) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.FAILED,
+        reason: "history-undo-suppression-unavailable",
+        committed: false,
+        changedIds: [],
+        error: postCommitError("history-undo-suppression", error),
+      };
+    }
+    if (!isCurrent()) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.REJECTED,
+        reason: "stale-before-history-undo-suppression",
+        committed: false,
+        changedIds: [],
+      };
+    }
+  }
+
+  let phase = "update";
+  try {
+    await writeHistoryUndoExistingItems(plan, "final", isCurrent);
+    phase = "lifecycle";
+    await writeHistoryUndoLifecycle(plan, isCurrent);
+    if (!isCurrent()) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "scene-changed-during-history-undo-commit",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+      };
+    }
+    phase = "read-back";
+    const afterItems = await OBR.scene.items.getItems(historyPlanIds(plan));
+    if (!isCurrent()) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "scene-changed-during-history-undo-readback",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+      };
+    }
+    const afterConflicts = historyUndoPlanConflicts(plan, afterItems, {
+      phase: "final",
+      normalizeConditions: getConditionInstances,
+    });
+    if (afterConflicts.length) {
+      const recovery = await compensateHistoryUndoPlan(plan, isCurrent, afterItems);
+      if (recovery.converged) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.FAILED,
+          reason: "history-undo-readback-mismatch-recovered",
+          committed: false,
+          changedIds: [],
+          recovery: { state: "initial", compensated: true },
+          conflicts: afterConflicts,
+        };
+      }
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "history-undo-readback-mismatch",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+        conflicts: afterConflicts,
+        recovery,
+      };
+    }
+    return {
+      changedIds: [...(plan.changedIds || [])],
+      committed: true,
+      readBack: true,
+      postCommitErrors: [],
+      sideEffectChanges: [],
+      sideEffectsPending: [],
+    };
+  } catch (error) {
+    if (!isCurrent()) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "scene-changed-during-history-undo-failure",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+        failure: { ...postCommitError("history-undo-commit", error), phase },
+      };
+    }
+    let currentItems = [];
+    try {
+      currentItems = await OBR.scene.items.getItems(historyPlanIds(plan));
+    } catch (readError) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "history-undo-readback-failed",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+        failure: { ...postCommitError("history-undo-readback", readError), phase: "read-back" },
+      };
+    }
+    if (!isCurrent()) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+        reason: "scene-changed-during-history-undo-readback",
+        committed: true,
+        recoveryRequired: true,
+        changedIds: [...(plan.changedIds || [])],
+      };
+    }
+    if (historyUndoPhaseMatches(plan, currentItems, "final")) {
+      return {
+        changedIds: [...(plan.changedIds || [])],
+        committed: true,
+        readBack: true,
+        postCommitErrors: [{ ...postCommitError("history-undo-commit", error), phase }],
+        sideEffectChanges: [],
+        sideEffectsPending: [],
+      };
+    }
+    if (historyUndoPhaseMatches(plan, currentItems, "before")) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.FAILED,
+        reason: "history-undo-not-applied",
+        committed: false,
+        changedIds: [],
+        failure: { ...postCommitError("history-undo-commit", error), phase },
+        recovery: { state: "initial", compensated: false },
+      };
+    }
+    const recovery = await compensateHistoryUndoPlan(plan, isCurrent, currentItems);
+    if (recovery.converged) {
+      return {
+        status: EFFECTS_MUTATION_STATUS.FAILED,
+        reason: "history-undo-partial-recovered",
+        committed: false,
+        changedIds: [],
+        failure: { ...postCommitError("history-undo-commit", error), phase },
+        recovery: { state: "initial", compensated: true },
+      };
+    }
+    return {
+      status: EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED,
+      reason: "history-undo-partial-recovery-required",
+      committed: true,
+      recoveryRequired: true,
+      changedIds: [...(plan.changedIds || [])],
+      failure: { ...postCommitError("history-undo-commit", error), phase },
+      recovery,
+    };
+  }
+}
+
 const BACKGROUND_TRANSPORT_TIMEOUT_MS = 8000;
 let backgroundServiceUnsubscribe = null;
 let backgroundSceneReadyUnsubscribe = null;
@@ -711,28 +1268,69 @@ function nextCasterTurnKey(state, casterId) {
 export async function prepareEffectsMutationUndo(entryOrEntries, {
   sceneEpoch = null,
   isCurrent = null,
+  sceneItems = null,
 } = {}) {
   const canPrepare = () => (
     typeof isCurrent !== "function" || isCurrent()
   );
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-scene-epoch" };
-  const sceneItems = await OBR.scene.items.getItems();
+  const currentSceneItems = Array.isArray(sceneItems)
+    ? sceneItems
+    : await OBR.scene.items.getItems();
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
-  const plan = buildCoordinatedEffectsUndoPlan({
-    currentStates: sceneItems.map((item) => {
-      const state = normalizedSceneItem(item);
-      state.metadata = clone(item?.metadata?.[META_KEY] || {});
-      return state;
-    }),
-    sceneItems,
-    entryOrEntries,
-    metadataKeys: {
-      conditions: "conditions",
-      spells: SPELLS_META_KEY,
-      concentrations: CONC_META_KEY,
-    },
-    normalizeConditions: getConditionInstances,
+  const entries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
+  const genericUndo = entries.some((entry) => {
+    const mutationChanges = Array.isArray(entry?.effectsMutation?.changes)
+      ? entry.effectsMutation.changes
+      : null;
+    const sideEffects = Array.isArray(entry?.effectsMutation?.sideEffects)
+      ? entry.effectsMutation.sideEffects
+      : [];
+    if (sideEffects.some((sideEffect) => ["item", "metadata", "static-zone-move"].includes(sideEffect?.type))) {
+      return true;
+    }
+    if (!mutationChanges) {
+      return (Array.isArray(entry?.changes) ? entry.changes : []).some((change) => {
+        if (Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore")) return true;
+        if (Object.prototype.hasOwnProperty.call(change || {}, "beforePosition")) return true;
+        return Object.keys(change?.before || {}).some((field) => ![
+          "conditions",
+          SPELLS_META_KEY,
+          CONC_META_KEY,
+        ].includes(field));
+      });
+    }
+    return mutationChanges.some((change) => Object.keys(change?.metadataFields || {})
+      .some((field) => !["conditions", SPELLS_META_KEY, CONC_META_KEY].includes(field)));
   });
+  const plan = genericUndo
+    ? buildHistoryUndoPlan({
+      sceneItems: currentSceneItems,
+      entryOrEntries,
+      metadataKey: META_KEY,
+      effectKeys: {
+        conditions: "conditions",
+        spells: SPELLS_META_KEY,
+        concentrations: CONC_META_KEY,
+      },
+      normalizeConditions: getConditionInstances,
+      conditionVersion: EFFECTS_MUTATION_CONDITION_VERSION,
+    })
+    : buildCoordinatedEffectsUndoPlan({
+      currentStates: currentSceneItems.map((item) => {
+        const state = normalizedSceneItem(item);
+        state.metadata = clone(item?.metadata?.[META_KEY] || {});
+        return state;
+      }),
+      sceneItems: currentSceneItems,
+      entryOrEntries,
+      metadataKeys: {
+        conditions: "conditions",
+        spells: SPELLS_META_KEY,
+        concentrations: CONC_META_KEY,
+      },
+      normalizeConditions: getConditionInstances,
+    });
   if (plan.status) return plan;
   plan.mutationId = createId("effects-undo");
   plan.sceneEpoch = sceneEpoch;
@@ -1863,6 +2461,9 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
       changedIds: [],
     };
   }
+  if (plan?.historyUndo === true) {
+    return commitHistoryUndoPlan(plan, { isCurrent });
+  }
   const effectsCommit = await commitEffectsMutationPlan(plan, { isCurrent });
   if (effectsCommit?.status === EFFECTS_MUTATION_STATUS.REJECTED) return effectsCommit;
   const sideEffects = [
@@ -1977,7 +2578,10 @@ async function retryPendingEffectsHistory() {
     }
     if (pendingSideEffectRecords.has(commandId)) continue;
     try {
-      await recordEffectsMutationHistory(pending);
+      await recordEffectsMutationHistory({
+        ...pending,
+        historyEntry: pending.historyEntry || null,
+      });
       pendingHistoryRecords.delete(commandId);
     } catch {}
   }
@@ -2043,6 +2647,14 @@ export async function mountEffectsMutationCoordinatorService() {
   }
   backgroundCommandBroker = createEffectsMutationBackgroundBroker({
     beforeExecute: enqueuePendingEffectsSideEffectRetry,
+    // A missing movement-watcher ACK happens before any scene write. Do not
+    // pin that transient result to the deterministic Undo command ID: a later
+    // retry must be allowed. Applied and ambiguous outcomes remain cached.
+    shouldCacheResult: (result) => !(
+      result?.status === EFFECTS_MUTATION_STATUS.FAILED
+      && result?.committed !== true
+      && result?.commitResult?.reason === "history-undo-suppression-unavailable"
+    ),
     executeApply: (operations, command) => {
       const { operations: _operations, ...options } = command;
       return runEffectsMutation(operations, {
@@ -2105,6 +2717,7 @@ export async function mountEffectsMutationCoordinatorService() {
                 command: handled.command,
                 plan: result.plan,
                 commitResult: result.commitResult,
+                historyEntry: clone(result.historyEntry || null),
                 sceneEpoch: result.sceneEpoch,
                 sceneIdentity: handled.command?.sceneIdentity,
               };
@@ -2149,7 +2762,7 @@ export async function mountEffectsMutationCoordinatorService() {
         recoveredPostCommitResults.clear();
         clearTimeout(pendingHistoryRetryTimer);
         pendingHistoryRetryTimer = null;
-      } else if (sceneReady) {
+      } else if (!ready && sceneReady) {
         sceneReady = false;
         backgroundSceneIdentity = null;
         backgroundCommandBroker?.clear();

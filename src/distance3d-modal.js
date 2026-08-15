@@ -6,8 +6,10 @@ import {
   readElevation,
 } from "./distance3d.js";
 import { formatDistance } from "./distance3dCore.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const app = document.querySelector("#app");
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 let context = { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
 let originId = null;
 let renderRevision = 0;
@@ -88,6 +90,7 @@ function requestPopoverResize() {
 }
 
 function render() {
+  if (!sceneLifecycle.isReady()) return;
   const ids = new Set(context.items.map((item) => item.id));
   if (!originId || !ids.has(originId)) originId = context.items[0]?.id || null;
 
@@ -113,8 +116,10 @@ function render() {
 
 async function refresh() {
   const revision = ++renderRevision;
-  const next = await loadDistanceContext();
-  if (revision !== renderRevision) return;
+  const operation = sceneLifecycle.capture({ operationId: `distance-refresh:${revision}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const next = await loadDistanceContext({ isCurrent: () => sceneLifecycle.isCurrent(operation) });
+  if (revision !== renderRevision || !sceneLifecycle.isCurrent(operation)) return;
   context = next;
   render();
 }
@@ -161,6 +166,18 @@ app.addEventListener("dragend", (event) => {
 });
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      context = { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
+      app.replaceChildren();
+      app.textContent = "Scena non disponibile: riapri Distanza 3D.";
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    app.textContent = "Scena non disponibile: riapri Distanza 3D.";
+    return;
+  }
   await OBR.broadcast.sendMessage(DISTANCE_3D_CHANNEL, { type: "opened" }, { destination: "LOCAL" }).catch(() => {});
   OBR.player.onChange(() => void refresh());
   OBR.scene.items.onChange(() => void refresh());
@@ -170,4 +187,5 @@ OBR.onReady(async () => {
 
 window.addEventListener("pagehide", () => {
   void OBR.broadcast.sendMessage(DISTANCE_3D_CHANNEL, { type: "closed" }, { destination: "LOCAL" }).catch(() => {});
+  sceneLifecycle.dispose();
 });

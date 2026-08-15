@@ -27,6 +27,17 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 export const ACTOR_VITALS_ROOM_KEY = `${ID}/actorVitals`;
 export const ACTOR_VITALS_LOCAL_KEY = `${ID}/actorVitals/local`;
 export const ACTOR_VITALS_ROOM_MAX_BYTES = ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES;
+export const ACTOR_VITALS_AUTHORITIES = Object.freeze({
+  GM: "GM",
+  PLAYER: "PLAYER",
+});
+
+function normalizeAuthority(value) {
+  return String(value ?? ACTOR_VITALS_AUTHORITIES.GM).trim().toUpperCase()
+    === ACTOR_VITALS_AUTHORITIES.GM
+    ? ACTOR_VITALS_AUTHORITIES.GM
+    : ACTOR_VITALS_AUTHORITIES.PLAYER;
+}
 
 function clone(value) {
   try {
@@ -112,6 +123,11 @@ function metadataWithCanonicalHP(item, hp, hpMax) {
   };
 }
 
+function sameCanonicalHP(left, right) {
+  if (!left || !right) return !left && !right;
+  return left.hp === right.hp && left.hpMax === right.hpMax;
+}
+
 export function createActorVitalsStore({
   api = OBR.room,
   itemsApi = OBR.scene.items,
@@ -120,12 +136,14 @@ export function createActorVitalsStore({
   localKey = ACTOR_VITALS_LOCAL_KEY,
   roomMaxBytes = ACTOR_VITALS_ROOM_MAX_BYTES,
   now = Date.now,
+  authority = ACTOR_VITALS_AUTHORITIES.GM,
   getSceneEpoch = currentSceneEpoch,
   isSceneEpochCurrent = isCurrentSceneEpoch,
   subscribeItems = null,
   subscribeEpoch = null,
   logger = console,
 } = {}) {
+  let runtimeAuthority = normalizeAuthority(authority);
   let stopped = false;
   let started = false;
   let roomUnsubscribe = null;
@@ -139,6 +157,10 @@ export function createActorVitalsStore({
   let queuedWriteCount = 0;
   let lastAcceptedSourceRevision = new Map();
   let lastReconciledEpoch = null;
+  let hydratedEpoch = null;
+  let hydratedItems = new Map();
+
+  const canWrite = () => runtimeAuthority === ACTOR_VITALS_AUTHORITIES.GM;
 
   const getLocal = () => readLocalRegistry(storage, localKey);
 
@@ -168,10 +190,10 @@ export function createActorVitalsStore({
     reason = "write",
   } = {}) {
     const write = async () => {
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const local = getLocal();
       const metadata = await api?.getMetadata?.().catch?.(() => ({})) || {};
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const previous = mergeActorVitalsRegistries(local, metadata?.[roomKey]);
       const next = normalizeActorVitalsRegistry(
         typeof updater === "function" ? updater(clone(previous)) : updater,
@@ -181,9 +203,9 @@ export function createActorVitalsStore({
         return previous;
       }
       latestRegistry = next;
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const localWritten = writeLocalRegistry(storage, next, localKey);
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return next;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return next;
       const roomNext = retainActorVitalsRegistryWithinByteBudget(next, roomMaxBytes);
       try {
         await writeRoomMetadataKey(
@@ -196,7 +218,7 @@ export function createActorVitalsStore({
         if (!localWritten) throw error;
         logger?.warn?.("[actorVitals] Room unavailable; local fallback:", error?.message || error);
       }
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return next;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return next;
       emitChange(reason, next);
       return next;
     };
@@ -225,7 +247,7 @@ export function createActorVitalsStore({
     const id = normalizeActorProfileId(actorProfileId);
     const nextHP = normalizeHP(hp);
     const nextHPMax = normalizeHPMax(hpMax);
-    if (!id || nextHP === null || nextHPMax === null || stopped
+    if (!canWrite() || !id || nextHP === null || nextHPMax === null || stopped
       || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
 
     const revisionNumber = sourceRevision === null || sourceRevision === undefined
@@ -251,35 +273,52 @@ export function createActorVitalsStore({
     }, { sceneEpoch, reason: "canonical-hp" });
   }
 
-  async function reconcileSceneItems(items = [], sceneEpoch = getSceneEpoch()) {
+  async function reconcileSceneItems(
+    items = [],
+    sceneEpoch = getSceneEpoch(),
+    options = {},
+  ) {
+    const { itemIds = null, baseline = itemIds === null } = options || {};
     const run = async () => {
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const sceneItems = sortItems(items);
       currentItems = sceneItems;
+      if (baseline && Number(hydratedEpoch) !== Number(sceneEpoch)) {
+        hydratedItems.clear();
+      }
       const registry = await readRegistry();
-      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return registry;
+      if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return registry;
       const primaryByActor = primaryItemsByActor(sceneItems);
+      const requestedItemIds = itemIds === null
+        ? new Set(sceneItems.map((item) => itemId(item)))
+        : new Set([...itemIds].map((id) => String(id)));
+      const actorsToHydrate = new Set(
+        sceneItems
+          .filter((item) => requestedItemIds.has(itemId(item)))
+          .map((item) => actorProfileIdFromItem(item))
+          .filter(Boolean),
+      );
       const initializations = [];
-      const restoreById = new Map();
 
       for (const [actorProfileId, primary] of primaryByActor) {
+        if (!actorsToHydrate.has(actorProfileId)) continue;
         const stored = actorVitalsRecordFor(registry, actorProfileId);
         if (!isValidActorVitalsRecord(stored)) {
           const hp = validCanonicalHP(primary);
           if (hp) initializations.push({ actorProfileId, ...hp });
-          continue;
         }
-        for (const item of sceneItems) {
-          if (actorProfileIdFromItem(item) !== actorProfileId) continue;
-          const hp = normalizeHP(stored.hp);
-          const hpMax = normalizeHPMax(stored.hpMax);
-          if (hp !== null && hpMax !== null) {
-            const current = validCanonicalHP(item);
-            if (!current || current.hp !== hp || current.hpMax !== hpMax) {
-              restoreById.set(item.id, { hp, hpMax });
-            }
-          }
-        }
+      }
+
+      if (initializations.length) {
+        const liveBeforeRegistryCommit = sortItems(await itemsApi.getItems());
+        if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+        currentItems = liveBeforeRegistryCommit;
+        const livePrimaryByActor = primaryItemsByActor(liveBeforeRegistryCommit);
+        initializations.splice(0, initializations.length, ...initializations.flatMap((initialization) => {
+          const primary = livePrimaryByActor.get(initialization.actorProfileId);
+          const hp = validCanonicalHP(primary);
+          return hp ? [{ ...initialization, ...hp }] : [];
+        }));
       }
 
       let nextRegistry = registry;
@@ -292,40 +331,98 @@ export function createActorVitalsStore({
           { now },
         );
       }
+      const restoreById = new Map();
       // Se più token condividono l'ID, il token primario deterministico è la
       // sola sorgente iniziale; tutti gli altri ricevono lo stesso snapshot.
       // Questo evita che un duplicato appena aggiunto vinca per ultimo e
       // riattivi un ciclo di scritture.
       for (const [actorProfileId] of primaryByActor) {
+        if (!actorsToHydrate.has(actorProfileId)) continue;
         const stored = actorVitalsRecordFor(nextRegistry, actorProfileId);
         if (!stored) continue;
         const hp = normalizeHP(stored.hp);
         const hpMax = normalizeHPMax(stored.hpMax);
         if (hp === null || hpMax === null) continue;
         for (const item of sceneItems) {
+          if (!requestedItemIds.has(itemId(item))) continue;
           if (actorProfileIdFromItem(item) !== actorProfileId) continue;
           const current = validCanonicalHP(item);
           if (!current || current.hp !== hp || current.hpMax !== hpMax) {
-            restoreById.set(item.id, { hp, hpMax });
+            restoreById.set(item.id, {
+              actorProfileId,
+              hp,
+              hpMax,
+              expected: current,
+            });
           }
         }
       }
       if (initializations.length) {
-        await writeRegistry(nextRegistry, { sceneEpoch, reason: "initialize-from-token" });
+        nextRegistry = await writeRegistry(nextRegistry, {
+          sceneEpoch,
+          reason: "initialize-from-token",
+        });
       }
       if (!restoreById.size || stopped || !isSceneEpochCurrent(sceneEpoch)) {
+        for (const item of sceneItems) {
+          const actorProfileId = actorProfileIdFromItem(item);
+          if (actorProfileId && requestedItemIds.has(itemId(item))) {
+            hydratedItems.set(itemId(item), actorProfileId);
+          }
+        }
+        if (baseline) hydratedEpoch = sceneEpoch;
         lastReconciledEpoch = sceneEpoch;
         return nextRegistry;
       }
 
-      await itemsApi.updateItems([...restoreById.keys()], (drafts) => {
-        if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
-        for (const item of drafts) {
-          const update = restoreById.get(item.id);
-          if (!update) continue;
-          item.metadata = metadataWithCanonicalHP(item, update.hp, update.hpMax);
+      const liveItems = sortItems(await itemsApi.getItems());
+      if (stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+      currentItems = liveItems;
+      const livePrimaryByActor = primaryItemsByActor(liveItems);
+      const changedCanonicalByActor = new Map();
+      const safeRestoreById = new Map();
+      for (const [id, update] of restoreById) {
+        const liveItem = liveItems.find((item) => itemId(item) === id);
+        const liveHP = validCanonicalHP(liveItem);
+        if (liveItem && sameCanonicalHP(liveHP, update.expected)) {
+          safeRestoreById.set(id, update);
+          continue;
         }
-      });
+        if (liveItem
+          && itemId(livePrimaryByActor.get(update.actorProfileId)) === id
+          && liveHP) {
+          changedCanonicalByActor.set(update.actorProfileId, liveHP);
+        }
+      }
+
+      if (safeRestoreById.size) {
+        await itemsApi.updateItems([...safeRestoreById.keys()], (drafts) => {
+          if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
+          for (const item of drafts) {
+            const update = safeRestoreById.get(item.id);
+            if (!update) continue;
+            const current = validCanonicalHP(item);
+            if (!sameCanonicalHP(current, update.expected)) {
+              if (itemId(livePrimaryByActor.get(update.actorProfileId)) === itemId(item)
+                && current) {
+                changedCanonicalByActor.set(update.actorProfileId, current);
+              }
+              continue;
+            }
+            item.metadata = metadataWithCanonicalHP(item, update.hp, update.hpMax);
+          }
+        });
+      }
+      for (const [actorProfileId, hp] of changedCanonicalByActor) {
+        await saveCanonicalHP(actorProfileId, hp.hp, hp.hpMax, { sceneEpoch });
+      }
+      for (const item of sceneItems) {
+        const actorProfileId = actorProfileIdFromItem(item);
+        if (actorProfileId && requestedItemIds.has(itemId(item))) {
+          hydratedItems.set(itemId(item), actorProfileId);
+        }
+      }
+      if (baseline) hydratedEpoch = sceneEpoch;
       lastReconciledEpoch = sceneEpoch;
       return nextRegistry;
     };
@@ -335,29 +432,68 @@ export function createActorVitalsStore({
   }
 
   async function reconcileCurrentScene(sceneEpoch = getSceneEpoch()) {
-    if (!isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
+    if (!canWrite() || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
     const items = await itemsApi.getItems();
     if (!isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
-    return reconcileSceneItems(items, sceneEpoch);
+    return reconcileSceneItems(items, sceneEpoch, { baseline: true });
   }
 
   async function handleItemEvent(event) {
     const sceneEpoch = event?.sceneEpoch ?? getSceneEpoch();
     if (stopped || !isSceneEpochCurrent(sceneEpoch)) return;
+    const previousItems = currentItems;
+    const previousById = new Map(previousItems.map((item) => [itemId(item), item]));
     const allItems = Array.isArray(event?.allItems) && event.allItems.length
       ? event.allItems
       : currentItems;
     currentItems = sortItems(allItems);
+    if (!canWrite()) return;
     const primaryByActor = primaryItemsByActor(currentItems);
     const candidates = [
       ...(Array.isArray(event?.items) ? event.items : []),
       ...(Array.isArray(event?.removedItems) ? event.removedItems : []),
     ];
+    const beforeById = new Map(
+      (Array.isArray(event?.changedRecords) ? event.changedRecords : [])
+        .map((record) => [
+          itemId(record?.after?.item || record?.before?.item),
+          record?.before?.item || null,
+        ])
+        .filter(([id]) => id),
+    );
+    const hydrationIds = new Set();
+    if (Number(hydratedEpoch) === Number(sceneEpoch)) {
+      for (const item of candidates) {
+        const id = itemId(item);
+        const actorProfileId = actorProfileIdFromItem(item);
+        if (!id || !actorProfileId || hydratedItems.get(id) === actorProfileId) continue;
+        const before = beforeById.get(id) ?? previousById.get(id) ?? null;
+        const wasAdded = event?.flags?.added === true && !before;
+        const wasLinked = !!before
+          && actorProfileIdFromItem(before) !== actorProfileId;
+        if (!wasAdded && !wasLinked) continue;
+        hydrationIds.add(id);
+        // Claim before the await so duplicate events cannot plan two hydrations.
+        hydratedItems.set(id, actorProfileId);
+      }
+    }
+    if (hydrationIds.size) {
+      await reconcileSceneItems(currentItems, sceneEpoch, {
+        itemIds: hydrationIds,
+        baseline: false,
+      });
+    }
+    const hydratedActors = new Set(
+      [...hydrationIds]
+        .map((id) => actorProfileIdFromItem(currentItems.find((item) => itemId(item) === id)))
+        .filter(Boolean),
+    );
     const seen = new Set();
     for (const item of candidates) {
       const actorProfileId = actorProfileIdFromItem(item);
       if (!actorProfileId || seen.has(actorProfileId)) continue;
       seen.add(actorProfileId);
+      if (hydratedActors.has(actorProfileId)) continue;
       const primary = primaryByActor.get(actorProfileId);
       if (primary && itemId(primary) !== itemId(item)) continue;
       const hp = validCanonicalHP(item);
@@ -375,8 +511,11 @@ export function createActorVitalsStore({
     return () => listeners.delete(listener);
   }
 
-  async function start() {
+  async function start({ authority: requestedAuthority } = {}) {
     if (started) return latestRegistry;
+    if (requestedAuthority !== undefined) {
+      runtimeAuthority = normalizeAuthority(requestedAuthority);
+    }
     started = true;
     stopped = false;
     if (typeof api?.onMetadataChange === "function") {
@@ -386,7 +525,6 @@ export function createActorVitalsStore({
         const merged = mergeActorVitalsRegistries(getLocal(), incoming);
         latestRegistry = merged;
         emitChange("room-metadata", merged);
-        void reconcileCurrentScene(getSceneEpoch()).catch(() => {});
       });
     }
     const itemSource = subscribeItems || subscribeSceneItemChanges;
@@ -401,6 +539,12 @@ export function createActorVitalsStore({
         if (phase === "unload") {
           currentItems = [];
           lastReconciledEpoch = null;
+          hydratedEpoch = null;
+          hydratedItems.clear();
+          return;
+        }
+        if (!canWrite()) {
+          void refresh("scene-ready").catch(() => {});
           return;
         }
         void reconcileCurrentScene(epoch).catch(() => {});
@@ -414,7 +558,8 @@ export function createActorVitalsStore({
       globalThis.addEventListener("storage", onStorage);
       storageUnsubscribe = () => globalThis.removeEventListener("storage", onStorage);
     }
-    await reconcileCurrentScene(getSceneEpoch());
+    if (canWrite()) await reconcileCurrentScene(getSceneEpoch());
+    else await refresh("player-start");
     return latestRegistry;
   }
 
@@ -430,6 +575,8 @@ export function createActorVitalsStore({
     epochUnsubscribe = null;
     storageUnsubscribe = null;
     currentItems = [];
+    hydratedEpoch = null;
+    hydratedItems.clear();
   }
 
   return {
@@ -446,6 +593,8 @@ export function createActorVitalsStore({
     getState: () => ({
       started,
       stopped,
+      authority: runtimeAuthority,
+      canWrite: canWrite(),
       lastReconciledEpoch,
       queuedWrites: queuedWriteCount,
     }),
@@ -454,8 +603,8 @@ export function createActorVitalsStore({
 
 export const actorVitalsStore = createActorVitalsStore();
 
-export async function startActorVitalsRuntime() {
-  return actorVitalsStore.start();
+export async function startActorVitalsRuntime(options = {}) {
+  return actorVitalsStore.start(options);
 }
 
 export function stopActorVitalsRuntime() {

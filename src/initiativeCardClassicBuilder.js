@@ -51,6 +51,7 @@ export function buildClassicTrackerCard(e, context) {
       __selectionIdsForEntry,
       __spellColor,
       __spellKey,
+      __removeConditionOnTrackerCard,
       __terminateClassFeatureOnTrackerCard,
       __terminateSpellOnTrackerCard,
       applyGroupHPMaxDeltaWithRenderLock,
@@ -704,6 +705,9 @@ if (hasAny) {
   const fragCond = __buildConditionChipsSafe(condData, {
     cap: CONDITIONS,
     compact: true,
+    onRemove: IS_GM && !isLairId(e.id) && !isEpicActionId(e.id)
+      ? (group) => __removeConditionOnTrackerCard(e.id, group)
+      : null,
     onTerminateClassFeature: IS_GM
       ? (instance) => __terminateClassFeatureOnTrackerCard(e.id, instance)
       : null,

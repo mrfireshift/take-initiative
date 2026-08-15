@@ -1474,12 +1474,19 @@ export function buildConditionChips(cond = {}, opts = {}) {
       classFeatureInstance?.type === "class-feature"
       || classFeatureInstance?.type === "class-feature-area"
     ) && typeof opts.onTerminateClassFeature === "function";
-    if (canTerminateClassFeature) {
+    const hasClassFeatureInstance = group.instances.some((instance) =>
+      instance?.type === "class-feature" || instance?.type === "class-feature-area"
+    );
+    const canRemoveCondition = !hasClassFeatureInstance
+      && typeof opts.onRemove === "function";
+    if (canTerminateClassFeature || canRemoveCondition) {
       const terminate = document.createElement("button");
       terminate.type = "button";
       terminate.textContent = "×";
       terminate.dataset.cardSelectionIgnore = "1";
-      terminate.title = `Termina ${group.name}`;
+      terminate.title = canTerminateClassFeature
+        ? `Termina ${group.name}`
+        : `Rimuovi ${group.name}`;
       terminate.setAttribute("aria-label", terminate.title);
       Object.assign(terminate.style, {
         minWidth: compact ? "10px" : "12px",
@@ -1507,10 +1514,13 @@ export function buildConditionChips(cond = {}, opts = {}) {
         event.stopPropagation();
         if (terminate.disabled) return;
         terminate.disabled = true;
-        Promise.resolve(opts.onTerminateClassFeature(classFeatureInstance))
+        const action = canTerminateClassFeature
+          ? opts.onTerminateClassFeature(classFeatureInstance)
+          : opts.onRemove(group);
+        Promise.resolve(action)
           .catch((error) => {
             terminate.disabled = false;
-            console.warn("[conditions] terminate class feature:", error?.message || error);
+            console.warn("[conditions] remove card condition:", error?.message || error);
           });
       });
       chip.appendChild(terminate);

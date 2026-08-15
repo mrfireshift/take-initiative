@@ -5,6 +5,7 @@ import {
   DEFAULT_CUSTOM_AURA_STYLE,
   normalizeCustomAuras,
 } from "./customAuraCore.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/custom-aura-modal`;
@@ -18,6 +19,7 @@ const list = document.querySelector("#list");
 const status = document.querySelector("#status");
 const tokenName = document.querySelector("#token-name");
 const saveButton = document.querySelector("#save");
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 let tokens = [];
 let auras = [];
 let selectionUnsubscribe = null;
@@ -25,6 +27,7 @@ let selectionPollTimer = null;
 let selectionPollBusy = false;
 let selectionRevision = 0;
 let saving = false;
+let closeTimer = null;
 
 function createId() {
   try {
@@ -169,7 +172,7 @@ function updateTokenSummary() {
 }
 
 function updateSaveState() {
-  saveButton.disabled = saving || !tokens.length;
+  saveButton.disabled = saving || !tokens.length || !sceneLifecycle.isReady();
 }
 
 function setAtPath(target, path, value) {
@@ -191,6 +194,7 @@ function inputValue(input) {
 }
 
 function updateFromInput(input) {
+  if (!sceneLifecycle.isReady()) return;
   const card = input.closest("[data-index]");
   const index = Number(card?.dataset.index);
   if (!Number.isInteger(index) || !auras[index] || !input.dataset.field) return;
@@ -206,8 +210,11 @@ async function closeModal() {
 }
 
 async function save() {
+  const operation = sceneLifecycle.capture({ operationId: `custom-aura-save:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   try {
     await setActiveSelection(await OBR.player.getSelection());
+    if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
     status.classList.add("error");
     status.textContent = `Errore: ${String(error?.message || error)}`;
@@ -223,6 +230,11 @@ async function save() {
   status.textContent = "Salvataggio…";
   try {
     const normalized = normalizeCustomAuras(auras);
+    if (!sceneLifecycle.isCurrent(operation)) {
+      saving = false;
+      updateSaveState();
+      return;
+    }
     await OBR.scene.items.updateItems(tokens.map((item) => item.id), (drafts) => {
       for (const draft of drafts) {
         if (!draft) continue;
@@ -232,10 +244,28 @@ async function save() {
         draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
       }
     });
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.classList.add("error");
+      status.textContent = "Scena cambiata: riapri l’editor delle aure.";
+      saving = false;
+      updateSaveState();
+      return;
+    }
     auras = normalized;
     status.textContent = "Aure aggiornate";
-    window.setTimeout(() => void closeModal(), 220);
+    if (closeTimer) window.clearTimeout(closeTimer);
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null;
+      if (sceneLifecycle.isCurrent(operation)) void closeModal();
+    }, 220);
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.classList.add("error");
+      status.textContent = "Scena cambiata: riapri l’editor delle aure.";
+      saving = false;
+      updateSaveState();
+      return;
+    }
     status.classList.add("error");
     status.textContent = `Errore: ${String(error?.message || error)}`;
     saving = false;
@@ -244,6 +274,8 @@ async function save() {
 }
 
 async function setActiveSelection(selection, { preserveInitialOnEmpty = false } = {}) {
+  const operation = sceneLifecycle.capture({ operationId: `custom-aura-selection:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   if (!Array.isArray(selection)) return;
   const revision = ++selectionRevision;
   const selectedIds = [...new Set(
@@ -253,7 +285,7 @@ async function setActiveSelection(selection, { preserveInitialOnEmpty = false } 
   const selectedItems = selectedIds.length
     ? await OBR.scene.items.getItems(selectedIds)
     : [];
-  if (revision !== selectionRevision) return;
+  if (revision !== selectionRevision || !sceneLifecycle.isCurrent(operation)) return;
   tokens = selectedItems.filter((item) => (
     item?.layer === "CHARACTER"
     && !item.attachedTo
@@ -267,6 +299,7 @@ async function setActiveSelection(selection, { preserveInitialOnEmpty = false } 
 }
 
 async function refreshSelectionFromScene(options = {}) {
+  if (!sceneLifecycle.isReady()) return;
   if (selectionPollBusy) return;
   selectionPollBusy = true;
   try {
@@ -318,12 +351,45 @@ document.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      selectionRevision += 1;
+      tokens = [];
+      auras = [];
+      selectionUnsubscribe?.();
+      selectionUnsubscribe = null;
+      if (selectionPollTimer) window.clearInterval(selectionPollTimer);
+      selectionPollTimer = null;
+      list.replaceChildren();
+      status.classList.add("error");
+      status.textContent = "Scena non disponibile: riapri l’editor delle aure.";
+      updateTokenSummary();
+      updateSaveState();
+    } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      status.classList.remove("error");
+      status.textContent = "Scena pronta: riapri l’editor delle aure se necessario.";
+      updateSaveState();
+      mountSelectionSync();
+    }
+  });
+  sceneLifecycle.registerSceneCleanup(() => {
+    selectionUnsubscribe?.();
+    selectionUnsubscribe = null;
+    if (selectionPollTimer) window.clearInterval(selectionPollTimer);
+    selectionPollTimer = null;
+    if (closeTimer) window.clearTimeout(closeTimer);
+    closeTimer = null;
+  });
+  await sceneLifecycle.mount();
   try {
+    if (!sceneLifecycle.isReady()) throw new Error("Scena non disponibile: riapri l’editor delle aure.");
     const role = await OBR.player.getRole().catch(() => "PLAYER");
+    if (!sceneLifecycle.isReady()) throw new Error("Scena cambiata: riapri l’editor delle aure.");
     if (role !== "GM") throw new Error("Solo il GM può gestire le aure.");
     if (!tokenIds.length) throw new Error("Token non specificato.");
     const requestedIds = new Set(tokenIds);
     const items = await OBR.scene.items.getItems((item) => requestedIds.has(item.id));
+    if (!sceneLifecycle.isReady()) throw new Error("Scena cambiata: riapri l’editor delle aure.");
     tokens = tokenIds
       .map((id) => items.find((item) => item.id === id))
       .filter(Boolean);
@@ -351,4 +417,7 @@ window.addEventListener("pagehide", () => {
   selectionUnsubscribe = null;
   if (selectionPollTimer) window.clearInterval(selectionPollTimer);
   selectionPollTimer = null;
+  if (closeTimer) window.clearTimeout(closeTimer);
+  closeTimer = null;
+  sceneLifecycle.dispose();
 });

@@ -18,16 +18,19 @@ import {
   runEffectsMutation,
 } from "./effectsMutations.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
-import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
+import { getSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
+import {
+  createSceneMetadataKeyWatcher,
+  sceneMetadataKeyDigest,
+} from "./sceneMetadataDigest.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
 const RECONCILE_DELAY_MS = 70;
 const RECONCILE_RECOVERY_DELAY_MS = 250;
-const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 
 let mounted = false;
 let running = false;
@@ -38,10 +41,11 @@ let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
-const sceneItemBounds = createSceneItemBoundsCache(
-  (itemId) => OBR.scene.items.getItemBounds([itemId]),
-  { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
-);
+let requestedReason = "event";
+let requestedForce = false;
+let completedSnapshotKey = null;
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
+const spatialSceneSnapshot = getSpatialSceneSnapshotService();
 
 function point(value) {
   const x = Number(value?.x);
@@ -160,7 +164,7 @@ function auraVisualNeedsUpdate(item, desired) {
   return JSON.stringify(metadata) !== JSON.stringify(merged);
 }
 
-async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
+async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null) {
   return reconcileOwnedSceneItems({
     desired: desiredVisuals,
     identityOfDesired: (desired) => desired.aura.instanceId,
@@ -190,22 +194,49 @@ async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
       });
     },
     deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
-    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch)
+      && (!snapshot || spatialSceneSnapshot.isCurrent(snapshot)),
   });
 }
 
-async function reconcileCustomAuras() {
+function spatialSnapshotProcessingKey(snapshot) {
+  return JSON.stringify({
+    sceneEpoch: snapshot?.sceneEpoch,
+    sceneIdentity: snapshot?.sceneIdentity,
+    itemGeneration: snapshot?.itemGeneration,
+    metadataRevision: snapshot?.metadataRevision,
+    gridRevision: snapshot?.gridRevision,
+    geometryRevision: snapshot?.geometryRevision,
+    stateDigest: stateMetadataWatcher.digest,
+  });
+}
+
+async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
-  const [items, sceneMetadata, dpiValue, scale] = await Promise.all([
-    OBR.scene.items.getItems(),
-    OBR.scene.getMetadata().catch(() => ({})),
-    OBR.scene.grid.getDpi(),
-    OBR.scene.grid.getScale().catch(() => ({
-      parsed: { multiplier: 1.5, unit: "m" },
-    })),
-  ]);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const snapshot = await spatialSceneSnapshot.getSnapshot({ sceneEpoch });
+  if (
+    !snapshot.complete
+    || !isCurrentSceneEpoch(sceneEpoch)
+    || !spatialSceneSnapshot.isCurrent(snapshot)
+  ) {
+    scheduleCustomAuraRecovery();
+    return;
+  }
+  if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(snapshot.sceneMetadata);
+  if (stateMetadataWatcher.initialized
+      && sceneMetadataKeyDigest(snapshot.sceneMetadata, STATE_KEY) !== stateMetadataWatcher.digest) {
+    scheduleCustomAuraRecovery();
+    return;
+  }
+  const processingKey = spatialSnapshotProcessingKey(snapshot);
+  if (!force && completedSnapshotKey === processingKey) return;
+  const {
+    items,
+    sceneMetadata,
+    dpiValue,
+    scale,
+  } = snapshot;
   const auras = collectActiveCustomAuras(items, { metaKey: META_KEY });
   const byId = new Map(items.map((item) => [item.id, item]));
   const order = Array.isArray(sceneMetadata?.[STATE_KEY]?.order)
@@ -222,8 +253,17 @@ async function reconcileCustomAuras() {
   const boundedItems = [...requiredIds]
     .map((id) => byId.get(id))
     .filter(Boolean);
-  const boundsResult = await sceneItemBounds.load(boundedItems);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const boundsResult = auras.length
+    ? await spatialSceneSnapshot.ensureBounds(snapshot, boundedItems, {
+      consumer: "custom-aura",
+    })
+    : {
+      boundsById: new Map(),
+      complete: true,
+      missingIds: [],
+      skipped: true,
+    };
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (!boundsResult.complete) {
     scheduleCustomAuraRecovery();
     return;
@@ -277,6 +317,7 @@ async function reconcileCustomAuras() {
     const gridOrigin = point(
       await OBR.scene.grid.snapPosition(center, 1, true, false).catch(() => center),
     ) || center;
+    if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
     const area = buildArea(
       "circle",
       center,
@@ -325,7 +366,7 @@ async function reconcileCustomAuras() {
       removals: staleRemovals,
     });
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (operations.length) {
     const mutation = await runEffectsMutation(operations, {
       history: false,
@@ -334,9 +375,9 @@ async function reconcileCustomAuras() {
     });
     requireAppliedEffectsMutation(mutation);
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  await reconcileAuraVisuals(desiredVisuals, sceneEpoch);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (newTriggerNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
@@ -349,13 +390,16 @@ async function reconcileCustomAuras() {
       console.warn("[custom-aura] trigger notice:", error?.message || error);
     });
   }
+  if (isCurrentSceneEpoch(sceneEpoch) && spatialSceneSnapshot.isCurrent(snapshot)) {
+    completedSnapshotKey = processingKey;
+  }
 }
 
 function scheduleCustomAuraRecovery() {
   if (!mounted || recoveryTimer) return;
   recoveryTimer = setTimeout(() => {
     recoveryTimer = null;
-    requestCustomAuraReconcile();
+    requestCustomAuraReconcile({ reason: "recovery", force: true });
   }, RECONCILE_RECOVERY_DELAY_MS);
 }
 
@@ -365,8 +409,12 @@ async function pump() {
   try {
     while (requested) {
       requested = false;
+      const reason = requestedReason;
+      const force = requestedForce;
+      requestedReason = "event";
+      requestedForce = false;
       try {
-        await reconcileCustomAuras();
+        await reconcileCustomAuras({ reason, force });
       } catch (error) {
         console.error("[custom-aura] reconcile:", error);
         scheduleCustomAuraRecovery();
@@ -377,10 +425,14 @@ async function pump() {
   }
 }
 
-export function requestCustomAuraReconcile() {
+export function requestCustomAuraReconcile(options = {}) {
+  const normalized = typeof options === "string" ? { reason: options } : options || {};
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;
   requested = true;
+  requestedReason = String(normalized.reason || "event");
+  requestedForce ||= normalized.force === true || requestedReason === "recovery"
+    || requestedReason === "runtime-cache-cleanup";
   if (running || timer) return;
   timer = setTimeout(() => {
     timer = null;
@@ -392,31 +444,35 @@ export async function mountCustomAuraController() {
   if (mounted) return true;
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
+  spatialSceneSnapshot.mount();
   mounted = true;
   unsubscribeItems = subscribeSceneItemChanges(
-    () => requestCustomAuraReconcile(),
+    () => requestCustomAuraReconcile({ reason: "items" }),
     {
       domains: ["aura"],
       filter: (event) => !event?.derived?.output,
     },
   );
   unsubscribeGrid = OBR.scene.grid.onChange(() => {
-    sceneItemBounds.clear();
-    requestCustomAuraReconcile();
+    requestCustomAuraReconcile({ reason: "grid" });
   });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
-      sceneItemBounds.clear();
       if (recoveryTimer) clearTimeout(recoveryTimer);
       recoveryTimer = null;
+      completedSnapshotKey = null;
+      stateMetadataWatcher.reset();
       return;
     }
-    requestCustomAuraReconcile();
+    requestCustomAuraReconcile({ reason: "scene-ready", force: true });
   });
-  unsubscribeSceneMetadata = OBR.scene.onMetadataChange(
-    requestCustomAuraReconcile,
-  );
-  requestCustomAuraReconcile();
+  unsubscribeSceneMetadata = OBR.scene.onMetadataChange((metadata) => {
+    const observed = stateMetadataWatcher.initialized
+      ? stateMetadataWatcher.observe(metadata)
+      : stateMetadataWatcher.seed(metadata);
+    if (observed.changed) requestCustomAuraReconcile({ reason: "metadata" });
+  });
+  requestCustomAuraReconcile({ reason: "mount", force: true });
   return true;
 }
 
@@ -433,8 +489,11 @@ export function unmountCustomAuraController() {
   timer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;
-  sceneItemBounds.clear();
   requested = false;
+  requestedReason = "event";
+  requestedForce = false;
+  completedSnapshotKey = null;
+  stateMetadataWatcher.reset();
   mounted = false;
   running = false;
 }

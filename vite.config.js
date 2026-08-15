@@ -62,6 +62,7 @@ export default defineConfig(() => {
         initiativeCardContextMenu: path.resolve(process.cwd(), "initiative-card-context-menu.html"),
         trackerQuickActions: path.resolve(process.cwd(), "tracker-quick-actions.html"),
         compactAdminMenu: path.resolve(process.cwd(), "compact-admin-menu.html"),
+        compactRoundTab: path.resolve(process.cwd(), "compact-round-tab.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
         spellActiveResolution: path.resolve(process.cwd(), "spell-active-resolution.html"),
         customAuraModal: path.resolve(process.cwd(), "custom-aura-modal.html"),

@@ -8,6 +8,10 @@ import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
 import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
 import {
+  HISTORY_UNDO_OUTCOME,
+  normalizeHistoryUndoResult,
+} from "./historyUndoResultCore.js";
+import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
   calculateQuickHPChange,
@@ -19,8 +23,10 @@ import {
 import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
 import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
   conditionMutationOperations,
+  getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
@@ -73,7 +79,6 @@ const bulkActions = document.getElementById("bulkActions");
 const summary = document.getElementById("summary");
 const status = document.getElementById("status");
 const applyButton = document.getElementById("apply");
-const undoButton = document.getElementById("undo");
 const targetNameFilter = document.getElementById("targetNameFilter");
 const saveOptions = document.getElementById("saveOptions");
 const conditionSelect = document.getElementById("conditionSelect");
@@ -86,6 +91,16 @@ const conditionActorWrap = document.getElementById("conditionActorWrap");
 const conditionSourceWrap = document.getElementById("conditionSourceWrap");
 const factionFilterButtons = Array.from(document.querySelectorAll("[data-hp-faction]"));
 const activeFactionFilters = new Set();
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+let sceneLifecycleUnsubscribe = null;
+
+function sceneOperationId(prefix = "quick-hp") {
+  return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
+
+function sceneAvailable() {
+  return sceneLifecycle.isReady();
+}
 
 function quickHpEffectsHistoryEntry(entry, mutation = null) {
   return decorateCompositeEffectsHistoryEntry({
@@ -290,14 +305,18 @@ function modeLabel() {
 }
 
 async function updateSceneSelection(ids, selected, replace = false) {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-selection") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   selectionWriteDepth += 1;
   try {
     if (selected) await OBR.player.select(ids, replace);
     else await OBR.player.deselect(ids);
+    if (!sceneLifecycle.isCurrent(operation)) return false;
   } finally {
     selectionWriteDepth -= 1;
-    await refreshSelectionFromScene();
+    if (sceneLifecycle.isCurrent(operation)) await refreshSelectionFromScene(operation);
   }
+  return true;
 }
 
 function setSelectedFromScene(ids) {
@@ -315,11 +334,14 @@ function setSelectedFromScene(ids) {
   renderTargets();
 }
 
-async function refreshSelectionFromScene() {
+async function refreshSelectionFromScene(operation = null) {
   if (selectionPollBusy || selectionWriteDepth > 0) return;
+  const context = operation || sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-selection-read") });
+  if (!sceneLifecycle.isCurrent(context)) return;
   selectionPollBusy = true;
   try {
-    setSelectedFromScene(await OBR.player.getSelection());
+    const nextSelection = await OBR.player.getSelection();
+    if (sceneLifecycle.isCurrent(context)) setSelectedFromScene(nextSelection);
   } catch {}
   finally {
     selectionPollBusy = false;
@@ -329,12 +351,14 @@ async function refreshSelectionFromScene() {
 function mountSelectionSync() {
   if (!selectionUnsubscribe) {
     selectionUnsubscribe = OBR.player.onChange((player) => {
-      if (selectionWriteDepth === 0 && Array.isArray(player?.selection)) {
+      if (sceneAvailable() && selectionWriteDepth === 0 && Array.isArray(player?.selection)) {
         setSelectedFromScene(player.selection);
       }
     });
   }
-  if (!selectionTimer) selectionTimer = window.setInterval(refreshSelectionFromScene, 150);
+  if (!selectionTimer) selectionTimer = window.setInterval(() => {
+    if (sceneAvailable()) void refreshSelectionFromScene();
+  }, 150);
 }
 
 function renderFactorButtons(item, disabled) {
@@ -346,7 +370,7 @@ function renderFactorButtons(item, disabled) {
     button.className = `factor${factorFor(item.id) === option.value ? " active" : ""}`;
     button.textContent = option.label;
     button.title = option.title;
-    button.disabled = disabled || busy;
+    button.disabled = disabled || busy || !sceneAvailable();
     button.dataset.factor = option.value;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -373,7 +397,7 @@ function renderOutcomeButtons(item, disabled) {
     button.textContent = option.shortLabel;
     button.title = option.label;
     button.dataset.outcome = option.value;
-    button.disabled = disabled || busy;
+    button.disabled = disabled || busy || !sceneAvailable();
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       if (button.disabled) return;
@@ -425,7 +449,7 @@ function renderTargets() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = selected;
-    checkbox.disabled = disabled || busy;
+    checkbox.disabled = disabled || busy || !sceneAvailable();
     checkbox.setAttribute("aria-label", `Seleziona ${displayName(item)}`);
     const identity = document.createElement("div");
     identity.className = "identity";
@@ -547,17 +571,21 @@ function updateControls() {
         ? "Applica effetti"
         : "Applica danno";
   applyButton.disabled = busy
+    || !sceneAvailable()
     || !selected.length
     || !outcomesComplete
     || !hasEffect;
-  targetNameFilter.disabled = busy;
-  amountInput.disabled = busy;
-  for (const button of factionFilterButtons) button.disabled = busy;
+  targetNameFilter.disabled = busy || !sceneAvailable();
+  amountInput.disabled = busy || !sceneAvailable();
+  for (const button of factionFilterButtons) button.disabled = busy || !sceneAvailable();
   renderBulkActions();
 }
 
 async function loadTargets() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-load") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   const metadata = await OBR.scene.getMetadata().catch(() => ({}));
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   const state = metadata?.[STATE_KEY] || { order: [] };
   const orderedIds = uniqueIds(
     (Array.isArray(state.order) ? state.order : [])
@@ -570,6 +598,7 @@ async function loadTargets() {
     const meta = item?.metadata?.[META_KEY];
     return !!meta && (meta.inInitiative === true || orderedSet.has(item.id));
   });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   items.sort((a, b) => {
     const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
     const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
@@ -579,11 +608,15 @@ async function loadTargets() {
   for (const item of targets) {
     if (!factors.has(item.id)) factors.set(item.id, QUICK_HP_FACTORS.FULL);
   }
+  return true;
 }
 
 async function refreshConditionSourceOptions() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-condition-sources") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   const previous = text(conditionSourceSelect.value);
   const activeId = await currentInitiativeActorId();
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   conditionSourceSelect.replaceChildren(new Option("Nessuna fonte", ""));
   for (const item of targets) {
     conditionSourceSelect.appendChild(new Option(displayName(item), item.id));
@@ -591,6 +624,7 @@ async function refreshConditionSourceOptions() {
   const next = previous && itemForId(previous) ? previous : activeId;
   conditionSourceSelect.value = next || "";
   conditionActorSelect.value = next ? conditionActorSelect.value : "target";
+  return true;
 }
 
 async function appliedAt() {
@@ -598,17 +632,25 @@ async function appliedAt() {
   return appliedAtFromState(metadata?.[STATE_KEY] || {});
 }
 
-function syncHPVisualUpdates(updates = []) {
+function syncHPVisualUpdates(updates = [], isCurrent = null) {
+  if (typeof isCurrent === "function" && !isCurrent()) return;
   for (const update of updates) syncHPBarNow(update.tokenId, update.hp, update.hpMax);
   return syncHPTextBatchNow(updates);
 }
 
-async function readAuthoritativeHPVisualUpdates(itemIds = [], sceneEpoch = currentSceneEpoch()) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+async function readAuthoritativeHPVisualUpdates(
+  itemIds = [],
+  sceneEpoch = currentSceneEpoch(),
+  isCurrent = null,
+) {
+  const current = typeof isCurrent === "function"
+    ? () => isCurrent()
+    : () => isCurrentSceneEpoch(sceneEpoch);
+  if (!current()) return [];
   const ids = uniqueIds(itemIds);
   if (!ids.length) return [];
   const items = await OBR.scene.items.getItems(ids);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  if (!current()) return [];
   return items.filter(hasTrackedHP).map((item) => ({
     tokenId: item.id,
     hp: Math.max(0, Math.floor(Number(item.metadata?.[META_KEY]?.hp) || 0)),
@@ -641,7 +683,16 @@ async function showEffectSaveDamageWarnings(entries) {
 }
 
 async function applyOperation() {
-  if (busy) return;
+  if (busy || !sceneAvailable()) {
+    if (!sceneAvailable()) status.textContent = "Scena cambiata: riapri la console HP.";
+    return;
+  }
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId() });
+  if (!sceneLifecycle.isCurrent(operation)) {
+    status.textContent = "Scena cambiata: riapri la console HP.";
+    renderTargets();
+    return;
+  }
   const selected = selectedTargetItems();
   const conditionName = text(conditionSelect.value);
   const failedIds = mode === QUICK_HP_MODES.SAVE
@@ -652,20 +703,32 @@ async function applyOperation() {
     return;
   }
 
-  const operationSceneEpoch = currentSceneEpoch();
+  const operationSceneEpoch = operation.epoch;
   const liveItems = await OBR.scene.items.getItems(selected.map((item) => item.id));
+  if (!sceneLifecycle.isCurrent(operation)) {
+    status.textContent = "Scena cambiata: riapri la console HP.";
+    busy = false;
+    renderTargets();
+    return;
+  }
   const entries = liveItems.filter(hasTrackedHP).map((item) => ({
     item,
     change: previewFor(item),
   })).filter((entry) => entry.change?.changed);
-  const effectOperations = failedIds.length && conditionName
-    ? conditionMutationOperations({
+  let effectOperations = [];
+  if (failedIds.length && conditionName) {
+    const appliedAtState = await appliedAt();
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = "Scena cambiata: riapri la console HP.";
+      return;
+    }
+    effectOperations = conditionMutationOperations({
       targetIds: failedIds,
       conditionName,
-      options: conditionOptions(await appliedAt()),
+      options: conditionOptions(appliedAtState),
       automate: true,
-    })
-    : [];
+    });
+  }
   if (!entries.length && !effectOperations.length) {
     status.textContent = "Nessuna modifica da applicare.";
     return;
@@ -690,13 +753,51 @@ async function applyOperation() {
     ...affectedIds,
     ...await getZeroHPConditionHistoryIds(ids),
   ]);
+  if (!sceneLifecycle.isCurrent(operation)) {
+    status.textContent = "Scena cambiata: riapri la console HP.";
+    busy = false;
+    renderTargets();
+    return;
+  }
   const optimisticUpdates = quickHPVisualUpdates(entries);
-  if (optimisticUpdates.length && isCurrentSceneEpoch(operationSceneEpoch)) {
+  if (optimisticUpdates.length && sceneLifecycle.isCurrent(operation)) {
     hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
-      syncVisuals: syncHPVisualUpdates,
+      syncVisuals: (updates) => syncHPVisualUpdates(
+        updates,
+        () => sceneLifecycle.isCurrent(operation),
+      ),
       onPreviewError: (error) => console.warn("[quick-hp] visual sync:", error?.message || error),
     });
   }
+
+  const coordinatedOperations = [
+    ...(zeroHPReconcileIds.length ? [{
+      type: "condition:reconcile-zero-hp",
+      targetIds: zeroHPReconcileIds,
+    }] : []),
+    ...effectOperations,
+  ];
+  let ownerSceneContext = null;
+  if (coordinatedOperations.length) {
+    try {
+      ownerSceneContext = await getEffectsMutationSceneContext({
+        commandId: operation.operationId,
+      });
+    } catch (error) {
+      console.warn("[quick-hp] scene context:", error?.message || error);
+      status.textContent = "La scena non è disponibile: riapri la console HP.";
+      busy = false;
+      renderTargets();
+      return;
+    }
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = "Scena cambiata: riapri la console HP.";
+      busy = false;
+      renderTargets();
+      return;
+    }
+  }
+  let canonicalCommitted = false;
 
   try {
     await withItemMetaHistory({
@@ -708,7 +809,10 @@ async function applyOperation() {
       fields: ["hp", "hpMax", "conditions"],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => quickHpEffectsHistoryEntry(entry, coordinatedMutation),
+      sceneEpoch: operationSceneEpoch,
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
     }, async () => {
+      if (!sceneLifecycle.isCurrent(operation)) return;
       if (entries.length) {
         const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
         await OBR.scene.items.updateItems(ids, (drafts) => {
@@ -726,25 +830,35 @@ async function applyOperation() {
             };
           }
         });
+        canonicalCommitted = true;
       }
-      const coordinatedOperations = [
-        ...(zeroHPReconcileIds.length ? [{
-          type: "condition:reconcile-zero-hp",
-          targetIds: zeroHPReconcileIds,
-        }] : []),
-        ...effectOperations,
-      ];
+      if (!sceneLifecycle.isCurrent(operation)) return;
       if (coordinatedOperations.length) {
         coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
           history: false,
           kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp-effects",
           label: "Effetti collegati alla modifica HP",
           targetIds: affectedIds,
+          commandId: ownerSceneContext?.commandId || operation.operationId,
+          sceneIdentity: ownerSceneContext?.sceneIdentity || null,
         });
+        if (!sceneLifecycle.isCurrent(operation)) return;
         requireAppliedEffectsMutation(coordinatedMutation);
       }
     });
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = canonicalCommitted
+        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
+        : "Scena cambiata: riapri la console HP.";
+      return;
+    }
     if (hpVisualTransaction) await hpVisualTransaction.completion;
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = canonicalCommitted
+        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
+        : "Scena cambiata: riapri la console HP.";
+      return;
+    }
     await Promise.all([
       syncHPBatchToMemory(entries.map((entry) => ({
         itemId: entry.item.id,
@@ -753,22 +867,39 @@ async function applyOperation() {
       })), {
         sceneEpoch: operationSceneEpoch,
         items: entries.map((entry) => entry.item),
+        isCurrent: () => sceneLifecycle.isCurrent(operation),
       }),
       showConcentrationWarnings(entries),
       showEffectSaveDamageWarnings(entries),
     ]);
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = canonicalCommitted
+        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
+        : "Scena cambiata: riapri la console HP.";
+      return;
+    }
     lastEntryId = recordedEntry?.id || "";
-    undoButton.hidden = !lastEntryId;
     status.textContent = mode === QUICK_HP_MODES.SAVE
       ? `Risoluzione applicata a ${affectedIds.length} bersagli.`
       : `Applicato a ${entries.length} bersagli.`;
     await loadTargets();
     await refreshConditionSourceOptions();
+    if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
     console.error("[quick-hp] apply:", error);
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = canonicalCommitted
+        ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
+        : "Scena cambiata: riapri la console HP.";
+      return;
+    }
     if (hpVisualTransaction) {
       await hpVisualTransaction.recover((itemIds) => (
-        readAuthoritativeHPVisualUpdates(itemIds, operationSceneEpoch)
+        readAuthoritativeHPVisualUpdates(
+          itemIds,
+          operationSceneEpoch,
+          () => sceneLifecycle.isCurrent(operation),
+        )
       )).catch(() => {});
     }
     status.textContent = "Applicazione non riuscita.";
@@ -779,26 +910,61 @@ async function applyOperation() {
 }
 
 async function undoLastOperation() {
-  if (busy || !lastEntryId) return;
+  if (busy || !lastEntryId || !sceneAvailable()) {
+    if (!sceneAvailable() && lastEntryId) status.textContent = "Scena cambiata: riapri la console HP.";
+    return;
+  }
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("quick-hp-undo") });
+  if (!sceneLifecycle.isCurrent(operation)) {
+    status.textContent = "Scena cambiata: riapri la console HP.";
+    return;
+  }
   busy = true;
   renderTargets();
   try {
     const history = await getHistoryEntries();
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = "Scena cambiata: riapri la console HP.";
+      return;
+    }
     const latest = history[history.length - 1];
     if (!latest || latest.id !== lastEntryId) {
       status.textContent = "Sono presenti modifiche successive: usa la Cronologia.";
       lastEntryId = "";
-      undoButton.hidden = true;
       return;
     }
-    await undoHistoryThrough(lastEntryId);
+    const undone = await undoHistoryThrough(lastEntryId, {
+      sceneEpoch: operation.sceneEpoch,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = "Undo della scena precedente completato o sospeso; riapri la console HP.";
+      return;
+    }
+    const outcome = normalizeHistoryUndoResult(undone);
+    if (outcome.outcome !== HISTORY_UNDO_OUTCOME.COMMITTED) {
+      if (outcome.outcome === HISTORY_UNDO_OUTCOME.CONFLICT) {
+        status.textContent = "Undo non applicato: la scena è cambiata; usa la Cronologia.";
+      } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.RECOVERY_REQUIRED) {
+        status.textContent = "Undo sospeso: verifica la scena prima di ritentare.";
+      } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.REJECTED) {
+        status.textContent = "Undo rifiutato o non più valido; l’operazione resta disponibile per un nuovo tentativo.";
+      } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.NOOP) {
+        status.textContent = "Nessuna modifica annullata; l’operazione resta disponibile.";
+      } else {
+        status.textContent = "Undo non riuscito; l’operazione resta disponibile per un nuovo tentativo.";
+      }
+      return;
+    }
     lastEntryId = "";
-    undoButton.hidden = true;
     status.textContent = "Ultima applicazione annullata.";
     await loadTargets();
     await refreshConditionSourceOptions();
   } catch (error) {
     console.error("[quick-hp] undo:", error);
+    if (!sceneLifecycle.isCurrent(operation)) {
+      status.textContent = "Undo della scena precedente completato o sospeso; riapri la console HP.";
+      return;
+    }
     status.textContent = "Undo non riuscito.";
   } finally {
     busy = false;
@@ -807,6 +973,7 @@ async function undoLastOperation() {
 }
 
 function closePopover() {
+  sceneLifecycle.dispose();
   void OBR.broadcast.sendMessage(
     TOGGLE_CHANNEL,
     { type: "closed", id: MODAL_ID },
@@ -862,7 +1029,6 @@ for (const button of factionFilterButtons) {
   });
 }
 applyButton.addEventListener("click", () => void applyOperation());
-undoButton.addEventListener("click", () => void undoLastOperation());
 closeButton.addEventListener("click", closePopover);
 window.addEventListener("keydown", (event) => {
   if (!shouldHandleQuickHPUndoShortcut({
@@ -878,11 +1044,43 @@ window.addEventListener("keydown", (event) => {
   void undoLastOperation();
 }, true);
 window.addEventListener("beforeunload", () => {
+  sceneLifecycleUnsubscribe?.();
+  sceneLifecycle.dispose();
   if (selectionUnsubscribe) selectionUnsubscribe();
   if (selectionTimer) window.clearInterval(selectionTimer);
 });
 
 OBR.onReady(async () => {
+  sceneLifecycleUnsubscribe = sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      selectedIds.clear();
+      saveOutcomes.clear();
+      targets = [];
+      lastEntryId = "";
+      status.textContent = "Scena cambiata: riapri la console HP.";
+      renderTargets();
+      return;
+    }
+    if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      mountSelectionSync();
+      status.textContent = "Nuova scena pronta: seleziona di nuovo i bersagli.";
+      void loadTargets().then(() => refreshConditionSourceOptions()).then(() => {
+        if (sceneAvailable()) renderTargets();
+      }).catch(() => {});
+    }
+  });
+  sceneLifecycle.registerSceneCleanup(() => {
+    if (selectionUnsubscribe) selectionUnsubscribe();
+    selectionUnsubscribe = null;
+    if (selectionTimer) window.clearInterval(selectionTimer);
+    selectionTimer = null;
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    status.textContent = "Scena non disponibile: riapri la console HP.";
+    renderTargets();
+    return;
+  }
   await mountCombatLogEventSink();
   if (await OBR.player.getRole() !== "GM") {
     targetList.textContent = "La console HP rapida è disponibile solo per il GM.";

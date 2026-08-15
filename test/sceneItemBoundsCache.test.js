@@ -124,3 +124,26 @@ test("un risultato precedente non sovrascrive la cache dopo invalidate", async (
   assert.equal(cached.boundsById.get("target").min.x, 200);
   assert.equal(resolvers.length, 2);
 });
+
+test("il live-set condiviso evita l'eviction di un consumer parziale e conserva il load legacy", async () => {
+  const calls = [];
+  const cache = createSceneItemBoundsCache(async (itemId) => {
+    calls.push(itemId);
+    return bounds(itemId === "first" ? 0 : 200);
+  });
+
+  await cache.load([item("first"), item("second", 200)]);
+  await cache.load([item("first")]);
+  await cache.load([item("second", 200)]);
+  assert.deepEqual(calls, ["first", "second", "second"]);
+
+  const shared = createSceneItemBoundsCache(async (itemId) => {
+    calls.push(`shared:${itemId}`);
+    return bounds(itemId === "first" ? 0 : 200);
+  });
+  const liveItems = [item("first"), item("second", 200)];
+  await shared.load([liveItems[0]], { liveItems, preserveLiveSet: true });
+  await shared.load([liveItems[1]], { liveItems, preserveLiveSet: true });
+  assert.deepEqual(calls.slice(-2), ["shared:first", "shared:second"]);
+  assert.equal(shared.getDiagnostics().cacheSize, 2);
+});

@@ -11,6 +11,7 @@ import {
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
+import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
@@ -21,6 +22,10 @@ let reconcileRunning = false;
 let reconcileRequested = false;
 let queuedSceneMetadata = null;
 let queuedItems = null;
+let queuedItemGeneration = 0;
+let queuedForce = false;
+let completedReconcileKey = null;
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 let unsubscribeMetadata = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
@@ -39,7 +44,11 @@ function snapshot(state) {
   };
 }
 
-async function reconcileEffectSaveReminders(sceneMetadata = null, sceneItems = null) {
+async function reconcileEffectSaveReminders(
+  sceneMetadata = null,
+  sceneItems = null,
+  options = {},
+) {
   const sceneEpoch = currentSceneEpoch();
   if (!sceneReady) {
     previousInitiativeState = null;
@@ -59,6 +68,16 @@ async function reconcileEffectSaveReminders(sceneMetadata = null, sceneItems = n
       ? sharedSnapshot.items
       : await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(metadata);
+  const generation = Number(options.generation)
+    || Number(sharedSnapshot?.generation)
+    || (Array.isArray(sceneItems) ? "provided" : "full");
+  const reconcileKey = JSON.stringify({
+    sceneEpoch,
+    generation,
+    stateDigest: stateMetadataWatcher.digest,
+  });
+  if (options.force !== true && completedReconcileKey === reconcileKey) return;
   const previousState = previousInitiativeState;
   const notices = planEffectSaveReminderNotices({
     items,
@@ -68,7 +87,10 @@ async function reconcileEffectSaveReminders(sceneMetadata = null, sceneItems = n
   }).filter((notice) => !announcedActivationIds.has(notice.activationId));
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   previousInitiativeState = initiativeState;
-  if (!notices.length) return;
+  if (!notices.length) {
+    if (isCurrentSceneEpoch(sceneEpoch)) completedReconcileKey = reconcileKey;
+    return;
+  }
   for (const notice of notices) announcedActivationIds.add(notice.activationId);
   if (announcedActivationIds.size > 500) {
     const recent = [...announcedActivationIds].slice(-250);
@@ -80,13 +102,16 @@ async function reconcileEffectSaveReminders(sceneMetadata = null, sceneItems = n
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
     { type: "show-effect-save-notices", notices },
   );
+  if (isCurrentSceneEpoch(sceneEpoch)) completedReconcileKey = reconcileKey;
 }
 
-function enqueueReconcile(sceneMetadata = null, sceneItems = null) {
+function enqueueReconcile(sceneMetadata = null, sceneItems = null, options = {}) {
   if (sceneMetadata && typeof sceneMetadata === "object") {
     queuedSceneMetadata = sceneMetadata;
   }
   if (Array.isArray(sceneItems)) queuedItems = sceneItems;
+  if (options.generation !== undefined) queuedItemGeneration = Number(options.generation) || 0;
+  queuedForce ||= options.force === true;
   reconcileRequested = true;
   if (reconcileRunning) return;
   reconcileRunning = true;
@@ -96,9 +121,13 @@ function enqueueReconcile(sceneMetadata = null, sceneItems = null) {
         reconcileRequested = false;
         const metadata = queuedSceneMetadata;
         const items = queuedItems;
+        const generation = queuedItemGeneration;
+        const force = queuedForce;
         queuedSceneMetadata = null;
         queuedItems = null;
-        await reconcileEffectSaveReminders(metadata, items);
+        queuedItemGeneration = 0;
+        queuedForce = false;
+        await reconcileEffectSaveReminders(metadata, items, { generation, force });
       }
     } catch (error) {
       console.warn(
@@ -118,15 +147,28 @@ export async function mountEffectSaveReminderController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
-  unsubscribeMetadata = OBR.scene.onMetadataChange(enqueueReconcile);
+  unsubscribeMetadata = OBR.scene.onMetadataChange((metadata) => {
+    const observed = stateMetadataWatcher.initialized
+      ? stateMetadataWatcher.observe(metadata)
+      : stateMetadataWatcher.seed(metadata);
+    if (observed.changed) enqueueReconcile(metadata, null, { reason: "metadata" });
+  });
   unsubscribeItems = subscribeSceneItemChanges((event) => {
-    enqueueReconcile(null, event?.allItems);
+    enqueueReconcile(null, event?.allItems, {
+      generation: event?.generation,
+      reason: "items",
+    });
+  }, {
+    domains: ["effects"],
+    filter: (event) => !event?.derived?.output,
   });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     sceneReady = !!ready;
     if (!ready) {
       previousInitiativeState = null;
       announcedActivationIds.clear();
+      completedReconcileKey = null;
+      stateMetadataWatcher.reset();
       return;
     }
     enqueueReconcile();
@@ -137,7 +179,8 @@ export async function mountEffectSaveReminderController() {
       if (event?.data?.type !== "clear-runtime-caches") return;
       previousInitiativeState = null;
       announcedActivationIds.clear();
-      if (sceneReady) enqueueReconcile();
+      completedReconcileKey = null;
+      if (sceneReady) enqueueReconcile(null, null, { force: true, reason: "runtime-cache-cleanup" });
     },
   );
   sceneReady = await OBR.scene.isReady().catch(() => false);
@@ -161,5 +204,9 @@ export function unmountEffectSaveReminderController() {
   reconcileRequested = false;
   queuedSceneMetadata = null;
   queuedItems = null;
+  queuedItemGeneration = 0;
+  queuedForce = false;
+  completedReconcileKey = null;
+  stateMetadataWatcher.reset();
   mounted = false;
 }

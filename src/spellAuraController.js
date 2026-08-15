@@ -19,9 +19,13 @@ import {
   planMobileAuraReminder,
 } from "./spellAuraReminderCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
-import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { getSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
+import {
+  createSceneMetadataKeyWatcher,
+  sceneMetadataKeyDigest,
+} from "./sceneMetadataDigest.js";
 
 export { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 
@@ -30,7 +34,6 @@ const SPELLS_META_KEY = `${ID}/spells`;
 const STATE_KEY = `${ID}/state`;
 const RECONCILE_DELAY_MS = 60;
 const RECONCILE_RECOVERY_DELAY_MS = 250;
-const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 
 let mounted = false;
 let running = false;
@@ -41,10 +44,12 @@ let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
-const sceneItemBounds = createSceneItemBoundsCache(
-  (itemId) => OBR.scene.items.getItemBounds([itemId]),
-  { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
-);
+let requestedReason = "event";
+let requestedForce = false;
+let completedSnapshotKey = null;
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
+// createSceneItemBoundsCache resta posseduta dal servizio condiviso, non dal controller.
+const spatialSceneSnapshot = getSpatialSceneSnapshotService();
 
 function point(value) {
   const x = Number(value?.x);
@@ -158,7 +163,7 @@ function auraVisualNeedsUpdate(item, desired) {
   return JSON.stringify(metadata) !== JSON.stringify(merged);
 }
 
-async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
+async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null) {
   return reconcileOwnedSceneItems({
     desired: desiredVisuals,
     identityOfDesired: (desired) => desired.aura.instanceId,
@@ -188,22 +193,49 @@ async function reconcileAuraVisuals(desiredVisuals, sceneEpoch) {
       });
     },
     deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
-    isCurrent: () => isCurrentSceneEpoch(sceneEpoch),
+    isCurrent: () => isCurrentSceneEpoch(sceneEpoch)
+      && (!snapshot || spatialSceneSnapshot.isCurrent(snapshot)),
   });
 }
 
-async function reconcileSpellAuras() {
+function spatialSnapshotProcessingKey(snapshot) {
+  return JSON.stringify({
+    sceneEpoch: snapshot?.sceneEpoch,
+    sceneIdentity: snapshot?.sceneIdentity,
+    itemGeneration: snapshot?.itemGeneration,
+    metadataRevision: snapshot?.metadataRevision,
+    gridRevision: snapshot?.gridRevision,
+    geometryRevision: snapshot?.geometryRevision,
+    stateDigest: stateMetadataWatcher.digest,
+  });
+}
+
+async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
-  const [items, sceneMetadata, dpiValue, scale] = await Promise.all([
-    OBR.scene.items.getItems(),
-    OBR.scene.getMetadata().catch(() => ({})),
-    OBR.scene.grid.getDpi(),
-    OBR.scene.grid.getScale().catch(() => ({
-      parsed: { multiplier: 1.5, unit: "m" },
-    })),
-  ]);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const snapshot = await spatialSceneSnapshot.getSnapshot({ sceneEpoch });
+  if (
+    !snapshot.complete
+    || !isCurrentSceneEpoch(sceneEpoch)
+    || !spatialSceneSnapshot.isCurrent(snapshot)
+  ) {
+    scheduleSpellAuraRecovery();
+    return;
+  }
+  if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(snapshot.sceneMetadata);
+  if (stateMetadataWatcher.initialized
+      && sceneMetadataKeyDigest(snapshot.sceneMetadata, STATE_KEY) !== stateMetadataWatcher.digest) {
+    scheduleSpellAuraRecovery();
+    return;
+  }
+  const processingKey = spatialSnapshotProcessingKey(snapshot);
+  if (!force && completedSnapshotKey === processingKey) return;
+  const {
+    items,
+    sceneMetadata,
+    dpiValue,
+    scale,
+  } = snapshot;
   const auras = collectActiveMobileAuras(items, {
     metaKey: META_KEY,
     spellsKey: SPELLS_META_KEY,
@@ -219,8 +251,17 @@ async function reconcileSpellAuras() {
   const boundedItems = [...requiredIds]
     .map((id) => byId.get(id))
     .filter(Boolean);
-  const boundsResult = await sceneItemBounds.load(boundedItems);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const boundsResult = auras.length
+    ? await spatialSceneSnapshot.ensureBounds(snapshot, boundedItems, {
+      consumer: "spell-aura",
+    })
+    : {
+      boundsById: new Map(),
+      complete: true,
+      missingIds: [],
+      skipped: true,
+    };
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (!boundsResult.complete) {
     scheduleSpellAuraRecovery();
     return;
@@ -257,6 +298,7 @@ async function reconcileSpellAuras() {
     const gridOrigin = point(
       await OBR.scene.grid.snapPosition(center, 1, true, false).catch(() => center)
     ) || center;
+    if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
     const area = buildArea(
       aura.rule.geometry.shape,
       center,
@@ -312,11 +354,11 @@ async function reconcileSpellAuras() {
       removals: staleRemovals,
     });
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  await reconcileAuraVisuals(desiredVisuals, sceneEpoch);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
+  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (newTriggerNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
@@ -329,13 +371,16 @@ async function reconcileSpellAuras() {
       console.warn("[spell-aura] trigger notice:", error?.message || error);
     });
   }
+  if (isCurrentSceneEpoch(sceneEpoch) && spatialSceneSnapshot.isCurrent(snapshot)) {
+    completedSnapshotKey = processingKey;
+  }
 }
 
 function scheduleSpellAuraRecovery() {
   if (!mounted || recoveryTimer) return;
   recoveryTimer = setTimeout(() => {
     recoveryTimer = null;
-    requestSpellAuraReconcile();
+    requestSpellAuraReconcile({ reason: "recovery", force: true });
   }, RECONCILE_RECOVERY_DELAY_MS);
 }
 
@@ -345,8 +390,12 @@ async function pump() {
   try {
     while (requested) {
       requested = false;
+      const reason = requestedReason;
+      const force = requestedForce;
+      requestedReason = "event";
+      requestedForce = false;
       try {
-        await reconcileSpellAuras();
+        await reconcileSpellAuras({ reason, force });
       } catch (error) {
         console.error("[spell-aura] reconcile:", error);
         scheduleSpellAuraRecovery();
@@ -357,10 +406,14 @@ async function pump() {
   }
 }
 
-export function requestSpellAuraReconcile() {
+export function requestSpellAuraReconcile(options = {}) {
+  const normalized = typeof options === "string" ? { reason: options } : options || {};
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;
   requested = true;
+  requestedReason = String(normalized.reason || "event");
+  requestedForce ||= normalized.force === true || requestedReason === "recovery"
+    || requestedReason === "runtime-cache-cleanup";
   if (running || timer) return;
   timer = setTimeout(() => {
     timer = null;
@@ -372,31 +425,35 @@ export async function mountSpellAuraController() {
   if (mounted) return true;
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
+  spatialSceneSnapshot.mount();
   mounted = true;
   unsubscribeItems = subscribeSceneItemChanges(
-    () => requestSpellAuraReconcile(),
+    () => requestSpellAuraReconcile({ reason: "items" }),
     {
       domains: ["aura"],
       filter: (event) => !event?.derived?.output,
     },
   );
   unsubscribeGrid = OBR.scene.grid.onChange(() => {
-    sceneItemBounds.clear();
-    requestSpellAuraReconcile();
+    requestSpellAuraReconcile({ reason: "grid" });
   });
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
-      sceneItemBounds.clear();
       if (recoveryTimer) clearTimeout(recoveryTimer);
       recoveryTimer = null;
+      completedSnapshotKey = null;
+      stateMetadataWatcher.reset();
       return;
     }
-    requestSpellAuraReconcile();
+    requestSpellAuraReconcile({ reason: "scene-ready", force: true });
   });
-  unsubscribeSceneMetadata = OBR.scene.onMetadataChange(
-    requestSpellAuraReconcile,
-  );
-  requestSpellAuraReconcile();
+  unsubscribeSceneMetadata = OBR.scene.onMetadataChange((metadata) => {
+    const observed = stateMetadataWatcher.initialized
+      ? stateMetadataWatcher.observe(metadata)
+      : stateMetadataWatcher.seed(metadata);
+    if (observed.changed) requestSpellAuraReconcile({ reason: "metadata" });
+  });
+  requestSpellAuraReconcile({ reason: "mount", force: true });
   return true;
 }
 
@@ -413,8 +470,11 @@ export function unmountSpellAuraController() {
   timer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;
-  sceneItemBounds.clear();
   requested = false;
+  requestedReason = "event";
+  requestedForce = false;
+  completedSnapshotKey = null;
+  stateMetadataWatcher.reset();
   mounted = false;
 }
 

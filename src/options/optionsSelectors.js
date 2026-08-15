@@ -27,6 +27,10 @@ export function selectToolbarPreset(options) {
   return resolved(options).local.tracker.toolbarPreset;
 }
 
+export function selectEffectsDisplayMode(options) {
+  return resolved(options).shared.uiSync.effectsDisplayMode;
+}
+
 export function selectClocksCompact(options) {
   return resolved(options).local.windows.clocksCompact;
 }

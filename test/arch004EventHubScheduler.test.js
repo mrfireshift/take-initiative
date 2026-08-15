@@ -584,17 +584,13 @@ test("il gateway full produttivo non usa sentinel né bypassa lo scheduler", () 
   assert.doesNotMatch(executeSource, /setSceneState/);
 });
 
-test("il reconciler pill riusa lo snapshot versionato dell'Event Hub con fallback SDK", () => {
+test("il reconciler pill riusa lo snapshot versionato e la modalità globale", () => {
   const eventsSource = readFileSync(
     new URL("../src/sceneItemEvents.js", import.meta.url),
     "utf8",
   );
   const reconcilerSource = readFileSync(
     new URL("../src/effectsReconciler.js", import.meta.url),
-    "utf8",
-  );
-  const hoverSource = readFileSync(
-    new URL("../src/effectsHoverTool.js", import.meta.url),
     "utf8",
   );
   const layoutSource = readFileSync(
@@ -608,11 +604,12 @@ test("il reconciler pill riusa lo snapshot versionato dell'Event Hub con fallbac
   assert.match(reconcilerSource, /syncPlayerSelection\(player\?\.selection\)/);
   assert.match(reconcilerSource, /nextSelection = await OBR\.player\?\.getSelection\?\.\(\) \|\| \[\]/);
   assert.match(reconcilerSource, /selectionSyncRevision/);
-  assert.match(reconcilerSource, /effective\.size === 0 && hoveredTargetId/);
-  assert.match(reconcilerSource, /targetIds: \[previousTargetId, next\]\.filter\(Boolean\)/);
-  assert.match(hoverSource, /onToolMove/);
-  assert.match(hoverSource, /onDeactivate: clearHoverTarget/);
-  assert.match(hoverSource, /HOVER_DELAY_MS/);
+  assert.match(reconcilerSource, /EFFECTS_SELECTION_CHANNEL/);
+  assert.match(reconcilerSource, /gm-selection/);
+  assert.match(reconcilerSource, /targetInstanceId/);
+  assert.match(reconcilerSource, /selectEffectsDisplayMode/);
+  assert.match(reconcilerSource, /expansionMode: effectsDisplayMode/);
+  assert.doesNotMatch(reconcilerSource, /mountEffectsHoverTool|hoveredTargetId|onToolMove/);
   assert.match(layoutSource, /resolveEffectsLayoutSceneItems\(\{/);
   assert.match(layoutSource, /readItems:\s*async \(\) => \{/);
   assert.match(layoutSource, /OBR\.scene\.items\.getItems\(\)/);

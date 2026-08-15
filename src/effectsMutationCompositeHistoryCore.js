@@ -11,6 +11,7 @@ export function decorateCompositeEffectsHistoryEntry({
     );
     return [change.id, {
       id: change.id,
+      ...(String(change?.name || "").trim() ? { name: String(change.name).trim() } : {}),
       fields,
       before: Object.fromEntries(Object.keys(fields).map((field) => [
         field,
@@ -38,10 +39,12 @@ export function decorateCompositeEffectsHistoryEntry({
     }
     const normalized = byId.get(change.id) || {
       id: change.id,
+      ...(String(change?.name || "").trim() ? { name: String(change.name).trim() } : {}),
       fields: {},
       before: {},
       after: {},
     };
+    if (!normalized.name && String(change?.name || "").trim()) normalized.name = String(change.name).trim();
     normalized.metadataFields ||= {};
     normalized.beforeMetadata ||= {};
     normalized.afterMetadata ||= {};

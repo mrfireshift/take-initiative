@@ -126,6 +126,13 @@ export function normalizeLocalOptions(value, { legacy = {} } = {}) {
         ["full", "essential"],
         defaults.tracker.toolbarPreset,
       ),
+      effectsDisplayMode: layeredEnum(
+        tracker,
+        legacyTracker,
+        "effectsDisplayMode",
+        ["selected", "all", "compact"],
+        defaults.tracker.effectsDisplayMode,
+      ),
     },
     windows: {
       ...windows,
@@ -273,6 +280,11 @@ export function normalizeRoomOptions(value) {
     uiSync: {
       ...uiSync,
       trackerOpen: booleanOr(uiSync.trackerOpen, defaults.uiSync.trackerOpen),
+      effectsDisplayMode: enumOr(
+        uiSync.effectsDisplayMode,
+        ["selected", "all", "compact"],
+        defaults.uiSync.effectsDisplayMode,
+      ),
     },
   };
 }

@@ -3,6 +3,11 @@
 :root {
   --obrt-popover-glass: rgba(42, 47, 64, .62);
   --obrt-popover-border: rgba(255, 255, 255, .16);
+  --obrt-popover-backdrop: blur(18px) saturate(125%);
+  --obrt-tracker-frost-image:
+    radial-gradient(ellipse at 18% -70%, rgba(255, 255, 255, .14), transparent 52%),
+    radial-gradient(ellipse at 82% 145%, rgba(3, 7, 18, .18), transparent 58%),
+    linear-gradient(112deg, rgba(255, 255, 255, .045), transparent 34%, rgba(255, 255, 255, .018) 72%, transparent);
 }
 
 html,
@@ -19,7 +24,9 @@ body {
   background: var(--obrt-popover-glass) !important;
   box-shadow: 0 16px 42px rgba(0, 0, 0, .46), inset 0 1px 0 rgba(255, 255, 255, .07);
   backdrop-filter: blur(18px) saturate(125%) !important;
+  backdrop-filter: var(--obrt-popover-backdrop) !important;
   -webkit-backdrop-filter: blur(18px) saturate(125%) !important;
+  -webkit-backdrop-filter: var(--obrt-popover-backdrop) !important;
 }
 [data-glass-popover="1"][data-tracker-layout="compact"] {
   border-color: transparent;

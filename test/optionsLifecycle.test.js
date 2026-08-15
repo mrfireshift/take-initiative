@@ -138,7 +138,7 @@ test("OPTIONS-004: Combat Log off conserva la History e disabilita le nuove scri
 
   assert.match(combatLog, /if \(!eventSinkEnabled\) throw new Error/);
   assert.match(combatLog, /if \(eventSinkEnabled\) \{\s+session = await ensureCombatLogSession\(/);
-  assert.match(combatLog, /state\?\.sessionId \? await getStoredSession\(state\.sessionId\) : null/);
+  assert.match(combatLog, /state\?\.sessionId\s+\? await getStoredSession\(state\.sessionId, \{ sceneEpoch \}\)\s+: null/);
   assert.match(historyModal, /isCombatLogEventSinkEnabled/);
   assert.match(historyModal, /newSession\.disabled = true/);
   assert.match(historyModal, /note\.disabled = !combatLogEnabled/);

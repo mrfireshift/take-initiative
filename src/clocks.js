@@ -18,22 +18,28 @@ export async function loadClocksState() {
   return normalizeClocksState(metadata?.[CLOCKS_KEY]);
 }
 
-export function updateClocksState(mutator) {
+export function updateClocksState(mutator, { isCurrent = () => true } = {}) {
   const run = async () => {
+    if (!isCurrent()) return null;
     if (!await OBR.scene.isReady().catch(() => false)) return normalizeClocksState(null);
+    if (!isCurrent()) return null;
     const metadata = await OBR.scene.getMetadata();
+    if (!isCurrent()) return null;
     const current = normalizeClocksState(metadata?.[CLOCKS_KEY]);
     const candidate = await mutator({
       ...current,
       clocks: current.clocks.map((clock) => ({ ...clock })),
     });
+    if (!isCurrent()) return null;
     const next = normalizeClocksState(candidate || current);
+    if (!isCurrent()) return null;
     await writeSceneMetadataKey(
       OBR.scene,
       METADATA_OWNERSHIP.CLOCKS,
       next,
       { runtime: "clocks" },
     );
+    if (!isCurrent()) return null;
     return next;
   };
   writeQueue = writeQueue.then(run, run);

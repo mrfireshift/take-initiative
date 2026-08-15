@@ -2,9 +2,11 @@
 import OBR, { type Theme } from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { rememberFactionForIds } from "./factionRegistry.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 const DEFAULT_INITIATIVE = 10;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 /* ---------------------- Shim: leggi target del context ---------------------- */
 async function getCtxItemsSafe(): Promise<string[]> {
@@ -61,14 +63,18 @@ async function closeContextMenuSoon() {
 
 /* --------------------------- Azione principale ------------------------- */
 async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { // NEW: pc
+  const operation = sceneLifecycle.capture({ operationId: `ctx-add:${attitude}:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   // Nel menu embedded fidati del context; se manca, fallback alla selezione
   const ids = await getCtxItemsSafe();
+  if (!sceneLifecycle.isCurrent(operation)) return;
 
   try {
     if (!ids || ids.length === 0) return;
 
     // Aiuta la chiusura: allinea la selezione per un tick
     await OBR.player.select(ids).catch(() => {});
+    if (!sceneLifecycle.isCurrent(operation)) return;
 
     await OBR.scene.items.updateItems(ids, (items) => {
   for (const it of items) {
@@ -82,7 +88,10 @@ async function addToInitiative(attitude: "ally" | "neutral" | "enemy" | "pc") { 
     };
   }
 });
-    await rememberFactionForIds(ids, attitude).catch(() => {});
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    await rememberFactionForIds(ids, attitude, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+    }).catch(() => {});
 
   } catch (e) {
     console.warn("[ctx-add] update error:", (e as any)?.message || e);
@@ -108,6 +117,11 @@ declare global { interface Window { __TBP_CTX_ADD_WIRED__?: boolean } }
 
 OBR.onReady(async () => {
   if (!OBR.isAvailable) return; // se aperto fuori da OBR, non fare nulla
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    document.querySelectorAll<HTMLElement>("[data-att]").forEach((element) => { element.style.pointerEvents = "none"; });
+    return;
+  }
 
   // Tema (identico a ctx-mark)
   try {
@@ -127,4 +141,11 @@ OBR.onReady(async () => {
       wireUI();
     }
   }
+  sceneLifecycle.subscribe((event) => {
+    document.querySelectorAll<HTMLElement>("[data-att]").forEach((element) => {
+      element.style.pointerEvents = event.phase === "ready" ? "auto" : "none";
+    });
+  });
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

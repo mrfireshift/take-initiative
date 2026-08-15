@@ -146,9 +146,12 @@ test("la presentazione toolbar passa tra layout esteso e compatto", () => {
   assert.match(activeControl.style.border, /147,197,253/);
 
   applyToolbarLayoutPresentation(true, context);
-  assert.equal(viewOptionsRow.style.width, "98px");
+  assert.equal(viewOptionsRow.style.width, "116px");
   assert.equal(encounterToolbar.heading.style.display, "none");
-  assert.equal(inactiveControl.style.width, "40px");
+  assert.equal(inactiveControl.style.width, "100%");
+  assert.equal(inactiveControl.style.height, "34px");
+  assert.equal(toolOptionsGroup.style.gap, "4px");
+  assert.equal(toolOptionsGroup.style.padding, "5px 0 4px");
   assert.equal(inactiveControl.querySelector("[data-toolbar-caption='1']").style.display, "none");
 });
 

@@ -13,6 +13,8 @@ export async function executeConditionApplication({
   sourceName = "",
   appliedAt = null,
   expiry = { mode: "manual" },
+  sceneIdentity = null,
+  commandId = "",
 } = {}) {
   const normalizedName = String(conditionName || "").trim();
   if (!normalizedName || !targetIds.length) return [];
@@ -31,6 +33,8 @@ export async function executeConditionApplication({
     kind: "condition",
     label: `Applicata: ${normalizedName}`,
     targetIds,
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
     history: { kind: "condition", label: `Applicata: ${normalizedName}` },
   });
   requireAppliedEffectsMutation(mutation);

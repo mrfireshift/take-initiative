@@ -2,7 +2,7 @@
   "schemaVersion": 4,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit a due assi: conformità al testo regolamentare e raggiungibilità nella console unificata. Per ogni spell lanciabile con 1 azione, 1 azione bonus o 1 reazione verifica catalogo, contratto UI, adapter di cast, mutazioni, persistenza e raggiungibilità di azioni o reminder. I P1 RAW restano revisionati manualmente; il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
-  "fingerprint": "2b5c2073159156ec",
+  "fingerprint": "2142d01877cc6c81",
   "summary": {
     "catalogTotal": 477,
     "catalog": 374,
@@ -5793,6 +5793,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "variant",
             "targets",
@@ -30649,6 +30650,7 @@
       ],
       "coverage": [
         "tracking",
+        "TS",
         "turni"
       ],
       "assessment": "coperto",
@@ -30663,7 +30665,7 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
         "activeActionIds": [],
@@ -30677,27 +30679,28 @@
         "catalog": {
           "exposed": true,
           "sources": [
-            "legacy-spells-panel"
+            "legacy-spells-panel",
+            "legacy-area-console"
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
+          "lane": "area-transaction",
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "targets",
+            "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "spell:upsert",
-            "condition:add",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
@@ -31572,6 +31575,7 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
             "targets",
             "outcomes",

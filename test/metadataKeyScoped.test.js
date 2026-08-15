@@ -20,6 +20,7 @@ const COMBAT_SESSION_KEY = METADATA_OWNERSHIP.COMBAT_LOG_SESSION.key;
 const REGISTRY_KEY = METADATA_OWNERSHIP.REGISTRY.key;
 const CARDS_KEY = METADATA_OWNERSHIP.INITIATIVE_CARDS.key;
 const ROOM_MEMORY_KEY = METADATA_OWNERSHIP.ROOM_MEMORY.key;
+const SPEED_CONTROL_KEY = METADATA_OWNERSHIP.SPEED_CHECK_CONTROL.key;
 const combatLogSource = readFileSync(new URL("../src/combatLog.js", import.meta.url), "utf8");
 
 function pendingId(harness, predicate) {
@@ -146,7 +147,7 @@ test("ARCH-002 clocks e combat session restano separati in qualunque ordine", as
   assert.equal(harness.snapshot("scene")[COMBAT_SESSION_KEY].sessionId, "session-b");
 });
 
-test("ARCH-002 Room separa registry, initiative cards e memory senza ripristinare unknown", async () => {
+test("ARCH-002 Room separa registry, initiative cards, memory e speed control senza ripristinare unknown", async () => {
   const unknownKey = "com.other.extension/room-unknown";
   const harness = new DeterministicMetadataHarness({
     room: {
@@ -175,15 +176,23 @@ test("ARCH-002 Room separa registry, initiative cards e memory senza ripristinar
     { hero: { hp: 6, hpMax: 10 } },
     { runtime: "hpMemory" },
   );
+  const speedControlWrite = writeRoomMetadataKey(
+    api,
+    METADATA_OWNERSHIP.SPEED_CHECK_CONTROL,
+    { version: 1, enabled: true, updatedAt: 10 },
+    { runtime: "speedCheck" },
+  );
 
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, ROOM_MEMORY_KEY)));
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, REGISTRY_KEY)));
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, CARDS_KEY)));
-  await Promise.all([registryWrite, cardsWrite, memoryWrite]);
+  harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, SPEED_CONTROL_KEY)));
+  await Promise.all([registryWrite, cardsWrite, memoryWrite, speedControlWrite]);
 
   assert.equal(harness.snapshot("room")[REGISTRY_KEY].pc.updatedAt, 2);
   assert.equal(harness.snapshot("room")[CARDS_KEY].hero.updatedAt, 2);
   assert.equal(harness.snapshot("room")[ROOM_MEMORY_KEY].hero.hp, 6);
+  assert.equal(harness.snapshot("room")[SPEED_CONTROL_KEY].enabled, true);
   assert.deepEqual(harness.snapshot("room")[unknownKey], { keep: "yes" });
 });
 

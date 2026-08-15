@@ -148,12 +148,14 @@ export function buildOptionsPanelPatches(draft) {
   };
 }
 
-export async function saveOptionsPanelDraft(service, draft) {
+export async function saveOptionsPanelDraft(service, draft, { isCurrent = () => true } = {}) {
   if (!service?.updateLocal || !service?.updateRoom || !service?.updateScene) {
     throw new TypeError("options panel requires the options service writers");
   }
+  if (!isCurrent()) throw new Error("scene-stale-before-options-save");
   const patches = buildOptionsPanelPatches(draft);
   await service.updateLocal(() => patches.local);
+  if (!isCurrent()) throw new Error("scene-stale-after-local-options-save");
   await service.updateRoom((current) => ({
     ...current,
     playerView: { ...current.playerView, ...patches.room.playerView },
@@ -163,6 +165,7 @@ export async function saveOptionsPanelDraft(service, draft) {
     integrations: { ...current.integrations, ...patches.room.integrations },
     uiSync: { ...current.uiSync, ...patches.room.uiSync },
   }));
+  if (!isCurrent()) throw new Error("scene-stale-after-room-options-save");
   await service.updateScene((current) => ({
     ...current,
     overrides: Object.fromEntries([
@@ -173,6 +176,7 @@ export async function saveOptionsPanelDraft(service, draft) {
       ]),
     ]),
   }));
+  if (!isCurrent()) throw new Error("scene-stale-after-scene-options-save");
   return patches;
 }
 

@@ -92,6 +92,35 @@ test("un normale avanzamento nello stesso epoch registra un solo evento round ne
   assert.equal(result.filter((entry) => entry.kind === "turn").length, 1);
 });
 
+test("il recorder assegna chiavi deterministiche a round e turno per i retry concorrenti", async () => {
+  const epochs = createSceneEpochController({ initialEpoch: 22 });
+  const appended = [];
+  const storedKeys = new Set();
+  const record = () => recordCombatTurnForEpoch({
+    state: { order: ["a"], current: 0, round: 6 },
+    sceneEpoch: epochs.current(),
+    isCurrent: (epoch) => epochs.isCurrent(epoch),
+    ensureSession: async () => ({ id: "scene-a-session", lastRound: 5, lastTurnKey: "5:z" }),
+    // Deliberately return the same stale snapshot to model two runtimes that
+    // both passed the local lastTurnKey fast path before their write.
+    getStoredSession: async () => ({ lastRound: 5, lastTurnKey: "5:z" }),
+    resolveTurn: async () => ({ id: "a", name: "A" }),
+    appendEvents: async (_sessionId, inputs) => {
+      const created = inputs.filter((input) => !storedKeys.has(input.dedupeKey));
+      for (const input of created) storedKeys.add(input.dedupeKey);
+      appended.push(inputs);
+      return created;
+    },
+  });
+
+  const [first, second] = await Promise.all([record(), record()]);
+
+  assert.deepEqual(first.map((entry) => entry.dedupeKey), ["round:6", "turn:6:a"]);
+  assert.deepEqual(second, []);
+  assert.equal(appended.length, 2);
+  assert.deepEqual([...storedKeys], ["round:6", "turn:6:a"]);
+});
+
 test("Combat Log ricontrolla l'epoch dopo una lettura asincrona prima di risolvere turno o commit", async () => {
   const epochs = createSceneEpochController({ initialEpoch: 25 });
   const storedStarted = deferred();

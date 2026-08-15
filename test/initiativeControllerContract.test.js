@@ -61,13 +61,17 @@ test("il primo metadata di un nuovo scene epoch usa la baseline senza perdere il
     "function __mountSceneEpochLifecycle() {",
     "// Scansione e deduplicazione una tantum all'avvio."
   );
-  assert.match(lifecycle, /OBR\.scene\.onReadyChange\(\(ready\) =>/);
+  assert.match(lifecycle, /createInitiativeReadinessHandshake\(/);
+  assert.match(lifecycle, /subscribeReadiness: \(listener\) => OBR\.scene\.onReadyChange\(listener\)/);
+  assert.match(lifecycle, /readInitialReadiness: \(\) => OBR\.scene\.isReady\(\)/);
   assert.match(lifecycle, /invalidateSceneEpoch\("scene-unload"\)/);
-  assert.match(lifecycle, /markSceneEpochReady\("scene-ready"\)/);
-  assert.match(
-    lifecycle,
-    /void __acquireInitiativeSceneBaseline\(initialEpoch, "runtime-mount", false\)\.catch/,
-  );
+  assert.match(lifecycle, /markSceneEpochReady\(reason \|\| "scene-ready"\)/);
+  assertOrdered(lifecycle, [
+    "subscribeReadiness: (listener) => OBR.scene.onReadyChange(listener)",
+    "readInitialReadiness: () => OBR.scene.isReady()",
+    "void __sceneReadinessHandshake.mount()",
+  ]);
+  assert.doesNotMatch(lifecycle, /runtime-mount/);
 
   const metadata = sourceSection(
     "async function __processInitiativeMetadata(",
@@ -86,18 +90,20 @@ test("il primo metadata di un nuovo scene epoch usa la baseline senza perdere il
   assert.match(metadata.slice(baseline, firstRoundTick), /__lastQueuedInitiativeMetadataDigest = stateDigest;/);
 });
 
-test("la baseline anticipata non blocca ruolo GM e bootstrap del tracker", () => {
+test("il bootstrap separa setup UI e gate scene prima delle letture dipendenti dalla scena", () => {
   const boot = sourceSection(
     "OBR.onReady(async () => {",
     "await __mountTrackerSelectionSync();"
   );
   assertOrdered(boot, [
-    "__mountSceneEpochLifecycle();",
-    "const bootstrapSceneEpoch = currentSceneEpoch();",
+    "const sceneReadiness = __mountSceneEpochLifecycle();",
     "await OBR.player?.getRole?.()",
     "IS_GM = String(role).toUpperCase() === \"GM\";",
+    "const readinessState = await sceneReadiness?.waitUntilReady();",
+    "const bootstrapSceneEpoch = currentSceneEpoch();",
   ]);
-  assert.doesNotMatch(boot, /await __mountSceneEpochLifecycle\(\)/);
+  assert.match(boot, /if \(!readinessState\?\.ready\) return;/);
+  assert.doesNotMatch(boot, /const bootstrapSceneEpoch = currentSceneEpoch\(\);\s*mountTracker/);
   assert.doesNotMatch(boot, /mountTurnNoticeBroadcast/);
 });
 
@@ -181,7 +187,9 @@ test("il reminder di turno precede render e tick; i TS restano al solo backgroun
     "function queueNavigationState("
   );
   assertOrdered(navigation, [
-    "await setSceneState(desired, sceneEpoch);",
+    "const applied = await setSceneState({",
+    'kind: "advance-turn"',
+    "if (!initiativeStateResultApplied(applied)) return;",
     "shouldSuppressTurnNoticeBroadcast({",
     "broadcastTurnNotice(desired, sceneEpoch)",
   ]);
@@ -206,6 +214,20 @@ test("il cambio scena scarta il render tardivo e usa il primo snapshot history c
   const diff = watcher.indexOf("sceneTokenHistoryChange");
   const append = watcher.indexOf("appendSceneHistoryChanges(pending, eventEpoch)");
   assert.ok(baseline >= 0 && diff > baseline && append > baseline);
+});
+
+test("il full render condivide il raw item snapshot tra tracker e spell board", () => {
+  const render = sourceSection(
+    "async function __executeFullRenderRequest(request)",
+    "OBR.onReady(async () => {",
+  );
+  assert.match(render, /const itemSnapshot = readSceneItemsSnapshot\(sceneEpoch\);/);
+  assert.match(render, /readFullRenderItemSnapshot\(/);
+  assert.match(render, /const rawItems = itemRead\.items;/);
+  assert.match(render, /getEntriesWithLair\(stateRaw, rawItems\)/);
+  assert.match(render, /spellBoardTokenTrackerItems\(rawItems\)/);
+  assert.doesNotMatch(render, /getSpellBoardTokenItems\(/);
+  assert.match(render, /sourceGeneration: request\?\.sourceGeneration/);
 });
 
 test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {

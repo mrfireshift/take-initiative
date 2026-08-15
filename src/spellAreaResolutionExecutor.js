@@ -79,6 +79,7 @@ import {
 import {
   decorateCompositeEffectsHistoryEntry,
 } from "./effectsMutationCompositeHistoryCore.js";
+import { buildSpellCausality } from "./combatLogCausalityCore.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { emitFireballVisual } from "./fireballVisualRenderer.js";
@@ -150,6 +151,9 @@ function resultBase(command, status, extra = {}) {
     visualEvents: Array.isArray(extra.visualEvents) ? extra.visualEvents : [],
     warnings: Array.isArray(extra.warnings) ? extra.warnings : [],
     errors: Array.isArray(extra.errors) ? extra.errors : [],
+    ...(extra.committed === true ? { committed: true } : {}),
+    ...(extra.postCommitPending === true ? { postCommitPending: true } : {}),
+    ...(extra.stale === true ? { stale: true } : {}),
   };
 }
 
@@ -293,17 +297,25 @@ function serializableSceneChanges(plan) {
     .map((id) => ({ id, kind: "scene-item" }));
 }
 
-function defaultSyncHPVisuals(updates = []) {
+function defaultSyncHPVisuals(updates = [], isCurrent = null) {
+  if (typeof isCurrent === "function" && !isCurrent()) return;
   for (const update of updates) syncHPBarNow(update.tokenId, update.hp, update.hpMax);
   return syncHPTextBatchNow(updates);
 }
 
-async function defaultReadAuthoritativeHPVisualUpdates(itemIds = [], sceneEpoch = currentSceneEpoch()) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+async function defaultReadAuthoritativeHPVisualUpdates(
+  itemIds = [],
+  sceneEpoch = currentSceneEpoch(),
+  isCurrent = null,
+) {
+  const current = typeof isCurrent === "function"
+    ? () => isCurrent()
+    : () => isCurrentSceneEpoch(sceneEpoch);
+  if (!current()) return [];
   const ids = uniqueIds(itemIds);
   if (!ids.length) return [];
   const items = await OBR.scene.items.getItems(ids);
-  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  if (!current()) return [];
   return items.filter(trackedHP).map((item) => ({
     tokenId: item.id,
     hp: Math.max(0, Math.floor(Number(itemMeta(item).hp) || 0)),
@@ -1009,6 +1021,107 @@ async function buildPlan(command, runtime) {
   };
 }
 
+function causalDamageFactor(value) {
+  const number = Number(value);
+  if (Number.isFinite(number)) return number;
+  return {
+    zero: 0,
+    none: 0,
+    quarter: 0.25,
+    half: 0.5,
+    full: 1,
+    double: 2,
+  }[text(value).toLocaleLowerCase("it")];
+}
+
+function spellAreaCausality(plan) {
+  const command = plan?.command || {};
+  const allItems = Array.isArray(plan?.allItems) ? plan.allItems : [];
+  const itemsById = new Map(allItems.map((item) => [String(item?.id || ""), item]));
+  const changesById = new Map((Array.isArray(plan?.entries) ? plan.entries : [])
+    .map((entry) => [String(entry?.item?.id || ""), entry]));
+  const targetIds = uniqueIds([
+    ...(command?.targeting?.targetIds || []),
+    ...(plan?.effectSubjectIds || []),
+    ...(plan?.ids || []),
+  ]);
+  const outcomeMap = command?.outcomes?.byTarget || {};
+  const hpMode = text(command?.hp?.mode);
+  const rawAmount = Number(command?.hp?.amount);
+  const hasRawDamage = hpMode === QUICK_HP_MODES.DAMAGE && Number.isFinite(rawAmount);
+  const targets = targetIds.map((id) => {
+    const item = itemsById.get(id);
+    const entry = changesById.get(id);
+    const change = entry?.change;
+    const outcome = text(outcomeMap?.[id]);
+    const factor = change?.factor !== undefined
+      ? causalDamageFactor(change.factor)
+      : hasRawDamage
+        ? causalDamageFactor(command?.hp?.outcomeFactors?.[id] || (
+          outcome === SAVE_SPELL_OUTCOMES.IMMUNE ? "zero" : "full"
+        ))
+        : undefined;
+    const requestedDamage = change?.requested !== undefined
+      ? Number(change.requested)
+      : hasRawDamage && factor !== undefined
+        ? Math.floor(Math.max(0, rawAmount) * factor)
+        : undefined;
+    const meta = itemMeta(item);
+    const appliedHpDelta = change?.delta !== undefined
+      ? Number(change.delta)
+      : hasRawDamage
+        && Object.prototype.hasOwnProperty.call(meta, "hp")
+        && Number.isFinite(Number(meta.hp))
+        ? 0
+        : undefined;
+    return {
+      id,
+      ...(item?.name ? { name: item.name } : {}),
+      ...(outcome ? { outcome } : {}),
+      ...(Number.isFinite(requestedDamage) ? { requestedDamage } : {}),
+      ...(Number.isFinite(appliedHpDelta) ? { appliedHpDelta } : {}),
+      ...(factor !== undefined ? { damageFactor: factor } : {}),
+    };
+  });
+  const placement = command?.placement || {};
+  const trigger = plan?.requestedZoneTrigger || command?.execution?.zoneTrigger;
+  const zone = trigger
+    ? {
+      action: "resolve",
+      zoneItemId: trigger.zoneItemId,
+      ruleId: trigger.ruleId,
+    }
+    : placement?.ruleId
+      ? {
+        action: "place",
+        zoneItemId: placement.zoneItemId,
+        ruleId: placement.ruleId,
+      }
+      : undefined;
+  const concentrationAction = plan?.spell?.concentration === true
+    || ["dismiss", "end", "break", "trigger", "extend"].includes(plan?.concentrationAction)
+    ? plan?.concentrationAction
+    : undefined;
+  return buildSpellCausality({
+    eventType: "area/save-resolution",
+    spellId: plan?.spell?.id || command?.spell?.spellId,
+    spellName: plan?.spell?.displayName || plan?.spell?.name,
+    instanceId: plan?.spellInstanceId,
+    slotLevel: command?.spell?.slotLevel,
+    phase: command?.spell?.castContext?.phase || command?.phase,
+    casterId: command?.spell?.casterId,
+    casterName: text(plan?.caster?.name),
+    targets,
+    targetIds,
+    outcomes: outcomeMap,
+    damageRoll: hasRawDamage ? Math.max(0, Math.floor(rawAmount)) : undefined,
+    concentrationAction,
+    concentrationInstanceId: plan?.spellInstanceId,
+    zone,
+    reminder: trigger?.activationId ? { activationId: trigger.activationId } : undefined,
+  });
+}
+
 async function updateHP(runtime, entries) {
   if (!entries.length) return;
   const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
@@ -1169,11 +1282,15 @@ export async function executeSpellAreaResolution(
   let removedPreviousZone = false;
   let addedNextZone = false;
   let consumedZoneTrigger = false;
+  let canonicalCommitted = false;
   const sceneEpoch = plan.operationSceneEpoch;
   const optimisticUpdates = quickHPVisualUpdates(entries);
   if (optimisticUpdates.length && runtime.isCurrent(sceneEpoch)) {
     hpVisualTransaction = createQuickHPVisualTransaction(optimisticUpdates, {
-      syncVisuals: runtime.syncHPVisuals,
+      syncVisuals: (updates) => runtime.syncHPVisuals(
+        updates,
+        () => runtime.isCurrent(sceneEpoch),
+      ),
       onPreviewError: (error) => warnings.push(normalizedError(error, "hp-visual-preview")),
     });
   }
@@ -1191,27 +1308,47 @@ export async function executeSpellAreaResolution(
       sceneItemIds: plan.staticZoneSceneItemIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
       onRecorded: (entry) => { recordedEntry = entry; },
-      decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({
-        entry,
-        mutation: coordinatedMutation,
-        effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
-      }),
+      decorateEntry: (entry) => {
+        const decorated = decorateCompositeEffectsHistoryEntry({
+          entry,
+          mutation: coordinatedMutation,
+          effectMetadataFields: ["conditions", SPELLS_KEY, CONCENTRATION_KEY],
+        });
+        return {
+          ...decorated,
+          payload: {
+            ...(decorated?.payload || {}),
+            causality: spellAreaCausality(plan),
+          },
+        };
+      },
       sceneEpoch,
+      isCurrent: () => runtime.isCurrent(sceneEpoch),
     }, async () => {
       try {
         if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-before-commit");
         if (plan.previousStaticZoneItems.length) {
           await runtime.deleteItems(plan.previousStaticZoneItems.map((item) => item.id));
           removedPreviousZone = true;
+          canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-delete");
         }
         if (plan.nextStaticZoneItems.length) {
           await runtime.addItems(plan.nextStaticZoneItems);
           addedNextZone = true;
+          canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-add");
         }
         await updateHP(runtime, entries);
+        if (entries.length) {
+          canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-hp-commit");
+        }
         if (plan.requestedZoneTrigger) {
           await runtime.consumeZoneTrigger(plan.requestedZoneTrigger, runtime);
           consumedZoneTrigger = true;
+          canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-trigger-commit");
         }
         const operations = [
           ...(plan.zeroHPReconcileIds.length ? [{
@@ -1227,22 +1364,46 @@ export async function executeSpellAreaResolution(
             label: "Effetti collegati alla risoluzione spell",
             targetIds: uniqueIds([...plan.ids, ...plan.effectSubjectIds]),
             sideEffects: spellBoardTokenSideEffects,
-            sceneEpoch,
+            ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
+            ...(runtime.operationId ? { commandId: runtime.operationId } : {}),
           });
+          if (coordinatedMutation?.committed === true
+            || coordinatedMutation?.commitResult?.committed === true) canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) return;
           runtime.requireAppliedEffectsMutation(coordinatedMutation);
           warnings.push(...warningsFromMutation(coordinatedMutation));
         }
       } catch (error) {
-        if (addedNextZone) await runtime.deleteItems(plan.nextStaticZoneItems.map((item) => item.id)).catch(() => {});
-        if (removedPreviousZone) await runtime.addItems(plan.previousStaticZoneItems).catch(() => {});
-        if (consumedZoneTrigger) await runtime.restoreZoneTrigger(plan.triggerRootItems, runtime).catch(() => {});
-        await restoreHPIfUnchanged(runtime, entries).catch(() => {});
+        if (runtime.isCurrent(sceneEpoch)) {
+          if (addedNextZone) await runtime.deleteItems(plan.nextStaticZoneItems.map((item) => item.id)).catch(() => {});
+          if (removedPreviousZone) await runtime.addItems(plan.previousStaticZoneItems).catch(() => {});
+          if (consumedZoneTrigger) await runtime.restoreZoneTrigger(plan.triggerRootItems, runtime).catch(() => {});
+          await restoreHPIfUnchanged(runtime, entries).catch(() => {});
+        }
         throw error;
       }
     });
   } catch (error) {
+    if (!runtime.isCurrent(sceneEpoch)) {
+      return resultBase(command, canonicalCommitted ? RESULT_STATUSES.APPLIED : RESULT_STATUSES.REJECTED, {
+        instanceId: plan.spellInstanceId,
+        changedIds: canonicalCommitted ? changedIdsFrom(plan, coordinatedMutation) : [],
+        warnings,
+        errors: [normalizedError(error, canonicalCommitted
+          ? "scene-epoch-stale-post-commit"
+          : "scene-epoch-stale")],
+        visualEvents,
+        committed: canonicalCommitted,
+        postCommitPending: canonicalCommitted,
+        stale: true,
+      });
+    }
     if (hpVisualTransaction) {
-      await hpVisualTransaction.recover((ids) => runtime.readAuthoritativeHPVisualUpdates(ids, sceneEpoch))
+      await hpVisualTransaction.recover((ids) => runtime.readAuthoritativeHPVisualUpdates(
+        ids,
+        sceneEpoch,
+        () => runtime.isCurrent(sceneEpoch),
+      ))
         .catch((recoveryError) => warnings.push(normalizedError(recoveryError, "hp-visual-recovery")));
     }
     return resultBase(command, RESULT_STATUSES.FAILED, {
@@ -1251,6 +1412,24 @@ export async function executeSpellAreaResolution(
       warnings,
       errors: [normalizedError(error)],
       visualEvents,
+    });
+  }
+
+  if (!runtime.isCurrent(sceneEpoch)) {
+    return resultBase(command, canonicalCommitted ? RESULT_STATUSES.APPLIED : RESULT_STATUSES.REJECTED, {
+      instanceId: plan.spellInstanceId,
+      changedIds: canonicalCommitted ? changedIdsFrom(plan, coordinatedMutation) : [],
+      warnings,
+      errors: [{
+        code: canonicalCommitted ? "scene-epoch-stale-post-commit" : "scene-epoch-stale",
+        message: canonicalCommitted
+          ? "Commit completato nella scena precedente; gli output successivi sono sospesi."
+          : "La scena è cambiata prima del commit.",
+      }],
+      visualEvents,
+      committed: canonicalCommitted,
+      postCommitPending: canonicalCommitted,
+      stale: true,
     });
   }
 
@@ -1269,13 +1448,44 @@ export async function executeSpellAreaResolution(
     })), {
       sceneEpoch,
       items: entries.map((entry) => entry.item),
+      isCurrent: () => runtime.isCurrent(sceneEpoch),
     }).catch((error) => warnings.push(normalizedError(error, "hp-memory"))),
     Promise.resolve(runtime.onConcentrationWarnings(entries, plan))
       .catch((error) => warnings.push(normalizedError(error, "concentration-warning"))),
     Promise.resolve(runtime.onEffectSaveWarnings(entries, plan))
       .catch((error) => warnings.push(normalizedError(error, "effect-save-warning"))),
   ]);
+  if (!runtime.isCurrent(sceneEpoch)) {
+    return resultBase(command, canonicalCommitted ? RESULT_STATUSES.APPLIED : RESULT_STATUSES.REJECTED, {
+      instanceId: plan.spellInstanceId,
+      changedIds: canonicalCommitted ? changedIdsFrom(plan, coordinatedMutation) : [],
+      warnings,
+      errors: [{
+        code: "scene-epoch-stale-post-commit",
+        message: "Commit completato nella scena precedente; gli output successivi sono sospesi.",
+      }],
+      visualEvents,
+      committed: canonicalCommitted,
+      postCommitPending: true,
+      stale: true,
+    });
+  }
   if (hpVisualTransaction) await hpVisualTransaction.completion;
+  if (!runtime.isCurrent(sceneEpoch)) {
+    return resultBase(command, RESULT_STATUSES.APPLIED, {
+      instanceId: plan.spellInstanceId,
+      changedIds: changedIdsFrom(plan, coordinatedMutation),
+      warnings,
+      errors: [{
+        code: "scene-epoch-stale-post-commit",
+        message: "Commit completato nella scena precedente; gli output successivi sono sospesi.",
+      }],
+      visualEvents,
+      committed: true,
+      postCommitPending: true,
+      stale: true,
+    });
+  }
   const history = await runtime.getHistoryEntries().catch(() => []);
   const undoAvailable = !!recordedEntry?.id
     && history.some((entry) => entry?.id === recordedEntry.id);

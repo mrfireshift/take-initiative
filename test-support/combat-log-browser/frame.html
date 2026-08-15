@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combat Log browser fixture</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #020617; }
+      body { display: grid; place-items: start; }
+      iframe {
+        display: block;
+        width: 480px;
+        height: 640px;
+        border: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe title="Combat Log 480x640" src="/history-modal.html?fixture=browser"></iframe>
+    <output id="frame-viewport" aria-label="Modal viewport"></output>
+    <script>
+      const frame = document.querySelector("iframe");
+      const output = document.querySelector("#frame-viewport");
+      frame.addEventListener("load", () => {
+        output.textContent = `${frame.contentWindow.innerWidth}x${frame.contentWindow.innerHeight}`;
+        output.dataset.viewport = output.textContent;
+        output.dataset.documentWidth = String(frame.contentDocument.documentElement.scrollWidth);
+        output.dataset.documentClientWidth = String(frame.contentDocument.documentElement.clientWidth);
+        output.dataset.bodyWidth = String(frame.contentDocument.body.scrollWidth);
+        output.dataset.bodyClientWidth = String(frame.contentDocument.body.clientWidth);
+        const updateFocus = (event) => {
+          const control = event.target?.getAttribute?.("data-combat-log-control") || "";
+          output.dataset.activeControl = control;
+        };
+        const updateSearch = () => {
+          output.dataset.searchValue = frame.contentDocument.querySelector('[data-combat-log-control="search"]')?.value || "";
+        };
+        frame.contentDocument.addEventListener("focusin", updateFocus);
+        frame.contentDocument.addEventListener("input", updateSearch);
+        frame.contentDocument.addEventListener("keydown", (event) => {
+          output.dataset.lastKey = event.key || "";
+        });
+        frame.contentDocument.addEventListener("focusout", () => {
+          output.dataset.activeControl = frame.contentDocument.activeElement?.getAttribute?.("data-combat-log-control") || "";
+        });
+        updateSearch();
+      });
+    </script>
+  </body>
+</html>

@@ -6,6 +6,8 @@ import {
 } from "./constants.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
+import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import {
   relentlessRageNotice,
   shouldAnnounceRelentlessRage,
@@ -14,12 +16,15 @@ import {
 const STATE_KEY = `${ID}/state`;
 let mounted = false;
 let unsubscribeItems = null;
+let unsubscribeMetadata = null;
+let unsubscribeSceneReady = null;
 const zeroHPItems = new Set();
 let noticeSequence = 0;
+let initiativeStateSnapshot = {};
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 
-async function sceneTurnSnapshot() {
-  const metadata = await OBR.scene.getMetadata().catch(() => ({}));
-  const state = metadata?.[STATE_KEY] || {};
+function sceneTurnSnapshot() {
+  const state = initiativeStateSnapshot || {};
   return {
     round: Math.max(1, Math.floor(Number(state.round) || 1)),
     turnKey: currentInitiativeTurnKey(state),
@@ -67,6 +72,34 @@ export async function mountClassFeatureReminderController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
+  const updateInitiativeState = (metadata, seed = false) => {
+    const sceneEpoch = currentSceneEpoch();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    const observed = seed || !stateMetadataWatcher.initialized
+      ? stateMetadataWatcher.seed(metadata)
+      : stateMetadataWatcher.observe(metadata);
+    initiativeStateSnapshot = observed.value && typeof observed.value === "object"
+      ? observed.value
+      : {};
+  };
+  unsubscribeMetadata = OBR.scene.onMetadataChange((metadata) => {
+    updateInitiativeState(metadata);
+  });
+  unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
+    if (!ready) {
+      zeroHPItems.clear();
+      initiativeStateSnapshot = {};
+      stateMetadataWatcher.reset();
+      return;
+    }
+    void OBR.scene.getMetadata().then((metadata) => {
+      updateInitiativeState(metadata, true);
+    }).catch(() => {});
+  });
+  try {
+    const metadata = await OBR.scene.getMetadata();
+    updateInitiativeState(metadata, true);
+  } catch {}
   unsubscribeItems = subscribeSceneItemChanges((event) => {
     void reconcileRelentlessRageReminders(event).catch((error) => {
       console.warn("[class-feature-reminder] reconcile:", error?.message || error);
@@ -78,7 +111,13 @@ export async function mountClassFeatureReminderController() {
 export function unmountClassFeatureReminderController() {
   unsubscribeItems?.();
   unsubscribeItems = null;
+  unsubscribeMetadata?.();
+  unsubscribeMetadata = null;
+  unsubscribeSceneReady?.();
+  unsubscribeSceneReady = null;
   zeroHPItems.clear();
   noticeSequence = 0;
+  initiativeStateSnapshot = {};
+  stateMetadataWatcher.reset();
   mounted = false;
 }

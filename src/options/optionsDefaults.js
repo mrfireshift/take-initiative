@@ -43,6 +43,7 @@ export const DEFAULT_LOCAL_OPTIONS = deepFreeze({
     layout: "classic",
     followActiveTurn: true,
     toolbarPreset: "full",
+    effectsDisplayMode: "selected",
   },
   windows: {
     clocksCompact: false,
@@ -117,6 +118,7 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   },
   uiSync: {
     trackerOpen: true,
+    effectsDisplayMode: "selected",
   },
 });
 

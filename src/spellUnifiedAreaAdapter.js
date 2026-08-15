@@ -378,6 +378,9 @@ function normalizeExecutionResult(contract, command, result = {}) {
     sceneItemChanges: Array.isArray(result.sceneItemChanges) ? result.sceneItemChanges : [],
     triggerChanges: Array.isArray(result.triggerChanges) ? result.triggerChanges : [],
     visualEvents: Array.isArray(result.visualEvents) ? result.visualEvents : [],
+    ...(result.committed === true ? { committed: true } : {}),
+    ...(result.postCommitPending === true ? { postCommitPending: true } : {}),
+    ...(result.stale === true ? { stale: true } : {}),
     summary: uiSummary(command, result),
     persistent: persistentResult(contract, command, result),
     command,
@@ -410,6 +413,19 @@ export async function executeSpellUnifiedArea({
         source,
         candidateTargetIds,
       });
+      if (typeof runtime.isCurrent === "function"
+        && source.sceneEpoch != null
+        && !runtime.isCurrent(source.sceneEpoch)) {
+        return {
+          ...resultBase({}),
+          status: SPELL_UNIFIED_AREA_STATUS.REJECTED,
+          errors: [{
+            code: "scene-epoch-stale",
+            message: "La scena è cambiata durante la validazione.",
+          }],
+          eligibility,
+        };
+      }
     } catch (error) {
       return {
         ...resultBase({}),

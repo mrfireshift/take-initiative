@@ -159,6 +159,38 @@ test("il client propaga la variante scelta della sagoma", async () => {
   assert.equal((await pending).ruleChoice, "box");
 });
 
+test("il client non usa l'epoch numerica dell'altro realm come identità scena", async () => {
+  const broadcast = fakeBroadcast();
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-cross-realm-epoch",
+    ruleId: "fireball:cast",
+    casterId: "caster",
+    context: {
+      sceneEpoch: 41,
+      nested: { sceneEpoch: 42, keep: true },
+    },
+  }, {
+    broadcast,
+    windowRef: null,
+  });
+
+  await Promise.resolve();
+  assert.equal(broadcast.sent[0].data.context.sceneEpoch, undefined);
+  assert.deepEqual(broadcast.sent[0].data.context.nested, { keep: true });
+  broadcast.emit({
+    type: "result",
+    requestId: "request-cross-realm-epoch",
+    status: "confirmed",
+    preview: {
+      sceneEpoch: 99,
+      position: { x: 1, y: 2 },
+    },
+  });
+  const result = await pending;
+  assert.equal(result.preview.sceneEpoch, undefined);
+  assert.deepEqual(result.preview.position, { x: 1, y: 2 });
+});
+
 test("il client annulla una richiesta pendente usando lo stesso canale", async () => {
   const broadcast = fakeBroadcast();
   const pending = requestSpellAreaPlacement({

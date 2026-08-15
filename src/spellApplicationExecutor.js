@@ -29,7 +29,6 @@ import {
   ZERO_HP_UNCONSCIOUS_TYPE,
 } from "./hpConditionRulesCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
-import { currentSceneEpoch } from "./sceneEpoch.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
 import {
   requestSpellAreaPlacement,
@@ -44,6 +43,7 @@ import { translatedZoneArea } from "./spellStaticZoneCore.js";
 import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
+import { buildSpellCausality } from "./combatLogCausalityCore.js";
 
 const STATE_KEY = `${ID}/state`;
 
@@ -52,6 +52,10 @@ export async function executeSpellZoneMovement({
   action = null,
   casterName = "",
   movementChoice = "",
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
   const ruleId = String(action?.ruleId || "").trim();
   const instanceId = String(group?.instanceId || action?.instanceId || "").trim();
@@ -60,13 +64,15 @@ export async function executeSpellZoneMovement({
   if (!ruleId || !instanceId || !zoneItemId || !casterId) {
     throw new Error("Invalid spell zone movement: context-required");
   }
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-zone-movement");
+  }
   const result = await requestSpellZoneMovement({
     ruleId,
     casterId,
     instanceId,
     zoneItemId,
     movementChoice,
-    sceneEpoch: currentSceneEpoch(),
   }, {
     broadcast: OBR.broadcast,
     windowRef: globalThis.window,
@@ -77,11 +83,11 @@ export async function executeSpellZoneMovement({
       String(result?.error || "Il movimento della zona non è stato confermato."),
     );
   }
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-zone-mutation");
+  }
   const preview = result.preview;
   const movement = await runEffectsMutation([], {
-    sceneEpoch: Number.isFinite(Number(preview.sceneEpoch))
-      ? Number(preview.sceneEpoch)
-      : undefined,
     kind: "spell-zone-move",
     label: `Sposta zona: ${String(group?.name || "Incantesimo").trim()}`,
     targetIds: [casterId],
@@ -103,10 +109,39 @@ export async function executeSpellZoneMovement({
     history: {
       kind: "spell-zone-move",
       label: `Sposta zona: ${String(group?.name || casterName || "Incantesimo").trim()}`,
-      payload: { instanceId, zoneItemId, ruleId },
+      payload: {
+        instanceId,
+        zoneItemId,
+        ruleId,
+        causality: buildSpellCausality({
+          eventType: "zone-move",
+          spellId: group?.spellId,
+          spellName: group?.name,
+          instanceId,
+          casterId,
+          casterName: casterName || group?.casterName,
+          phase: group?.castContext?.phase,
+          targetIds: preview?.contactTargetId ? [preview.contactTargetId] : [],
+          zone: {
+            action: "move",
+            zoneItemId,
+            ruleId,
+            movementChoice: preview?.movementChoice || movementChoice,
+          },
+        }),
+      },
     },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(movement);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(movement.changedIds || [], {
+      ...movement,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   return attachSpellExecutionHistory(movement.changedIds || [], movement);
 }
 
@@ -114,6 +149,10 @@ export async function executeSpellZoneDirection({
   group = null,
   action = null,
   casterName = "",
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
   const ruleId = String(action?.ruleId || "").trim();
   const instanceId = String(group?.instanceId || action?.instanceId || "").trim();
@@ -121,6 +160,9 @@ export async function executeSpellZoneDirection({
   const casterId = String(group?.casterId || "").trim();
   if (!ruleId || !instanceId || !zoneItemId || !casterId) {
     throw new Error("Invalid spell zone direction: context-required");
+  }
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-zone-direction");
   }
   const result = await requestSpellAreaPlacement({
     ruleId,
@@ -140,11 +182,11 @@ export async function executeSpellZoneDirection({
       String(result?.error || "La nuova direzione della zona non è stata confermata."),
     );
   }
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-zone-mutation");
+  }
   const preview = result.preview;
   const direction = await runEffectsMutation([], {
-    sceneEpoch: Number.isFinite(Number(preview.sceneEpoch))
-      ? Number(preview.sceneEpoch)
-      : undefined,
     kind: "spell-zone-direction",
     label: `Cambia direzione: ${String(group?.name || "Incantesimo").trim()}`,
     targetIds: [casterId],
@@ -159,10 +201,33 @@ export async function executeSpellZoneDirection({
     history: {
       kind: "spell-zone-direction",
       label: `Cambia direzione: ${String(group?.name || casterName || "Incantesimo").trim()}`,
-      payload: { instanceId, zoneItemId, ruleId },
+      payload: {
+        instanceId,
+        zoneItemId,
+        ruleId,
+        causality: buildSpellCausality({
+          eventType: "zone-reorient",
+          spellId: group?.spellId,
+          spellName: group?.name,
+          instanceId,
+          casterId,
+          casterName: casterName || group?.casterName,
+          phase: group?.castContext?.phase,
+          zone: { action: "reorient", zoneItemId, ruleId },
+        }),
+      },
     },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(direction);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(direction.changedIds || [], {
+      ...direction,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   return attachSpellExecutionHistory(direction.changedIds || [], direction);
 }
 
@@ -189,10 +254,20 @@ export async function executeSpellActiveAction({
   selectedTargetIds = [],
   appliedAt = undefined,
   casterName = "",
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-active-action");
+  }
   const resolvedAppliedAt = appliedAt === undefined
     ? await getCurrentSpellAppliedAt()
     : appliedAt;
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-active-action");
+  }
   const actionPlan = buildSpellActiveActionPlan({
     spell,
     actionId,
@@ -237,10 +312,47 @@ export async function executeSpellActiveAction({
     label: actionPlan.historyLabel,
     targetIds: [String(group?.casterId || "").trim(), ...selectedTargetIds].filter(Boolean),
     sideEffects,
+    history: {
+      kind: "spell",
+      label: actionPlan.historyLabel,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "active-action",
+          spellId: spell?.id || group?.spellId,
+          spellName: spell?.displayName || spell?.name || group?.name,
+          instanceId: group?.instanceId,
+          slotLevel: group?.castContext?.slotLevel,
+          phase: group?.castContext?.phase,
+          casterId: group?.casterId,
+          casterName: casterName || group?.casterName,
+          targets: group?.targets,
+          targetIds: actionPlan.subjectIds,
+          action: actionPlan.action,
+          concentrationAction: actionPlan.action?.concentrationAction,
+          concentrationInstanceId: group?.instanceId,
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(mutation);
   const changedIds = mutation.changedIds;
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   await refreshConditionLabels(changedIds);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   return attachSpellExecutionHistory(changedIds, mutation);
 }
 
@@ -276,7 +388,14 @@ export async function executeSpellActiveResolution({
   attackOutcome = "",
   attacks = [],
   naturalStormBonus = false,
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-active-resolution");
+  }
   const normalizedPayload = {
     ...(payload && typeof payload === "object" ? payload : {}),
     ...(outcomes && typeof outcomes === "object" ? { outcomes } : {}),
@@ -309,16 +428,23 @@ export async function executeSpellActiveResolution({
     attacks: attackEntries,
   };
   const preflight = await validateSpellActiveResolutionCommit(commitInput);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-active-resolution");
+  }
   if (!preflight.valid) {
     throw new Error("Invalid active spell resolution: " + preflight.errors.join(", "));
   }
 
   const items = await OBR.scene.items.getItems(ids);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-active-resolution");
+  }
   const byId = new Map(items.map((item) => [item.id, item]));
   const metadataPatches = [];
   const operations = [];
   const unconsciousIds = [];
   const unconsciousRemovals = [];
+  const resolutionDamageByTarget = new Map();
   const action = activeResolutionAction(payload);
   if (action?.concentrationAction === "dismiss") {
     operations.push(
@@ -427,6 +553,7 @@ export async function executeSpellActiveResolution({
         roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
       });
       if (!damage.valid) throw new Error("active-resolution-damage-invalid");
+      resolutionDamageByTarget.set(targetId, { damage, outcome });
       if (damage.amount <= 0) continue;
       if (!item
         || !Object.prototype.hasOwnProperty.call(meta, "hp")
@@ -532,13 +659,39 @@ export async function executeSpellActiveResolution({
   }
   const spellName = String(payload.spellName || payload.spellId).trim();
   const actionLabel = String(action.buttonLabel || action.label || "Attivazione").trim();
+  const causalTargets = ids.map((targetId) => {
+    const item = byId.get(targetId);
+    const resolution = resolutionDamageByTarget.get(targetId);
+    const damage = resolution?.damage;
+    const patch = metadataPatches.find((entry) => entry.id === targetId);
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    const beforeHP = Number(meta.hp);
+    const afterHP = patch ? Number(patch.fields.hp.value) : beforeHP;
+    const appliedHpDelta = Number.isFinite(beforeHP) && Number.isFinite(afterHP)
+      ? afterHP - beforeHP
+      : undefined;
+    return {
+      id: targetId,
+      ...(item?.name ? { name: item.name } : {}),
+      ...(resolution?.outcome ? { outcome: resolution.outcome } : {}),
+      ...(damage ? { requestedDamage: damage.amount, damageFactor: damage.factor } : {}),
+      ...(appliedHpDelta !== undefined ? { appliedHpDelta } : {}),
+    };
+  });
+  const causalAction = {
+    ...(action || {}),
+    ...(action?.resolutionKind === "single-attack" && attackEntries.length === 1
+      ? { damageRoll: attackEntries[0].damageRoll, attackOutcome: attackEntries[0].attackOutcome }
+      : { damageRoll }),
+  };
   const mutation = await runEffectsMutation(operations, {
-    sceneEpoch: payload.sceneEpoch,
     kind: "spell-active-resolution",
     label: `Attivazione: ${spellName} · ${actionLabel}`,
     targetIds: [payload.casterId, ...ids],
     metadataPatches,
     sideEffects,
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
     history: {
       kind: "spell-active-resolution",
       label: `Attivazione: ${spellName} · ${actionLabel}`,
@@ -555,18 +708,64 @@ export async function executeSpellActiveResolution({
         damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)),
         attacks: attackEntries,
         naturalStormBonus: naturalStormBonus === true,
+        causality: buildSpellCausality({
+          eventType: "resolution",
+          spellId: payload.spellId,
+          spellName: payload.spellName,
+          instanceId: payload.instanceId,
+          slotLevel: payload.slotLevel,
+          phase: payload.castContext?.phase || payload.phase,
+          casterId: payload.casterId,
+          casterName: payload.casterName,
+          targets: causalTargets,
+          targetIds: ids,
+          outcomes,
+          attacks: attackEntries,
+          actionId: payload.actionId,
+          action: causalAction,
+          concentrationAction: action?.concentrationAction,
+          concentrationInstanceId: payload.instanceId,
+          zone: payload.zoneItemId
+            ? {
+              action: action?.childZone ? "resolve" : undefined,
+              zoneItemId: payload.zoneItemId,
+              ruleId: action?.placementRuleId || action?.childZone?.placementRuleId,
+            }
+            : undefined,
+        }),
       },
     },
   });
   requireAppliedEffectsMutation(mutation);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(mutation, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   await refreshConditionLabels(mutation.changedIds || []);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(mutation, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   return attachSpellExecutionHistory(mutation, mutation);
 }
 
 export async function executeSpellBoardTokenStateUpdate({
   group = null,
   hp = undefined,
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-board-token-update");
+  }
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
   const itemId = String(group?.itemId || "").trim();
@@ -608,8 +807,35 @@ export async function executeSpellBoardTokenStateUpdate({
       hp,
       ...(removesAtZero ? { removeWhenZero: true } : {}),
     }],
+    history: {
+      kind: "spell-board-token",
+      label,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "board-token-update",
+          spellId: group?.spellId,
+          spellName: group?.name,
+          instanceId,
+          slotLevel: group?.castContext?.slotLevel,
+          phase: group?.castContext?.phase,
+          casterId,
+          casterName: group?.casterName,
+          actionLabel: label,
+          concentrationAction: endsAtZero ? "break" : undefined,
+          concentrationInstanceId: instanceId,
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(mutation);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(
+      mutation.commitResult?.sideEffectChanges || [],
+      { ...mutation, stale: true, postCommitPending: true },
+    );
+  }
   return attachSpellExecutionHistory(
     mutation.commitResult?.sideEffectChanges || [],
     mutation,
@@ -619,7 +845,14 @@ export async function executeSpellBoardTokenStateUpdate({
 export async function executeSpellBoardTokenRecreate({
   group = null,
   position = null,
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-board-token-recreate");
+  }
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
   const rule = getSpellBoardTokenRule(group?.spellId);
@@ -646,8 +879,33 @@ export async function executeSpellBoardTokenRecreate({
       slotLevel: group?.castContext?.slotLevel,
       position: { x: Number(position.x), y: Number(position.y) },
     }],
+    history: {
+      kind: "spell-board-token",
+      label,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "board-token-update",
+          spellId: rule.spellId,
+          spellName: group?.name || rule.label,
+          instanceId,
+          slotLevel: group?.castContext?.slotLevel,
+          phase: group?.castContext?.phase,
+          casterId,
+          casterName: group?.casterName,
+          action: { id: "recreate", label },
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(mutation);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(
+      mutation.commitResult?.sideEffectChanges || [],
+      { ...mutation, stale: true, postCommitPending: true },
+    );
+  }
   return attachSpellExecutionHistory(
     mutation.commitResult?.sideEffectChanges || [],
     mutation,
@@ -669,6 +927,10 @@ export async function executeSpellApplication({
   requestedConcentration = false,
   appliedAt = undefined,
   casterName = "",
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
 } = {}) {
   const intent = buildSpellApplicationIntent({
     spell,
@@ -688,9 +950,15 @@ export async function executeSpellApplication({
 
   const instanceId = String(activeConcentration?.instanceId || "").trim()
     || createSpellInstanceId();
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-spell-application");
+  }
   const resolvedAppliedAt = appliedAt === undefined
     ? await getCurrentSpellAppliedAt()
     : appliedAt;
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-spell-application");
+  }
   const applicationPlan = buildSpellApplicationPlan({
     intent,
     instanceId,
@@ -715,9 +983,45 @@ export async function executeSpellApplication({
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
     sideEffects,
+    history: {
+      kind: "spell",
+      label: applicationPlan.historyLabel,
+      payload: {
+        causality: buildSpellCausality({
+          eventType: applicationPlan.phasePlan?.phase === "prepare"
+            ? "prepare"
+            : applicationPlan.phasePlan?.phase === "resolve"
+              ? "resolution"
+              : "application/cast",
+          spellId: spell?.id,
+          spellName: spell?.displayName || spell?.name || intent.name,
+          instanceId,
+          slotLevel: intent.persistedCastContext?.slotLevel || castContext?.slotLevel,
+          phase: applicationPlan.phasePlan?.phase || intent.persistedCastContext?.phase,
+          casterId,
+          casterName,
+          targetIds: intent.subjects,
+          actionId: castContext?.actionId || intent.persistedCastContext?.actionId,
+          actionLabel: applicationPlan.historyLabel,
+          concentrationAction: intent.wantsConcentration
+            ? applicationPlan.concentrationAction
+            : undefined,
+          concentrationInstanceId: instanceId,
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
   });
   requireAppliedEffectsMutation(mutation);
   const changedIds = mutation.changedIds;
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory([...changedIds], {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   if (applicationPlan.phasePlan?.phase !== "prepare" && !boardTokenRule) {
     void emitMatchedSpellVisual({
       spellId: spell?.id,
@@ -730,5 +1034,12 @@ export async function executeSpellApplication({
     });
   }
   await refreshConditionLabels(changedIds);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory([...changedIds], {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
   return attachSpellExecutionHistory([...changedIds], mutation);
 }

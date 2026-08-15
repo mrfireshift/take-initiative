@@ -45,9 +45,19 @@ let effectsProjection = {
   role: "GM",
   policy: { conditions: "all", spells: "all", concentration: "all" },
   expandedTargetIds: new Set(),
+  expansionMode: "selected",
 };
 
-export function configureEffectsLayoutProjection({ role, policy, expandedTargetIds } = {}) {
+function normalizeExpansionMode(value) {
+  return ["selected", "all", "compact"].includes(value) ? value : "selected";
+}
+
+export function configureEffectsLayoutProjection({
+  role,
+  policy,
+  expandedTargetIds,
+  expansionMode,
+} = {}) {
   const nextExpandedTargetIds = expandedTargetIds === undefined
     ? effectsProjection.expandedTargetIds
     : new Set(
@@ -67,6 +77,9 @@ export function configureEffectsLayoutProjection({ role, policy, expandedTargetI
       ? effectsProjection.policy
       : policy && typeof policy === "object" ? policy : effectsProjection.policy,
     expandedTargetIds: nextExpandedTargetIds,
+    expansionMode: expansionMode === undefined
+      ? effectsProjection.expansionMode
+      : normalizeExpansionMode(expansionMode),
   };
 }
 
@@ -74,6 +87,7 @@ export function resetEffectsLayoutProjection() {
   effectsProjection = {
     ...effectsProjection,
     expandedTargetIds: new Set(),
+    expansionMode: "selected",
   };
 }
 
@@ -572,6 +586,7 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
         measureText: measureTextWidth,
         compact: true,
         expandedTargetIds: effectsProjection.expandedTargetIds,
+        expansionMode: effectsProjection.expansionMode,
       }),
       targetScope,
     );

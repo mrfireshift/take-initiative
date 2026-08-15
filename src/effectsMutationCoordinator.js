@@ -3,6 +3,7 @@ export const EFFECTS_MUTATION_STATUS = Object.freeze({
   REJECTED: "rejected",
   FAILED: "failed",
   CONFLICT: "conflict",
+  RECOVERY_REQUIRED: "recovery-required",
 });
 
 function createId(prefix) {
@@ -71,6 +72,7 @@ function baseResult(command, status, extra = {}) {
 function staleResult(command, reason = "stale-scene-epoch", extra = {}) {
   return baseResult(command, EFFECTS_MUTATION_STATUS.REJECTED, {
     reason,
+    committed: false,
     changedIds: [],
     changes: [],
     ...extra,
@@ -175,6 +177,7 @@ export function createEffectsMutationCoordinator({
             });
           } catch (error) {
             historyError = serializeError(error);
+            historyEntry = clone(error?.historyEntry || null);
           }
         }
       } else if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges)) {
@@ -288,11 +291,56 @@ export function createEffectsMutationCoordinator({
           sceneEpoch: command.sceneEpoch,
           isCurrent: isCommandCurrent,
         });
+        if (commitResult?.status === EFFECTS_MUTATION_STATUS.CONFLICT) {
+          return baseResult(command, EFFECTS_MUTATION_STATUS.CONFLICT, {
+            plan,
+            commitResult,
+            conflicts: clone(commitResult.conflicts || []),
+            changedIds: [],
+            changes: [],
+            committed: false,
+          });
+        }
+        if (commitResult?.status === EFFECTS_MUTATION_STATUS.FAILED) {
+          return baseResult(command, EFFECTS_MUTATION_STATUS.FAILED, {
+            plan,
+            commitResult,
+            error: clone(commitResult.failure || null),
+            recovery: clone(commitResult.recovery || null),
+            changedIds: [],
+            changes: [],
+            committed: false,
+          });
+        }
+        if (commitResult?.status === EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED) {
+          return baseResult(command, EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED, {
+            plan,
+            commitResult,
+            recovery: clone(commitResult.recovery || null),
+            changedIds: Array.isArray(commitResult.changedIds) ? [...commitResult.changedIds] : [],
+            changes: [],
+            committed: false,
+            recoveryRequired: true,
+          });
+        }
         if (
           commitResult?.status === EFFECTS_MUTATION_STATUS.REJECTED
           && commitResult?.committed !== true
         ) {
           return staleResult(command, commitResult.reason || "stale-before-commit");
+        }
+        if (
+          commitResult?.status === EFFECTS_MUTATION_STATUS.REJECTED
+          && commitResult?.committed === true
+        ) {
+          return baseResult(command, EFFECTS_MUTATION_STATUS.RECOVERY_REQUIRED, {
+            plan,
+            commitResult,
+            changedIds: Array.isArray(commitResult.changedIds) ? [...commitResult.changedIds] : [],
+            changes: [],
+            committed: false,
+            recoveryRequired: true,
+          });
         }
         committed = true;
         return baseResult(command, EFFECTS_MUTATION_STATUS.APPLIED, {

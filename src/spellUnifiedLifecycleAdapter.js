@@ -309,10 +309,38 @@ export async function executeSpellUnifiedLifecycle({
         contract,
         session,
       });
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_LIFECYCLE_STATUS.REJECTED,
+          changedIds: [],
+          error: normalizedError({
+            code: "scene-epoch-stale",
+            message: "La scena è cambiata durante la preparazione.",
+          }),
+          request: null,
+          stale: true,
+        };
+      }
     }
     let appliedAt = runtime.appliedAt;
     if (appliedAt === undefined && typeof runtime.getAppliedAt === "function") {
       appliedAt = await runtime.getAppliedAt();
+      if (typeof runtime.isCurrent === "function"
+        && runtime.sceneEpoch != null
+        && !runtime.isCurrent(runtime.sceneEpoch)) {
+        return {
+          status: SPELL_UNIFIED_LIFECYCLE_STATUS.REJECTED,
+          changedIds: [],
+          error: normalizedError({
+            code: "scene-epoch-stale",
+            message: "La scena è cambiata durante la preparazione.",
+          }),
+          request: null,
+          stale: true,
+        };
+      }
     }
     request = buildSpellUnifiedLifecycleRequest({
       contract,
@@ -323,6 +351,12 @@ export async function executeSpellUnifiedLifecycle({
       casterName: runtime.casterName,
       castContext: runtime.castContext,
     });
+    request = {
+      ...request,
+      ...(runtime.sceneEpoch == null ? {} : { sceneEpoch: runtime.sceneEpoch }),
+      ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
+      ...(runtime.commandId ? { commandId: runtime.commandId } : {}),
+    };
   } catch (error) {
     const normalized = normalizedError(error, "session-incomplete");
     return {
@@ -330,6 +364,21 @@ export async function executeSpellUnifiedLifecycle({
       changedIds: [],
       error: normalized,
       request: null,
+    };
+  }
+
+  if (typeof runtime.isCurrent === "function"
+    && runtime.sceneEpoch != null
+    && !runtime.isCurrent(runtime.sceneEpoch)) {
+    return {
+      status: SPELL_UNIFIED_LIFECYCLE_STATUS.REJECTED,
+      changedIds: [],
+      error: normalizedError({
+        code: "scene-epoch-stale",
+        message: "La scena è cambiata prima del commit.",
+      }),
+      request,
+      stale: true,
     };
   }
 
@@ -342,14 +391,30 @@ export async function executeSpellUnifiedLifecycle({
       ? executionResult
       : executionResult?.changedIds;
     const history = spellExecutionHistoryDetails(executionResult);
+    const stale = typeof runtime.isCurrent === "function"
+      && runtime.sceneEpoch != null
+      && !runtime.isCurrent(runtime.sceneEpoch);
     return {
       status: SPELL_UNIFIED_LIFECYCLE_STATUS.COMMITTED,
       changedIds: uniqueIds(changedIds),
       ...history,
       error: null,
       request,
+      ...(stale ? { stale: true, postCommitPending: true } : {}),
     };
   } catch (error) {
+    if (typeof runtime.isCurrent === "function"
+      && runtime.sceneEpoch != null
+      && !runtime.isCurrent(runtime.sceneEpoch)) {
+      return {
+        status: SPELL_UNIFIED_LIFECYCLE_STATUS.COMMITTED,
+        changedIds: [],
+        error: normalizedError(error),
+        request,
+        stale: true,
+        postCommitPending: true,
+      };
+    }
     return {
       status: SPELL_UNIFIED_LIFECYCLE_STATUS.FAILED,
       changedIds: [],

@@ -4,12 +4,14 @@ import {
   readElevation,
   writeElevationForItems,
 } from "./distance3d.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const input = document.querySelector("#elevation");
 const climbingInput = document.querySelector("#climbing");
 const unitLabel = document.querySelector("#unit");
 let ids = [];
 let step = 1;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 function closeSoon() {
   Promise.resolve().then(() => OBR.player.deselect().catch(() => {}));
@@ -17,7 +19,12 @@ function closeSoon() {
 }
 
 async function apply() {
-  await writeElevationForItems(ids, input.value || 0, climbingInput.checked);
+  const operation = sceneLifecycle.capture({ operationId: `ctx-elevation:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  await writeElevationForItems(ids, input.value || 0, climbingInput.checked, {
+    isCurrent: () => sceneLifecycle.isCurrent(operation),
+  });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   closeSoon();
 }
 
@@ -33,12 +40,16 @@ input.addEventListener("keydown", (event) => {
 });
 
 OBR.onReady(async () => {
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) return;
   const [selection, scale] = await Promise.all([
     OBR.player.getSelection().catch(() => []),
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1, unit: "" } })),
   ]);
+  if (!sceneLifecycle.isReady()) return;
   const selected = new Set(selection || []);
   const items = await OBR.scene.items.getItems((item) => selected.has(item.id) && item.layer === "CHARACTER" && !item.attachedTo);
+  if (!sceneLifecycle.isReady()) return;
   ids = items.map((item) => item.id);
   step = Math.max(0.01, Number(scale?.parsed?.multiplier) || 1);
   const values = items.map(readElevation);
@@ -55,3 +66,5 @@ OBR.onReady(async () => {
   input.focus();
   input.select();
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

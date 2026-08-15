@@ -24,6 +24,8 @@ import {
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
+import { getEffectsMutationSceneContext } from "./effectsMutations.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
   CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_CLASSES,
@@ -79,6 +81,7 @@ import {
 const META_KEY = `${ID}/meta`;
 const MODAL_ID = `${ID}/initiative-card-modal`;
 const TRACKER_POPOVER_TOGGLE_CHANNEL = ID + "/tracker-popover-toggle";
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 function closeInitiativeCardPopover() {
   void OBR.broadcast.sendMessage(TRACKER_POPOVER_TOGGLE_CHANNEL, {
@@ -394,7 +397,8 @@ async function launchSpecialClassFeature(feature, targetIds) {
 }
 
 async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
-  if (!item || quickActionLaunching) return;
+  const operation = sceneLifecycle.capture({ operationId: `initiative-quick-action:${action?.id || "unknown"}:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation) || !item || quickActionLaunching) return;
   quickActionLaunching = true;
   const status = $("quickActionRunStatus");
   const setStatus = (message, tone = "") => {
@@ -406,6 +410,13 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
       button.disabled = disabled || button.dataset.unsupportedFeature === "1";
     });
   };
+  const sceneStillCurrent = () => {
+    if (sceneLifecycle.isCurrent(operation)) return true;
+    quickActionLaunching = false;
+    setButtonsDisabled(false);
+    setStatus("Scena cambiata: riapri la scheda.", "error");
+    return false;
+  };
   setButtonsDisabled(true);
   setStatus(`Esecuzione: ${action.label}…`);
   try {
@@ -413,6 +424,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
       if (!isGM) throw new Error("Solo il GM può attivare una capacità.");
       const feature = CLASS_FEATURE_BY_ID.get(action.featureId);
       const targetIds = await classFeatureSelectionTargetIds(feature);
+      if (!sceneStillCurrent()) return;
       if (["lay-on-hands", "purifying-touch"].includes(feature?.runtimeSupport?.adapter)) {
         await launchSpecialClassFeature(feature, targetIds);
       } else {
@@ -433,7 +445,9 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
           resourceValues,
         });
       }
+      if (!sceneStillCurrent()) return;
       await refreshClassFeatureItem();
+      if (!sceneStillCurrent()) return;
       setStatus(`Applicata: ${action.label}.`, "success");
       quickActionLaunching = false;
       setButtonsDisabled(false);
@@ -444,6 +458,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
       sourceItem: item,
       confirmConcentration: (message) => window.confirm(message),
     });
+    if (!sceneStillCurrent()) return;
     if (result.mode === "executed") {
       setStatus(`Applicata: ${action.label}.`, "success");
       quickActionLaunching = false;
@@ -471,6 +486,7 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
         quickActionId: action.id,
       }),
     }, { destination: "LOCAL" });
+    if (!sceneStillCurrent()) return;
     closeInitiativeCardPopover();
   } catch (error) {
     console.warn("[initiative-card] quick action:", error?.message || error);
@@ -608,7 +624,8 @@ async function refreshClassFeatureItem() {
 }
 
 async function runClassFeatureMutation(operation, successMessage) {
-  if (!isGM || !item || classFeatureMutating) return;
+  const sceneOperation = sceneLifecycle.capture({ operationId: `initiative-class-feature:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(sceneOperation) || !isGM || !item || classFeatureMutating) return;
   classFeatureMutating = true;
   const status = $("classFeatureRunStatus");
   status.textContent = "Aggiornamento…";
@@ -616,7 +633,17 @@ async function runClassFeatureMutation(operation, successMessage) {
   renderClassFeatures();
   try {
     await operation();
+    if (!sceneLifecycle.isCurrent(sceneOperation)) {
+      status.textContent = "Scena cambiata: riapri la scheda.";
+      status.dataset.tone = "error";
+      return;
+    }
     await refreshClassFeatureItem();
+    if (!sceneLifecycle.isCurrent(sceneOperation)) {
+      status.textContent = "Scena cambiata: riapri la scheda.";
+      status.dataset.tone = "error";
+      return;
+    }
     status.textContent = successMessage;
     status.dataset.tone = "success";
   } catch (error) {
@@ -627,7 +654,7 @@ async function runClassFeatureMutation(operation, successMessage) {
     status.dataset.tone = error?.cancelled ? "" : "error";
   } finally {
     classFeatureMutating = false;
-    renderClassFeatures();
+    if (sceneLifecycle.isReady()) renderClassFeatures();
   }
 }
 
@@ -2435,20 +2462,29 @@ function setEditing(active) {
 }
 
 async function adjustExhaustion(delta) {
-  if (!isGM || !item || exhaustionSaving) return;
+  const operation = sceneLifecycle.capture({ operationId: `initiative-exhaustion:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation) || !isGM || !item || exhaustionSaving) return;
   const next = Math.max(0, Math.min(5, Number(profile.exhaustion || 0) + delta));
   if (next === profile.exhaustion) return;
   exhaustionSaving = true;
   renderView();
   try {
-    await saveInitiativeCard(item.id, item.name, { ...profile, exhaustion: next });
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    await saveInitiativeCard(item.id, item.name, { ...profile, exhaustion: next }, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     [item] = await OBR.scene.items.getItems([item.id]);
+    if (!sceneLifecycle.isCurrent(operation)) return;
     profile = getInitiativeCard(item);
   } catch (err) {
     console.warn("[initiative-card] Indebolimento:", err?.message || err);
   } finally {
     exhaustionSaving = false;
-    renderView();
+    if (sceneLifecycle.isReady()) renderView();
   }
 }
 
@@ -2493,12 +2529,36 @@ function subscribeToSceneStateChanges() {
 }
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      item = null;
+      profile = null;
+      editing = false;
+      classFeatureMutating = false;
+      quickActionLaunching = false;
+      document.querySelectorAll("input, select, textarea, button").forEach((control) => {
+        if (control.id !== "close") control.disabled = true;
+      });
+      $("status").textContent = "Scena cambiata: riapri la scheda.";
+      $("classFeatureRunStatus").textContent = "Scena cambiata: riapri la scheda.";
+      closeInitiativeCardPopover();
+    } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      window.location.reload();
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    $("title").textContent = "Scheda non disponibile";
+    $("hp").textContent = "Scena non disponibile: riapri la scheda.";
+    return;
+  }
   try {
     const [items, role, sceneMetadata] = await Promise.all([
       OBR.scene.items.getItems([sourceId]),
       OBR.player.getRole(),
       OBR.scene.getMetadata().catch(() => ({})),
     ]);
+    if (!sceneLifecycle.isReady()) throw new Error("Scena cambiata: riapri la scheda.");
     item = items[0] || null;
     isGM = role === "GM";
     currentRoundValue = Math.max(
@@ -2551,11 +2611,14 @@ $("classBuildAdd").addEventListener("click", () => {
 });
 $("form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!isGM || !item) return;
+  const operation = sceneLifecycle.capture({ operationId: `initiative-card-save:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation) || !isGM || !item) return;
   const submit = event.submitter;
   if (submit) submit.disabled = true;
   $("status").textContent = "";
   try {
+    const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const savingThrows = Object.fromEntries(SAVE_KEYS.map((key) => [key, $(`save-${key}`).value]));
     const characterBuild = collectCharacterBuildEditor({ validate: true });
     await saveInitiativeCard(item.id, item.name, {
@@ -2571,8 +2634,14 @@ $("form").addEventListener("submit", async (event) => {
       enabledClassFeatureIds: collectEnabledClassFeatureIds(characterBuild),
       classFeaturesConfigured: true,
       savingThrows,
+    }, {
+      isCurrent: () => sceneLifecycle.isCurrent(operation),
+      commandId: ownerSceneContext.commandId,
+      sceneIdentity: ownerSceneContext.sceneIdentity,
     });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     [item] = await OBR.scene.items.getItems([item.id]);
+    if (!sceneLifecycle.isCurrent(operation)) return;
     profile = getInitiativeCard(item);
     renderView();
     setEditing(false);
@@ -2582,3 +2651,5 @@ $("form").addEventListener("submit", async (event) => {
     if (submit) submit.disabled = false;
   }
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

@@ -182,20 +182,17 @@ export function applyToolbarLayoutPresentation(
     background: "linear-gradient(180deg, rgba(16,21,31,.78), rgba(7,11,18,.72))",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,.05)",
   } : {
-    display: "grid",
-    flex: "0 0 98px",
-    width: "98px",
-    maxWidth: "98px",
+    display: "flex",
+    flex: "0 0 116px",
+    width: "116px",
+    maxWidth: "116px",
     height: "100%",
     minHeight: "0",
-    gridTemplateColumns: "repeat(2, 40px)",
-    gridAutoRows: "38px",
-    alignItems: "center",
-    justifyItems: "center",
-    alignContent: "center",
-    justifyContent: "center",
-    gap: "4px",
-    padding: "5px",
+    flexDirection: "column",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
+    gap: "5px",
+    padding: "6px",
     overflow: "hidden",
     boxSizing: "border-box",
     border: "1px solid rgba(148,163,184,.24)",
@@ -220,28 +217,29 @@ export function applyToolbarLayoutPresentation(
   }
 
   Object.assign(sceneOptionsGroup.style, {
-    width: classic ? "100%" : "auto",
+    width: classic ? "100%" : "100%",
     minWidth: "0",
-    display: classic ? "grid" : "contents",
+    display: classic ? "grid" : "flex",
     gridTemplateColumns: classic ? "repeat(2, minmax(0, 1fr))" : "none",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: classic ? "3px" : "0",
+    flexDirection: classic ? "row" : "column",
+    alignItems: classic ? "center" : "stretch",
+    justifyContent: classic ? "center" : "flex-start",
+    gap: classic ? "3px" : "4px",
   });
   Object.assign(toolOptionsGroup.style, {
-    width: classic ? "100%" : "auto",
+    width: classic ? "100%" : "100%",
     minWidth: "0",
-    display: classic ? "grid" : "contents",
-    gridTemplateColumns: classic ? "repeat(4, minmax(0, 1fr))" : "none",
+    display: "grid",
+    gridTemplateColumns: classic
+      ? "repeat(4, minmax(0, 1fr))"
+      : "repeat(2, minmax(0, 1fr))",
     alignItems: "center",
-    justifyContent: "center",
-    gap: classic ? "3px" : "0",
-    paddingLeft: classic ? "7px" : "0",
-    paddingTop: "0",
+    justifyContent: classic ? "center" : "stretch",
+    gap: classic ? "3px" : "4px",
+    padding: classic ? "0 0 0 7px" : "5px 0 4px",
     boxSizing: "border-box",
     borderLeft: classic ? "1px solid rgba(148,163,184,.24)" : "none",
-    borderTop: "none",
+    borderTop: classic ? "none" : "1px solid rgba(148,163,184,.24)",
   });
   Object.assign(globalPanelsWrap.style, {
     display: "contents",
@@ -255,12 +253,12 @@ export function applyToolbarLayoutPresentation(
   viewOptionsRow.querySelectorAll("[data-toolbar-control='1']").forEach((control) => {
     const active = control.getAttribute("aria-pressed") === "true";
     Object.assign(control.style, {
-      width: classic ? "100%" : "40px",
+      width: "100%",
       minWidth: "0",
-      maxWidth: classic ? "100%" : "40px",
+      maxWidth: "100%",
       boxSizing: "border-box",
-      height: classic ? "46px" : "36px",
-      minHeight: classic ? "46px" : "36px",
+      height: classic ? "46px" : "34px",
+      minHeight: classic ? "46px" : "34px",
       flexDirection: classic ? "column" : "row",
       justifyContent: "center",
       gap: classic ? "3px" : "0",
@@ -288,7 +286,7 @@ export function applyToolbarLayoutPresentation(
       caption.style.display = classic ? "block" : "none";
       caption.style.width = "100%";
       caption.style.maxWidth = "100%";
-      caption.style.fontSize = "8px";
+      caption.style.fontSize = "7.5px";
       caption.style.lineHeight = "1";
       caption.style.letterSpacing = "-.01em";
       caption.style.whiteSpace = "nowrap";

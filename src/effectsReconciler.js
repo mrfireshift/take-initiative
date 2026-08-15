@@ -26,19 +26,22 @@ import {
   isEffectsWidgetWriterRole,
 } from "./effectsReconcilerCore.js";
 import {
-  mountEffectsHoverTool,
-  unmountEffectsHoverTool,
-} from "./effectsHoverTool.js";
-import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
 } from "./sceneItemEvents.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
-import { selectPlayerEffectsPolicy } from "./options/optionsSelectors.js";
+import {
+  selectEffectsDisplayMode,
+  selectPlayerEffectsPolicy,
+} from "./options/optionsSelectors.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
 const CONCENTRATION_META_KEY = `${ID}/concentration`;
+const EFFECTS_SELECTION_CHANNEL = `${ID}/effects-selection`;
+const EFFECTS_SELECTION_INSTANCE_ID = typeof globalThis.crypto?.randomUUID === "function"
+  ? globalThis.crypto.randomUUID()
+  : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 let mounted = false;
 let writer = false;
@@ -49,9 +52,14 @@ let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeOptions = null;
 let unsubscribePlayer = null;
+let unsubscribeSelectionBroadcast = null;
 let expandedTargetIds = new Set();
-let hoveredTargetId = "";
+let effectsDisplayMode = "selected";
 let selectionSyncRevision = 0;
+let effectsRole = "PLAYER";
+let remoteGMSelectionActive = false;
+let remoteGMSelectionRevision = 0;
+let gmSelectionRevision = 0;
 
 const queue = createEffectsReconcileQueue({
   async run(batch, context) {
@@ -109,10 +117,75 @@ function sameIdSet(left, right) {
   return true;
 }
 
-function effectiveExpandedTargetIds() {
-  const effective = new Set(expandedTargetIds);
-  if (effective.size === 0 && hoveredTargetId) effective.add(hoveredTargetId);
-  return effective;
+function selectionRequestId() {
+  return `${EFFECTS_SELECTION_INSTANCE_ID}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+}
+
+async function publishGMSelection(selection, { requestId = "", targetInstanceId = "" } = {}) {
+  if (!mounted || !writer || effectsRole !== "GM") return;
+  const payload = {
+    type: "gm-selection",
+    selection: [...normalizeSelection(selection)],
+    revision: ++gmSelectionRevision,
+    sourceInstanceId: EFFECTS_SELECTION_INSTANCE_ID,
+  };
+  if (requestId) payload.requestId = requestId;
+  if (targetInstanceId) payload.targetInstanceId = targetInstanceId;
+  try {
+    await OBR.broadcast.sendMessage(EFFECTS_SELECTION_CHANNEL, payload, { destination: "ALL" });
+  } catch (error) {
+    console.warn("[effects] GM selection broadcast:", error?.message || error);
+  }
+}
+
+function requestGMSelection() {
+  if (!mounted || !writer || effectsRole !== "PLAYER") return;
+  void OBR.broadcast.sendMessage(EFFECTS_SELECTION_CHANNEL, {
+    type: "gm-selection-request",
+    sourceInstanceId: EFFECTS_SELECTION_INSTANCE_ID,
+    requestId: selectionRequestId(),
+  }, { destination: "ALL" }).catch((error) => {
+    console.warn("[effects] GM selection request:", error?.message || error);
+  });
+}
+
+function handleEffectsSelectionMessage(event) {
+  const data = event?.data;
+  if (!data || data.sourceInstanceId === EFFECTS_SELECTION_INSTANCE_ID) return;
+
+  if (data.type === "gm-selection-request") {
+    if (effectsRole !== "GM" || !data.sourceInstanceId || !data.requestId) return;
+    void publishGMSelection(expandedTargetIds, {
+      requestId: data.requestId,
+      targetInstanceId: data.sourceInstanceId,
+    });
+    return;
+  }
+
+  if (data.type !== "gm-selection" || effectsRole !== "PLAYER") return;
+  if (data.targetInstanceId && data.targetInstanceId !== EFFECTS_SELECTION_INSTANCE_ID) return;
+  const revision = Number(data.revision) || 0;
+  if (!data.requestId && revision < remoteGMSelectionRevision) return;
+  remoteGMSelectionActive = true;
+  remoteGMSelectionRevision = Math.max(remoteGMSelectionRevision, revision);
+  applyPlayerSelection(data.selection);
+}
+
+function normalizeEffectsDisplayMode(mode) {
+  return ["selected", "all", "compact"].includes(mode) ? mode : "selected";
+}
+
+function projectedExpandedTargetIds() {
+  return effectsDisplayMode === "selected"
+    ? expandedTargetIds
+    : new Set();
+}
+
+function configureEffectsDisplayProjection() {
+  configureEffectsLayoutProjection({
+    expandedTargetIds: projectedExpandedTargetIds(),
+    expansionMode: effectsDisplayMode,
+  });
 }
 
 function requestSelectionReconcile({ full = false, targetIds = [] } = {}) {
@@ -126,27 +199,11 @@ function requestSelectionReconcile({ full = false, targetIds = [] } = {}) {
 
 function applyPlayerSelection(selection) {
   const next = normalizeSelection(selection);
-  const previousEffective = effectiveExpandedTargetIds();
   if (sameIdSet(expandedTargetIds, next)) return;
   expandedTargetIds = next;
-  const nextEffective = effectiveExpandedTargetIds();
-  if (sameIdSet(previousEffective, nextEffective)) return;
-  configureEffectsLayoutProjection({ expandedTargetIds: nextEffective });
+  if (effectsDisplayMode !== "selected") return;
+  configureEffectsDisplayProjection();
   requestSelectionReconcile({ full: true });
-}
-
-function applyHoverTarget(targetId) {
-  const next = String(targetId || "").trim();
-  if (hoveredTargetId === next) return;
-  const previousTargetId = hoveredTargetId;
-  const previousEffective = effectiveExpandedTargetIds();
-  hoveredTargetId = next;
-  const nextEffective = effectiveExpandedTargetIds();
-  if (sameIdSet(previousEffective, nextEffective)) return;
-  configureEffectsLayoutProjection({ expandedTargetIds: nextEffective });
-  requestSelectionReconcile({
-    targetIds: [previousTargetId, next].filter(Boolean),
-  });
 }
 
 async function syncPlayerSelection(selection) {
@@ -160,7 +217,9 @@ async function syncPlayerSelection(selection) {
     }
   }
   if (revision !== selectionSyncRevision || !mounted || !writer) return;
+  if (effectsRole === "PLAYER" && remoteGMSelectionActive) return;
   applyPlayerSelection(nextSelection);
+  if (effectsRole === "GM") void publishGMSelection(nextSelection);
 }
 
 export async function mountEffectsReconciler() {
@@ -169,6 +228,7 @@ export async function mountEffectsReconciler() {
 
   let role = "PLAYER";
   try { role = await getPlayerRole(); } catch {}
+  effectsRole = String(role || "PLAYER").trim().toUpperCase() === "GM" ? "GM" : "PLAYER";
   writer = isEffectsLocalRendererRole(role);
   globalCleanupOwner = isEffectsWidgetWriterRole(role);
   if (!writer) return false;
@@ -176,18 +236,37 @@ export async function mountEffectsReconciler() {
   let initialSelection = [];
   try { initialSelection = await OBR.player?.getSelection?.() || []; } catch {}
   expandedTargetIds = normalizeSelection(initialSelection);
-  hoveredTargetId = "";
+  effectsDisplayMode = normalizeEffectsDisplayMode(
+    runtimeOptionsService.get(selectEffectsDisplayMode),
+  );
   configureEffectsLayoutProjection({
-    role: String(role).toUpperCase() === "GM" ? "GM" : "PLAYER",
+    role: effectsRole,
     policy: runtimeOptionsService.get(selectPlayerEffectsPolicy),
-    expandedTargetIds,
+    expandedTargetIds: projectedExpandedTargetIds(),
+    expansionMode: effectsDisplayMode,
   });
+  unsubscribeSelectionBroadcast = OBR.broadcast.onMessage(
+    EFFECTS_SELECTION_CHANNEL,
+    handleEffectsSelectionMessage,
+  );
+  if (effectsRole === "GM") {
+    void publishGMSelection(initialSelection);
+  } else {
+    requestGMSelection();
+  }
   unsubscribeOptions = runtimeOptionsService.subscribe(
-    selectPlayerEffectsPolicy,
-    (policy) => {
+    (options) => ({
+      policy: selectPlayerEffectsPolicy(options),
+      effectsDisplayMode: selectEffectsDisplayMode(options),
+    }),
+    ({ policy, effectsDisplayMode: nextDisplayMode }) => {
+      const normalizedMode = normalizeEffectsDisplayMode(nextDisplayMode);
+      effectsDisplayMode = normalizedMode;
       configureEffectsLayoutProjection({
-        role: String(role).toUpperCase() === "GM" ? "GM" : "PLAYER",
+        role: effectsRole,
         policy,
+        expandedTargetIds: projectedExpandedTargetIds(),
+        expansionMode: effectsDisplayMode,
       });
       queue.request({ full: true }).done.catch((error) => {
         console.error("[effects] options reconcile", error);
@@ -198,16 +277,11 @@ export async function mountEffectsReconciler() {
 
   if (typeof OBR.player?.onChange === "function") {
     unsubscribePlayer = OBR.player.onChange((player) => {
+      if (effectsRole === "PLAYER" && remoteGMSelectionActive) return;
       void syncPlayerSelection(player?.selection).catch((error) => {
         console.error("[effects] selection sync", error);
       });
     });
-  }
-
-  try {
-    await mountEffectsHoverTool(applyHoverTarget);
-  } catch (error) {
-    console.warn("[effects] hover tool unavailable:", error?.message || error);
   }
 
   configureConditionWidgetWriter(requestConditions);
@@ -303,16 +377,21 @@ export async function unmountEffectsReconciler() {
   unsubscribeOptions = null;
   unsubscribePlayer?.();
   unsubscribePlayer = null;
-  hoveredTargetId = "";
+  unsubscribeSelectionBroadcast?.();
+  unsubscribeSelectionBroadcast = null;
   selectionSyncRevision += 1;
-  await unmountEffectsHoverTool();
   configureConditionWidgetWriter(null);
   configureConcentrationWidgetWriter(null);
   mounted = false;
   writer = false;
   globalCleanupOwner = false;
+  effectsRole = "PLAYER";
+  remoteGMSelectionActive = false;
+  remoteGMSelectionRevision = 0;
+  gmSelectionRevision = 0;
   await queue.idle();
   expandedTargetIds = new Set();
+  effectsDisplayMode = "selected";
   resetEffectsLayoutProjection();
 }
 

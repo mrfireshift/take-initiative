@@ -6,13 +6,16 @@ import {
   refreshConditionLabels,
 } from "./conditions.js";
 import {
+  getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 let currentIds: string[] = [];
 let busy = false;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -34,6 +37,7 @@ async function getContextIds(): Promise<string[]> {
 }
 
 async function readRows(ids: string[]) {
+  if (!sceneLifecycle.isReady()) return [];
   if (!ids.length) return [];
   const idSet = new Set(ids);
   const items = await OBR.scene.items.getItems((item) => idSet.has(item.id));
@@ -51,9 +55,12 @@ async function readRows(ids: string[]) {
 }
 
 async function render() {
+  const operation = sceneLifecycle.capture({ operationId: "ctx-remove-render" });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const app = document.getElementById("app");
   if (!app) return;
   const rows = await readRows(currentIds);
+  if (!sceneLifecycle.isCurrent(operation)) return;
   app.replaceChildren();
 
   if (!rows.length) {
@@ -87,6 +94,10 @@ async function render() {
       busy = true;
       app.querySelectorAll<HTMLButtonElement>("button").forEach((entry) => { entry.disabled = true; });
       try {
+        const operation = sceneLifecycle.capture({ operationId: `ctx-remove:${row.itemId}:${row.instanceId}` });
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        const ownerSceneContext = await getEffectsMutationSceneContext({ commandId: operation.operationId });
+        if (!sceneLifecycle.isCurrent(operation)) return;
         const mutation = await runEffectsMutation([{
           type: "condition:remove-instances",
           removals: [{ itemId: row.itemId, instanceId: row.instanceId }],
@@ -94,13 +105,17 @@ async function render() {
           kind: "condition",
           label: `Rimossa: ${row.name}`,
           targetIds: [row.itemId],
+          commandId: ownerSceneContext.commandId,
+          sceneIdentity: ownerSceneContext.sceneIdentity,
           history: { kind: "condition", label: `Rimossa: ${row.name}` },
         });
+        if (!sceneLifecycle.isCurrent(operation)) return;
         requireAppliedEffectsMutation(mutation);
         await refreshConditionLabels([row.itemId]);
+        if (!sceneLifecycle.isCurrent(operation)) return;
       } finally {
         busy = false;
-        await render();
+        if (sceneLifecycle.isReady()) await render();
       }
     });
 
@@ -109,6 +124,17 @@ async function render() {
 }
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      currentIds = [];
+      document.getElementById("app")?.replaceChildren();
+      if (document.getElementById("app")) document.getElementById("app").textContent = "Scena non disponibile: riapri il menu.";
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) return;
   currentIds = await getContextIds();
   await render();
 });
+
+window.addEventListener("pagehide", () => sceneLifecycle.dispose());

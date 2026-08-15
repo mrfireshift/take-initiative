@@ -22,7 +22,8 @@ export function readClimbing(item) {
   return item?.metadata?.[TOKEN_META_KEY]?.[CLIMBING_FIELD] === true;
 }
 
-export async function writeElevation(itemId, elevation) {
+export async function writeElevation(itemId, elevation, { isCurrent = () => true } = {}) {
+  if (!isCurrent()) return normalizeElevation(elevation);
   const value = normalizeElevation(elevation);
   await OBR.scene.items.updateItems([itemId], (items) => {
     const item = items[0];
@@ -34,13 +35,16 @@ export async function writeElevation(itemId, elevation) {
       [TOKEN_META_KEY]: tokenMeta,
     };
   });
+  if (!isCurrent()) return value;
   return value;
 }
 
-export async function writeElevationForItems(itemIds, elevation, climbing) {
+export async function writeElevationForItems(itemIds, elevation, climbing, { isCurrent = () => true } = {}) {
+  if (!isCurrent()) return normalizeElevation(elevation);
   const ids = Array.from(new Set((itemIds || []).filter(Boolean)));
   const value = normalizeElevation(elevation);
   if (!ids.length) return value;
+  if (!isCurrent()) return value;
   await OBR.scene.items.updateItems(ids, (items) => {
     for (const item of items) {
       const tokenMeta = { ...(item.metadata?.[TOKEN_META_KEY] || {}) };
@@ -52,20 +56,24 @@ export async function writeElevationForItems(itemIds, elevation, climbing) {
       };
     }
   });
+  if (!isCurrent()) return value;
   return value;
 }
 
-export async function loadDistanceContext() {
+export async function loadDistanceContext({ isCurrent = () => true } = {}) {
+  if (!isCurrent()) return { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
   const [selection, dpi, scale] = await Promise.all([
     OBR.player.getSelection().catch(() => []),
     OBR.scene.grid.getDpi().catch(() => 1),
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1, unit: "" } })),
   ]);
+  if (!isCurrent()) return { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
   const selectedIds = Array.isArray(selection) ? selection : [];
   const selectedSet = new Set(selectedIds);
   const items = selectedIds.length
     ? await OBR.scene.items.getItems((item) => selectedSet.has(item.id))
     : [];
+  if (!isCurrent()) return { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
   const byId = new Map(items.map((item) => [item.id, item]));
   const orderedItems = selectedIds
     .map((id) => byId.get(id))
@@ -77,6 +85,7 @@ export async function loadDistanceContext() {
       return [item.id, null];
     }
   }));
+  if (!isCurrent()) return { items: [], dpi: 1, multiplier: 1, unit: "", digits: 0 };
   return {
     items: orderedItems,
     boundsById: new Map(boundsEntries),

@@ -27,6 +27,7 @@ function settledResult(request, status, extra = {}) {
     sequence: request.sequence,
     sceneEpoch: request.sceneEpoch,
     sourceRevision: request.sourceRevision,
+    sourceGeneration: request.sourceGeneration,
     correlationId: request.correlationId || null,
     itemIds: [...request.itemIds],
     ...extra,
@@ -58,6 +59,10 @@ function mergeRequest(target, next) {
   target.sourceRevision = Math.max(
     targetRevision,
     nextRevision,
+  );
+  if (nextIsCurrent) target.sourceGeneration = Math.max(
+    Number(target.sourceGeneration) || 0,
+    Number(next.sourceGeneration) || 0,
   );
   for (const id of next.itemIds) target.itemIds.add(id);
   target.waiters.push(...next.waiters);
@@ -101,6 +106,7 @@ export function createInitiativeRenderScheduler({
         sequence: request?.sequence || null,
         sceneEpoch: request?.sceneEpoch ?? null,
         sourceRevision: request?.sourceRevision ?? 0,
+        sourceGeneration: request?.sourceGeneration ?? 0,
         correlationId: request?.correlationId || null,
         itemIds: request ? [...request.itemIds] : [],
         ...detail,
@@ -244,6 +250,7 @@ export function createInitiativeRenderScheduler({
     const itemIds = new Set(uniqueIds(options.itemIds));
     const waiter = createWaiter();
     const sourceRevision = Number(options.sourceRevision) || 0;
+    const sourceGeneration = Number(options.sourceGeneration) || 0;
     const request = {
       mode,
       priority: mode === "full" ? RENDER_PRIORITY.FULL : RENDER_PRIORITY.INCREMENTAL,
@@ -252,6 +259,7 @@ export function createInitiativeRenderScheduler({
         typeof getSceneEpoch === "function" ? getSceneEpoch() : null
       ),
       sourceRevision,
+      sourceGeneration,
       correlationId: String(options.correlationId || "").trim() || null,
       reason: String(options.reason || "unspecified"),
       itemIds,

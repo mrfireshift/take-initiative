@@ -34,6 +34,12 @@ test("Quick HP non contiene più catalogo spell o percorso area", () => {
   assert.match(markup, /id="targetList"/);
 });
 
+test("Quick HP non monta il pulsante Annulla nel footer", () => {
+  assert.doesNotMatch(markup, /id="undo"|>Annulla</);
+  assert.doesNotMatch(source, /getElementById\("undo"\)|undoButton/);
+  assert.match(source, /shouldHandleQuickHPUndoShortcut/);
+});
+
 test("il workflow manuale conserva le quattro operazioni e la cronologia", () => {
   assert.match(source, /QUICK_HP_MODES\.DAMAGE/);
   assert.match(source, /QUICK_HP_MODES\.HEAL/);

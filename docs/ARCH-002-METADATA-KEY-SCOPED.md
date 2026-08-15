@@ -17,7 +17,7 @@ restano locali al runtime che le possiede.
 
 | Dominio | Chiave | Writer autorizzati |
 | --- | --- | --- |
-| initiative state | `com.thebigpicture.initiative/state` | `initiativeList.js`, pulizia mirata in `contextMenu.js` |
+| initiative state | `com.thebigpicture.initiative/state` | `initiativeStateGateway.js` |
 | history | `com.thebigpicture.initiative/history` | `history.js` |
 | clocks | `com.thebigpicture.initiative/clocks` | `clocks.js` |
 | combat log session | `com.thebigpicture.initiative/combat-log-state` | `combatLog.js` |
@@ -51,9 +51,9 @@ payload.
 
 ## Read–modify–write rimasti intenzionalmente
 
-- `initiativeList.js`, `contextMenu.js`: read–modify–write interno a
-  initiative state, necessario per mantenere i campi dello stato e
-  `paragonInits`.
+- `initiativeStateGateway.js`: read–modify–write seriale interno a initiative
+  state. I consumer dichiarano soltanto i campi posseduti; il gateway rilegge
+  lo state al queue head e mantiene i campi sconosciuti.
 - `history.js`: append e Undo modificano l'array `entries` della stessa chiave.
 - `clocks.js`: l'updater modifica la struttura della stessa chiave clocks.
 - `factionRegistry.js`, `initiativeCards.js`, `hpMemory.js`: il valore corrente

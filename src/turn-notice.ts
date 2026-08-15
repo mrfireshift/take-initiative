@@ -440,6 +440,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
       const result = await resolveReminder({
         notice: {
           activationId,
+          spellName: row.spellName,
+          casterName: row.casterName,
+          ...(row.kind ? { kind: row.kind } : {}),
           targets: row.targets || [],
           resolution: row.resolution,
         },

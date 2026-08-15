@@ -112,9 +112,8 @@ export function resolveInitiativeCardActorMatch(registry, item) {
   };
 }
 
-export function initiativeCardQuickActionMemoryCandidates(
+export function initiativeCardQuickActionMemoryEligibleItems(
   items,
-  registry,
   {
     metadataKey,
     profileField = "initiativeCard",
@@ -136,6 +135,23 @@ export function initiativeCardQuickActionMemoryCandidates(
       && typeof tokenProfile === "object"
       && sanitizeQuickActions(tokenProfile.quickActions).length > 0
     ) return false;
+
+    return true;
+  });
+}
+
+export function initiativeCardQuickActionMemoryCandidates(
+  items,
+  registry,
+  {
+    metadataKey,
+    profileField = "initiativeCard",
+  } = {},
+) {
+  return initiativeCardQuickActionMemoryEligibleItems(items, {
+    metadataKey,
+    profileField,
+  }).filter((item) => {
 
     const roomEntry = findInitiativeCardRegistryEntry(registry, item);
     if (!roomEntry || roomEntry.deleted === true) return false;

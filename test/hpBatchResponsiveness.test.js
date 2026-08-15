@@ -29,7 +29,10 @@ test("la Console HP avvia la preview batch prima del commit e recupera dallo sta
   const commit = apply.indexOf("await withItemMetaHistory({");
   assert.ok(preview >= 0 && commit > preview);
   assert.match(apply, /hpVisualTransaction\.recover\(\(itemIds\) =>/);
-  assert.match(apply, /readAuthoritativeHPVisualUpdates\(itemIds, operationSceneEpoch\)/);
+  assert.match(
+    apply,
+    /readAuthoritativeHPVisualUpdates\(\s*itemIds,\s*operationSceneEpoch,\s*\(\) => sceneLifecycle\.isCurrent\(operation\),\s*\)/,
+  );
   assert.match(apply, /await Promise\.all\(\[/);
   assert.ok(
     apply.indexOf("await Promise.all([")

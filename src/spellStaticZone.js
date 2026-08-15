@@ -51,6 +51,10 @@ import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCo
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import {
+  createSceneMetadataKeyWatcher,
+  sceneMetadataKeyDigest,
+} from "./sceneMetadataDigest.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 5000;
@@ -71,6 +75,16 @@ let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
 let unsubscribeRuntimeCacheCleanup = null;
 let queuedSceneMetadata = null;
+let queuedSceneItems = null;
+let queuedSceneGeneration = 0;
+let queuedReconcileReason = "event";
+let queuedReconcileForce = false;
+let activeSceneItemsOverride = null;
+let activeSceneGeneration = 0;
+let activeReconcileForce = false;
+let completedGenerationKey = null;
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
+let fallbackGeneration = 0;
 const sceneItemBounds = createSceneItemBoundsCache(
   (itemId) => OBR.scene.items.getItemBounds([itemId]),
   { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
@@ -82,7 +96,7 @@ function scheduleStaticSpellZoneWatchdog(needsWatchdog) {
   if (!mounted || !needsWatchdog) return;
   watchdogTimer = setTimeout(() => {
     watchdogTimer = null;
-    requestStaticSpellZoneReconcile();
+    requestStaticSpellZoneReconcile({ reason: "watchdog", force: true });
   }, RECONCILE_WATCHDOG_MS);
 }
 
@@ -745,9 +759,14 @@ export async function commitWithStaticSpellZoneRemoval(
 async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
+  const suppliedItems = Array.isArray(activeSceneItemsOverride)
+    ? activeSceneItemsOverride
+    : null;
   const [items, fetchedSceneMetadata] = await Promise.all([
-    OBR.scene.items.getItems(),
-    OBR.scene.getMetadata().catch(() => ({})),
+    suppliedItems ? Promise.resolve(suppliedItems) : OBR.scene.items.getItems(),
+    sceneMetadataOverride && typeof sceneMetadataOverride === "object"
+      ? Promise.resolve(sceneMetadataOverride)
+      : OBR.scene.getMetadata().catch(() => ({})),
   ]);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   scheduleStaticSpellZoneWatchdog(staticSpellZoneItems(items).length > 0);
@@ -756,6 +775,19 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     && !Array.isArray(sceneMetadataOverride)
     ? sceneMetadataOverride
     : fetchedSceneMetadata;
+  if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(sceneMetadata);
+  if (stateMetadataWatcher.initialized
+      && sceneMetadataKeyDigest(sceneMetadata, STATE_KEY) !== stateMetadataWatcher.digest) {
+    scheduleStaticSpellZoneRecovery();
+    return;
+  }
+  const generation = activeSceneGeneration || ++fallbackGeneration;
+  const generationKey = JSON.stringify({
+    sceneEpoch,
+    generation,
+    stateDigest: stateMetadataWatcher.digest,
+  });
+  if (!activeReconcileForce && completedGenerationKey === generationKey) return;
   const activeInstances = activeSpellInstanceIds(items);
   const staleZoneIds = staleStaticSpellZoneItemIds(items);
   const orphanBoardTokenIds = spellBoardTokenItems(items)
@@ -874,6 +906,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
         removals: staleEffectRemovals,
       }]);
     }
+    if (isCurrentSceneEpoch(sceneEpoch)) completedGenerationKey = generationKey;
     return;
   }
   const order = sceneMetadata?.[STATE_KEY]?.order || [];
@@ -1051,13 +1084,14 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       );
     });
   }
+  if (isCurrentSceneEpoch(sceneEpoch)) completedGenerationKey = generationKey;
 }
 
 function scheduleStaticSpellZoneRecovery() {
   if (!mounted || recoveryTimer) return;
   recoveryTimer = setTimeout(() => {
     recoveryTimer = null;
-    requestStaticSpellZoneReconcile();
+    requestStaticSpellZoneReconcile({ reason: "recovery", force: true });
   }, RECONCILE_RECOVERY_DELAY_MS);
 }
 
@@ -1069,11 +1103,22 @@ async function pump() {
       requested = false;
       const sceneMetadataOverride = queuedSceneMetadata;
       queuedSceneMetadata = null;
+      activeSceneItemsOverride = queuedSceneItems;
+      activeSceneGeneration = queuedSceneGeneration;
+      activeReconcileForce = queuedReconcileForce;
+      queuedSceneItems = null;
+      queuedSceneGeneration = 0;
+      queuedReconcileReason = "event";
+      queuedReconcileForce = false;
       try {
         await reconcileStaticSpellZones(sceneMetadataOverride);
       } catch (error) {
         console.error("[spell-static-zone] reconcile:", error);
         scheduleStaticSpellZoneRecovery();
+      } finally {
+        activeSceneItemsOverride = null;
+        activeSceneGeneration = 0;
+        activeReconcileForce = false;
       }
     }
   } finally {
@@ -1087,10 +1132,16 @@ async function pump() {
   }
 }
 
-export function requestStaticSpellZoneReconcile() {
+export function requestStaticSpellZoneReconcile(options = {}) {
+  const normalized = typeof options === "string" ? { reason: options } : options || {};
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = null;
   requested = true;
+  queuedReconcileReason = String(normalized.reason || "event");
+  queuedReconcileForce ||= normalized.force === true
+    || queuedReconcileReason === "recovery"
+    || queuedReconcileReason === "watchdog"
+    || queuedReconcileReason === "runtime-cache-cleanup";
   if (running || timer) return;
   timer = setTimeout(() => {
     timer = null;
@@ -1104,7 +1155,11 @@ export async function mountStaticSpellZoneController() {
   if (role !== "GM") return false;
   mounted = true;
   unsubscribeItems = subscribeSceneItemChanges(
-    () => requestStaticSpellZoneReconcile(),
+    (event) => {
+      queuedSceneItems = Array.isArray(event?.allItems) ? event.allItems : null;
+      queuedSceneGeneration = Number(event?.generation) || 0;
+      requestStaticSpellZoneReconcile({ reason: "items" });
+    },
     {
       domains: ["zone"],
       filter: (event) => !event?.derived?.output,
@@ -1113,15 +1168,23 @@ export async function mountStaticSpellZoneController() {
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
       queuedSceneMetadata = null;
+      queuedSceneItems = null;
+      queuedSceneGeneration = 0;
+      completedGenerationKey = null;
+      stateMetadataWatcher.reset();
       sceneItemBounds.clear();
       if (recoveryTimer) clearTimeout(recoveryTimer);
       recoveryTimer = null;
       scheduleStaticSpellZoneWatchdog(false);
       return;
     }
-    requestStaticSpellZoneReconcile();
+    requestStaticSpellZoneReconcile({ reason: "scene-ready", force: true });
   });
   unsubscribeSceneMetadata = OBR.scene.onMetadataChange((metadata) => {
+    const observed = stateMetadataWatcher.initialized
+      ? stateMetadataWatcher.observe(metadata)
+      : stateMetadataWatcher.seed(metadata);
+    if (!observed.changed) return;
     queuedSceneMetadata = metadata;
     requestStaticSpellZoneReconcile();
   });
@@ -1130,10 +1193,10 @@ export async function mountStaticSpellZoneController() {
     (event) => {
       if (event?.data?.type !== "clear-runtime-caches") return;
       sceneItemBounds.clear();
-      requestStaticSpellZoneReconcile();
+      requestStaticSpellZoneReconcile({ reason: "runtime-cache-cleanup", force: true });
     },
   );
-  requestStaticSpellZoneReconcile();
+  requestStaticSpellZoneReconcile({ reason: "mount", force: true });
   return true;
 }
 
@@ -1153,6 +1216,15 @@ export function unmountStaticSpellZoneController() {
   if (timer) clearTimeout(timer);
   timer = null;
   queuedSceneMetadata = null;
+  queuedSceneItems = null;
+  queuedSceneGeneration = 0;
+  queuedReconcileReason = "event";
+  queuedReconcileForce = false;
+  activeSceneItemsOverride = null;
+  activeSceneGeneration = 0;
+  activeReconcileForce = false;
+  completedGenerationKey = null;
+  stateMetadataWatcher.reset();
   sceneItemBounds.clear();
   requested = false;
   mounted = false;

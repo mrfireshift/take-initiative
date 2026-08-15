@@ -13,6 +13,7 @@ import {
   executeSpellActiveAction,
   executeSpellApplication,
 } from "./spellApplicationExecutor.js";
+import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { spellActiveActionPresentation } from "./spellActiveActionCore.js";
 import { spellResolveActionPresentation } from "./spellsPanelTargetPicker.js";
@@ -21,6 +22,7 @@ import {
   SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
   SPELL_UNIFIED_PANEL_POPUP_STATUSES,
 } from "./spellUnifiedPopupProtocol.js";
+import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 const instanceId = new URLSearchParams(window.location.search).get("instance") || "";
@@ -40,6 +42,11 @@ let unsubscribeItems = null;
 let unsubscribePlayer = null;
 let refreshQueued = false;
 let parentNotified = false;
+const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
+
+function sceneOperationId(prefix = "prepared-spell") {
+  return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -98,7 +105,8 @@ function updateResolvePresentation() {
   const presentation = manual
     ? spellActiveActionPresentation(action, currentTargetIds)
     : spellResolveActionPresentation(currentTargetIds.length);
-  resolveButton.disabled = resolving || !currentGroup || presentation.disabled;
+  resolveButton.disabled = !sceneLifecycle.isReady()
+    || resolving || !currentGroup || presentation.disabled;
   resolveButton.textContent = resolving
     ? manual ? "Attivazione…" : "Risoluzione…"
     : presentation.text;
@@ -150,28 +158,37 @@ function renderGroup(group) {
 }
 
 async function refreshSelection(selection = null) {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("selection") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   const selected = Array.isArray(selection)
     ? selection
     : await OBR.player.getSelection().catch(() => []);
+  if (!sceneLifecycle.isCurrent(operation)) return;
   currentTargetIds = validSelectedTargets(selected, currentItems);
   updateResolvePresentation();
 }
 
 async function refresh() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("refresh") });
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   if (!instanceId) {
     renderGroup(null);
     return;
   }
   currentItems = await spellItems();
+  if (!sceneLifecycle.isCurrent(operation)) return false;
   renderGroup(findPreparedSpellResolutionGroup(currentItems, instanceId));
   await refreshSelection();
+  return sceneLifecycle.isCurrent(operation);
 }
 
 function queueRefresh() {
+  if (!sceneLifecycle.isReady()) return;
   if (refreshQueued) return;
   refreshQueued = true;
   window.setTimeout(() => {
     refreshQueued = false;
+    if (!sceneLifecycle.isReady()) return;
     void refresh().catch((error) => {
       status.textContent = String(error?.message || error);
     });
@@ -187,16 +204,20 @@ async function requestControllerSync() {
 }
 
 async function resolvePreparedSpell() {
-  if (resolving || !currentGroup) return;
+  if (resolving || !currentGroup || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("resolve") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
   resolving = true;
   updateResolvePresentation();
   try {
     const latestItems = await spellItems();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const latestGroup = findPreparedSpellResolutionGroup(latestItems, instanceId);
     if (!latestGroup) throw new Error("prepared-spell-stale");
     const action = preparedSpellResolutionAction(latestGroup);
     if (!action) throw new Error("prepared-spell-stale");
     const selection = await OBR.player.getSelection().catch(() => []);
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const targetIds = validSelectedTargets(selection, latestItems);
     const presentation = action.type === "manual"
       ? spellActiveActionPresentation(action, targetIds)
@@ -204,6 +225,10 @@ async function resolvePreparedSpell() {
     if (presentation.disabled) throw new Error("prepared-spell-targets-invalid");
 
     let executionResult;
+    const ownerSceneContext = await getEffectsMutationSceneContext({
+      commandId: operation.operationId,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
     if (action.type === "manual") {
       executionResult = await executeSpellActiveAction({
         spell: preparedSpellDefinition(latestGroup),
@@ -211,6 +236,10 @@ async function resolvePreparedSpell() {
         group: latestGroup,
         selectedTargetIds: targetIds,
         casterName: latestGroup.casterName,
+        sceneEpoch: operation.epoch,
+        sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+        commandId: ownerSceneContext?.commandId || operation.operationId,
+        isCurrent: () => sceneLifecycle.isCurrent(operation),
       });
     } else {
       const request = buildPreparedSpellResolutionRequest({
@@ -221,19 +250,26 @@ async function resolvePreparedSpell() {
       executionResult = await executeSpellApplication({
         ...request,
         casterName: latestGroup.casterName,
+        sceneEpoch: operation.epoch,
+        sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+        commandId: ownerSceneContext?.commandId || operation.operationId,
+        isCurrent: () => sceneLifecycle.isCurrent(operation),
       });
     }
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await notifyParent(
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
       "",
       executionResult,
     );
     await requestControllerSync();
+    if (!sceneLifecycle.isCurrent(operation)) return;
     await refresh();
     if (!currentGroup) {
       await closePopup();
     }
   } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) return;
     const code = String(error?.message || error);
     if (code === "prepared-spell-stale") {
       renderGroup(null);
@@ -256,6 +292,30 @@ async function resolvePreparedSpell() {
 }
 
 OBR.onReady(async () => {
+  sceneLifecycle.subscribe((event) => {
+    if (event.phase === "unavailable") {
+      currentGroup = null;
+      currentItems = [];
+      currentTargetIds = [];
+      resolving = false;
+      renderGroup(null);
+      status.textContent = "Scena cambiata: riapri la risoluzione dal pannello Spells.";
+      return;
+    }
+    if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
+      currentGroup = null;
+      currentItems = [];
+      currentTargetIds = [];
+      status.textContent = "Nuova scena pronta: seleziona di nuovo il bersaglio.";
+      void refresh();
+    }
+  });
+  await sceneLifecycle.mount();
+  if (!sceneLifecycle.isReady()) {
+    renderGroup(null);
+    status.textContent = "Scena non disponibile: riapri la risoluzione dal pannello Spells.";
+    return;
+  }
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") {
     renderGroup(null);
@@ -271,6 +331,7 @@ OBR.onReady(async () => {
 });
 
 window.addEventListener("beforeunload", () => {
+  sceneLifecycle.dispose();
   void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
   unsubscribeItems?.();
   unsubscribePlayer?.();

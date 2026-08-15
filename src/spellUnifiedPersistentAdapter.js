@@ -94,7 +94,14 @@ export async function executeSpellUnifiedBoardTokenStateUpdate({
   }
   try {
     const executor = await stateExecutor(runtime);
-    const changes = await executor({ group: context, hp });
+    const changes = await executor({
+      group: context,
+      hp,
+      sceneEpoch: runtime.sceneEpoch,
+      sceneIdentity: runtime.sceneIdentity,
+      commandId: runtime.commandId,
+      isCurrent: runtime.isCurrent,
+    });
     return mutationResult(SPELL_UNIFIED_PERSISTENT_STATUS.UPDATED, overview, changes);
   } catch (error) {
     return {
@@ -127,6 +134,10 @@ export async function executeSpellUnifiedBoardTokenRecreate({
         x: Number(position.x),
         y: Number(position.y),
       },
+      sceneEpoch: runtime.sceneEpoch,
+      sceneIdentity: runtime.sceneIdentity,
+      commandId: runtime.commandId,
+      isCurrent: runtime.isCurrent,
     });
     return mutationResult(SPELL_UNIFIED_PERSISTENT_STATUS.RECREATED, overview, changes);
   } catch (error) {
