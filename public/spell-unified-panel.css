@@ -71,8 +71,17 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 48px;
-  padding: 10px 12px 6px;
+  min-height: var(--obrt-h-header, 44px);
+  padding: var(--obrt-space-md, 8px) var(--obrt-space-xl, 12px);
+  border-bottom: 1px solid var(--unified-line);
+  background: rgba(15, 23, 42, .24);
+  cursor: grab;
+  user-select: none;
+}
+
+.unified-panel-topbar.is-dragging,
+.unified-panel-topbar[data-drag-handle].is-dragging {
+  cursor: grabbing;
 }
 
 .unified-panel-topbar h1 {
@@ -80,9 +89,10 @@ select:disabled {
   margin: 0;
   overflow: hidden;
   color: var(--unified-text);
-  font-size: var(--obrt-type-panel-title);
-  font-weight: var(--obrt-weight-bold);
-  letter-spacing: -.01em;
+  font-size: var(--obrt-type-panel-title, 16px);
+  font-weight: var(--obrt-weight-bold, 700);
+  letter-spacing: var(--obrt-tracking-tight, -.01em);
+  line-height: var(--obrt-leading-snug, 1.25);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -94,7 +104,6 @@ select:disabled {
   display: none !important;
 }
 
-.unified-close-button,
 .unified-primary-button,
 .unified-secondary-button,
 .unified-quiet-button,
@@ -115,16 +124,27 @@ select:disabled {
 }
 
 .unified-close-button {
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--obrt-h-control-sm, 28px);
+  height: var(--obrt-h-control-sm, 28px);
+  min-height: var(--obrt-h-control-sm, 28px);
   padding: 0;
-  border-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--obrt-radius-md, 8px);
   background: transparent;
-  font-size: 15px;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color .12s ease;
 }
 
-.unified-close-button:hover,
+.unified-close-button:hover {
+  background: var(--obrt-hover, rgba(255, 255, 255, .08));
+}
+
 .unified-secondary-button:hover,
 .unified-quiet-button:hover,
 .unified-action-button:hover,
@@ -140,7 +160,7 @@ select:disabled {
   flex-direction: column;
   gap: 10px;
   min-height: 0;
-  padding: 0 12px 96px;
+  padding: 10px 12px 96px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
