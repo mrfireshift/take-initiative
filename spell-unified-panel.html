@@ -16,7 +16,7 @@
       role="dialog"
       aria-labelledby="unified-panel-title"
     >
-      <div class="unified-panel-topbar">
+      <header class="unified-panel-topbar" data-drag-handle>
         <h1 id="unified-panel-title">Incantesimi</h1>
         <button
           id="spell-unified-close"
@@ -24,9 +24,9 @@
           type="button"
           aria-label="Chiudi pannello Spells"
         >
-          X
+          &times;
         </button>
-      </div>
+      </header>
       <div id="spell-unified-panel-root" class="unified-panel-scroll" tabindex="-1"></div>
     </main>
     <script type="module" src="/src/spell-unified-panel.js"></script>

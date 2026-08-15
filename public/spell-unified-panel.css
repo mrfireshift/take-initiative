@@ -184,10 +184,11 @@ select:disabled {
 
 .unified-cast-setup > .unified-context {
   padding-top: 3px;
+  padding-bottom: 0;
 }
 
 .unified-cast-setup > .unified-placement {
-  padding-top: 2px;
+  padding-top: 6px;
   padding-bottom: 2px;
   border-top: 0;
 }
@@ -247,68 +248,94 @@ select:disabled {
   gap: 4px;
 }
 
-.unified-combobox-shell.has-concentration .unified-combobox {
-  padding-right: 64px;
+.unified-combobox-shell {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.unified-combobox-shell .unified-combobox {
+  padding-right: 80px;
+}
+
+.unified-combobox-trailing {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 2;
 }
 
 .unified-catalog-concentration-badge {
-  position: absolute;
-  top: 50%;
-  right: 39px;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 19px;
+  min-width: 19px;
   height: 19px;
-  transform: translateY(-50%);
-  border: 1px solid rgba(96, 165, 250, .7);
   border-radius: 50%;
+  border: 1px solid rgba(96, 165, 250, .7);
   background: rgba(37, 99, 235, .35);
-  color: #dbeafe;
+  color: #e6eefc;
   font-size: 11px;
   font-weight: var(--obrt-weight-bold);
   line-height: 1;
   pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
 }
 
 .unified-catalog-controls {
-  display: flex;
-  align-items: stretch;
-  gap: 5px;
+  display: block;
+  width: 100%;
   min-width: 0;
 }
 
 .unified-catalog-controls .unified-combobox-shell {
-  flex: 1 1 auto;
+  width: 100%;
 }
 
 .unified-reference-button {
-  flex: 0 0 36px;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  min-width: 19px;
+  height: 19px;
+  min-height: 19px;
   padding: 0;
-  display: inline-grid;
-  place-items: center;
   border-radius: 50%;
-  border-color: rgba(96, 165, 250, .42);
-  background: rgba(37, 99, 235, .18);
+  border: 1px solid rgba(96, 165, 250, .55);
+  background: rgba(37, 99, 235, .28);
   color: #bfdbfe;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  transition: background .12s ease, border-color .12s ease, transform .12s ease;
+}
+
+.unified-reference-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, .55);
+  border-color: rgba(147, 197, 253, .9);
+  color: #eff6ff;
+  transform: scale(1.05);
+}
+
+.unified-reference-button:disabled {
+  opacity: .35;
+  cursor: default;
+  border-color: rgba(148, 163, 184, .25);
+  background: rgba(30, 41, 59, .4);
 }
 
 .unified-reference-button__icon {
   display: block;
-  width: 17px;
-  height: 17px;
+  width: 11px;
+  height: 11px;
   object-fit: contain;
   pointer-events: none;
-}
-
-.unified-reference-button:disabled {
-  border-color: var(--unified-line);
-  background: var(--unified-surface-strong);
+  filter: brightness(1.1);
 }
 
 .unified-combobox,
@@ -330,23 +357,30 @@ select:disabled {
 }
 
 .unified-combobox {
-  padding-right: 40px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .unified-combobox-toggle {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  width: 36px;
-  height: calc(100% - 2px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 24px;
   min-height: 0;
   padding: 0;
   border: 0;
-  border-radius: 0 8px 8px 0;
   background: transparent;
+  color: var(--unified-muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.unified-combobox-toggle:hover {
+  color: var(--unified-text);
 }
 
 .unified-catalog {
@@ -799,27 +833,36 @@ select:disabled {
   padding-bottom: 2px;
 }
 
-.unified-automation .unified-field {
+.unified-automation-toggle {
+  align-self: end;
+  min-height: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding-left: 3px;
+  cursor: pointer;
 }
 
-.unified-automation .unified-automation-toggle .unified-field__label {
-  flex: 1 1 auto;
+.unified-automation-toggle .unified-field__label {
+  flex: 0 0 auto;
   font-weight: 400;
   letter-spacing: normal;
-  text-align: right;
+  text-align: left;
   text-transform: none;
+  color: var(--unified-text);
+  cursor: pointer;
 }
 
-.unified-automation .unified-automation-variant {
+.unified-automation-variant {
   display: grid;
   align-content: start;
   gap: 5px;
 }
 
-.unified-automation input[type="checkbox"] {
+.unified-automation-toggle input[type="checkbox"] {
   flex: 0 0 17px;
   width: 17px;
   min-width: 17px;
@@ -828,9 +871,10 @@ select:disabled {
   margin: 0;
   padding: 0;
   accent-color: var(--unified-primary);
+  cursor: pointer;
 }
 
-.unified-automation .unified-automation-variant > select {
+.unified-automation-variant > select {
   flex: none;
   width: 100%;
 }

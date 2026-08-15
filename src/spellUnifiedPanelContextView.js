@@ -86,50 +86,6 @@ export function renderWorkflowContextBar(documentRef, model, callbacks = {}) {
       invalid: model.workflow.validation.firstInvalidField === "duration",
     }));
   }
-  if (grid.childElementCount) section.append(grid);
-  return section;
-}
-
-export function renderPhaseSelector(documentRef, model, callbacks = {}) {
-  if (!model.context.phase.visible) return null;
-  const fieldset = createNode(documentRef, "fieldset", {
-    className: "unified-section unified-phase-selector",
-  });
-  fieldset.append(createNode(documentRef, "legend", {
-    className: "unified-section__heading",
-    text: model.context.phase.label,
-  }));
-  const tabs = createNode(documentRef, "div", {
-    className: "unified-phase-tabs",
-    attributes: { role: "tablist", "aria-label": model.context.phase.label },
-  });
-  for (const phase of model.context.phase.options) {
-    const button = createButton(documentRef, {
-      label: phase.label,
-      className: "unified-phase-tab",
-      value: phase.value,
-      pressed: phase.value === model.context.phase.selected,
-      attributes: {
-        role: "tab",
-        "aria-selected": phase.value === model.context.phase.selected,
-        "data-phase": phase.value,
-      },
-    });
-    button.addEventListener("click", () => callbacks.onPhaseChange?.(phase.value));
-    tabs.append(button);
-  }
-  fieldset.append(tabs);
-  return fieldset;
-}
-
-export function renderAutomationAndVariantPanel(documentRef, model, callbacks = {}) {
-  const context = model.context;
-  if (!context.automation.applyVisible && !context.variant.visible) return null;
-  const section = createNode(documentRef, "section", {
-    className: "unified-section unified-automation",
-    attributes: { "aria-label": "Opzioni dell'incantesimo" },
-  });
-  const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
   if (context.variant.visible) {
     const select = createSelect(documentRef, {
       id: "spell-unified-variant",
@@ -168,8 +124,44 @@ export function renderAutomationAndVariantPanel(documentRef, model, callbacks = 
       className: "unified-field unified-automation-toggle",
     }));
   }
-  section.append(grid);
+  if (grid.childElementCount) section.append(grid);
   return section;
+}
+
+export function renderPhaseSelector(documentRef, model, callbacks = {}) {
+  if (!model.context.phase.visible) return null;
+  const fieldset = createNode(documentRef, "fieldset", {
+    className: "unified-section unified-phase-selector",
+  });
+  fieldset.append(createNode(documentRef, "legend", {
+    className: "unified-section__heading",
+    text: model.context.phase.label,
+  }));
+  const tabs = createNode(documentRef, "div", {
+    className: "unified-phase-tabs",
+    attributes: { role: "tablist", "aria-label": model.context.phase.label },
+  });
+  for (const phase of model.context.phase.options) {
+    const button = createButton(documentRef, {
+      label: phase.label,
+      className: "unified-phase-tab",
+      value: phase.value,
+      pressed: phase.value === model.context.phase.selected,
+      attributes: {
+        role: "tab",
+        "aria-selected": phase.value === model.context.phase.selected,
+        "data-phase": phase.value,
+      },
+    });
+    button.addEventListener("click", () => callbacks.onPhaseChange?.(phase.value));
+    tabs.append(button);
+  }
+  fieldset.append(tabs);
+  return fieldset;
+}
+
+export function renderAutomationAndVariantPanel() {
+  return null;
 }
 
 export function renderCompositionPanel(documentRef, model, callbacks = {}) {

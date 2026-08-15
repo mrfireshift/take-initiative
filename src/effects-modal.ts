@@ -158,73 +158,25 @@ async function loadData(sourceId: string) {
 function styleBase() {
   document.documentElement.style.setProperty("--obrt-text", "#fff");
   document.documentElement.style.setProperty("--obrt-hover", "rgba(255,255,255,.06)");
-  document.documentElement.style.margin = "0";
-  document.documentElement.style.background = "transparent";
-  document.body.style.margin = "0";
-  document.body.style.background = "transparent";
-  document.body.style.color = "var(--obrt-text)";
-  document.body.style.fontFamily = 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)';
-  document.body.style.fontSize = "var(--obrt-type-body, 12px)";
-  document.body.style.lineHeight = "1.25";
-  const responsive = document.createElement("style");
-  responsive.textContent = `
-    @media (max-width: 620px) {
-      [data-effects-form-grid] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-      [data-effects-form-grid] > button { width: 100%; }
-    }
-    @media (max-width: 420px) {
-      [data-effects-form-grid] { grid-template-columns: 1fr !important; }
-      [data-effects-field] { grid-template-columns: 1fr !important; }
-      [data-effects-target-grid] { grid-template-columns: 1fr !important; }
-    }
-  `;
-  document.head.appendChild(responsive);
 }
 
 function field<T extends HTMLElement>(el: T) {
-  Object.assign(el.style, {
-    width: "100%",
-    boxSizing: "border-box",
-    minHeight: "32px",
-    padding: "6px 8px",
-    borderRadius: "10px",
-    border: "1px solid rgba(148,163,184,.28)",
-    background: "#0f172a",
-    color: "var(--obrt-text)",
-    font: "inherit",
-    lineHeight: "1.2",
-    outline: "none",
-  });
+  el.classList.add("effects-control");
   return el;
 }
 
 function caption(text: string) {
   const element = document.createElement("div");
+  element.className = "effects-field__label";
   element.textContent = text;
-  Object.assign(element.style, {
-    display: "block",
-    margin: "0 0 4px",
-    textAlign: "left",
-    fontSize: "var(--obrt-type-caption, 10px)",
-    fontWeight: "var(--obrt-weight-bold, 700)",
-    letterSpacing: ".07em",
-    color: "rgba(255,255,255,.66)",
-  });
   return element;
 }
 
 function cell(label: string, el: HTMLElement) {
   const wrap = document.createElement("div");
   wrap.dataset.effectsField = "1";
-  Object.assign(wrap.style, {
-    display: "grid",
-    gridTemplateColumns: "86px minmax(0, 1fr)",
-    gap: "8px",
-    alignItems: "center",
-    minWidth: "0",
-  });
+  wrap.className = "effects-field";
   const labelElement = caption(label);
-  labelElement.style.margin = "0";
   wrap.append(labelElement, field(el));
   return wrap;
 }
@@ -233,34 +185,13 @@ function commandButton(text: string, tone: "neutral" | "primary" | "danger" = "n
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = text;
-  const palette = tone === "primary"
-    ? { base: "#2563eb", hover: "#1d4ed8", border: "rgba(255,255,255,.20)" }
-    : tone === "danger"
-      ? { base: "rgba(220,38,38,.28)", hover: "rgba(220,38,38,.46)", border: "rgba(248,113,113,.42)" }
-      : { base: "#0f172a", hover: "#1e293b", border: "rgba(148,163,184,.28)" };
-  Object.assign(button.style, {
-    minHeight: "32px",
-    padding: "8px 12px",
-    border: `1px solid ${palette.border}`,
-    borderRadius: "9px",
-    background: palette.base,
-    color: "var(--obrt-text)",
-    font: "inherit",
-    fontWeight: "var(--obrt-weight-semibold, 600)",
-    cursor: "pointer",
-    transition: "background-color .12s ease, border-color .12s ease, opacity .12s ease",
-  });
-  button.addEventListener("mouseenter", () => {
-    if (!button.disabled) button.style.background = palette.hover;
-  });
-  button.addEventListener("mouseleave", () => { button.style.background = palette.base; });
+  button.className = `effects-btn${tone === "primary" ? " effects-btn-primary" : tone === "danger" ? " effects-btn-danger" : ""}`;
   return button;
 }
 
 function setButtonEnabled(button: HTMLButtonElement, enabled: boolean) {
   button.disabled = !enabled;
-  button.style.opacity = enabled ? "1" : ".6";
-  button.style.filter = enabled ? "none" : "grayscale(.7)";
+  button.style.opacity = enabled ? "1" : ".5";
   button.style.cursor = enabled ? "pointer" : "default";
 }
 
@@ -283,65 +214,33 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     ? quickActionPreset
     : null;
 
-  const panel = document.createElement("div");
+  const header = document.createElement("header");
+  header.className = "effects-header";
+  header.dataset.dragHandle = "1";
+  header.draggable = true;
+  header.title = "Trascina per spostare";
 
-  Object.assign(panel.style, {
-    boxSizing: "border-box",
-    padding: "12px",
-    background: "transparent",
-    color: "var(--obrt-text)",
-  });
-
-  const title = document.createElement("div");
-  title.textContent = `Effetti: ${displayName(source.name)}`;
-  title.dataset.dragHandle = "1";
-  title.draggable = true;
-  Object.assign(title.style, {
-    paddingRight: "40px",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    textAlign: "left",
-    fontSize: "var(--obrt-type-panel-title, 16px)",
-    fontWeight: "var(--obrt-weight-bold, 700)",
-    letterSpacing: "-.01em",
-    marginBottom: "10px",
-  });
+  const title = document.createElement("h1");
+  title.className = "effects-title";
+  title.textContent = `Condizioni: ${displayName(source.name)}`;
 
   const close = document.createElement("button");
+  close.id = "close";
   close.type = "button";
-  close.textContent = "X";
+  close.className = "effects-close-button";
+  close.textContent = "×";
   close.title = "Chiudi";
-  Object.assign(close.style, {
-    position: "fixed",
-    right: "12px",
-    top: "9px",
-    width: "30px",
-    height: "30px",
-    border: "1px solid transparent",
-    borderRadius: "9px",
-    background: "transparent",
-    color: "var(--obrt-text)",
-    font: "inherit",
-    fontSize: "15px",
-    cursor: "pointer",
-  });
-  close.addEventListener("mouseenter", () => { close.style.background = "rgba(255,255,255,.08)"; });
-  close.addEventListener("mouseleave", () => { close.style.background = "transparent"; });
+  close.setAttribute("aria-label", "Chiudi");
   close.addEventListener("click", closeEffectsPopover);
+
+  header.append(title, close);
+
+  const scroll = document.createElement("div");
+  scroll.className = "effects-scroll";
 
   const grid = document.createElement("div");
   grid.dataset.effectsFormGrid = "1";
-  Object.assign(grid.style, {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "6px",
-    alignItems: "end",
-    padding: "8px",
-    border: "1px solid rgba(148,163,184,.20)",
-    borderRadius: "11px",
-    background: "rgba(15,23,42,.72)",
-  });
+  grid.className = "effects-form-grid";
 
   const effectSelect = document.createElement("select");
   for (const name of APPLICABLE_CONDITION_LIST) {
@@ -367,15 +266,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const effectCell = document.createElement("div");
   effectCell.dataset.effectsField = "1";
-  Object.assign(effectCell.style, {
-    display: "grid",
-    gridTemplateColumns: "86px minmax(0, 1fr)",
-    gap: "8px",
-    alignItems: "center",
-    minWidth: "0",
-  });
+  effectCell.className = "effects-field";
   const effectCaption = caption("CONDIZIONE");
-  effectCaption.style.margin = "0";
   customEffectInput.style.gridColumn = "2";
   effectCell.append(effectCaption, field(effectSelect), field(customEffectInput));
 
@@ -488,76 +380,48 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     if (!actorButton.disabled) setActorMenuOpen(actorMenu.style.display === "none");
   });
   actorPicker.append(actorButton, actorCaret, actorMenu);
-  panel.addEventListener("pointerdown", () => setActorMenuOpen(false));
+  scroll.addEventListener("pointerdown", () => setActorMenuOpen(false));
 
   const actorCell = document.createElement("div");
   actorCell.dataset.effectsField = "1";
-  Object.assign(actorCell.style, {
-    display: "grid",
-    gridTemplateColumns: "86px minmax(0, 1fr)",
-    gap: "8px",
-    alignItems: "center",
-    minWidth: "0",
-  });
+  actorCell.className = "effects-field";
   const actorCaption = caption("FONTE");
-  actorCaption.style.margin = "0";
   actorCell.append(actorCaption, actorPicker);
 
   const addButton = commandButton("Aggiungi", "primary");
   addButton.style.gridColumn = "1 / -1";
   grid.append(
     effectCell,
-    cell("DURATA", durationInput),
-    cell("SCADENZA", expirySelect),
     actorCell,
+    cell("SCADENZA", expirySelect),
+    cell("DURATA", durationInput),
     addButton
   );
 
-  const targetWrap = document.createElement("div");
-  Object.assign(targetWrap.style, { marginTop: "10px" });
+  const targetWrap = document.createElement("section");
+  targetWrap.className = "effects-target-section";
 
   const targetHeader = document.createElement("div");
-  Object.assign(targetHeader.style, {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    alignItems: "center",
-    gap: "7px 8px",
-    marginBottom: "7px",
-  });
+  targetHeader.className = "effects-target-header";
+
+  const targetHeading = document.createElement("div");
+  targetHeading.className = "effects-target-heading";
+
   const targetTitle = caption("BERSAGLI");
-  targetTitle.style.margin = "0";
   const targetSelectionCount = document.createElement("div");
-  Object.assign(targetSelectionCount.style, {
-    color: "#60a5fa",
-    fontSize: "var(--obrt-type-body, 12px)",
-  });
+  targetSelectionCount.className = "effects-target-count";
+  targetHeading.append(targetTitle, targetSelectionCount);
 
   const targetActions = document.createElement("div");
-  Object.assign(targetActions.style, {
-    display: "flex",
-    alignItems: "center",
-    gridColumn: "1 / -1",
-    width: "100%",
-    gap: "5px",
-  });
+  targetActions.className = "effects-filter-bar";
+
   const targetNameFilter = document.createElement("input");
+  targetNameFilter.id = "targetNameFilter";
   targetNameFilter.type = "search";
+  targetNameFilter.className = "effects-search-input";
   targetNameFilter.placeholder = "Cerca nome…";
   targetNameFilter.setAttribute("aria-label", "Filtra bersagli per nome");
-  Object.assign(targetNameFilter.style, {
-    width: "auto",
-    minWidth: "0",
-    flex: "1 1 auto",
-    minHeight: "28px",
-    padding: "4px 8px",
-    border: "1px solid rgba(148,163,184,.28)",
-    borderRadius: "8px",
-    background: "rgba(15,23,42,.9)",
-    color: "inherit",
-    font: "inherit",
-    fontSize: "var(--obrt-type-secondary, 11px)",
-    outline: "none",
-  });
+
   const activeFactionFilters = new Set<string>();
   const factionButtons = new Map<string, HTMLButtonElement>();
   for (const [value, label] of [
@@ -566,35 +430,22 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     ["neutral", "Neutrali"],
     ["enemy", "Nemici"],
   ]) {
-    const button = commandButton(label);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "effects-faction-btn";
+    button.dataset.faction = value;
+    button.textContent = label;
     button.setAttribute("aria-pressed", "false");
-    Object.assign(button.style, {
-      minHeight: "28px",
-      padding: "0 7px",
-      fontSize: "var(--obrt-type-caption, 10px)",
-      fontWeight: "var(--obrt-weight-semibold, 600)",
-    });
     factionButtons.set(value, button);
   }
   targetActions.append(targetNameFilter, ...factionButtons.values());
-  targetHeader.append(targetTitle, targetSelectionCount, targetActions);
+  targetHeader.append(targetHeading, targetActions);
 
   const targetGrid = document.createElement("div");
   targetGrid.dataset.effectsTargetGrid = "1";
-  Object.assign(targetGrid.style, {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gridAutoRows: "32px",
-    gap: "5px",
-    height: "194px",
-    maxHeight: "194px",
-    boxSizing: "border-box",
-    overflowY: "auto",
-    padding: "6px",
-    border: "1px solid rgba(148,163,184,.20)",
-    borderRadius: "11px",
-    background: "rgba(15,23,42,.58)",
-  });
+  targetGrid.className = "effects-target-grid";
+
+  targetWrap.append(targetHeader, targetGrid);
 
   let initialTargetIds = preservedTargetIds === null
     ? []
@@ -621,19 +472,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   for (const target of targets) {
     const row = document.createElement("label");
-    Object.assign(row.style, {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      minWidth: "0",
-      minHeight: "32px",
-      padding: "5px 8px",
-      boxSizing: "border-box",
-      border: "1px solid rgba(148,163,184,.14)",
-      borderRadius: "9px",
-      background: "rgba(15,23,42,.72)",
-      cursor: "pointer",
-    });
+    row.className = "effects-target-row";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = initialIds.has(target.id);
@@ -642,26 +481,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     checkbox.style.margin = "0";
     const faction = document.createElement("span");
     const color = factionColor(target);
-    Object.assign(faction.style, {
-      width: "8px",
-      height: "8px",
-      flex: "0 0 8px",
-      borderRadius: "50%",
-      background: color,
-      color,
-      boxShadow: "0 0 8px currentColor",
-    });
+    faction.className = "effects-target-dot";
+    faction.style.background = color;
+    faction.style.color = color;
     const name = document.createElement("span");
+    name.className = "effects-target-name";
     name.textContent = displayName(target.name);
-    Object.assign(name.style, {
-      minWidth: "0",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      fontSize: "var(--obrt-type-body, 12px)",
-      fontWeight: "var(--obrt-weight-semibold, 600)",
-      letterSpacing: "0",
-    });
     row.append(checkbox, faction, name);
     targetGrid.appendChild(row);
     targetControls.set(target.id, {
@@ -674,48 +499,29 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
   targetWrap.append(targetHeader, targetGrid);
 
   const activeWrap = document.createElement("section");
-  Object.assign(activeWrap.style, { marginTop: "10px" });
+  activeWrap.className = "effects-active-section";
+
   const activeHeader = document.createElement("div");
-  Object.assign(activeHeader.style, {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    marginBottom: "6px",
-  });
+  activeHeader.className = "effects-active-header";
+
   const activeTitle = caption("EFFETTI ATTIVI");
-  activeTitle.style.margin = "0";
   const removeSelectedButton = commandButton("Rimuovi selezionati", "danger");
   const removeAllButton = commandButton("Rimuovi Tutto", "danger");
   const activeActions = document.createElement("div");
-  Object.assign(activeActions.style, {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-  });
+  activeActions.style.display = "flex";
+  activeActions.style.alignItems = "center";
+  activeActions.style.gap = "6px";
   for (const button of [removeSelectedButton, removeAllButton]) {
-    Object.assign(button.style, {
-      minHeight: "28px",
-      padding: "0 9px",
-      fontSize: "var(--obrt-type-secondary, 11px)",
-      fontWeight: "var(--obrt-weight-semibold, 600)",
-    });
+    button.style.minHeight = "28px";
+    button.style.padding = "0 9px";
+    button.style.fontSize = "var(--obrt-type-secondary, 11px)";
   }
   setButtonEnabled(removeAllButton, false);
   activeActions.append(removeSelectedButton, removeAllButton);
   activeHeader.append(activeTitle, activeActions);
 
   const activeList = document.createElement("div");
-  Object.assign(activeList.style, {
-    display: "grid",
-    gap: "5px",
-    maxHeight: "190px",
-    overflowY: "auto",
-    padding: "6px",
-    border: "1px solid rgba(148,163,184,.20)",
-    borderRadius: "11px",
-    background: "rgba(15,23,42,.58)",
-  });
+  activeList.className = "effects-active-list";
   activeWrap.append(activeHeader, activeList);
 
   const selectedEffectRows = new Set<string>();
@@ -773,12 +579,10 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     if (!visibleEffectRows.length) {
       const empty = document.createElement("div");
       empty.textContent = "Nessun effetto attivo.";
-      Object.assign(empty.style, {
-        textAlign: "center",
-        color: "rgba(255,255,255,.75)",
-        fontSize: "var(--obrt-type-body, 12px)",
-        padding: "10px",
-      });
+      empty.style.textAlign = "center";
+      empty.style.color = "rgba(255,255,255,.75)";
+      empty.style.fontSize = "var(--obrt-type-body, 12px)";
+      empty.style.padding = "10px";
       activeList.appendChild(empty);
       return;
     }
@@ -786,26 +590,16 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     for (const row of visibleEffectRows) {
       const key = `${row.targetId}\u0000${row.id}`;
       const line = document.createElement("div");
-      Object.assign(line.style, {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        minWidth: "0",
-        padding: "6px 8px",
-        borderRadius: "9px",
-        background: "rgba(15,23,42,.72)",
-        border: "1px solid rgba(148,163,184,.14)",
-      });
+      line.className = "effects-active-row";
 
       const selectRow = document.createElement("label");
-      Object.assign(selectRow.style, {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        minWidth: "0",
-        flex: "1 1 auto",
-        cursor: "pointer",
-      });
+      selectRow.style.display = "flex";
+      selectRow.style.alignItems = "center";
+      selectRow.style.gap = "8px";
+      selectRow.style.minWidth = "0";
+      selectRow.style.flex = "1 1 auto";
+      selectRow.style.cursor = "pointer";
+
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.disabled = row.managed;
@@ -817,13 +611,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       });
 
       const text = document.createElement("span");
-      Object.assign(text.style, {
-        minWidth: "0",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        fontSize: "var(--obrt-type-body, 12px)",
-      });
+      text.style.minWidth = "0";
+      text.style.overflow = "hidden";
+      text.style.textOverflow = "ellipsis";
+      text.style.whiteSpace = "nowrap";
+      text.style.fontSize = "var(--obrt-type-body, 12px)";
+
       const targetBadge = document.createElement("strong");
       targetBadge.textContent = row.targetName;
       targetBadge.style.marginRight = "7px";
@@ -847,13 +640,12 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       });
 
       const removeButton = commandButton("Rimuovi", "danger");
-      Object.assign(removeButton.style, {
-        flex: "0 0 auto",
-        minHeight: "28px",
-        padding: "0 8px",
-        fontSize: "var(--obrt-type-secondary, 11px)",
-      });
+      removeButton.style.flex = "0 0 auto";
+      removeButton.style.minHeight = "28px";
+      removeButton.style.padding = "0 8px";
+      removeButton.style.fontSize = "var(--obrt-type-secondary, 11px)";
       removeButton.addEventListener("click", () => removeRows([row]));
+
       line.append(selectRow, referenceButton);
       if (!row.managed) line.append(removeButton);
       activeList.appendChild(line);
@@ -871,8 +663,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       control.row.style.display = matchesFaction && matchesName
         ? "flex"
         : "none";
-      control.row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(15,23,42,.72)";
-      control.row.style.borderColor = selected ? "rgba(96,165,250,.62)" : "rgba(148,163,184,.14)";
+      control.row.classList.toggle("selected", selected);
     }
     setButtonEnabled(addButton, selectedTargetIds().length > 0 && selectedEffectName().length > 0);
   };
@@ -892,8 +683,6 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       else activeFactionFilters.add(faction);
       const active = activeFactionFilters.has(faction);
       button.setAttribute("aria-pressed", String(active));
-      button.style.background = active ? "rgba(37,99,235,.42)" : "#0f172a";
-      button.style.borderColor = active ? "rgba(96,165,250,.72)" : "rgba(148,163,184,.28)";
       updateTargetSelection();
     });
   }
@@ -924,7 +713,6 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     durationInput.disabled = !usesDuration;
     actorButton.disabled = false;
     durationInput.style.opacity = usesDuration ? "1" : ".45";
-    durationInput.style.background = usesDuration ? "#0f172a" : "#374151";
     actorButton.style.opacity = "1";
     actorButton.style.cursor = "pointer";
   };
@@ -983,8 +771,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
     await render(sourceId, ids);
   });
 
-  panel.append(close, title, grid, targetWrap, activeWrap);
-  app.replaceChildren(panel);
+  scroll.append(grid, targetWrap, activeWrap);
+  app.replaceChildren(header, scroll);
   if (conditionPreset) {
     const knownCondition = Array.from(effectSelect.options)
       .some((option) => option.value === conditionPreset.conditionName);

@@ -423,7 +423,7 @@ test("il controller completa cast area, placement, undo e reset senza duplicare 
   assert.equal(root.querySelector(".unified-quiet-button"), null);
   assert.equal(
     requiredNode(root, ".unified-reference-button").querySelector("img")?.getAttribute("src"),
-    "/reference.svg",
+    "/info.svg",
   );
   assert.equal(root.querySelector(".unified-placement h2"), null);
   assert.equal(root.querySelector(".unified-placement-card__status"), null);

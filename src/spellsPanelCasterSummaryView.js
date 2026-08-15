@@ -27,8 +27,9 @@ export function renderCasterConcentrationSummary({
     const button = documentRef.createElement("button");
     button.className = "iconbtn";
     button.type = "button";
-    button.textContent = "X";
+    button.textContent = "×";
     button.title = "Interrompi questa concentrazione";
+    button.setAttribute?.("aria-label", "Interrompi questa concentrazione");
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
       await onBreak({

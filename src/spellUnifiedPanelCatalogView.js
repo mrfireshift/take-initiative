@@ -2,6 +2,7 @@ import {
   createButton,
   createNode,
 } from "./spellUnifiedPanelDom.js";
+import { spellColorFor } from "./spellColorCore.js";
 
 const FILTER_DEFINITIONS = Object.freeze([
   {
@@ -197,30 +198,24 @@ export function renderSpellCatalogCombobox(
   });
   input.addEventListener("focus", () => callbacks.onFocus?.());
   searchShell.append(input);
+  const trailingControls = createNode(documentRef, "div", {
+    className: "unified-combobox-trailing",
+  });
+
   if (model.selectedConcentration) {
-    searchShell.append(createNode(documentRef, "span", {
+    const spellColor = spellColorFor(model.selectedKey || model.selectedLabel);
+    trailingControls.append(createNode(documentRef, "span", {
       className: "unified-catalog-concentration-badge",
       text: "C",
       attributes: {
         role: "img",
         title: "Incantesimo a concentrazione",
         "aria-label": "Incantesimo a concentrazione",
+        style: `background: ${spellColor.solid}; border-color: ${spellColor.border}; color: #e6eefc;`,
       },
     }));
   }
 
-  const toggle = createButton(documentRef, {
-    label: model.expanded ? "▴" : "▾",
-    className: "unified-combobox-toggle",
-    ariaLabel: model.expanded ? "Chiudi catalogo" : "Apri catalogo",
-    attributes: { "aria-controls": "spell-unified-catalog-list" },
-  });
-  toggle.addEventListener("click", () => callbacks.onToggle?.());
-  searchShell.append(toggle);
-  const catalogControls = createNode(documentRef, "div", {
-    className: "unified-catalog-controls",
-  });
-  catalogControls.append(searchShell);
   const reference = createButton(documentRef, {
     label: "",
     className: "unified-reference-button",
@@ -238,13 +233,32 @@ export function renderSpellCatalogCombobox(
   reference.append(createNode(documentRef, "img", {
     className: "unified-reference-button__icon",
     attributes: {
-      src: "/reference.svg",
+      src: "/info.svg",
       alt: "",
       "aria-hidden": "true",
     },
   }));
-  reference.addEventListener("click", () => callbacks.onReference?.(model.selectedKey));
-  catalogControls.append(reference);
+  reference.addEventListener("click", (event) => {
+    event.stopPropagation();
+    callbacks.onReference?.(model.selectedKey);
+  });
+  trailingControls.append(reference);
+
+  const toggle = createButton(documentRef, {
+    label: model.expanded ? "▴" : "▾",
+    className: "unified-combobox-toggle",
+    ariaLabel: model.expanded ? "Chiudi catalogo" : "Apri catalogo",
+    attributes: { "aria-controls": "spell-unified-catalog-list" },
+  });
+  toggle.addEventListener("click", () => callbacks.onToggle?.());
+  trailingControls.append(toggle);
+
+  searchShell.append(trailingControls);
+
+  const catalogControls = createNode(documentRef, "div", {
+    className: "unified-catalog-controls",
+  });
+  catalogControls.append(searchShell);
   section.append(catalogControls);
 
   const list = createNode(documentRef, "div", {

@@ -1,18 +1,73 @@
 @import url("/ui-scrollbars.css");
 
 :root {
+  /* Font Families */
   --obrt-font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --obrt-type-micro: 9px;
-  --obrt-type-caption: 10px;
-  --obrt-type-secondary: 11px;
-  --obrt-type-body: 12px;
-  --obrt-type-card-title: 15px;
-  --obrt-type-panel-title: 16px;
+  --obrt-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Typographic Scale */
   --obrt-type-display: 20px;
+  --obrt-type-panel-title: 16px;
+  --obrt-type-card-title: 14px;
+  --obrt-type-body: 12px;
+  --obrt-type-secondary: 11px;
+  --obrt-type-caption: 10px;
+  --obrt-type-micro: 9px;
+
+  /* Font Weights */
   --obrt-weight-regular: 400;
   --obrt-weight-medium: 500;
   --obrt-weight-semibold: 600;
   --obrt-weight-bold: 700;
+
+  /* Line Heights */
+  --obrt-leading-tight: 1.15;
+  --obrt-leading-snug: 1.25;
+  --obrt-leading-normal: 1.35;
+  --obrt-leading-relaxed: 1.5;
+
+  /* Letter Spacing */
+  --obrt-tracking-tight: -.01em;
+  --obrt-tracking-normal: 0;
+  --obrt-tracking-wide: .06em;
+  --obrt-tracking-wider: .08em;
+
+  /* Spacing Scale */
+  --obrt-space-2xs: 2px;
+  --obrt-space-xs: 4px;
+  --obrt-space-sm: 6px;
+  --obrt-space-md: 8px;
+  --obrt-space-lg: 10px;
+  --obrt-space-xl: 12px;
+  --obrt-space-2xl: 16px;
+
+  /* Border Radii Scale */
+  --obrt-radius-xs: 4px;
+  --obrt-radius-sm: 6px;
+  --obrt-radius-md: 8px;
+  --obrt-radius-lg: 11px;
+  --obrt-radius-xl: 16px;
+  --obrt-radius-pill: 999px;
+
+  /* Heights & Control Sizes */
+  --obrt-h-control-xs: 24px;
+  --obrt-h-control-sm: 28px;
+  --obrt-h-control-md: 32px;
+  --obrt-h-control-lg: 36px;
+  --obrt-h-header: 44px;
+
+  /* Shared Surfaces & Colors */
+  --obrt-text: #fff;
+  --obrt-muted: rgba(255, 255, 255, .66);
+  --obrt-dim: rgba(255, 255, 255, .48);
+  --obrt-line: rgba(148, 163, 184, .20);
+  --obrt-line-strong: rgba(96, 165, 250, .52);
+  --obrt-surface: #0f172a;
+  --obrt-surface-soft: rgba(15, 23, 42, .58);
+  --obrt-surface-row: rgba(15, 23, 42, .72);
+  --obrt-hover: rgba(255, 255, 255, .08);
+
+  /* Carets & Forms */
   --obrt-select-bg: #0f172a;
   --obrt-select-caret-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M2 2 6 6 10 2' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
@@ -36,6 +91,68 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/* Typographic Hierarchy Utility Classes */
+.obrt-text-display {
+  font-size: var(--obrt-type-display);
+  font-weight: var(--obrt-weight-bold);
+  line-height: var(--obrt-leading-tight);
+  letter-spacing: var(--obrt-tracking-tight);
+}
+
+.obrt-text-panel-title {
+  font-size: var(--obrt-type-panel-title);
+  font-weight: var(--obrt-weight-bold);
+  line-height: var(--obrt-leading-snug);
+  letter-spacing: var(--obrt-tracking-tight);
+}
+
+.obrt-text-card-title {
+  font-size: var(--obrt-type-card-title);
+  font-weight: var(--obrt-weight-bold);
+  line-height: var(--obrt-leading-snug);
+  letter-spacing: var(--obrt-tracking-tight);
+}
+
+.obrt-text-body {
+  font-size: var(--obrt-type-body);
+  font-weight: var(--obrt-weight-regular);
+  line-height: var(--obrt-leading-normal);
+}
+
+.obrt-text-body-bold {
+  font-size: var(--obrt-type-body);
+  font-weight: var(--obrt-weight-bold);
+  line-height: var(--obrt-leading-normal);
+}
+
+.obrt-text-secondary {
+  font-size: var(--obrt-type-secondary);
+  font-weight: var(--obrt-weight-regular);
+  line-height: var(--obrt-leading-normal);
+  color: var(--obrt-muted);
+}
+
+.obrt-text-caption {
+  font-size: var(--obrt-type-caption);
+  font-weight: var(--obrt-weight-bold);
+  line-height: var(--obrt-leading-snug);
+  letter-spacing: var(--obrt-tracking-wide);
+  text-transform: uppercase;
+  color: var(--obrt-muted);
+}
+
+.obrt-text-micro {
+  font-size: var(--obrt-type-micro);
+  font-weight: var(--obrt-weight-semibold);
+  letter-spacing: var(--obrt-tracking-wider);
+  text-transform: uppercase;
+}
+
+.obrt-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 select {

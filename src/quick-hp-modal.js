@@ -575,6 +575,10 @@ function updateControls() {
     || !selected.length
     || !outcomesComplete
     || !hasEffect;
+  const targetCountEl = document.getElementById("targetCount");
+  if (targetCountEl) {
+    targetCountEl.textContent = selected.length === 1 ? "1 selezionato" : `${selected.length} selezionati`;
+  }
   targetNameFilter.disabled = busy || !sceneAvailable();
   amountInput.disabled = busy || !sceneAvailable();
   for (const button of factionFilterButtons) button.disabled = busy || !sceneAvailable();
