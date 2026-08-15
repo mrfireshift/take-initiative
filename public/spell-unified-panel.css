@@ -927,9 +927,9 @@ select:disabled {
 
 .unified-action-list {
   display: grid;
-  gap: 5px;
-  max-height: 200px;
-  overflow-y: auto;
+  gap: 6px;
+  max-height: none;
+  overflow: visible;
 }
 
 .unified-active-overview {
