@@ -222,7 +222,7 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
 
   const title = document.createElement("h1");
   title.className = "effects-title";
-  title.textContent = `Condizioni: ${displayName(source.name)}`;
+  title.textContent = "Condizioni";
 
   const close = document.createElement("button");
   close.id = "close";
