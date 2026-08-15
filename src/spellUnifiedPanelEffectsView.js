@@ -3,6 +3,7 @@ import {
   createField,
   createNode,
 } from "./spellUnifiedPanelDom.js";
+import { spellColorFor } from "./spellColorCore.js";
 
 export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
   const active = model.active;
@@ -41,34 +42,48 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
   };
   for (const [index, overview] of (active.overview || []).entries()) {
     const persistent = overview.persistent;
-    const targetLabel = overview.targetNames.length
-      ? overview.targetNames.join(", ")
-      : overview.prepared
-        ? "nessun bersaglio registrato"
-        : "nessun bersaglio";
-    const details = [
-      `Caster: ${overview.casterName}`,
-      `${overview.prepared ? "Preparato su" : "Bersagli"}: ${targetLabel}`,
-      overview.durationLabel,
-      overview.concentrating ? "Concentrazione" : "",
-      overview.zoneLabel,
-      overview.tokenLabel,
-      persistent
-        ? `${persistentKindLabels[persistent.kind] || "Stato persistente"}: ${
-          persistentStateLabels[persistent.state] || persistent.state || "non disponibile"}`
-        : "",
-    ].filter(Boolean);
-    const item = createNode(documentRef, "article", {
-      className: "unified-active-overview",
-      attributes: { "data-active-overview-index": index },
+    const spellColor = spellColorFor(overview.name || overview.spellId);
+
+    const headerChildren = [
+      createNode(documentRef, "strong", {
+        className: "unified-active-overview__name",
+        text: overview.name,
+      }),
+    ];
+    if (overview.concentrating) {
+      headerChildren.push(createNode(documentRef, "span", {
+        className: "unified-catalog-concentration-badge",
+        text: "C",
+        attributes: { title: "Concentrazione" },
+        style: {
+          background: spellColor.solid,
+          borderColor: spellColor.border,
+        },
+      }));
+    }
+    if (persistent?.kind && persistentKindLabels[persistent.kind]) {
+      headerChildren.push(createNode(documentRef, "span", {
+        className: "unified-active-pill",
+        text: persistentKindLabels[persistent.kind],
+      }));
+    }
+    if (persistent?.state && persistent.state !== "present") {
+      headerChildren.push(createNode(documentRef, "span", {
+        className: "unified-active-pill unified-active-pill--warn",
+        text: persistentStateLabels[persistent.state] || persistent.state,
+      }));
+    }
+
+    const header = createNode(documentRef, "div", {
+      className: "unified-active-overview__header",
       children: [
-        createNode(documentRef, "strong", { text: overview.name }),
-        createNode(documentRef, "span", {
-          className: "unified-field__hint",
-          text: details.join(" · "),
+        createNode(documentRef, "div", {
+          className: "unified-active-overview__identity",
+          children: headerChildren,
         }),
       ],
     });
+
     if (overview.terminable) {
       const terminate = createButton(documentRef, {
         label: "Termina",
@@ -80,9 +95,32 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
         },
       });
       terminate.addEventListener("click", () => callbacks.onActiveTerminate?.(overview));
-      item.append(terminate);
+      header.append(terminate);
     }
-    if (overview.actionLabels.length && !overview.actions?.length) {
+
+    const targetLabel = overview.targetNames?.length
+      ? overview.targetNames.join(", ")
+      : "";
+    const details = [
+      overview.casterName ? `Caster: ${overview.casterName}` : "",
+      targetLabel ? `${overview.prepared ? "Preparato su" : "Bersagli"}: ${targetLabel}` : (overview.prepared ? "Preparato" : ""),
+      overview.durationLabel ? `Durata: ${overview.durationLabel}` : "",
+      overview.tokenLabel || "",
+    ].filter(Boolean);
+
+    const item = createNode(documentRef, "article", {
+      className: "unified-active-overview",
+      attributes: { "data-active-overview-index": index },
+      children: [
+        header,
+        createNode(documentRef, "span", {
+          className: "unified-field__hint",
+          text: details.join(" · "),
+        }),
+      ],
+    });
+
+    if (overview.actionLabels?.length && !overview.actions?.length) {
       item.append(createNode(documentRef, "span", {
         className: "unified-active-overview__actions",
         text: `Azioni: ${overview.actionLabels.join(", ")}`,
@@ -133,12 +171,18 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
       if (actionList.childElementCount) item.append(actionList);
     }
     if (persistent?.triggers?.length) {
-      item.append(createNode(documentRef, "span", {
-        className: "unified-active-overview__actions",
-        text: `Attivazioni: ${persistent.triggers.map((trigger) => (
-          trigger.label || [trigger.type, trigger.resolution].filter(Boolean).join(" · ")
-        )).filter(Boolean).join(", ")}`,
-      }));
+      const triggerList = createNode(documentRef, "ul", {
+        className: "unified-active-triggers",
+      });
+      for (const trigger of persistent.triggers) {
+        const text = trigger.label || [trigger.type, trigger.resolution].filter(Boolean).join(" · ");
+        if (!text) continue;
+        triggerList.append(createNode(documentRef, "li", {
+          className: "unified-active-trigger-item",
+          text,
+        }));
+      }
+      if (triggerList.childElementCount) item.append(triggerList);
     }
     if (persistent?.kind === "board-token") {
       const token = persistent.token;
@@ -237,6 +281,12 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
 export function renderZoneTriggerBanner(documentRef, model, callbacks = {}) {
   const zone = model.zone;
   if (!zone.visible) return null;
+  const hasActiveOverviewWithTriggers = (model.active?.overview || []).some((entry) => (
+    entry.persistent?.triggers?.length > 0
+  ));
+  if (hasActiveOverviewWithTriggers && !zone.runtime?.visible) {
+    return null;
+  }
   const section = createNode(documentRef, "section", {
     className: "unified-section unified-zone-trigger",
     attributes: {
