@@ -135,16 +135,22 @@ function closeHistoryPopover() {
   void OBR.popover.close(MODAL_ID);
 }
 
+let activeTab: "log" | "undo" = "log";
+
 function captureAccordionState(app: HTMLElement) {
-  const logPanel = app.querySelector('details[data-panel="log"]');
-  const undoPanel = app.querySelector('details[data-panel="undo"]');
-  if (logPanel instanceof HTMLDetailsElement) logPanelOpen = logPanel.open;
-  if (undoPanel instanceof HTMLDetailsElement) undoPanelOpen = undoPanel.open;
+  const logTabBtn = app.querySelector('[data-tab="log"]');
+  const undoTabBtn = app.querySelector('[data-tab="undo"]');
+  if (logTabBtn?.getAttribute("aria-selected") === "true") activeTab = "log";
+  if (undoTabBtn?.getAttribute("aria-selected") === "true") activeTab = "undo";
   if (preferredPanel === "undo") {
-    logPanelOpen = false;
-    undoPanelOpen = true;
+    activeTab = "undo";
+    preferredPanel = null;
+  } else if (preferredPanel === "log") {
+    activeTab = "log";
     preferredPanel = null;
   }
+  logPanelOpen = activeTab === "log";
+  undoPanelOpen = activeTab === "undo";
   captureCombatLogUiState(app);
 }
 
@@ -236,11 +242,13 @@ function syncCombatLogPageControls() {
   });
   loadOlder.disabled = controls.loadOlderDisabled;
   loadAll.disabled = controls.loadAllDisabled;
+  const isPartial = combatLogPageState.totalCount > controls.loadedCount;
+  loadOlder.style.display = combatLogPageState.hasOlder ? "inline-flex" : "none";
+  loadAll.style.display = isPartial ? "inline-flex" : "none";
   const pageHint = app.querySelector<HTMLElement>("[data-combat-log-page-hint]");
   if (pageHint) {
-    pageHint.textContent = combatLogPageState.totalCount > controls.loadedCount
-      ? "Filtri sulla pagina caricata"
-      : "Registro completo caricato";
+    pageHint.textContent = isPartial ? "Filtri sulla pagina caricata" : "";
+    pageHint.style.display = isPartial ? "inline" : "none";
   }
 }
 
@@ -365,26 +373,15 @@ function setButtonLabel(control: HTMLButtonElement, label: string) {
 
 function toolbarMenu(label: string, iconPath: string, controls: HTMLButtonElement[]) {
   const wrap = document.createElement("div");
-  Object.assign(wrap.style, { position: "relative", flex: "0 0 auto" });
+  wrap.className = "toolbar-menu-wrap";
   const trigger = button(label, "default", iconPath, true);
   trigger.title = label;
   trigger.setAttribute("aria-haspopup", "menu");
   trigger.setAttribute("aria-expanded", "false");
   const menu = document.createElement("div");
+  menu.className = "toolbar-menu-dropdown";
   menu.setAttribute("role", "menu");
-  Object.assign(menu.style, {
-    display: "none",
-    position: "absolute",
-    top: "calc(100% + 5px)",
-    right: "0",
-    zIndex: "20",
-    minWidth: "190px",
-    padding: "5px",
-    border: "1px solid rgba(148,163,184,.28)",
-    borderRadius: "9px",
-    background: "rgba(15,23,42,.98)",
-    boxShadow: "0 12px 30px rgba(0,0,0,.38)",
-  });
+  menu.style.display = "none";
   const setOpen = (open: boolean) => {
     menu.style.display = open ? "grid" : "none";
     menu.style.gap = open ? "4px" : "";
@@ -588,47 +585,47 @@ function undoReadinessTitle(row: any) {
 function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void>) {
   const entries = Array.isArray(undoState?.entries) ? undoState.entries : [];
   const newest = Array.isArray(undoState?.rows) ? undoState.rows : [];
-  const undoableCount = newest.filter((row: any) => row?.undoable === true).length;
-  const details = document.createElement("details");
-  details.dataset.panel = "undo";
-  details.open = undoPanelOpen;
-  Object.assign(details.style, {
-    flex: "0 0 auto",
-    border: "1px solid rgba(148,163,184,.18)",
-    borderRadius: "11px",
-    background: "rgba(15,23,42,.58)",
-  });
-  const summary = document.createElement("summary");
-  summary.textContent = `Cronologia e Undo (${undoableCount} annullabili / ${entries.length})`;
-  Object.assign(summary.style, { padding: "9px 10px", cursor: "pointer", fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-bold, 700)" });
-  details.appendChild(summary);
-  const body = document.createElement("div");
-  Object.assign(body.style, { display: "grid", gap: "5px", padding: "0 9px 9px" });
+  const panel = document.createElement("div");
+  panel.className = "history-tab-panel";
+  panel.dataset.panel = "undo";
+  panel.hidden = activeTab !== "undo";
+
+  const controls = document.createElement("div");
+  controls.className = "undo-controls-bar";
+
+  const list = document.createElement("div");
+  list.className = "undo-list-scroll";
+
   if (undoState?.status !== "ready") {
     const unavailable = document.createElement("div");
+    unavailable.className = "undo-status-warning";
     unavailable.textContent = "Impossibile verificare con precisione le azioni annullabili. Attendi il completamento degli aggiornamenti della scena.";
-    Object.assign(unavailable.style, { padding: "8px", color: "#fbbf24", fontSize: "11px", lineHeight: "1.4" });
-    body.appendChild(unavailable);
+    Object.assign(unavailable.style, { padding: "10px", fontSize: "11px", lineHeight: "1.4" });
+    list.appendChild(unavailable);
   } else if (!newest.length) {
     const empty = document.createElement("div");
     empty.textContent = "Nessuna operazione reversibile.";
-    Object.assign(empty.style, { padding: "8px", color: "rgba(255,255,255,.55)", fontSize: "11px" });
-    body.appendChild(empty);
+    Object.assign(empty.style, { padding: "18px", textAlign: "center", color: "var(--obrt-muted)", fontSize: "11px" });
+    list.appendChild(empty);
   } else {
     let selectedDepth = newest[0]?.undoable === true ? 1 : 0;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
     const undo = button("Undo ultima", "primary", "history.svg");
     const cleanup = button("Pulisci entry incomplete");
     cleanup.title = "Rimuove solo le entry incomplete; i conflitti restano visibili nella cronologia";
-    const controls = document.createElement("div");
-    Object.assign(controls.style, { display: "flex", flexWrap: "wrap", gap: "5px" });
     const refresh = () => {
       rows.forEach(({ checkbox, row }, index) => {
         const readiness = newest[index];
         const selected = selectedDepth > 0 && index < selectedDepth;
         checkbox.checked = selected;
         checkbox.disabled = readiness?.undoable !== true;
-        row.style.background = selected ? "rgba(30,64,175,.24)" : "rgba(15,23,42,.72)";
+        if (selected) {
+          row.classList.add("selected");
+          row.style.background = "rgba(30,64,175,.28)";
+        } else {
+          row.classList.remove("selected");
+          row.style.background = "rgba(15,23,42,.72)";
+        }
         row.style.cursor = readiness?.undoable === true ? "pointer" : "not-allowed";
         row.style.opacity = readiness?.undoable === true ? "1" : ".68";
       });
@@ -640,19 +637,27 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       cleanup.disabled = !sceneLifecycle.isReady();
     };
     controls.append(undo, cleanup);
-    body.appendChild(controls);
     newest.forEach((readiness: any, index: number) => {
       const entry = readiness?.entry || {};
       const row = document.createElement("label");
+      row.className = "undo-row-item";
       row.title = undoReadinessTitle(readiness);
       Object.assign(row.style, { display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: "7px", padding: "6px 8px", borderRadius: "7px" });
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.style.accentColor = "#2563eb";
       const text = document.createElement("span");
+      text.className = "undo-row-label";
       text.textContent = String(entry?.label || "Modifica");
       Object.assign(text.style, { fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-medium, 500)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
       const state = document.createElement("span");
+      state.className = `undo-row-status ${
+        readiness?.undoable === true
+          ? "undo-status-ready"
+          : readiness?.status === HISTORY_UNDO_READINESS_STATUS.CONFLICT
+            ? "undo-status-conflict"
+            : "undo-status-warning"
+      }`;
       state.textContent = undoReadinessLabel(readiness);
       Object.assign(state.style, {
         fontSize: "9px",
@@ -670,7 +675,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       });
       row.append(checkbox, text, state);
       rows.push({ checkbox, row });
-      body.appendChild(row);
+      list.appendChild(row);
     });
     undo.addEventListener("click", async () => {
       if (undoInProgress || selectedDepth < 1 || !sceneLifecycle.isReady()) return;
@@ -790,8 +795,8 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
     });
     refresh();
   }
-  details.appendChild(body);
-  return details;
+  panel.append(controls, list);
+  return panel;
 }
 
 async function render(
@@ -844,92 +849,87 @@ async function render(
   const combatLogEnabled = isCombatLogEventSinkEnabled();
   statusMessage = message;
 
-  const panel = document.createElement("main");
-  panel.dataset.combatLogSessionId = String(session?.id || "");
-  Object.assign(panel.style, {
-    width: "100%",
-    height: "100vh",
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-    gap: "9px",
-    padding: "12px",
-    overflowY: "auto",
-    background: "transparent",
-    color: "#fff",
-    fontFamily: 'var(--obrt-font-ui, "Helvetica Neue", Helvetica, Arial, sans-serif)',
-    fontSize: "var(--obrt-type-body, 12px)",
-  });
+  const shell = document.createElement("main");
+  shell.className = "history-shell history-panel";
+  shell.dataset.combatLogSessionId = String(session?.id || "");
 
+  // Fixed top header with drag handle
   const header = document.createElement("header");
-  Object.assign(header.style, { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", paddingRight: "38px", flexWrap: "wrap" });
+  header.className = "history-header";
+  header.setAttribute("data-drag-handle", "1");
+  header.draggable = true;
+  header.title = "Trascina per spostare";
+
+  const titles = document.createElement("div");
+  titles.className = "history-header-titles";
+  const title = document.createElement("h1");
+  title.className = "history-title";
+  title.textContent = session?.name || "Registro combattimento";
+  titles.append(title);
+
   const close = document.createElement("button");
   close.type = "button";
-  close.textContent = "X";
+  close.className = "history-close-btn";
+  close.textContent = "×";
   close.title = "Chiudi";
   close.setAttribute("aria-label", "Chiudi");
-  Object.assign(close.style, {
-    position: "fixed",
-    right: "12px",
-    top: "9px",
-    width: "30px",
-    height: "30px",
-    padding: "0",
-    border: "1px solid transparent",
-    borderRadius: "9px",
-    background: "transparent",
-    color: "inherit",
-    font: "inherit",
-    fontSize: "15px",
-    cursor: "pointer",
-    zIndex: "30",
-  });
   close.addEventListener("click", closeHistoryPopover);
-  const heading = document.createElement("div");
-  Object.assign(heading.style, { minWidth: "180px", flex: "1 1 220px" });
-  const title = document.createElement("h1");
-  title.textContent = session?.name || "Nessun registro attivo";
-  Object.assign(title.style, { margin: "0", fontSize: "var(--obrt-type-panel-title, 16px)", fontWeight: "var(--obrt-weight-bold, 700)", lineHeight: "1.1", letterSpacing: "-.01em" });
-  const subtitle = document.createElement("div");
-  subtitle.textContent = session
-    ? `${combatLogPageState.totalCount || sessionSummary.totalEvents} eventi · iniziato ${formatCombatLogTimestamp(sessionSummary.startedAt)}`
-    : "Il primo evento registrabile creerà una sessione.";
-  Object.assign(subtitle.style, { marginTop: "3px", color: "rgba(255,255,255,.58)", fontSize: "var(--obrt-type-caption, 10px)", fontWeight: "var(--obrt-weight-regular, 400)" });
-  const localStorageBadge = document.createElement("span");
-  localStorageBadge.textContent = sessionSummary.localStorageLabel;
-  localStorageBadge.title = "Il Combat Log è salvato nel browser locale del GM e non viene sincronizzato tra browser o scene.";
-  Object.assign(localStorageBadge.style, {
-    display: "inline-flex",
-    width: "fit-content",
-    marginTop: "6px",
-    padding: "3px 7px",
-    border: "1px solid rgba(148,163,184,.28)",
-    borderRadius: "999px",
-    color: "rgba(255,255,255,.62)",
-    background: "rgba(15,23,42,.62)",
-    fontSize: "var(--obrt-type-micro, 9px)",
-    lineHeight: "1.2",
-  });
+  header.append(titles, close);
+
+  // Tab switch bar
+  const tabsBar = document.createElement("div");
+  tabsBar.className = "history-tabs-bar";
+  const tabSwitch = document.createElement("div");
+  tabSwitch.className = "history-tab-switch";
+  tabSwitch.setAttribute("role", "tablist");
+  tabSwitch.setAttribute("aria-label", "Sezioni");
+
+  const tabLogBtn = document.createElement("button");
+  tabLogBtn.type = "button";
+  tabLogBtn.className = "history-tab-btn";
+  tabLogBtn.dataset.tab = "log";
+  tabLogBtn.setAttribute("role", "tab");
+  tabLogBtn.setAttribute("aria-selected", String(activeTab === "log"));
+  const tabLogText = document.createElement("span");
+  tabLogText.textContent = "Registro";
+  const tabLogBadge = document.createElement("span");
+  tabLogBadge.className = "history-tab-badge";
+  tabLogBadge.textContent = String(combatLogPageState.totalCount || sessionSummary.totalEvents || 0);
+  tabLogBtn.append(tabLogText, tabLogBadge);
+
+  const undoEntries = Array.isArray(undoState?.rows) ? undoState.rows : [];
+  const undoableCount = undoEntries.filter((row: any) => row?.undoable === true).length;
+  const tabUndoBtn = document.createElement("button");
+  tabUndoBtn.type = "button";
+  tabUndoBtn.className = "history-tab-btn";
+  tabUndoBtn.dataset.tab = "undo";
+  tabUndoBtn.setAttribute("role", "tab");
+  tabUndoBtn.setAttribute("aria-selected", String(activeTab === "undo"));
+  const tabUndoText = document.createElement("span");
+  tabUndoText.textContent = "Cronologia Undo";
+  const tabUndoBadge = document.createElement("span");
+  tabUndoBadge.className = "history-tab-badge";
+  tabUndoBadge.textContent = String(undoableCount);
+  tabUndoBtn.append(tabUndoText, tabUndoBadge);
+
+  tabSwitch.append(tabLogBtn, tabUndoBtn);
+  tabsBar.appendChild(tabSwitch);
+
+  // Secondary Session Toolbar in Log
+  const sessionBar = document.createElement("div");
+  sessionBar.className = "session-bar";
+
+  const sessionBarLeft = document.createElement("div");
+  sessionBarLeft.className = "session-bar-left";
+
   const sessionPicker = document.createElement("select");
+  sessionPicker.className = "session-select";
   sessionPicker.title = "Apri o riprendi un registro archiviato";
-  Object.assign(sessionPicker.style, {
-    maxWidth: "220px",
-    minHeight: "32px",
-    marginTop: "5px",
-    padding: "6px 8px",
-    border: "1px solid rgba(148,163,184,.28)",
-    borderRadius: "10px",
-    background: "#0f172a",
-    color: "rgba(255,255,255,.8)",
-    font: "inherit",
-    fontSize: "10px",
-  });
   for (const candidate of sessions) {
     const option = document.createElement("option");
     option.value = candidate.id;
     option.textContent = candidate.name;
     option.selected = candidate.id === session?.id;
-    Object.assign(option.style, { background: "#0f172a", color: "#fff" });
     sessionPicker.appendChild(option);
   }
   if (!sessions.length) {
@@ -952,9 +952,10 @@ async function render(
       await scheduleRender(`Apertura fallita: ${error?.message || error}`, { pageRequest: null });
     }
   });
-  heading.append(title, subtitle, localStorageBadge, sessionPicker);
-  const headerActions = document.createElement("div");
-  Object.assign(headerActions.style, { display: "flex", alignItems: "center", justifyContent: "flex-end", flex: "0 0 auto", gap: "5px" });
+  sessionBarLeft.appendChild(sessionPicker);
+
+  const sessionBarActions = document.createElement("div");
+  sessionBarActions.className = "session-bar-actions";
   const exportText = button("Esporta TXT", "default", "log-export.svg");
   const exportJson = button("Esporta JSON", "default", "log-export.svg");
   const importJson = button("Importa JSON");
@@ -1108,22 +1109,19 @@ async function render(
       await scheduleRender(`Creazione fallita: ${error?.message || error}`, { pageRequest: null });
     }
   });
-  header.append(heading, headerActions);
+  sessionBarActions.append(
+    newSession,
+    toolbarMenu("Esporta/importa", "log-export.svg", [exportText, exportJson, importJson]),
+    toolbarMenu("Gestisci registro", "log-more.svg", [clearLog, deleteLog, storageStats, retention]),
+    importFile,
+  );
+  sessionBar.append(sessionBarLeft, sessionBarActions);
 
   const clearConfirmation = document.createElement("div");
-  Object.assign(clearConfirmation.style, {
-    display: "none",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    padding: "9px 10px",
-    border: "1px solid rgba(248,113,113,.5)",
-    borderRadius: "9px",
-    background: "rgba(127,29,29,.3)",
-  });
+  clearConfirmation.className = "history-confirmation-banner";
+  clearConfirmation.style.display = "none";
   const clearQuestion = document.createElement("strong");
   clearQuestion.textContent = "Cancellare definitivamente tutte le voci del log corrente?";
-  Object.assign(clearQuestion.style, { fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-semibold, 600)", lineHeight: "1.3" });
   const clearActions = document.createElement("div");
   Object.assign(clearActions.style, { display: "flex", flex: "0 0 auto", gap: "5px" });
   const cancelClear = button("Annulla");
@@ -1155,19 +1153,10 @@ async function render(
   });
 
   const deleteConfirmation = document.createElement("div");
-  Object.assign(deleteConfirmation.style, {
-    display: "none",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    padding: "9px 10px",
-    border: "1px solid rgba(248,113,113,.62)",
-    borderRadius: "9px",
-    background: "rgba(127,29,29,.42)",
-  });
+  deleteConfirmation.className = "history-confirmation-banner";
+  deleteConfirmation.style.display = "none";
   const deleteQuestion = document.createElement("strong");
   deleteQuestion.textContent = "Eliminare definitivamente questo registro dalla lista?";
-  Object.assign(deleteQuestion.style, { fontSize: "var(--obrt-type-secondary, 11px)", fontWeight: "var(--obrt-weight-semibold, 600)", lineHeight: "1.3" });
   const deleteActions = document.createElement("div");
   Object.assign(deleteActions.style, { display: "flex", flex: "0 0 auto", gap: "5px" });
   const cancelDelete = button("Annulla");
@@ -1199,29 +1188,15 @@ async function render(
   });
 
   const filters = document.createElement("div");
-  Object.assign(filters.style, { display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: "6px" });
+  filters.className = "history-filters";
   const filterField = (labelText: string, control: HTMLInputElement | HTMLSelectElement) => {
     const field = document.createElement("label");
+    field.className = "history-filter-field";
     field.htmlFor = control.id;
-    Object.assign(field.style, { display: "grid", gap: "3px", minWidth: "0" });
     const label = document.createElement("span");
     label.textContent = labelText;
-    Object.assign(label.style, { color: "rgba(255,255,255,.55)", fontSize: "var(--obrt-type-micro, 9px)", fontWeight: "var(--obrt-weight-semibold, 600)" });
     field.append(label, control);
     return field;
-  };
-  const styleFilterControl = (control: HTMLInputElement | HTMLSelectElement) => {
-    Object.assign(control.style, {
-      minHeight: "32px",
-      minWidth: "0",
-      padding: "5px 9px",
-      border: "1px solid rgba(148,163,184,.24)",
-      borderRadius: "10px",
-      background: "#0f172a",
-      color: "#fff",
-      font: "inherit",
-      outline: "none",
-    });
   };
   const search = document.createElement("input");
   search.type = "search";
@@ -1270,10 +1245,6 @@ async function render(
     option.textContent = item.label;
     outcome.appendChild(option);
   }
-  for (const control of [search, category, participant, outcome]) {
-    styleFilterControl(control);
-    control.querySelectorAll("option").forEach((option) => Object.assign((option as HTMLOptionElement).style, { background: "#0f172a", color: "#fff" }));
-  }
   category.value = combatLogUiState.category;
   participant.value = combatLogUiState.participant;
   outcome.value = combatLogUiState.outcome;
@@ -1285,22 +1256,11 @@ async function render(
   );
 
   const noteForm = document.createElement("form");
-  Object.assign(noteForm.style, { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: "6px" });
+  noteForm.className = "history-note-bar";
   const note = document.createElement("input");
   note.type = "text";
   note.disabled = !combatLogEnabled || !sceneLifecycle.isReady();
   note.placeholder = "Aggiungi una nota manuale al combattimento…";
-  Object.assign(note.style, {
-    minWidth: "0",
-    minHeight: "32px",
-    padding: "5px 9px",
-    border: "1px solid rgba(148,163,184,.24)",
-    borderRadius: "10px",
-    background: "#0f172a",
-    color: "#fff",
-    font: "inherit",
-    outline: "none",
-  });
   const addNote = button("Aggiungi nota", "primary", "log-note.svg");
   addNote.disabled = !combatLogEnabled || !sceneLifecycle.isReady();
   noteForm.append(note, addNote);
@@ -1321,44 +1281,24 @@ async function render(
   });
 
   const status = document.createElement("div");
+  status.className = "history-status-bar";
   status.setAttribute("aria-live", "polite");
   status.textContent = combatLogEnabled
     ? (message || "Il registro non viene modificato dagli Undo: viene aggiunta una voce di annullamento.")
     : (message
       ? `${message} Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.`
       : "Combat Log disattivato: History/Undo e sessioni esistenti restano disponibili.");
-  Object.assign(status.style, { minHeight: "14px", color: "rgba(255,255,255,.58)", fontSize: "var(--obrt-type-caption, 10px)", fontWeight: "var(--obrt-weight-regular, 400)" });
 
   const timeline = document.createElement("section");
+  timeline.className = "history-timeline-scroll";
   timeline.dataset.combatLogTimeline = "true";
   timeline.setAttribute("aria-label", "Timeline del Combat Log");
-  Object.assign(timeline.style, {
-    flex: "0 0 auto",
-    height: "auto",
-    minHeight: "0",
-    display: "grid",
-    alignContent: "start",
-    gap: "6px",
-    overflowY: "visible",
-    padding: "1px 3px 1px 0",
-    scrollbarWidth: "thin",
-  });
 
   const projectionSummary = document.createElement("div");
   projectionSummary.setAttribute("aria-live", "polite");
-  Object.assign(projectionSummary.style, {
-    padding: "6px 8px",
-    border: "1px solid rgba(148,163,184,.16)",
-    borderRadius: "8px",
-    color: "rgba(255,255,255,.64)",
-    background: "rgba(15,23,42,.42)",
-    fontSize: "var(--obrt-type-caption, 10px)",
-    lineHeight: "1.35",
-    overflowWrap: "anywhere",
-  });
 
   const pageControls = document.createElement("div");
-  Object.assign(pageControls.style, { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px" });
+  pageControls.className = "history-page-actions";
   const loadOlder = button("Carica eventi precedenti");
   const loadAll = button("Carica tutto");
   loadOlder.dataset.combatLogControl = "load-older";
@@ -1366,15 +1306,17 @@ async function render(
   loadOlder.title = "Aggiunge la pagina precedente senza rimuovere gli eventi già caricati";
   loadAll.title = "Carica tutti gli eventi per applicare i filtri sull'intero registro";
   const loadedEventCount = combatLogPageState.events.size;
+  const isPartial = combatLogPageState.totalCount > loadedEventCount;
   loadOlder.disabled = !combatLogPageState.hasOlder || combatLogPageLoading || combatLogStorageAction;
   loadAll.disabled = combatLogPageState.totalCount <= loadedEventCount || combatLogPageLoading || combatLogStorageAction;
+  loadOlder.style.display = combatLogPageState.hasOlder ? "inline-flex" : "none";
+  loadAll.style.display = isPartial ? "inline-flex" : "none";
   const pageHint = document.createElement("span");
   pageHint.dataset.combatLogPageHint = "true";
-  pageHint.textContent = combatLogPageState.totalCount > loadedEventCount
-    ? "Filtri sulla pagina caricata"
-    : "Registro completo caricato";
+  pageHint.textContent = isPartial ? "Filtri sulla pagina caricata" : "";
   pageHint.setAttribute("aria-live", "polite");
-  Object.assign(pageHint.style, { color: "rgba(255,255,255,.5)", fontSize: "var(--obrt-type-micro, 9px)", overflowWrap: "anywhere" });
+  pageHint.style.display = isPartial ? "inline" : "none";
+  Object.assign(pageHint.style, { color: "var(--obrt-muted)", fontSize: "var(--obrt-type-micro, 9px)", overflowWrap: "anywhere" });
   pageControls.append(loadOlder, loadAll, pageHint);
   loadOlder.addEventListener("click", async () => {
     if (combatLogPageLoading || !combatLogPageState.hasOlder || !session?.id) return;
@@ -1421,6 +1363,10 @@ async function render(
     }
   });
 
+  const projectionRow = document.createElement("div");
+  projectionRow.className = "history-projection-row";
+  projectionRow.append(pageControls, projectionSummary);
+
   const timelineMore = button("Mostra altri eventi");
   timelineMore.dataset.combatLogControl = "timeline-more";
   timelineMore.hidden = true;
@@ -1449,16 +1395,10 @@ async function render(
     });
     const filterSuffix = filteredPresentation.events.length === presentation.events.length
       ? ""
-      : " filtrati";
-    const categorySummary = Object.entries(sessionSummary.categoryCounts)
-      .map(([categoryName, count]) => `${getCombatLogCategoryMeta(categoryName).label}: ${count}`)
-      .join(" · ");
-    const recordedInterval = sessionSummary.firstEventAt === null || sessionSummary.lastEventAt === null
-      ? "nessun evento"
-      : `${formatCombatLogTimestamp(sessionSummary.firstEventAt)} – ${formatCombatLogTimestamp(sessionSummary.lastEventAt)}`;
-    const loadedSummary = combatLogPageState.totalCount > events.length
-      ? `${events.length} caricati su ${combatLogPageState.totalCount}`
-      : `${events.length} eventi`;
+      : " (filtrati)";
+    const loadedSuffix = combatLogPageState.totalCount > events.length
+      ? ` (${events.length} su ${combatLogPageState.totalCount} caricati)`
+      : "";
     const timelineWindow = getCombatLogTimelineWindow(
       filteredPresentation.events,
       combatLogTimelineVisibleLimit,
@@ -1466,15 +1406,13 @@ async function render(
     const visibleEvents = timelineWindow.events;
     const visibleEventIds = new Set(visibleEvents.map((event) => String(event?.id || "")));
     const visibleSuffix = timelineWindow.hasMore
-      ? ` · mostrati ${visibleEvents.length} più recenti`
+      ? ` · ${visibleEvents.length} più recenti`
       : "";
     projectionSummary.textContent = [
-      `${filteredPresentation.events.length} visibili · ${loadedSummary}${filterSuffix}${visibleSuffix}`,
+      `${filteredPresentation.events.length} eventi${filterSuffix}${visibleSuffix}${loadedSuffix}`,
       `${sessionSummary.roundCount} round`,
       `${sessionSummary.turnCount} turni`,
       `${sessionSummary.participantCount} partecipanti`,
-      `Intervallo: ${recordedInterval}`,
-      categorySummary ? `Categorie: ${categorySummary}` : "Nessuna categoria registrata",
     ].join(" · ");
 
     if (!filteredPresentation.events.length) {
@@ -1484,7 +1422,7 @@ async function render(
         : presentation.events.length
           ? "Nessun evento corrisponde ai filtri."
           : "Il registro è vuoto. Le prossime operazioni verranno registrate qui.";
-      Object.assign(empty.style, { padding: "18px", textAlign: "center", color: "rgba(255,255,255,.55)", overflowWrap: "anywhere" });
+      Object.assign(empty.style, { padding: "18px", textAlign: "center", color: "var(--obrt-muted)", overflowWrap: "anywhere" });
       timeline.appendChild(empty);
       return;
     }
@@ -1579,44 +1517,50 @@ async function render(
   }
   renderTimeline();
 
-  const logPanel = document.createElement("details");
+  const logPanel = document.createElement("div");
+  logPanel.className = "history-tab-panel";
   logPanel.dataset.panel = "log";
-  logPanel.open = logPanelOpen;
+  logPanel.hidden = activeTab !== "log";
   Object.assign(logPanel.style, {
-    flex: "0 0 auto",
-    border: "1px solid rgba(148,163,184,.18)",
-    borderRadius: "11px",
-    background: "rgba(15,23,42,.58)",
-    overflow: "visible",
-  });
-  const logSummary = document.createElement("summary");
-  logSummary.textContent = `Log di combattimento · ${session?.name || "Nessun registro attivo"} (${combatLogPageState.totalCount})`;
-  Object.assign(logSummary.style, {
-    padding: "10px",
-    cursor: "pointer",
-    fontSize: "var(--obrt-type-body, 12px)",
-    fontWeight: "var(--obrt-weight-bold, 700)",
-  });
-  const logBody = document.createElement("div");
-  Object.assign(logBody.style, {
-    display: "flex",
+    display: activeTab === "log" ? "flex" : "none",
     flexDirection: "column",
-    gap: "9px",
-    padding: "0 9px 9px",
-    overflow: "visible",
+    flex: "1 1 auto",
+    minHeight: "0",
+    overflow: "hidden",
   });
-  headerActions.replaceChildren(
-    newSession,
-    toolbarMenu("Esporta/importa", "log-export.svg", [exportText, exportJson, importJson]),
-    toolbarMenu("Gestisci registro", "log-more.svg", [clearLog, deleteLog, storageStats, retention]),
-  );
-  headerActions.appendChild(importFile);
-  logBody.append(header, clearConfirmation, deleteConfirmation, filters, projectionSummary, pageControls, noteForm, status, timeline);
-  logPanel.append(logSummary, logBody);
+
+  logPanel.append(sessionBar, clearConfirmation, deleteConfirmation, filters, projectionRow, timeline, noteForm, status);
 
   const undoPanel = makeUndoPanel(undoState, async (undoMessage) => scheduleRender(undoMessage));
-  panel.append(close, logPanel, undoPanel);
-  app.replaceChildren(panel);
+  Object.assign(undoPanel.style, {
+    display: activeTab === "undo" ? "flex" : "none",
+    flexDirection: "column",
+    flex: "1 1 auto",
+    minHeight: "0",
+    overflow: "hidden",
+  });
+
+  tabLogBtn.addEventListener("click", () => {
+    activeTab = "log";
+    tabLogBtn.setAttribute("aria-selected", "true");
+    tabUndoBtn.setAttribute("aria-selected", "false");
+    logPanel.hidden = false;
+    logPanel.style.display = "flex";
+    undoPanel.hidden = true;
+    undoPanel.style.display = "none";
+  });
+  tabUndoBtn.addEventListener("click", () => {
+    activeTab = "undo";
+    tabLogBtn.setAttribute("aria-selected", "false");
+    tabUndoBtn.setAttribute("aria-selected", "true");
+    logPanel.hidden = true;
+    logPanel.style.display = "none";
+    undoPanel.hidden = false;
+    undoPanel.style.display = "flex";
+  });
+
+  shell.append(header, tabsBar, logPanel, undoPanel);
+  app.replaceChildren(shell);
   restoreCombatLogUiState(app);
   syncCombatLogPageControls();
 }
