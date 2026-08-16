@@ -1124,3 +1124,90 @@ test("una condizione può persistere reminder distinti per fine turno e danno", 
     ["turn-end", "damage"],
   );
 });
+
+test("multi-caster isolation: interrompere la concentrazione di un caster lascia intatta la stessa spell di un altro caster sullo stesso target", () => {
+  const items = [
+    token("caster-A", {
+      concentrations: {
+        benedizione: {
+          name: "Benedizione",
+          instanceId: "bless-A",
+          targets: ["target-1"],
+        },
+      },
+    }),
+    token("caster-B", {
+      concentrations: {
+        benedizione: {
+          name: "Benedizione",
+          instanceId: "bless-B",
+          targets: ["target-1"],
+        },
+      },
+    }),
+    token("target-1", {
+      spells: [
+        {
+          id: "entry-bless-A",
+          name: "Benedizione",
+          turns: 10,
+          conc: true,
+          casterId: "caster-A",
+          instanceId: "bless-A",
+        },
+        {
+          id: "entry-bless-B",
+          name: "Benedizione",
+          turns: 10,
+          conc: true,
+          casterId: "caster-B",
+          instanceId: "bless-B",
+        },
+      ],
+      conditions: [
+        {
+          id: "cond-bless-A",
+          condition: "+1d4 Att/TS",
+          active: true,
+          type: "spell",
+          parentEffectId: "bless-A",
+          sourceId: "caster-A",
+        },
+        {
+          id: "cond-bless-B",
+          condition: "+1d4 Att/TS",
+          active: true,
+          type: "spell",
+          parentEffectId: "bless-B",
+          sourceId: "caster-B",
+        },
+      ],
+    }),
+  ];
+
+  const plan = buildEffectsMutationPlan(items, [{
+    type: "concentration:break",
+    casterIds: ["caster-A"],
+    reference: "bless-A",
+  }]);
+
+  assert.deepEqual(state(plan, "caster-A").concentrations, {});
+  assert.deepEqual(state(plan, "caster-B").concentrations, {
+    benedizione: {
+      name: "Benedizione",
+      instanceId: "bless-B",
+      targets: ["target-1"],
+    },
+  });
+
+  const targetState = state(plan, "target-1");
+  assert.equal(targetState.spells.length, 1);
+  assert.equal(targetState.spells[0].instanceId, "bless-B");
+  assert.equal(targetState.spells[0].casterId, "caster-B");
+
+  assert.equal(targetState.conditions.length, 1);
+  assert.equal(targetState.conditions[0].parentEffectId, "bless-B");
+  assert.equal(targetState.conditions[0].sourceId, "caster-B");
+
+  assert.deepEqual(new Set(plan.changedIds), new Set(["caster-A", "target-1"]));
+});

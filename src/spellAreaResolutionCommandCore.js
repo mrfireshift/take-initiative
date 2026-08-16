@@ -16,6 +16,7 @@ import {
   getSpellAreaRuleForPlacement,
   getSpellAreaRuleById,
 } from "./spellAreaRules.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 import {
   spellBoardTokenPlacementPosition,
 } from "./spellBoardTokenCore.js";
@@ -598,7 +599,8 @@ function placementValidation({
   const targetIds = confirmed ? payload.targetIds : [];
   const requiresConfirmedTargets = targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     && contract?.presentation?.targeting?.confirmTargets === true
-    && !["zone", "aura", "board-token"].includes(rule?.kind);
+    && !["zone", "aura", "board-token"].includes(rule?.kind)
+    && !isTeleportSpell(spellId);
   if (confirmed && requiresConfirmedTargets && !targetIds.length) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_TARGETS_MISSING);
   }
@@ -1231,6 +1233,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     || ruleKind === "zone"
     || ruleKind === "aura"
     || ruleKind === "board-token"
+    || isTeleportSpell(spellId)
       ? placement.rule?.zonePolicy?.targetScope !== "spell-targets"
         && placement.rule?.zonePolicy?.initialResolution !== "manual-save"
       : false;

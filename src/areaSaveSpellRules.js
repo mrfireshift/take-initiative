@@ -150,6 +150,7 @@ export const AREA_PLACEMENT_ONLY_SPELL_IDS = Object.freeze([
   "magic-circle",
   "mass-cure-wounds",
   "mirage-arcane",
+  "misty-step",
   "move-earth",
   "private-sanctum",
   "silence",

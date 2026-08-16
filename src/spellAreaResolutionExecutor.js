@@ -59,6 +59,11 @@ import {
   SPELL_BOARD_TOKEN_META_KEY,
   spellBoardTokenPlacementPosition,
 } from "./spellBoardTokenCore.js";
+import {
+  getSpellTeleportRule,
+  isTeleportSpell,
+  spellTeleportDestinationPosition,
+} from "./spellTeleportCore.js";
 import { expandAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import {
@@ -505,7 +510,7 @@ async function buildPlan(command, runtime) {
     && placement?.status === "confirmed";
   const targetScopedStaticZone = staticZonePlacement
     && placementRule?.zonePolicy?.targetScope === "spell-targets";
-  const allowEmptyTargets = staticZonePlacement || mobileAura || boardToken || cloudPending;
+  const allowEmptyTargets = staticZonePlacement || mobileAura || boardToken || cloudPending || isTeleportSpell(spell.id);
   const targetContexts = command?.targeting?.targetContexts || {};
   const outcomeEntries = Object.entries(command?.outcomes?.byTarget || {});
   const outcomes = new Map(outcomeEntries);
@@ -733,6 +738,19 @@ async function buildPlan(command, runtime) {
     }
   }
 
+  const teleportRule = getSpellTeleportRule(spell.id);
+  const teleportDestination = teleportRule
+    ? spellTeleportDestinationPosition(placement?.preview)
+    : null;
+  const teleportSideEffects = teleportDestination && casterId
+    ? [{
+      type: "token:teleport",
+      spellId: spell.id,
+      targetId: casterId,
+      position: teleportDestination,
+    }]
+    : [];
+
   const fireballVisualContext = spell.id === "fireball" && placement?.preview
     ? {
       casterId,
@@ -743,7 +761,23 @@ async function buildPlan(command, runtime) {
     : null;
   let matchedVisualContext = null;
   const chainLightningVisualTargetIds = uniqueIds(command?.targeting?.targetIds);
-  if (spell.id === "chain-lightning" && chainLightningVisualTargetIds.length) {
+  if (teleportRule && teleportDestination) {
+    matchedVisualContext = {
+      spellId: spell.id,
+      casterId,
+      targetIds: [casterId],
+      eventId: spellInstanceId,
+      lifecycleId: spellInstanceId,
+      preview: {
+        destination: teleportDestination,
+        origin: teleportDestination,
+        start: teleportDestination,
+        end: teleportDestination,
+        type: "circle",
+      },
+      sceneEpoch: runtime.sceneEpoch,
+    };
+  } else if (spell.id === "chain-lightning" && chainLightningVisualTargetIds.length) {
     matchedVisualContext = {
       spellId: spell.id,
       casterId,
@@ -880,6 +914,7 @@ async function buildPlan(command, runtime) {
   const boardTokenEntityIds = batchPlacements.map(() => createSpellBoardTokenId());
   const boardTokenEntityId = boardTokenEntityIds[0] || "";
   const spellBoardTokenSideEffects = [
+    ...teleportSideEffects,
     ...(breaksExistingConcentration ? [{
       type: "static-zone:remove-ended",
       selectors: [{ casterId }],
@@ -976,7 +1011,7 @@ async function buildPlan(command, runtime) {
   const historyIds = uniqueIds([
     ...ids,
     ...effectSubjectIds,
-    ...(cloudPlacement ? [casterId] : []),
+    ...(cloudPlacement || teleportRule ? [casterId] : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
   ]);
   const staticZoneSceneItemIds = uniqueIds([
@@ -986,6 +1021,7 @@ async function buildPlan(command, runtime) {
     ...boardTokenEntityIds,
     ...zeroHPBoardTokenIds,
     ...triggerRootItems.map((item) => item.id),
+    ...(teleportRule ? [casterId] : []),
   ]);
   return {
     valid: true,
@@ -1040,10 +1076,12 @@ function spellAreaCausality(plan) {
   const itemsById = new Map(allItems.map((item) => [String(item?.id || ""), item]));
   const changesById = new Map((Array.isArray(plan?.entries) ? plan.entries : [])
     .map((entry) => [String(entry?.item?.id || ""), entry]));
+  const teleportRule = getSpellTeleportRule(plan?.spell?.id);
   const targetIds = uniqueIds([
     ...(command?.targeting?.targetIds || []),
     ...(plan?.effectSubjectIds || []),
     ...(plan?.ids || []),
+    ...(teleportRule && plan?.caster?.id ? [plan.caster.id] : []),
   ]);
   const outcomeMap = command?.outcomes?.byTarget || {};
   const hpMode = text(command?.hp?.mode);
@@ -1102,24 +1140,21 @@ function spellAreaCausality(plan) {
     || ["dismiss", "end", "break", "trigger", "extend"].includes(plan?.concentrationAction)
     ? plan?.concentrationAction
     : undefined;
-  return buildSpellCausality({
-    eventType: "area/save-resolution",
-    spellId: plan?.spell?.id || command?.spell?.spellId,
-    spellName: plan?.spell?.displayName || plan?.spell?.name,
-    instanceId: plan?.spellInstanceId,
-    slotLevel: command?.spell?.slotLevel,
-    phase: command?.spell?.castContext?.phase || command?.phase,
-    casterId: command?.spell?.casterId,
-    casterName: text(plan?.caster?.name),
+  return {
+    source: "spell-area",
+    spellId: plan?.spell?.id || "",
+    spellName: plan?.spell?.displayName || plan?.spell?.name || plan?.spell?.id || "",
+    casterId: plan?.caster?.id || "",
+    ...(plan?.caster?.name ? { casterName: plan.caster.name } : {}),
+    ...(teleportRule ? { teleport: true, destination: spellTeleportDestinationPosition(command?.placement?.preview) } : {}),
     targets,
-    targetIds,
     outcomes: outcomeMap,
     damageRoll: hasRawDamage ? Math.max(0, Math.floor(rawAmount)) : undefined,
     concentrationAction,
     concentrationInstanceId: plan?.spellInstanceId,
     zone,
     reminder: trigger?.activationId ? { activationId: trigger.activationId } : undefined,
-  });
+  };
 }
 
 async function updateHP(runtime, entries) {
@@ -1267,7 +1302,8 @@ export async function executeSpellAreaResolution(
     spellBoardTokenSideEffects,
   } = plan;
   if (!entries.length && !effectOperations.length
-    && !plan.nextStaticZoneItems.length && !plan.requestedZoneTrigger) {
+    && !plan.nextStaticZoneItems.length && !plan.requestedZoneTrigger
+    && !spellBoardTokenSideEffects.length) {
     return resultBase(command, RESULT_STATUSES.NOOP, {
       instanceId: plan.spellInstanceId,
       warnings: [],
@@ -1301,9 +1337,12 @@ export async function executeSpellAreaResolution(
     });
   }
   try {
+    const isTeleport = isTeleportSpell(plan.spell.id);
     await runtime.withItemMetaHistory({
-      kind: "save-resolution",
-      label: `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
+      kind: isTeleport ? "spell" : "save-resolution",
+      label: isTeleport
+        ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
+        : `Effetti ad area · ${plan.spell.displayName || plan.spell.name || plan.spell.id}`,
       itemIds: plan.historyIds,
       sceneItemIds: plan.staticZoneSceneItemIds,
       fields: ["hp", "hpMax", "conditions", SPELLS_KEY, CONCENTRATION_KEY],
@@ -1360,9 +1399,11 @@ export async function executeSpellAreaResolution(
         if (operations.length || spellBoardTokenSideEffects.length) {
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
-            kind: "save-resolution",
-            label: "Effetti collegati alla risoluzione spell",
-            targetIds: uniqueIds([...plan.ids, ...plan.effectSubjectIds]),
+            kind: isTeleport ? "spell" : "save-resolution",
+            label: isTeleport
+              ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
+              : "Effetti collegati alla risoluzione spell",
+            targetIds: uniqueIds([...plan.ids, ...plan.effectSubjectIds, ...(isTeleport ? [plan.caster?.id] : [])]),
             sideEffects: spellBoardTokenSideEffects,
             ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
             ...(runtime.operationId ? { commandId: runtime.operationId } : {}),

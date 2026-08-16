@@ -208,6 +208,13 @@ export function buildCoordinatedEffectsUndoPlan({
           instanceId: String(change?.instanceId || ""),
           ruleId: String(change?.ruleId || ""),
         }
+      : (change?.type === "token:teleport" || change?.type === "token-position")
+        ? {
+          id: change?.id,
+          type: "token:teleport",
+          restorePosition: clone(change?.beforePosition ?? change?.before?.position ?? null),
+          expectedPosition: clone(change?.afterPosition ?? change?.after?.position ?? null),
+        }
       : {
         id: change?.id,
         type: "item",
@@ -217,19 +224,31 @@ export function buildCoordinatedEffectsUndoPlan({
   const sceneById = new Map(sceneItems.map((item) => [item.id, item]));
   for (const sideEffect of undoSideEffects) {
     const actual = sceneById.get(sideEffect.id) || null;
-    const matches = sideEffect.type === "metadata"
-      ? !!actual && snapshotMatches(snapshot(actual.metadata, sideEffect.metadataKey), sideEffect.expected)
-      : sideEffect.type === "static-zone-move"
-        ? !!actual
-          && same(actual.position, sideEffect.expectedPosition)
-          && String(actual.metadata?.[sideEffect.metadataKey]?.instanceId || "") === sideEffect.instanceId
-          && String(actual.metadata?.[sideEffect.metadataKey]?.ruleId || "") === sideEffect.ruleId
-      : sideEffect.expected === null ? actual === null : same(actual, sideEffect.expected);
+    let matches = false;
+    let conflictField = null;
+    let conflictReason = "scene-side-effect-mismatch";
+
+    if (sideEffect.type === "metadata") {
+      matches = !!actual && snapshotMatches(snapshot(actual.metadata, sideEffect.metadataKey), sideEffect.expected);
+      conflictField = sideEffect.metadataKey;
+    } else if (sideEffect.type === "static-zone-move") {
+      matches = !!actual
+        && same(actual.position, sideEffect.expectedPosition)
+        && String(actual.metadata?.[sideEffect.metadataKey]?.instanceId || "") === sideEffect.instanceId
+        && String(actual.metadata?.[sideEffect.metadataKey]?.ruleId || "") === sideEffect.ruleId;
+    } else if (sideEffect.type === "token:teleport" || sideEffect.type === "token-position") {
+      matches = !!actual && same(actual.position, sideEffect.expectedPosition);
+      conflictField = "position";
+      if (!actual) conflictReason = "token-teleport-target-missing";
+    } else {
+      matches = sideEffect.expected === null ? actual === null : same(actual, sideEffect.expected);
+    }
+
     if (!matches) {
       conflicts.push({
         itemId: sideEffect.id || null,
-        field: sideEffect.type === "metadata" ? sideEffect.metadataKey : null,
-        reason: "scene-side-effect-mismatch",
+        field: conflictField,
+        reason: conflictReason,
       });
     }
   }

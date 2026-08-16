@@ -938,7 +938,7 @@ async function undoLastOperation() {
       return;
     }
     const undone = await undoHistoryThrough(lastEntryId, {
-      sceneEpoch: operation.sceneEpoch,
+      sceneEpoch: operation.epoch,
     });
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = "Undo della scena precedente completato o sospeso; riapri la console HP.";

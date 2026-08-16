@@ -5,7 +5,7 @@ import {
   getCasterCenter,
 } from "./embersBridge.js";
 import { isEmbersFireballItem } from "./embersFireballCore.js";
-import { isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import {
   FIREBALL_LOCAL_ANIMATION_MS,
   FIREBALL_WEBM_ANIMATION_MS,
@@ -29,6 +29,24 @@ const pendingRenderTimers = new Set();
 const activeLocalVideoIds = new Set();
 const activeLocalPathIds = new Set();
 let unsubscribe = null;
+let epochUnsubscribe = null;
+
+function resetFireballStateForSceneUnload() {
+  for (const timer of pendingRenderTimers) clearTimeout(timer);
+  pendingRenderTimers.clear();
+  activeLocalVideoIds.clear();
+  activeLocalPathIds.clear();
+  renderedEvents.clear();
+}
+
+function setupFireballSceneEpochSubscription() {
+  if (epochUnsubscribe) return;
+  epochUnsubscribe = subscribeSceneEpoch((event) => {
+    if (event?.phase === "unload") {
+      resetFireballStateForSceneUnload();
+    }
+  });
+}
 
 async function animationsEnabled() {
   try {
@@ -223,44 +241,53 @@ async function updateLocalLayers(items, layers, scale, opacity) {
   });
 }
 
-async function deleteLocalVideoItem(itemId) {
+async function deleteLocalVideoItem(itemId, sceneEpoch = null) {
   const normalizedId = String(itemId || "").trim();
   if (!normalizedId) return;
   activeLocalVideoIds.delete(normalizedId);
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
   await OBR.scene.local.deleteItems([normalizedId]).catch(() => {});
 }
 
-async function deleteLocalPathItems(itemIds) {
+async function deleteLocalPathItems(itemIds, sceneEpoch = null) {
   const ids = (Array.isArray(itemIds) ? itemIds : [])
     .map((itemId) => String(itemId || "").trim())
     .filter(Boolean);
   for (const id of ids) activeLocalPathIds.delete(id);
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
   if (ids.length) await OBR.scene.local.deleteItems(ids).catch(() => {});
 }
 
-async function addLocalVideoItem(item, duration) {
+async function addLocalVideoItem(item, duration, sceneEpoch = null) {
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
   await OBR.scene.local.addItems([item]);
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
   activeLocalVideoIds.add(item.id);
   scheduleTracked(
-    () => deleteLocalVideoItem(item.id),
+    () => deleteLocalVideoItem(item.id, sceneEpoch),
     duration,
   );
 }
 
 async function renderLocalWebmFireball(event, plan) {
+  if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   const insertedItems = [];
   try {
     if (plan.beam) {
       const beam = buildLocalVideoItem(event, plan.beam, "beam");
-      await addLocalVideoItem(beam, plan.duration || FIREBALL_WEBM_ANIMATION_MS);
+      if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+      await addLocalVideoItem(beam, plan.duration || FIREBALL_WEBM_ANIMATION_MS, event.sceneEpoch);
+      if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
       insertedItems.push(beam);
     }
 
     const addExplosion = async () => {
+      if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return;
       if (!await animationsEnabled()) return;
+      if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return;
       const explosion = buildLocalVideoItem(event, plan.explosion, "explosion");
       try {
-        await addLocalVideoItem(explosion, plan.duration || FIREBALL_WEBM_ANIMATION_MS);
+        await addLocalVideoItem(explosion, plan.duration || FIREBALL_WEBM_ANIMATION_MS, event.sceneEpoch);
       } catch (error) {
         console.warn("[fireball] local WebM explosion:", error?.message || error);
       }
@@ -273,7 +300,7 @@ async function renderLocalWebmFireball(event, plan) {
     }
     return true;
   } catch (error) {
-    await Promise.all(insertedItems.map((item) => deleteLocalVideoItem(item.id)));
+    await Promise.all(insertedItems.map((item) => deleteLocalVideoItem(item.id, event?.sceneEpoch)));
     console.warn("[fireball] local WebM visual:", error?.message || error);
     return false;
   }
@@ -285,12 +312,25 @@ async function resolveLocalFireballSource(event) {
   return source ? { ...event, source } : event;
 }
 
+async function hasValidFireballSceneAnchors(event) {
+  const casterId = String(event?.casterId || "").trim();
+  if (!casterId) return true;
+  const items = await OBR.scene.items.getItems([casterId]).catch(() => []);
+  return items.length > 0;
+}
+
 async function renderLocalFireball(event) {
   if (!event || event.type !== FIREBALL_VISUAL_EVENT_TYPE) return false;
+  if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   if (!await animationsEnabled()) return false;
+  if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   if (!markEvent(event.eventId)) return false;
   if (await hasFreshEmbersFireballItem(event)) return false;
+  if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+  if (!await hasValidFireballSceneAnchors(event)) return false;
+  if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   const localEvent = await resolveLocalFireballSource(event);
+  if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) return false;
   const videoPlan = fireballVideoPlan(localEvent);
   if (videoPlan && await renderLocalWebmFireball(localEvent, videoPlan)) return true;
 
@@ -300,23 +340,41 @@ async function renderLocalFireball(event) {
   const items = layers.map((layer) => buildLocalLayer(localEvent, layer));
   const ids = items.map((item) => item.id);
   try {
+    if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) return false;
     await OBR.scene.local.addItems(items);
+    if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) return false;
     for (const id of ids) activeLocalPathIds.add(id);
     scheduleTracked(() => {
+      if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) {
+        for (const id of ids) activeLocalPathIds.delete(id);
+        return;
+      }
       void updateLocalLayers(items, layers, 1, 1).catch(() => {});
     }, 70);
     scheduleTracked(() => {
+      if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) {
+        for (const id of ids) activeLocalPathIds.delete(id);
+        return;
+      }
       void updateLocalLayers(items, layers, 1.08, 0.62).catch(() => {});
     }, Math.round(FIREBALL_LOCAL_ANIMATION_MS * 0.58));
     scheduleTracked(() => {
       void (async () => {
+        if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) {
+          for (const id of ids) activeLocalPathIds.delete(id);
+          return;
+        }
         await updateLocalLayers(items, layers, 1.12, 0).catch(() => {});
-        await deleteLocalPathItems(ids);
+        if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) {
+          for (const id of ids) activeLocalPathIds.delete(id);
+          return;
+        }
+        await deleteLocalPathItems(ids, localEvent.sceneEpoch);
       })();
     }, FIREBALL_LOCAL_ANIMATION_MS);
     return true;
   } catch (error) {
-    await deleteLocalPathItems(ids);
+    await deleteLocalPathItems(ids, localEvent?.sceneEpoch);
     console.warn("[fireball] local visual:", error?.message || error);
     return false;
   }
@@ -328,17 +386,27 @@ export async function emitFireballVisual({
   eventId = "",
   sceneEpoch = null,
 } = {}) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   if (!await animationsEnabled()) {
     return { sent: false, reason: "disabled" };
   }
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) {
+  if (!isCurrentSceneEpoch(originEpoch)) {
     return { sent: false, reason: "stale-scene-epoch" };
   }
   const [source, embersExistingItemIds] = await Promise.all([
     getCasterCenter(casterId),
     readEmbersFireballItemIds(),
   ]);
-  const event = buildFireballVisualEvent({ preview, casterId, eventId, source });
+  if (!isCurrentSceneEpoch(originEpoch)) {
+    return { sent: false, reason: "stale-scene-epoch" };
+  }
+  const event = buildFireballVisualEvent({
+    preview,
+    casterId,
+    eventId,
+    source,
+    sceneEpoch: originEpoch,
+  });
   if (!event) return { sent: false, reason: "invalid-preview" };
 
   // Embers resta un renderer opzionale: il suo broadcast parte in parallelo;
@@ -347,17 +415,17 @@ export async function emitFireballVisual({
     preview,
     casterId,
     eventId,
-    sceneEpoch,
+    sceneEpoch: originEpoch,
   }).catch((error) => {
     console.warn("[fireball] optional Embers visual:", error?.message || error);
   });
 
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) {
+  if (!isCurrentSceneEpoch(originEpoch)) {
     return { sent: false, reason: "stale-scene-epoch" };
   }
 
   try {
-    const visualEvent = { ...event, embersExistingItemIds };
+    const visualEvent = { ...event, embersExistingItemIds, sceneEpoch: originEpoch };
     await OBR.broadcast.sendMessage(
       FIREBALL_VISUAL_CHANNEL,
       visualEvent,
@@ -366,41 +434,44 @@ export async function emitFireballVisual({
     // ALL normalmente include il mittente, ma il render locale esplicito evita
     // di dipendere da questa semantica quando OBR consegna solo ai remoti.
     scheduleLocalFireballRender(visualEvent);
-    return { sent: true, renderer: "embers-or-local", sceneEpoch };
+    return { sent: true, renderer: "embers-or-local", sceneEpoch: originEpoch };
   } catch (error) {
-    scheduleLocalFireballRender({ ...event, embersExistingItemIds });
+    scheduleLocalFireballRender({ ...event, embersExistingItemIds, sceneEpoch: originEpoch });
     console.warn("[fireball] local visual broadcast:", error?.message || error);
-    return { sent: false, reason: "broadcast-failed", error };
+    return { sent: false, reason: "broadcast-failed", error, sceneEpoch: originEpoch };
   }
 }
 
 export function mountFireballVisualRenderer() {
   if (unsubscribe) return true;
+  setupFireballSceneEpochSubscription();
   unsubscribe = OBR.broadcast.onMessage(FIREBALL_VISUAL_CHANNEL, (event) => {
-    scheduleLocalFireballRender(event?.data);
+    const data = event?.data;
+    if (!data) return;
+    const localEpoch = currentSceneEpoch();
+    if (!isCurrentSceneEpoch(localEpoch)) return;
+    scheduleLocalFireballRender({ ...data, sceneEpoch: localEpoch });
   });
   return true;
 }
 
 export async function unmountFireballVisualRenderer() {
+  const trackedVideoIds = [...activeLocalVideoIds];
+  const trackedPathIds = [...activeLocalPathIds];
   unsubscribe?.();
   unsubscribe = null;
-  for (const timer of pendingRenderTimers) clearTimeout(timer);
-  pendingRenderTimers.clear();
-  const videoIds = [...activeLocalVideoIds];
-  const pathIds = [...activeLocalPathIds];
-  activeLocalVideoIds.clear();
-  activeLocalPathIds.clear();
+  epochUnsubscribe?.();
+  epochUnsubscribe = null;
+  resetFireballStateForSceneUnload();
   const ownedItems = await OBR.scene.local.getItems(
     (item) => !!item?.metadata?.[FIREBALL_LOCAL_META],
   ).catch(() => []);
-  const ownedIds = [...new Set([
-    ...videoIds,
-    ...pathIds,
+  const cleanupIds = [...new Set([
+    ...trackedVideoIds,
+    ...trackedPathIds,
     ...ownedItems.map((item) => String(item?.id || "").trim()).filter(Boolean),
   ])];
-  if (ownedIds.length) {
-    await OBR.scene.local.deleteItems(ownedIds).catch(() => {});
+  if (cleanupIds.length) {
+    await OBR.scene.local.deleteItems(cleanupIds).catch(() => {});
   }
-  renderedEvents.clear();
 }

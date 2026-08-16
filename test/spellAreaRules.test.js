@@ -789,10 +789,10 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
   assert.equal(AREA_SAVE_SPELL_IDS.length, 97);
-  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 34);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 132);
+  assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 35);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 133);
   assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 8);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 140);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 141);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),

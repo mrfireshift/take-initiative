@@ -1,9 +1,8 @@
 import OBR, { buildImage } from "@owlbear-rodeo/sdk";
-import { isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { currentSceneEpoch, isCurrentSceneEpoch, subscribeSceneEpoch } from "./sceneEpoch.js";
 import { getCasterCenter } from "./embersBridge.js";
 import { embersItemGeometry } from "./embersGeometryCore.js";
 import {
-  EMBERS_ASSET_BASE_URL,
   EMBERS_MATCHED_VISUAL_CHANNEL,
   EMBERS_MATCHED_VISUAL_EVENT_TYPE,
   buildMatchedVisualEvent,
@@ -19,22 +18,42 @@ const LOCAL_META = "com.thebigpicture.initiative/embersMatchedVisual";
 const LOCAL_NAME = "Effetto locale: Embers matched";
 const MAX_RENDERED_EVENTS = 512;
 const OUTRO_CROSSFADE_MS = 180;
-const FALLBACK_FADE_OUTRO = Object.freeze({
-  width: 400,
-  height: 400,
-  dpi: 100,
-  duration: 4920,
-  url: `${EMBERS_ASSET_BASE_URL}/Generic/Marker/MarkerLightOutro_01_Regular_Blue_400x400.webm`,
-});
+const TRANSIENT_CLEANUP_MARGIN_MS = 120;
+const TRANSIENT_SWEEP_INTERVAL_MS = 1000;
 const renderedEvents = new Set();
 const pendingTimers = new Set();
 const activeLocalVideoIds = new Set();
+const transientVisualExpiries = new Map();
 const pendingLifecycleTimers = new Map();
 const activeLifecycleVisuals = new Map();
 const startedLifecycles = new Set();
 const endedLifecycles = new Set();
 const endedLifecycleTargets = new Map();
 let unsubscribe = null;
+let epochUnsubscribe = null;
+let transientSweepTimer = null;
+
+function resetRendererStateForSceneUnload() {
+  for (const timer of pendingTimers) clearTimeout(timer);
+  pendingTimers.clear();
+  pendingLifecycleTimers.clear();
+  activeLifecycleVisuals.clear();
+  transientVisualExpiries.clear();
+  activeLocalVideoIds.clear();
+  startedLifecycles.clear();
+  endedLifecycles.clear();
+  endedLifecycleTargets.clear();
+  renderedEvents.clear();
+}
+
+function setupSceneEpochSubscription() {
+  if (epochUnsubscribe) return;
+  epochUnsubscribe = subscribeSceneEpoch((event) => {
+    if (event?.phase === "unload") {
+      resetRendererStateForSceneUnload();
+    }
+  });
+}
 
 async function animationsEnabled() {
   try {
@@ -81,6 +100,13 @@ function schedule(callback, delay = 0, lifecycleId = "") {
   return timer;
 }
 
+function scheduleIndependent(callback, delay = 0) {
+  // Once a visual item has been created, its cleanup belongs to that item,
+  // not to the spell lifecycle timer bucket. Likewise, an end/outro already
+  // emitted must survive later end events for the same lifecycle.
+  return schedule(callback, delay);
+}
+
 function clearLifecycleTimers(lifecycleId) {
   const normalized = String(lifecycleId || "").trim();
   if (!normalized) return;
@@ -99,11 +125,17 @@ function markEndedLifecycleTargets(lifecycleId, targetIds) {
   const normalizedTargets = normalizeIdList(targetIds);
   if (!normalizedTargets.length) {
     endedLifecycles.add(normalizedLifecycleId);
+    if (endedLifecycles.size > MAX_RENDERED_EVENTS) {
+      endedLifecycles.delete(endedLifecycles.values().next().value);
+    }
     return;
   }
   const targets = endedLifecycleTargets.get(normalizedLifecycleId) || new Set();
   for (const targetId of normalizedTargets) targets.add(targetId);
   endedLifecycleTargets.set(normalizedLifecycleId, targets);
+  if (endedLifecycleTargets.size > MAX_RENDERED_EVENTS) {
+    endedLifecycleTargets.delete(endedLifecycleTargets.keys().next().value);
+  }
 }
 
 function lifecycleTargetEnded(lifecycleId, layer, casterId) {
@@ -195,16 +227,63 @@ function buildLocalVideoItem(event, layer, plan) {
   return builder.build();
 }
 
-async function deleteLocalItem(itemId) {
+async function deleteLocalItem(itemId, sceneEpoch = null) {
   const normalized = String(itemId || "").trim();
-  if (!normalized) return;
+  if (!normalized) return true;
+  const transientRecord = transientVisualExpiries.get(normalized);
+  const targetEpoch = sceneEpoch ?? (
+    typeof transientRecord === "object" ? transientRecord?.sceneEpoch : null
+  );
+  if (targetEpoch != null && !isCurrentSceneEpoch(targetEpoch)) {
+    activeLocalVideoIds.delete(normalized);
+    transientVisualExpiries.delete(normalized);
+    for (const [lifecycleId, entries] of activeLifecycleVisuals) {
+      const remaining = entries.filter((entry) => entry.itemId !== normalized);
+      if (remaining.length) activeLifecycleVisuals.set(lifecycleId, remaining);
+      else activeLifecycleVisuals.delete(lifecycleId);
+    }
+    return true;
+  }
+  try {
+    await OBR.scene.local.deleteItems([normalized]);
+  } catch (error) {
+    console.warn("[embers-matched] local WebM cleanup:", error?.message || error);
+    return false;
+  }
   activeLocalVideoIds.delete(normalized);
+  transientVisualExpiries.delete(normalized);
   for (const [lifecycleId, entries] of activeLifecycleVisuals) {
     const remaining = entries.filter((entry) => entry.itemId !== normalized);
     if (remaining.length) activeLifecycleVisuals.set(lifecycleId, remaining);
     else activeLifecycleVisuals.delete(lifecycleId);
   }
-  await OBR.scene.local.deleteItems([normalized]).catch(() => {});
+  return true;
+}
+
+async function sweepExpiredTransientVisuals() {
+  const now = Date.now();
+  const expiredIds = [...transientVisualExpiries.entries()]
+    .filter(([, value]) => {
+      const expiresAt = typeof value === "object" ? value?.expiresAt : value;
+      return Number(expiresAt) <= now;
+    })
+    .map(([itemId]) => itemId);
+  for (const itemId of expiredIds) {
+    await deleteLocalItem(itemId);
+  }
+}
+
+function startTransientVisualSweeper() {
+  if (transientSweepTimer != null) return;
+  transientSweepTimer = setInterval(() => {
+    void sweepExpiredTransientVisuals();
+  }, TRANSIENT_SWEEP_INTERVAL_MS);
+}
+
+function stopTransientVisualSweeper() {
+  if (transientSweepTimer == null) return;
+  clearInterval(transientSweepTimer);
+  transientSweepTimer = null;
 }
 
 function matchesLifecycleStartItem(
@@ -229,137 +308,29 @@ function matchesLifecycleStartItem(
     );
 }
 
-function buildFallbackFadeItem(sourceItem, event, geometry) {
-  const sceneDpi = Math.max(1, Number(event?.dpi) || 1);
-  const sourceWidth = Math.max(
-    sceneDpi,
-    Number(geometry?.width) || Number(geometry?.diameter) || sceneDpi,
-  );
-  const sourceHeight = Math.max(
-    sceneDpi,
-    Number(geometry?.height) || Number(geometry?.diameter) || sceneDpi,
-  );
-  const fallbackWidth = FALLBACK_FADE_OUTRO.width / FALLBACK_FADE_OUTRO.dpi * sceneDpi;
-  const fallbackHeight = FALLBACK_FADE_OUTRO.height / FALLBACK_FADE_OUTRO.dpi * sceneDpi;
-  const scale = {
-    x: sourceWidth / fallbackWidth,
-    y: sourceHeight / fallbackHeight,
-  };
-  const sourceImageWidth = Number(sourceItem?.image?.width);
-  const sourceImageHeight = Number(sourceItem?.image?.height);
-  const sourceOffsetX = Number(sourceItem?.grid?.offset?.x);
-  const sourceOffsetY = Number(sourceItem?.grid?.offset?.y);
-  const offset = {
-    x: Number.isFinite(sourceOffsetX) && sourceImageWidth > 0
-      ? FALLBACK_FADE_OUTRO.width * sourceOffsetX / sourceImageWidth
-      : FALLBACK_FADE_OUTRO.width / 2,
-    y: Number.isFinite(sourceOffsetY) && sourceImageHeight > 0
-      ? FALLBACK_FADE_OUTRO.height * sourceOffsetY / sourceImageHeight
-      : FALLBACK_FADE_OUTRO.height / 2,
-  };
-  const sourceId = String(sourceItem?.id || "").trim();
-  const attachedTo = String(sourceItem?.attachedTo || "").trim();
-  const builder = buildImage(
-    {
-      width: FALLBACK_FADE_OUTRO.width,
-      height: FALLBACK_FADE_OUTRO.height,
-      url: FALLBACK_FADE_OUTRO.url,
-      mime: "video/webm",
-    },
-    {
-      dpi: FALLBACK_FADE_OUTRO.dpi,
-      offset,
-    },
-  )
-    // Keep both axes of the source item. A directional effect such as Gust
-    // of Wind must not turn its long side into a circular outro diameter.
-    .scale(scale)
-    .position(geometry.center)
-    .rotation(Number(sourceItem?.rotation) || 0)
-    .disableHit(true)
-    .locked(true)
-    .layer("ATTACHMENT")
-    .disableAutoZIndex(true)
-    .visible(true)
-    .zIndex(Math.max(900001, Number(sourceItem?.zIndex) || 0) + 1)
-    .metadata({
-      [LOCAL_META]: {
-        version: 1,
-        eventId: `${String(event?.eventId || "")}:fallback-fade:${sourceId}`,
-        lifecycleId: String(event?.lifecycleId || ""),
-        mode: "fallback-fade",
-        spellId: String(event?.spellId || ""),
-        effectId: "fallbackFadeOutro",
-        targetId: String(sourceItem?.metadata?.[LOCAL_META]?.targetId || ""),
-        anchor: String(sourceItem?.metadata?.[LOCAL_META]?.anchor || ""),
-        casterId: String(event?.casterId || ""),
-        attachmentId: attachedTo,
-        sourceItemId: sourceId,
-      },
-    })
-    .name(LOCAL_NAME);
-  if (attachedTo) builder.attachedTo(attachedTo);
-  return builder.build();
-}
-
-async function fadeLifecycleVisuals(
-  lifecycleId,
-  targetIds = [],
-  partial = false,
-  casterId = "",
-  event = null,
-) {
-  const normalizedLifecycleId = String(lifecycleId || "").trim();
-  if (!normalizedLifecycleId) return false;
-  const targetFilter = new Set(normalizeIdList(targetIds));
-  const sourceItems = await OBR.scene.local.getItems((item) => (
-    matchesLifecycleStartItem(
-      item,
-      normalizedLifecycleId,
-      targetFilter,
-      partial,
-      casterId,
-    )
-  )).catch(() => []);
-  if (!sourceItems.length) return false;
-
-  const existingFadeSources = new Set(
-    (await OBR.scene.local.getItems((item) => {
-      const metadata = item?.metadata?.[LOCAL_META];
-      return String(metadata?.lifecycleId || "").trim() === normalizedLifecycleId
-        && String(metadata?.mode || "").trim() === "fallback-fade";
-    }).catch(() => []))
-      .map((item) => String(item?.metadata?.[LOCAL_META]?.sourceItemId || "").trim())
-      .filter(Boolean),
-  );
-  const fadeItems = [];
-  for (const sourceItem of sourceItems) {
-    if (existingFadeSources.has(String(sourceItem?.id || "").trim())) continue;
-    const geometry = itemGeometry(sourceItem, null, event?.dpi || 1);
-    if (!geometry?.center) continue;
-    fadeItems.push(buildFallbackFadeItem(sourceItem, event, geometry));
+async function hasValidSceneAnchors(event, layer = null) {
+  const candidateIds = normalizeIdList([
+    layer?.attachedTo === "caster" ? event?.casterId : "",
+    layer?.attachedTo === "target" ? (layer?.targetId || event?.targetIds) : "",
+    layer?.attachedTo === "zone" ? event?.zoneId : "",
+    layer?.targetId,
+    event?.casterId,
+    ...(Array.isArray(event?.targetIds) ? event.targetIds : []),
+    event?.zoneId,
+  ]);
+  if (!candidateIds.length) return true;
+  const items = await OBR.scene.items.getItems(candidateIds).catch(() => []);
+  const layerAnchor = layerAttachmentId(event, layer) || String(layer?.targetId || "").trim();
+  if (layerAnchor) {
+    return items.some((item) => item.id === layerAnchor);
   }
-  if (!fadeItems.length) return false;
-
-  try {
-    await OBR.scene.local.addItems(fadeItems);
-  } catch (error) {
-    console.warn("[embers-matched] fallback fade:", error?.message || error);
-    return false;
-  }
-  for (const item of fadeItems) {
-    activeLocalVideoIds.add(item.id);
-    schedule(
-      () => deleteLocalItem(item.id),
-      FALLBACK_FADE_OUTRO.duration,
-      normalizedLifecycleId,
-    );
-  }
-  return true;
+  return items.length > 0;
 }
 
 async function renderLayer(event, layer) {
+  if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   if (!await animationsEnabled()) return false;
+  if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   const plan = matchedVisualLayerPlan(layer, event.dpi);
   if (!plan?.url || !plan.position) return false;
   const lifecycleId = String(event.lifecycleId || "").trim();
@@ -367,9 +338,21 @@ async function renderLayer(event, layer) {
     return false;
   }
   const currentPlan = await refreshAttachedPlan(event, layer, plan);
+  if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+  if (!await hasValidSceneAnchors(event, layer)) return false;
+  if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+  const isPersistentStart = event.mode === "start" && layer.persistent === true && lifecycleId;
+  const rawDuration = Array.isArray(plan.duration) ? plan.duration[0] : plan.duration;
+  const cleanupDelay = isPersistentStart
+    ? null
+    : Math.max(250, Number(rawDuration) || 1000);
   const item = buildLocalVideoItem(event, layer, currentPlan);
   try {
+    if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
     await OBR.scene.local.addItems([item]);
+    if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) {
+      return false;
+    }
     if (event.mode === "start" && lifecycleId && lifecycleTargetEnded(lifecycleId, layer, event.casterId)) {
       await OBR.scene.local.deleteItems([item.id]).catch(() => {});
       return false;
@@ -383,18 +366,26 @@ async function renderLayer(event, layer) {
         targetId: String(layer.targetId || "").trim(),
         anchor: String(layer.anchor || "").trim(),
         attachmentId,
+        sceneEpoch: event.sceneEpoch,
       });
       activeLifecycleVisuals.set(lifecycleId, entries);
     }
-    if (event.mode === "start" && layer.persistent === true && lifecycleId) {
+    if (isPersistentStart) {
       // Persistent WebM items stay until the lifecycle end event.
     } else {
-      const rawDuration = Array.isArray(plan.duration) ? plan.duration[0] : plan.duration;
-      schedule(
-        () => deleteLocalItem(item.id),
-        Math.max(250, Number(rawDuration) || 1000),
-        lifecycleId,
-      );
+      // OBR loops video items. Delete slightly before the catalog duration so
+      // event-loop jitter cannot expose the first frames of a second playback.
+      // Keep an independent expiry map as a recovery path if the first delete
+      // attempt fails or its timer is delayed.
+      const effectiveDelay = Math.max(0, cleanupDelay - Math.min(
+        TRANSIENT_CLEANUP_MARGIN_MS,
+        cleanupDelay / 4,
+      ));
+      transientVisualExpiries.set(item.id, {
+        expiresAt: Date.now() + effectiveDelay,
+        sceneEpoch: event.sceneEpoch,
+      });
+      scheduleIndependent(() => deleteLocalItem(item.id), effectiveDelay);
     }
     return true;
   } catch (error) {
@@ -405,19 +396,17 @@ async function renderLayer(event, layer) {
 
 async function renderEvent(event) {
   if (!event || event.type !== EMBERS_MATCHED_VISUAL_EVENT_TYPE) return false;
+  if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   if (!markEvent(event.eventId)) return false;
   const lifecycleId = String(event.lifecycleId || "").trim();
   const layers = Array.isArray(event.layers) ? event.layers : [];
-  if (
-    event.mode === "start"
-    && event.spellId === "gust-of-wind"
-    && lifecycleId
-    && layers.length > 0
-  ) {
-    if (startedLifecycles.has(lifecycleId)) return false;
-    startedLifecycles.add(lifecycleId);
-  }
   if (event.mode === "end") {
+    const locallyOwned = !!(lifecycleId && (
+      activeLifecycleVisuals.has(lifecycleId) || startedLifecycles.has(lifecycleId)
+    ));
+    if (!locallyOwned && !await hasValidSceneAnchors(event)) {
+      return false;
+    }
     if (lifecycleId) {
       if (event.partial === true) {
         markEndedLifecycleTargets(lifecycleId, event.targetIds);
@@ -432,27 +421,36 @@ async function renderEvent(event) {
       event.targetIds,
       event.partial === true,
       event.casterId,
+      event.sceneEpoch,
     );
     if (layers.length > 0) {
       // Keep the outgoing loop and the catalog outro on screen together for
-      // the crossfade window. The alpha-backed outro is above the loop;
-      // removing the loop afterwards avoids a hard cut without relying on an
-      // image opacity property unsupported by OBR's Image API.
-      schedule(clear, OUTRO_CROSSFADE_MS, lifecycleId);
+      // the crossfade window. Terminal cleanup is deliberately NOT registered
+      // in the lifecycle timer bucket: a later end event for the same lifecycle
+      // must not cancel this already-playing outro.
+      scheduleIndependent(clear, OUTRO_CROSSFADE_MS);
     } else {
-      const faded = await fadeLifecycleVisuals(
-        lifecycleId,
-        event.targetIds,
-        event.partial === true,
-        event.casterId,
-        event,
-      );
-      if (faded) schedule(clear, OUTRO_CROSSFADE_MS, lifecycleId);
-      else await clear();
+      // Match Embers semantics: persistent visuals without an explicit
+      // onDestroy/end visual simply disappear when their lifecycle ends.
+      // Do not synthesize a generic fallback outro.
+      await clear();
+    }
+  } else {
+    if (
+      event.spellId === "gust-of-wind"
+      && lifecycleId
+      && layers.length > 0
+    ) {
+      if (startedLifecycles.has(lifecycleId)) return false;
+      startedLifecycles.add(lifecycleId);
     }
   }
   for (const layer of layers) {
-    schedule(() => renderLayer(event, layer), layer.delay, lifecycleId);
+    if (event.mode === "end") {
+      scheduleIndependent(() => renderLayer(event, layer), layer.delay);
+    } else {
+      schedule(() => renderLayer(event, layer), layer.delay, lifecycleId);
+    }
   }
   return layers.length > 0 || event.mode === "end";
 }
@@ -462,9 +460,19 @@ async function clearLifecycleVisuals(
   targetIds = [],
   partial = false,
   casterId = "",
+  sceneEpoch = null,
 ) {
   const normalizedLifecycleId = String(lifecycleId || "").trim();
   if (!normalizedLifecycleId) return;
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) {
+    if (!partial) {
+      activeLifecycleVisuals.delete(normalizedLifecycleId);
+      startedLifecycles.delete(normalizedLifecycleId);
+      endedLifecycles.delete(normalizedLifecycleId);
+      endedLifecycleTargets.delete(normalizedLifecycleId);
+    }
+    return;
+  }
   const targetFilter = new Set(normalizeIdList(targetIds));
   const entries = activeLifecycleVisuals.get(normalizedLifecycleId) || [];
   const keep = [];
@@ -494,13 +502,14 @@ async function clearLifecycleVisuals(
       casterId,
     );
   }).catch(() => []);
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
   for (const item of localItems) {
     const itemId = String(item?.id || "").trim();
     if (itemId) remove.push(itemId);
   }
   const uniqueRemoveIds = [...new Set(remove)];
   if (uniqueRemoveIds.length) {
-    await Promise.all(uniqueRemoveIds.map((itemId) => deleteLocalItem(itemId)));
+    await Promise.all(uniqueRemoveIds.map((itemId) => deleteLocalItem(itemId, sceneEpoch)));
   }
 }
 
@@ -649,12 +658,13 @@ async function emitVisual({
   lifecycleId = "",
   mode = "start",
   partial = false,
-  sceneEpoch,
+  sceneEpoch = null,
 }) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   if (!await animationsEnabled()) {
     return { sent: false, reason: "disabled" };
   }
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) {
+  if (!isCurrentSceneEpoch(originEpoch)) {
     return { sent: false, reason: "stale-scene-epoch" };
   }
   const resolvedEventId = createEventId(
@@ -693,7 +703,7 @@ async function emitVisual({
   );
   const targetScope = new Set(normalizedTargetIds);
   const targets = geometry.filter((entry) => targetScope.has(entry.id));
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) {
+  if (!isCurrentSceneEpoch(originEpoch)) {
     return { sent: false, reason: "stale-scene-epoch" };
   }
   const event = buildMatchedVisualEvent({
@@ -709,6 +719,7 @@ async function emitVisual({
     gridScale,
     mode,
     lifecycleId: resolvedLifecycleId,
+    sceneEpoch: originEpoch,
   });
   if (!event) return { sent: false, reason: "invalid-geometry" };
   if (partial) event.partial = true;
@@ -719,11 +730,11 @@ async function emitVisual({
       { destination: "ALL" },
     );
     schedule(() => renderEvent(event), 0, event.lifecycleId);
-    return { sent: true, eventId: event.eventId };
+    return { sent: true, eventId: event.eventId, sceneEpoch: originEpoch };
   } catch (error) {
     schedule(() => renderEvent(event), 0, event.lifecycleId);
     console.warn("[embers-matched] broadcast:", error?.message || error);
-    return { sent: false, reason: "broadcast-failed", error };
+    return { sent: false, reason: "broadcast-failed", error, sceneEpoch: originEpoch };
   }
 }
 
@@ -900,32 +911,33 @@ export async function emitMatchedVisualEndsFromMutation(
 
 export function mountEmbersMatchedVisualRenderer() {
   if (unsubscribe) return true;
+  startTransientVisualSweeper();
+  setupSceneEpochSubscription();
   unsubscribe = OBR.broadcast.onMessage(EMBERS_MATCHED_VISUAL_CHANNEL, (event) => {
     const data = event?.data;
-    schedule(() => renderEvent(data), 0, data?.lifecycleId);
+    if (!data) return;
+    const localEpoch = currentSceneEpoch();
+    if (!isCurrentSceneEpoch(localEpoch)) return;
+    const localEvent = { ...data, sceneEpoch: localEpoch };
+    schedule(() => renderEvent(localEvent), 0, localEvent?.lifecycleId);
   });
   return true;
 }
 
 export async function unmountEmbersMatchedVisualRenderer() {
+  const trackedVideoIds = [...activeLocalVideoIds];
   unsubscribe?.();
   unsubscribe = null;
-  for (const timer of pendingTimers) clearTimeout(timer);
-  pendingTimers.clear();
-  pendingLifecycleTimers.clear();
-  activeLifecycleVisuals.clear();
-  startedLifecycles.clear();
-  endedLifecycles.clear();
-  endedLifecycleTargets.clear();
-  const ids = [...activeLocalVideoIds];
-  activeLocalVideoIds.clear();
+  epochUnsubscribe?.();
+  epochUnsubscribe = null;
+  stopTransientVisualSweeper();
+  resetRendererStateForSceneUnload();
   const ownedItems = await OBR.scene.local.getItems(
     (item) => !!item?.metadata?.[LOCAL_META],
   ).catch(() => []);
-  const ownedIds = [...new Set([
-    ...ids,
+  const cleanupIds = [...new Set([
+    ...trackedVideoIds,
     ...ownedItems.map((item) => String(item?.id || "").trim()).filter(Boolean),
   ])];
-  if (ownedIds.length) await OBR.scene.local.deleteItems(ownedIds).catch(() => {});
-  renderedEvents.clear();
+  if (cleanupIds.length) await OBR.scene.local.deleteItems(cleanupIds).catch(() => {});
 }

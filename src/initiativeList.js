@@ -37,8 +37,9 @@ import {
   runEffectsMutation,
 } from "./effectsMutations.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
-import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments } from "./history.js";
+import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments, undoHistoryThrough } from "./history.js";
 import { recordCombatTurn } from "./combatLog.js";
+import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
 import {
@@ -588,6 +589,11 @@ function __cancelSceneEditorsWithoutCommit() {
 
 function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __cancelSceneEditorsWithoutCommit();
+  __draggingId = null;
+  __draggingInit = null;
+  __draggingWasCollapsed = false;
+  void __closeInitiativeCardContextMenu();
+  void __closeTrackerQuickActionsPopover();
   __sceneBaselineEpoch = null;
   __activeTurnLabel = null;
   __activeTurnLabelInitialized = false;
@@ -721,10 +727,13 @@ function __mountSceneEpochLifecycle() {
 
 
   // Scansione e deduplicazione una tantum all'avvio.
-async function __cleanupActiveTurnLabels() {
+async function __cleanupActiveTurnLabels(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return null;
   if (!IS_GM) {
-    __activeTurnLabel = null;
-    __activeTurnLabelInitialized = true;
+    if (__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) {
+      __activeTurnLabel = null;
+      __activeTurnLabelInitialized = true;
+    }
     return null;
   }
 
@@ -733,27 +742,34 @@ async function __cleanupActiveTurnLabels() {
     const locals = await OBR.scene.local.getItems(
       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
     );
+    if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return null;
     if (locals.length) await OBR.scene.local.deleteItems(locals.map((it) => it.id));
   } catch (e) {
     console.warn("[activeLabel] local cleanup failed:", e?.message || e);
   }
+
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return null;
 
   let globals = [];
   try {
     globals = await OBR.scene.items.getItems(
       (it) => it.type === "LABEL" && it.metadata?.[ACTIVE_LABEL_META]
     );
+    if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return null;
     if (globals.length > 1) {
       await OBR.scene.items.deleteItems(globals.slice(1).map((it) => it.id));
       globals = globals.slice(0, 1);
     }
   } catch (e) {
-    __activeTurnLabelInitialized = false;
-    __activeTurnLabel = null;
+    if (__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) {
+      __activeTurnLabelInitialized = false;
+      __activeTurnLabel = null;
+    }
     console.warn("[activeLabel] global init failed:", e?.message || e);
     throw e;
   }
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label-cleanup")) return null;
   __activeTurnLabel = globals[0] || null;
   __activeTurnLabelInitialized = true;
   return __activeTurnLabel;
@@ -1297,16 +1313,21 @@ function makeAddAllInitiativeBtn() {
   });
   b.addEventListener("click", async (event) => {
     event.stopPropagation();
+    const sceneEpoch = currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
     b.disabled = true;
     try {
       if (__initiativeFillMode) {
         await closeOpenEditors();
-        await finishInitiativeFillMode();
+        if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
+        await finishInitiativeFillMode(sceneEpoch);
       }
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
 
       const items = await OBR.scene.items.getItems((item) => (
         item.layer === "CHARACTER" && !item.attachedTo
       ));
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
       const pending = items.filter((item) => item.metadata?.[META_KEY]?.inInitiative !== true);
       if (!pending.length) {
         await OBR.notification.show("Tutti i token sono gia nell'iniziativa.", "INFO");
@@ -1317,7 +1338,10 @@ function makeAddAllInitiativeBtn() {
       const knownFactionAssignmentEnabled = runtimeOptionsService.get(
         selectKnownFactionAssignmentEnabled,
       );
-      const registry = knownFactionAssignmentEnabled ? await readFactionRegistry() : {};
+      const registry = knownFactionAssignmentEnabled
+        ? await readFactionRegistry({ isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "add-all-initiative") })
+        : {};
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
       const resolvedAttitudes = new Map();
       let unknownCount = 0;
       for (const item of pending) {
@@ -1342,10 +1366,15 @@ function makeAddAllInitiativeBtn() {
           };
         }
       });
-      await reconcileStateWithItems();
-      await enforceUniqueNamePrefixes();
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
+      await reconcileStateWithItems(sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
+      await enforceUniqueNamePrefixes(sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
       await renderAll();
-      await startInitiativeFillMode({ silent: true });
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
+      await startInitiativeFillMode({ silent: true, sceneEpoch });
+      if (!__isCurrentSceneOperation(sceneEpoch, "add-all-initiative")) return;
       await OBR.notification.show(
         `${ids.length} token aggiunti all'iniziativa.${unknownCount ? ` ${unknownCount} non riconosciuti: ostili.` : ""}`,
         "SUCCESS"
@@ -1421,11 +1450,14 @@ function makeClearInitiativeBtn() {
   });
   b.addEventListener("click", async (e) => {
     e.stopPropagation();
+    const sceneEpoch = currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
     b.disabled = true;
     try {
       const items = await OBR.scene.items.getItems(
         it => it.metadata?.[META_KEY]?.inInitiative === true
       );
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       const ids = items.map(it => it.id);
       if (ids.length) {
         await OBR.scene.items.updateItems(ids, (drafts) => {
@@ -1436,7 +1468,9 @@ function makeClearInitiativeBtn() {
           }
         });
       }
-      await resetTrackerState();
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
+      await resetTrackerState(sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-initiative")) return;
       await renderAll();
     } catch (err) {
       console.warn("[initiative-clear] errore svuotamento:", err?.message || err);
@@ -1445,6 +1479,56 @@ function makeClearInitiativeBtn() {
     }
   });
   return b;
+}
+
+let __historyUndoShortcutMounted = false;
+let __historyUndoShortcutInProgress = false;
+
+function __historyUndoShortcutTargetIsEditable(target) {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+}
+
+function __mountHistoryUndoShortcut() {
+  if (__historyUndoShortcutMounted) return;
+  __historyUndoShortcutMounted = true;
+  window.addEventListener("keydown", (event) => {
+    if (!shouldHandleHistoryUndoShortcut({
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+      repeat: event.repeat,
+      isComposing: event.isComposing,
+      editableTarget: __historyUndoShortcutTargetIsEditable(event.target),
+      busy: __historyUndoShortcutInProgress,
+      enabled: IS_GM,
+    })) return;
+
+    const sceneEpoch = currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "history-undo-shortcut")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    __historyUndoShortcutInProgress = true;
+    void undoHistoryThrough(undefined, { sceneEpoch })
+      .then((result) => {
+        if (!__isCurrentSceneOperation(sceneEpoch, "history-undo-shortcut")) return;
+        if (result?.status === "conflict") {
+          console.info("[history] Ctrl+Z bloccato: lo stato della scena è cambiato.");
+        } else if (result?.status === "failed" || result?.status === "rejected") {
+          console.warn("[history] Ctrl+Z non applicato:", result?.result?.reason || result?.status);
+        }
+      })
+      .catch((error) => {
+        if (__isCurrentSceneOperation(sceneEpoch, "history-undo-shortcut")) {
+          console.warn("[history] Ctrl+Z:", error?.message || error);
+        }
+      })
+      .finally(() => {
+        __historyUndoShortcutInProgress = false;
+      });
+  }, true);
 }
 
 function makeHistoryBtn() {
@@ -2297,6 +2381,9 @@ track.addEventListener("drop", async (ev) => {
   if (!over) return;
   if (String(over.dataset.initiative || "") !== String(__draggingInit)) return;
 
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "drop-reorder")) return;
+
   ev.preventDefault();
   const r = over.getBoundingClientRect();
   const before = isCompactTrackerLayout()
@@ -2322,9 +2409,9 @@ track.addEventListener("drop", async (ev) => {
 
   // Riordino: se sto trascinando un LEAD collassato, sposto tutto il blocco gruppo
   if (__draggingWasCollapsed) {
-    await _reorderCollapsedGroupWithinSameInitiative(sourceId, targetId, before);
+    await _reorderCollapsedGroupWithinSameInitiative(sourceId, targetId, before, sceneEpoch);
   } else {
-    await _reorderWithinSameInitiative(sourceId, targetId, before);
+    await _reorderWithinSameInitiative(sourceId, targetId, before, sceneEpoch);
   }
 
   __draggingId = null;
@@ -2405,10 +2492,14 @@ lairToggleWrap.style.display = "none";
 })();
 
 lairChk.addEventListener("change", async (e) => {
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "lair-toggle")) return;
   const enabled = !!e.target.checked;
   setCompactToggleVisual(lairToggleWrap, enabled);
-  await setSceneState(prev => ({ ...(prev || {}), lairEnabled: enabled }));
-  await reconcileStateWithItems();
+  await setSceneState(prev => ({ ...(prev || {}), lairEnabled: enabled }), sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "lair-toggle")) return;
+  await reconcileStateWithItems(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "lair-toggle")) return;
   await renderAll();
 });
 
@@ -2428,7 +2519,7 @@ zoomChk.addEventListener("change", async (e) => {
 const EFFECTS_DISPLAY_MODE_LABELS = Object.freeze({
   compact: "Pill compatte",
   all: "Pill espanse",
-  selected: "Pill selezionate",
+  selected: "Pill selezione",
 });
 const EFFECTS_DISPLAY_MODE_VALUES = Object.freeze(["compact", "all", "selected"]);
 const effectsDisplayModeControl = document.createElement("div");
@@ -3903,9 +3994,10 @@ function __resolveAnchorForActive(activeId) {
 }
 
 // Trova la label attiva esistente (identificata dal nostro metadata)
-async function __findExistingActiveLabel() {
+async function __findExistingActiveLabel(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "active-label")) return null;
   if (__activeTurnLabelInitialized) return __activeTurnLabel;
-  return await __cleanupActiveTurnLabels();
+  return await __cleanupActiveTurnLabels(sceneEpoch);
 }
 
 let __mutatingActiveLabel = 0;
@@ -3980,7 +4072,7 @@ async function upsertActiveTurnLabel(
 ) {
   if (!__isCurrentSceneOperation(sceneEpoch, "active-label")) return;
   const textStr = String(displayText ?? "");
-  const existing = await __findExistingActiveLabel();
+  const existing = await __findExistingActiveLabel(sceneEpoch);
   if (!__isCurrentSceneOperation(sceneEpoch, "active-label") || revision !== __activeTurnLabelRevision) return;
 
   if (!anchorId) {
@@ -4872,8 +4964,10 @@ async function __backfillInitiativeForSeededGroups(sceneEpoch = currentSceneEpoc
 }
 
 // Propagazione iniziativa al gruppo (prima volta + backfill per nuovi membri)
-async function trySeedGroupInitiative(itemId, value, options = {}) {
+async function trySeedGroupInitiative(itemId, value, options = {}, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
   const st = await getSceneState();
+  if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
   const { key, members } = await _getGroupForItemId(itemId);
   if (!key || members.length <= 1) return;
 
@@ -4881,6 +4975,7 @@ async function trySeedGroupInitiative(itemId, value, options = {}) {
 
   // carica gli item reali del gruppo
   const items = await OBR.scene.items.getItems(members);
+  if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
 
   // Non toccare mai gli Epic
   const notEpic = (it) => !(it.metadata?.[META_KEY]?.epic);
@@ -4911,6 +5006,8 @@ async function trySeedGroupInitiative(itemId, value, options = {}) {
     }
   });
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
+
   // Se era la prima volta, marca il gruppo come seedato per iniziativa
   if (!already) {
     await setSceneState(prev => ({
@@ -4919,11 +5016,13 @@ async function trySeedGroupInitiative(itemId, value, options = {}) {
         ...(prev?.seededGroups || {}),
         [key]: { ...(prev?.seededGroups?.[key] || {}), initiative: true }
       }
-    }));
+    }), sceneEpoch);
   }
 
   if (!options.deferRender) {
-    await reconcileStateWithItems();
+    if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
+    await reconcileStateWithItems(sceneEpoch);
+    if (!__isCurrentSceneOperation(sceneEpoch, "try-seed-group-init")) return;
     await renderAll();
   }
 }
@@ -4991,8 +5090,8 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
  * Copre tutti i casi: text su root o su item.image, stringa/plainText/richText/Slate.
  * "updates": array di { id: tokenId, nameWanted: string }.
  */
-async function _syncAttachedLabels(updates) {
-  if (!updates?.length) return;
+async function _syncAttachedLabels(updates, sceneEpoch = currentSceneEpoch()) {
+  if (!updates?.length || !__isCurrentSceneOperation(sceneEpoch, "sync-attached-labels")) return;
 
   const wantedById = new Map(updates.map(u => [u.id, u.nameWanted]));
   const ids = Array.from(wantedById.keys());
@@ -5045,8 +5144,10 @@ async function _syncAttachedLabels(updates) {
 
 // Rinomina solo i nuovi e mantiene stabili gli indici esistenti.
 // Inoltre sincronizza SEMPRE le label (anche se non c’è stato un rename).
-async function enforceUniqueNamePrefixes() {
+async function enforceUniqueNamePrefixes(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "enforce-unique-prefixes")) return;
   const items   = await OBR.scene.items.getItems();
+  if (!__isCurrentSceneOperation(sceneEpoch, "enforce-unique-prefixes")) return;
   const tracked = items.filter(it => it.metadata?.[META_KEY]);
 
   // Raggruppa per base pulita
@@ -5111,8 +5212,10 @@ async function enforceUniqueNamePrefixes() {
     );
   }
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "enforce-unique-prefixes")) return;
+
   if (labelSync.length) {
-    await _syncAttachedLabels(labelSync); // aggiorna la label anche senza rename
+    await _syncAttachedLabels(labelSync, sceneEpoch); // aggiorna la label anche senza rename
   }
 }
 
@@ -5586,7 +5689,8 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
 }
 
   // aggiorna l'iniziativa del token e riallinea l'ordine
-  async function updateInitiative(itemId, nextVal) {
+  async function updateInitiative(itemId, nextVal, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "update-initiative")) return;
   const val = Number.isFinite(Number(nextVal)) ? Math.floor(Number(nextVal)) : 0;
   const { baseId, idx } = splitParagonId(itemId);
 
@@ -5599,7 +5703,9 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
     arr[idx] = val;
     p[baseId] = arr;
     return { ...(prev || {}), paragonInits: p };
-  });
+  }, sceneEpoch);
+
+  if (!__isCurrentSceneOperation(sceneEpoch, "update-initiative")) return;
 
   // se è il card 0 (base), scrivi anche nel token per coerenza con la logica esistente
   if (idx === 0) {
@@ -5613,11 +5719,13 @@ function syncTrackerHPNow(itemId, hp, hpMax) {
 }
 
 function bindInitiativeEditorForEntry(badge, entry) {
+  let editorSessionEpoch = null;
   bindClassicInitiativeEditor({
     badge,
     isEditable: () => !entry.isEpic && !entry.isEpicAction,
     armClickIgnore: armDocClickIgnore,
     beginEdit: async () => {
+      editorSessionEpoch = currentSceneEpoch();
       __suspendRenders = true;
       __editingInitForId = entry.id;
       await closeOpenEditors();
@@ -5644,25 +5752,32 @@ function bindInitiativeEditorForEntry(badge, entry) {
       __scheduleEditorDirtyFlush();
     },
     saveValue: async (normalized) => {
-      await updateInitiative(entry.id, normalized);
+      const sceneEpoch = editorSessionEpoch ?? currentSceneEpoch();
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-save")) return;
+      await updateInitiative(entry.id, normalized, sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-save")) return;
       try {
         await trySeedGroupInitiative(entry.id, normalized, {
           deferRender: __initiativeFillMode,
           forceAll: entry.__groupCollapsed === true,
-        });
+        }, sceneEpoch);
       } catch (error) {
         console.warn(error);
       }
     },
     afterCommit: async () => {
+      const sceneEpoch = editorSessionEpoch ?? currentSceneEpoch();
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit")) return;
       if (__initiativeFillMode) {
         __initiativeFillSession?.completed?.add(entry.id);
         refreshInitiativeFillVisuals();
         return;
       }
-      await reconcileStateWithItems();
+      await reconcileStateWithItems(sceneEpoch);
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit")) return;
       await renderAll();
       requestAnimationFrame(() => {
+        if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit")) return;
         const currentCard = document.querySelector(
           `[data-item-id="${entry.id}"]`
         );
@@ -5675,21 +5790,30 @@ function bindInitiativeEditorForEntry(badge, entry) {
     },
     afterCancel: async (options = {}) => {
       if (options.deferRender === true) return;
-      if (__initiativeFillMode) await finishInitiativeFillMode();
+      const sceneEpoch = editorSessionEpoch ?? currentSceneEpoch();
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-cancel")) return;
+      if (__initiativeFillMode) await finishInitiativeFillMode(sceneEpoch);
       else await renderAll();
     },
     isFillMode: () => __initiativeFillMode,
-    finishFillMode: finishInitiativeFillMode,
-    openFillNeighbor: (goPrev) =>
-      openInitiativeFillNeighbor(entry.id, goPrev),
+    finishFillMode: (sceneEpoch = editorSessionEpoch ?? currentSceneEpoch()) =>
+      finishInitiativeFillMode(sceneEpoch),
+    openFillNeighbor: (goPrev) => {
+      const sceneEpoch = editorSessionEpoch ?? currentSceneEpoch();
+      return openInitiativeFillNeighbor(entry.id, goPrev, sceneEpoch);
+    },
     commitAndOpenNeighbor: async ({ goPrev, commit }) => {
+      const sceneEpoch = editorSessionEpoch ?? currentSceneEpoch();
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit-neighbor")) return;
       let preOrder = [];
       try {
         const state = await getSceneState();
+        if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit-neighbor")) return;
         preOrder = Array.isArray(state?.order) ? [...state.order] : [];
       } catch {}
 
       await commit();
+      if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit-neighbor")) return;
       const direction = goPrev ? -1 : 1;
       const index = preOrder.indexOf(entry.id);
       let targetId = null;
@@ -5715,8 +5839,9 @@ function bindInitiativeEditorForEntry(badge, entry) {
         }
       }
 
-      if (!targetId) return;
+      if (!targetId || !__isCurrentSceneOperation(sceneEpoch, "inline-init-commit-neighbor")) return;
       requestAnimationFrame(() => {
+        if (!__isCurrentSceneOperation(sceneEpoch, "inline-init-commit-neighbor")) return;
         const nextBadge = document.querySelector(
           `[data-badge="init"][data-item-id="${targetId}"]`
         );
@@ -6052,8 +6177,9 @@ function refreshInitiativeFillVisuals() {
   }
 }
 
-async function openInitiativeFillCandidate(itemId) {
+async function openInitiativeFillCandidate(itemId, sceneEpoch = currentSceneEpoch()) {
   await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (!__isCurrentSceneOperation(sceneEpoch, "open-fill-candidate")) return false;
   const badge = document.querySelector(`[data-badge="init"][data-item-id="${itemId}"]`);
   if (!badge) return false;
   badge.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
@@ -6061,35 +6187,45 @@ async function openInitiativeFillCandidate(itemId) {
   return true;
 }
 
-async function finishInitiativeFillMode() {
+async function finishInitiativeFillMode(sceneEpoch = currentSceneEpoch()) {
   if (!__initiativeFillMode) return;
+  if (!__isCurrentSceneOperation(sceneEpoch, "finish-initiative-fill")) return;
+  if (__initiativeFillSession?.sceneEpoch && !isCurrentSceneEpoch(__initiativeFillSession.sceneEpoch)) return;
   __initiativeFillMode = false;
   __initiativeFillSession = null;
   __suspendRenders = false;
   updateInitiativeFillButton();
   refreshInitiativeFillVisuals();
-  await reconcileStateWithItems();
+  await reconcileStateWithItems(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "finish-initiative-fill")) return;
   await renderAll("initiative-fill-complete");
 }
 
 async function startInitiativeFillMode(options = {}) {
+  const sceneEpoch = options.sceneEpoch ?? currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "start-initiative-fill")) return;
   if (__initiativeFillMode) return;
   await closeOpenEditors();
+  if (!__isCurrentSceneOperation(sceneEpoch, "start-initiative-fill")) return;
   const ids = await collectInitiativeFillCandidates();
+  if (!__isCurrentSceneOperation(sceneEpoch, "start-initiative-fill")) return;
   if (!ids.length) {
     if (options.silent !== true) await OBR.notification.show("Non ci sono iniziative da compilare.", "INFO");
     return;
   }
   __initiativeFillMode = true;
-  __initiativeFillSession = { ids, completed: new Set() };
+  __initiativeFillSession = { ids, completed: new Set(), sceneEpoch };
   __suspendRenders = true;
   updateInitiativeFillButton();
   refreshInitiativeFillVisuals();
-  await openInitiativeFillCandidate(ids[0]);
+  await openInitiativeFillCandidate(ids[0], sceneEpoch);
 }
 
 async function interruptInitiativeFillForRemovedActor(event) {
   if (!__initiativeFillMode) return false;
+  const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "interrupt-fill")) return false;
+
   const removedActorIds = new Set((event?.changedRecords || [])
     .filter(({ before, after }) => {
       const item = before?.item;
@@ -6114,6 +6250,8 @@ async function interruptInitiativeFillForRemovedActor(event) {
     }
   }
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "interrupt-fill")) return false;
+
   __initiativeFillMode = false;
   __initiativeFillSession = null;
   __suspendRenders = false;
@@ -6122,6 +6260,7 @@ async function interruptInitiativeFillForRemovedActor(event) {
   if (openInit?.dataset?.initEditing === "1" && typeof openInit.__cancelFn === "function") {
     await openInit.__cancelFn({ deferRender: true });
   }
+  if (!__isCurrentSceneOperation(sceneEpoch, "interrupt-fill")) return false;
   __editingInitForId = null;
   refreshInitiativeFillVisuals();
   return true;
@@ -6163,26 +6302,28 @@ function initiativeFillShowsAddedActors(event) {
   ));
 }
 
-async function toggleInitiativeFillMode() {
+async function toggleInitiativeFillMode(sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "toggle-initiative-fill")) return;
   if (__initiativeFillMode) {
     await closeOpenEditors();
-    await finishInitiativeFillMode();
+    if (!__isCurrentSceneOperation(sceneEpoch, "toggle-initiative-fill")) return;
+    await finishInitiativeFillMode(sceneEpoch);
   } else {
-    await startInitiativeFillMode();
+    await startInitiativeFillMode({ sceneEpoch });
   }
 }
 
-async function openInitiativeFillNeighbor(currentId, goPrev = false) {
+async function openInitiativeFillNeighbor(currentId, goPrev = false, sceneEpoch = currentSceneEpoch()) {
   const session = __initiativeFillSession;
-  if (!__initiativeFillMode || !session) return;
+  if (!__initiativeFillMode || !session || !__isCurrentSceneOperation(sceneEpoch, "open-fill-neighbor")) return;
   const currentIndex = session.ids.indexOf(currentId);
   const direction = goPrev ? -1 : 1;
   const targetIndex = currentIndex + direction;
   if (targetIndex < 0 || targetIndex >= session.ids.length) {
-    if (!goPrev) await finishInitiativeFillMode();
+    if (!goPrev) await finishInitiativeFillMode(sceneEpoch);
     return;
   }
-  await openInitiativeFillCandidate(session.ids[targetIndex]);
+  await openInitiativeFillCandidate(session.ids[targetIndex], sceneEpoch);
 }
 
 function makeInitiativeFillBtn() {
@@ -6220,7 +6361,8 @@ function makeInitiativeFillBtn() {
 
 // ===== Legendary helpers =====
 
-async function setParagonActions(baseId, nextActions) {
+async function setParagonActions(baseId, nextActions, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-paragon-actions")) return;
   const n = Math.max(0, Math.floor(Number(nextActions) || 0));
   await OBR.scene.items.updateItems([baseId], (items) => {
     const it = items[0];
@@ -6235,8 +6377,11 @@ async function setParagonActions(baseId, nextActions) {
     it.metadata = { ...(it.metadata || {}), [META_KEY]: me };
   });
 
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-paragon-actions")) return;
+
   // adatta paragonInits (mantieni le prime, tronca/estendi col valore della base)
   const baseEntries = await readEntries();
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-paragon-actions")) return;
   const base = baseEntries.find(x => x.id === baseId);
   const baseInit = Number(base?.initiative) || 0;
 
@@ -6251,7 +6396,7 @@ async function setParagonActions(baseId, nextActions) {
       p[baseId] = arr;
     }
     return { ...(prev || {}), paragonInits: p };
-  });
+  }, sceneEpoch);
 }
 
 // Imposta current a un valore specifico (clamp 0..max; se max>0, min=1)
@@ -6966,30 +7111,35 @@ function __contextScopeIds(entry) {
   return selected.length > 1 ? selected : entryIds.slice(0, 1);
 }
 
-async function __selectContextScope(ids) {
+async function __selectContextScope(ids, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!scopeIds.length) return;
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "select-scope")) return;
   __setTrackerSelection(scopeIds);
   await OBR.player.select(scopeIds, true);
 }
 
-async function __setCardAttitude(ids, attitude) {
+async function __setCardAttitude(ids, attitude, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!scopeIds.length) return;
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "set-card-attitude")) return;
   await OBR.scene.items.updateItems(scopeIds, (items) => {
     for (const item of items) {
       const meta = { ...(item.metadata?.[META_KEY] || {}), attitude };
       item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
     }
   });
-  await rememberFactionForIds(scopeIds, attitude).catch(() => {});
-  await reconcileStateWithItems();
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-attitude")) return;
+  await rememberFactionForIds(scopeIds, attitude, {
+    isCurrent: () => __isCurrentSceneOperation(sceneEpoch, "set-card-attitude"),
+  }).catch(() => {});
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-attitude")) return;
+  await reconcileStateWithItems(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-attitude")) return;
   await renderAll();
 }
 
-async function __setCardBossMode(entry, mode) {
+async function __setCardBossMode(entry, mode, sceneEpoch = currentSceneEpoch()) {
   const id = splitParagonId(entry?.id).baseId;
-  if (!id) return;
+  if (!id || !__isCurrentSceneOperation(sceneEpoch, "set-card-boss-mode")) return;
   await OBR.scene.items.updateItems([id], (items) => {
     const item = items[0];
     if (!item) return;
@@ -7012,6 +7162,7 @@ async function __setCardBossMode(entry, mode) {
     }
     item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
   });
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-boss-mode")) return;
   await setSceneState((previous) => {
     const paragonInits = { ...(previous?.paragonInits || {}) };
     if (mode === "paragon") {
@@ -7021,14 +7172,16 @@ async function __setCardBossMode(entry, mode) {
       delete paragonInits[id];
     }
     return { ...(previous || {}), paragonInits };
-  });
-  await reconcileStateWithItems();
+  }, sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-boss-mode")) return;
+  await reconcileStateWithItems(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "set-card-boss-mode")) return;
   await renderAll();
 }
 
-async function __removeCardFromInitiative(ids) {
+async function __removeCardFromInitiative(ids, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!scopeIds.length) return;
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "remove-card-initiative")) return;
   await OBR.scene.items.updateItems(scopeIds, (items) => {
     for (const item of items) {
       const meta = { ...(item.metadata?.[META_KEY] || {}) };
@@ -7036,14 +7189,17 @@ async function __removeCardFromInitiative(ids) {
       item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
     }
   });
-  await reconcileStateWithItems();
+  if (!__isCurrentSceneOperation(sceneEpoch, "remove-card-initiative")) return;
+  await reconcileStateWithItems(sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "remove-card-initiative")) return;
   await renderAll();
 }
 
-async function __clearCardConditions(ids) {
+async function __clearCardConditions(ids, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!scopeIds.length) return;
-  await __selectContextScope(scopeIds);
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "clear-card-conditions")) return;
+  await __selectContextScope(scopeIds, sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-conditions")) return;
   const mutation = await runEffectsMutation([{
     type: "condition:clear",
     targetIds: scopeIds,
@@ -7051,9 +7207,64 @@ async function __clearCardConditions(ids) {
     kind: "condition",
     label: scopeIds.length > 1 ? "Rimosse tutte le condizioni (selezione)" : "Rimosse tutte le condizioni",
     targetIds: scopeIds,
+    sceneEpoch,
   });
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-conditions")) return;
   requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels(scopeIds);
+}
+
+async function __clearCardSpells(ids, sceneEpoch = currentSceneEpoch()) {
+  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "clear-card-spells")) return;
+  await __selectContextScope(scopeIds, sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-spells")) return;
+  const label = scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi";
+  const mutation = await runEffectsMutation([{
+    type: "spell:clear-non-concentration",
+    targetIds: scopeIds,
+  }], {
+    kind: "spell",
+    label,
+    targetIds: scopeIds,
+    sideEffects: [{
+      type: "static-zone:remove-ended",
+      selectors: scopeIds.map((casterId) => ({ casterId })),
+    }],
+    sceneEpoch,
+  });
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-spells")) return;
+  requireAppliedEffectsMutation(mutation);
+  await refreshConditionLabels(scopeIds);
+}
+
+async function __clearCardConcentrations(ids, sourceEntry = null, sceneEpoch = currentSceneEpoch()) {
+  const scopeIds = Array.from(new Set([
+    ...(ids || []),
+    ...__selectionIdsForEntry(sourceEntry),
+  ].filter(Boolean)));
+  if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
+  await __selectContextScope(scopeIds, sceneEpoch);
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
+  const label = scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione";
+  const mutation = await runEffectsMutation([{
+    type: "concentration:break",
+    casterIds: scopeIds,
+  }], {
+    kind: "concentration",
+    label,
+    targetIds: scopeIds,
+    sideEffects: [{
+      type: "static-zone:remove-ended",
+      selectors: scopeIds.map((casterId) => ({ casterId })),
+    }],
+    sceneEpoch,
+  });
+  if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
+  requireAppliedEffectsMutation(mutation);
+  if (!mutation.changedIds.length) return;
+  const historyIds = mutation.changedIds;
+  await refreshConditionLabels(historyIds);
 }
 
 async function __removeConditionOnTrackerCard(itemId, group) {
@@ -7084,8 +7295,17 @@ async function __removeConditionOnTrackerCard(itemId, group) {
   await refreshConditionLabels([itemId]);
 }
 
-async function __terminateSpellOnTrackerCard(itemId, spell) {
-  if (!IS_GM || !itemId || !spell) return;
+async function __terminateSpellOnTrackerCard(
+  itemId,
+  spell,
+  sceneEpoch = currentSceneEpoch()
+) {
+  if (
+    !IS_GM
+    || !itemId
+    || !spell
+    || !__isCurrentSceneOperation(sceneEpoch, "terminate-tracker-spell")
+  ) return;
 
   const instanceId = String(spell?.instanceId || "").trim();
   const spellName = String(spell?.name || "").trim();
@@ -7120,7 +7340,9 @@ async function __terminateSpellOnTrackerCard(itemId, spell) {
       type: "static-zone:remove-ended",
       selectors: [{ instanceId }],
     }] : [],
+    sceneEpoch,
   });
+  if (!__isCurrentSceneOperation(sceneEpoch, "terminate-tracker-spell")) return;
   requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels([itemId]);
 }
@@ -7241,53 +7463,6 @@ function __mountTrackerQuickActions(card, sourceEntry, { compact = false } = {})
   }
 }
 
-async function __clearCardSpells(ids) {
-  const scopeIds = Array.from(new Set((ids || []).filter(Boolean)));
-  if (!scopeIds.length) return;
-  await __selectContextScope(scopeIds);
-  const label = scopeIds.length > 1 ? "Terminati incantesimi (selezione)" : "Terminati incantesimi";
-  const mutation = await runEffectsMutation([{
-    type: "spell:clear-non-concentration",
-    targetIds: scopeIds,
-  }], {
-    kind: "spell",
-    label,
-    targetIds: scopeIds,
-    sideEffects: [{
-      type: "static-zone:remove-ended",
-      selectors: scopeIds.map((casterId) => ({ casterId })),
-    }],
-  });
-  requireAppliedEffectsMutation(mutation);
-  await refreshConditionLabels(scopeIds);
-}
-
-async function __clearCardConcentrations(ids, sourceEntry = null) {
-  const scopeIds = Array.from(new Set([
-    ...(ids || []),
-    ...__selectionIdsForEntry(sourceEntry),
-  ].filter(Boolean)));
-  if (!scopeIds.length) return;
-  await __selectContextScope(scopeIds);
-  const label = scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione";
-  const mutation = await runEffectsMutation([{
-    type: "concentration:break",
-    casterIds: scopeIds,
-  }], {
-    kind: "concentration",
-    label,
-    targetIds: scopeIds,
-    sideEffects: [{
-      type: "static-zone:remove-ended",
-      selectors: scopeIds.map((casterId) => ({ casterId })),
-    }],
-  });
-  requireAppliedEffectsMutation(mutation);
-  if (!mutation.changedIds.length) return;
-  const historyIds = mutation.changedIds;
-  await refreshConditionLabels(historyIds);
-}
-
 async function __getInitiativeCardContextMenuPlacement(event) {
   const [viewportWidthRaw, viewportHeightRaw] = await Promise.all([
     OBR.viewport.getWidth().catch(() => 1200),
@@ -7351,21 +7526,22 @@ async function __getInitiativeCardContextMenuPlacement(event) {
   };
 }
 
-async function __handleInitiativeCardContextMenuAction(context, data) {
+async function __handleInitiativeCardContextMenuAction(context, data, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-action")) return;
   return routeInitiativeCardContextMenuAction(context, data, {
-    selectScope: __selectContextScope,
+    selectScope: (ids) => __selectContextScope(ids, sceneEpoch),
     openConditions: openCardEffectsPopup,
-    clearConditions: __clearCardConditions,
+    clearConditions: (ids) => __clearCardConditions(ids, sceneEpoch),
     openSpells: openCardSpellsPopup,
-    clearSpells: __clearCardSpells,
-    clearConcentrations: __clearCardConcentrations,
+    clearSpells: (ids) => __clearCardSpells(ids, sceneEpoch),
+    clearConcentrations: (ids, sourceEntry) => __clearCardConcentrations(ids, sourceEntry, sceneEpoch),
     activateClassFeature: __activateClassFeatureFromContext,
     deactivateClassFeature: __deactivateClassFeatureFromContext,
     resetClassFeatureResources: __resetClassFeatureResourcesFromContext,
     openInitiativeCard: openInitiativeCardPopup,
-    setAttitude: __setCardAttitude,
-    setBossMode: __setCardBossMode,
-    removeFromInitiative: __removeCardFromInitiative,
+    setAttitude: (ids, attitude) => __setCardAttitude(ids, attitude, sceneEpoch),
+    setBossMode: (entry, mode) => __setCardBossMode(entry, mode, sceneEpoch),
+    removeFromInitiative: (ids) => __removeCardFromInitiative(ids, sceneEpoch),
   });
 }
 
@@ -7388,8 +7564,14 @@ function mountInitiativeCardContextMenuListener() {
         !isAllowedInitiativeCardMenuAction(data.action, data.value)) return;
 
     const context = __initiativeCardContextMenuContext;
+    const sceneEpoch = context.sceneEpoch;
+    if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-action")) {
+      __closeInitiativeCardContextMenu();
+      return;
+    }
+
     __closeInitiativeCardContextMenu();
-    void __handleInitiativeCardContextMenuAction(context, data).catch((error) => {
+    void __handleInitiativeCardContextMenuAction(context, data, sceneEpoch).catch((error) => {
       console.warn("[initiative-card-context-menu] action error:", error?.message || error);
       if (String(data.action || "").startsWith("class-feature-")) {
         void OBR.notification.show(
@@ -7421,14 +7603,22 @@ function mountTrackerQuickActionsPopoverListener() {
     }
     if (data.type !== "action" || !__trackerQuickActionsContext) return;
 
+    const context = __trackerQuickActionsContext;
+    const sceneEpoch = context.sceneEpoch;
+    if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-action")) {
+      __closeTrackerQuickActionsPopover();
+      return;
+    }
+
     const actionId = String(data.actionId || "").trim();
     const action = sanitizeQuickActions(
-      __trackerQuickActionsContext.sourceEntry?.quickActions,
+      context.sourceEntry?.quickActions,
       { limit: 64 },
     ).find((entry) => entry.id === actionId);
     if (!action) return;
-    const { sourceEntry } = __trackerQuickActionsContext;
+    const { sourceEntry } = context;
     __closeTrackerQuickActionsPopover();
+    if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-action")) return;
     void __runTrackerQuickAction(sourceEntry, action).catch((error) => {
       console.warn("[tracker-quick-actions] action error:", error?.message || error);
     });
@@ -7454,6 +7644,8 @@ function __disabledTrackerQuickActionIds(sourceEntry, actions) {
 }
 
 function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-open")) return;
   const sourceId = splitParagonId(sourceEntry?.id).baseId;
   if (!sourceId) return;
   if (__trackerQuickActionsRequestId && __trackerQuickActionsSourceId === sourceId) {
@@ -7485,7 +7677,7 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
   }
 
   __trackerQuickActionsRequestId = requestId;
-  __trackerQuickActionsContext = { sourceEntry };
+  __trackerQuickActionsContext = { sourceEntry, sceneEpoch };
   __trackerQuickActionsSourceId = sourceId;
   __trackerQuickActionsButton = button;
   button.setAttribute("aria-expanded", "true");
@@ -7495,13 +7687,13 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
       ...closePromises,
       placementPromise,
     ]);
+    if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-open")) return;
     if (
       __trackerQuickActionsRevision !== openRevision
       || __trackerQuickActionsRequestId !== requestId
     ) {
       return;
     }
-    if (__trackerQuickActionsRequestId !== requestId) return;
     await OBR.popover.open({
       id: TRACKER_QUICK_ACTIONS_POPOVER_ID,
       url: `/tracker-quick-actions.html?request=${encodeURIComponent(requestId)}`,
@@ -7518,6 +7710,10 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
       marginThreshold: 12,
       hidePaper: true,
     });
+    if (!__isCurrentSceneOperation(sceneEpoch, "tracker-quick-actions-open")) {
+      await __closeTrackerQuickActionsPopover();
+      return;
+    }
     __trackerQuickActionsPopover = true;
   })().catch((error) => {
     console.warn("[tracker-quick-actions] popover open error:", error?.message || error);
@@ -7528,6 +7724,9 @@ function __toggleTrackerQuickActionsPopover(sourceEntry, button, event) {
 function __openInitiativeCardContextMenu(sourceEntry, event) {
   if (!IS_GM || !sourceEntry ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
+
+  const sceneEpoch = currentSceneEpoch();
+  if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-open")) return;
 
   event.preventDefault();
   event.stopPropagation();
@@ -7558,13 +7757,14 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
   }
 
   __initiativeCardContextMenuRequestId = requestId;
-  __initiativeCardContextMenuContext = { sourceEntry, scopeIds };
+  __initiativeCardContextMenuContext = { sourceEntry, scopeIds, sceneEpoch };
   const placementPromise = __getInitiativeCardContextMenuPlacement(event);
   void (async () => {
     const [, , placement] = await Promise.all([
       ...closePromises,
       placementPromise,
     ]);
+    if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-open")) return;
     if (__initiativeCardContextMenuRevision !== openRevision) return;
     if (__initiativeCardContextMenuRequestId !== requestId) return;
     await OBR.popover.open({
@@ -7578,6 +7778,10 @@ function __openInitiativeCardContextMenu(sourceEntry, event) {
       marginThreshold: 12,
       hidePaper: true,
     });
+    if (!__isCurrentSceneOperation(sceneEpoch, "card-context-menu-open")) {
+      await __closeInitiativeCardContextMenu();
+      return;
+    }
     __initiativeCardContextMenu = true;
   })().catch((error) => {
     console.warn("[initiative-card-context-menu] popover open error:", error?.message || error);
@@ -8764,7 +8968,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
     entries = projectedEntries;
     const len = state.order.length;
     const activeIdx = state.current ?? 0;
-    const currentActiveId = len ? state.order[activeIdx] : null;   // <-- AGGIUNTO QUI
+    const currentActiveId = len ? state.order[activeIdx] : null;
     const nextId = len ? state.order[(activeIdx + 1) % len] : null;
 
     // ---- PRE-PROCESS: costruiamo una lista “entriesForRender” che rispetta i collapse
@@ -8839,7 +9043,7 @@ for (const e of entries) {
     });
   }
 
-  __lastRenderedActiveId = currentActiveId;  // <-- ora esiste
+  __lastRenderedActiveId = currentActiveId;
   return true;
 }
 
@@ -8860,8 +9064,8 @@ async function ensureState(sceneEpoch = currentSceneEpoch()) {
       ...(IS_GM ? {
         autoFocus: runtimeOptionsService.get(selectFollowActiveTurn),
       } : {}),
-    activeBadge: { x: 0.12, y: 0.60 }, // 12% da sinistra, 60% dall’alto
-    tagsDock:    { x: 0.72, y: 0.50 }  // badge EPIC a destra, centrato
+    activeBadge: { x: 0.12, y: 0.60 },
+    tagsDock:    { x: 0.72, y: 0.50 }
     }
   }, sceneEpoch, {
     kind: "ensure-state",
@@ -8916,10 +9120,8 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
   const expanded = expandParagonEntries(entries, state);
   const sorted   = sortByInitiative(expanded, state);
 
-// base: SOLO item reali (niente EPIC virtual qui)
   let newOrder = [...new Set(sorted.map(e => e.id))];
 
-// Se ci sono Epic Boss, inserisci una voce virtuale dopo OGNI PG
   const byId = new Map(sorted.map(e => [e.id, e]));
   const epicBosses = sorted.filter(e => !!e.isEpic);
   if (epicBosses.length > 0) {
@@ -8930,10 +9132,8 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
 
     const ent = byId.get(id);
     if (!ent) continue;
-    // solo dopo i PG
     if (String(ent.attitude || "") !== "pc") continue;
 
-    // per OGNI Epic Boss aggiungo una voce virtuale
     for (const boss of epicBosses) {
       const vId = `${EPIC_ACT_PREFIX}::${boss.id}::after::${id}`;
       injected.push(vId);
@@ -8966,8 +9166,10 @@ async function reconcileStateWithItems(sceneEpoch = currentSceneEpoch()) {
 }
 
 // --- DnD helper: sposta sourceId prima/dopo targetId ma SOLO fra pari iniziativa
-async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore) {
+async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-same-init")) return;
   const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-same-init")) return;
   const next = reorderWithinSameInitiativeState(
     st,
     entries,
@@ -8977,16 +9179,18 @@ async function _reorderWithinSameInitiative(sourceId, targetId, placeBefore) {
     { lairInitiative: LAIR_INITIATIVE },
   );
   if (!next) return;
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-same-init")) return;
   await setSceneState(prev => ({
     ...(prev || {}),
     order: next.order,
     current: next.current,
-  }));
+  }), sceneEpoch);
 }
 
-// Sposta un BLOCCO di ID (sourceIds) prima/dopo targetId SOLO nel blocco dei pari iniziativa
-async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefore) {
+async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefore, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-block-same-init")) return;
   const [st, entries] = await Promise.all([getSceneState(), readEntries()]);
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-block-same-init")) return;
   const next = reorderBlockWithinSameInitiativeState(
     st,
     entries,
@@ -8996,24 +9200,27 @@ async function _reorderBlockWithinSameInitiative(sourceIds, targetId, placeBefor
     { lairInitiative: LAIR_INITIATIVE },
   );
   if (!next) return;
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-block-same-init")) return;
   await setSceneState(prev => ({
     ...(prev || {}),
     order: next.order,
     current: next.current,
-  }));
+  }), sceneEpoch);
 }
 
-// Wrapper: trova i membri del gruppo del lead collassato e chiama il riordino a blocco
-async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId, placeBefore) {
+async function _reorderCollapsedGroupWithinSameInitiative(sourceLeadId, targetId, placeBefore, sceneEpoch = currentSceneEpoch()) {
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-collapsed-group")) return;
   const { members } = await _getGroupForItemId(sourceLeadId);
-// Se nel gruppo c'è un Epic (a 20), non consentire lo spostamento del blocco
-try {
-const entries = await readEntries();
-const byId = new Map(entries.map(e => [e.id, e]));
-if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
-} catch {}
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-collapsed-group")) return;
+  try {
+    const entries = await readEntries();
+    if (!__isCurrentSceneOperation(sceneEpoch, "reorder-collapsed-group")) return;
+    const byId = new Map(entries.map(e => [e.id, e]));
+    if ((members || []).some(id => !!byId.get(id)?.isEpic)) return;
+  } catch {}
+  if (!__isCurrentSceneOperation(sceneEpoch, "reorder-collapsed-group")) return;
   const ids = (members && members.length > 0) ? members : [sourceLeadId];
-  await _reorderBlockWithinSameInitiative(ids, targetId, placeBefore);
+  await _reorderBlockWithinSameInitiative(ids, targetId, placeBefore, sceneEpoch);
 }
 
 function __renderOptimisticNavigationState(state) {
@@ -9440,6 +9647,7 @@ try {
         (await OBR.room?.getRole?.()) ||
         "PLAYER";
       IS_GM = String(role).toUpperCase() === "GM";
+      __mountHistoryUndoShortcut();
       await mountSpeedCheckEnabledSync({ authority: IS_GM });
       OBR.broadcast.onMessage(`${ID}/compact-speed-readout`, (event) => {
         if (!IS_GM || event?.data?.type !== "set-movement-limit") return;
@@ -9578,7 +9786,7 @@ try {
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-reconcile")) return;
   await ensureSharedAutoFocusPreference(bootstrapSceneEpoch);
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-follow-state")) return;
-  await enforceUniqueNamePrefixes();
+  await enforceUniqueNamePrefixes(bootstrapSceneEpoch);
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-names")) return;
   await renderAll("boot");
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-render")) return;
@@ -9966,7 +10174,7 @@ OBR.scene.onMetadataChange((meta) => {
     if (!__isCurrentSceneOperation(sceneEpoch, "item-dispatch")) return;
     await renderAll(fillInterrupted ? "initiative-fill-item-removed" : "items-fallback");
     if (addedInitiativeActors && __isCurrentSceneOperation(sceneEpoch, "item-dispatch")) {
-      await startInitiativeFillMode({ silent: true });
+      await startInitiativeFillMode({ silent: true, sceneEpoch });
     }
   }, { filter: (event) => event.flags.tracker });
 

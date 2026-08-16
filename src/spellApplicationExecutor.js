@@ -1029,6 +1029,7 @@ export async function executeSpellApplication({
       targetIds,
       eventId: instanceId,
       lifecycleId: instanceId,
+      sceneEpoch,
     }).catch((error) => {
       console.warn("[spell] matched visual:", error?.message || error);
     });

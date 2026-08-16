@@ -34,6 +34,7 @@ import {
   waitForHistoryEntriesRemoved,
 } from "./history.js";
 import { HISTORY_UNDO_READINESS_STATUS } from "./historyUndoCleanupCore.js";
+import { partitionHistoryUndoRows, shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
 import {
   HISTORY_UNDO_OUTCOME,
   normalizeHistoryUndoResult,
@@ -62,6 +63,7 @@ let preferredPanel: "log" | "undo" | null = null;
 let undoInProgress = false;
 let undoCleanupInProgress = false;
 let refreshAfterUndo = false;
+let showNonUndoableHistory = false;
 let unsubscribeCombatLogOption: (() => void) | null = null;
 let unsubscribeHistoryChange: (() => void) | null = null;
 let unsubscribeUndoSceneItems: (() => void) | null = null;
@@ -585,6 +587,7 @@ function undoReadinessTitle(row: any) {
 function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void>) {
   const entries = Array.isArray(undoState?.entries) ? undoState.entries : [];
   const newest = Array.isArray(undoState?.rows) ? undoState.rows : [];
+  const undoRows = partitionHistoryUndoRows(newest);
   const panel = document.createElement("div");
   panel.className = "history-tab-panel";
   panel.dataset.panel = "undo";
@@ -608,6 +611,40 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
     Object.assign(empty.style, { padding: "18px", textAlign: "center", color: "var(--obrt-muted)", fontSize: "11px" });
     list.appendChild(empty);
   } else {
+    if (undoRows.nonUndoable.length) {
+      const hiddenSummary = document.createElement("div");
+      hiddenSummary.className = "undo-hidden-history-summary";
+      Object.assign(hiddenSummary.style, {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "8px",
+        padding: "8px 9px",
+        marginBottom: "6px",
+        border: "1px solid rgba(148,163,184,.16)",
+        borderRadius: "7px",
+        background: "rgba(15,23,42,.5)",
+        color: "var(--obrt-muted)",
+        fontSize: "10px",
+        lineHeight: "1.35",
+      });
+      const summaryText = document.createElement("span");
+      summaryText.textContent = undoRows.undoable.length
+        ? `${undoRows.nonUndoable.length} operazioni precedenti non sono più annullabili.`
+        : `Nessuna operazione annullabile · ${undoRows.nonUndoable.length} operazioni precedenti non sono più compatibili con lo stato attuale.`;
+      const toggleHistory = button(showNonUndoableHistory ? "Nascondi" : "Mostra");
+      toggleHistory.classList.add("undo-hidden-history-toggle");
+      toggleHistory.title = showNonUndoableHistory
+        ? "Nasconde le entry non più annullabili"
+        : "Mostra le entry conservate per diagnosi ma non più annullabili";
+      toggleHistory.addEventListener("click", () => {
+        showNonUndoableHistory = !showNonUndoableHistory;
+        void onDone("");
+      });
+      hiddenSummary.append(summaryText, toggleHistory);
+      list.appendChild(hiddenSummary);
+    }
+
     let selectedDepth = newest[0]?.undoable === true ? 1 : 0;
     const rows: Array<{ checkbox: HTMLInputElement; row: HTMLLabelElement }> = [];
     const undo = button("Undo ultima", "primary", "history.svg");
@@ -641,6 +678,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       const entry = readiness?.entry || {};
       const row = document.createElement("label");
       row.className = "undo-row-item";
+      row.hidden = readiness?.undoable !== true && !showNonUndoableHistory;
       row.title = undoReadinessTitle(readiness);
       Object.assign(row.style, { display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: "7px", padding: "6px 8px", borderRadius: "7px" });
       const checkbox = document.createElement("input");
@@ -692,7 +730,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         // Revalidate the exact suffix against the latest scene snapshot.
         // A conflict disables Undo but never deletes or skips an audit entry.
         const currentState = await getHistoryUndoReadiness({
-          sceneEpoch: operation.sceneEpoch,
+          sceneEpoch: operation.epoch,
         });
         if (!sceneLifecycle.isCurrent(operation)) return;
         const currentRow = currentState?.rows?.[selectedDepth - 1];
@@ -710,7 +748,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           return;
         }
         const undone = await undoHistoryThrough(target.id, {
-          sceneEpoch: operation.sceneEpoch,
+          sceneEpoch: operation.epoch,
         });
         if (!sceneLifecycle.isCurrent(operation)) return;
         const outcome = normalizeHistoryUndoResult(undone);
@@ -719,7 +757,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED) {
           await waitForHistoryEntriesRemoved(
             outcome.entries.map((entry) => entry?.id).filter(Boolean),
-            { sceneEpoch: operation.sceneEpoch },
+            { sceneEpoch: operation.epoch },
           );
           await onDone(outcome.entries.length === 1
             ? `Annullato: ${outcome.entries[0].label}`
@@ -762,7 +800,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       cleanup.disabled = true;
       try {
         const result = await pruneNonUndoableHistoryEntries({
-          sceneEpoch: operation.sceneEpoch,
+          sceneEpoch: operation.epoch,
           ownerAttempts: 3,
           ownerRetryDelayMs: 150,
         });
@@ -770,7 +808,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         if (result?.committed && result.removedIds?.length) {
           const removed = await waitForHistoryEntriesRemoved(
             result.removedIds,
-            { sceneEpoch: operation.sceneEpoch },
+            { sceneEpoch: operation.epoch },
           );
           if (!sceneLifecycle.isCurrent(operation)) return;
           await onDone(removed
@@ -840,7 +878,7 @@ async function render(
     requestedDirection: pageRequest?.direction || "backward",
   });
   const [undoState, sessions] = await Promise.all([
-    getHistoryUndoReadiness({ sceneEpoch: operation.sceneEpoch }),
+    getHistoryUndoReadiness({ sceneEpoch: operation.epoch }),
     listCombatLogSessions({ sceneEpoch: operation.epoch, includeStats: true }),
   ]);
   if (!sceneLifecycle.isCurrent(operation)) return;
@@ -1588,6 +1626,65 @@ function queueRefresh() {
     void scheduleRender().catch(() => {});
   }, 80);
 }
+
+function historyUndoShortcutTargetIsEditable(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+}
+
+async function undoLatestHistoryFromShortcut() {
+  if (undoInProgress || undoCleanupInProgress || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo-shortcut") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  undoInProgress = true;
+  let message = "";
+  try {
+    const undone = await undoHistoryThrough(undefined, {
+      sceneEpoch: operation.epoch,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const outcome = normalizeHistoryUndoResult(undone);
+    if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED) {
+      message = outcome.entries.length === 1
+        ? `Annullato: ${outcome.entries[0]?.label || "ultima azione"}`
+        : "Undo applicato.";
+    } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.CONFLICT) {
+      message = "Undo non applicato: lo stato della scena è cambiato.";
+    } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.NOOP) {
+      message = "Nessuna operazione annullabile.";
+    } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.REJECTED) {
+      message = "Undo rifiutato o non più valido.";
+    } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.RECOVERY_REQUIRED) {
+      message = "Undo sospeso: è richiesta una verifica manuale.";
+    } else {
+      message = "Undo non applicato.";
+    }
+  } catch (error: any) {
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    message = `Undo fallito: ${error?.message || error}`;
+  } finally {
+    undoInProgress = false;
+  }
+  if (sceneLifecycle.isCurrent(operation)) await scheduleRender(message);
+}
+
+window.addEventListener("keydown", (event) => {
+  if (!shouldHandleHistoryUndoShortcut({
+    key: event.key,
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    repeat: event.repeat,
+    isComposing: event.isComposing,
+    editableTarget: historyUndoShortcutTargetIsEditable(event.target),
+    busy: undoInProgress || undoCleanupInProgress,
+    enabled: sceneLifecycle.isReady(),
+  })) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  void undoLatestHistoryFromShortcut();
+}, true);
 
 OBR.onReady(async () => {
   unsubscribeSceneLifecycle = sceneLifecycle.subscribe((event) => {

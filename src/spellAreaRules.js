@@ -1,6 +1,7 @@
 import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 
 export const SPELL_AREA_KINDS = Object.freeze([
   "instant",
@@ -557,6 +558,10 @@ const SELF_CAST_AURA_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   confirmTargets: false,
 });
+const NO_CONFIRM_TARGETING = Object.freeze({
+  ...COMMON_TARGETING,
+  confirmTargets: false,
+});
 const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
@@ -568,7 +573,9 @@ const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "xanathar-scossa-tellurica",
 ]);
 const areaSaveTargeting = (spellId) =>
-  SELF_CAST_AURA_SPELL_IDS.has(spellId)
+  isTeleportSpell(spellId)
+    ? NO_CONFIRM_TARGETING
+    : SELF_CAST_AURA_SPELL_IDS.has(spellId)
     ? SELF_CAST_AURA_TARGETING
     : AREA_SAVE_SPELL_ID_SET.has(spellId)
     && !CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)

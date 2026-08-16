@@ -67,6 +67,7 @@ import {
 } from "./sceneEpoch.js";
 import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import { suppressMovementHistory } from "./history.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -1977,6 +1978,37 @@ async function prepareEffectsSideEffects(plan, command) {
         before: { present: true, value: clone(metadata) },
         after: { present: true, value: clone(after) },
       });
+    } else if (descriptor?.type === "token:teleport") {
+      const targetId = String(descriptor.targetId || "").trim();
+      const position = {
+        x: Number(descriptor.position?.x),
+        y: Number(descriptor.position?.y),
+      };
+      if (!targetId || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "token-teleport-invalid-position", itemId: targetId || null }],
+        };
+      }
+      const [targetItem] = await OBR.scene.items.getItems([targetId]);
+      if (!targetItem) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{ reason: "token-teleport-target-missing", itemId: targetId }],
+        };
+      }
+      const beforePosition = clone(targetItem.position);
+      const afterPosition = clone(position);
+      prepared.push({
+        type: descriptor.type,
+        id: targetId,
+        name: String(targetItem.name || "").trim(),
+        beforePosition,
+        afterPosition,
+        before: { id: targetId, name: targetItem.name, position: beforePosition },
+        after: { id: targetId, name: targetItem.name, position: afterPosition },
+        skipAnimation: descriptor.skipAnimation === true,
+      });
     }
   }
   plan.preparedSideEffects = prepared;
@@ -1986,12 +2018,20 @@ async function prepareEffectsSideEffects(plan, command) {
 async function restoreUpdatedSceneItems(snapshots = []) {
   const byId = new Map(snapshots.map((item) => [item?.id, item]).filter(([id]) => id));
   if (!byId.size) return;
+  for (const snapshot of snapshots) {
+    if (snapshot?.id && snapshot?.position) {
+      suppressMovementHistory(snapshot.id, snapshot.position);
+    }
+  }
   await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
     for (const draft of drafts) {
       const snapshot = byId.get(draft.id);
       if (!snapshot) continue;
       if (Object.prototype.hasOwnProperty.call(snapshot, "position")) {
         draft.position = clone(snapshot.position);
+      }
+      if (Object.prototype.hasOwnProperty.call(snapshot, "visible")) {
+        draft.visible = snapshot.visible !== false;
       }
       if (Object.prototype.hasOwnProperty.call(snapshot, "commands")) {
         draft.commands = clone(snapshot.commands);
@@ -2051,6 +2091,68 @@ function staticZoneRuleChoiceAfterSnapshot(item, ruleChoice) {
 async function applyPreparedSideEffect(sideEffect, isCurrent) {
   if (!isCurrent()) throw new Error("stale-before-side-effect");
   if (sideEffect.type === "spell-active-resolution:validate") return [];
+  if (sideEffect.type === "token:teleport") {
+    const targetId = String(sideEffect.id || after?.id || "").trim();
+    const afterPosition = sideEffect.afterPosition || after?.position || null;
+    const beforePosition = sideEffect.beforePosition || before?.position || null;
+    if (!targetId || !afterPosition) return [];
+    const [actual] = await OBR.scene.items.getItems([targetId]);
+    if (!actual) throw new Error("token-teleport-target-missing");
+    if (!isCurrent()) throw new Error("stale-before-token-teleport");
+    suppressMovementHistory(targetId, afterPosition, 5000);
+    const skipAnimation = sideEffect.skipAnimation === true;
+    if (!skipAnimation) {
+      setTimeout(async () => {
+        try {
+          if (!isCurrent()) return;
+          await OBR.scene.items.updateItems([targetId], (drafts) => {
+            for (const draft of drafts) {
+              if (draft.id === targetId) draft.visible = false;
+            }
+          });
+        } catch {}
+      }, 1000);
+      setTimeout(async () => {
+        try {
+          if (!isCurrent()) return;
+          suppressMovementHistory(targetId, afterPosition, 5000);
+          await OBR.scene.items.updateItems([targetId], (drafts) => {
+            for (const draft of drafts) {
+              if (draft.id === targetId) draft.position = clone(afterPosition);
+            }
+          });
+        } catch {}
+      }, 1500);
+      setTimeout(async () => {
+        try {
+          if (!isCurrent()) return;
+          await OBR.scene.items.updateItems([targetId], (drafts) => {
+            for (const draft of drafts) {
+              if (draft.id === targetId) draft.visible = true;
+            }
+          });
+        } catch {}
+      }, 3000);
+    } else {
+      await OBR.scene.items.updateItems([targetId], (drafts) => {
+        for (const draft of drafts) {
+          if (draft.id === targetId) {
+            draft.position = clone(afterPosition);
+            draft.visible = true;
+          }
+        }
+      });
+    }
+    return [{
+      id: targetId,
+      type: "token:teleport",
+      name: String(actual.name || sideEffect.name || "").trim(),
+      beforePosition: clone(beforePosition || actual.position),
+      afterPosition: clone(afterPosition),
+      before: { id: targetId, name: actual.name, position: clone(beforePosition || actual.position) },
+      after: { id: targetId, name: actual.name, position: clone(afterPosition) },
+    }];
+  }
   if (sideEffect.type === "spell-board-token:place") {
     const before = sideEffect.before || null;
     const after = sideEffect.after || null;
@@ -2163,7 +2265,10 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const existing = ids.length ? await OBR.scene.items.getItems(ids) : [];
     if (!isCurrent()) throw new Error("stale-after-zone-removal-read");
     const existingIds = existing.map((item) => item?.id).filter(Boolean);
-    if (existingIds.length) await OBR.scene.items.deleteItems(existingIds);
+    if (existingIds.length) {
+      await OBR.scene.items.deleteItems(existingIds);
+      if (!isCurrent()) throw new Error("stale-after-zone-removal-delete");
+    }
     return items.map((item) => ({ id: item.id, before: clone(item), after: null }));
   }
   if (sideEffect.type === "static-zone:reorient") {
@@ -2203,6 +2308,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
         }
       }
     });
+    if (!isCurrent()) throw new Error("stale-after-static-zone-reorientation");
     return entries.flatMap((entry) => [{
       id: entry.before.id,
       type: "item",
@@ -2216,6 +2322,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const { setStaticSpellZoneRuleChoice } = await import("./spellStaticZone.js");
     if (!isCurrent()) throw new Error("stale-before-zone-rule-choice");
     await setStaticSpellZoneRuleChoice(items, sideEffect.ruleChoice);
+    if (!isCurrent()) throw new Error("stale-after-zone-rule-choice");
     return items.map((item) => ({
       id: item.id,
       type: "metadata",
@@ -2245,8 +2352,15 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       throw new Error("child-zone-stale");
     }
     if (!isCurrent()) throw new Error("stale-before-child-zone");
-    if (beforeIds.length) await OBR.scene.items.deleteItems(beforeIds);
-    if (afterItems.length) await OBR.scene.items.addItems(afterItems.map((item) => clone(item)));
+    if (beforeIds.length) {
+      await OBR.scene.items.deleteItems(beforeIds);
+      if (!isCurrent()) throw new Error("stale-after-child-zone-delete");
+    }
+    if (afterItems.length) {
+      if (!isCurrent()) throw new Error("stale-before-child-zone-add");
+      await OBR.scene.items.addItems(afterItems.map((item) => clone(item)));
+      if (!isCurrent()) throw new Error("stale-after-child-zone-add");
+    }
     return [
       ...beforeItems.map((item) => ({
         id: item.id,
@@ -2281,6 +2395,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const currentSubzones = beforeSubzoneIds.length
       ? await OBR.scene.items.getItems(beforeSubzoneIds)
       : [];
+    if (beforeSubzoneIds.length && !isCurrent()) {
+      throw new Error("stale-after-static-zone-subzone-read");
+    }
     if (currentSubzones.length !== beforeSubzoneIds.length
       || currentSubzones.some((item) => {
         const expected = beforeSubzones.find((candidate) => candidate?.id === item.id);
@@ -2288,6 +2405,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       })) {
       throw new Error("static-zone-subzone-stale");
     }
+    if (!isCurrent()) throw new Error("stale-before-static-zone-move-update");
     await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
       for (const draft of drafts) {
         if (draft.id !== sideEffect.id) continue;
@@ -2298,6 +2416,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
         };
       }
     });
+    if (!isCurrent()) throw new Error("stale-after-static-zone-move");
     const changes = [{
       id: sideEffect.id,
       type: "static-zone-move",
@@ -2310,7 +2429,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       ruleId: sideEffect.ruleId,
     }];
     if (beforeSubzoneIds.length) {
+      if (!isCurrent()) throw new Error("stale-before-static-zone-subzone-delete");
       await OBR.scene.items.deleteItems(beforeSubzoneIds);
+      if (!isCurrent()) throw new Error("stale-after-static-zone-subzone-delete");
       changes.push(...beforeSubzones.map((item) => ({
         id: item.id,
         type: "item",
@@ -2319,7 +2440,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       })));
     }
     if (subzone?.afterItem) {
+      if (!isCurrent()) throw new Error("stale-before-static-zone-subzone-add");
       await OBR.scene.items.addItems([clone(subzone.afterItem)]);
+      if (!isCurrent()) throw new Error("stale-after-static-zone-subzone-add");
       changes.push({
         id: subzone.afterItem.id,
         type: "item",
@@ -2399,6 +2522,22 @@ async function applyUndoSideEffect(sideEffect, isCurrent) {
           ...(draft.metadata || {}),
           [sideEffect.metadataKey]: restoredMetadata,
         };
+      }
+    });
+    return [];
+  }
+  if (sideEffect.type === "token:teleport" || sideEffect.type === "token-position") {
+    if (!current) throw new Error("undo-side-effect-item-missing");
+    if (sameValue(current.position, sideEffect.restorePosition)) return [];
+    if (!sameValue(current.position, sideEffect.expectedPosition)) {
+      throw new Error("undo-side-effect-conflict");
+    }
+    if (!isCurrent()) throw new Error("stale-before-undo-token-teleport");
+    suppressMovementHistory(sideEffect.id, sideEffect.restorePosition, 5000);
+    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+      for (const draft of drafts) {
+        if (draft.id !== sideEffect.id) continue;
+        draft.position = clone(sideEffect.restorePosition);
       }
     });
     return [];
@@ -2660,7 +2799,9 @@ export async function mountEffectsMutationCoordinatorService() {
       return runEffectsMutation(operations, {
         ...options,
         transport: "background",
-        sceneEpoch: currentSceneEpoch(),
+        sceneEpoch: Number.isInteger(options.sceneEpoch)
+          ? options.sceneEpoch
+          : currentSceneEpoch(),
       });
     },
     executeUndo: (entry, command) => {
@@ -2668,7 +2809,9 @@ export async function mountEffectsMutationCoordinatorService() {
       return undoEffectsMutation(entry, {
         ...options,
         transport: "background",
-        sceneEpoch: currentSceneEpoch(),
+        sceneEpoch: Number.isInteger(options.sceneEpoch)
+          ? options.sceneEpoch
+          : currentSceneEpoch(),
       });
     },
   });
@@ -2812,6 +2955,9 @@ function compatibilityPlan(result) {
 }
 
 export async function runEffectsMutation(operations = [], options = {}) {
+  const sceneEpoch = Number.isInteger(options.sceneEpoch)
+    ? options.sceneEpoch
+    : currentSceneEpoch();
   const commandId = String(options.commandId || "").trim() || createId("effects-command");
   assertSerializableCommand({ operations, options });
   const serializableOperations = jsonSafeClone(operations);
@@ -2829,6 +2975,7 @@ export async function runEffectsMutation(operations = [], options = {}) {
           operations: serializableOperations,
           ...serializableOptions,
           commandId,
+          sceneEpoch,
           sceneIdentity,
         },
       },
@@ -2844,12 +2991,12 @@ export async function runEffectsMutation(operations = [], options = {}) {
     operations: serializableOperations,
     ...serializableOptions,
     commandId,
-    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+    sceneEpoch,
     sceneIdentity: options.sceneIdentity || backgroundSceneIdentity,
   });
   const compatible = compatibilityPlan(result);
   void emitMatchedVisualEndsFromMutation(compatible, {
-    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+    sceneEpoch,
   }).catch((error) => {
     console.warn("[effects] matched visual end:", error?.message || error);
   });
@@ -2857,6 +3004,9 @@ export async function runEffectsMutation(operations = [], options = {}) {
 }
 
 export async function undoEffectsMutation(entryOrEntries, options = {}) {
+  const sceneEpoch = Number.isInteger(options.sceneEpoch)
+    ? options.sceneEpoch
+    : currentSceneEpoch();
   const commandId = String(options.commandId || "").trim() || createId("effects-undo-command");
   assertSerializableCommand({ entryOrEntries, options });
   const serializableEntries = jsonSafeClone(entryOrEntries);
@@ -2874,6 +3024,7 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
         options: {
           ...serializableOptions,
           commandId,
+          sceneEpoch,
           sceneIdentity,
         },
       },
@@ -2888,12 +3039,12 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
   const result = await effectsMutationCoordinator.enqueueUndo(serializableEntries, {
     ...serializableOptions,
     commandId,
-    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+    sceneEpoch,
     sceneIdentity: options.sceneIdentity || backgroundSceneIdentity,
   });
   const compatible = compatibilityPlan(result);
   void emitMatchedVisualEndsFromMutation(compatible, {
-    sceneEpoch: options.sceneEpoch ?? currentSceneEpoch(),
+    sceneEpoch,
   }).catch((error) => {
     console.warn("[effects] matched visual end after undo:", error?.message || error);
   });

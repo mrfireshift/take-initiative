@@ -198,7 +198,7 @@ test("il catalogo completo ha un percorso canonico senza whitelist di eccezioni"
     })
     .filter(Boolean);
 
-  assert.equal(entries.length, 391);
+  assert.equal(entries.length, 392);
   assert.deepEqual(unhandled, []);
 });
 

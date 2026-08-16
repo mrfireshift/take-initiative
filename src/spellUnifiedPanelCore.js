@@ -19,6 +19,7 @@ import {
   getSpellAreaRuleForPlacement,
   getSpellAreaRules,
 } from "./spellAreaRules.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 import {
   getSpellSaveWorkflowChoiceOptions,
   getSpellSaveWorkflowRule,
@@ -2077,9 +2078,14 @@ function primaryActionFor(contract, session, validation, placement, activeAction
     };
   }
   if (validation.firstInvalidField === "placement") {
+    const isTeleportCast = isTeleportSpell(contract?.spell?.id);
     return {
       id: "place",
-      label: isBoardTokenCast ? "Posiziona pedina" : "Posiziona area",
+      label: isTeleportCast
+        ? "Posiziona destinazione"
+        : isBoardTokenCast
+          ? "Posiziona pedina"
+          : "Posiziona area",
       disabled: false,
     };
   }

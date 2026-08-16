@@ -534,7 +534,7 @@ const VISUALS = freeze({
   sleep: [circle("sleepSymbol", "target", persistent({ attachedTo: "target" }))],
   darkness: [circle("darkness", "area", persistent())],
   "flaming-sphere": [circle("flamingSphere", "area", persistent({ attachedTo: "zone" }))],
-  "misty-step": [circle("mistyStepOut", "caster"), circle("mistyStepIn", "target", { delay: 1500 })],
+  "misty-step": [circle("mistyStepOut", "caster"), circle("mistyStepIn", "area", { delay: 1500 })],
   "gust-of-wind": [cone("gustOfWind", persistent({
     attachedTo: "caster",
     layer: "ATTACHMENT",
@@ -558,8 +558,11 @@ const VISUALS = freeze({
   "spirit-guardians": [circle("spiritGuardians", "area", persistent({ attachedTo: "caster" }))],
   banishment: [
     target("rangedSpell"),
+    // Embers uses 200 ms here. With OBR local WebM startup that reads as
+    // simultaneous with the ranged ray, so keep the same sequence but give
+    // the ray a perceptible lead before the portal develops.
     circle("portal", "target", persistent({
-      delay: 200,
+      delay: 600,
       scale: 2.5,
       attachedTo: "target",
       layer: "ATTACHMENT",
@@ -669,8 +672,9 @@ function fallbackTarget(targets, index = 0) {
 }
 
 function areaCenter(preview, targets, source) {
+  if (preview?.destination) return preview.destination;
   if (preview?.start) {
-    if (["square", "rectangle"].includes(preview.type)) {
+    if (["square", "rectangle"].includes(preview.type) && preview.end) {
       return {
         x: (preview.start.x + preview.end.x) / 2,
         y: (preview.start.y + preview.end.y) / 2,
@@ -678,6 +682,7 @@ function areaCenter(preview, targets, source) {
     }
     return preview.start;
   }
+  if (preview?.origin) return preview.origin;
   return fallbackTarget(targets)?.center || source || null;
 }
 
@@ -837,6 +842,7 @@ export function buildMatchedVisualEvent({
   zoneId = "",
   mode = "start",
   lifecycleId = "",
+  sceneEpoch = null,
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
   const definition = getMatchedSpellVisualDefinition(normalizedSpellId);
@@ -1006,6 +1012,7 @@ export function buildMatchedVisualEvent({
     ...(normalizedCasterId ? { casterId: normalizedCasterId } : {}),
     ...(normalizedZoneId ? { zoneId: normalizedZoneId } : {}),
     ...(normalizedLifecycleId ? { lifecycleId: normalizedLifecycleId } : {}),
+    ...(sceneEpoch != null && Number.isFinite(Number(sceneEpoch)) ? { sceneEpoch: Number(sceneEpoch) } : {}),
     mode: mode === "end" ? "end" : "start",
     targetIds: fallbackIds,
     dpi,

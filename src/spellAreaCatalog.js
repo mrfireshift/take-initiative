@@ -242,6 +242,13 @@ const AREA_OVERRIDES = Object.freeze({
     rangeMeters: 36,
     note: "La sagoma rappresenta fino a dieci pannelli contigui in linea; cupola, sfera e singole sezioni distrutte restano da gestire manualmente.",
   },
+  "misty-step": {
+    shape: "square",
+    sizeMeters: 1.5,
+    origin: "point",
+    rangeMeters: 9,
+    note: "Seleziona la casella libera di destinazione entro 9 metri",
+  },
   "move-earth": {
     shape: "square",
     sizeMeters: 12,

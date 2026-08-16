@@ -10,6 +10,7 @@ import {
   updateSpellPanelSession,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 import {
   executeSpellUnifiedArea,
   getSpellUnifiedAreaEligibility,
@@ -1072,11 +1073,13 @@ export function bootSpellUnifiedPanel(
     }
 
     const requestId = createSpellAreaPlacementRequestId();
+    const isTeleport = isTeleportSpell(state.contract?.spell?.id);
     pendingPlacementRequests.add(requestId);
     state.session = updateSpellPanelSession(state.session, {
       placement: {
-        ...placementIdentity(requestId),
+        ...placementIdentity(requestId, "pending"),
         targetLocked: manualTargetSelection,
+        error: null,
         targetIds: retainedTargetIds,
       },
       ...(manualTargetSelection
@@ -1087,7 +1090,12 @@ export function bootSpellUnifiedPanel(
           outcomes: {},
           targetContext: {},
         }),
-      feedback: { state: "loading", message: "Posizionamento dell'area in corso…" },
+      feedback: {
+        state: "loading",
+        message: isTeleport
+          ? "Posizionamento della destinazione in corso…"
+          : "Posizionamento dell'area in corso…",
+      },
       commitState: { state: "idle" },
     });
     state.revision += 1;
@@ -1135,11 +1143,11 @@ export function bootSpellUnifiedPanel(
       state.session = updateSpellPanelSession(state.session, {
         placement,
         feedback: confirmed
-          ? { state: "success", message: "Area confermata." }
+          ? { state: "success", message: isTeleport ? "Destinazione confermata." : "Area confermata." }
           : {
             state: status === "cancelled" ? "info" : "error",
             message: status === "cancelled"
-              ? "Posizionamento dell'area annullato."
+              ? (isTeleport ? "Posizionamento della destinazione annullato." : "Posizionamento dell'area annullato.")
               : placement.error,
           },
       });

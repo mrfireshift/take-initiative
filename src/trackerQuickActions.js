@@ -34,10 +34,10 @@ export function buildTrackerQuickActionLauncher({
   container.dataset.cardSelectionIgnore = "1";
   Object.assign(container.style, {
     position: "absolute",
-    left: compact ? "18px" : `${CLASSIC_QUICK_ACTION_LEFT}px`,
-    right: "auto",
+    left: compact ? "auto" : `${CLASSIC_QUICK_ACTION_LEFT}px`,
+    right: compact ? "18px" : "auto",
     bottom: "auto",
-    top: compact ? "1px" : "2px",
+    top: compact ? "35px" : "2px",
     zIndex: "12",
     pointerEvents: "auto",
   });

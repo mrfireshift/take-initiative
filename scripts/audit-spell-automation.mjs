@@ -56,6 +56,14 @@ const INTEGRATION_ISSUE_LABELS = Object.freeze({
   ACTIVE_ACTION_REMINDER_ONLY: "azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva",
 });
 
+const AUTOMATION_LEVELS = Object.freeze(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL"]);
+const COVERAGE_STATUSES = Object.freeze(["ACCEPTED", "GAP", "UNREVIEWED"]);
+const TARGET_AUTOMATION_LEVELS = Object.freeze(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL", "UNREVIEWED"]);
+const UI_EXPOSURES = Object.freeze(["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE"]);
+const TARGET_UI_EXPOSURES = Object.freeze(["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE", "UNREVIEWED"]);
+const SMOKE_CATEGORIES = Object.freeze(["CAST", "CONCENTRATION", "AREA_GEOMETRY", "PERSISTENCE", "TURN_TRIGGER", "ACTIVE_ACTION", "CLEANUP"]);
+const VERIFICATION_EVIDENCE = Object.freeze(["STRUCTURAL", "UNIT_TEST", "RUNTIME_SMOKE"]);
+
 const CONDITIONS = Object.freeze([
   "Accecato",
   "Affascinato",
@@ -191,12 +199,12 @@ const CURATED_REVIEW = Object.freeze({
     note: "La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata.",
   },
   "xanathar-modellare-acqua": {
-    gaps: ["AREA_GEOMETRY_MISSING", "CHOICE_WORKFLOW_MISSING"],
-    note: "Le quattro manipolazioni del cubo d'acqua, incluse congelamento e animazione persistenti, non sono selezionabili né collegate a una geometria opzionale.",
+    gaps: [],
+    note: "La manipolazione libera e il congelamento/animazione dell'acqua hanno gestione ambientale manuale al tavolo; l'assenza di automazione o geometria dedicata non costituisce un RAW gap del tracker.",
   },
   "xanathar-modellare-terra": {
-    gaps: ["AREA_GEOMETRY_MISSING", "CHOICE_WORKFLOW_MISSING", "MOVEMENT_MECHANICS_MISSING"],
-    note: "Mancano le modalità del cubo e, per il terreno reso difficile o normale per un'ora, una zona persistente collegata al costo di movimento.",
+    gaps: [],
+    note: "Le modalità del cubo di terra e la gestione del terreno difficile/normale hanno gestione ambientale manuale al tavolo; l'assenza di automazione non costituisce un RAW gap del tracker.",
   },
   "xanathar-muro-dacqua": {
     gaps: ["MOVEMENT_MECHANICS_MISSING", "CONDITIONAL_TRIGGER"],
@@ -635,7 +643,7 @@ function syntheticTargetIds(contract) {
   return Array.from({ length: count }, (_, index) => index ? `target-${index}` : "target");
 }
 
-function syntheticPlacement(contract, targetIds) {
+function syntheticPlacement(contract, targetIds, castContext = {}) {
   const placement = contract?.presentation?.placement || {};
   if (placement.policy === "unavailable") return null;
   const rule = placement.rules?.[0] || {};
@@ -651,7 +659,7 @@ function syntheticPlacement(contract, targetIds) {
       targetIds,
     };
   }
-  return {
+  const placementResult = {
     status: "confirmed",
     state: "confirmed",
     confirmed: true,
@@ -671,6 +679,24 @@ function syntheticPlacement(contract, targetIds) {
       targetIds,
     },
   };
+
+  const composition = contract?.presentation?.composition;
+  if (composition?.required === true) {
+    const compositionKey = composition.key || "composition";
+    const selected = castContext[compositionKey] || {};
+    const counts = selected.counts && typeof selected.counts === "object"
+      ? selected.counts
+      : selected;
+    placementResult.preview.positions = (composition.options || []).flatMap((option) => (
+      Array.from({ length: Math.max(0, Math.floor(Number(counts?.[option.id]) || 0)) }, (_, index) => ({
+        objectSize: option.id,
+        ordinal: index,
+        position: { x: index * 50, y: index * 50 },
+      }))
+    ));
+  }
+
+  return placementResult;
 }
 
 function syntheticSession(contract) {
@@ -684,6 +710,21 @@ function syntheticSession(contract) {
       .map((field) => [field.id, validSyntheticContextValue(field)])),
   ]));
   const attack = contract?.presentation?.outcomes?.mode === "attack";
+
+  const castContext = {};
+  const composition = contract?.presentation?.composition;
+  if (composition?.required === true) {
+    const compositionKey = composition.key || "composition";
+    const option = (composition.options || [])[0];
+    if (option) {
+      castContext[compositionKey] = {
+        counts: {
+          [option.id]: 1,
+        },
+      };
+    }
+  }
+
   return createSpellPanelSession({
     contract,
     casterId: "caster",
@@ -697,7 +738,8 @@ function syntheticSession(contract) {
     outcomes: attack ? {} : Object.fromEntries(targetIds.map((id) => [id, "failed"])),
     attackOutcome: attack ? "hit" : "",
     targetContext,
-    placement: syntheticPlacement(contract, targetIds),
+    castContext,
+    placement: syntheticPlacement(contract, targetIds, castContext),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
       healing: inputs.healing?.required ? 12 : null,
@@ -897,31 +939,107 @@ function activeActionReachability(spell, areaRules) {
   };
 }
 
+function deriveSmokeCategories({
+  spell,
+  areaRules,
+  triggers,
+  contract,
+  saveImplemented,
+  implementedConditions,
+  trackingImplemented,
+  persistentArea,
+  turnImplemented,
+  phaseImplemented,
+}) {
+  const categories = new Set();
+  if (
+    contract?.execution?.lane === "area-transaction"
+    || contract?.execution?.lane === "spell-area"
+    || saveImplemented
+    || implementedConditions.length > 0
+    || spell.boardToken
+    || (spell.effects || []).length > 0
+  ) {
+    categories.add("CAST");
+  }
+  if (spell.concentration === true) {
+    categories.add("CONCENTRATION");
+  }
+  if (
+    areaRules.length > 0
+    && areaRules.some((rule) =>
+      rule.geometry
+      || ["zone", "aura", "line", "cone", "sphere", "cylinder", "cube", "box"].includes(rule.kind)
+      || rule.type === "teleport-target"
+    )
+  ) {
+    categories.add("AREA_GEOMETRY");
+  }
+  if (
+    persistentArea
+    || trackingImplemented
+    || contract?.execution?.hasZones === true
+    || contract?.execution?.hasTokens === true
+    || spell.boardToken
+  ) {
+    categories.add("PERSISTENCE");
+  }
+  if (
+    turnImplemented
+    || triggers.length > 0
+    || areaRules.some((r) => (r.zonePolicy?.triggers || []).some((t) => ["turn-start", "turn-end", "round-change"].includes(t.event)))
+  ) {
+    categories.add("TURN_TRIGGER");
+  }
+  if (
+    (spell.activeActions || []).length > 0
+    || phaseImplemented
+  ) {
+    categories.add("ACTIVE_ACTION");
+  }
+  if (
+    spell.onSpellEnd
+    || spell.expiry
+    || persistentArea
+    || spell.boardToken
+  ) {
+    categories.add("CLEANUP");
+  }
+  return Array.from(categories).sort();
+}
+
+function deriveVerificationEvidence(spellId, integration) {
+  const evidence = [];
+  if (
+    integration?.catalog?.exposed
+    && integration?.contract
+    && (integration?.cast?.valid || integration?.status === "reachable")
+  ) {
+    evidence.push("STRUCTURAL");
+  }
+  return evidence;
+}
+
 function buildIntegrationAudit({
   spell,
   areaRules,
   unifiedCatalogById,
-  excluded,
-  regulatoryGaps,
   trackable,
+  regulatoryGaps,
+  targetUiExposure,
+  hasDeclaredAutomationExpectation,
+  currentAutomationLevelCandidate,
 }) {
-  if (excluded) {
-    return {
-      status: "excluded",
-      priority: "—",
-      issues: [],
-      catalog: { exposed: false, sources: [] },
-      contract: null,
-      cast: null,
-      persistence: null,
-      actions: null,
-      smokeRequired: false,
-    };
-  }
-
   const catalogEntry = unifiedCatalogById.get(spell.id) || null;
   const issues = [];
-  if (!catalogEntry) issues.push(integrationIssue("UNIFIED_CATALOG_MISSING"));
+
+  if (!catalogEntry) {
+    if (targetUiExposure === "UNIFIED") {
+      issues.push(integrationIssue("UNIFIED_CATALOG_MISSING", "P0"));
+    } else {
+      issues.push(integrationIssue("UNIFIED_CATALOG_MISSING", "—"));
+    }
+  }
 
   let contract = null;
   try {
@@ -930,10 +1048,16 @@ function buildIntegrationAudit({
     contract = null;
   }
   if (!contract) {
-    issues.push(integrationIssue("CONTRACT_MISSING"));
+    if (targetUiExposure === "UNIFIED") {
+      issues.push(integrationIssue("CONTRACT_MISSING", "P0"));
+    } else {
+      issues.push(integrationIssue("CONTRACT_MISSING", "—"));
+    }
+    const severe = issues.some((issue) => issue.severity === "P0");
+    const fragile = issues.some((issue) => issue.code === "ACTIVE_ACTION_REMINDER_ONLY");
     return {
-      status: "disconnected",
-      priority: "P0",
+      status: severe ? "disconnected" : (catalogEntry ? "partial" : "unexposed"),
+      priority: severe ? "P0" : fragile ? "P1" : "—",
       issues,
       catalog: { exposed: !!catalogEntry, sources: [...(catalogEntry?.sources || [])] },
       contract: null,
@@ -941,18 +1065,27 @@ function buildIntegrationAudit({
       persistence: null,
       actions: null,
       smokeRequired: false,
+      smokeCategories: [],
     };
   }
 
   const cast = syntheticCastAudit(contract);
   if (!cast.valid) {
-    issues.push(integrationIssue(
-      cast.errors.includes("cast-no-mutations") ? "CAST_NO_MUTATIONS" : "CAST_PATH_INVALID",
-    ));
+    const isNoMutations = cast.errors.includes("cast-no-mutations");
+    if (isNoMutations) {
+      if (hasDeclaredAutomationExpectation) {
+        issues.push(integrationIssue("CAST_NO_MUTATIONS", "P0"));
+      } else {
+        issues.push(integrationIssue("CAST_NO_MUTATIONS", "—"));
+      }
+    } else {
+      issues.push(integrationIssue("CAST_PATH_INVALID", "P0"));
+    }
   }
+
   const actions = activeActionReachability(spell, areaRules);
   if (actions.unreachableActionIds.length) {
-    issues.push(integrationIssue("ACTIVE_ACTION_UNREACHABLE"));
+    issues.push(integrationIssue("ACTIVE_ACTION_UNREACHABLE", "P0"));
   } else if (actions.mode === "reminder-only") {
     issues.push(integrationIssue("ACTIVE_ACTION_REMINDER_ONLY", "P1"));
   }
@@ -965,7 +1098,7 @@ function buildIntegrationAudit({
     || contract.execution?.hasTokens === true
     || cast.operationTypes.includes("spell:upsert");
   if (actions.declaredActionIds.length && !persistenceDeclared) {
-    issues.push(integrationIssue("PERSISTENCE_UNDECLARED"));
+    issues.push(integrationIssue("PERSISTENCE_UNDECLARED", "P0"));
   }
 
   const severe = issues.some((issue) => issue.severity === "P0");
@@ -976,7 +1109,10 @@ function buildIntegrationAudit({
       ? "fragile"
       : regulatoryGaps.length
         ? "partial"
-        : "reachable";
+        : catalogEntry
+          ? "reachable"
+          : "unexposed";
+
   return {
     status,
     priority: severe ? "P0" : fragile ? "P1" : "—",
@@ -1003,6 +1139,7 @@ function buildIntegrationAudit({
     },
     actions,
     smokeRequired: requiresPersistentInstance || actions.declaredActionIds.length > 0,
+    smokeCategories: [],
   };
 }
 
@@ -1109,7 +1246,8 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
     || (spell.activeActions || []).length > 1;
   const statusImplemented = textConditions.length === 0
     || textConditions.every((condition) => implementedConditions.includes(condition));
-  const trackingImplemented = trackableIds.has(spell.id);
+  const trackingImplemented = (spell.trackable === true || trackableIds.has(spell.id))
+    && (!instantaneous || spell.trackable === true);
 
   const curated = CURATED_REVIEW[spell.id] || null;
   const curatedComplete = CURATED_COMPLETE[spell.id] || "";
@@ -1230,14 +1368,102 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
     phaseImplemented && "fasi/azioni",
     choiceImplemented && "varianti",
   ]);
+
+  const hasDeclaredAutomationExpectation = spell.concentration === true
+    || (spell.effects || []).length > 0
+    || !!spell.saveAutomation
+    || !!spell.boardToken
+    || (spell.activeActions || []).length > 0
+    || (areaRules.length > 0 && areaRules.some((r) => r.save || r.damage || r.effects || r.targeting?.confirmTargets));
+
+  const catalogEntry = unifiedCatalogById.get(spell.id) || null;
+  const currentUiExposure = catalogEntry
+    ? "UNIFIED"
+    : (trackingImplemented ? "TRACKER_ONLY" : (text ? "REFERENCE_ONLY" : "NONE"));
+  const targetUiExposure = currentUiExposure === "UNIFIED" ? "UNIFIED" : "UNREVIEWED";
+
+  const hasMechanicalAutomationCandidate = (areaRules.length > 0 && areaRules.some((r) => r.save || r.damage || r.effects || r.targeting?.confirmTargets))
+    || implementedConditions.length > 0
+    || saveImplemented
+    || movementImplemented
+    || !!spell.boardToken
+    || (spell.activeActions || []).length > 0
+    || phaseImplemented;
+
+  const currentAutomationLevelCandidate = hasMechanicalAutomationCandidate
+    ? (gaps.length === 0 && !!curatedComplete ? "FULL" : "PARTIAL")
+    : (trackingImplemented || persistentArea || spell.concentration === true ? "TRACK_ONLY" : "MANUAL");
+
   const integration = buildIntegrationAudit({
     spell,
     areaRules,
     unifiedCatalogById,
-    excluded,
-    regulatoryGaps: gaps,
     trackable: trackingImplemented,
+    regulatoryGaps: gaps,
+    targetUiExposure,
+    hasDeclaredAutomationExpectation,
+    currentAutomationLevelCandidate,
   });
+
+  const hasMechanicalAutomation = hasMechanicalAutomationCandidate
+    || integration.cast?.mutationMode === "mechanical"
+    || integration.cast?.adapter === "area-transaction";
+
+  let currentAutomationLevel = "MANUAL";
+  if (hasMechanicalAutomation) {
+    const hasIssues = gaps.length > 0
+      || integration.status === "disconnected"
+      || integration.status === "fragile"
+      || integration.status === "partial"
+      || integration.issues.some((issue) => issue.severity === "P0" || issue.code === "ACTIVE_ACTION_REMINDER_ONLY");
+    currentAutomationLevel = (!hasIssues && integration.status === "reachable" && !!curatedComplete) ? "FULL" : "PARTIAL";
+  } else if (trackingImplemented || persistentArea || spell.concentration === true) {
+    currentAutomationLevel = "TRACK_ONLY";
+  } else {
+    currentAutomationLevel = "MANUAL";
+  }
+
+  let coverageStatus = "UNREVIEWED";
+  const hasKnownGap = gaps.length > 0
+    || integration.issues.some((issue) => issue.severity === "P0" || issue.code === "ACTIVE_ACTION_REMINDER_ONLY" || issue.code === "ACTIVE_ACTION_UNREACHABLE");
+
+  if (hasKnownGap) {
+    coverageStatus = "GAP";
+  } else if (intentionallyManual) {
+    coverageStatus = "ACCEPTED";
+  } else if (curatedComplete && gaps.length === 0 && integration.status === "reachable") {
+    coverageStatus = "ACCEPTED";
+  } else if (curatedComplete && currentAutomationLevel === "TRACK_ONLY" && gaps.length === 0) {
+    coverageStatus = "ACCEPTED";
+  } else {
+    coverageStatus = "UNREVIEWED";
+  }
+
+  let targetAutomationLevel = "UNREVIEWED";
+  if (intentionallyManual) {
+    targetAutomationLevel = "MANUAL";
+  } else if (coverageStatus === "ACCEPTED") {
+    targetAutomationLevel = currentAutomationLevel;
+  } else {
+    targetAutomationLevel = "UNREVIEWED";
+  }
+
+  const smokeCategories = deriveSmokeCategories({
+    spell,
+    areaRules,
+    triggers,
+    contract: integration.contract,
+    saveImplemented,
+    implementedConditions,
+    trackingImplemented,
+    persistentArea,
+    turnImplemented,
+    phaseImplemented,
+  });
+  integration.smokeCategories = smokeCategories;
+  integration.smokeRequired = smokeCategories.length > 0;
+
+  const verificationEvidence = deriveVerificationEvidence(spell.id, integration);
 
   return {
     id: spell.id,
@@ -1258,6 +1484,13 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
         : intentionallyManual
           ? "gestione manuale intenzionale"
           : "",
+    currentAutomationLevel,
+    coverageStatus,
+    targetAutomationLevel,
+    currentUiExposure,
+    targetUiExposure,
+    smokeCategories,
+    verificationEvidence,
     reviewBasis: (curated || curatedComplete) ? "curata sul testo RAW" : "screening testuale conservativo",
     scope: excluded
       ? (longCastingTime
@@ -1289,6 +1522,7 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
       activeActionIds: (spell.activeActions || []).map((action) => action.id),
       phaseOptions: phaseOptions.map((option) => option.value),
       movementMechanics: movementImplemented,
+      smokeCategories,
       ...(spell.boardToken ? { boardToken: true } : {}),
     },
     integration,
@@ -1301,7 +1535,7 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
       choice: choiceEvidence,
       spatial: spatialEvidence,
     },
-      curatedNote: curatedComplete || curated?.note,
+    curatedNote: curatedComplete || curated?.note,
   };
 }
 
@@ -1328,48 +1562,72 @@ export function buildSpellAutomationAudit() {
       unifiedCatalogById,
     ))
     .sort((a, b) => a.name.localeCompare(b.name, "it") || a.id.localeCompare(b.id));
-  const rows = allRows.filter((row) => row.inAuditScope);
+  const legacyOperationalRows = allRows.filter((row) => row.inAuditScope);
   const excludedRows = allRows.filter((row) => !row.inAuditScope);
-  const openRows = rows.filter((row) => row.gaps.length);
+  const openRows = allRows.filter((row) => row.gaps.length > 0);
   const fingerprint = createHash("sha256")
-    .update(JSON.stringify({ rows, excluded: excludedRows.map((row) => [row.id, row.exclusionReason]) }))
+    .update(JSON.stringify({
+      rows: allRows.map((row) => [row.id, row.currentAutomationLevel, row.coverageStatus, row.targetAutomationLevel, row.priority, row.gaps.map((g) => g.code)]),
+      excluded: excludedRows.map((row) => [row.id, row.exclusionReason]),
+    }))
     .digest("hex")
     .slice(0, 16);
+
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     ruleset: "D&D 5e 2014",
-    methodology: "Audit a due assi: conformità al testo regolamentare e raggiungibilità nella console unificata. Per ogni spell lanciabile con 1 azione, 1 azione bonus o 1 reazione verifica catalogo, contratto UI, adapter di cast, mutazioni, persistenza e raggiungibilità di azioni o reminder. I P1 RAW restano revisionati manualmente; il TS iniziale single-target resta manuale e non costituisce una lacuna batch.",
+    methodology: "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
     fingerprint,
     summary: {
       catalogTotal: allRows.length,
-      catalog: rows.length,
-      textsAvailable: rows.filter((row) => row.textAvailable).length,
+      catalog: allRows.length,
+      textsAvailable: allRows.filter((row) => row.textAvailable).length,
       excluded: excludedRows.length,
+      legacyOperationalCount: legacyOperationalRows.length,
+      legacyExcludedCount: excludedRows.length,
       excludedByReason: countBy(excludedRows, (row) => row.exclusionReason),
-      trackable: rows.filter((row) => row.runtime.trackable).length,
-      withAreaRules: rows.filter((row) => row.runtime.areaRuleIds.length).length,
+      currentAutomationLevel: countBy(allRows, (row) => row.currentAutomationLevel),
+      coverageStatus: countBy(allRows, (row) => row.coverageStatus),
+      targetAutomationLevel: countBy(allRows, (row) => row.targetAutomationLevel),
+      currentUiExposure: countBy(allRows, (row) => row.currentUiExposure),
+      targetUiExposure: countBy(allRows, (row) => row.targetUiExposure),
+      trackable: allRows.filter((row) => row.runtime.trackable).length,
+      withAreaRules: allRows.filter((row) => row.runtime.areaRuleIds.length).length,
       openRows: openRows.length,
-      confirmed: rows.filter((row) => row.priority === "P1").length,
-      highConfidence: rows.filter((row) => row.priority === "P2").length,
-      reviewCandidates: rows.filter((row) => row.priority === "P3").length,
-      curatedP1: rows.filter((row) => row.priority === "P1").length,
-      manuallyReviewed: rows.filter((row) => row.reviewBasis === "curata sul testo RAW").length,
-      byPriority: countBy(rows, (row) => row.priority),
-      byAssessment: countBy(rows, (row) => row.assessment),
-      bySaveScope: countBy(rows, (row) => row.saveScope),
+      confirmed: allRows.filter((row) => row.priority === "P1").length,
+      highConfidence: allRows.filter((row) => row.priority === "P2").length,
+      reviewCandidates: allRows.filter((row) => row.priority === "P3").length,
+      curatedP1: allRows.filter((row) => row.priority === "P1").length,
+      manuallyReviewed: allRows.filter((row) => row.reviewBasis === "curata sul testo RAW").length,
+      knownIntegrationGaps: allRows.flatMap((row) => row.integration.issues.filter((issue) => issue.severity === "P0" || issue.severity === "P1")).length,
+      knownRawGaps: openRows.length,
+      byPriority: countBy(allRows, (row) => row.priority),
+      byAssessment: countBy(allRows, (row) => row.assessment),
+      bySaveScope: countBy(allRows, (row) => row.saveScope),
       byGap: countBy(openRows.flatMap((row) => row.gaps), (entry) => entry.code),
-      byIntegrationStatus: countBy(rows, (row) => row.integration.status),
-      byIntegrationPriority: countBy(rows, (row) => row.integration.priority),
+      byIntegrationStatus: countBy(allRows, (row) => row.integration.status),
+      byIntegrationPriority: countBy(allRows, (row) => row.integration.priority),
       byIntegrationIssue: countBy(
-        rows.flatMap((row) => row.integration.issues),
+        allRows.flatMap((row) => row.integration.issues),
         (entry) => entry.code,
       ),
-      unifiedCatalogExposed: rows.filter((row) => row.integration.catalog?.exposed).length,
-      integrationDisconnected: rows.filter((row) => row.integration.status === "disconnected").length,
-      integrationFragile: rows.filter((row) => row.integration.status === "fragile").length,
-      runtimeSmokeRequired: rows.filter((row) => row.integration.smokeRequired).length,
+      smokeCategories: countBy(
+        allRows.flatMap((row) => row.smokeCategories),
+        (entry) => entry,
+      ),
+      unifiedCatalogExposed: allRows.filter((row) => row.integration.catalog?.exposed).length,
+      integrationDisconnected: allRows.filter((row) => row.integration.status === "disconnected").length,
+      integrationFragile: allRows.filter((row) => row.integration.status === "fragile").length,
+      runtimeSmokeRequired: allRows.filter((row) => row.integration.smokeRequired).length,
+      releaseReady: allRows.every((row) =>
+        row.coverageStatus !== "GAP"
+        && row.coverageStatus !== "UNREVIEWED"
+        && row.targetAutomationLevel !== "UNREVIEWED"
+        && row.targetUiExposure !== "UNREVIEWED"
+        && !row.integration.issues.some((issue) => issue.severity === "P0")
+      ),
     },
-    rows,
+    rows: allRows,
     excluded: excludedRows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -1412,7 +1670,7 @@ function renderIntegrationSection(audit) {
   const lines = ["## Integrazione con la console unificata", ""];
   if (!rows.length) return [...lines, "Nessuna disconnessione rilevata.", ""].join("\n");
   lines.push(
-    "Questa sezione è indipendente dalle lacune RAW: segnala workflow presenti nel codice ma non raggiungibili, cast senza mutazioni e spell assenti dalla console.",
+    "Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibili o cast anomali.",
     "",
     "| Incantesimo | Console | Cast | Azioni successive | Stato | Problemi |",
     "| --- | --- | --- | --- | --- | --- |",
@@ -1433,42 +1691,45 @@ export function renderSpellAutomationMarkdown(audit) {
   const lines = [
     "# Audit automazione incantesimi",
     "",
-    "> **Audit generato e operativo.** Non descrive soltanto la presenza nel catalogo:",
-    "> confronta il testo regolamentare locale con tracking, aree, lifecycle, TS,",
-    "> condizioni, movimento, trigger di turno, azioni e fasi effettivamente dichiarati",
-    "> nel runtime. Rigenerare con `npm run audit:spells` dopo modifiche al catalogo.",
+    "> **Audit incrementale per feature freeze e source of truth.**",
+    "> Mappa i 477 record del catalogo distinguendo stato attuale, stato desiderato,",
+    "> esposizione UI, conformità regolamentare e requisiti di smoke test.",
     "",
-    "## Metodo e limiti",
+    "## Metodo e sintesi del catalogo",
     "",
-    `- Catalogo sorgente: **${audit.summary.catalogTotal}** definizioni; perimetro operativo: **${audit.summary.catalog}**; testi disponibili nel perimetro: **${audit.summary.textsAvailable}**.`,
-    `- Fuori perimetro: **${audit.summary.excluded}** definizioni. Sono escluse a priori le spell con casting time maggiore di 1 azione e le esclusioni curate dal perimetro operativo.`,
-    `- Definizioni tracciabili: **${audit.summary.trackable}**; definizioni con almeno una regola di area: **${audit.summary.withAreaRules}**.`,
-    `- Esposte nella console unificata: **${audit.summary.unifiedCatalogExposed}**; disconnesse: **${audit.summary.integrationDisconnected}**; fragili: **${audit.summary.integrationFragile}**.`,
+    `- Catalogo totale: **${audit.summary.catalogTotal}** definizioni su 477 record.`,
+    `- Testi disponibili: **${audit.summary.textsAvailable}** / ${audit.summary.catalogTotal}.`,
+    `- Esposti nella console unificata: **${audit.summary.unifiedCatalogExposed}**; disconnessi: **${audit.summary.integrationDisconnected}**; fragili: **${audit.summary.integrationFragile}**.`,
+    `- Definizioni tracciabili: **${audit.summary.trackable}**; definizioni con regole d'area: **${audit.summary.withAreaRules}**.`,
     `- Workflow che richiedono smoke test runtime: **${audit.summary.runtimeSmokeRequired}**.`,
-    `- Casi revisionati manualmente sul testo RAW: **${audit.summary.manuallyReviewed}**; lacune confermate P1: **${audit.summary.curatedP1}**.`,
-    `- Impronta deterministica dello snapshot: \`${audit.fingerprint}\`.`,
-    "- P1 indica una lacuna confermata; P2 una discrepanza testuale ad alta confidenza; P3 una candidata da validare prima di modificare il runtime.",
-    "- Il TS iniziale di una spell puramente single-target resta manuale e non è una lacuna; il workflow TS è richiesto per aree, bersagli multipli e progressioni di slot multi-target.",
-    "- I tiri fisici e gli altri effetti dichiaratamente manuali non sono considerati bug se esiste il workflow/reminder corretto.",
-    "- Evocazioni, gestioni intenzionalmente manuali ed esclusioni curate restano fuori dal runtime operativo; sono elencate soltanto nella sezione `excluded` del JSON.",
+    `- Lacune RAW confermate P1: **${audit.summary.curatedP1}**; discrepanze ad alta confidenza P2: **${audit.summary.highConfidence}**.`,
+    `- Impronta deterministica: \`${audit.fingerprint}\`.`,
     "",
-    "### Esclusioni dal perimetro",
+    "### Livello di automazione attuale (currentAutomationLevel)",
     "",
-    renderCountTable(audit.summary.excludedByReason),
+    renderCountTable(audit.summary.currentAutomationLevel),
     "",
-    "### Distribuzione delle valutazioni",
+    "### Stato di copertura (coverageStatus)",
     "",
-    renderCountTable(audit.summary.byAssessment),
+    renderCountTable(audit.summary.coverageStatus),
     "",
-    "### Distribuzione delle priorità",
+    "### Livello di automazione target (targetAutomationLevel)",
     "",
-    renderCountTable(audit.summary.byPriority),
+    renderCountTable(audit.summary.targetAutomationLevel),
     "",
-    "### Ambito dei tiri salvezza",
+    "### Esposizione UI attuale (currentUiExposure)",
     "",
-    renderCountTable(audit.summary.bySaveScope),
+    renderCountTable(audit.summary.currentUiExposure),
     "",
-    "### Stato di integrazione nella console unificata",
+    "### Esposizione UI target (targetUiExposure)",
+    "",
+    renderCountTable(audit.summary.targetUiExposure),
+    "",
+    "### Categorie di Smoke Test richieste",
+    "",
+    renderCountTable(audit.summary.smokeCategories),
+    "",
+    "### Stato di integrazione console unificata",
     "",
     renderCountTable(audit.summary.byIntegrationStatus),
     "",
@@ -1480,15 +1741,13 @@ export function renderSpellAutomationMarkdown(audit) {
     renderPrioritySection(audit, "P1", "P1 — lacune confermate sul testo RAW"),
     renderPrioritySection(audit, "P2", "P2 — discrepanze ad alta confidenza"),
     renderPrioritySection(audit, "P3", "P3 — candidate da revisionare"),
-    "## Matrice completa",
+    "## Matrice completa (477 incantesimi)",
     "",
-    "La colonna **Segnali RAW** deriva dal testo; **Copertura runtime** deriva esclusivamente dai dati e dalle regole effettivamente importate dal plugin.",
-    "",
-    "| Incantesimo | ID | Fonte/Liv. | Ambito | Ambito TS | Console | Integrazione | Segnali RAW | Copertura runtime | Valutazione | Priorità | Lacune |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Incantesimo | ID | Fonte/Liv. | Livello Attuale | Copertura | Livello Target | Esposizione UI | Integrazione | Priorità | Lacune |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ];
   for (const row of audit.rows) {
-    lines.push(`| ${mdCell(row.name)} | \`${mdCell(row.id)}\` | ${mdCell(`${row.source} / ${row.level}`)} | ${mdCell(row.scope)} | ${mdCell(row.saveScope)} | ${row.integration.catalog?.exposed ? "esposto" : "assente"} | ${mdCell(row.integration.status)} | ${mdCell(row.signals.join(", "))} | ${mdCell(row.coverage.join(", "))} | ${mdCell(row.assessment)} | ${row.priority} | ${mdCell(row.gaps.map((entry) => entry.label).join("; "))} |`);
+    lines.push(`| ${mdCell(row.name)} | \`${mdCell(row.id)}\` | ${mdCell(`${row.source} / ${row.level}`)} | ${mdCell(row.currentAutomationLevel)} | ${mdCell(row.coverageStatus)} | ${mdCell(row.targetAutomationLevel)} | ${mdCell(row.currentUiExposure)} | ${mdCell(row.integration.status)} | ${row.priority} | ${mdCell(row.gaps.map((entry) => entry.label).join("; "))} |`);
   }
   lines.push(
     "",
@@ -1524,6 +1783,12 @@ if (isMain) {
     manuallyReviewed: audit.summary.manuallyReviewed,
     integrationDisconnected: audit.summary.integrationDisconnected,
     integrationFragile: audit.summary.integrationFragile,
+    currentAutomationLevel: audit.summary.currentAutomationLevel,
+    coverageStatus: audit.summary.coverageStatus,
+    targetAutomationLevel: audit.summary.targetAutomationLevel,
+    currentUiExposure: audit.summary.currentUiExposure,
+    targetUiExposure: audit.summary.targetUiExposure,
+    smokeCategories: audit.summary.smokeCategories,
     fingerprint: audit.fingerprint,
     markdown: path.relative(ROOT, MARKDOWN_OUTPUT),
     json: path.relative(ROOT, JSON_OUTPUT),

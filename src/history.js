@@ -707,20 +707,24 @@ export async function withItemMetaHistory(options, action) {
         });
       }
 
-      if (changes.length && isOperationCurrent()) {
-        let entry = {
-          id: createEntryId(),
-          version: HISTORY_VERSION,
-          at: Date.now(),
-          kind: String(options?.kind || "change"),
-          label: String(options?.label || "Modifica"),
-          changes,
-        };
-        if (typeof options?.decorateEntry === "function") {
-          const decorated = await options.decorateEntry(entry);
-          if (decorated && typeof decorated === "object") entry = decorated;
-        }
-        if (!isOperationCurrent()) return result;
+      let entry = {
+        id: createEntryId(),
+        version: HISTORY_VERSION,
+        at: Date.now(),
+        kind: String(options?.kind || "change"),
+        label: String(options?.label || "Modifica"),
+        changes,
+      };
+      if (typeof options?.decorateEntry === "function") {
+        const decorated = await options.decorateEntry(entry);
+        if (decorated && typeof decorated === "object") entry = decorated;
+      }
+      const hasMeaningfulChanges = (Array.isArray(entry.changes) && entry.changes.length > 0)
+        || (Array.isArray(entry.effectsMutation?.changes) && entry.effectsMutation.changes.length > 0)
+        || (Array.isArray(entry.effectsMutation?.sideEffects) && entry.effectsMutation.sideEffects.length > 0)
+        || (entry.payload?.causality?.teleport === true);
+
+      if (hasMeaningfulChanges && isOperationCurrent()) {
         const historyCommandId = `history-command:${createEntryId()}`;
         try {
           const ownerResult = await appendEntry(entry, {
@@ -950,15 +954,22 @@ export function subscribeMovementSegments(handler) {
   return () => __movementSegmentListeners.delete(handler);
 }
 
-export function suppressMovementHistory(itemId, expectedPosition, durationMs = 2000) {
+export function suppressMovementHistory(itemId, expectedPosition, durationMs = 5000) {
   const id = String(itemId || "");
   const position = itemPosition({ position: expectedPosition });
   if (!id || !position) return;
   __pendingMovements.delete(id);
+  const until = Date.now() + Math.max(500, Number(durationMs) || 0);
   __suppressedMovements.set(id, {
-    until: Date.now() + Math.max(500, Number(durationMs) || 0),
+    until,
     positions: [position],
   });
+  void OBR.broadcast.sendMessage(HISTORY_CONTROL_CHANNEL, {
+    type: "suppress-movement",
+    ids: [id],
+    positions: { [id]: [position] },
+    until,
+  }, { destination: "LOCAL" }).catch(() => {});
 }
 
 function notifyMovementSegments(changes) {
@@ -994,6 +1005,7 @@ async function measuredMovementCells(move, dpi) {
 async function buildMovementUndoCorrections(entries, sceneEpoch) {
   const candidates = [];
   for (const entry of Array.isArray(entries) ? entries : []) {
+    if (entry?.kind !== "move") continue;
     for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
       const beforePosition = itemPosition({ position: change?.beforePosition });
       const afterPosition = itemPosition({ position: change?.afterPosition });
@@ -1188,6 +1200,9 @@ export async function mountMovementHistoryWatcher() {
           suppression.positions.splice(0, expectedIndex + 1);
           if (!suppression.positions.length) __suppressedMovements.delete(item.id);
           __pendingMovements.delete(item.id);
+          continue;
+        }
+        if (previous && samePosition(previous, next)) {
           continue;
         }
         __suppressedMovements.delete(item.id);

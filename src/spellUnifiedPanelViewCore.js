@@ -2,6 +2,7 @@ import {
   buildSpellPanelViewModel,
   spellPanelValidationMessage,
 } from "./spellUnifiedPanelCore.js";
+import { isTeleportSpell } from "./spellTeleportCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
 import {
   calculateQuickHPChange,
@@ -124,7 +125,7 @@ function normalizeCasterOptions(options = []) {
   return optionList(options, "Seleziona caster");
 }
 
-function placementLabels(placement) {
+function placementLabels(placement, contract = null) {
   const policy = asText(placement?.policy) || "unavailable";
   const state = asText(placement?.state) || "idle";
   const batchTotal = Math.max(0, Math.floor(Number(placement?.batchTotal) || 0));
@@ -169,7 +170,8 @@ function placementLabels(placement) {
   const previewLabel = placement?.preview
     ? asText(placement.preview.label) || "Anteprima aggiornata"
     : "";
-  return {
+  const isTeleport = isTeleportSpell(contract?.spell?.id || placement?.spellId);
+    return {
     visible: policy !== "unavailable",
     policy,
     policyLabel: PLACEMENT_POLICY_LABELS[policy] || policy,
@@ -181,6 +183,8 @@ function placementLabels(placement) {
         ? "Puoi confermare il lancio senza aggiungere una posizione geometrica."
       : isBatch
         ? "Posiziona tutti gli oggetti sulla mappa e conferma il gruppo."
+      : isTeleport
+        ? "Seleziona la casella libera di destinazione sulla mappa entro 9 metri."
       : "Disegna l'area sulla mappa e confermala per acquisire i bersagli.",
     rules: clone(placement?.rules || []),
     rulesLabel: ruleNames.join(" / "),
@@ -202,12 +206,14 @@ function placementLabels(placement) {
       && !placement?.confirmed
       && !pendingStates.has(state),
     actionLabel: ["error", "failed"].includes(state)
-      ? "Riprova area"
+      ? (isTeleport ? "Riprova destinazione" : "Riprova area")
       : policy === "optional"
         ? "Aggiungi area"
         : isBatch
           ? "Posiziona oggetti"
-        : "Posiziona area",
+        : isTeleport
+          ? "Posiziona destinazione"
+          : "Posiziona area",
   };
 }
 
@@ -585,7 +591,7 @@ export function buildUnifiedPanelViewModel({
     new Set(normalizedTargetFilters.factions),
     normalizedTargetFilters.name,
   ));
-  const placement = placementLabels(workflow.placement);
+  const placement = placementLabels(workflow.placement, contract);
   const phase = presentation.phase || {};
   const variant = presentation.variant || {};
   const composition = presentation.composition || {};

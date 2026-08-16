@@ -1,4 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { ID } from "./constants.js";
 import {
   cleanupOwnedEffectsLabels,
   mountEffectsReconciler,
@@ -50,6 +51,7 @@ import {
 } from "./options/optionalRuntimeLifecycle.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
 import { mountHistoryOwner } from "./historyOwner.js";
+import { undoHistoryThrough } from "./history.js";
 import { readLegacyHPMemoryForItem } from "./hpMemory.js";
 import { migrateInitiativeCardActorIdentities } from "./initiativeCards.js";
 import {
@@ -72,6 +74,68 @@ import {
   unmountEmbersMatchedVisualRenderer,
 } from "./embersMatchedVisualRenderer.js";
 import { mountSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
+
+const HISTORY_UNDO_TOOL_ID = `${ID}/history-undo`;
+const HISTORY_UNDO_TOOL_SHORTCUT = "Alt+Z";
+let historyUndoToolInProgress = false;
+
+async function runHistoryUndoTool() {
+  if (historyUndoToolInProgress) return;
+  const sceneEpoch = currentSceneEpoch();
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+
+  const role = await OBR.player.getRole().catch(() => "");
+  if (role !== "GM" || !isCurrentSceneEpoch(sceneEpoch)) return;
+
+  historyUndoToolInProgress = true;
+  try {
+    const result = await undoHistoryThrough(undefined, { sceneEpoch });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    if (result?.status === "conflict") {
+      console.info("[history] Alt+Z bloccato: lo stato della scena è cambiato.");
+    } else if (result?.status === "failed" || result?.status === "rejected") {
+      console.warn("[history] Alt+Z non applicato:", result?.result?.reason || result?.reason || result?.status);
+    }
+  } catch (error) {
+    if (isCurrentSceneEpoch(sceneEpoch)) {
+      console.warn("[history] Alt+Z:", error?.message || error);
+    }
+  } finally {
+    historyUndoToolInProgress = false;
+  }
+}
+
+async function mountHistoryUndoTool() {
+  const role = await OBR.player.getRole().catch(() => "");
+  if (role !== "GM") return false;
+
+  // Rimuove l'eventuale ToolAction della build precedente.
+  try {
+    await OBR.tool.removeAction(HISTORY_UNDO_TOOL_ID);
+  } catch {}
+
+  // Evita duplicati durante hot reload / remount.
+  try {
+    await OBR.tool.remove(HISTORY_UNDO_TOOL_ID);
+  } catch {}
+
+  await OBR.tool.create({
+    id: HISTORY_UNDO_TOOL_ID,
+    shortcut: HISTORY_UNDO_TOOL_SHORTCUT,
+    icons: [{
+      icon: "/history.svg",
+      label: "Undo Take Initiative",
+      filter: { roles: ["GM"] },
+    }],
+    onClick: () => {
+      void runHistoryUndoTool();
+      // Tool stateless: esegue Undo senza diventare il tool attivo.
+      return false;
+    },
+  });
+  return true;
+}
+
 
 function mountEmbersVisualRenderers() {
   mountFireballVisualRenderer();
@@ -178,6 +242,11 @@ OBR.onReady(async () => {
         lifecycle,
       }).ready
     )));
+    // Registra Undo per ultimo tra i tool custom dell'estensione,
+    // così Owlbear lo colloca in fondo alla sezione dei tool custom.
+    await mountHistoryUndoTool().catch((error) => {
+      console.warn("[history] host Undo tool bootstrap:", error?.message || error);
+    });
     void mountSpellAuraController();
     void mountClassFeatureAuraController();
     void mountCustomAuraController();

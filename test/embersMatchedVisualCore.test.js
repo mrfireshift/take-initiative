@@ -610,7 +610,10 @@ test("Esilio mantiene il portale in loop e riproduce il rientro alla fine", () =
     targetIds: ["target-1"],
     sceneDpi: 100,
   });
+  const ray = start.layers.find((layer) => layer.effectId === "rangedSpell");
   const loop = start.layers.find((layer) => layer.effectId === "portal");
+  assert.equal(ray.delay, 0);
+  assert.equal(loop.delay, 600);
   assert.equal(loop.persistent, true);
   assert.equal(loop.attachedTo, "target");
   assert.equal(loop.targetId, "target-1");
@@ -656,4 +659,23 @@ test("Ispirazione Bardica è registrata come capacità, non come spell", () => {
   assert.deepEqual(EMBERS_MATCHED_CLASS_FEATURE_IDS, ["bardo-ispirazione-bardica"]);
   assert.equal(isMatchedClassFeatureVisual("bardo-ispirazione-bardica"), true);
   assert.equal(EMBERS_MATCHED_VISUAL_CHANNEL, "com.thebigpicture.initiative/embers-matched-visual");
+});
+
+
+test("Passo Velato conserva le durate Embers dei due one-shot", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "misty-step",
+    eventId: "misty-step-vfx",
+    lifecycleId: "misty-step-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 150 },
+    preview: { end: { x: 700, y: 100 }, dpi: 100 },
+    sceneDpi: 100,
+  });
+  const out = event.layers.find((layer) => layer.effectId === "mistyStepOut");
+  const incoming = event.layers.find((layer) => layer.effectId === "mistyStepIn");
+  assert.equal(out.delay, 0);
+  assert.equal(incoming.delay, 1500);
+  assert.equal(matchedVisualLayerPlan(out, event.dpi).duration, 3000);
+  assert.equal(matchedVisualLayerPlan(incoming, event.dpi).duration, 4870);
 });

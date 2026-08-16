@@ -60,6 +60,7 @@ export function buildFireballVisualEvent({
   casterId = "",
   eventId = "",
   source = null,
+  sceneEpoch = null,
 } = {}) {
   const center = finitePoint(preview?.start);
   const radius = fireballRadiusFromPreview(preview);
@@ -77,6 +78,7 @@ export function buildFireballVisualEvent({
     dpi,
     ...(normalizedCasterId ? { casterId: normalizedCasterId } : {}),
     ...(normalizedSource ? { source: normalizedSource } : {}),
+    ...(sceneEpoch != null && Number.isFinite(Number(sceneEpoch)) ? { sceneEpoch: Number(sceneEpoch) } : {}),
   };
 }
 

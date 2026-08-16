@@ -143,6 +143,31 @@ function mergeHistoryChanges(entry) {
     ...(Array.isArray(entry?.changes) ? entry.changes : []),
     ...(Array.isArray(entry?.effectsMutation?.changes) ? entry.effectsMutation.changes : []),
   ];
+  for (const sideEffect of Array.isArray(entry?.effectsMutation?.sideEffects) ? entry.effectsMutation.sideEffects : []) {
+    if (sideEffect?.type === "item" && sideEffect.id) {
+      sources.push({
+        id: sideEffect.id,
+        name: sideEffect.after?.name || sideEffect.before?.name || "",
+        beforePosition: sideEffect.before?.position,
+        afterPosition: sideEffect.after?.position,
+      });
+    }
+  }
+  const causality = entry?.payload?.causality;
+  if (causality?.casterId) {
+    sources.push({
+      id: causality.casterId,
+      name: causality.casterName || "",
+    });
+  }
+  for (const target of Array.isArray(causality?.targets) ? causality.targets : []) {
+    if (target?.id) {
+      sources.push({
+        id: target.id,
+        name: target.name || "",
+      });
+    }
+  }
   const byId = new Map();
   const anonymous = [];
   for (const raw of sources) {

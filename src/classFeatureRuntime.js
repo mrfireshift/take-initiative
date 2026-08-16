@@ -927,7 +927,9 @@ export async function activateClassFeature({
   spellLevelConfirmed = false,
   resourceValues = {},
   featureOverride = null,
+  sceneEpoch = null,
 } = {}) {
+  const originEpoch = Number.isInteger(sceneEpoch) ? sceneEpoch : currentSceneEpoch();
   const feature = featureOverride || getClassFeatureDefinition(featureId);
   if (!featureOverride && feature?.runtimeSupport?.adapter === "spell-thief") {
     const prepared = prepareSpellThiefFeatureActivation({
@@ -946,6 +948,7 @@ export async function activateClassFeature({
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
     });
     return {
       ...result,
@@ -990,6 +993,7 @@ export async function activateClassFeature({
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
     });
     return {
       ...result,
@@ -1012,6 +1016,7 @@ export async function activateClassFeature({
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
     });
     return {
       ...result,
@@ -1035,6 +1040,7 @@ export async function activateClassFeature({
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
     });
     return {
       ...result,
@@ -1060,6 +1066,7 @@ export async function activateClassFeature({
       suppressAutoActivation,
       resourceValues,
       featureOverride: prepared.feature,
+      sceneEpoch: originEpoch,
     });
     return {
       ...result,
@@ -1080,6 +1087,7 @@ export async function activateClassFeature({
         sourceId: sourceItem.id,
         featureId: autoActivateParentFeatureId,
         suppressAutoActivation,
+        sceneEpoch: originEpoch,
       }));
     }
   }
@@ -1192,10 +1200,11 @@ export async function activateClassFeature({
   const classFeatureMutation = await runEffectsMutation(
     activationOperations,
     {
-    kind: "class-feature",
-    label: `Capacità: ${feature.name}`,
+      kind: "class-feature",
+      label: `Capacità: ${feature.name}`,
       targetIds: itemIds,
       metadataPatches,
+      sceneEpoch: originEpoch,
       sideEffects: classFeatureBreaksConcentration(feature)
         ? [{
           type: "static-zone:remove-ended",
@@ -1212,6 +1221,7 @@ export async function activateClassFeature({
       targetIds: resolvedTargetIds,
       eventId: activation.instance?.instanceId || instanceId,
       lifecycleId: activation.instance?.instanceId || instanceId,
+      sceneEpoch: originEpoch,
     }).catch((error) => {
       console.warn("[class-feature] matched visual:", error?.message || error);
     });
@@ -1241,6 +1251,7 @@ export async function activateClassFeature({
         featureId: childId,
         choiceId: String(autoChoiceIds?.[childId] || "").trim(),
         suppressAutoActivation: true,
+        sceneEpoch: originEpoch,
       }));
     }
   }

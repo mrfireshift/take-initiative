@@ -210,3 +210,97 @@ test("Undo confronta anche i reminder differiti delle condizioni", () => {
   assert.equal(plan.status, undefined);
   assert.deepEqual(plan.states[0].conditions, []);
 });
+
+test("Undo di un side-effect token:teleport confronta solo la posizione posseduta", () => {
+  const origin = { x: 0, y: 0 };
+  const destination = { x: 300, y: 300 };
+  const entry = {
+    id: "effects-teleport",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: "caster-1",
+        type: "token:teleport",
+        beforePosition: origin,
+        afterPosition: destination,
+      }],
+    },
+  };
+  const plan = buildCoordinatedEffectsUndoPlan({
+    currentStates: [state("caster-1", [])],
+    sceneItems: [{
+      id: "caster-1",
+      position: destination,
+      metadata: { hp: 15, unrelated: "modified-after-teleport" },
+      name: "Mago",
+    }],
+    entryOrEntries: [entry],
+    metadataKeys,
+    normalizeConditions,
+  });
+  assert.equal(plan.status, undefined);
+  assert.equal(plan.undoSideEffects.length, 1);
+  assert.deepEqual(plan.undoSideEffects[0], {
+    id: "caster-1",
+    type: "token:teleport",
+    restorePosition: origin,
+    expectedPosition: destination,
+  });
+});
+
+test("un movimento successivo del token teletrasportato produce un conflitto di posizione", () => {
+  const origin = { x: 0, y: 0 };
+  const destination = { x: 300, y: 300 };
+  const laterPosition = { x: 450, y: 450 };
+  const entry = {
+    id: "effects-teleport-conflict",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: "caster-1",
+        type: "token:teleport",
+        beforePosition: origin,
+        afterPosition: destination,
+      }],
+    },
+  };
+  const plan = buildCoordinatedEffectsUndoPlan({
+    currentStates: [state("caster-1", [])],
+    sceneItems: [{
+      id: "caster-1",
+      position: laterPosition,
+      metadata: {},
+    }],
+    entryOrEntries: [entry],
+    metadataKeys,
+    normalizeConditions,
+  });
+  assert.equal(plan.status, "conflict");
+  assert.equal(plan.conflicts[0].itemId, "caster-1");
+  assert.equal(plan.conflicts[0].field, "position");
+});
+
+test("se il token teletrasportato viene rimosso dalla scena, Undo segnala conflict per item mancante", () => {
+  const entry = {
+    id: "effects-teleport-missing",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: "caster-1",
+        type: "token:teleport",
+        beforePosition: { x: 0, y: 0 },
+        afterPosition: { x: 300, y: 300 },
+      }],
+    },
+  };
+  const plan = buildCoordinatedEffectsUndoPlan({
+    currentStates: [],
+    sceneItems: [],
+    entryOrEntries: [entry],
+    metadataKeys,
+    normalizeConditions,
+  });
+  assert.equal(plan.status, "conflict");
+  assert.equal(plan.conflicts[0].itemId, "caster-1");
+  assert.equal(plan.conflicts[0].reason, "token-teleport-target-missing");
+});

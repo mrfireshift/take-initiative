@@ -81,6 +81,21 @@ test("costruisce un vero pulsante toggle per il popover", async () => {
   assert.deepEqual(toggles, [button]);
 });
 
+test("posiziona il launcher in basso a destra rispetto al ritratto nella vista compatta", () => {
+  const documentRef = createTestDocument();
+  const launcher = buildTrackerQuickActionLauncher({
+    actions: [action],
+    compact: true,
+    expanded: false,
+    documentRef,
+  });
+
+  assert.ok(launcher);
+  assert.equal(launcher.style.left, "auto");
+  assert.equal(launcher.style.right, "18px");
+  assert.equal(launcher.style.top, "35px");
+});
+
 test("non monta il pulsante senza azioni valide", () => {
   assert.equal(buildTrackerQuickActionLauncher({
     actions: [],
