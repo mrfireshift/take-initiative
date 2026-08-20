@@ -21,6 +21,11 @@ export function shouldHandleHistoryUndoShortcut({
     && String(key || "").toLocaleLowerCase() === "z";
 }
 
+export function shouldAutoRefreshHistoryUndoReadiness(undoState = {}) {
+  return undoState?.status === "blocked"
+    && undoState?.reason === "history-pending";
+}
+
 export function partitionHistoryUndoRows(rows = []) {
   const source = Array.isArray(rows) ? rows.filter(Boolean) : [];
   const undoable = source.filter((row) => row?.undoable === true);

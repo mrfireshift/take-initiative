@@ -467,7 +467,9 @@ export async function requestHistoryOwnerAppend(
     return throwForOwnerResult(result, { entryId: entry?.id || null });
   } catch (error) {
     if (error && typeof error === "object") {
-      error.historyEntry = clone(entry);
+      // A failed owner write may still have reserved the entry's storeSeq.
+      // Preserve that owner-enriched immutable entry for the retry lane.
+      error.historyEntry = clone(error?.result?.entry || entry);
       error.entryId ||= entry?.id || null;
     }
     throw error;

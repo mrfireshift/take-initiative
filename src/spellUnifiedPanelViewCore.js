@@ -37,7 +37,10 @@ import {
 import {
   spellUnifiedActiveActionPresentation,
 } from "./spellUnifiedActiveAdapter.js";
-import { spellSaveDamageFactor } from "./spellCastResolutionRules.js";
+import {
+  spellSaveDamageFactor,
+  spellSaveDamageFormula,
+} from "./spellCastResolutionRules.js";
 
 const SUBJECT_LABELS = Object.freeze({
   none: "Nessun soggetto",
@@ -226,6 +229,7 @@ function normalizeTargetCandidates(
   outcomeMode = "save",
   attackOutcome = "",
   outcomeOptions = [],
+  allowedCandidateIds = null,
 ) {
   const selected = new Set(targetIds);
   const selectedCount = selected.size;
@@ -244,6 +248,8 @@ function normalizeTargetCandidates(
       : outcomeValue
         ? { value: asText(outcomeValue), label: asText(outcomeValue) }
         : null;
+    const outsideSubset = allowedCandidateIds instanceof Set && !allowedCandidateIds.has(key);
+    const isSelected = selected.has(key) && !outsideSubset;
     return {
       key,
       label,
@@ -255,13 +261,13 @@ function normalizeTargetCandidates(
         || asText(candidate?.faction),
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
-      eligible: candidate?.eligible !== false,
-      selected: selected.has(key),
-      disabled: targetLocked || (!selected.has(key)
+      eligible: candidate?.eligible !== false && !outsideSubset,
+      selected: isSelected,
+      disabled: outsideSubset || targetLocked || (!isSelected
         && Number.isInteger(maximum)
         && maximum >= 0
         && selectedCount >= maximum),
-      outcome,
+      outcome: isSelected ? outcome : null,
       outcomeOptions: clone(outcomeOptions),
     };
   }).filter((candidate) => candidate.key);
@@ -425,16 +431,33 @@ function targetContextFields(presentation, session, selectedTargets = []) {
   };
 }
 
-function normalizeEffectFields(presentation, session, validation) {
+function normalizeEffectFields(presentation, session, validation, spellId = "") {
   const inputs = presentation?.inputs || {};
   const hpValues = session?.hpValues || {};
   const fields = [];
   if (inputs.damage?.visible) {
+    const selectedOutcomes = Array.from(new Set(
+      Object.values(session?.outcomes || {})
+        .map((value) => asText(value).toLocaleLowerCase("it"))
+        .filter(Boolean),
+    ));
+    const selectedOutcome = selectedOutcomes.length === 1 ? selectedOutcomes[0] : "";
+    const selectedFormula = spellSaveDamageFormula(
+      spellId,
+      selectedOutcome,
+      session?.slotLevel,
+    );
+    const passedFormula = spellSaveDamageFormula(spellId, "passed", session?.slotLevel);
+    const failedFormula = spellSaveDamageFormula(spellId, "failed", session?.slotLevel);
     fields.push({
       id: "damage",
       type: "number",
-      label: "Danno",
-      hint: "Valore da applicare ai bersagli.",
+      label: selectedFormula ? `Danno · ${selectedFormula}` : "Danno",
+      hint: selectedFormula
+        ? `Inserisci il totale del tiro ${selectedFormula}.`
+        : passedFormula && failedFormula
+          ? `TS superato: ${passedFormula}. TS fallito: ${failedFormula}. Inserisci il totale effettivo.`
+          : "Valore da applicare ai bersagli.",
       min: 0,
       value: hpValues.damage ?? "",
       invalid: validation.firstInvalidField === "damage",
@@ -563,7 +586,7 @@ export function buildUnifiedPanelViewModel({
   const activeActionDelegatesResolution = !!selectedActiveAction
     && (
       selectedActiveAction.type === "resolve"
-      || ["save-area", "single-attack", "child-zone", "zone-movement"]
+      || ["save-area", "single-attack", "single-save", "child-zone", "zone-movement"]
         .includes(selectedActiveAction.resolutionKind)
     );
   const maxTargets = activeActionNeedsPanelTargets
@@ -575,15 +598,28 @@ export function buildUnifiedPanelViewModel({
   const outcomeOptions = Array.isArray(presentation.outcomes?.options)
     ? clone(presentation.outcomes.options)
     : [];
+  const isAreaSubset = targeting.selectionMode === "area-subset";
+  const isPostPlacement = targeting.selectionMode === "post-placement";
+  const placementCandidateIds = isAreaSubset && workflow.placement.confirmed === true
+    ? new Set(Array.isArray(session?.placement?.targetIds)
+      ? session.placement.targetIds
+      : (Array.isArray(session?.placement?.preview?.targetIds)
+        ? session.placement.preview.targetIds
+        : []))
+    : null;
+  const effectiveTargetLocked = isAreaSubset || isPostPlacement
+    ? false
+    : workflow.placement.targetLocked;
   const allCandidates = normalizeTargetCandidates(
     targetCandidates,
     selectedTargetIds,
     session?.outcomes,
     maxTargets,
-    workflow.placement.targetLocked,
+    effectiveTargetLocked,
     outcomeMode,
     session?.attackOutcome,
     outcomeOptions,
+    placementCandidateIds,
   );
   const normalizedTargetFilters = targetFilterModel(allCandidates, targetFilters);
   const filteredCandidates = allCandidates.filter((candidate) => spellTargetMatchesFilters(
@@ -608,23 +644,26 @@ export function buildUnifiedPanelViewModel({
   const triggerRuntime = session?.triggerRuntime || null;
   const initialBoardTokenCast = executionContract.hasTokens === true
     && workflow.placement.mode === "board-token"
-    && !workflow.activeAction;
+    && !workflow.activeAction
+    && inputs.targets?.visible !== true;
   const initialAutomaticAura = executionContract.hasZones === true
     && workflow.placement.kind === "aura"
     && workflow.placement.policy === "automatic"
     && !workflow.activeAction;
 
-  const targetVisible = activeActionNeedsPanelTargets
-    || (
-      !initialBoardTokenCast
-      && !initialAutomaticAura
-      && (
-        targetingMode !== "none"
-        || inputs.targets?.visible === true
-        || inputs.primaryTarget?.visible === true
-        || inputs.outcomes?.visible === true
-      )
-    );
+  const targetVisible = isPostPlacement
+    ? workflow.placement.confirmed === true
+    : activeActionNeedsPanelTargets
+      || (
+        !initialBoardTokenCast
+        && !initialAutomaticAura
+        && (
+          targetingMode !== "none"
+          || inputs.targets?.visible === true
+          || inputs.primaryTarget?.visible === true
+          || inputs.outcomes?.visible === true
+        )
+      );
   const primaryVisible = inputs.primaryTarget?.visible === true
     || targeting.primaryTarget?.required === true;
   const selectionMode = asText(targeting.spatialRules?.selectionMode);
@@ -632,7 +671,12 @@ export function buildUnifiedPanelViewModel({
   const selectionStage = primarySecondarySelection
     ? asText(session?.primaryTargetId) ? "secondary" : "primary"
     : null;
-  const effectFields = normalizeEffectFields(presentation, session, workflow.validation);
+  const effectFields = normalizeEffectFields(
+    presentation,
+    session,
+    workflow.validation,
+    contract?.spell?.id,
+  );
   const manualControlsVisible = manualCapability.available === true && effectFields.length > 0;
   const automationVisible = Boolean(
     inputs.automation?.visible === true

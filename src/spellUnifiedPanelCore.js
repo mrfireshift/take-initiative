@@ -509,6 +509,7 @@ function ruleTargeting(rule) {
     includeCaster: targeting.includeCaster === true,
     confirmTargets: targeting.confirmTargets === true,
     selectionMode: text(targeting.selectionMode) || "area",
+    maximum: integerOrNull(targeting.maxTargets),
     spatialRules: targeting.spatial ? cloneValue(targeting.spatial) : null,
   };
 }
@@ -718,6 +719,14 @@ function targetingDescriptor({
     chainRule,
     slotLevel,
   });
+  if (limit.maximum === null && selectedRuleTargeting.maximum !== null) {
+    limit.minimum = selectedRuleTargeting.confirmTargets ? 1 : 0;
+    limit.maximum = selectedRuleTargeting.maximum;
+    limit.baseMaximum = selectedRuleTargeting.maximum;
+    limit.additionalPerSlotAbove = 0;
+    limit.baseSlot = null;
+    limit.source = "placement-targeting";
+  }
   const primaryTarget = primaryTargetDescriptor({ chainRule, selectedAction });
   const spatialRules = targetingSpatialRules({
     selectedAction,
@@ -788,6 +797,7 @@ function hasAreaTransaction({
     || (areaCatalogEnabled && AREA_POPOVER_SAVE_SPELL_ID_SET.has(text(spell?.id)))
     || (areaCatalogEnabled && AREA_SAVE_SPELL_ID_SET.has(text(spell?.id)))
     || (areaCatalogEnabled && AREA_HEALING_SPELL_ID_SET.has(text(spell?.id)))
+    || (areaCatalogEnabled && !!getSpellSaveWorkflowRule(spell?.id))
     || !!selectedActionRule
     || ["save-area", "child-zone"].includes(selectedAction?.resolutionKind);
 }
@@ -797,18 +807,22 @@ function saveOutcomeRequired({
   phasePlan,
   castRules,
   selectedAction,
+  workflowRule = null,
 }) {
   const areaCatalogEnabled = phasePlan.phase !== "prepare";
   if (phasePlan?.resolution?.mechanics?.savingThrow) return true;
   if (selectedAction) {
     return selectedAction.capabilities.save;
   }
+  if (workflowRule?.manualSaveAtTable === true) {
+    return Array.isArray(workflowRule?.outcomeOptions) && workflowRule.outcomeOptions.length > 0;
+  }
   if (castRules.some((rule) => rule.zonePolicy?.initialResolution === "manual-save")) {
     return true;
   }
   if (areaCatalogEnabled
     && !castRules.length
-    && AREA_POPOVER_SAVE_SPELL_ID_SET.has(spell.id)) {
+    && (AREA_POPOVER_SAVE_SPELL_ID_SET.has(spell.id) || !!getSpellSaveWorkflowRule(spell.id))) {
     return true;
   }
   return areaCatalogEnabled
@@ -969,6 +983,7 @@ function inputDescriptor({
   placement,
   choices,
   workflowContext,
+  workflowRule,
   saveOutcomes,
   selectedAction,
   automation,
@@ -976,7 +991,9 @@ function inputDescriptor({
   composition,
 }) {
   const healing = AREA_HEALING_SPELL_ID_SET.has(text(spell?.id));
+  const explicitInitialHpPolicy = spellHasExplicitInitialHPPolicy(spell);
   const persistentInitialWithoutHp = placement?.mode === "board-token"
+      && explicitInitialHpPolicy !== true
     || placement?.policy === SPELL_PANEL_PLACEMENT_POLICIES.AUTOMATIC
       && placement?.rules?.some((rule) => rule?.kind === "aura");
   const actionInputRequirements = selectedAction?.inputRequirements
@@ -1033,7 +1050,10 @@ function inputDescriptor({
       visible: placement.policy !== SPELL_PANEL_PLACEMENT_POLICIES.UNAVAILABLE,
       policy: placement.policy,
     },
-    outcomes: { required: outcomeRequired, visible: outcomeRequired },
+    outcomes: {
+      required: outcomeRequired,
+      visible: outcomeRequired,
+    },
     hp: {
       required: damageRequired || healingRequired,
       visible: damageRequired || healingRequired,
@@ -1045,7 +1065,7 @@ function inputDescriptor({
   };
 }
 
-function outcomeOptions({ spell, selectedAction, saveOutcomes }) {
+function outcomeOptions({ spell, selectedAction, saveOutcomes, workflowRule = null }) {
   const declaredAttackOutcomes = Array.isArray(selectedAction?.attack?.outcomes)
     ? selectedAction.attack.outcomes
     : [];
@@ -1062,13 +1082,19 @@ function outcomeOptions({ spell, selectedAction, saveOutcomes }) {
   }
   const castAttackOptions = spellAttackResolutionChoiceOptions(spell);
   if (castAttackOptions.length) return castAttackOptions;
-  return saveOutcomes
-    ? [
-      { value: "passed", label: "Superato" },
-      { value: "failed", label: "Fallito" },
-      { value: "immune", label: "Immune" },
-    ]
-    : [];
+  if (!saveOutcomes) return [];
+  const labels = {
+    passed: "Superato",
+    failed: "Fallito",
+    immune: "Immune",
+  };
+  const declaredSaveOutcomes = Array.isArray(workflowRule?.outcomeOptions)
+    ? workflowRule.outcomeOptions
+    : ["passed", "failed", "immune"];
+  return declaredSaveOutcomes
+    .map((value) => text(value).toLocaleLowerCase("it"))
+    .filter(Boolean)
+    .map((value) => ({ value, label: labels[value] || value }));
 }
 
 function controlList({
@@ -1265,11 +1291,13 @@ export function buildSpellUnifiedPanelContract({
     phasePlan,
     castRules: presentationCastRules,
     selectedAction,
+    workflowRule,
   });
   const outcomeOptionsValue = outcomeOptions({
     spell,
     selectedAction,
     saveOutcomes,
+    workflowRule,
   });
   const automation = automationDescriptor({ spell, phasePlan });
   const controls = controlList({
@@ -1338,6 +1366,7 @@ export function buildSpellUnifiedPanelContract({
     placement: areaPlacement,
     choices: variantOptions,
     workflowContext,
+    workflowRule,
     saveOutcomes,
     selectedAction,
     automation,
@@ -1374,6 +1403,7 @@ export function buildSpellUnifiedPanelContract({
         selected: text(choiceValue) || null,
         options: variantOptions,
         required: inputs.variant.required,
+        preserveTargets: workflowRule?.preserveTargetsOnChoiceChange === true,
       },
       composition: composition
         ? {
@@ -1716,6 +1746,7 @@ function transitionSession(currentSession, contract, {
   validCasterIds = [],
   validSlotLevels = [],
   resetCastContext = false,
+  preserveTargets = false,
 } = {}) {
   const current = createSpellPanelSession(currentSession || {});
   const next = resetRuntimeState(current);
@@ -1739,6 +1770,8 @@ function transitionSession(currentSession, contract, {
     enteredName: text(contract?.spell?.label || current.enteredName),
     slotLevel,
     variant: text(variant),
+    targetIds: preserveTargets ? current.targetIds : next.targetIds,
+    primaryTargetId: preserveTargets ? current.primaryTargetId : next.primaryTargetId,
     castContext: {
       ...(resetCastContext ? {} : recordValue(current.castContext)),
       phase: contractPhase(contract, phase),
@@ -1786,6 +1819,7 @@ export function changeSpellPanelVariant(session, contract, variant, options = {}
     phase: contract?.presentation?.phase?.selected,
     activeActionId: contract?.execution?.selectedActionId || "",
     variant,
+    preserveTargets: contract?.presentation?.variant?.preserveTargets === true,
   });
 }
 
@@ -1951,6 +1985,10 @@ function validationFor(contract, session, placement) {
       add("composition", "composition-invalid");
     }
   }
+  const postPlacementTargeting = contract.presentation.targeting?.selectionMode === "post-placement";
+  if (postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
+    add("placement", "placement-required");
+  }
   if (inputs.targets?.required && session.targetIds.length < 1) {
     add("targets", "targets-required");
   }
@@ -1969,7 +2007,7 @@ function validationFor(contract, session, placement) {
     session.targetIds,
     session.targetContext,
   )) add("target-context", "target-context-required");
-  if (inputs.placement?.required && !placement.confirmed) {
+  if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }
   if (inputs.outcomes?.required) {
@@ -2041,6 +2079,9 @@ function primaryActionFor(contract, session, validation, placement, activeAction
     && !activeAction;
 
   const applyLabel = () => {
+    if (isBoardTokenCast && contract?.spell?.id === "xanathar-stretta-della-terra-di-maximilian") {
+      return "Crea mano e afferra";
+    }
     if (isBoardTokenCast) return "Crea pedina";
     if (isAuraCast) return "Applica aura";
     if (isZoneCast && !(

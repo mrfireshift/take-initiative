@@ -56,3 +56,33 @@ test("il rollback del flag ripristina FIFO e broadcast intermedi", () => {
     hasPendingNavigation: true,
   }), false);
 });
+
+test("un layout hidden obsoleto non può chiudere un Turn Notice reso visibile dopo", async () => {
+  const {
+    acceptTurnNoticeLayoutRevision,
+    shouldCloseTurnNoticeFromHiddenLayout,
+  } = await import("../src/turnNoticeHostCore.js");
+
+  const hidden = acceptTurnNoticeLayoutRevision(0, 1);
+  assert.deepEqual(hidden, { accepted: true, revision: 1 });
+
+  const visible = acceptTurnNoticeLayoutRevision(hidden.revision, 2);
+  assert.deepEqual(visible, { accepted: true, revision: 2 });
+
+  assert.equal(shouldCloseTurnNoticeFromHiddenLayout({
+    scheduledLayoutRevision: hidden.revision,
+    latestLayoutRevision: visible.revision,
+    awaitingVisibleLayout: false,
+    scheduledActivityRevision: 4,
+    currentActivityRevision: 4,
+    pendingPayloadCount: 0,
+  }), false);
+});
+
+test("un layout arrivato fuori ordine viene scartato tramite revision monotona", async () => {
+  const { acceptTurnNoticeLayoutRevision } = await import("../src/turnNoticeHostCore.js");
+  const visible = acceptTurnNoticeLayoutRevision(0, 2);
+  const staleHidden = acceptTurnNoticeLayoutRevision(visible.revision, 1);
+  assert.deepEqual(visible, { accepted: true, revision: 2 });
+  assert.deepEqual(staleHidden, { accepted: false, revision: 2 });
+});

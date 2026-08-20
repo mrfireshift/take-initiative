@@ -64,7 +64,7 @@ const concentrationCondition = (condition, saveReminder = null) => conditionRule
   saveReminder,
 });
 
-const concentrationDebuff = (condition, effectId, effectDetail) => debuffRule(
+const concentrationDebuff = (condition, effectId, effectDetail, options = {}) => debuffRule(
   condition,
   effectId,
   effectDetail,
@@ -72,6 +72,7 @@ const concentrationDebuff = (condition, effectId, effectDetail) => debuffRule(
     expiry: concentration,
     manualRemoval: true,
     endsParentOnRemoval: true,
+    ...options,
   },
 );
 
@@ -173,9 +174,22 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
   "phb2014-colpo-intrappolante": saveAutomation([
     concentrationCondition("Trattenuto"),
     concentrationDebuff(
-      "1d6 perforanti a inizio turno",
+      "Danni a inizio turno",
       "ensnaring-strike-damage",
-      "Subisce 1d6 danni perforanti all'inizio di ogni proprio turno; il danno aumenta con lo slot.",
+      "Subisce danni perforanti all'inizio di ogni proprio turno; il danno aumenta con lo slot.",
+      {
+        saveReminder: Object.freeze({
+          timing: "turn-start",
+          mode: "manual-damage",
+          damage: Object.freeze({
+            dice: "1d6",
+            type: "perforanti",
+            baseSlot: 1,
+            additionalPerSlotAbove: 1,
+          }),
+          label: "Subisce danni perforanti all'inizio di ogni proprio turno.",
+        }),
+      },
     ),
   ]),
   "phb2014-duello-obbligato": saveAutomation([

@@ -32,13 +32,13 @@ test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
   assert.equal(ids.has("divine-word"), true);
   assert.equal(ids.has("spirit-guardians"), true);
   assert.equal(ids.has("xanathar-investitura-del-ghiaccio"), true);
-  assert.equal(ids.has("xanathar-investitura-del-vento"), true);
+  assert.equal(ids.has("xanathar-investitura-del-vento"), false);
   assert.equal(ids.has("xanathar-investitura-della-fiamma"), true);
   assert.equal(ids.has("spiritual-weapon"), true);
   assert.equal(ids.has("arcane-sword"), true);
   assert.equal(ids.has("tasha-lama-del-disastro"), true);
   assert.equal(ids.has("arcane-hand"), true);
-  assert.equal(ids.has("xanathar-investitura-della-pietra"), true);
+  assert.equal(ids.has("xanathar-investitura-della-pietra"), false);
   assert.equal(ids.has("xanathar-trabocchetto"), true);
   assert.equal(ids.has("phb2014-cordone-di-frecce"), true);
   assert.equal(ids.has("alarm"), true);
@@ -184,9 +184,8 @@ test("le nuove aree collegano condizioni e casi senza effetto persistente", () =
   assert.equal(flame.effects[0].label, "Imm. fuoco · Res. freddo");
   assert.match(flame.effects[0].detail, /immune ai danni da fuoco/i);
   assert.equal(
-    getAreaSaveAutomation("xanathar-investitura-della-pietra")
-      .failed[0].condition,
-    "Prono",
+    getAreaSaveAutomation("xanathar-investitura-della-pietra"),
+    null,
   );
   assert.equal(
     getAreaSaveAutomation("xanathar-trabocchetto")

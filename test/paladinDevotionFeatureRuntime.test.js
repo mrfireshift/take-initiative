@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import fs from "node:fs";
 import { buildCircleArea } from "../src/aoeGeometryCore.js";
 import { ID } from "../src/constants.js";
 import {
@@ -22,8 +23,12 @@ import {
   classFeatureEffectProjection,
   classFeatureTargeting,
   planClassFeatureActivation,
+  purifyingSpellSelectionOptions,
+  resolvePurifyingSpellChoice,
 } from "../src/classFeatureCore.js";
 import { planClassFeatureAuraReminder } from "../src/classFeatureAuraReminderCore.js";
+import { resolveDamageEndsConditionRemovals } from "../src/hpConditionRulesCore.js";
+import { resolveMovementProfile } from "../src/movementProfileCore.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
 
 const META_KEY = `${ID}/meta`;
@@ -370,4 +375,206 @@ test("il catalogo include le cinque capacità di Devozione e i quattro privilegi
   assert.equal(DEVOTION_IDS.every((id) => CLASS_FEATURE_CATALOG.features.some((entry) => entry.id === id)), true);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeImplemented, 59);
   assert.equal(CLASS_FEATURE_CATALOG.validation.runtimeNotAutomated, 492);
+});
+
+test("Abiurare Nemico espone due esiti (TS fallito e TS superato) con movement ed endsOnDamage differenziati", () => {
+  const abjure = feature("paladino-giuramento-di-vendetta-incanalare-divinita-abiurare-nemico");
+  assert.equal(abjure.runtimeSupport.adapter, "condition");
+  assert.equal(abjure.resourceCosts[0].poolId, "paladino-incanalare-divinita-usi");
+  assert.ok(Array.isArray(abjure.choiceOptions), "Abiurare Nemico must expose choiceOptions for TS outcomes");
+  assert.equal(abjure.choiceOptions.length, 2);
+  assert.equal(abjure.choiceOptions[0].id, "failed");
+  assert.equal(abjure.choiceOptions[1].id, "succeeded");
+
+  // Outcome 1: TS fallito
+  const actFail = planClassFeatureActivation({
+    state: null,
+    feature: abjure,
+    choiceId: "failed",
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-vendetta" }],
+    sourceId: "paladin",
+    targetIds: ["enemy-1"],
+    currentRound: 1,
+    currentTurnKey: "1:paladin",
+    instanceId: "abjure-instance-fail",
+  });
+  assert.equal(actFail.ok, true);
+  assert.equal(actFail.state.resources["paladino-incanalare-divinita-usi"].current, 0);
+
+  const condsFail = classFeatureConditionInstancesForActivation(
+    abjure,
+    actFail.instance,
+    "Paladin",
+    [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-vendetta" }],
+  );
+  assert.equal(condsFail.length, 1);
+  assert.equal(condsFail[0].condition, "Spaventato");
+  assert.equal(condsFail[0].displayLabel, "Spaventato · Velocità 0");
+  assert.equal(condsFail[0].targetId, "enemy-1");
+  assert.equal(condsFail[0].mechanics?.endsOnDamage, true);
+  assert.equal(condsFail[0].mechanics?.movement?.setMeters, 0);
+
+  // Movement test FAIL: Speed = 0
+  const moveFail = resolveMovementProfile(9, condsFail);
+  assert.equal(moveFail.speedMeters, 0);
+  const moveFailWithBonus = resolveMovementProfile(9, condsFail, ["longstrider"]);
+  assert.equal(moveFailWithBonus.speedMeters, 0, "No speed bonus should bypass setMeters: 0");
+
+  // Outcome 2: TS superato
+  const actSucc = planClassFeatureActivation({
+    state: null,
+    feature: abjure,
+    choiceId: "succeeded",
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-vendetta" }],
+    sourceId: "paladin",
+    targetIds: ["enemy-1"],
+    currentRound: 1,
+    currentTurnKey: "1:paladin",
+    instanceId: "abjure-instance-succ",
+  });
+  assert.equal(actSucc.ok, true);
+  assert.equal(actSucc.state.resources["paladino-incanalare-divinita-usi"].current, 0);
+
+  const condsSucc = classFeatureConditionInstancesForActivation(
+    abjure,
+    actSucc.instance,
+    "Paladin",
+    [{ classId: "paladino", level: 5, subclassId: "paladino-giuramento-di-vendetta" }],
+  );
+  assert.equal(condsSucc.length, 1);
+  assert.equal(condsSucc[0].condition, "Velocità dimezzata");
+  assert.equal(condsSucc[0].displayLabel, "Velocità dimezzata");
+  assert.equal(condsSucc[0].targetId, "enemy-1");
+  assert.equal(condsSucc[0].mechanics?.endsOnDamage, true);
+  assert.equal(condsSucc[0].mechanics?.movement?.multiplier, 0.5);
+
+  // Movement test SUCCESS: Speed = 4.5
+  const moveSucc = resolveMovementProfile(9, condsSucc);
+  assert.equal(moveSucc.speedMeters, 4.5);
+
+  // Both outcomes terminate on damage
+  assert.deepEqual(resolveDamageEndsConditionRemovals(condsFail), [condsFail[0].id]);
+  assert.deepEqual(resolveDamageEndsConditionRemovals(condsSucc), [condsSucc[0].id]);
+});
+
+test("Percezione del Divino consuma la risorsa senza creare condizioni o pill", () => {
+  const divineSense = feature("paladino-percezione-del-divino");
+  assert.equal(divineSense.runtimeSupport.adapter, "resource-only");
+  assert.equal(divineSense.automationLevel, "tracciamento");
+  assert.equal(divineSense.resourceCosts[0].poolId, "paladino-percezione-divino-usi");
+  assert.equal(divineSense.effectPlan, null);
+
+  const activation = planClassFeatureActivation({
+    state: null,
+    feature: divineSense,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "paladino", level: 3 }],
+    sourceId: "paladin",
+    targetIds: ["paladin"],
+    currentRound: 1,
+    currentTurnKey: "1:paladin",
+    instanceId: "divine-sense-instance",
+  });
+  assert.equal(activation.ok, true);
+  assert.ok(activation.state.resources["paladino-percezione-divino-usi"]);
+
+  const conditions = classFeatureConditionInstancesForActivation(
+    divineSense,
+    activation.instance,
+    "Paladin",
+    [{ classId: "paladino", level: 3 }],
+  );
+  assert.equal(conditions.length, 0);
+});
+
+test("Tocco Purificatore dichiara adapter purifying-touch e consuma il pool corretto", () => {
+  const purifyingTouch = feature("paladino-tocco-purificatore");
+  assert.equal(purifyingTouch.runtimeSupport.adapter, "purifying-touch");
+  assert.equal(purifyingTouch.resourceCosts[0].poolId, "paladino-tocco-purificatore-usi");
+
+  const activation = planClassFeatureActivation({
+    state: null,
+    feature: purifyingTouch,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "paladino", level: 14 }],
+    sourceId: "paladin",
+    targetIds: ["ally"],
+    currentRound: 1,
+    currentTurnKey: "1:paladin",
+    instanceId: "purify-instance",
+  });
+  assert.equal(activation.ok, true);
+  assert.ok(activation.state.resources["paladino-tocco-purificatore-usi"]);
+});
+
+test("CF-B01D: Tocco Purificatore 0 / 1 / 2+ selection model and modal contract (Tests 1-7)", () => {
+  const spellsZero = [];
+  const spellsOne = [
+    {
+      instanceId: "inst-spell-1",
+      name: "Benedizione",
+      casterName: "Anyanca",
+      conc: true,
+    },
+  ];
+  const spellsTwo = [
+    {
+      instanceId: "inst-spell-fast",
+      name: "Passo veloce",
+      casterName: "Anyanca",
+      conc: false,
+    },
+    {
+      instanceId: "inst-spell-mage-armor",
+      name: "Armatura magica",
+      casterName: "Anyanca",
+      conc: false,
+    },
+  ];
+
+  // TEST 1: 0 effects -> options empty, error / no modal opened
+  const optsZero = purifyingSpellSelectionOptions(spellsZero);
+  assert.equal(optsZero.length, 0);
+
+  // TEST 2: 1 effect -> options has 1, direct bypass resolves instanceId
+  const optsOne = purifyingSpellSelectionOptions(spellsOne);
+  assert.equal(optsOne.length, 1);
+  const choiceOne = resolvePurifyingSpellChoice(spellsOne);
+  assert.equal(choiceOne?.instanceId, "inst-spell-1");
+  assert.equal(choiceOne?.name, "Benedizione");
+
+  // TEST 3: 2+ effects -> options has 2 readable items
+  const optsTwo = purifyingSpellSelectionOptions(spellsTwo);
+  assert.equal(optsTwo.length, 2);
+  assert.equal(optsTwo[0].name, "Passo veloce");
+  assert.equal(optsTwo[1].name, "Armatura magica");
+
+  // TEST 4: Human labels and subtitles, NO leaked UUIDs/instanceIds in human fields
+  for (const opt of optsTwo) {
+    assert.ok(opt.label, "Must have readable label");
+    assert.ok(!opt.label.includes("inst-"), "Label must not contain raw instance ID");
+    assert.ok(!opt.subtitle.includes("inst-"), "Subtitle must not contain raw instance ID");
+    assert.equal(opt.subtitle, "Lanciato da Anyanca");
+  }
+
+  // TEST 5: Select second option -> returns second instanceId
+  const choiceSecond = resolvePurifyingSpellChoice(spellsTwo, "inst-spell-mage-armor");
+  assert.equal(choiceSecond?.instanceId, "inst-spell-mage-armor");
+  assert.equal(choiceSecond?.name, "Armatura magica");
+
+  // TEST 6: Selection by name
+  const choiceByName = resolvePurifyingSpellChoice(spellsTwo, "Passo veloce");
+  assert.equal(choiceByName?.instanceId, "inst-spell-fast");
+
+  // TEST 7: Source code verification: choosePurifyingSpell does NOT use window.prompt
+  const modalJs = fs.readFileSync(new URL("../src/initiative-card-modal.js", import.meta.url), "utf8");
+  const choosePurifyingSpellCode = modalJs.slice(
+    modalJs.indexOf("function showPurifyingSpellSelectionModal"),
+    modalJs.indexOf("async function launchSpecialClassFeature"),
+  );
+  assert.ok(!choosePurifyingSpellCode.includes("window.prompt"), "Purifying Touch workflow must not use window.prompt");
+  assert.ok(!choosePurifyingSpellCode.includes("prompt("), "Purifying Touch workflow must not use prompt()");
+  assert.ok(choosePurifyingSpellCode.includes("showPurifyingSpellSelectionModal"), "Purifying Touch must use custom modal overlay");
 });

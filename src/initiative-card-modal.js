@@ -21,6 +21,7 @@ import {
 import { getSpellsFromItem } from "./spells.js";
 import {
   MAX_QUICK_ACTIONS,
+  findQuickAction,
   sanitizeQuickActions,
 } from "./quickActionsCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
@@ -57,11 +58,14 @@ import {
   classFeatureTheme,
   classFeatureRemainingRounds,
   classFeatureResourceEntries,
-  resolveClassFeatureResourceMaximum,
-  resolveClassFeatureResourceDie,
+  classFeatureRequiresActivationChoice,
   classFeatureSpecialRefresh,
   classFeatureSpellSlotCreationCost,
   classFeatureTwinnedSpellCost,
+  purifyingSpellSelectionOptions,
+  resolvePurifyingSpellChoice,
+  resolveClassFeatureResourceMaximum,
+  resolveClassFeatureResourceDie,
   sanitizeCharacterBuild,
   resolveClassFeatureProgressionValue,
 } from "./classFeatureCore.js";
@@ -90,7 +94,10 @@ function closeInitiativeCardPopover() {
   }, { destination: "LOCAL" }).catch(() => {});
   void OBR.popover.close(MODAL_ID);
 }
-const sourceId = new URLSearchParams(window.location.search).get("source") || "";
+const initiativeCardSearchParams = new URLSearchParams(window.location.search);
+const sourceId = initiativeCardSearchParams.get("source") || "";
+const requestedQuickActionId = initiativeCardSearchParams.get("quickAction") || "";
+let requestedQuickActionHandled = false;
 const labels = { str: "FOR", dex: "DES", con: "COS", int: "INT", wis: "SAG", cha: "CAR" };
 const $ = (id) => document.getElementById(id);
 
@@ -274,7 +281,8 @@ function quickActionSummary(action) {
   return `Incantesimo · ${launch} · ${target}`;
 }
 
-function classFeatureChoiceControl(feature, { compact = false, label = "" } = {}) {
+function classFeatureChoiceControl(feature, { compact = false, label = "", defaultValue = "", enabledFeatureIds = [] } = {}) {
+  if (!classFeatureRequiresActivationChoice(feature, enabledFeatureIds)) return null;
   const options = classFeatureChoiceOptions(feature);
   if (!options.length) return null;
   const select = document.createElement("select");
@@ -289,23 +297,29 @@ function classFeatureChoiceControl(feature, { compact = false, label = "" } = {}
     option.textContent = optionValue.label;
     select.appendChild(option);
   }
+  if (defaultValue && options.some((opt) => opt.id === defaultValue)) {
+    select.value = defaultValue;
+  }
   return select;
 }
 
-function classFeatureAutoChoiceControls(feature, { compact = false } = {}) {
+function classFeatureAutoChoiceControls(feature, { compact = false, enabledFeatureIds = [] } = {}) {
   const controls = new Map();
-  const enabledIds = new Set(
-    profile ? getEnabledClassFeatures(profile).map((entry) => entry.id) : []
-  );
+  const enabledList = enabledFeatureIds.length
+    ? enabledFeatureIds
+    : (profile ? getEnabledClassFeatures(profile).map((entry) => entry.id) : []);
+  const enabledIds = new Set(enabledList);
   for (const childId of Array.isArray(feature?.autoActivateFeatureIds)
     ? feature.autoActivateFeatureIds
     : []) {
     if (!enabledIds.has(childId)) continue;
     const child = CLASS_FEATURE_BY_ID.get(childId);
-    const control = child ? classFeatureChoiceControl(child, {
+    if (!child || !classFeatureRequiresActivationChoice(child, enabledList)) continue;
+    const control = classFeatureChoiceControl(child, {
       compact,
       label: `Esito automatico: ${child.name}`,
-    }) : null;
+      enabledFeatureIds: enabledList,
+    });
     if (control) controls.set(child.id, control);
   }
   return controls;
@@ -341,7 +355,165 @@ function classFeatureResourceRemaining(feature, state = getClassFeatureState(ite
   return entry?.unlimited ? null : entry?.current ?? null;
 }
 
-async function choosePurifyingSpell(targetIds) {
+function showPurifyingSpellSelectionModal(spells, resolvedIds) {
+  return new Promise((resolve, reject) => {
+    const options = purifyingSpellSelectionOptions(spells);
+    if (!options.length) {
+      reject(new Error("Il bersaglio non ha incantesimi attivi da terminare."));
+      return;
+    }
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "purifying-spell-modal-backdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    backdrop.setAttribute("aria-labelledby", "purifying-touch-modal-title");
+
+    const dialog = document.createElement("div");
+    dialog.className = "purifying-spell-dialog";
+
+    const header = document.createElement("div");
+    header.className = "purifying-spell-header";
+
+    const title = document.createElement("div");
+    title.id = "purifying-touch-modal-title";
+    title.className = "purifying-spell-title";
+    title.textContent = "Tocco Purificatore";
+
+    const subtitle = document.createElement("div");
+    subtitle.className = "purifying-spell-subtitle";
+    subtitle.textContent = "Quale effetto vuoi terminare?";
+
+    header.append(title, subtitle);
+
+    const list = document.createElement("div");
+    list.className = "purifying-spell-list";
+    list.setAttribute("role", "listbox");
+    list.setAttribute("tabindex", "0");
+
+    let selectedIndex = 0;
+    const cardElements = [];
+
+    const updateSelection = (index) => {
+      selectedIndex = Math.max(0, Math.min(index, options.length - 1));
+      cardElements.forEach((card, i) => {
+        const isSelected = i === selectedIndex;
+        card.setAttribute("aria-selected", isSelected ? "true" : "false");
+        card.dataset.selected = isSelected ? "1" : "0";
+      });
+      confirmButton.disabled = selectedIndex < 0 || selectedIndex >= options.length;
+    };
+
+    options.forEach((opt, index) => {
+      const card = document.createElement("div");
+      card.className = "purifying-spell-card";
+      card.setAttribute("role", "option");
+      card.setAttribute("aria-selected", index === 0 ? "true" : "false");
+
+      const topRow = document.createElement("div");
+      topRow.className = "purifying-spell-card-top";
+
+      const name = document.createElement("span");
+      name.className = "purifying-spell-name";
+      name.textContent = opt.name;
+      topRow.appendChild(name);
+
+      if (opt.isConcentration) {
+        const concBadge = document.createElement("span");
+        concBadge.className = "purifying-spell-conc-badge";
+        concBadge.textContent = "Concentrazione";
+        topRow.appendChild(concBadge);
+      }
+
+      card.appendChild(topRow);
+
+      const casterRow = document.createElement("div");
+      casterRow.className = "purifying-spell-caster";
+      casterRow.textContent = opt.subtitle || "Origine sconosciuta";
+      card.appendChild(casterRow);
+
+      card.addEventListener("click", () => {
+        updateSelection(index);
+      });
+
+      cardElements.push(card);
+      list.appendChild(card);
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "purifying-spell-actions";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "edit";
+    cancelButton.textContent = "Annulla";
+
+    const confirmButton = document.createElement("button");
+    confirmButton.type = "button";
+    confirmButton.className = "primary";
+    confirmButton.textContent = "Termina effetto";
+
+    actions.append(cancelButton, confirmButton);
+    dialog.append(header, list, actions);
+    backdrop.appendChild(dialog);
+
+    const cleanup = () => {
+      window.removeEventListener("keydown", onKeyDown);
+      backdrop.remove();
+    };
+
+    const handleConfirm = () => {
+      const selected = options[selectedIndex];
+      if (!selected) {
+        cleanup();
+        reject({ cancelled: true });
+        return;
+      }
+      cleanup();
+      resolve({
+        targetIds: resolvedIds,
+        spellInstanceId: selected.instanceId,
+        spellName: selected.name,
+      });
+    };
+
+    const handleCancel = () => {
+      cleanup();
+      reject({ cancelled: true });
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCancel();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleConfirm();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        updateSelection(selectedIndex + 1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        updateSelection(selectedIndex - 1);
+      }
+    };
+
+    cancelButton.addEventListener("click", handleCancel);
+    confirmButton.addEventListener("click", handleConfirm);
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) handleCancel();
+    });
+    window.addEventListener("keydown", onKeyDown);
+
+    document.body.appendChild(backdrop);
+    updateSelection(0);
+    list.focus();
+  });
+}
+
+export async function choosePurifyingSpell(targetIds, { promptModal = showPurifyingSpellSelectionModal } = {}) {
   const ids = Array.isArray(targetIds) && targetIds.length
     ? targetIds
     : await OBR.player.getSelection().catch(() => []);
@@ -350,27 +522,15 @@ async function choosePurifyingSpell(targetIds) {
   const spells = getSpellsFromItem(target).filter((spell) =>
     spell?.castContext?.staticZoneOwner !== true
   );
-  if (!spells.length) throw new Error("Il bersaglio non ha incantesimi attivi.");
-  const choices = spells.map((spell, index) =>
-    `${index + 1}. ${spell.name || "Incantesimo"} · ${spell.instanceId || "senza ID"}`
-  ).join("\n");
-  const selected = window.prompt(
-    `Scegli l'incantesimo da rimuovere:\n${choices}`,
-    spells[0].instanceId || spells[0].name || "",
-  );
-  if (selected === null) throw { cancelled: true };
-  const wanted = String(selected || "").trim();
-  const numeric = Number(wanted);
-  const spell = Number.isInteger(numeric) && numeric >= 1 && numeric <= spells.length
-    ? spells[numeric - 1]
-    : spells.find((entry) => String(entry.instanceId || "") === wanted
-      || String(entry.name || "").toLocaleLowerCase() === wanted.toLocaleLowerCase());
-  if (!spell) throw new Error("Incantesimo non riconosciuto.");
-  return {
-    targetIds: resolvedIds,
-    spellInstanceId: spell.instanceId,
-    spellName: spell.name,
-  };
+  if (!spells.length) throw new Error("Il bersaglio non ha incantesimi attivi da terminare.");
+  if (spells.length === 1) {
+    return {
+      targetIds: resolvedIds,
+      spellInstanceId: spells[0].instanceId,
+      spellName: spells[0].name,
+    };
+  }
+  return promptModal(spells, resolvedIds);
 }
 
 async function launchSpecialClassFeature(feature, targetIds) {
@@ -494,6 +654,18 @@ async function launchQuickAction(action, choiceId = "", autoChoiceIds = {}) {
     quickActionLaunching = false;
     setButtonsDisabled(false);
   }
+}
+
+async function runRequestedQuickActionOnce() {
+  if (requestedQuickActionHandled || !requestedQuickActionId || !profile || !isGM) return;
+  const action = findQuickAction(profile, requestedQuickActionId);
+  if (!action || action.kind !== "feature") {
+    requestedQuickActionHandled = true;
+    return;
+  }
+  requestedQuickActionHandled = true;
+  setCardTab("quick-actions");
+  await launchQuickAction(action);
 }
 
 function renderQuickActions() {
@@ -1750,9 +1922,14 @@ function renderClassFeatures() {
           } else if (adapter === "resource-only") {
             appendFeatureControl(buildResourceOnlyControls(feature));
           } else {
-          const choiceControl = classFeatureChoiceControl(feature);
-          const autoChoiceControls = classFeatureAutoChoiceControls(feature);
-          appendFeatureControl(choiceControl);
+          const enabledList = (Array.isArray(enabled) ? enabled : []).map((entry) => entry.id);
+          const choiceControl = classFeatureChoiceControl(feature, {
+            enabledFeatureIds: enabledList,
+          });
+          const autoChoiceControls = classFeatureAutoChoiceControls(feature, {
+            enabledFeatureIds: enabledList,
+          });
+          if (choiceControl) appendFeatureControl(choiceControl);
           for (const control of autoChoiceControls.values()) appendFeatureControl(control);
           const activate = document.createElement("button");
           activate.type = "button";
@@ -2225,7 +2402,10 @@ function buildClassFeatureEditor() {
       option.dataset.parentFeatureId = parentFeature.id;
     }
     const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
+    checkbox.type = feature.optionGroup ? "radio" : "checkbox";
+    if (feature.optionGroup) {
+      checkbox.name = `class-feature-group-${feature.optionGroup}`;
+    }
     checkbox.dataset.classFeatureId = feature.id;
     checkbox.checked = draftEnabledFeatureIds.has(feature.id);
     checkbox.addEventListener("change", () => {
@@ -2368,10 +2548,20 @@ function buildClassBuildEditor() {
 }
 
 function collectEnabledClassFeatureIds(characterBuild) {
-  const availableIds = new Set(
-    getAvailableClassFeatures(characterBuild).map((feature) => feature.id)
-  );
-  return Array.from(draftEnabledFeatureIds).filter((id) => availableIds.has(id));
+  const available = getAvailableClassFeatures(characterBuild);
+  const availableById = new Map(available.map((feature) => [feature.id, feature]));
+  const seenOptionGroups = new Set();
+  const result = [];
+  for (const id of draftEnabledFeatureIds) {
+    const feature = availableById.get(id);
+    if (!feature) continue;
+    if (feature.optionGroup) {
+      if (seenOptionGroups.has(feature.optionGroup)) continue;
+      seenOptionGroups.add(feature.optionGroup);
+    }
+    result.push(id);
+  }
+  return result;
 }
 
 function applyFactionTheme() {
@@ -2575,6 +2765,7 @@ OBR.onReady(async () => {
     renderView();
     if (isGM && !hasInitiativeCardValues(profile)) setEditing(true);
     else syncCardTabs();
+    if (!editing) await runRequestedQuickActionOnce();
   } catch (err) {
     $("title").textContent = "Scheda non disponibile";
     $("edit").style.display = "none";

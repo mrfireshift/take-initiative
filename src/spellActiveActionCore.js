@@ -295,6 +295,56 @@ export function buildSpellActiveActionPlan({
   }
 
   const operations = [];
+  if (action.replaceSpellTargets === true) {
+    const previousTargetIds = groupTargetIds(group)
+      .filter((targetId) => !subjectIds.includes(targetId));
+    const storedName = String(
+      group?.storedName || group?.name || spell?.displayName || spell?.name || "Incantesimo"
+    ).trim();
+    const remainingTurns = (Array.isArray(group?.turns) ? group.turns : [])
+      .map((value) => Math.floor(Number(value) || 0))
+      .filter((value) => value > 0);
+    const currentTurns = remainingTurns.length
+      ? Math.max(...remainingTurns)
+      : Math.max(1, Math.floor(Number(spell?.defaultTurns) || 1));
+    operations.push({
+      type: "spell:upsert",
+      targetIds: subjectIds,
+      name: storedName,
+      turns: currentTurns,
+      conc: spell?.concentration === true,
+      source: casterId,
+      ...(casterName ? { casterName: String(casterName).trim() } : {}),
+      instanceId: parentInstanceId,
+      spellId: String(spell?.id || group?.spellId || "").trim(),
+      ...(group?.appliedAt ? { appliedAt: clone(group.appliedAt) } : {}),
+      ...(group?.castContext && typeof group.castContext === "object"
+        ? { castContext: clone(group.castContext) }
+        : {}),
+    });
+    if (spell?.concentration === true) {
+      operations.push({
+        type: "concentration:register",
+        casterId,
+        targetIds: subjectIds,
+        name: storedName,
+        instanceId: parentInstanceId,
+        spellId: String(spell?.id || group?.spellId || "").trim(),
+        ...(group?.appliedAt ? { appliedAt: clone(group.appliedAt) } : {}),
+        ...(group?.castContext && typeof group.castContext === "object"
+          ? { castContext: clone(group.castContext) }
+          : {}),
+      });
+    }
+    if (previousTargetIds.length) {
+      operations.push({
+        type: "concentration:break-targets",
+        casterId,
+        targetIds: previousTargetIds,
+        reference: parentInstanceId,
+      });
+    }
+  }
   if (removals.length) {
     operations.push({
       type: "condition:remove-instances",
@@ -341,7 +391,7 @@ export function buildSpellActiveActionPlan({
   const entityAction = action.entityAction && typeof action.entityAction === "object"
     ? { ...clone(action.entityAction), actionId: String(action.id || "").trim() }
     : null;
-  const delegatedResolution = ["save-area", "single-attack", "child-zone"]
+  const delegatedResolution = ["save-area", "single-attack", "single-save", "child-zone"]
     .includes(String(action?.resolutionKind || "").trim())
     && action?.id !== "heat-metal-repeat";
   const hasAction = operations.length > 0

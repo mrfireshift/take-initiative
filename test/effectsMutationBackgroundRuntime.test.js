@@ -401,3 +401,113 @@ test("un errore SDK non blocca la lane e non produce History falsa", async () =>
   assert.deepEqual(runtime.store.get("token-1").conditions.map((entry) => entry.id), ["next"]);
   assert.equal(runtime.history.length, 1);
 });
+
+test("RT-004: l'epoch numerica di un client non viene interpretata come epoch del background", async () => {
+  let activeSceneIdentity = "scene-A";
+  let backgroundEpoch = 2;
+
+  const coordinator = createEffectsMutationCoordinator({
+    prepare: async () => ({ changedIds: ["token-1"], changes: [] }),
+    prepareUndo: async () => ({ changedIds: [], changes: [] }),
+    commit: async (_plan, { isCurrent }) => {
+      if (!isCurrent()) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.REJECTED,
+          reason: "stale-before-write",
+          committed: false,
+          changedIds: [],
+        };
+      }
+      return { changedIds: ["token-1"], committed: true };
+    },
+    recordHistory: async () => null,
+    isCurrent: (sceneIdentity, command) => (
+      sceneIdentity === activeSceneIdentity
+      && command.sceneEpoch === backgroundEpoch
+    ),
+  });
+
+  const broker = createEffectsMutationBackgroundBroker({
+    executeApply: (operations, command) => {
+      const {
+        sceneEpoch: _foreignSceneEpoch,
+        ...backgroundCommand
+      } = command;
+      return coordinator.enqueue({
+        ...backgroundCommand,
+        operations,
+        sceneEpoch: backgroundEpoch,
+      });
+    },
+    executeUndo: async () => ({ status: EFFECTS_MUTATION_STATUS.APPLIED }),
+  });
+  broker.setSceneIdentity(activeSceneIdentity);
+
+  const handled = await broker.handle({
+    kind: "apply",
+    requestId: "rt004-cross-realm",
+    command: {
+      commandId: "rt004-cross-realm-command",
+      sceneIdentity: "scene-A",
+      sceneEpoch: 777,
+      operations: [],
+      history: false,
+    },
+  });
+
+  assert.equal(handled.result.status, EFFECTS_MUTATION_STATUS.APPLIED);
+  assert.equal(handled.result.sceneEpoch, backgroundEpoch);
+  assert.notEqual(handled.result.sceneEpoch, 777);
+});
+
+test("RT-004: sceneIdentity obsoleta continua a bloccare il comando anche senza confronto epoch cross-realm", async () => {
+  let activeSceneIdentity = "scene-A";
+  let backgroundEpoch = 2;
+
+  const coordinator = createEffectsMutationCoordinator({
+    prepare: async () => ({ changedIds: ["token-1"], changes: [] }),
+    prepareUndo: async () => ({ changedIds: [], changes: [] }),
+    commit: async () => ({ changedIds: ["token-1"], committed: true }),
+    recordHistory: async () => null,
+    isCurrent: (sceneIdentity, command) => (
+      sceneIdentity === activeSceneIdentity
+      && command.sceneEpoch === backgroundEpoch
+    ),
+  });
+
+  const broker = createEffectsMutationBackgroundBroker({
+    executeApply: (operations, command) => {
+      const {
+        sceneEpoch: _foreignSceneEpoch,
+        ...backgroundCommand
+      } = command;
+      return coordinator.enqueue({
+        ...backgroundCommand,
+        operations,
+        sceneEpoch: backgroundEpoch,
+      });
+    },
+    executeUndo: async () => ({ status: EFFECTS_MUTATION_STATUS.APPLIED }),
+  });
+  broker.setSceneIdentity(activeSceneIdentity);
+
+  const oldSceneIdentity = activeSceneIdentity;
+  activeSceneIdentity = "scene-B";
+  backgroundEpoch += 1;
+  broker.setSceneIdentity(activeSceneIdentity);
+
+  const handled = await broker.handle({
+    kind: "apply",
+    requestId: "rt004-stale-identity",
+    command: {
+      commandId: "rt004-stale-identity-command",
+      sceneIdentity: oldSceneIdentity,
+      sceneEpoch: 777,
+      operations: [],
+      history: false,
+    },
+  });
+
+  assert.equal(handled.result.status, EFFECTS_MUTATION_STATUS.REJECTED);
+  assert.equal(handled.result.reason, "stale-scene-identity");
+});

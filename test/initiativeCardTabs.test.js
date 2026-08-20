@@ -68,7 +68,7 @@ test("il cambio tab sincronizza vista, editor e altezza del popover", () => {
 });
 
 test("la Scheda iniziativa apre più alta senza ampliare gli altri popover", () => {
-  assert.match(trackerSource, /url: `\/initiative-card-modal\.html\?source=\$\{encodeURIComponent\(sourceId\)\}`,[\s\S]*?height: 560/);
+  assert.match(trackerSource, /url: `\/initiative-card-modal\.html\?source=\$\{encodeURIComponent\(sourceId\)\}\$\{quickActionId \? `[\s\S]*?` : ""\}`,[\s\S]*?height: 560/);
   assert.match(trackerSource, /data\.id === `\$\{ID\}\/initiative-card-modal` \? 760 : 560/);
 });
 
@@ -79,4 +79,19 @@ test("l'editor salva build multiclasse e capacità abilitate", () => {
   assert.match(source, /const characterBuild = collectCharacterBuildEditor\(\{ validate: true \}\)/);
   assert.match(source, /enabledClassFeatureIds: collectEnabledClassFeatureIds\(characterBuild\)/);
   assert.match(source, /classFeaturesConfigured: true/);
+});
+
+test("la Scheda iniziativa importa tutti gli helper Class Feature usati nel render risorse", () => {
+  const coreImport = source.match(
+    /import\s*\{([\s\S]*?)\}\s*from\s*"\.\/classFeatureCore\.js";/,
+  )?.[1] || "";
+
+  for (const helper of [
+    "classFeatureResourceEntries",
+    "resolveClassFeatureResourceMaximum",
+    "resolveClassFeatureResourceDie",
+  ]) {
+    assert.match(coreImport, new RegExp(`\\b${helper}\\b`), `${helper} deve essere importato da classFeatureCore.js`);
+    assert.match(source, new RegExp(`${helper}\\s*\\(`), `${helper} deve essere realmente usato dalla Scheda iniziativa`);
+  }
 });

@@ -6,6 +6,7 @@ import {
   buildSpellActiveResolutionPayload,
   getSpellResolutionAction,
   resolveSpellActiveResolutionDamage,
+  spellActiveResolutionSelectedTargetId,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
   validateSpellActiveResolutionAction,
   validateSpellActiveResolutionPayload,
@@ -65,6 +66,7 @@ test("il contratto dichiara economia, geometria, gittata e risoluzione proprie",
   assert.equal(flame.damage.type, "fuoco");
   assert.equal(flame.availableAfterCast, true);
   assert.equal(flame.turnStartPrompt, true);
+  assert.equal(flame.showInOverview, true);
 
   const storm = getSpellDefinition("Sfera della Tempesta").activeActions[0];
   assert.equal(storm.economy, "bonus-action");
@@ -275,4 +277,12 @@ test("il congedo di Arma Sacra compare dal turno successivo al lancio", () => {
   assert.equal(sameTurn[0].unavailableReason, "Disponibile dal turno successivo al lancio.");
   assert.equal(nextTurn.length, 1);
   assert.equal(nextTurn[0].unavailableReason, undefined);
+});
+
+
+test("la selezione Owlbear aggancia il bersaglio valido del popup anche tra token paralleli", () => {
+  const entries = [{ id: "goblin::p1" }, { id: "ogre" }];
+  assert.equal(spellActiveResolutionSelectedTargetId(entries, ["goblin"], ""), "goblin::p1");
+  assert.equal(spellActiveResolutionSelectedTargetId(entries, ["ogre"], "goblin::p1"), "ogre");
+  assert.equal(spellActiveResolutionSelectedTargetId(entries, ["outside"], "goblin::p1"), "goblin::p1");
 });

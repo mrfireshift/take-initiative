@@ -229,6 +229,7 @@ function initialState(contract, catalogEntries, sourceId, route = {}) {
     contract,
     session: createSpellPanelSession({
       contract,
+      casterId: route.session?.casterId || sourceId || "",
       ...(route.status === "ready" ? route.session : {}),
       ...(unsupportedMessage ? {
         feedback: { state: "error", message: unsupportedMessage },
@@ -797,7 +798,10 @@ export function bootSpellUnifiedPanel(
         ? { sceneIdentity: ownerSceneContext.sceneIdentity }
         : {}),
       undoHistoryEntry: selectedUndoEntry,
-      undoHistoryThrough: runtimeOverrides.undoHistoryThrough || undoHistoryThrough,
+      undoHistoryThrough: runtimeOverrides.undoHistoryThrough
+        || areaOverrides.undoHistoryThrough
+        || providerRuntime.undoHistoryThrough
+        || (runtimeOverrides.undoHistoryEntry ? runtimeOverrides.undoHistoryEntry : undoHistoryThrough),
       ...(runtimeOverrides.areaExecutor
         ? { executor: runtimeOverrides.areaExecutor }
         : {}),
@@ -828,7 +832,12 @@ export function bootSpellUnifiedPanel(
   });
 
   const updateTargetsFromPlacement = (targetIds) => {
-    const nextIds = targetIdsForCandidates(targetIds, state.targetCandidates);
+    const isAreaSubset = state.contract?.presentation?.targeting?.selectionMode === "area-subset";
+    const nextCandidateIds = targetIdsForCandidates(targetIds, state.targetCandidates);
+    const candidateSet = new Set(nextCandidateIds);
+    const nextIds = isAreaSubset && state.session.targetIds?.length
+      ? state.session.targetIds.filter((id) => candidateSet.has(id))
+      : nextCandidateIds;
     const targetSet = new Set(nextIds);
     state.session = updateSpellPanelSession(state.session, {
       targetIds: nextIds,
@@ -934,6 +943,7 @@ export function bootSpellUnifiedPanel(
         context: {
           phase: state.session.phase,
           spellId: state.contract?.spell?.id || "",
+          slotLevel: state.session.slotLevel,
           batch: {
             objects: batchObjects,
             total: batchObjects.length,
@@ -1112,6 +1122,7 @@ export function bootSpellUnifiedPanel(
         context: {
           phase: state.session.phase,
           spellId: state.contract?.spell?.id || "",
+          slotLevel: state.session.slotLevel,
         },
       }, {
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
@@ -1484,7 +1495,11 @@ export function bootSpellUnifiedPanel(
     const targetIds = uniqueIds(overview.targetIds?.length
       ? overview.targetIds
       : context.targetIds);
-    const canTerminate = targetIds.length > 0
+    const lifecycleTargetIds = uniqueIds([
+      ...targetIds,
+      ...(context.castContext?.staticZoneOwner === true && casterId ? [casterId] : []),
+    ]);
+    const canTerminate = lifecycleTargetIds.length > 0
       || (context.concentration === true && !!casterId)
       || ["present", "lifecycle-missing"].includes(overview.persistent?.state);
     if (!canTerminate) return;
@@ -1529,10 +1544,10 @@ export function bootSpellUnifiedPanel(
       });
     }
     operations.push(instanceId
-      ? { type: "spell:remove-instance", targetIds, instanceId }
+      ? { type: "spell:remove-instance", targetIds: lifecycleTargetIds, instanceId }
       : {
         type: "spell:remove-name-source",
-        targetIds,
+        targetIds: lifecycleTargetIds,
         name: String(context.storedName || overview.name || "").trim(),
         casterId: casterId || null,
       });
@@ -1576,7 +1591,7 @@ export function bootSpellUnifiedPanel(
       const mutation = await mutationRunner(operations, {
         kind: "spell",
         label: `Terminato incantesimo: ${overview.name}`,
-        targetIds: uniqueIds([casterId, ...targetIds]),
+        targetIds: uniqueIds([casterId, ...lifecycleTargetIds]),
         sideEffects: instanceId ? [{
           type: "static-zone:remove-ended",
           selectors: [{ instanceId }],
@@ -2268,7 +2283,20 @@ export function bootSpellUnifiedPanel(
       render();
     },
     onTargetToggle: async (key, checked) => {
-      if (state.session.placement?.targetLocked === true) return;
+      const selectionMode = state.contract?.presentation?.targeting?.selectionMode || "";
+      const isAreaSubset = selectionMode === "area-subset";
+      const isPostPlacement = selectionMode === "post-placement";
+      if (state.session.placement?.targetLocked === true && !isAreaSubset && !isPostPlacement) return;
+      if (isAreaSubset && state.session.placement?.confirmed === true) {
+        const candidates = new Set(
+          Array.isArray(state.session.placement?.targetIds)
+            ? state.session.placement.targetIds
+            : (Array.isArray(state.session.placement?.preview?.targetIds)
+              ? state.session.placement.preview.targetIds
+              : []),
+        );
+        if (!candidates.has(key)) return;
+      }
       if (usesPrimarySecondarySelection()) {
         const targetIds = new Set(state.session.targetIds || []);
         if (checked) targetIds.add(key);
@@ -2279,7 +2307,26 @@ export function bootSpellUnifiedPanel(
       const targetIds = new Set(state.session.targetIds || []);
       if (checked) targetIds.add(key);
       else targetIds.delete(key);
-      const nextIds = uniqueIds([...targetIds]);
+      let nextIds = uniqueIds([...targetIds]);
+      if (isPostPlacement) {
+        const validation = await validateTargetSelection({
+          contract: state.contract,
+          session: { ...state.session, targetIds: nextIds },
+          targetIds: nextIds,
+        });
+        const invalidIds = new Set(validation?.invalidDistanceTargetIds || []);
+        if (invalidIds.size) {
+          nextIds = nextIds.filter((id) => !invalidIds.has(id));
+          patchSession({
+            feedback: {
+              state: "error",
+              message: "Afferra può scegliere solo una creatura entro 1,5 m dalla mano.",
+            },
+          }, { clearFeedback: false });
+          await writeSelection(nextIds);
+          return;
+        }
+      }
       const outcomes = { ...(state.session.outcomes || {}) };
       if (!checked) delete outcomes[key];
       const targetContext = { ...(state.session.targetContext || {}) };

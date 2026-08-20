@@ -318,7 +318,10 @@ export function buildStaticSpellZoneItems({
     end,
     dpi,
     gridOrigin,
-    { widthSquares: preview?.widthSquares },
+    {
+      widthSquares: preview?.widthSquares,
+      widthAnchor: rule.geometry?.widthAnchor,
+    },
   );
   const resolvedStyle = spellAreaStyle(
     rule.spellId,
@@ -354,6 +357,7 @@ export function buildStaticSpellZoneItems({
         ),
       }
       : {}),
+    ...(rule.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
   };
   const label = String(spellName || rule.spellId || "Incantesimo").trim();
   const root = buildZonePath({
@@ -438,7 +442,10 @@ export function buildStaticSpellZoneReorientationItems({
     end,
     Math.max(1, dpi),
     gridOrigin,
-    { widthSquares },
+    {
+      widthSquares,
+      widthAnchor: areaMetadata.widthAnchor || rule.geometry?.widthAnchor,
+    },
   );
   const nextRoot = clone(root);
   const rootMetadata = { ...(root.metadata || {}) };
@@ -453,6 +460,9 @@ export function buildStaticSpellZoneReorientationItems({
     gridOrigin,
     basePosition: { x: 0, y: 0 },
     ...(Number.isInteger(widthSquares) ? { widthSquares } : {}),
+    ...((areaMetadata.widthAnchor || rule.geometry?.widthAnchor) === "edge"
+      ? { widthAnchor: "edge" }
+      : {}),
   };
   rootMetadata[SPELL_STATIC_ZONE_META_KEY] = {
     ...(zoneMetadata || {}),

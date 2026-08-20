@@ -38,6 +38,7 @@ export function buildConcentrationSaveWarning({
   portrait = "",
   attitude = "neutral",
   eventId = "",
+  causeHistoryEntryId = "",
 } = {}) {
   const normalizedCasterId = text(casterId);
   const descriptors = concentrationDescriptors(concentration);
@@ -69,6 +70,7 @@ export function buildConcentrationSaveWarning({
     spellName,
     notice: {
       activationId,
+      ...(text(causeHistoryEntryId) ? { causeHistoryEntryId: text(causeHistoryEntryId, "", 300) } : {}),
       spellName,
       targets: [{ id: normalizedCasterId, name: normalizedName }],
       resolution: {
@@ -108,6 +110,7 @@ export function concentrationSaveWarningsForItems({
   items = [],
   changes = [],
   eventId = "",
+  causeHistoryEntryId = "",
 } = {}) {
   const damageById = concentrationDamageByItemId(changes);
   if (!damageById.size) return [];
@@ -125,6 +128,7 @@ export function concentrationSaveWarningsForItems({
       portrait: portraitUrl(item),
       attitude: meta.attitude || "neutral",
       eventId,
+      causeHistoryEntryId,
     });
     if (warning) warnings.push(warning);
   }

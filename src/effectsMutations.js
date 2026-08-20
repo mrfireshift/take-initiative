@@ -52,7 +52,6 @@ import {
   mutationResultError,
 } from "./effectsMutationCoordinator.js";
 import { createEffectsMutationBackgroundBroker } from "./effectsMutationBroker.js";
-import { buildCoordinatedEffectsUndoPlan } from "./effectsMutationUndoCore.js";
 import {
   buildHistoryUndoPlan,
   historyUndoItemMatches,
@@ -82,6 +81,28 @@ const clone = (value) => {
   if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
   return JSON.parse(JSON.stringify(value));
 };
+
+// Keep Undo transport compaction local to the already-loaded coordinator module.
+// This avoids adding a new startup dependency to background.html while preserving
+// the compact cross-frame payload used after an Undo commit.
+function compactBackgroundUndoTransportResult(result) {
+  if (!result || typeof result !== "object" || !result.plan || typeof result.plan !== "object") {
+    return result;
+  }
+  const plan = result.plan;
+  return {
+    ...result,
+    plan: {
+      historyUndo: plan.historyUndo === true,
+      changes: clone(Array.isArray(plan.changes) ? plan.changes : []),
+      changedIds: clone(Array.isArray(plan.changedIds) ? plan.changedIds : (result.changedIds || [])),
+      ...(plan.metadataKey ? { metadataKey: String(plan.metadataKey) } : {}),
+      ...(plan.effectKeys && typeof plan.effectKeys === "object"
+        ? { effectKeys: clone(plan.effectKeys) }
+        : {}),
+    },
+  };
+}
 
 function isBackgroundRuntime(options = {}) {
   const pathname = String(globalThis.location?.pathname || "");
@@ -154,7 +175,12 @@ function mountBackgroundResultListener() {
   );
 }
 
-function requestBackgroundMutation(kind, payload, commandId) {
+function requestBackgroundMutation(
+  kind,
+  payload,
+  commandId,
+  { timeoutMs = BACKGROUND_TRANSPORT_TIMEOUT_MS } = {},
+) {
   mountBackgroundResultListener();
   const requestId = createId("effects-transport");
   return new Promise((resolve) => {
@@ -164,7 +190,7 @@ function requestBackgroundMutation(kind, payload, commandId) {
         commandId,
         "Timeout del coordinatore effetti in background.",
       ));
-    }, BACKGROUND_TRANSPORT_TIMEOUT_MS);
+    }, Math.max(100, Number(timeoutMs) || BACKGROUND_TRANSPORT_TIMEOUT_MS));
     backgroundPendingRequests.set(requestId, { resolve, timer });
     void OBR.broadcast.sendMessage(
       EFFECTS_MUTATION_COMMAND_CHANNEL,
@@ -337,7 +363,14 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
         : { present: true, value: clone(descriptor?.value) };
       if (sameValue(actual, after)) continue;
       change.metadataFields[field] = true;
-      change.beforeMetadata[field] = actual;
+      // Alcuni metadata tecnici accumulativi (es. reminderResolutions) possono
+      // fornire uno snapshot History piu compatto del valore live usato per la
+      // precondizione. Il commit continua a validare `expected` contro `actual`;
+      // cambia soltanto cio che l'Undo deve ripristinare.
+      change.beforeMetadata[field] = descriptor?.historyBefore
+        && typeof descriptor.historyBefore === "object"
+        ? clone(descriptor.historyBefore)
+        : actual;
       change.afterMetadata[field] = after;
     }
     if (Object.keys(change.metadataFields).length) {
@@ -404,7 +437,14 @@ function expandStateDependentOperations(operations, sceneItems) {
         || spells.filter((entry) => entry?.castContext?.staticZoneOwner !== true)
           .find((entry) => requestedName && String(entry?.name || "").trim().toLocaleLowerCase() === requestedName);
       const instanceId = String(spell?.instanceId || "").trim();
-      if (!targetId || !spell || !instanceId) return [];
+      if (!targetId || !spell || !instanceId) {
+        return [{
+          type: "operation:conflict",
+          reason: "requested-spell-not-found",
+          targetId,
+          instanceId: requestedInstanceId,
+        }];
+      }
       return [
         ...(spell.conc === true && spell.casterId ? [{
           type: "concentration:break-targets",
@@ -557,6 +597,14 @@ export async function prepareEffectsMutation(operations = [], {
     Array.isArray(operations) ? operations : [],
     sceneItems,
   ).map(prepareOperation).filter((operation) => operation.type);
+  if (preparedOperations.some((op) => op.type === "operation:conflict")) {
+    const conflictOp = preparedOperations.find((op) => op.type === "operation:conflict");
+    return {
+      status: EFFECTS_MUTATION_STATUS.CONFLICT,
+      reason: conflictOp.reason || "operation-conflict",
+      conflicts: [conflictOp],
+    };
+  }
   const plan = buildEffectsMutationPlan(
     sceneItems.map(normalizedSceneItem),
     preparedOperations,
@@ -833,12 +881,41 @@ function applyHistoryChangeToDraft(item, change, targetPhase) {
   if (change?.position) {
     item.position = clone(targetPhase === "final" ? change.afterPosition : change.beforePosition);
   }
+  if (change?.commands) {
+    item.commands = clone(targetPhase === "final" ? change.afterCommands : change.beforeCommands);
+  }
   for (const patch of change?.externalMetadata || []) {
     const descriptor = targetPhase === "final" ? patch.after : patch.before;
     const nextMetadata = { ...(item.metadata || {}) };
     if (descriptor?.present) nextMetadata[patch.metadataKey] = clone(descriptor.value);
     else delete nextMetadata[patch.metadataKey];
     item.metadata = nextMetadata;
+  }
+  for (const patch of change?.zoneTriggerActivations || []) {
+    const metadataKey = String(patch?.metadataKey || "").trim();
+    const activationId = String(patch?.activationId || "").trim();
+    if (!metadataKey || !activationId) continue;
+    const shouldBePresent = targetPhase === "final"
+      ? patch.afterPresent === true
+      : patch.beforePresent === true;
+    // OBR.updateItems espone i metadata del draft come Proxy Immer: non
+    // passarli a structuredClone. Il payload metadata è JSON-safe.
+    const metadataValue = item?.metadata?.[metadataKey] && typeof item.metadata[metadataKey] === "object"
+      ? JSON.parse(JSON.stringify(item.metadata[metadataKey]))
+      : {};
+    const runtime = metadataValue.triggerRuntime && typeof metadataValue.triggerRuntime === "object"
+      ? clone(metadataValue.triggerRuntime)
+      : {};
+    const pending = (Array.isArray(runtime.pending) ? runtime.pending : [])
+      .filter((entry) => String(entry?.id || "").trim() !== activationId)
+      .map(clone);
+    if (shouldBePresent && patch?.activation) pending.push(clone(patch.activation));
+    runtime.pending = pending;
+    metadataValue.triggerRuntime = runtime;
+    item.metadata = {
+      ...(item.metadata || {}),
+      [metadataKey]: metadataValue,
+    };
   }
 }
 
@@ -1279,59 +1356,20 @@ export async function prepareEffectsMutationUndo(entryOrEntries, {
     ? sceneItems
     : await OBR.scene.items.getItems();
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
-  const entries = Array.isArray(entryOrEntries) ? entryOrEntries : [entryOrEntries];
-  const genericUndo = entries.some((entry) => {
-    const mutationChanges = Array.isArray(entry?.effectsMutation?.changes)
-      ? entry.effectsMutation.changes
-      : null;
-    const sideEffects = Array.isArray(entry?.effectsMutation?.sideEffects)
-      ? entry.effectsMutation.sideEffects
-      : [];
-    if (sideEffects.some((sideEffect) => ["item", "metadata", "static-zone-move"].includes(sideEffect?.type))) {
-      return true;
-    }
-    if (!mutationChanges) {
-      return (Array.isArray(entry?.changes) ? entry.changes : []).some((change) => {
-        if (Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore")) return true;
-        if (Object.prototype.hasOwnProperty.call(change || {}, "beforePosition")) return true;
-        return Object.keys(change?.before || {}).some((field) => ![
-          "conditions",
-          SPELLS_META_KEY,
-          CONC_META_KEY,
-        ].includes(field));
-      });
-    }
-    return mutationChanges.some((change) => Object.keys(change?.metadataFields || {})
-      .some((field) => !["conditions", SPELLS_META_KEY, CONC_META_KEY].includes(field)));
+
+  // Usa un unico planner canonico per metadata e side effect.
+  const plan = buildHistoryUndoPlan({
+    sceneItems: currentSceneItems,
+    entryOrEntries,
+    metadataKey: META_KEY,
+    effectKeys: {
+      conditions: "conditions",
+      spells: SPELLS_META_KEY,
+      concentrations: CONC_META_KEY,
+    },
+    normalizeConditions: getConditionInstances,
+    conditionVersion: EFFECTS_MUTATION_CONDITION_VERSION,
   });
-  const plan = genericUndo
-    ? buildHistoryUndoPlan({
-      sceneItems: currentSceneItems,
-      entryOrEntries,
-      metadataKey: META_KEY,
-      effectKeys: {
-        conditions: "conditions",
-        spells: SPELLS_META_KEY,
-        concentrations: CONC_META_KEY,
-      },
-      normalizeConditions: getConditionInstances,
-      conditionVersion: EFFECTS_MUTATION_CONDITION_VERSION,
-    })
-    : buildCoordinatedEffectsUndoPlan({
-      currentStates: currentSceneItems.map((item) => {
-        const state = normalizedSceneItem(item);
-        state.metadata = clone(item?.metadata?.[META_KEY] || {});
-        return state;
-      }),
-      sceneItems: currentSceneItems,
-      entryOrEntries,
-      metadataKeys: {
-        conditions: "conditions",
-        spells: SPELLS_META_KEY,
-        concentrations: CONC_META_KEY,
-      },
-      normalizeConditions: getConditionInstances,
-    });
   if (plan.status) return plan;
   plan.mutationId = createId("effects-undo");
   plan.sceneEpoch = sceneEpoch;
@@ -1975,6 +2013,7 @@ async function prepareEffectsSideEffects(plan, command) {
         id: itemId,
         metadataKey,
         activationId,
+        activation: clone(activation),
         before: { present: true, value: clone(metadata) },
         after: { present: true, value: clone(after) },
       });
@@ -2309,12 +2348,38 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       }
     });
     if (!isCurrent()) throw new Error("stale-after-static-zone-reorientation");
-    return entries.flatMap((entry) => [{
-      id: entry.before.id,
-      type: "item",
-      before: clone(entry.before),
-      after: clone(entry.after),
-    }]);
+    return entries.flatMap((entry) => {
+      const beforeMetadata = entry.before?.metadata && typeof entry.before.metadata === "object"
+        ? entry.before.metadata
+        : {};
+      const afterMetadata = entry.after?.metadata && typeof entry.after.metadata === "object"
+        ? entry.after.metadata
+        : {};
+      const metadataKeys = new Set([
+        ...Object.keys(beforeMetadata),
+        ...Object.keys(afterMetadata),
+      ]);
+      const metadataChanges = [...metadataKeys]
+        .filter((metadataKey) => !sameValue(beforeMetadata[metadataKey], afterMetadata[metadataKey]))
+        .map((metadataKey) => ({
+          metadataKey,
+          before: Object.prototype.hasOwnProperty.call(beforeMetadata, metadataKey)
+            ? { present: true, value: clone(beforeMetadata[metadataKey]) }
+            : { present: false },
+          after: Object.prototype.hasOwnProperty.call(afterMetadata, metadataKey)
+            ? { present: true, value: clone(afterMetadata[metadataKey]) }
+            : { present: false },
+        }));
+      return [{
+        id: entry.before.id,
+        type: "static-zone-reorient",
+        beforePosition: clone(entry.before.position),
+        afterPosition: clone(entry.after.position),
+        beforeCommands: clone(entry.before.commands),
+        afterCommands: clone(entry.after.commands),
+        metadataChanges,
+      }];
+    });
   }
   if (sideEffect.type === "static-zone:set-rule-choice") {
     const items = sideEffect.items || [];
@@ -2471,10 +2536,10 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     });
     return [{
       id: sideEffect.id,
-      type: "metadata",
+      type: "reminder-zone-activation",
       metadataKey: sideEffect.metadataKey,
-      before: clone(sideEffect.before),
-      after: clone(sideEffect.after),
+      activationId: sideEffect.activationId,
+      activation: clone(sideEffect.activation),
     }];
   }
   return [];
@@ -2656,6 +2721,15 @@ function createBackgroundEffectsMutationCoordinator() {
       && sceneIdentity === backgroundSceneIdentity
       && isCurrentSceneEpoch(command.sceneEpoch);
   },
+  // I reminder/TS popup usano deferHistory=true: costruisci subito una
+  // History entry immutabile prima di entrare nella lane di retry. In questo
+  // modo un timeout ambiguo dell'owner non puo rigenerare lo stesso entryId
+  // con un nuovo timestamp `at`, trasformando tutti i retry successivi in
+  // `entry-id-payload-mismatch`.
+  buildHistoryEntry: async ({ command, plan, commitResult, sceneEpoch }) => {
+    const { buildEffectsMutationHistoryEntry } = await import("./history.js");
+    return buildEffectsMutationHistoryEntry({ command, plan, commitResult, sceneEpoch });
+  },
   recordHistory: async ({ command, plan, commitResult, sceneEpoch }) => {
     if (commitResult?.sideEffectsPending?.length) {
       throw new Error("effects-side-effects-pending");
@@ -2703,15 +2777,19 @@ async function retryPendingEffectsSideEffects() {
   }
 }
 
+function pendingEffectsHistoryRecordIsCurrent(pending) {
+  if (!pending || !Number.isInteger(pending.sceneEpoch)) return false;
+  if (pending.runtime === "local") return isCurrentSceneEpoch(pending.sceneEpoch);
+  return !!backgroundSceneIdentity
+    && pending.sceneIdentity === backgroundSceneIdentity
+    && isCurrentSceneEpoch(pending.sceneEpoch);
+}
+
 async function retryPendingEffectsHistory() {
   if (!pendingHistoryRecords.size) return;
   const { recordEffectsMutationHistory } = await import("./history.js");
   for (const [commandId, pending] of [...pendingHistoryRecords]) {
-    if (
-      !backgroundSceneIdentity
-      || pending.sceneIdentity !== backgroundSceneIdentity
-      || !isCurrentSceneEpoch(pending.sceneEpoch)
-    ) {
+    if (!pendingEffectsHistoryRecordIsCurrent(pending)) {
       pendingHistoryRecords.delete(commandId);
       continue;
     }
@@ -2722,7 +2800,14 @@ async function retryPendingEffectsHistory() {
         historyEntry: pending.historyEntry || null,
       });
       pendingHistoryRecords.delete(commandId);
-    } catch {}
+    } catch (error) {
+      // requestHistoryOwnerAppend allega sempre la entry immutabile usata nel
+      // tentativo. Se la risposta e ambigua (per esempio timeout dopo write),
+      // conserva quel payload per i retry successivi: stesso id, stesso `at`,
+      // stesso snapshot => l'owner puo rispondere DUPLICATE e liberare la
+      // barrier invece di lasciarla pending per sempre.
+      if (error?.historyEntry) pending.historyEntry = clone(error.historyEntry);
+    }
   }
 }
 
@@ -2749,6 +2834,46 @@ function enqueuePendingEffectsPostCommitRetry() {
     enqueuePendingEffectsSideEffectRetry(),
     enqueuePendingEffectsHistoryRetry(),
   ]);
+}
+
+export function hasPendingEffectsHistory(sceneEpoch = currentSceneEpoch()) {
+  if (!Number.isInteger(sceneEpoch) || !isCurrentSceneEpoch(sceneEpoch)) return false;
+  for (const pending of pendingHistoryRecords.values()) {
+    if (pending?.sceneEpoch !== sceneEpoch) continue;
+    if (pendingEffectsHistoryRecordIsCurrent(pending)) return true;
+  }
+  return false;
+}
+
+export function flushPendingEffectsHistory(sceneEpoch = currentSceneEpoch()) {
+  if (!hasPendingEffectsHistory(sceneEpoch)) return false;
+  void enqueuePendingEffectsPostCommitRetry().catch(() => {});
+  return true;
+}
+
+// History UI lives in a separate iframe from background.html. A realm-local
+// pending map is therefore not authoritative for Undo readiness. Query the
+// background context before allowing a client-side History Undo to cross the
+// causal barrier. If the background cannot answer quickly, fail closed: the
+// user can retry once the coordinator is available instead of racing a late
+// History append against an already committed Undo.
+export async function hasPendingEffectsHistoryAuthoritative(
+  sceneEpoch = currentSceneEpoch(),
+) {
+  if (!Number.isInteger(sceneEpoch) || !isCurrentSceneEpoch(sceneEpoch)) return false;
+  if (hasPendingEffectsHistory(sceneEpoch)) return true;
+  if (isBackgroundRuntime()) return false;
+  if (!backgroundTransportAvailable()) return true;
+
+  const commandId = createId("effects-history-status");
+  const result = await requestBackgroundMutation(
+    "context",
+    {},
+    commandId,
+    { timeoutMs: 1000 },
+  );
+  if (result?.status !== EFFECTS_MUTATION_STATUS.APPLIED) return true;
+  return result?.historyPending === true;
 }
 
 function schedulePendingEffectsHistoryRetry() {
@@ -2786,32 +2911,71 @@ export async function mountEffectsMutationCoordinatorService() {
   }
   backgroundCommandBroker = createEffectsMutationBackgroundBroker({
     beforeExecute: enqueuePendingEffectsSideEffectRetry,
-    // A missing movement-watcher ACK happens before any scene write. Do not
-    // pin that transient result to the deterministic Undo command ID: a later
-    // retry must be allowed. Applied and ambiguous outcomes remain cached.
+    getContextState: () => {
+      const historyPending = hasPendingEffectsHistory(currentSceneEpoch());
+      if (historyPending) void enqueuePendingEffectsPostCommitRetry().catch(() => {});
+      return { historyPending };
+    },
+    // A missing movement-watcher ACK or a pending History barrier happens
+    // before any Undo scene write. Do not pin those transient outcomes to the
+    // deterministic command ID: a later retry must be allowed.
     shouldCacheResult: (result) => !(
-      result?.status === EFFECTS_MUTATION_STATUS.FAILED
-      && result?.committed !== true
-      && result?.commitResult?.reason === "history-undo-suppression-unavailable"
+      (
+        result?.status === EFFECTS_MUTATION_STATUS.FAILED
+        && result?.committed !== true
+        && result?.commitResult?.reason === "history-undo-suppression-unavailable"
+      )
+      || (
+        result?.status === EFFECTS_MUTATION_STATUS.REJECTED
+        && result?.committed !== true
+        && result?.reason === "history-pending"
+      )
     ),
     executeApply: (operations, command) => {
-      const { operations: _operations, ...options } = command;
+      // sceneEpoch is realm-local: never reuse a numeric epoch received from
+      // another iframe/runtime. The opaque sceneIdentity above is the
+      // cross-realm scene guard; once accepted, bind the command to the
+      // background runtime's own epoch for every async prepare/commit step.
+      const {
+        operations: _operations,
+        sceneEpoch: _foreignSceneEpoch,
+        ...options
+      } = command;
       return runEffectsMutation(operations, {
         ...options,
         transport: "background",
-        sceneEpoch: Number.isInteger(options.sceneEpoch)
-          ? options.sceneEpoch
-          : currentSceneEpoch(),
+        sceneEpoch: currentSceneEpoch(),
       });
     },
-    executeUndo: (entry, command) => {
-      const { entry: _entry, ...options } = command;
+    executeUndo: async (entry, command) => {
+      // A client iframe can have an empty realm-local pending map while the
+      // background still owns a deferred History append. Never let Undo cross
+      // that authoritative barrier: otherwise the late append can reinsert the
+      // just-undone entry and the UI will show it as a false conflict.
+      const backgroundEpoch = currentSceneEpoch();
+      if (hasPendingEffectsHistory(backgroundEpoch)) {
+        void enqueuePendingEffectsPostCommitRetry().catch(() => {});
+        return {
+          status: EFFECTS_MUTATION_STATUS.REJECTED,
+          commandId: String(command?.commandId || ""),
+          correlationId: String(command?.correlationId || command?.commandId || ""),
+          reason: "history-pending",
+          committed: false,
+          changedIds: [],
+          changes: [],
+        };
+      }
+
+      // Same rule for Undo: sceneIdentity crosses realms, numeric epochs do not.
+      const {
+        entry: _entry,
+        sceneEpoch: _foreignSceneEpoch,
+        ...options
+      } = command;
       return undoEffectsMutation(entry, {
         ...options,
         transport: "background",
-        sceneEpoch: Number.isInteger(options.sceneEpoch)
-          ? options.sceneEpoch
-          : currentSceneEpoch(),
+        sceneEpoch: backgroundEpoch,
       });
     },
   });
@@ -2882,9 +3046,12 @@ export async function mountEffectsMutationCoordinatorService() {
             String(error?.message || error || "Coordinatore effetti fallito."),
           );
         }
+        const transportResult = data.kind === "undo"
+          ? compactBackgroundUndoTransportResult(result)
+          : result;
         await OBR.broadcast.sendMessage(
           EFFECTS_MUTATION_RESULT_CHANNEL,
-          { requestId: data.requestId, result },
+          { requestId: data.requestId, result: transportResult },
           { destination: "LOCAL" },
         ).catch((error) => {
           console.warn("[effects-coordinator] response:", error?.message || error);
@@ -2963,25 +3130,57 @@ export async function runEffectsMutation(operations = [], options = {}) {
   const serializableOperations = jsonSafeClone(operations);
   const serializableOptions = jsonSafeClone(options);
   if (!isBackgroundRuntime(options)) {
+    // Numeric scene epochs are realm-local. Callers may even supply an epoch
+    // owned by a private sceneLifecycle adapter, so the transport must not
+    // compare or serialize it. Cross-realm scene ownership is carried by the
+    // opaque background sceneIdentity handshake instead.
     if (!backgroundTransportAvailable()) return compatibilityPlan(backgroundResultError(
       commandId,
       "Runtime background non disponibile.",
     ));
     const sceneIdentity = options.sceneIdentity || await requestBackgroundSceneIdentity(commandId);
+    const {
+      sceneEpoch: _clientSceneEpoch,
+      ...transportOptions
+    } = serializableOptions;
     const result = await requestBackgroundMutation(
       "apply",
       {
         command: {
           operations: serializableOperations,
-          ...serializableOptions,
+          ...transportOptions,
           commandId,
-          sceneEpoch,
           sceneIdentity,
         },
       },
       commandId,
     );
-    return compatibilityPlan(result);
+    const compatible = compatibilityPlan(result);
+    if (
+      compatible?.historyPending
+      && compatible?.historySkipped !== true
+      && compatible?.plan
+      && !(compatible?.commitResult?.sideEffectsPending?.length)
+    ) {
+      // Mantieni anche nel realm chiamante la History deferred finché l'owner
+      // non conferma l'append; stessa commandId = append idempotente.
+      pendingHistoryRecords.set(commandId, {
+        command: {
+          operations: serializableOperations,
+          ...transportOptions,
+          commandId,
+          sceneIdentity,
+        },
+        plan: compatible.plan,
+        commitResult: compatible.commitResult,
+        historyEntry: clone(compatible.historyEntry || null),
+        sceneEpoch,
+        sceneIdentity,
+        runtime: "local",
+      });
+      void enqueuePendingEffectsPostCommitRetry().catch(() => {});
+    }
+    return compatible;
   }
   if (!effectsMutationCoordinator) return compatibilityPlan(backgroundResultError(
     commandId,
@@ -3017,14 +3216,17 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
       "Runtime background non disponibile.",
     ));
     const sceneIdentity = options.sceneIdentity || await requestBackgroundSceneIdentity(commandId);
+    const {
+      sceneEpoch: _clientSceneEpoch,
+      ...transportOptions
+    } = serializableOptions;
     const result = await requestBackgroundMutation(
       "undo",
       {
         entry: serializableEntries,
         options: {
-          ...serializableOptions,
+          ...transportOptions,
           commandId,
-          sceneEpoch,
           sceneIdentity,
         },
       },

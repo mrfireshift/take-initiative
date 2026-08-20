@@ -105,3 +105,74 @@ test("Ragnatela consegna reminder persistiti a token e turni successivi", () => 
     1,
   );
 });
+
+test("SP-B04A — i token già presenti nell'Unto al cast non generano un falso ingresso", () => {
+  const greaseRule = getSpellAreaRuleById("grease:cast");
+  const item = {
+    id: "grease-zone",
+    name: "Zona: Unto",
+    position: { x: 100, y: 200 },
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        version: 1,
+        instanceId: "grease-instance",
+        ruleId: greaseRule.id,
+        spellId: greaseRule.spellId,
+        casterId: "caster",
+        role: "root",
+        targetIds: ["first", "second"],
+      },
+    },
+  };
+
+  const update = planStaticSpellZoneReminder({
+    zoneItem: item,
+    rule: greaseRule,
+    desiredTargetIds: ["first", "second"],
+    initiativeState: initiativeState(0, 1),
+    itemsById,
+    now: 100,
+  });
+
+  assert.deepEqual(update.newActivations, []);
+  assert.deepEqual(update.runtime.memberIds, ["first", "second"]);
+});
+
+test("SP-B04A — Unto non perde il primo ingresso se avviene prima del primo reconcile", () => {
+  const greaseRule = getSpellAreaRuleById("grease:cast");
+  const item = {
+    id: "grease-zone",
+    name: "Zona: Unto",
+    position: { x: 100, y: 200 },
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        version: 1,
+        instanceId: "grease-instance",
+        ruleId: greaseRule.id,
+        spellId: greaseRule.spellId,
+        casterId: "caster",
+        role: "root",
+        // target presente al momento del cast: deve essere la baseline,
+        // non anche la creatura entrata subito dopo.
+        targetIds: ["first"],
+      },
+    },
+  };
+
+  const update = planStaticSpellZoneReminder({
+    zoneItem: item,
+    rule: greaseRule,
+    desiredTargetIds: ["first", "second"],
+    initiativeState: initiativeState(0, 1),
+    itemsById,
+    now: 100,
+  });
+
+  assert.deepEqual(
+    update.newActivations.map((activation) => ({
+      triggerId: activation.triggerId,
+      targetIds: activation.targetIds,
+    })),
+    [{ triggerId: "grease-save-on-entry", targetIds: ["second"] }],
+  );
+});

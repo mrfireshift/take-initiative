@@ -61,6 +61,7 @@ import {
   getZeroHPConditionHistoryIds,
   reconcileZeroHPConditionsForItems,
 } from "./hpConditionAutomation.js";
+import { resolveDamageEndsConditionRemovals } from "./hpConditionRulesCore.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
   TRACKER_LAYOUT_CLASSIC,
@@ -144,6 +145,7 @@ import {
 } from "./quickActionsCore.js";
 import {
   buildSpellUnifiedPanelRouteQuery,
+  resolveGlobalSpellSourceEntryCore,
 } from "./spellUnifiedPanelRoutingCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
@@ -540,41 +542,6 @@ function __markEditorDirtyFromCard(card) {
   __editorDirtyTrackerItemIds.addMany(card.__selectionItemIds);
 }
 
-function __scheduleEditorDirtyFlush() {
-  if (__suspendRenders || __editingInitForId || __editingHPForId) return;
-  const dirtyIds = __editorDirtyTrackerItemIds.take();
-  const sceneEpoch = currentSceneEpoch();
-  const requiresFull = __fullRenderDirty;
-  if (!requiresFull && !dirtyIds.length) return;
-  __fullRenderDirty = false;
-
-  const flush = async () => {
-    try {
-      if (requiresFull) {
-        await renderAll("editor-close");
-        return;
-      }
-      const scheduled = await __requestIncrementalTrackerItems(
-        { sceneEpoch, revision: __latestSceneItemEventRevision },
-        { mode: "cards", itemIds: dirtyIds },
-        "editor-close",
-      );
-      if (!scheduled) await renderAll("editor-close-fallback");
-    } catch (error) {
-      console.warn("[initiative] editor dirty render:", error?.message || error);
-      if (!__isCurrentSceneOperation(sceneEpoch, "editor-dirty-retry")) return;
-      try {
-        await renderAll("editor-close-error");
-      } catch (fallbackError) {
-        __editorDirtyTrackerItemIds.addMany(dirtyIds);
-        __fullRenderDirty = true;
-        console.warn("[initiative] editor full retry:", fallbackError?.message || fallbackError);
-      }
-    }
-  };
-  void flush();
-}
-
 function __cancelSceneEditorsWithoutCommit() {
   const editors = typeof document === "undefined"
     ? []
@@ -589,6 +556,7 @@ function __cancelSceneEditorsWithoutCommit() {
 
 function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __cancelSceneEditorsWithoutCommit();
+  __resetConcentrationWarningRuntime();
   __draggingId = null;
   __draggingInit = null;
   __draggingWasCollapsed = false;
@@ -968,6 +936,44 @@ const EPIC_TAG_CFG = {
 
 
   export function mountInitiativeList(container) {
+    // Il dirty flush deve vivere nello stesso scope di renderAll() e
+    // __requestIncrementalTrackerItems(). Quando una card ha un editor aperto,
+    // gli update vengono accodati qui e drenati appena l'editor si chiude.
+    function __scheduleEditorDirtyFlush() {
+      if (__suspendRenders || __editingInitForId || __editingHPForId) return;
+      const dirtyIds = __editorDirtyTrackerItemIds.take();
+      const sceneEpoch = currentSceneEpoch();
+      const requiresFull = __fullRenderDirty;
+      if (!requiresFull && !dirtyIds.length) return;
+      __fullRenderDirty = false;
+
+      const flush = async () => {
+        try {
+          if (requiresFull) {
+            await renderAll("editor-close");
+            return;
+          }
+          const scheduled = await __requestIncrementalTrackerItems(
+            { sceneEpoch, revision: __latestSceneItemEventRevision },
+            { mode: "cards", itemIds: dirtyIds },
+            "editor-close",
+          );
+          if (!scheduled) await renderAll("editor-close-fallback");
+        } catch (error) {
+          console.warn("[initiative] editor dirty render:", error?.message || error);
+          if (!__isCurrentSceneOperation(sceneEpoch, "editor-dirty-retry")) return;
+          try {
+            await renderAll("editor-close-error");
+          } catch (fallbackError) {
+            __editorDirtyTrackerItemIds.addMany(dirtyIds);
+            __fullRenderDirty = true;
+            console.warn("[initiative] editor full retry:", fallbackError?.message || fallbackError);
+          }
+        }
+      };
+      void flush();
+    }
+
     if (container.__initiativeMounted) return;   // ← evita montaggi doppi
     container.__initiativeMounted = true;
     const __activeTurnLabelLifecycle = createOptionalRuntimeLifecycle({
@@ -5231,10 +5237,28 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   await OBR.scene.items.updateItems([itemId], (items) => {
     for (const it of items) {
       const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
+      const prevHP = Number(prevMeta.hp);
+      let conditions = prevMeta.conditions;
+      if (Number.isFinite(prevHP) && n < prevHP && conditions) {
+        const instances = Array.isArray(conditions?.instances) ? conditions.instances : [];
+        const toRemove = new Set(resolveDamageEndsConditionRemovals(instances));
+        if (toRemove.size > 0) {
+          const nextInstances = instances.filter((inst) => !toRemove.has(inst.id));
+          conditions = nextInstances.length ? { ...conditions, instances: nextInstances } : undefined;
+        }
+      }
       it.metadata = {
         ...(it.metadata || {}),
-        [META_KEY]: { ...prevMeta, hp: n, hpMax: nm },
+        [META_KEY]: {
+          ...prevMeta,
+          hp: n,
+          hpMax: nm,
+          ...(conditions !== undefined ? { conditions } : (conditions === undefined && prevMeta.conditions ? { conditions: undefined } : {})),
+        },
       };
+      if (conditions === undefined && prevMeta.conditions) {
+        delete it.metadata[META_KEY].conditions;
+      }
     }
   });
   await reconcileZeroHPConditionsForItems([itemId]);
@@ -5256,12 +5280,55 @@ function parseRelativeHPDelta(value) {
 }
 
 let __concentrationWarningListenerMounted = false;
+let __concentrationWarningRuntimeGeneration = 0;
 let __concentrationWarningPopoverOpen = false;
 let __concentrationWarningUiReady = false;
 let __concentrationWarningPumpRunning = false;
 let __concentrationWarningPumpRequested = false;
 let __concentrationWarningCleanupPromise = null;
+let __concentrationWarningPopoverId = null;
+let __concentrationWarningPopoverSession = "";
+let __concentrationWarningPopoverSequence = 0;
 const __concentrationWarningsByActivationId = new Map();
+const __dismissedConcentrationWarningCauseIds = new Set();
+
+function concentrationWarningPopoverIdForSession(generation, sequence) {
+  return `${CONCENTRATION_WARNING_MODAL_ID}:${generation}:${sequence}`;
+}
+
+function requestConcentrationWarningPopoverClose(popoverId = CONCENTRATION_WARNING_MODAL_ID) {
+  const scopedPopoverId = String(popoverId || "").trim();
+  const closeRequests = [
+    OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
+    OBR.popover.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
+  ];
+  if (scopedPopoverId && scopedPopoverId !== CONCENTRATION_WARNING_MODAL_ID) {
+    closeRequests.push(OBR.popover.close(scopedPopoverId).catch(() => {}));
+  }
+  return Promise.all(closeRequests).then(() => {});
+}
+
+function __resetConcentrationWarningRuntime() {
+  const staleGeneration = __concentrationWarningRuntimeGeneration;
+  const stalePopoverId = __concentrationWarningPopoverId
+    || concentrationWarningPopoverIdForSession(staleGeneration, "legacy");
+
+  __concentrationWarningRuntimeGeneration += 1;
+  __concentrationWarningsByActivationId.clear();
+  __dismissedConcentrationWarningCauseIds.clear();
+  __concentrationWarningPopoverOpen = false;
+  __concentrationWarningUiReady = false;
+  __concentrationWarningPumpRequested = false;
+  __concentrationWarningPumpRunning = false;
+  __concentrationWarningCleanupPromise = null;
+  __concentrationWarningPopoverId = null;
+  __concentrationWarningPopoverSession = "";
+
+  // Do not await this cleanup: the generation change invalidates old tasks,
+  // while the session-scoped ID prevents the late close from touching a new
+  // generation's popover.
+  void requestConcentrationWarningPopoverClose(stalePopoverId);
+}
 
 function normalizeConcentrationWarnings(values = []) {
   return (Array.isArray(values) ? values : []).slice(0, 20).map((warning) => ({
@@ -5277,21 +5344,57 @@ function normalizeConcentrationWarnings(values = []) {
   })).filter((warning) => warning.damage > 0);
 }
 
-async function openConcentrationWarningModal(data) {
+function isCurrentConcentrationWarningEpoch(value) {
+  const sceneEpoch = Number(value);
+  return Number.isSafeInteger(sceneEpoch)
+    && sceneEpoch >= 0
+    && isCurrentSceneEpoch(sceneEpoch);
+}
+
+function isCurrentConcentrationWarningRuntime(generation, sceneEpoch) {
+  return Number.isSafeInteger(Number(generation))
+    && Number(generation) === __concentrationWarningRuntimeGeneration
+    && isCurrentConcentrationWarningEpoch(sceneEpoch);
+}
+
+function isCurrentConcentrationWarningSession(generation, sceneEpoch, session) {
+  return isCurrentConcentrationWarningRuntime(generation, sceneEpoch)
+    && String(session || "").trim() === __concentrationWarningPopoverSession;
+}
+
+async function openConcentrationWarningModal(
+  data,
+  { generation = __concentrationWarningRuntimeGeneration, sceneEpoch = currentSceneEpoch() } = {},
+) {
+  if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return false;
   const warnings = normalizeConcentrationWarnings(data?.warnings);
-  if (!warnings.length) return;
+  if (!warnings.length) return false;
 
   const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
   if (__concentrationWarningPopoverOpen) {
-    void OBR.popover.setHeight(CONCENTRATION_WARNING_MODAL_ID, height).catch(() => {});
+    const popoverId = __concentrationWarningPopoverId;
+    const session = __concentrationWarningPopoverSession;
+    if (!popoverId || !session) return false;
+    if (!isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) return false;
+    await OBR.popover.setHeight(popoverId, height).catch(() => {});
+    if (!isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) return false;
     if (__concentrationWarningUiReady) {
       await OBR.broadcast.sendMessage(
         CONCENTRATION_WARNING_UI_CHANNEL,
-        { type: "update-concentration-warnings", warnings },
+        {
+          type: "update-concentration-warnings",
+          warnings,
+          sceneEpoch,
+          runtimeGeneration: generation,
+          runtimeSession: session,
+        },
         { destination: "LOCAL" },
       );
+      if (!isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) {
+        return false;
+      }
     }
-    return;
+    return true;
   }
 
   let viewportWidth = 1200;
@@ -5300,33 +5403,69 @@ async function openConcentrationWarningModal(data) {
     OBR.viewport.getWidth().catch(() => viewportWidth),
     OBR.viewport.getHeight().catch(() => viewportHeight),
   ]);
+  if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return false;
   viewportWidth = Number(reportedWidth) || viewportWidth;
   viewportHeight = Number(reportedHeight) || viewportHeight;
   const cardWidth = Math.min(500, Math.max(312, viewportWidth - 40));
   const width = cardWidth + 8;
   const top = Math.max(12, Math.round(viewportHeight * 0.09));
+  const session = String(++__concentrationWarningPopoverSequence);
+  const popoverId = concentrationWarningPopoverIdForSession(generation, session);
   const payload = encodeURIComponent(JSON.stringify({ warnings }));
-  await OBR.popover.open({
-    id: CONCENTRATION_WARNING_MODAL_ID,
-    url: `/concentration-warning.html?payload=${payload}`,
-    width,
-    height,
-    anchorReference: "POSITION",
-    anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
-    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
-    transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
-    hidePaper: true,
-    disableClickAway: true,
-    marginThreshold: 12,
-  });
+  const url = [
+    `/concentration-warning.html?payload=${payload}`,
+    `sceneEpoch=${encodeURIComponent(String(sceneEpoch))}`,
+    `runtimeGeneration=${encodeURIComponent(String(generation))}`,
+    `runtimeSession=${encodeURIComponent(session)}`,
+    `popoverId=${encodeURIComponent(popoverId)}`,
+  ].join("&");
+  __concentrationWarningPopoverId = popoverId;
+  __concentrationWarningPopoverSession = session;
+  try {
+    await OBR.popover.open({
+      id: popoverId,
+      url,
+      width,
+      height,
+      anchorReference: "POSITION",
+      anchorPosition: { left: viewportWidth / 2, top: Math.max(8, top - 4) },
+      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+      transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+      hidePaper: true,
+      disableClickAway: true,
+      marginThreshold: 12,
+    });
+  } catch (error) {
+    if (isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) {
+      __concentrationWarningPopoverId = null;
+      __concentrationWarningPopoverSession = "";
+    }
+    throw error;
+  }
+  if (!isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) {
+    // The old open may have completed after a reset. Its scoped ID cannot
+    // collide with a newer generation/session.
+    void requestConcentrationWarningPopoverClose(popoverId);
+    return false;
+  }
   __concentrationWarningPopoverOpen = true;
   if (__concentrationWarningUiReady) {
     await OBR.broadcast.sendMessage(
       CONCENTRATION_WARNING_UI_CHANNEL,
-      { type: "update-concentration-warnings", warnings },
+      {
+        type: "update-concentration-warnings",
+        warnings,
+        sceneEpoch,
+        runtimeGeneration: generation,
+        runtimeSession: session,
+      },
       { destination: "LOCAL" },
     );
+    if (!isCurrentConcentrationWarningSession(generation, sceneEpoch, session)) {
+      return false;
+    }
   }
+  return true;
 }
 
 function concentrationWarningActivationId(warning, index, createdAt) {
@@ -5334,25 +5473,85 @@ function concentrationWarningActivationId(warning, index, createdAt) {
     || `${createdAt}:${index}:${warning?.name || "Token"}`;
 }
 
+function closeConcentrationWarningPopoverHost() {
+  const popoverId = __concentrationWarningPopoverId || CONCENTRATION_WARNING_MODAL_ID;
+  __concentrationWarningPopoverOpen = false;
+  __concentrationWarningUiReady = false;
+  __concentrationWarningPumpRequested = false;
+  __concentrationWarningPopoverId = null;
+  __concentrationWarningPopoverSession = "";
+  const cleanup = requestConcentrationWarningPopoverClose(popoverId);
+  __concentrationWarningCleanupPromise = cleanup;
+  void cleanup.finally(() => {
+    if (__concentrationWarningCleanupPromise === cleanup) {
+      __concentrationWarningCleanupPromise = null;
+    }
+  });
+  return cleanup;
+}
+
+function dismissConcentrationWarningsByHistoryEntryIds(historyEntryIds = [], sceneEpoch) {
+  if (!isCurrentConcentrationWarningEpoch(sceneEpoch)) return false;
+  const ids = new Set(
+    (Array.isArray(historyEntryIds) ? historyEntryIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
+  if (!ids.size) return false;
+  for (const historyEntryId of ids) {
+    __dismissedConcentrationWarningCauseIds.add(historyEntryId);
+  }
+  let changed = false;
+  for (const [activationId, warning] of __concentrationWarningsByActivationId) {
+    const causeHistoryEntryId = String(
+      warning?.notice?.causeHistoryEntryId || "",
+    ).trim();
+    if (!causeHistoryEntryId || !ids.has(causeHistoryEntryId)) continue;
+    __concentrationWarningsByActivationId.delete(activationId);
+    changed = true;
+  }
+  if (!changed) return false;
+  if (__concentrationWarningsByActivationId.size) {
+    requestConcentrationWarningPump();
+  } else {
+    void closeConcentrationWarningPopoverHost();
+  }
+  return true;
+}
+
 function requestConcentrationWarningPump() {
+  const generation = __concentrationWarningRuntimeGeneration;
+  const sceneEpoch = currentSceneEpoch();
+  if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return;
   __concentrationWarningPumpRequested = true;
   if (__concentrationWarningPumpRunning) return;
   __concentrationWarningPumpRunning = true;
   const run = async () => {
     try {
-      if (__concentrationWarningCleanupPromise) {
-        await __concentrationWarningCleanupPromise;
-        __concentrationWarningCleanupPromise = null;
+      const cleanup = __concentrationWarningCleanupPromise;
+      if (cleanup) {
+        await cleanup;
+        if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return;
+        if (__concentrationWarningCleanupPromise === cleanup) {
+          __concentrationWarningCleanupPromise = null;
+        }
       }
-      while (__concentrationWarningPumpRequested) {
+      while (
+        isCurrentConcentrationWarningRuntime(generation, sceneEpoch)
+        && __concentrationWarningPumpRequested
+      ) {
         __concentrationWarningPumpRequested = false;
         await openConcentrationWarningModal({
           warnings: [...__concentrationWarningsByActivationId.values()],
-        });
+        }, { generation, sceneEpoch });
+        if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return;
       }
     } catch (err) {
-      console.warn("[concentration] warning popover:", err?.message || err);
+      if (isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) {
+        console.warn("[concentration] warning popover:", err?.message || err);
+      }
     } finally {
+      if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return;
       __concentrationWarningPumpRunning = false;
       if (__concentrationWarningPumpRequested) requestConcentrationWarningPump();
     }
@@ -5363,24 +5562,50 @@ function requestConcentrationWarningPump() {
 function mountConcentrationWarningBroadcast() {
   if (__concentrationWarningListenerMounted) return;
   __concentrationWarningListenerMounted = true;
-  __concentrationWarningCleanupPromise = Promise.all([
-    OBR.modal.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
-    OBR.popover.close(CONCENTRATION_WARNING_MODAL_ID).catch(() => {}),
-  ]).then(() => {});
+  const initialCleanup = requestConcentrationWarningPopoverClose();
+  __concentrationWarningCleanupPromise = initialCleanup;
+  void initialCleanup.finally(() => {
+    if (__concentrationWarningCleanupPromise === initialCleanup) {
+      __concentrationWarningCleanupPromise = null;
+    }
+  });
   OBR.broadcast.onMessage(CONCENTRATION_WARNING_CHANNEL, (event) => {
+    if (event?.data?.type === "dismiss-concentration-warnings-by-history") {
+      dismissConcentrationWarningsByHistoryEntryIds(
+        event.data?.historyEntryIds,
+        event.data?.sceneEpoch,
+      );
+      return;
+    }
     if (event?.data?.type !== "show-concentration-warning") return;
+    if (!isCurrentConcentrationWarningEpoch(event.data?.sceneEpoch)) return;
     const createdAt = Math.max(0, Math.floor(Number(event.data?.createdAt) || Date.now()));
     const warnings = normalizeConcentrationWarnings(event.data?.warnings);
-    warnings.forEach((warning, index) => {
+    const currentWarnings = warnings.filter((warning) => {
+      const causeHistoryEntryId = String(
+        warning?.notice?.causeHistoryEntryId || "",
+      ).trim();
+      return !causeHistoryEntryId
+        || !__dismissedConcentrationWarningCauseIds.has(causeHistoryEntryId);
+    });
+    currentWarnings.forEach((warning, index) => {
       __concentrationWarningsByActivationId.set(
         concentrationWarningActivationId(warning, index, createdAt),
         warning,
       );
     });
-    if (warnings.length) requestConcentrationWarningPump();
+    if (currentWarnings.length) requestConcentrationWarningPump();
   });
   OBR.broadcast.onMessage(CONCENTRATION_WARNING_HOST_CHANNEL, (event) => {
     const data = event?.data;
+    const runtimeGeneration = Number(data?.runtimeGeneration);
+    const sceneEpoch = Number(data?.sceneEpoch);
+    const runtimeSession = String(data?.runtimeSession || "").trim();
+    if (
+      !isCurrentConcentrationWarningRuntime(runtimeGeneration, sceneEpoch)
+      || !runtimeSession
+      || runtimeSession !== __concentrationWarningPopoverSession
+    ) return;
     if (data?.type === "concentration-warning-ready") {
       __concentrationWarningUiReady = true;
       if (__concentrationWarningsByActivationId.size) requestConcentrationWarningPump();
@@ -5396,6 +5621,8 @@ function mountConcentrationWarningBroadcast() {
       __concentrationWarningPopoverOpen = false;
       __concentrationWarningUiReady = false;
       __concentrationWarningsByActivationId.clear();
+      __concentrationWarningPopoverId = null;
+      __concentrationWarningPopoverSession = "";
     }
   });
 }
@@ -5425,8 +5652,16 @@ async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
   return __sendTurnNoticePayload(notice, sceneEpoch);
 }
 
-async function showConcentrationDamageWarning(changes = []) {
+async function showConcentrationDamageWarning(
+  changes = [],
+  { causeHistoryEntryId = "", sceneEpoch } = {},
+) {
   if (!IS_GM) return;
+  if (
+    !Number.isSafeInteger(sceneEpoch)
+    || sceneEpoch < 0
+    || !isCurrentSceneEpoch(sceneEpoch)
+  ) return;
 
   const damageById = new Map();
   for (const change of changes) {
@@ -5443,6 +5678,7 @@ async function showConcentrationDamageWarning(changes = []) {
   const reminderItems = missingSourceIds.length
     ? items.concat(await OBR.scene.items.getItems(missingSourceIds))
     : items;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const effectNotices = effectSaveReminderNoticesForDamage({
     items: reminderItems,
     damageById,
@@ -5450,7 +5686,7 @@ async function showConcentrationDamageWarning(changes = []) {
   });
   const broadcasts = [broadcastConcentrationSaveWarnings(
     [...damageById].map(([itemId, damage]) => ({ itemId, damage })),
-    { items },
+    { items, causeHistoryEntryId, sceneEpoch },
   )];
   if (effectNotices.length) {
     broadcasts.push(sendProjectedReminderPayload(EFFECT_SAVE_REMINDER_NOTICE_CHANNEL, {
@@ -5882,6 +6118,9 @@ function bindHPEditorForEntry(
   const customCommitAndOpenNeighbor = typeof options.commitAndOpenNeighbor === "function"
     ? options.commitAndOpenNeighbor
     : null;
+  let lastHPHistoryEntryId = "";
+  let concentrationCauseHistoryEntryId = "";
+  let concentrationWarningSceneEpoch = null;
   bindClassicHPEditor({
     pill,
     itemId: entry.id,
@@ -5943,6 +6182,8 @@ function bindHPEditorForEntry(
       nextHPMax,
       recalibratesMax,
     }) => {
+      concentrationWarningSceneEpoch = currentSceneEpoch();
+      const operationSceneEpoch = concentrationWarningSceneEpoch;
       let historyIds = [entry.id];
       try {
         const group = await _getGroupForItemId(entry.id);
@@ -5953,10 +6194,19 @@ function bindHPEditorForEntry(
       } catch {}
       historyIds = await getZeroHPConditionHistoryIds(historyIds);
 
+      lastHPHistoryEntryId = "";
+      concentrationCauseHistoryEntryId = "";
       await withItemMetaHistory({
         kind: "hp",
         label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
         itemIds: historyIds,
+        onHistoryStatus: ({ entry: historyEntry }) => {
+          const entryId = String(historyEntry?.id || "").trim();
+          if (entryId) concentrationCauseHistoryEntryId = entryId;
+        },
+        onRecorded: (historyEntry) => {
+          lastHPHistoryEntryId = String(historyEntry?.id || "").trim();
+        },
         fields: [
           "hp",
           "hpMax",
@@ -5964,6 +6214,8 @@ function bindHPEditorForEntry(
           SPELLS_META_KEY,
           CONC_META_KEY,
         ],
+        sceneEpoch: operationSceneEpoch,
+        isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
         await updateHP(entry.id, nextHP, nextHPMax);
         try {
@@ -5978,11 +6230,16 @@ function bindHPEditorForEntry(
       concentrationDamage,
     }) => {
       if (recalibratesMax || concentrationDamage <= 0) return;
+      const sceneEpoch = concentrationWarningSceneEpoch;
+      if (!Number.isSafeInteger(sceneEpoch) || !isCurrentSceneEpoch(sceneEpoch)) return;
       try {
         await showConcentrationDamageWarning([{
           itemId: entry.id,
           damage: concentrationDamage,
-        }]);
+        }], {
+          causeHistoryEntryId: concentrationCauseHistoryEntryId,
+          sceneEpoch,
+        });
       } catch (error) {
         console.warn(
           "[concentration] damage warning error:",
@@ -6692,8 +6949,27 @@ async function openGlobalEffectsPopup() {
   if (sourceEntry) await openCardEffectsPopup(sourceEntry);
 }
 
+async function resolveGlobalSpellSourceEntry(options = {}) {
+  const [entries, state, selection] = await Promise.all([
+    readEntries(),
+    getSceneState(),
+    OBR.player.getSelection().catch(() => []),
+  ]);
+  const explicitSourceId = options?.routeRequest?.sourceId
+    || options?.routeRequest?.source
+    || options?.sourceId
+    || options?.source
+    || "";
+  return resolveGlobalSpellSourceEntryCore({
+    entries,
+    state,
+    selection,
+    explicitSourceId,
+  });
+}
+
 async function openGlobalSpellsPopup(options = {}) {
-  const sourceEntry = await resolveGlobalPopupSourceEntry();
+  const sourceEntry = await resolveGlobalSpellSourceEntry(options);
   if (sourceEntry) await openCardSpellsPopup(sourceEntry, options);
 }
 
@@ -7004,7 +7280,7 @@ async function openCardSpellsPopup(sourceEntry, {
   }
 }
 
-async function openInitiativeCardPopup(sourceEntry) {
+async function openInitiativeCardPopup(sourceEntry, { quickActionId = "" } = {}) {
   if (!sourceEntry || sourceEntry.__groupCollapsed || !["pc", "ally"].includes(sourceEntry.attitude) ||
       isLairId(sourceEntry.id) || isEpicActionId(sourceEntry.id)) return;
 
@@ -7019,7 +7295,7 @@ async function openInitiativeCardPopup(sourceEntry) {
   try {
     await openTrackedPopover({
       id: popupId,
-      url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}`,
+      url: `/initiative-card-modal.html?source=${encodeURIComponent(sourceId)}${quickActionId ? `&quickAction=${encodeURIComponent(quickActionId)}` : ""}`,
       width: 440,
       height: 560,
       anchorReference: "POSITION",
@@ -7405,6 +7681,11 @@ async function __runTrackerQuickAction(sourceEntry, action) {
   if (!sourceId) throw new Error("quick-action-source-missing");
   if (action?.kind === "feature") {
     if (!IS_GM) throw new Error("Solo il GM può attivare una capacità.");
+    const feature = getClassFeatureDefinition(action.featureId);
+    if (feature?.runtimeSupport?.adapter === "purifying-touch") {
+      await openInitiativeCardPopup(sourceEntry, { quickActionId: action.id });
+      return { mode: "review", route: "initiative-card" };
+    }
     const { activateClassFeature } = await __loadClassFeatureRuntime();
     return activateClassFeature({
       sourceId,
@@ -10082,6 +10363,52 @@ OBR.scene.onMetadataChange((meta) => {
     }
   }, {
     filter: (event) => event.flags.hpBars,
+    immediate: true,
+  });
+
+  // Le condizioni cambiano poco frequentemente ma modificano struttura e altezza
+  // della card. Trattale come una barriera di render: il full render legge lo
+  // stesso snapshot canonico già ricevuto dall'Event Hub e impedisce che una
+  // card conservi pill obsolete dopo rimozioni automatiche (es. endsOnDamage).
+  // Se un editor HP/iniziativa è aperto non distruggiamo il DOM sotto l'input:
+  // marchiamo il full render come dirty e __scheduleEditorDirtyFlush() lo
+  // eseguirà appena l'editor viene chiuso.
+  subscribeSceneItemChanges((event) => {
+    const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+    if (!__isCurrentSceneOperation(sceneEpoch, "condition-card-full-sync")) return;
+
+    const trackedIds = (event?.items || [])
+      .filter((item) => item?.metadata?.[META_KEY]?.inInitiative === true)
+      .map((item) => item.id)
+      .filter(Boolean);
+    if (!trackedIds.length) return;
+
+    __latestSceneItemEventRevision = Math.max(
+      __latestSceneItemEventRevision,
+      Number(event?.revision) || 0,
+    );
+    __latestSceneItemEventGeneration = Math.max(
+      __latestSceneItemEventGeneration,
+      Number(event?.generation) || 0,
+    );
+    __latestSceneItemEventCorrelation = sceneItemEventCorrelation(event)
+      || __latestSceneItemEventCorrelation;
+
+    if (__suspendRenders || __editingInitForId || __editingHPForId) {
+      __editorDirtyTrackerItemIds.addMany(trackedIds);
+      __fullRenderDirty = true;
+      __initiativeDiag("render:conditions-deferred-editor", {
+        itemIds: trackedIds,
+        revision: event?.revision || 0,
+      });
+      return;
+    }
+
+    void renderAll("conditions-canonical").catch((error) => {
+      console.warn("[initiative] condition card full sync:", error?.message || error);
+    });
+  }, {
+    filter: (event) => event.flags.conditions,
     immediate: true,
   });
 

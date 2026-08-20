@@ -49,6 +49,7 @@ function normalizeConditionRule(value) {
     options.effectKind = rule.effectKind;
   }
   if (rule.effectDetail) options.effectDetail = String(rule.effectDetail);
+  if (rule.mapVisible === false) options.mapVisible = false;
   if (rule.mechanics && typeof rule.mechanics === "object") {
     options.mechanics = clone(rule.mechanics);
   }
@@ -374,6 +375,9 @@ export function resolveSaveSpellResolution({
     spellTargetIds,
     conditionApplications,
     trackOutcomes: [...normalizedAutomation.trackOutcomes],
+    ...(saveWorkflowRule?.persistence && typeof saveWorkflowRule.persistence === "object"
+      ? { persistence: clone(saveWorkflowRule.persistence) }
+      : {}),
     ...(targeting?.choice ? { choice: targeting.choice } : {}),
     ...(targeting ? { targeting } : {}),
     ...(targeting?.targetContext

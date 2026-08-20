@@ -78,12 +78,12 @@ test("il lotto bersagli copre azioni, attivazioni del caster e varianti di Sguar
     ],
   );
   assert.equal(
-    eyebite.activeActions[3].effects[0].saveReminder.timing,
+    eyebite.activeActions[3].failureEffects[0].saveReminder.timing,
     "turn-end",
   );
   assert.match(
-    eyebite.activeActions[3].effects[0].saveReminder.label,
-    /Segna Superato/,
+    eyebite.activeActions[3].failureEffects[0].saveReminder.label,
+    /non può più essere bersagliato/,
   );
 });
 
@@ -137,11 +137,10 @@ test("Parola del potere stordire traccia l'effetto senza risolvere la soglia PF"
   assert.equal(spell.saveAutomation, null);
 });
 
-test("le risoluzioni ad area trasferiscono il reminder nella condizione persistita", () => {
+test("le risoluzioni persistenti trasferiscono i reminder supportati nella condizione", () => {
   assert.equal(
-    failedRule("compulsion", "compulsion-forced-movement")
-      .saveReminder.timing,
-    "turn-end",
+    failedRule("compulsion", "compulsion-forced-movement").saveReminder,
+    undefined,
   );
   assert.equal(
     failedRule("confusion", "confusion-random-turn")

@@ -278,17 +278,20 @@ test("Modellare Acqua e Modellare Terra non hanno falsi RAW gaps e restano MANUA
   assert.equal(moldEarth.integration.issues.some((issue) => issue.code === "CAST_NO_MUTATIONS" && issue.severity === "P0"), false);
 });
 
-test("Immolazione, Investitura della Fiamma e Sfera della Tempesta continuano a emergere come gap", () => {
+test("Immolazione e Investitura della Fiamma sono ACCEPTED mentre Sfera della Tempesta conserva il fallback gap", () => {
   const audit = buildSpellAutomationAudit();
   const immolation = audit.rows.find((row) => row.id === "xanathar-immolazione");
   const flame = audit.rows.find((row) => row.id === "xanathar-investitura-della-fiamma");
   const storm = audit.rows.find((row) => row.id === "xanathar-sfera-della-tempesta");
 
-  assert.equal(immolation?.coverageStatus, "GAP");
-  assert.ok(immolation?.integration.issues.some((issue) => issue.code === "CAST_NO_MUTATIONS" && issue.severity === "P0"));
+  assert.equal(immolation?.coverageStatus, "ACCEPTED");
+  assert.deepEqual(immolation?.gaps, []);
+  assert.equal(immolation?.integration.issues.some((issue) => issue.code === "CAST_NO_MUTATIONS"), false);
 
-  assert.equal(flame?.coverageStatus, "GAP");
-  assert.ok(flame?.integration.issues.some((issue) => issue.code === "ACTIVE_ACTION_REMINDER_ONLY"));
+  assert.equal(flame?.coverageStatus, "ACCEPTED");
+  assert.equal(flame?.currentAutomationLevel, "FULL");
+  assert.deepEqual(flame?.gaps, []);
+  assert.deepEqual(flame?.integration.issues, []);
 
   assert.equal(storm?.coverageStatus, "GAP");
   assert.ok(storm?.integration.issues.some((issue) => issue.code === "ACTIVE_ACTION_REMINDER_ONLY"));

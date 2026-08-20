@@ -27,3 +27,11 @@ export function resolveZeroHPUnconsciousAction(meta = {}, instances = []) {
     removeInstanceIds: shouldHave ? [] : automaticIds,
   };
 }
+
+export function resolveDamageEndsConditionRemovals(instances = []) {
+  return (Array.isArray(instances) ? instances : [])
+    .filter((instance) => instance?.active !== false)
+    .filter((instance) => instance?.mechanics?.endsOnDamage === true || instance?.endsOnDamage === true)
+    .map((instance) => String(instance.id || "").trim())
+    .filter(Boolean);
+}

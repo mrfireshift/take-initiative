@@ -262,3 +262,37 @@ test("un'aggregazione con timing diversi etichetta le singole righe", () => {
     ["Ragnatela · Inizio turno", "Stordito · Fine turno"],
   );
 });
+
+test("prune zone reminder batch removes activations no longer pending", async () => {
+  const { pruneZoneReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({ activationId: "cloudkill-enter" }),
+    notice({ activationId: "cloudkill-turn" }),
+  ]);
+
+  const pruned = pruneZoneReminderNoticeBatch(batch, ["cloudkill-turn"]);
+
+  assert.deepEqual(pruned.activationIds, ["cloudkill-turn"]);
+});
+
+test("prune zone reminder batch preserves non-zone reminders", async () => {
+  const { pruneZoneReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({ activationId: "cloudkill-enter", kind: "zone" }),
+    notice({ activationId: "hold-save", kind: "effect-save", spellName: "Blocca Mostri" }),
+  ]);
+
+  const pruned = pruneZoneReminderNoticeBatch(batch, []);
+
+  assert.deepEqual(pruned.activationIds, ["hold-save"]);
+  assert.equal(pruned.entries[0].kind, "effect-save");
+});
+
+test("prune zone reminder batch closes when no zone activation remains", async () => {
+  const { pruneZoneReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({ activationId: "cloudkill-enter" }),
+  ]);
+
+  assert.equal(pruneZoneReminderNoticeBatch(batch, []), null);
+});

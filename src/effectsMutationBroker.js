@@ -44,6 +44,7 @@ export function createEffectsMutationBackgroundBroker({
   executeUndo,
   beforeExecute = async () => {},
   shouldCacheResult = () => true,
+  getContextState = () => ({}),
   maxResults = 256,
 } = {}) {
   if (typeof executeApply !== "function") throw new TypeError("executeApply must be a function");
@@ -66,11 +67,18 @@ export function createEffectsMutationBackgroundBroker({
     const kind = String(message.kind || "");
     const requestId = String(message.requestId || "");
     if (kind === "context") {
+      let contextState = {};
+      try {
+        const candidate = getContextState();
+        if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+          contextState = clone(candidate);
+        }
+      } catch {}
       return {
         duplicate: false,
         command: null,
         result: sceneIdentity
-          ? { status: "applied", sceneIdentity }
+          ? { status: "applied", sceneIdentity, ...contextState }
           : rejected(requestId, "scene-not-ready"),
       };
     }

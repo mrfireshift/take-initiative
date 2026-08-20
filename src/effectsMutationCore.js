@@ -195,6 +195,8 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (sourceId) instance.sourceId = sourceId;
   if (options.sourceName) instance.sourceName = String(options.sourceName);
   if (options.parentEffectId) instance.parentEffectId = String(options.parentEffectId);
+  if (options.spellName) instance.spellName = String(options.spellName);
+  if (options.spellId) instance.spellId = String(options.spellId);
   if (options.type || options.effectType) instance.type = String(options.type || options.effectType);
   if (options.effectId) instance.effectId = String(options.effectId);
   if (options.effectKind === "buff" || options.effectKind === "debuff") {
@@ -291,10 +293,30 @@ function appendCondition(state, operation, targetId) {
     if (!childName || !childId || next.some((entry) => String(entry?.id || "") === childId)) continue;
     const trigger = addition?.triggeredBy || {};
     const child = conditionInstance(operation, targetId, childId, childName, {
+      // Le conseguenze automatiche (es. Prono entrando in Privo di sensi)
+      // sono condizioni fisiche indipendenti: non devono ereditare lifecycle,
+      // mechanics o identity dell'effetto che le ha generate.
       sourceId: "",
       sourceName: "",
       parentEffectId: "",
+      spellName: "",
+      spellId: "",
       type: "automatic",
+      effectId: "",
+      effectKind: "",
+      magical: false,
+      effectDetail: "",
+      theme: null,
+      saveReminder: null,
+      deferredEffects: null,
+      deferredEffect: null,
+      mechanics: null,
+      manualRemoval: false,
+      mapVisible: true,
+      endsParentOnRemoval: false,
+      parentRemoval: "",
+      parentEndCondition: null,
+      exhaustionContribution: false,
       appliedAt: trigger.appliedAt,
       expiry: { mode: "manual" },
     });
@@ -308,9 +330,11 @@ function removeLinkedConditions(state, removedSpells) {
     .map((spell) => String(spell?.instanceId || "").trim())
     .filter(Boolean));
   if (!parentIds.size) return;
+  // parentEffectId è il legame autorevole col lifecycle del parent.
+  // Non dipendere da type=spell: condizioni create da percorsi legacy o
+  // normalizzate come condizioni standard devono comunque terminare col parent.
   state.conditions = state.conditions.filter((instance) =>
-    String(instance?.type || "") !== "spell" ||
-    !parentIds.has(String(instance?.parentEffectId || ""))
+    !parentIds.has(String(instance?.parentEffectId || "").trim())
   );
 }
 
@@ -319,8 +343,7 @@ function removeLinkedConditionsFromAllStates(states, parentEffectId) {
   if (!parentId) return;
   for (const state of states.values()) {
     state.conditions = state.conditions.filter((instance) =>
-      String(instance?.type || "") !== "spell"
-      || String(instance?.parentEffectId || "") !== parentId
+      String(instance?.parentEffectId || "").trim() !== parentId
     );
   }
 }
@@ -342,14 +365,13 @@ function applyParentEndConditions(
     const consequence = instance.parentEndCondition;
     const conditionName = String(consequence.condition || "").trim();
     const key = conditionKey(conditionName);
-    if (
-      !conditionName
-      || state.conditions.some((entry) =>
-        entry?.active !== false && conditionKey(entry) === key
-      )
-    ) {
-      continue;
-    }
+    if (!conditionName) continue;
+    const hasIndependentMatchingCondition = state.conditions.some((entry) =>
+      entry?.active !== false
+      && conditionKey(entry) === key
+      && !parentIds.has(String(entry?.parentEffectId || "").trim())
+    );
+    if (hasIndependentMatchingCondition) continue;
     appendCondition(state, {
       createdAt: Number(instance.createdAt) || Date.now(),
       conditionName,
@@ -438,6 +460,18 @@ function removeSpellByInstance(state, instanceId) {
   return removeSpells(state, (spell) => String(spell?.instanceId || "") === wanted);
 }
 
+function cleanupRemovedSpellLinksFromAllStates(states, removedSpells = []) {
+  const parentEffectIds = uniqueIds(
+    (Array.isArray(removedSpells) ? removedSpells : [])
+      .map((spell) => String(spell?.instanceId || "").trim())
+      .filter(Boolean),
+  );
+  for (const parentEffectId of parentEffectIds) {
+    applyParentEndConditionsToAllStates(states, parentEffectId);
+    removeLinkedConditionsFromAllStates(states, parentEffectId);
+  }
+}
+
 function breakConcentration(states, casterId, reference = null) {
   const caster = states.get(String(casterId || "").trim());
   if (!caster) return;
@@ -485,6 +519,16 @@ function breakConcentrationOnTargets(states, casterId, reference, targetIds = []
 
   const instanceId = String(entry.instanceId || "").trim();
   const spellName = String(entry.name || matchedKey).trim();
+  const remainingTargets = currentTargets.filter((targetId) => !scopedTargets.has(targetId));
+
+  // Rimuovere l'ultimo target equivale a terminare davvero la concentrazione.
+  // Delega al lifecycle completo così spell, parent-end e child effect remoti
+  // vengono puliti nello stesso modo del normale concentration:break.
+  if (!remainingTargets.length) {
+    breakConcentration(states, caster.id, instanceId || matchedKey);
+    return;
+  }
+
   for (const targetId of removedTargets) {
     const target = states.get(targetId);
     if (!target) continue;
@@ -492,12 +536,7 @@ function breakConcentrationOnTargets(states, casterId, reference, targetIds = []
     else removeSpellByNameAndSource(target, spellName, caster.id);
   }
 
-  const remainingTargets = currentTargets.filter((targetId) => !scopedTargets.has(targetId));
-  if (remainingTargets.length) {
-    caster.concentrations[matchedKey] = { ...entry, targets: remainingTargets };
-  } else {
-    delete caster.concentrations[matchedKey];
-  }
+  caster.concentrations[matchedKey] = { ...entry, targets: remainingTargets };
 }
 
 function applySpellUpsert(state, operation) {
@@ -778,13 +817,17 @@ function applyOperation(states, operation, options) {
     case "spell:remove-instance":
       for (const targetId of targetIds) {
         const state = states.get(targetId);
-        if (state) removeSpellByInstance(state, operation.instanceId);
+        if (!state) continue;
+        const removedSpells = removeSpellByInstance(state, operation.instanceId);
+        cleanupRemovedSpellLinksFromAllStates(states, removedSpells);
       }
       break;
     case "spell:remove-name-source":
       for (const targetId of targetIds) {
         const state = states.get(targetId);
-        if (state) removeSpellByNameAndSource(state, operation.name, operation.casterId);
+        if (!state) continue;
+        const removedSpells = removeSpellByNameAndSource(state, operation.name, operation.casterId);
+        cleanupRemovedSpellLinksFromAllStates(states, removedSpells);
       }
       break;
     case "spell:clear-non-concentration":
@@ -1011,10 +1054,12 @@ function applyOperation(states, operation, options) {
       for (const [itemId, parentIds] of byItem) {
         const state = states.get(itemId);
         if (state) state.conditions = state.conditions.filter((instance) => {
-          if (!parentIds.has(String(instance?.parentEffectId || ""))) return true;
-          const allowedTypes = Array.isArray(operation.conditionTypes)
-            ? operation.conditionTypes.map((value) => String(value || ""))
-            : ["spell"];
+          if (!parentIds.has(String(instance?.parentEffectId || "").trim())) return true;
+          // Se conditionTypes è esplicito, conserva il filtro richiesto dal caller
+          // (es. class-feature). Senza filtro, il parentEffectId è autorevole e
+          // l'intero effetto figlio va rimosso indipendentemente dal campo type.
+          if (!Array.isArray(operation.conditionTypes)) return false;
+          const allowedTypes = operation.conditionTypes.map((value) => String(value || ""));
           return !allowedTypes.includes(String(instance?.type || ""));
         });
       }

@@ -283,11 +283,11 @@ async function beginSpellPlacement(data) {
     });
     return;
   }
-  const baseRule = getSpellAreaRuleById(ruleId);
-  const rule = getSpellAreaRuleForPlacement(ruleId, ruleChoice);
   const placementContext = data?.context && typeof data.context === "object"
     ? data.context
     : null;
+  const baseRule = getSpellAreaRuleById(ruleId);
+  const rule = getSpellAreaRuleForPlacement(ruleId, ruleChoice, placementContext);
   const parentZoneId = String(placementContext?.parentZoneId || "").trim();
   const [parentZone] = parentZoneId
     ? await OBR.scene.items.getItems([parentZoneId]).catch(() => [])
@@ -759,7 +759,10 @@ function renderDrag(state) {
     state.end,
     state.dpi,
     state.gridOrigin,
-    { widthSquares: state.widthCells },
+    {
+      widthSquares: state.widthCells,
+      widthAnchor: state.rule?.geometry?.widthAnchor,
+    },
   );
   if (state.context?.childKind === "fissure") {
     area = clipChildZoneAreaToParent({
@@ -908,6 +911,16 @@ async function prepareDrag(state) {
     state.unit = String(scale?.parsed?.unit || "m").trim();
     const corner = point(cornerStart) || state.rawStart;
     const boardTokenPlacement = isBoardTokenPlacement(state.rule);
+    const ruleWidthCells = state.rule?.geometry?.width
+      ? spellAreaGridCells(state.rule.geometry.width, {
+        multiplier: state.multiplier,
+        unit: state.unit,
+      })
+      : 0;
+    const snapToVertex = state.rule?.placement?.snapOrigin === "vertex"
+      || state.rule?.placement?.snap === "vertex"
+      || (state.spellPlacementRequestId && state.type === "square")
+      || (state.spellPlacementRequestId && state.type === "line" && ruleWidthCells > 1);
     const snapped = state.rule?.placement?.origin === "caster-adjacent"
       ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
       : boardTokenPlacement
@@ -915,13 +928,13 @@ async function prepareDrag(state) {
           position: boardTokenPlacementSnap(state.rawStart, corner, state.dpi, state.rule),
           gridOrigin: corner,
         }
-      : !state.spellPlacementRequestId && state.type === "cone"
-        ? nearestGridSnap(state.rawStart, corner, state.dpi)
-        : state.spellPlacementRequestId && state.type === "square"
-          ? nearestGridCorner(state.rawStart, corner, state.dpi)
+      : snapToVertex
+        ? nearestGridCorner(state.rawStart, corner, state.dpi)
+        : !state.spellPlacementRequestId && state.type === "cone"
+          ? nearestGridSnap(state.rawStart, corner, state.dpi)
           : nearestGridSnap(state.rawStart, corner, state.dpi);
     state.originCellCenter = snapped?.position || corner;
-    state.originSnapKind = snapped?.kind || "center";
+    state.originSnapKind = snapped?.kind || (snapToVertex ? "corner" : "center");
     state.start = state.originCellCenter;
     state.gridOrigin = snapped?.gridOrigin || corner;
     if (state.spellPlacementRequestId) {
@@ -1085,6 +1098,7 @@ function persistentAreaMetadata(state) {
     basePosition: { x: 0, y: 0 },
     style: state.style,
     ...(state.widthCells > 0 ? { widthSquares: state.widthCells } : {}),
+    ...(state.rule?.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
   };
 }
 
@@ -1119,7 +1133,10 @@ function translatedAreaFromItem(item) {
     translate(metadata.end),
     metadata.dpi,
     translate(metadata.gridOrigin || metadata.start),
-    { widthSquares: metadata.widthSquares },
+    {
+      widthSquares: metadata.widthSquares,
+      widthAnchor: metadata.widthAnchor,
+    },
   );
 }
 

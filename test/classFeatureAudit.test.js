@@ -58,3 +58,182 @@ test("le candidate deterministiche e i contenitori di risorse restano fuori dal 
   assert.equal(pactMagic.recommendation.mode, "tavolo");
   assert.equal(protectionAura.recommendation.mode, "tavolo");
 });
+
+// ==========================================
+// CF-001B: 20 INVARIANTS DI RECONCILIATION
+// ==========================================
+
+test("CF-001B.1: esattamente 860 record totali", () => {
+  assert.equal(audit.features.length, 860);
+  assert.equal(audit.reconciledSummary.totalRecords, 860);
+});
+
+test("CF-001B.2: tutti gli ID sono unici", () => {
+  const idSet = new Set(audit.features.map((f) => f.id));
+  assert.equal(idSet.size, 860);
+  const featureIdSet = new Set(audit.features.map((f) => f.featureId));
+  assert.equal(featureIdSet.size, 860);
+});
+
+test("CF-001B.3: enum currentAutomationLevel validi", () => {
+  const valid = new Set(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL", "NONE"]);
+  for (const f of audit.features) {
+    assert.ok(valid.has(f.currentAutomationLevel), `Invalid currentAutomationLevel: ${f.currentAutomationLevel} on ${f.id}`);
+  }
+});
+
+test("CF-001B.4: enum targetAutomationLevel validi", () => {
+  const valid = new Set(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL", "UNREVIEWED"]);
+  for (const f of audit.features) {
+    assert.ok(valid.has(f.targetAutomationLevel), `Invalid targetAutomationLevel: ${f.targetAutomationLevel} on ${f.id}`);
+  }
+});
+
+test("CF-001B.5: enum coverageStatus validi", () => {
+  const valid = new Set(["ACCEPTED", "GAP", "UNREVIEWED"]);
+  for (const f of audit.features) {
+    assert.ok(valid.has(f.coverageStatus), `Invalid coverageStatus: ${f.coverageStatus} on ${f.id}`);
+  }
+});
+
+test("CF-001B.6: summary counts coincidono esattamente con le righe calcolate", () => {
+  const curCounts = { FULL: 0, PARTIAL: 0, TRACK_ONLY: 0, MANUAL: 0, NONE: 0 };
+  const tgtCounts = { FULL: 0, PARTIAL: 0, TRACK_ONLY: 0, MANUAL: 0, UNREVIEWED: 0 };
+  const covCounts = { ACCEPTED: 0, GAP: 0, UNREVIEWED: 0 };
+  const tstCounts = { DIRECT: 0, INDIRECT: 0, NONE: 0 };
+
+  for (const f of audit.features) {
+    curCounts[f.currentAutomationLevel]++;
+    tgtCounts[f.targetAutomationLevel]++;
+    covCounts[f.coverageStatus]++;
+    tstCounts[f.testCoverageStatus]++;
+  }
+
+  assert.deepEqual(audit.reconciledSummary.currentAutomation, curCounts);
+  assert.deepEqual(audit.reconciledSummary.targetAutomation, tgtCounts);
+  assert.deepEqual(audit.reconciledSummary.coverageStatus, covCounts);
+  assert.deepEqual(audit.reconciledSummary.testCoverageStatus, tstCounts);
+});
+
+test("CF-001B.7: customCodeCount === customCodeMatrix.length === 15", () => {
+  const customFeatures = audit.features.filter((f) => f.usesCustomCode);
+  assert.equal(customFeatures.length, 15);
+  assert.equal(audit.reconciledSummary.customCodeCount, 15);
+});
+
+test("CF-001B.8: resourcePoolCount === resourceMatrix.length === 104", () => {
+  assert.equal(audit.resourcePools.length, 104);
+  assert.equal(audit.reconciledSummary.resourcePoolCount, 104);
+});
+
+test("CF-001B.9: persistentLifecycleCount === persistentMatrix.length === 67", () => {
+  const persistent = audit.features.filter((f) => f.persistentCategory !== null);
+  assert.equal(persistent.length, 67);
+  assert.equal(audit.reconciledSummary.persistentLifecycleCount, 67);
+});
+
+test("CF-001B.10: catalogGapCount === 0", () => {
+  const catalogGaps = audit.features.filter((f) => f.catalogStatus === "CATALOG_GAP");
+  assert.equal(catalogGaps.length, 0);
+  assert.equal(audit.reconciledSummary.catalogGapCount, 0);
+});
+
+test("CF-001B.11: functionalGapCount === 463", () => {
+  const functionalGaps = audit.features.filter((f) => f.coverageStatus === "GAP");
+  assert.equal(functionalGaps.length, 463);
+  assert.equal(audit.reconciledSummary.functionalGapCount, 463);
+});
+
+test("CF-001B.12: testGapCount === 0 (all test gaps closed in CF-B01)", () => {
+  const testGaps = audit.features.filter((f) => f.testGap === true);
+  assert.equal(testGaps.length, 0);
+  assert.equal(audit.reconciledSummary.testGapCount, 0);
+});
+
+test("CF-001B.13: sourceConflictCount === 3", () => {
+  const conflicts = audit.features.filter((f) => f.sourceConflict === true);
+  assert.equal(conflicts.length, 3);
+  assert.equal(audit.reconciledSummary.sourceConflictCount, 3);
+});
+
+test("CF-001B.14: CATALOG_GAP implica assenza reale da tutte le fonti", () => {
+  // Tutte le 860 feature provengono da fonti interne caricate, quindi nessuna è CATALOG_GAP
+  for (const f of audit.features) {
+    assert.equal(f.catalogStatus, "CATALOGED");
+  }
+});
+
+test("CF-001B.15: missing direct test non genera automaticamente functional GAP", () => {
+  // Una feature con target MANUAL e current MANUAL è ACCEPTED anche se testCoverageStatus è NONE
+  const manualNoTest = audit.features.filter((f) =>
+    f.targetAutomationLevel === "MANUAL"
+    && f.currentAutomationLevel === "MANUAL"
+    && f.testCoverageStatus === "NONE"
+  );
+  assert.ok(manualNoTest.length > 0);
+  for (const f of manualNoTest) {
+    assert.equal(f.coverageStatus, "ACCEPTED");
+  }
+});
+
+test("CF-001B.16: Assassinare invariants", () => {
+  const assassinate = audit.features.find((f) => f.id === "ladro-assassino-assassinare");
+  assert.ok(assassinate);
+  assert.equal(assassinate.catalogStatus, "CATALOGED");
+  assert.equal(assassinate.currentAutomationLevel, "MANUAL");
+  assert.equal(assassinate.targetAutomationLevel, "MANUAL");
+  assert.equal(assassinate.runtimeExposed, false);
+  assert.equal(assassinate.sourceConflict, true);
+  assert.equal(assassinate.coverageStatus, "ACCEPTED");
+});
+
+test("CF-001B.17: Preservare Vita invariants", () => {
+  const preserveLife = audit.features.find((f) => f.id === "chierico-dominio-della-vita-incanalare-divinita-preservare-vita");
+  assert.ok(preserveLife);
+  assert.equal(preserveLife.currentAutomationLevel, "TRACK_ONLY");
+  assert.equal(preserveLife.targetAutomationLevel, "PARTIAL");
+  assert.equal(preserveLife.sourceConflict, true);
+  assert.equal(preserveLife.coverageStatus, "GAP");
+  assert.equal(preserveLife.gapCategory, "EXECUTION_GAP");
+});
+
+test("CF-001B.18: Recuperare Energie invariants", () => {
+  const secondWind = audit.features.find((f) => f.id === "guerriero-recuperare-energie");
+  assert.ok(secondWind);
+  assert.equal(secondWind.currentAutomationLevel, "TRACK_ONLY");
+  assert.equal(secondWind.targetAutomationLevel, "PARTIAL");
+  assert.equal(secondWind.sourceConflict, true);
+  assert.equal(secondWind.coverageStatus, "GAP");
+  assert.equal(secondWind.gapCategory, "EXECUTION_GAP");
+});
+
+test("CF-001B.19: Spirito del Lupo invariants", () => {
+  const wolfSpirit = audit.features.find((f) => f.id === "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo");
+  assert.ok(wolfSpirit);
+  assert.equal(wolfSpirit.currentAutomationLevel, "FULL");
+  assert.equal(wolfSpirit.targetAutomationLevel, "FULL");
+  assert.equal(wolfSpirit.coverageStatus, "ACCEPTED");
+  assert.equal(wolfSpirit.persistentCategory, "SPATIAL_AURA");
+});
+
+test("CF-001B.20: determinismo delle metriche canoniche", () => {
+  assert.deepEqual(audit.reconciledSummary.currentAutomation, {
+    FULL: 8,
+    PARTIAL: 40,
+    TRACK_ONLY: 148,
+    MANUAL: 630,
+    NONE: 34,
+  });
+  assert.deepEqual(audit.reconciledSummary.targetAutomation, {
+    FULL: 30,
+    PARTIAL: 383,
+    TRACK_ONLY: 87,
+    MANUAL: 360,
+    UNREVIEWED: 0,
+  });
+  assert.deepEqual(audit.reconciledSummary.coverageStatus, {
+    ACCEPTED: 397,
+    GAP: 463,
+    UNREVIEWED: 0,
+  });
+});

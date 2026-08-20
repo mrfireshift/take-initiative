@@ -1,19 +1,14 @@
-- Controllo puntuale animazioni: Folata di vento, Bagliore lunare, Frantumare, Arma spirituale, Invocare il fulmine, Muro di vento, Tempesta di nevischio, Esilio, Porta dimensionale, Muro di fuoco, Guscio anti-vita, Mano arcana, Cono di freddo, Muro di forza, Nube mortale, Aculeo Mentale, Rintocco dei Morti, Braccia di Hadar, Sortilegio, Coltello di Ghiaccio, Nube di Pugnali, Passo del Tuono, Turbine
+- Controllo puntuale animazioni: Bagliore lunare, Invocare il fulmine, Muro di vento, Porta dimensionale, Muro di fuoco, Guscio anti-vita, Mano arcana, Muro di forza, Aculeo Mentale, Rintocco dei Morti, Braccia di Hadar, Sortilegio, Coltello di Ghiaccio, Passo del Tuono, Turbine
 
 - Fare in modo che gli incantesimi siano applicabili anche se non includono target.
 
 INCANTESIMI
+- Pass generico su tutti gli incantesimi per costruire un limitatore di range unico?
+
 - Aura di Vitalità è un'aura, dovrebbe essere automaticamente assegnata sul caster al cast, senza bisogno di scegliere target (segue il workflow di Aura di Vita)
 - Armatura magica deve esporre il campo "Caster".
 - Capanna non è terminabile dal pannello Spells
-- Cecità/Sordità non ha più il dropdown che applica la variante Accecato/Assordato. Il dropdown serve ad applicare automaticamente lo stato su chi fallisce il TS. Inoltre, va implementato il limite di target e l'upcast all'incantesimo (in questo caso, ogni slot superiore al 2 permette di bersagliare una creatura aggiuntiva oltre la prima)
 
 AURE
 - Le aure non triggerano il reminder
 - Anche se un'aura viene eliminata, non viene elimnata l'area disegnata.
-
-COMBAT LOG
-- Le modifiche agli HP direttamente dalla card in modalità estesa vengono correttamente riportate nel log di combattimento. Tuttavia possono venire annullate solo da CTRL+Z, è impossibile che vengano annullate da Undo. L'annullamento con CTRL+Z non viene riportato nel Log di Combattimento.
-- I movimenti vengono correttamente annullati sia con CTRL+Z che con pulsante Undo, ma se annullati con CTRL+Z si sommano nel Log di Combattimento.
-- Le modifiche agli HP tramite Console Effetti vengono registrate correttamente nell'Undo e registrate nel log. Anche gli annullamenti funzionano e sono registrate. Tuttavia, se annullate con CTRL+Z, non vengono registrate nel log.
-- Ho lanciato Freccia Acida sul bersaglio. Il cast viene correttamente registrato dal log; annullandolo da pannello l'undo viene correttamente registrato ma se annullato tramite CTRL+Z non viene registrato. Stesso pattern anche con Unto che applica la condizione Prono su TS fallito e con l'applicazione di una condizione generica.

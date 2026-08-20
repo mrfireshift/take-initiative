@@ -22,7 +22,7 @@ function renderOutcomeButtons(documentRef, target, callbacks) {
     ? target.outcomeOptions
     : DEFAULT_OUTCOME_OPTIONS;
   const group = createNode(documentRef, "div", {
-    className: "unified-outcome-group",
+    className: `unified-outcome-group is-count-${Math.max(1, options.length)}`,
     attributes: {
       role: "group",
       "aria-label": `Esito per ${target.label}`,
@@ -236,12 +236,12 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         }),
       ],
     });
-    const actions = createNode(documentRef, "div", {
-      className: "unified-target-bulk__actions",
-    });
     const options = Array.isArray(targets.outcomeOptions) && targets.outcomeOptions.length
       ? targets.outcomeOptions
       : DEFAULT_OUTCOME_OPTIONS;
+    const actions = createNode(documentRef, "div", {
+      className: `unified-target-bulk__actions is-count-${Math.max(1, options.length)}`,
+    });
     for (const option of options) {
       const button = createButton(documentRef, {
         label: option.label,

@@ -22,6 +22,9 @@ const readyListeners = new Set();
 const broadcastListeners = new Map();
 
 function currentItems(ids) {
+  if (typeof ids === "function") {
+    return sceneState.items.filter(ids).map(clone);
+  }
   const wanted = Array.isArray(ids) ? new Set(ids) : null;
   return sceneState.items
     .filter((item) => !wanted || wanted.has(item?.id))
@@ -44,6 +47,7 @@ const sdkStub = {
     },
     items: {
       getItems: async (ids) => currentItems(ids),
+      onChange: () => () => {},
       updateItems: async (ids, updater) => {
         const drafts = currentItems(ids);
         await updater(drafts);
@@ -101,6 +105,7 @@ function resetScene(initialToken = null) {
 
 test.before(async () => {
   await historyOwner.mountHistoryOwner();
+  await history.mountMovementHistoryWatcher();
   await effects.mountEffectsMutationCoordinatorService();
 });
 

@@ -182,8 +182,18 @@ export function zoneTriggerNoticeFromActivation(
       slotLevel,
     })
     : null;
+  const zoneSpellId = normalizedText(zoneMetadata?.spellId, "", 200);
+  const scaledWallOfLightLabel = zoneSpellId === "xanathar-muro-di-luce"
+    && resolution?.mode === "manual-damage"
+    && normalizedText(resolution?.damage?.dice, "", 40)
+      ? String(rawNotice.label || "").replace(
+        /^\d+d\d+\b/iu,
+        normalizedText(resolution.damage.dice, "", 40),
+      )
+      : rawNotice.label;
   return normalizeZoneTriggerNotice({
     ...rawNotice,
+    label: scaledWallOfLightLabel,
     ...(resolution?.mode === "manual-damage" ? { kind: "zone-effect" } : {}),
     ...(resolution ? { resolution } : {}),
   });
@@ -223,12 +233,22 @@ export function zoneTriggerNoticeDetail(value) {
 export function planZoneTriggerNoticeDelivery(
   values = [],
   announcedIds = [],
+  { baseline = false } = {},
 ) {
   const announced = new Set(
     (Array.isArray(announcedIds) ? announcedIds : [])
       .map((value) => String(value || "").trim())
       .filter(Boolean),
   );
+  if (baseline) {
+    // La baseline serve solo a non riprodurre reminder persistenti già presenti
+    // quando il popover viene montato. Non deve marcarli come annunciati:
+    // il payload live che ha causato l'apertura può arrivare subito dopo.
+    return {
+      notices: [],
+      announcedIds: [...announced],
+    };
+  }
   const notices = [];
   for (const value of Array.isArray(values) ? values : []) {
     const notice = normalizeZoneTriggerNotice(value);

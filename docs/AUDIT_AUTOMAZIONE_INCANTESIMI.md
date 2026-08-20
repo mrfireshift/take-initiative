@@ -8,36 +8,36 @@
 
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
-- Esposti nella console unificata: **392**; disconnessi: **1**; fragili: **2**.
+- Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **1**.
 - Definizioni tracciabili: **355**; definizioni con regole d'area: **134**.
 - Workflow che richiedono smoke test runtime: **389**.
 - Lacune RAW confermate P1: **39**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `7db32a028a3895c3`.
+- Impronta deterministica: `80ba64a0d6e7e685`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 26 |
+| FULL | 28 |
 | MANUAL | 88 |
-| PARTIAL | 212 |
-| TRACK_ONLY | 151 |
+| PARTIAL | 211 |
+| TRACK_ONLY | 150 |
 
 ### Stato di copertura (coverageStatus)
 
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 29 |
-| GAP | 43 |
+| ACCEPTED | 31 |
+| GAP | 41 |
 | UNREVIEWED | 405 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 26 |
+| FULL | 28 |
 | MANUAL | 3 |
-| UNREVIEWED | 448 |
+| UNREVIEWED | 446 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -63,24 +63,23 @@
 | CLEANUP | 104 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 80 |
+| TURN_TRIGGER | 81 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| disconnected | 1 |
-| fragile | 2 |
+| fragile | 1 |
 | partial | 40 |
-| reachable | 349 |
+| reachable | 351 |
 | unexposed | 85 |
 
 ### Problemi di integrazione
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION_REMINDER_ONLY | 2 |
-| CAST_NO_MUTATIONS | 4 |
+| ACTIVE_ACTION_REMINDER_ONLY | 1 |
+| CAST_NO_MUTATIONS | 3 |
 | UNIFIED_CATALOG_MISSING | 85 |
 
 ## Integrazione con la console unificata
@@ -131,12 +130,10 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Guarigione | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Guarigione di massa | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Identificare | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
-| Immolazione | esposto | spell-lifecycle | nessuna | disconnected | il cast non produce alcuna mutazione significativa |
 | Inaridire | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Infestazione | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Infliggi ferite | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Intimorire infernale | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
-| Investitura della Fiamma | esposto | area-transaction | reminder-only: flame-investiture-line | fragile | azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva |
 | Lama Verdefiamma | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Lenza Elettrizzante | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Localizza animali o vegetali | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
@@ -440,7 +437,7 @@ Nessuna voce.
 | Immagine proiettata | `project-image` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Immagine silenziosa | `silent-image` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Immagine speculare | `mirror-image` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Immolazione | `xanathar-immolazione` | Xanathar / 5 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | disconnected | — | — |
+| Immolazione | `xanathar-immolazione` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Imprigionare | `imprisonment` | SRD 5.1 / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Inaridire | `blight` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Incuti Paura | `xanathar-incuti-paura` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -461,7 +458,7 @@ Nessuna voce.
 | Inversione della gravità | `reverse-gravity` | SRD 5.1 / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti |
 | Investitura del Ghiaccio | `xanathar-investitura-del-ghiaccio` | Xanathar / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Investitura del Vento | `xanathar-investitura-del-vento` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; conseguenza alla fine della spell assente |
-| Investitura della Fiamma | `xanathar-investitura-della-fiamma` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | fragile | — | — |
+| Investitura della Fiamma | `xanathar-investitura-della-fiamma` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Investitura della Pietra | `xanathar-investitura-della-pietra` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; eccezioni e immunità ai costi di movimento assenti; conseguenza alla fine della spell assente |
 | Inviare | `sending` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invisibilità | `invisibility` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

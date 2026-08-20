@@ -763,6 +763,11 @@ select:disabled {
   background: rgba(0, 0, 0, .16);
 }
 
+.unified-outcome-group.is-count-2,
+.unified-target-bulk__actions.is-count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .unified-target-row > .unified-outcome-group {
   grid-column: 3;
   grid-row: 1;

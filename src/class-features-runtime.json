@@ -5201,6 +5201,7 @@
           }
         }
       ],
+      "choiceMode": "configuration",
       "breaksConcentration": true,
       "duration": {
         "rounds": null,
@@ -5373,7 +5374,7 @@
       "page": 10,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -5387,6 +5388,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "optionGroup": "barbaro-aura-tempestosa-ambiente",
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -6124,7 +6126,7 @@
       "page": 10,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -6138,6 +6140,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "optionGroup": "barbaro-aura-tempestosa-ambiente",
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -6491,7 +6494,7 @@
       "page": 10,
       "collection": "opzioni",
       "defaultEnabled": false,
-      "automationLevel": "assistita",
+      "automationLevel": "riferimento",
       "completenessStatus": "partial",
       "runtimeRequirements": [],
       "missingForExecution": [
@@ -6505,6 +6508,7 @@
       "activation": {
         "primary": "innesco"
       },
+      "optionGroup": "barbaro-aura-tempestosa-ambiente",
       "targetMode": "self",
       "targeting": {
         "mode": "self",
@@ -7510,6 +7514,69 @@
           }
         }
       },
+      "choiceOptions": [
+        {
+          "id": "deserto",
+          "label": "Deserto",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da fuoco finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Fuoco",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da fuoco finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": {
+                "membership": "selected",
+                "filter": "friendly",
+                "includeCaster": false
+              }
+            }
+          }
+        },
+        {
+          "id": "mare",
+          "label": "Mare",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da fulmine finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Fulmine",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da fulmine finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": {
+                "membership": "selected",
+                "filter": "friendly",
+                "includeCaster": false
+              }
+            }
+          }
+        },
+        {
+          "id": "tundra",
+          "label": "Tundra",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da freddo finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Freddo",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da freddo finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": {
+                "membership": "selected",
+                "filter": "friendly",
+                "includeCaster": false
+              }
+            }
+          }
+        }
+      ],
+      "choiceMode": "configuration",
       "breaksConcentration": false,
       "duration": {
         "rounds": null,
@@ -18579,9 +18646,7 @@
         "background": "#14532d",
         "text": "#f0fdf4"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -22518,13 +22583,13 @@
       "page": 97,
       "collection": "privilegi",
       "defaultEnabled": true,
-      "automationLevel": "assistita",
+      "automationLevel": "tracciamento",
       "completenessStatus": "curated",
       "runtimeRequirements": [],
       "missingForExecution": [],
       "runtimeSupport": {
         "status": "implemented",
-        "adapter": "condition",
+        "adapter": "resource-only",
         "reason": null
       },
       "activation": {
@@ -22546,18 +22611,18 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "condition",
-        "conditionName": "Percezione del Divino",
-        "detail": "Entro 18 m riconosci posizione e tipo di celestiali, immondi e non morti non coperti totalmente; puoi anche individuare luoghi o oggetti consacrati o dissacrati. Dura fino al termine del prossimo turno. Usi: 1 + modificatore di Carisma; il conteggio resta manuale."
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
-        "rounds": null,
-        "timing": "next-turn-end"
+        "rounds": null
       },
-      "trackingMode": "active",
-      "resourceCosts": []
+      "trackingMode": "resource-only",
+      "resourceCosts": [
+        {
+          "poolId": "paladino-percezione-divino-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "paladino-stile-di-combattimento-combattere-con-armi-possenti",
@@ -23355,7 +23420,7 @@
       ],
       "runtimeSupport": {
         "status": "implemented",
-        "adapter": "condition-choice",
+        "adapter": "condition",
         "reason": null
       },
       "activation": {
@@ -23379,43 +23444,52 @@
       },
       "effectPlan": {
         "kind": "condition",
-        "conditionName": "Abiurare Nemico",
-        "detail": "Dopo il tiro salvezza su Saggezza scegli l'esito confermato dal tavolo."
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Velocità 0",
+        "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni.",
+        "mechanics": {
+          "endsOnDamage": true,
+          "movement": {
+            "setMeters": 0
+          }
+        }
       },
       "choiceOptions": [
         {
-          "id": "fallito",
+          "id": "failed",
           "label": "TS fallito",
           "effectPlan": {
             "kind": "condition",
             "conditionName": "Spaventato",
-            "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni. Immunità e svantaggio di immondi/non morti restano reminder manuali.",
-            "targetEffect": {
-              "conditionName": "Spaventato",
-              "effectKind": "debuff",
-              "detail": "Spaventato; velocità 0; nessun bonus alla velocità; massimo 10 round; termina al danno.",
-              "mechanics": {
-                "speedMeters": 0,
-                "noSpeedBonuses": true,
-                "endsOnDamage": true
+            "displayLabel": "Spaventato · Velocità 0",
+            "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni.",
+            "mechanics": {
+              "endsOnDamage": true,
+              "movement": {
+                "setMeters": 0
               }
             }
           }
         },
         {
-          "id": "superato",
+          "id": "succeeded",
           "label": "TS superato",
           "effectPlan": {
             "kind": "condition",
             "conditionName": "Velocità dimezzata",
-            "detail": "TS Saggezza superato: velocità dimezzata. Massimo 10 round; termina prima se il bersaglio subisce danni.",
-            "targetEffect": {
-              "conditionName": "Velocità dimezzata",
-              "effectKind": "debuff",
-              "detail": "Velocità dimezzata; massimo 10 round; termina al danno.",
-              "mechanics": {
-                "speedMultiplier": 0.5,
-                "endsOnDamage": true
+            "displayLabel": "Velocità dimezzata",
+            "effectKind": "debuff",
+            "detail": "TS Saggezza superato: velocità dimezzata per 1 minuto (10 round); termina prima se il bersaglio subisce danni.",
+            "theme": {
+              "emoji": "⛓️",
+              "accent": "#38bdf8",
+              "background": "#0c4a6e",
+              "text": "#ecfeff"
+            },
+            "mechanics": {
+              "endsOnDamage": true,
+              "movement": {
+                "multiplier": 0.5
               }
             }
           }
@@ -24563,7 +24637,12 @@
         "rounds": null
       },
       "trackingMode": "instant",
-      "resourceCosts": []
+      "resourceCosts": [
+        {
+          "poolId": "paladino-tocco-purificatore-usi",
+          "amount": 1
+        }
+      ]
     },
     {
       "id": "paladino-giuramento-di-vendetta-anima-di-vendetta",
@@ -29981,9 +30060,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30040,9 +30117,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30099,9 +30174,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30158,9 +30231,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30217,9 +30288,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30276,9 +30345,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30335,9 +30402,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30396,9 +30461,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null
@@ -30760,9 +30823,7 @@
         "background": "#0c4a6e",
         "text": "#ecfeff"
       },
-      "effectPlan": {
-        "kind": "none"
-      },
+      "effectPlan": null,
       "breaksConcentration": false,
       "duration": {
         "rounds": null

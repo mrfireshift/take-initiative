@@ -106,7 +106,8 @@ test("la vista compatta mostra icone di condizione e un conteggio distinto", () 
   ]);
   assert.ok(rows.every((entry) => entry.x + entry.width <= 135));
   assert.ok(rows.every((entry) => entry.x >= 65));
-  assert.ok(rows.every((entry) => entry.x + entry.width === 135));
+  assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
+  assert.equal(Math.max(...rows.map((entry) => entry.x + entry.width)), 135);
   assert.equal(rows.some((entry) => entry.text === "Prono"), false);
   assert.equal(rows.find((entry) => entry.compactMode === "effect-count").key, "compact:count");
 });
@@ -205,7 +206,8 @@ test("le pill compatte restano dentro la footprint anche su un token multicasell
 
   assert.ok(rows.every((entry) => entry.x >= 130));
   assert.ok(rows.every((entry) => entry.x + entry.width <= 270));
-  assert.ok(rows.every((entry) => entry.x + entry.width === 270));
+  assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
+  assert.equal(Math.max(...rows.map((entry) => entry.x + entry.width)), 270);
   const topmost = Math.min(...rows.map((entry) => entry.y - entry.height / 2));
   assert.ok(topmost >= 95 && topmost < 96);
 });
@@ -734,4 +736,63 @@ test("snapshot obsoleti o non autorizzati usano il fallback SDK", async () => {
     sceneEpoch: 8,
     minimumGeneration: 10,
   }), snapshot.items);
+});
+
+test("Muro di Luce non duplica la pill parent quando la membership ha lo stesso nome della spell", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Muro di Luce",
+          displayName: "Muro di Luce",
+          targets: ["caster"],
+          instanceId: "wall-instance",
+          color: { solid: "#d4b106", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [{
+          key: "spell-effect:wall-membership",
+          label: "Muro di Luce",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "wall-instance",
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot");
+
+  assert.deepEqual(rows.map((entry) => entry.text), ["✨1"]);
+  assert.equal(rows.some((entry) => String(entry.text).includes("✦")), false);
+});
+
+test("un effetto figlio con label diversa dalla spell conserva entrambe le informazioni", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: false,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Ragnatela",
+          displayName: "Ragnatela",
+          targets: ["caster"],
+          instanceId: "web-instance",
+          color: { solid: "#7e22ce", fillOpacity: 0.84 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [{
+          key: "spell-effect:web-membership",
+          label: "Terreno difficile",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "web-instance",
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot");
+
+  assert.deepEqual(rows.map((entry) => entry.text).sort(), ["Ragnatela", "Terreno difficile"]);
 });

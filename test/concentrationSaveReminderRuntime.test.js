@@ -74,7 +74,32 @@ test("tutti gli ingressi di danno usano il dispatcher condiviso", () => {
 
   assert.match(runtime, /await getItems\(\[\.\.\.damageById\.keys\(\)\]\)/);
   assert.match(runtime, /type: "show-concentration-warning"[\s\S]*destination: "ALL"/);
-  assert.match(quickHP, /async function showConcentrationWarnings\(entries\)[\s\S]*broadcastConcentrationSaveWarnings\(damage/);
+  assert.match(quickHP, /async function showConcentrationWarnings\([\s\S]*?causeHistoryEntryId[\s\S]*?broadcastConcentrationSaveWarnings\(damage/);
   assert.match(initiative, /showConcentrationDamageWarning[\s\S]*broadcastConcentrationSaveWarnings\(/);
   assert.match(reminder, /plan\.hpChange\.after < plan\.hpChange\.before[\s\S]*broadcastConcentrationSaveWarnings\(/);
+});
+
+
+test("il reminder di concentrazione conserva e propaga la causalità History", () => {
+  const runtime = fs.readFileSync(new URL("../src/concentrationSaveReminder.js", import.meta.url), "utf8");
+  const quickHP = fs.readFileSync(new URL("../src/quick-hp-modal.js", import.meta.url), "utf8");
+  const initiative = fs.readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
+  const reminder = fs.readFileSync(new URL("../src/reminderResolution.js", import.meta.url), "utf8");
+  const history = fs.readFileSync(new URL("../src/history.js", import.meta.url), "utf8");
+
+  assert.match(runtime, /causeHistoryEntryId/);
+  assert.match(runtime, /sceneEpoch/);
+  assert.match(quickHP, /onHistoryStatus: \(\{ entry \}\) => \{[\s\S]*concentrationCauseHistoryEntryId/);
+  assert.match(quickHP, /causeHistoryEntryId: concentrationCauseHistoryEntryId/);
+  assert.match(quickHP, /onRecorded: \(entry\) => \{ recordedEntry = entry; \}/);
+  assert.match(initiative, /onRecorded: \(historyEntry\)[\s\S]*lastHPHistoryEntryId/);
+  assert.match(initiative, /onHistoryStatus: \(\{ entry: historyEntry \}\) => \{[\s\S]*concentrationCauseHistoryEntryId/);
+  assert.match(initiative, /causeHistoryEntryId: concentrationCauseHistoryEntryId/);
+  assert.match(initiative, /dismiss-concentration-warnings-by-history/);
+  assert.match(reminder, /causeHistoryEntryId/);
+  assert.match(reminder, /mutation\?\.historyEntry\?\.id/);
+  assert.match(history, /dismissConcentrationWarningsCausedByEntries/);
+  assert.match(history, /effectsMutation\?\.sceneEpoch/);
+  assert.match(history, /sceneEpoch: replaySceneEpoch/);
+  assert.match(history, /causeHistoryEntryId[\s\S]*undoEntryIds\.has\(causeHistoryEntryId\)/);
 });

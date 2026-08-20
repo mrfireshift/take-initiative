@@ -1,8 +1,11 @@
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import {
   spellActiveResolutionPopoverId,
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
+  spellActiveResolutionDamageFormula,
+  spellActiveResolutionAttackDamageRequired,
+  spellActiveResolutionSelectedTargetId,
 } from "./spellActiveResolutionCore.js";
 import {
   cancelSpellAreaPlacementRequest,
@@ -14,9 +17,13 @@ import { executeSpellActiveResolution } from "./spellApplicationExecutor.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
-import { areaHitsBounds } from "./aoeGeometryCore.js";
+import { areaHitsBounds, buildCellBoundaryLoops, buildCircleArea } from "./aoeGeometryCore.js";
+import { gridPlanarDistance } from "./distance3dCore.js";
 import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
+import { loadAoEStyle } from "./aoeStyle.js";
+import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
+import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
   buildSpellUnifiedPopupEvent,
   SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
@@ -38,19 +45,49 @@ let childActivationId = "";
 let sceneItems = [];
 let outcomes = new Map();
 let selectedAttackTarget = "";
+let selectedSaveTarget = "";
+let saveOutcome = "";
 let attackOutcome = "";
 let attackEntries = [];
 let busy = false;
 let pendingPlacementRequestId = "";
 let statusMessage = "";
 let parentNotified = false;
+let currentPlayerSelection = [];
+let unsubscribePlayer = null;
+let resizeFrame = 0;
+let lastPopoverHeight = 0;
+let sdkReady = false;
+let fixedRadiusPreviewCleanup = null;
+let fixedRadiusPreviewSequence = 0;
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 
 function sceneOperationId(prefix = "spell-active") {
   return `${prefix}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
 }
 
+function requestCompactPopoverResize() {
+  if (!payload || !sdkReady) return;
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    const app = $("app");
+    if (!app) return;
+    // Il frame non deve imporre l'altezza ricevuta dal controller: misuriamo il
+    // contenuto reale e teniamo lo scroll interno solo per sezioni già limitate.
+    const naturalHeight = Math.ceil(app.scrollHeight + 8); // 4 px di margine sopra/sotto
+    const targetHeight = Math.max(150, Math.min(620, naturalHeight));
+    if (targetHeight === lastPopoverHeight) return;
+    lastPopoverHeight = targetHeight;
+    void OBR.popover.setHeight(popoverIdFromPayload(payload), targetHeight).catch(() => {});
+  });
+}
+
 const $ = (id) => document.getElementById(id);
+
+function conditionInstances(value) {
+  if (Array.isArray(value)) return value;
+  return Array.isArray(value?.instances) ? value.instances : [];
+}
 
 function isCallLightning() {
   return payload?.spellId === "call-lightning";
@@ -64,8 +101,151 @@ function isHolyWeapon() {
   return payload?.spellId === "xanathar-arma-sacra";
 }
 
+function selectedZoneShorteningFrom() {
+  const config = payload?.action?.shortenStaticZone;
+  const fallback = ["start", "end"].includes(String(config?.from || "").trim())
+    ? String(config.from).trim()
+    : "end";
+  if (config?.chooseFrom !== true) return fallback;
+  const selected = String($("zoneShorteningFrom")?.value || "").trim();
+  return ["start", "end"].includes(selected) ? selected : fallback;
+}
+
 function isChildZone() {
   return payload?.action?.resolutionKind === "child-zone";
+}
+
+function isSingleSave() {
+  return payload?.action?.resolutionKind === "single-save";
+}
+
+function fixedCasterRadiusConfig() {
+  const config = payload?.action?.fixedCasterRadius;
+  if (!config || typeof config !== "object") return null;
+  const value = Number(config.value);
+  if (!Number.isFinite(value) || value <= 0 || String(config.unit || "") !== "m") return null;
+  return { value, includeCaster: config.includeCaster === true };
+}
+
+
+function clearFixedCasterRadiusPreview() {
+  fixedRadiusPreviewSequence += 1;
+  fixedRadiusPreviewCleanup?.();
+  fixedRadiusPreviewCleanup = null;
+}
+
+function fixedCasterRadiusCircleArea({
+  origin,
+  radiusMeters,
+  metersPerCell,
+  dpi,
+  gridOrigin,
+} = {}) {
+  if (!origin || !gridOrigin || !(radiusMeters > 0) || !(metersPerCell > 0) || !(dpi > 0)) return null;
+  const radiusPixels = radiusMeters / metersPerCell * dpi;
+  return buildCircleArea(
+    origin,
+    { x: origin.x + radiusPixels, y: origin.y },
+    dpi,
+    gridOrigin,
+  );
+}
+
+function fixedCasterRadiusCellCommands(cells) {
+  const commands = [];
+  for (const cell of cells || []) {
+    const x = Number(cell?.x);
+    const y = Number(cell?.y);
+    const width = Number(cell?.width);
+    const height = Number(cell?.height);
+    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) continue;
+    commands.push(
+      [Command.MOVE, x, y],
+      [Command.LINE, x + width, y],
+      [Command.LINE, x + width, y + height],
+      [Command.LINE, x, y + height],
+      [Command.CLOSE],
+    );
+  }
+  return commands;
+}
+
+function fixedCasterRadiusBoundaryCommands(cells) {
+  const commands = [];
+  for (const loop of buildCellBoundaryLoops(cells || [])) {
+    if (!loop.length) continue;
+    commands.push([Command.MOVE, loop[0].x, loop[0].y]);
+    for (let index = 1; index < loop.length; index += 1) {
+      commands.push([Command.LINE, loop[index].x, loop[index].y]);
+    }
+    commands.push([Command.CLOSE]);
+  }
+  return commands;
+}
+
+async function showFixedCasterRadiusPreview({ cells, dpi, operation = null } = {}) {
+  clearFixedCasterRadiusPreview();
+  const sequence = fixedRadiusPreviewSequence;
+  if (!Array.isArray(cells) || !cells.length || typeof OBR.interaction?.startItemInteraction !== "function") {
+    return false;
+  }
+  const style = spellAreaStyle(payload?.spellId, loadAoEStyle());
+  const outlineWidth = Math.max(2, Number(dpi) * 0.035 * style.strokeWidth);
+  const cellsPreview = buildPath()
+    .commands(fixedCasterRadiusCellCommands(cells))
+    .fillRule("evenodd")
+    .fillColor(style.fillColor)
+    .fillOpacity(Math.max(0.06, Number(style.fillOpacity) || 0.12))
+    .strokeColor(style.strokeColor)
+    .strokeOpacity(0.42)
+    .strokeWidth(Math.max(1, outlineWidth * 0.28))
+    .locked(true)
+    .disableHit(true)
+    .layer("DRAWING")
+    .name(`${payload?.action?.label || "Area incantesimo"} · caselle interessate`)
+    .build();
+  const boundaryPreview = buildPath()
+    .commands(fixedCasterRadiusBoundaryCommands(cells))
+    .fillRule("evenodd")
+    .fillColor(style.fillColor)
+    .fillOpacity(0)
+    .strokeColor(style.strokeColor)
+    .strokeOpacity(0.95)
+    .strokeWidth(outlineWidth)
+    .locked(true)
+    .disableHit(true)
+    .layer("DRAWING")
+    .name(`${payload?.action?.label || "Area incantesimo"} · contorno`)
+    .build();
+  try {
+    const interaction = await OBR.interaction.startItemInteraction([cellsPreview, boundaryPreview]);
+    if ((operation && !sceneLifecycle.isCurrent(operation)) || sequence !== fixedRadiusPreviewSequence) {
+      interaction?.[1]?.();
+      return false;
+    }
+    fixedRadiusPreviewCleanup = interaction?.[1] || null;
+    return true;
+  } catch (error) {
+    if (sequence === fixedRadiusPreviewSequence) {
+      console.warn("[spell-active-resolution] fixed radius preview:", error?.message || error);
+    }
+    return false;
+  }
+}
+
+function gridMetersPerCell(scale = {}) {
+  const parsed = scale?.parsed && typeof scale.parsed === "object" ? scale.parsed : scale;
+  const multiplier = Number(parsed?.multiplier);
+  const unit = String(parsed?.unit || "").trim().toLocaleLowerCase("it");
+  const unitMeters = {
+    m: 1, meter: 1, meters: 1, metro: 1, metri: 1,
+    ft: 0.3048, foot: 0.3048, feet: 0.3048, cm: 0.01, km: 1000,
+  }[unit] || 1;
+  return (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.5) * unitMeters;
+}
+
+function saveAbilityLabel(value) {
+  return ({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" })[String(value || "").trim().toLowerCase()] || "";
 }
 
 function maxAttackCount() {
@@ -108,6 +288,8 @@ function renderContext() {
   const flameInvestiture = isFlameInvestiture();
   const holyWeapon = isHolyWeapon();
   const child = childZone();
+  const singleSave = isSingleSave();
+  const fixedRadius = fixedCasterRadiusConfig();
   const childLabel = childKindLabel(child?.childKind);
   $("eyebrow").textContent = callLightning
     ? "Invocare il fulmine"
@@ -117,8 +299,9 @@ function renderContext() {
         ? "Arma Sacra"
       : child
         ? payload.spellName || "Sottozona incantesimo"
+      : singleSave
+        ? payload.spellName || "Tiro salvezza"
     : "Attivazione incantesimo";
-  $("attackTitle").textContent = payload?.action?.label || "Risoluzione dell'attacco";
   $("saveTitle").hidden = callLightning;
   $("saveTitle").textContent = callLightning
       ? "Richiama il fulmine"
@@ -128,7 +311,10 @@ function renderContext() {
         ? "Esplosione radiosa · TS Costituzione"
       : child
         ? `${childLabel}: posizionamento e bersagli`
+      : fixedRadius
+        ? `${payload?.action?.label || "Tiro salvezza"} · TS ${saveAbilityLabel(payload?.action?.save?.ability)}`
     : "Sagoma e tiri salvezza";
+  $("placementToolbar").hidden = !!fixedRadius;
   $("place").textContent = callLightning
     ? "Posiziona il fulmine"
     : flameInvestiture
@@ -139,7 +325,49 @@ function renderContext() {
         ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
     : "Posiziona sagoma";
   const damage = payload?.action?.damage || {};
-  const damageLabel = [damage.formula || "Danno", damage.type || ""].join(" ").trim();
+  const activeDamageFormula = spellActiveResolutionDamageFormula({
+    action: payload?.action,
+    slotLevel: payload?.slotLevel,
+    outcome: manualSaveAtTable() ? payload?.action?.assumedOutcome || "failed" : saveOutcome,
+  }).scaledFormula;
+  const damageLabel = [activeDamageFormula || damage.formula || "Danno", damage.type || ""]
+    .join(" ")
+    .trim();
+  const wallOfLight = payload?.spellId === "xanathar-muro-di-luce"
+    && payload?.actionId === "wall-of-light-beam";
+  const activeActionLabel = String(payload?.action?.label || "Risoluzione dell'attacco").trim();
+  $("attackTitle").textContent = wallOfLight && activeDamageFormula
+    ? activeActionLabel.replace(/\d+d\d+/iu, activeDamageFormula)
+    : activeActionLabel;
+  const attackDamageLabel = $("attackDamageLabel");
+  if (attackDamageLabel) {
+    attackDamageLabel.textContent = damageLabel ? `Danno ${damageLabel}` : "Danno";
+    attackDamageLabel.hidden = wallOfLight;
+  }
+  if (wallOfLight) {
+    $("attackDamage").setAttribute("aria-label", "Danno del Raggio radioso");
+  } else {
+    $("attackDamage").removeAttribute("aria-label");
+  }
+  if (singleSave) {
+    const manualSave = manualSaveAtTable();
+    const ability = manualSave ? "" : saveAbilityLabel(payload?.action?.save?.ability);
+    const hasDamage = !!payload?.action?.damage;
+    $("singleSaveOutcomes").hidden = manualSave;
+    $("singleSaveDamageField").hidden = !hasDamage;
+    const failedOnlyDamage = payload?.action?.damage?.onSave === "none";
+    const failedCondition = Array.isArray(payload?.action?.failureEffects)
+      && payload.action.failureEffects.some((effect) => String(effect?.label || "").trim() === "Trattenuto");
+    const damageSuffix = manualSave
+      ? ""
+      : failedOnlyDamage
+        ? failedCondition ? " · solo se fallisce e viene trattenuto" : " · solo se fallisce"
+        : payload?.action?.damage?.onSave === "half"
+          ? " · metà se supera"
+          : "";
+    $("singleSaveTitle").textContent = `${payload?.action?.label || "Tiro salvezza"}${ability ? ` · TS ${ability}` : ""}`;
+    $("singleSaveDamageLabel").textContent = damageLabel ? `Danno ${damageLabel}${damageSuffix}` : "Danno";
+  }
   $("damageLabel").textContent = callLightning
     ? "Danno del fulmine"
     : flameInvestiture
@@ -196,6 +424,7 @@ async function notifyParent(status, message = "", executionResult = null) {
 
 async function closePopup() {
   if (!payload) return;
+  clearFixedCasterRadiusPreview();
   sceneLifecycle.dispose();
   if (pendingPlacementRequestId) {
     await cancelSpellAreaPlacementRequest(
@@ -213,7 +442,7 @@ function displayName(item) {
 }
 
 function characters() {
-  return sceneItems.filter((item) => item?.layer === "CHARACTER" && item?.metadata?.[META_KEY]);
+  return sceneItems.filter((item) => item?.layer === "CHARACTER");
 }
 
 function currentTargetItems() {
@@ -234,6 +463,71 @@ function itemCenter(bounds, item) {
   const min = point(bounds?.min);
   const max = point(bounds?.max);
   return min && max ? { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 } : point(item?.position);
+}
+
+function boundsSize(bounds, dpi = 1) {
+  const min = point(bounds?.min);
+  const max = point(bounds?.max);
+  if (!min || !max) return { width: dpi, height: dpi };
+  return {
+    width: Math.max(1, max.x - min.x),
+    height: Math.max(1, max.y - min.y),
+  };
+}
+
+async function refreshFixedCasterRadiusPlacement(operation = null) {
+  const config = fixedCasterRadiusConfig();
+  if (!config) return false;
+  const caster = sceneItems.find((item) => item?.id === payload?.casterId);
+  if (!caster) {
+    clearFixedCasterRadiusPreview();
+    placement = { targetIds: [], fixedCasterRadius: true };
+    outcomes.clear();
+    return true;
+  }
+  const candidates = characters().filter((item) => config.includeCaster || item.id !== payload.casterId);
+  const [dpi, scale, casterBounds, candidateBounds] = await Promise.all([
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    OBR.scene.items.getItemBounds([caster.id]).catch(() => null),
+    Promise.all(candidates.map((item) => OBR.scene.items.getItemBounds([item.id]).catch(() => null))),
+  ]);
+  if (operation && !sceneLifecycle.isCurrent(operation)) return false;
+  const casterOrigin = itemCenter(casterBounds, caster);
+  const metersPerCell = gridMetersPerCell(scale);
+  const gridOrigin = point(casterBounds?.min) || (casterOrigin
+    ? point(await OBR.scene.grid.snapPosition(casterOrigin, 1, true, false).catch(() => casterOrigin)) || casterOrigin
+    : null);
+  const circleArea = fixedCasterRadiusCircleArea({
+    origin: casterOrigin,
+    radiusMeters: config.value,
+    metersPerCell,
+    dpi: Math.max(1, Number(dpi) || 1),
+    gridOrigin,
+  });
+  await showFixedCasterRadiusPreview({
+    cells: circleArea?.cells || [],
+    dpi,
+    operation,
+  });
+  if (operation && !sceneLifecycle.isCurrent(operation)) return false;
+  const targetIds = candidates.filter((item, index) => {
+    const bounds = candidateBounds[index];
+    return !!circleArea && !!bounds && areaHitsBounds(circleArea, bounds);
+  }).map((item) => item.id);
+  const allowedIds = new Set(targetIds);
+  outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
+  placement = {
+    targetIds,
+    fixedCasterRadius: true,
+    radiusMeters: config.value,
+    casterId: payload.casterId,
+  };
+  return true;
+}
+
+function manualSaveAtTable() {
+  return payload?.action?.manualSaveAtTable === true;
 }
 
 function economyLabel(value) {
@@ -262,16 +556,25 @@ async function stormTargetData() {
     const center = itemCenter(bounds, item);
     if (!center) return null;
     const inRange = payload.action.range
-      ? spellAreaOriginWithinRange({
-        origin: center,
-        casterOrigin: origin,
-        range: payload.action.range,
-        dpi,
-        scale: scale?.parsed || scale,
-      })
+      ? payload.action.rangeFromZoneArea === true && area
+        ? wallOfLightTargetWithinRange({
+          area,
+          targetBounds: bounds,
+          range: payload.action.range,
+          dpi,
+          scale: scale?.parsed || scale,
+        })
+        : spellAreaOriginWithinRange({
+          origin: center,
+          casterOrigin: origin,
+          range: payload.action.range,
+          dpi,
+          scale: scale?.parsed || scale,
+        })
       : true;
     if (!inRange) return null;
-    const inside = !!(area && areaHitsBounds(area, bounds));
+    const inside = payload?.action?.attack?.advantageWhen === "inside-root"
+      && !!(area && areaHitsBounds(area, bounds));
     return { item, inside };
   }));
   if (!sceneLifecycle.isCurrent(operation)) return { area: null, entries: [] };
@@ -292,12 +595,16 @@ function renderSave() {
   const child = childZone();
   const childCount = childPlacementCount();
   const childLabel = childKindLabel(child?.childKind);
+  const fixedRadius = fixedCasterRadiusConfig();
   $("placementStatus").textContent = child
-    ? `${childLabel} ${childPlacements.length} di ${childCount}${targets.length ? ` Â· ${targets.length} bersagli` : ""}`
+    ? `${childLabel} ${childPlacements.length} di ${childCount}${targets.length ? ` · ${targets.length} bersagli` : ""}`
+    : fixedRadius
+      ? `${targets.length} bersagli entro ${String(fixedRadius.value).replace(".", ",")} m`
     : placement && targets.length
       ? `${targets.length} bersagli`
       : "";
-  $("damageField").hidden = child || targets.length === 0;
+  const damageRequired = !!payload?.action?.damage;
+  $("damageField").hidden = child || targets.length === 0 || !damageRequired;
   $("bulkOutcomes").hidden = child
     ? child.resolution !== "save"
     : !targets.length;
@@ -361,6 +668,145 @@ function renderSave() {
       : $("place").textContent;
 }
 
+function itemHasLinkedSaveEffect(item, effectId) {
+  const wantedEffect = String(effectId || "").trim();
+  if (!wantedEffect) return false;
+  const parentEffectId = String(payload?.instanceId || "").trim();
+  const meta = item?.metadata?.[META_KEY] || {};
+  return conditionInstances(meta.conditions).some((instance) => (
+    String(instance?.effectId || "").trim() === wantedEffect
+    && String(instance?.parentEffectId || "").trim() === parentEffectId
+  ));
+}
+
+function itemMatchesSingleSaveTarget(item) {
+  const requiredEffectId = String(payload?.action?.requiredTargetEffectId || "").trim();
+  const excludedEffectIds = Array.from(new Set([
+    String(payload?.action?.excludedTargetEffectId || "").trim(),
+    ...(Array.isArray(payload?.action?.excludedTargetEffectIds)
+      ? payload.action.excludedTargetEffectIds.map((effectId) => String(effectId || "").trim())
+      : []),
+  ].filter(Boolean)));
+  if (requiredEffectId && !itemHasLinkedSaveEffect(item, requiredEffectId)) return false;
+  if (excludedEffectIds.some((effectId) => itemHasLinkedSaveEffect(item, effectId))) return false;
+  return true;
+}
+
+async function singleSaveTargetData() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("single-save-read") });
+  if (!sceneLifecycle.isCurrent(operation)) return [];
+  const linkedTargetId = String(payload?.linkedTargetId || "").trim();
+  if (linkedTargetId) {
+    const linkedTarget = sceneItems.find((item) => (
+      item.id === linkedTargetId && itemMatchesSingleSaveTarget(item)
+    ));
+    return linkedTarget ? [linkedTarget] : [];
+  }
+  const caster = sceneItems.find((item) => item.id === payload?.casterId);
+  const root = sceneItems.find((item) => item.id === payload?.zoneItemId);
+  const candidates = characters().filter((item) => (
+    item.id !== payload?.casterId && itemMatchesSingleSaveTarget(item)
+  ));
+  if (!payload?.action?.range) return candidates;
+  const [rootBounds, casterBounds, dpi, scale] = await Promise.all([
+    root ? OBR.scene.items.getItemBounds([root.id]).catch(() => null) : null,
+    caster ? OBR.scene.items.getItemBounds([caster.id]).catch(() => null) : null,
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+  ]);
+  const originSource = payload?.action?.rangeOrigin === "root" ? root : caster;
+  const originBounds = payload?.action?.rangeOrigin === "root" ? rootBounds : casterBounds;
+  const rangeOrigin = itemCenter(originBounds, originSource);
+  if (!rangeOrigin) return [];
+  const filtered = [];
+  const metersPerCell = Number(scale?.parsed?.multiplier ?? scale?.multiplier ?? 1.5) || 1.5;
+  for (const item of candidates) {
+    const bounds = await OBR.scene.items.getItemBounds([item.id]).catch(() => null);
+    const origin = itemCenter(bounds, item);
+    if (!origin) continue;
+    if (payload?.action?.adjacentRing === true && payload?.action?.rangeOrigin === "root") {
+      const planar = gridPlanarDistance(
+        rangeOrigin,
+        origin,
+        dpi,
+        metersPerCell,
+        boundsSize(originBounds, dpi),
+        boundsSize(bounds, dpi),
+      );
+      if (planar.squares > 0 && planar.squares <= 1 + 1e-9) filtered.push(item);
+      continue;
+    }
+    if (spellAreaOriginWithinRange({
+      origin,
+      casterOrigin: rangeOrigin,
+      range: payload.action.range,
+      dpi,
+      scale: scale?.parsed || scale,
+    })) filtered.push(item);
+  }
+  if (!sceneLifecycle.isCurrent(operation)) return [];
+  return filtered;
+}
+
+async function renderSingleSave() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("single-save-render") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const select = $("saveTarget");
+  const previous = selectedSaveTarget;
+  const entries = await singleSaveTargetData();
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  select.replaceChildren(new Option("Seleziona il bersaglio", ""));
+  for (const item of entries) select.appendChild(new Option(displayName(item), item.id));
+  const requiredEffectId = String(payload?.action?.requiredTargetEffectId || "").trim();
+  const requiredEffect = !!requiredEffectId;
+  const automaticRequiredTarget = requiredEffect && entries.length === 1;
+  selectedSaveTarget = automaticRequiredTarget
+    ? entries[0].id
+    : spellActiveResolutionSelectedTargetId(entries, currentPlayerSelection, previous);
+  select.value = selectedSaveTarget;
+  // Le azioni legate a un unico effetto persistente (es. Stritola) usano
+  // direttamente il bersaglio già collegato alla stessa istanza della spell.
+  select.hidden = automaticRequiredTarget;
+  const manualSave = manualSaveAtTable();
+  if (manualSave) saveOutcome = String(payload?.action?.assumedOutcome || "failed").trim() || "failed";
+  const linkedTargetHint = String(payload?.action?.linkedTargetHint || "").trim();
+  const maximilianLinkedTarget = requiredEffectId === "maximilian-earth-grasp-restrained";
+  $("saveTargetHint").textContent = requiredEffect
+    ? entries.length === 1
+      ? linkedTargetHint
+        ? `Bersaglio: ${displayName(entries[0])} · ${linkedTargetHint}`
+        : maximilianLinkedTarget
+          ? `Bersaglio: ${displayName(entries[0])} · attualmente trattenuto dalla mano.`
+          : `Bersaglio: ${displayName(entries[0])} · collegato a questa istanza.`
+      : entries.length
+        ? maximilianLinkedTarget
+          ? "Più bersagli risultano collegati alla mano: seleziona quello da risolvere."
+          : "Più bersagli risultano collegati a questa istanza: seleziona quello da risolvere."
+        : maximilianLinkedTarget
+          ? "Nessun bersaglio è attualmente trattenuto da questa mano."
+          : "Nessun bersaglio è collegato a questa istanza."
+    : payload?.action?.adjacentRing === true
+      ? "Scegli una creatura in una delle 8 caselle attorno alla mano."
+      : payload?.action?.range
+        ? payload?.action?.rangeOrigin === "root"
+          ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dalla mano.`
+          : `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit}.`
+        : "Scegli una creatura.";
+  const damageRequired = !!payload?.action?.damage;
+  const damageReady = !damageRequired || String($("saveDamage")?.value || "").trim() !== "";
+  const canResolve = sceneLifecycle.isReady() && !busy && !!selectedSaveTarget
+    && (manualSave || !!saveOutcome) && damageReady;
+  for (const button of document.querySelectorAll("[data-save-outcome]")) {
+    button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
+    button.disabled = busy || !selectedSaveTarget;
+  }
+  $("apply").disabled = !canResolve;
+  $("apply").textContent = manualSave ? (payload?.action?.buttonLabel || "Applica") : "Applica";
+  $("summary").textContent = selectedSaveTarget
+    ? manualSave ? "Bersaglio pronto" : saveOutcome ? "TS pronto" : "Seleziona l'esito del TS"
+    : "Nessun bersaglio";
+}
+
 async function renderStorm() {
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("storm-render") });
   if (!sceneLifecycle.isCurrent(operation)) return;
@@ -392,6 +838,12 @@ async function renderStorm() {
   $("attackTarget").hidden = multi;
   $("attackAdvantage").hidden = multi;
   $("attackOutcomes").hidden = multi;
+  const shorteningField = $("zoneShorteningField");
+  if (shorteningField) {
+    shorteningField.hidden = multi || payload?.action?.shortenStaticZone?.chooseFrom !== true;
+  }
+  const shorteningSelect = $("zoneShorteningFrom");
+  if (shorteningSelect) shorteningSelect.disabled = busy;
   if (attackField) attackField.hidden = multi;
 
   select.replaceChildren(new Option("Seleziona il bersaglio", ""));
@@ -400,23 +852,31 @@ async function renderStorm() {
     option.dataset.inside = String(inside);
     select.appendChild(option);
   }
-  selectedAttackTarget = entries.some(({ item }) => item.id === previous) ? previous : "";
+  selectedAttackTarget = multi
+    ? (entries.some(({ item }) => item.id === previous) ? previous : "")
+    : spellActiveResolutionSelectedTargetId(entries, currentPlayerSelection, previous);
   select.value = selectedAttackTarget;
   const selected = entries.find(({ item }) => item.id === selectedAttackTarget);
   $("attackAdvantage").textContent = selected?.inside
     ? "Vantaggio al tiro per colpire: il bersaglio è nella sfera."
     : selectedAttackTarget
       ? "Tiro per colpire normale."
-      : "Scegli una creatura entro 18 m dal centro della sfera.";
+      : payload?.action?.requiresZoneRoot === false && payload?.action?.range
+        ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dal caster.`
+        : payload?.action?.rangeFromZoneArea === true && payload?.action?.range
+          ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dal muro.`
+          : "Scegli una creatura entro 18 m dal centro della sfera.";
   const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
-  const canResolve = sceneLifecycle.isReady() && !busy
+  const baseReady = sceneLifecycle.isReady() && !busy
     && !!selectedAttackTarget
-    && (!requiresZoneRoot || !!area)
-    && !!$("attackDamage").value.trim();
+    && (!requiresZoneRoot || !!area);
+  const damageValue = String($("attackDamage")?.value || "").trim();
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
-    button.classList.toggle("active", button.dataset.attackOutcome === attackOutcome);
-    button.hidden = !payload?.action?.attack?.outcomes?.includes(button.dataset.attackOutcome);
-    button.disabled = !canResolve;
+    const outcome = button.dataset.attackOutcome;
+    const damageRequired = spellActiveResolutionAttackDamageRequired(payload?.action, outcome);
+    button.classList.toggle("active", outcome === attackOutcome);
+    button.hidden = !payload?.action?.attack?.outcomes?.includes(outcome);
+    button.disabled = !baseReady || (damageRequired && !damageValue);
   }
   attackRows.replaceChildren();
   if (multi) {
@@ -486,17 +946,19 @@ async function renderStorm() {
 function render() {
   if (!payload) return;
   renderContext();
-  $("title").textContent = `Risolvi: ${payload.spellName || payload.spellId}`;
+  $("title").textContent = payload.spellName || payload.spellId;
   $("economy").textContent = economyLabel(payload.action.economy);
   $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
   const child = childZone();
   const save = payload.action.resolutionKind === "save-area" || !!child;
+  const singleSave = isSingleSave();
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
-  const multiAttack = !save && isMultiAttack();
+  const multiAttack = !save && !singleSave && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();
   $("saveSection").hidden = !save;
-  $("attackSection").hidden = save;
-  $("footer").hidden = !save && !multiAttack;
+  $("singleSaveSection").hidden = !singleSave;
+  $("attackSection").hidden = save || singleSave;
+  $("footer").hidden = !save && !singleSave && !multiAttack;
   const placementPending = !!pendingPlacementRequestId;
   const confirmPlacementButton = $("confirmPlacement");
   const cancelPlacementButton = $("cancelPlacement");
@@ -523,10 +985,15 @@ function render() {
       || (child ? selectedCount !== requiredCount : !placement.targetIds?.length)
       || requiresSave && currentTargetItems().some((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id)))
       || !depthValid
-      || !child && !$("damage").value.trim();
+      || (!child && !!payload?.action?.damage && !$("damage").value.trim());
     $("apply").textContent = child ? "Conferma" : "Applica";
     $("summary").textContent = "";
     renderSave();
+  } else if (singleSave) {
+    $("apply").disabled = true;
+    $("apply").textContent = "Applica";
+    $("summary").textContent = "Caricamento bersagli…";
+    void renderSingleSave();
   } else {
     const completeAttacks = attackEntries.filter((entry) => (
       entry.targetId && entry.attackOutcome && String(entry.damageRoll).trim() !== ""
@@ -542,9 +1009,11 @@ function render() {
     void renderStorm();
   }
   if (statusMessage) $("status").textContent = statusMessage;
+  requestCompactPopoverResize();
 }
 
 async function placeArea() {
+  if (fixedCasterRadiusConfig()) return;
   if (busy || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement") });
   if (!sceneLifecycle.isCurrent(operation)) return;
@@ -666,6 +1135,7 @@ async function apply() {
       busy = false;
       return;
     }
+    const zoneShorteningFrom = selectedZoneShorteningFrom();
     const executionResult = await executeSpellActiveResolution({
       payload,
       placement,
@@ -673,14 +1143,21 @@ async function apply() {
         ? attackEntries.filter((entry) => entry.targetId).map((entry) => entry.targetId)
         : payload.action.resolutionKind === "single-attack"
         ? [selectedAttackTarget]
-        : currentTargetItems().map((item) => item.id),
-      outcomes: Object.fromEntries(outcomes),
+        : payload.action.resolutionKind === "single-save"
+          ? [selectedSaveTarget]
+          : currentTargetItems().map((item) => item.id),
+      outcomes: payload.action.resolutionKind === "single-save"
+        ? { [selectedSaveTarget]: saveOutcome }
+        : Object.fromEntries(outcomes),
       damageRoll: payload.action.resolutionKind === "child-zone"
         ? 0
         : payload.action.resolutionKind === "single-attack"
         ? $("attackDamage").value
-        : $("damage").value,
+        : payload.action.resolutionKind === "single-save"
+          ? payload.action.damage ? $("saveDamage").value : 0
+          : $("damage").value,
       attackOutcome,
+      shorteningFrom: zoneShorteningFrom,
       attacks: isMultiAttack()
         ? attackEntries.filter((entry) => entry.targetId).map((entry) => ({
           targetId: entry.targetId,
@@ -702,6 +1179,7 @@ async function apply() {
       "",
       executionResult,
     );
+    clearFixedCasterRadiusPreview();
     await OBR.popover.close(popoverIdFromPayload(payload)).catch(() => {});
   } catch (error) {
     if (!sceneLifecycle.isCurrent(operation)) {
@@ -726,6 +1204,10 @@ async function loadScene() {
   if (!sceneLifecycle.isCurrent(operation)) return false;
   sceneItems = await OBR.scene.items.getItems();
   if (!sceneLifecycle.isCurrent(operation)) return false;
+  if (fixedCasterRadiusConfig()) {
+    await refreshFixedCasterRadiusPlacement(operation);
+    if (!sceneLifecycle.isCurrent(operation)) return false;
+  }
   render();
   return true;
 }
@@ -743,6 +1225,9 @@ if (!payload) {
   window.addEventListener(
     "beforeunload",
     () => {
+      unsubscribePlayer?.();
+      unsubscribePlayer = null;
+      clearFixedCasterRadiusPreview();
       sceneLifecycle.dispose();
       void notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED);
     },
@@ -776,6 +1261,15 @@ if (!payload) {
     render();
   });
   $("attackDamage").addEventListener("input", render);
+  $("zoneShorteningFrom")?.addEventListener("change", render);
+  $("saveDamage").addEventListener("input", render);
+  $("saveTarget").addEventListener("change", (event) => {
+    selectedSaveTarget = event.target.value;
+    saveOutcome = manualSaveAtTable()
+      ? String(payload?.action?.assumedOutcome || "failed").trim() || "failed"
+      : "";
+    render();
+  });
   $("attackTarget").addEventListener("change", (event) => {
     selectedAttackTarget = event.target.value;
     render();
@@ -788,6 +1282,14 @@ if (!payload) {
       render();
     });
   }
+  for (const button of document.querySelectorAll("[data-save-outcome]")) {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (busy || !selectedSaveTarget) return;
+      saveOutcome = button.dataset.saveOutcome;
+      render();
+    });
+  }
   for (const button of document.querySelectorAll("[data-attack-outcome]")) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -796,8 +1298,25 @@ if (!payload) {
     });
   }
   void OBR.onReady(async () => {
+    sdkReady = true;
+    currentPlayerSelection = await OBR.player.getSelection().catch(() => []);
+    unsubscribePlayer = OBR.player.onChange((player) => {
+      if (!Array.isArray(player?.selection)) return;
+      currentPlayerSelection = [...player.selection];
+      // Solo i resolver con un singolo bersaglio hanno un dropdown da
+      // sincronizzare; render() mantiene invariati gli altri workflow.
+      if (isSingleSave() || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
+        render();
+      }
+    });
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(() => requestCompactPopoverResize());
+      observer.observe($("app"));
+      window.addEventListener("beforeunload", () => observer.disconnect(), { once: true });
+    }
     sceneLifecycle.subscribe((event) => {
       if (event.phase === "unavailable") {
+        clearFixedCasterRadiusPreview();
         if (pendingPlacementRequestId) {
           void cancelSpellAreaPlacementRequest(
             pendingPlacementRequestId,
@@ -810,6 +1329,8 @@ if (!payload) {
         childActivationId = "";
         sceneItems = [];
         outcomes.clear();
+        selectedSaveTarget = "";
+        saveOutcome = "";
         busy = false;
         setStatus("Scena cambiata: riapri la risoluzione dal pannello Spells.", true);
         render();
@@ -819,7 +1340,11 @@ if (!payload) {
         childActivationId = "";
         outcomes.clear();
         selectedAttackTarget = "";
-        setStatus("Nuova scena pronta: posiziona di nuovo la risoluzione.");
+        selectedSaveTarget = "";
+        saveOutcome = "";
+        setStatus(fixedCasterRadiusConfig()
+          ? "Nuova scena pronta: ricalcolo i bersagli della scossa."
+          : "Nuova scena pronta: posiziona di nuovo la risoluzione.");
         void loadScene();
       }
     });
@@ -830,6 +1355,7 @@ if (!payload) {
       return;
     }
     await loadScene();
+    requestCompactPopoverResize();
     OBR.scene.items.onChange(() => {
       if (sceneLifecycle.isReady()) void loadScene();
     });

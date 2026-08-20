@@ -31,6 +31,7 @@ test("le condizioni indipendenti dal parent conservano la propria durata", () =>
     options: {
       expiry: { mode: "rounds", remaining: 10 },
       parentEffectId: "",
+      manualRemoval: true,
       saveReminder: {
         ability: "con",
         timing: "turn-end",

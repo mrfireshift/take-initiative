@@ -34,7 +34,12 @@ import {
   waitForHistoryEntriesRemoved,
 } from "./history.js";
 import { HISTORY_UNDO_READINESS_STATUS } from "./historyUndoCleanupCore.js";
-import { partitionHistoryUndoRows, shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
+import { requestHistoryOwnerClear } from "./historyOwner.js";
+import {
+  partitionHistoryUndoRows,
+  shouldAutoRefreshHistoryUndoReadiness,
+  shouldHandleHistoryUndoShortcut,
+} from "./historyUndoUiCore.js";
 import {
   HISTORY_UNDO_OUTCOME,
   normalizeHistoryUndoResult,
@@ -62,7 +67,10 @@ let undoPanelOpen = false;
 let preferredPanel: "log" | "undo" | null = null;
 let undoInProgress = false;
 let undoCleanupInProgress = false;
+let undoResetInProgress = false;
 let refreshAfterUndo = false;
+let historyPendingReadinessTimer: number | null = null;
+const HISTORY_PENDING_READINESS_RECHECK_MS = 250;
 let showNonUndoableHistory = false;
 let unsubscribeCombatLogOption: (() => void) | null = null;
 let unsubscribeHistoryChange: (() => void) | null = null;
@@ -650,6 +658,8 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
     const undo = button("Undo ultima", "primary", "history.svg");
     const cleanup = button("Pulisci entry incomplete");
     cleanup.title = "Rimuove solo le entry incomplete; i conflitti restano visibili nella cronologia";
+    const resetHistory = button("Azzera Undo", "danger");
+    resetHistory.title = "Cancella l'intera cronologia Undo senza modificare la scena o il Combat Log";
     const refresh = () => {
       rows.forEach(({ checkbox, row }, index) => {
         const readiness = newest[index];
@@ -672,8 +682,9 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       // onDone() can render a fresh panel before the finally block clears it.
       undo.disabled = selectedDepth < 1 || !sceneLifecycle.isReady();
       cleanup.disabled = !sceneLifecycle.isReady();
+      resetHistory.disabled = !sceneLifecycle.isReady() || entries.length < 1;
     };
-    controls.append(undo, cleanup);
+    controls.append(undo, cleanup, resetHistory);
     newest.forEach((readiness: any, index: number) => {
       const entry = readiness?.entry || {};
       const row = document.createElement("label");
@@ -716,7 +727,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       list.appendChild(row);
     });
     undo.addEventListener("click", async () => {
-      if (undoInProgress || selectedDepth < 1 || !sceneLifecycle.isReady()) return;
+      if (undoInProgress || undoCleanupInProgress || undoResetInProgress || selectedDepth < 1 || !sceneLifecycle.isReady()) return;
       const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo") });
       if (!sceneLifecycle.isCurrent(operation)) return;
       preferredPanel = "undo";
@@ -724,6 +735,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       refresh();
       undo.disabled = true;
       cleanup.disabled = true;
+      resetHistory.disabled = true;
       try {
         const selectedRow = newest[selectedDepth - 1];
         const selectedIds = newest.slice(0, selectedDepth).map((row: any) => row?.id);
@@ -742,8 +754,33 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
           && currentRow?.id === selectedRow?.id
           && currentRow?.undoable === true
           && JSON.stringify(currentIds) === JSON.stringify(selectedIds);
+        console.warn("[history][undo-debug][modal-preflight]", {
+          epoch: operation.epoch,
+          selectedDepth,
+          selectedIds,
+          currentIds,
+          selectedRow: selectedRow ? { id: selectedRow.id, label: selectedRow.label } : null,
+          currentStatus: currentState?.status || null,
+          currentReason: currentState?.reason || null,
+          chainTokenMatches: currentState?.chainToken === undoState?.chainToken,
+          selectionStable,
+          currentRow: currentRow ? {
+            id: currentRow.id,
+            label: currentRow.entry?.label || "",
+            status: currentRow.status || null,
+            undoable: currentRow.undoable === true,
+            reason: currentRow.reason || null,
+            conflicts: currentRow.conflicts || [],
+          } : null,
+        });
         const target = selectionStable ? currentRow?.entry : null;
         if (!target?.id) {
+          console.warn("[history][undo-debug][modal-preflight-rejected]", {
+            selectedIds,
+            currentIds,
+            currentStatus: currentState?.status || null,
+            currentReason: currentState?.reason || null,
+          });
           await onDone("La History è cambiata: aggiorna il pannello prima di riprovare.");
           return;
         }
@@ -752,6 +789,19 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         });
         if (!sceneLifecycle.isCurrent(operation)) return;
         const outcome = normalizeHistoryUndoResult(undone);
+        console.warn("[history][undo-debug][modal-result]", {
+          target: { id: target.id, label: target.label },
+          status: outcome.status,
+          outcome: outcome.outcome,
+          committed: outcome.committed,
+          reason: outcome.reason || null,
+          changedIds: outcome.changedIds || [],
+          historyRemovalPending: outcome.historyRemovalPending === true,
+          conflicts: outcome.result?.conflicts || outcome.result?.plan?.conflicts || [],
+          error: outcome.result?.error || null,
+          commitReason: outcome.result?.commitResult?.reason || null,
+          postCommitErrors: outcome.result?.postCommitErrors || outcome.result?.commitResult?.postCommitErrors || [],
+        });
         if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED && outcome.historyRemovalPending) {
           await onDone("Undo applicato. La rimozione delle entry History verrà ritentata.");
         } else if (outcome.outcome === HISTORY_UNDO_OUTCOME.COMMITTED) {
@@ -779,6 +829,11 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
         }
       } catch (error: any) {
         if (!sceneLifecycle.isCurrent(operation)) return;
+        console.warn("[history][undo-debug][modal-exception]", {
+          name: error?.name || "Error",
+          message: error?.message || String(error),
+          stack: error?.stack || "",
+        });
         await onDone(`Undo fallito: ${error?.message || error}`);
       } finally {
         preferredPanel = null;
@@ -790,7 +845,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       }
     });
     cleanup.addEventListener("click", async () => {
-      if (undoInProgress || undoCleanupInProgress || !sceneLifecycle.isReady()) return;
+      if (undoInProgress || undoCleanupInProgress || undoResetInProgress || !sceneLifecycle.isReady()) return;
       const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo-cleanup") });
       if (!sceneLifecycle.isCurrent(operation)) return;
       preferredPanel = "undo";
@@ -798,6 +853,7 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       refresh();
       undo.disabled = true;
       cleanup.disabled = true;
+      resetHistory.disabled = true;
       try {
         const result = await pruneNonUndoableHistoryEntries({
           sceneEpoch: operation.epoch,
@@ -825,6 +881,41 @@ function makeUndoPanel(undoState: any, onDone: (message: string) => Promise<void
       } finally {
         preferredPanel = null;
         undoCleanupInProgress = false;
+        if (refreshAfterUndo) {
+          refreshAfterUndo = false;
+          queueRefresh();
+        }
+      }
+    });
+    resetHistory.addEventListener("click", async () => {
+      if (undoInProgress || undoCleanupInProgress || undoResetInProgress || !sceneLifecycle.isReady()) return;
+      const confirmed = window.confirm(
+        "Azzerare tutta la cronologia Undo? Questa operazione non modifica la scena né il Combat Log e non può essere annullata.",
+      );
+      if (!confirmed) return;
+      const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo-reset") });
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      preferredPanel = "undo";
+      undoResetInProgress = true;
+      refresh();
+      undo.disabled = true;
+      cleanup.disabled = true;
+      resetHistory.disabled = true;
+      try {
+        await requestHistoryOwnerClear({
+          sceneEpoch: operation.epoch,
+          commandId: `history-clear:${operation.operationId || sceneOperationId("undo-reset-owner")}`,
+          correlationId: operation.operationId || "",
+        });
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        showNonUndoableHistory = false;
+        await onDone("Cronologia Undo azzerata. La scena e il Combat Log non sono stati modificati.");
+      } catch (error: any) {
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        await onDone(`Azzeramento Undo fallito: ${error?.message || error}`);
+      } finally {
+        preferredPanel = null;
+        undoResetInProgress = false;
         if (refreshAfterUndo) {
           refreshAfterUndo = false;
           queueRefresh();
@@ -1601,6 +1692,7 @@ async function render(
   app.replaceChildren(shell);
   restoreCombatLogUiState(app);
   syncCombatLogPageControls();
+  syncHistoryPendingReadinessRefresh(undoState, operation);
 }
 
 async function renderAfterStorageAction(message: string) {
@@ -1608,9 +1700,35 @@ async function renderAfterStorageAction(message: string) {
   return scheduleRender(message);
 }
 
+function clearHistoryPendingReadinessRefresh() {
+  if (historyPendingReadinessTimer === null) return;
+  window.clearTimeout(historyPendingReadinessTimer);
+  historyPendingReadinessTimer = null;
+}
+
+function syncHistoryPendingReadinessRefresh(undoState: any, operation: any) {
+  clearHistoryPendingReadinessRefresh();
+  if (!shouldAutoRefreshHistoryUndoReadiness(undoState)) return;
+  if (!sceneLifecycle.isCurrent(operation)) return;
+
+  // HISTORY_CHANGE_CHANNEL can arrive while the background still owns a
+  // pending History append. When that append settles there may be no second
+  // broadcast, leaving the modal stuck in `history-pending` until reload.
+  // Recheck only while that transient barrier is visible.
+  historyPendingReadinessTimer = window.setTimeout(() => {
+    historyPendingReadinessTimer = null;
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    if (undoInProgress || undoCleanupInProgress || undoResetInProgress) {
+      refreshAfterUndo = true;
+      return;
+    }
+    void scheduleRender().catch(() => {});
+  }, HISTORY_PENDING_READINESS_RECHECK_MS);
+}
+
 function queueRefresh() {
   if (!sceneLifecycle.isReady()) return;
-  if (undoInProgress || undoCleanupInProgress) {
+  if (undoInProgress || undoCleanupInProgress || undoResetInProgress) {
     refreshAfterUndo = true;
     return;
   }
@@ -1618,7 +1736,7 @@ function queueRefresh() {
   refreshQueued = true;
   window.setTimeout(() => {
     refreshQueued = false;
-    if (undoInProgress || undoCleanupInProgress) {
+    if (undoInProgress || undoCleanupInProgress || undoResetInProgress) {
       refreshAfterUndo = true;
       return;
     }
@@ -1633,7 +1751,7 @@ function historyUndoShortcutTargetIsEditable(target: EventTarget | null) {
 }
 
 async function undoLatestHistoryFromShortcut() {
-  if (undoInProgress || undoCleanupInProgress || !sceneLifecycle.isReady()) return;
+  if (undoInProgress || undoCleanupInProgress || undoResetInProgress || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("undo-shortcut") });
   if (!sceneLifecycle.isCurrent(operation)) return;
   undoInProgress = true;
@@ -1678,7 +1796,7 @@ window.addEventListener("keydown", (event) => {
     repeat: event.repeat,
     isComposing: event.isComposing,
     editableTarget: historyUndoShortcutTargetIsEditable(event.target),
-    busy: undoInProgress || undoCleanupInProgress,
+    busy: undoInProgress || undoCleanupInProgress || undoResetInProgress,
     enabled: sceneLifecycle.isReady(),
   })) return;
   event.preventDefault();
@@ -1723,6 +1841,7 @@ OBR.onReady(async () => {
 });
 
 window.addEventListener("beforeunload", () => {
+  clearHistoryPendingReadinessRefresh();
   combatLogPageOperationToken += 1;
   combatLogPageLoading = false;
   unsubscribeSceneLifecycle?.();

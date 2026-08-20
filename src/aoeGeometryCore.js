@@ -289,38 +289,72 @@ export function buildCellBoundaryLoops(cells) {
   return loops;
 }
 
-export function buildLineArea(start, end, dpi, gridOrigin = start) {
+export function buildLineArea(
+  start,
+  end,
+  dpi,
+  gridOrigin = start,
+  widthSquares = 1,
+  widthAnchor = "center",
+) {
   const origin = finitePoint(start);
   const cellsOrigin = finitePoint(gridOrigin);
   const pointer = finitePoint(end);
   const safeDpi = Math.max(1, Number(dpi) || 1);
   const squares = snappedAreaLength(start, end, safeDpi);
+  const safeWidthSquares = Math.max(
+    1,
+    Math.round(Number(widthSquares) || 1),
+  );
   const distance = squares * safeDpi;
   const raw = { x: pointer.x - origin.x, y: pointer.y - origin.y };
   const rawLength = length(raw) || 1;
   const direction = { x: raw.x / rawLength, y: raw.y / rawLength };
   const perpendicular = { x: -direction.y, y: direction.x };
-  const endPoint = { x: origin.x + direction.x * distance, y: origin.y + direction.y * distance };
-  const halfWidth = safeDpi / 2;
+  const relativeOriginX = (origin.x - cellsOrigin.x) / safeDpi;
+  const relativeOriginY = (origin.y - cellsOrigin.y) / safeDpi;
+  const isCorner = Math.abs(relativeOriginX - Math.round(relativeOriginX)) < EPSILON
+    && Math.abs(relativeOriginY - Math.round(relativeOriginY)) < EPSILON;
+  const alignmentOffset = safeWidthSquares % 2 === 0
+    ? (isCorner ? 0 : safeDpi / 2)
+    : 0;
+  const halfWidth = safeWidthSquares * safeDpi / 2;
+  const edgeOffset = widthAnchor === "edge" ? halfWidth : 0;
+  const centerOrigin = {
+    x: origin.x + perpendicular.x * (alignmentOffset + edgeOffset),
+    y: origin.y + perpendicular.y * (alignmentOffset + edgeOffset),
+  };
+  const centerEnd = {
+    x: centerOrigin.x + direction.x * distance,
+    y: centerOrigin.y + direction.y * distance,
+  };
   const points = [
-    { x: origin.x + perpendicular.x * halfWidth, y: origin.y + perpendicular.y * halfWidth },
-    { x: endPoint.x + perpendicular.x * halfWidth, y: endPoint.y + perpendicular.y * halfWidth },
-    { x: endPoint.x - perpendicular.x * halfWidth, y: endPoint.y - perpendicular.y * halfWidth },
-    { x: origin.x - perpendicular.x * halfWidth, y: origin.y - perpendicular.y * halfWidth },
+    { x: centerOrigin.x + perpendicular.x * halfWidth, y: centerOrigin.y + perpendicular.y * halfWidth },
+    { x: centerEnd.x + perpendicular.x * halfWidth, y: centerEnd.y + perpendicular.y * halfWidth },
+    { x: centerEnd.x - perpendicular.x * halfWidth, y: centerEnd.y - perpendicular.y * halfWidth },
+    { x: centerOrigin.x - perpendicular.x * halfWidth, y: centerOrigin.y - perpendicular.y * halfWidth },
   ];
-  const extent = squares + 2;
+  const extent = Math.max(squares, safeWidthSquares) + 2;
   const cells = [];
   for (let column = -extent; column <= extent; column += 1) {
     for (let row = -extent; row <= extent; row += 1) {
       const cell = cellRect(cellsOrigin, column, row, safeDpi);
       const center = cellCenter(cell);
-      const relative = { x: center.x - origin.x, y: center.y - origin.y };
-      const along = relative.x * direction.x + relative.y * direction.y;
-      const across = Math.abs(relative.x * perpendicular.x + relative.y * perpendicular.y);
+      const relativeOrigin = { x: center.x - origin.x, y: center.y - origin.y };
+      const along = relativeOrigin.x * direction.x + relativeOrigin.y * direction.y;
+      const relativeCenter = { x: center.x - centerOrigin.x, y: center.y - centerOrigin.y };
+      const across = Math.abs(relativeCenter.x * perpendicular.x + relativeCenter.y * perpendicular.y);
       if (along >= -EPSILON && along <= distance + EPSILON && across <= halfWidth + EPSILON) cells.push(cell);
     }
   }
-  return { type: "line", origin, squares, cells, points };
+  return {
+    type: "line",
+    origin,
+    squares,
+    widthSquares: safeWidthSquares,
+    cells,
+    points,
+  };
 }
 
 export function buildRectangleArea(
@@ -415,7 +449,16 @@ export function buildArea(
 ) {
   if (type === "square") return buildSquareArea(start, end, dpi, gridOrigin);
   if (type === "cone") return buildConeArea(start, end, dpi, gridOrigin);
-  if (type === "line") return buildLineArea(start, end, dpi, gridOrigin);
+  if (type === "line") {
+    return buildLineArea(
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      options?.widthSquares,
+      options?.widthAnchor,
+    );
+  }
   if (type === "rectangle") {
     return buildRectangleArea(
       start,

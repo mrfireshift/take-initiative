@@ -19,6 +19,7 @@ import {
   evaluateHistoryUndoReadiness,
   malformedHistoryEntryIds,
 } from "./historyUndoCleanupCore.js";
+import { historyEntryMatchesUndoBefore } from "./historyUndoCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -26,6 +27,7 @@ const CONC_META_KEY = `${ID}/concentration`;
 const HISTORY_KEY = `${ID}/history`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const HISTORY_CONTROL_ACK_CHANNEL = `${ID}/history-control-ack`;
+const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
 const HISTORY_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
@@ -54,6 +56,75 @@ const __movementSegmentListeners = new Set();
 let __sceneHistoryBaselineEpoch = null;
 let __sceneEpochUnsubscribe = null;
 let __movementFlushEpoch = null;
+
+// Stateless high-resolution action time. `performance.timeOrigin + now()` is
+// comparable across the plugin's browser realms and survives retry because it
+// is stored on the immutable History entry. There is deliberately no realm-
+// local monotonic counter here.
+export function createActionTimestamp() {
+  try {
+    const origin = Number(globalThis.performance?.timeOrigin);
+    const now = Number(globalThis.performance?.now?.());
+    if (Number.isFinite(origin) && Number.isFinite(now)) return origin + now;
+  } catch {}
+  return Date.now();
+}
+
+// Legacy test/API compatibility only; production ordering never reads `seq`.
+export function nextHistorySequence() {
+  return createActionTimestamp();
+}
+
+export async function flushPendingHistoryRemovals(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch) || !__pendingHistoryRemovals.size) return;
+  for (const [commandId, pending] of [...__pendingHistoryRemovals]) {
+    if (!isCurrentSceneEpoch(pending.sceneEpoch)) {
+      __pendingHistoryRemovals.delete(commandId);
+      continue;
+    }
+    try {
+      await requestHistoryOwnerRemove(pending.ids, {
+        sceneEpoch: pending.sceneEpoch,
+        commandId,
+        correlationId: pending.correlationId,
+      });
+      __pendingHistoryRemovals.delete(commandId);
+    } catch (error) {
+      pending.attempts = (pending.attempts || 0) + 1;
+    }
+  }
+}
+
+export async function flushPendingHistoryAppends(sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch) || !__pendingHistoryAppends.size) return;
+  for (const [entryId, pending] of [...__pendingHistoryAppends]) {
+    if (!isCurrentSceneEpoch(pending.sceneEpoch)) {
+      __pendingHistoryAppends.delete(entryId);
+      continue;
+    }
+    try {
+      await requestHistoryOwnerAppend(pending.entry, {
+        sceneEpoch: pending.sceneEpoch,
+        commandId: pending.commandId,
+        correlationId: pending.correlationId,
+      });
+      __pendingHistoryAppends.delete(entryId);
+    } catch (error) {
+      pending.attempts = (pending.attempts || 0) + 1;
+      pending.lastError = error;
+      if (!retryableHistoryOwnerError(error)) {
+        __pendingHistoryAppends.delete(entryId);
+      }
+    }
+  }
+}
+
+export function hasPendingHistoryAppends(sceneEpoch = currentSceneEpoch()) {
+  if (!__pendingHistoryAppends.size) return false;
+  return [...__pendingHistoryAppends.values()].some((p) => (
+    !sceneEpoch || isCurrentSceneEpoch(p.sceneEpoch)
+  ));
+}
 
 function replaceSceneHistorySnapshot(items = []) {
   __sceneHistorySnapshot.clear();
@@ -289,7 +360,7 @@ async function appendSceneHistoryChanges(changes, sceneEpoch = currentSceneEpoch
   const entry = {
     id: createEntryId(),
     version: HISTORY_VERSION,
-    at: Date.now(),
+    at: createActionTimestamp(),
     kind: kinds.size === 1 ? [...kinds][0] : "scene",
     label,
     changes: changes.map((change) => change.change),
@@ -435,9 +506,10 @@ async function appendEntryNow(
     __pendingHistoryAppends.delete(String(entry?.id || ""));
     return result;
   } catch (error) {
+    const retryEntry = error?.historyEntry || entry;
     const queued = retryOnFailure
       && retryableHistoryOwnerError(error)
-      && queueHistoryAppendRetry(entry, {
+      && queueHistoryAppendRetry(retryEntry, {
         sceneEpoch: ownerSceneEpoch,
         commandId: stableCommandId,
         correlationId: stableCorrelationId,
@@ -540,19 +612,12 @@ export function buildEffectsMutationHistoryChanges(plan = null) {
   return { changes, namesById };
 }
 
-/**
- * Records the coordinator's logical effects operation.  The entry contains
- * only the fields changed by the plan; the scene metadata writer still owns
- * only the history key, so this cannot overwrite tracker or token metadata.
- */
-export async function recordEffectsMutationHistory({
+export function buildEffectsMutationHistoryEntry({
   command = {},
   plan = null,
   commitResult = null,
   sceneEpoch = currentSceneEpoch(),
-  historyEntry = null,
 } = {}) {
-  if (!isCurrentSceneEpoch(sceneEpoch)) return null;
   const { changes, namesById } = buildEffectsMutationHistoryChanges(plan);
   const sideEffectChanges = Array.isArray(commitResult?.sideEffectChanges)
     ? commitResult.sideEffectChanges
@@ -575,29 +640,27 @@ export async function recordEffectsMutationHistory({
   const historyPayload = historyOptions.payload && typeof historyOptions.payload === "object"
     ? cloneValue(historyOptions.payload)
     : null;
-  const entry = historyEntry && typeof historyEntry === "object"
-    ? cloneValue(historyEntry)
-    : {
-      id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
-      version: HISTORY_VERSION,
-      at: Date.now(),
-      kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
-      label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
+  const entry = {
+    id: command.commandId ? `effects-history:${command.commandId}` : createEntryId(),
+    version: HISTORY_VERSION,
+    at: createActionTimestamp(),
+    kind: String(historyOptions.kind || command.kind || "effects").trim() || "effects",
+    label: String(historyOptions.label || command.label || "Modifica effetti").trim() || "Modifica effetti",
+    changes,
+    ...(historyPayload ? { payload: historyPayload } : {}),
+    effectsMutation: {
+      version: 1,
+      commandId: command.commandId || null,
+      correlationId: command.correlationId || command.commandId || null,
+      commandType: command.kind || "effects",
+      sceneEpoch,
+      sceneIdentity: command.sceneIdentity || null,
+      targetIds,
+      fields,
       changes,
-      ...(historyPayload ? { payload: historyPayload } : {}),
-      effectsMutation: {
-        version: 1,
-        commandId: command.commandId || null,
-        correlationId: command.correlationId || command.commandId || null,
-        commandType: command.kind || "effects",
-        sceneEpoch,
-        sceneIdentity: command.sceneIdentity || null,
-        targetIds,
-        fields,
-        changes,
-        sideEffects: cloneValue(sideEffectChanges),
-      },
-    };
+      sideEffects: cloneValue(sideEffectChanges),
+    },
+  };
   for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
     const name = String(change?.name || namesById.get(String(change?.id || "")) || "").trim();
     if (change && name && !change.name) change.name = name;
@@ -620,6 +683,27 @@ export async function recordEffectsMutationHistory({
         : entry.effectsMutation.changes,
     };
   }
+  return entry;
+}
+
+/**
+ * Records the coordinator's logical effects operation.  The entry contains
+ * only the fields changed by the plan; the scene metadata writer still owns
+ * only the history key, so this cannot overwrite tracker or token metadata.
+ */
+export async function recordEffectsMutationHistory({
+  command = {},
+  plan = null,
+  commitResult = null,
+  sceneEpoch = currentSceneEpoch(),
+  historyEntry = null,
+} = {}) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return null;
+  const entry = historyEntry && typeof historyEntry === "object"
+    ? cloneValue(historyEntry)
+    : buildEffectsMutationHistoryEntry({ command, plan, commitResult, sceneEpoch });
+  if (!entry) return null;
+
   try {
     await appendEntry(entry, {
       sceneEpoch,
@@ -653,7 +737,8 @@ export async function withItemMetaHistory(options, action) {
     }
   };
   const captureMetadata = itemIds.length > 0 && fields.length > 0;
-  if ((!captureMetadata && !sceneItemIds.length) || typeof action !== "function") {
+  const hasSideEffects = Array.isArray(options?.sideEffects) && options.sideEffects.length > 0;
+  if ((!captureMetadata && !sceneItemIds.length && !hasSideEffects) || typeof action !== "function") {
     return typeof action === "function" && isOperationCurrent()
       ? action()
       : undefined;
@@ -710,11 +795,29 @@ export async function withItemMetaHistory(options, action) {
       let entry = {
         id: createEntryId(),
         version: HISTORY_VERSION,
-        at: Date.now(),
+        at: createActionTimestamp(),
         kind: String(options?.kind || "change"),
         label: String(options?.label || "Modifica"),
         changes,
       };
+      if (Array.isArray(options?.sideEffects) && options.sideEffects.length > 0) {
+        entry.effectsMutation = {
+          version: 1,
+          commandId: createEntryId(),
+          correlationId: createEntryId(),
+          commandType: String(options?.kind || "change"),
+          sceneEpoch,
+          sceneIdentity: null,
+          targetIds: Array.from(new Set([
+            ...itemIds,
+            ...sceneItemIds,
+            ...options.sideEffects.map((se) => se?.targetId || se?.id).filter(Boolean),
+          ])),
+          fields,
+          changes: [],
+          sideEffects: cloneValue(options.sideEffects),
+        };
+      }
       if (typeof options?.decorateEntry === "function") {
         const decorated = await options.decorateEntry(entry);
         if (decorated && typeof decorated === "object") entry = decorated;
@@ -819,19 +922,34 @@ export async function getHistoryUndoReadiness({
   }
 
   const maxAttempts = Math.max(1, Math.floor(Number(attempts) || 1));
+  const { flushPendingEffectsHistory, hasPendingEffectsHistory } = await import("./effectsMutations.js");
+  if (hasPendingHistoryAppends(sceneEpoch) || hasPendingEffectsHistory(sceneEpoch)) {
+    // Pending History is a causal barrier. Kick retries in the background, but
+    // never make readiness wait for the 8s owner transport timeout.
+    void flushPendingHistoryAppends(sceneEpoch);
+    flushPendingEffectsHistory(sceneEpoch);
+    return { status: "blocked", reason: "history-pending", entries: [], rows: [], chainToken: "" };
+  }
+  // Removal retries concern an Undo that is already committed; keep retrying
+  // them asynchronously instead of stalling unrelated readiness checks.
+  void flushPendingHistoryRemovals(sceneEpoch);
+
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const entries = await getHistoryEntries();
     if (!isCurrentSceneEpoch(sceneEpoch)) {
       return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
     }
     const beforeToken = historyChainToken(entries);
+    // Readiness must validate against the same authoritative scene state used
+    // by the real Undo coordinator. The scene-item dispatcher is intentionally
+    // debounced and can lag behind fast spell/reminder reconciliation events,
+    // so its cached items are unsuitable as the source of truth here. Keep its
+    // generation only as a stability guard around the live OBR read.
     const dispatcherSnapshot = readSceneItemsSnapshot(sceneEpoch);
     const snapshotGeneration = dispatcherSnapshot.complete === true
       ? Number(dispatcherSnapshot.generation) || 0
       : null;
-    const sceneItems = dispatcherSnapshot.complete === true
-      ? dispatcherSnapshot.items
-      : await OBR.scene.items.getItems();
+    const sceneItems = await OBR.scene.items.getItems();
     if (!isCurrentSceneEpoch(sceneEpoch)) {
       return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
     }
@@ -1105,7 +1223,7 @@ async function flushPendingMovements(sceneEpoch = __movementFlushEpoch ?? curren
   await appendEntry({
     id: createEntryId(),
     version: HISTORY_VERSION,
-    at: Date.now(),
+    at: createActionTimestamp(),
     kind: "move",
     label: changes.length === 1
       ? `Movimento: ${changes[0].name}`
@@ -1503,6 +1621,160 @@ async function recordUndoCombatLogOnce(entries, { sceneEpoch, commandId } = {}) 
   }
 }
 
+function historyUndoDebugItemIds(entries = []) {
+  const ids = new Set();
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    for (const change of Array.isArray(entry?.effectsMutation?.changes) ? entry.effectsMutation.changes : []) {
+      if (change?.id) ids.add(String(change.id));
+    }
+    for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
+      if (change?.id) ids.add(String(change.id));
+    }
+    for (const sideEffect of Array.isArray(entry?.effectsMutation?.sideEffects)
+      ? entry.effectsMutation.sideEffects
+      : []) {
+      const id = String(sideEffect?.id || sideEffect?.itemId || sideEffect?.targetId || "").trim();
+      if (id) ids.add(id);
+    }
+  }
+  return [...ids];
+}
+
+function historyUndoDebugState(items = []) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const meta = item?.metadata?.[META_KEY] || {};
+    return {
+      id: item?.id || "",
+      name: item?.name || "",
+      hp: meta?.hp ?? null,
+      conditions: cloneValue(meta?.conditions || null),
+      spells: cloneValue(meta?.[SPELLS_META_KEY] || null),
+      concentrations: cloneValue(meta?.[CONC_META_KEY] || null),
+      reminderResolutions: cloneValue(meta?.reminderResolutions || null),
+    };
+  });
+}
+
+async function logHistoryUndoLiveState(tag, itemIds = []) {
+  try {
+    const ids = [...new Set((Array.isArray(itemIds) ? itemIds : []).filter(Boolean))];
+    if (!ids.length) return;
+    const items = await OBR.scene.items.getItems(ids);
+    console.warn(`[history][undo-debug][${tag}]`, historyUndoDebugState(items));
+  } catch (error) {
+    console.warn(`[history][undo-debug][${tag}-read-error]`, error?.message || error);
+  }
+}
+
+async function dismissConcentrationWarningsCausedByEntries(entries = [], sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  const historyEntryIds = [...new Set(
+    (Array.isArray(entries) ? entries : [])
+      .map((entry) => String(entry?.id || "").trim())
+      .filter(Boolean),
+  )];
+  if (!historyEntryIds.length) return [];
+  await OBR.broadcast.sendMessage(
+    CONCENTRATION_WARNING_CHANNEL,
+    {
+      type: "dismiss-concentration-warnings-by-history",
+      historyEntryIds,
+      sceneEpoch,
+    },
+    { destination: "ALL" },
+  );
+  return historyEntryIds;
+}
+
+async function reannounceHistoryReminderEntries(entries = [], sceneEpoch = currentSceneEpoch()) {
+  if (!isCurrentSceneEpoch(sceneEpoch)) return [];
+  const undoEntryIds = new Set(
+    (Array.isArray(entries) ? entries : [])
+      .map((entry) => String(entry?.id || "").trim())
+      .filter(Boolean),
+  );
+  const replayed = [];
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (String(entry?.kind || "") !== "reminder-resolution") continue;
+    const replay = entry?.payload?.replay;
+    if (!replay || typeof replay !== "object") continue;
+    if (replay.type === "concentration-warning" && replay.warning) {
+      const replaySceneEpoch = Number(entry?.effectsMutation?.sceneEpoch);
+      if (
+        !Number.isSafeInteger(replaySceneEpoch)
+        || replaySceneEpoch < 0
+        || replaySceneEpoch !== sceneEpoch
+      ) continue;
+      const causeHistoryEntryId = String(
+        replay.warning?.notice?.causeHistoryEntryId || "",
+      ).trim();
+      // If the same Undo batch also rewinds the action that generated this
+      // concentration save, the reminder is no longer causally valid and
+      // must not be replayed.
+      if (causeHistoryEntryId && undoEntryIds.has(causeHistoryEntryId)) continue;
+      await OBR.broadcast.sendMessage(
+        CONCENTRATION_WARNING_CHANNEL,
+        {
+          type: "show-concentration-warning",
+          warnings: [cloneValue(replay.warning)],
+          createdAt: Date.now(),
+          sceneEpoch: replaySceneEpoch,
+        },
+        { destination: "ALL" },
+      );
+      replayed.push(String(entry?.payload?.activationId || ""));
+    }
+  }
+  return replayed.filter(Boolean);
+}
+
+async function recoverAlreadyUndoneReminderEntry(entry, sceneEpoch) {
+  if (!entry || String(entry?.kind || "") !== "reminder-resolution") return null;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return null;
+  const ids = historyUndoDebugItemIds([entry]);
+  const sceneItems = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  if (!isCurrentSceneEpoch(sceneEpoch)) return null;
+  const matchesBefore = historyEntryMatchesUndoBefore({
+    sceneItems,
+    entry,
+    metadataKey: META_KEY,
+    effectKeys: {
+      conditions: "conditions",
+      spells: SPELLS_META_KEY,
+      concentrations: CONC_META_KEY,
+    },
+    normalizeConditions: (value) => Array.isArray(value?.instances)
+      ? cloneValue(value.instances)
+      : Array.isArray(value) ? cloneValue(value) : [],
+  });
+  if (!matchesBefore) return null;
+
+  const entryId = String(entry?.id || "").trim();
+  const undoCommandId = `history-already-undone:${sceneEpoch}:${entryId}`;
+  const removal = await removeUndoHistoryEntries([entryId], {
+    sceneEpoch,
+    commandId: undoCommandId,
+    correlationId: undoCommandId,
+  });
+  const postCommitErrors = [];
+  try {
+    await reannounceHistoryReminderEntries([entry], sceneEpoch);
+  } catch (error) {
+    postCommitErrors.push({
+      phase: "history-reminder-reannounce",
+      message: String(error?.message || error),
+    });
+  }
+  return decorateUndoResult([entry], {
+    status: "applied",
+    reason: removal.pending ? "history-removal-pending" : "history-entry-already-undone",
+    committed: true,
+    pendingRemoval: removal.pending,
+    changedIds: [],
+    postCommitErrors,
+  });
+}
+
 async function undoHistoryThroughNow(entryId, sceneEpoch) {
   const through = arguments[2]?.through !== false;
   if (!isCurrentSceneEpoch(sceneEpoch)) {
@@ -1514,6 +1786,17 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
   if (!isCurrentSceneEpoch(sceneEpoch)) {
     return decorateUndoResult([], undoResult("rejected", "stale-after-role-read"));
   }
+
+  const { flushPendingEffectsHistory, hasPendingEffectsHistory } = await import("./effectsMutations.js");
+  if (hasPendingHistoryAppends(sceneEpoch) || hasPendingEffectsHistory(sceneEpoch)) {
+    // Do not wait synchronously for owner retry timeouts. A missing History
+    // entry is a barrier, so this Undo is rejected immediately and the durable
+    // retry lanes continue in the background.
+    void flushPendingHistoryAppends(sceneEpoch);
+    flushPendingEffectsHistory(sceneEpoch);
+    return decorateUndoResult([], undoResult("rejected", "history-pending"));
+  }
+  void flushPendingHistoryRemovals(sceneEpoch);
 
   const md = await OBR.scene.getMetadata();
   if (!isCurrentSceneEpoch(sceneEpoch)) {
@@ -1538,8 +1821,48 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
   const coordinatedBatch = undoOrder.some(entryTouchesEffects);
   void coordinatedBatch;
 
-  const { undoEffectsMutation } = await import("./effectsMutations.js");
   const undoCommandId = undoCommandIdFor(undoOrder, sceneEpoch);
+  const selectedIds = selected.map((entry) => entry?.id).filter(Boolean);
+  const alreadyCommitted = selectedIds.length > 0 && selectedIds.every((id) => (
+    [...__pendingHistoryRemovals.values()].some((pending) => (
+      isCurrentSceneEpoch(pending?.sceneEpoch) && Array.isArray(pending?.ids) && pending.ids.includes(id)
+    ))
+  ));
+  if (alreadyCommitted) {
+    const removalResult = await removeUndoHistoryEntries(selectedIds, {
+      sceneEpoch,
+      commandId: `history-recommit:${undoCommandId}`,
+      correlationId: undoCommandId,
+    });
+    return decorateUndoResult(selected, {
+      status: "applied",
+      reason: removalResult.pending ? "history-removal-pending" : null,
+      committed: true,
+      pendingRemoval: removalResult.pending,
+      changedIds: [],
+    });
+  }
+
+  if (undoOrder.length === 1) {
+    const recovered = await recoverAlreadyUndoneReminderEntry(undoOrder[0], sceneEpoch);
+    if (recovered) return recovered;
+  }
+
+  const { undoEffectsMutation } = await import("./effectsMutations.js");
+  const debugItemIds = historyUndoDebugItemIds(undoOrder);
+  console.warn("[history][undo-debug][history-request]", {
+    sceneEpoch,
+    entryId: entryId || null,
+    through,
+    undoCommandId,
+    entries: undoOrder.map((entry) => ({
+      id: entry?.id || "",
+      label: entry?.label || "",
+      kind: entry?.kind || "",
+    })),
+    itemIds: debugItemIds,
+  });
+  await logHistoryUndoLiveState("before-undo", debugItemIds);
   const mutation = await undoEffectsMutation(undoOrder, {
     sceneEpoch,
     kind: "history:undo",
@@ -1547,13 +1870,55 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     commandId: undoCommandId,
     correlationId: undoCommandId,
   });
-  if (mutation.status !== "applied") return decorateUndoResult([], mutation);
+  const debugMutationResult = {
+    status: mutation?.status || null,
+    committed: mutation?.committed === true,
+    reason: mutation?.reason || null,
+    conflicts: mutation?.conflicts || mutation?.plan?.conflicts || [],
+    errorName: mutation?.error?.name || null,
+    errorMessage: mutation?.error?.message || null,
+    errorPhase: mutation?.error?.phase || null,
+    errorStack: mutation?.error?.stack || null,
+    changedIds: mutation?.changedIds || [],
+    commitStatus: mutation?.commitResult?.status || null,
+    commitReason: mutation?.commitResult?.reason || null,
+    commitFailureName: mutation?.commitResult?.failure?.name || null,
+    commitFailureMessage: mutation?.commitResult?.failure?.message || null,
+    historyErrorName: mutation?.historyError?.name || null,
+    historyErrorMessage: mutation?.historyError?.message || null,
+    postCommitErrors: mutation?.postCommitErrors || mutation?.commitResult?.postCommitErrors || [],
+  };
+  console.warn("[history][undo-debug][mutation-result]", debugMutationResult);
+  console.warn(
+    "[history][undo-debug][mutation-result-flat]",
+    JSON.stringify(debugMutationResult),
+  );
+  if (mutation.status !== "applied") {
+    await logHistoryUndoLiveState("failed-undo-live", debugItemIds);
+    return decorateUndoResult([], mutation);
+  }
 
   const postCommitErrors = [
     ...(Array.isArray(mutation?.commitResult?.postCommitErrors)
       ? mutation.commitResult.postCommitErrors
       : []),
   ];
+  try {
+    await dismissConcentrationWarningsCausedByEntries(undoOrder, sceneEpoch);
+  } catch (error) {
+    postCommitErrors.push({
+      phase: "history-concentration-reminder-dismiss",
+      message: String(error?.message || error),
+    });
+  }
+  try {
+    await reannounceHistoryReminderEntries(undoOrder, sceneEpoch);
+  } catch (error) {
+    postCommitErrors.push({
+      phase: "history-reminder-reannounce",
+      message: String(error?.message || error),
+    });
+  }
   // restoreEntry(entry, epoch) is coordinator-owned now; only the derived
   // output reconciliation remains local: syncRestoredEntry(entry, epoch).
   // Contract marker: syncRestoredEntry({ ... }) is the single derived-output
@@ -1574,7 +1939,8 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     });
   }
 
-  const selectedIds = selected.map((entry) => entry.id).filter(Boolean);
+  await logHistoryUndoLiveState("after-undo-immediate", debugItemIds);
+
   const cleanupCommandId = `history-remove:${sceneEpoch}:${selectedIds.join(":")}`;
   const cleanup = isCurrentSceneEpoch(sceneEpoch)
     ? await removeUndoHistoryEntries(selectedIds, {

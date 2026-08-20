@@ -21,7 +21,10 @@ import {
   shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
-import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
+import {
+  resolveZeroHPUnconsciousAction,
+  resolveDamageEndsConditionRemovals,
+} from "./hpConditionRulesCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -662,11 +665,19 @@ async function readAuthoritativeHPVisualUpdates(
   }));
 }
 
-async function showConcentrationWarnings(entries) {
+async function showConcentrationWarnings(
+  entries,
+  { causeHistoryEntryId = "", sceneEpoch } = {},
+) {
   const damage = entries
     .filter((entry) => entry.change.requested > 0)
     .map((entry) => ({ itemId: entry.item.id, damage: entry.change.requested }));
-  if (damage.length) await broadcastConcentrationSaveWarnings(damage);
+  if (damage.length) {
+    await broadcastConcentrationSaveWarnings(damage, {
+      causeHistoryEntryId,
+      sceneEpoch,
+    });
+  }
 }
 
 async function showEffectSaveDamageWarnings(entries) {
@@ -742,6 +753,7 @@ async function applyOperation() {
   renderTargets();
   let hpVisualTransaction = null;
   let recordedEntry = null;
+  let concentrationCauseHistoryEntryId = "";
   let coordinatedMutation = null;
   const ids = entries.map((entry) => entry.item.id);
   const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
@@ -752,6 +764,16 @@ async function applyOperation() {
       hpMax: entry.change.hpMax,
     }, getConditionInstances(meta.conditions || {}));
   });
+  const damageEndsRemovals = [];
+  for (const entry of entries) {
+    if (entry?.change?.afterHP < entry?.change?.hp) {
+      const meta = entry.item.metadata?.[META_KEY] || {};
+      const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}));
+      for (const instanceId of removals) {
+        damageEndsRemovals.push({ itemId: entry.item.id, instanceId });
+      }
+    }
+  }
   const affectedIds = uniqueIds([...ids, ...failedIds]);
   const historyIds = uniqueIds([
     ...affectedIds,
@@ -778,6 +800,10 @@ async function applyOperation() {
     ...(zeroHPReconcileIds.length ? [{
       type: "condition:reconcile-zero-hp",
       targetIds: zeroHPReconcileIds,
+    }] : []),
+    ...(damageEndsRemovals.length ? [{
+      type: "condition:remove-instances",
+      removals: damageEndsRemovals,
     }] : []),
     ...effectOperations,
   ];
@@ -810,6 +836,10 @@ async function applyOperation() {
         ? `Effetto manuale: ${conditionName || currentValue()} · ${affectedIds.length} bersagli`
         : `${modeLabel().replace(/^./, (value) => value.toUpperCase())} rapido: ${currentValue()} · ${ids.length} bersagli`,
       itemIds: historyIds,
+      onHistoryStatus: ({ entry }) => {
+        const entryId = String(entry?.id || "").trim();
+        if (entryId) concentrationCauseHistoryEntryId = entryId;
+      },
       fields: ["hp", "hpMax", "conditions"],
       onRecorded: (entry) => { recordedEntry = entry; },
       decorateEntry: (entry) => quickHpEffectsHistoryEntry(entry, coordinatedMutation),
@@ -873,7 +903,10 @@ async function applyOperation() {
         items: entries.map((entry) => entry.item),
         isCurrent: () => sceneLifecycle.isCurrent(operation),
       }),
-      showConcentrationWarnings(entries),
+      showConcentrationWarnings(entries, {
+        causeHistoryEntryId: concentrationCauseHistoryEntryId,
+        sceneEpoch: operationSceneEpoch,
+      }),
       showEffectSaveDamageWarnings(entries),
     ]);
     if (!sceneLifecycle.isCurrent(operation)) {

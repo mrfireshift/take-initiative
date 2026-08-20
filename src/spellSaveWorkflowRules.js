@@ -135,6 +135,129 @@ const elementalBaneChoice = castChoice([
   { value: "tuono", label: "Tuono" },
 ]);
 
+const blindnessDeafnessChoice = castChoice([
+  {
+    value: "accecato",
+    label: "Accecato",
+    automation: {
+      trackOutcomes: ["failed"],
+      failed: [{
+        condition: "Accecato",
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Cecità/Sordità su di sé.",
+        },
+      }],
+    },
+  },
+  {
+    value: "assordato",
+    label: "Assordato",
+    automation: {
+      trackOutcomes: ["failed"],
+      failed: [{
+        condition: "Assordato",
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+        saveReminder: {
+          ability: "con",
+          timing: "turn-end",
+          dcSource: "source-spell",
+          label: "Se supera il TS, termina Cecità/Sordità su di sé.",
+        },
+      }],
+    },
+  },
+]);
+
+const eyebiteNauseaReminder = Object.freeze({
+  ability: "wis",
+  timing: "turn-end",
+  dcSource: "source-spell",
+  label: "Se supera il TS Saggezza, termina Nauseato e non può più essere bersagliato da questo lancio.",
+  resolution: Object.freeze({
+    success: Object.freeze({
+      mode: "remove-effect",
+      actions: Object.freeze([Object.freeze({
+        kind: "condition",
+        action: "apply",
+        targetId: "$target",
+        parentEffectId: "$parent",
+        name: "Immune a Sguardo penetrante",
+        options: Object.freeze({
+          effectId: "eyebite-resisted",
+          type: "spell",
+          expiry: Object.freeze({ mode: "concentration" }),
+        }),
+      })]),
+    }),
+    failure: "keep-effect",
+  }),
+});
+
+const eyebiteResistedRule = Object.freeze({
+  condition: "Immune a Sguardo penetrante",
+  effectId: "eyebite-resisted",
+  effectDetail: "Ha superato un TS contro questo lancio e non può più essere bersagliato da Sguardo penetrante finché la spell resta attiva.",
+  expiry: Object.freeze({ mode: "concentration" }),
+});
+
+const eyebiteChoice = castChoice([
+  {
+    value: "eyebite-asleep",
+    label: "Addormentato",
+    automation: {
+      trackOutcomes: ["passed", "failed"],
+      passed: [eyebiteResistedRule],
+      failed: [{
+        condition: "Privo di sensi",
+        effectId: "eyebite-asleep",
+        mechanics: { endsOnDamage: true },
+        manualRemoval: true,
+      }],
+    },
+  },
+  {
+    value: "eyebite-panicked",
+    label: "In preda al panico",
+    automation: {
+      trackOutcomes: ["passed", "failed"],
+      passed: [eyebiteResistedRule],
+      failed: [{
+        condition: "Spaventato",
+        effectId: "eyebite-panicked",
+        manualRemoval: true,
+        saveReminder: {
+          timing: "turn-start",
+          mode: "consume",
+          label: "Deve usare Scatto e allontanarsi dal caster lungo il percorso più breve e sicuro possibile.",
+        },
+      }],
+    },
+  },
+  {
+    value: "eyebite-sickened",
+    label: "Nauseato",
+    automation: {
+      trackOutcomes: ["passed", "failed"],
+      passed: [eyebiteResistedRule],
+      failed: [{
+        condition: "Nauseato",
+        effectId: "eyebite-sickened",
+        effectDetail: "Svantaggio ai tiri per colpire e alle prove di caratteristica.",
+        manualRemoval: true,
+        saveReminder: eyebiteNauseaReminder,
+      }],
+    },
+  },
+]);
+
 const workflowRule = ({
   spellId,
   ability,
@@ -144,6 +267,12 @@ const workflowRule = ({
   choice = null,
   spatial = null,
   context = null,
+  persistence = null,
+  manualSaveAtTable = false,
+  assumedOutcome = "failed",
+  outcomeOptions = null,
+  preserveTargetsOnChoiceChange = false,
+  unlimitedTargets = false,
 }) => Object.freeze({
   spellId,
   timing: "cast",
@@ -154,6 +283,7 @@ const workflowRule = ({
     additionalPerSlotAbove,
     baseSlot,
     consent: "all-save",
+    ...(unlimitedTargets === true ? { unlimitedTargets: true } : {}),
     ...(spatial && typeof spatial === "object"
       ? { spatial: freezeValue(spatial) }
       : {}),
@@ -162,15 +292,55 @@ const workflowRule = ({
       : {}),
   }),
   choice,
+  ...(persistence && typeof persistence === "object"
+    ? { persistence: freezeValue(persistence) }
+    : {}),
+  ...(manualSaveAtTable === true
+    ? { manualSaveAtTable: true, assumedOutcome: String(assumedOutcome || "failed").trim() || "failed" }
+    : {}),
+  ...(Array.isArray(outcomeOptions) && outcomeOptions.length
+    ? { outcomeOptions: Object.freeze(outcomeOptions.map((value) => String(value || "").trim()).filter(Boolean)) }
+    : {}),
+  ...(preserveTargetsOnChoiceChange === true ? { preserveTargetsOnChoiceChange: true } : {}),
 });
 
 export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
+  "flesh-to-stone": workflowRule({
+    spellId: "flesh-to-stone",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 6,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
   "bane": workflowRule({
     spellId: "bane",
     ability: "cha",
     baseMaximum: 3,
     additionalPerSlotAbove: 1,
     baseSlot: 1,
+  }),
+  "blindness-deafness": workflowRule({
+    spellId: "blindness-deafness",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 2,
+    choice: blindnessDeafnessChoice,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 9,
+    },
+  }),
+  "slow": workflowRule({
+    spellId: "slow",
+    ability: "wis",
+    baseMaximum: 6,
+    additionalPerSlotAbove: 0,
+    baseSlot: 3,
   }),
   "legacy-tashas-mind-whip": workflowRule({
     spellId: "legacy-tashas-mind-whip",
@@ -188,6 +358,40 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     spatial: {
       mode: "caster-range",
       maxMeters: 18,
+    },
+  }),
+  "xanathar-debilitazione": workflowRule({
+    spellId: "xanathar-debilitazione",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 5,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+    outcomeOptions: ["passed", "failed"],
+  }),
+  "xanathar-immolazione": workflowRule({
+    spellId: "xanathar-immolazione",
+    ability: "dex",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 5,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 27,
+    },
+  }),
+  "xanathar-urlo-psichico": workflowRule({
+    spellId: "xanathar-urlo-psichico",
+    ability: "int",
+    baseMaximum: 10,
+    additionalPerSlotAbove: 0,
+    baseSlot: 9,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 27,
     },
   }),
   "tasha-scheggia-della-mente": workflowRule({
@@ -212,6 +416,34 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
       maxMeters: 18,
     },
   }),
+  "phb2014-raggio-di-infermita": workflowRule({
+    spellId: "phb2014-raggio-di-infermita",
+    ability: "con",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+  }),
+  "eyebite": workflowRule({
+    spellId: "eyebite",
+    ability: "wis",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 0,
+    baseSlot: 6,
+    choice: eyebiteChoice,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+    persistence: { owner: "caster" },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    outcomeOptions: ["passed", "failed"],
+    preserveTargetsOnChoiceChange: true,
+  }),
   "command": workflowRule({
     spellId: "command",
     ability: "wis",
@@ -220,6 +452,18 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     baseSlot: 1,
     choice: commandChoice,
   }),
+  "compulsion": workflowRule({
+    spellId: "compulsion",
+    ability: "wis",
+    baseMaximum: 0,
+    additionalPerSlotAbove: 0,
+    baseSlot: 4,
+    unlimitedTargets: true,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 9,
+    },
+  }),
   "xanathar-anatema-elementale": workflowRule({
     spellId: "xanathar-anatema-elementale",
     ability: "con",
@@ -227,6 +471,28 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     additionalPerSlotAbove: 1,
     baseSlot: 4,
     choice: elementalBaneChoice,
+    spatial: {
+      mode: "pairwise-distance",
+      maxMeters: 9,
+    },
+  }),
+  "hold-person": workflowRule({
+    spellId: "hold-person",
+    ability: "wis",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 2,
+    spatial: {
+      mode: "pairwise-distance",
+      maxMeters: 9,
+    },
+  }),
+  "hold-monster": workflowRule({
+    spellId: "hold-monster",
+    ability: "wis",
+    baseMaximum: 1,
+    additionalPerSlotAbove: 1,
+    baseSlot: 5,
     spatial: {
       mode: "pairwise-distance",
       maxMeters: 9,

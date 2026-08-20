@@ -554,7 +554,7 @@ const VISUALS = freeze({
   fireball: [],
   "lightning-bolt": [cone("lightningBolt", { attachedTo: "caster" })],
   "wind-wall": [wall("windWall", persistent())],
-  "sleet-storm": [circle("sleetStorm", "area", persistent())],
+  "sleet-storm": [circle("sleetStorm", "area", persistent({ layer: "DRAWING" }))],
   "spirit-guardians": [circle("spiritGuardians", "area", persistent({ attachedTo: "caster" }))],
   banishment: [
     target("rangedSpell"),

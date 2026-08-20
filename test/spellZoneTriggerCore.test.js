@@ -869,7 +869,7 @@ test("Fame di Hadar aggrega fine turno e inizio turno di token consecutivi", () 
   );
 });
 
-test("i danni automatici vengono notificati senza restare nella coda dei TS", () => {
+test("il danno di Muro di Luce resta pendente finché il GM non inserisce il danno", () => {
   const rule = getSpellAreaRuleById("xanathar-muro-di-luce:cast");
   const metadata = zoneMetadata({
     ruleId: rule.id,
@@ -900,8 +900,11 @@ test("i danni automatici vengono notificati senza restare nella coda dei TS", ()
   });
 
   assert.equal(ended.newActivations.length, 1);
-  assert.equal(ended.newActivations[0].resolution, "informational");
-  assert.deepEqual(ended.runtime.pending, []);
+  assert.equal(ended.newActivations[0].resolution, "manual-effect");
+  assert.deepEqual(
+    ended.runtime.pending.map((activation) => activation.id),
+    ended.newActivations.map((activation) => activation.id),
+  );
 });
 
 test("il lotto standard di inizio turno avvisa ogni token e si ripete", () => {
@@ -1006,6 +1009,54 @@ test("Nube Mortale distingue ingresso e inizio del turno seguente", () => {
     nextTargetTurn.newActivations.map((activation) => activation.triggerId),
     ["cloudkill-save-on-turn-start"],
   );
+});
+
+test("SP-B04A — Unto ignora i reminder su chi è già Prono", () => {
+  const rule = getSpellAreaRuleById("grease:cast");
+  const entry = rule.zonePolicy.triggers.find((trigger) => trigger.id === "grease-save-on-entry");
+  const turnEnd = rule.zonePolicy.triggers.find((trigger) => trigger.id === "grease-save-on-turn-end");
+
+  assert.deepEqual(entry.skipConditions, ["Prono"]);
+  assert.deepEqual(turnEnd.skipConditions, ["Prono"]);
+
+  const metadata = zoneMetadata({
+    ruleId: rule.id,
+    spellId: rule.spellId,
+  });
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: [],
+    initiativeState: { order: ["target", "other"], current: 0, round: 1 },
+    now: 100,
+  });
+  const enteredSuppressed = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    suppressedTargetIdsByTrigger: {
+      "grease-save-on-entry": ["target"],
+      "grease-save-on-turn-end": ["target"],
+    },
+    initiativeState: { order: ["target", "other"], current: 0, round: 1 },
+    now: 200,
+  });
+  const endedSuppressed = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: enteredSuppressed.runtime,
+    currentTargetIds: ["target"],
+    suppressedTargetIdsByTrigger: {
+      "grease-save-on-entry": ["target"],
+      "grease-save-on-turn-end": ["target"],
+    },
+    initiativeState: { order: ["target", "other"], current: 1, round: 1 },
+    now: 300,
+  });
+
+  assert.deepEqual(enteredSuppressed.newActivations, []);
+  assert.deepEqual(endedSuppressed.newActivations, []);
 });
 
 test("Unto conserva separati il TS d'ingresso e quello di fine turno", () => {
@@ -1119,9 +1170,9 @@ test("Tentacoli Neri alterna TS e danno automatico in base a Trattenuto", () => 
     restrainedTarget.newActivations.map((activation) => activation.triggerId),
     [damageTriggerId],
   );
-  assert.equal(restrainedTarget.newActivations[0].resolution, "informational");
+  assert.equal(restrainedTarget.newActivations[0].resolution, "manual-effect");
   assert.equal(restrainedTarget.newActivations[0].damage.dice, "3d6");
-  assert.deepEqual(restrainedTarget.runtime.pending, []);
+  assert.equal(restrainedTarget.runtime.pending.length, 1);
 });
 
 test("Tempesta di Nevischio aggrega il TS ambientale e quello di concentrazione", () => {
@@ -1160,7 +1211,11 @@ test("Tempesta di Nevischio aggrega il TS ambientale e quello di concentrazione"
       targetIds: ["caster"],
     }],
   );
-  assert.deepEqual(initialized.runtime.pending, []);
+  assert.equal(initialized.runtime.pending.length, 1);
+  assert.equal(
+    initialized.runtime.pending[0].triggerId,
+    "sleet-storm-concentration-save-on-cast",
+  );
 
   const otherTurn = planSpellZoneTriggers({
     rule,
@@ -1196,10 +1251,17 @@ test("Tempesta di Nevischio aggrega il TS ambientale e quello di concentrazione"
     casterTurn.newActivations.map((activation) => activation.targetIds),
     [["caster"], ["caster"]],
   );
-  assert.equal(casterTurn.runtime.pending.length, 1);
+  assert.deepEqual(
+    casterTurn.runtime.pending.map((activation) => activation.triggerId),
+    [
+      "sleet-storm-concentration-save-on-cast",
+      "sleet-storm-save-on-turn-start",
+      "sleet-storm-concentration-save-on-turn-start",
+    ],
+  );
 });
 
-test("Nube di Pugnali notifica il danno senza lasciare un TS pendente", () => {
+test("Nube di Pugnali apre la risoluzione manuale del danno senza TS", () => {
   const rule = getSpellAreaRuleById("phb2014-nube-di-pugnali:cast");
   const metadata = zoneMetadata({
     ruleId: rule.id,
@@ -1221,10 +1283,10 @@ test("Nube di Pugnali notifica il danno senza lasciare un TS pendente", () => {
     now: 200,
   });
 
-  assert.equal(entered.newActivations[0].resolution, "informational");
+  assert.equal(entered.newActivations[0].resolution, "manual-effect");
   assert.equal(entered.newActivations[0].damage.dice, "4d4");
   assert.equal(entered.newActivations[0].damage.type, "taglienti");
-  assert.deepEqual(entered.runtime.pending, []);
+  assert.equal(entered.runtime.pending.length, 1);
 });
 
 test("Nube Maleodorante ripropone il TS a ogni inizio turno", () => {

@@ -424,7 +424,7 @@ test("Sfera della Tempesta distingue zona iniziale e fulmine su bersaglio", () =
 
   assert.equal(model.presentation.targeting.mode, SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC);
   assert.equal(model.presentation.placement.ruleId, "xanathar-sfera-della-tempesta:cast");
-  assert.equal(model.presentation.placement.policy, "optional");
+  assert.equal(model.presentation.placement.policy, "required");
   assert.equal(model.execution.hasZones, true);
   assert.equal(model.execution.hasHP, true);
   assert.equal(model.presentation.capabilities.zoneTrigger, true);
@@ -661,4 +661,17 @@ test("il gate runtime disabilita la primary action senza fallback implicito", ()
   assert.equal(view.primaryAction.id, "unavailable");
   assert.equal(view.primaryAction.disabled, true);
   assert.equal(view.execution.message, "Workflow area dedicato");
+});
+
+test("SP-B04A — Unto richiede il TS iniziale ma non un input danno", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "grease",
+    castContext: { slotLevel: 1 },
+  });
+
+  assert.equal(model.presentation.outcomes.mode, "save");
+  assert.equal(model.presentation.inputs.outcomes.visible, true);
+  assert.equal(model.presentation.inputs.damage.visible, false);
+  assert.equal(model.presentation.inputs.hp.visible, false);
+  assert.equal(model.execution.castHasHP, false);
 });

@@ -1,6 +1,6 @@
 # Audit capacità di classe
 
-Report generato il 2026-08-15 dai tre overlay meccanici locali.
+Report generato il 2026-08-16 dai tre overlay meccanici locali.
 
 ## Perimetro
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Azione incantesimo</title>
+    <link rel="stylesheet" href="/ui-scrollbars.css" />
+    <style>
+      :root { color-scheme: dark; }
+      html, body { width:100%; height:100%; margin:0; overflow:hidden; background:transparent; color:#f8fafc; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+      * { box-sizing:border-box; }
+      [hidden] { display:none !important; }
+      #app {
+        --accent:#a78bfa;
+        display:flex; flex-direction:column; gap:8px;
+        width:calc(100% - 8px); height:calc(100% - 8px); margin:4px;
+        padding:11px 12px; border:1px solid rgba(196,181,253,.72); border-radius:10px;
+        background:linear-gradient(135deg,rgba(76,29,149,.32),rgba(30,41,59,.18) 62%),rgba(15,23,42,.14);
+        -webkit-backdrop-filter:blur(6px) saturate(120%); backdrop-filter:blur(6px) saturate(120%);
+        box-shadow:0 0 0 1px rgba(15,23,42,.9),0 8px 24px rgba(0,0,0,.48),0 0 18px rgba(139,92,246,.28);
+      }
+      .header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+      .header-copy { min-width:0; flex:1; cursor:move; }
+      .header-copy.is-dragging { cursor:grabbing; }
+      .eyebrow { color:#c4b5fd; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+      h1 { margin:1px 0 0; overflow:hidden; font:800 17px/1.1 Georgia,"Times New Roman",serif; text-overflow:ellipsis; white-space:nowrap; }
+      #close { min-width:25px; min-height:25px; padding:1px 5px; border:0; background:transparent; color:#ede9fe; font-size:22px; line-height:1; cursor:pointer; }
+      .hint, .status { color:rgba(226,232,240,.74); font-size:11px; line-height:1.25; }
+      .status[data-error="true"] { color:#fecaca; }
+      .field { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:center; gap:7px; }
+      .field label { color:#ddd6fe; font-size:11px; font-weight:800; }
+      select, button { min-height:30px; border:1px solid rgba(196,181,253,.4); border-radius:6px; background:rgba(15,23,42,.9); color:#f8fafc; font:700 11px system-ui,sans-serif; }
+      select { width:100%; padding:4px 7px; }
+      button { padding:5px 8px; cursor:pointer; }
+      button:hover:not(:disabled) { filter:brightness(1.14); }
+      button:disabled { cursor:default; opacity:.45; }
+      .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:auto; }
+      #app[data-mode="direct"] .actions { grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:4px; }
+      .action { min-height:62px; padding:8px; text-align:left; border-color:rgba(196,181,253,.4); background:rgba(76,29,149,.18); }
+      .action:hover:not(:disabled) { border-color:rgba(221,214,254,.85); background:rgba(109,40,217,.38); }
+      .action strong { display:block; font-size:12px; line-height:1.1; }
+      .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size:9px; line-height:1.2; }
+      .action--direct { text-align:center; }
+      .action--direct span { min-height:22px; }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <div class="header">
+        <div class="header-copy" data-drag-handle draggable="true" title="Trascina per spostare">
+          <div class="eyebrow">Azione incantesimo</div>
+          <h1 id="title">Azione</h1>
+        </div>
+        <button id="close" type="button" aria-label="Chiudi">×</button>
+      </div>
+      <div id="hint" class="hint"></div>
+      <div id="targetField" class="field" hidden>
+        <label for="target">Bersaglio</label>
+        <select id="target"><option value="">Seleziona il bersaglio</option></select>
+      </div>
+      <div id="status" class="status" hidden></div>
+      <div id="actions" class="actions"></div>
+    </main>
+    <script type="module" src="/src/spell-turn-action-choice.js"></script>
+  </body>
+</html>

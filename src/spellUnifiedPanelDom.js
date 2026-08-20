@@ -103,6 +103,7 @@ export function createSelect(documentRef, {
     optionNode.selected = String(option.value) === String(value);
     select.append(optionNode);
   }
+  select.value = value;
   select.disabled = disabled;
   return select;
 }

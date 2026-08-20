@@ -1,6 +1,7 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
-import { areaHitsBounds, buildArea } from "./aoeGeometryCore.js";
+import { areaHitsBounds, buildArea, buildCircleArea } from "./aoeGeometryCore.js";
+import { gridPlanarDistance } from "./distance3dCore.js";
 import {
   clipChildZoneAreaToParent,
   validateChildZoneContainment,
@@ -15,6 +16,7 @@ import {
   translatedZoneArea,
 } from "./spellStaticZoneCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
+import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
 import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
@@ -32,6 +34,11 @@ const uniqueIds = (values = []) => Array.from(new Set(
     .filter(Boolean),
 ));
 
+function conditionInstances(value) {
+  if (Array.isArray(value)) return value;
+  return Array.isArray(value?.instances) ? value.instances : [];
+}
+
 function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
@@ -45,6 +52,49 @@ function itemCenter(bounds, item) {
   const max = point(bounds?.max);
   if (min && max) return { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 };
   return point(item?.position);
+}
+
+function boundsSize(bounds, dpi = 1) {
+  const min = point(bounds?.min);
+  const max = point(bounds?.max);
+  if (!min || !max) return { width: dpi, height: dpi };
+  return {
+    width: Math.max(1, max.x - min.x),
+    height: Math.max(1, max.y - min.y),
+  };
+}
+
+
+const GRID_UNIT_METERS = Object.freeze({
+  m: 1,
+  meter: 1,
+  meters: 1,
+  metro: 1,
+  metri: 1,
+  ft: 0.3048,
+  foot: 0.3048,
+  feet: 0.3048,
+  cm: 0.01,
+  km: 1000,
+});
+
+function gridMetersPerCell(scale = {}) {
+  const parsed = scale?.parsed && typeof scale.parsed === "object" ? scale.parsed : scale;
+  const multiplier = Number(parsed?.multiplier);
+  const unit = String(parsed?.unit || "").trim().toLocaleLowerCase("it");
+  return (Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.5)
+    * (GRID_UNIT_METERS[unit] || 1);
+}
+
+function fixedCasterRadiusConfig(payload = null) {
+  const config = payload?.action?.fixedCasterRadius;
+  if (!config || typeof config !== "object") return null;
+  const value = Number(config.value);
+  if (!Number.isFinite(value) || value <= 0 || String(config.unit || "") !== "m") return null;
+  return {
+    value,
+    includeCaster: config.includeCaster === true,
+  };
 }
 
 function activeParentInstance(items, payload) {
@@ -77,7 +127,10 @@ function placementArea(placement, { parentArea = null, childKind = "" } = {}) {
     placement.end,
     dpi,
     placement.gridOrigin,
-    { widthSquares: placement.widthSquares },
+    {
+      widthSquares: placement.widthSquares,
+      widthAnchor: placement.widthAnchor,
+    },
   );
   if (String(childKind || "").trim() === "fissure") {
     area = clipChildZoneAreaToParent({
@@ -111,13 +164,8 @@ function validateOutcomes({ targetIds, outcomes, allowed }) {
 }
 
 async function validateSaveArea({ payload, placement, targetIds, outcomes, damageRoll }) {
-  const rule = getSpellAreaRuleForPlacement(payload.action.placementRuleId);
-  const area = placementArea(placement);
+  const fixedRadius = fixedCasterRadiusConfig(payload);
   const errors = [];
-  if (!rule || !area || area.type !== rule.geometry.shape) errors.push("placement-invalid");
-  if (!rule?.targeting?.includeCaster && targetIds.includes(payload.casterId)) {
-    errors.push("caster-target-forbidden");
-  }
   const maxTargets = Number(payload.action.maxTargets);
   if (Number.isInteger(maxTargets) && maxTargets > 0 && targetIds.length > maxTargets) {
     errors.push("target-limit-exceeded");
@@ -127,7 +175,8 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     outcomes,
     allowed: SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   }));
-  if (numericRoll(damageRoll) === null) errors.push("damage-required");
+  if (payload?.action?.damage && numericRoll(damageRoll) === null) errors.push("damage-required");
+
   const [caster] = await OBR.scene.items.getItems([payload.casterId]);
   const [casterBounds, dpi, scale] = await Promise.all([
     caster ? OBR.scene.items.getItemBounds([payload.casterId]).catch(() => null) : null,
@@ -135,6 +184,47 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
   ]);
   if (!caster || !casterBounds) errors.push("caster-missing");
+
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== targetIds.length) errors.push("duplicate-targets");
+  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
+  if (items.length !== ids.length) errors.push("target-missing");
+  const bounds = await Promise.all(items.map((item) =>
+    OBR.scene.items.getItemBounds([item.id]).catch(() => null)
+  ));
+
+  if (fixedRadius) {
+    if (!fixedRadius.includeCaster && ids.includes(payload.casterId)) {
+      errors.push("caster-target-forbidden");
+    }
+    const casterOrigin = itemCenter(casterBounds, caster);
+    const metersPerCell = gridMetersPerCell(scale);
+    const gridOrigin = point(casterBounds?.min);
+    const radiusPixels = fixedRadius.value / metersPerCell * Math.max(1, Number(dpi) || 1);
+    const circleArea = casterOrigin && gridOrigin
+      ? buildCircleArea(
+        casterOrigin,
+        { x: casterOrigin.x + radiusPixels, y: casterOrigin.y },
+        dpi,
+        gridOrigin,
+      )
+      : null;
+    items.forEach((item, index) => {
+      if (!circleArea || !bounds[index]) {
+        errors.push("target-geometry-missing");
+        return;
+      }
+      if (!areaHitsBounds(circleArea, bounds[index])) errors.push("target-out-of-range");
+    });
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
+  }
+
+  const rule = getSpellAreaRuleForPlacement(payload.action.placementRuleId);
+  const area = placementArea(placement);
+  if (!rule || !area || area.type !== rule.geometry.shape) errors.push("placement-invalid");
+  if (!rule?.targeting?.includeCaster && targetIds.includes(payload.casterId)) {
+    errors.push("caster-target-forbidden");
+  }
   const origin = point(area?.origin);
   const casterOrigin = itemCenter(casterBounds, caster);
   if (origin && casterOrigin && rule?.placement?.range
@@ -151,13 +241,6 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     && !spellAreaOriginAdjacentToCaster({ origin, casterBounds, dpi })) {
     errors.push("placement-not-adjacent");
   }
-  const ids = uniqueIds(targetIds);
-  if (ids.length !== targetIds.length) errors.push("duplicate-targets");
-  const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
-  if (items.length !== ids.length) errors.push("target-missing");
-  const bounds = await Promise.all(items.map((item) =>
-    OBR.scene.items.getItemBounds([item.id]).catch(() => null)
-  ));
   if (area && items.some((item, index) => !areaHitsBounds(area, bounds[index]))) {
     errors.push("target-outside-placement");
   }
@@ -208,19 +291,115 @@ async function validateStorm({ payload, targetIds, outcomes, damageRoll, attackO
   ]);
   const targetOrigin = itemCenter(targetBounds, target);
   if (!target || !targetBounds) errors.push("target-missing");
-  if (rootOrigin && targetOrigin && payload.action.range
-    && !spellAreaOriginWithinRange({
-    origin: targetOrigin,
-    casterOrigin: rootOrigin,
-    range: payload.action.range,
-    dpi,
-    scale: scale?.parsed || scale,
-  })) errors.push("target-out-of-range");
+  if (targetOrigin && payload.action.range) {
+    const inRange = payload.action.rangeFromZoneArea === true && rootArea
+      ? wallOfLightTargetWithinRange({
+        area: rootArea,
+        targetBounds,
+        range: payload.action.range,
+        dpi,
+        scale: scale?.parsed || scale,
+      })
+      : rootOrigin && spellAreaOriginWithinRange({
+        origin: targetOrigin,
+        casterOrigin: rootOrigin,
+        range: payload.action.range,
+        dpi,
+        scale: scale?.parsed || scale,
+      });
+    if (!inRange) errors.push("target-out-of-range");
+  }
   return {
     valid: errors.length === 0,
     errors: [...new Set(errors)],
     insideRoot: !!(rootArea && targetBounds && areaHitsBounds(rootArea, targetBounds)),
   };
+}
+
+function itemHasLinkedEffect(item, { parentEffectId = "", effectId = "" } = {}) {
+  const wantedParent = String(parentEffectId || "").trim();
+  const wantedEffect = String(effectId || "").trim();
+  if (!wantedEffect) return true;
+  const meta = item?.metadata?.[META_KEY] || {};
+  return conditionInstances(meta.conditions).some((instance) => (
+    String(instance?.effectId || "").trim() === wantedEffect
+    && (!wantedParent || String(instance?.parentEffectId || "").trim() === wantedParent)
+  ));
+}
+
+async function validateSingleSave({ payload, targetIds, outcomes, damageRoll, allItems }) {
+  const errors = [];
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== 1) errors.push("single-target-required");
+  if (ids.includes(payload.casterId)) errors.push("caster-target-forbidden");
+  errors.push(...validateOutcomes({
+    targetIds: ids,
+    outcomes,
+    allowed: SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
+  }));
+  if (payload?.action?.damage && numericRoll(damageRoll) === null) errors.push("damage-required");
+  const target = allItems.find((item) => item?.id === ids[0]);
+  const caster = allItems.find((item) => item?.id === payload.casterId);
+  if (!target) errors.push("target-missing");
+  if (!caster) errors.push("caster-missing");
+  if (target && payload.action.requiredTargetEffectId
+    && !itemHasLinkedEffect(target, {
+      parentEffectId: payload.instanceId,
+      effectId: payload.action.requiredTargetEffectId,
+    })) {
+    errors.push("target-required-effect-missing");
+  }
+  const excludedEffectIds = Array.from(new Set([
+    String(payload?.action?.excludedTargetEffectId || "").trim(),
+    ...(Array.isArray(payload?.action?.excludedTargetEffectIds)
+      ? payload.action.excludedTargetEffectIds.map((effectId) => String(effectId || "").trim())
+      : []),
+  ].filter(Boolean)));
+  if (target && excludedEffectIds.some((effectId) => itemHasLinkedEffect(target, {
+    parentEffectId: payload.instanceId,
+    effectId,
+  }))) {
+    errors.push("target-excluded-effect-present");
+  }
+  if (target && caster && payload.action.range) {
+    const root = allItems.find((item) => item?.id === payload.zoneItemId);
+    const [targetBounds, casterBounds, rootBounds, dpi, scale] = await Promise.all([
+      OBR.scene.items.getItemBounds([target.id]).catch(() => null),
+      OBR.scene.items.getItemBounds([caster.id]).catch(() => null),
+      root ? OBR.scene.items.getItemBounds([root.id]).catch(() => null) : null,
+      OBR.scene.grid.getDpi().catch(() => 150),
+      OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    ]);
+    const targetOrigin = itemCenter(targetBounds, target);
+    const originSource = payload.action.rangeOrigin === "root" ? root : caster;
+    const originBounds = payload.action.rangeOrigin === "root" ? rootBounds : casterBounds;
+    const rangeOrigin = itemCenter(originBounds, originSource);
+    if (!targetBounds || !originBounds) errors.push("target-geometry-missing");
+    if (targetOrigin && rangeOrigin) {
+      const metersPerCell = Number(scale?.parsed?.multiplier ?? scale?.multiplier ?? 1.5) || 1.5;
+      const inRange = payload.action.adjacentRing === true && payload.action.rangeOrigin === "root"
+        ? (() => {
+          const planar = gridPlanarDistance(
+            rangeOrigin,
+            targetOrigin,
+            dpi,
+            metersPerCell,
+            boundsSize(originBounds, dpi),
+            boundsSize(targetBounds, dpi),
+          );
+          return planar.squares > 0 && planar.squares <= 1 + 1e-9;
+        })()
+        : spellAreaOriginWithinRange({
+          origin: targetOrigin,
+          casterOrigin: rangeOrigin,
+          range: payload.action.range,
+          dpi,
+          scale: scale?.parsed || scale,
+        });
+      if (!inRange) errors.push("target-out-of-range");
+    }
+  }
+  return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
 
 function normalizedAttackEntries(attacks = []) {
@@ -368,6 +547,8 @@ export async function validateSpellActiveResolutionCommit({
         insideRoot: false,
       }
       : await validateStorm({ payload, targetIds: ids, outcomes, damageRoll, attackOutcome })
+    : payload.action.resolutionKind === "single-save"
+      ? await validateSingleSave({ payload, targetIds: ids, outcomes, damageRoll, allItems })
     : payload.action.resolutionKind === "child-zone"
       ? await validateChildZone({ payload, placement, targetIds: ids, outcomes, allItems })
       : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });

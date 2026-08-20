@@ -12,15 +12,17 @@ import {
 } from "./zoneTriggerNoticeCore.js";
 import {
   mergeSaveReminderNoticeBatch,
+  pruneZoneReminderNoticeBatch,
   saveReminderNoticeBatchPresentation,
 } from "./saveReminderNoticeCore.js";
 import {
   REMINDER_OUTCOMES,
   reminderResolutionNeedsDamage,
+  reminderResolutionOutcomeNeedsDamage,
 } from "./reminderResolutionCore.js";
 import { resolveReminder } from "./reminderResolution.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
-import { readSceneItemsSnapshot } from "./sceneItemEvents.js";
+import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { isTurnNoticeForScene } from "./turnNotice.js";
 import { projectReminderNotices } from "./options/optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
@@ -30,6 +32,7 @@ const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
 const LAYOUT_CHANNEL = CHANNEL + "/layout";
 const UI_CHANNEL = CHANNEL + "/ui";
+const CONTROL_CHANNEL = CHANNEL + "/control";
 const AUTO_CLOSE_MS = 4500;
 const ZONE_AUTO_CLOSE_MS = 6500;
 const SAVE_REMINDER_AGGREGATION_MS = 16;
@@ -102,6 +105,7 @@ let zonePendingBaselineReady = false;
 let zonePendingSyncRequested = false;
 let zonePendingSyncRunning = false;
 let unsubscribeZoneSceneReady: (() => void) | null = null;
+let unsubscribeZoneItemChanges: (() => void) | null = null;
 let unsubscribeUiBroadcast: (() => void) | null = null;
 let unsubscribeTurnNoticeReadyRequest: (() => void) | null = null;
 let unsubscribeRuntimeCacheCleanup: (() => void) | null = null;
@@ -115,6 +119,7 @@ let reminderProjectionPolicy = {
 };
 let unsubscribeOptions: (() => void) | null = null;
 let lastNoticeLayoutKey = "";
+let noticeLayoutRevision = 0;
 const resolutionDrafts = new Map<string, { outcome: string; damageRoll: string }>();
 const resolutionStatus = new Map<string, string>();
 const resolvingActivations = new Set<string>();
@@ -156,7 +161,8 @@ const RESOLUTION_BUTTON_OUTCOMES = [
 
 function announceNoticeLayout({ force = false } = {}) {
   const hasTurnNotice = !!currentPanel;
-  const hasZoneNotice = !!currentZonePanel;
+  const hasPendingSaveReminder = pendingSaveReminderNotices.length > 0 || saveReminderAggregationTimer !== 0;
+  const hasZoneNotice = !!currentZonePanel || hasPendingSaveReminder;
   const fallbackHeight = !hasTurnNotice && !hasZoneNotice
     ? 1
     : hasTurnNotice && hasZoneNotice
@@ -177,12 +183,14 @@ function announceNoticeLayout({ force = false } = {}) {
   const key = `${hasTurnNotice ? 1 : 0}:${hasZoneNotice ? 1 : 0}:${height}`;
   if (!force && key === lastNoticeLayoutKey) return;
   lastNoticeLayoutKey = key;
+  const layoutRevision = ++noticeLayoutRevision;
   void OBR.broadcast.sendMessage(
     LAYOUT_CHANNEL,
     {
       type: "turn-notice-layout",
       visible: hasTurnNotice || hasZoneNotice,
       height,
+      layoutRevision,
     },
     { destination: "LOCAL" },
   ).catch(() => {});
@@ -256,6 +264,15 @@ function hideCurrent() {
   leaving.classList.remove("is-visible");
   leaving.classList.add("is-leaving");
   window.setTimeout(() => leaving.remove(), FADE_MS);
+}
+
+
+function requestTurnNoticeHostClose() {
+  void OBR.broadcast.sendMessage(
+    CONTROL_CHANNEL,
+    { type: "close-turn-notice", sceneEpoch: noticeSceneEpoch },
+    { destination: "LOCAL" },
+  ).catch(() => {});
 }
 
 function clearTurnNotice() {
@@ -351,7 +368,7 @@ function resolutionStatusNode(line: HTMLElement, message: string) {
   line.appendChild(status);
 }
 
-function dismissResolvedReminder(activationId: string) {
+function dismissResolvedReminder(activationId: string, { zone = false } = {}) {
   const entries = Array.isArray(currentSaveReminderBatch?.entries)
     ? currentSaveReminderBatch.entries.filter((entry: any) => (
       String(entry?.activationId || "").trim() !== activationId
@@ -359,6 +376,10 @@ function dismissResolvedReminder(activationId: string) {
     : [];
   resolutionDrafts.delete(activationId);
   resolutionStatus.delete(activationId);
+  // Una zone activation risolta può essere ripristinata da Undo con lo stesso ID.
+  // Liberiamo subito il guard di annuncio: la mutation è già committata, quindi
+  // finché l'activation resta consumata il sync live non la riproporrà.
+  if (zone) announcedZoneActivationIds.delete(activationId);
   if (!entries.length) {
     clearZoneNotice();
     return;
@@ -424,6 +445,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     if (
       damageInput
       && outcome !== "ignore"
+      && (manualHeal
+        ? outcome === "apply"
+        : reminderResolutionOutcomeNeedsDamage(row.resolution, outcome))
       && (!damageInput.value.trim() || !Number.isFinite(Number(damageInput.value)))
     ) {
       resolutionStatusNode(line, "Inserisci un risultato dei dadi valido.");
@@ -456,7 +480,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
           activationId,
           result.message || `Risolto: ${RESOLUTION_LABELS[draft.outcome]}.`,
         );
-        dismissResolvedReminder(activationId);
+        dismissResolvedReminder(activationId, {
+          zone: row?.resolution?.activation?.kind === "zone",
+        });
       } else {
         resolutionStatusNode(line, result.message || "Reminder non più corrente; puoi chiuderlo.");
         for (const button of Array.from(controls.querySelectorAll("button, input"))) {
@@ -598,7 +624,10 @@ function flushSaveReminderNotices() {
   if (!values.length) return;
   const baseBatch = currentZonePanel ? currentSaveReminderBatch : null;
   const batch = mergeSaveReminderNoticeBatch(baseBatch, values);
-  if (!batch || !renderSaveReminderBatch(batch)) return;
+  if (!batch || !renderSaveReminderBatch(batch)) {
+    announceNoticeLayout({ force: true });
+    return;
+  }
   currentSaveReminderBatch = batch;
 }
 
@@ -664,12 +693,14 @@ function showEffectSaveNotices(raw: any) {
   const notices: ZoneTriggerNotice[] = [];
   for (const value of values) {
     const notice = effectSaveNotice(value);
-    if (
-      !notice
-      || announcedEffectActivationIds.has(notice.activationId)
-    ) {
-      continue;
+    if (!notice) continue;
+    if (Array.isArray(raw?.rearmActivationIds)
+      && raw.rearmActivationIds.some((value: any) => (
+        String(value || "").trim() === notice.activationId
+      ))) {
+      announcedEffectActivationIds.delete(notice.activationId);
     }
+    if (announcedEffectActivationIds.has(notice.activationId)) continue;
     notices.push(notice);
   }
   rememberAnnouncementIds(
@@ -688,11 +719,9 @@ function showZoneNotices(raw: any, { baseline = false } = {}) {
   const plan = planZoneTriggerNoticeDelivery(
     values,
     [...announcedZoneActivationIds],
+    { baseline },
   );
-  if (baseline) {
-    rememberAnnouncementIds(announcedZoneActivationIds, plan.announcedIds);
-    return;
-  }
+  if (baseline) return;
   if (queueSaveReminderNotices(plan.notices as ZoneTriggerNotice[])) {
     rememberAnnouncementIds(announcedZoneActivationIds, plan.announcedIds);
   }
@@ -707,10 +736,9 @@ async function syncPendingZoneNotices() {
     return;
   }
   const sceneEpoch = currentSceneEpoch();
-  const sharedSnapshot = readSceneItemsSnapshot(sceneEpoch);
-  const items = sharedSnapshot.complete
-    ? sharedSnapshot.items
-    : await OBR.scene.items.getItems();
+  // I reminder ripristinati da Undo devono essere letti dallo stato canonico
+  // della scena, non da uno snapshot eventualmente ancora debounced.
+  const items = await OBR.scene.items.getItems();
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const itemsById = new Map(items.map((item) => [item.id, item]));
   const notices = pendingSpellZoneTriggerActivations(items)
@@ -719,6 +747,55 @@ async function syncPendingZoneNotices() {
       itemsById,
     ))
     .filter((notice): notice is ZoneTriggerNotice => !!notice);
+  const pendingIds = new Set(notices.map((notice) => notice.activationId));
+
+  // Riconcilia soltanto un batch che è già realmente renderizzato.
+  // Un nuovo iframe Turn Notice esegue questo sync prima di ricevere il payload
+  // riannunciato da Undo: non dobbiamo quindi potare i reminder ancora accodati,
+  // altrimenti il primo Undo può cancellare il payload prima che diventi visibile.
+  if (currentZonePanel && currentSaveReminderBatch) {
+    const currentEntries = Array.isArray(currentSaveReminderBatch.entries)
+      ? currentSaveReminderBatch.entries
+      : [];
+    const nextCurrentBatch = pruneZoneReminderNoticeBatch(
+      currentSaveReminderBatch,
+      pendingIds,
+    );
+    const nextCurrentIds = new Set(
+      Array.isArray(nextCurrentBatch?.entries)
+        ? nextCurrentBatch.entries.map((entry: any) => String(entry?.activationId || "").trim())
+        : [],
+    );
+    if (nextCurrentIds.size !== currentEntries.length) {
+      for (const entry of currentEntries) {
+        const activationId = String(entry?.activationId || "").trim();
+        if (!activationId || nextCurrentIds.has(activationId)) continue;
+        resolutionDrafts.delete(activationId);
+        resolutionStatus.delete(activationId);
+        resolvingActivations.delete(activationId);
+      }
+      if (!nextCurrentBatch) {
+        clearZoneNotice();
+        if (!currentPanel && !pendingSaveReminderNotices.length) {
+          requestTurnNoticeHostClose();
+        }
+      } else if (!renderSaveReminderBatch(nextCurrentBatch)) {
+        clearZoneNotice();
+        if (!currentPanel && !pendingSaveReminderNotices.length) {
+          requestTurnNoticeHostClose();
+        }
+      } else {
+        currentSaveReminderBatch = nextCurrentBatch;
+      }
+    }
+  }
+
+  // Un ID annunciato resta soppresso solo finché l'activation è realmente pending.
+  // Se viene consumata (o la sua causa viene annullata), una futura ricomparsa dello
+  // stesso activationId — incluso un Undo della risoluzione — deve poter riaprire il reminder.
+  for (const activationId of [...announcedZoneActivationIds]) {
+    if (!pendingIds.has(activationId)) announcedZoneActivationIds.delete(activationId);
+  }
   const baseline = !zonePendingBaselineReady;
   showZoneNotices({ notices }, { baseline });
   zonePendingBaselineReady = true;
@@ -837,6 +914,9 @@ OBR.onReady(async () => {
   });
   announceNoticeLayout();
   if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) return;
+  unsubscribeZoneItemChanges = subscribeSceneItemChanges(() => {
+    requestPendingZoneNoticeSync();
+  });
   requestPendingZoneNoticeSync();
 });
 
@@ -844,6 +924,7 @@ window.addEventListener("beforeunload", () => {
   clearTurnNotice();
   clearPendingSaveReminderNotices();
   unsubscribeZoneSceneReady?.();
+  unsubscribeZoneItemChanges?.();
   unsubscribeUiBroadcast?.();
   unsubscribeTurnNoticeReadyRequest?.();
   unsubscribeRuntimeCacheCleanup?.();

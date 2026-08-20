@@ -13,6 +13,9 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
   const damageById = concentrationDamageByItemId(changes);
   if (!damageById.size) return [];
 
+  const sceneEpoch = Number(options.sceneEpoch);
+  if (!Number.isSafeInteger(sceneEpoch) || sceneEpoch < 0) return [];
+
   const now = Math.max(0, Math.floor(Number(options.now) || Date.now()));
   const eventId = String(options.eventId || "").trim()
     || `${now}-${++concentrationDamageSequence}`;
@@ -26,6 +29,7 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
     items,
     changes: normalizedChanges,
     eventId,
+    causeHistoryEntryId: String(options.causeHistoryEntryId || "").trim(),
   });
   if (!warnings.length) return [];
 
@@ -35,6 +39,7 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
     type: "show-concentration-warning",
     warnings,
     createdAt: now,
+    sceneEpoch,
   }, { destination: "ALL" });
   return warnings;
 }

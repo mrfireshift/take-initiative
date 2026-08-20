@@ -443,7 +443,9 @@ export function formatConditionInstance(instance) {
   if (!name) return "";
   const conditionLabel = name === EXHAUSTION_CONDITION
     ? `${formatConditionName(name, instance?.theme?.emoji)} ${Math.max(1, normalizeExhaustionLevel(instance?.level || 1))}`
-    : formatConditionName(name, instance?.theme?.emoji);
+    : instance?.displayLabel
+      ? `${instance?.theme?.emoji ? `${instance.theme.emoji} ` : ""}${instance.displayLabel}`
+      : formatConditionName(name, instance?.theme?.emoji);
   const parts = [conditionLabel];
   if (instance?.sourceName) {
     parts.push(`fonte: ${instance.sourceName}`);
@@ -466,6 +468,7 @@ function __withConditionEntryConsequences(previousInstances, nextInstances, targ
   }
   return next;
 }
+
 function __groupConditionInstances(cond = {}) {
   const groups = new Map();
   for (const instance of getEffectiveConditionInstances(cond)) {
@@ -504,15 +507,26 @@ function __groupConditionInstances(cond = {}) {
     return a.name.localeCompare(b.name);
   });
 
-  return ordered.map((group) => ({
-    ...group,
-    label: group.effectKind
-      ? `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${compactSpellEffectLabel(group.name)}`
-      : group.name === EXHAUSTION_CONDITION
-      ? `${formatConditionName(group.name, group.theme?.emoji)} ${exhaustionLevelFromInstances(group.instances)}`
-      : `${formatConditionName(group.name, group.theme?.emoji)}${__compactExpiryLabel(group.instances[0])}`,
-  }));
+  return ordered.map((group) => {
+    const firstInstance = group.instances[0] || {};
+    const displayLabel = firstInstance.displayLabel;
+    let label;
+    if (displayLabel) {
+      label = `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${displayLabel}${__compactExpiryLabel(firstInstance)}`;
+    } else if (group.effectKind) {
+      label = `${group.theme?.emoji ? `${group.theme.emoji} ` : ""}${compactSpellEffectLabel(group.name)}`;
+    } else if (group.name === EXHAUSTION_CONDITION) {
+      label = `${formatConditionName(group.name, group.theme?.emoji)} ${exhaustionLevelFromInstances(group.instances)}`;
+    } else {
+      label = `${formatConditionName(group.name, group.theme?.emoji)}${__compactExpiryLabel(firstInstance)}`;
+    }
+    return {
+      ...group,
+      label,
+    };
+  });
 }
+
 function __conditionLabel(name, value) {
   const instance = value?.condition
     ? value
@@ -521,6 +535,7 @@ function __conditionLabel(name, value) {
     ? `${formatConditionName(name, instance?.theme?.emoji)}${__compactExpiryLabel(instance)}`
     : formatConditionName(name);
 }
+
 // Colore bordo per condizione (fallback a PILL_CFG.border)
 const COND_BORDER = Object.freeze({
   "Accecato":        "#9b59b6",
@@ -874,7 +889,10 @@ function __orderedParts(cond = {}) {
       : __chipKeyFor(group.name),
     kind: group.effectKind ? "spell-effect" : "condition",
     tone: group.effectKind || "",
-    parentEffectId: group.parentEffectId,
+    // Il marker di resistenza di Sguardo penetrante resta parent-linked nei
+    // metadata per blacklist/cleanup, ma sulla mappa deve apparire come pill
+    // autonoma senza proiettare anche la pill parent della spell.
+    parentEffectId: group.effectId === "eyebite-resisted" ? "" : group.parentEffectId,
     sourceId: String(group.instances[0]?.sourceId || ""),
     icon: String(group.theme?.emoji || CONDITION_EMOJI[group.name] || "").trim(),
     theme: group.theme,

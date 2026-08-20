@@ -496,9 +496,12 @@ export async function undoSpellUnifiedArea({ session = {}, runtime = {} } = {}) 
       }],
     };
   }
-  const undoHistory = typeof runtime.undoHistoryEntry === "function"
-    ? runtime.undoHistoryEntry
-    : runtime.undoHistoryThrough;
+  // History è cronologica: l'Undo dal pannello non deve mai rimuovere
+  // selettivamente una entry intermedia, perché renderebbe incoerenti le
+  // operazioni successive e può bloccare gli Undo precedenti.
+  const undoHistory = typeof runtime.undoHistoryThrough === "function"
+    ? runtime.undoHistoryThrough
+    : runtime.undoHistoryEntry;
   if (typeof undoHistory !== "function") {
     return {
       ...resultBase({}),

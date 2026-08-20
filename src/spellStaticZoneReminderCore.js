@@ -21,10 +21,29 @@ export function planStaticSpellZoneReminder({
   const previousRuntime = normalizeSpellZoneTriggerRuntime(
     zoneMetadata.triggerRuntime
   );
+  const hasCastMembershipBaseline = Object.prototype.hasOwnProperty.call(
+    zoneMetadata,
+    "targetIds",
+  );
+  const planningRuntime = previousRuntime.initialized || !hasCastMembershipBaseline
+    ? previousRuntime
+    : {
+      ...previousRuntime,
+      // La membership registrata al cast è la baseline reale della zona.
+      // Se una creatura entra prima del primo reconcile, deve risultare
+      // "entering" invece di essere assorbita dal bootstrap.
+      initialized: true,
+      memberIds: Array.isArray(zoneMetadata.targetIds)
+        ? [...zoneMetadata.targetIds]
+        : [],
+      areaPosition: zoneItem?.position && typeof zoneItem.position === "object"
+        ? { ...zoneItem.position }
+        : null,
+    };
   const triggerPlan = planSpellZoneTriggers({
     rule,
     zoneMetadata,
-    runtime: previousRuntime,
+    runtime: planningRuntime,
     currentTargetIds: desiredTargetIds,
     currentDirectTargetIds: directTargetIds,
     currentTargetPositions,

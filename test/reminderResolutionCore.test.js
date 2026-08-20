@@ -9,6 +9,7 @@ import {
   REMINDER_OUTCOMES,
   reminderResolutionControls,
   reminderResolutionDamage,
+  reminderResolutionOutcomeNeedsDamage,
 } from "../src/reminderResolutionCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 
@@ -259,6 +260,45 @@ test("il fallimento applica la condizione modellata e mantiene il reminder idemp
   assert.equal(repeated.status, "already-resolved");
 });
 
+test("un esito a danno zero non richiede il risultato dadi, mentre full/half sì", () => {
+  const zeroOnPassed = zoneResolution({
+    damage: { dice: "4d6", type: "fuoco", onSave: "none" },
+    failureCondition: { condition: "In fiamme" },
+  });
+  assert.equal(reminderResolutionOutcomeNeedsDamage(zeroOnPassed, "passed"), false);
+  assert.equal(reminderResolutionOutcomeNeedsDamage(zeroOnPassed, "failed"), true);
+
+  const passedWithoutRoll = planForZone({
+    outcome: REMINDER_OUTCOMES.PASSED,
+    damageRoll: "",
+    targetMeta: { hp: 20, hpMax: 20 },
+    resolution: zeroOnPassed,
+  });
+  assert.equal(passedWithoutRoll.status, "ready");
+  assert.equal(passedWithoutRoll.damage.amount, 0);
+  assert.equal(passedWithoutRoll.hpChange, null);
+
+  const failedWithoutRoll = planForZone({
+    outcome: REMINDER_OUTCOMES.FAILED,
+    damageRoll: "",
+    targetMeta: { hp: 20, hpMax: 20 },
+    resolution: zeroOnPassed,
+  });
+  assert.equal(failedWithoutRoll.status, "invalid");
+
+  const halfOnPassed = zoneResolution({
+    damage: { dice: "4d6", type: "fuoco", onSave: "half" },
+  });
+  assert.equal(reminderResolutionOutcomeNeedsDamage(halfOnPassed, "passed"), true);
+  const halfWithoutRoll = planForZone({
+    outcome: REMINDER_OUTCOMES.PASSED,
+    damageRoll: "",
+    targetMeta: { hp: 20, hpMax: 20 },
+    resolution: halfOnPassed,
+  });
+  assert.equal(halfWithoutRoll.status, "invalid");
+});
+
 test("il danno pieno, dimezzato per difetto e nullo segue l'esito", () => {
   const resolution = zoneResolution();
   assert.deepEqual(reminderResolutionDamage(resolution, "failed", 7), {
@@ -470,4 +510,149 @@ test("la cura manuale usa hp canonici, cap, Ignora e consumo una tantum", () => 
     damageRoll: 7,
   });
   assert.equal(construct.status, "unsupported");
+});
+
+test("SP-B04B — Prono da Tempesta di Nevischio è indipendente dalla zona", () => {
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "sleet-prone",
+      instanceId: "sleet-1",
+      triggerId: "sleet-storm-save-on-turn-start",
+      resolution: "manual-save",
+      ability: "dex",
+      zoneItemId: "zone",
+      targetIds: ["target"],
+      failureCondition: {
+        condition: "Prono",
+        options: { parentEffectId: "" },
+      },
+    },
+    targetId: "target",
+    sourceId: "caster",
+    sourceName: "Caster",
+    dc: 15,
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+
+  const failed = resolution.outcomes.failed.actions.find((action) => (
+    action.kind === "condition" && action.action === "apply"
+  ));
+  assert.equal(failed.name, "Prono");
+  assert.equal(failed.options.parentEffectId, "");
+});
+
+test("SP-B04B — fallire il check ambientale di concentrazione interrompe la concentrazione corrente", () => {
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "sleet-concentration",
+      instanceId: "sleet-1",
+      triggerId: "sleet-storm-concentration-save-on-turn-start",
+      resolution: "manual-save",
+      ability: "con",
+      requiresConcentration: true,
+      zoneItemId: "zone",
+      targetIds: ["target"],
+    },
+    targetId: "target",
+    sourceId: "caster",
+    dc: 15,
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+
+  assert.deepEqual(
+    resolution.outcomes.failed.actions,
+    [{ kind: "concentration", action: "break", targetId: "target" }],
+  );
+
+  const items = sceneItems({
+    [`${ID}/concentration`]: {
+      web: { name: "Ragnatela", instanceId: "web-1", targets: ["target"] },
+    },
+  }, "sleet-concentration");
+  const plan = buildReminderResolutionPlan({
+    notice: {
+      activationId: "sleet-concentration",
+      targets: [{ id: "target", name: "Target" }],
+      resolution,
+    },
+    items,
+    outcome: REMINDER_OUTCOMES.FAILED,
+    sceneMetadata: { [STATE_KEY]: { round: 1, current: 0 } },
+  });
+  assert.equal(plan.status, "ready");
+  assert.deepEqual(
+    plan.operations.filter((operation) => operation.type === "concentration:break"),
+    [{ type: "concentration:break", casterIds: ["target"], reference: "web-1" }],
+  );
+});
+
+test("SP-R06A regression — un reminder ricorrente compatta i marker obsoleti della stessa istanza senza gonfiare History", () => {
+  const instance = {
+    id: "effect-1",
+    condition: "Trattenuto",
+    manualRemoval: true,
+    sourceId: "caster",
+    parentEffectId: "fts-1",
+    saveReminder: {
+      ability: "con",
+      timing: "turn-end",
+      success: "keep-effect",
+    },
+  };
+  const staleMarkers = Object.fromEntries(
+    Array.from({ length: 48 }, (_, index) => [
+      `effect-1:turn-end:${index + 1}:target`,
+      { version: 1, outcome: "failed", resolvedAt: index + 1 },
+    ]),
+  );
+  staleMarkers["other-effect:turn-end:48:target"] = {
+    version: 1,
+    outcome: "passed",
+    resolvedAt: 48,
+  };
+  const targetMeta = {
+    conditions: [instance],
+    reminderResolutions: staleMarkers,
+  };
+  const resolution = buildEffectSaveReminderResolution({
+    item: token("target", targetMeta),
+    instance,
+    reminder: instance.saveReminder,
+    dc: 17,
+    activationId: "effect-1:turn-end:49:target",
+    turnKey: "49:0:target",
+  });
+  const plan = buildReminderResolutionPlan({
+    notice: {
+      activationId: "effect-1:turn-end:49:target",
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: [
+      token("target", targetMeta),
+      token("caster"),
+    ],
+    outcome: REMINDER_OUTCOMES.FAILED,
+    now: 100,
+  });
+
+  assert.equal(plan.status, "ready");
+  const descriptor = plan.metadataPatches[0].fields.reminderResolutions;
+  assert.ok(descriptor.value["effect-1:turn-end:49:target"]);
+  assert.ok(descriptor.value["other-effect:turn-end:48:target"]);
+  assert.equal(
+    Object.keys(descriptor.value).some((key) => key.startsWith("effect-1:turn-end:")
+      && key !== "effect-1:turn-end:49:target"),
+    false,
+  );
+  assert.deepEqual(descriptor.historyBefore, {
+    present: true,
+    value: {
+      "other-effect:turn-end:48:target": {
+        version: 1,
+        outcome: "passed",
+        resolvedAt: 48,
+      },
+    },
+  });
 });

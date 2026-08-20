@@ -51,7 +51,7 @@ test("active resolution resta un popup dedicato e il pannello unificato non impo
     read("../src/spell-unified-panel.js"),
     read("../vite.config.js"),
   ]);
-  assert.match(activeHtml, /Risolvi:/);
+  assert.doesNotMatch(activeHtml, /Risolvi:/);
   assert.match(vite, /spellActiveResolution:\s*path\.resolve/);
   assert.match(vite, /spellUnifiedPanel:\s*path\.resolve/);
   assert.match(unifiedController, /executeSpellUnifiedActiveAction/);
@@ -114,4 +114,11 @@ test("i popup di risoluzione geometrici espongono lo stesso ponte di conferma", 
   assert.doesNotMatch(quick, /confirmSpellAreaPlacementRequest|createSpellAreaPlacementRequestId/);
   assert.match(activeHtml, /id="confirmPlacement"/);
   assert.doesNotMatch(quickHtml, /areaPlacementConfirm|areaSpell/);
+});
+
+test("SP-B04A — la terminazione delle static zone owner-side rimuove il lifecycle dal caster", async () => {
+  const source = await read("../src/spell-unified-panel.js");
+  assert.match(source, /const lifecycleTargetIds = uniqueIds\(\[/);
+  assert.match(source, /context\.castContext\?\.staticZoneOwner === true && casterId \? \[casterId\] : \[\]/);
+  assert.match(source, /spell:remove-instance", targetIds: lifecycleTargetIds, instanceId/);
 });

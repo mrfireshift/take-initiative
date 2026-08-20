@@ -74,6 +74,7 @@ function integerOrNull(value) {
 const ACTIVE_POPUP_RESOLUTION_KINDS = new Set([
   "save-area",
   "single-attack",
+  "single-save",
   "child-zone",
 ]);
 
@@ -514,11 +515,15 @@ export function buildSpellUnifiedActivePopoverRequest(payload, {
   urlBase = "/spell-active-resolution.html",
 } = {}) {
   const resolutionKind = text(payload?.action?.resolutionKind);
-  const resolvedHeight = height ?? (resolutionKind === "single-attack"
-    ? 320
-    : resolutionKind === "child-zone"
-      ? 600
-      : 520);
+  const resolvedHeight = height ?? (payload?.spellId === "xanathar-debilitazione"
+    ? 245
+    : resolutionKind === "single-attack"
+      ? 320
+      : resolutionKind === "single-save"
+        ? 350
+        : resolutionKind === "child-zone"
+          ? 600
+          : 520);
   const popoverId = spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);
   return {
     id: popoverId,

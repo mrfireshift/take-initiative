@@ -173,11 +173,6 @@ const AREA_OVERRIDES = Object.freeze({
     origin: "point",
     rangeMeters: 18,
   },
-  "compulsion": {
-    shape: "circle",
-    sizeMeters: 9,
-    origin: "caster",
-  },
   "color-spray": {
     note: "Dopo la sagoma, sblocca la selezione e mantieni soltanto le creature coperte dal totale di dadi",
   },
@@ -276,11 +271,8 @@ const AREA_OVERRIDES = Object.freeze({
     origin: "point",
     rangeMeters: 18,
   },
-  "xanathar-investitura-del-vento": {
-    shape: "square",
-    sizeMeters: 4.5,
-    origin: "point",
-    rangeMeters: 18,
+  "xanathar-sfera-della-tempesta": {
+    placementOptional: false,
   },
   "xanathar-investitura-della-fiamma": {
     shape: "line",
@@ -312,6 +304,10 @@ const AREA_OVERRIDES = Object.freeze({
     widthMeters: 1.5,
     origin: "point",
     rangeMeters: 36,
+    // Il punto scelto è sia un vertice della griglia sia un vertice della
+    // footprint del muro: lo spessore si sviluppa tutto da un solo lato.
+    snapOrigin: "vertex",
+    widthAnchor: "edge",
   },
   "xanathar-tempio-degli-dei": {
     shape: "square",
@@ -460,6 +456,8 @@ function catalogSpec(spell) {
       : {}),
     origin,
     ...(origin === "point" ? { rangeMeters: resolvedRange } : {}),
+    ...(override.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
+    ...(override.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
     kind: MOBILE_AURA_SPELL_IDS.has(spell.id)
       ? "aura"
       : PERSISTENT_ZONE_SPELL_IDS.has(spell.id)
@@ -476,6 +474,9 @@ function catalogSpec(spell) {
       : {}),
     ...(Array.isArray(override.placementChoices)
       ? { placementChoices: override.placementChoices }
+      : {}),
+    ...(typeof override.placementOptional === "boolean"
+      ? { placementOptional: override.placementOptional }
       : {}),
     ...(override.followCaster === true ? { followCaster: true } : {}),
     ...(override.note ? { note: override.note } : {}),

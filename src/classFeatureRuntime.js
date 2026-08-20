@@ -409,6 +409,25 @@ export async function purifyClassFeatureSpell({
   const [targetId] = resolvedTargetIds;
   const requestedInstanceId = String(spellInstanceId || "").trim();
   const requestedName = String(spellName || "").trim().toLocaleLowerCase();
+
+  const turnState = await currentTurnState();
+  const instanceId = createInstanceId();
+  const activation = planClassFeatureActivation({
+    state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
+    feature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: profile.characterBuild,
+    sourceId: sourceItem.id,
+    targetIds: resolvedTargetIds,
+    currentRound: turnState.round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  });
+  if (!activation.ok) {
+    throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  }
+
   const mutation = await runEffectsMutation([{
     type: "spell:remove-requested",
     targetIds: [targetId],
@@ -419,6 +438,15 @@ export async function purifyClassFeatureSpell({
     label: "Tocco Purificatore",
     targetIds: [targetId],
     requireChanges: true,
+    metadataPatches: [{
+      id: sourceItem.id,
+      fields: {
+        [CLASS_FEATURE_STATE_FIELD]: {
+          expected: metadataFieldExpectation(sourceItem.metadata?.[META_KEY], CLASS_FEATURE_STATE_FIELD),
+          value: activation.state,
+        },
+      },
+    }],
     sideEffects: [{ type: "static-zone:remove-ended", selectors: [{ all: true }] }],
   });
   requireAppliedEffectsMutation(mutation);
@@ -428,14 +456,16 @@ export async function purifyClassFeatureSpell({
   const spell = (targetChange?.before?.spells || []).find((entry) =>
     entry?.instanceId && !remainingIds.has(entry.instanceId)
   ) || null;
-  const instanceId = String(spell?.instanceId || requestedInstanceId).trim();
+  const finalInstanceId = String(spell?.instanceId || requestedInstanceId).trim();
   const changedIds = Array.from(new Set(mutation.changedIds));
   await refreshConditionLabels(changedIds);
   return {
     feature,
+    instance: activation.instance,
+    state: activation.state,
     targetIds: resolvedTargetIds,
     spell,
-    spellInstanceId: instanceId,
+    spellInstanceId: finalInstanceId,
     changedIds,
   };
 }

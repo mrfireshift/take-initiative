@@ -132,24 +132,14 @@ export function nearestGridCorner(rawPosition, cornerAnchor, dpi = 1) {
   const raw = finitePoint(rawPosition);
   const anchor = finitePoint(cornerAnchor);
   const safeDpi = Math.max(1, Number(dpi) || 1);
-  const candidates = [];
-  for (let x = -1; x <= 1; x += 1) {
-    for (let y = -1; y <= 1; y += 1) {
-      const position = {
-        x: anchor.x + x * safeDpi,
-        y: anchor.y + y * safeDpi,
-      };
-      candidates.push({
-        position,
-        distance: (position.x - raw.x) ** 2 + (position.y - raw.y) ** 2,
-      });
-    }
-  }
-  const nearest = candidates.reduce((best, candidate) =>
-    !best || candidate.distance < best.distance ? candidate : best
-  , null);
+  const col = Math.round((raw.x - anchor.x) / safeDpi);
+  const row = Math.round((raw.y - anchor.y) / safeDpi);
+  const position = {
+    x: anchor.x + col * safeDpi,
+    y: anchor.y + row * safeDpi,
+  };
   return {
-    position: nearest.position,
+    position,
     gridOrigin: anchor,
   };
 }

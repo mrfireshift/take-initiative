@@ -133,6 +133,25 @@ export function classFeatureChoiceOptions(feature) {
     .filter(Boolean);
 }
 
+export function classFeatureRequiresActivationChoice(feature, enabledFeatureIds = []) {
+  const choices = classFeatureChoiceOptions(feature);
+  if (!choices.length) return false;
+  if (feature?.choiceMode === "configuration") return false;
+  const parentId = classFeatureDurationParentFeatureId(feature);
+  if (parentId) {
+    const parent = CLASS_FEATURE_BY_ID.get(parentId);
+    if (parent && classFeatureChoiceOptions(parent).length > 0) return false;
+  }
+  const enabledChoiceId = (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
+    .map((id) => {
+      const match = choices.find((c) => id === `${feature.id}-${c.id}` || id.endsWith(`-${c.id}`));
+      return match ? match.id : "";
+    })
+    .find(Boolean) || "";
+  if (enabledChoiceId) return false;
+  return true;
+}
+
 export function classFeatureChoiceOption(feature, choiceId = "") {
   const wanted = shortText(choiceId, 120);
   if (!wanted) return null;
@@ -154,6 +173,36 @@ export function classFeatureEffectPlan(feature, choiceId = "") {
 export function classFeatureBreaksConcentration(feature) {
   return feature?.breaksConcentration === true
     || classFeatureDurationParentFeatureId(feature) === "barbaro-ira";
+}
+
+export function purifyingSpellSelectionOptions(spells = []) {
+  return (Array.isArray(spells) ? spells : [])
+    .filter((spell) => spell?.castContext?.staticZoneOwner !== true)
+    .map((spell) => {
+      const instanceId = String(spell?.instanceId || "").trim();
+      const name = String(spell?.name || "Incantesimo").trim();
+      const casterName = String(spell?.casterName || "").trim();
+      const isConcentration = Boolean(spell?.conc);
+      return {
+        instanceId,
+        name,
+        casterName,
+        isConcentration,
+        label: name,
+        subtitle: casterName ? `Lanciato da ${casterName}` : "",
+      };
+    });
+}
+
+export function resolvePurifyingSpellChoice(spells = [], selectedIdentifier = "") {
+  const options = purifyingSpellSelectionOptions(spells);
+  if (!options.length) return null;
+  const wanted = String(selectedIdentifier || "").trim();
+  if (!wanted) return options[0];
+  const byInstance = options.find((opt) => opt.instanceId === wanted);
+  if (byInstance) return byInstance;
+  const byName = options.find((opt) => opt.name.toLowerCase() === wanted.toLowerCase());
+  return byName || null;
 }
 
 export function classFeatureDisplayName(feature, choiceId = "") {
@@ -625,29 +674,17 @@ export function classFeatureEffectProjection(
     160,
   );
   const detail = shortText(raw.detail || feature?.name || "", 240);
+  const displayLabel = shortText(raw.displayLabel, 160);
   const conditionEffectId = shortText(
     raw.conditionEffectId || raw.condition_effect_id,
     220,
   );
   const projectedIdentity = conditionEffectId ? { conditionEffectId } : {};
-  if (!runtimeSupport.ready) {
+  if (!runtimeSupport.ready || raw.kind === "none" || (!feature?.effectPlan && Object.keys(raw).length === 0) || runtimeSupport.adapter === "resource-only") {
     return {
       kind: "none",
       conditionName,
-      detail,
-      ...projectedIdentity,
-      radiusMeters: null,
-      theme: classFeatureTheme(feature),
-      targetEffect: null,
-      targetEffects: [],
-      secondaryEffects: [],
-      membershipTargeting: null,
-    };
-  }
-  if (raw.kind === "none") {
-    return {
-      kind: "none",
-      conditionName,
+      ...(displayLabel ? { displayLabel } : {}),
       detail,
       ...projectedIdentity,
       radiusMeters: null,
@@ -680,6 +717,7 @@ export function classFeatureEffectProjection(
   const targetEffect = targetRaw
     ? {
       conditionName: shortText(targetRaw.conditionName || raw.conditionName || feature?.name || "Capacità", 160),
+      ...(targetRaw.displayLabel ? { displayLabel: shortText(targetRaw.displayLabel, 160) } : {}),
       effectKind: targetRaw.effectKind === "debuff" ? "debuff" : "buff",
       detail: shortText(targetRaw.detail || raw.detail || feature?.name || "", 240),
       mechanics: targetRaw.mechanics && typeof targetRaw.mechanics === "object"
@@ -701,6 +739,7 @@ export function classFeatureEffectProjection(
         entry.conditionName || entry.label || conditionName,
         160,
       ),
+      ...(entry.displayLabel ? { displayLabel: shortText(entry.displayLabel, 160) } : {}),
       effectKind: entry.effectKind === "debuff" ? "debuff" : "buff",
       detail: shortText(entry.detail || detail, 240),
       mechanics: entry.mechanics && typeof entry.mechanics === "object"
@@ -725,6 +764,7 @@ export function classFeatureEffectProjection(
   return {
     kind,
     conditionName,
+    ...(displayLabel ? { displayLabel } : {}),
     detail,
     ...projectedIdentity,
     radiusMeters: Number.isFinite(radiusMeters) && radiusMeters > 0 ? radiusMeters : null,
@@ -786,6 +826,7 @@ export function classFeatureConditionInstance(
     type: "class-feature",
     effectId: shortText(projection.conditionEffectId || feature?.id, 220),
     ...(choiceId ? { choiceId } : {}),
+    ...(projection.displayLabel ? { displayLabel: projection.displayLabel } : {}),
     ...(durationParentFeatureId ? { parentFeatureId: durationParentFeatureId } : {}),
     ...(activation?.parentInstanceId ? { parentInstanceId: activation.parentInstanceId } : {}),
     effectDetail: projection.detail,
@@ -1059,39 +1100,12 @@ export function planClassFeatureActivation({
   if (!classFeatureRuntimeSupport(feature).ready) {
     return { ok: false, reason: "feature-not-automated" };
   }
-  const choices = classFeatureChoiceOptions(feature);
-  const selectedChoiceId = shortText(choiceId, 120);
-  if (choices.length && !selectedChoiceId) {
-    return { ok: false, reason: "choice-required" };
-  }
-  if (choices.length && !choices.some((option) => option.id === selectedChoiceId)) {
-    return { ok: false, reason: "invalid-choice" };
-  }
   const state = normalizeClassFeatureState(stateValue);
   const next = {
     ...state,
     resources: { ...state.resources },
     instances: [...state.instances],
   };
-
-  const round = optionalInteger(currentRound, 1, 99999) ?? 1;
-  if (feature.trackingMode !== "instant") {
-    const targeting = classFeatureTargeting(feature, characterBuild);
-    const requestedTargetIds = new Set(
-      (Array.isArray(targetIds) ? targetIds : [])
-        .map((id) => shortText(id, 220))
-        .filter(Boolean),
-    );
-    const duplicate = activeClassFeatureInstances(state, round)
-      .filter((entry) => entry.featureId === feature.id)
-      .some((entry) => targeting.mode === "self" || targeting.mode === "aura"
-        ? true
-        : (Array.isArray(entry.targetIds) ? entry.targetIds : [])
-          .some((id) => requestedTargetIds.has(id)));
-    if (duplicate) {
-      return { ok: false, reason: "feature-already-active" };
-    }
-  }
 
   const parentFeatureId = classFeatureDurationParentFeatureId(feature);
   const requiredActiveFeatureId = classFeatureRequiredActiveFeatureId(feature);
@@ -1114,6 +1128,44 @@ export function planClassFeatureActivation({
       reason: "parent-feature-required",
       parentFeatureId: requiredActiveFeatureId,
     };
+  }
+
+  const choices = classFeatureChoiceOptions(feature);
+  const enabledChoiceId = (Array.isArray(enabledFeatureIds) ? enabledFeatureIds : [])
+    .map((id) => {
+      const match = choices.find((c) => id === `${feature.id}-${c.id}` || id.endsWith(`-${c.id}`));
+      return match ? match.id : "";
+    })
+    .find(Boolean) || "";
+  const canonicalConfigChoiceId = parentInstance?.choiceId
+    || requiredActiveInstance?.choiceId
+    || enabledChoiceId
+    || "";
+  const selectedChoiceId = canonicalConfigChoiceId || shortText(choiceId, 120);
+  if (choices.length && !selectedChoiceId) {
+    return { ok: false, reason: "choice-required" };
+  }
+  if (choices.length && !choices.some((option) => option.id === selectedChoiceId)) {
+    return { ok: false, reason: "invalid-choice" };
+  }
+
+  const round = optionalInteger(currentRound, 1, 99999) ?? 1;
+  if (feature.trackingMode !== "instant") {
+    const targeting = classFeatureTargeting(feature, characterBuild);
+    const requestedTargetIds = new Set(
+      (Array.isArray(targetIds) ? targetIds : [])
+        .map((id) => shortText(id, 220))
+        .filter(Boolean),
+    );
+    const duplicate = activeClassFeatureInstances(state, round)
+      .filter((entry) => entry.featureId === feature.id)
+      .some((entry) => targeting.mode === "self" || targeting.mode === "aura"
+        ? true
+        : (Array.isArray(entry.targetIds) ? entry.targetIds : [])
+          .some((id) => requestedTargetIds.has(id)));
+    if (duplicate) {
+      return { ok: false, reason: "feature-already-active" };
+    }
   }
 
   for (const cost of Array.isArray(feature.resourceCosts) ? feature.resourceCosts : []) {

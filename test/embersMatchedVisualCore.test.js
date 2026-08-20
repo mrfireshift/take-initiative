@@ -445,6 +445,26 @@ test("Ragnatela usa il lato della preview quadrata, non la diagonale", () => {
   assert.equal(matchedVisualLayerPlan(event.layers[0], event.dpi).scale, 1);
 });
 
+test("Tempesta di Nevischio renderizza il VFX sotto i token", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "sleet-storm",
+    eventId: "sleet-storm-area",
+    lifecycleId: "sleet-storm-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 100 },
+    preview: {
+      type: "circle",
+      start: { x: 500, y: 500 },
+      end: { x: 800, y: 500 },
+      dpi: 100,
+    },
+    sceneDpi: 100,
+  });
+
+  assert.equal(event.layers.length, 1);
+  assert.equal(event.layers[0].layer, "DRAWING");
+});
+
 test("Sfera Infuocata aggancia il WebM al root della zona mobile", () => {
   const event = buildMatchedVisualEvent({
     spellId: "flaming-sphere",

@@ -87,7 +87,8 @@ export function spellMechanicsLabel(mechanics, fallback = "") {
   if (mechanics.damageBonus?.dice) {
     const type = String(mechanics.damageBonus.type || "danni").trim();
     const source = mechanics.damageBonus.sourceOnly === true ? " dal caster" : "";
-    parts.push(`+${mechanics.damageBonus.dice} ${type}${source}`);
+    const prefix = mechanics.damageBonus.total === true ? "" : "+";
+    parts.push(`${prefix}${mechanics.damageBonus.dice} ${type}${source}`);
   }
   if (Number.isFinite(Number(mechanics.tempHp?.amount))) {
     parts.push(`${Number(mechanics.tempHp.amount)} PF temp.`);

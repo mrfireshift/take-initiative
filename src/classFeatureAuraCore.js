@@ -86,9 +86,14 @@ export function collectActiveClassFeatureAuras(
       const characterBuild = characterBuildBySourceId instanceof Map
         ? characterBuildBySourceId.get(activation.sourceId || item.id)
         : characterBuildBySourceId?.[activation.sourceId || item.id];
+      const effectiveChoiceId = activation.choiceId
+        || (activation.parentInstanceId
+          ? state.instances.find((i) => i.instanceId === activation.parentInstanceId)?.choiceId
+          : "")
+        || "";
       const projection = classFeatureEffectProjection(
         feature,
-        activation.choiceId,
+        effectiveChoiceId,
         characterBuild || [],
       );
       if (projection.kind !== "aura") continue;

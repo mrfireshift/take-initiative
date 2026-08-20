@@ -39,12 +39,6 @@ export function decorateCompositeEffectsHistoryEntry({
       Object.prototype.hasOwnProperty.call(change || {}, "sceneBefore")
       && Object.prototype.hasOwnProperty.call(change || {}, "sceneAfter")
     ) {
-      sideEffects.push({
-        id: change.id,
-        type: "item",
-        before: clone(change.sceneBefore),
-        after: clone(change.sceneAfter),
-      });
       continue;
     }
     const normalized = byId.get(change.id) || {

@@ -119,3 +119,39 @@ test("la transazione composita Quick HP produce una sola entry effectsMutation",
   assert.equal((apply.match(/runEffectsMutation\(coordinatedOperations/g) || []).length, 1);
   assert.match(apply, /history: false/);
 });
+
+test("il transport Effects non confronta epoch numeriche tra realm", () => {
+  const mount = section(
+    effects,
+    "export async function mountEffectsMutationCoordinatorService()",
+    "export function unmountEffectsMutationCoordinatorService()",
+  );
+  assert.match(mount, /sceneEpoch:\s*currentSceneEpoch\(\)/);
+  assert.doesNotMatch(
+    mount,
+    /sceneEpoch:\s*Number\.isInteger\(options\.sceneEpoch\)[\s\S]*?\?\s*options\.sceneEpoch/,
+  );
+
+  const run = section(
+    effects,
+    "export async function runEffectsMutation",
+    "export async function undoEffectsMutation",
+  );
+  assert.match(run, /sceneEpoch:\s*_clientSceneEpoch/);
+  assert.match(run, /opaque background sceneIdentity handshake/);
+  const wireCommand = run.slice(
+    run.indexOf('requestBackgroundMutation(\n      "apply"'),
+    run.indexOf("return compatibilityPlan(result);"),
+  );
+  assert.doesNotMatch(wireCommand, /\bsceneEpoch\s*,/);
+});
+
+test("gli errori Effects espongono anche il reason di rejection", async () => {
+  const { mutationResultError } = await import("../src/effectsMutationCoordinator.js");
+  const error = mutationResultError({
+    status: "rejected",
+    reason: "stale-scene-identity",
+  });
+  assert.equal(error.reason, "stale-scene-identity");
+  assert.match(error.message, /stale-scene-identity/);
+});

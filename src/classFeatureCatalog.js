@@ -124,9 +124,19 @@ export function getEnabledClassFeatures(profile) {
   const available = getAvailableClassFeatures(profile?.characterBuild);
   const configured = profile?.classFeaturesConfigured === true;
   const enabled = new Set(sanitizeEnabledClassFeatureIds(profile?.enabledClassFeatureIds));
-  return available.filter((feature) =>
+  const selected = available.filter((feature) =>
     configured ? enabled.has(feature.id) : feature.defaultEnabled
   );
+  const seenOptionGroups = new Set();
+  const result = [];
+  for (const feature of selected) {
+    if (feature.optionGroup) {
+      if (seenOptionGroups.has(feature.optionGroup)) continue;
+      seenOptionGroups.add(feature.optionGroup);
+    }
+    result.push(feature);
+  }
+  return result;
 }
 
 export function classFeatureTargetMode(feature, characterBuild = []) {

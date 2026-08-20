@@ -21,6 +21,8 @@ function isObject(value) {
   return !!value && typeof value === "object";
 }
 
+
+
 function stableSemanticValue(value, seen = new Set()) {
   if (value === null || typeof value !== "object") return value;
   if (seen.has(value)) throw new TypeError("history-value-must-not-be-cyclic");
@@ -39,9 +41,47 @@ function stableSemanticValue(value, seen = new Set()) {
   return output;
 }
 
+function historyStorageValuesEqual(left, right) {
+  try {
+    return JSON.stringify(stableSemanticValue(left))
+      === JSON.stringify(stableSemanticValue(right));
+  } catch {
+    return false;
+  }
+}
+
+export function compactHistoryEntryForStorage(value) {
+  if (!isObject(value) || Array.isArray(value)) return clone(value);
+  const compact = clone(value);
+  const mutation = compact.effectsMutation;
+  if (isObject(mutation) && !Array.isArray(mutation)) {
+    if (
+      Array.isArray(compact.changes)
+      && Array.isArray(mutation.changes)
+      && historyStorageValuesEqual(compact.changes, mutation.changes)
+    ) {
+      delete mutation.changes;
+    }
+    if (Array.isArray(mutation.sideEffects) && mutation.sideEffects.length === 0) {
+      delete mutation.sideEffects;
+    }
+  }
+  return compact;
+}
+
+function semanticHistoryEntryValue(value) {
+  if (!isObject(value) || Array.isArray(value)) return value;
+  const semantic = compactHistoryEntryForStorage(value);
+  // storeSeq belongs to the History owner, not to the action payload. Ignore
+  // only this top-level transport field so nested domain data remains strict.
+  delete semantic.storeSeq;
+  return semantic;
+}
+
 export function semanticHistoryEqual(left, right) {
   try {
-    return JSON.stringify(stableSemanticValue(left)) === JSON.stringify(stableSemanticValue(right));
+    return JSON.stringify(stableSemanticValue(semanticHistoryEntryValue(left)))
+      === JSON.stringify(stableSemanticValue(semanticHistoryEntryValue(right)));
   } catch {
     return left === right;
   }
@@ -62,11 +102,20 @@ export function normalizeHistoryState(
     ? []
     : (Array.isArray(root.entries) ? root.entries.filter(Boolean) : []);
   const limit = Math.max(1, Math.floor(Number(maxEntries) || HISTORY_OWNER_MAX_ENTRIES));
+  const maxExistingSeq = rawEntries.reduce((max, e) => {
+    const s = Number(e?.storeSeq);
+    return Number.isFinite(s) && s > max ? s : max;
+  }, 0);
+  const seq = Number.isFinite(root.seq) ? Number(root.seq) : maxExistingSeq;
   return {
     ...root,
     version,
+    seq,
     ...(normalizedRoomId ? { roomId: normalizedRoomId } : {}),
-    entries: rawEntries.slice(-limit),
+    // La normalizzazione non deve mai espellere Undo validi per un budget
+    // arbitrario piu basso del limite Owlbear. Compattiamo solo ridondanze
+    // semantiche e manteniamo la retention canonica per conteggio.
+    entries: rawEntries.slice(-limit).map((entry) => compactHistoryEntryForStorage(entry)),
   };
 }
 
@@ -77,6 +126,32 @@ function result(status, history, extra = {}) {
     history,
     ...extra,
   };
+}
+
+function historyEntryOrderValue(entry) {
+  const at = Number(entry?.at) || 0;
+  const storeSeq = Number(entry?.storeSeq);
+  return {
+    at,
+    hasStoreSeq: Number.isFinite(storeSeq),
+    storeSeq: Number.isFinite(storeSeq) ? storeSeq : 0,
+    id: String(entry?.id || ""),
+  };
+}
+
+export function compareHistoryEntries(a, b) {
+  const ordA = historyEntryOrderValue(a);
+  const ordB = historyEntryOrderValue(b);
+  // `at` belongs to the action and survives retries/reloads. The owner-only
+  // storeSeq is a deterministic tie-breaker for actions created in the same
+  // millisecond, not a replacement for action chronology.
+  if (ordA.at !== ordB.at) {
+    return ordA.at - ordB.at;
+  }
+  if (ordA.hasStoreSeq && ordB.hasStoreSeq && ordA.storeSeq !== ordB.storeSeq) {
+    return ordA.storeSeq - ordB.storeSeq;
+  }
+  return ordA.id.localeCompare(ordB.id);
 }
 
 export function appendHistoryEntry(
@@ -111,13 +186,36 @@ export function appendHistoryEntry(
   }
 
   const limit = Math.max(1, Math.floor(Number(options.maxEntries) || HISTORY_OWNER_MAX_ENTRIES));
+  // Compatta sempre la rappresentazione persistita senza perdere semantica Undo.
+  // In particolare, non salviamo due copie identiche di `changes`.
+  let assignedEntry = compactHistoryEntryForStorage(entry);
+  let nextSeq = Number(history.seq) || 0;
+  if (!Number.isFinite(Number(assignedEntry?.storeSeq))) {
+    nextSeq += 1;
+    assignedEntry.storeSeq = nextSeq;
+  } else {
+    const existingSeq = Number(assignedEntry.storeSeq);
+    if (existingSeq > nextSeq) nextSeq = existingSeq;
+  }
+
+  const entries = [...history.entries];
+  let insertIdx = entries.length;
+  for (let i = entries.length - 1; i >= 0; i -= 1) {
+    if (compareHistoryEntries(assignedEntry, entries[i]) < 0) {
+      insertIdx = i;
+    } else {
+      break;
+    }
+  }
+  entries.splice(insertIdx, 0, clone(assignedEntry));
   const nextHistory = {
     ...history,
-    entries: [...history.entries, clone(entry)].slice(-limit),
+    seq: nextSeq,
+    entries: entries.slice(-limit),
   };
   return result(HISTORY_OWNER_STATUS.APPLIED, nextHistory, {
     changed: true,
-    entry: clone(entry),
+    entry: clone(assignedEntry),
   });
 }
 
@@ -218,6 +316,11 @@ export function createHistoryOwnerBroker({
   let queue = Promise.resolve();
   const results = new Map();
   const inFlight = new Map();
+  // Reserve append order when the owner first accepts an entry, before the
+  // metadata write. A failed write therefore cannot let a later entry jump
+  // ahead of the retried action. Reservations live for the scene context.
+  const appendOrderReservations = new Map();
+  let nextReservedStoreSeq = 0;
 
   function captureScene() {
     return { ...scene };
@@ -260,6 +363,8 @@ export function createHistoryOwnerBroker({
     queue = Promise.resolve();
     results.clear();
     inFlight.clear();
+    appendOrderReservations.clear();
+    nextReservedStoreSeq = 0;
     return captureScene();
   }
 
@@ -286,6 +391,7 @@ export function createHistoryOwnerBroker({
     if (!isCurrent(captured)) return rejected(command, captured, "stale-scene");
 
     let rawHistory;
+    let preparedAppendEntry = null;
     try {
       rawHistory = await readHistory({ command, scene: captured });
       if (!isCurrent(captured)) return rejected(command, captured, "stale-after-history-read");
@@ -293,7 +399,27 @@ export function createHistoryOwnerBroker({
       const history = normalizeHistory(rawHistory, { maxEntries });
       let outcome;
       if (command.kind === "append") {
-        outcome = appendHistoryEntry(history, command.entry, { maxEntries });
+        const entryId = String(command?.entry?.id || "").trim();
+        const persistedSeq = Number(history?.seq) || 0;
+        if (persistedSeq > nextReservedStoreSeq) nextReservedStoreSeq = persistedSeq;
+
+        let reservedStoreSeq = Number(command?.entry?.storeSeq);
+        if (!Number.isFinite(reservedStoreSeq)) {
+          reservedStoreSeq = appendOrderReservations.get(entryId);
+        }
+        if (!Number.isFinite(reservedStoreSeq)) {
+          nextReservedStoreSeq += 1;
+          reservedStoreSeq = nextReservedStoreSeq;
+        } else if (reservedStoreSeq > nextReservedStoreSeq) {
+          nextReservedStoreSeq = reservedStoreSeq;
+        }
+        if (entryId) appendOrderReservations.set(entryId, reservedStoreSeq);
+
+        preparedAppendEntry = {
+          ...clone(command.entry),
+          storeSeq: reservedStoreSeq,
+        };
+        outcome = appendHistoryEntry(history, preparedAppendEntry, { maxEntries });
       } else if (command.kind === "remove") {
         outcome = removeHistoryEntries(history, command.ids, { maxEntries });
       } else if (command.kind === "clear") {
@@ -365,6 +491,7 @@ export function createHistoryOwnerBroker({
         ...base,
         status: HISTORY_OWNER_STATUS.FAILED,
         changed: false,
+        ...(preparedAppendEntry ? { entry: clone(preparedAppendEntry) } : {}),
         error: serializedError(error),
       };
     }

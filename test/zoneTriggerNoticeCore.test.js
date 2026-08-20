@@ -42,6 +42,26 @@ test("consegna più notice valide consecutive mantenendone l'ordine", () => {
   );
 });
 
+test("la baseline non mostra e non marca come annunciati i reminder pendenti", () => {
+  const result = planZoneTriggerNoticeDelivery(
+    [validNotice("activation-live", "target-1")],
+    [],
+    { baseline: true },
+  );
+
+  assert.deepEqual(result.notices, []);
+  assert.deepEqual(result.announcedIds, []);
+
+  const live = planZoneTriggerNoticeDelivery(
+    [validNotice("activation-live", "target-1")],
+    result.announcedIds,
+  );
+  assert.deepEqual(
+    live.notices.map((notice) => notice.activationId),
+    ["activation-live"],
+  );
+});
+
 test("deduplica gli ID già annunciati e i duplicati nello stesso batch", () => {
   const result = planZoneTriggerNoticeDelivery([
     validNotice("already-announced"),
@@ -338,4 +358,60 @@ test("il cambio turno conserva un reminder già arrivato per lo stesso turno", (
     shouldClearZoneNoticeAtTurn("", "2:1:nothic"),
     true,
   );
+});
+
+
+test("Nube di Pugnali e Tentacoli Neri aprono il box danno senza TS", () => {
+  const itemsById = new Map([
+    ["zone", {
+      id: "zone",
+      name: "Zona",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      name: "Caster",
+      metadata: {
+        [META_KEY]: {
+          [ID + "/spells"]: [{
+            instanceId: "cloud-1",
+            castContext: { slotLevel: 3 },
+          }],
+        },
+      },
+    }],
+    ["target", { id: "target", name: "Target" }],
+  ]);
+
+  const cloud = zoneTriggerNoticeFromActivation({
+    id: "cloud-damage",
+    zoneItemId: "zone",
+    instanceId: "cloud-1",
+    resolution: "manual-effect",
+    damage: {
+      dice: "4d4",
+      type: "taglienti",
+      onSave: "none",
+      baseSlot: 2,
+      additionalPerSlotAbove: 2,
+    },
+    targetIds: ["target"],
+  }, itemsById);
+  assert.equal(cloud.kind, "zone-effect");
+  assert.equal(cloud.resolution.mode, "manual-damage");
+  assert.equal(cloud.resolution.damage.dice, "6d4");
+
+  const tentacles = zoneTriggerNoticeFromActivation({
+    id: "tentacles-damage",
+    zoneItemId: "zone",
+    instanceId: "tentacles-1",
+    resolution: "manual-effect",
+    damage: { dice: "3d6", type: "contundenti", onSave: "none" },
+    targetIds: ["target"],
+  }, itemsById);
+  assert.equal(tentacles.kind, "zone-effect");
+  assert.equal(tentacles.resolution.mode, "manual-damage");
+  assert.equal(tentacles.resolution.damage.dice, "3d6");
 });

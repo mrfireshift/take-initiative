@@ -5,7 +5,7 @@ import {
   runEffectsMutation,
   tickRoundEffects,
 } from "./effectsMutations.js";
-import { spellExpiryCounter, spellExpiryDescription } from "./spellExpiryCore.js";
+import { spellPillCounter, spellExpiryDescription } from "./spellExpiryCore.js";
 import { spellColorFor } from "./spellColorCore.js";
 
 const META_KEY = ID + "/meta";
@@ -318,6 +318,6 @@ function formatSpellChip(name, spell) {
   const short = normalizedName.length > 10
     ? normalizedName.slice(0, 9) + "…"
     : normalizedName;
-  const counter = spellExpiryCounter(spell);
+  const counter = spellPillCounter(spell);
   return counter ? short + " (" + counter + ")" : short;
 }

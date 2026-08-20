@@ -6,9 +6,13 @@ import {
   CALL_LIGHTNING_TURN_PROMPT_ACTION_ID,
   callLightningTurnPromptPayloads,
   FLAME_INVESTITURE_TURN_PROMPT_ACTION_ID,
+  MAXIMILIAN_GRAB_TURN_PROMPT_ACTION_ID,
+  MAXIMILIAN_CRUSH_TURN_PROMPT_ACTION_ID,
+  spellTurnPromptRequests,
   STORM_SPHERE_TURN_PROMPT_ACTION_ID,
 } from "../src/callLightningTurnPromptCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
+import { SPELL_BOARD_TOKEN_META_KEY } from "../src/spellBoardTokenCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -169,4 +173,53 @@ test("la Linea di fuoco compare dal turno successivo al lancio e usa il popup de
   assert.equal(payloads[0].actionId, FLAME_INVESTITURE_TURN_PROMPT_ACTION_ID);
   assert.equal(payloads[0].slotLevel, 6);
   assert.equal(payloads[0].zoneItemId, undefined);
+});
+
+function maximilianOwnerSpell(instanceId, casterId, turnKey) {
+  return {
+    name: "Stretta della Terra di Maximilian",
+    spellId: "xanathar-stretta-della-terra-di-maximilian",
+    instanceId,
+    casterId,
+    appliedAt: { round: 1, actorId: casterId, turnKey },
+    conc: true,
+    castContext: { boardToken: true, slotLevel: 2 },
+  };
+}
+
+test("Maximilian apre dal turno successivo un solo chooser con Afferra e Stritola", () => {
+  const castTurn = "1:0:caster-a";
+  const items = [
+    item("caster-a", [maximilianOwnerSpell("grasp-a", "caster-a", castTurn)]),
+    {
+      id: "max-hand",
+      metadata: {
+        [SPELL_BOARD_TOKEN_META_KEY]: {
+          kind: "spell-board-token",
+          spellId: "xanathar-stretta-della-terra-di-maximilian",
+          instanceId: "grasp-a",
+          casterId: "caster-a",
+          slotLevel: 2,
+          state: { revision: 0 },
+        },
+      },
+    },
+  ];
+
+  assert.deepEqual(spellTurnPromptRequests({
+    items, actorId: "caster-a", sceneEpoch: 9, turnKey: castTurn,
+  }), []);
+
+  const requests = spellTurnPromptRequests({
+    items, actorId: "caster-a", sceneEpoch: 9, turnKey: "2:0:caster-a",
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].kind, "choice");
+  assert.equal(requests[0].instanceId, "grasp-a");
+  assert.equal(requests[0].zoneItemId, "max-hand");
+  assert.deepEqual(
+    requests[0].actions.map((payload) => payload.actionId),
+    [MAXIMILIAN_GRAB_TURN_PROMPT_ACTION_ID, MAXIMILIAN_CRUSH_TURN_PROMPT_ACTION_ID],
+  );
+  assert.ok(requests[0].actions.every((payload) => payload.zoneItemId === "max-hand"));
 });

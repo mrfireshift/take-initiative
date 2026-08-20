@@ -45,6 +45,23 @@ test("il warning concentrazione produce un reminder con riferimento stabile", ()
   );
 });
 
+
+test("il warning conserva la History entry che ha causato il danno", () => {
+  const warning = buildConcentrationSaveWarning({
+    casterId: "caster-1",
+    casterName: "Lavera",
+    concentration: {
+      ragnatela: { instanceId: "spell-1", name: "Ragnatela" },
+    },
+    damage: 12,
+    dc: 10,
+    eventId: "damage-causal",
+    causeHistoryEntryId: "history-damage-1",
+  });
+
+  assert.equal(warning.notice.causeHistoryEntryId, "history-damage-1");
+});
+
 test("Superato conserva la spell e Fallito interrompe la concentrazione corrente", () => {
   const concentration = {
     ragnatela: { instanceId: "spell-1", name: "Ragnatela" },

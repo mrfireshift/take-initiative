@@ -191,7 +191,8 @@ function turnContext(event) {
 function collectionItemName(item, field) {
   if (typeof item === "string" || typeof item === "number") return String(item);
   return stringValue(
-    item?.name
+    item?.displayLabel
+      || item?.name
       || item?.condition
       || item?.spellName
       || item?.label
@@ -289,23 +290,34 @@ function explicitDamageLines(event) {
   const causality = eventCausality(event);
   const lines = [];
   const total = finiteNumber(payload.damage);
-  if (total !== null) lines.push(`${numberText(total)} danni`);
+  if (total !== null && total > 0) lines.push(`${numberText(total)} danni`);
   const legacyRoll = finiteNumber(payload.damageRoll);
-  if (legacyRoll !== null) lines.push(`Tiro del danno: ${numberText(legacyRoll)}`);
+  if (legacyRoll !== null && legacyRoll > 0 && total !== 0) {
+    lines.push(`Tiro del danno: ${numberText(legacyRoll)}`);
+  }
   for (const target of Array.isArray(payload.targets) ? payload.targets : []) {
     const damage = finiteNumber(target?.damage);
-    if (damage !== null) lines.push(`${targetName(target)}: ${numberText(damage)} danni`);
+    if (damage !== null && damage > 0) lines.push(`${targetName(target)}: ${numberText(damage)} danni`);
   }
   const causalRoll = finiteNumber(causality?.action?.damageRoll);
-  if (causalRoll !== null && legacyRoll === null) {
+  if (causalRoll !== null && legacyRoll === null && causalRoll > 0 && total !== 0) {
     lines.push(`Tiro del danno: ${numberText(causalRoll)}`);
   }
   for (const target of Array.isArray(causality?.targets) ? causality.targets : []) {
     const name = targetName(target);
     const requested = finiteNumber(target?.requestedDamage);
     const applied = finiteNumber(target?.appliedHpDelta);
-    if (requested !== null) lines.push(`${name}: ${numberText(requested)} danni richiesti`);
-    if (applied !== null) lines.push(`${name}: ${signedNumber(applied)} HP applicati`);
+    if (
+      requested !== null
+      && requested > 0
+      && target?.outcome !== "passed"
+      && target?.outcome !== "immune"
+      && target?.damageFactor !== 0
+      && target?.damageFactor !== "zero"
+    ) {
+      lines.push(`${name}: ${numberText(requested)} danni richiesti`);
+    }
+    if (applied !== null && applied !== 0) lines.push(`${name}: ${signedNumber(applied)} HP applicati`);
   }
   return [...new Set(lines)];
 }
@@ -358,13 +370,20 @@ function causalityDetailLines(event) {
   for (const target of Array.isArray(causality.targets) ? causality.targets : []) {
     const targetLines = [];
     if (target.outcome) targetLines.push(outcomeLabel(target.outcome));
-    if (finiteNumber(target.requestedDamage) !== null) {
+    if (
+      finiteNumber(target.requestedDamage) !== null
+      && target.requestedDamage > 0
+      && target.outcome !== "passed"
+      && target.outcome !== "immune"
+      && target.damageFactor !== 0
+      && target.damageFactor !== "zero"
+    ) {
       targetLines.push(`${numberText(target.requestedDamage)} richiesti`);
     }
-    if (finiteNumber(target.appliedHpDelta) !== null) {
+    if (finiteNumber(target.appliedHpDelta) !== null && target.appliedHpDelta !== 0) {
       targetLines.push(`${signedNumber(target.appliedHpDelta)} HP applicati`);
     }
-    if (finiteNumber(target.damageFactor) !== null) {
+    if (finiteNumber(target.damageFactor) !== null && target.damageFactor > 0) {
       targetLines.push(`fattore ${numberText(target.damageFactor)}`);
     }
     if (targetLines.length) lines.push(`${targetName(target)}: ${targetLines.join(", ")}`);
@@ -378,7 +397,10 @@ function eventSummary(event, targets, outcomes) {
   const hpLines = hpTargets(event).map(hpTargetLine);
   const facetLines = ["conditions", "spells", "concentrations"]
     .flatMap((field) => facetChangeLines(event?.facets?.[field], field));
-  if (category === "hp") return hpLines.join(" · ") || "Variazione HP registrata";
+  if (category === "hp") {
+    const lines = [...hpLines, ...facetLines];
+    return lines.join(" · ") || "Variazione HP registrata";
+  }
   if (category === "movement") {
     const movement = targets.map((target) => `${target.name}: ${numberText(target.cells)} caselle`);
     return movement.join(" · ") || "Movimento registrato";
@@ -387,7 +409,8 @@ function eventSummary(event, targets, outcomes) {
     const outcomeText = outcomes.join(", ");
     const targetText = targets.map((target) => target.name).join(", ");
     const damageText = explicitDamageLines(event).join(", ");
-    return [outcomeText, targetText, damageText].filter(Boolean).join(" · ") || "Risoluzione tiro salvezza";
+    const facetText = facetLines.join(", ");
+    return [outcomeText, targetText, facetText, damageText].filter(Boolean).join(" · ") || "Risoluzione tiro salvezza";
   }
   if (category === "note") return stringValue(event?.payload?.text) || "Nota manuale";
   if (category === "undo") return stringValue(event?.payload?.description) || "Azioni annullate";

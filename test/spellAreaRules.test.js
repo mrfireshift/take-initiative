@@ -184,6 +184,11 @@ test("le aree ostili includono il caster salvo immunità esplicite", () => {
     false,
   );
   assert.equal(
+    getSpellAreaRuleById("xanathar-parola-radiosa:cast")
+      .targeting.includeCaster,
+    false,
+  );
+  assert.equal(
     getSpellAreaRuleById("phb2014-braccia-di-hadar:cast")
       .targeting.includeCaster,
     false,
@@ -487,7 +492,7 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
     "wall-of-fire": ["enter:informational", "turn-end:informational"],
     "wall-of-thorns": ["enter:manual-save", "turn-end:manual-save"],
     "xanathar-creare-falo": ["enter:manual-save", "turn-end:manual-save"],
-    "xanathar-muro-di-luce": ["turn-end:informational"],
+    "xanathar-muro-di-luce": ["turn-end:manual-effect"],
     "phb2014-cordone-di-frecce": [
       "enter:manual-save",
       "turn-end:manual-save",
@@ -587,7 +592,7 @@ test("il lotto delle zone differite dichiara TS, danni automatici e concentrazio
     "black-tentacles": [
       "enter:manual-save",
       "turn-start:manual-save",
-      "turn-start:informational",
+      "turn-start:manual-effect",
     ],
     grease: [
       "enter:manual-save",
@@ -597,8 +602,8 @@ test("il lotto delle zone differite dichiara TS, danni automatici e concentrazio
       "turn-start:manual-save",
     ],
     "phb2014-nube-di-pugnali": [
-      "enter:informational",
-      "turn-start:informational",
+      "enter:manual-effect",
+      "turn-start:manual-effect",
     ],
   };
   for (const [spellId, contracts] of Object.entries(expected)) {
@@ -636,16 +641,24 @@ test("il lotto delle zone differite dichiara TS, danni automatici e concentrazio
     [
       "enter:manual-save",
       "turn-start:manual-save",
-      "cast:informational",
-      "enter:informational",
-      "turn-start:informational",
+      "cast:manual-save",
+      "enter:manual-save",
+      "turn-start:manual-save",
     ],
   );
-  assert.ok(
-    sleet.zonePolicy.triggers
-      .filter((trigger) => trigger.resolution === "informational")
-      .every((trigger) => trigger.requiresConcentration === true)
-  );
+  const concentrationTriggers = sleet.zonePolicy.triggers
+    .filter((trigger) => trigger.requiresConcentration === true);
+  assert.equal(concentrationTriggers.length, 3);
+  assert.ok(concentrationTriggers.every((trigger) => (
+    trigger.resolution === "manual-save" && trigger.ability === "con"
+  )));
+  for (const triggerId of [
+    "sleet-storm-save-on-entry",
+    "sleet-storm-save-on-turn-start",
+  ]) {
+    const trigger = sleet.zonePolicy.triggers.find((entry) => entry.id === triggerId);
+    assert.equal(trigger.resolutionData.failureCondition.options.parentEffectId, "");
+  }
 });
 
 test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trigger RAW", () => {
@@ -788,11 +801,11 @@ test("Sfera Acquea, Spirito Guaritore, Crescita di Spine e Muro di Ghiaccio trac
 });
 
 test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () => {
-  assert.equal(AREA_SAVE_SPELL_IDS.length, 97);
+  assert.equal(AREA_SAVE_SPELL_IDS.length, 94);
   assert.equal(AREA_PLACEMENT_ONLY_SPELL_IDS.length, 35);
-  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 133);
-  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 8);
-  assert.equal(AREA_POPOVER_SPELL_IDS.length, 141);
+  assert.equal(AREA_PLACEABLE_SPELL_IDS.length, 130);
+  assert.equal(MULTI_TARGET_SAVE_SPELL_IDS.length, 12);
+  assert.equal(AREA_POPOVER_SPELL_IDS.length, 142);
   assert.equal(AREA_SAVE_SPELL_IDS.includes("phb2014-fame-di-hadar"), false);
   assert.equal(
     AREA_PLACEMENT_ONLY_SPELL_IDS.includes("phb2014-fame-di-hadar"),
@@ -815,7 +828,7 @@ test("ogni incantesimo posizionabile del popover ha una sagoma di lancio", () =>
 test("l'audit classifica ogni campo area dell'intero catalogo", () => {
   const excludedIds = Object.keys(AREA_FIELD_NON_POPOVER_REASONS);
   const popoverIds = new Set(AREA_POPOVER_SPELL_IDS);
-  assert.equal(excludedIds.length, 27);
+  assert.equal(excludedIds.length, 29);
   for (const spellId of excludedIds) {
     assert.ok(getSpellDefinition(spellId)?.area, spellId);
     assert.equal(popoverIds.has(spellId), false, spellId);
@@ -990,4 +1003,15 @@ test("le tre zone con varianti separano le modalita dagli effetti concorrenti", 
       ["turn-end", true, "caster"],
     ],
   );
+});
+
+
+test("Nube di Pugnali espone danno manuale scalabile nei reminder", () => {
+  const rule = getSpellAreaRuleById("phb2014-nube-di-pugnali:cast");
+  assert.ok(rule.zonePolicy.triggers.every((trigger) => (
+    trigger.resolution === "manual-effect"
+    && trigger.damage?.dice === "4d4"
+    && trigger.damage?.baseSlot === 2
+    && trigger.damage?.additionalPerSlotAbove === 2
+  )));
 });

@@ -353,3 +353,23 @@ test("la riconciliazione migra una vecchia label generica alla condizione reale"
   }]);
   assert.equal(plan.operations[1].conditionName, "Accecato");
 });
+
+test("SP-B04A — la membership di Unto espone Terreno difficile come pill standard", () => {
+  const rule = getSpellAreaRuleById("grease:cast");
+  const plan = areaMembershipPlan({
+    instanceId: "grease-instance",
+    sourceId: "caster",
+    zoneId: "grease-zone",
+    rule,
+    desiredTargetIds: ["target"],
+    items: [],
+    metaKey: META,
+    sourceName: "Caster",
+  });
+  const addition = plan.operations.find((operation) => operation.type === "condition:add");
+
+  assert.equal(addition.conditionName, "Terreno difficile / Unto");
+  assert.equal(addition.options.effectId, "grease-difficult-terrain");
+  assert.equal("effectKind" in addition.options, false);
+  assert.equal(addition.options.mechanics.movement.costMultiplier, 2);
+});

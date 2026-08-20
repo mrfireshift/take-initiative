@@ -88,6 +88,28 @@ test("classifies canonical HP, conditions and concentration independently", () =
   assert.equal(concentrationEvent.flags.conditions, false);
 });
 
+test("classifica la modifica dei marker reminder nel dominio effects", () => {
+  const before = token();
+  const after = token({
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        attitude: "enemy",
+        reminderResolutions: {
+          "effect-activation": { outcome: "passed" },
+        },
+      },
+    },
+  });
+  const event = classifySceneItemChanges([before], [after]);
+
+  assert.equal(event.flags.reminderResolutions, true);
+  assert.equal(event.flags.conditions, false);
+  assert.equal(event.flags.concentration, false);
+  assert.ok(event.domains.includes("effects"));
+});
+
 test("recognizes active-turn label-only updates", () => {
   const before = {
     id: "label-1",

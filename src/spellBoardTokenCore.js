@@ -118,6 +118,27 @@ export const SPELL_BOARD_TOKEN_RULES = Object.freeze({
       detail: "Azione bonus: muovi la pedina fino a 9 m e compi fino a due attacchi entro 1,5 m. Critico con 18-20: 12d12 forza. La lama attraversa le barriere.",
     })]),
   }),
+  "xanathar-stretta-della-terra-di-maximilian": Object.freeze({
+    spellId: "xanathar-stretta-della-terra-di-maximilian",
+    label: "Stretta della Terra di Maximilian",
+    assetPath: "/spell-token-arcane-hand.webp",
+    displayNameFormat: "parenthesized-caster",
+    assetPixelSize: 560,
+    sizeCategory: "Medium",
+    spaceCells: 1,
+    fillsSpace: false,
+    creationRangeMeters: 9,
+    movementMeters: 9,
+    reachMeters: 1.5,
+    concentration: true,
+    spellOwner: "caster",
+    castTargeting: Object.freeze({
+      confirmTargets: true,
+      selectionMode: "post-placement",
+      maxTargets: 1,
+      rangeMeters: 1.5,
+    }),
+  }),
   "arcane-hand": Object.freeze({
     spellId: "arcane-hand",
     label: "Mano arcana",
@@ -236,7 +257,21 @@ export function getSpellBoardTokenPlacementRule(spellOrId) {
     targeting: Object.freeze({
       filter: "all",
       includeCaster: false,
-      confirmTargets: false,
+      confirmTargets: rule.castTargeting?.confirmTargets === true,
+      selectionMode: rule.castTargeting?.selectionMode || "area",
+      ...(Number.isInteger(Number(rule.castTargeting?.maxTargets))
+        ? { maxTargets: Math.max(0, Number(rule.castTargeting.maxTargets)) }
+        : {}),
+      ...(Number.isFinite(Number(rule.castTargeting?.rangeMeters))
+        && Number(rule.castTargeting.rangeMeters) > 0
+        ? {
+          spatial: Object.freeze({
+            mode: "placement-range",
+            maxMeters: Number(rule.castTargeting.rangeMeters),
+            selectionMode: rule.castTargeting?.selectionMode || "post-placement",
+          }),
+        }
+        : {}),
     }),
     boardToken: rule,
     ...(rule.composition ? { composition: rule.composition } : {}),

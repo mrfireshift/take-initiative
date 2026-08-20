@@ -30,7 +30,10 @@ test("il catalogo unificato coincide con l'unione deduplicata delle due fonti le
     union: expectedIds.size,
   });
   assert.equal(entries.length, 392);
-  assert.equal(entries.filter((entry) => entry.sources.length > 1).length, 112);
+  assert.equal(
+    entries.filter((entry) => entry.sources.length > 1).length,
+    [...spellsPanelIds].filter((id) => areaConsoleIds.has(id)).length,
+  );
 });
 
 test("i record recuperati dalla Console area mantengono lane e contratto", () => {

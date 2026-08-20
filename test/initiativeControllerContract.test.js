@@ -107,6 +107,50 @@ test("il bootstrap separa setup UI e gate scene prima delle letture dipendenti d
   assert.doesNotMatch(boot, /mountTurnNoticeBroadcast/);
 });
 
+test("il dirty flush degli editor condivide lo scope del renderer del tracker", () => {
+  const mountStart = normalizedSource.indexOf("export function mountInitiativeList(container) {");
+  const flushStart = normalizedSource.indexOf("function __scheduleEditorDirtyFlush()", mountStart);
+  const renderStart = normalizedSource.indexOf('async function renderAll(reason = "unspecified")', mountStart);
+  assert.ok(mountStart >= 0, "mountInitiativeList assente");
+  assert.ok(flushStart > mountStart, "il dirty flush deve essere dichiarato dentro mountInitiativeList");
+  assert.ok(renderStart > flushStart, "renderAll deve condividere lo scope del dirty flush");
+  assert.equal(
+    normalizedSource.indexOf("function __scheduleEditorDirtyFlush()"),
+    flushStart,
+    "non deve esistere un dirty flush top-level separato dal renderer",
+  );
+  const flush = normalizedSource.slice(flushStart, normalizedSource.indexOf("if (container.__initiativeMounted)", flushStart));
+  assertOrdered(flush, [
+    "const requiresFull = __fullRenderDirty;",
+    'await renderAll("editor-close")',
+    "await __requestIncrementalTrackerItems(",
+    'if (!scheduled) await renderAll("editor-close-fallback")',
+  ]);
+});
+
+test("le condizioni canoniche forzano la sincronizzazione completa della card", () => {
+  const syncStart = normalizedSource.indexOf(
+    "// Le condizioni cambiano poco frequentemente ma modificano struttura e altezza"
+  );
+  const quickActionStart = normalizedSource.indexOf(
+    'if (!__isCurrentSceneOperation(sceneEpoch, "quick-action-restore")) return null;',
+    syncStart,
+  );
+  assert.ok(syncStart >= 0, "manca il subscriber immediato per la sync condizioni/card");
+  assert.ok(quickActionStart > syncStart, "il subscriber condizioni/card non e delimitabile");
+  const sync = normalizedSource.slice(syncStart, quickActionStart);
+  assertOrdered(sync, [
+    'if (!__isCurrentSceneOperation(sceneEpoch, "condition-card-full-sync")) return;',
+    "const trackedIds = (event?.items || [])",
+    "__latestSceneItemEventRevision = Math.max(",
+    "if (__suspendRenders || __editingInitForId || __editingHPForId) {",
+    "__fullRenderDirty = true;",
+    'void renderAll("conditions-canonical")',
+    "filter: (event) => event.flags.conditions,",
+    "immediate: true,",
+  ]);
+});
+
 test("il bootstrap acquisisce il turno corrente senza inviare un reminder", () => {
   const boot = sourceSection(
     "const bootPersistedState = await getSceneState();",

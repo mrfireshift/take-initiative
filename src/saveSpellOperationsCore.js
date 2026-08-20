@@ -1,3 +1,7 @@
+import {
+  AREA_PLACEMENT_ONLY_SPELL_ID_SET,
+  AREA_SAVE_SPELL_ID_SET,
+} from "./areaSaveSpellRules.js";
 import { spellLifecycleOperations } from "./spellLifecycleOperationsCore.js";
 
 const clone = (value) => {
@@ -23,29 +27,34 @@ export function saveSpellResolutionOperations({
   }
 
   const spellInstanceId = String(instanceId || "").trim();
-  if (!spellInstanceId) throw new Error("Invalid save spell resolution: instance-required");
+  if (!spellInstanceId) {
+    throw new Error("instance-required: save spell lifecycle operations require an instanceId");
+  }
 
-  const resolvedCastContext = castContext && typeof castContext === "object"
-    ? clone(castContext)
-    : {};
-  if (resolution.targetContexts && typeof resolution.targetContexts === "object") {
-    const resolvedTargetContexts = clone(resolution.targetContexts);
-    if (Object.keys(resolvedTargetContexts).length) {
-      resolvedCastContext.targetContexts = {
-        ...(resolvedCastContext.targetContexts && typeof resolvedCastContext.targetContexts === "object"
-          ? resolvedCastContext.targetContexts
-          : {}),
-        ...resolvedTargetContexts,
-      };
+  const resolvedCastContext = {
+    ...(resolution.castContext && typeof resolution.castContext === "object"
+      ? clone(resolution.castContext)
+      : {}),
+    ...(castContext && typeof castContext === "object"
+      ? clone(castContext)
+      : {}),
+  };
+  if (resolution.slotLevel !== undefined && resolution.slotLevel !== null && resolution.slotLevel !== "") {
+    const slotLevel = Number(resolution.slotLevel);
+    if (Number.isFinite(slotLevel)) {
+      resolvedCastContext.slotLevel = Math.max(0, Math.floor(slotLevel));
     }
   }
 
+  const casterId = String(resolution.casterId || "").trim();
+  const persistedTargetIds = resolution?.persistence?.owner === "caster" && casterId
+    ? [casterId]
+    : resolution.spellTargetIds || [];
   const targetIds = Array.from(new Set(
-    (resolution.spellTargetIds || [])
+    persistedTargetIds
       .map((value) => String(value || "").trim())
       .filter(Boolean)
   ));
-  const casterId = String(resolution.casterId || "").trim();
   const concentration = resolution.concentration === true;
   const conditionApplications = [];
   for (const application of resolution.conditionApplications || []) {
@@ -65,6 +74,8 @@ export function saveSpellResolutionOperations({
         ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
         parentEffectId: spellInstanceId,
         type: "spell",
+        ...(resolution.spellName ? { spellName: resolution.spellName } : {}),
+        ...(resolution.spellId ? { spellId: resolution.spellId } : {}),
         ...(application.options && typeof application.options === "object"
           ? clone(application.options)
           : {}),
@@ -87,6 +98,10 @@ export function saveSpellResolutionOperations({
     conditionApplications,
     concentrationAction,
     concentrationReference,
+    persistSpell: targetIds.length > 0
+      || conditionApplications.length > 0
+      || AREA_SAVE_SPELL_ID_SET.has(resolution.spellId)
+      || AREA_PLACEMENT_ONLY_SPELL_ID_SET.has(resolution.spellId),
   });
 }
 

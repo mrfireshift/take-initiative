@@ -798,3 +798,51 @@ test("la terminazione chiude l'eventuale risoluzione attiva della stessa spell",
   assert.equal(panel.state.session.activeInstanceId, "");
   assert.equal(panel.state.session.activeActionState.state, "idle");
 });
+
+test("SP-B04A — Termina rimuove il lifecycle owner-side di una zona non concentrata", async () => {
+  const provider = createProvider({
+    overview: [{
+      instanceId: "grease-1",
+      name: "Unto",
+      casterName: "Caster A",
+      targetIds: [],
+      persistent: {
+        kind: "zone",
+        state: "present",
+        itemId: "grease-zone",
+      },
+      context: {
+        spellId: "grease",
+        instanceId: "grease-1",
+        casterId: "caster-a",
+        targetIds: [],
+        concentration: false,
+        castContext: { staticZoneOwner: true, staticZoneRuleId: "grease:cast" },
+      },
+    }],
+  });
+  const calls = [];
+  const { root } = boot({
+    provider,
+    broadcast: new FakeBroadcast(),
+    route: { status: "ready", spellId: "grease", session: { casterId: "caster-a" } },
+    runEffectsMutation: async (operations, options) => {
+      calls.push({ operations, options });
+      provider.setOverview([]);
+      return { status: "applied" };
+    },
+    requireAppliedEffectsMutation: () => {},
+    refreshConditionLabels: async () => {},
+  });
+  await settle();
+  await requiredNode(root, '[data-terminate-instance="grease-1"]').click();
+  await settle(10);
+
+  assert.equal(calls.length, 1);
+  const removal = calls[0].operations.find((operation) => operation.type === "spell:remove-instance");
+  assert.deepEqual(removal.targetIds, ["caster-a"]);
+  assert.deepEqual(calls[0].options.sideEffects, [{
+    type: "static-zone:remove-ended",
+    selectors: [{ instanceId: "grease-1" }],
+  }]);
+});

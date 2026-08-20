@@ -124,15 +124,14 @@ test("Esilio in quick action apre la revisione con il bersaglio iniziale", () =>
   assert.equal(decision.route.request.origin, "quick-action");
 });
 
-test("una spell con active action futura può ancora usare il cast lifecycle diretto", () => {
+test("Sguardo Penetrante apre la revisione perché il cast iniziale richiede bersaglio e variante", () => {
   const decision = buildQuickActionSpellLaunchPlan({
     action: spellAction("eyebite"),
     sourceId: "wizard",
   });
 
-  assert.equal(decision.mode, "direct");
-  assert.equal(decision.reason, "direct-safe");
-  assert.equal(decision.lifecycleRequest.spell.id, "eyebite");
+  assert.equal(decision.mode, "review");
+  assert.equal(decision.route.request.spellId, "eyebite");
 });
 
 test("le quick action spell non producono route con lane o pannelli legacy", () => {

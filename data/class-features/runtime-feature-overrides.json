@@ -480,6 +480,7 @@
       "targeting": { "mode": "aura", "rangeMeters": 3, "excludeSource": false },
       "duration": { "untilFeatureId": "barbaro-ira" },
       "trackingMode": "active",
+      "choiceMode": "configuration",
       "choiceOptions": [
         { "id": "deserto", "label": "Deserto", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Deserto", "detail": "Area di 3 m: quando l'effetto viene attivato, le altre creature subiscono danni da fuoco (2-6 in base al livello)." } },
         { "id": "mare", "label": "Mare", "effectPlan": { "kind": "aura", "conditionName": "Aura Tempestosa: Mare", "detail": "Area di 3 m: quando l'effetto viene attivato, scegli una creatura nell'aura per il tiro salvezza su Destrezza e i danni da fulmine (1-4d6)." } },
@@ -493,6 +494,27 @@
         "targetEffect": null
       }
     },
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "barbaro-aura-tempestosa-ambiente"
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "barbaro-aura-tempestosa-ambiente"
+    },
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra": {
+      "include": true,
+      "status": "not-automated",
+      "defaultEnabled": false,
+      "automationLevel": "riferimento",
+      "optionGroup": "barbaro-aura-tempestosa-ambiente"
+    },
     "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice": {
       "include": true,
       "status": "implemented",
@@ -503,6 +525,57 @@
       "targeting": { "mode": "single-target", "rangeMeters": 3, "maxTargets": null, "excludeSource": true },
       "duration": { "untilFeatureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa" },
       "trackingMode": "active",
+      "choiceMode": "configuration",
+      "choiceOptions": [
+        {
+          "id": "deserto",
+          "label": "Deserto",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da fuoco finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Fuoco",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da fuoco finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": { "membership": "selected", "filter": "friendly", "includeCaster": false }
+            }
+          }
+        },
+        {
+          "id": "mare",
+          "label": "Mare",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da fulmine finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Fulmine",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da fulmine finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": { "membership": "selected", "filter": "friendly", "includeCaster": false }
+            }
+          }
+        },
+        {
+          "id": "tundra",
+          "label": "Tundra",
+          "effectPlan": {
+            "kind": "aura",
+            "conditionName": "Tempesta Protettrice",
+            "radiusMeters": 3,
+            "detail": "Le creature scelte ottengono la resistenza ai danni da freddo finché restano nell'Aura Tempestosa.",
+            "targetEffect": {
+              "conditionName": "Resistenza: Freddo",
+              "effectKind": "buff",
+              "detail": "Resistenza ai danni da freddo finché il bersaglio resta nell'Aura Tempestosa.",
+              "targeting": { "membership": "selected", "filter": "friendly", "includeCaster": false }
+            }
+          }
+        }
+      ],
       "effectPlan": {
         "kind": "aura",
         "conditionName": "Tempesta Protettrice",
@@ -959,17 +1032,19 @@
     "paladino-percezione-del-divino": {
       "include": true,
       "status": "implemented",
-      "adapter": "condition",
+      "adapter": "resource-only",
+      "automationLevel": "tracciamento",
       "defaultEnabled": true,
-      "resourceCosts": [],
+      "resourceCosts": [
+        {
+          "poolId": "paladino-percezione-divino-usi",
+          "amount": 1
+        }
+      ],
       "targeting": { "mode": "self", "maxTargets": 1, "excludeSource": false },
-      "duration": { "timing": "next-turn-end" },
-      "trackingMode": "active",
-      "effectPlan": {
-        "kind": "condition",
-        "conditionName": "Percezione del Divino",
-        "detail": "Entro 18 m riconosci posizione e tipo di celestiali, immondi e non morti non coperti totalmente; puoi anche individuare luoghi o oggetti consacrati o dissacrati. Dura fino al termine del prossimo turno. Usi: 1 + modificatore di Carisma; il conteggio resta manuale."
-      }
+      "duration": { "rounds": null },
+      "trackingMode": "resource-only",
+      "effectPlan": null
     },
     "paladino-imposizione-delle-mani": {
       "include": true,
@@ -1245,7 +1320,12 @@
       "status": "implemented",
       "adapter": "purifying-touch",
       "defaultEnabled": true,
-      "resourceCosts": [],
+      "resourceCosts": [
+        {
+          "poolId": "paladino-tocco-purificatore-usi",
+          "amount": 1
+        }
+      ],
       "targeting": { "mode": "single-target", "rangeMeters": 1.5, "maxTargets": 1, "excludeSource": false },
       "trackingMode": "instant",
       "effectPlan": {
@@ -1257,47 +1337,63 @@
     "paladino-giuramento-di-vendetta-incanalare-divinita-abiurare-nemico": {
       "include": true,
       "status": "implemented",
-      "adapter": "condition-choice",
+      "adapter": "condition",
       "defaultEnabled": true,
       "targeting": { "mode": "single-target", "rangeMeters": 18, "maxTargets": 1, "excludeSource": true },
       "duration": { "rounds": 10, "end_conditions": ["danno al bersaglio"] },
       "trackingMode": "active",
       "choiceOptions": [
         {
-          "id": "fallito",
+          "id": "failed",
           "label": "TS fallito",
           "effectPlan": {
             "kind": "condition",
             "conditionName": "Spaventato",
-            "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni. Immunità e svantaggio di immondi/non morti restano reminder manuali.",
-            "targetEffect": {
-              "conditionName": "Spaventato",
-              "effectKind": "debuff",
-              "detail": "Spaventato; velocità 0; nessun bonus alla velocità; massimo 10 round; termina al danno.",
-              "mechanics": { "speedMeters": 0, "noSpeedBonuses": true, "endsOnDamage": true }
+            "displayLabel": "Spaventato · Velocità 0",
+            "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni.",
+            "mechanics": {
+              "endsOnDamage": true,
+              "movement": {
+                "setMeters": 0
+              }
             }
           }
         },
         {
-          "id": "superato",
+          "id": "succeeded",
           "label": "TS superato",
           "effectPlan": {
             "kind": "condition",
             "conditionName": "Velocità dimezzata",
-            "detail": "TS Saggezza superato: velocità dimezzata. Massimo 10 round; termina prima se il bersaglio subisce danni.",
-            "targetEffect": {
-              "conditionName": "Velocità dimezzata",
-              "effectKind": "debuff",
-              "detail": "Velocità dimezzata; massimo 10 round; termina al danno.",
-              "mechanics": { "speedMultiplier": 0.5, "endsOnDamage": true }
+            "displayLabel": "Velocità dimezzata",
+            "effectKind": "debuff",
+            "detail": "TS Saggezza superato: velocità dimezzata per 1 minuto (10 round); termina prima se il bersaglio subisce danni.",
+            "theme": {
+              "emoji": "⛓️",
+              "accent": "#38bdf8",
+              "background": "#0c4a6e",
+              "text": "#ecfeff"
+            },
+            "mechanics": {
+              "endsOnDamage": true,
+              "movement": {
+                "multiplier": 0.5
+              }
             }
           }
         }
       ],
       "effectPlan": {
         "kind": "condition",
-        "conditionName": "Abiurare Nemico",
-        "detail": "Dopo il tiro salvezza su Saggezza scegli l'esito confermato dal tavolo."
+        "conditionName": "Spaventato",
+        "displayLabel": "Spaventato · Velocità 0",
+        "detail": "TS Saggezza fallito: Spaventato, velocità 0 e nessun bonus alla velocità. Massimo 10 round; termina prima se il bersaglio subisce danni.",
+        "mechanics": {
+          "endsOnDamage": true,
+          "movement": {
+            "setMeters": 0
+          }
+        }
       }
     },
     "paladino-giuramento-di-vendetta-incanalare-divinita-giuramento-di-inimicizia": {

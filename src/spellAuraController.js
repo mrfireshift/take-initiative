@@ -163,6 +163,12 @@ function auraVisualNeedsUpdate(item, desired) {
   return JSON.stringify(metadata) !== JSON.stringify(merged);
 }
 
+function auraVisualReconcilePerformedOwnedWrite(result) {
+  const metrics = result?.metrics || {};
+  return [metrics.addCalls, metrics.updateCalls, metrics.deleteCalls]
+    .some((value) => Number(value) > 0);
+}
+
 async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null) {
   return reconcileOwnedSceneItems({
     desired: desiredVisuals,
@@ -357,8 +363,24 @@ async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
   if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
   if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
-  await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
-  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  const auraVisualReconcile = await reconcileAuraVisuals(
+    desiredVisuals,
+    sceneEpoch,
+    snapshot,
+  );
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  // Aggiornare triggerRuntime sull’aura è una scrittura posseduta da questo
+  // controller e rende intenzionalmente stale lo snapshot di partenza. Non
+  // scartare i reminder appena persistiti per questa auto-invalidazione. Se
+  // invece lo snapshot è diventato stale senza alcuna nostra scrittura, una
+  // modifica concorrente ha invalidato il piano: riconcilia da capo.
+  if (
+    !spatialSceneSnapshot.isCurrent(snapshot)
+    && !auraVisualReconcilePerformedOwnedWrite(auraVisualReconcile)
+  ) {
+    scheduleSpellAuraRecovery();
+    return;
+  }
   if (newTriggerNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,

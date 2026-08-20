@@ -48,5 +48,10 @@ test("la History composita usa gli effects before/after del piano background", (
   assert.deepEqual(change.afterMetadata.hp, present(4));
   assert.equal(change.metadataFields.conditions, undefined);
   assert.equal(decorated.effectsMutation.commandId, "background-command");
-  assert.equal(decorated.effectsMutation.sideEffects.length, 1);
+  // Scene lifecycle stays canonical in entry.changes and is not duplicated as
+  // a sideEffect:item, otherwise the canonical Undo planner processes it twice.
+  assert.equal(decorated.effectsMutation.sideEffects.length, 0);
+  assert.equal(decorated.changes[1].id, "zone-1");
+  assert.equal(decorated.changes[1].sceneBefore, null);
+  assert.equal(decorated.changes[1].sceneAfter.id, "zone-1");
 });

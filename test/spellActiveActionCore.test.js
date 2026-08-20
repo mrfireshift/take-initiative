@@ -64,13 +64,27 @@ test("le attivazioni offensive usano il popup dedicato e Sfera richiede la radic
   assert.equal(callLightningActions[0].turnStartPrompt, true);
 
   const flame = getSpellDefinition("Investitura della Fiamma");
-  assert.deepEqual(getSpellOverviewActions({
+  const flameSameTurn = getSpellOverviewActions({
     spell: flame,
     casterId: "caster",
     targetIds: [],
     appliedAt: { turnKey: "1:0:caster" },
     currentTurnKey: "1:0:caster",
-  }), []);
+  });
+  assert.equal(flameSameTurn.length, 1);
+  assert.equal(flameSameTurn[0].id, "flame-investiture-line");
+  assert.equal(flameSameTurn[0].buttonLabel, "Linea di fuoco");
+  assert.equal(flameSameTurn[0].unavailableReason, "Disponibile dal turno successivo al lancio.");
+  const flameNextTurn = getSpellOverviewActions({
+    spell: flame,
+    casterId: "caster",
+    targetIds: [],
+    appliedAt: { turnKey: "1:0:caster" },
+    currentTurnKey: "2:0:caster",
+  });
+  assert.equal(flameNextTurn.length, 1);
+  assert.equal(flameNextTurn[0].id, "flame-investiture-line");
+  assert.equal(flameNextTurn[0].unavailableReason, undefined);
   const storm = getSpellDefinition("Sfera della Tempesta");
   const manualStorm = {
     ...storm,
@@ -192,14 +206,14 @@ test("Riscaldare il Metallo applica il debuff temporaneo al solo portatore selez
   });
 });
 
-test("Sguardo Penetrante applica una variante a un solo fallito", () => {
+test("Sguardo Penetrante delega TS superato e le tre varianti al resolver single-save dedicato", () => {
   const spell = getSpellDefinition("eyebite");
   assert.deepEqual(
     getSpellOverviewActions({
       spell,
       casterId: "caster",
       targetIds: ["caster"],
-      zoneItemId: "water-root",
+      zoneItemId: "",
     }).map((action) => action.id),
     [
       "eyebite-saved",
@@ -209,15 +223,6 @@ test("Sguardo Penetrante applica una variante a un solo fallito", () => {
     ],
   );
 
-  const tooMany = buildSpellActiveActionPlan({
-    spell,
-    actionId: "eyebite-sickened",
-    group: group({ name: spell.displayName }),
-    selectedTargetIds: ["first", "second"],
-  });
-  assert.equal(tooMany.valid, false);
-  assert.ok(tooMany.errors.includes("targets-maximum:1"));
-
   const plan = buildSpellActiveActionPlan({
     spell,
     actionId: "eyebite-sickened",
@@ -226,67 +231,14 @@ test("Sguardo Penetrante applica una variante a un solo fallito", () => {
     casterName: "Necromante",
   });
   assert.equal(plan.valid, true);
-  assert.equal(plan.operations[0].conditionName, "Nauseato: svant. attacchi/prove");
-  assert.equal(plan.operations[0].options.saveReminder.ability, "wis");
-  assert.equal(plan.operations[0].options.saveReminder.timing, "turn-end");
-  assert.deepEqual(
-    plan.operations.map((operation) => operation.type),
-    ["condition:add", "condition:automate"],
-  );
-
-  const saved = buildSpellActiveActionPlan({
-    spell,
-    actionId: "eyebite-saved",
-    group: group({
-      name: spell.displayName,
-      effectInstances: [{
-        itemId: "saved-target",
-        instanceId: "sickened",
-        effectId: "eyebite-sickened",
-      }],
-    }),
-    selectedTargetIds: ["saved-target"],
-  });
-  assert.equal(saved.valid, true);
-  assert.deepEqual(saved.operations, [{
-    type: "concentration:register",
-    casterId: "caster",
-    targetIds: ["saved-target"],
-    name: spell.displayName,
-    instanceId: "cast-1",
-    spellId: "eyebite",
-  }]);
-
-  const alreadyTargeted = buildSpellActiveActionPlan({
-    spell,
-    actionId: "eyebite-panicked",
-    group: group({
-      name: spell.displayName,
-      targets: new Map([
-        ["caster", "Necromante"],
-        ["target", "Bersaglio"],
-      ]),
-    }),
-    selectedTargetIds: ["target"],
-  });
-  assert.equal(alreadyTargeted.valid, false);
-  assert.ok(alreadyTargeted.errors.includes("targets-already-used:target"));
-
-  const activeVariant = buildSpellActiveActionPlan({
-    spell,
-    actionId: "eyebite-asleep",
-    group: group({
-      name: spell.displayName,
-      effectInstances: [{
-        itemId: "active-target",
-        instanceId: "panicked",
-        effectId: "eyebite-panicked",
-      }],
-    }),
-    selectedTargetIds: ["active-target"],
-  });
-  assert.equal(activeVariant.valid, false);
-  assert.ok(activeVariant.errors.includes("targets-active-effect:active-target"));
+  assert.equal(plan.delegatedResolution, true);
+  assert.equal(plan.resolutionKind, "single-save");
+  assert.deepEqual(plan.operations, []);
+  assert.equal(plan.action.maxTargets, 1);
+  assert.equal(plan.action.manualSaveAtTable, true);
+  assert.equal(plan.action.failureEffects[0].label, "Nauseato");
+  assert.equal(plan.action.failureEffects[0].saveReminder.ability, "wis");
+  assert.equal(plan.action.failureEffects[0].saveReminder.timing, "turn-end");
 });
 
 test("la presentazione distingue azioni sul caster e azioni sui falliti", () => {

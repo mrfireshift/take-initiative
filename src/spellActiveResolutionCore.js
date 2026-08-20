@@ -6,6 +6,7 @@ export const SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE = `${ID}/spell-active-resoluti
 export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "save-area",
   "single-attack",
+  "single-save",
   "child-zone",
 ]);
 export const SPELL_ACTIVE_RESOLUTION_ECONOMIES = Object.freeze([
@@ -27,6 +28,30 @@ export const SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES = Object.freeze([
   "critical",
 ]);
 const SPELL_SAVE_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
+
+
+function baseActorId(value) {
+  return String(value || "").trim().replace(/::p\d+$/u, "");
+}
+
+// Sincronizza i dropdown dei popup con la selezione corrente di Owlbear.
+// La selezione sulla mappa ha precedenza; in assenza di match mantiene il
+// valore precedente se è ancora tra i candidati validi.
+export function spellActiveResolutionSelectedTargetId(entries = [], selection = [], previous = "") {
+  const ids = (Array.isArray(entries) ? entries : [])
+    .map((entry) => String(entry?.item?.id || entry?.id || entry || "").trim())
+    .filter(Boolean);
+  const exact = new Set(ids);
+  const byActor = new Map(ids.map((id) => [baseActorId(id), id]));
+  for (const value of Array.isArray(selection) ? selection : []) {
+    const selectedId = String(value || "").trim();
+    if (exact.has(selectedId)) return selectedId;
+    const mapped = byActor.get(baseActorId(selectedId));
+    if (mapped) return mapped;
+  }
+  const previousId = String(previous || "").trim();
+  return exact.has(previousId) ? previousId : "";
+}
 
 export function spellActiveResolutionPopoverId(instanceId, actionId) {
   const instance = String(instanceId || "").trim().replaceAll("/", "_");
@@ -61,6 +86,14 @@ function actionDamage(action) {
   return action?.damage && typeof action.damage === "object" ? action.damage : null;
 }
 
+export function spellActiveResolutionAttackDamageRequired(action = null, outcome = "") {
+  if (action?.resolutionKind !== "single-attack" || !actionDamage(action)) return false;
+  if (action?.attack?.damageRequiredOnHitOnly === true) {
+    return ["hit", "critical"].includes(String(outcome || "").trim());
+  }
+  return true;
+}
+
 export function validateSpellActiveResolutionAction(action) {
   const errors = [];
   const id = String(action?.id || "").trim();
@@ -68,6 +101,14 @@ export function validateSpellActiveResolutionAction(action) {
   const economy = String(action?.economy || "").trim();
   const rangeOrigin = String(action?.rangeOrigin || "").trim();
   const damageRule = actionDamage(action);
+  const fixedCasterRadius = action?.fixedCasterRadius && typeof action.fixedCasterRadius === "object"
+    ? action.fixedCasterRadius
+    : null;
+  const hasFixedCasterRadius = kind === "save-area"
+    && fixedCasterRadius?.unit === "m"
+    && Number.isFinite(Number(fixedCasterRadius?.value))
+    && Number(fixedCasterRadius.value) > 0
+    && (fixedCasterRadius.includeCaster === true || fixedCasterRadius.includeCaster === false);
   if (!id) errors.push("action-id-required");
   if (!String(action?.label || action?.buttonLabel || "").trim()) {
     errors.push("action-label-required");
@@ -86,14 +127,21 @@ export function validateSpellActiveResolutionAction(action) {
   if (
     (kind === "save-area" || kind === "child-zone")
     && !String(action?.placementRuleId || action?.childZone?.placementRuleId || "").trim()
+    && !hasFixedCasterRadius
   ) {
     errors.push("action-placement-rule-required");
+  }
+  if (action?.fixedCasterRadius !== undefined && !hasFixedCasterRadius) {
+    errors.push("action-fixed-caster-radius-invalid");
+  }
+  if (hasFixedCasterRadius && rangeOrigin !== "caster") {
+    errors.push("action-fixed-caster-radius-origin-invalid");
   }
   if (action?.requiresParentInstance !== true) {
     errors.push("action-parent-instance-required");
   }
   if (
-    ["single-attack", "child-zone"].includes(kind)
+    ["single-attack", "single-save", "child-zone"].includes(kind)
     && action?.requiresZoneRoot !== true
     && action?.requiresZoneRoot !== false
   ) {
@@ -107,17 +155,26 @@ export function validateSpellActiveResolutionAction(action) {
   )) {
     errors.push("action-range-required");
   }
-  if (kind !== "child-zone"
+  const saveHasDeclarativeEffects = ["save-area", "single-save"].includes(kind)
+    && !damageRule
+    && (
+      (Array.isArray(action?.failureEffects) && action.failureEffects.length > 0)
+      || (Array.isArray(action?.successEffects) && action.successEffects.length > 0)
+    );
+  const damageOptional = (kind === "single-save" && !damageRule) || saveHasDeclarativeEffects;
+  if (kind !== "child-zone" && !damageOptional
     && (!String(damageRule?.formula || "").trim() || !String(damageRule?.type || "").trim())) {
     errors.push("action-damage-required");
   }
   const baseSlot = integer(damageRule?.baseSlot, 0);
   const perSlot = integer(damageRule?.additionalPerSlotAbove, 0);
   if (baseSlot < 0 || perSlot < 0) errors.push("action-damage-scaling-invalid");
-  if (kind === "save-area" && !["half", "none"].includes(damageRule?.onSave)) {
+  if (["save-area", "single-save"].includes(kind)
+    && damageRule
+    && !["half", "none"].includes(damageRule?.onSave)) {
     errors.push("action-save-damage-invalid");
   }
-  if (kind === "save-area") {
+  if (["save-area", "single-save"].includes(kind)) {
     const ability = String(action?.save?.ability || "").trim().toLowerCase();
     if (!SPELL_SAVE_ABILITIES.has(ability)) errors.push("action-save-ability-invalid");
   }
@@ -131,6 +188,22 @@ export function validateSpellActiveResolutionAction(action) {
       }
     }
   }
+  if (action?.successEffects !== undefined) {
+    if (!Array.isArray(action.successEffects)) {
+      errors.push("action-success-effects-invalid");
+    } else {
+      for (const effect of action.successEffects) {
+        if (!String(effect?.id || "").trim()) errors.push("action-success-effect-id-required");
+        if (!String(effect?.label || "").trim()) errors.push("action-success-effect-label-required");
+      }
+    }
+  }
+  if (action?.resource && typeof action.resource === "object") {
+    const resourceKey = String(action.resource.key || "").trim();
+    const consume = integer(action?.resource?.consume, 0);
+    if (!resourceKey) errors.push("action-resource-key-required");
+    if (consume < 1) errors.push("action-resource-consume-invalid");
+  }
   if (kind === "single-attack") {
     if (integer(action?.maxTargets, 0) !== 1) errors.push("action-single-target-invalid");
     const maxAttacks = integer(action?.maxAttacks, 1);
@@ -138,6 +211,27 @@ export function validateSpellActiveResolutionAction(action) {
     if (!Array.isArray(action?.attack?.outcomes)
       || action.attack.outcomes.some((outcome) => !SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES.includes(outcome))) {
       errors.push("action-attack-outcomes-invalid");
+    }
+  }
+  if (kind === "single-save") {
+    if (integer(action?.maxTargets, 0) !== 1) errors.push("action-single-target-invalid");
+    if (action?.requiredTargetEffectId !== undefined
+      && !String(action.requiredTargetEffectId || "").trim()) {
+      errors.push("action-required-target-effect-invalid");
+    }
+    if (action?.excludedTargetEffectId !== undefined
+      && !String(action.excludedTargetEffectId || "").trim()) {
+      errors.push("action-excluded-target-effect-invalid");
+    }
+    if (action?.excludedTargetEffectIds !== undefined) {
+      if (!Array.isArray(action.excludedTargetEffectIds)
+        || action.excludedTargetEffectIds.some((effectId) => !String(effectId || "").trim())) {
+        errors.push("action-excluded-target-effects-invalid");
+      }
+    }
+    if (action?.replaceLinkedEffectId !== undefined
+      && !String(action.replaceLinkedEffectId || "").trim()) {
+      errors.push("action-replace-linked-effect-invalid");
     }
   }
   if (kind === "child-zone") {
@@ -209,6 +303,15 @@ export function buildSpellActiveResolutionPayload({
   const castContext = group?.castContext && typeof group.castContext === "object"
     ? clone(group.castContext)
     : {};
+  const requiredTargetEffectId = String(action?.requiredTargetEffectId || "").trim();
+  const linkedTargetIds = requiredTargetEffectId
+    ? uniqueIds((Array.isArray(group?.effectInstances) ? group.effectInstances : [])
+      .filter((effect) => (
+        effect?.active !== false
+        && String(effect?.effectId || "").trim() === requiredTargetEffectId
+      ))
+      .map((effect) => effect?.itemId))
+    : [];
   const payload = {
     type: SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
     version: 1,
@@ -222,6 +325,7 @@ export function buildSpellActiveResolutionPayload({
     sceneEpoch: epoch,
     actionId: String(action.id).trim(),
     action: clone(action),
+    ...(linkedTargetIds.length === 1 ? { linkedTargetId: linkedTargetIds[0] } : {}),
     ...(String(zoneItemId || "").trim() ? { zoneItemId: String(zoneItemId).trim() } : {}),
     ...(String(turnKey || "").trim() ? { turnKey: String(turnKey).trim() } : {}),
   };
@@ -256,7 +360,7 @@ export function buildSpellActiveResolutionFailureOperations({
   targetIds = [],
   outcomes = {},
 } = {}) {
-  if (action?.resolutionKind !== "save-area") return [];
+  if (!["save-area", "single-save"].includes(action?.resolutionKind)) return [];
   const failedIds = normalizeActiveResolutionTargetIds(
     (Array.isArray(targetIds) ? targetIds : [])
       .filter((targetId) => outcomes?.[targetId] === "failed"),
@@ -288,17 +392,50 @@ export function buildSpellActiveResolutionFailureOperations({
   return operations;
 }
 
-export function resolveSpellActiveResolutionDamage({
+export function buildSpellActiveResolutionSuccessOperations({
+  action = null,
+  payload = null,
+  targetIds = [],
+  outcomes = {},
+} = {}) {
+  if (!["save-area", "single-save"].includes(action?.resolutionKind)) return [];
+  const passedIds = normalizeActiveResolutionTargetIds(
+    (Array.isArray(targetIds) ? targetIds : [])
+      .filter((targetId) => outcomes?.[targetId] === "passed"),
+  );
+  const effects = Array.isArray(action?.successEffects) ? action.successEffects : [];
+  if (!passedIds.length || !effects.length) return [];
+  const operations = [];
+  for (const effect of effects) {
+    const conditionName = String(effect?.label || "").trim();
+    if (!conditionName) continue;
+    operations.push({
+      type: "condition:add",
+      targetIds: passedIds,
+      conditionName,
+      options: spellEffectConditionOptions(
+        effect,
+        {
+          sourceId: payload?.casterId,
+          sourceName: payload?.casterName,
+          expiry: effect.expiry || { mode: "manual" },
+        },
+        payload?.instanceId,
+      ),
+    });
+  }
+  if (operations.length) {
+    operations.push({ type: "condition:automate", subjectIds: passedIds });
+  }
+  return operations;
+}
+
+export function spellActiveResolutionDamageFormula({
   action = null,
   slotLevel = 0,
   outcome = "",
-  roll = 0,
 } = {}) {
   const rule = actionDamage(action);
-  const normalizedOutcome = String(outcome || "").trim();
-  const validOutcomes = action?.resolutionKind === "single-attack"
-    ? SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES
-    : SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES;
   const baseSlot = Math.max(0, integer(rule?.baseSlot, 0));
   const perSlot = Math.max(0, integer(rule?.additionalPerSlotAbove, 0));
   const level = Math.max(baseSlot, integer(slotLevel, baseSlot));
@@ -314,7 +451,8 @@ export function resolveSpellActiveResolutionDamage({
   let scaledFormula = scaledDice > 0
     ? formula.replace(/^(\d+)d/iu, (_, count) => `${Number(count) + scaledDice}d`)
     : formula;
-  if (normalizedOutcome === "critical" && String(action?.critical?.additionalDice || "").trim()) {
+  if (String(outcome || "").trim() === "critical"
+    && String(action?.critical?.additionalDice || "").trim()) {
     const [baseCount, baseSides] = scaledFormula.split("d").map(Number);
     const [additionalCount, additionalSides] = String(action.critical.additionalDice)
       .trim()
@@ -330,6 +468,25 @@ export function resolveSpellActiveResolutionDamage({
       scaledFormula = `${baseCount + additionalCount}d${baseSides}`;
     }
   }
+  return { formula, scaledFormula };
+}
+
+export function resolveSpellActiveResolutionDamage({
+  action = null,
+  slotLevel = 0,
+  outcome = "",
+  roll = 0,
+} = {}) {
+  const rule = actionDamage(action);
+  const normalizedOutcome = String(outcome || "").trim();
+  const validOutcomes = action?.resolutionKind === "single-attack"
+    ? SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES
+    : SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES;
+  const { formula, scaledFormula } = spellActiveResolutionDamageFormula({
+    action,
+    slotLevel,
+    outcome: normalizedOutcome,
+  });
   const numericRoll = Number(roll);
   const valid = validOutcomes.includes(normalizedOutcome)
     && Number.isFinite(numericRoll)
@@ -352,6 +509,90 @@ export function resolveSpellActiveResolutionDamage({
     formula,
     scaledFormula,
     type: String(rule.type).trim(),
+  };
+}
+
+export function buildSpellActiveResolutionLinkedEffectRemovals({
+  action = null,
+  payload = null,
+  items = [],
+} = {}) {
+  const parentEffectId = String(payload?.instanceId || "").trim();
+  const effectId = String(action?.replaceLinkedEffectId || "").trim();
+  if (!parentEffectId || !effectId) return [];
+  const removals = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    const conditions = Array.isArray(meta.conditions)
+      ? meta.conditions
+      : Array.isArray(meta.conditions?.instances)
+        ? meta.conditions.instances
+        : [];
+    for (const instance of conditions) {
+      if (String(instance?.parentEffectId || "").trim() !== parentEffectId) continue;
+      if (String(instance?.effectId || "").trim() !== effectId) continue;
+      const instanceId = String(instance?.id || "").trim();
+      if (item?.id && instanceId) removals.push({ itemId: item.id, instanceId });
+    }
+  }
+  return removals;
+}
+
+export function buildSpellActiveResolutionResourceOperations({
+  action = null,
+  payload = null,
+  spellEntry = null,
+} = {}) {
+  const resource = action?.resource && typeof action.resource === "object" ? action.resource : null;
+  if (!resource) return { valid: true, operations: Object.freeze([]), remaining: null };
+
+  const key = String(resource.key || "").trim();
+  const consume = Math.max(1, integer(resource.consume, 1));
+  const instanceId = String(payload?.instanceId || spellEntry?.instanceId || "").trim();
+  const uses = spellEntry?.castContext?.uses && typeof spellEntry.castContext.uses === "object"
+    ? spellEntry.castContext.uses
+    : null;
+  const remaining = integer(uses?.remaining, null);
+  if (!spellEntry || !instanceId || !key || String(uses?.key || "").trim() !== key || remaining === null) {
+    return { valid: false, errors: Object.freeze(["active-resolution-resource-missing"]), operations: Object.freeze([]), remaining: null };
+  }
+  if (remaining < consume) {
+    return { valid: false, errors: Object.freeze(["active-resolution-resource-depleted"]), operations: Object.freeze([]), remaining };
+  }
+
+  const nextRemaining = Math.max(0, remaining - consume);
+  if (nextRemaining === 0 && resource.endSpellAtZero === true) {
+    return {
+      valid: true,
+      remaining: nextRemaining,
+      operations: Object.freeze([{
+        type: "spell:remove-instance",
+        targetIds: [String(payload?.casterId || spellEntry?.casterId || "").trim()],
+        instanceId,
+      }]),
+    };
+  }
+
+  const nextCastContext = {
+    ...(spellEntry.castContext && typeof spellEntry.castContext === "object" ? clone(spellEntry.castContext) : {}),
+    uses: { ...clone(uses), remaining: nextRemaining },
+  };
+  return {
+    valid: true,
+    remaining: nextRemaining,
+    operations: Object.freeze([{
+      type: "spell:upsert",
+      targetIds: [String(payload?.casterId || spellEntry?.casterId || "").trim()],
+      name: String(spellEntry.name || payload?.spellName || payload?.spellId || "").trim(),
+      turns: Math.max(1, integer(spellEntry.turns, 1)),
+      conc: spellEntry.conc === true,
+      source: String(spellEntry.casterId || payload?.casterId || "").trim(),
+      ...(spellEntry.casterName ? { casterName: String(spellEntry.casterName) } : {}),
+      instanceId,
+      spellId: String(spellEntry.spellId || payload?.spellId || "").trim(),
+      ...(spellEntry.appliedAt ? { appliedAt: clone(spellEntry.appliedAt) } : {}),
+      castContext: nextCastContext,
+    }]),
   };
 }
 

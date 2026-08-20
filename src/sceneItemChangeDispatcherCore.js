@@ -12,6 +12,7 @@ const CLASS_FEATURE_AURA_META = ID + "/classFeatureAura";
 const CUSTOM_AURA_META = ID + "/customAura";
 const STATIC_SPELL_ZONE_META = ID + "/spellStaticZone";
 const AOE_AREA_META = ID + "/aoeArea";
+const REMINDER_RESOLUTIONS_META_FIELD = "reminderResolutions";
 
 export const TRACKER_LOCAL_METADATA_KEYS = new Set([
   "hp",
@@ -235,6 +236,7 @@ function createFlags() {
     legacyHpHydration: false,
     conditions: false,
     concentration: false,
+    reminderResolutions: false,
     widgets: false,
     activeTurnLabelOnly: false,
     trackerStructure: false,
@@ -318,12 +320,14 @@ function markPluginTokenChange(flags, before, after, lifecycleChange) {
   flags.hpMemoryAutofill ||= flags.quickActionHydration || flags.legacyHpHydration;
   flags.conditions ||= conditionsChanged;
   flags.concentration ||= spellsChanged || concentrationChanged;
+  flags.reminderResolutions ||= changedKeys.has(REMINDER_RESOLUTIONS_META_FIELD);
   flags.aura ||= lifecycleChange
     || movementChanged
     || spellsChanged
     || concentrationChanged
     || attitudeChanged
     || conditionsChanged
+    || changedKeys.has("classFeatureState")
     || changedKeys.has("customAuras");
   flags.zone ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged || attitudeChanged || conditionsChanged;
   flags.preparedSpells ||= lifecycleChange || movementChanged || spellsChanged || concentrationChanged;
@@ -358,7 +362,7 @@ function deriveEventDomains(flags) {
   if (flags.quickActionHydration) domains.add("quick-action-hydration");
   if (flags.legacyHpHydration) domains.add("legacy-hp-hydration");
   if (flags.speedCheck) domains.add("speed-check");
-  if (flags.conditions || flags.concentration) domains.add("effects");
+  if (flags.conditions || flags.concentration || flags.reminderResolutions) domains.add("effects");
   if (flags.widgets) domains.add("effects-widgets");
   if (flags.movement) domains.add("movement");
   if (flags.elevation) domains.add("elevation");

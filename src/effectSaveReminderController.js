@@ -5,7 +5,11 @@ import {
   RUNTIME_CACHE_CLEANUP_CHANNEL,
 } from "./constants.js";
 import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
-import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import {
+  currentSceneEpoch,
+  isCurrentSceneEpoch,
+  subscribeSceneEpoch,
+} from "./sceneEpoch.js";
 import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
@@ -15,6 +19,7 @@ import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
+const rearmableActivationIds = new Set();
 let mounted = false;
 let sceneReady = false;
 let previousInitiativeState = null;
@@ -25,11 +30,13 @@ let queuedItems = null;
 let queuedItemGeneration = 0;
 let queuedForce = false;
 let completedReconcileKey = null;
+let runtimeCacheRevision = 0;
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 let unsubscribeMetadata = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeRuntimeCacheCleanup = null;
+let unsubscribeSceneEpoch = null;
 
 function snapshot(state) {
   const order = Array.isArray(state?.order) ? [...state.order] : [];
@@ -44,22 +51,39 @@ function snapshot(state) {
   };
 }
 
+function resetRuntimeState() {
+  runtimeCacheRevision += 1;
+  previousInitiativeState = null;
+  announcedActivationIds.clear();
+  rearmableActivationIds.clear();
+  completedReconcileKey = null;
+}
+
+function isCurrentReconcile(sceneEpoch, revision) {
+  return (
+    mounted
+    && sceneReady
+    && runtimeCacheRevision === revision
+    && isCurrentSceneEpoch(sceneEpoch)
+  );
+}
+
 async function reconcileEffectSaveReminders(
   sceneMetadata = null,
   sceneItems = null,
   options = {},
 ) {
   const sceneEpoch = currentSceneEpoch();
+  const reconcileRevision = runtimeCacheRevision;
   if (!sceneReady) {
-    previousInitiativeState = null;
-    announcedActivationIds.clear();
+    resetRuntimeState();
     return;
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
   const metadata = sceneMetadata && typeof sceneMetadata === "object"
     ? sceneMetadata
     : await OBR.scene.getMetadata().catch(() => ({}));
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
   const initiativeState = snapshot(metadata?.[STATE_KEY]);
   const sharedSnapshot = readSceneItemsSnapshot(sceneEpoch);
   const items = Array.isArray(sceneItems)
@@ -67,7 +91,7 @@ async function reconcileEffectSaveReminders(
     : sharedSnapshot.complete
       ? sharedSnapshot.items
       : await OBR.scene.items.getItems();
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
   if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(metadata);
   const generation = Number(options.generation)
     || Number(sharedSnapshot?.generation)
@@ -79,30 +103,65 @@ async function reconcileEffectSaveReminders(
   });
   if (options.force !== true && completedReconcileKey === reconcileKey) return;
   const previousState = previousInitiativeState;
-  const notices = planEffectSaveReminderNotices({
+  const plannedNotices = planEffectSaveReminderNotices({
     items,
     previousInitiativeState: previousState,
     initiativeState,
     includeCurrentTurnStart: previousState !== null,
-  }).filter((notice) => !announcedActivationIds.has(notice.activationId));
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  previousInitiativeState = initiativeState;
+  });
+  const currentActivationIds = new Set(
+    plannedNotices
+      .map((notice) => String(notice?.activationId || "").trim())
+      .filter(Boolean),
+  );
+  for (const activationId of announcedActivationIds) {
+    if (currentActivationIds.has(activationId)) continue;
+    announcedActivationIds.delete(activationId);
+    rearmableActivationIds.add(activationId);
+  }
+  if (rearmableActivationIds.size > 500) {
+    const recent = [...rearmableActivationIds].slice(-250);
+    rearmableActivationIds.clear();
+    for (const activationId of recent) rearmableActivationIds.add(activationId);
+  }
+  const notices = plannedNotices.filter((notice) => !announcedActivationIds.has(notice.activationId));
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
   if (!notices.length) {
-    if (isCurrentSceneEpoch(sceneEpoch)) completedReconcileKey = reconcileKey;
+    previousInitiativeState = initiativeState;
+    completedReconcileKey = reconcileKey;
     return;
   }
-  for (const notice of notices) announcedActivationIds.add(notice.activationId);
+  const pendingActivationIds = new Set(
+    notices.map((notice) => notice.activationId),
+  );
+  const pendingRearmActivationIds = new Set(
+    notices
+      .map((notice) => notice.activationId)
+      .filter((activationId) => rearmableActivationIds.has(activationId)),
+  );
+  const delivery = await sendProjectedReminderPayload(
+    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+    {
+      type: "show-effect-save-notices",
+      notices,
+      ...(pendingRearmActivationIds.size
+        ? { rearmActivationIds: [...pendingRearmActivationIds] }
+        : {}),
+    },
+  );
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
+  if (!(Number(delivery?.gm) > 0 || Number(delivery?.player) > 0)) return;
+  for (const activationId of pendingActivationIds) {
+    announcedActivationIds.add(activationId);
+    rearmableActivationIds.delete(activationId);
+  }
   if (announcedActivationIds.size > 500) {
     const recent = [...announcedActivationIds].slice(-250);
     announcedActivationIds.clear();
     for (const activationId of recent) announcedActivationIds.add(activationId);
   }
-  if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  await sendProjectedReminderPayload(
-    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
-    { type: "show-effect-save-notices", notices },
-  );
-  if (isCurrentSceneEpoch(sceneEpoch)) completedReconcileKey = reconcileKey;
+  previousInitiativeState = initiativeState;
+  completedReconcileKey = reconcileKey;
 }
 
 function enqueueReconcile(sceneMetadata = null, sceneItems = null, options = {}) {
@@ -165,9 +224,7 @@ export async function mountEffectSaveReminderController() {
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     sceneReady = !!ready;
     if (!ready) {
-      previousInitiativeState = null;
-      announcedActivationIds.clear();
-      completedReconcileKey = null;
+      resetRuntimeState();
       stateMetadataWatcher.reset();
       return;
     }
@@ -177,12 +234,13 @@ export async function mountEffectSaveReminderController() {
     RUNTIME_CACHE_CLEANUP_CHANNEL,
     (event) => {
       if (event?.data?.type !== "clear-runtime-caches") return;
-      previousInitiativeState = null;
-      announcedActivationIds.clear();
-      completedReconcileKey = null;
+      resetRuntimeState();
       if (sceneReady) enqueueReconcile(null, null, { force: true, reason: "runtime-cache-cleanup" });
     },
   );
+  unsubscribeSceneEpoch = subscribeSceneEpoch(({ phase }) => {
+    if (phase === "unload") resetRuntimeState();
+  });
   sceneReady = await OBR.scene.isReady().catch(() => false);
   if (sceneReady) enqueueReconcile();
   return true;
@@ -197,16 +255,16 @@ export function unmountEffectSaveReminderController() {
   unsubscribeSceneReady = null;
   unsubscribeRuntimeCacheCleanup?.();
   unsubscribeRuntimeCacheCleanup = null;
+  unsubscribeSceneEpoch?.();
+  unsubscribeSceneEpoch = null;
   sceneReady = false;
-  previousInitiativeState = null;
-  announcedActivationIds.clear();
+  resetRuntimeState();
   reconcileRunning = false;
   reconcileRequested = false;
   queuedSceneMetadata = null;
   queuedItems = null;
   queuedItemGeneration = 0;
   queuedForce = false;
-  completedReconcileKey = null;
   stateMetadataWatcher.reset();
   mounted = false;
 }

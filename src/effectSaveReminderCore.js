@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
+import { fleshToStoneReminderForInstance } from "./fleshToStoneRules.js";
 import {
   buildEffectSaveReminderResolution,
   buildMovementEscapeReminderResolution,
@@ -72,29 +73,41 @@ export function normalizeEffectSaveReminder(value) {
   if (!value || typeof value !== "object") return null;
   const ability = normalizedAbility(value.ability);
   const timing = String(value.timing || value.event || "").trim();
-  if (!ability || !TIMINGS.has(timing)) return null;
-  const dc = optionalDC(value.dc);
-  const dcSource = value.dcSource === "source-spell" ? "source-spell" : "";
-  const resolution = normalizeReminderResolution(value.resolution);
   const damage = value.damage && typeof value.damage === "object"
     ? {
       ...value.damage,
       ...(value.damage.dice ? { dice: String(value.damage.dice).trim().slice(0, 80) } : {}),
       ...(value.damage.type ? { type: String(value.damage.type).trim().slice(0, 80) } : {}),
+      ...(Number.isInteger(Number(value.damage.baseSlot)) && Number(value.damage.baseSlot) >= 0
+        ? { baseSlot: Number(value.damage.baseSlot) }
+        : {}),
+      ...(Number.isInteger(Number(value.damage.additionalPerSlotAbove)) && Number(value.damage.additionalPerSlotAbove) > 0
+        ? { additionalPerSlotAbove: Number(value.damage.additionalPerSlotAbove) }
+        : {}),
     }
     : null;
+  const hasValidDamage = !!(damage?.dice && damage?.type);
+  const mode = ["manual-damage", "consume", "manual-heal", "choice"].includes(value.mode)
+    ? value.mode
+    : (!ability && hasValidDamage ? "manual-damage" : "");
+  const informational = mode === "consume";
+  if ((!ability && !hasValidDamage && !informational) || !TIMINGS.has(timing)) return null;
+  const dc = optionalDC(value.dc);
+  const dcSource = value.dcSource === "source-spell" ? "source-spell" : "";
+  const resolution = normalizeReminderResolution(value.resolution);
   return {
-    ability: ability.key,
+    ...(ability ? { ability: ability.key } : {}),
     timing,
     actor: value.actor === "source" ? "source" : "target",
-    success: value.success === "keep-effect" ? "keep-effect" : "remove-effect",
+    ...(mode ? { mode } : {}),
+    ...(ability ? { success: value.success === "keep-effect" ? "keep-effect" : "remove-effect" } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(dcSource ? { dcSource } : {}),
     ...(value.label ? { label: String(value.label).trim().slice(0, 160) } : {}),
     ...(value.failure ? {
       failure: String(value.failure).trim().slice(0, 160),
     } : {}),
-    ...(damage?.dice && damage?.type ? { damage } : {}),
+    ...(hasValidDamage ? { damage } : {}),
     ...(resolution ? { resolution } : {}),
   };
 }
@@ -377,8 +390,10 @@ function reminderNotice({
   itemsById,
 }) {
   const ability = ABILITIES[reminder.ability];
-  if (!item?.id || !instance?.id || !ability || !activationId) return null;
-  const dc = reminderDC(reminder, instance, itemsById);
+  const hasDamageOnly = !ability && !!(reminder.damage?.dice && reminder.damage?.type);
+  const informational = !ability && !hasDamageOnly && reminder.mode === "consume";
+  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational) || !activationId) return null;
+  const dc = ability ? reminderDC(reminder, instance, itemsById) : null;
   const sourceName = String(
     itemsById.get(String(instance?.sourceId || "").trim())?.name
     || instance?.sourceName
@@ -387,12 +402,27 @@ function reminderNotice({
   const effectName = String(
     instance.condition || instance.name || instance.effectDetail || "Effetto"
   ).trim().slice(0, 120) || "Effetto";
-  const saveLabel = `TS ${ability.label}${dc === null ? "" : ` CD ${dc}`}`;
+  const spellName = String(
+    instance.spellName
+    || (instance.type === "spell" && instance.name ? instance.name : "")
+    || ""
+  ).trim().slice(0, 120);
+  const spellId = String(instance.spellId || "").trim().slice(0, 120);
+  const saveLabel = ability
+    ? `TS ${ability.label}${dc === null ? "" : ` CD ${dc}`}`
+    : (reminder.damage?.dice
+      ? `Danni (${reminder.damage.dice})`
+      : (reminder.label || "Promemoria effetto"));
   const instruction = reminder.label || (
-    reminder.success === "remove-effect"
-      ? "In caso di successo rimuovi l'effetto."
-      : "Risolvi il tiro e mantieni l'effetto."
+    ability
+      ? (reminder.success === "remove-effect"
+        ? "In caso di successo rimuovi l'effetto."
+        : "Risolvi il tiro e mantieni l'effetto.")
+      : "Inserisci i danni e conferma."
   );
+  const parentSpell = spellInstances(item).find((s) => s.instanceId === instance.parentEffectId);
+  const slotLevelCandidate = Number(instance?.slotLevel ?? parentSpell?.castContext?.slotLevel ?? parentSpell?.slotLevel);
+  const slotLevel = Number.isInteger(slotLevelCandidate) && slotLevelCandidate >= 0 ? slotLevelCandidate : null;
   const resolution = buildEffectSaveReminderResolution({
     item,
     instance,
@@ -400,17 +430,22 @@ function reminderNotice({
     dc,
     activationId,
     turnKey,
+    slotLevel,
   });
   return {
     activationId,
     turnKey,
     effectName,
+    ...(spellName ? { spellName } : {}),
+    ...(spellId ? { spellId } : {}),
     saveLabel,
     instruction,
     timing: reminder.timing,
-    ability: ability.short,
+    ...(ability ? { ability: ability.short } : {}),
     ...(dc !== null ? { dc } : {}),
     ...(sourceName ? { sourceName } : {}),
+    kind: ability ? "effect-save" : "effect-reminder",
+    ...(ability ? {} : { eyebrow: informational ? "Promemoria effetto" : "Danno continuo" }),
     ...(resolution ? { resolution } : {}),
     target: {
       id: item.id,
@@ -496,9 +531,14 @@ function noticesForTiming(
     }));
     for (const instance of conditionInstances(item)) {
       if (instance?.active === false || !instance?.id) continue;
-      for (const reminder of normalizeEffectSaveReminders(
+      for (const normalizedReminder of normalizeEffectSaveReminders(
         instance.saveReminder,
       )) {
+        const reminder = fleshToStoneReminderForInstance({
+          instance,
+          conditions: conditionInstances(item),
+          reminder: normalizedReminder,
+        });
         if (reminder.timing !== timing) continue;
         const wantedActorId = reminder.actor === "source"
           ? actorId(instance.sourceId)

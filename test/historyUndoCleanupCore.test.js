@@ -6,6 +6,7 @@ import {
   historyEntryHasUndoPayload,
   HISTORY_UNDO_READINESS_STATUS,
   malformedHistoryEntryIds,
+  filterPendingHistoryRemovalEntries,
 } from "../src/historyUndoCleanupCore.js";
 
 const entry = (id, value = 1) => ({
@@ -79,4 +80,13 @@ test("errore o lettura indeterminata disabilitano Undo senza trasformarsi in cle
   assert.equal(unavailable[0].status, HISTORY_UNDO_READINESS_STATUS.UNAVAILABLE);
   assert.equal(failed[0].status, HISTORY_UNDO_READINESS_STATUS.UNAVAILABLE);
   assert.match(failed[0].error.message, /scene read failed/u);
+});
+
+
+test("entry già annullate ma in attesa di rimozione non vengono riproposte come conflitti", () => {
+  const entries = [entry("old"), entry("undone"), entry("new")];
+  assert.deepEqual(
+    filterPendingHistoryRemovalEntries(entries, ["undone"]),
+    [entries[0], entries[2]],
+  );
 });

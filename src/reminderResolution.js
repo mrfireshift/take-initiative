@@ -17,6 +17,13 @@ const STATE_KEY = `${ID}/state`;
 const pendingResolutions = new Map();
 export const REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED = true;
 
+function createResolutionAttemptId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch {}
+  return `${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+}
+
 function staleMessage(result) {
   const reason = String(result?.reason || result?.conflicts?.[0]?.reason || "");
   if (reason.includes("scene") || reason.includes("epoch")) {
@@ -67,10 +74,14 @@ function reminderCausality(notice, plan) {
         ? { label: resolution.actionLabel || resolution.label }
         : {}),
     };
+  const isZeroDamageOutcome = plan?.outcome === "passed" || plan?.outcome === "immune" || Number(plan?.damage?.amount) === 0;
+  const targetRequestedDamage = isZeroDamageOutcome ? undefined : (resolution.damage ? plan?.damage?.roll : undefined);
+  const actionDamageRoll = isZeroDamageOutcome ? undefined : (resolution.damage ? plan?.damage?.roll : undefined);
+
   return buildSpellCausality({
     eventType: "reminder-resolution",
-    spellId: notice?.spellId || resolution.spellId || effect.spellId,
-    spellName: notice?.spellName || notice?.effectName || resolution.spellName || effect.spellName,
+    spellId: notice?.spellId || effect?.spellId || resolution.spellId || effect.spellId,
+    spellName: notice?.spellName || effect?.spellName || notice?.effectName || resolution.spellName || effect.spellName,
     instanceId: notice?.instanceId || effect.instanceId,
     slotLevel: notice?.slotLevel || resolution.slotLevel || effect.slotLevel,
     phase: notice?.phase || resolution.phase,
@@ -81,13 +92,13 @@ function reminderCausality(notice, plan) {
       id: plan?.targetId,
       name: target?.name,
       outcome: plan?.outcome,
-      requestedDamage: resolution.damage ? plan?.damage?.roll : undefined,
+      requestedDamage: targetRequestedDamage,
       appliedHpDelta: hpDelta,
       damageFactor: resolution.damage ? reminderDamageFactor(plan?.damage?.factor) : undefined,
     }],
     targetIds: plan?.targetId ? [plan.targetId] : [],
     action,
-    damageRoll: resolution.damage ? plan?.damage?.roll : undefined,
+    damageRoll: actionDamageRoll,
     concentrationAction,
     concentrationInstanceId: effect.instanceId || notice?.instanceId,
     zone: activation.kind === "zone"
@@ -101,12 +112,45 @@ function reminderCausality(notice, plan) {
   });
 }
 
+function formatReminderResolutionLabel({ notice, plan }) {
+  const effect = notice?.resolution?.effect || {};
+  const rawName = String(
+    notice?.spellName
+    || effect?.spellName
+    || notice?.effectName
+    || ""
+  ).trim();
+  const isInternalId = !rawName
+    || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawName)
+    || /^cond-inst-/i.test(rawName)
+    || /^spell-inst-/i.test(rawName);
+  const isSave = !!(
+    notice?.ability
+    || notice?.saveLabel
+    || plan?.save
+    || notice?.kind === "effect-save"
+  );
+  const humanName = isInternalId
+    ? (isSave ? "Tiro salvezza" : "Promemoria")
+    : rawName;
+  const outcome = plan?.outcome;
+  const outcomeText = {
+    passed: isSave ? "TS superato" : "Superato",
+    failed: isSave ? "TS fallito" : "Fallito",
+    immune: "Immune",
+    confirmed: "Confermato",
+  }[outcome] || (plan?.resolutionMode === "consume" ? "Chiuso" : outcome || "Risolto");
+  return `${humanName} · ${outcomeText}`;
+}
+
 async function executeReminderResolution({
   notice = null,
   outcome = "",
   damageRoll = 0,
   sceneEpoch = currentSceneEpoch(),
+  historyReplay = null,
 } = {}) {
+  const resolutionAttemptId = createResolutionAttemptId();
   if (await OBR.player.getRole().catch(() => "PLAYER") !== "GM") {
     return { status: "forbidden", message: "Solo il GM può risolvere un reminder." };
   }
@@ -141,26 +185,21 @@ async function executeReminderResolution({
   });
   if (plan.status !== "ready") return plan;
 
-  const labelName = String(
-    notice?.spellName
-    || notice?.effectName
-    || notice?.resolution?.effect?.instanceId
-    || "Reminder",
-  ).trim();
+  const resolutionLabel = formatReminderResolutionLabel({ notice, plan });
   const outcomeLabel = {
-  passed: "Superato",
-  failed: "Fallito",
-  immune: "Immune",
-  confirmed: "Confermato",
-}[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
-  const commandId = `reminder-resolution:${plan.activationId}`;
+    passed: "Superato",
+    failed: "Fallito",
+    immune: "Immune",
+    confirmed: "Confermato",
+  }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
+  const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;
   let mutation;
   try {
     mutation = await runEffectsMutation(plan.operations, {
       commandId,
       sceneEpoch,
       kind: "reminder-resolution",
-      label: `Reminder: ${labelName} · ${outcomeLabel}`,
+      label: resolutionLabel,
       targetIds: plan.targetIds,
       metadataPatches: plan.metadataPatches,
       sideEffects: plan.sideEffects,
@@ -169,13 +208,16 @@ async function executeReminderResolution({
       deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED,
       history: {
         kind: "reminder-resolution",
-        label: `Reminder: ${labelName} · ${outcomeLabel}`,
+        label: resolutionLabel,
         payload: {
           activationId: plan.activationId,
           targetId: plan.targetId,
           outcome: plan.outcome,
           damage: plan.damage.amount,
           damageFactor: plan.damage.factor,
+          ...(historyReplay && typeof historyReplay === "object"
+            ? { replay: JSON.parse(JSON.stringify(historyReplay)) }
+            : {}),
           causality: reminderCausality(notice, plan),
         },
       },
@@ -223,11 +265,14 @@ async function executeReminderResolution({
     && plan.hpChange.after < plan.hpChange.before
     && isCurrentSceneEpoch(sceneEpoch)
   ) {
+    const causeHistoryEntryId = String(mutation?.historyEntry?.id || "").trim();
     derivedTasks.push(broadcastConcentrationSaveWarnings([{
       itemId: plan.targetId,
       damage: plan.damage.amount,
     }], {
       eventId: `reminder-resolution:${plan.activationId}`,
+      causeHistoryEntryId,
+      sceneEpoch,
     }).catch((error) => {
       console.warn("[reminder-resolution] concentration warning:", error?.message || error);
     }));
@@ -237,12 +282,16 @@ async function executeReminderResolution({
     const type = String(operation?.type || "");
     return type.startsWith("condition:") || type.startsWith("concentration:");
   })) {
-    try {
-      const { refreshConditionLabels } = await import("./conditions.js");
-      await refreshConditionLabels(mutation.changedIds?.length ? mutation.changedIds : plan.targetIds);
-    } catch (error) {
-      console.warn("[reminder-resolution] condition labels:", error?.message || error);
-    }
+    // Il reconcile delle pill/label è derivato dallo stato canonico già committato.
+    // Non deve trattenere l'ACK del popup: in caso di coda Effects occupata il
+    // reminder deve comunque uscire subito da "Risoluzione in corso…".
+    void import("./conditions.js")
+      .then(({ refreshConditionLabels }) =>
+        refreshConditionLabels(mutation.changedIds?.length ? mutation.changedIds : plan.targetIds)
+      )
+      .catch((error) => {
+        console.warn("[reminder-resolution] condition labels:", error?.message || error);
+      });
   }
   if (mutation?.commitResult?.sideEffectsPending?.length) {
     return {

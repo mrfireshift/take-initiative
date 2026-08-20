@@ -312,3 +312,57 @@ export function buildSpellUnifiedPanelRouteQuery(request = {}) {
   if (normalized.zoneTrigger) query.set("zoneTrigger", JSON.stringify(normalized.zoneTrigger));
   return query;
 }
+
+export function resolveGlobalSpellSourceEntryCore({
+  entries = [],
+  state = {},
+  selection = [],
+  explicitSourceId = "",
+} = {}) {
+  const byId = new Map(
+    (Array.isArray(entries) ? entries : [])
+      .filter((entry) => entry && entry.id)
+      .map((entry) => [entry.id, entry]),
+  );
+
+  const cleanBaseId = (rawId) => {
+    const textId = String(rawId || "").trim();
+    if (!textId || textId === "__LAIR__" || textId.startsWith("__EPIC__")) return "";
+    return textId.replace(/::p\d+$/, "");
+  };
+
+  const isEligibleEntry = (entry) => {
+    if (!entry || !entry.id) return false;
+    const baseId = cleanBaseId(entry.id);
+    return Boolean(baseId);
+  };
+
+  if (explicitSourceId) {
+    const explicitBaseId = cleanBaseId(explicitSourceId);
+    if (explicitBaseId) {
+      const explicitEntry = byId.get(explicitBaseId);
+      if (explicitEntry && isEligibleEntry(explicitEntry)) return explicitEntry;
+    }
+  }
+
+  const order = Array.isArray(state?.order) ? state.order : [];
+  if (order.length > 0) {
+    const activeIndex = Math.max(0, Math.min(order.length - 1, state?.current ?? 0));
+    const activeId = order[activeIndex];
+    const activeBaseId = cleanBaseId(activeId);
+    if (activeBaseId) {
+      const activeEntry = byId.get(activeBaseId);
+      if (activeEntry && isEligibleEntry(activeEntry)) return activeEntry;
+    }
+  }
+
+  for (const selectedId of Array.isArray(selection) ? selection : []) {
+    const selectedBaseId = cleanBaseId(selectedId);
+    if (!selectedBaseId) continue;
+    const entry = byId.get(selectedBaseId);
+    if (entry && isEligibleEntry(entry)) return entry;
+  }
+
+  const firstEligible = (Array.isArray(entries) ? entries : []).find(isEligibleEntry);
+  return firstEligible || null;
+}

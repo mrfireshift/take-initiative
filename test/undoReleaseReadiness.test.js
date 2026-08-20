@@ -370,7 +370,7 @@ test("normalizzazione Undo e contratti UI separano commit, no-op, stale, conflic
     [{ result: { status: "failed", committed: false } }, HISTORY_UNDO_OUTCOME.FAILED],
   ];
   for (const [value, expected] of cases) assert.equal(normalizeHistoryUndoResult(value).outcome, expected);
-  assert.match(historyModalSource, /undoInProgress \|\| selectedDepth < 1/);
+  assert.match(historyModalSource, /undoInProgress \|\| undoCleanupInProgress \|\| undoResetInProgress \|\| selectedDepth < 1/);
   assert.match(historyModalSource, /normalizeHistoryUndoResult\(undone\)/);
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.COMMITTED/);
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.REJECTED/);
@@ -378,6 +378,8 @@ test("normalizzazione Undo e contratti UI separano commit, no-op, stale, conflic
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.CONFLICT/);
   assert.match(historyModalSource, /HISTORY_UNDO_OUTCOME\.FAILED/);
   assert.match(historyModalSource, /button\("Pulisci entry incomplete"\)/);
+  assert.match(historyModalSource, /button\("Azzera Undo", "danger"\)/);
+  assert.match(historyModalSource, /requestHistoryOwnerClear/);
   assert.match(historyModalSource, /ownerAttempts: 3/);
   assert.match(historyModalSource, /pruneNonUndoableHistoryEntries/);
   assert.match(historyModalSource, /waitForHistoryEntriesRemoved/);

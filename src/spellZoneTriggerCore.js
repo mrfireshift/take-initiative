@@ -371,6 +371,7 @@ export function planSpellZoneTriggers({
       triggerId: String(trigger.id || "").trim(),
       event: String(trigger.event || "").trim(),
       resolution: String(trigger.resolution || "").trim(),
+      ...(trigger.requiresConcentration === true ? { requiresConcentration: true } : {}),
       ...(String(trigger.ability || "").trim()
         ? { ability: String(trigger.ability).trim() }
         : {}),

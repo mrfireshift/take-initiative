@@ -519,7 +519,7 @@ function placementValidation({
   }
 
   if (!payload) {
-    if (policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED) {
+    if (policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED && !trigger) {
       addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_REQUIRED);
     }
     return {
@@ -599,9 +599,14 @@ function placementValidation({
   const targetIds = confirmed ? payload.targetIds : [];
   const requiresConfirmedTargets = targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     && contract?.presentation?.targeting?.confirmTargets === true
-    && !["zone", "aura", "board-token"].includes(rule?.kind)
+    && !["zone", "aura"].includes(rule?.kind)
     && !isTeleportSpell(spellId);
-  if (confirmed && requiresConfirmedTargets && !targetIds.length) {
+  if (
+    confirmed
+    && requiresConfirmedTargets
+    && contract?.presentation?.targeting?.selectionMode !== "post-placement"
+    && !targetIds.length
+  ) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_TARGETS_MISSING);
   }
 
@@ -925,6 +930,9 @@ function resolutionProjection(result, fallbackTargeting = null, attackResolution
     conditionApplications: serializable(result?.conditionApplications || []),
     targeting: serializable(result?.targeting || fallbackTargeting || null),
     choice: serializable(result?.choice || result?.targeting?.choice || null),
+    ...(result?.persistence && typeof result.persistence === "object"
+      ? { persistence: serializable(result.persistence) }
+      : {}),
     ...(attackResolution ? { attackResolution: serializable(attackResolution) } : {}),
   };
 }
@@ -1177,14 +1185,37 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     })
     : null;
 
+  const isAreaSubset = targetingContract.selectionMode === "area-subset";
+  const externalTargetSelection = ["manual", "post-placement"].includes(
+    targetingContract.selectionMode,
+  );
   let targetIds = validatedTrigger?.targetIds?.length
     ? validatedTrigger.targetIds
     : placement.payload && placementIsConfirmed(placement.payload)
       && targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
-      && targetingContract.selectionMode !== "manual"
+      && !externalTargetSelection
+      && !isAreaSubset
         ? placement.targetIds
         : rawTargetIds;
   targetIds = uniqueIds(targetIds);
+
+  if (isAreaSubset && placement.payload && placementIsConfirmed(placement.payload)) {
+    const candidateTargetIds = uniqueIds(firstDefined(
+      sourceInput.candidateTargetIds,
+      sourceInput.candidateIds,
+      sourceInput.availableTargetIds,
+      placement.payload.targetIds,
+      [],
+    ));
+    if (candidateTargetIds.length) {
+      for (const targetId of targetIds) {
+        if (!candidateTargetIds.includes(targetId)) {
+          addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_TARGET_NOT_CANDIDATE);
+          break;
+        }
+      }
+    }
+  }
   const primaryTargetId = text(firstDefined(
     sourceInput.primaryTargetId,
     sourceInput.primaryId,
@@ -1232,7 +1263,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     || phase === "prepare"
     || ruleKind === "zone"
     || ruleKind === "aura"
-    || ruleKind === "board-token"
+    || ruleKind === "board-token" && contract?.presentation?.targeting?.confirmTargets !== true
     || isTeleportSpell(spellId)
       ? placement.rule?.zonePolicy?.targetScope !== "spell-targets"
         && placement.rule?.zonePolicy?.initialResolution !== "manual-save"
@@ -1292,10 +1323,17 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   if (spell && !attackRequired) {
     const resolutionOutcomes = saveOutcomesRequired
       ? outcomes.byTarget
-      : Object.fromEntries(targetIds.map((targetId) => [
-        targetId,
-        SAVE_SPELL_OUTCOMES.FAILED,
-      ]));
+      : workflowRule?.manualSaveAtTable === true
+        ? Object.fromEntries(targetIds.map((targetId) => [
+          targetId,
+          outcomes.byTarget[targetId]
+            || workflowRule.assumedOutcome
+            || SAVE_SPELL_OUTCOMES.FAILED,
+        ]))
+        : Object.fromEntries(targetIds.map((targetId) => [
+          targetId,
+          SAVE_SPELL_OUTCOMES.FAILED,
+        ]));
     resolutionResult = resolveSaveSpellResolution({
       spell,
       casterId,
@@ -1329,6 +1367,14 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       || sourceInput.spatial
       || null,
   );
+  if (
+    contract?.presentation?.targeting?.spatialRules?.mode === "placement-range"
+    && sourceInput.validateSpatial !== false
+    && Array.isArray(spatialValidation?.invalidTargetIds)
+    && spatialValidation.invalidTargetIds.length
+  ) {
+    addError(errors, "target-out-of-range");
+  }
   const locked = validatedTrigger?.targetLocked === true
     || placement.locked === true
     || sourceInput.targetLocked === true

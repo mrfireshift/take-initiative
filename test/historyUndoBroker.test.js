@@ -95,3 +95,22 @@ test("un fallimento pre-commit escluso dalla cache consente il retry dello stess
   assert.equal(duplicate.duplicate, true);
   assert.equal(executions, 2);
 });
+
+
+test("il context del broker espone lo stato History pending del runtime autorevole", async () => {
+  let historyPending = true;
+  const broker = createEffectsMutationBackgroundBroker({
+    executeApply: async () => ({ status: "applied" }),
+    executeUndo: async () => ({ status: "applied" }),
+    getContextState: () => ({ historyPending }),
+  });
+  broker.setSceneIdentity("scene-a");
+
+  const pending = await broker.handle({ requestId: "context-pending", kind: "context" });
+  assert.equal(pending.result.status, "applied");
+  assert.equal(pending.result.historyPending, true);
+
+  historyPending = false;
+  const settled = await broker.handle({ requestId: "context-settled", kind: "context" });
+  assert.equal(settled.result.historyPending, false);
+});

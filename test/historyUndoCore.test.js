@@ -2,12 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildHistoryUndoPlan,
+  historyEntryMatchesUndoBefore,
+  historyUndoItemMatches,
   historyUndoPlanConflicts,
 } from "../src/historyUndoCore.js";
 
 const META = "com.thebigpicture.initiative/meta";
 const SPELLS = "com.thebigpicture.initiative/spells";
 const CONCENTRATION = "com.thebigpicture.initiative/concentration";
+const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 const snapshot = (value) => value === undefined
   ? { present: false }
   : { present: true, value };
@@ -413,4 +416,762 @@ test("il piano conserva gli snapshot iniziali e finali per il read-back", () => 
   const result = plan([item("a", { hp: 5 })], [fieldEntry("a", "hp", 10, 5)]);
   assert.equal(result.initialItems[0].item.metadata[META].hp, 5);
   assert.equal(result.finalItems[0].item.metadata[META].hp, 10);
+});
+
+
+test("History Undo confronta correttamente i draft Proxy di OBR senza DataCloneError", () => {
+  const burning = {
+    id: "immolation-burning-instance",
+    condition: "In fiamme · 4d6 a fine turno",
+    spellId: "xanathar-immolazione",
+    spellName: "Immolazione",
+    saveReminder: {
+      ability: "dex",
+      timing: "turn-end",
+      success: "remove-effect",
+      damage: { dice: "4d6", type: "fuoco", onSave: "none" },
+    },
+  };
+  const concentration = {
+    immolazione: {
+      instanceId: "immolation-instance",
+      spellId: "xanathar-immolazione",
+      name: "Immolazione",
+    },
+  };
+
+  // Replica il tipo di valori ricevuti dentro OBR.scene.items.updateItems:
+  // metadata/istanze sono draft Immer (Proxy), che structuredClone rifiuta.
+  const proxiedBurning = new Proxy(burning, {});
+  const proxiedConcentration = new Proxy(concentration, {});
+  const draft = {
+    id: "target",
+    metadata: {
+      [META]: {
+        conditions: { version: 1, instances: [proxiedBurning] },
+        [CONCENTRATION]: proxiedConcentration,
+      },
+    },
+  };
+
+  const change = {
+    id: "target",
+    fields: { conditions: true, concentrations: true },
+    before: { conditions: [], concentrations: {} },
+    after: { conditions: [burning], concentrations: concentration },
+  };
+
+  assert.equal(historyUndoItemMatches(draft, change, {
+    phase: "after",
+    metadataKey: META,
+    effectKeys: {
+      conditions: "conditions",
+      spells: SPELLS,
+      concentrations: CONCENTRATION,
+    },
+    normalizeConditions,
+  }), true);
+});
+
+test("il consumo di un reminder di aura è Undo scoped all'activation e tollera altri avanzamenti del triggerRuntime", () => {
+  const AURA_KEY = "com.thebigpicture.initiative/spellAura";
+  const activation = {
+    id: "flame-turn-end-1",
+    triggerId: "flame-investiture-damage-on-turn-end",
+    targetIds: ["target"],
+    turnKey: "1:1",
+    damage: { dice: "1d10", type: "fuoco", onSave: "none" },
+  };
+  const target = item("target", { hp: 43, hpMax: 50 });
+  const aura = {
+    id: "aura-root",
+    name: "Aura mobile: Investitura della Fiamma",
+    position: { x: 0, y: 0 },
+    metadata: {
+      [AURA_KEY]: {
+        instanceId: "flame-instance",
+        triggerRuntime: {
+          initialized: true,
+          memberIds: ["target"],
+          evaluatedTurnKey: "1:2",
+          evaluatedActorId: "ally",
+          handledKeys: ["turn:1:1:flame-investiture-damage-on-turn-end:target"],
+          pending: [],
+          sequence: 9,
+        },
+      },
+    },
+  };
+  const entry = {
+    id: "history-flame-turn-end",
+    effectsMutation: {
+      changes: [{
+        id: "target",
+        metadataFields: { hp: true },
+        beforeMetadata: { hp: snapshot(50) },
+        afterMetadata: { hp: snapshot(43) },
+      }],
+      sideEffects: [{
+        id: "aura-root",
+        type: "reminder-zone-activation",
+        metadataKey: AURA_KEY,
+        activationId: activation.id,
+        activation,
+      }],
+    },
+  };
+
+  const result = plan([target, aura], [entry]);
+  assert.equal(result.status, undefined);
+  const restoredTarget = result.finalItems.find((row) => row.id === "target")?.item;
+  const restoredAura = result.finalItems.find((row) => row.id === "aura-root")?.item;
+  assert.equal(restoredTarget.metadata[META].hp, 50);
+  assert.equal(
+    restoredAura.metadata[AURA_KEY].triggerRuntime.evaluatedTurnKey,
+    "1:2",
+    "Undo must preserve runtime fields advanced after the reminder",
+  );
+  assert.equal(restoredAura.metadata[AURA_KEY].triggerRuntime.sequence, 9);
+  assert.deepEqual(
+    restoredAura.metadata[AURA_KEY].triggerRuntime.pending,
+    [activation],
+    "Undo must restore only the consumed activation",
+  );
+
+  const auraChange = result.changes.find((change) => change.id === "aura-root");
+  assert.equal(auraChange.zoneTriggerActivations.length, 1);
+  assert.equal(historyUndoItemMatches(aura, auraChange, {
+    phase: "before",
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+  }), true);
+  assert.equal(historyUndoItemMatches(restoredAura, auraChange, {
+    phase: "after",
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+  }), true);
+});
+
+test("technical item cambia solo runtime bookkeeping -> Undo PASS; normale token modificato -> Undo CONFLICT", () => {
+  const STATIC_ZONE_KEY = "com.thebigpicture.initiative/spellStaticZone";
+  // Technical item created in history
+  const technicalCreated = {
+    id: "zone-1",
+    name: "Spirit Guardians",
+    layer: "DRAWING",
+    position: { x: 100, y: 100 },
+    metadata: {
+      [STATIC_ZONE_KEY]: {
+        instanceId: "inst-sg-1",
+        spellId: "spirit-guardians",
+        ruleId: "sg:zone",
+        role: "root",
+        triggerRuntime: { sequence: 1 },
+      },
+    },
+  };
+  const createEntry = {
+    id: "hist-create-zone",
+    effectsMutation: {
+      changes: [{
+        id: "zone-1",
+        lifecycle: {
+          before: null,
+          after: clone(technicalCreated),
+        },
+      }],
+    },
+  };
+  // In live scene, technical item's runtime trigger advanced (bookkeeping only)
+  const technicalLive = {
+    ...technicalCreated,
+    metadata: {
+      ...technicalCreated.metadata,
+      [STATIC_ZONE_KEY]: {
+        ...technicalCreated.metadata[STATIC_ZONE_KEY],
+        triggerRuntime: { sequence: 5, pending: [] },
+      },
+    },
+  };
+  const passResult = plan([technicalLive], [createEntry]);
+  assert.equal(passResult.status, undefined, "Technical item runtime bookkeeping change must not block Undo");
+  assert.equal(passResult.finalItems.find((e) => e.id === "zone-1")?.item, null);
+
+  // Normal user token created in history
+  const tokenCreated = {
+    id: "token-user",
+    name: "Goblin",
+    layer: "CHARACTER",
+    position: { x: 50, y: 50 },
+    metadata: { [META]: { hp: 10, hpMax: 10 } },
+  };
+  const tokenCreateEntry = {
+    id: "hist-create-token",
+    effectsMutation: {
+      changes: [{
+        id: "token-user",
+        lifecycle: {
+          before: null,
+          after: clone(tokenCreated),
+        },
+      }],
+    },
+  };
+  // Normal token was modified in scene after creation (e.g. name or position changed)
+  const tokenModifiedLive = {
+    ...tokenCreated,
+    name: "Goblin Leader",
+    position: { x: 80, y: 80 },
+  };
+  const conflictResult = plan([tokenModifiedLive], [tokenCreateEntry]);
+  assert.equal(conflictResult.status, "conflict", "Normal scene item modified after creation must trigger CONFLICT");
+  assert.equal(conflictResult.conflicts[0].reason, "scene-item-snapshot-mismatch");
+});
+
+test("granular conditions: azione modifica Condizione A; riconciliatore history:false aggiunge Condizione B -> Undo rimuove A e preserva B", () => {
+  const condA = { id: "inst-a", condition: "Accecato", name: "Accecato" };
+  const condB = { id: "inst-b", condition: "Spaventato", name: "Spaventato" };
+  const targetToken = item("hero", {
+    hp: 20,
+    conditions: { version: 1, instances: [clone(condA), clone(condB)] }, // Live scene has both A and B
+  });
+  // Action only added Cond A (before was empty, after had Cond A)
+  const entry = {
+    id: "hist-add-a",
+    effectsMutation: {
+      changes: [{
+        id: "hero",
+        fields: { conditions: true },
+        before: { conditions: [] },
+        after: { conditions: [clone(condA)] },
+      }],
+    },
+  };
+  const result = plan([targetToken], [entry]);
+  assert.equal(result.status, undefined, "Unowned Condition B must not cause false conflict");
+  const finalMeta = result.finalItems.find((e) => e.id === "hero")?.item?.metadata?.[META];
+  const finalConds = finalMeta.conditions.instances;
+  assert.equal(finalConds.length, 1);
+  assert.equal(finalConds[0].id, "inst-b", "Condition B must be preserved while Condition A is removed");
+});
+
+test("granular conditions: azione modifica Condizione A; modifica successiva altera Condizione A -> Undo segnala CONFLICT", () => {
+  const condA = { id: "inst-a", condition: "Accecato", name: "Accecato", value: 1 };
+  const condAModified = { id: "inst-a", condition: "Accecato", name: "Accecato", value: 2 };
+  const targetToken = item("hero", {
+    hp: 20,
+    conditions: { version: 1, instances: [clone(condAModified)] },
+  });
+  const entry = {
+    id: "hist-add-a",
+    effectsMutation: {
+      changes: [{
+        id: "hero",
+        fields: { conditions: true },
+        before: { conditions: [] },
+        after: { conditions: [clone(condA)] },
+      }],
+    },
+  };
+  const result = plan([targetToken], [entry]);
+  assert.equal(result.status, "conflict", "Direct modification of owned Condition A must CONFLICT");
+  assert.equal(result.conflicts[0].field, "conditions");
+});
+
+
+
+test("granular conditions: dynamic area membership recreated with new instance id remains undoable", () => {
+  const castMembership = {
+    id: "cloudkill-old",
+    condition: "Accecato",
+    active: true,
+    targetId: "hero",
+    sourceId: "caster",
+    parentEffectId: "spell-cloudkill-1",
+    type: "spell",
+    effectId: "cloudkill-obscured",
+    expiry: { mode: "manual" },
+    createdAt: 1000,
+  };
+  const reconciledMembership = {
+    ...clone(castMembership),
+    id: "cloudkill-new",
+    createdAt: 2000,
+  };
+  const targetToken = item("hero", {
+    hp: 20,
+    conditions: { version: 1, instances: [reconciledMembership] },
+  });
+  const entry = {
+    id: "hist-cloudkill-cast",
+    effectsMutation: {
+      changes: [{
+        id: "hero",
+        fields: { conditions: true },
+        before: { conditions: [] },
+        after: { conditions: [castMembership] },
+      }],
+    },
+  };
+  const result = plan([targetToken], [entry]);
+  assert.equal(result.status, undefined, "Recreated membership owned by same spell/effect must not conflict");
+  const finalMeta = result.finalItems.find((e) => e.id === "hero")?.item?.metadata?.[META];
+  assert.equal(finalMeta?.conditions, undefined, "Undo cast must remove the current recreated membership instance");
+});
+
+test("granular conditions: dynamic area membership with changed owned mechanics still conflicts", () => {
+  const castMembership = {
+    id: "cloudkill-old",
+    condition: "Accecato",
+    active: true,
+    targetId: "hero",
+    sourceId: "caster",
+    parentEffectId: "spell-cloudkill-1",
+    type: "spell",
+    effectId: "cloudkill-obscured",
+    mechanics: { test: 1 },
+    expiry: { mode: "manual" },
+    createdAt: 1000,
+  };
+  const changedMembership = {
+    ...clone(castMembership),
+    id: "cloudkill-new",
+    createdAt: 2000,
+    mechanics: { test: 2 },
+  };
+  const targetToken = item("hero", {
+    hp: 20,
+    conditions: { version: 1, instances: [changedMembership] },
+  });
+  const entry = {
+    id: "hist-cloudkill-cast",
+    effectsMutation: {
+      changes: [{
+        id: "hero",
+        fields: { conditions: true },
+        before: { conditions: [] },
+        after: { conditions: [castMembership] },
+      }],
+    },
+  };
+  const result = plan([targetToken], [entry]);
+  assert.equal(result.status, "conflict", "A real mutation of owned membership semantics must remain a conflict");
+  assert.equal(result.conflicts[0].field, "conditions");
+});
+test("static-zone-move: movimento zona con successivo avanzamento del triggerRuntime -> Undo move PASS", () => {
+  const STATIC_ZONE_KEY = "com.thebigpicture.initiative/spellStaticZone";
+  const zoneToken = {
+    id: "sz-1",
+    name: "Wall of Fire",
+    position: { x: 300, y: 300 }, // Live position is afterPosition
+    metadata: {
+      [STATIC_ZONE_KEY]: {
+        instanceId: "wof-1",
+        ruleId: "wof:move",
+        triggerRuntime: { evaluatedTurnKey: "2:1", sequence: 10 }, // advanced runtime
+      },
+    },
+  };
+  const moveEntry = {
+    id: "hist-move-wof",
+    effectsMutation: {
+      sideEffects: [{
+        id: "sz-1",
+        type: "static-zone-move",
+        metadataKey: STATIC_ZONE_KEY,
+        instanceId: "wof-1",
+        beforePosition: { x: 100, y: 100 },
+        afterPosition: { x: 300, y: 300 },
+      }],
+    },
+  };
+  const result = plan([zoneToken], [moveEntry]);
+  assert.equal(result.status, undefined);
+  const revertedZone = result.finalItems.find((e) => e.id === "sz-1")?.item;
+  assert.deepEqual(revertedZone.position, { x: 100, y: 100 }, "Position must be reverted to beforePosition");
+  assert.equal(revertedZone.metadata[STATIC_ZONE_KEY].triggerRuntime.sequence, 10, "triggerRuntime must be preserved");
+});
+
+test("token:teleport: side-effect in mutazione composita -> Undo PASS", () => {
+  const tokenToTeleport = item("wizard", { hp: 15 }, { x: 500, y: 500 });
+  const compositeEntry = {
+    id: "hist-teleport-damage",
+    effectsMutation: {
+      changes: [{
+        id: "wizard",
+        metadataFields: { hp: true },
+        beforeMetadata: { hp: snapshot(25) },
+        afterMetadata: { hp: snapshot(15) },
+      }],
+      sideEffects: [{
+        id: "wizard",
+        type: "token:teleport",
+        beforePosition: { x: 100, y: 100 },
+        afterPosition: { x: 500, y: 500 },
+      }],
+    },
+  };
+  const result = plan([tokenToTeleport], [compositeEntry]);
+  assert.equal(result.status, undefined);
+  const restored = result.finalItems.find((e) => e.id === "wizard")?.item;
+  assert.equal(restored.metadata[META].hp, 25, "HP reverted");
+  assert.deepEqual(restored.position, { x: 100, y: 100 }, "Position reverted");
+});
+
+
+
+
+test("granular spells: runtime turn countdown history:false does not block Undo of the cast", () => {
+  const cloudkill = {
+    id: "cloudkill-entry",
+    name: "Nube mortale",
+    turns: 100,
+    casterId: "caster",
+    conc: true,
+    instanceId: "cloudkill-instance",
+    spellId: "cloudkill",
+    appliedAt: { round: 2, actorId: "caster", phase: "turn", turnKey: "2:0:caster" },
+    castContext: { staticZoneOwner: true, staticZoneRuleId: "cloudkill:cast", slotLevel: 5 },
+    expiry: { mode: "concentration" },
+  };
+  const progressed = { ...clone(cloudkill), turns: 99 };
+  const caster = item("caster", { hp: 20, [SPELLS]: [progressed] });
+  const entry = {
+    id: "hist-cloudkill-cast-turn-progress",
+    effectsMutation: {
+      changes: [{
+        id: "caster",
+        fields: { spells: true },
+        before: { spells: [] },
+        after: { spells: [cloudkill] },
+      }],
+    },
+  };
+
+  const result = plan([caster], [entry]);
+  assert.equal(result.status, undefined, "Automatic round countdown must not stale the cast entry");
+  const finalMeta = result.finalItems.find((e) => e.id === "caster")?.item?.metadata?.[META];
+  assert.deepEqual(finalMeta?.[SPELLS] || [], [], "Undo cast must remove the progressed spell instance");
+});
+
+test("granular spells: unrelated spell is preserved while undoing a progressed cast", () => {
+  const cloudkill = {
+    id: "cloudkill-entry", name: "Nube mortale", turns: 100, casterId: "caster", conc: true,
+    instanceId: "cloudkill-instance", spellId: "cloudkill", expiry: { mode: "concentration" },
+  };
+  const unrelated = {
+    id: "other-entry", name: "Armatura magica", turns: 20, casterId: "caster", conc: false,
+    instanceId: "armor-instance", spellId: "mage-armor", expiry: { mode: "rounds" },
+  };
+  const caster = item("caster", { hp: 20, [SPELLS]: [{ ...clone(cloudkill), turns: 99 }, unrelated] });
+  const entry = {
+    id: "hist-cloudkill-cast-preserve-other",
+    effectsMutation: { changes: [{
+      id: "caster", fields: { spells: true }, before: { spells: [] }, after: { spells: [cloudkill] },
+    }] },
+  };
+  const result = plan([caster], [entry]);
+  assert.equal(result.status, undefined);
+  const finalSpells = result.finalItems.find((e) => e.id === "caster")?.item?.metadata?.[META]?.[SPELLS] || [];
+  assert.equal(finalSpells.length, 1);
+  assert.equal(finalSpells[0].instanceId, "armor-instance");
+});
+
+test("granular spells: semantic change to the owned spell still conflicts", () => {
+  const cloudkill = {
+    id: "cloudkill-entry", name: "Nube mortale", turns: 100, casterId: "caster", conc: true,
+    instanceId: "cloudkill-instance", spellId: "cloudkill",
+    castContext: { staticZoneOwner: true, staticZoneRuleId: "cloudkill:cast", slotLevel: 5 },
+    expiry: { mode: "concentration" },
+  };
+  const changed = {
+    ...clone(cloudkill),
+    turns: 99,
+    castContext: { ...cloudkill.castContext, slotLevel: 6 },
+  };
+  const caster = item("caster", { hp: 20, [SPELLS]: [changed] });
+  const entry = {
+    id: "hist-cloudkill-cast-semantic-change",
+    effectsMutation: { changes: [{
+      id: "caster", fields: { spells: true }, before: { spells: [] }, after: { spells: [cloudkill] },
+    }] },
+  };
+  const result = plan([caster], [entry]);
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflicts[0].field, "spells");
+});
+
+test("token:teleport: Undo durante la stessa animazione pending accetta beforePosition solo con operationId corrispondente", () => {
+  const token = { id: "tele-pending", name: "Mago", position: { x: 0, y: 0 }, visible: true, metadata: { [META]: {} } };
+  const entry = {
+    id: "hist-tele-pending",
+    effectsMutation: {
+      commandId: "tele-op-1",
+      changes: [],
+      sideEffects: [{
+        id: "tele-pending",
+        type: "token:teleport",
+        operationId: "tele-op-1",
+        beforePosition: { x: 0, y: 0 },
+        afterPosition: { x: 300, y: 300 },
+      }],
+    },
+  };
+  const result = buildHistoryUndoPlan({
+    sceneItems: [token],
+    entryOrEntries: [entry],
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+    teleportAnimationLookup: (id) => id === "tele-pending" ? { operationId: "tele-op-1" } : null,
+  });
+  assert.equal(result.status, undefined);
+  assert.deepEqual(result.finalItems.find((item) => item.id === "tele-pending").item.position, { x: 0, y: 0 });
+});
+
+test("token:teleport: beforePosition senza la stessa animazione pending resta un vero CONFLICT", () => {
+  const token = { id: "tele-stale", name: "Mago", position: { x: 0, y: 0 }, visible: true, metadata: { [META]: {} } };
+  const entry = {
+    id: "hist-tele-stale",
+    effectsMutation: {
+      commandId: "tele-op-1",
+      changes: [],
+      sideEffects: [{
+        id: "tele-stale",
+        type: "token:teleport",
+        operationId: "tele-op-1",
+        beforePosition: { x: 0, y: 0 },
+        afterPosition: { x: 300, y: 300 },
+      }],
+    },
+  };
+  const result = buildHistoryUndoPlan({
+    sceneItems: [token],
+    entryOrEntries: [entry],
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+    teleportAnimationLookup: () => null,
+  });
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflicts[0].reason, "current-value-mismatch");
+});
+
+test("legacy static-zone removal: side effect lifecycle senza type resta undoable", () => {
+  const removedZone = {
+    id: "legacy-zone-removed",
+    name: "Zona concentrazione",
+    type: "SHAPE",
+    position: { x: 200, y: 300 },
+    visible: true,
+    metadata: {
+      "com.thebigpicture.initiative/spellStaticZone": {
+        instanceId: "conc-zone-1",
+        spellId: "wall-of-light",
+        ruleId: "wall-of-light:zone",
+      },
+    },
+  };
+  const entry = {
+    id: "history-concentration-break-legacy",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: removedZone.id,
+        before: removedZone,
+        after: null,
+      }],
+    },
+  };
+
+  const result = plan([], [entry]);
+  assert.equal(result.status, undefined);
+  const restored = result.finalItems.find((candidate) => candidate.id === removedZone.id)?.item;
+  assert.deepEqual(restored, removedZone);
+});
+
+test("side effect senza type non viene trattato come lifecycle se before e after esistono entrambi", () => {
+  const live = item("ambiguous", { hp: 5 });
+  const entry = {
+    id: "history-ambiguous-untyped",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: "ambiguous",
+        before: item("ambiguous", { hp: 10 }),
+        after: live,
+      }],
+    },
+  };
+
+  const result = plan([live], [entry]);
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflicts[0].reason, "unsupported-side-effect");
+});
+
+test("reminder-resolution già nello stato before viene riconosciuta come Undo già applicato", () => {
+  const spell = {
+    id: "spell-entry",
+    name: "Guardiani spirituali",
+    turns: 100,
+    casterId: "caster",
+    conc: true,
+    instanceId: "spirit-instance",
+    spellId: "spirit-guardians",
+    expiry: { mode: "concentration" },
+  };
+  const concentration = {
+    "guardiani spirituali": {
+      targets: ["caster"],
+      name: "Guardiani spirituali",
+      instanceId: "spirit-instance",
+      spellId: "spirit-guardians",
+    },
+  };
+  const previousMarkers = {
+    "concentration-save:older:caster": { version: 1, outcome: "passed", resolvedAt: 1 },
+  };
+  const resolvedMarkers = {
+    ...previousMarkers,
+    "concentration-save:failed:caster": { version: 1, outcome: "failed", resolvedAt: 2 },
+  };
+  const entry = {
+    id: "effects-history:reminder-resolution:concentration-save:failed:caster",
+    kind: "reminder-resolution",
+    effectsMutation: {
+      changes: [{
+        id: "caster",
+        fields: { spells: true, concentrations: true },
+        before: { spells: [spell], concentrations: concentration },
+        after: { spells: [], concentrations: {} },
+        metadataFields: { reminderResolutions: true },
+        beforeMetadata: { reminderResolutions: { present: true, value: previousMarkers } },
+        afterMetadata: { reminderResolutions: { present: true, value: resolvedMarkers } },
+      }],
+      sideEffects: [],
+    },
+  };
+  const currentBefore = item("caster", {
+    [SPELLS]: [spell],
+    [CONCENTRATION]: concentration,
+    reminderResolutions: previousMarkers,
+  });
+
+  assert.equal(historyEntryMatchesUndoBefore({
+    sceneItems: [currentBefore],
+    entry,
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+  }), true);
+});
+
+test("reminder-resolution parzialmente ripristinata non viene scambiata per Undo già applicato", () => {
+  const spell = {
+    id: "spell-entry-partial",
+    name: "Guardiani spirituali",
+    casterId: "caster-partial",
+    conc: true,
+    instanceId: "spirit-instance-partial",
+    spellId: "spirit-guardians",
+  };
+  const concentration = {
+    "guardiani spirituali": {
+      targets: ["caster-partial"],
+      instanceId: "spirit-instance-partial",
+      spellId: "spirit-guardians",
+    },
+  };
+  const entry = {
+    id: "partial-reminder-resolution",
+    kind: "reminder-resolution",
+    effectsMutation: {
+      changes: [{
+        id: "caster-partial",
+        fields: { spells: true, concentrations: true },
+        before: { spells: [spell], concentrations: concentration },
+        after: { spells: [], concentrations: {} },
+      }],
+      sideEffects: [],
+    },
+  };
+  const partial = item("caster-partial", {
+    [SPELLS]: [spell],
+    [CONCENTRATION]: {},
+  });
+  assert.equal(historyEntryMatchesUndoBefore({
+    sceneItems: [partial],
+    entry,
+    metadataKey: META,
+    effectKeys: { conditions: "conditions", spells: SPELLS, concentrations: CONCENTRATION },
+    normalizeConditions,
+  }), false);
+});
+
+test("Undo di un reminder zona ripristina solo la propria activation e preserva reminder accumulati", () => {
+  const ZONE_KEY = "com.thebigpicture.initiative/spellStaticZone";
+  const consumed = {
+    id: "cloudkill-turn-1",
+    triggerId: "cloudkill-save-on-turn-start",
+    targetIds: ["target"],
+    turnKey: "2:1:target",
+  };
+  const pendingLater = [
+    {
+      id: "cloudkill-entry-2",
+      triggerId: "cloudkill-save-on-entry",
+      targetIds: ["other"],
+      turnKey: "2:1:other",
+    },
+    {
+      id: "cloudkill-turn-3",
+      triggerId: "cloudkill-save-on-turn-start",
+      targetIds: ["third"],
+      turnKey: "2:1:third",
+    },
+  ];
+  const zone = {
+    id: "cloudkill-root",
+    name: "Zona: Nube mortale",
+    metadata: {
+      [ZONE_KEY]: {
+        instanceId: "cloudkill-instance",
+        spellId: "cloudkill",
+        ruleId: "cloudkill:cast",
+        triggerRuntime: {
+          initialized: true,
+          memberIds: ["target", "other", "third"],
+          evaluatedTurnKey: "2:1:third",
+          handledKeys: [],
+          pending: pendingLater,
+          sequence: 12,
+        },
+      },
+    },
+  };
+  const entry = {
+    id: "history-cloudkill-reminder-1",
+    effectsMutation: {
+      changes: [],
+      sideEffects: [{
+        id: zone.id,
+        type: "reminder-zone-activation",
+        metadataKey: ZONE_KEY,
+        activationId: consumed.id,
+        activation: consumed,
+      }],
+    },
+  };
+
+  const result = plan([zone], [entry]);
+  assert.equal(result.status, undefined);
+  const restored = result.finalItems.find((row) => row.id === zone.id)?.item;
+  assert.deepEqual(
+    restored.metadata[ZONE_KEY].triggerRuntime.pending.map((activation) => activation.id),
+    [pendingLater[0].id, pendingLater[1].id, consumed.id],
+  );
+  assert.equal(restored.metadata[ZONE_KEY].triggerRuntime.sequence, 12);
+  assert.equal(restored.metadata[ZONE_KEY].triggerRuntime.evaluatedTurnKey, "2:1:third");
 });

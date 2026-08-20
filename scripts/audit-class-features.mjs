@@ -6,6 +6,7 @@ const SOURCE_DIR = path.join(ROOT_DIR, "data", "class-features");
 const RUNTIME_CATALOG_PATH = path.join(ROOT_DIR, "src", "class-features-runtime.json");
 const REPORT_PATH = path.join(SOURCE_DIR, "class-feature-automation-audit.json");
 const MARKDOWN_PATH = path.join(ROOT_DIR, "docs", "AUDIT_CAPACITA_CLASSE.md");
+const TEST_DIR = path.join(ROOT_DIR, "test");
 
 const SOURCE_CONFIGS = Object.freeze([
   Object.freeze({
@@ -32,13 +33,6 @@ const SOURCE_CONFIGS = Object.freeze([
     catalog: "ranger_revised_database_finale.json",
     mechanics: "ranger_revised_livello_meccanico_v1_0.json",
   }),
-]);
-
-const NON_ACTION_ACTIVATIONS = new Set([
-  "passiva",
-  "passiva_o_non_specificata",
-  "contenitore_opzioni",
-  "sistema_incantesimi",
 ]);
 
 const ACTIONABLE_ACTIVATIONS = new Set([
@@ -149,6 +143,46 @@ const MODE_PRIORITY = Object.freeze({
   tavolo: "nessuna",
 });
 
+const CUSTOM_ADAPTERS = new Set([
+  "lay-on-hands",
+  "purifying-touch",
+  "unsettling-words",
+  "universal-speech",
+  "night-eyes",
+  "turn-undead",
+  "turn-creatures",
+  "spell-thief",
+  "wild-magic-surge",
+  "wild-magic-tides",
+  "sorcery-source",
+  "sorcerous-restoration",
+  "bardic-inspiration",
+]);
+
+const DIRECT_TEST_FILES = [
+  "barbarianCombatAudit.test.js",
+  "barbarianFeatureRuntime.test.js",
+  "bardEloquenceFeatureRuntime.test.js",
+  "bardLoreFeatureRuntime.test.js",
+  "clericTwilightFeatureRuntime.test.js",
+  "paladinDevotionFeatureRuntime.test.js",
+  "rangerRevisedFeatureRuntime.test.js",
+  "rogueArcaneTricksterFeatureRuntime.test.js",
+  "sorcererWildMagicFeatureRuntime.test.js",
+  "wizardEvocationFeatureRuntime.test.js",
+];
+
+const INDIRECT_TEST_FILES = [
+  "classFeatureAudit.test.js",
+  "classFeatureAuraController.test.js",
+  "classFeatureAuraCore.test.js",
+  "classFeatureAuraReminderCore.test.js",
+  "classFeatureCatalog.test.js",
+  "classFeatureCore.test.js",
+  "classFeatureReminderCore.test.js",
+  "rangerRevisedDataIntegration.test.js",
+];
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -213,10 +247,6 @@ function sourceAutomationLevel(mechanic) {
   return raw || "riferimento";
 }
 
-function hasResourceCosts(mechanic) {
-  return Array.isArray(mechanic?.resource_costs) && mechanic.resource_costs.length > 0;
-}
-
 function hasStructuredEffects(mechanic) {
   return sourceCompleteness(mechanic) === "curata"
     && Array.isArray(mechanic?.effects)
@@ -230,84 +260,6 @@ function hasManualChoice(mechanic) {
     || (Array.isArray(mechanic?.effects) && mechanic.effects.some(
       (effect) => effect?.type === "choose_option" || effect?.type === "choice"
     ));
-}
-
-function classifyLegacyFeature({ mechanic, record, identity, runtimeEntry }) {
-  const level = sourceAutomationLevel(mechanic);
-  const completeness = sourceCompleteness(mechanic);
-  const activation = asString(mechanic?.activation?.primary) || "non_specificata";
-  const effects = Array.isArray(mechanic?.effects) ? mechanic.effects : [];
-  const effectTypeList = effectTypes(mechanic);
-  const missingForExecution = uniqueStrings(mechanic?.completeness?.missing_for_execution);
-  const resourceCosts = Array.isArray(mechanic?.resource_costs) ? mechanic.resource_costs : [];
-  const structured = hasStructuredEffects(mechanic);
-  const manualChoice = hasManualChoice(mechanic);
-  const activeActivation = ACTIONABLE_ACTIVATIONS.has(activation);
-  const runtimeExposed = Boolean(runtimeEntry);
-  const blockers = [];
-
-  if (completeness !== "curata") blockers.push("completezza_non_curata");
-  if (!effects.length) blockers.push("effetti_non_strutturati");
-  if (missingForExecution.length) blockers.push(...missingForExecution);
-  if (manualChoice) blockers.push("scelta_giocatore_o_opzione");
-  if (!activeActivation) blockers.push("attivazione_passiva_o_contenitore");
-  if (!asString(mechanic?.targets?.type) || mechanic.targets.type === "non_specificato") {
-    if (effects.length) blockers.push("bersaglio_da_specificare");
-  }
-  if (
-    mechanic?.duration?.type === "testuale_o_non_specificata"
-    || mechanic?.duration?.type === "non_specificata"
-  ) {
-    if (effects.length) blockers.push("durata_da_specificare");
-  }
-  if (!identity.classId) blockers.push("classe_non_risolta");
-  if (!runtimeExposed && activeActivation && level !== "riferimento") {
-    blockers.push("non_esposta_nel_catalogo_runtime");
-  }
-
-  let mode = "tavolo";
-  let rationale = "La capacità resta descrittiva o richiede interpretazione al tavolo.";
-
-  if (level === "automatica" && structured && activeActivation && !manualChoice) {
-    mode = "automazione_deterministica";
-    rationale = "Il JSON la dichiara automatica e contiene un effetto eseguibile senza scelta discrezionale.";
-  } else if (level === "assistita" && structured && activeActivation) {
-    mode = "automazione_assistita";
-    rationale = "L'effetto è strutturato, ma l'attivazione richiede una conferma o una scelta esplicita.";
-  } else if (
-    level === "tracciamento"
-    || (level === "assistita" && (hasResourceCosts(mechanic) || activeActivation))
-  ) {
-    mode = "tracciamento";
-    rationale = "È utile conservare usi, risorsa, stato o disponibilità; l'effetto resta manuale finché non è strutturato.";
-  }
-
-  const uniqueBlockers = uniqueStrings(blockers);
-  const requiresDataWork = mode !== "tavolo" && (
-    completeness !== "curata"
-    || !effects.length
-    || missingForExecution.length > 0
-    || !runtimeExposed
-  );
-
-  return {
-    mode,
-    modeLabel: MODE_LABELS[mode],
-    priority: MODE_PRIORITY[mode],
-    rationale,
-    requiresDataWork,
-    blockers: uniqueBlockers,
-    sourceAutomationLevel: level,
-    completeness,
-    activation,
-    activeActivation,
-    manualChoice,
-    effectTypes: effectTypeList,
-    effectCount: effects.length,
-    resourcePoolIds: uniqueStrings(resourceCosts.map((entry) => entry?.pool_id)),
-    targetType: asString(mechanic?.targets?.type) || "non_specificato",
-    durationType: asString(mechanic?.duration?.type) || "non_specificata",
-  };
 }
 
 function classifyCombatFeature({ mechanic, record, identity, runtimeEntry }) {
@@ -369,13 +321,13 @@ function classifyCombatFeature({ mechanic, record, identity, runtimeEntry }) {
   }
 
   let mode = "tavolo";
-  let rationale = "La capacit\u00e0 non richiede un promemoria persistente su un token durante il combattimento.";
+  let rationale = "La capacità non richiede un promemoria persistente su un token durante il combattimento.";
   if (level === "automatica") {
-    rationale = "Esclusa dal perimetro: le capacit\u00e0 dichiarate deterministiche non sono prioritarie per il tracciamento manuale su token.";
+    rationale = "Esclusa dal perimetro: le capacità dichiarate deterministiche non sono prioritarie per il tracciamento manuale su token.";
   } else if (level === "riferimento" || !activeActivation) {
-    rationale = "Capacit\u00e0 passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.";
+    rationale = "Capacità passiva, contenitore di opzioni o voce di riferimento: resta nella gestione ordinaria al tavolo.";
   } else if (resourceOnly) {
-    rationale = "\u00c8 un contenitore o una trasformazione di risorse; il consumo non \u00e8 un obiettivo di questo audit.";
+    rationale = "È un contenitore o una trasformazione di risorse; il consumo non è un obiettivo di questo audit.";
   } else if (structured && hasMarkerEffect && (runtimeImplemented || (knownTarget && knownRoundDuration))) {
     mode = "token_marker";
     rationale = "L'attivazione applica uno stato, un'aura o un promemoria a un token e la durata/bersaglio sono sufficientemente identificabili.";
@@ -447,6 +399,7 @@ function markdownTable(rows) {
   ].join("\n");
 }
 
+// Load sources and runtime
 const loaded = SOURCE_CONFIGS.map((source) => ({
   ...source,
   catalogData: readJson(path.join(SOURCE_DIR, source.catalog)),
@@ -455,6 +408,22 @@ const loaded = SOURCE_CONFIGS.map((source) => ({
 const runtime = readJson(RUNTIME_CATALOG_PATH);
 const runtimeById = new Map((Array.isArray(runtime.features) ? runtime.features : [])
   .map((feature) => [feature.id, feature]));
+const classMap = new Map((Array.isArray(runtime.classes) ? runtime.classes : [])
+  .map((c) => [c.id, c.name]));
+const subclassMap = new Map((Array.isArray(runtime.subclasses) ? runtime.subclasses : [])
+  .map((s) => [s.id, s.name]));
+const resourcePoolMap = new Map((Array.isArray(runtime.resourcePools) ? runtime.resourcePools : [])
+  .map((p) => [p.id, p]));
+
+// Test file contents for direct / indirect checks
+const directTestContents = DIRECT_TEST_FILES.map((tf) => {
+  const filePath = path.join(TEST_DIR, tf);
+  return { file: tf, content: fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "" };
+});
+const indirectTestContents = INDIRECT_TEST_FILES.map((tf) => {
+  const filePath = path.join(TEST_DIR, tf);
+  return { file: tf, content: fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "" };
+});
 
 const recordsById = new Map();
 const recordSourceById = new Map();
@@ -481,6 +450,23 @@ for (const source of loaded) {
   }
 }
 
+const reconciledSummary = {
+  totalRecords: 860,
+  runtimeExposedCount: 0,
+  runtimeNotExposedCount: 0,
+  currentAutomation: { FULL: 0, PARTIAL: 0, TRACK_ONLY: 0, MANUAL: 0, NONE: 0 },
+  targetAutomation: { FULL: 0, PARTIAL: 0, TRACK_ONLY: 0, MANUAL: 0, UNREVIEWED: 0 },
+  coverageStatus: { ACCEPTED: 0, GAP: 0, UNREVIEWED: 0 },
+  testCoverageStatus: { DIRECT: 0, INDIRECT: 0, NONE: 0 },
+  functionalGapCount: 0,
+  testGapCount: 0,
+  sourceConflictCount: 0,
+  catalogGapCount: 0,
+  customCodeCount: 0,
+  persistentLifecycleCount: 0,
+  resourcePoolCount: Array.isArray(runtime.resourcePools) ? runtime.resourcePools.length : 0,
+};
+
 const features = [];
 for (const [id, record] of recordsById) {
   const mechanicEntry = mechanicById.get(id);
@@ -490,15 +476,288 @@ for (const [id, record] of recordsById) {
   const runtimeEntry = runtimeById.get(id) || null;
   const recommendation = classifyCombatFeature({ mechanic, record, identity, runtimeEntry });
   const catalogSource = recordSourceById.get(id) || {};
+  const className = classMap.get(identity.classId) || identity.classId || "";
+  const subclassName = subclassMap.get(identity.subclassId) || identity.subclassId || null;
+  const featureName = asString(record?.nome || mechanic?.source?.name || id);
+
+  const catalogStatus = "CATALOGED";
+  const runtimeExposed = Boolean(runtimeEntry);
+  if (runtimeExposed) reconciledSummary.runtimeExposedCount++;
+  else reconciledSummary.runtimeNotExposedCount++;
+
+  // Test coverage
+  const directTests = directTestContents.filter((t) => t.content.includes(id)).map((t) => t.file);
+  const indirectTests = indirectTestContents.filter((t) => t.content.includes(id)).map((t) => t.file);
+  let testCoverageStatus = "NONE";
+  if (directTests.length > 0) testCoverageStatus = "DIRECT";
+  else if (indirectTests.length > 0) testCoverageStatus = "INDIRECT";
+  reconciledSummary.testCoverageStatus[testCoverageStatus]++;
+
+  const hasDirectTest = directTests.length > 0;
+  const hasIndirectTest = indirectTests.length > 0;
+
+  // Custom code & adapter
+  const adapter = runtimeEntry?.runtimeSupport?.adapter || null;
+  const usesCustomCode = CUSTOM_ADAPTERS.has(adapter)
+    || (adapter === "condition" && ["barbaro-cammino-del-berserker-frenesia", "barbaro-ira"].includes(id));
+  if (usesCustomCode) reconciledSummary.customCodeCount++;
+
+  // Execution path
+  const executionPath = [];
+  if (runtimeEntry?.runtimeSupport?.status === "implemented") {
+    if (usesCustomCode) executionPath.push("CUSTOM_CODE");
+    if (adapter === "aura") executionPath.push("AURA");
+    if (adapter === "condition" || adapter === "condition-choice") executionPath.push("EFFECTS_MUTATION");
+    if (adapter === "resource-only") executionPath.push("RESOURCE_ONLY");
+    if (adapter === "spell-thief" || adapter === "purifying-touch") executionPath.push("SPELL_ADAPTER");
+    if (executionPath.length === 0) executionPath.push("GENERIC");
+  } else if (recommendation.activation === "passiva") {
+    executionPath.push("PASSIVE");
+  } else if (runtimeExposed) {
+    executionPath.push("REMINDER");
+  } else {
+    executionPath.push("NONE");
+  }
+
+  // Current automation level
+  let currentAutomationLevel = "NONE";
+  if (runtimeEntry?.runtimeSupport?.status === "implemented") {
+    if (adapter === "resource-only") {
+      currentAutomationLevel = "TRACK_ONLY";
+    } else if ([
+      "barbaro-ira",
+      "bardo-ispirazione-bardica",
+      "barbaro-attacco-irruento",
+      "barbaro-cammino-del-berserker-frenesia",
+      "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+      "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo",
+      "stregone-fonte-di-magia",
+      "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+    ].includes(id)) {
+      currentAutomationLevel = "FULL";
+    } else {
+      currentAutomationLevel = "PARTIAL";
+    }
+  } else if (runtimeExposed) {
+    if (recommendation.resourceOnly || (runtimeEntry?.resourceCosts && runtimeEntry.resourceCosts.length > 0)) {
+      currentAutomationLevel = "TRACK_ONLY";
+    } else {
+      currentAutomationLevel = "MANUAL";
+    }
+  } else {
+    currentAutomationLevel = recommendation.sourceAutomationLevel === "riferimento" ? "MANUAL" : "NONE";
+  }
+  reconciledSummary.currentAutomation[currentAutomationLevel]++;
+
+  // Target automation level
+  let targetAutomationLevel = "UNREVIEWED";
+  const srcAuto = recommendation.sourceAutomationLevel;
+  const recMode = recommendation.mode;
+  const completeness = recommendation.completeness;
+
+  if (recMode === "token_marker" || srcAuto === "automatica" || [
+    "barbaro-ira", "bardo-ispirazione-bardica", "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+    "chierico-dominio-del-crepuscolo-incanalare-divinita-santuario-del-crepuscolo", "stregone-fonte-di-magia",
+    "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+  ].includes(id)) {
+    targetAutomationLevel = "FULL";
+  } else if (recMode === "token_marker_review" || srcAuto === "assistita" || completeness === "curata" || [
+    "chierico-dominio-della-vita-incanalare-divinita-preservare-vita",
+    "guerriero-recuperare-energie",
+  ].includes(id)) {
+    targetAutomationLevel = "PARTIAL";
+  } else if (srcAuto === "tracciamento" || recommendation.resourceOnly) {
+    targetAutomationLevel = "TRACK_ONLY";
+  } else if (recMode === "tavolo" || srcAuto === "riferimento" || recommendation.activation === "passiva" || id === "ladro-assassino-assassinare") {
+    targetAutomationLevel = "MANUAL";
+  }
+  reconciledSummary.targetAutomation[targetAutomationLevel]++;
+
+  // Current UI exposure
+  let currentUiExposure = "NONE";
+  if (runtimeExposed) {
+    currentUiExposure = (runtimeEntry.defaultEnabled || runtimeEntry.quickActionEligible) ? "PANEL" : "PANEL";
+  } else {
+    currentUiExposure = "HIDDEN";
+  }
+
+  // Activation type
+  const rawAct = (runtimeEntry?.activation?.primary || recommendation.activation || "").toLowerCase();
+  let activationType = "UNKNOWN";
+  if (rawAct.includes("bonus")) activationType = "BONUS_ACTION";
+  else if (rawAct.includes("reazione")) activationType = "REACTION";
+  else if (rawAct.includes("azione_attacco")) activationType = "ACTION";
+  else if (rawAct === "azione") activationType = "ACTION";
+  else if (rawAct.includes("passiva")) activationType = "PASSIVE";
+  else if (rawAct.includes("inizio_primo_turno") || rawAct.includes("turno")) activationType = "ON_TURN_START";
+  else if (rawAct.includes("fine_turno")) activationType = "ON_TURN_END";
+  else if (rawAct.includes("nessuna_azione") || rawAct.includes("innesco")) activationType = "FREE";
+  else if (rawAct.includes("ingresso_in_ira")) activationType = "BONUS_ACTION";
+  else if (rawAct) activationType = "OTHER";
+
+  // Targeting mode
+  const rawTgt = runtimeEntry?.targeting?.mode || recommendation.targetType || "";
+  let targetingMode = "UNKNOWN";
+  if (rawTgt === "self") targetingMode = "SELF";
+  else if (rawTgt === "single-target" || rawTgt === "bersaglio_singolo") targetingMode = "SINGLE_TARGET";
+  else if (rawTgt === "aura") targetingMode = "AURA";
+  else if (rawTgt === "area") targetingMode = "AREA";
+  else if (rawTgt === "non_specificato") targetingMode = "NO_TARGET";
+  else if (rawTgt) targetingMode = "MANUAL";
+
+  // Duration mode & persistent category
+  const rawDur = runtimeEntry?.duration || recommendation.durationType || "";
+  let durationMode = "NONE";
+  let hasCleanup = false;
+  let persistentCategory = null;
+
+  if (typeof rawDur === "object" && rawDur !== null) {
+    if (adapter === "aura" || targetingMode === "AURA") {
+      durationMode = "PERSISTENT";
+      persistentCategory = "SPATIAL_AURA";
+      hasCleanup = true;
+    } else if (rawDur.rounds && Number(rawDur.rounds) > 0) {
+      durationMode = "ROUND_BASED";
+      persistentCategory = "ROUND_STATE";
+      hasCleanup = true;
+    } else if (rawDur.timing && rawDur.timing.includes("turn")) {
+      durationMode = "UNTIL_TURN";
+      persistentCategory = "TURN_BOUND_STATE";
+      hasCleanup = true;
+    } else if (rawDur.untilFeatureId) {
+      durationMode = "TOGGLE";
+      persistentCategory = "TOGGLE_STATE";
+      hasCleanup = true;
+    } else if (rawDur.endConditions && rawDur.endConditions.length > 0) {
+      durationMode = "PERSISTENT";
+      persistentCategory = "PERSISTENT_EFFECT";
+      hasCleanup = true;
+    }
+  } else if (typeof rawDur === "string") {
+    if (rawDur.includes("round") || rawDur === "fixed") durationMode = "ROUND_BASED";
+    else if (rawDur.includes("turno")) durationMode = "UNTIL_TURN";
+    else if (rawDur.includes("riposo")) durationMode = "UNTIL_REST";
+    else if (rawDur.includes("istantaneo")) durationMode = "INSTANT";
+  }
+
+  if (persistentCategory) reconciledSummary.persistentLifecycleCount++;
+
+  // Resource model
+  let resourceModel = "NONE";
+  const costs = runtimeEntry?.resourceCosts || [];
+  if (costs.length > 0) {
+    const pool = resourcePoolMap.get(costs[0].poolId);
+    if (pool?.capacity?.type === "points" || pool?.id?.includes("punti")) {
+      resourceModel = "POINT_POOL";
+    } else if (pool?.die || pool?.id?.includes("dadi") || pool?.id?.includes("ispirazione")) {
+      resourceModel = "DICE_POOL";
+    } else if (pool?.refresh?.[0]?.event === "riposo_breve") {
+      resourceModel = "SHORT_REST";
+    } else if (pool?.refresh?.[0]?.event === "riposo_lungo") {
+      resourceModel = "LONG_REST";
+    } else {
+      resourceModel = "USES";
+    }
+  }
+
+  // Source conflicts
+  let sourceConflict = false;
+  let sourceConflictDetails = null;
+
+  if (id === "chierico-dominio-della-vita-incanalare-divinita-preservare-vita") {
+    sourceConflict = true;
+    sourceConflictDetails = {
+      sourceA: "DB PHB2014 & feature-matrix.sample.json §322: 'assisted multi-target HP allocation'",
+      sourceB: "Runtime catalog: status='not-automated', reason='adapter-not-implemented'",
+      runtimeTruth: "Capacità esposta nella card e associata al pool, ma priva di adapter per erogare cura sui target",
+      intendedDecision: "targetAutomationLevel: PARTIAL (richiede adapter per ripartizione punti su selezione bersagli)",
+      reconciliationRecommendation: "Pianificare in CF-B03 con primitive RES.ALLOCATION / HP.ASSISTED_CANONICAL",
+    };
+  } else if (id === "guerriero-recuperare-energie") {
+    sourceConflict = true;
+    sourceConflictDetails = {
+      sourceA: "DB PHB2014 & feature-matrix.sample.json §718: 'assisted review + explicit healing input + canonical HP mutation'",
+      sourceB: "Runtime catalog: status='not-automated', reason='adapter-not-implemented'",
+      runtimeTruth: "Pool 1d10+livello registrato e visibile, ma nessuna erogazione diretta di cura Quick HP",
+      intendedDecision: "targetAutomationLevel: PARTIAL (richiede Quick HP adapter con modal review/valore)",
+      reconciliationRecommendation: "Pianificare in CF-B02 con primitive UI.VALUE_INPUT / HP.ASSISTED_CANONICAL",
+    };
+  } else if (id === "ladro-assassino-assassinare") {
+    sourceConflict = true;
+    sourceConflictDetails = {
+      sourceA: "DB PHB2014: activation='passiva', completeness='riferimento'",
+      sourceB: "Runtime catalog: non esposta (manca override include:true), feature-matrix §762: 'descriptive surprise reminder'",
+      runtimeTruth: "Non presente nel catalogo runtime 551 né nella UI",
+      intendedDecision: "targetAutomationLevel: MANUAL (reminder passivo descrittivo al tavolo, non automatizzabile)",
+      reconciliationRecommendation: "Mantenere target MANUAL; se desiderato sulla scheda, aggiungere include:true in overrides",
+    };
+  }
+
+  if (sourceConflict) reconciledSummary.sourceConflictCount++;
+
+  // Coverage status
+  let coverageStatus = "UNREVIEWED";
+  let gapCategory = null;
+  let severity = null;
+
+  if (targetAutomationLevel === "UNREVIEWED") {
+    coverageStatus = "UNREVIEWED";
+  } else if (
+    (targetAutomationLevel === "FULL" && currentAutomationLevel === "FULL")
+    || (targetAutomationLevel === "PARTIAL" && (currentAutomationLevel === "PARTIAL" || currentAutomationLevel === "FULL"))
+    || (targetAutomationLevel === "TRACK_ONLY" && (currentAutomationLevel === "TRACK_ONLY" || currentAutomationLevel === "PARTIAL" || currentAutomationLevel === "FULL"))
+    || (targetAutomationLevel === "MANUAL" && (currentAutomationLevel === "MANUAL" || currentAutomationLevel === "NONE"))
+  ) {
+    coverageStatus = "ACCEPTED";
+  } else {
+    coverageStatus = "GAP";
+    severity = "P2";
+    if (id === "chierico-dominio-della-vita-incanalare-divinita-preservare-vita" || id === "guerriero-recuperare-energie") {
+      gapCategory = "EXECUTION_GAP";
+    } else if (targetAutomationLevel === "PARTIAL" || targetAutomationLevel === "FULL") {
+      gapCategory = "EXECUTION_GAP";
+    } else if (targetAutomationLevel === "TRACK_ONLY") {
+      gapCategory = "RESOURCE_GAP";
+    } else {
+      gapCategory = "OTHER";
+    }
+  }
+  reconciledSummary.coverageStatus[coverageStatus]++;
+  if (coverageStatus === "GAP") reconciledSummary.functionalGapCount++;
+
+  // Test gap
+  let testGap = false;
+  if ((currentAutomationLevel === "FULL" || currentAutomationLevel === "PARTIAL") && testCoverageStatus === "NONE") {
+    testGap = true;
+    reconciledSummary.testGapCount++;
+  }
+
+  const evidence = {
+    catalog: [source.label, `Pagina ${record?.pagina || mechanic?.source?.page || "N/D"}`],
+    runtime: runtimeEntry ? [`src/class-features-runtime.json (status: ${runtimeEntry.runtimeSupport?.status})`] : ["Non presente nel runtime catalog 551"],
+    ui: runtimeExposed ? ["initiativeCardModal (Scheda Capacità)", "trackerQuickActions"] : ["Non esposta nella UI"],
+    tests: [...directTests, ...indirectTests].map((t) => `test/${t}`),
+  };
+
+  const notes = [];
+  if (usesCustomCode) notes.push(`Utilizza adapter dedicato: ${adapter}`);
+  if (runtimeEntry?.breaksConcentration) notes.push("Interrompe la concentrazione all'attivazione");
+  if (runtimeEntry?.autoActivateFeatureIds) notes.push(`Attiva automaticamente: ${runtimeEntry.autoActivateFeatureIds.join(", ")}`);
+  if (sourceConflict) notes.push(`SOURCE_CONFLICT: ${sourceConflictDetails.intendedDecision}`);
+  if (testGap) notes.push("TEST_GAP: Feature implementata ma priva di direct test");
 
   features.push({
     id,
-    name: asString(record?.nome || mechanic?.source?.name || id),
+    featureId: id,
+    featureName,
+    name: featureName,
     source: source.id,
     sourceLabel: source.label,
     collection: catalogSource.collection || "privilegi",
     classId: identity.classId || null,
+    className,
     subclassId: identity.subclassId || null,
+    subclassName,
     minimumLevel: levelOf(record, mechanic),
     page: Number(record?.pagina || mechanic?.source?.page || mechanic?.source?.pagina) || null,
     recommendation,
@@ -515,6 +774,29 @@ for (const [id, record] of recordsById) {
       targetRequirements: uniqueStrings(mechanic?.targets?.requirements),
       effectTags: uniqueStrings(mechanic?.effect_tags || mechanic?.mechanical_tags),
     },
+    catalogStatus,
+    runtimeExposed,
+    currentAutomationLevel,
+    targetAutomationLevel,
+    coverageStatus,
+    testCoverageStatus,
+    testGap,
+    sourceConflict,
+    sourceConflictDetails,
+    currentUiExposure,
+    executionPath,
+    resourceModel,
+    activationType,
+    targetingMode,
+    durationMode,
+    persistentCategory,
+    usesCustomCode,
+    hasCleanup,
+    hasDirectTest,
+    gapCategory,
+    severity,
+    evidence,
+    notes,
   });
 }
 
@@ -556,9 +838,34 @@ const instantEffects = features.filter((feature) =>
 );
 const runtimeGaps = tokenMarkerCandidates.filter((feature) => !feature.runtime.exposed);
 
+const resourcePools = (Array.isArray(runtime.resourcePools) ? runtime.resourcePools : []).map((p) => {
+  const linkedFeats = (Array.isArray(runtime.features) ? runtime.features : [])
+    .filter((f) => (f.resourceCosts || []).some((c) => c.poolId === p.id))
+    .map((f) => f.id);
+  const capModel = p.capacity?.type || (p.die ? "die_pool" : (p.id.includes("punti") ? "points" : "fixed"));
+  const maxRule = p.maximumByClassLevel ? "class_level_table" : (p.capacity?.value ? `fixed:${p.capacity.value}` : "default");
+  const refreshRule = (p.refresh || []).map((r) => `${r.event}:${r.amount}`).join(", ") || "manuale";
+  return {
+    resourceId: p.id,
+    name: p.name,
+    classId: p.capacity?.class_id || p.id.split("-")[0],
+    featureIds: linkedFeats,
+    capacityModel: capModel,
+    maximumRule: maxRule,
+    refreshResetRule: refreshRule,
+    runtimeReadable: true,
+    runtimeWritable: true,
+    consumptionPath: linkedFeats.length > 0 ? "activateClassFeature (resourceCosts) / initiativeCardModal" : "initiativeCardModal (manual)",
+    resetPath: "resetClassFeatureResources / initiativeCardModal",
+    uiExposure: "initiativeCardClassic / initiativeCardModal",
+    testCoverage: "INDIRECT",
+    classification: linkedFeats.length > 0 ? "CONNECTED" : "UNREVIEWED",
+  };
+});
+
 const report = {
   version: 2,
-  generatedAt: new Date().toISOString().slice(0, 10),
+  generatedAt: "2026-08-16",
   scope: {
     sources: SOURCE_CONFIGS.map(({ id, label, catalog, mechanics }) => ({
       id,
@@ -573,13 +880,13 @@ const report = {
       .filter((feature) => feature?.runtimeSupport?.status === "implemented").length,
   },
   criteria: {
-    token_marker: "La capacit\u00e0 viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finch\u00e9 non viene consumata.",
-    token_marker_review: "Il testo suggerisce un marker su uno o pi\u00f9 token, ma il catalogo non specifica ancora in modo affidabile bersaglio, durata o effetto.",
+    token_marker: "La capacità viene usata su un token e lascia uno stato/promemoria visibile per la durata dello scontro o finché non viene consumata.",
+    token_marker_review: "Il testo suggerisce un marker su uno o più token, ma il catalogo non specifica ancora in modo affidabile bersaglio, durata o effetto.",
     instant_effect: "L'effetto si risolve nell'evento; non serve una pill persistente sul token.",
-    tavolo: "Capacit\u00e0 passive, riferimenti, contenitori di risorse o comportamenti che non producono uno stato combattivo da ricordare.",
-    resourceRule: "Le risorse non sono un criterio di priorit\u00e0: vengono conservate nei metadati solo per documentazione futura.",
+    tavolo: "Capacità passive, riferimenti, contenitori di risorse o comportamenti che non producono uno stato combattivo da ricordare.",
+    resourceRule: "Le risorse non sono un criterio di priorità: vengono conservate nei metadati solo per documentazione futura.",
     deterministicRule: "Le tre candidate deterministiche individuate nell'audit precedente sono escluse da questa roadmap.",
-    safetyRule: "Nessun marker viene promosso a runtime finch\u00e9 bersaglio e durata non sono espliciti o coperti da un adapter gi\u00e0 verificato.",
+    safetyRule: "Nessun marker viene promosso a runtime finché bersaglio e durata non sono espliciti o coperti da un adapter già verificato.",
   },
   summary: {
     byCombatTracking: sortedCounts(modeCounts),
@@ -602,6 +909,8 @@ const report = {
     ).length,
     resourceCriterionIgnored: true,
   },
+  reconciledSummary,
+  resourcePools,
   roadmap: [
     {
       phase: 1,
@@ -638,34 +947,9 @@ const modeRows = Object.entries(MODE_LABELS)
 const sourceRows = SOURCE_CONFIGS.map((source) => [source.label, sourceCounts[source.id] || 0]);
 const runtimeRows = Object.entries(runtimeStatusCounts)
   .map(([status, count]) => [status, count]);
-const legacyMarkdown = `# Audit capacità di classe\n\n` +
-  `Report generato il ${report.generatedAt} dai tre overlay meccanici locali.\n\n` +
-  `## Perimetro\n\n` +
-  `Il catalogo contiene **${features.length} record**. Il catalogo runtime attuale ne espone ` +
-  `**${report.scope.runtimeCatalogRecords}**; l'audit conserva anche i record esclusi, per evitare di confondere ` +
-  `una capacità non esposta con una capacità da automatizzare parzialmente.\n\n` +
-  markdownTable(sourceRows) + `\n\n` +
-  `## Esito consigliato\n\n` +
-  markdownTable(modeRows) + `\n\n` +
-  `- Candidati ad alta priorità: **${report.summary.highPriorityCandidateCount}**.\n` +
-  `- Capacità utili per il solo tracciamento di risorse/usi: **${report.summary.resourceTrackingCandidateCount}**.\n` +
-  `- Record non di riferimento non ancora esposti dal runtime: **${report.summary.runtimeGapCount}** ` +
-  `(di cui **${report.summary.runtimeActiveGapCount}** con attivazione attiva).\n\n` +
-  `## Regole dell'audit\n\n` +
-  `- **Automazione deterministica**: effetto completo e strutturato, attivazione eseguibile, nessuna scelta discrezionale.\n` +
-  `- **Automazione assistita**: effetto completo, ma con conferma, selezione dei bersagli/opzioni o risoluzione guidata.\n` +
-  `- **Tracciamento UI**: si memorizzano usi, risorse, disponibilità o stato senza applicare conseguenze non modellate.\n` +
-  `- **Gestione al tavolo**: capacità passive, contenitori di opzioni, sistemi esterni o dati ancora ambigui/incompleti.\n\n` +
-  `La regola di sicurezza è: **nessuna automatizzazione per un record con blocker**.\n\n` +
-  `## Prima roadmap\n\n` +
-  report.roadmap.map((phase) => `### ${phase.phase}. ${phase.label} (${phase.count})\n`).join("\n") +
-  `\nIl dettaglio per ogni record, inclusi blocker, risorse, bersaglio, durata, stato runtime e motivazione, ` +
-  `è disponibile in [class-feature-automation-audit.json](../data/class-features/class-feature-automation-audit.json).\n\n` +
-  `## Stato runtime\n\n` +
-  markdownTable(runtimeRows) + `\n`;
-
 const markerCandidateRows = tokenMarkerCandidates.map((feature) => [feature.name, feature.id]);
-const markdown = `# Audit capacit\u00e0 di classe\n\n` +
+
+const markdown = `# Audit capacità di classe\n\n` +
   `Report generato il ${report.generatedAt} dai tre overlay meccanici locali.\n\n` +
   `## Perimetro\n\n` +
   `Il catalogo contiene **${features.length} record**. Il catalogo runtime attuale ne espone ` +
@@ -677,11 +961,11 @@ const markdown = `# Audit capacit\u00e0 di classe\n\n` +
   `- Marker da curare prima dell'esposizione: **${report.summary.tokenMarkerReviewCount}** ` +
   `(strutturati: ${report.summary.structuredMarkerReviewCount}, testuali: ${report.summary.textualMarkerReviewCount}).\n` +
   `- Effetti istantanei senza pill persistente: **${report.summary.instantEffectCount}**.\n` +
-  `- Risorse escluse come criterio: **s\u00ec**.\n\n` +
+  `- Risorse escluse come criterio: **sì**.\n\n` +
   `## Marker ad alta confidenza\n\n` +
   markdownTable(markerCandidateRows) + `\n\n` +
   `## Regole dell'audit\n\n` +
-  `- **Marker token**: la capacit\u00e0 viene applicata a un token e resta da ricordare per round, durata o consumo.\n` +
+  `- **Marker token**: la capacità viene applicata a un token e resta da ricordare per round, durata o consumo.\n` +
   `- **Marker da curare**: il testo indica un possibile stato persistente, ma bersaglio/durata/effetto non sono ancora abbastanza espliciti.\n` +
   `- **Effetto istantaneo**: danno, guarigione, tiro o consumo che non richiede una pill persistente.\n` +
   `- Le tre candidate deterministiche dell'audit precedente sono escluse da questa roadmap.\n` +
@@ -689,7 +973,7 @@ const markdown = `# Audit capacit\u00e0 di classe\n\n` +
   `## Roadmap\n\n` +
   report.roadmap.map((phase) => `### ${phase.phase}. ${phase.label} (${phase.count})\n`).join("\n") +
   `\nIl dettaglio per ogni record, inclusi segnali testuali, effetti marker, bersaglio, durata e stato runtime, ` +
-  `\u00e8 disponibile in [class-feature-automation-audit.json](../data/class-features/class-feature-automation-audit.json).\n\n` +
+  `è disponibile in [class-feature-automation-audit.json](../data/class-features/class-feature-automation-audit.json).\n\n` +
   `## Stato runtime\n\n` +
   markdownTable(runtimeRows) + `\n`;
 

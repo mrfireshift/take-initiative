@@ -290,12 +290,16 @@ test("Riscaldare il Metallo separa cast iniziale e Ripeti calore", () => {
   assert.equal(plan.operations.length > 0, true);
 });
 
-test("le active action future non bloccano il cast iniziale", () => {
-  for (const spellId of ["eyebite", "xanathar-colpo-dello-zefiro"]) {
-    const contract = buildSpellUnifiedPanelContract({ spellId });
-    assert.equal(contract.execution.activeResolution, true, spellId);
-    assert.equal(getSpellUnifiedLifecycleEligibility(contract).eligible, true, spellId);
-  }
+test("le active action future non bloccano da sole il cast iniziale", () => {
+  const zefiro = buildSpellUnifiedPanelContract({ spellId: "xanathar-colpo-dello-zefiro" });
+  assert.equal(zefiro.execution.activeResolution, true);
+  assert.equal(getSpellUnifiedLifecycleEligibility(zefiro).eligible, true);
+
+  const eyebite = buildSpellUnifiedPanelContract({ spellId: "eyebite" });
+  assert.equal(eyebite.execution.activeResolution, true);
+  assert.equal(getSpellUnifiedLifecycleEligibility(eyebite).eligible, false);
+  assert.equal(eyebite.presentation.inputs.targets.required, true);
+  assert.equal(eyebite.presentation.inputs.variant.required, true);
 });
 
 test("Fireball, Bane, Chain Lightning, Storm Sphere e Arcane Hand usano il percorso area canonico", () => {

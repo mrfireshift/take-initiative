@@ -7,6 +7,29 @@ const UI_CHANNEL = ID + "/concentration-warning/ui";
 const HOST_CHANNEL = ID + "/concentration-warning/host";
 const AUTO_CLOSE_MS = 6000;
 
+type RuntimeScope = {
+  sceneEpoch: number | null;
+  runtimeGeneration: number | null;
+  runtimeSession: string;
+  popoverId: string;
+};
+
+function readRuntimeScope(): RuntimeScope {
+  const params = new URLSearchParams(window.location.search);
+  const sceneEpoch = Number(params.get("sceneEpoch"));
+  const runtimeGeneration = Number(params.get("runtimeGeneration"));
+  return {
+    sceneEpoch: Number.isSafeInteger(sceneEpoch) && sceneEpoch >= 0 ? sceneEpoch : null,
+    runtimeGeneration: Number.isSafeInteger(runtimeGeneration) && runtimeGeneration >= 0
+      ? runtimeGeneration
+      : null,
+    runtimeSession: String(params.get("runtimeSession") || "").trim(),
+    popoverId: String(params.get("popoverId") || "").trim() || POPOVER_ID,
+  };
+}
+
+const runtimeScope = readRuntimeScope();
+
 type Warning = {
   name: string;
   damage: number;
@@ -14,6 +37,7 @@ type Warning = {
   portrait: string;
   attitude: string;
   spellName: string;
+  createdAt: number;
   notice: any;
 };
 
@@ -23,32 +47,60 @@ let noticeRole = "PLAYER";
 let roleReady = false;
 let pendingWarnings: Warning[] | null = null;
 
+function runtimeMessageScope() {
+  return {
+    sceneEpoch: runtimeScope.sceneEpoch,
+    runtimeGeneration: runtimeScope.runtimeGeneration,
+    runtimeSession: runtimeScope.runtimeSession,
+  };
+}
+
+function isMatchingRuntimeScope(data: any) {
+  return runtimeScope.sceneEpoch !== null
+    && runtimeScope.runtimeGeneration !== null
+    && Number(data?.sceneEpoch) === runtimeScope.sceneEpoch
+    && Number(data?.runtimeGeneration) === runtimeScope.runtimeGeneration
+    && String(data?.runtimeSession || "").trim() === runtimeScope.runtimeSession;
+}
+
+function normalizeWarnings(values: any): Warning[] {
+  return (Array.isArray(values) ? values : []).slice(0, 20).map((warning: any) => ({
+    name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
+    damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
+    dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
+    portrait: String(warning?.portrait || "").trim().slice(0, 2048),
+    attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
+    spellName: String(warning?.spellName || "").trim().slice(0, 240),
+    createdAt: Math.max(0, Math.floor(Number(warning?.createdAt) || 0)),
+    notice: warning?.notice && typeof warning.notice === "object" ? warning.notice : null,
+  })).filter((warning: Warning) => warning.damage > 0);
+}
+
 function warningsFromURL(): Warning[] {
   try {
     const raw = new URLSearchParams(window.location.search).get("payload") || "";
     const parsed = JSON.parse(raw);
-    return (Array.isArray(parsed?.warnings) ? parsed.warnings : []).slice(0, 20).map((warning: any) => ({
-      name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
-      damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
-      dc: Math.max(10, Math.floor(Number(warning?.dc) || 10)),
-      portrait: String(warning?.portrait || "").trim().slice(0, 2048),
-      attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
-      spellName: String(warning?.spellName || "").trim().slice(0, 240),
-      notice: warning?.notice && typeof warning.notice === "object" ? warning.notice : null,
-    })).filter((warning: Warning) => warning.damage > 0);
+    return normalizeWarnings(parsed?.warnings);
   } catch {
     return [];
   }
+}
+
+function closePopoverSdk() {
+  if (runtimeScope.popoverId === POPOVER_ID) {
+    return OBR.popover.close(POPOVER_ID);
+  }
+  return OBR.popover.close(runtimeScope.popoverId);
 }
 
 function closePopover() {
   window.clearTimeout(hideTimer);
   void OBR.broadcast.sendMessage(
     HOST_CHANNEL,
-    { type: "concentration-warning-closed" },
+    { type: "concentration-warning-closed", ...runtimeMessageScope() },
     { destination: "LOCAL" },
   ).catch(() => {});
-  void OBR.popover.close(POPOVER_ID).catch(() => {});
+  void closePopoverSdk().catch(() => {});
 }
 
 function render(role: string, warnings: Warning[] = warningsFromURL()) {
@@ -143,14 +195,28 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
         if (buttons.some((button) => button.disabled)) return;
         for (const button of buttons) button.disabled = true;
         try {
-          const result = await resolveReminder({ notice: warning.notice, outcome });
+          const result = await resolveReminder({
+            notice: warning.notice,
+            outcome,
+            // Persist the exact concentration-warning payload so History Undo
+            // can re-announce the same popup after restoring the unresolved
+            // concentration save.
+            historyReplay: {
+              type: "concentration-warning",
+              warning,
+            },
+          });
           if (result.status === "applied" || result.status === "already-resolved") {
             const remaining = activeWarnings.filter((entry) =>
               String(entry.notice?.activationId || "") !== activationId,
             );
             void OBR.broadcast.sendMessage(
               HOST_CHANNEL,
-              { type: "concentration-warning-resolved", activationId },
+              {
+                type: "concentration-warning-resolved",
+                activationId,
+                ...runtimeMessageScope(),
+              },
               { destination: "LOCAL" },
             ).catch(() => {});
             render(role, remaining);
@@ -196,12 +262,13 @@ OBR.onReady(async () => {
   });
   OBR.broadcast.onMessage(UI_CHANNEL, (event) => {
     if (event?.data?.type !== "update-concentration-warnings") return;
+    if (!isMatchingRuntimeScope(event.data)) return;
     pendingWarnings = normalizeWarnings(event.data?.warnings);
     if (roleReady) render(noticeRole, pendingWarnings);
   });
   void OBR.broadcast.sendMessage(
     HOST_CHANNEL,
-    { type: "concentration-warning-ready" },
+    { type: "concentration-warning-ready", ...runtimeMessageScope() },
     { destination: "LOCAL" },
   ).catch(() => {});
   const role = await OBR.player.getRole().catch(() => "PLAYER");

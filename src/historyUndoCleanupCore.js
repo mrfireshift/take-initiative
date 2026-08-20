@@ -20,12 +20,36 @@ function hasChangePayload(change) {
     || Object.keys(change?.afterMetadata || {}).length > 0;
 }
 
+export const SUPPORTED_UNDO_SIDE_EFFECT_TYPES = Object.freeze([
+  "item",
+  "metadata",
+  "static-zone-move",
+  "static-zone-reorient",
+  "reminder-zone-activation",
+  "token:teleport",
+  "token-position",
+]);
+
 function hasSideEffectPayload(sideEffect) {
-  return !!String(sideEffect?.id || "").trim()
-    && (Object.prototype.hasOwnProperty.call(sideEffect || {}, "before")
-      || Object.prototype.hasOwnProperty.call(sideEffect || {}, "after")
-      || Object.prototype.hasOwnProperty.call(sideEffect || {}, "beforePosition")
-      || Object.prototype.hasOwnProperty.call(sideEffect || {}, "afterPosition"));
+  if (!String(sideEffect?.id || "").trim()) return false;
+  const type = String(sideEffect?.type || "").trim();
+  if (type === "reminder-zone-activation") {
+    return !!String(sideEffect?.activationId || "").trim()
+      && !!String(sideEffect?.metadataKey || "").trim();
+  }
+  if (type === "static-zone-reorient") {
+    return Object.prototype.hasOwnProperty.call(sideEffect, "beforePosition")
+      || Object.prototype.hasOwnProperty.call(sideEffect, "afterPosition")
+      || Object.prototype.hasOwnProperty.call(sideEffect, "beforeCommands")
+      || Object.prototype.hasOwnProperty.call(sideEffect, "afterCommands")
+      || (Array.isArray(sideEffect.metadataChanges) && sideEffect.metadataChanges.length > 0);
+  }
+  return Object.prototype.hasOwnProperty.call(sideEffect, "before")
+    || Object.prototype.hasOwnProperty.call(sideEffect, "after")
+    || Object.prototype.hasOwnProperty.call(sideEffect, "beforePosition")
+    || Object.prototype.hasOwnProperty.call(sideEffect, "afterPosition")
+    || Object.prototype.hasOwnProperty.call(sideEffect, "beforeMetadata")
+    || Object.prototype.hasOwnProperty.call(sideEffect, "afterMetadata");
 }
 
 export function historyEntryHasUndoPayload(entry) {
@@ -48,6 +72,18 @@ export const HISTORY_UNDO_READINESS_STATUS = Object.freeze({
   NOOP: "noop",
 });
 
+export function filterPendingHistoryRemovalEntries(entries, pendingIds = []) {
+  const pending = new Set(
+    (Array.isArray(pendingIds) ? pendingIds : [pendingIds])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
+  if (!pending.size) return (Array.isArray(entries) ? entries : []).filter(Boolean);
+  return (Array.isArray(entries) ? entries : []).filter((entry) => (
+    entry && !pending.has(idOf(entry))
+  ));
+}
+
 export function historyUndoPlanHasWork(plan) {
   if (!plan || plan.status) return false;
   if ((Array.isArray(plan.lifecycle) && plan.lifecycle.length)
@@ -57,6 +93,7 @@ export function historyUndoPlanHasWork(plan) {
     || hasTruthyFieldMap(change?.metadataFields)
     || change?.position === true
     || (Array.isArray(change?.externalMetadata) && change.externalMetadata.length > 0)
+    || (Array.isArray(change?.zoneTriggerActivations) && change.zoneTriggerActivations.length > 0)
   ));
 }
 

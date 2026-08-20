@@ -31,3 +31,29 @@ test("il tracker filtra soltanto il record tecnico proprietario della zona", asy
   );
   assert.match(list, /spells: getVisibleSpellsFromItem\(it\)/);
 });
+
+
+test("Investitura della Fiamma mostra la pill concentrazione solo sul caster", async () => {
+  const source = await readFile(tagPath, "utf8");
+
+  assert.match(
+    source,
+    /SELF_ONLY_CONCENTRATION_LABEL_SPELL_IDS = new Set\(\[\s*"xanathar-investitura-della-fiamma"/,
+  );
+  assert.match(
+    source,
+    /SELF_ONLY_CONCENTRATION_LABEL_SPELL_KEYS = new Set\(\[\s*spellKey\("Investitura della Fiamma"\)/,
+  );
+  assert.match(
+    source,
+    /concentrationLabelTargets\(\{[\s\S]*spellId,[\s\S]*spellName: name,[\s\S]*targets,[\s\S]*casterId: selfId/,
+  );
+  assert.match(
+    source,
+    /isInvalidSelfOnlyConcentrationWidget\(widget\)[\s\S]*casterId === targetId/,
+  );
+  assert.match(
+    source,
+    /invalidSelfOnlyWidgetIds[\s\S]*__concentrationDeleteItems\(diagnosticsSession, invalidSelfOnlyWidgetIds\)/,
+  );
+});

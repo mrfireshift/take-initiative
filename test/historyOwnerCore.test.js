@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  appendHistoryEntry,
   createHistoryOwnerBroker,
   HISTORY_OWNER_STATUS,
+  normalizeHistoryState,
 } from "../src/historyOwnerCore.js";
 
 const clone = (value) => structuredClone(value);
@@ -377,4 +379,215 @@ test("contesto duplicato conserva identity/generation e non invalida un comando 
   const duplicateUnavailable = harness.broker.setSceneContext({ ready: false, sceneEpoch: 3 });
   assert.equal(duplicateUnavailable.generation, unavailable.generation);
   assert.equal(duplicateUnavailable.identity, null);
+});
+
+test("History ordering cross-realm ignora i vecchi seq locali e segue action timestamp", async () => {
+  const harness = createHarness();
+  const entries = [
+    { id: "hp-1", at: 1000, seq: 17, label: "HP 30 -> 25", changes: [] },
+    { id: "condition", at: 2000, seq: 3, label: "Condizione", changes: [] },
+    { id: "movement", at: 3000, seq: 18, label: "Movimento", changes: [] },
+    { id: "hp-2", at: 4000, seq: 19, label: "HP 25 -> 18", changes: [] },
+  ];
+  for (const entry of entries) {
+    const result = await harness.command("append", { entry }, `cmd-${entry.id}`);
+    assert.equal(result.status, HISTORY_OWNER_STATUS.APPLIED);
+  }
+  assert.deepEqual(
+    harness.state.entries.map((entry) => entry.id),
+    ["hp-1", "condition", "movement", "hp-2"],
+  );
+});
+
+test("History ordering deterministico: stesso timestamp, write A fallisce, B persiste, retry A -> A -> B", async () => {
+  let failAOnce = true;
+  const harness = createHarness({
+    onWrite: async (next) => {
+      if (failAOnce && next.entries.some((item) => item.id === "entry-a")) {
+        failAOnce = false;
+        throw new Error("simulated append A write failure");
+      }
+    },
+  });
+  const sameAtTimestamp = 1700000000000;
+
+  const entryA = {
+    id: "entry-a",
+    at: sameAtTimestamp,
+    label: "Azione A",
+    changes: [{ id: "token-1", after: { hp: 10 } }],
+  };
+  const entryB = {
+    id: "entry-b",
+    at: sameAtTimestamp,
+    label: "Azione B",
+    changes: [{ id: "token-1", after: { hp: 5 } }],
+  };
+
+  // A reaches the owner first and receives an order reservation, but its
+  // metadata write fails. Nothing has been persisted yet.
+  const failedA = await harness.command("append", { entry: entryA }, "cmd-a-first");
+  assert.equal(failedA.status, HISTORY_OWNER_STATUS.FAILED);
+  assert.deepEqual(harness.state.entries, []);
+
+  // B arrives later and persists successfully.
+  const resultB = await harness.command("append", { entry: entryB }, "cmd-b");
+  assert.equal(resultB.status, HISTORY_OWNER_STATUS.APPLIED);
+  assert.deepEqual(harness.state.entries.map((e) => e.id), ["entry-b"]);
+
+  // A's retry must reuse the order reserved on first owner receipt and be
+  // inserted before B even though the successful write happens later.
+  const resultA = await harness.command("append", { entry: entryA }, "cmd-a-retry");
+  assert.equal(resultA.status, HISTORY_OWNER_STATUS.APPLIED);
+  assert.deepEqual(
+    harness.state.entries.map((e) => e.id),
+    ["entry-a", "entry-b"],
+  );
+});
+
+
+test("History owner clear azzera solo le entry mantenendo valido lo store", async () => {
+  const harness = createHarness();
+  await harness.command("append", { entry: { id: "a", at: 1, label: "A", changes: [] } }, "append-a");
+  await harness.command("append", { entry: { id: "b", at: 2, label: "B", changes: [] } }, "append-b");
+  assert.deepEqual(harness.state.entries.map((item) => item.id), ["a", "b"]);
+
+  const cleared = await harness.command("clear", {}, "clear-all");
+  assert.equal(cleared.status, HISTORY_OWNER_STATUS.CLEARED);
+  assert.deepEqual(harness.state.entries, []);
+  assert.equal(harness.combatLog.length, 2);
+});
+
+test("SP-R06A regression — la normalizzazione non espelle Undo validi per un budget byte artificiale", () => {
+  const blob = "x".repeat(1300);
+  const entries = Array.from({ length: 5 }, (_, index) => ({
+    id: `old-${index}`,
+    version: 1,
+    at: index + 1,
+    kind: "change",
+    label: `Old ${index}`,
+    changes: [{
+      id: "target",
+      before: { blob },
+      after: { blob: `${blob}y` },
+    }],
+  }));
+  const history = { version: 1, seq: 5, roomId: "room", entries };
+  const rawBytes = new TextEncoder().encode(JSON.stringify(history)).byteLength;
+
+  assert.ok(rawBytes < 16 * 1024, `Fixture oltre il limite Owlbear: ${rawBytes}`);
+  const normalized = normalizeHistoryState(history, { roomId: "room", maxEntries: 30 });
+  assert.deepEqual(normalized.entries.map((item) => item.id), entries.map((item) => item.id));
+});
+
+test("SP-R06A regression — un reminder di Carne in pietra non sacrifica Undo precedenti quando lo store resta sotto 16 KiB", () => {
+  const blob = "x".repeat(1300);
+  const previous = Array.from({ length: 5 }, (_, index) => ({
+    id: `old-${index}`,
+    version: 1,
+    at: index + 1,
+    kind: "change",
+    label: `Old ${index}`,
+    changes: [{
+      id: "target",
+      before: { blob },
+      after: { blob: `${blob}y` },
+    }],
+  }));
+  const history = { version: 1, seq: 5, roomId: "room", entries: previous };
+  const reminderEntry = {
+    id: "reminder-heavy",
+    version: 1,
+    at: 6,
+    kind: "reminder-resolution",
+    label: "Carne in pietra",
+    payload: { detail: "r".repeat(1800) },
+    changes: [{
+      id: "target",
+      fields: { conditions: true },
+      before: { conditions: [{ id: "condition", condition: "Trattenuto", mechanics: { fleshToStoneProgress: { successes: 0, failures: 1 } } }] },
+      after: { conditions: [{ id: "condition", condition: "Trattenuto", mechanics: { fleshToStoneProgress: { successes: 0, failures: 2 } } }] },
+    }],
+  };
+
+  const result = appendHistoryEntry(history, reminderEntry, { roomId: "room", maxEntries: 30 });
+  const bytes = new TextEncoder().encode(JSON.stringify(result.history)).byteLength;
+  assert.ok(bytes < 16 * 1024, `Fixture finale oltre il limite Owlbear: ${bytes}`);
+  assert.deepEqual(
+    result.history.entries.map((item) => item.id),
+    [...previous.map((item) => item.id), "reminder-heavy"],
+  );
+});
+
+test("SP-R06A regression — le entry Effects vengono compattate senza espellere Undo precedenti", async () => {
+  const harness = createHarness();
+  const previousBlob = "p".repeat(1200);
+  for (const id of ["old-1", "old-2", "old-3"]) {
+    await harness.command("append", {
+      entry: entry(id, { blob: previousBlob }),
+    }, id);
+  }
+
+  const heavyChange = {
+    id: "target",
+    fields: { conditions: true },
+    before: { conditions: [{ id: "before", detail: "x".repeat(3000) }] },
+    after: { conditions: [{ id: "after", detail: "y".repeat(3000) }] },
+  };
+  const reminderEntry = {
+    id: "reminder-heavy",
+    version: 1,
+    at: 2,
+    kind: "reminder-resolution",
+    label: "Carne in pietra",
+    changes: [structuredClone(heavyChange)],
+    effectsMutation: {
+      version: 1,
+      commandId: "reminder-heavy",
+      correlationId: "reminder-heavy",
+      changes: [structuredClone(heavyChange)],
+      sideEffects: [],
+    },
+  };
+  const result = await harness.command("append", { entry: reminderEntry }, "reminder-heavy");
+
+  assert.equal(result.status, HISTORY_OWNER_STATUS.APPLIED);
+  assert.deepEqual(
+    harness.state.entries.map((item) => item.id),
+    ["old-1", "old-2", "old-3", "reminder-heavy"],
+  );
+  assert.equal(harness.state.entries.at(-1).effectsMutation.changes, undefined);
+});
+
+test("SP-R06A regression — il retry della entry compattata resta duplicate e non conflict", async () => {
+  const harness = createHarness();
+  const heavyChange = {
+    id: "target",
+    fields: { conditions: true },
+    before: { conditions: [{ id: "before", detail: "x".repeat(7000) }] },
+    after: { conditions: [{ id: "after", detail: "y".repeat(7000) }] },
+  };
+  const reminderEntry = {
+    id: "reminder-retry-heavy",
+    version: 1,
+    at: 2,
+    kind: "reminder-resolution",
+    label: "Carne in pietra",
+    changes: [structuredClone(heavyChange)],
+    effectsMutation: {
+      version: 1,
+      commandId: "reminder-retry-heavy",
+      correlationId: "reminder-retry-heavy",
+      changes: [structuredClone(heavyChange)],
+      sideEffects: [],
+    },
+  };
+
+  const first = await harness.command("append", { entry: reminderEntry }, "first-heavy");
+  const retry = await harness.command("append", { entry: reminderEntry }, "retry-heavy");
+
+  assert.equal(first.status, HISTORY_OWNER_STATUS.APPLIED);
+  assert.equal(retry.status, HISTORY_OWNER_STATUS.DUPLICATE);
+  assert.equal(harness.state.entries.length, 1);
+  assert.equal(harness.state.entries[0].effectsMutation.changes, undefined);
 });

@@ -5,6 +5,7 @@ import {
   CLASS_FEATURE_BY_ID,
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
   classFeatureTargeting,
+  getEnabledClassFeatures,
 } from "../src/classFeatureCatalog.js";
 import {
   appendClassFeatureConditionInstances,
@@ -14,11 +15,19 @@ import {
   classFeatureAutoActivateParentFeatureId,
   classFeatureDisplayName,
   classFeatureEffectProjection,
+  classFeatureRequiresActivationChoice,
   classFeatureTargetIds,
   classFeatureTemporaryHpApplications,
   planClassFeatureActivation,
   planClassFeatureDeactivation,
 } from "../src/classFeatureCore.js";
+import {
+  collectActiveClassFeatureAuras,
+  classFeatureAuraTargetIds,
+  classFeatureAuraMembershipPlan,
+} from "../src/classFeatureAuraCore.js";
+import { buildCircleArea } from "../src/aoeGeometryCore.js";
+import { ID } from "../src/constants.js";
 
 const PRIORITY_IDS = [
   "barbaro-ira",
@@ -764,4 +773,481 @@ test("Magia Corroborante richiede una scelta e dura 10 minuti", () => {
   assert.equal(activation.ok, true);
   assert.equal(activation.instance.expiresRound, 100);
   assert.equal(activation.instance.choiceId, "bonus-d20");
+});
+
+test("Tempesta Protettrice propaga l'aura di resistenza agli alleati scelti con entry, exit, re-entry e cleanup", () => {
+  const feature = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice",
+  );
+  assert.ok(feature);
+  assert.equal(feature.runtimeSupport.adapter, "aura");
+  assert.equal(feature.minimumLevel, 10);
+
+  const rageFeature = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  assert.ok(rageFeature);
+  const rageActivation = planClassFeatureActivation({
+    feature: rageFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }],
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    instanceId: "rage-instance",
+  });
+  assert.equal(rageActivation.ok, true);
+
+  const auraFeature = CLASS_FEATURE_BY_ID.get(
+    "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
+  );
+  assert.ok(auraFeature);
+  const auraActivation = planClassFeatureActivation({
+    state: rageActivation.state,
+    feature: auraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }],
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    instanceId: "storm-aura-instance",
+    choiceId: "deserto",
+  });
+  assert.equal(auraActivation.ok, true);
+
+  const activation = planClassFeatureActivation({
+    state: auraActivation.state,
+    feature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }],
+    sourceId: "barbarian",
+    targetIds: ["ally-1"],
+    instanceId: "tempest-protect-instance",
+  });
+  assert.equal(activation.ok, true);
+
+  const META_KEY = `${ID}/meta`;
+  const items = [
+    { id: "barbarian", name: "Barbaro", position: { x: 0, y: 0 }, metadata: { [META_KEY]: { attitude: "pc", classFeatureState: activation.state } } },
+    { id: "ally-1", name: "Alleato 1", position: { x: 50, y: 0 }, metadata: { [META_KEY]: { attitude: "ally", conditions: { instances: [] } } } },
+    { id: "ally-2", name: "Alleato 2", position: { x: 50, y: 0 }, metadata: { [META_KEY]: { attitude: "ally", conditions: { instances: [] } } } },
+    { id: "enemy", name: "Nemico", position: { x: 50, y: 0 }, metadata: { [META_KEY]: { attitude: "enemy", conditions: { instances: [] } } } },
+  ];
+
+  const auras = collectActiveClassFeatureAuras(items, {
+    metaKey: META_KEY,
+    featureById: CLASS_FEATURE_BY_ID,
+  });
+  const aura = auras.find((a) => a.featureId === "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice");
+  assert.ok(aura);
+
+  const area = buildCircleArea(
+    { x: 0, y: 0 },
+    { x: 6, y: 0 },
+    1,
+    { x: 0, y: 0 },
+  );
+  const candidates = items.map((item, index) => ({
+    item,
+    bounds: {
+      min: { x: index + 1, y: 0 },
+      max: { x: index + 2, y: 1 },
+    },
+  }));
+
+  // 1. Ally 1 (selected and friendly) is inside aura
+  const insideTargets = classFeatureAuraTargetIds({
+    aura,
+    area,
+    candidates,
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(insideTargets, ["ally-1"]);
+
+  const entryPlan = classFeatureAuraMembershipPlan({
+    aura,
+    desiredTargetIds: insideTargets,
+    items,
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(entryPlan.entering, ["ally-1"]);
+  assert.equal(entryPlan.operations.length, 1);
+  assert.equal(entryPlan.operations[0].type, "condition:add");
+  assert.equal(entryPlan.operations[0].conditionName, "Resistenza: Fuoco");
+  assert.deepEqual(entryPlan.operations[0].targetIds, ["ally-1"]);
+
+  // Apply condition instance to ally-1
+  const conditionInstance = {
+    id: "storm-protect-ally-1",
+    condition: "Resistenza: Fuoco",
+    active: true,
+    parentEffectId: aura.instanceId,
+    effectId: aura.targetEffects[0].id,
+    type: "class-feature-area",
+  };
+  items[1].metadata[META_KEY].conditions.instances.push(conditionInstance);
+
+  // 2. Ally 1 exits aura
+  const outsideTargets = [];
+  const exitPlan = classFeatureAuraMembershipPlan({
+    aura,
+    desiredTargetIds: outsideTargets,
+    items,
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(exitPlan.leaving, ["ally-1"]);
+  assert.equal(exitPlan.operations.length, 1);
+  assert.equal(exitPlan.operations[0].type, "condition:remove-instances");
+  assert.deepEqual(exitPlan.operations[0].removals, [{
+    itemId: "ally-1",
+    instanceId: "storm-protect-ally-1",
+    skipClassFeatureReconcile: true,
+  }]);
+
+  // Apply removal
+  items[1].metadata[META_KEY].conditions.instances = [];
+
+  // 3. Ally 1 re-enters aura
+  const reEntryPlan = classFeatureAuraMembershipPlan({
+    aura,
+    desiredTargetIds: ["ally-1"],
+    items,
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(reEntryPlan.entering, ["ally-1"]);
+  assert.equal(reEntryPlan.operations.length, 1);
+  assert.equal(reEntryPlan.operations[0].type, "condition:add");
+
+  // 4. Aura ends -> cleanup
+  items[1].metadata[META_KEY].conditions.instances.push(conditionInstance);
+  const deactivationPlan = classFeatureAuraMembershipPlan({
+    aura,
+    desiredTargetIds: [],
+    items,
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(deactivationPlan.leaving, ["ally-1"]);
+  assert.equal(deactivationPlan.operations[0].type, "condition:remove-instances");
+});
+
+test("CF-B01C.1: Aura Tempestosa mutual exclusivity and choice normalization (Tests 1-4)", () => {
+  const build = [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }];
+  const stormAuraFeature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa");
+  const desertoId = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto";
+  const mareId = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare";
+  const tundraId = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra";
+
+  const rageFeature = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const rageAct = planClassFeatureActivation({
+    feature: rageFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    instanceId: "rage-inst",
+  });
+  assert.equal(rageAct.ok, true);
+
+  // TEST 1: Select Deserto
+  const profileDeserto = {
+    characterBuild: build,
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["barbaro-ira", stormAuraFeature.id, desertoId],
+  };
+  const enabledDeserto = getEnabledClassFeatures(profileDeserto);
+  assert.ok(enabledDeserto.some((f) => f.id === desertoId));
+  assert.ok(!enabledDeserto.some((f) => f.id === mareId));
+  assert.ok(!enabledDeserto.some((f) => f.id === tundraId));
+
+  const actDeserto = planClassFeatureActivation({
+    state: rageAct.state,
+    feature: stormAuraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds: enabledDeserto.map((f) => f.id),
+    sourceId: "barbarian",
+    instanceId: "storm-deserto-inst",
+  });
+  assert.equal(actDeserto.ok, true);
+  assert.equal(actDeserto.state.instances.find((i) => i.featureId === stormAuraFeature.id)?.choiceId, "deserto");
+
+  // TEST 2: Starting from Deserto, select Mare
+  const profileMare = {
+    characterBuild: build,
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["barbaro-ira", stormAuraFeature.id, mareId],
+  };
+  const enabledMare = getEnabledClassFeatures(profileMare);
+  assert.ok(!enabledMare.some((f) => f.id === desertoId));
+  assert.ok(enabledMare.some((f) => f.id === mareId));
+  assert.ok(!enabledMare.some((f) => f.id === tundraId));
+
+  const actMare = planClassFeatureActivation({
+    state: rageAct.state,
+    feature: stormAuraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds: enabledMare.map((f) => f.id),
+    sourceId: "barbarian",
+    instanceId: "storm-mare-inst",
+  });
+  assert.equal(actMare.ok, true);
+  assert.equal(actMare.state.instances.find((i) => i.featureId === stormAuraFeature.id)?.choiceId, "mare");
+
+  // TEST 3: Starting from Mare, select Tundra
+  const profileTundra = {
+    characterBuild: build,
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["barbaro-ira", stormAuraFeature.id, tundraId],
+  };
+  const enabledTundra = getEnabledClassFeatures(profileTundra);
+  assert.ok(!enabledTundra.some((f) => f.id === desertoId));
+  assert.ok(!enabledTundra.some((f) => f.id === mareId));
+  assert.ok(enabledTundra.some((f) => f.id === tundraId));
+
+  const actTundra = planClassFeatureActivation({
+    state: rageAct.state,
+    feature: stormAuraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds: enabledTundra.map((f) => f.id),
+    sourceId: "barbarian",
+    instanceId: "storm-tundra-inst",
+  });
+  assert.equal(actTundra.ok, true);
+  assert.equal(actTundra.state.instances.find((i) => i.featureId === stormAuraFeature.id)?.choiceId, "tundra");
+
+  // TEST 4 (Invalid State): Supplying both Deserto and Mare
+  const profileInvalid = {
+    characterBuild: build,
+    classFeaturesConfigured: true,
+    enabledClassFeatureIds: ["barbaro-ira", stormAuraFeature.id, desertoId, mareId, tundraId],
+  };
+  const enabledInvalid = getEnabledClassFeatures(profileInvalid);
+  const environmentFeatures = enabledInvalid.filter((f) => f.optionGroup === "barbaro-aura-tempestosa-ambiente");
+  assert.equal(environmentFeatures.length, 1, "Model must normalize multiple enabled optionGroup features to exactly 1");
+});
+
+test("CF-B01C.1: Sheet choice propagation to Tempesta Protettrice (Tests 5-6)", () => {
+  const build = [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }];
+  const rageFeature = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const stormAuraFeature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa");
+  const tempestProtectFeature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice");
+  const tundraId = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra";
+
+  // TEST 5: Tundra in sheet -> Aura Tempestosa (no choice arg) -> Tempesta Protettrice (no choice arg) -> Resistenza: Freddo
+  const rageAct = planClassFeatureActivation({
+    feature: rageFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    instanceId: "rage-inst",
+  });
+
+  const stormAct = planClassFeatureActivation({
+    state: rageAct.state,
+    feature: stormAuraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds: ["barbaro-ira", stormAuraFeature.id, tundraId],
+    sourceId: "barbarian",
+    instanceId: "storm-inst",
+  });
+  assert.equal(stormAct.ok, true);
+  assert.equal(stormAct.state.instances.find((i) => i.featureId === stormAuraFeature.id)?.choiceId, "tundra");
+
+  const protectAct = planClassFeatureActivation({
+    state: stormAct.state,
+    feature: tempestProtectFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["ally-1"],
+    instanceId: "protect-inst",
+  });
+  assert.equal(protectAct.ok, true);
+  assert.equal(protectAct.state.instances.find((i) => i.featureId === tempestProtectFeature.id)?.choiceId, "tundra");
+
+  const META_KEY = `${ID}/meta`;
+  const items = [
+    {
+      id: "barbarian",
+      name: "Barbaro",
+      position: { x: 0, y: 0 },
+      metadata: { [META_KEY]: { attitude: "pc", classFeatureState: protectAct.state } },
+    },
+    {
+      id: "ally-1",
+      name: "Alleato 1",
+      position: { x: 50, y: 0 },
+      metadata: { [META_KEY]: { attitude: "ally", conditions: { instances: [] } } },
+    },
+  ];
+
+  const auras = collectActiveClassFeatureAuras(items, {
+    metaKey: META_KEY,
+    featureById: CLASS_FEATURE_BY_ID,
+    characterBuildBySourceId: new Map([["barbarian", build]]),
+  });
+  const protectAura = auras.find((a) => a.featureId === tempestProtectFeature.id);
+  assert.ok(protectAura);
+  assert.equal(protectAura.targetEffects[0].label, "Resistenza: Freddo");
+
+  const plan = classFeatureAuraMembershipPlan({
+    aura: protectAura,
+    desiredTargetIds: ["ally-1"],
+    items,
+    metaKey: META_KEY,
+  });
+  assert.equal(plan.operations.length, 1);
+  assert.equal(plan.operations[0].conditionName, "Resistenza: Freddo");
+
+  // TEST 6: Switch propagation (Deserto -> Mare)
+  // Ally has existing Resistenza: Fuoco
+  items[1].metadata[META_KEY].conditions.instances = [
+    {
+      id: "cond-protect-fire",
+      condition: "Resistenza: Fuoco",
+      active: true,
+      type: "class-feature-area",
+      parentEffectId: "protect-inst",
+      effectId: "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice:area",
+      effectKind: "buff",
+    },
+  ];
+
+  // Update Barbarian state to Mare
+  items[0].metadata[META_KEY].classFeatureState = {
+    instances: [
+      {
+        instanceId: "storm-inst",
+        featureId: stormAuraFeature.id,
+        choiceId: "mare",
+        active: true,
+      },
+      {
+        instanceId: "protect-inst",
+        featureId: tempestProtectFeature.id,
+        parentInstanceId: "storm-inst",
+        choiceId: "mare",
+        targetIds: ["ally-1"],
+        active: true,
+      },
+    ],
+  };
+
+  const aurasAfterSwitch = collectActiveClassFeatureAuras(items, {
+    metaKey: META_KEY,
+    featureById: CLASS_FEATURE_BY_ID,
+    characterBuildBySourceId: new Map([["barbarian", build]]),
+  });
+  const protectAuraAfterSwitch = aurasAfterSwitch.find((a) => a.featureId === tempestProtectFeature.id);
+  assert.ok(protectAuraAfterSwitch);
+  assert.equal(protectAuraAfterSwitch.targetEffects[0].label, "Resistenza: Fulmine");
+
+  const switchPlan = classFeatureAuraMembershipPlan({
+    aura: protectAuraAfterSwitch,
+    desiredTargetIds: ["ally-1"],
+    items,
+    metaKey: META_KEY,
+  });
+  assert.equal(switchPlan.operations.length, 2, "Must remove old and add new condition");
+  const removeOp = switchPlan.operations.find((op) => op.type === "condition:remove-instances");
+  const addOp = switchPlan.operations.find((op) => op.type === "condition:add");
+  assert.ok(removeOp);
+  assert.ok(addOp);
+  assert.equal(addOp.conditionName, "Resistenza: Fulmine");
+});
+
+test("CF-B01C.2: Zero runtime dropdowns on Ira, Aura Tempestosa, Tempesta Protettrice (Tests 4-6, 10)", () => {
+  const build = [{ classId: "barbaro", level: 10, subclassId: "barbaro-cammino-dell-araldo-della-tempesta" }];
+  const rageFeature = CLASS_FEATURE_BY_ID.get("barbaro-ira");
+  const stormAuraFeature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa");
+  const tempestProtectFeature = CLASS_FEATURE_BY_ID.get("barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice");
+  const tundraId = "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra";
+
+  const enabledFeatureIds = ["barbaro-ira", stormAuraFeature.id, tundraId, tempestProtectFeature.id];
+
+  // TEST 4: Ira action model with Tundra -> ZERO environment dropdown
+  assert.equal(
+    classFeatureRequiresActivationChoice(rageFeature, enabledFeatureIds),
+    false,
+    "Ira must NOT require any activation choice",
+  );
+
+  // Auto-activate child check on Ira
+  const autoActivateChildren = (rageFeature.autoActivateFeatureIds || [])
+    .map((id) => CLASS_FEATURE_BY_ID.get(id))
+    .filter(Boolean);
+  for (const child of autoActivateChildren) {
+    if (child.id === stormAuraFeature.id) {
+      assert.equal(
+        classFeatureRequiresActivationChoice(child, enabledFeatureIds),
+        false,
+        "Aura Tempestosa auto-activated by Ira must NOT require activation choice dropdown",
+      );
+    }
+  }
+
+  // TEST 5: Aura Tempestosa action model -> ZERO environment dropdown
+  assert.equal(
+    classFeatureRequiresActivationChoice(stormAuraFeature, enabledFeatureIds),
+    false,
+    "Aura Tempestosa must NOT require activation choice dropdown when configured in sheet",
+  );
+
+  // TEST 6: Tempesta Protettrice action model -> ZERO environment dropdown, targeting preserved
+  assert.equal(
+    classFeatureRequiresActivationChoice(tempestProtectFeature, enabledFeatureIds),
+    false,
+    "Tempesta Protettrice must NOT require activation choice dropdown",
+  );
+  assert.equal(tempestProtectFeature.targeting.mode, "single-target", "Tempesta Protettrice must retain target selection");
+  assert.equal(tempestProtectFeature.targeting.excludeSource, true);
+
+  // TEST 10: Caller attempts to pass choiceId different from sheet configuration
+  const rageAct = planClassFeatureActivation({
+    feature: rageFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    sourceId: "barbarian",
+    targetIds: ["barbarian"],
+    instanceId: "rage-inst",
+  });
+
+  // Try to pass choiceId: "deserto" while enabledFeatureIds has tundra
+  const stormOverrideAttempt = planClassFeatureActivation({
+    state: rageAct.state,
+    feature: stormAuraFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds,
+    choiceId: "deserto", // attempt override
+    sourceId: "barbarian",
+    instanceId: "storm-inst",
+  });
+  assert.equal(stormOverrideAttempt.ok, true);
+  const stormInstance = stormOverrideAttempt.state.instances.find((i) => i.featureId === stormAuraFeature.id);
+  assert.equal(
+    stormInstance?.choiceId,
+    "tundra",
+    "Canonical configuration choice (tundra) must PREVAIL over runtime choiceId override (deserto)",
+  );
+
+  // Try to pass choiceId: "mare" to Tempesta Protettrice
+  const protectOverrideAttempt = planClassFeatureActivation({
+    state: stormOverrideAttempt.state,
+    feature: tempestProtectFeature,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    characterBuild: build,
+    enabledFeatureIds,
+    choiceId: "mare", // attempt override
+    sourceId: "barbarian",
+    targetIds: ["ally-1"],
+    instanceId: "protect-inst",
+  });
+  assert.equal(protectOverrideAttempt.ok, true);
+  const protectInstance = protectOverrideAttempt.state.instances.find((i) => i.featureId === tempestProtectFeature.id);
+  assert.equal(
+    protectInstance?.choiceId,
+    "tundra",
+    "Tempesta Protettrice must inherit parent tundra choice, ignoring runtime override",
+  );
 });

@@ -22,7 +22,8 @@ function section(source, start, end) {
 }
 
 test("le attivazioni usano un popup dedicato e non la Console HP", () => {
-  assert.match(popupHtml, /Risolvi:/);
+  assert.doesNotMatch(popupHtml, /Risolvi:/);
+  assert.doesNotMatch(popupController, /`Risolvi: \${payload\.spellName/);
   assert.match(popupHtml, /id="close"/);
   assert.match(popupHtml, /id="apply"[^>]*>Applica</);
   assert.match(popupController, /requestSpellAreaPlacement/);
@@ -49,6 +50,9 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /\$\{childLabel\} \$\{childPlacements\.length\} di/);
   assert.match(popupController, /depthRoll/);
   assert.match(popupController, /dataset\.popoverId/);
+  assert.match(popupController, /OBR\.player\.onChange/);
+  assert.match(popupController, /OBR\.player\.getSelection/);
+  assert.match(popupController, /OBR\.popover\.setHeight/);
   assert.match(popupController, /initializePopoverDrag/);
   assert.match(popupController, /void apply\(\)/);
   assert.match(popupController, /button\.addEventListener\("click", \(event\) => \{\s*event\.stopPropagation\(\);/);
@@ -56,6 +60,17 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /isMultiAttack/);
   assert.match(popupController, /attackEntries/);
   assert.match(popupController, /Applica attacchi/);
+  assert.match(popupController, /dalla mano/);
+  assert.match(popupController, /select\.hidden = automaticRequiredTarget/);
+  assert.match(popupController, /Bersaglio: \${displayName\(entries\[0\]\)}/);
+  assert.match(popupController, /manualSaveAtTable/);
+  assert.match(popupController, /singleSaveOutcomes/);
+  assert.match(popupController, /gridPlanarDistance/);
+  assert.match(validation, /payload\.action\.rangeOrigin === "root"/);
+  assert.match(popupController, /excludedTargetEffectIds/);
+  assert.match(validation, /excludedTargetEffectIds/);
+  assert.match(popupController, /manualSaveAtTable/);
+  assert.match(executor, /type: "token:teleport"/);
   assert.match(popupController, /attacks: isMultiAttack\(\)/);
   assert.doesNotMatch(popupController, /naturalStorm/);
   assert.doesNotMatch(validation, /currentSceneEpoch/);

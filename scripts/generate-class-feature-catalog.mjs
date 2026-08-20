@@ -526,6 +526,9 @@ function normalizeEffectPlanOverride(effectPlan) {
 }
 
 function normalizeEffectPlan(id, name, effects, targeting, override = {}) {
+  if (override.effectPlan === null || override.adapter === "resource-only") {
+    return null;
+  }
   if (override.effectPlan && typeof override.effectPlan === "object") {
     return normalizeEffectPlanOverride(override.effectPlan);
   }
@@ -979,6 +982,10 @@ for (const [id, record] of recordsById) {
     )
     : null;
   const choiceOptions = normalizeChoiceOptions(override.choiceOptions);
+  const choiceMode = shortText(
+    override.choiceMode || override.choice_mode || "",
+    80,
+  );
   const optionGroup = shortText(
     override.optionGroup || override.option_group || "",
     220,
@@ -1080,6 +1087,7 @@ for (const [id, record] of recordsById) {
       ? normalizeEffectPlan(id, featureName, effects, targeting, override)
       : null,
     ...(choiceOptions.length ? { choiceOptions } : {}),
+    ...(choiceMode ? { choiceMode } : {}),
     breaksConcentration: override.breaksConcentration === true
       || duration.untilFeatureId === "barbaro-ira",
     duration: {

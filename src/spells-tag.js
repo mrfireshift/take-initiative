@@ -2,7 +2,7 @@
   import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
   import { getSpellDefinition } from "./spells-srd.js";
-  import { spellExpiryCounter } from "./spellExpiryCore.js";
+  import { spellPillCounter } from "./spellExpiryCore.js";
   import { spellColorFor } from "./spellColorCore.js";
   import { effectsDiagnostics } from "./effectsDiagnostics.js";
 
@@ -78,6 +78,46 @@
   const CONC_LABEL_HASHKEY = `${ID}/concLabelHash`;    // hash label (testo+dimensioni)
   const CONC_DOT_LAYOUT_KEY = `${ID}/concDotLayout`;
   const CONC_DOT_LAYOUT_VERSION = 9;
+
+  // Alcuni incantesimi ad aura hanno una pill di membership dedicata sui
+  // bersagli. In questi casi la pill generica della concentrazione sarebbe
+  // ridondante: la manteniamo sul caster ma non sui bersagli dell'aura.
+  const SELF_ONLY_CONCENTRATION_LABEL_SPELL_IDS = new Set([
+    "xanathar-investitura-della-fiamma",
+  ]);
+  const SELF_ONLY_CONCENTRATION_LABEL_SPELL_KEYS = new Set([
+    spellKey("Investitura della Fiamma"),
+  ]);
+
+  function isSelfOnlyConcentrationLabelSpell({ spellId = "", spellName = "" } = {}) {
+    const normalizedSpellId = String(spellId || "").trim();
+    if (SELF_ONLY_CONCENTRATION_LABEL_SPELL_IDS.has(normalizedSpellId)) return true;
+    const definitionId = String(getSpellDefinition(spellName)?.id || "").trim();
+    if (SELF_ONLY_CONCENTRATION_LABEL_SPELL_IDS.has(definitionId)) return true;
+    return SELF_ONLY_CONCENTRATION_LABEL_SPELL_KEYS.has(spellKey(spellName));
+  }
+
+  function concentrationLabelTargets({
+    spellId = "",
+    spellName = "",
+    targets = [],
+    casterId = "",
+  } = {}) {
+    const normalizedCasterId = String(casterId || "").trim();
+    if (isSelfOnlyConcentrationLabelSpell({ spellId, spellName })) {
+      return (Array.isArray(targets) ? targets : [])
+        .filter((targetId) => String(targetId || "").trim() === normalizedCasterId);
+    }
+    return Array.isArray(targets) ? targets.filter(Boolean) : [];
+  }
+
+  function isInvalidSelfOnlyConcentrationWidget(widget) {
+    const casterId = String(widget?.metadata?.[CONC_WIDGET_CASTER] || "").trim();
+    const targetId = String(widget?.metadata?.[CONC_WIDGET_META] || "").trim();
+    const key = String(widget?.metadata?.[CONC_WIDGET_KEY] || "").trim();
+    if (!casterId || !targetId || casterId === targetId || !key) return false;
+    return isSelfOnlyConcentrationLabelSpell({ spellName: key });
+  }
   const CONC_LABEL_LAYOUT_KEY = `${ID}/concLabelLayout`;
   const CONC_LABEL_LAYOUT_VERSION = 2;
 
@@ -345,6 +385,14 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     return Number.isFinite(turns) ? Math.max(0, Math.floor(turns)) : null;
   }
 
+  function readSpellCastContext(value) {
+    if (!value || typeof value !== "object") return null;
+    return {
+      ...value,
+      ...(value.uses && typeof value.uses === "object" ? { uses: { ...value.uses } } : {}),
+    };
+  }
+
   // Normalizza qualsiasi forma di META_KEY[SPELLS_META_KEY] in array di {name,id,conc,targets}
   function readSpellsList(it) {
     const meta = it?.metadata?.[META_KEY] || {};
@@ -361,6 +409,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           casterId: (s.casterId ?? "").toString().trim() || null,
           turns: readSpellTurns(s.turns),
           expiry: s.expiry && typeof s.expiry === "object" ? { ...s.expiry } : null,
+          castContext: readSpellCastContext(s.castContext),
           conc: !!s.conc,
           targets: Array.isArray(s.targets) ? s.targets.filter(Boolean) : undefined,
         });
@@ -375,6 +424,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           casterId: (v?.casterId ?? "").toString().trim() || null,
           turns: readSpellTurns(v?.turns),
           expiry: v?.expiry && typeof v.expiry === "object" ? { ...v.expiry } : null,
+          castContext: readSpellCastContext(v?.castContext),
           conc: !!v?.conc,
           targets: Array.isArray(v?.targets) ? v.targets.filter(Boolean) : undefined,
         });
@@ -416,12 +466,20 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
       for (const [name, v] of Object.entries(concObj)) {
         if (!v || typeof v !== "object") continue;
         const targets = Array.isArray(v.targets) ? v.targets.filter(Boolean) : [selfId];
+        const spellId = String(v.spellId || "").trim();
+        const displayTargets = concentrationLabelTargets({
+          spellId,
+          spellName: name,
+          targets,
+          casterId: selfId,
+        });
         const colorKey = spellKey(name);   // usa il nome normalizzato
         res.push({
           key: String(name),
-          targets,
+          targets: displayTargets,
           colorKey,
           isConc: true,
+          spellId,
           instanceId: String(v.instanceId || "").trim() || null,
           turns: null,
         });
@@ -498,6 +556,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         c: spell.casterId || "",
         r: spell.turns,
         e: spell.expiry || null,
+        u: spell.castContext?.uses || null,
       }))
       .sort((A, B) => A.i.localeCompare(B.i) || A.k.localeCompare(B.k));
     return JSON.stringify({ assignments: norm, durations });
@@ -526,6 +585,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     const validLabels = new Map();
 
     for (const widget of widgets) {
+      if (isInvalidSelfOnlyConcentrationWidget(widget)) return true;
       const ownerId = widget.metadata?.[CONC_WIDGET_META];
       const isDotLabel =
         widget.type === "LABEL" &&
@@ -747,7 +807,7 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
       );
       const counter = displayedSpell === null
         ? ""
-        : spellExpiryCounter(displayedSpell);
+        : spellPillCounter(displayedSpell);
       const spellTitle = counter ? `${spellName} (${counter})` : spellName;
 
       // Piano stabile SENZA nuove query
@@ -1009,6 +1069,16 @@ async function upsertDotForItem(it, diagnosticsSession = null) {
           candidateCasterIds.has(item.metadata?.[CONC_WIDGET_CASTER])
         )
       );
+      const invalidSelfOnlyWidgetIds = linkedWidgets
+        .filter(isInvalidSelfOnlyConcentrationWidget)
+        .map((widget) => widget.id)
+        .filter(Boolean);
+      if (invalidSelfOnlyWidgetIds.length) {
+        const invalidSet = new Set(invalidSelfOnlyWidgetIds);
+        await __concentrationDeleteItems(diagnosticsSession, invalidSelfOnlyWidgetIds);
+        linkedWidgets = linkedWidgets.filter((widget) => !invalidSet.has(widget.id));
+      }
+
       for (const widget of linkedWidgets) {
         const targetId = widget.metadata?.[CONC_WIDGET_META];
         const casterId = widget.metadata?.[CONC_WIDGET_CASTER];

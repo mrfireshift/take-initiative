@@ -17,6 +17,23 @@ import { spellEffectThemeFor } from "./spellColorCore.js";
 
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
 
+function initialSpellUses(spell, castContext = {}) {
+  const context = castContext && typeof castContext === "object" ? { ...castContext } : {};
+  if (spell?.id !== "xanathar-corona-di-stelle") return context;
+  const slotLevel = Math.max(7, Math.min(9, Math.floor(Number(context.slotLevel) || 7)));
+  const total = 7 + Math.max(0, slotLevel - 7) * 2;
+  return {
+    ...context,
+    uses: {
+      key: "stars",
+      label: "stelle",
+      remaining: total,
+      total,
+      showInPill: true,
+    },
+  };
+}
+
 export function buildSpellApplicationIntent({
   spell = null,
   enteredName = "",
@@ -37,12 +54,12 @@ export function buildSpellApplicationIntent({
   const name = spell?.displayName || enteredName;
   const resolvedPhasePlan = phasePlan || getSpellCastPhasePlan(spell, "", castContext);
   const wantsConcentration = resolveSpellConcentration(spell, requestedConcentration);
-  const persistedCastContext = {
+  const persistedCastContext = initialSpellUses(spell, {
     ...(castContext && typeof castContext === "object" ? castContext : {}),
     phase: resolvedPhasePlan.phase,
     choice: String(selectedChoice || ""),
     applyAutomatedConditions: applyAutomatedConditions !== false,
-  };
+  });
   const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
   const attackResolution = getSpellAttackResolution(
     spell,

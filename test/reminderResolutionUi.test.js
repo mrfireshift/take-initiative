@@ -36,6 +36,14 @@ test("il rerender conserva bozza di esito e risultato dadi", () => {
   assert.match(turnNotice, /renderSaveReminderBatch\(currentSaveReminderBatch\)/);
 });
 
+test("un esito a danno zero può essere risolto senza compilare il campo dadi", () => {
+  assert.match(turnNotice, /reminderResolutionOutcomeNeedsDamage/);
+  assert.match(
+    turnNotice,
+    /damageInput[\s\S]{0,240}manualHeal[\s\S]{0,140}reminderResolutionOutcomeNeedsDamage\(row\.resolution, outcome\)[\s\S]{0,180}Inserisci un risultato dei dadi valido/,
+  );
+});
+
 test("i TS mantengono i pulsanti diretti e il danno automatico usa Conferma", () => {
   assert.match(turnNotice, /const resolve = async \(outcome: string\)/);
   assert.match(turnNotice, /button\.addEventListener\("click", \(event\) => \{\s*event\.stopPropagation\(\);\s*void resolve\(option\.value\);/);
@@ -44,10 +52,10 @@ test("i TS mantengono i pulsanti diretti e il danno automatico usa Conferma", ()
 });
 
 test("una risoluzione riuscita rimuove subito il reminder risolto", () => {
-  assert.match(turnNotice, /function dismissResolvedReminder\(activationId: string\)/);
+  assert.match(turnNotice, /function dismissResolvedReminder\(activationId: string, \{ zone = false \} = \{\}\)/);
   assert.match(
     turnNotice,
-    /result\.status === "applied" \|\| result\.status === "already-resolved"[\s\S]{0,320}dismissResolvedReminder\(activationId\)/,
+    /result\.status === "applied" \|\| result\.status === "already-resolved"[\s\S]{0,520}dismissResolvedReminder\(activationId,/,
   );
   assert.match(turnNotice, /if \(!entries\.length\) \{\s*clearZoneNotice\(\);/);
 });
@@ -68,6 +76,8 @@ test("il turn notice non ridimensiona il popover durante il bootstrap", () => {
   assert.doesNotMatch(turnNotice, /requestTurnNoticePopoverResize/);
   assert.match(turnNotice, /type: "turn-notice-layout"/);
   assert.match(turnNotice, /visible: hasTurnNotice \|\| hasZoneNotice/);
+  assert.match(turnNotice, /layoutRevision,/);
+  assert.match(turnNotice, /const layoutRevision = \+\+noticeLayoutRevision/);
 });
 
 test("il modal mantiene il click solo sui controlli e il layer zona sopra l'iniziativa", () => {
@@ -81,4 +91,51 @@ test("un reminder consumabile non mostra Chiudi e usa il timer automatico", () =
   assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
   assert.match(reminderRender, /if \(!requiresResponse\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
+});
+
+
+test("un reminder in aggregazione mantiene visibile il turn-notice host fino al render", () => {
+  assert.match(
+    turnNotice,
+    /const hasPendingSaveReminder = pendingSaveReminderNotices\.length > 0 \|\| saveReminderAggregationTimer !== 0;/,
+  );
+  assert.match(
+    turnNotice,
+    /const hasZoneNotice = !!currentZonePanel \|\| hasPendingSaveReminder;/,
+  );
+  assert.match(
+    turnNotice,
+    /if \(!batch \|\| !renderSaveReminderBatch\(batch\)\) \{[\s\S]{0,120}announceNoticeLayout\(\{ force: true \}\);/,
+  );
+});
+
+test("la baseline delle zone non consuma il payload live che apre il popover", () => {
+  assert.match(
+    turnNotice,
+    /planZoneTriggerNoticeDelivery\([\s\S]{0,180}\{ baseline \},[\s\S]{0,80}if \(baseline\) return;/,
+  );
+  assert.doesNotMatch(
+    turnNotice,
+    /if \(baseline\) \{[\s\S]{0,160}rememberAnnouncementIds\(announcedZoneActivationIds/,
+  );
+});
+test("Undo di una risoluzione zona può riannunciare lo stesso activationId", () => {
+  assert.match(turnNotice, /dismissResolvedReminder\(activationId: string, \{ zone = false \} = \{\}\)/);
+  assert.match(turnNotice, /if \(zone\) announcedZoneActivationIds\.delete\(activationId\);/);
+  assert.match(turnNotice, /zone: row\?\.resolution\?\.activation\?\.kind === "zone"/);
+  assert.match(turnNotice, /const items = await OBR\.scene\.items\.getItems\(\);/);
+  assert.match(turnNotice, /for \(const activationId of \[\.\.\.announcedZoneActivationIds\]\) \{[\s\S]{0,160}!pendingIds\.has\(activationId\)[\s\S]{0,120}announcedZoneActivationIds\.delete\(activationId\)/);
+  assert.match(turnNotice, /unsubscribeZoneItemChanges = subscribeSceneItemChanges\(\(\) => \{[\s\S]{0,100}requestPendingZoneNoticeSync\(\);/);
+});
+
+test("il riarmo generico avviene solo nel payload canonico successivo", () => {
+  assert.match(
+    turnNotice,
+    /Array\.isArray\(raw\?\.rearmActivationIds\)[\s\S]{0,260}announcedEffectActivationIds\.delete\(notice\.activationId\)/,
+  );
+  const dismissBlock = turnNotice.slice(
+    turnNotice.indexOf("function dismissResolvedReminder"),
+    turnNotice.indexOf("function buildResolutionControls"),
+  );
+  assert.doesNotMatch(dismissBlock, /announcedEffectActivationIds\.delete/);
 });

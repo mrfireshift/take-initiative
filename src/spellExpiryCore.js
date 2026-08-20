@@ -22,6 +22,15 @@ export function spellExpiryCounter(spell = {}) {
   return `${phase}${remaining > 1 ? `:${remaining}` : ""} ${actor}`;
 }
 
+export function spellPillCounter(spell = {}) {
+  const uses = spell?.castContext?.uses;
+  const remaining = Math.floor(Number(uses?.remaining));
+  if (uses?.showInPill === true && Number.isFinite(remaining) && remaining >= 0) {
+    return String(remaining);
+  }
+  return spellExpiryCounter(spell);
+}
+
 export function spellExpiryDescription(spell = {}) {
   const expiry = spell?.expiry || {};
   if (expiry.mode === "manual") return "rimozione manuale";

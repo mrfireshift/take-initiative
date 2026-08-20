@@ -83,6 +83,7 @@ export function createEffectsMutationCoordinator({
   prepare,
   commit,
   prepareUndo,
+  buildHistoryEntry = null,
   recordHistory = async () => null,
   isCurrent = () => true,
 } = {}) {
@@ -162,6 +163,19 @@ export function createEffectsMutationCoordinator({
       const hasSideEffectChanges = !!commitResult?.sideEffectChanges?.length;
       if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges) && isCommandCurrent()) {
         if (command.deferHistory === true) {
+          try {
+            historyEntry = typeof buildHistoryEntry === "function"
+              ? await buildHistoryEntry({
+                command,
+                plan,
+                commitResult,
+                sceneEpoch: command.sceneEpoch,
+                isCurrent: isCommandCurrent,
+              })
+              : null;
+          } catch (error) {
+            historyEntry = error?.historyEntry || null;
+          }
           historyError = {
             name: "DeferredEffectsHistory",
             message: "effects-history-deferred",
@@ -417,11 +431,13 @@ export function createEffectsMutationCoordinator({
 }
 
 export function mutationResultError(result) {
-  const error = new Error(
-    result?.error?.message || `Effects mutation ${result?.status || "failed"}.`
-  );
+  const status = String(result?.status || "failed");
+  const reason = String(result?.reason || "").trim();
+  const fallbackMessage = `Effects mutation ${status}${reason ? `: ${reason}` : ""}.`;
+  const error = new Error(result?.error?.message || fallbackMessage);
   error.name = result?.error?.name || "EffectsMutationError";
   error.status = result?.status;
+  error.reason = result?.reason;
   error.result = result;
   return error;
 }

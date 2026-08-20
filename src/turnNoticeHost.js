@@ -4,12 +4,18 @@ import {
   ID,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
-import { enqueueTurnNoticeHostPayload } from "./turnNoticeHostCore.js";
+import {
+  acceptTurnNoticeLayoutRevision,
+  enqueueTurnNoticeHostPayload,
+  shouldCloseTurnNoticeFromHiddenLayout,
+  shouldHonorTurnNoticeCloseRequest,
+} from "./turnNoticeHostCore.js";
 
 const TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
 const TURN_NOTICE_READY_CHANNEL = `${TURN_NOTICE_CHANNEL}/ready`;
 const TURN_NOTICE_LAYOUT_CHANNEL = `${TURN_NOTICE_CHANNEL}/layout`;
 const TURN_NOTICE_UI_CHANNEL = `${TURN_NOTICE_CHANNEL}/ui`;
+const TURN_NOTICE_CONTROL_CHANNEL = `${TURN_NOTICE_CHANNEL}/control`;
 const TURN_NOTICE_POPOVER_ID = `${ID}/turn-notice-modal`;
 const TURN_NOTICE_CARD_WIDTH = 500;
 const TURN_NOTICE_FRAME_GUTTER = 4;
@@ -30,6 +36,7 @@ let noticeAwaitingReady = false;
 let readyRetryTimer = null;
 let layoutAckTimer = null;
 let layoutAckToken = 0;
+let latestLayoutRevision = 0;
 
 function enqueueHostTask(task) {
   hostQueue = hostQueue.then(task, task);
@@ -72,6 +79,7 @@ function scheduleLayoutAckTimeout() {
       popoverOpen = false;
       readySceneEpoch = null;
       awaitingVisibleLayout = false;
+      latestLayoutRevision = 0;
       noticeAwaitingReady = false;
       clearReadyRetry();
     }).catch(() => {});
@@ -134,6 +142,7 @@ async function openTurnNoticePopover(payload) {
   popoverOpen = true;
   readySceneEpoch = null;
   awaitingVisibleLayout = false;
+  latestLayoutRevision = 0;
   clearLayoutAckTimer();
 }
 
@@ -230,9 +239,44 @@ function receiveReadyMessage(payload) {
   });
 }
 
+
+function receiveControlMessage(payload) {
+  if (payload?.type !== "close-turn-notice") return;
+  const requestEpoch = payloadSceneEpoch(payload);
+  if (!shouldHonorTurnNoticeCloseRequest({
+    popoverOpen,
+    requestSceneEpoch: requestEpoch,
+    currentSceneEpoch: requestedSceneEpoch,
+    pendingPayloadCount: pendingPayloads.length,
+  })) return;
+  activityRevision += 1;
+  void enqueueHostTask(async () => {
+    if (!shouldHonorTurnNoticeCloseRequest({
+      popoverOpen,
+      requestSceneEpoch: requestEpoch,
+      currentSceneEpoch: requestedSceneEpoch,
+      pendingPayloadCount: pendingPayloads.length,
+    })) return;
+    await OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
+    popoverOpen = false;
+    readySceneEpoch = null;
+    awaitingVisibleLayout = false;
+    latestLayoutRevision = 0;
+    noticeAwaitingReady = false;
+    clearLayoutAckTimer();
+    clearReadyRetry();
+  }).catch(() => {});
+}
+
 function receiveLayoutMessage(payload) {
-  const revision = activityRevision;
+  const activityAtMessage = activityRevision;
   if (!popoverOpen) return;
+  const layoutRevision = acceptTurnNoticeLayoutRevision(
+    latestLayoutRevision,
+    payload?.layoutRevision,
+  );
+  if (!layoutRevision.accepted) return;
+  latestLayoutRevision = layoutRevision.revision;
   if (payload?.visible === true) {
     awaitingVisibleLayout = false;
     clearLayoutAckTimer();
@@ -244,13 +288,21 @@ function receiveLayoutMessage(payload) {
     void OBR.popover.setHeight(TURN_NOTICE_POPOVER_ID, height).catch(() => {});
     return;
   }
+  const scheduledLayoutRevision = layoutRevision.revision;
   void enqueueHostTask(async () => {
-    if (awaitingVisibleLayout) return;
-    if (revision !== activityRevision || pendingPayloads.length) return;
+    if (!shouldCloseTurnNoticeFromHiddenLayout({
+      scheduledLayoutRevision,
+      latestLayoutRevision,
+      awaitingVisibleLayout,
+      scheduledActivityRevision: activityAtMessage,
+      currentActivityRevision: activityRevision,
+      pendingPayloadCount: pendingPayloads.length,
+    })) return;
     await OBR.popover.close(TURN_NOTICE_POPOVER_ID).catch(() => {});
     popoverOpen = false;
     readySceneEpoch = null;
     awaitingVisibleLayout = false;
+    latestLayoutRevision = 0;
     noticeAwaitingReady = false;
     clearLayoutAckTimer();
     clearReadyRetry();

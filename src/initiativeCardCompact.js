@@ -1,5 +1,5 @@
 import {
-  spellExpiryCounter,
+  spellPillCounter,
   spellExpiryDescription,
 } from "./spellExpiryCore.js";
 import { enableInlineNameEditor } from "./initiativeEditors.js";
@@ -79,7 +79,7 @@ export function __compactEffectItems(
       : {}),
   }));
   for (const spell of spells) {
-    const counter = spellExpiryCounter(spell);
+    const counter = spellPillCounter(spell);
     const spellName = String(spell?.name || "Incantesimo");
     effects.push({
       kind: "spell",

@@ -13,7 +13,6 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "calm-emotions",
   "circle-of-death",
   "cloudkill",
-  "compulsion",
   "cone-of-cold",
   "confusion",
   "control-water",
@@ -68,9 +67,7 @@ export const AREA_SAVE_SPELL_IDS = Object.freeze([
   "xanathar-eruzione-terrestre",
   "xanathar-fulgore-nauseante",
   "xanathar-investitura-del-ghiaccio",
-  "xanathar-investitura-del-vento",
   "xanathar-investitura-della-fiamma",
-  "xanathar-investitura-della-pietra",
   "xanathar-maelstrom",
   "xanathar-minuscole-meteore-di-melf",
   "xanathar-muro-di-luce",
@@ -108,10 +105,14 @@ export const MULTI_TARGET_SAVE_SPELL_IDS = Object.freeze([
   "legacy-tashas-mind-whip",
   "chain-lightning",
   "command",
+  "compulsion",
   "tasha-scheggia-della-mente",
   "xanathar-anatema-elementale",
   "banishment",
   "xanathar-aculeo-mentale",
+  "xanathar-urlo-psichico",
+  "hold-person",
+  "hold-monster",
 ]);
 
 export const MULTI_TARGET_SAVE_SPELL_ID_SET = new Set(
@@ -200,6 +201,8 @@ export const AREA_POPOVER_SPELL_ID_SET = new Set(AREA_POPOVER_SPELL_IDS);
 // Mantenerli classificati evita che euristiche future li aggiungano per errore.
 export const AREA_FIELD_NON_POPOVER_REASONS = Object.freeze({
   "arcane-eye": "sensory-radius",
+  "xanathar-investitura-del-vento": "active-action-only-area",
+  "xanathar-investitura-della-pietra": "active-action-only-area",
   "conjure-elemental": "summon-source-volume",
   "create-or-destroy-water": "environment-volume",
   "creation": "created-object-volume",
@@ -240,6 +243,9 @@ export const AREA_SAVE_EFFECT_RULES = Object.freeze({
   }),
   "xanathar-aculeo-mentale": Object.freeze({
     failedEffectIds: Object.freeze(["location-known"]),
+  }),
+  "xanathar-debilitazione": Object.freeze({
+    failedEffectIds: Object.freeze(["enervation-link"]),
   }),
   "tasha-scheggia-della-mente": Object.freeze({
     failedEffectIds: Object.freeze(["next-saving-throw-penalty"]),
@@ -363,19 +369,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
   ]),
   "compulsion": failedAutomation([
     debuffRule(
-      "Compulsione: movimento imposto",
+      "Compulsione: Movimento imposto",
       "compulsion-forced-movement",
       "Nel proprio turno deve usare il movimento nella direzione indicata dal caster.",
       {
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
-        saveReminder: Object.freeze({
-          ability: "wis",
-          timing: "turn-end",
-          dcSource: "source-spell",
-          label: "Dopo il movimento imposto, se supera il TS termina l'effetto.",
-        }),
+        parentRemoval: "target",
       },
     ),
   ]),
@@ -429,6 +430,34 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     ),
   ]),
   "sleet-storm": noPersistentEffect,
+  "hold-person": failedAutomation([
+    conditionRule("Paralizzato", {
+      expiry: concentration,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      parentRemoval: "target",
+      saveReminder: Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Blocca Persone.",
+      }),
+    }),
+  ]),
+  "hold-monster": failedAutomation([
+    conditionRule("Paralizzato", {
+      expiry: concentration,
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      parentRemoval: "target",
+      saveReminder: Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Blocca Mostri.",
+      }),
+    }),
+  ]),
   "slow": failedAutomation([
     debuffRule(
       "Lentezza: -2 CA/TS Des · no reazioni",
@@ -525,11 +554,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       { expiry: nextTurn("turn-start", "source"), independent: true },
     ),
   ], { track: false }),
-  "xanathar-investitura-del-vento": noPersistentEffect,
   "xanathar-investitura-della-fiamma": noPersistentEffect,
-  "xanathar-investitura-della-pietra": failedAutomation([
-    conditionRule("Prono", { expiry: manual, independent: true }),
-  ], { track: false }),
   "xanathar-collera-della-natura": noPersistentEffect,
   "xanathar-onda-di-marea": failedAutomation([
     conditionRule("Prono", { expiry: manual, independent: true }),

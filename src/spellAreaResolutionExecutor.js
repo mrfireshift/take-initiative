@@ -9,8 +9,12 @@ import {
   quickHPZeroReconcileTargetIds,
 } from "./quickHpCore.js";
 import { getConditionInstances } from "./conditions.js";
-import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
+import {
+  resolveDamageEndsConditionRemovals,
+  resolveZeroHPUnconsciousAction,
+} from "./hpConditionRulesCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import {
   getAreaSaveAutomation,
   getSpellAttackResolution,
@@ -27,6 +31,8 @@ import { spellEffectConditionOptions } from "./spellEffectCore.js";
 import {
   getSpellSaveWorkflowRule,
 } from "./spellSaveWorkflowRules.js";
+import { getSpellCastResolutionRule } from "./spellCastResolutionRules.js";
+import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import {
   confirmedSpellAreaTargetIds,
@@ -89,6 +95,7 @@ import { syncHPBatchToMemory } from "./hpMemory.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { emitFireballVisual } from "./fireballVisualRenderer.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
+import { isMatchedSpellVisualSpell } from "./embersMatchedVisualCore.js";
 import {
   consumeSpellZoneTrigger,
   pendingSpellZoneTriggerActivations,
@@ -141,7 +148,7 @@ function errorList(errors = [], fallbackCode = "spell-area-resolution-invalid") 
 
 function resultBase(command, status, extra = {}) {
   return {
-    status,
+    status: status,
     commandType: text(command?.type) || SPELL_AREA_RESOLUTION_COMMAND_TYPE,
     spellId: text(command?.spell?.spellId),
     instanceId: text(extra.instanceId),
@@ -229,12 +236,26 @@ function appliedAtForState(state, actorId = null) {
     round: Math.max(1, Math.floor(Number(state.round) || 1)),
     actorId: actorId || (order[current] ? text(order[current]).replace(/::p\d+$/u, "") : null),
     phase: "turn",
-    turnKey: `${Math.max(1, Math.floor(Number(state.round) || 1))}:${current}`,
+    // Usa la stessa chiave canonica del turn controller, così le active action
+    // disponibili dal turno successivo non si aprono nel turno del cast.
+    turnKey: currentInitiativeTurnKey(state),
   };
 }
 
 function normalizeFactor(value) {
   return value === "half" ? QUICK_HP_FACTORS.HALF : QUICK_HP_FACTORS.FULL;
+}
+
+function casterHealingEntryFromAppliedDamage({ entries = [], caster = null, ratio = 0 } = {}) {
+  if (!trackedHP(caster)) return null;
+  const meta = itemMeta(caster);
+  const change = spellCasterHealingChange({
+    damageChanges: (Array.isArray(entries) ? entries : []).map((entry) => entry?.change),
+    ratio,
+    hp: meta.hp,
+    hpMax: meta.hpMax,
+  });
+  return change.changed ? { item: caster, change, outcome: "healing" } : null;
 }
 
 function hpEntries({ command, items, spell }) {
@@ -425,6 +446,27 @@ async function defaultConsumeZoneTrigger(activation, runtime) {
   });
 }
 
+function zoneTriggerConsumeSideEffects(activation, rootItems = []) {
+  const activationId = text(activation?.id || activation?.activationId);
+  if (!activationId) return [];
+  const targetId = uniqueIds(activation?.targetIds)[0] || "";
+  return (Array.isArray(rootItems) ? rootItems : []).flatMap((item) => {
+    const metadataKey = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]
+      ? SPELL_STATIC_ZONE_META_KEY
+      : item?.metadata?.[SPELL_AURA_META_KEY]
+        ? SPELL_AURA_META_KEY
+        : "";
+    if (!item?.id || !metadataKey) return [];
+    return [{
+      type: "reminder:consume-zone-activation",
+      itemId: item.id,
+      metadataKey,
+      activationId,
+      ...(targetId ? { targetId } : {}),
+    }];
+  });
+}
+
 async function defaultRestoreZoneTrigger(snapshot, runtime) {
   const snapshots = Array.isArray(snapshot) ? snapshot : [snapshot];
   const ids = snapshots.map((entry) => entry?.id).filter(Boolean);
@@ -570,7 +612,12 @@ async function buildPlan(command, runtime) {
       targetIds,
       outcomes: command?.outcomes?.required
         ? outcomes
-        : new Map(targetIds.map((id) => [id, SAVE_SPELL_OUTCOMES.FAILED])),
+        : saveWorkflowRule?.manualSaveAtTable === true
+          ? new Map(targetIds.map((id) => [
+            id,
+            outcomes.get(id) || saveWorkflowRule.assumedOutcome || SAVE_SPELL_OUTCOMES.FAILED,
+          ]))
+          : new Map(targetIds.map((id) => [id, SAVE_SPELL_OUTCOMES.FAILED])),
       automation,
       allowEmptyTargets,
       saveWorkflowRule,
@@ -630,9 +677,11 @@ async function buildPlan(command, runtime) {
     spellTargetIds: [...(resolution.spellTargetIds || [])],
   };
   if ((mobileAura || boardToken) && casterId) {
-    resolved.spellTargetIds = mobileAura && placementRule?.targeting?.confirmTargets === false
+    resolved.spellTargetIds = boardToken && placementRule?.boardToken?.spellOwner === "caster"
       ? [casterId]
-      : uniqueIds([...resolved.spellTargetIds, casterId]);
+      : mobileAura && placementRule?.targeting?.confirmTargets === false
+        ? [casterId]
+        : uniqueIds([...resolved.spellTargetIds, casterId]);
   }
   const effectSubjectIds = uniqueIds([
     ...resolved.spellTargetIds,
@@ -786,7 +835,11 @@ async function buildPlan(command, runtime) {
       lifecycleId: spellInstanceId,
       sceneEpoch: runtime.sceneEpoch,
     };
-  } else if (spell.id === "banishment" && resolved.spellTargetIds.length) {
+  } else if (
+    !placement?.preview
+    && isMatchedSpellVisualSpell(spell.id)
+    && resolved.spellTargetIds.length
+  ) {
     matchedVisualContext = {
       spellId: spell.id,
       casterId,
@@ -822,6 +875,15 @@ async function buildPlan(command, runtime) {
   }
 
   const staticZoneTargetIds = uniqueIds(resolved.spellTargetIds);
+  // La baseline dei trigger di una zona è la membership geometrica al cast,
+  // non soltanto i target che il save workflow decide di tracciare.
+  // Spell come Unto usano track:false: senza questa baseline, i token già
+  // presenti al cast verrebbero scambiati per nuovi ingressi al primo reconcile.
+  const staticZoneCastMemberIds = staticZonePlacement
+    ? targetScopedStaticZone
+      ? staticZoneTargetIds
+      : confirmedSpellAreaTargetIds(placement, allItems.map((item) => item.id))
+    : [];
   const committedStaticZonePlacement = staticZonePlacement
     && (!targetScopedStaticZone || staticZoneTargetIds.length > 0);
   if (committedStaticZonePlacement) {
@@ -840,26 +902,27 @@ async function buildPlan(command, runtime) {
       slotLevel: command?.spell?.slotLevel,
     });
     if (ownerOperation) effectOperations.push(ownerOperation);
-    const passiveTargetIds = targetScopedStaticZone
-      ? staticZoneTargetIds
-      : confirmedSpellAreaTargetIds({
-        status: "confirmed",
-        preview: { targetIds: placement?.targetIds || [] },
-      }, allItems.map((item) => item.id));
-    const membershipItems = Array.isArray(runtime.targetItems) && runtime.targetItems.length
-      ? runtime.targetItems
-      : allItems;
-    const passivePlan = areaMembershipPlan({
-      instanceId: spellInstanceId,
-      sourceId: casterId,
-      rule: placementRule,
-      desiredTargetIds: passiveTargetIds,
-      items: membershipItems,
-      metaKey: META_KEY,
-      sourceName: itemName(caster),
-      defaultExpiry: { mode: "manual" },
-    });
-    effectOperations.push(...passivePlan.operations);
+    const passiveTargetIds = staticZoneCastMemberIds;
+    // Muro di Luce usa la membership dinamica della zona come unica fonte
+    // della pill sui token. Applicarla anche qui al commit del cast può
+    // concorrere con il primo reconcile e creare due istanze identiche.
+    const runtimeOwnedZoneMembership = spell.id === "xanathar-muro-di-luce";
+    if (!runtimeOwnedZoneMembership) {
+      const membershipItems = Array.isArray(runtime.targetItems) && runtime.targetItems.length
+        ? runtime.targetItems
+        : allItems;
+      const passivePlan = areaMembershipPlan({
+        instanceId: spellInstanceId,
+        sourceId: casterId,
+        rule: placementRule,
+        desiredTargetIds: passiveTargetIds,
+        items: membershipItems,
+        metaKey: META_KEY,
+        sourceName: itemName(caster),
+        defaultExpiry: { mode: "manual" },
+      });
+      effectOperations.push(...passivePlan.operations);
+    }
     effectSubjectIds.push(...passiveTargetIds);
   }
   if (cloudPlacement && cloudRule) {
@@ -944,7 +1007,7 @@ async function buildPlan(command, runtime) {
       spellName: spell.displayName || spell.name,
       preview: placement.preview,
       ruleChoice: text(command?.spell?.choiceValue),
-      targetIds: staticZoneTargetIds,
+      targetIds: staticZoneCastMemberIds,
       followCaster: placementRule?.zonePolicy?.followCaster === true,
       casterOrigin: caster?.position,
     }) : []),
@@ -970,6 +1033,15 @@ async function buildPlan(command, runtime) {
     ]),
   );
   const entries = hpEntries({ command, items: liveItems, spell });
+  const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
+  const casterHealingEntry = casterHealingEntryFromAppliedDamage({
+    entries,
+    caster,
+    ratio: casterHealingRatio,
+  });
+  if (casterHealingEntry && !entries.some((entry) => entry.item?.id === casterHealingEntry.item?.id)) {
+    entries.push(casterHealingEntry);
+  }
   const zeroHPBoardTokenIds = uniqueIds(entries
     .filter((entry) => (
       entry.change.afterHP === 0
@@ -977,6 +1049,17 @@ async function buildPlan(command, runtime) {
       && entry.item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.kind === "spell-board-token"
     ))
     .map((entry) => entry.item.id));
+  const damageEndsRemovals = entries
+    .filter((entry) => entry.change?.afterHP < entry.change?.hp)
+    .flatMap((entry) => {
+      const meta = itemMeta(entry.item);
+      const instances = getConditionInstances(meta.conditions || {});
+      const removalIds = resolveDamageEndsConditionRemovals(instances);
+      return removalIds.map((instanceId) => ({
+        itemId: entry.item.id,
+        instanceId,
+      }));
+    });
   const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(
     entries.filter((entry) => !zeroHPBoardTokenIds.includes(entry.item.id)),
     (entry) => {
@@ -1046,6 +1129,7 @@ async function buildPlan(command, runtime) {
     boardTokenEntityIds,
     spellBoardTokenSideEffects,
     zeroHPReconcileIds,
+    damageEndsRemovals,
     affectedIds,
     historyIds,
     staticZoneSceneItemIds,
@@ -1317,7 +1401,6 @@ export async function executeSpellAreaResolution(
   let recordedEntry = null;
   let removedPreviousZone = false;
   let addedNextZone = false;
-  let consumedZoneTrigger = false;
   let canonicalCommitted = false;
   const sceneEpoch = plan.operationSceneEpoch;
   const optimisticUpdates = quickHPVisualUpdates(entries);
@@ -1383,20 +1466,25 @@ export async function executeSpellAreaResolution(
           canonicalCommitted = true;
           if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-hp-commit");
         }
-        if (plan.requestedZoneTrigger) {
-          await runtime.consumeZoneTrigger(plan.requestedZoneTrigger, runtime);
-          consumedZoneTrigger = true;
-          canonicalCommitted = true;
-          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-trigger-commit");
-        }
         const operations = [
           ...(plan.zeroHPReconcileIds.length ? [{
             type: "condition:reconcile-zero-hp",
             targetIds: plan.zeroHPReconcileIds,
           }] : []),
+          ...(plan.damageEndsRemovals?.length ? [{
+            type: "condition:remove-instances",
+            removals: plan.damageEndsRemovals,
+          }] : []),
           ...effectOperations,
         ];
-        if (operations.length || spellBoardTokenSideEffects.length) {
+        const zoneTriggerSideEffects = plan.requestedZoneTrigger
+          ? zoneTriggerConsumeSideEffects(plan.requestedZoneTrigger, plan.triggerRootItems)
+          : [];
+        const coordinatedSideEffects = [
+          ...spellBoardTokenSideEffects,
+          ...zoneTriggerSideEffects,
+        ];
+        if (operations.length || coordinatedSideEffects.length) {
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
             kind: isTeleport ? "spell" : "save-resolution",
@@ -1404,7 +1492,7 @@ export async function executeSpellAreaResolution(
               ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
               : "Effetti collegati alla risoluzione spell",
             targetIds: uniqueIds([...plan.ids, ...plan.effectSubjectIds, ...(isTeleport ? [plan.caster?.id] : [])]),
-            sideEffects: spellBoardTokenSideEffects,
+            sideEffects: coordinatedSideEffects,
             ...(runtime.sceneIdentity ? { sceneIdentity: runtime.sceneIdentity } : {}),
             ...(runtime.operationId ? { commandId: runtime.operationId } : {}),
           });
@@ -1418,7 +1506,6 @@ export async function executeSpellAreaResolution(
         if (runtime.isCurrent(sceneEpoch)) {
           if (addedNextZone) await runtime.deleteItems(plan.nextStaticZoneItems.map((item) => item.id)).catch(() => {});
           if (removedPreviousZone) await runtime.addItems(plan.previousStaticZoneItems).catch(() => {});
-          if (consumedZoneTrigger) await runtime.restoreZoneTrigger(plan.triggerRootItems, runtime).catch(() => {});
           await restoreHPIfUnchanged(runtime, entries).catch(() => {});
         }
         throw error;

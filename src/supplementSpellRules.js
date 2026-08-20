@@ -64,6 +64,7 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
       Accecato: Object.freeze({
         expiry: rounds(10),
         parentEffectId: "",
+        manualRemoval: true,
         saveReminder: Object.freeze({
           ability: "con",
           timing: "turn-end",
@@ -96,21 +97,21 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     mode: "automatic",
     conditions: Object.freeze(["Privo di sensi"]),
   }),
-  "xanathar-stretta-della-terra-di-maximilian": Object.freeze({
-    mode: "confirm",
-    conditions: Object.freeze(["Trattenuto"]),
-  }),
   "xanathar-urlo-psichico": Object.freeze({
     mode: "confirm",
     conditions: Object.freeze(["Stordito"]),
     conditionOptions: Object.freeze({
       Stordito: Object.freeze({
         expiry: manual,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
         saveReminder: Object.freeze({
           ability: "int",
           timing: "turn-end",
           dcSource: "source-spell",
-          label: "Se supera il TS, termina Stordito su di sé.",
+          success: "remove-effect",
+          label: "Se supera il TS, termina Urlo Psichico su di sé.",
         }),
       }),
     }),
@@ -137,11 +138,15 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     })]),
   }),
   "xanathar-muro-di-luce": Object.freeze({
-    trackOutcomes: Object.freeze(["failed"]),
+    // La spell persistente appartiene alla zona/caster. I bersagli mantengono
+    // solo Accecato; la pill "Muro di Luce" viene gestita dalla membership
+    // geometrica della zona e segue ingressi/uscite in tempo reale.
+    trackOutcomes: Object.freeze([]),
     failed: Object.freeze([Object.freeze({
       condition: "Accecato",
       expiry: rounds(10),
       options: Object.freeze({ parentEffectId: "" }),
+      manualRemoval: true,
       saveReminder: Object.freeze({
         ability: "con",
         timing: "turn-end",
@@ -170,8 +175,59 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       }),
     })]),
   }),
+  "xanathar-urlo-psichico": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Stordito",
+      expiry: manual,
+      saveReminder: Object.freeze({
+        ability: "int",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        success: "remove-effect",
+        label: "Se supera il TS, termina Urlo Psichico su di sé.",
+      }),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+      parentRemoval: "target",
+    })]),
+  }),
+  "xanathar-stretta-della-terra-di-maximilian": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "Trattenuto",
+      effectId: "maximilian-earth-grasp-restrained",
+      effectDetail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      expiry: concentration,
+      manualRemoval: true,
+    })]),
+  }),
   "tasha-scheggia-della-mente": Object.freeze({
     trackOutcomes: Object.freeze(["passed", "failed"]),
+  }),
+  "xanathar-immolazione": Object.freeze({
+    trackOutcomes: Object.freeze(["failed"]),
+    failed: Object.freeze([Object.freeze({
+      condition: "In fiamme · 4d6 a fine turno",
+      effectId: "immolation-burning",
+      effectKind: "debuff",
+      effectDetail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+      expiry: concentration,
+      saveReminder: Object.freeze({
+        ability: "dex",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        success: "remove-effect",
+        damage: Object.freeze({
+          dice: "4d6",
+          type: "fuoco",
+          onSave: "none",
+        }),
+        label: "4d6 fuoco se fallisce; se supera, termina la spell.",
+      }),
+      manualRemoval: true,
+      endsParentOnRemoval: true,
+    })]),
   }),
 });
 
@@ -361,6 +417,9 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Debilitazione: danni e cura",
     detail: "Il caster può ripetere i danni necrotici e recupera metà dei danni inflitti.",
+    manualRemoval: true,
+    endsParentOnRemoval: true,
+    parentRemoval: "spell",
   })]),
   "xanathar-immolazione": Object.freeze([Object.freeze({
     id: "immolation-burning",
@@ -447,6 +506,8 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
       success: "remove-effect",
       label: "Se supera il TS, termina l'effetto su di sé.",
     }),
+    endsParentOnRemoval: true,
+    parentRemoval: "spell",
   })]),
   "xanathar-ombra-di-moil": Object.freeze([Object.freeze({
     id: "shadow-of-moil",

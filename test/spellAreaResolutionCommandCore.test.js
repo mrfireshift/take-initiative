@@ -259,7 +259,7 @@ test("una zona senza TS iniziale può essere dichiarata senza bersagli", () => {
   assert.equal(command.execution.hasZones, true);
 });
 
-test("Sfera della Tempesta accetta placement opzionale assente", () => {
+test("Sfera della Tempesta senza placement confermato è invalida", () => {
   const command = buildSpellAreaResolutionCommand({
     contract: contract("xanathar-sfera-della-tempesta"),
     casterId,
@@ -269,11 +269,11 @@ test("Sfera della Tempesta accetta placement opzionale assente", () => {
     hpAmount: 10,
   });
 
-  assert.equal(command.valid, true);
-  assert.equal(command.placement, null);
+  assert.equal(command.valid, false);
+  hasError(command, "placement-required");
 });
 
-test("Sfera della Tempesta conserva placement opzionale confermato", () => {
+test("Sfera della Tempesta conserva placement confermato", () => {
   const command = buildSpellAreaResolutionCommand({
     contract: contract("xanathar-sfera-della-tempesta"),
     casterId,
@@ -288,7 +288,7 @@ test("Sfera della Tempesta conserva placement opzionale confermato", () => {
   });
 
   assert.equal(command.valid, true);
-  assert.equal(command.placement.policy, "optional");
+  assert.equal(command.placement.policy, "required");
   assert.deepEqual(command.targeting.targetIds, ["target-a"]);
 });
 

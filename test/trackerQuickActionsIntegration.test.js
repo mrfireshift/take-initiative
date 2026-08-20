@@ -141,3 +141,44 @@ test("le azioni rapide vengono reidratate dalla memoria senza aprire la scheda",
     /filter:\s*\(event\) => event\.flags\.quickActionHydration,\s*immediate:\s*true/,
   );
 });
+
+
+test("Tocco Purificatore dalle Azioni Rapide del tracker riusa il workflow speciale della Scheda Iniziativa", () => {
+  assert.match(
+    initiativeSource,
+    /feature\?\.runtimeSupport\?\.adapter === "purifying-touch"/,
+  );
+  assert.match(
+    initiativeSource,
+    /openInitiativeCardPopup\(sourceEntry, \{ quickActionId: action\.id \}\)/,
+  );
+  assert.match(
+    initiativeSource,
+    /initiative-card-modal\.html\?source=.*quickAction=/,
+  );
+  assert.match(
+    cardModalSource,
+    /const requestedQuickActionId = initiativeCardSearchParams\.get\("quickAction"\)/,
+  );
+  assert.match(
+    cardModalSource,
+    /const action = findQuickAction\(profile, requestedQuickActionId\)/,
+  );
+  assert.match(
+    cardModalSource,
+    /await launchQuickAction\(action\)/,
+  );
+  assert.match(
+    cardModalSource,
+    /\["lay-on-hands", "purifying-touch"\]\.includes\(feature\?\.runtimeSupport\?\.adapter\)/,
+  );
+});
+
+test("l'autorun della quick action viene consumato una sola volta", () => {
+  assert.match(cardModalSource, /let requestedQuickActionHandled = false/);
+  assert.match(
+    cardModalSource,
+    /if \(requestedQuickActionHandled \|\| !requestedQuickActionId \|\| !profile \|\| !isGM\) return/,
+  );
+  assert.match(cardModalSource, /requestedQuickActionHandled = true;[\s\S]*?await launchQuickAction\(action\)/);
+});

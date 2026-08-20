@@ -338,6 +338,7 @@ export function getSpellSaveTargetMaximum(ruleOrSpellId, slotLevel) {
     ? getSpellSaveWorkflowRule(ruleOrSpellId)
     : ruleOrSpellId;
   if (!rule) return 0;
+  if (rule?.targeting?.unlimitedTargets === true) return null;
 
   const { baseSlot, baseMaximum, additionalPerSlotAbove } = targetingNumbers(rule);
   const requestedSlot = integerValue(slotLevel);
@@ -407,7 +408,9 @@ export function resolveSpellSaveTargeting({
 
   if (duplicateTargetIds.length) errors.push("duplicate-targets");
   if (!allowEmptyTargets && uniqueTargetIds.length === 0) errors.push("targets-required");
-  if (uniqueTargetIds.length > maximumTargets) errors.push("target-limit-exceeded");
+  if (maximumTargets !== null && uniqueTargetIds.length > maximumTargets) {
+    errors.push("target-limit-exceeded");
+  }
   for (const error of choiceValidation.errors) {
     if (!errors.includes(error)) errors.push(error);
   }

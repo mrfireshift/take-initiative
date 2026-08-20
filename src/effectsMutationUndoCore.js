@@ -166,6 +166,88 @@ export function buildCoordinatedEffectsUndoPlan({
       if (!change.metadataFields[field]) continue;
       const actual = snapshot(state.metadata, field);
       const expected = change.afterMetadata?.[field];
+
+      if (field === "classFeatureState" && expected?.present && change.beforeMetadata?.[field]?.present) {
+        const beforeVal = change.beforeMetadata[field].value || {};
+        const afterVal = expected.value || {};
+        const actualVal = actual.present ? actual.value || {} : {};
+
+        const beforeRes = beforeVal.resources || {};
+        const afterRes = afterVal.resources || {};
+        const allPoolIds = new Set([...Object.keys(beforeRes), ...Object.keys(afterRes)]);
+        const touchedPoolIds = [...allPoolIds].filter((poolId) => !same(beforeRes[poolId], afterRes[poolId]));
+
+        const beforeInstList = Array.isArray(beforeVal.instances) ? beforeVal.instances : [];
+        const afterInstList = Array.isArray(afterVal.instances) ? afterVal.instances : [];
+        const beforeInstMap = new Map(beforeInstList.map((i) => [String(i?.instanceId || "").trim(), i]));
+        const afterInstMap = new Map(afterInstList.map((i) => [String(i?.instanceId || "").trim(), i]));
+        const allInstIds = new Set([...beforeInstMap.keys(), ...afterInstMap.keys()]);
+        allInstIds.delete("");
+        const touchedInstIds = [...allInstIds].filter((instId) => !same(beforeInstMap.get(instId), afterInstMap.get(instId)));
+
+        if (touchedPoolIds.length > 0 || touchedInstIds.length > 0) {
+          const actualRes = actualVal.resources || {};
+          const actualInstList = Array.isArray(actualVal.instances) ? actualVal.instances : [];
+          const actualInstMap = new Map(actualInstList.map((i) => [String(i?.instanceId || "").trim(), i]));
+
+          let hasConflict = false;
+          for (const poolId of touchedPoolIds) {
+            if (!same(actualRes[poolId], afterRes[poolId])) {
+              conflicts.push({
+                entryId: entry?.id || null,
+                itemId: id,
+                field,
+                poolId,
+                reason: "current-value-mismatch",
+                expected: clone(afterRes[poolId]),
+                actual: clone(actualRes[poolId]),
+              });
+              hasConflict = true;
+            }
+          }
+          for (const instId of touchedInstIds) {
+            if (!same(actualInstMap.get(instId), afterInstMap.get(instId))) {
+              conflicts.push({
+                entryId: entry?.id || null,
+                itemId: id,
+                field,
+                instanceId: instId,
+                reason: "current-value-mismatch",
+                expected: clone(afterInstMap.get(instId)),
+                actual: clone(actualInstMap.get(instId)),
+              });
+              hasConflict = true;
+            }
+          }
+
+          if (!hasConflict) {
+            metaFields.add(field);
+            const nextState = clone(actualVal);
+            nextState.resources ||= {};
+            for (const poolId of touchedPoolIds) {
+              if (Object.prototype.hasOwnProperty.call(beforeRes, poolId)) {
+                nextState.resources[poolId] = clone(beforeRes[poolId]);
+              } else {
+                delete nextState.resources[poolId];
+              }
+            }
+            let nextInstances = clone(actualInstList);
+            for (const instId of touchedInstIds) {
+              if (beforeInstMap.has(instId)) {
+                const idx = nextInstances.findIndex((i) => String(i?.instanceId || "").trim() === instId);
+                if (idx >= 0) nextInstances[idx] = clone(beforeInstMap.get(instId));
+                else nextInstances.push(clone(beforeInstMap.get(instId)));
+              } else {
+                nextInstances = nextInstances.filter((i) => String(i?.instanceId || "").trim() !== instId);
+              }
+            }
+            nextState.instances = nextInstances;
+            state.metadata[field] = nextState;
+          }
+          continue;
+        }
+      }
+
       if (!snapshotMatches(actual, expected)) {
         conflicts.push({
           entryId: entry?.id || null,
@@ -286,5 +368,6 @@ export function buildCoordinatedEffectsUndoPlan({
     changedIds: changes.map((change) => change.id),
     undoSideEffects,
     states: changes.map((change) => ({ id: change.id, ...clone(simulated.get(change.id)) })),
+    conflicts,
   };
 }

@@ -3,11 +3,11 @@ import italianData from "./spells-it-2014.json" with { type: "json" };
 import supplementData from "./spells-supplements-runtime.json" with { type: "json" };
 import phb2014ExtraData from "./spells-phb2014-extra.json" with { type: "json" };
 import {
+  AREA_POPOVER_SAVE_SPELL_ID_SET,
   AREA_POPOVER_SPELL_ID_SET,
   AREA_SAVE_AUTOMATION_RULES,
   AREA_SAVE_EFFECT_RULES,
   AREA_SAVE_RULE_CHOICES,
-  AREA_SAVE_SPELL_ID_SET,
 } from "./areaSaveSpellRules.js";
 import {
   SUPPLEMENT_ACTIVE_ACTIONS,
@@ -37,6 +37,7 @@ import {
   SPELL_BOARD_TOKEN_RULES,
 } from "./spellBoardTokenCore.js";
 import { SPELL_ACTIVE_RESOLUTION_ACTIONS } from "./spellActiveResolutionRules.js";
+import { FLESH_TO_STONE_SAVE_AUTOMATION } from "./fleshToStoneRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -85,19 +86,25 @@ const AUTOMATION = Object.freeze({
     choices: ["Accecato", "Assordato"],
     conditionOptions: {
       Accecato: {
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
         saveReminder: {
           ability: "con",
           timing: "turn-end",
           dcSource: "source-spell",
-          label: "Se supera il TS, termina l'effetto su di sé.",
+          label: "Se supera il TS, termina Cecità/Sordità su di sé.",
         },
       },
       Assordato: {
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
         saveReminder: {
           ability: "con",
           timing: "turn-end",
           dcSource: "source-spell",
-          label: "Se supera il TS, termina l'effetto su di sé.",
+          label: "Se supera il TS, termina Cecità/Sordità su di sé.",
         },
       },
     },
@@ -167,6 +174,9 @@ const AUTOMATION = Object.freeze({
     conditions: ["Prono", "Incapacitato"],
     conditionOptions: {
       Incapacitato: {
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
         saveReminder: [
           {
             ability: "wis",
@@ -298,6 +308,8 @@ const AUTOMATION = Object.freeze({
         effectId: "ray-of-enfeeblement-penalty",
         effectKind: "debuff",
         effectDetail: "Gli attacchi con arma basati su Forza infliggono metà danni.",
+        endsParentOnRemoval: true,
+        parentRemoval: "spell",
         saveReminder: {
           ability: "con",
           timing: "turn-end",
@@ -313,25 +325,24 @@ const AUTOMATION = Object.freeze({
   ...PHB2014_AUTOMATION,
 });
 
-const EYEBITE_EFFECT_IDS = Object.freeze([
-  "eyebite-asleep",
-  "eyebite-panicked",
-  "eyebite-sickened",
-]);
-
-const EYEBITE_ACTION_TRACKING = Object.freeze({
-  subjectMode: "selected",
-  maxTargets: 1,
-  rejectRememberedTargets: true,
-  forbidCasterTarget: true,
-  emptySelectionTitle: "Seleziona una creatura entro 18 m che possa vedere il caster.",
-  tooManySelectionTitle: "Sguardo Penetrante può bersagliare una sola creatura per azione.",
-  unavailableSelectionTitle: "Seleziona una creatura diversa dal caster e non ancora bersagliata da questo lancio.",
-  countLabelSingular: "creatura",
-  countLabelPlural: "creature",
-});
-
 const SRD_ACTIVE_ACTIONS = Object.freeze({
+  "telekinesis": Object.freeze([Object.freeze({
+    id: "telekinesis-retarget",
+    label: "Cambia bersaglio",
+    buttonLabel: "Cambia bersaglio",
+    detail: "Sposta la presa di Telecinesi sul token selezionato. Contesa e movimento restano manuali.",
+    emptySelectionTitle: "Seleziona il nuovo bersaglio di Telecinesi.",
+    tooManySelectionTitle: "Telecinesi può insistere su un solo bersaglio alla volta.",
+    unavailableSelectionTitle: "Seleziona un bersaglio diverso da quello attuale.",
+    subjectMode: "selected",
+    maxTargets: 1,
+    rangeOrigin: "caster",
+    range: Object.freeze({ value: 18, unit: "m" }),
+    requiresParentInstance: true,
+    rejectRememberedTargets: true,
+    replaceSpellTargets: true,
+    effects: Object.freeze([]),
+  })]),
   "control-water": Object.freeze([
     Object.freeze({
       id: "control-water-flood",
@@ -396,86 +407,6 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
       }),
     })]),
   })]),
-  "eyebite": Object.freeze([
-    Object.freeze({
-      ...EYEBITE_ACTION_TRACKING,
-      id: "eyebite-saved",
-      label: "Sguardo: TS superato",
-      buttonLabel: "Segna Superato",
-      detail: "Registra la creatura che ha superato il TS Saggezza: questo lancio di Sguardo Penetrante non potrà bersagliarla di nuovo.",
-      rememberTargets: true,
-      effects: Object.freeze([]),
-    }),
-    Object.freeze({
-      ...EYEBITE_ACTION_TRACKING,
-      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
-      id: "eyebite-asleep",
-      label: "Sguardo: Addormentato",
-      buttonLabel: "Fallito: Sonno",
-      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio diventa Privo di sensi finché subisce danni, viene svegliato con un'azione o termina la spell.",
-      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
-      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
-      subjectMode: "selected",
-      maxTargets: 1,
-      countLabelSingular: "fallito",
-      countLabelPlural: "falliti",
-      effects: Object.freeze([Object.freeze({
-        id: "eyebite-asleep",
-        kind: "debuff",
-        label: "Privo di sensi",
-        detail: "Si risveglia se subisce danni o se un'altra creatura usa un'azione per scuoterlo.",
-        manualRemoval: true,
-      })]),
-    }),
-    Object.freeze({
-      ...EYEBITE_ACTION_TRACKING,
-      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
-      id: "eyebite-panicked",
-      label: "Sguardo: In preda al panico",
-      buttonLabel: "Fallito: Panico",
-      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio è Spaventato e deve Scattare per allontanarsi dal caster.",
-      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
-      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
-      subjectMode: "selected",
-      maxTargets: 1,
-      countLabelSingular: "fallito",
-      countLabelPlural: "falliti",
-      effects: Object.freeze([Object.freeze({
-        id: "eyebite-panicked",
-        kind: "debuff",
-        label: "Spaventato",
-        detail: "Deve usare Scatto e allontanarsi lungo il percorso più sicuro. L'effetto termina oltre 18 m dal caster e senza linea di vista.",
-        manualRemoval: true,
-      })]),
-    }),
-    Object.freeze({
-      ...EYEBITE_ACTION_TRACKING,
-      rejectActiveEffectIds: EYEBITE_EFFECT_IDS,
-      id: "eyebite-sickened",
-      label: "Sguardo: Nauseato",
-      buttonLabel: "Fallito: Nausea",
-      detail: "Entro 18 m e in grado di vedere il caster. Il bersaglio subisce svantaggio ad attacchi e prove e ripete il TS a fine turno.",
-      emptySelectionTitle: "Seleziona il bersaglio che ha fallito il TS Saggezza.",
-      tooManySelectionTitle: "Sguardo Penetrante può influenzare un solo nuovo bersaglio per azione.",
-      subjectMode: "selected",
-      maxTargets: 1,
-      countLabelSingular: "fallito",
-      countLabelPlural: "falliti",
-      effects: Object.freeze([Object.freeze({
-        id: "eyebite-sickened",
-        kind: "debuff",
-        label: "Nauseato: svant. attacchi/prove",
-        detail: "Svantaggio ai tiri per colpire e alle prove di caratteristica.",
-        manualRemoval: true,
-        saveReminder: Object.freeze({
-          ability: "wis",
-          timing: "turn-end",
-          dcSource: "source-spell",
-          label: "Se supera il TS, usa «Segna Superato» nel registro e rimuovi Nauseato.",
-        }),
-      })]),
-    }),
-  ]),
 });
 
 const TARGET_MODE_OVERRIDES = Object.freeze({
@@ -483,6 +414,7 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-punizione-collerica": "selected",
   "phb2014-punizione-tonante": "selected",
   "phb2014-allucinazione-di-forza": "selected",
+  "xanathar-immolazione": "selected",
   "spiritual-weapon": "self",
   "arcane-sword": "self",
   "arcane-hand": "self",
@@ -501,10 +433,14 @@ const TARGETING_OVERRIDES = Object.freeze({
   "magic-weapon": Object.freeze({
     maxTargets: 1,
   }),
+  "xanathar-immolazione": Object.freeze({
+    maxTargets: 1,
+  }),
 });
 
 const CONCENTRATION_EXPIRY = Object.freeze({ mode: "concentration" });
 const SAVE_AUTOMATION = Object.freeze({
+  "flesh-to-stone": FLESH_TO_STONE_SAVE_AUTOMATION,
   "entangle": Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([Object.freeze({
@@ -789,6 +725,31 @@ const SPELL_EFFECTS = Object.freeze({
       mechanics: Object.freeze({
         deriveLabel: true,
         damageBonus: Object.freeze({ dice: "1d4", type: "danni radiosi" }),
+      }),
+    }),
+  ]),
+  "flame-blade": Object.freeze([
+    Object.freeze({
+      id: "flame-blade-damage",
+      kind: "buff",
+      label: "3d6 danni da fuoco",
+      detail: "L'attacco in mischia con la lama infuocata infligge questi danni da fuoco se colpisce.",
+      mechanics: Object.freeze({
+        deriveLabel: true,
+        damageBonus: Object.freeze({
+          total: true,
+          dice: Object.freeze({
+            count: Object.freeze({
+              base: 3,
+              baseSlot: 2,
+              perSlotAbove: 1,
+              step: 2,
+              max: 6,
+            }),
+            sides: 6,
+          }),
+          type: "danni da fuoco",
+        }),
       }),
     }),
   ]),
@@ -1430,7 +1391,7 @@ function effectSaveRule(effect, spell) {
 
 function scopedParentRemovalRule(rule, spell) {
   if (
-    !AREA_SAVE_SPELL_ID_SET.has(spell?.id)
+    !AREA_POPOVER_SAVE_SPELL_ID_SET.has(spell?.id)
     || spell?.concentration !== true
     || rule?.endsParentOnRemoval !== true
     || rule?.options?.parentEffectId === ""

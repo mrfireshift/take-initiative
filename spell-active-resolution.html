@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Risolvi attivazione</title>
+    <title>Attivazione incantesimo</title>
     <style>
       :root { color-scheme: dark; }
       html, body {
-        width: 100%; height: 100%; margin: 0; overflow: hidden;
+        width: 100%; margin: 0; overflow: hidden;
         background: transparent; color: #f8fafc;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
       }
@@ -16,7 +16,7 @@
       #app {
         --accent: #a78bfa;
         display: flex; flex-direction: column; gap: 8px;
-        width: calc(100% - 8px); height: calc(100% - 8px); margin: 4px;
+        width: calc(100% - 8px); height: auto; min-height: 0; margin: 4px;
         padding: 11px 12px; border: 1px solid rgba(196,181,253,.72);
         border-radius: 10px;
         background: linear-gradient(135deg, rgba(76,29,149,.32), rgba(30,41,59,.18) 62%), rgba(15,23,42,.14);
@@ -67,8 +67,9 @@
       .field { display: grid; grid-template-columns: minmax(0, 1fr) 100px; align-items: center; gap: 7px; }
       .field label { color: rgba(226,232,240,.78); font-size: 11px; }
       input { width: 100%; padding: 4px 7px; }
+      .field select { width: 100%; padding: 4px 7px; }
       .root-note { padding: 6px; border: 1px solid rgba(196,181,253,.25); border-radius: 6px; color: rgba(226,232,240,.75); font-size: 10px; line-height: 1.25; }
-      .footer { justify-content: space-between; margin-top: auto; padding-top: 7px; border-top: 1px solid rgba(196,181,253,.2); }
+      .footer { justify-content: space-between; margin-top: 0; padding-top: 7px; border-top: 1px solid rgba(196,181,253,.2); }
       .footer button { min-width: 88px; }
       #app[data-state="stale"] { filter: saturate(.35); }
     </style>
@@ -76,12 +77,12 @@
   <body>
     <main id="app" data-state="loading">
       <div id="eyebrow" class="eyebrow">Attivazione incantesimo</div>
-      <div class="heading" data-drag-handle draggable="true"><h1 id="title">Risolvi: …</h1><div class="heading-actions"><span id="economy" class="economy"></span><button id="close" class="close" type="button" aria-label="Chiudi">×</button></div></div>
+      <div class="heading" data-drag-handle draggable="true"><h1 id="title">…</h1><div class="heading-actions"><span id="economy" class="economy"></span><button id="close" class="close" type="button" aria-label="Chiudi">×</button></div></div>
       <div id="caster" class="caster"></div>
       <div id="status" class="status" hidden></div>
       <section id="saveSection" class="section" hidden>
         <div id="saveTitle" class="section-title">Sagoma e tiri salvezza</div>
-        <div class="toolbar"><button id="place" type="button">Posiziona sagoma</button><button id="confirmPlacement" class="primary" type="button" hidden>Conferma sagoma</button><button id="cancelPlacement" type="button" hidden>Annulla</button><span id="placementStatus" class="hint"></span></div>
+        <div id="placementToolbar" class="toolbar"><button id="place" type="button">Posiziona sagoma</button><button id="confirmPlacement" class="primary" type="button" hidden>Conferma sagoma</button><button id="cancelPlacement" type="button" hidden>Annulla</button><span id="placementStatus" class="hint"></span></div>
         <div id="childCountField" class="field" hidden><label id="childCountLabel" for="childCount">Numero</label><input id="childCount" type="number" min="1" max="6" step="1" inputmode="numeric" /></div>
         <div id="childDepths" class="child-depths" hidden></div>
         <div id="bulkOutcomes" class="toolbar" hidden>
@@ -93,17 +94,35 @@
         <div id="targets" class="targets"></div>
         <div id="damageField" class="field" hidden><label id="damageLabel" for="damage">Danno pieno</label><input id="damage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
       </section>
+      <section id="singleSaveSection" class="section" hidden>
+        <div id="singleSaveTitle" class="section-title">Tiro salvezza</div>
+        <select id="saveTarget" aria-label="Bersaglio del tiro salvezza"><option value="">Seleziona il bersaglio</option></select>
+        <div id="saveTargetHint" class="hint"></div>
+        <div id="singleSaveOutcomes" class="outcomes">
+          <button type="button" data-save-outcome="passed">Superato</button>
+          <button type="button" data-save-outcome="failed">Fallito</button>
+          <button type="button" data-save-outcome="immune">Immune</button>
+        </div>
+        <div id="singleSaveDamageField" class="field"><label id="singleSaveDamageLabel" for="saveDamage">Danno</label><input id="saveDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
+      </section>
       <section id="attackSection" class="section" hidden>
         <div id="attackTitle" class="section-title">Fulmine</div>
         <div id="attackRows" class="attack-rows" hidden></div>
         <select id="attackTarget" aria-label="Bersaglio del fulmine"><option value="">Seleziona il bersaglio</option></select>
         <div id="attackAdvantage" class="hint"></div>
+        <div id="zoneShorteningField" class="field" hidden>
+          <label for="zoneShorteningFrom">Porzione da consumare</label>
+          <select id="zoneShorteningFrom" aria-label="Porzione del muro da consumare">
+            <option value="start">Iniziale</option>
+            <option value="end" selected>Finale</option>
+          </select>
+        </div>
         <div id="attackOutcomes" class="outcomes">
           <button type="button" data-attack-outcome="hit">Colpito</button>
           <button type="button" data-attack-outcome="miss">Mancato</button>
           <button type="button" data-attack-outcome="critical" hidden>Critico</button>
         </div>
-        <div class="field"><label for="attackDamage">Danno 4d6 fulmine</label><input id="attackDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
+        <div class="field"><label id="attackDamageLabel" for="attackDamage">Danno</label><input id="attackDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
       </section>
       <div id="footer" class="footer"><span id="summary" class="hint"></span><button id="apply" class="primary" type="button" disabled>Applica</button></div>
     </main>

@@ -532,6 +532,66 @@ test("terminare una concentrazione su un bersaglio lascia attivi gli altri bersa
   assert.deepEqual(state(plan, "b").conditions, [linked("b")]);
 });
 
+
+test("la X sulla pill spell: rimuovere l'ultimo target della concentrazione termina anche i child effect remoti", () => {
+  const plan = buildEffectsMutationPlan([
+    token("caster", {
+      concentrations: {
+        "stretta della terra di maximilian": {
+          name: "Stretta della Terra di Maximilian",
+          instanceId: "maximilian-instance",
+          targets: ["caster"],
+        },
+      },
+      spells: [{
+        id: "maximilian-entry",
+        name: "Stretta della Terra di Maximilian",
+        turns: 10,
+        conc: true,
+        casterId: "caster",
+        instanceId: "maximilian-instance",
+      }],
+    }),
+    token("restrained-target", {
+      conditions: [{
+        id: "maximilian-restrained",
+        condition: "Trattenuto",
+        active: true,
+        parentEffectId: "maximilian-instance",
+        effectId: "maximilian-earth-grasp-restrained",
+        expiry: { mode: "concentration" },
+      }],
+    }),
+    token("unrelated-target", {
+      conditions: [{
+        id: "other-restrained",
+        condition: "Trattenuto",
+        active: true,
+        parentEffectId: "other-instance",
+        expiry: { mode: "concentration" },
+      }],
+    }),
+  ], [
+    {
+      type: "concentration:break-targets",
+      casterIds: ["caster"],
+      reference: "maximilian-instance",
+      targetIds: ["caster"],
+    },
+    {
+      type: "spell:remove-instance",
+      targetIds: ["caster"],
+      instanceId: "maximilian-instance",
+    },
+  ]);
+
+  assert.deepEqual(state(plan, "caster").concentrations, {});
+  assert.deepEqual(state(plan, "caster").spells, []);
+  assert.deepEqual(state(plan, "restrained-target").conditions, []);
+  assert.equal(state(plan, "unrelated-target").conditions.length, 1);
+  assert.equal(state(plan, "unrelated-target").conditions[0].parentEffectId, "other-instance");
+});
+
 test("rimuovere una condizione target-linked conserva la concentrazione sugli altri bersagli", () => {
   const spell = (id) => ({
     id: `entry-${id}`,

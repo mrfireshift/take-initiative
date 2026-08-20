@@ -71,7 +71,7 @@ test("i sette esempi UI espongono soltanto capacità normalizzate", () => {
     ["arcane-hand", { hasTokens: true, active: true }],
     ["phb2014-raffica-di-spine", { phase: true, manual: false }],
     ["xanathar-investitura-della-fiamma", { policy: "automatic", hasZones: true }],
-    ["xanathar-sfera-della-tempesta", { policy: "optional", zoneTrigger: false }],
+    ["xanathar-sfera-della-tempesta", { policy: "required", zoneTrigger: false }],
   ];
   for (const [spellId, expectation] of cases) {
     const view = modelFor(spellId, {}, {
@@ -146,7 +146,7 @@ test("la primary action e la visibilita bersagli derivano dal placement normaliz
     outcomes: { "target-a": "failed" },
     hpValues: { damage: 8 },
   });
-  assert.equal(storm.workflow.primaryAction.label, "Usa senza placement");
+  assert.equal(storm.workflow.primaryAction.label, "Posiziona area");
   const placedStorm = modelFor("xanathar-sfera-della-tempesta", {
     targetIds: ["target-a"],
     outcomes: { "target-a": "failed" },

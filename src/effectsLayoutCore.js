@@ -1,4 +1,4 @@
-import { spellExpiryCounter } from "./spellExpiryCore.js";
+import { spellPillCounter } from "./spellExpiryCore.js";
 import { compactLinkedSpellEffectLabel } from "./effectLabelCore.js";
 
 const DEFAULT_FONT_FAMILY = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -339,7 +339,7 @@ export function planEffectsLayout({
     const hideTargetCounter = isGustOfWind && target.id !== caster.id;
     const counter = spellEntry === null || hideTargetCounter
       ? ""
-      : spellExpiryCounter(spellEntry);
+      : spellPillCounter(spellEntry);
     const text = counter ? `${title} (${counter})` : title;
     const sortPrefix = `0|${key}|${caster.id}`;
     const context = {
@@ -445,6 +445,13 @@ export function planEffectsLayout({
         }
       }
       const linkedToSpell = !!spellContext;
+      // Se una membership usa esattamente il nome della spell padre (es.
+      // Muro di Luce), la condition instance serve solo come ponte dinamico
+      // per proiettare la pill della spell sul bersaglio. Renderizzare anche
+      // una seconda pill spell-effect produrrebbe una duplicazione visiva.
+      const redundantParentLabel = spellEffect && linkedToSpell
+        && rawText.localeCompare(spellContext.title, "it", { sensitivity: "base" }) === 0;
+      if (redundantParentLabel) continue;
       const text = linkedToSpell
         ? compactLinkedSpellEffectLabel(rawText, spellContext.title)
         : rawText;
@@ -502,21 +509,30 @@ export function planEffectsLayout({
     );
     let centerY = baseY;
     let previousStackHeight = 0;
-    rows.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
+    const layoutRows = compactTarget
+      ? rows.map((row) => fitCompactRowToBox(row, box))
+      : rows;
+    layoutRows.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
+    // In vista compatta manteniamo la footprint attuale dello stack, ma
+    // usiamo il bordo sinistro della pill piu larga come dorsale comune.
+    // Le pill piu corte quindi si sviluppano verso destra invece di restare
+    // allineate al bordo destro del token.
+    const compactSpineX = compactTarget
+      ? Math.round(Math.max(
+        box.left,
+        compactRight - Math.max(0, ...layoutRows.map((row) => Number(row.width) || 0)),
+      ))
+      : fullStackX;
 
-    for (let index = 0; index < rows.length; index += 1) {
-      const row = compactTarget
-        ? fitCompactRowToBox(rows[index], box)
-        : rows[index];
+    for (let index = 0; index < layoutRows.length; index += 1) {
+      const row = layoutRows[index];
       const stackHeight = Math.ceil(row.height * config.stackClearanceScale);
       centerY = index === 0
         ? baseY + stackHeight / 2
         : centerY + previousStackHeight / 2 + config.stackGap + stackHeight / 2;
       desired.push({
         ...row,
-        x: compactTarget
-          ? Math.round(Math.max(box.left, compactRight - row.width))
-          : fullStackX,
+        x: compactTarget ? compactSpineX : fullStackX,
         y: Math.round(centerY + row.offsetY),
       });
       previousStackHeight = stackHeight;

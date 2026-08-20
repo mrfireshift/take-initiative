@@ -47,7 +47,10 @@ export function translatedZoneArea(item, positionOverride = null) {
     translate(metadata.end),
     metadata.dpi,
     translate(metadata.gridOrigin || metadata.start),
-    { widthSquares: metadata.widthSquares },
+    {
+      widthSquares: metadata.widthSquares,
+      widthAnchor: metadata.widthAnchor,
+    },
   );
   if (metadata.parentClip && typeof metadata.parentClip === "object") {
     area = clipChildZoneAreaToParent({
@@ -88,7 +91,7 @@ export function staticSpellZoneMetadata({
   const normalizedRuleChoice = normalizedId(ruleChoice);
   if (normalizedRuleChoice) metadata.ruleChoice = normalizedRuleChoice;
   const scopedTargetIds = normalizedIds(targetIds);
-  if (scopedTargetIds.length) metadata.targetIds = scopedTargetIds;
+  metadata.targetIds = scopedTargetIds;
   if (followCaster === true) {
     metadata.followCaster = true;
     const normalizedCasterOrigin = point(casterOrigin);

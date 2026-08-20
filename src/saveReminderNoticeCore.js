@@ -106,6 +106,30 @@ function batchFromEntries(entries, groupKey) {
   };
 }
 
+export function pruneZoneReminderNoticeBatch(
+  currentBatch = null,
+  pendingActivationIds = [],
+) {
+  const entries = Array.isArray(currentBatch?.entries)
+    ? currentBatch.entries.map(normalizeEntry).filter(Boolean)
+    : [];
+  if (!entries.length) return null;
+  const pending = new Set(
+    (Array.isArray(pendingActivationIds)
+      ? pendingActivationIds
+      : [...(pendingActivationIds || [])])
+      .map((value) => normalizedText(value, "", 300))
+      .filter(Boolean),
+  );
+  const remaining = entries.filter((entry) => (
+    (entry.kind !== "zone" && entry.kind !== "zone-effect")
+    || pending.has(entry.activationId)
+  ));
+  if (!remaining.length) return null;
+  const groupKey = normalizedText(currentBatch?.groupKey, "", 700);
+  return groupKey ? batchFromEntries(remaining, groupKey) : null;
+}
+
 export function mergeSaveReminderNoticeBatch(
   currentBatch = null,
   incomingValues = [],

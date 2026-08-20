@@ -282,29 +282,29 @@ test("Catena di fulmini conserva il bersaglio primario", () => {
 
 test("Catena di fulmini mantiene il collegamento al visual anche senza effetti persistenti", () => {
   const branchStart = executorSource.indexOf('const chainLightningVisualTargetIds = uniqueIds(command?.targeting?.targetIds);');
-  const branchEnd = executorSource.indexOf('} else if (spell.id === "banishment"', branchStart);
+  const branchEnd = executorSource.indexOf('} else if (', executorSource.indexOf('spell.id === "chain-lightning"', branchStart));
   const branch = executorSource.slice(branchStart, branchEnd);
 
   assert.ok(branchStart >= 0);
+  assert.ok(branchEnd > branchStart);
   assert.match(branch, /spell\.id === "chain-lightning" && chainLightningVisualTargetIds\.length/);
   assert.match(branch, /targetIds: chainLightningVisualTargetIds/);
   assert.doesNotMatch(branch, /resolved\.spellTargetIds\.length/);
 });
 
-test("Investitura automatica e Sfera opzionale non richiedono una sagoma fittizia", () => {
+test("Investitura automatica e Sfera obbligatoria gestiscono il rispettivo placement", () => {
   const automatic = commandFor("xanathar-investitura-della-fiamma", {
     placement: null,
     targetIds: [],
     slotLevel: 6,
   });
-  const optional = commandFor("xanathar-sfera-della-tempesta", {
+  const missingStormPlacement = commandFor("xanathar-sfera-della-tempesta", {
     placement: null,
     slotLevel: 4,
   });
   assert.equal(automatic.valid, true);
   assert.equal(automatic.placement.policy, "automatic");
-  assert.equal(optional.valid, true);
-  assert.equal(optional.placement, null);
+  assert.equal(missingStormPlacement.valid, false);
 });
 
 test("le aure self non richiedono bersagli discreti e persistono lo spell sul caster", () => {
@@ -429,6 +429,14 @@ test("il comando conserva il contesto di una zone trigger senza eseguirlo", () =
     "zone-geometry",
   ]);
   assert.equal(command.execution.zoneTrigger.zoneItemId, "zone-root");
+});
+
+
+test("le zone trigger di Effetti ad area consumano il reminder tramite side effect History canonico", () => {
+  assert.match(executorSource, /zoneTriggerConsumeSideEffects\(plan\.requestedZoneTrigger, plan\.triggerRootItems\)/);
+  assert.match(executorSource, /type:\s*"reminder:consume-zone-activation"/);
+  assert.match(executorSource, /sideEffects:\s*coordinatedSideEffects/);
+  assert.doesNotMatch(executorSource, /await runtime\.consumeZoneTrigger\(plan\.requestedZoneTrigger/);
 });
 
 test("la Console manuale non contiene più il ramo spell e mantiene le lane manuali", () => {

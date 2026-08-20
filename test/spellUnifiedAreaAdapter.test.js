@@ -435,7 +435,7 @@ test("undo separa capability dichiarata e disponibilità runtime", async () => {
   assert.deepEqual(available.changedIds, ["target-a"]);
 });
 
-test("undo del pannello preferisce la singola entry senza trascinare la cronologia successiva", async () => {
+test("undo del pannello usa la catena cronologica e non rimuove una entry intermedia", async () => {
   const { session } = setup("fireball", {
     undoState: {
       state: "available",
@@ -450,18 +450,18 @@ test("undo del pannello preferisce la singola entry senza trascinare la cronolog
   const result = await undoSpellUnifiedArea({
     session,
     runtime: {
-      undoHistoryEntry: async (entryId) => {
+      undoHistoryEntry: async () => {
         exactCalls += 1;
-        assert.equal(entryId, "history-1");
         return entries;
       },
-      undoHistoryThrough: async () => {
+      undoHistoryThrough: async (entryId) => {
         throughCalls += 1;
+        assert.equal(entryId, "history-1");
         return entries;
       },
     },
   });
   assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.UNDONE);
-  assert.equal(exactCalls, 1);
-  assert.equal(throughCalls, 0);
+  assert.equal(exactCalls, 0);
+  assert.equal(throughCalls, 1);
 });

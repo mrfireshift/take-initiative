@@ -28,7 +28,7 @@ const SPELL_AREA_DIRECTIONS = Object.freeze(["none", "pointer"]);
 const SPELL_AREA_ANCHORS = Object.freeze(["world", "caster"]);
 const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
 const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly"]);
-const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual"]);
+export const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual", "area-subset"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
   "while-inside",
@@ -69,6 +69,15 @@ const SPELL_ZONE_INITIAL_RESOLUTIONS = Object.freeze([
   "manual-save",
 ]);
 const SPELL_SAVE_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
+
+// Geometrie che crescono con il livello dello slot. La misura dichiarata nella
+// regola resta quella dello slot base; il placement riceve una copia scalata.
+const SPELL_AREA_SLOT_GEOMETRY_SCALING = Object.freeze({
+  confusion: Object.freeze({
+    baseSlot: 4,
+    sizeMetersPerSlotAbove: 1.5,
+  }),
+});
 
 const MEASURE_BY_SHAPE = Object.freeze({
   circle: "radius",
@@ -569,14 +578,33 @@ const SELF_CAST_AURA_SPELL_IDS = new Set([
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "phb2014-braccia-di-hadar",
   "phb2014-onda-distruttiva",
+  "xanathar-parola-radiosa",
   "xanathar-rombo-di-tuono",
   "xanathar-scossa-tellurica",
 ]);
+const AREA_SUBSET_SAVE_SPELL_IDS = new Set([
+  "phb2014-onda-distruttiva",
+  "slow",
+]);
+const AREA_SUBSET_TARGETING = Object.freeze({
+  filter: "all",
+  includeCaster: true,
+  confirmTargets: true,
+  selectionMode: "area-subset",
+});
+const CASTER_EXCLUDED_AREA_SUBSET_TARGETING = Object.freeze({
+  ...AREA_SUBSET_TARGETING,
+  includeCaster: false,
+});
 const areaSaveTargeting = (spellId) =>
   isTeleportSpell(spellId)
     ? NO_CONFIRM_TARGETING
     : SELF_CAST_AURA_SPELL_IDS.has(spellId)
     ? SELF_CAST_AURA_TARGETING
+    : AREA_SUBSET_SAVE_SPELL_IDS.has(spellId)
+    ? CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
+      ? CASTER_EXCLUDED_AREA_SUBSET_TARGETING
+      : AREA_SUBSET_TARGETING
     : AREA_SAVE_SPELL_ID_SET.has(spellId)
     && !CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
     ? CASTER_INCLUDED_TARGETING
@@ -861,7 +889,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "3d6 danni contundenti automatici a inizio turno perché è già Trattenuto dai Tentacoli Neri. Può usare un'azione per effettuare una prova di Forza o Destrezza contro la CD della spell e liberarsi.",
       event: "turn-start",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-effect",
       requireConditions: ["Trattenuto"],
       damage: {
         dice: "3d6",
@@ -881,6 +909,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       failureEffect: "Cade Prono.",
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
+      skipConditions: ["Prono"],
     },
     {
       id: "grease-save-on-turn-end",
@@ -890,6 +919,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       frequency: "once-per-turn",
       resolution: "manual-save",
       failureEffect: "Cade Prono.",
+      skipConditions: ["Prono"],
     },
   ],
   "sleet-storm": [
@@ -919,7 +949,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "TS Costituzione per mantenere la concentrazione; se fallisce, la perde.",
       event: "cast",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-save",
       requiresConcentration: true,
     },
     {
@@ -928,7 +958,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "TS Costituzione per mantenere la concentrazione; se fallisce, la perde.",
       event: "enter",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-save",
       requiresConcentration: true,
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
@@ -939,7 +969,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "TS Costituzione per mantenere la concentrazione; se fallisce, la perde.",
       event: "turn-start",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-save",
       requiresConcentration: true,
     },
   ],
@@ -956,29 +986,33 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     {
       id: "cloud-of-daggers-damage-on-entry",
       group: "cloud-of-daggers-damage",
-      label: "4d4 danni taglienti automatici entrando nella Nube di Pugnali.",
+      label: "Danni taglienti automatici entrando nella Nube di Pugnali.",
       event: "enter",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-effect",
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
       damage: {
         dice: "4d4",
         type: "taglienti",
         onSave: "none",
+        baseSlot: 2,
+        additionalPerSlotAbove: 2,
       },
     },
     {
       id: "cloud-of-daggers-damage-on-turn-start",
       group: "cloud-of-daggers-damage",
-      label: "4d4 danni taglienti automatici a inizio turno nella Nube di Pugnali.",
+      label: "Danni taglienti automatici a inizio turno nella Nube di Pugnali.",
       event: "turn-start",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-effect",
       damage: {
         dice: "4d4",
         type: "taglienti",
         onSave: "none",
+        baseSlot: 2,
+        additionalPerSlotAbove: 2,
       },
     },
   ],
@@ -1444,11 +1478,13 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
     label: "4d8 danni radiosi automatici a fine turno nel Muro di Luce.",
     event: "turn-end",
     frequency: "once-per-turn",
-    resolution: "informational",
+    resolution: "manual-effect",
     damage: {
       dice: "4d8",
       type: "radiosi",
       onSave: "none",
+      baseSlot: 5,
+      additionalPerSlotAbove: 1,
     },
   }],
   "phb2014-cordone-di-frecce": [
@@ -1552,12 +1588,21 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "sleet-storm-save-on-entry": {
     ability: "dex",
-    failureCondition: { condition: "Prono" },
+    failureCondition: {
+      condition: "Prono",
+      options: { parentEffectId: "" },
+    },
   },
   "sleet-storm-save-on-turn-start": {
     ability: "dex",
-    failureCondition: { condition: "Prono" },
+    failureCondition: {
+      condition: "Prono",
+      options: { parentEffectId: "" },
+    },
   },
+  "sleet-storm-concentration-save-on-cast": { ability: "con" },
+  "sleet-storm-concentration-save-on-entry": { ability: "con" },
+  "sleet-storm-concentration-save-on-turn-start": { ability: "con" },
   "blade-barrier-save-on-entry": { ability: "dex" },
   "blade-barrier-save-on-turn-start": { ability: "dex" },
   "cloudkill-save-on-entry": { ability: "con" },
@@ -1730,13 +1775,16 @@ function catalogAreaRule(spec) {
         "La nube rende la zona pesantemente oscurata.",
       ),
     ],
-    "grease": [
-      difficultTerrainEffect(
+    "grease": [{
+      ...difficultTerrainEffect(
         "grease-difficult-terrain",
         "Terreno difficile / Unto",
         "Il grasso rende l'area terreno difficile.",
       ),
-    ],
+      // Unto deve essere visibile nella card: la membership è una condizione
+      // standard con meccanica di terreno difficile, non un debuff nascosto.
+      condition: "Terreno difficile / Unto",
+    }],
     "gust-of-wind": [{
       id: "gust-of-wind-headwind",
       kind: "debuff",
@@ -1822,6 +1870,12 @@ function catalogAreaRule(spec) {
         "L'aria turbinante raddoppia il costo del movimento.",
       ),
     ],
+    "xanathar-muro-di-luce": [{
+      id: "wall-of-light-membership",
+      kind: "debuff",
+      label: "Muro di Luce",
+      detail: "La creatura si trova attualmente nell'area del Muro di Luce.",
+    }],
     "xanathar-collera-della-natura": [
       difficultTerrainEffect(
         "wrath-of-nature-difficult-terrain",
@@ -1903,7 +1957,10 @@ function catalogAreaRule(spec) {
         MEASURE_BY_SHAPE[spec.shape],
       ),
       ...(["line", "rectangle"].includes(spec.shape)
-        ? { width: meters(spec.widthMeters, "width") }
+        ? {
+          width: meters(spec.widthMeters, "width"),
+          ...(spec.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
+        }
         : {}),
     },
     placement: {
@@ -1915,6 +1972,7 @@ function catalogAreaRule(spec) {
       ...(spec.origin === "point"
         ? { range: meters(spec.rangeMeters, "range") }
         : {}),
+      ...(spec.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
     },
     lifecycle: persistent ? SPELL_LIFECYCLE : PREVIEW_LIFECYCLE,
     ...(placementChoices.length ? { placementChoices } : {}),
@@ -1933,7 +1991,9 @@ function catalogAreaRule(spec) {
     ...(zone
       ? {
           zonePolicy: {
-          placementOptional: true,
+          placementOptional: typeof spec.placementOptional === "boolean"
+            ? spec.placementOptional
+            : true,
           owner: "caster",
           movement: spec.movement,
           ...(spec.followCaster === true ? { followCaster: true } : {}),
@@ -2463,6 +2523,32 @@ export const SPELL_AREA_RULES = Object.freeze([
     },
   }),
   defineRule({
+    id: "xanathar-investitura-del-vento:cubo-di-vento",
+    spellId: "xanathar-investitura-del-vento",
+    trigger: {
+      type: "active-action",
+      actionId: "wind-investiture-gust",
+    },
+    kind: "emission",
+    geometry: {
+      shape: "square",
+      size: meters(4.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(18, "range"),
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: true,
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
+  defineRule({
     id: "xanathar-investitura-della-fiamma:aura",
     spellId: "xanathar-investitura-della-fiamma",
     trigger: CAST_TRIGGER,
@@ -2483,13 +2569,19 @@ export const SPELL_AREA_RULES = Object.freeze([
       confirmTargets: false,
     },
     effectPolicy: {
-      mode: "manual-trigger",
+      mode: "while-inside",
+      effect: {
+        id: "flame-investiture-aura",
+        kind: "debuff",
+        label: "Nell’aura di fuoco",
+        detail: "La creatura si trova entro 1,5 m dall’incantatore e può subire 1d10 danni da fuoco entrando o a fine turno.",
+      },
     },
     triggerPolicy: {
       triggers: [
         {
           id: "flame-investiture-damage-on-entry",
-          group: "flame-investiture-damage",
+          group: "flame-investiture-damage-on-entry",
           label: "1d10 fuoco entrando nell'aura",
           event: "enter",
           frequency: "once-per-turn",
@@ -2505,7 +2597,7 @@ export const SPELL_AREA_RULES = Object.freeze([
         },
         {
           id: "flame-investiture-damage-on-turn-end",
-          group: "flame-investiture-damage",
+          group: "flame-investiture-damage-on-turn-end",
           label: "1d10 fuoco a fine turno nell'aura",
           event: "turn-end",
           frequency: "once-per-turn",
@@ -2663,18 +2755,37 @@ export function getSpellAreaPlacementChoices(value) {
   }));
 }
 
-export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "") {
+export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "", castContext = null) {
   const rule = getSpellAreaRuleById(ruleId);
+  if (!rule) return null;
   const choiceId = String(ruleChoice || "").trim();
   const choice = rule?.placementChoices?.find((entry) => entry.id === choiceId);
-  if (!rule || !choice) return rule;
+  const choiceRule = choice
+    ? deepFreeze({
+      ...rule,
+      geometry: {
+        ...rule.geometry,
+        ...choice.geometry,
+      },
+      placementChoice: choice.id,
+    })
+    : rule;
+  const scaling = SPELL_AREA_SLOT_GEOMETRY_SCALING[choiceRule.spellId];
+  const slotLevel = Math.floor(Number(castContext?.slotLevel));
+  if (!scaling || !Number.isInteger(slotLevel) || slotLevel <= scaling.baseSlot) {
+    return choiceRule;
+  }
+  const additionalLevels = slotLevel - scaling.baseSlot;
+  const additionalMeters = additionalLevels * scaling.sizeMetersPerSlotAbove;
   return deepFreeze({
-    ...rule,
+    ...choiceRule,
     geometry: {
-      ...rule.geometry,
-      ...choice.geometry,
+      ...choiceRule.geometry,
+      size: {
+        ...choiceRule.geometry.size,
+        value: Number(choiceRule.geometry.size.value) + additionalMeters,
+      },
     },
-    placementChoice: choice.id,
   });
 }
 

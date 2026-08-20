@@ -14,6 +14,9 @@ import {
 import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
 import {
   buildSpellActiveResolutionFailureOperations,
+  buildSpellActiveResolutionSuccessOperations,
+  buildSpellActiveResolutionLinkedEffectRemovals,
+  buildSpellActiveResolutionResourceOperations,
   normalizeActiveResolutionTargetIds,
   resolveSpellActiveResolutionDamage,
   validateSpellActiveResolutionPayload,
@@ -24,8 +27,10 @@ import {
   QUICK_HP_FACTORS,
   QUICK_HP_MODES,
 } from "./quickHpCore.js";
+import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import {
   resolveZeroHPUnconsciousAction,
+  resolveDamageEndsConditionRemovals,
   ZERO_HP_UNCONSCIOUS_TYPE,
 } from "./hpConditionRulesCore.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
@@ -39,7 +44,8 @@ import {
   getSpellBoardTokenRule,
 } from "./spellBoardTokenCore.js";
 import { buildStaticSpellChildZoneItem } from "./spellStaticZone.js";
-import { translatedZoneArea } from "./spellStaticZoneCore.js";
+import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
+import { planWallOfLightShortening } from "./wallOfLightActiveCore.js";
 import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
@@ -387,6 +393,7 @@ export async function executeSpellActiveResolution({
   damageRoll = 0,
   attackOutcome = "",
   attacks = [],
+  shorteningFrom = "",
   naturalStormBonus = false,
   sceneEpoch = null,
   sceneIdentity = null,
@@ -426,6 +433,7 @@ export async function executeSpellActiveResolution({
     damageRoll,
     attackOutcome,
     attacks: attackEntries,
+    shorteningFrom,
   };
   const preflight = await validateSpellActiveResolutionCommit(commitInput);
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
@@ -446,6 +454,81 @@ export async function executeSpellActiveResolution({
   const unconsciousRemovals = [];
   const resolutionDamageByTarget = new Map();
   const action = activeResolutionAction(payload);
+  let staticZoneShortening = null;
+  if (action?.shortenStaticZone && payload?.zoneItemId) {
+    const [[zoneItem], scale] = await Promise.all([
+      OBR.scene.items.getItems([payload.zoneItemId]),
+      OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    ]);
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-active-resolution");
+    }
+    const zoneMetadata = zoneItem?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    if (
+      !zoneItem
+      || zoneMetadata?.role !== "root"
+      || String(zoneMetadata.instanceId || "") !== String(payload.instanceId || "")
+      || String(zoneMetadata.casterId || "") !== String(payload.casterId || "")
+    ) {
+      throw new Error("active-resolution-zone-shortening-context-invalid");
+    }
+    const configuredFrom = String(action.shortenStaticZone.from || "end").trim();
+    const requestedFrom = String(shorteningFrom || "").trim();
+    const shorteningSide = action.shortenStaticZone.chooseFrom === true
+      && ["start", "end"].includes(requestedFrom)
+      ? requestedFrom
+      : configuredFrom;
+    const shortening = planWallOfLightShortening({
+      zoneItem,
+      scale: scale?.parsed || scale,
+      meters: action.shortenStaticZone.meters,
+      from: shorteningSide,
+    });
+    if (!shortening.valid) {
+      throw new Error(
+        `active-resolution-zone-shortening-invalid: ${(shortening.errors || []).join(", ")}`,
+      );
+    }
+    staticZoneShortening = {
+      ...shortening,
+      ruleId: String(zoneMetadata.ruleId || ""),
+    };
+    if (shortening.endsSpell && action.shortenStaticZone.endSpellAtZero === true) {
+      operations.push(
+        {
+          type: "concentration:break",
+          casterIds: [payload.casterId],
+          reference: payload.instanceId,
+        },
+        {
+          type: "spell:remove-instance",
+          targetIds: [payload.casterId],
+          instanceId: payload.instanceId,
+        },
+      );
+    }
+  }
+  if (action?.resource) {
+    const [casterItem] = await OBR.scene.items.getItems([payload.casterId]);
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-active-resolution");
+    }
+    const casterMeta = casterItem?.metadata?.[`${ID}/meta`] || {};
+    const casterSpells = Array.isArray(casterMeta[`${ID}/spells`]) ? casterMeta[`${ID}/spells`] : [];
+    const spellEntry = casterSpells.find((entry) => (
+      String(entry?.instanceId || "").trim() === String(payload.instanceId || "").trim()
+    ));
+    const resourcePlan = buildSpellActiveResolutionResourceOperations({
+      action,
+      payload,
+      spellEntry,
+    });
+    if (!resourcePlan.valid) {
+      throw new Error(`Invalid active spell resource: ${(resourcePlan.errors || []).join(", ")}`);
+    }
+    operations.push(...resourcePlan.operations);
+    if (casterItem) byId.set(payload.casterId, casterItem);
+  }
   if (action?.concentrationAction === "dismiss") {
     operations.push(
       {
@@ -460,11 +543,55 @@ export async function executeSpellActiveResolution({
       },
     );
   }
+  if (action?.replaceLinkedEffectId) {
+    const linkedItems = await OBR.scene.items.getItems();
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-active-resolution");
+    }
+    const removals = buildSpellActiveResolutionLinkedEffectRemovals({
+      action,
+      payload,
+      items: linkedItems,
+    });
+    if (removals.length) {
+      operations.push({ type: "condition:remove-instances", removals });
+    }
+  }
   const sideEffects = [{
     type: "spell-active-resolution:validate",
     ...commitInput,
     naturalStormBonus: naturalStormBonus === true,
   }];
+  if (staticZoneShortening?.endsSpell) {
+    sideEffects.push({
+      type: "static-zone:remove-ended",
+      selectors: [{
+        instanceId: payload.instanceId,
+        casterId: payload.casterId,
+      }],
+    });
+  } else if (staticZoneShortening?.preview) {
+    sideEffects.push({
+      type: "static-zone:reorient",
+      zoneItemId: payload.zoneItemId,
+      instanceId: payload.instanceId,
+      ruleId: staticZoneShortening.ruleId,
+      casterId: payload.casterId,
+      preview: staticZoneShortening.preview,
+    });
+  }
+  if (action?.moveRootToTarget === true && ids.length === 1 && payload?.zoneItemId) {
+    const target = byId.get(ids[0]);
+    const targetPosition = target?.position;
+    if (targetPosition && Number.isFinite(Number(targetPosition.x)) && Number.isFinite(Number(targetPosition.y))) {
+      sideEffects.push({
+        type: "token:teleport",
+        targetId: payload.zoneItemId,
+        position: { x: Number(targetPosition.x), y: Number(targetPosition.y) },
+        skipAnimation: true,
+      });
+    }
+  }
   if (action?.childZone?.ruleChoice) {
     sideEffects.push({
       type: "static-zone:set-rule-choice",
@@ -546,6 +673,10 @@ export async function executeSpellActiveResolution({
       const outcome = action?.resolutionKind === "single-attack"
         ? entry.attackOutcome
         : activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
+      if (!action?.damage) {
+        resolutionDamageByTarget.set(targetId, { damage: null, outcome });
+        continue;
+      }
       const damage = resolveSpellActiveResolutionDamage({
         action,
         slotLevel: payload.slotLevel,
@@ -592,6 +723,43 @@ export async function executeSpellActiveResolution({
         });
       }
     }
+    const casterHealingRatio = Number(action?.casterHealingFromAppliedDamage) || 0;
+    if (casterHealingRatio > 0) {
+      const damageChanges = ids.map((targetId) => ({
+        requested: resolutionDamageByTarget.get(targetId)?.damage?.amount,
+      }));
+      const [casterItem] = await OBR.scene.items.getItems([payload.casterId]);
+      if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+        throw new Error("scene-epoch-stale-before-active-resolution");
+      }
+      const casterMeta = casterItem?.metadata?.[`${ID}/meta`] || {};
+      if (casterItem
+        && Object.prototype.hasOwnProperty.call(casterMeta, "hp")
+        && Object.prototype.hasOwnProperty.call(casterMeta, "hpMax")) {
+        const healingChange = spellCasterHealingChange({
+          damageChanges,
+          ratio: casterHealingRatio,
+          hp: casterMeta.hp,
+          hpMax: casterMeta.hpMax,
+        });
+        if (healingChange.changed) {
+          metadataPatches.push({
+            id: payload.casterId,
+            fields: {
+              hp: {
+                expected: metadataSnapshot(casterMeta, "hp"),
+                value: healingChange.afterHP,
+              },
+              hpMax: {
+                expected: metadataSnapshot(casterMeta, "hpMax"),
+                value: healingChange.hpMax,
+              },
+            },
+          });
+          byId.set(payload.casterId, casterItem);
+        }
+      }
+    }
     for (const patch of metadataPatches) {
       const item = byId.get(patch.id);
       const meta = item?.metadata?.[`${ID}/meta`] || {};
@@ -604,8 +772,19 @@ export async function executeSpellActiveResolution({
         itemId: patch.id,
         instanceId,
       })));
+      if (patch.fields?.hp?.value < patch.fields?.hp?.expected?.value) {
+        for (const instanceId of resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))) {
+          unconsciousRemovals.push({ itemId: patch.id, instanceId });
+        }
+      }
     }
     operations.push(...buildSpellActiveResolutionFailureOperations({
+      action,
+      payload,
+      targetIds: ids,
+      outcomes,
+    }));
+    operations.push(...buildSpellActiveResolutionSuccessOperations({
       action,
       payload,
       targetIds: ids,
@@ -707,6 +886,7 @@ export async function executeSpellActiveResolution({
         attackOutcome: String(attackOutcome || ""),
         damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)),
         attacks: attackEntries,
+        ...(action?.shortenStaticZone ? { shorteningFrom: String(shorteningFrom || action.shortenStaticZone.from || "end") } : {}),
         naturalStormBonus: naturalStormBonus === true,
         causality: buildSpellCausality({
           eventType: "resolution",

@@ -1,5 +1,8 @@
 import { ID } from "./constants.js";
-import { resolveZeroHPUnconsciousAction } from "./hpConditionRulesCore.js";
+import {
+  resolveDamageEndsConditionRemovals,
+  resolveZeroHPUnconsciousAction,
+} from "./hpConditionRulesCore.js";
 import {
   exhaustionLevelFromInstances,
   normalizeExhaustionLevel,
@@ -309,6 +312,7 @@ function replaceReminderReference(action, context) {
   if (next.instanceId === "$reminder") next.instanceId = context.instanceId;
   if (next.targetId === "$target") next.targetId = context.targetId;
   if (next.targetId === "$source") next.targetId = context.sourceId;
+  if (next.parentEffectId === "$parent") next.parentEffectId = context.parentEffectId;
   return next;
 }
 
@@ -344,6 +348,7 @@ export function buildEffectSaveReminderResolution({
   dc = null,
   activationId = "",
   turnKey = "",
+  slotLevel = null,
 } = {}) {
   if (!effectSaveIsRecognized(instance, reminder)) return null;
   const targetId = text(item?.id, "", 200);
@@ -353,11 +358,64 @@ export function buildEffectSaveReminderResolution({
   const explicit = reminder?.resolution && typeof reminder.resolution === "object"
     ? reminder.resolution
     : {};
+  const isDamageOnly = !explicit.ability && !reminder?.ability && (explicit.damage || reminder?.damage);
+  const scaled = scaleReminderResolutionData({
+    damage: explicit.damage || reminder?.damage,
+    slotLevel: slotLevel ?? instance?.slotLevel,
+  });
+  const informational = !explicit.ability
+    && !reminder?.ability
+    && !scaled.damage
+    && reminder?.mode === "consume";
+  if (informational) {
+    return normalizeReminderResolution({
+      mode: "consume",
+      target: { id: targetId },
+      source: { id: sourceId },
+      activation: {
+        kind: "effect-save",
+        activationId: text(activationId, "", 300),
+        turnKey: text(turnKey, "", 300),
+      },
+      effect: {
+        kind: "condition",
+        targetId,
+        instanceId,
+        parentEffectId: text(instance?.parentEffectId, "", 200),
+        ...(instance?.spellName ? { spellName: text(instance.spellName, "", 120) } : {}),
+        ...(instance?.spellId ? { spellId: text(instance.spellId, "", 120) } : {}),
+      },
+    });
+  }
+  if (isDamageOnly) {
+    if (!scaled.damage) return null;
+    return normalizeReminderResolution({
+      mode: "manual-damage",
+      damage: scaled.damage,
+      slotLevel: scaled.slotLevel,
+      target: { id: targetId },
+      source: { id: sourceId },
+      activation: {
+        kind: "effect-save",
+        activationId: text(activationId, "", 300),
+        turnKey: text(turnKey, "", 300),
+      },
+      effect: {
+        kind: "condition",
+        targetId,
+        instanceId,
+        parentEffectId: text(instance?.parentEffectId, "", 200),
+        ...(instance?.spellName ? { spellName: text(instance.spellName, "", 120) } : {}),
+        ...(instance?.spellId ? { spellId: text(instance.spellId, "", 120) } : {}),
+      },
+    });
+  }
   const resolution = normalizeReminderResolution({
     ...explicit,
     ability: explicit.ability || reminder?.ability,
     dc: explicit.dc ?? dc,
-    damage: explicit.damage || reminder?.damage,
+    damage: scaled.damage,
+    slotLevel: scaled.slotLevel,
     success: explicit.success || reminder?.success || "remove-effect",
     failure: explicit.failure || "keep-effect",
     immune: explicit.immune || "remove-effect",
@@ -374,10 +432,17 @@ export function buildEffectSaveReminderResolution({
       targetId,
       instanceId,
       parentEffectId: text(instance?.parentEffectId, "", 200),
+      ...(instance?.spellName ? { spellName: text(instance.spellName, "", 120) } : {}),
+      ...(instance?.spellId ? { spellId: text(instance.spellId, "", 120) } : {}),
     },
   });
   if (!resolution) return null;
-  const context = { targetId, sourceId, instanceId };
+  const context = {
+    targetId,
+    sourceId,
+    instanceId,
+    parentEffectId: text(instance?.parentEffectId, "", 200),
+  };
   const outcomes = {
     [REMINDER_OUTCOMES.PASSED]: materializeOutcome(
       resolution.outcomes?.[REMINDER_OUTCOMES.PASSED],
@@ -596,14 +661,23 @@ export function buildZoneTriggerReminderResolution({
         ? activation.success
         : { actions: [] },
       failed: {
-        actions: zoneFailureActions({
-          failureCondition: activation?.failureCondition || resolutionData.failureCondition,
-          targetId: normalizedTargetId,
-          sourceId: normalizedSourceId,
-          sourceName,
-          parentEffectId: activation?.instanceId,
-          triggerId: activation?.triggerId,
-        }),
+        actions: [
+          ...zoneFailureActions({
+            failureCondition: activation?.failureCondition || resolutionData.failureCondition,
+            targetId: normalizedTargetId,
+            sourceId: normalizedSourceId,
+            sourceName,
+            parentEffectId: activation?.instanceId,
+            triggerId: activation?.triggerId,
+          }),
+          ...(activation?.requiresConcentration === true
+            ? [{
+              kind: "concentration",
+              action: "break",
+              targetId: normalizedTargetId,
+            }]
+            : []),
+        ],
       },
       immune: activation?.immune && typeof activation.immune === "object"
         ? activation.immune
@@ -637,17 +711,27 @@ export function buildZoneTriggerReminderResolution({
   };
 }
 
-export function reminderResolutionDamage(resolution, outcome, roll) {
+function reminderResolutionDamageFactor(resolution, outcome) {
   const damage = resolution?.damage;
-  if (!damage) return { roll: 0, factor: "zero", amount: 0 };
+  if (!damage) return "zero";
+  if (resolution?.mode === "manual-damage") return "full";
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
-  const factor = resolution?.mode === "manual-damage"
-    ? "full"
-    : normalizedOutcome === REMINDER_OUTCOMES.FAILED
-      ? damage.onFailed
+  return normalizedOutcome === REMINDER_OUTCOMES.FAILED
+    ? damage.onFailed
     : normalizedOutcome === REMINDER_OUTCOMES.IMMUNE
       ? damage.onImmune
       : damage.onPassed;
+}
+
+export function reminderResolutionOutcomeNeedsDamage(resolution, outcome) {
+  const factor = reminderResolutionDamageFactor(resolution, outcome);
+  return factor === "full" || factor === "half";
+}
+
+export function reminderResolutionDamage(resolution, outcome, roll) {
+  const damage = resolution?.damage;
+  if (!damage) return { roll: 0, factor: "zero", amount: 0 };
+  const factor = reminderResolutionDamageFactor(resolution, outcome);
   const numericRoll = Math.max(0, Math.floor(Number(roll) || 0));
   const amount = factor === "full"
     ? numericRoll
@@ -708,6 +792,32 @@ function spellByInstance(item, instanceId) {
 function normalizedMarkerMap(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return clone(value);
+}
+
+function reminderMarkerBelongsToEffectInstance(activationId, {
+  activationKind = "",
+  effectInstanceId = "",
+} = {}) {
+  const key = String(activationId || "").trim();
+  const instanceId = String(effectInstanceId || "").trim();
+  if (!key || !instanceId) return false;
+  if (activationKind === "effect-save") return key.startsWith(`${instanceId}:`);
+  if (activationKind === "deferred-effect") {
+    return key.startsWith(`${instanceId}:deferred:`)
+      || key.includes(`:${instanceId}:deferred:`);
+  }
+  return false;
+}
+
+function reminderMarkerBaseMap(markerMap, context = {}) {
+  const entries = Object.entries(normalizedMarkerMap(markerMap));
+  if (!context.effectInstanceId
+    || !["effect-save", "deferred-effect"].includes(context.activationKind)) {
+    return Object.fromEntries(entries);
+  }
+  return Object.fromEntries(entries.filter(([key]) =>
+    !reminderMarkerBelongsToEffectInstance(key, context)
+  ));
 }
 
 function outcomeActions(resolution, outcome) {
@@ -778,6 +888,9 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
     const options = action?.options && typeof action.options === "object"
       ? clone(action.options)
       : {};
+    if (String(action?.parentEffectId || "").trim()) {
+      options.parentEffectId = String(action.parentEffectId).trim();
+    }
     return {
       operations: [
         {
@@ -855,23 +968,31 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
     const sourceId = text(action?.casterId || action?.targetId, "", 200);
     const reference = text(action?.reference || action?.instanceId || action?.name, "", 200);
     const entries = concentrationEntries(itemsById.get(sourceId));
-    const matchedEntry = Object.entries(entries).find(([key, entry]) =>
-      key.toLocaleLowerCase("it") === reference.toLocaleLowerCase("it")
-      || String(entry?.instanceId || "") === reference,
-    )?.[1];
-    if (!sourceId || !matchedEntry) {
+    const matchedEntries = reference
+      ? Object.entries(entries).filter(([key, entry]) =>
+        key.toLocaleLowerCase("it") === reference.toLocaleLowerCase("it")
+        || String(entry?.instanceId || "") === reference,
+      ).slice(0, 1)
+      : Object.entries(entries);
+    if (!sourceId || !matchedEntries.length) {
       return { error: "La concentrazione del reminder non è più attiva." };
     }
-    const instanceId = text(matchedEntry?.instanceId, "", 200);
+    const instanceIds = matchedEntries
+      .map(([, entry]) => text(entry?.instanceId, "", 200))
+      .filter(Boolean);
+    const effectiveReference = reference
+      || (matchedEntries.length === 1
+        ? text(matchedEntries[0][1]?.instanceId || matchedEntries[0][0], "", 200)
+        : "");
     return {
       operations: [{
         type: "concentration:break",
         casterIds: [sourceId],
-        reference: reference || null,
+        reference: effectiveReference || null,
       }],
-      sideEffects: instanceId ? [{
+      sideEffects: instanceIds.length ? [{
         type: "static-zone:remove-ended",
-        selectors: [{ instanceId }],
+        selectors: instanceIds.map((instanceId) => ({ instanceId })),
       }] : [],
     };
   }
@@ -992,7 +1113,7 @@ export function buildReminderResolutionPlan({
       : Number(damageRoll))
     : 0;
   if (
-    resolution.damage
+    reminderResolutionOutcomeNeedsDamage(resolution, normalizedOutcome)
     && (normalizedDamageRoll === null
       || !Number.isFinite(normalizedDamageRoll)
       || normalizedDamageRoll < 0)
@@ -1086,6 +1207,18 @@ export function buildReminderResolutionPlan({
   }
 
   if (hpChange && !manualHeal) {
+    if (hpChange.after < hpChange.before) {
+      const damageEndsRemovalIds = resolveDamageEndsConditionRemovals(conditionInstances(target));
+      if (damageEndsRemovalIds.length) {
+        operations.push({
+          type: "condition:remove-instances",
+          removals: damageEndsRemovalIds.map((instanceId) => ({
+            itemId: targetId,
+            instanceId,
+          })),
+        });
+      }
+    }
     const zeroAction = resolveZeroHPUnconsciousAction(
       { ...meta, hp: hpChange.after, hpMax: hpChange.hpMax },
       conditionInstances(target),
@@ -1110,8 +1243,17 @@ export function buildReminderResolutionPlan({
     }
   }
 
+  // I marker servono soltanto a rendere idempotente una specifica attivazione.
+  // Per reminder ricorrenti della stessa istanza, i marker dei turni precedenti
+  // sono ormai tecnici/stali: conservarli per decine di round gonfia sia il
+  // metadata del token sia gli snapshot History. Manteniamo quindi al massimo
+  // il marker piu recente per quella istanza, lasciando intatti gli altri effetti.
+  const markerBase = reminderMarkerBaseMap(markerMap, {
+    activationKind,
+    effectInstanceId,
+  });
   const nextMarkers = {
-    ...markerMap,
+    ...markerBase,
     [activationId]: {
       version: REMINDER_RESOLUTION_VERSION,
       outcome: normalizedOutcome,
@@ -1122,10 +1264,17 @@ export function buildReminderResolutionPlan({
   };
   const markerEntries = Object.entries(nextMarkers);
   const boundedMarkers = Object.fromEntries(markerEntries.slice(-128));
+  const historyBeforeMarkers = { ...boundedMarkers };
+  delete historyBeforeMarkers[activationId];
   const metadataFields = {
     [REMINDER_RESOLUTIONS_FIELD]: {
       expected: metadataSnapshot(meta, REMINDER_RESOLUTIONS_FIELD),
       value: boundedMarkers,
+      // History deve annullare l'attivazione corrente, non resuscitare marker
+      // tecnici ormai stali della stessa istanza che stiamo compattando ora.
+      historyBefore: Object.keys(historyBeforeMarkers).length
+        ? { present: true, value: historyBeforeMarkers }
+        : { present: false },
     },
   };
   if (hpChange) {

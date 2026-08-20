@@ -43,6 +43,21 @@ test("il background monta il controller GM e compatta gli avanzamenti", () => {
   assert.match(controller, /announcedActivationIds\.has\(notice\.activationId\)/);
   assert.match(controller, /currentSceneEpoch/);
   assert.match(controller, /isCurrentSceneEpoch\(sceneEpoch\)/);
+  assert.match(controller, /subscribeSceneEpoch/);
+  assert.match(controller, /runtimeCacheRevision/);
+  assert.match(controller, /const reconcileRevision = runtimeCacheRevision/);
+  assert.match(controller, /const pendingActivationIds = new Set/);
+  assert.match(controller, /Number\(delivery\?\.gm\) > 0/);
+  assert.match(controller, /Number\(delivery\?\.player\) > 0/);
+  const deliveryAwait = controller.indexOf("await sendProjectedReminderPayload(");
+  const activationCommit = controller.indexOf(
+    "announcedActivationIds.add(activationId)",
+    deliveryAwait,
+  );
+  const stateCommit = controller.lastIndexOf("previousInitiativeState = initiativeState");
+  assert.ok(deliveryAwait >= 0);
+  assert.ok(activationCommit > deliveryAwait);
+  assert.ok(stateCommit > deliveryAwait);
   assert.match(controller, /includeCurrentTurnStart: previousState !== null/);
   assert.doesNotMatch(initiative, /__broadcastEffectSaveReminderTransition/);
   assert.doesNotMatch(initiative, /planEffectSaveReminderNotices/);
