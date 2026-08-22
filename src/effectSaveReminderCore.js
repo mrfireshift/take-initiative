@@ -715,3 +715,150 @@ export function effectSaveReminderNoticesForDamage({
     String(eventId),
   ));
 }
+
+function replayNoticeTarget(item, descriptor = {}) {
+  const targetId = String(
+    descriptor?.targetId
+      || descriptor?.notice?.targets?.[0]?.id
+      || descriptor?.notice?.resolution?.target?.id
+      || "",
+  ).trim();
+  if (!item?.id || targetId !== String(item.id)) return null;
+  return {
+    id: targetId,
+    name: String(item.name || descriptor?.notice?.targets?.[0]?.name || "Token")
+      .trim()
+      .slice(0, 100) || "Token",
+    portrait: itemPortrait(item),
+  };
+}
+
+function replayEffectInstance(item, descriptor = {}) {
+  const instanceId = String(
+    descriptor?.instanceId
+      || descriptor?.notice?.resolution?.effect?.instanceId
+      || "",
+  ).trim();
+  if (!instanceId) return { instanceId: "", instance: null };
+  const instances = [
+    ...conditionInstances(item),
+    ...spellInstances(item),
+  ];
+  return {
+    instanceId,
+    instance: instances.find((entry) => String(entry?.id || entry?.instanceId || "").trim() === instanceId)
+      || null,
+  };
+}
+
+/**
+ * Rebuilds a historical effect-save notice from current canonical items.
+ * The historical descriptor supplies only the activation/resolution shape;
+ * target identity, active effect presence and resolution state are checked
+ * against the current owner state before a replay is accepted.
+ */
+export function effectSaveReminderNoticeFromHistoryReplay({
+  replay = null,
+  items = [],
+} = {}) {
+  const descriptor = replay?.descriptor && typeof replay.descriptor === "object"
+    ? replay.descriptor
+    : replay;
+  const noticeDescriptor = descriptor?.notice && typeof descriptor.notice === "object"
+    ? descriptor.notice
+    : descriptor;
+  const activationId = String(
+    replay?.activationId
+      || descriptor?.activationId
+      || noticeDescriptor?.activationId
+      || "",
+  ).trim();
+  const targetId = String(
+    replay?.targetId
+      || descriptor?.targetId
+      || noticeDescriptor?.targets?.[0]?.id
+      || noticeDescriptor?.resolution?.target?.id
+      || "",
+  ).trim();
+  if (!activationId || !targetId) return null;
+  const item = (Array.isArray(items) ? items : [])
+    .find((candidate) => String(candidate?.id || "") === targetId);
+  const target = replayNoticeTarget(item, { ...descriptor, targetId, notice: noticeDescriptor });
+  if (!target) return null;
+  const resolutions = item?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD];
+  if (
+    resolutions
+    && typeof resolutions === "object"
+    && Object.prototype.hasOwnProperty.call(resolutions, activationId)
+  ) return null;
+
+  const { instanceId, instance } = replayEffectInstance(item, {
+    ...descriptor,
+    notice: noticeDescriptor,
+  });
+  if (instanceId && (!instance || instance.active === false)) return null;
+  const resolutionValue = noticeDescriptor?.resolution;
+  const sourceId = String(
+    replay?.sourceId
+      || descriptor?.sourceId
+      || resolutionValue?.source?.id
+      || instance?.sourceId
+      || "",
+  ).trim();
+  const instanceSourceId = String(instance?.sourceId || "").trim();
+  if (sourceId && instanceSourceId && sourceId !== instanceSourceId) return null;
+  const resolution = normalizeReminderResolution(resolutionValue, {
+    targetId,
+    sourceId: instanceSourceId || sourceId,
+    instanceId,
+  });
+  if (!resolution) return null;
+  const sourceItem = (Array.isArray(items) ? items : [])
+    .find((candidate) => String(candidate?.id || "") === (instanceSourceId || sourceId));
+  const sourceName = String(
+    sourceItem?.name
+      || noticeDescriptor?.sourceName
+      || "",
+  ).trim().slice(0, 100);
+  const effectName = String(
+    noticeDescriptor?.effectName
+      || noticeDescriptor?.spellName
+      || instance?.condition
+      || instance?.name
+      || "Effetto",
+  ).trim().slice(0, 120) || "Effetto";
+  return {
+    activationId,
+    ...(String(noticeDescriptor?.turnKey || "").trim()
+      ? { turnKey: String(noticeDescriptor.turnKey).trim().slice(0, 300) }
+      : {}),
+    ...(String(noticeDescriptor?.timing || "").trim()
+      ? { timing: String(noticeDescriptor.timing).trim().slice(0, 40) }
+      : {}),
+    effectName,
+    ...(String(noticeDescriptor?.spellName || "").trim()
+      ? { spellName: String(noticeDescriptor.spellName).trim().slice(0, 120) }
+      : {}),
+    saveLabel: String(noticeDescriptor?.saveLabel || "Promemoria effetto")
+      .trim().slice(0, 160) || "Promemoria effetto",
+    instruction: String(noticeDescriptor?.instruction || noticeDescriptor?.saveLabel || "Risolvi il reminder.")
+      .trim().slice(0, 320) || "Risolvi il reminder.",
+    ...(String(noticeDescriptor?.ability || "").trim()
+      ? { ability: String(noticeDescriptor.ability).trim().slice(0, 20) }
+      : {}),
+    ...(Number.isFinite(Number(noticeDescriptor?.dc))
+      ? { dc: Number(noticeDescriptor.dc) }
+      : {}),
+    ...(sourceName ? { sourceName } : {}),
+    kind: noticeDescriptor?.kind === "effect-reminder" ? "effect-reminder" : "effect-save",
+    ...(String(noticeDescriptor?.eyebrow || "").trim()
+      ? { eyebrow: String(noticeDescriptor.eyebrow).trim().slice(0, 80) }
+      : {}),
+    resolution,
+    target: {
+      id: target.id,
+      name: target.name,
+      portrait: target.portrait,
+    },
+  };
+}

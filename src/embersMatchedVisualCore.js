@@ -300,7 +300,7 @@ const EFFECTS = freeze({
     "4th_Level/Black_Tentacles/BlackTentacles_01_Dark_Purple", 200, 600, "600x600", 5000,
   ),
   wallOfFireLine: wallEffect(
-    "4th_Level/Wall_Of_Fire/Opacities/WallOfFire_01_Blue_75OPA", 100,
+    "4th_Level/Wall_Of_Fire/Opacities/WallOfFire_01_Yellow_75OPA", 100,
     [
       { distance: 100, width: 100, height: 100, suffix: "100x100" },
       { distance: 200, width: 200, height: 100, suffix: "200x100" },
@@ -309,7 +309,7 @@ const EFFECTS = freeze({
     ], 4000,
   ),
   wallOfFireRing: circleEffect(
-    "4th_Level/Wall_Of_Fire/Opacities/WallOfFire_01_Blue_Ring_75OPA", 100, 400, "400x400", 4000,
+    "4th_Level/Wall_Of_Fire/Opacities/WallOfFire_01_Yellow_Ring_75OPA", 100, 400, "400x400", 4000,
   ),
   antilifeShell: circleEffect(
     "5th_Level/Antilife_Shell/AntilifeShell_01_Blue_Circle", 100, 400, "400x400", 4000,
@@ -481,10 +481,32 @@ const wall = (effectId, options = {}) => ({
   delay: Number(options.delay) || 0,
   persistent: options.persistent === true,
   attachedTo: options.attachedTo || "",
+  layer: options.layer || "",
+  ...(options.fitToArea === true ? { fitToArea: true } : {}),
+  ...(Number(options.widthCells) > 0
+    ? { widthCells: Number(options.widthCells) }
+    : {}),
+  ...(String(options.widthAnchor || "").trim()
+    ? { widthAnchor: String(options.widthAnchor).trim() }
+    : {}),
   duration: visualDuration(options),
 });
 
 const persistent = (options = {}) => ({ ...options, persistent: true });
+
+const WALL_OF_FIRE_VISUALS = freeze({
+  line: freeze([
+    wall("wallOfFireLine", persistent({
+      layer: "ATTACHMENT",
+      fitToArea: true,
+      widthCells: 1,
+      widthAnchor: "edge",
+    })),
+  ]),
+  ring: freeze([
+    circle("wallOfFireRing", "area", persistent({ layer: "ATTACHMENT" })),
+  ]),
+});
 
 const HOLD_CONTROL_VISUALS = freeze([
   circle("holdPersonIntro", "target", { scale: 2, attachedTo: "target", layer: "ATTACHMENT" }),
@@ -573,7 +595,10 @@ const VISUALS = freeze({
     circle("portal", "caster", { scale: 2.5, duration: 3000 }),
     circle("portal", "target", { delay: 200, scale: 2.5, duration: 3000 }),
   ],
-  "wall-of-fire": [wall("wallOfFireLine", persistent()), circle("wallOfFireRing", "area", persistent())],
+  // The selected placement choice decides which Embers blueprint is used.
+  // Keep the line as the legacy/default definition for callers without a
+  // choice; buildMatchedVisualEvent selects the ring branch explicitly.
+  "wall-of-fire": WALL_OF_FIRE_VISUALS.line,
   "antilife-shell": [circle("antilifeShell", "area", persistent({ attachedTo: "caster" }))],
   "arcane-hand": [circle("arcaneHand", "area", persistent())],
   "cone-of-cold": [cone("coneOfCold", { attachedTo: "caster" })],
@@ -653,12 +678,18 @@ function normalizedPreview(preview, sceneDpi) {
       ? Math.hypot(end.x - start.x, end.y - start.y)
       : 0
   );
+  const gridOrigin = finitePoint(preview?.gridOrigin);
+  const widthSquares = positiveNumber(preview?.widthSquares, 0);
+  const widthAnchor = String(preview?.widthAnchor || "").trim();
   return {
     type,
     start,
     end: end || start,
     dpi,
     radius,
+    ...(gridOrigin ? { gridOrigin } : {}),
+    ...(widthSquares > 0 ? { widthSquares } : {}),
+    ...(widthAnchor ? { widthAnchor } : {}),
     targetIds: Array.isArray(preview?.targetIds) ? preview.targetIds : [],
   };
 }
@@ -781,7 +812,16 @@ function buildCircleLayer(effectId, effect, anchor, center, radius, delay, visua
   };
 }
 
-function buildDirectionalLayer(effectId, effect, kind, source, destination, delay, visual) {
+function buildDirectionalLayer(
+  effectId,
+  effect,
+  kind,
+  source,
+  destination,
+  delay,
+  visual,
+  geometry = {},
+) {
   if (!source || !destination) return null;
   return {
     kind,
@@ -798,6 +838,73 @@ function buildDirectionalLayer(effectId, effect, kind, source, destination, dela
     ...(Number.isFinite(Number(visual?.duration))
       ? { duration: Number(visual.duration) }
       : {}),
+    ...(visual?.fitToArea === true
+      ? {
+        fitToArea: true,
+        widthCells: positiveNumber(geometry.widthCells, positiveNumber(visual.widthCells, 1)),
+      }
+      : {}),
+  };
+}
+
+function directionalAreaGeometry(preview, visual, dpi) {
+  const source = preview?.start;
+  const destination = preview?.end;
+  if (!source || !destination || visual?.fitToArea !== true) {
+    return {
+      source,
+      destination,
+      widthCells: positiveNumber(visual?.widthCells, 0),
+    };
+  }
+
+  const safeDpi = positiveNumber(dpi, 1);
+  const rawDelta = {
+    x: destination.x - source.x,
+    y: destination.y - source.y,
+  };
+  const rawLength = Math.hypot(rawDelta.x, rawDelta.y);
+  if (!(rawLength > 0)) return { source, destination, widthCells: 0 };
+  const direction = {
+    x: rawDelta.x / rawLength,
+    y: rawDelta.y / rawLength,
+  };
+  const perpendicular = { x: -direction.y, y: direction.x };
+  const widthCells = Math.max(
+    1,
+    Math.round(positiveNumber(preview.widthSquares, positiveNumber(visual.widthCells, 1))),
+  );
+  const widthAnchor = String(preview.widthAnchor || visual.widthAnchor || "").trim();
+  const gridOrigin = preview.gridOrigin;
+  const relativeOrigin = gridOrigin
+    ? {
+      x: (source.x - gridOrigin.x) / safeDpi,
+      y: (source.y - gridOrigin.y) / safeDpi,
+    }
+    : null;
+  const isCorner = relativeOrigin
+    ? Math.abs(relativeOrigin.x - Math.round(relativeOrigin.x)) < 1e-6
+      && Math.abs(relativeOrigin.y - Math.round(relativeOrigin.y)) < 1e-6
+    : true;
+  const alignmentOffset = widthCells % 2 === 0
+    ? (isCorner ? 0 : safeDpi / 2)
+    : 0;
+  const edgeOffset = widthAnchor === "edge"
+    ? widthCells * safeDpi / 2
+    : 0;
+  const offset = alignmentOffset + edgeOffset;
+  const snappedDistance = Math.max(1, Math.round(rawLength / safeDpi)) * safeDpi;
+  const alignedSource = {
+    x: source.x + perpendicular.x * offset,
+    y: source.y + perpendicular.y * offset,
+  };
+  return {
+    source: alignedSource,
+    destination: {
+      x: alignedSource.x + direction.x * snappedDistance,
+      y: alignedSource.y + direction.y * snappedDistance,
+    },
+    widthCells,
   };
 }
 
@@ -809,9 +916,16 @@ function orderedTargetPoints(targetPoints, targetIds) {
     .filter(Boolean);
 }
 
-export function getMatchedSpellVisualDefinition(spellId) {
+function visualsForSpell(normalizedSpellId, placementChoice = "") {
+  if (normalizedSpellId !== "wall-of-fire") return VISUALS[normalizedSpellId];
+  return String(placementChoice || "").trim().startsWith("ring-")
+    ? WALL_OF_FIRE_VISUALS.ring
+    : WALL_OF_FIRE_VISUALS.line;
+}
+
+export function getMatchedSpellVisualDefinition(spellId, placementChoice = "") {
   const normalized = String(spellId || "").trim();
-  const visuals = VISUALS[normalized];
+  const visuals = visualsForSpell(normalized, placementChoice);
   if (!visuals) return null;
   return {
     spellId: normalized,
@@ -840,12 +954,17 @@ export function buildMatchedVisualEvent({
   sceneDpi = 1,
   gridScale = {},
   zoneId = "",
+  placementChoice = "",
   mode = "start",
   lifecycleId = "",
   sceneEpoch = null,
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
-  const definition = getMatchedSpellVisualDefinition(normalizedSpellId);
+  const normalizedPlacementChoice = String(placementChoice || "").trim();
+  const definition = getMatchedSpellVisualDefinition(
+    normalizedSpellId,
+    normalizedPlacementChoice,
+  );
   if (!definition || definition.usesExistingFireballRenderer) return null;
   const dpi = positiveNumber(preview?.dpi, positiveNumber(sceneDpi, 1));
   const normalizedTargets = (Array.isArray(targets) ? targets : [])
@@ -988,14 +1107,16 @@ export function buildMatchedVisualEvent({
       continue;
     }
     if (visual.kind === "cone" || visual.kind === "wall") {
+      const directionalGeometry = directionalAreaGeometry(previewData, visual, dpi);
       const layer = buildDirectionalLayer(
         visual.effectId,
         effect,
         visual.kind,
-        previewData?.start || source,
-        previewData?.end || destination,
+        directionalGeometry.source || source,
+        directionalGeometry.destination || destination,
         visual.delay,
         visual,
+        directionalGeometry,
       );
       if (layer) layers.push(layer);
     }
@@ -1011,6 +1132,7 @@ export function buildMatchedVisualEvent({
     ...(normalizedEventId ? { eventId: normalizedEventId } : {}),
     ...(normalizedCasterId ? { casterId: normalizedCasterId } : {}),
     ...(normalizedZoneId ? { zoneId: normalizedZoneId } : {}),
+    ...(normalizedPlacementChoice ? { placementChoice: normalizedPlacementChoice } : {}),
     ...(normalizedLifecycleId ? { lifecycleId: normalizedLifecycleId } : {}),
     ...(sceneEpoch != null && Number.isFinite(Number(sceneEpoch)) ? { sceneEpoch: Number(sceneEpoch) } : {}),
     mode: mode === "end" ? "end" : "start",
@@ -1068,10 +1190,17 @@ export function matchedVisualLayerPlan(layer, sceneDpi = 1) {
   if (!variant) return null;
   const suffixes = variant.suffixes || [variant.suffix];
   const suffix = suffixes[Math.abs(Number(layer.variantIndex) || 0) % suffixes.length];
+  const scale = distanceInGridUnits / (variant.distance / effectDpi);
   return {
     ...variant,
     url: `${EMBERS_ASSET_BASE_URL}/${effect.basename}_${suffix}.webm`,
-    scale: distanceInGridUnits / (variant.distance / effectDpi),
+    scale,
+    ...(layer?.fitToArea === true
+      // Keep the original Embers aspect treatment. The area-aware geometry
+      // changes the line's position and length; it must not make the flame
+      // visually thinner than the source WebM.
+      ? { scaleX: scale, scaleY: scale }
+      : {}),
     position: source,
     rotation: Math.atan2(destination.y - source.y, destination.x - source.x) * (180 / Math.PI),
     offset: effect.type === "TARGET" ? { x: 0.5, y: 0.5 } : { x: 0, y: 0.5 },
@@ -1079,8 +1208,8 @@ export function matchedVisualLayerPlan(layer, sceneDpi = 1) {
   };
 }
 
-export function matchedVisualEffectIds(spellId) {
-  const definition = getMatchedSpellVisualDefinition(spellId);
+export function matchedVisualEffectIds(spellId, placementChoice = "") {
+  const definition = getMatchedSpellVisualDefinition(spellId, placementChoice);
   return definition
     ? definition.visuals.flatMap((visual) => [visual.effectId, visual.secondaryEffectId].filter(Boolean))
     : [];

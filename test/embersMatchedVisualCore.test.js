@@ -542,6 +542,68 @@ test("Invocare il fulmine usa il WebM opaco e il raggio della nube persistente",
   assert.equal(plan.duration, 4000);
 });
 
+test("Muro di Fuoco seleziona una sola geometria e usa la variante giallo-fuoco", () => {
+  const line = buildMatchedVisualEvent({
+    spellId: "wall-of-fire",
+    placementChoice: "line-hot-right",
+    eventId: "wall-of-fire-line",
+    lifecycleId: "wall-of-fire-line-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 150 },
+    preview: {
+      type: "line",
+      start: { x: 100, y: 100 },
+      end: { x: 1300, y: 100 },
+      gridOrigin: { x: 0, y: 0 },
+      widthSquares: 1,
+      widthAnchor: "edge",
+      dpi: 100,
+    },
+    sceneDpi: 100,
+  });
+  assert.equal(line.layers.length, 1);
+  assert.equal(line.layers[0].effectId, "wallOfFireLine");
+  assert.equal(line.layers[0].kind, "wall");
+  assert.equal(line.layers[0].persistent, true);
+  assert.equal(line.layers[0].layer, "ATTACHMENT");
+  assert.equal(line.placementChoice, "line-hot-right");
+  assert.deepEqual(line.layers[0].source, { x: 100, y: 150 });
+  assert.deepEqual(line.layers[0].destination, { x: 1300, y: 150 });
+  assert.match(
+    matchedVisualLayerPlan(line.layers[0], line.dpi).url,
+    /WallOfFire_01_Yellow_75OPA_500x100\.webm$/,
+  );
+  const linePlan = matchedVisualLayerPlan(line.layers[0], line.dpi);
+  assert.equal(linePlan.scaleY, linePlan.scale);
+
+  const ring = buildMatchedVisualEvent({
+    spellId: "wall-of-fire",
+    placementChoice: "ring-hot-inside",
+    eventId: "wall-of-fire-ring",
+    lifecycleId: "wall-of-fire-ring-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 150 },
+    preview: {
+      type: "circle",
+      start: { x: 700, y: 700 },
+      end: { x: 1000, y: 700 },
+      radius: 300,
+      dpi: 100,
+    },
+    sceneDpi: 100,
+  });
+  assert.equal(ring.layers.length, 1);
+  assert.equal(ring.layers[0].effectId, "wallOfFireRing");
+  assert.equal(ring.layers[0].kind, "circle");
+  assert.equal(ring.layers[0].persistent, true);
+  assert.equal(ring.layers[0].layer, "ATTACHMENT");
+  assert.equal(ring.placementChoice, "ring-hot-inside");
+  assert.match(
+    matchedVisualLayerPlan(ring.layers[0], ring.dpi).url,
+    /WallOfFire_01_Yellow_Ring_75OPA_400x400\.webm$/,
+  );
+});
+
 test("Sortilegio separa intro one-shot PROP e loop agganciato al bersaglio", () => {
   const event = buildMatchedVisualEvent({
     spellId: "phb2014-sortilegio",

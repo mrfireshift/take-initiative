@@ -1,9 +1,10 @@
+import {
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  jsonBytes,
+} from "./roomMetadataBudget.js";
+
 function isPlainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function jsonBytes(value) {
-  return new TextEncoder().encode(JSON.stringify(value ?? null)).byteLength;
 }
 
 function timestamp(entry) {
@@ -23,7 +24,10 @@ function hasPersistentHP(entry) {
  * Riduce soltanto la replica Room della memoria HP. Il chiamante mantiene la
  * mappa completa nel fallback locale prima di usare questo risultato.
  */
-export function retainHPMapWithinByteBudget(value, maxBytes = 10_000) {
+export function retainHPMapWithinByteBudget(
+  value,
+  maxBytes = ROOM_METADATA_DOMAIN_MAX_BYTES["room-memory"],
+) {
   const source = isPlainObject(value) ? value : {};
   const budget = Math.max(2, Math.floor(Number(maxBytes) || 0));
   if (jsonBytes(source) <= budget) return { ...source };
@@ -44,4 +48,3 @@ export function retainHPMapWithinByteBudget(value, maxBytes = 10_000) {
   }
   return retained;
 }
-

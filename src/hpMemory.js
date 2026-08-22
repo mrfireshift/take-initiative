@@ -17,6 +17,7 @@ import {
   METADATA_OWNERSHIP,
   writeRoomMetadataKey,
 } from "./metadataKeyScoped.js";
+import { ROOM_METADATA_DOMAIN_MAX_BYTES } from "./roomMetadataBudget.js";
 import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
 
 let __attSubMounted = false;        // evita doppie subscribe
@@ -30,7 +31,7 @@ const __attitudeItemsByEpoch = new Map();
 const ROOM_HP_KEY = `${ID}/hpMemory`; // mappa: { "<name>||<portrait>": { hp, hpMax, t } }
 const LOCAL_HP_KEY = `${ID}/hpMemory/local`;
 const META_KEY = `${ID}/meta`;      // stesso namespace usato nel plugin
-const ROOM_HP_MAX_BYTES = 10_000;
+const ROOM_HP_MAX_BYTES = ROOM_METADATA_DOMAIN_MAX_BYTES["room-memory"];
 
 const __attitudeRescanTimer = createSceneEpochTimer({
   isCurrent: isCurrentSceneEpoch,
@@ -163,7 +164,6 @@ async function writeRoomHPMap(
     const localWritten = writeLocalHPMap(normalizedNext);
     // La copia locale resta completa. La replica Room ha un budget esplicito
     // per non saturare i metadata condivisi e lasciare spazio agli altri domini.
-    const roomNext = retainHPMapWithinByteBudget(normalizedNext, ROOM_HP_MAX_BYTES);
     try {
       // setMetadata fa già merge con gli altri metadata della Room.
       if (!isCurrent(sceneEpoch)) return normalizedNext;
@@ -171,8 +171,14 @@ async function writeRoomHPMap(
       await writeRoomMetadataKey(
         OBR.room,
         METADATA_OWNERSHIP.ROOM_MEMORY,
-        roomNext,
-        { runtime: "hpMemory" },
+        normalizedNext,
+        {
+          runtime: "hpMemory",
+          roomBudget: {
+            domainMaxBytes: ROOM_HP_MAX_BYTES,
+            retain: retainHPMapWithinByteBudget,
+          },
+        },
       );
       if (!isCurrent(sceneEpoch)) return normalizedNext;
       __roomHPFallbackWarned = false;

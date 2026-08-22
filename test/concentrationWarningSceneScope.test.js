@@ -30,16 +30,18 @@ const initiativeSource = readFileSync(
   "utf8",
 ).replace(/\r\n/g, "\n");
 
-function createHostHarness(initialEpoch = 10) {
+function createHostHarness(initialEpoch = 10, warningRuntimeScope = "") {
   const start = initiativeSource.indexOf("let __concentrationWarningListenerMounted");
   const end = initiativeSource.indexOf("let __turnNoticeSequence", start);
   assert.ok(start >= 0);
   assert.ok(end > start);
 
   let currentEpoch = initialEpoch;
+  let currentWarningRuntimeScope = warningRuntimeScope;
   let openCalls = 0;
   let closeCalls = 0;
   let updateCalls = 0;
+  const uiRequests = [];
   const listeners = new Map();
   const OBR = {
     modal: {
@@ -62,6 +64,7 @@ function createHostHarness(initialEpoch = 10) {
       async sendMessage(channel, data) {
         if (channel === UI_CHANNEL && data?.type === "update-concentration-warnings") {
           updateCalls += 1;
+          uiRequests.push(structuredClone(data));
         }
       },
     },
@@ -75,12 +78,14 @@ function createHostHarness(initialEpoch = 10) {
     "CONCENTRATION_WARNING_HOST_CHANNEL",
     "isCurrentSceneEpoch",
     "currentSceneEpoch",
+    "getEffectsMutationSceneContext",
     `${initiativeSource.slice(start, end)}\nreturn {
      mountConcentrationWarningBroadcast,
       dismissedCauseIds: __dismissedConcentrationWarningCauseIds,
-      warnings: __concentrationWarningsByActivationId,
-      reset: __resetConcentrationWarningRuntime,
-      runtimeGeneration: () => __concentrationWarningRuntimeGeneration,
+     warnings: __concentrationWarningsByActivationId,
+     reset: __resetConcentrationWarningRuntime,
+     runtimeGeneration: () => __concentrationWarningRuntimeGeneration,
+     runtimeSession: () => __concentrationWarningPopoverSession,
    };`,
   );
   const runtime = factory(
@@ -91,6 +96,9 @@ function createHostHarness(initialEpoch = 10) {
     HOST_CHANNEL,
     (epoch) => Number(epoch) === currentEpoch,
     () => currentEpoch,
+    warningRuntimeScope
+      ? async () => ({ sceneIdentity: currentWarningRuntimeScope })
+      : undefined,
   );
   runtime.mountConcentrationWarningBroadcast();
 
@@ -102,14 +110,28 @@ function createHostHarness(initialEpoch = 10) {
       assert.ok(listener, "concentration warning listener mounted");
       listener({ data: structuredClone(payload) });
     },
+    receiveHost(payload) {
+      const listener = listeners.get(HOST_CHANNEL);
+      assert.ok(listener, "concentration warning host listener mounted");
+      listener({ data: structuredClone(payload) });
+    },
     setEpoch(epoch) {
       currentEpoch = epoch;
+    },
+    setWarningRuntimeScope(scope) {
+      currentWarningRuntimeScope = String(scope || "");
+    },
+    runtimeGeneration() {
+      return runtime.runtimeGeneration();
     },
     async settle() {
       await new Promise((resolve) => setTimeout(resolve, 0));
     },
     counts() {
-      return { openCalls, closeCalls, updateCalls };
+      return { openCalls, closeCalls, updateCalls, uiRequests };
+    },
+    runtimeSession() {
+      return runtime.runtimeSession();
     },
   };
 }
@@ -123,12 +145,13 @@ function warning(causeHistoryEntryId, activationId = "activation-a") {
   };
 }
 
-function show(causeHistoryEntryId, sceneEpoch, activationId) {
+function show(causeHistoryEntryId, sceneEpoch, activationId, warningRuntimeScope = "") {
   return {
     type: "show-concentration-warning",
     warnings: [warning(causeHistoryEntryId, activationId)],
     createdAt: 100,
     sceneEpoch,
+    ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
   };
 }
 
@@ -141,11 +164,12 @@ function showBatch(warnings, sceneEpoch) {
   };
 }
 
-function dismiss(historyEntryId, sceneEpoch) {
+function dismiss(historyEntryId, sceneEpoch, warningRuntimeScope = "") {
   return {
     type: "dismiss-concentration-warnings-by-history",
     historyEntryIds: [historyEntryId],
     sceneEpoch,
+    ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
   };
 }
 
@@ -317,4 +341,47 @@ test("un ritorno alla scena logica usa un nuovo epoch e rifiuta il messaggio del
 
   assert.equal(host.warnings.size, 0);
   assert.equal(host.counts().openCalls, 0);
+});
+
+test("lo scope opaco accetta il replay tra epoch locali divergenti e rifiuta il runtime precedente", async () => {
+  const host = createHostHarness(0, "scene-runtime-a");
+  host.receive(show("history-a", 1, "activation-a", "scene-runtime-a"));
+  await host.settle();
+
+  assert.equal(host.warnings.size, 1);
+  host.receive(dismiss("history-a", 1, "scene-runtime-a"));
+  await host.settle();
+  assert.equal(host.warnings.size, 0);
+
+  host.receive(show("history-old", 1, "activation-old", "scene-runtime-old"));
+  await host.settle();
+  assert.equal(host.warnings.size, 0);
+});
+
+test("il popup scoped aggiorna la sessione e il host reacquisisce lo scope corrente", async () => {
+  const host = createHostHarness(10, "scene-runtime-a");
+  host.receive(show("history-a", 10, "activation-a", "scene-runtime-a"));
+  await host.settle();
+  assert.equal(host.warnings.size, 1);
+
+  host.receiveHost({
+    type: "concentration-warning-ready",
+    warningSceneEpoch: 10,
+    runtimeGeneration: host.runtimeGeneration(),
+    runtimeSession: host.runtimeSession(),
+  });
+  await host.settle();
+  host.setWarningRuntimeScope("scene-runtime-b");
+  host.receive(show("history-b", 10, "activation-b", "scene-runtime-b"));
+  await host.settle();
+
+  assert.equal(host.warnings.get("activation-b")?.notice?.causeHistoryEntryId, "history-b");
+  assert.equal(
+    host.counts().uiRequests.at(-1)?.warningRuntimeScope,
+    "scene-runtime-b",
+  );
+
+  host.receive(show("history-old", 10, "activation-old", "scene-runtime-a"));
+  await host.settle();
+  assert.equal(host.warnings.has("activation-old"), false);
 });

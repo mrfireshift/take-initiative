@@ -42,6 +42,54 @@ test("Palla di fuoco espone placement geometrico e transazione HP", () => {
   assert.equal(model.execution.requiresCompositeUndo, true);
 });
 
+test("Muro di Fuoco espone la scelta obbligatoria della forma e del lato caldo", () => {
+  const model = buildSpellUnifiedPanelContract({ spellId: "wall-of-fire" });
+
+  assert.deepEqual(
+    model.presentation.placement.choices.map((choice) => choice.value),
+    ["line-hot-left", "line-hot-right", "ring-hot-inside", "ring-hot-outside"],
+  );
+  assert.equal(model.presentation.controls.includes("rule-choice"), true);
+
+  const initial = buildSpellPanelViewModel(model, { casterId: "caster-a" });
+  assert.equal(initial.placement.choiceRequired, true);
+  assert.equal(initial.placement.choice, "");
+  assert.equal(initial.validation.firstInvalidField, "rule-choice");
+
+  const selectedContract = buildSpellUnifiedPanelContract({
+    spellId: "wall-of-fire",
+    choiceValue: "ring-hot-outside",
+  });
+  const selected = buildSpellPanelViewModel(selectedContract, {
+    casterId: "caster-a",
+    variant: "ring-hot-outside",
+  });
+  assert.equal(selected.placement.choice, "ring-hot-outside");
+  assert.equal(selected.placement.rules[0].shape, "circle");
+  assert.equal(selectedContract.presentation.targeting.confirmTargets, false);
+
+  const noTargetCast = buildSpellPanelViewModel(selectedContract, {
+    casterId: "caster-a",
+    slotLevel: 4,
+    variant: "ring-hot-outside",
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      spellId: "wall-of-fire",
+      ruleId: "wall-of-fire:cast",
+      casterId: "caster-a",
+      ruleChoice: "ring-hot-outside",
+      preview: {
+        start: { x: 0, y: 0 },
+        end: { x: 300, y: 0 },
+        targetIds: [],
+      },
+      targetIds: [],
+    },
+  });
+  assert.equal(noTargetCast.validation.valid, true);
+});
+
 test("Anatema espone targeting discreto e workflow TS senza HP", () => {
   const model = buildSpellUnifiedPanelContract({ spellId: "bane" });
 
@@ -386,6 +434,7 @@ test("Investitura della Fiamma distingue aura e linea attiva", () => {
   assert.equal(model.presentation.placement.ruleId, "xanathar-investitura-della-fiamma:aura");
   assert.equal(model.presentation.placement.policy, "automatic");
   assert.equal(model.presentation.placement.required, false);
+  assert.equal(model.presentation.targeting.confirmTargets, false);
   assert.equal(model.execution.hasZones, true);
   assert.equal(model.execution.hasHP, true);
   has(model.execution.lanes, SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION);
@@ -399,6 +448,20 @@ test("Investitura della Fiamma distingue aura e linea attiva", () => {
   assert.equal(action.presentation.placement.required, true);
   has(action.presentation.controls, "save-outcomes");
   assert.equal(action.execution.lane, SPELL_UNIFIED_PANEL_LANES.ACTIVE_RESOLUTION);
+});
+
+test("Guardiani Spirituali usa un'aura automatica senza target manuali", () => {
+  const model = buildSpellUnifiedPanelContract({
+    spellId: "spirit-guardians",
+  });
+
+  assert.equal(model.presentation.placement.policy, "automatic");
+  assert.equal(model.presentation.placement.required, false);
+  assert.equal(model.presentation.targeting.confirmTargets, false);
+  assert.equal(model.presentation.inputs.targets.required, false);
+  assert.equal(model.presentation.inputs.targets.visible, false);
+  assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+  assert.equal(model.execution.hasZones, true);
 });
 
 test("Folata di Vento espone il riorientamento come azione bonus", () => {

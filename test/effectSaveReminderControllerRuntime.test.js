@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 const STATE_KEY = "com.test.initiative/state";
 const EFFECT_CHANNEL = "com.test.initiative/effect-save-reminder";
+const HISTORY_REARM_CHANNEL = "com.test.initiative/reminder-history-rearm";
 const RUNTIME_CHANNEL = "com.test.initiative/runtime-cache";
 
 const runtime = {
@@ -68,6 +69,18 @@ function emitReady(ready) {
 function emitRuntimeCacheReset() {
   for (const listener of broadcastListeners.get(RUNTIME_CHANNEL) || []) {
     listener({ data: { type: "clear-runtime-caches" } });
+  }
+}
+
+function emitHistoryRearm(descriptor, activationId = descriptor?.activationId) {
+  for (const listener of broadcastListeners.get(HISTORY_REARM_CHANNEL) || []) {
+    listener({ data: {
+      type: "restore-reminder-activation",
+      owner: "effect-save",
+      activationId,
+      sceneEpoch: runtime.epoch,
+      descriptor: clone(descriptor),
+    } });
   }
 }
 
@@ -140,6 +153,7 @@ mock.module("@owlbear-rodeo/sdk", {
 mock.module("../src/constants.js", {
   exports: {
     EFFECT_SAVE_REMINDER_NOTICE_CHANNEL: EFFECT_CHANNEL,
+    REMINDER_HISTORY_REARM_CHANNEL: HISTORY_REARM_CHANNEL,
     ID: "com.test.initiative",
     RUNTIME_CACHE_CLEANUP_CHANNEL: RUNTIME_CHANNEL,
   },
@@ -147,6 +161,13 @@ mock.module("../src/constants.js", {
 
 mock.module("../src/effectSaveReminderCore.js", {
   exports: {
+    effectSaveReminderNoticeFromHistoryReplay({ replay }) {
+      const notice = replay?.descriptor?.notice || replay?.notice;
+      const target = Array.isArray(notice?.targets) ? notice.targets[0] : null;
+      return notice && target
+        ? { ...clone(notice), target: clone(target) }
+        : null;
+    },
     planEffectSaveReminderNotices({ previousInitiativeState, initiativeState }) {
       plannerCalls.push({
         previous: clone(previousInitiativeState),
@@ -442,4 +463,34 @@ test("lo stesso activationId può completare due cicli resolve/Undo senza riannu
   await waitFor(() => deliveryCalls.length === 3);
   assert.deepEqual(deliveryCalls[2].payload.notices.map((notice) => notice.activationId), ["activation-a"]);
   assert.deepEqual(deliveryCalls[2].payload.rearmActivationIds, ["activation-a"]);
+});
+
+test("History replay effect-save entra nella coda owner e viene consegnato una sola volta", async () => {
+  plannedActivationIds = [];
+  const descriptor = {
+    activationId: "old-effect:turn-start:1:1:first",
+    targetId: "first",
+    instanceId: "old-effect",
+    notice: {
+      activationId: "old-effect:turn-start:1:1:first",
+      effectName: "Effetto storico",
+      saveLabel: "TS Saggezza CD 14",
+      instruction: "Risolvi il tiro.",
+      kind: "effect-save",
+      targets: [{ id: "first", name: "Primo" }],
+      resolution: { mode: "consume" },
+    },
+  };
+
+  emitHistoryRearm(descriptor);
+  await waitFor(() => deliveryCalls.length === 1);
+  assert.deepEqual(
+    deliveryCalls[0].payload.notices.map((notice) => notice.activationId),
+    [descriptor.activationId],
+  );
+  assert.deepEqual(deliveryCalls[0].payload.rearmActivationIds, [descriptor.activationId]);
+
+  emitItems();
+  await flush();
+  assert.equal(deliveryCalls.length, 1);
 });

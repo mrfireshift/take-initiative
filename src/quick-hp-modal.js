@@ -667,7 +667,7 @@ async function readAuthoritativeHPVisualUpdates(
 
 async function showConcentrationWarnings(
   entries,
-  { causeHistoryEntryId = "", sceneEpoch } = {},
+  { causeHistoryEntryId = "", sceneEpoch, warningRuntimeScope = "" } = {},
 ) {
   const damage = entries
     .filter((entry) => entry.change.requested > 0)
@@ -676,6 +676,7 @@ async function showConcentrationWarnings(
     await broadcastConcentrationSaveWarnings(damage, {
       causeHistoryEntryId,
       sceneEpoch,
+      warningRuntimeScope,
     });
   }
 }
@@ -906,6 +907,7 @@ async function applyOperation() {
       showConcentrationWarnings(entries, {
         causeHistoryEntryId: concentrationCauseHistoryEntryId,
         sceneEpoch: operationSceneEpoch,
+        warningRuntimeScope: ownerSceneContext?.sceneIdentity || "",
       }),
       showEffectSaveDamageWarnings(entries),
     ]);

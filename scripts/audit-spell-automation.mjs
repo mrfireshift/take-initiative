@@ -158,10 +158,6 @@ const GAP_LABELS = Object.freeze({
 });
 
 const CURATED_REVIEW = Object.freeze({
-  "xanathar-anatema-elementale": {
-    gaps: ["CONDITIONAL_TRIGGER"],
-    note: "Il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi; resta manuale il trigger della prima applicazione di danno compatibile in ogni turno, con +2d6 e rimozione della resistenza.",
-  },
   "compulsion": {
     gaps: ["REPEATED_ACTION", "MOVEMENT_MECHANICS_MISSING"],
     note: "Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento.",
@@ -290,10 +286,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: [],
     note: "Zona madre, terreno difficile e reminder principali esistono; crepe e strutture non sono entità spaziali indipendenti con risoluzione atomica.",
   },
-  "wall-of-fire": {
-    gaps: ["HOT_SIDE_GEOMETRY", "CROSSING_DETECTION", "SLOT_SCALING"],
-    note: "Il muro e i reminder base esistono; non sono rappresentati lato caldo, fascia di 3 m, attraversamento senza sosta e aumento dei danni per slot.",
-  },
   "prismatic-wall": {
     gaps: ["LAYER_STATE_MACHINE", "CROSSING_DETECTION", "MULTI_SAVE_SEQUENCE"],
     note: "La sagoma base esiste, ma i sette strati, le distruzioni progressive, gli effetti per strato e le sequenze di TS non hanno uno stato dedicato.",
@@ -333,6 +325,11 @@ const CURATED_REVIEW = Object.freeze({
 });
 
 const CURATED_COMPLETE = Object.freeze({
+  "xanathar-anatema-elementale": "PASS: il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi. Il danno aggiuntivo e la rimozione della resistenza restano manuali per scelta di perimetro: il plugin non dispone degli strumenti per automatizzarli.",
+  "wall-of-fire": "PASS: il placement obbligatorio espone muro lineare o circolare ad anello e conserva il lato caldo scelto; il corpo, la fascia adiacente di 3 m e l'attraversamento continuo alimentano trigger distinti con deduplicazione una-volta-per-turno. Il danno iniziale e persistente usa input manuale con scaling 5d8 +1d8 per slot sopra il 4°; il plugin non automatizza il tiro o l'applicazione dei danni.",
+  "incendiary-cloud": "PASS: il placement obbligatorio crea la zona statica della nube e il workflow condiviso copre TS iniziale, 10d8 fuoco con metà al successo, ingresso, fine turno, scaling dello slot, fan-out indipendente per bersaglio, reminder resolution, membership, mutation e cleanup di concentrazione. Il movimento della nube resta manuale RAW: non esistono prompt di turn-start, drift automatico o swept-area trigger; il movimento della creatura dentro la nube continua a usare il trigger di ingresso.",
+  "web": "PASS: il punto entro 18 m crea una zona statica quadrata di 6 m per concentrazione fino a 1 ora; il cast non risolve un TS iniziale. Terreno difficile e membership persistente sono riconciliati; l'ingresso durante il proprio turno e l'inizio del proprio turno usano trigger distinti, una volta per turno, con TS Destrezza ed esiti indipendenti per bersaglio. Il fallimento applica Trattenuto, mentre la prova di Forza come azione e l'uscita dalla zona rimuovono la condizione collegata. Reconcile/reload e cleanup chiudono la zona e i legami senza stato stale.",
+  "xanathar-fulgore-nauseante": "PASS: la zona statica di raggio 9 m resta in concentrazione fino a 10 minuti e non risolve un TS iniziale. Entrata e inizio del turno usano TS Costituzione una volta per turno; il successo non crea azioni persistenti né danno, mentre il fallimento compone 4d10 radiosi, una contribution separata di Indebolimento e l'effetto di luce/anti-invisibilità dalla save automation RAW. Ogni effetto è legato alla specifica spell instance con expiry di concentrazione; il cleanup esistente rimuove soltanto i livelli e l'effetto prodotti da quella istanza. La composizione passa dal contratto generico `failureAutomation: \"spell-save\"` e non interpreta `failureEffect` testuale. Evidenza: `test/sickeningRadianceZoneComposition.test.js`, suite mirata 156/156 e build Vite riuscita.",
   "control-water": "La massa controllata resta una sola zona madre di 30 m legata alla concentrazione. Vortice usa una sottozona circolare fissa da 7,5 m, con contenimento rivalidato e reminder TS Forza 2d8; Inondazione conserva il reminder dell'onda sul turno del caster, mentre Deviare corrente e Separare le acque cambiano modalitÃ  e rimuovono il vortice senza inventare condizioni o movimento automatico.",
   earthquake: "La zona madre di 30 m conserva terreno difficile, TS e reminder delle strutture. Al primo turno successivo del caster il popup chiede da 1 a 6 fessure consecutive, ciascuna larga 3 m e avviata da un punto qualsiasi del bordo della root con orientamento libero; la geometria viene ritagliata alle sole caselle interne, i bersagli vengono deduplicati, il TS Destrezza Ã¨ raccolto una sola volta e il fallimento usa soltanto l'effetto semantico Caduto nella fessura, lasciando profonditÃ , quota e crolli manuali.",
   "bane": "Il workflow batch del TS Carisma, il limite di tre bersagli al 1° livello (+1 per slot superiore) e l'effetto -1d4 sui soli fallimenti sono dichiarati e operativi.",

@@ -562,6 +562,69 @@ test("V5: Placed Matched Visual (Web) genera matchedVisualContext con placement 
   assert.equal(plan.matchedVisualContext.preview.type, "square");
 });
 
+test("Web: initialResolution none non applica Trattenuto al cast", async () => {
+  const placement = {
+    status: "confirmed",
+    confirmed: true,
+    ruleId: "web:cast",
+    spellId: "web",
+    casterId: "caster-1",
+    targetLocked: true,
+    targetIds: ["target-a"],
+    preview: {
+      type: "square",
+      start: { x: 0, y: 0 },
+      end: { x: 150, y: 0 },
+      gridOrigin: { x: 0, y: 0 },
+      dpi: 150,
+      targetIds: ["target-a"],
+      targetLocked: true,
+    },
+  };
+  const command = areaCommandFor("web", {
+    slotLevel: 2,
+    targetIds: ["target-a"],
+    outcomes: { "target-a": "failed" },
+    placement,
+  });
+  const items = [
+    { id: "caster-1", name: "Caster", position: { x: 0, y: 0 }, metadata: {} },
+    { id: "target-a", name: "Target", position: { x: 0, y: 0 }, metadata: {} },
+  ];
+  const plan = await buildSpellAreaResolutionExecutionPlan(command, {
+    ...runtimeFor(["target-a"]),
+    readItems: async (ids) => items.filter((item) => ids.includes(item.id)),
+    readAllItems: async () => items,
+    readSceneMetadata: async () => ({}),
+    validateSpatial: async () => ({ valid: true, errors: [] }),
+    getInitiativeActorId: async () => null,
+    createSpellInstanceId: async () => "web-instance",
+    targetItems: items,
+  });
+
+  assert.equal(plan.valid, true, plan.errors?.map((entry) => entry.message).join(", "));
+  assert.equal(
+    plan.effectOperations.some((operation) => operation.conditionName === "Trattenuto"),
+    false,
+  );
+  assert.equal(
+    plan.effectOperations.some((operation) => (
+      operation.type === "spell:upsert"
+      && operation.targetIds?.includes("target-a")
+    )),
+    false,
+  );
+  assert.ok(
+    plan.effectOperations.some((operation) => (
+      operation.type === "spell:upsert"
+      && operation.targetIds?.includes("caster-1")
+    )),
+  );
+  assert.ok(
+    plan.effectOperations.some((operation) => operation.conditionName === "Terreno difficile / Ragnatela"),
+  );
+});
+
 test("V6: Hold Person senza bersagli falliti produce matchedVisualContext null", async () => {
   const command = areaCommandFor("hold-person", {
     slotLevel: 2,

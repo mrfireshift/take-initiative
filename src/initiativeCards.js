@@ -20,6 +20,7 @@ import {
   initiativeCardRegistryKeys,
   mergeInitiativeCardRegistries,
   normalizeInitiativeCardRegistry,
+  retainInitiativeCardRegistryWithinByteBudget,
   resolveInitiativeCardActorMatch,
 } from "./initiativeCardRegistryCore.js";
 import {
@@ -307,7 +308,12 @@ async function updateRoomCards(updater, { isCurrent = () => true } = {}) {
         OBR.room,
         METADATA_OWNERSHIP.INITIATIVE_CARDS,
         next,
-        { runtime: "initiativeCards" },
+        {
+          runtime: "initiativeCards",
+          roomBudget: {
+            retain: retainInitiativeCardRegistryWithinByteBudget,
+          },
+        },
       );
     } catch (error) {
       if (!localWritten) throw error;

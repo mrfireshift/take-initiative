@@ -111,21 +111,92 @@ export function snappedAreaLength(start, end, dpi) {
   return Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / safeDpi));
 }
 
-export function buildCircleArea(start, end, dpi, gridOrigin = start) {
+function buildCircleAnnulusArea(
+  origin,
+  cellsOrigin,
+  safeDpi,
+  outerSquares,
+  innerSquares = 0,
+  areaRole = "",
+) {
+  const outer = Math.max(1, Math.round(Number(outerSquares) || 1));
+  const inner = Math.max(0, Math.min(outer, Number(innerSquares) || 0));
+  const radius = outer * safeDpi;
+  const innerRadius = inner * safeDpi;
+  const cells = [];
+  for (let column = -outer - 2; column <= outer + 2; column += 1) {
+    for (let row = -outer - 2; row <= outer + 2; row += 1) {
+      const cell = cellRect(cellsOrigin, column, row, safeDpi);
+      const center = cellCenter(cell);
+      const distance = Math.hypot(center.x - origin.x, center.y - origin.y);
+      if (
+        distance <= radius + EPSILON
+        && distance >= innerRadius - EPSILON
+      ) {
+        cells.push(cell);
+      }
+    }
+  }
+  return {
+    type: "circle",
+    origin,
+    radius,
+    squares: outer,
+    cells,
+    ...(inner > 0 ? { ring: true, innerRadius, innerSquares: inner } : {}),
+    ...(areaRole ? { areaRole } : {}),
+  };
+}
+
+export function buildCircleArea(start, end, dpi, gridOrigin = start, options = {}) {
   const origin = finitePoint(start);
   const cellsOrigin = finitePoint(gridOrigin);
   const safeDpi = Math.max(1, Number(dpi) || 1);
   const squares = snappedAreaLength(start, end, safeDpi);
-  const radius = squares * safeDpi;
-  const cells = [];
-  for (let column = -squares - 1; column <= squares + 1; column += 1) {
-    for (let row = -squares - 1; row <= squares + 1; row += 1) {
-      const cell = cellRect(cellsOrigin, column, row, safeDpi);
-      const center = cellCenter(cell);
-      if (Math.hypot(center.x - origin.x, center.y - origin.y) <= radius + EPSILON) cells.push(cell);
-    }
+  return buildCircleAnnulusArea(
+    origin,
+    cellsOrigin,
+    safeDpi,
+    squares,
+    options?.ring ? options.ringInnerSquares : 0,
+    options?.areaRole,
+  );
+}
+
+export function buildCircleBandArea(
+  start,
+  end,
+  dpi,
+  gridOrigin = start,
+  options = {},
+) {
+  const origin = finitePoint(start);
+  const cellsOrigin = finitePoint(gridOrigin);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const bodyOuterSquares = snappedAreaLength(start, end, safeDpi);
+  const bandSquares = Math.max(1, Math.round(Number(options?.bandSquares) || 1));
+  const side = String(options?.bandSide || options?.side || "outside").trim().toLowerCase();
+  const bodyInnerSquares = Math.max(
+    0,
+    Math.min(bodyOuterSquares, Number(options?.ringInnerSquares) || 0),
+  );
+  let outerSquares = bodyOuterSquares;
+  let innerSquares = bodyOuterSquares;
+  if (bodyInnerSquares > 0 && side === "inside") {
+    outerSquares = bodyInnerSquares;
+    innerSquares = Math.max(0, bodyInnerSquares - bandSquares);
+  } else {
+    outerSquares = bodyOuterSquares + bandSquares;
+    innerSquares = bodyOuterSquares;
   }
-  return { type: "circle", origin, radius, squares, cells };
+  return buildCircleAnnulusArea(
+    origin,
+    cellsOrigin,
+    safeDpi,
+    outerSquares,
+    innerSquares,
+    "side-band",
+  );
 }
 
 export function buildSquareArea(start, end, dpi, gridOrigin = start) {
@@ -354,6 +425,101 @@ export function buildLineArea(
     widthSquares: safeWidthSquares,
     cells,
     points,
+    direction,
+    perpendicular,
+    distance,
+    centerOrigin,
+    centerEnd,
+    halfWidth,
+  };
+}
+
+export function buildLineSideBandArea(
+  start,
+  end,
+  dpi,
+  gridOrigin = start,
+  widthSquares = 1,
+  widthAnchor = "center",
+  options = {},
+) {
+  const body = buildLineArea(
+    start,
+    end,
+    dpi,
+    gridOrigin,
+    widthSquares,
+    widthAnchor,
+  );
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const bandSquares = Math.max(1, Math.round(Number(options?.bandSquares) || 1));
+  const side = String(options?.bandSide || options?.side || "left").trim().toLowerCase() === "right"
+    ? -1
+    : 1;
+  const outerHalfWidth = body.halfWidth + bandSquares * safeDpi;
+  const points = [
+    {
+      x: body.centerOrigin.x + body.perpendicular.x * body.halfWidth * side,
+      y: body.centerOrigin.y + body.perpendicular.y * body.halfWidth * side,
+    },
+    {
+      x: body.centerEnd.x + body.perpendicular.x * body.halfWidth * side,
+      y: body.centerEnd.y + body.perpendicular.y * body.halfWidth * side,
+    },
+    {
+      x: body.centerEnd.x + body.perpendicular.x * outerHalfWidth * side,
+      y: body.centerEnd.y + body.perpendicular.y * outerHalfWidth * side,
+    },
+    {
+      x: body.centerOrigin.x + body.perpendicular.x * outerHalfWidth * side,
+      y: body.centerOrigin.y + body.perpendicular.y * outerHalfWidth * side,
+    },
+  ];
+  const extent = Math.max(body.squares, body.widthSquares, bandSquares) + 3;
+  const cells = [];
+  const cellsOrigin = finitePoint(gridOrigin);
+  for (let column = -extent; column <= extent; column += 1) {
+    for (let row = -extent; row <= extent; row += 1) {
+      const cell = cellRect(cellsOrigin, column, row, safeDpi);
+      const center = cellCenter(cell);
+      const relativeOrigin = {
+        x: center.x - body.origin.x,
+        y: center.y - body.origin.y,
+      };
+      const along = relativeOrigin.x * body.direction.x
+        + relativeOrigin.y * body.direction.y;
+      const relativeCenter = {
+        x: center.x - body.centerOrigin.x,
+        y: center.y - body.centerOrigin.y,
+      };
+      const across = relativeCenter.x * body.perpendicular.x
+        + relativeCenter.y * body.perpendicular.y;
+      const signedAcross = across * side;
+      if (
+        along >= -EPSILON
+        && along <= body.distance + EPSILON
+        && signedAcross >= body.halfWidth - EPSILON
+        && signedAcross <= outerHalfWidth + EPSILON
+      ) {
+        cells.push(cell);
+      }
+    }
+  }
+  return {
+    type: "line",
+    areaRole: "side-band",
+    bandSide: side > 0 ? "left" : "right",
+    origin: body.origin,
+    squares: body.squares,
+    widthSquares: bandSquares,
+    cells,
+    points,
+    direction: body.direction,
+    perpendicular: body.perpendicular,
+    distance: body.distance,
+    centerOrigin: body.centerOrigin,
+    centerEnd: body.centerEnd,
+    halfWidth: body.halfWidth,
   };
 }
 
@@ -450,6 +616,17 @@ export function buildArea(
   if (type === "square") return buildSquareArea(start, end, dpi, gridOrigin);
   if (type === "cone") return buildConeArea(start, end, dpi, gridOrigin);
   if (type === "line") {
+    if (options?.band) {
+      return buildLineSideBandArea(
+        start,
+        end,
+        dpi,
+        gridOrigin,
+        options?.widthSquares,
+        options?.widthAnchor,
+        options.band,
+      );
+    }
     return buildLineArea(
       start,
       end,
@@ -468,7 +645,13 @@ export function buildArea(
       options?.widthSquares,
     );
   }
-  return buildCircleArea(start, end, dpi, gridOrigin);
+  if (options?.band) {
+    return buildCircleBandArea(start, end, dpi, gridOrigin, {
+      ...options.band,
+      ringInnerSquares: options?.ringInnerSquares,
+    });
+  }
+  return buildCircleArea(start, end, dpi, gridOrigin, options);
 }
 
 export function rectsOverlap(a, b) {
@@ -522,4 +705,65 @@ export function areaContainsBounds(area, bounds) {
 export function areaHitsBounds(area, bounds) {
   const rect = boundsToRect(bounds);
   return !!rect && Array.isArray(area?.cells) && area.cells.some((cell) => rectsOverlap(cell, rect));
+}
+
+function segmentIntersectsRect(start, end, rect) {
+  const x1 = Number(start?.x);
+  const y1 = Number(start?.y);
+  const x2 = Number(end?.x);
+  const y2 = Number(end?.y);
+  const minX = Number(rect?.x);
+  const minY = Number(rect?.y);
+  const maxX = minX + Number(rect?.width);
+  const maxY = minY + Number(rect?.height);
+  if (![x1, y1, x2, y2, minX, minY, maxX, maxY].every(Number.isFinite)) return false;
+  const strictlyInside = (x, y) => (
+    x > minX + EPSILON
+    && x < maxX - EPSILON
+    && y > minY + EPSILON
+    && y < maxY - EPSILON
+  );
+  if (strictlyInside(x1, y1) || strictlyInside(x2, y2)) {
+    return true;
+  }
+  let tMin = 0;
+  let tMax = 1;
+  const deltaX = x2 - x1;
+  const deltaY = y2 - y1;
+  for (const [origin, delta, minimum, maximum] of [
+    [x1, deltaX, minX, maxX],
+    [y1, deltaY, minY, maxY],
+  ]) {
+    if (Math.abs(delta) <= EPSILON) {
+      if (origin <= minimum + EPSILON || origin >= maximum - EPSILON) return false;
+      continue;
+    }
+    const entry = (minimum - origin) / delta;
+    const exit = (maximum - origin) / delta;
+    const low = Math.min(entry, exit);
+    const high = Math.max(entry, exit);
+    tMin = Math.max(tMin, low);
+    tMax = Math.min(tMax, high);
+    if (tMin > tMax + EPSILON) return false;
+  }
+  return tMax >= -EPSILON
+    && tMin <= 1 + EPSILON
+    && tMax > tMin + EPSILON;
+}
+
+export function areaIntersectsSegment(area, start, end, bounds) {
+  const tokenRect = boundsToRect(bounds);
+  if (!tokenRect || !Array.isArray(area?.cells) || !area.cells.length) return false;
+  const halfWidth = tokenRect.width / 2;
+  const halfHeight = tokenRect.height / 2;
+  return area.cells.some((cell) => segmentIntersectsRect(
+    start,
+    end,
+    {
+      x: cell.x - halfWidth,
+      y: cell.y - halfHeight,
+      width: cell.width + tokenRect.width,
+      height: cell.height + tokenRect.height,
+    },
+  ));
 }

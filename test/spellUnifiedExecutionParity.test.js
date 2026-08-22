@@ -143,7 +143,7 @@ function completeSession(contract, overrides = {}) {
     slotLevel: inputs.slot?.required ? contract.presentation.slot.default : null,
     variant: inputs.variant?.required
       ? contract.presentation.variant.options?.[0]?.value
-      : "",
+      : contract.presentation.placement?.choices?.[0]?.value || "",
     durationTurns: inputs.duration?.required ? 1 : null,
     targetIds,
     primaryTargetId: inputs.primaryTarget?.required ? targetIds[0] : "",

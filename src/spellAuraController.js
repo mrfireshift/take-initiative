@@ -1,6 +1,10 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
-import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
+import {
+  ID,
+  REMINDER_HISTORY_REARM_CHANNEL,
+  SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
+} from "./constants.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { queueSpellAreaEffectsMutation } from "./spellAreaMutationQueue.js";
@@ -17,6 +21,7 @@ import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import {
   mergeMobileAuraReminderMetadata,
   planMobileAuraReminder,
+  rearmedMobileAuraNotices,
 } from "./spellAuraReminderCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
@@ -44,9 +49,12 @@ let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
+let unsubscribeRuntimeHistoryRearm = null;
 let requestedReason = "event";
 let requestedForce = false;
 let completedSnapshotKey = null;
+const queuedRearmRequests = new Map();
+const historyRestoredActivationIds = new Set();
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 // createSceneItemBoundsCache resta posseduta dal servizio condiviso, non dal controller.
 const spatialSceneSnapshot = getSpatialSceneSnapshotService();
@@ -66,6 +74,26 @@ function boundsCenter(bounds) {
       }
       : null
   );
+}
+
+function historyAuraRearmRequest(data) {
+  if (data?.type !== "restore-reminder-activation") return null;
+  if (data?.owner !== "spell-aura" && data?.owner !== "static-zone") return null;
+  if (Number(data?.sceneEpoch) !== currentSceneEpoch()) return null;
+  const descriptor = data?.descriptor && typeof data.descriptor === "object"
+    ? data.descriptor
+    : null;
+  const activation = descriptor?.notice?.resolution?.activation;
+  if (!descriptor || activation?.metadataKey !== SPELL_AURA_META_KEY) return null;
+  const activationId = String(data?.activationId || descriptor?.activationId || "").trim();
+  const sourceActivationId = String(
+    activation?.sourceActivationId
+      || activation?.rootActivationId
+      || activationId,
+  ).trim();
+  return activationId && sourceActivationId
+    ? { activationId, sourceActivationId }
+    : null;
 }
 
 function circleCommands(radius) {
@@ -216,7 +244,11 @@ function spatialSnapshotProcessingKey(snapshot) {
   });
 }
 
-async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
+async function reconcileSpellAuras({
+  reason = "event",
+  force = false,
+  rearmRequests = [],
+} = {}) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const snapshot = await spatialSceneSnapshot.getSnapshot({ sceneEpoch });
@@ -293,6 +325,8 @@ async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
       ]),
   );
   const newTriggerNotices = [];
+  const rearmedTriggerNotices = [];
+  const canonicalPendingActivationIds = new Set();
 
   for (const aura of auras) {
     const caster = byId.get(aura.casterId);
@@ -332,8 +366,19 @@ async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
       initiativeState: sceneMetadata?.[STATE_KEY] || {},
       itemsById: byId,
       areaPosition: center,
+      preservePendingActivationIds: [...historyRestoredActivationIds],
     });
     newTriggerNotices.push(...reminderUpdate.notices);
+    for (const activation of reminderUpdate.runtime.pending) {
+      const activationId = String(activation?.id || "").trim();
+      if (activationId) canonicalPendingActivationIds.add(activationId);
+    }
+    rearmedTriggerNotices.push(...rearmedMobileAuraNotices({
+      auraItem: existingAuraVisualByInstance.get(aura.instanceId) || null,
+      pendingActivations: reminderUpdate.runtime.pending,
+      rearmRequests,
+      itemsById: byId,
+    }));
     desiredVisuals.push({
       aura,
       center,
@@ -342,6 +387,12 @@ async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
       sizeCells,
       reminderUpdate,
     });
+  }
+
+  for (const activationId of [...historyRestoredActivationIds]) {
+    if (!canonicalPendingActivationIds.has(activationId)) {
+      historyRestoredActivationIds.delete(activationId);
+    }
   }
 
   const activeInstanceIds = auras.map((aura) => aura.instanceId);
@@ -381,13 +432,25 @@ async function reconcileSpellAuras({ reason = "event", force = false } = {}) {
     scheduleSpellAuraRecovery();
     return;
   }
-  if (newTriggerNotices.length) {
+  const rearmedActivationIds = [...new Set(
+    rearmedTriggerNotices
+      .map((notice) => String(notice?.activationId || "").trim())
+      .filter(Boolean),
+  )];
+  const deliveryNotices = [...new Map(
+    [...newTriggerNotices, ...rearmedTriggerNotices]
+      .map((notice) => [notice.activationId, notice]),
+  ).values()];
+  if (deliveryNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
       {
         type: "show-zone-trigger-notices",
-        activationIds: newTriggerNotices.map((notice) => notice.activationId),
-        notices: newTriggerNotices,
+        activationIds: deliveryNotices.map((notice) => notice.activationId),
+        notices: deliveryNotices,
+        ...(rearmedActivationIds.length
+          ? { rearmActivationIds: rearmedActivationIds }
+          : {}),
       },
     ).catch((error) => {
       console.warn("[spell-aura] trigger notice:", error?.message || error);
@@ -414,11 +477,16 @@ async function pump() {
       requested = false;
       const reason = requestedReason;
       const force = requestedForce;
+      const rearmRequests = [...queuedRearmRequests.values()];
+      queuedRearmRequests.clear();
       requestedReason = "event";
       requestedForce = false;
       try {
-        await reconcileSpellAuras({ reason, force });
+        await reconcileSpellAuras({ reason, force, rearmRequests });
       } catch (error) {
+        for (const request of rearmRequests) {
+          queuedRearmRequests.set(request.activationId, request);
+        }
         console.error("[spell-aura] reconcile:", error);
         scheduleSpellAuraRecovery();
       }
@@ -463,6 +531,8 @@ export async function mountSpellAuraController() {
     if (!ready) {
       if (recoveryTimer) clearTimeout(recoveryTimer);
       recoveryTimer = null;
+      queuedRearmRequests.clear();
+      historyRestoredActivationIds.clear();
       completedSnapshotKey = null;
       stateMetadataWatcher.reset();
       return;
@@ -475,6 +545,16 @@ export async function mountSpellAuraController() {
       : stateMetadataWatcher.seed(metadata);
     if (observed.changed) requestSpellAuraReconcile({ reason: "metadata" });
   });
+  unsubscribeRuntimeHistoryRearm = OBR.broadcast.onMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    (event) => {
+      const request = historyAuraRearmRequest(event?.data);
+      if (!request) return;
+      queuedRearmRequests.set(request.activationId, request);
+      historyRestoredActivationIds.add(request.sourceActivationId);
+      requestSpellAuraReconcile({ reason: "reminder-history-rearm", force: true });
+    },
+  );
   requestSpellAuraReconcile({ reason: "mount", force: true });
   return true;
 }
@@ -488,6 +568,8 @@ export function unmountSpellAuraController() {
   unsubscribeSceneReady = null;
   unsubscribeSceneMetadata?.();
   unsubscribeSceneMetadata = null;
+  unsubscribeRuntimeHistoryRearm?.();
+  unsubscribeRuntimeHistoryRearm = null;
   if (timer) clearTimeout(timer);
   timer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
@@ -495,6 +577,8 @@ export function unmountSpellAuraController() {
   requested = false;
   requestedReason = "event";
   requestedForce = false;
+  queuedRearmRequests.clear();
+  historyRestoredActivationIds.clear();
   completedSnapshotKey = null;
   stateMetadataWatcher.reset();
   mounted = false;

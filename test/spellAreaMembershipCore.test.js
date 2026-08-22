@@ -236,6 +236,38 @@ test("entrata e uscita applicano e rimuovono il terreno difficile della zona", (
   assert.deepEqual(plan.operations[1].options.expiry, { mode: "manual" });
 });
 
+test("Ragnatela rimuove la condition linked quando il bersaglio esce dalla zona", () => {
+  const rule = getSpellAreaRuleById("web:cast");
+  const items = [
+    token("leaving", {
+      conditions: [{
+        id: "restrained-condition",
+        condition: "Trattenuto",
+        parentEffectId: "web-instance",
+        effectId: "web-save-on-turn-start",
+      }],
+    }),
+  ];
+
+  const plan = areaMembershipPlan({
+    instanceId: "web-instance",
+    sourceId: "caster",
+    rule,
+    desiredTargetIds: [],
+    items,
+    metaKey: META,
+    removeLinkedTriggerConditions: true,
+  });
+
+  assert.deepEqual(
+    plan.operations,
+    [{
+      type: "condition:remove-instances",
+      removals: [{ itemId: "leaving", instanceId: "restrained-condition" }],
+    }],
+  );
+});
+
 test("Folata di vento persiste sourceId, istanza e zona nel modificatore direzionale", () => {
   const plan = areaMembershipPlan({
     instanceId: "gust-instance",

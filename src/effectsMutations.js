@@ -67,6 +67,7 @@ import {
 import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressMovementHistory } from "./history.js";
+import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -101,6 +102,49 @@ function compactBackgroundUndoTransportResult(result) {
         ? { effectKeys: clone(plan.effectKeys) }
         : {}),
     },
+  };
+}
+
+function jsonUtf8Bytes(value) {
+  let serialized = "";
+  try {
+    serialized = JSON.stringify(value) || "";
+  } catch {
+    return 0;
+  }
+  if (typeof globalThis.TextEncoder === "function") {
+    return new globalThis.TextEncoder().encode(serialized).length;
+  }
+  try {
+    return encodeURIComponent(serialized).replace(/%[0-9A-F]{2}|./gu, "x").length;
+  } catch {
+    return serialized.length;
+  }
+}
+
+function backgroundResultDiagnostics({ requestId, kind, command, result }) {
+  return {
+    requestId,
+    kind,
+    "command.kind": command?.kind || null,
+    commandId: command?.commandId || result?.commandId || null,
+    status: result?.status || null,
+    totalJsonBytes: jsonUtf8Bytes({ requestId, result }),
+    planBytes: jsonUtf8Bytes(result?.plan),
+    planStatesBytes: jsonUtf8Bytes(result?.plan?.states),
+    historyEntryBytes: jsonUtf8Bytes(result?.historyEntry),
+    commitResultBytes: jsonUtf8Bytes(result?.commitResult),
+    changesBytes: jsonUtf8Bytes(result?.plan?.changes ?? result?.changes),
+  };
+}
+
+function backgroundResponseErrorDetails(error) {
+  const nested = error?.error && typeof error.error === "object" ? error.error : null;
+  return {
+    errorName: String(error?.name || "Error"),
+    errorMessage: String(error?.message || error || "Risposta coordinatore fallita."),
+    nestedErrorCode: nested?.code ?? null,
+    nestedErrorMessage: nested?.message ?? null,
   };
 }
 
@@ -160,6 +204,13 @@ function backgroundResultError(commandId, message) {
   };
 }
 
+const BACKGROUND_TRANSPORT_MAX_ATTEMPTS = 2;
+
+function isBackgroundTransportFailure(result) {
+  return result?.status === EFFECTS_MUTATION_STATUS.FAILED
+    && result?.error?.name === "BackgroundTransportError";
+}
+
 function mountBackgroundResultListener() {
   if (backgroundResultUnsubscribe || typeof OBR?.broadcast?.onMessage !== "function") return;
   backgroundResultUnsubscribe = OBR.broadcast.onMessage(
@@ -170,7 +221,9 @@ function mountBackgroundResultListener() {
       if (!request) return;
       backgroundPendingRequests.delete(data.requestId);
       clearTimeout(request.timer);
-      request.resolve(data.result || backgroundResultError(data.requestId, "Risposta coordinatore mancante."));
+      request.resolve(
+        data.result || backgroundResultError(request.commandId, "Risposta coordinatore mancante."),
+      );
     },
   );
 }
@@ -179,34 +232,59 @@ function requestBackgroundMutation(
   kind,
   payload,
   commandId,
-  { timeoutMs = BACKGROUND_TRANSPORT_TIMEOUT_MS } = {},
+  {
+    timeoutMs = BACKGROUND_TRANSPORT_TIMEOUT_MS,
+    maxAttempts = BACKGROUND_TRANSPORT_MAX_ATTEMPTS,
+  } = {},
 ) {
   mountBackgroundResultListener();
-  const requestId = createId("effects-transport");
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      backgroundPendingRequests.delete(requestId);
-      resolve(backgroundResultError(
-        commandId,
-        "Timeout del coordinatore effetti in background.",
-      ));
-    }, Math.max(100, Number(timeoutMs) || BACKGROUND_TRANSPORT_TIMEOUT_MS));
-    backgroundPendingRequests.set(requestId, { resolve, timer });
-    void OBR.broadcast.sendMessage(
-      EFFECTS_MUTATION_COMMAND_CHANNEL,
-      { requestId, kind, ...payload },
-      { destination: "LOCAL" },
-    ).catch((error) => {
-      const request = backgroundPendingRequests.get(requestId);
-      if (!request) return;
-      backgroundPendingRequests.delete(requestId);
-      clearTimeout(request.timer);
-      request.resolve(backgroundResultError(
-        commandId,
-        String(error?.message || error || "Invio al coordinatore fallito."),
-      ));
+  const attemptsLimit = Math.max(1, Math.min(
+    BACKGROUND_TRANSPORT_MAX_ATTEMPTS,
+    Math.floor(Number(maxAttempts) || BACKGROUND_TRANSPORT_MAX_ATTEMPTS),
+  ));
+  const requestAttempt = () => {
+    const requestId = createId("effects-transport");
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        backgroundPendingRequests.delete(requestId);
+        resolve(backgroundResultError(
+          commandId,
+          "Timeout del coordinatore effetti in background.",
+        ));
+      }, Math.max(100, Number(timeoutMs) || BACKGROUND_TRANSPORT_TIMEOUT_MS));
+      backgroundPendingRequests.set(requestId, { resolve, timer, commandId });
+      void OBR.broadcast.sendMessage(
+        EFFECTS_MUTATION_COMMAND_CHANNEL,
+        { requestId, kind, ...payload },
+        { destination: "LOCAL" },
+      ).catch((error) => {
+        const request = backgroundPendingRequests.get(requestId);
+        if (!request) return;
+        backgroundPendingRequests.delete(requestId);
+        clearTimeout(request.timer);
+        request.resolve(backgroundResultError(
+          commandId,
+          String(error?.message || error || "Invio al coordinatore fallito."),
+        ));
+      });
     });
-  });
+  };
+
+  return (async () => {
+    for (let attempt = 1; attempt <= attemptsLimit; attempt += 1) {
+      const result = await requestAttempt();
+      if (!isBackgroundTransportFailure(result) || attempt >= attemptsLimit) {
+        return result;
+      }
+      console.debug("[effects-transport] retry", {
+        kind,
+        commandId,
+        attempt,
+        nextAttempt: attempt + 1,
+      });
+    }
+    return backgroundResultError(commandId, "Transport effetti esaurito.");
+  })();
 }
 
 async function requestBackgroundSceneIdentity(commandId) {
@@ -364,14 +442,17 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
       if (sameValue(actual, after)) continue;
       change.metadataFields[field] = true;
       // Alcuni metadata tecnici accumulativi (es. reminderResolutions) possono
-      // fornire uno snapshot History piu compatto del valore live usato per la
-      // precondizione. Il commit continua a validare `expected` contro `actual`;
-      // cambia soltanto cio che l'Undo deve ripristinare.
+      // fornire snapshot History per-key distinti dal valore live. Il commit
+      // continua a validare `expected` contro `actual` e scrive sempre `after`.
       change.beforeMetadata[field] = descriptor?.historyBefore
         && typeof descriptor.historyBefore === "object"
         ? clone(descriptor.historyBefore)
         : actual;
       change.afterMetadata[field] = after;
+      if (descriptor?.historyAfter && typeof descriptor.historyAfter === "object") {
+        change.historyAfterMetadata ||= {};
+        change.historyAfterMetadata[field] = clone(descriptor.historyAfter);
+      }
     }
     if (Object.keys(change.metadataFields).length) {
       changesById.set(id, change);
@@ -785,7 +866,13 @@ function historyPlanMovementSuppression(plan) {
   return positions;
 }
 
-async function broadcastHistoryUndoSuppression({ ids, positions, until }) {
+async function broadcastHistoryUndoSuppression({
+  ids,
+  positions,
+  until,
+  sceneEpoch = currentSceneEpoch(),
+  sceneIdentity = null,
+}) {
   const movementIds = Object.keys(positions || {});
   const requestId = movementIds.length
     ? `history-undo-suppression:${Date.now()}:${Math.random().toString(36).slice(2)}`
@@ -809,6 +896,8 @@ async function broadcastHistoryUndoSuppression({ ids, positions, until }) {
       ids,
       positions,
       until,
+      ...(Number.isSafeInteger(sceneEpoch) ? { sceneEpoch } : {}),
+      ...(sceneIdentity ? { sceneIdentity } : {}),
       ...(requestId ? { requestId } : {}),
     }, { destination: "LOCAL" });
     if (acknowledged && !await acknowledged) {
@@ -1148,7 +1237,13 @@ async function commitHistoryUndoPlan(plan, { isCurrent }) {
     const until = Date.now() + HISTORY_UNDO_SUPPRESSION_MS;
     const positions = historyPlanMovementSuppression(plan);
     try {
-      await broadcastHistoryUndoSuppression({ ids: suppressionIds, positions, until });
+      await broadcastHistoryUndoSuppression({
+        ids: suppressionIds,
+        positions,
+        until,
+        sceneEpoch: currentSceneEpoch(),
+        sceneIdentity: backgroundSceneIdentity,
+      });
     } catch (error) {
       return {
         status: EFFECTS_MUTATION_STATUS.FAILED,
@@ -1406,6 +1501,71 @@ async function boardTokenItemsForSelectors(selectors = []) {
   return [...byId.values()];
 }
 
+async function auraItemsForSelectors(selectors = []) {
+  const candidates = await OBR.scene.items.getItems(
+    (item) => !!item?.metadata?.[SPELL_AURA_META_KEY],
+  );
+  const byId = new Map();
+  for (const selector of Array.isArray(selectors) ? selectors : []) {
+    const wantedInstanceId = String(selector?.instanceId || "").trim();
+    const wantedCasterId = String(selector?.casterId || "").trim();
+    for (const item of candidates) {
+      const metadata = item?.metadata?.[SPELL_AURA_META_KEY] || {};
+      if (selector?.all !== true) {
+        if (wantedInstanceId && String(metadata.instanceId || "").trim() !== wantedInstanceId) {
+          continue;
+        }
+        if (wantedCasterId && String(metadata.casterId || "").trim() !== wantedCasterId) {
+          continue;
+        }
+      }
+      if (item?.id) byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()];
+}
+
+function auraItemsEndedByPlan(auraItems = [], plan = null) {
+  const beforeActive = new Set();
+  const afterActive = new Set();
+  for (const change of Array.isArray(plan?.changes) ? plan.changes : []) {
+    for (const spell of Array.isArray(change?.before?.spells)
+      ? change.before.spells
+      : []) {
+      const instanceId = String(spell?.instanceId || "").trim();
+      if (instanceId) beforeActive.add(instanceId);
+    }
+    for (const concentration of Object.values(change?.before?.concentrations || {})) {
+      const instanceId = String(concentration?.instanceId || "").trim();
+      if (instanceId) beforeActive.add(instanceId);
+    }
+    for (const spell of Array.isArray(change?.after?.spells)
+      ? change.after.spells
+      : []) {
+      const instanceId = String(spell?.instanceId || "").trim();
+      if (instanceId) afterActive.add(instanceId);
+    }
+    for (const concentration of Object.values(change?.after?.concentrations || {})) {
+      const instanceId = String(concentration?.instanceId || "").trim();
+      if (instanceId) afterActive.add(instanceId);
+    }
+  }
+  return (Array.isArray(auraItems) ? auraItems : []).filter((item) => {
+    const instanceId = String(
+      item?.metadata?.[SPELL_AURA_META_KEY]?.instanceId || "",
+    ).trim();
+    return instanceId && beforeActive.has(instanceId) && !afterActive.has(instanceId);
+  });
+}
+
+function uniqueSceneItems(items = []) {
+  const byId = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    if (item?.id) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
 function itemCenter(bounds, item) {
   const x = Number(bounds?.center?.x ?? item?.position?.x);
   const y = Number(bounds?.center?.y ?? item?.position?.y);
@@ -1444,13 +1604,15 @@ async function prepareEffectsSideEffects(plan, command) {
       const boardTokenCandidates = await boardTokenItemsForSelectors(
         descriptor.selectors || [],
       );
+      const auraCandidates = await auraItemsForSelectors(descriptor.selectors || []);
       const { staticSpellZoneItemsEndedByPlan } = await import("./spellStaticZoneCore.js");
       prepared.push({
         type: descriptor.type,
-        items: [
+        items: uniqueSceneItems([
           ...staticSpellZoneItemsEndedByPlan(candidates, plan),
           ...spellBoardTokenItemsEndedByPlan(boardTokenCandidates, plan),
-        ],
+          ...auraItemsEndedByPlan(auraCandidates, plan),
+        ]),
       });
     } else if (descriptor?.type === "spell-board-token:place") {
       const spellId = String(descriptor.spellId || "").trim();
@@ -2006,7 +2168,7 @@ async function prepareEffectsSideEffects(plan, command) {
       }
       const after = {
         ...metadata,
-        triggerRuntime: consumeSpellZoneTrigger(runtime, activationId),
+        triggerRuntime: consumeSpellZoneTrigger(runtime, activationId, targetId),
       };
       prepared.push({
         type: descriptor.type,
@@ -2988,8 +3150,10 @@ export async function mountEffectsMutationCoordinatorService() {
       if (!data?.requestId || !["context", "apply", "undo"].includes(data.kind)) return;
       void (async () => {
         let result;
+        let handledCommand = null;
         try {
           const handled = await backgroundCommandBroker.handle(data);
+          handledCommand = handled.command || null;
           result = handled.result;
           if (data.kind !== "context") {
             const commandId = String(handled.command?.commandId || data.requestId);
@@ -3048,13 +3212,27 @@ export async function mountEffectsMutationCoordinatorService() {
         }
         const transportResult = data.kind === "undo"
           ? compactBackgroundUndoTransportResult(result)
-          : result;
+          : data.kind === "apply"
+            && handledCommand?.kind === "reminder-resolution"
+            ? compactBackgroundReminderTransportResult(result)
+            : result;
+        const responsePayload = { requestId: data.requestId, result: transportResult };
+        console.debug("[effects-coordinator] response-size", backgroundResultDiagnostics({
+          requestId: data.requestId,
+          kind: data.kind,
+          command: handledCommand,
+          result: transportResult,
+        }));
         await OBR.broadcast.sendMessage(
           EFFECTS_MUTATION_RESULT_CHANNEL,
-          { requestId: data.requestId, result: transportResult },
+          responsePayload,
           { destination: "LOCAL" },
         ).catch((error) => {
-          console.warn("[effects-coordinator] response:", error?.message || error);
+          console.warn("[effects-coordinator] response", {
+            ...backgroundResponseErrorDetails(error),
+            "command.kind": handledCommand?.kind || data.kind || null,
+            responseBytes: jsonUtf8Bytes(responsePayload),
+          });
         });
       })();
     },
@@ -3141,6 +3319,7 @@ export async function runEffectsMutation(operations = [], options = {}) {
     const sceneIdentity = options.sceneIdentity || await requestBackgroundSceneIdentity(commandId);
     const {
       sceneEpoch: _clientSceneEpoch,
+      transportTimeoutMs: _transportTimeoutMs,
       ...transportOptions
     } = serializableOptions;
     const result = await requestBackgroundMutation(
@@ -3154,6 +3333,7 @@ export async function runEffectsMutation(operations = [], options = {}) {
         },
       },
       commandId,
+      { timeoutMs: options.transportTimeoutMs },
     );
     const compatible = compatibilityPlan(result);
     if (
@@ -3218,6 +3398,7 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
     const sceneIdentity = options.sceneIdentity || await requestBackgroundSceneIdentity(commandId);
     const {
       sceneEpoch: _clientSceneEpoch,
+      transportTimeoutMs: _transportTimeoutMs,
       ...transportOptions
     } = serializableOptions;
     const result = await requestBackgroundMutation(
@@ -3231,6 +3412,7 @@ export async function undoEffectsMutation(entryOrEntries, options = {}) {
         },
       },
       commandId,
+      { timeoutMs: options.transportTimeoutMs },
     );
     return compatibilityPlan(result);
   }

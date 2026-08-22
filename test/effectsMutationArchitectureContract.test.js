@@ -143,7 +143,8 @@ test("il transport Effects non confronta epoch numeriche tra realm", () => {
     run.indexOf('requestBackgroundMutation(\n      "apply"'),
     run.indexOf("return compatibilityPlan(result);"),
   );
-  assert.doesNotMatch(wireCommand, /\bsceneEpoch\s*,/);
+  assert.doesNotMatch(wireCommand, /command:\s*\{[\s\S]*?\bsceneEpoch\s*:/);
+  assert.match(wireCommand, /commandId,\s*sceneIdentity/);
 });
 
 test("gli errori Effects espongono anche il reason di rejection", async () => {

@@ -2,9 +2,13 @@ import OBR from "@owlbear-rodeo/sdk";
 import {
   EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
   ID,
+  REMINDER_HISTORY_REARM_CHANNEL,
   RUNTIME_CACHE_CLEANUP_CHANNEL,
 } from "./constants.js";
-import { planEffectSaveReminderNotices } from "./effectSaveReminderCore.js";
+import {
+  effectSaveReminderNoticeFromHistoryReplay,
+  planEffectSaveReminderNotices,
+} from "./effectSaveReminderCore.js";
 import {
   currentSceneEpoch,
   isCurrentSceneEpoch,
@@ -20,6 +24,7 @@ import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 const STATE_KEY = `${ID}/state`;
 const announcedActivationIds = new Set();
 const rearmableActivationIds = new Set();
+const pendingHistoryReplays = new Map();
 let mounted = false;
 let sceneReady = false;
 let previousInitiativeState = null;
@@ -36,6 +41,7 @@ let unsubscribeMetadata = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
 let unsubscribeRuntimeCacheCleanup = null;
+let unsubscribeRuntimeHistoryRearm = null;
 let unsubscribeSceneEpoch = null;
 
 function snapshot(state) {
@@ -56,6 +62,7 @@ function resetRuntimeState() {
   previousInitiativeState = null;
   announcedActivationIds.clear();
   rearmableActivationIds.clear();
+  pendingHistoryReplays.clear();
   completedReconcileKey = null;
 }
 
@@ -79,11 +86,15 @@ async function reconcileEffectSaveReminders(
     resetRuntimeState();
     return;
   }
-  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) {
+    return;
+  }
   const metadata = sceneMetadata && typeof sceneMetadata === "object"
     ? sceneMetadata
     : await OBR.scene.getMetadata().catch(() => ({}));
-  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) {
+    return;
+  }
   const initiativeState = snapshot(metadata?.[STATE_KEY]);
   const sharedSnapshot = readSceneItemsSnapshot(sceneEpoch);
   const items = Array.isArray(sceneItems)
@@ -91,7 +102,9 @@ async function reconcileEffectSaveReminders(
     : sharedSnapshot.complete
       ? sharedSnapshot.items
       : await OBR.scene.items.getItems();
-  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) {
+    return;
+  }
   if (!stateMetadataWatcher.initialized) stateMetadataWatcher.seed(metadata);
   const generation = Number(options.generation)
     || Number(sharedSnapshot?.generation)
@@ -101,7 +114,9 @@ async function reconcileEffectSaveReminders(
     generation,
     stateDigest: stateMetadataWatcher.digest,
   });
-  if (options.force !== true && completedReconcileKey === reconcileKey) return;
+  if (options.force !== true && completedReconcileKey === reconcileKey) {
+    return;
+  }
   const previousState = previousInitiativeState;
   const plannedNotices = planEffectSaveReminderNotices({
     items,
@@ -109,6 +124,44 @@ async function reconcileEffectSaveReminders(
     initiativeState,
     includeCurrentTurnStart: previousState !== null,
   });
+  const replayNotices = [];
+  for (const [activationId, replay] of [...pendingHistoryReplays]) {
+    const notice = effectSaveReminderNoticeFromHistoryReplay({
+      replay,
+      items,
+    });
+    if (notice) {
+      replayNotices.push(notice);
+      continue;
+    }
+    const targetId = String(
+      replay?.targetId
+        || replay?.descriptor?.targetId
+        || replay?.descriptor?.notice?.targets?.[0]?.id
+        || "",
+    ).trim();
+    const targetPresent = items.some((item) => String(item?.id || "") === targetId);
+    // A consumed or removed canonical target can never accept this replay.
+    // A missing target may only be a short-lived item snapshot gap; bound the
+    // retries so a stale owner request cannot grow indefinitely.
+    if (!targetId || targetPresent) {
+      pendingHistoryReplays.delete(activationId);
+    } else {
+      const attempts = Math.max(0, Math.floor(Number(replay?.replayAttempts) || 0));
+      if (attempts >= 2) {
+        pendingHistoryReplays.delete(activationId);
+      } else {
+        pendingHistoryReplays.set(activationId, {
+          ...replay,
+          replayAttempts: attempts + 1,
+        });
+      }
+    }
+  }
+  const candidateNotices = [
+    ...plannedNotices,
+    ...replayNotices,
+  ];
   const currentActivationIds = new Set(
     plannedNotices
       .map((notice) => String(notice?.activationId || "").trim())
@@ -124,8 +177,14 @@ async function reconcileEffectSaveReminders(
     rearmableActivationIds.clear();
     for (const activationId of recent) rearmableActivationIds.add(activationId);
   }
-  const notices = plannedNotices.filter((notice) => !announcedActivationIds.has(notice.activationId));
-  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
+  const notices = [...new Map(candidateNotices.map((notice) => [
+    notice.activationId,
+    notice,
+  ])).values()]
+    .filter((notice) => !announcedActivationIds.has(notice.activationId));
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) {
+    return;
+  }
   if (!notices.length) {
     previousInitiativeState = initiativeState;
     completedReconcileKey = reconcileKey;
@@ -139,21 +198,32 @@ async function reconcileEffectSaveReminders(
       .map((notice) => notice.activationId)
       .filter((activationId) => rearmableActivationIds.has(activationId)),
   );
-  const delivery = await sendProjectedReminderPayload(
-    EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
-    {
-      type: "show-effect-save-notices",
-      notices,
-      ...(pendingRearmActivationIds.size
-        ? { rearmActivationIds: [...pendingRearmActivationIds] }
-        : {}),
-    },
-  );
-  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) return;
-  if (!(Number(delivery?.gm) > 0 || Number(delivery?.player) > 0)) return;
+  const payload = {
+    type: "show-effect-save-notices",
+    notices,
+    ...(pendingRearmActivationIds.size
+      ? { rearmActivationIds: [...pendingRearmActivationIds] }
+      : {}),
+  };
+  let delivery;
+  try {
+    delivery = await sendProjectedReminderPayload(
+      EFFECT_SAVE_REMINDER_NOTICE_CHANNEL,
+      payload,
+    );
+  } catch (error) {
+    throw error;
+  }
+  if (!isCurrentReconcile(sceneEpoch, reconcileRevision)) {
+    return;
+  }
+  if (!(Number(delivery?.gm) > 0 || Number(delivery?.player) > 0)) {
+    return;
+  }
   for (const activationId of pendingActivationIds) {
     announcedActivationIds.add(activationId);
     rearmableActivationIds.delete(activationId);
+    pendingHistoryReplays.delete(activationId);
   }
   if (announcedActivationIds.size > 500) {
     const recent = [...announcedActivationIds].slice(-250);
@@ -186,7 +256,11 @@ function enqueueReconcile(sceneMetadata = null, sceneItems = null, options = {})
         queuedItems = null;
         queuedItemGeneration = 0;
         queuedForce = false;
-        await reconcileEffectSaveReminders(metadata, items, { generation, force });
+        await reconcileEffectSaveReminders(metadata, items, {
+          generation,
+          force,
+          revision: options.revision ?? null,
+        });
       }
     } catch (error) {
       console.warn(
@@ -215,6 +289,7 @@ export async function mountEffectSaveReminderController() {
   unsubscribeItems = subscribeSceneItemChanges((event) => {
     enqueueReconcile(null, event?.allItems, {
       generation: event?.generation,
+      revision: event?.revision,
       reason: "items",
     });
   }, {
@@ -238,6 +313,27 @@ export async function mountEffectSaveReminderController() {
       if (sceneReady) enqueueReconcile(null, null, { force: true, reason: "runtime-cache-cleanup" });
     },
   );
+  unsubscribeRuntimeHistoryRearm = OBR.broadcast.onMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    (event) => {
+      const data = event?.data;
+      if (data?.type !== "restore-reminder-activation" || data?.owner !== "effect-save") return;
+      if (Number(data?.sceneEpoch) !== currentSceneEpoch()) return;
+      const activationId = String(data?.activationId || "").trim();
+      const descriptor = data?.descriptor && typeof data.descriptor === "object"
+        ? data.descriptor
+        : null;
+      if (!activationId || !descriptor) return;
+      pendingHistoryReplays.set(activationId, {
+        activationId,
+        ...descriptor,
+        replayAttempts: 0,
+      });
+      announcedActivationIds.delete(activationId);
+      rearmableActivationIds.add(activationId);
+      enqueueReconcile(null, null, { force: true, reason: "reminder-history-rearm" });
+    },
+  );
   unsubscribeSceneEpoch = subscribeSceneEpoch(({ phase }) => {
     if (phase === "unload") resetRuntimeState();
   });
@@ -255,6 +351,8 @@ export function unmountEffectSaveReminderController() {
   unsubscribeSceneReady = null;
   unsubscribeRuntimeCacheCleanup?.();
   unsubscribeRuntimeCacheCleanup = null;
+  unsubscribeRuntimeHistoryRearm?.();
+  unsubscribeRuntimeHistoryRearm = null;
   unsubscribeSceneEpoch?.();
   unsubscribeSceneEpoch = null;
   sceneReady = false;

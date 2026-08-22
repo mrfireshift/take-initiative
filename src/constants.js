@@ -4,6 +4,7 @@ export const ACTIVE_TURN_LABEL_META = `${ID}/activeTurnLabel`;
 export const TRACKER_PANEL_REQUEST_CHANNEL = `${ID}/tracker-panel-request`;
 export const SPELL_ZONE_TRIGGER_NOTICE_CHANNEL = `${ID}/spell-zone-trigger-notice`;
 export const EFFECT_SAVE_REMINDER_NOTICE_CHANNEL = `${ID}/effect-save-reminder-notice`;
+export const REMINDER_HISTORY_REARM_CHANNEL = `${ID}/reminder-history-rearm`;
 export const EFFECTS_MUTATION_COMMAND_CHANNEL = `${ID}/effects-mutation-command`;
 export const EFFECTS_MUTATION_RESULT_CHANNEL = `${ID}/effects-mutation-result`;
 export const HISTORY_OWNER_COMMAND_CHANNEL = `${ID}/history-owner-command`;

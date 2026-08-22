@@ -15,6 +15,9 @@ import {
   getSpellUnifiedLifecycleEligibility,
 } from "./spellUnifiedLifecycleAdapter.js";
 import {
+  getSpellUnifiedAreaEligibility,
+} from "./spellUnifiedAreaAdapter.js";
+import {
   buildSpellUnifiedPanelContract,
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
@@ -138,6 +141,44 @@ function quickActionEligibilityReason(contract, eligibility) {
   return text(eligibility?.code) || "lifecycle-review-required";
 }
 
+function isDirectAutomaticAreaCast(contract) {
+  const execution = contract?.execution || {};
+  const presentation = contract?.presentation || {};
+  const inputs = presentation.inputs || {};
+  const placement = presentation.placement || {};
+  const targeting = presentation.targeting || {};
+  const phase = presentation.phase || {};
+  const variant = presentation.variant || {};
+  const placementRules = Array.isArray(placement.rules) ? placement.rules : [];
+  const phaseValues = Array.isArray(phase.options)
+    ? phase.options.map((option) => text(option?.value)).filter(Boolean)
+    : [];
+  return execution.lane === SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION
+    && execution.hasZones === true
+    && !text(execution.selectedActionId)
+    && execution.castHasHP !== true
+    && execution.phaseHasHP !== true
+    && placement.policy === "automatic"
+    && placement.mode === "area"
+    && placementRules.length === 1
+    && placementRules[0]?.kind === "aura"
+    && targeting.mode === "geometric"
+    && targeting.confirmTargets !== true
+    && phase.selected === "cast"
+    && !phaseValues.some((value) => value !== "cast")
+    && variant.required !== true
+    && !(Array.isArray(variant.options) && variant.options.length)
+    && inputs.duration?.required !== true
+    && inputs.targets?.required !== true
+    && inputs.primaryTarget?.required !== true
+    && inputs.targetContext?.required !== true
+    && inputs.placement?.required !== true
+    && inputs.outcomes?.required !== true
+    && inputs.hp?.required !== true
+    && inputs.damage?.required !== true
+    && inputs.healing?.required !== true;
+}
+
 function candidateSession({ normalized, spell, contract, casterId, targetIds }) {
   const slotLevel = resolveSpellSlotLevel(spell, normalized.slotLevel);
   const castContext = Number.isInteger(slotLevel) ? { slotLevel } : {};
@@ -231,6 +272,40 @@ export function buildQuickActionSpellLaunchPlan({
       initialTargetIds,
       reason: "launch-mode-review",
     });
+  }
+
+  if (isDirectAutomaticAreaCast(contract)) {
+    const areaEligibility = getSpellUnifiedAreaEligibility(contract, reviewSession);
+    if (!areaEligibility.eligible) {
+      return review({
+        normalized,
+        spell,
+        contract,
+        session: reviewSession,
+        initialTargetIds,
+        reason: quickActionEligibilityReason(contract, areaEligibility),
+      });
+    }
+    const session = candidateSession({
+      normalized,
+      spell,
+      contract,
+      casterId,
+      targetIds: [],
+    });
+    return {
+      mode: "direct",
+      reason: "direct-safe",
+      kind: "spell",
+      launchMode: normalized.launchMode,
+      spellId: spell.id,
+      contract,
+      session,
+      areaExecution: true,
+      initialTargetIds,
+      replacesConcentration: resolveSpellConcentration(spell, false) === true
+        && session.phasePlan?.concentrationAction === "replace",
+    };
   }
 
   const eligibility = getSpellUnifiedLifecycleEligibility(contract);

@@ -5,17 +5,197 @@ import {
 } from "./reminderResolutionCore.js";
 import {
   EFFECTS_MUTATION_STATUS,
+  getEffectsMutationSceneContext,
   runEffectsMutation,
 } from "./effectsMutations.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
-import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import {
+  currentSceneEpoch,
+  isCurrentSceneEpoch,
+  subscribeSceneEpoch,
+} from "./sceneEpoch.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 
 const STATE_KEY = `${ID}/state`;
+const META_KEY = `${ID}/meta`;
+const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
 const pendingResolutions = new Map();
+const pendingResolutionRecoveryWaiters = new Set();
+const REMINDER_RESOLUTION_RECOVERY_BACKOFF_MS = Object.freeze([750, 1500, 3000]);
+const REMINDER_RESOLUTION_RECOVERY_MAX_DELAY_MS = 5000;
+let reminderResolutionGeneration = 0;
 export const REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED = true;
+
+function cloneValue(value) {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function resolutionIsCurrent(sceneEpoch, generation) {
+  return generation === reminderResolutionGeneration && isCurrentSceneEpoch(sceneEpoch);
+}
+
+function staleResolutionResult() {
+  return {
+    status: "stale",
+    message: "La scena è cambiata: il reminder non è più corrente. Puoi chiuderlo.",
+  };
+}
+
+function isBackgroundTransportFailure(value) {
+  return value?.status === EFFECTS_MUTATION_STATUS.FAILED
+    && (
+      value?.error?.name === "BackgroundTransportError"
+      || value?.name === "BackgroundTransportError"
+    );
+}
+
+function failedResolutionResult(error) {
+  return {
+    status: "failed",
+    message: String(
+      error?.message
+      || error?.error?.message
+      || "Risoluzione non riuscita; nessuna conseguenza è stata registrata.",
+    ),
+  };
+}
+
+function recoveryDelayMs(recoveryAttempt) {
+  const index = Math.max(0, Number(recoveryAttempt) - 1);
+  return Math.min(
+    REMINDER_RESOLUTION_RECOVERY_MAX_DELAY_MS,
+    REMINDER_RESOLUTION_RECOVERY_BACKOFF_MS[index]
+      || REMINDER_RESOLUTION_RECOVERY_MAX_DELAY_MS,
+  );
+}
+
+function waitForResolutionRecovery({ sceneEpoch, generation, delayMs }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer = null;
+    const waiter = {
+      cancel() {
+        finish(false);
+      },
+    };
+    const finish = (available) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      pendingResolutionRecoveryWaiters.delete(waiter);
+      resolve(available === true);
+    };
+    timer = setTimeout(() => finish(
+      resolutionIsCurrent(sceneEpoch, generation),
+    ), Math.max(0, Number(delayMs) || 0));
+    pendingResolutionRecoveryWaiters.add(waiter);
+  });
+}
+
+function plannedReminderMarker(plan) {
+  const patch = (Array.isArray(plan?.metadataPatches) ? plan.metadataPatches : [])
+    .find((entry) => String(entry?.id || "") === String(plan?.targetId || ""));
+  const markerValue = patch?.fields?.[REMINDER_RESOLUTIONS_FIELD]?.value;
+  const marker = markerValue?.[plan?.activationId];
+  return marker && typeof marker === "object" ? cloneValue(marker) : null;
+}
+
+function reminderMarkerMatches(actual, expected) {
+  if (!actual || typeof actual !== "object" || !expected || typeof expected !== "object") {
+    return false;
+  }
+  const actualKeys = Object.keys(actual).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  if (actualKeys.length !== expectedKeys.length
+    || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    return false;
+  }
+  return expectedKeys.every((key) => actual[key] === expected[key]);
+}
+
+function canonicalProbeHasBlockingSideEffect(plan) {
+  return Array.isArray(plan?.sideEffects) && plan.sideEffects.length > 0;
+}
+
+function recoveredReminderMutation({ descriptor, plan }) {
+  const changedIds = Array.isArray(plan?.targetIds) && plan.targetIds.length
+    ? [...plan.targetIds]
+    : [plan.targetId];
+  return {
+    status: EFFECTS_MUTATION_STATUS.APPLIED,
+    commandId: descriptor.commandId,
+    correlationId: descriptor.commandId,
+    kind: "reminder-resolution",
+    sceneEpoch: descriptor.options.sceneEpoch,
+    sceneIdentity: descriptor.sceneIdentity,
+    committed: true,
+    changedIds,
+    plan: {
+      changedIds,
+      changes: cloneValue(plan.changes || []),
+    },
+    historyPending: descriptor.options.deferHistory === true,
+    historyRecovered: false,
+    historySkipped: false,
+    historyError: descriptor.options.deferHistory === true
+      ? { name: "DeferredEffectsHistory", message: "effects-history-deferred" }
+      : null,
+    historyEntry: { id: descriptor.historyEntryId },
+    postCommitErrors: [],
+    sideEffectsPending: [],
+    sideEffectsRecovered: false,
+    commitResult: {
+      status: EFFECTS_MUTATION_STATUS.APPLIED,
+      committed: true,
+      changedIds,
+      postCommitErrors: [],
+      sideEffectsPending: [],
+      sideEffectChanges: [],
+    },
+  };
+}
+
+async function probeCanonicalReminderCommit({ descriptor, plan, sceneEpoch, generation }) {
+  if (!resolutionIsCurrent(sceneEpoch, generation)) return { stale: true, committed: false };
+  let items = [];
+  try {
+    items = await OBR.scene.items.getItems([descriptor.targetId]);
+  } catch {}
+  if (!resolutionIsCurrent(sceneEpoch, generation)) return { stale: true, committed: false };
+
+  const target = (Array.isArray(items) ? items : [])
+    .find((item) => String(item?.id || "") === String(descriptor.targetId));
+  const actualMarker = target?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD]?.[descriptor.activationId];
+  const markerMatches = reminderMarkerMatches(actualMarker, descriptor.expectedReminderMarker);
+  const committed = markerMatches && !canonicalProbeHasBlockingSideEffect(plan);
+  console.debug("[reminder-resolution] canonical-probe", {
+    activationId: descriptor.activationId,
+    commandId: descriptor.commandId,
+    committed,
+  });
+  if (!committed) return { stale: false, committed: false };
+
+  console.debug("[reminder-resolution] recovered-from-canonical", {
+    activationId: descriptor.activationId,
+    commandId: descriptor.commandId,
+  });
+  return {
+    stale: false,
+    committed: true,
+    mutation: recoveredReminderMutation({ descriptor, plan }),
+  };
+}
+
+// A scene unload invalidates a recovery that may still be waiting for the
+// transport. The in-flight request itself is owned by the Effects transport;
+// the generation guard below prevents its result from applying to a new scene.
+subscribeSceneEpoch((event) => {
+  if (event?.phase === "unload") clearReminderResolutionQueue();
+});
 
 function createResolutionAttemptId() {
   try {
@@ -143,104 +323,16 @@ function formatReminderResolutionLabel({ notice, plan }) {
   return `${humanName} · ${outcomeText}`;
 }
 
-async function executeReminderResolution({
-  notice = null,
-  outcome = "",
-  damageRoll = 0,
-  sceneEpoch = currentSceneEpoch(),
-  historyReplay = null,
-} = {}) {
-  const resolutionAttemptId = createResolutionAttemptId();
-  if (await OBR.player.getRole().catch(() => "PLAYER") !== "GM") {
-    return { status: "forbidden", message: "Solo il GM può risolvere un reminder." };
-  }
-  if (!isCurrentSceneEpoch(sceneEpoch)) {
-    return {
-      status: "stale",
-      message: "La scena è cambiata: il reminder non è più corrente. Puoi chiuderlo.",
-    };
-  }
-  if (!await OBR.scene.isReady().catch(() => false)) {
-    return {
-      status: "stale",
-      message: "La scena non è disponibile: nessuna conseguenza è stata applicata.",
-    };
-  }
-  const [items, sceneMetadata] = await Promise.all([
-    OBR.scene.items.getItems(),
-    OBR.scene.getMetadata().catch(() => ({})),
-  ]);
-  if (!isCurrentSceneEpoch(sceneEpoch)) {
-    return {
-      status: "stale",
-      message: "La scena è cambiata: il reminder non è più corrente. Puoi chiuderlo.",
-    };
-  }
-  const plan = buildReminderResolutionPlan({
-    notice,
-    items,
-    outcome,
-    damageRoll,
-    sceneMetadata,
-  });
-  if (plan.status !== "ready") return plan;
-
-  const resolutionLabel = formatReminderResolutionLabel({ notice, plan });
-  const outcomeLabel = {
-    passed: "Superato",
-    failed: "Fallito",
-    immune: "Immune",
-    confirmed: "Confermato",
-  }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
-  const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;
-  let mutation;
-  try {
-    mutation = await runEffectsMutation(plan.operations, {
-      commandId,
-      sceneEpoch,
-      kind: "reminder-resolution",
-      label: resolutionLabel,
-      targetIds: plan.targetIds,
-      metadataPatches: plan.metadataPatches,
-      sideEffects: plan.sideEffects,
-      sceneMetadataPreconditions: plan.sceneMetadataPreconditions,
-      requireChanges: true,
-      deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED,
-      history: {
-        kind: "reminder-resolution",
-        label: resolutionLabel,
-        payload: {
-          activationId: plan.activationId,
-          targetId: plan.targetId,
-          outcome: plan.outcome,
-          damage: plan.damage.amount,
-          damageFactor: plan.damage.factor,
-          ...(historyReplay && typeof historyReplay === "object"
-            ? { replay: JSON.parse(JSON.stringify(historyReplay)) }
-            : {}),
-          causality: reminderCausality(notice, plan),
-        },
-      },
-    });
-  } catch (error) {
-    return {
-      status: "failed",
-      message: String(error?.message || "Risoluzione non riuscita; nessuna conseguenza è stata registrata."),
-    };
-  }
-  if (mutation?.status !== EFFECTS_MUTATION_STATUS.APPLIED) {
-    const stale = mutation?.status === EFFECTS_MUTATION_STATUS.CONFLICT
-      || mutation?.status === EFFECTS_MUTATION_STATUS.REJECTED;
-    return {
-      status: stale ? "stale" : "failed",
-      message: stale
-        ? staleMessage(mutation)
-        : String(mutation?.error?.message || "Risoluzione non riuscita; nessuna conseguenza è stata registrata."),
-    };
-  }
-
+async function completeReminderResolution({
+  mutation,
+  plan,
+  sceneEpoch,
+  items,
+  outcomeLabel,
+  isCurrent,
+}) {
   const derivedTasks = [];
-  if (plan.hpChange && isCurrentSceneEpoch(sceneEpoch)) {
+  if (plan.hpChange && isCurrent()) {
     const update = {
       tokenId: plan.targetId,
       hp: plan.hpChange.after,
@@ -263,7 +355,7 @@ async function executeReminderResolution({
   if (
     plan.hpChange
     && plan.hpChange.after < plan.hpChange.before
-    && isCurrentSceneEpoch(sceneEpoch)
+    && isCurrent()
   ) {
     const causeHistoryEntryId = String(mutation?.historyEntry?.id || "").trim();
     derivedTasks.push(broadcastConcentrationSaveWarnings([{
@@ -273,6 +365,9 @@ async function executeReminderResolution({
       eventId: `reminder-resolution:${plan.activationId}`,
       causeHistoryEntryId,
       sceneEpoch,
+      warningRuntimeScope: mutation?.sceneIdentity
+        || mutation?.historyEntry?.effectsMutation?.sceneIdentity
+        || "",
     }).catch((error) => {
       console.warn("[reminder-resolution] concentration warning:", error?.message || error);
     }));
@@ -297,6 +392,8 @@ async function executeReminderResolution({
     return {
       status: "applied",
       message: "Reminder risolto; la chiusura visuale dell'attivazione sarà completata dal coordinatore.",
+      mutation,
+      plan,
     };
   }
   return {
@@ -307,6 +404,185 @@ async function executeReminderResolution({
     mutation,
     plan,
   };
+}
+
+async function executeReminderResolution({
+  notice = null,
+  outcome = "",
+  damageRoll = 0,
+  sceneEpoch = currentSceneEpoch(),
+  historyReplay = null,
+} = {}) {
+  const resolutionAttemptId = createResolutionAttemptId();
+  const generation = reminderResolutionGeneration;
+  if (await OBR.player.getRole().catch(() => "PLAYER") !== "GM") {
+    return { status: "forbidden", message: "Solo il GM può risolvere un reminder." };
+  }
+  if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
+  if (!await OBR.scene.isReady().catch(() => false)) {
+    return {
+      status: "stale",
+      message: "La scena non è disponibile: nessuna conseguenza è stata applicata.",
+    };
+  }
+  const [items, sceneMetadata] = await Promise.all([
+    OBR.scene.items.getItems(),
+    OBR.scene.getMetadata().catch(() => ({})),
+  ]);
+  if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
+  const plan = buildReminderResolutionPlan({
+    notice,
+    items,
+    outcome,
+    damageRoll,
+    sceneMetadata,
+  });
+  if (plan.status !== "ready") {
+    return plan;
+  }
+
+  const resolutionLabel = formatReminderResolutionLabel({ notice, plan });
+  const outcomeLabel = {
+    passed: "Superato",
+    failed: "Fallito",
+    immune: "Immune",
+    confirmed: "Confermato",
+  }[plan.outcome] || (plan.resolutionMode === "consume" ? "Chiuso" : plan.outcome);
+  const commandId = `reminder-resolution:${plan.activationId}:${resolutionAttemptId}`;
+
+  let sceneContext;
+  try {
+    sceneContext = await getEffectsMutationSceneContext({ commandId });
+  } catch (error) {
+    return resolutionIsCurrent(sceneEpoch, generation)
+      ? failedResolutionResult(error)
+      : staleResolutionResult();
+  }
+  if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
+  const sceneIdentity = String(sceneContext?.sceneIdentity || "").trim();
+  if (!sceneIdentity) {
+    return failedResolutionResult({
+      message: "Contesto scena del coordinatore non disponibile.",
+    });
+  }
+
+  // Build the complete command once. Every recovery attempt reuses this
+  // descriptor, including the immutable History payload and scene identity.
+  const descriptor = {
+    activationId: plan.activationId,
+    targetId: plan.targetId,
+    resolutionAttemptId,
+    commandId,
+    historyEntryId: `effects-history:${commandId}`,
+    sceneIdentity,
+    expectedReminderMarker: plannedReminderMarker(plan),
+    operations: cloneValue(plan.operations),
+    options: cloneValue({
+      commandId,
+      sceneEpoch,
+      sceneIdentity,
+      kind: "reminder-resolution",
+      label: resolutionLabel,
+      targetIds: plan.targetIds,
+      metadataPatches: plan.metadataPatches,
+      sideEffects: plan.sideEffects,
+      sceneMetadataPreconditions: plan.sceneMetadataPreconditions,
+      requireChanges: true,
+      deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED,
+      history: {
+        kind: "reminder-resolution",
+        label: resolutionLabel,
+        payload: {
+          activationId: plan.activationId,
+          targetId: plan.targetId,
+          outcome: plan.outcome,
+          damage: plan.damage.amount,
+          damageFactor: plan.damage.factor,
+          ...(plan.hpChange && typeof plan.hpChange === "object"
+            ? { hpChange: cloneValue(plan.hpChange) }
+            : {}),
+          ...(historyReplay && typeof historyReplay === "object"
+            ? { replay: JSON.parse(JSON.stringify(historyReplay)) }
+            : {}),
+          causality: reminderCausality(notice, plan),
+        },
+      },
+    }),
+  };
+
+  let mutation;
+  let recoveryAttempt = 0;
+  while (true) {
+    if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
+    try {
+      mutation = await runEffectsMutation(descriptor.operations, descriptor.options);
+    } catch (error) {
+      mutation = {
+        status: EFFECTS_MUTATION_STATUS.FAILED,
+        error: {
+          name: String(error?.name || "Error"),
+          message: String(error?.message || error),
+        },
+      };
+    }
+    if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
+    if (mutation?.status === EFFECTS_MUTATION_STATUS.APPLIED) break;
+    if (isBackgroundTransportFailure(mutation)) {
+      const canonicalRecovery = await probeCanonicalReminderCommit({
+        descriptor,
+        plan,
+        sceneEpoch,
+        generation,
+      });
+      if (canonicalRecovery.stale || !resolutionIsCurrent(sceneEpoch, generation)) {
+        return staleResolutionResult();
+      }
+      if (canonicalRecovery.committed) {
+        mutation = canonicalRecovery.mutation;
+        break;
+      }
+      recoveryAttempt += 1;
+      const delayMs = recoveryDelayMs(recoveryAttempt);
+      console.debug("[reminder-resolution] transport-pending", {
+        activationId: descriptor.activationId,
+        commandId: descriptor.commandId,
+        recoveryAttempt,
+        recoveryDelayMs: delayMs,
+      });
+      const recoveryReady = await waitForResolutionRecovery({
+        sceneEpoch,
+        generation,
+        delayMs,
+      });
+      if (!recoveryReady || !resolutionIsCurrent(sceneEpoch, generation)) {
+        return staleResolutionResult();
+      }
+      console.debug("[reminder-resolution] recovery-attempt", {
+        activationId: descriptor.activationId,
+        commandId: descriptor.commandId,
+        recoveryAttempt,
+        recoveryDelayMs: delayMs,
+      });
+      continue;
+    }
+    const stale = mutation?.status === EFFECTS_MUTATION_STATUS.CONFLICT
+      || mutation?.status === EFFECTS_MUTATION_STATUS.REJECTED;
+    return {
+      status: stale ? "stale" : "failed",
+      message: stale
+        ? staleMessage(mutation)
+        : String(mutation?.error?.message || "Risoluzione non riuscita; nessuna conseguenza è stata registrata."),
+    };
+  }
+
+  return completeReminderResolution({
+    mutation,
+    plan,
+    sceneEpoch,
+    items,
+    outcomeLabel,
+    isCurrent: () => resolutionIsCurrent(sceneEpoch, generation),
+  });
 }
 
 export function resolveReminder(options = {}) {
@@ -326,5 +602,7 @@ export function resolveReminder(options = {}) {
 }
 
 export function clearReminderResolutionQueue() {
+  reminderResolutionGeneration += 1;
   pendingResolutions.clear();
+  for (const waiter of [...pendingResolutionRecoveryWaiters]) waiter.cancel();
 }

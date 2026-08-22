@@ -14,6 +14,8 @@ import {
   getCurrentSpellAppliedAt,
 } from "./spellApplicationExecutor.js";
 import { findActiveSpellConcentration } from "./spellCastPhaseCore.js";
+import { currentSceneEpoch } from "./sceneEpoch.js";
+import { executeSpellUnifiedArea } from "./spellUnifiedAreaAdapter.js";
 import { executeSpellUnifiedLifecycle } from "./spellUnifiedLifecycleAdapter.js";
 import { getSpellDefinition } from "./spells-srd.js";
 
@@ -96,8 +98,8 @@ export async function executeDirectQuickAction({
     }
   }
 
-  const appliedAt = await getCurrentSpellAppliedAt();
   if (decision.kind === "condition") {
+    const appliedAt = await getCurrentSpellAppliedAt();
     const changedIds = await executeConditionApplication({
       ...decision.request,
       appliedAt,
@@ -105,6 +107,34 @@ export async function executeDirectQuickAction({
     });
     return { ...decision, mode: "executed", changedIds };
   }
+
+  if (decision.areaExecution === true) {
+    const areaResult = await executeSpellUnifiedArea({
+      contract: decision.contract,
+      session: decision.session,
+      source: { sceneEpoch: currentSceneEpoch() },
+      runtime: { spell },
+    });
+    if (areaResult.status === "rejected") {
+      return {
+        ...decision,
+        mode: "review",
+        reason: areaResult.errors?.[0]?.code || "area-session-incomplete",
+        areaResult,
+      };
+    }
+    if (areaResult.status === "failed") {
+      throw new Error(areaResult.errors?.[0]?.code || "quick-action-area-spell-failed");
+    }
+    return {
+      ...decision,
+      mode: "executed",
+      changedIds: areaResult.changedIds,
+      areaResult,
+    };
+  }
+
+  const appliedAt = await getCurrentSpellAppliedAt();
 
   const lifecycleResult = await executeSpellUnifiedLifecycle({
     contract: decision.contract,

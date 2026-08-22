@@ -4,16 +4,20 @@ import {
   normalizeSpellZoneTriggerRuntime,
   planSpellZoneTriggers,
 } from "./spellZoneTriggerCore.js";
-import { zoneTriggerNoticeFromActivation } from "./zoneTriggerNoticeCore.js";
+import { zoneTriggerNoticesFromActivation } from "./zoneTriggerNoticeCore.js";
 
 export function planStaticSpellZoneReminder({
   zoneItem = null,
   rule = null,
   desiredTargetIds = [],
   directTargetIds = [],
+  currentTargetIdsByTrigger = {},
+  crossingTargetIdsByTrigger = {},
   currentTargetPositions = {},
   initiativeState = null,
   suppressedTargetIdsByTrigger = {},
+  preservePendingActivationIds = [],
+  suppressGeometricActivationTargetIds = [],
   itemsById = new Map(),
   now = Date.now(),
 } = {}) {
@@ -36,6 +40,18 @@ export function planStaticSpellZoneReminder({
       memberIds: Array.isArray(zoneMetadata.targetIds)
         ? [...zoneMetadata.targetIds]
         : [],
+      ...(Object.keys(currentTargetIdsByTrigger || {}).length
+        ? {
+          memberIdsByTrigger: Object.fromEntries(
+            Object.keys(currentTargetIdsByTrigger).map((triggerId) => [
+              triggerId,
+              Array.isArray(zoneMetadata.targetIds)
+                ? [...zoneMetadata.targetIds]
+                : [],
+            ]),
+          ),
+        }
+        : {}),
       areaPosition: zoneItem?.position && typeof zoneItem.position === "object"
         ? { ...zoneItem.position }
         : null,
@@ -46,20 +62,23 @@ export function planStaticSpellZoneReminder({
     runtime: planningRuntime,
     currentTargetIds: desiredTargetIds,
     currentDirectTargetIds: directTargetIds,
+    currentTargetIdsByTrigger,
+    crossingTargetIdsByTrigger,
     currentTargetPositions,
     initiativeState,
     suppressedTargetIdsByTrigger,
+    preservePendingActivationIds,
+    suppressGeometricActivationTargetIds,
     areaPosition: zoneItem?.position,
     now,
   });
   const noticeItemsById = new Map(itemsById);
   if (zoneItem?.id) noticeItemsById.set(zoneItem.id, zoneItem);
   const notices = triggerPlan.newActivations
-    .map((activation) => zoneTriggerNoticeFromActivation({
+    .flatMap((activation) => zoneTriggerNoticesFromActivation({
       ...activation,
       zoneItemId: zoneItem?.id,
-    }, noticeItemsById))
-    .filter(Boolean);
+    }, noticeItemsById));
 
   return {
     changed: JSON.stringify(previousRuntime) !== JSON.stringify(triggerPlan.runtime),
@@ -68,6 +87,28 @@ export function planStaticSpellZoneReminder({
     newActivations: triggerPlan.newActivations,
     notices,
   };
+}
+
+export function rearmedStaticSpellZoneNotices({
+  zoneItem = null,
+  pendingActivations = [],
+  rearmActivationIds = [],
+  itemsById = new Map(),
+} = {}) {
+  const rearmIds = new Set(
+    (Array.isArray(rearmActivationIds) ? rearmActivationIds : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
+  if (!rearmIds.size) return [];
+  const noticeItemsById = new Map(itemsById);
+  if (zoneItem?.id) noticeItemsById.set(zoneItem.id, zoneItem);
+  return (Array.isArray(pendingActivations) ? pendingActivations : [])
+    .filter((activation) => rearmIds.has(String(activation?.id || "").trim()))
+    .flatMap((activation) => zoneTriggerNoticesFromActivation({
+      ...activation,
+      zoneItemId: zoneItem?.id,
+    }, noticeItemsById));
 }
 
 export function mergeStaticSpellZoneReminderMetadata(

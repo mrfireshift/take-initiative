@@ -119,7 +119,6 @@ function sleep(ms) {
 async function resetScene(items = []) {
   historyOwner.unmountHistoryOwner();
   effects.unmountEffectsMutationCoordinatorService();
-  broadcastListeners.clear();
   sceneState.ready = true;
   sceneState.metadata = {};
   sceneState.items = clone(items);

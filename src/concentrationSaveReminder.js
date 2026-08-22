@@ -9,6 +9,22 @@ const CONCENTRATION_WARNING_CHANNEL = `${ID}/concentration-warning`;
 
 let concentrationDamageSequence = 0;
 
+async function warningRuntimeScopeFor(options = {}) {
+  const supplied = String(
+    options.warningRuntimeScope || options.sceneIdentity || "",
+  ).trim();
+  if (supplied) return supplied;
+  try {
+    const { getEffectsMutationSceneContext } = await import("./effectsMutations.js");
+    const context = await getEffectsMutationSceneContext({
+      commandId: String(options.eventId || "concentration-warning").trim(),
+    });
+    return String(context?.sceneIdentity || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export async function broadcastConcentrationSaveWarnings(changes = [], options = {}) {
   const damageById = concentrationDamageByItemId(changes);
   if (!damageById.size) return [];
@@ -32,14 +48,20 @@ export async function broadcastConcentrationSaveWarnings(changes = [], options =
     causeHistoryEntryId: String(options.causeHistoryEntryId || "").trim(),
   });
   if (!warnings.length) return [];
+  const warningRuntimeScope = await warningRuntimeScopeFor(options);
+  const scopedWarnings = warnings.map((warning) => ({
+    ...warning,
+    ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
+  }));
 
   const sendMessage = options.sendMessage
     || ((channel, payload, delivery) => OBR.broadcast.sendMessage(channel, payload, delivery));
   await sendMessage(CONCENTRATION_WARNING_CHANNEL, {
     type: "show-concentration-warning",
-    warnings,
+    warnings: scopedWarnings,
     createdAt: now,
     sceneEpoch,
+    ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
   }, { destination: "ALL" });
-  return warnings;
+  return scopedWarnings;
 }

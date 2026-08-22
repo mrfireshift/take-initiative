@@ -5,6 +5,10 @@ import {
   actorProfileIdFromRegistryEntry,
   legacyActorIdentityKeys,
 } from "./actorIdentityCore.js";
+import {
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  jsonBytes,
+} from "./roomMetadataBudget.js";
 
 export function initiativeCardRegistryKeys(item) {
   const imageKey = canonicalImageUrl(item);
@@ -23,6 +27,26 @@ export function normalizeInitiativeCardRegistry(value) {
     registry[key] = entry;
   }
   return registry;
+}
+
+export function retainInitiativeCardRegistryWithinByteBudget(
+  value,
+  maxBytes = ROOM_METADATA_DOMAIN_MAX_BYTES["initiative-cards"],
+) {
+  const source = normalizeInitiativeCardRegistry(value);
+  const budget = Math.max(2, Math.floor(Number(maxBytes) || 0));
+  if (jsonBytes(source) <= budget) return { ...source };
+
+  const ordered = Object.entries(source).sort(([leftKey, left], [rightKey, right]) => {
+    const updatedAt = (Number(right?.updatedAt) || 0) - (Number(left?.updatedAt) || 0);
+    return updatedAt || leftKey.localeCompare(rightKey);
+  });
+  const retained = {};
+  for (const [key, entry] of ordered) {
+    const candidate = { ...retained, [key]: entry };
+    if (jsonBytes(candidate) <= budget) retained[key] = entry;
+  }
+  return retained;
 }
 
 export function mergeInitiativeCardRegistries(...sources) {

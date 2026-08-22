@@ -4,7 +4,7 @@ import {
   normalizeSpellZoneTriggerRuntime,
   planSpellZoneTriggers,
 } from "./spellZoneTriggerCore.js";
-import { zoneTriggerNoticeFromActivation } from "./zoneTriggerNoticeCore.js";
+import { zoneTriggerNoticesFromActivation } from "./zoneTriggerNoticeCore.js";
 
 export function planClassFeatureAuraReminder({
   aura = null,
@@ -44,12 +44,10 @@ export function planClassFeatureAuraReminder({
     ? new Map(itemsById)
     : new Map(Object.entries(itemsById || {}));
   if (auraItem?.id) noticeItemsById.set(auraItem.id, auraItem);
-  const notices = activations
-    .map((activation) => zoneTriggerNoticeFromActivation(
+  const notices = activations.flatMap((activation) => zoneTriggerNoticesFromActivation(
       activation,
       noticeItemsById,
-    ))
-    .filter(Boolean);
+    ));
 
   return {
     changed: JSON.stringify(previousRuntime) !== JSON.stringify(triggerPlan.runtime),

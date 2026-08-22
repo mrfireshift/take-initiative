@@ -68,10 +68,11 @@ test("il pannello aspetta OBR.onReady prima di leggere caster e bersagli", async
 });
 
 test("il pannello può confermare o annullare il placement geometrico attivo", async () => {
-  const [source, tool, placementCore] = await Promise.all([
+  const [source, tool, placementCore, targetView] = await Promise.all([
     read("../src/spell-unified-panel.js"),
     read("../src/aoeTargetTool.js"),
     read("../src/spellAreaPlacementCore.js"),
+    read("../src/spellUnifiedPanelTargetView.js"),
   ]);
   assert.match(source, /SPELL_AREA_PLACEMENT_CHANNEL/);
   assert.match(source, /type, requestId/);
@@ -80,6 +81,8 @@ test("il pannello può confermare o annullare il placement geometrico attivo", a
   assert.match(source, /cancelSpellAreaPlacementRequest\(requestId/);
   assert.match(tool, /spellAreaPlacementParentUnavailable\(placementContext, parentZone, parentArea\)/);
   assert.match(placementCore, /return !!parentZoneId && \(!parentZone \|\| !parentArea\)/);
+  assert.match(targetView, /spell-unified-placement-choice/);
+  assert.match(targetView, /callbacks\.onVariantChange/);
 });
 
 test("la shell mantiene dimensioni e gerarchia compatte dei pannelli originari", async () => {

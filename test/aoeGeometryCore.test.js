@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   areaContainsBounds,
+  areaIntersectsSegment,
   areaHitsBounds,
+  buildArea,
   buildCircleArea,
   buildCellBoundaryLoops,
   buildConeArea,
@@ -269,4 +271,162 @@ test("il contenimento completo richiede tutti gli angoli del token nell'area", (
     max: { x: 650, y: 250 },
   }), false);
   assert.equal(areaContainsBounds(area, null), false);
+});
+
+test("un anello circolare mantiene il vuoto centrale e un contorno renderizzabile", () => {
+  const area = buildCircleArea(
+    { x: 0, y: 0 },
+    { x: 300, y: 0 },
+    150,
+    { x: 0, y: 0 },
+    { ring: true, ringInnerSquares: 1 },
+  );
+  assert.equal(area.ring, true);
+  assert.ok(area.cells.length > 0);
+  assert.ok(!area.cells.some((cell) => cell.column === 0 && cell.row === 0));
+  assert.ok(buildCellBoundaryLoops(area.cells).length >= 1);
+});
+
+test("la fascia laterale di una linea resta distinta dal corpo", () => {
+  const body = buildArea(
+    "line",
+    { x: 0, y: 0 },
+    { x: 900, y: 0 },
+    150,
+    { x: 0, y: 0 },
+    { widthSquares: 1 },
+  );
+  const band = buildArea(
+    "line",
+    { x: 0, y: 0 },
+    { x: 900, y: 0 },
+    150,
+    { x: 0, y: 0 },
+    { widthSquares: 1, band: { side: "left", bandSquares: 2 } },
+  );
+  assert.equal(band.areaRole, "side-band");
+  assert.ok(band.cells.length > 0);
+  assert.ok(band.cells.some((cell) => cell.row > 0));
+  assert.ok(!band.cells.some((cell) => cell.row < 0));
+  assert.ok(band.cells.length > body.cells.length);
+});
+
+test("le fasce laterali di una linea seguono la direzione del tracciamento", () => {
+  const left = buildArea(
+    "line",
+    { x: 75, y: 75 },
+    { x: 75, y: 675 },
+    150,
+    { x: 0, y: 0 },
+    { widthSquares: 1, band: { side: "left", bandSquares: 1 } },
+  );
+  const right = buildArea(
+    "line",
+    { x: 75, y: 75 },
+    { x: 75, y: 675 },
+    150,
+    { x: 0, y: 0 },
+    { widthSquares: 1, band: { side: "right", bandSquares: 1 } },
+  );
+  assert.ok(left.cells.some((cell) => cell.column < 0));
+  assert.ok(right.cells.some((cell) => cell.column > 0));
+  assert.notDeepEqual(
+    left.cells.map((cell) => `${cell.column}:${cell.row}`).sort(),
+    right.cells.map((cell) => `${cell.column}:${cell.row}`).sort(),
+  );
+});
+
+test("le fasce circolari distinguono il lato caldo interno da quello esterno", () => {
+  const inside = buildArea(
+    "circle",
+    { x: 75, y: 75 },
+    { x: 375, y: 75 },
+    150,
+    { x: 0, y: 0 },
+    { ringInnerSquares: 2, band: { side: "inside", bandSquares: 1 } },
+  );
+  const outside = buildArea(
+    "circle",
+    { x: 75, y: 75 },
+    { x: 375, y: 75 },
+    150,
+    { x: 0, y: 0 },
+    { ringInnerSquares: 2, band: { side: "outside", bandSquares: 1 } },
+  );
+  const insideCells = new Set(inside.cells.map((cell) => `${cell.column}:${cell.row}`));
+  const outsideCells = new Set(outside.cells.map((cell) => `${cell.column}:${cell.row}`));
+  assert.equal(insideCells.has("1:1"), true);
+  assert.equal(outsideCells.has("1:1"), false);
+  assert.equal(insideCells.has("2:1"), false);
+  assert.equal(outsideCells.has("2:1"), true);
+});
+
+test("l'attraversamento su segmento rileva entrata e uscita anche fuori dalla sagoma", () => {
+  const area = buildLineArea(
+    { x: 0, y: 0 },
+    { x: 900, y: 0 },
+    150,
+    { x: 0, y: 0 },
+  );
+  const bounds = {
+    min: { x: 0, y: 0 },
+    max: { x: 150, y: 150 },
+  };
+  assert.equal(
+    areaIntersectsSegment(area, { x: -300, y: 75 }, { x: 1200, y: 75 }, bounds),
+    true,
+  );
+});
+
+test("l'attraversamento ignora il semplice contatto tangenziale con il bordo", () => {
+  const line = buildLineArea(
+    { x: 0, y: 0 },
+    { x: 0, y: 900 },
+    150,
+    { x: 0, y: 0 },
+    1,
+    "edge",
+  );
+  const adjacentBounds = {
+    min: { x: -300, y: 0 },
+    max: { x: -150, y: 150 },
+  };
+  assert.equal(
+    areaIntersectsSegment(
+      line,
+      { x: -225, y: 75 },
+      { x: -225, y: 225 },
+      adjacentBounds,
+    ),
+    false,
+  );
+  assert.equal(
+    areaIntersectsSegment(
+      line,
+      { x: -225, y: 75 },
+      { x: -75, y: 75 },
+      { min: { x: -150, y: 0 }, max: { x: 0, y: 150 } },
+    ),
+    true,
+  );
+});
+
+test("il movimento nella fascia adiacente a un anello non conta come attraversamento", () => {
+  const ring = buildArea(
+    "circle",
+    { x: 0, y: 0 },
+    { x: 300, y: 0 },
+    150,
+    { x: 0, y: 0 },
+    { widthSquares: 1, ring: true, ringInnerSquares: 1 },
+  );
+  assert.equal(
+    areaIntersectsSegment(
+      ring,
+      { x: 375, y: 75 },
+      { x: 375, y: 225 },
+      { min: { x: 300, y: 0 }, max: { x: 450, y: 150 } },
+    ),
+    false,
+  );
 });

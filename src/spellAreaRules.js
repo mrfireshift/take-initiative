@@ -241,6 +241,18 @@ function validateTriggerEntries(triggers, errors) {
       errors.push("zone-trigger-area-move-invalid");
     }
     if (
+      trigger?.requiresCrossing !== undefined
+      && typeof trigger.requiresCrossing !== "boolean"
+    ) {
+      errors.push("zone-trigger-crossing-invalid");
+    }
+    if (
+      trigger?.targetArea !== undefined
+      && !["body", "hot-band", "body-or-hot-band"].includes(trigger.targetArea)
+    ) {
+      errors.push("zone-trigger-target-area-invalid");
+    }
+    if (
       trigger?.requiresAreaMove !== undefined
       && typeof trigger.requiresAreaMove !== "boolean"
     ) {
@@ -251,6 +263,12 @@ function validateTriggerEntries(triggers, errors) {
       && typeof trigger.persistsAfterExit !== "boolean"
     ) {
       errors.push("zone-trigger-persists-after-exit-invalid");
+    }
+    if (
+      trigger?.removeLinkedConditionOnLeave !== undefined
+      && typeof trigger.removeLinkedConditionOnLeave !== "boolean"
+    ) {
+      errors.push("zone-trigger-linked-condition-leave-invalid");
     }
     if (
       trigger?.requiresConcentration !== undefined
@@ -571,6 +589,13 @@ const NO_CONFIRM_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   confirmTargets: false,
 });
+const NO_CONFIRM_AREA_SAVE_TARGETING = Object.freeze({
+  ...CASTER_INCLUDED_TARGETING,
+  confirmTargets: false,
+});
+const NO_CONFIRM_AREA_SAVE_SPELL_IDS = new Set([
+  "wall-of-fire",
+]);
 const SELF_CAST_AURA_SPELL_IDS = new Set([
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
@@ -601,6 +626,8 @@ const areaSaveTargeting = (spellId) =>
     ? NO_CONFIRM_TARGETING
     : SELF_CAST_AURA_SPELL_IDS.has(spellId)
     ? SELF_CAST_AURA_TARGETING
+    : NO_CONFIRM_AREA_SAVE_SPELL_IDS.has(spellId)
+    ? NO_CONFIRM_AREA_SAVE_TARGETING
     : AREA_SUBSET_SAVE_SPELL_IDS.has(spellId)
     ? CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
       ? CASTER_EXCLUDED_AREA_SUBSET_TARGETING
@@ -1182,13 +1209,18 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "5d8 danni da fuoco automatici attraversando il Muro di Fuoco.",
       event: "enter",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-effect",
       requiresOwnTurn: false,
       triggerOnAreaMove: false,
+      requiresCrossing: true,
+      persistsAfterExit: true,
+      targetArea: "body",
       damage: {
         dice: "5d8",
         type: "fuoco",
         onSave: "none",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
       },
     },
     {
@@ -1197,11 +1229,14 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       label: "5d8 danni da fuoco automatici se nel muro o entro 3 m dal lato caldo.",
       event: "turn-end",
       frequency: "once-per-turn",
-      resolution: "informational",
+      resolution: "manual-effect",
+      targetArea: "body-or-hot-band",
       damage: {
         dice: "5d8",
         type: "fuoco",
         onSave: "none",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
       },
     },
   ],
@@ -1632,8 +1667,14 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
     ability: "con",
     damage: { dice: "4d10", type: "radiosi", onSave: "half" },
   },
-  "sickening-radiance-save-on-entry": { ability: "con" },
-  "sickening-radiance-save-on-turn-start": { ability: "con" },
+  "sickening-radiance-save-on-entry": {
+    ability: "con",
+    failureAutomation: "spell-save",
+  },
+  "sickening-radiance-save-on-turn-start": {
+    ability: "con",
+    failureAutomation: "spell-save",
+  },
   "maelstrom-save-on-turn-start": { ability: "str" },
   "control-winds-downdraft-save-on-entry": {
     ability: "str",
@@ -1662,11 +1703,23 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "hunger-of-hadar-save-on-turn-end": { ability: "dex" },
   "web-save-on-entry": {
     ability: "dex",
-    failureCondition: { condition: "Trattenuto" },
+    failureCondition: {
+      condition: "Trattenuto",
+      options: {
+        manualRemoval: true,
+        effectDetail: "Può usare un'azione per effettuare una prova di Forza contro la CD del tiro salvezza dell'incantesimo. Se ha successo, non è più Trattenuto.",
+      },
+    },
   },
   "web-save-on-turn-start": {
     ability: "dex",
-    failureCondition: { condition: "Trattenuto" },
+    failureCondition: {
+      condition: "Trattenuto",
+      options: {
+        manualRemoval: true,
+        effectDetail: "Può usare un'azione per effettuare una prova di Forza contro la CD del tiro salvezza dell'incantesimo. Se ha successo, non è più Trattenuto.",
+      },
+    },
   },
   "moonbeam-save-on-entry": { ability: "con" },
   "moonbeam-save-on-turn-start": { ability: "con" },
@@ -1934,16 +1987,52 @@ function catalogAreaRule(spec) {
     }],
   }[spec.spellId] || [];
   const placementChoices = Array.isArray(spec.placementChoices)
-    ? spec.placementChoices.map((choice) => ({
-      id: String(choice?.id || "").trim(),
-      label: String(choice?.label || "").trim(),
-      geometry: {
-        size: meters(
-          choice?.sizeMeters,
-          MEASURE_BY_SHAPE[spec.shape],
-        ),
-      },
-    }))
+    ? spec.placementChoices.map((choice) => {
+      const choiceShape = choice?.shape || spec.shape;
+      const choiceWidth = choice?.widthMeters ?? spec.widthMeters;
+      const hotBand = choice?.hotBand && typeof choice.hotBand === "object"
+        ? {
+          side: String(choice.hotBand.side || "").trim(),
+          width: meters(choice.hotBand.widthMeters, "width"),
+        }
+        : null;
+      return {
+        id: String(choice?.id || "").trim(),
+        label: String(choice?.label || "").trim(),
+        geometry: {
+          shape: choiceShape,
+          size: meters(
+            choice?.sizeMeters,
+            MEASURE_BY_SHAPE[choiceShape],
+          ),
+          ...(["line", "rectangle"].includes(choiceShape)
+            ? {
+              width: meters(choiceWidth, "width"),
+              ...(choice?.widthAnchor === "edge"
+                ? { widthAnchor: "edge" }
+                : {}),
+            }
+            : choiceWidth
+              ? { width: meters(choiceWidth, "width") }
+              : {}),
+          ...(choice?.ring === true
+            ? {
+              ring: true,
+              innerSize: meters(choice?.innerSizeMeters, "radius"),
+            }
+            : {}),
+          ...(hotBand?.side && hotBand.width
+            ? { hotBand }
+            : {}),
+        },
+        placement: {
+          direction: ["cone", "line", "rectangle"].includes(choiceShape)
+            ? "pointer"
+            : "none",
+          ...(choice?.snapOrigin === "vertex" ? { snapOrigin: "vertex" } : {}),
+        },
+      };
+    })
     : [];
   return defineRule({
     id: `${spec.spellId}:cast`,
@@ -2324,9 +2413,10 @@ export const SPELL_AREA_RULES = Object.freeze([
           frequency: "once-per-turn",
           resolution: "manual-save",
           failureEffect: "Trattenuto dalla Ragnatela.",
-          requiresOwnTurn: false,
+          requiresOwnTurn: true,
           triggerOnAreaMove: false,
           skipLinkedConditions: ["Trattenuto"],
+          removeLinkedConditionOnLeave: true,
         },
         {
           id: "web-save-on-turn-start",
@@ -2337,6 +2427,7 @@ export const SPELL_AREA_RULES = Object.freeze([
           resolution: "manual-save",
           failureEffect: "Trattenuto dalla Ragnatela.",
           skipLinkedConditions: ["Trattenuto"],
+          removeLinkedConditionOnLeave: true,
         },
       ],
     },
@@ -2470,7 +2561,7 @@ export const SPELL_AREA_RULES = Object.freeze([
     targeting: {
       filter: "hostile",
       includeCaster: false,
-      confirmTargets: true,
+      confirmTargets: false,
     },
     effectPolicy: {
       mode: "while-inside",
@@ -2766,6 +2857,10 @@ export function getSpellAreaRuleForPlacement(ruleId, ruleChoice = "", castContex
       geometry: {
         ...rule.geometry,
         ...choice.geometry,
+      },
+      placement: {
+        ...rule.placement,
+        ...(choice.placement || {}),
       },
       placementChoice: choice.id,
     })

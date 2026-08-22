@@ -1,4 +1,30 @@
 import { ID } from "./constants.js";
+import {
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  ROOM_METADATA_HARD_LIMIT_BYTES,
+  ROOM_METADATA_SAFE_LIMIT_BYTES,
+  compactOwnedRoomMetadata,
+  planRoomMetadataWrite,
+  roomMetadataBytes,
+  topOwnedRoomMetadataKeys,
+} from "./roomMetadataBudget.js";
+
+export {
+  ROOM_METADATA_DOMAIN_MAX_BY_KEY,
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  ROOM_METADATA_HARD_LIMIT_BYTES,
+  ROOM_METADATA_SAFE_LIMIT_BYTES,
+  ROOM_METADATA_SAFETY_MARGIN_BYTES,
+  TAKE_INITIATIVE_ROOM_METADATA_KEYS,
+  compactOwnedRoomMetadata,
+  jsonBytes,
+  planRoomMetadataWrite,
+  roomMetadataBytes,
+  roomMetadataCandidate,
+  roomMetadataKeyBytes,
+  roomMetadataValueBudget,
+  topOwnedRoomMetadataKeys,
+} from "./roomMetadataBudget.js";
 
 // Contratti dei domini metadata condivisi tra runtime/iframe. Un writer può
 // aggiornare soltanto il valore della chiave del proprio contratto.
@@ -111,7 +137,64 @@ function contextualWriteError(error, { scope, runtime, domain, key }) {
   return contextual;
 }
 
-async function writeMetadataKey(api, contract, value, { scope, runtime = "unknown" } = {}) {
+function roomBudgetLogger(options = {}) {
+  return options?.logger && typeof options.logger.warn === "function"
+    ? options.logger
+    : console;
+}
+
+function roomBudgetDetails(domain, key, plan) {
+  return {
+    domain,
+    key,
+    totalBeforeBytes: plan?.totalBeforeBytes ?? 0,
+    requestedValueBytes: plan?.requestedValueBytes ?? 0,
+    persistedValueBytes: plan?.persistedValueBytes ?? 0,
+    candidateTotalBytes: plan?.candidateTotalBytes ?? 0,
+    limitBytes: ROOM_METADATA_SAFE_LIMIT_BYTES,
+    pruned: plan?.pruned === true,
+  };
+}
+
+function reportRoomBudget(
+  metadata,
+  contract,
+  plan,
+  options = {},
+  { failure = false } = {},
+) {
+  const logger = roomBudgetLogger(options);
+  const details = roomBudgetDetails(
+    String(contract?.domain || "unknown-domain"),
+    String(contract?.key || ""),
+    plan,
+  );
+  if (failure) details.topOwnedKeys = topOwnedRoomMetadataKeys(metadata);
+  logger.warn("[room-metadata-budget]", details);
+}
+
+function roomBudgetError(plan, contract) {
+  const error = new Error(
+    `Room metadata oltre il budget per la chiave "${String(contract?.key || "")}" `
+    + `(candidate ${plan?.candidateTotalBytes ?? "?"} B; hard limit ${ROOM_METADATA_HARD_LIMIT_BYTES} B).`,
+  );
+  error.name = "MetadataRoomBudgetError";
+  error.roomBudgetReported = true;
+  error.roomBudget = plan;
+  return error;
+}
+
+async function writeMetadataKey(
+  api,
+  contract,
+  value,
+  {
+    scope,
+    runtime = "unknown",
+    roomBudget = {},
+    logger = console,
+  } = {},
+) {
   const domain = String(contract?.domain || "unknown-domain");
   const key = String(contract?.key || "");
   if (!key) throw new TypeError(`[metadata-key:${scope || "metadata"}/${domain}] Chiave metadata mancante.`);
@@ -128,8 +211,33 @@ async function writeMetadataKey(api, contract, value, { scope, runtime = "unknow
   }
 
   const startedAt = timestamp();
+  let metadataSnapshot = null;
+  let roomPlan = null;
   try {
-    await api.setMetadata({ [key]: value });
+    let valueToWrite = value;
+    if (scope === "room" && typeof api.getMetadata === "function") {
+      metadataSnapshot = await api.getMetadata();
+      roomPlan = planRoomMetadataWrite(
+        metadataSnapshot,
+        key,
+        value,
+        {
+          domainMaxBytes: roomBudget.domainMaxBytes
+            ?? ROOM_METADATA_DOMAIN_MAX_BYTES[domain]
+            ?? Number.MAX_SAFE_INTEGER,
+          retain: roomBudget.retain,
+        },
+      );
+      if (!roomPlan.fitsHard) {
+        reportRoomBudget(metadataSnapshot, contract, roomPlan, { logger }, { failure: true });
+        throw roomBudgetError(roomPlan, contract);
+      }
+      if (roomPlan.pruned || !roomPlan.fitsSafe || roomPlan.recoveryWrite) {
+        reportRoomBudget(metadataSnapshot, contract, roomPlan, { logger });
+      }
+      valueToWrite = roomPlan.persistedValue;
+    }
+    await api.setMetadata({ [key]: valueToWrite });
     reportDiagnostic({
       scope,
       runtime,
@@ -139,6 +247,9 @@ async function writeMetadataKey(api, contract, value, { scope, runtime = "unknow
       ok: true,
     });
   } catch (error) {
+    if (scope === "room" && !error?.roomBudgetReported && roomPlan) {
+      reportRoomBudget(metadataSnapshot || {}, contract, roomPlan, { logger }, { failure: true });
+    }
     const contextual = contextualWriteError(error, { scope, runtime, domain, key });
     reportDiagnostic({
       scope,
@@ -167,6 +278,70 @@ export function clearSceneMetadataKey(api, contract, options = {}) {
 
 export function writeRoomMetadataKey(api, contract, value, options = {}) {
   return writeMetadataKey(api, contract, value, { ...options, scope: "room" });
+}
+
+/**
+ * Self-heal one-shot per le Room già oltre il limite. Il caller fornisce
+ * esclusivamente chiavi di proprietà Take Initiative; tutte le altre chiavi
+ * vengono copiate byte-for-byte nel candidato e non vengono mai riscritte.
+ */
+export async function reconcileOwnedRoomMetadataBudget(
+  api,
+  entries = [],
+  { logger = console, runtime = "roomMetadataBudget" } = {},
+) {
+  if (!api || typeof api.getMetadata !== "function" || typeof api.setMetadata !== "function") {
+    throw new TypeError(`[metadata-key:room/${runtime}] API Room incompleta.`);
+  }
+  const metadata = await api.getMetadata();
+  const plan = compactOwnedRoomMetadata(metadata, entries);
+  if (!plan.fitsHard) {
+    const details = {
+      domain: "aggregate",
+      key: "<owned-room-metadata>",
+      totalBeforeBytes: plan.totalBeforeBytes,
+      requestedValueBytes: plan.totalBeforeBytes,
+      persistedValueBytes: plan.candidateTotalBytes,
+      candidateTotalBytes: plan.candidateTotalBytes,
+      limitBytes: ROOM_METADATA_SAFE_LIMIT_BYTES,
+      pruned: false,
+      topOwnedKeys: topOwnedRoomMetadataKeys(metadata),
+    };
+    logger?.warn?.("[room-metadata-budget]", details);
+    const error = new Error(
+      `Impossibile compattare i metadata Room sotto ${ROOM_METADATA_HARD_LIMIT_BYTES} B.`,
+    );
+    error.name = "MetadataRoomBudgetError";
+    throw error;
+  }
+  if (!Object.keys(plan.updates).length) return plan;
+  try {
+    await api.setMetadata(plan.updates);
+  } catch (error) {
+    logger?.warn?.("[room-metadata-budget]", {
+      domain: "aggregate",
+      key: "<owned-room-metadata>",
+      totalBeforeBytes: plan.totalBeforeBytes,
+      requestedValueBytes: plan.totalBeforeBytes,
+      persistedValueBytes: plan.candidateTotalBytes,
+      candidateTotalBytes: plan.candidateTotalBytes,
+      limitBytes: ROOM_METADATA_SAFE_LIMIT_BYTES,
+      pruned: true,
+      topOwnedKeys: topOwnedRoomMetadataKeys(metadata),
+    });
+    throw error;
+  }
+  logger?.warn?.("[room-metadata-budget]", {
+    domain: "aggregate",
+    key: "<owned-room-metadata>",
+    totalBeforeBytes: plan.totalBeforeBytes,
+    requestedValueBytes: plan.totalBeforeBytes,
+    persistedValueBytes: plan.candidateTotalBytes,
+    candidateTotalBytes: plan.candidateTotalBytes,
+    limitBytes: ROOM_METADATA_SAFE_LIMIT_BYTES,
+    pruned: plan.pruned,
+  });
+  return plan;
 }
 
 export function clearRoomMetadataKey(api, contract, options = {}) {

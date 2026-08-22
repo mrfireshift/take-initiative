@@ -259,6 +259,55 @@ test("una zona senza TS iniziale può essere dichiarata senza bersagli", () => {
   assert.equal(command.execution.hasZones, true);
 });
 
+test("Muro di Fuoco può creare la zona senza bersagli iniziali", () => {
+  const contractValue = buildSpellUnifiedPanelContract({
+    spellId: "wall-of-fire",
+    choiceValue: "line-hot-left",
+  });
+  const command = buildSpellAreaResolutionCommand({
+    contract: contractValue,
+    casterId,
+    slotLevel: 4,
+    choiceValue: "line-hot-left",
+    placement: placement({
+      spellId: "wall-of-fire",
+      ruleId: "wall-of-fire:cast",
+      targetIds: [],
+    }),
+  });
+
+  assert.equal(command.valid, true);
+  assert.deepEqual(command.targeting.targetIds, []);
+  assert.equal(command.hp.required, false);
+  assert.equal(command.hp.amount, null);
+  assert.equal(command.execution.hasZones, true);
+});
+
+test("Muro di Fuoco conserva TS e danno iniziali quando la sagoma contiene bersagli", () => {
+  const contractValue = buildSpellUnifiedPanelContract({
+    spellId: "wall-of-fire",
+    choiceValue: "line-hot-left",
+  });
+  const command = buildSpellAreaResolutionCommand({
+    contract: contractValue,
+    casterId,
+    slotLevel: 4,
+    choiceValue: "line-hot-left",
+    placement: placement({
+      spellId: "wall-of-fire",
+      ruleId: "wall-of-fire:cast",
+      targetIds: ["target-a"],
+    }),
+    outcomes: { "target-a": "failed" },
+    hpAmount: 20,
+  });
+
+  assert.equal(command.valid, true);
+  assert.deepEqual(command.targeting.targetIds, ["target-a"]);
+  assert.equal(command.hp.required, true);
+  assert.equal(command.hp.amount, 20);
+});
+
 test("Sfera della Tempesta senza placement confermato è invalida", () => {
   const command = buildSpellAreaResolutionCommand({
     contract: contract("xanathar-sfera-della-tempesta"),

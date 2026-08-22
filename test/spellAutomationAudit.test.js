@@ -79,15 +79,15 @@ test("Longstrider include la meccanica di movimento ma resta UNREVIEWED senza re
   assert.equal(longstrider.targetAutomationLevel, "UNREVIEWED");
 });
 
-test("una spell con known gap rimane PARTIAL/GAP con target UNREVIEWED", () => {
+test("Muro di Fuoco è completo dopo l'audit del workflow persistente", () => {
   const audit = buildSpellAutomationAudit();
   const wall = audit.rows.find((row) => row.id === "wall-of-fire");
   assert.ok(wall);
-  assert.equal(wall.currentAutomationLevel, "PARTIAL");
-  assert.equal(wall.coverageStatus, "GAP");
-  assert.equal(wall.targetAutomationLevel, "UNREVIEWED");
-  assert.equal(wall.priority, "P1");
-  assert.ok(wall.gaps.length > 0);
+  assert.equal(wall.currentAutomationLevel, "FULL");
+  assert.equal(wall.coverageStatus, "ACCEPTED");
+  assert.equal(wall.targetAutomationLevel, "FULL");
+  assert.equal(wall.priority, "—");
+  assert.deepEqual(wall.gaps, []);
 });
 
 test("una spell intenzionalmente manuale ha target MANUAL e non forza targetUiExposure UNIFIED", () => {
@@ -151,8 +151,10 @@ test("il TS iniziale richiede un workflow soltanto per aree o bersagli multipli"
   assert.equal(command?.runtime.saveAutomation, true);
   assert.match(command?.curatedNote || "", /Supplica/);
   assert.equal(elementalBane?.runtime.saveAutomation, true);
-  assert.ok(!elementalBane?.gaps.some((entry) => entry.code === "SAVE_WORKFLOW_MISSING"));
-  assert.ok(elementalBane?.gaps.some((entry) => entry.code === "CONDITIONAL_TRIGGER"));
+  assert.equal(elementalBane?.coverageStatus, "ACCEPTED");
+  assert.equal(elementalBane?.priority, "—");
+  assert.deepEqual(elementalBane?.gaps, []);
+  assert.match(elementalBane?.curatedNote || "", /non dispone degli strumenti/);
   assert.match(elementalBane?.curatedNote || "", /pairwise/);
   for (const row of [banishment]) {
     assert.equal(row?.runtime.saveAutomation, true, row?.id);

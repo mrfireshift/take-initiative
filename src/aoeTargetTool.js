@@ -519,7 +519,9 @@ function boundaryCommands(cells) {
 }
 
 function geometryCommands(area) {
-  if (area?.clippedToParent) return boundaryCommands(area.cells);
+  if (area?.clippedToParent || area?.ring || area?.areaRole === "side-band") {
+    return boundaryCommands(area.cells);
+  }
   if (area?.type === "circle") {
     const { x, y } = area.origin;
     const radius = area.radius;
@@ -540,6 +542,19 @@ function geometryCommands(area) {
   }
   commands.push([Command.CLOSE]);
   return commands;
+}
+
+function spellAreaGeometryOptions(rule, state = {}) {
+  return {
+    widthSquares: state.widthCells,
+    widthAnchor: rule?.geometry?.widthAnchor,
+    ...(rule?.geometry?.ring === true
+      ? {
+        ring: true,
+        ringInnerSquares: state.ringInnerCells,
+      }
+      : {}),
+  };
 }
 
 function previewPath(
@@ -760,8 +775,7 @@ function renderDrag(state) {
     state.dpi,
     state.gridOrigin,
     {
-      widthSquares: state.widthCells,
-      widthAnchor: state.rule?.geometry?.widthAnchor,
+      ...spellAreaGeometryOptions(state.rule, state),
     },
   );
   if (state.context?.childKind === "fissure") {
@@ -946,6 +960,13 @@ async function prepareDrag(state) {
         multiplier: state.multiplier,
         unit: state.unit,
       });
+      state.ringInnerCells = state.rule.geometry.ring === true
+        ? Math.max(0, state.sizeCells - state.widthCells)
+        : 0;
+      state.hotBandCells = spellAreaGridCells(state.rule.geometry.hotBand?.width, {
+        multiplier: state.multiplier,
+        unit: state.unit,
+      });
       state.measureLabel = `${formatMeasure(state.rule.geometry.size.value)} m`;
       if (
         state.rule.placement.origin === "caster-adjacent"
@@ -1098,6 +1119,15 @@ function persistentAreaMetadata(state) {
     basePosition: { x: 0, y: 0 },
     style: state.style,
     ...(state.widthCells > 0 ? { widthSquares: state.widthCells } : {}),
+    ...(state.ringInnerCells > 0 ? { ring: true, ringInnerSquares: state.ringInnerCells } : {}),
+    ...(state.hotBandCells > 0
+      ? {
+        hotBand: {
+          side: String(state.rule?.geometry?.hotBand?.side || "").trim(),
+          widthSquares: state.hotBandCells,
+        },
+      }
+      : {}),
     ...(state.rule?.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
   };
 }
@@ -1136,6 +1166,9 @@ function translatedAreaFromItem(item) {
     {
       widthSquares: metadata.widthSquares,
       widthAnchor: metadata.widthAnchor,
+      ...(metadata.ring === true
+        ? { ring: true, ringInnerSquares: metadata.ringInnerSquares }
+        : {}),
     },
   );
 }
@@ -1336,6 +1369,17 @@ async function finishDrag(state) {
         dpi: state.dpi,
         gridOrigin: state.gridOrigin,
         widthSquares: state.widthCells,
+        ...(state.ringInnerCells > 0
+          ? { ringInnerSquares: state.ringInnerCells }
+          : {}),
+        ...(state.hotBandCells > 0
+          ? {
+            hotBand: {
+              side: String(state.rule?.geometry?.hotBand?.side || "").trim(),
+              widthSquares: state.hotBandCells,
+            },
+          }
+          : {}),
       },
     );
     return;
@@ -1544,6 +1588,17 @@ async function confirmSpellPlacement() {
     dpi: state.dpi,
     gridOrigin: state.gridOrigin,
     widthSquares: state.widthCells,
+    ...(state.ringInnerCells > 0
+      ? { ringInnerSquares: state.ringInnerCells }
+      : {}),
+    ...(state.hotBandCells > 0
+      ? {
+        hotBand: {
+          side: String(state.rule?.geometry?.hotBand?.side || "").trim(),
+          widthSquares: state.hotBandCells,
+        },
+      }
+      : {}),
     ...(state.context?.childKind === "fissure" && state.parentArea?.type === "circle"
       ? {
         parentClip: {

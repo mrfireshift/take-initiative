@@ -10,15 +10,13 @@ import {
   mergeOptionsDocuments,
   normalizeRoomOptions,
 } from "./optionsNormalize.js";
+import {
+  ROOM_METADATA_SAFE_LIMIT_BYTES,
+  roomMetadataBytes,
+  roomMetadataKeyBytes,
+} from "../roomMetadataBudget.js";
 
-// Il limite documentato da Owlbear è 16 kB: usiamo l'interpretazione
-// conservativa decimale per non sovrastimare lo spazio realmente disponibile.
-const ROOM_METADATA_LIMIT_BYTES = 16_000;
-
-function jsonBytes(value) {
-  const serialized = JSON.stringify(value ?? null);
-  return new TextEncoder().encode(serialized).byteLength;
-}
+const ROOM_METADATA_LIMIT_BYTES = ROOM_METADATA_SAFE_LIMIT_BYTES;
 
 export function createRoomOptionsStore({
   api = null,
@@ -86,10 +84,10 @@ export function createRoomOptionsStore({
       .filter(([key]) => key.startsWith(ownedPrefix))
       .map(([key, value]) => ({
         key: key.slice(ownedPrefix.length),
-        bytes: jsonBytes({ [key]: value }),
+        bytes: roomMetadataKeyBytes(metadata, key),
       }))
       .sort((left, right) => right.bytes - left.bytes);
-    const totalBytes = jsonBytes(metadata || {});
+    const totalBytes = roomMetadataBytes(metadata || {});
     return {
       totalBytes,
       limitBytes: ROOM_METADATA_LIMIT_BYTES,

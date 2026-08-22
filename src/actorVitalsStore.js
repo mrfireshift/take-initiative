@@ -5,7 +5,6 @@ import {
   normalizeActorProfileId,
 } from "./actorIdentityCore.js";
 import {
-  ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES,
   actorVitalsRecordFor,
   isValidActorVitalsRecord,
   mergeActorVitalsRegistries,
@@ -17,6 +16,7 @@ import {
   METADATA_OWNERSHIP,
   writeRoomMetadataKey,
 } from "./metadataKeyScoped.js";
+import { ROOM_METADATA_DOMAIN_MAX_BYTES } from "./roomMetadataBudget.js";
 import {
   currentSceneEpoch,
   isCurrentSceneEpoch,
@@ -26,7 +26,7 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 export const ACTOR_VITALS_ROOM_KEY = `${ID}/actorVitals`;
 export const ACTOR_VITALS_LOCAL_KEY = `${ID}/actorVitals/local`;
-export const ACTOR_VITALS_ROOM_MAX_BYTES = ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES;
+export const ACTOR_VITALS_ROOM_MAX_BYTES = ROOM_METADATA_DOMAIN_MAX_BYTES["actor-vitals"];
 export const ACTOR_VITALS_AUTHORITIES = Object.freeze({
   GM: "GM",
   PLAYER: "PLAYER",
@@ -206,13 +206,18 @@ export function createActorVitalsStore({
       if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return latestRegistry;
       const localWritten = writeLocalRegistry(storage, next, localKey);
       if (!canWrite() || stopped || !isSceneEpochCurrent(sceneEpoch)) return next;
-      const roomNext = retainActorVitalsRegistryWithinByteBudget(next, roomMaxBytes);
       try {
         await writeRoomMetadataKey(
           api,
           { ...METADATA_OWNERSHIP.ACTOR_VITALS, key: roomKey },
-          roomNext,
-          { runtime: "actorVitalsStore" },
+          next,
+          {
+            runtime: "actorVitalsStore",
+            roomBudget: {
+              domainMaxBytes: roomMaxBytes,
+              retain: retainActorVitalsRegistryWithinByteBudget,
+            },
+          },
         );
       } catch (error) {
         if (!localWritten) throw error;

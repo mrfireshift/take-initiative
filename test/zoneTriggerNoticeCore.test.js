@@ -6,6 +6,7 @@ import {
   shouldClearZoneNoticeAtTurn,
   zoneTriggerNoticeDetail,
   zoneTriggerNoticeFromActivation,
+  zoneTriggerNoticesFromActivation,
 } from "../src/zoneTriggerNoticeCore.js";
 import { ID } from "../src/constants.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
@@ -192,6 +193,44 @@ test("costruisce una notice persistita usando zona e token correnti", () => {
     targetIds: ["target"],
   }, itemsById);
   assert.equal(updatedNotice.dc, 14);
+});
+
+test("espande una activation multi-target in notice risolvibili indipendentemente", () => {
+  const itemsById = new Map([
+    ["zone", {
+      id: "zone",
+      name: "Aura mobile: Guardiani Spirituali",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: { casterId: "caster" },
+      },
+    }],
+    ["caster", {
+      id: "caster",
+      name: "Lavera",
+      metadata: {
+        [META_KEY]: { initiativeCard: { spellSaveDC: 19 } },
+      },
+    }],
+    ["target-a", { id: "target-a", name: "Bersaglio A" }],
+    ["target-b", { id: "target-b", name: "Bersaglio B" }],
+  ]);
+  const notices = zoneTriggerNoticesFromActivation({
+    id: "multi-activation",
+    zoneItemId: "zone",
+    event: "enter",
+    resolution: "manual-save",
+    ability: "wis",
+    damage: { dice: "3d8", type: "radiosi o necrotici", onSave: "half" },
+    targetIds: ["target-a", "target-b"],
+  }, itemsById);
+
+  assert.equal(notices.length, 2);
+  assert.deepEqual(notices.map((notice) => notice.targets[0].id), ["target-a", "target-b"]);
+  assert.equal(new Set(notices.map((notice) => notice.activationId)).size, 2);
+  for (const notice of notices) {
+    assert.equal(notice.resolution.activation.sourceActivationId, "multi-activation");
+    assert.equal(notice.resolution.activation.activationId, notice.activationId);
+  }
 });
 
 test("compone TS, CD e nome del caster su una sola riga", () => {

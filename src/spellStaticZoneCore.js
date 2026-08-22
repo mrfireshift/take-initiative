@@ -50,6 +50,9 @@ export function translatedZoneArea(item, positionOverride = null) {
     {
       widthSquares: metadata.widthSquares,
       widthAnchor: metadata.widthAnchor,
+      ...(metadata.ring === true
+        ? { ring: true, ringInnerSquares: metadata.ringInnerSquares }
+        : {}),
     },
   );
   if (metadata.parentClip && typeof metadata.parentClip === "object") {
@@ -63,6 +66,58 @@ export function translatedZoneArea(item, positionOverride = null) {
     area.centerlineEnd = point(metadata.centerlineEnd);
   }
   return area;
+}
+
+export function translatedZoneTriggerAreas(item, positionOverride = null) {
+  const body = translatedZoneArea(item, positionOverride);
+  if (!body) return { body: null, hotBand: null };
+  const metadata = item?.metadata?.[AOE_AREA_META_KEY] || {};
+  const hotBand = metadata.hotBand && typeof metadata.hotBand === "object"
+    ? buildArea(
+      metadata.type,
+      point(metadata.start) || { x: 0, y: 0 },
+      point(metadata.end) || { x: 0, y: 0 },
+      metadata.dpi,
+      point(metadata.gridOrigin || metadata.start) || { x: 0, y: 0 },
+      {
+        widthSquares: metadata.widthSquares,
+        widthAnchor: metadata.widthAnchor,
+        ...(metadata.ring === true
+          ? { ringInnerSquares: metadata.ringInnerSquares }
+          : {}),
+        band: {
+          side: metadata.hotBand.side,
+          bandSquares: metadata.hotBand.widthSquares,
+        },
+      },
+    )
+    : null;
+  if (!hotBand) return { body, hotBand: null };
+  const position = point(positionOverride || item?.position) || { x: 0, y: 0 };
+  const base = point(metadata.basePosition) || { x: 0, y: 0 };
+  const delta = { x: position.x - base.x, y: position.y - base.y };
+  const translateCells = (area) => ({
+    ...area,
+    origin: area.origin
+      ? { x: area.origin.x + delta.x, y: area.origin.y + delta.y }
+      : area.origin,
+    cells: Array.isArray(area.cells)
+      ? area.cells.map((cell) => ({
+        ...cell,
+        x: cell.x + delta.x,
+        y: cell.y + delta.y,
+      }))
+      : area.cells,
+    ...(Array.isArray(area.points)
+      ? {
+        points: area.points.map((entry) => ({
+          x: entry.x + delta.x,
+          y: entry.y + delta.y,
+        })),
+      }
+      : {}),
+  });
+  return { body, hotBand: translateCells(hotBand) };
 }
 
 export function staticSpellZoneMetadata({

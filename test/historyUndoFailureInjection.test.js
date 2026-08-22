@@ -3,6 +3,8 @@ import test, { mock } from "node:test";
 
 const META_KEY = "com.thebigpicture.initiative/meta";
 const HISTORY_KEY = "com.thebigpicture.initiative/history";
+const CONCENTRATION_CHANNEL = "com.thebigpicture.initiative/concentration-warning";
+const HISTORY_REARM_CHANNEL = "com.thebigpicture.initiative/reminder-history-rearm";
 const clone = (value) => structuredClone(value);
 
 const sceneState = {
@@ -14,6 +16,7 @@ const failure = {
   update: "normal",
   add: "normal",
   delete: "normal",
+  historyRemove: 0,
   readBackFailures: 0,
   armReadBackFailure: false,
   gateFirstRead: null,
@@ -60,6 +63,11 @@ const sdkStub = {
     },
     getMetadata: async () => clone(sceneState.metadata),
     setMetadata: async (update) => {
+      if (Object.prototype.hasOwnProperty.call(update || {}, HISTORY_KEY)
+        && failure.historyRemove > 0) {
+        failure.historyRemove -= 1;
+        throw new Error("injected History removal failure");
+      }
       sceneState.metadata = { ...sceneState.metadata, ...clone(update) };
     },
     items: {
@@ -192,6 +200,34 @@ function fieldEntry(id, before, after, entryId = `undo-${id}`) {
   };
 }
 
+function concentrationReminderEntry(id, before, after, sceneEpoch, entryId = "undo-concentration") {
+  return {
+    ...fieldEntry(id, before, after, entryId),
+    kind: "reminder-resolution",
+    effectsMutation: {
+      sceneEpoch,
+      changes: [{
+        id,
+        metadataFields: { hp: true },
+        beforeMetadata: { hp: snapshot(before) },
+        afterMetadata: { hp: snapshot(after) },
+      }],
+    },
+    payload: {
+      activationId: "concentration-activation",
+      replay: {
+        type: "concentration-warning",
+        warning: {
+          notice: {
+            activationId: "concentration-activation",
+            causeHistoryEntryId: "cause-history-entry",
+          },
+        },
+      },
+    },
+  };
+}
+
 function lifecycleEntry(id, before, after, entryId) {
   return {
     id: entryId,
@@ -212,6 +248,7 @@ function reset({ items = [], entries = [] } = {}) {
   failure.update = "normal";
   failure.add = "normal";
   failure.delete = "normal";
+  failure.historyRemove = 0;
   failure.readBackFailures = 0;
   failure.armReadBackFailure = false;
   failure.gateFirstRead = null;
@@ -483,6 +520,190 @@ test("retry/risposta duplicata dello stesso comando Undo è idempotente", async 
   assert.equal(second.result.status, EFFECTS_MUTATION_STATUS.APPLIED);
   assert.equal(trace.filter((event) => event.startsWith("update:")).length, writesAfterFirst);
   assert.equal(sceneState.items[0].metadata[META_KEY].hp, 20);
+});
+
+test("P0-A: chained Undo converge la removal pending e annulla il target successivo", async () => {
+  const sceneEpoch = currentSceneEpoch();
+  const entryR1 = fieldEntry("token-1", 20, 10, "chain-r1-generic");
+  const entryR2 = concentrationReminderEntry("token-1", 10, 5, sceneEpoch, "chain-r2-concentration");
+  reset({
+    items: [item("token-1", 5)],
+    entries: [entryR1, entryR2],
+  });
+  const messages = [];
+  const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
+    if (event?.data?.type === "show-concentration-warning") messages.push(event.data);
+  });
+
+  try {
+    failure.historyRemove = 1;
+    const firstPromise = history.undoHistoryThrough(undefined, { sceneEpoch });
+    const secondPromise = history.undoHistoryThrough(undefined, { sceneEpoch });
+    const first = await firstPromise;
+    assert.equal(first.status, "applied");
+    assert.equal(first.result.historyRemovalPending, true);
+
+    const second = await secondPromise;
+    assert.equal(second.status, "applied");
+    assert.equal(second[0].id, entryR1.id);
+    assert.equal(second.result.historyRemovalPending, false);
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 20);
+    assert.deepEqual(await history.getHistoryEntries(), []);
+    assert.equal(messages.length, 1, "la recovery tecnica non riproduce R2");
+  } finally {
+    failure.historyRemove = 0;
+    await history.flushPendingHistoryRemovals(sceneEpoch).catch(() => {});
+    unsubscribe();
+  }
+});
+
+test("P0-A: removal pending persistente blocca il chained Undo senza mutation o replay", async () => {
+  const sceneEpoch = currentSceneEpoch();
+  const entryR1 = fieldEntry("token-1", 20, 10, "persistent-r1-generic");
+  const entryR2 = concentrationReminderEntry("token-1", 10, 5, sceneEpoch, "persistent-r2-concentration");
+  reset({
+    items: [item("token-1", 5)],
+    entries: [entryR1, entryR2],
+  });
+  const messages = [];
+  const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
+    if (event?.data?.type === "show-concentration-warning") messages.push(event.data);
+  });
+
+  try {
+    failure.historyRemove = 1;
+    const first = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(first.status, "applied");
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 10);
+    assert.equal(messages.length, 1);
+
+    failure.historyRemove = 100;
+    const blocked = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(blocked.status, "rejected");
+    assert.equal(blocked.result.reason, "history-removal-pending");
+    assert.equal(blocked.result.historyRemovalPending, true);
+    assert.deepEqual(blocked.result.changedIds, []);
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 10);
+    assert.equal(messages.length, 1);
+
+    const readiness = await history.getHistoryUndoReadiness({ sceneEpoch });
+    assert.equal(readiness.status, "blocked");
+    assert.equal(readiness.reason, "history-removal-pending");
+
+    failure.historyRemove = 0;
+    await history.flushPendingHistoryRemovals(sceneEpoch);
+    const recovered = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(recovered.status, "applied");
+    assert.equal(recovered[0].id, entryR1.id);
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 20);
+    assert.deepEqual(await history.getHistoryEntries(), []);
+    assert.equal(messages.length, 1);
+  } finally {
+    failure.historyRemove = 0;
+    await history.flushPendingHistoryRemovals(sceneEpoch).catch(() => {});
+    unsubscribe();
+  }
+});
+
+test("P0-A: chained Undo senza failure conserva l'ordine semantico fino a tre entry", async () => {
+  const sceneEpoch = currentSceneEpoch();
+  const entries = [
+    fieldEntry("token-1", 20, 15, "chain-three-r1"),
+    concentrationReminderEntry("token-1", 15, 10, sceneEpoch, "chain-three-r2-concentration"),
+    fieldEntry("token-1", 10, 5, "chain-three-r3"),
+  ];
+  reset({
+    items: [item("token-1", 5)],
+    entries,
+  });
+
+  const undoneIds = [];
+  for (const [index, expectedHp] of [10, 15, 20].entries()) {
+    const result = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(result.status, "applied");
+    undoneIds.push(result[0].id);
+    const live = (await sdkStub.scene.items.getItems(["token-1"]))[0];
+    assert.equal(live.metadata[META_KEY].hp, expectedHp);
+    assert.deepEqual(
+      (await history.getHistoryEntries()).map((entry) => entry.id),
+      entries.slice(0, entries.length - index - 1).map((entry) => entry.id),
+    );
+  }
+  assert.deepEqual(undoneIds, [entries[2].id, entries[1].id, entries[0].id]);
+});
+
+test("P0-A: concentration precedente a un'entry generica resta annullabile in catena", async () => {
+  const sceneEpoch = currentSceneEpoch();
+  const entryR1 = concentrationReminderEntry("token-1", 20, 10, sceneEpoch, "reverse-r1-concentration");
+  const entryR2 = fieldEntry("token-1", 10, 5, "reverse-r2-generic");
+  reset({
+    items: [item("token-1", 5)],
+    entries: [entryR1, entryR2],
+  });
+  const messages = [];
+  const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
+    if (event?.data?.type === "show-concentration-warning") messages.push(event.data);
+  });
+
+  try {
+    const genericUndo = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(genericUndo.status, "applied");
+    assert.equal(genericUndo[0].id, entryR2.id);
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 10);
+    assert.equal(messages.length, 0);
+
+    const concentrationUndo = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(concentrationUndo.status, "applied");
+    assert.equal(concentrationUndo[0].id, entryR1.id);
+    assert.equal(sceneState.items[0].metadata[META_KEY].hp, 20);
+    assert.equal(messages.length, 1);
+    assert.deepEqual(await history.getHistoryEntries(), []);
+  } finally {
+    unsubscribe();
+  }
+});
+
+test("P0-A: Undo inoltra il replay generic al relativo owner senza bypassare turn-notice", async () => {
+  const sceneEpoch = currentSceneEpoch();
+  const activationId = "old-effect:turn-start:1:1:first";
+  const entry = {
+    ...fieldEntry("token-1", 20, 5, "generic-replay-owner"),
+    kind: "reminder-resolution",
+    payload: {
+      activationId,
+      replay: {
+        type: "reminder",
+        owner: "effect-save",
+        activationId,
+        descriptor: {
+          activationId,
+          targetId: "token-1",
+          instanceId: "old-effect",
+          notice: {
+            activationId,
+            targets: [{ id: "token-1", name: "Token" }],
+            resolution: { mode: "consume" },
+          },
+        },
+      },
+    },
+  };
+  reset({ items: [item("token-1", 5)], entries: [entry] });
+  const messages = [];
+  const unsubscribe = sdkStub.broadcast.onMessage(HISTORY_REARM_CHANNEL, (event) => {
+    messages.push(event.data);
+  });
+  try {
+    const result = await history.undoHistoryThrough(undefined, { sceneEpoch });
+    assert.equal(result.status, "applied");
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].type, "restore-reminder-activation");
+    assert.equal(messages[0].owner, "effect-save");
+    assert.equal(messages[0].activationId, activationId);
+    assert.equal(messages[0].sceneEpoch, sceneEpoch);
+  } finally {
+    unsubscribe();
+  }
 });
 
 test("un epoch catturato da UI/shortcut non può eseguire dopo il cambio scena", async () => {

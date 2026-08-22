@@ -296,3 +296,26 @@ test("prune zone reminder batch closes when no zone activation remains", async (
 
   assert.equal(pruneZoneReminderNoticeBatch(batch, []), null);
 });
+
+test("prune effect-save reminder batch removes only invalidated effect activations", async () => {
+  const { pruneEffectSaveReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({ activationId: "cloudkill-turn", kind: "zone" }),
+    notice({ activationId: "immolation-old", kind: "effect-save", spellName: "Immolazione" }),
+    notice({ activationId: "stone-current", kind: "effect-save", spellName: "Carne in Pietra" }),
+  ]);
+
+  const pruned = pruneEffectSaveReminderNoticeBatch(batch, ["stone-current"]);
+
+  assert.deepEqual(pruned.activationIds, ["cloudkill-turn", "stone-current"]);
+  assert.deepEqual(pruned.entries.map((entry) => entry.kind), ["zone", "effect-save"]);
+});
+
+test("prune effect-save reminder batch closes when its canonical effect is gone", async () => {
+  const { pruneEffectSaveReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({ activationId: "immolation-stale", kind: "effect-save", spellName: "Immolazione" }),
+  ]);
+
+  assert.equal(pruneEffectSaveReminderNoticeBatch(batch, []), null);
+});

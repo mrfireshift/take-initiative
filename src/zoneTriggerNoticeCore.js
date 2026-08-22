@@ -103,7 +103,9 @@ export function zoneTriggerNoticeFromActivation(
   activation,
   itemsById = new Map(),
 ) {
-  const source = itemsById instanceof Map ? itemsById : new Map();
+  const source = itemsById instanceof Map
+    ? itemsById
+    : new Map(Object.entries(itemsById || {}));
   const root = source.get(String(activation?.zoneItemId || ""));
   const metadataKey = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY]
     ? SPELL_STATIC_ZONE_META_KEY
@@ -182,9 +184,7 @@ export function zoneTriggerNoticeFromActivation(
       slotLevel,
     })
     : null;
-  const zoneSpellId = normalizedText(zoneMetadata?.spellId, "", 200);
-  const scaledWallOfLightLabel = zoneSpellId === "xanathar-muro-di-luce"
-    && resolution?.mode === "manual-damage"
+  const scaledDamageLabel = resolution?.mode === "manual-damage"
     && normalizedText(resolution?.damage?.dice, "", 40)
       ? String(rawNotice.label || "").replace(
         /^\d+d\d+\b/iu,
@@ -193,10 +193,42 @@ export function zoneTriggerNoticeFromActivation(
       : rawNotice.label;
   return normalizeZoneTriggerNotice({
     ...rawNotice,
-    label: scaledWallOfLightLabel,
+    label: scaledDamageLabel,
     ...(resolution?.mode === "manual-damage" ? { kind: "zone-effect" } : {}),
     ...(resolution ? { resolution } : {}),
   });
+}
+
+function targetScopedActivationId(activationId, targetId) {
+  const rootId = normalizedText(activationId, "", 300);
+  const target = normalizedText(targetId, "", 200);
+  const suffix = `:target:${target}`;
+  return `${rootId.slice(0, Math.max(0, 300 - suffix.length))}${suffix}`.slice(0, 300);
+}
+
+export function zoneTriggerNoticesFromActivation(
+  activation,
+  itemsById = new Map(),
+) {
+  const source = itemsById instanceof Map ? itemsById : new Map();
+  const targetIds = Array.from(new Set(
+    (Array.isArray(activation?.targetIds) ? activation.targetIds : [])
+      .map((targetId) => normalizedText(targetId, "", 200))
+      .filter((targetId) => targetId && source.has(targetId)),
+  ));
+  if (targetIds.length <= 1) {
+    const notice = zoneTriggerNoticeFromActivation(activation, source);
+    return notice ? [notice] : [];
+  }
+  const rootActivationId = normalizedText(activation?.id, "", 300);
+  return targetIds
+    .map((targetId) => zoneTriggerNoticeFromActivation({
+      ...activation,
+      id: targetScopedActivationId(rootActivationId, targetId),
+      sourceActivationId: rootActivationId,
+      targetIds: [targetId],
+    }, source))
+    .filter(Boolean);
 }
 
 export function shouldClearZoneNoticeAtTurn(

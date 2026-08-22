@@ -19,6 +19,7 @@ import {
   selectTrackerLayout,
   selectTurnPopupEnabled,
 } from "../src/options/optionsSelectors.js";
+import { ROOM_METADATA_SAFE_LIMIT_BYTES } from "../src/roomMetadataBudget.js";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -373,7 +374,7 @@ test("OPTIONS-003: la diagnostica Room riporta solo dimensioni e chiavi del plug
   const diagnostics = await store.inspectStorage();
 
   assert.ok(diagnostics.totalBytes > 0);
-  assert.equal(diagnostics.limitBytes, 16_000);
+  assert.equal(diagnostics.limitBytes, ROOM_METADATA_SAFE_LIMIT_BYTES);
   assert.equal(diagnostics.optionKeyPresent, true);
   assert.ok(diagnostics.ownedEntries.some((entry) => entry.key === "options-room"));
   assert.ok(diagnostics.ownedEntries.some((entry) => entry.key === "hpMemory"));

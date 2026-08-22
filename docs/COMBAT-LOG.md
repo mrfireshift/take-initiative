@@ -240,6 +240,62 @@ in collisione ricevono ID deterministici senza sovrascrivere dati esistenti.
 Non esiste sincronizzazione live multi-GM: la portabilità avviene solo tramite
 export/import.
 
+## Amend contratto v3 — specifica non ancora implementata
+
+Questa sezione aggiorna esclusivamente il contratto v3. Non abilita il writer
+v3, non modifica lo schema IndexedDB e non cambia il comportamento degli
+eventi v2.
+
+### Snapshot roster
+
+Il campo di sessione per lo snapshot al momento dell’export è
+`session.roster.atExport`. `session.roster.final` non fa parte del contratto
+v3 iniziale: potrà essere introdotto soltanto insieme a una finalizzazione
+esplicita del combattimento, che oggi non esiste.
+
+`session.roster.initial` rappresenta la prima osservazione strutturalmente
+completa del roster e dell’ordine. Contiene `capturedAt`,
+`capturedAtSequence`, `orderRevision`, `orderIds` ed entries del roster; dopo
+la cattura è immutabile. `session.roster.atExport` ha la stessa forma, ma viene
+catturato esclusivamente durante l’export/finalizzazione dell’export e non
+implica che il combattimento sia terminato.
+
+### Fixture normative separate
+
+Il test del contratto v3 usa due fixture distinte:
+
+- `legacy-v2-normalized`: rappresenta il log v2 reale normalizzato in memoria.
+  Nessun campo assente dal v2 viene inventato. In particolare, il `Prono`
+  della sequenza 63 ha `lineage: null`.
+- `native-v3-expected`: rappresenta l’output atteso quando i producer v3
+  catturano esplicitamente i nuovi dati. Nella stessa sequenza 63 il `Prono`
+  ha il lineage completo dell’effetto derivato.
+
+Le due fixture non possono essere confrontate come se fossero due serializzazioni
+dello stesso livello informativo: la seconda verifica capacità future dei
+producer, la prima verifica fedeltà all’input legacy.
+
+### Import legacy e provenance
+
+Durante l’import v1/v2 non si assegna `provenance.recordingSource` in base a
+`kind`, categoria o forma dell’evento. Se l’origine tecnica del producer non è
+presente nell’input, il valore è `unknown`; i campi legacy, incluso `source`,
+restano preservati.
+
+`provenance.actor` e `provenance.cause` possono essere normalizzati soltanto
+quando sono supportati esplicitamente dai dati causality esistenti, per esempio
+da `payload.causality.actor` o `payload.causality.cause`. Non si ricavano dal
+turno corrente, dal target, dal delta HP o dal tipo tecnico dell’evento.
+
+### Unknown e valori numerici
+
+Lo schema v3 ammette `number | null` per i valori numerici osservativi. Il
+divieto di trasformare un dato sconosciuto in `0` è un’invariante dei producer
+e dei test, non una regola strutturale del validatore: `0` è un valore valido
+quando è stato osservato realmente, mentre l’assenza deve produrre `null`.
+
+Non vengono introdotti altri cambiamenti al contratto v3 in questa fase.
+
 ## Limiti e roadmap
 
 - CL-1 non introduce un nuovo layout, card, filtri, raggruppamento Round →

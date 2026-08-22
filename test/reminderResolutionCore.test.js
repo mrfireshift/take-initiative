@@ -12,6 +12,8 @@ import {
   reminderResolutionOutcomeNeedsDamage,
 } from "../src/reminderResolutionCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
+import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
+import { zoneTriggerNoticesFromActivation } from "../src/zoneTriggerNoticeCore.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -416,6 +418,57 @@ test("una risoluzione aggregata multi-target resta informativa", () => {
   assert.equal(result.status, "unsupported");
 });
 
+test("una activation multi-target produce piani di risoluzione indipendenti", () => {
+  const items = [
+    token("target-a", { hp: 20, hpMax: 20 }),
+    token("target-b", { hp: 20, hpMax: 20 }),
+    token("caster", { initiativeCard: { spellSaveDC: 15 } }),
+    {
+      id: "zone",
+      name: "Zona",
+      metadata: {
+        [SPELL_STATIC_ZONE_META_KEY]: {
+          casterId: "caster",
+          triggerRuntime: {
+            pending: [{
+              id: "multi-activation",
+              targetIds: ["target-a", "target-b"],
+            }],
+          },
+        },
+      },
+    },
+  ];
+  const activation = {
+    id: "multi-activation",
+    zoneItemId: "zone",
+    casterId: "caster",
+    event: "enter",
+    resolution: "manual-save",
+    ability: "wis",
+    damage: { dice: "3d8", type: "radiosi o necrotici", onSave: "half" },
+    targetIds: ["target-a", "target-b"],
+  };
+  const notices = zoneTriggerNoticesFromActivation(
+    activation,
+    new Map(items.map((item) => [item.id, item])),
+  );
+
+  assert.equal(notices.length, 2);
+  for (const notice of notices) {
+    const plan = buildReminderResolutionPlan({
+      notice,
+      items,
+      outcome: REMINDER_OUTCOMES.PASSED,
+      damageRoll: 8,
+    });
+    assert.equal(plan.status, "ready");
+    assert.notEqual(plan.activationId, "multi-activation");
+    assert.equal(plan.sideEffects[0].activationId, "multi-activation");
+    assert.equal(plan.sideEffects[0].targetId, notice.targets[0].id);
+  }
+});
+
 test("lo scaling dei reminder usa lo slot dell'istanza una sola volta", () => {
   const dust = (slotLevel) => buildZoneTriggerReminderResolution({
     activation: {
@@ -586,6 +639,37 @@ test("SP-B04B — fallire il check ambientale di concentrazione interrompe la co
   );
 });
 
+test("Ragnatela collega il fallimento a Trattenuto e descrive la liberazione RAW", () => {
+  const trigger = getSpellAreaRuleById("web:cast").zonePolicy.triggers
+    .find((entry) => entry.id === "web-save-on-turn-start");
+  const resolution = buildZoneTriggerReminderResolution({
+    activation: {
+      id: "web-save",
+      instanceId: "web-instance",
+      triggerId: trigger.id,
+      resolution: "manual-save",
+      ability: trigger.ability,
+      resolutionData: trigger.resolutionData,
+      zoneItemId: "zone",
+      targetIds: ["target"],
+    },
+    targetId: "target",
+    sourceId: "caster",
+    sourceName: "Caster",
+    dc: 15,
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+
+  const failed = resolution.outcomes.failed.actions.find((action) => (
+    action.kind === "condition" && action.action === "apply"
+  ));
+  assert.equal(failed.name, "Trattenuto");
+  assert.equal(failed.options.parentEffectId, "web-instance");
+  assert.equal(failed.options.effectId, "web-save-on-turn-start");
+  assert.equal(failed.options.manualRemoval, true);
+  assert.match(failed.options.effectDetail, /prova di Forza/u);
+});
+
 test("SP-R06A regression — un reminder ricorrente compatta i marker obsoleti della stessa istanza senza gonfiare History", () => {
   const instance = {
     id: "effect-1",
@@ -645,13 +729,18 @@ test("SP-R06A regression — un reminder ricorrente compatta i marker obsoleti d
       && key !== "effect-1:turn-end:49:target"),
     false,
   );
-  assert.deepEqual(descriptor.historyBefore, {
+  assert.equal(descriptor.historyBefore.present, true);
+  assert.equal(Object.keys(descriptor.historyBefore.value).length, 48);
+  assert.ok(descriptor.historyBefore.value["effect-1:turn-end:1:target"]);
+  assert.ok(descriptor.historyBefore.value["effect-1:turn-end:48:target"]);
+  assert.equal(descriptor.historyBefore.value["other-effect:turn-end:48:target"], undefined);
+  assert.deepEqual(descriptor.historyAfter, {
     present: true,
     value: {
-      "other-effect:turn-end:48:target": {
+      "effect-1:turn-end:49:target": {
         version: 1,
-        outcome: "passed",
-        resolvedAt: 48,
+        outcome: "failed",
+        resolvedAt: 100,
       },
     },
   });

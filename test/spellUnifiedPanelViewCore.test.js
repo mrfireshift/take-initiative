@@ -93,6 +93,20 @@ test("i sette esempi UI espongono soltanto capacità normalizzate", () => {
   }
 });
 
+test("Muro di Fuoco proietta le scelte di placement nel modello visuale", () => {
+  const initial = modelFor("wall-of-fire");
+  assert.deepEqual(
+    initial.placement.choices.map((choice) => choice.value),
+    ["line-hot-left", "line-hot-right", "ring-hot-inside", "ring-hot-outside"],
+  );
+  assert.equal(initial.placement.choice, "");
+  assert.equal(initial.placement.choiceRequired, true);
+
+  const selected = modelFor("wall-of-fire", { variant: "line-hot-right" });
+  assert.equal(selected.placement.choice, "line-hot-right");
+  assert.equal(selected.placement.rules[0].shape, "line");
+});
+
 test("Catena di fulmini proietta gli step di selezione primaria e secondaria", () => {
   const primaryStep = modelFor("chain-lightning");
   assert.equal(primaryStep.targets.selection.mode, "primary-then-secondary");

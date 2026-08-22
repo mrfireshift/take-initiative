@@ -230,6 +230,22 @@ function genericReminderItem() {
   };
 }
 
+function secondGenericReminderItem() {
+  const item = genericReminderItem();
+  item.id = "other";
+  item.name = "Other";
+  item.metadata[META_KEY].conditions[0].id = "generic-effect-2";
+  return item;
+}
+
+function mixedReminderItem() {
+  const item = genericReminderItem();
+  item.metadata[META_KEY][CONCENTRATION_KEY] = {
+    web: { instanceId: "conc-1", name: "Ragnatela" },
+  };
+  return item;
+}
+
 function resetScene() {
   sceneState.metadata = {};
   sceneState.items = [targetItem()];
@@ -396,7 +412,7 @@ test("un reminder generico risolto, annullato e rieseguito usa una nuova identit
   assert.notEqual(firstEntry.id, secondEntry.id);
 });
 
-test("E2E generic reminder: resolve -> Undo -> stesso activationId -> nuovo rendering", async () => {
+test("E2E generic reminder: resolve -> Undo -> stesso activationId -> nuovo rendering", { concurrency: false }, async () => {
   resetScene();
   sceneState.items = [];
   controllerDeliveries.length = 0;
@@ -435,14 +451,31 @@ test("E2E generic reminder: resolve -> Undo -> stesso activationId -> nuovo rend
   consumeControllerPayload(controllerDeliveries[0].payload);
   assert.equal(rendered.length, 1);
   const activationId = rendered[0].activationId;
+  const originalTurnKey = rendered[0].turnKey;
+  const historyReplayFor = (notice) => ({
+    type: "reminder",
+    owner: "effect-save",
+    activationId,
+    targetId: "target",
+    descriptor: {
+      activationId,
+      targetId: "target",
+      instanceId: "generic-effect-1",
+      notice: structuredClone(notice),
+    },
+  });
 
   const first = await reminderResolution.resolveReminder({
     notice: rendered[0],
     outcome: "failed",
     sceneEpoch,
+    historyReplay: historyReplayFor(rendered[0]),
   });
   assert.equal(first.status, "applied");
   const firstEntry = await materialize(first.mutation.historyEntry);
+  await sdkStub.scene.setMetadata({
+    [STATE_KEY]: { order: ["target", "other"], current: 1, round: 2 },
+  });
   rendered.length = 0;
   await settle(120);
   assert.equal(controllerDeliveries.length, 1);
@@ -455,11 +488,13 @@ test("E2E generic reminder: resolve -> Undo -> stesso activationId -> nuovo rend
   consumeControllerPayload(controllerDeliveries[1].payload);
   assert.equal(rendered.length, 1);
   assert.equal(rendered[0].activationId, activationId);
+  assert.equal(rendered[0].turnKey, originalTurnKey);
 
   const second = await reminderResolution.resolveReminder({
     notice: rendered[0],
     outcome: "failed",
     sceneEpoch,
+    historyReplay: historyReplayFor(rendered[0]),
   });
   assert.equal(second.status, "applied");
   const secondEntry = await materialize(second.mutation.historyEntry);
@@ -481,4 +516,254 @@ test("E2E generic reminder: resolve -> Undo -> stesso activationId -> nuovo rend
     activationId,
   ]);
   unmountEffectSaveReminderController();
+});
+
+test("E2E generic chained: R1 old-turn e R2 current-turn tornano con le stesse activation", { concurrency: false }, async () => {
+  resetScene();
+  sceneState.items = [];
+  controllerDeliveries.length = 0;
+  const sceneEpoch = currentSceneEpoch();
+  const announced = new Set();
+  const rendered = [];
+
+  function consumeControllerPayload(payload) {
+    const rearmIds = new Set(
+      (Array.isArray(payload?.rearmActivationIds) ? payload.rearmActivationIds : [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    );
+    for (const notice of Array.isArray(payload?.notices) ? payload.notices : []) {
+      const activationId = String(notice?.activationId || "").trim();
+      if (!activationId) continue;
+      if (rearmIds.has(activationId)) announced.delete(activationId);
+      if (announced.has(activationId)) continue;
+      announced.add(activationId);
+      rendered.push(notice);
+    }
+  }
+
+  async function consumeUntilRearm(startIndex, activationId) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      for (let index = startIndex; index < controllerDeliveries.length; index += 1) {
+        const payload = controllerDeliveries[index].payload;
+        consumeControllerPayload(payload);
+        if ((payload?.rearmActivationIds || []).includes(activationId)) return;
+      }
+      await settle(10);
+    }
+    assert.fail(`Missing owner rearm for ${activationId}`);
+  }
+
+  try {
+    sceneState.metadata = {
+      [STATE_KEY]: { order: ["target"], current: 0, round: 1 },
+    };
+    assert.equal(await mountEffectSaveReminderController(), true);
+    await settle(120);
+    sceneState.items = [
+      { ...genericReminderItem(), name: "Target live" },
+      secondGenericReminderItem(),
+    ];
+    emitSceneItems();
+    await settle(120);
+    await waitForControllerDelivery(1);
+    consumeControllerPayload(controllerDeliveries[0].payload);
+    assert.equal(rendered.length, 1);
+
+    const r1 = rendered[0];
+    const r1Replay = {
+      type: "reminder",
+      owner: "effect-save",
+      activationId: r1.activationId,
+      targetId: "target",
+      descriptor: {
+        activationId: r1.activationId,
+        targetId: "target",
+        instanceId: "generic-effect-1",
+        notice: structuredClone(r1),
+      },
+    };
+    const first = await reminderResolution.resolveReminder({
+      notice: r1,
+      outcome: "failed",
+      sceneEpoch,
+      historyReplay: r1Replay,
+    });
+    assert.equal(first.status, "applied");
+    const firstEntry = await materialize(first.mutation.historyEntry);
+
+    await sdkStub.scene.setMetadata({
+      [STATE_KEY]: { order: ["target", "other"], current: 1, round: 2 },
+    });
+    await settle(120);
+    await waitForControllerDelivery(2);
+    consumeControllerPayload(controllerDeliveries[1].payload);
+    const r2 = rendered.find((notice) => notice.activationId !== r1.activationId);
+    assert.ok(r2);
+    assert.equal(r2.target.id, "other");
+    const r2Replay = {
+      type: "reminder",
+      owner: "effect-save",
+      activationId: r2.activationId,
+      targetId: "other",
+      descriptor: {
+        activationId: r2.activationId,
+        targetId: "other",
+        instanceId: "generic-effect-2",
+        notice: structuredClone(r2),
+      },
+    };
+    const second = await reminderResolution.resolveReminder({
+      notice: r2,
+      outcome: "failed",
+      sceneEpoch,
+      historyReplay: r2Replay,
+    });
+    assert.equal(second.status, "applied");
+    const secondEntry = await materialize(second.mutation.historyEntry);
+
+    const afterR2Undo = controllerDeliveries.length;
+    await history.undoHistoryThrough(secondEntry.id, { sceneEpoch });
+    await consumeUntilRearm(afterR2Undo, r2.activationId);
+    assert.equal(rendered.filter((notice) => notice.activationId === r2.activationId).length, 2);
+
+    const afterR1Undo = controllerDeliveries.length;
+    await history.undoHistoryThrough(firstEntry.id, { sceneEpoch });
+    await consumeUntilRearm(afterR1Undo, r1.activationId);
+    await settle(120);
+    assert.equal(rendered.filter((notice) => notice.activationId === r1.activationId).length, 2);
+    assert.equal(rendered.filter((notice) => notice.activationId === r2.activationId).length, 2);
+    assert.equal(rendered.at(-1).activationId, r1.activationId);
+  } finally {
+    unmountEffectSaveReminderController();
+  }
+});
+
+test("catena mista reale: Undo concentrazione e generic rearm restano separati", { concurrency: false }, async () => {
+  resetScene();
+  sceneState.items = [];
+  controllerDeliveries.length = 0;
+  const sceneEpoch = currentSceneEpoch();
+  const concentrationMessages = [];
+  const unsubscribeConcentration = sdkStub.broadcast.onMessage(
+    CONCENTRATION_CHANNEL,
+    (event) => concentrationMessages.push(event.data),
+  );
+  const announced = new Set();
+  const rendered = [];
+
+  function consumeControllerPayload(payload) {
+    const rearmIds = new Set(
+      (Array.isArray(payload?.rearmActivationIds) ? payload.rearmActivationIds : [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    );
+    for (const notice of Array.isArray(payload?.notices) ? payload.notices : []) {
+      const activationId = String(notice?.activationId || "").trim();
+      if (!activationId) continue;
+      if (rearmIds.has(activationId)) announced.delete(activationId);
+      if (announced.has(activationId)) continue;
+      announced.add(activationId);
+      rendered.push(notice);
+    }
+  }
+
+  try {
+    sceneState.metadata = {
+      [STATE_KEY]: { order: ["target"], current: 0, round: 1 },
+    };
+    assert.equal(await mountEffectSaveReminderController(), true);
+    await settle(120);
+    sceneState.items = [{ ...mixedReminderItem(), name: "Target live" }];
+    emitSceneItems();
+    await settle(120);
+    await waitForControllerDelivery(1);
+    consumeControllerPayload(controllerDeliveries[0].payload);
+    assert.equal(rendered.length, 1);
+
+    const genericNotice = rendered[0];
+    const genericActivationId = genericNotice.activationId;
+    const genericReplay = {
+      type: "reminder",
+      owner: "effect-save",
+      activationId: genericActivationId,
+      targetId: "target",
+      descriptor: {
+        activationId: genericActivationId,
+        targetId: "target",
+        instanceId: "generic-effect-1",
+        notice: structuredClone(genericNotice),
+      },
+    };
+    const generic = await reminderResolution.resolveReminder({
+      notice: genericNotice,
+      outcome: "failed",
+      sceneEpoch,
+      historyReplay: genericReplay,
+    });
+    assert.equal(generic.status, "applied");
+    const genericEntry = await materialize(generic.mutation.historyEntry);
+
+    const cause = await reminderResolution.resolveReminder({
+      notice: damageReminderNotice(),
+      outcome: "failed",
+      damageRoll: 8,
+      sceneEpoch,
+    });
+    assert.equal(cause.status, "applied");
+    const causeEntry = await materialize(cause.mutation.historyEntry);
+    const causeWarningMessage = concentrationMessages.find(
+      (message) => message.type === "show-concentration-warning"
+        && message.warnings?.some(
+          (warning) => warning.notice?.causeHistoryEntryId === causeEntry.id,
+        ),
+    );
+    assert.ok(causeWarningMessage);
+    const causeWarning = causeWarningMessage.warnings.find(
+      (warning) => warning.notice?.causeHistoryEntryId === causeEntry.id,
+    );
+
+    const resolution = await reminderResolution.resolveReminder({
+      notice: causeWarning.notice,
+      outcome: "failed",
+      sceneEpoch,
+      historyReplay: { type: "concentration-warning", warning: causeWarning },
+    });
+    assert.equal(resolution.status, "applied");
+    const resolutionEntry = await materialize(resolution.mutation.historyEntry);
+
+    const beforeConcentrationUndo = concentrationMessages.length;
+    await history.undoHistoryThrough(resolutionEntry.id, { sceneEpoch });
+    assert.ok(
+      concentrationMessages.slice(beforeConcentrationUndo).some(
+        (message) => message.type === "show-concentration-warning",
+      ),
+    );
+
+    const beforeGenericUndo = concentrationMessages.length;
+    const deliveryCountBeforeGenericUndo = controllerDeliveries.length;
+    await history.undoHistoryThrough(genericEntry.id, { sceneEpoch });
+    await waitForControllerDelivery(deliveryCountBeforeGenericUndo + 1);
+    const rearmDelivery = controllerDeliveries.at(-1).payload;
+    assert.ok(rearmDelivery.rearmActivationIds.includes(genericActivationId));
+    consumeControllerPayload(rearmDelivery);
+    assert.equal(rendered.at(-1).activationId, genericActivationId);
+
+    await settle(120);
+    assert.equal(rendered.filter((notice) => notice.activationId === genericActivationId).length, 2);
+    assert.ok(
+      concentrationMessages.slice(beforeGenericUndo).some(
+        (message) => message.type === "dismiss-concentration-warnings-by-history"
+          && message.historyEntryIds.includes(causeEntry.id),
+      ),
+    );
+    assert.equal(
+      concentrationMessages.slice(beforeGenericUndo)
+        .filter((message) => message.type === "show-concentration-warning").length,
+      0,
+    );
+  } finally {
+    unsubscribeConcentration();
+    unmountEffectSaveReminderController();
+  }
 });

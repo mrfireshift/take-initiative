@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { ID } from "../src/constants.js";
 import {
+  effectSaveReminderNoticeFromHistoryReplay,
   effectSaveReminderBoundaries,
   effectSaveReminderNoticesForDamage,
   effectSaveReminderSourceIds,
@@ -202,6 +203,58 @@ test("un reminder legato al caster viene emesso all'inizio del turno della fonte
   });
   assert.equal(recoveredCurrentTurn.length, 1);
   assert.equal(recoveredCurrentTurn[0].activationId, notices[0].activationId);
+});
+
+test("il replay effect-save ricostruisce la stessa activation anche da una frontiera vecchia", () => {
+  const effect = target("first", [{
+    id: "effect-first",
+    condition: "Effetto persistente",
+    active: true,
+    sourceId: "caster",
+    parentEffectId: "spell-first",
+    saveReminder: {
+      ability: "wis",
+      timing: "turn-start",
+      dc: 14,
+      resolution: { success: "remove-effect" },
+    },
+  }]);
+  const items = [caster(), effect];
+  const [notice] = planEffectSaveReminderNotices({
+    items,
+    previousInitiativeState: state(0, 1),
+    initiativeState: state(1, 1),
+  });
+  const replay = {
+    type: "reminder",
+    owner: "effect-save",
+    activationId: notice.activationId,
+    targetId: "first",
+    descriptor: {
+      activationId: notice.activationId,
+      targetId: "first",
+      instanceId: "effect-first",
+      notice: {
+        ...notice,
+        targets: [notice.target],
+        resolution: notice.resolution,
+      },
+    },
+  };
+
+  const restored = effectSaveReminderNoticeFromHistoryReplay({ replay, items });
+  assert.equal(restored.activationId, notice.activationId);
+  assert.equal(restored.target.id, "first");
+  assert.equal(restored.resolution.activation.activationId, notice.activationId);
+  assert.equal(restored.resolution.effect.instanceId, "effect-first");
+
+  effect.metadata[META_KEY].reminderResolutions = {
+    [notice.activationId]: { outcome: "passed" },
+  };
+  assert.equal(
+    effectSaveReminderNoticeFromHistoryReplay({ replay, items }),
+    null,
+  );
 });
 
 test("Riscaldare il Metallo deriva il reminder dalla concentrazione del caster", () => {

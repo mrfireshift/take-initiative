@@ -75,10 +75,44 @@ import {
   unmountEmbersMatchedVisualRenderer,
 } from "./embersMatchedVisualRenderer.js";
 import { mountSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
+import {
+  METADATA_OWNERSHIP,
+  reconcileOwnedRoomMetadataBudget,
+} from "./metadataKeyScoped.js";
+import { retainHPMapWithinByteBudget } from "./hpMemoryRetention.js";
+import { retainFactionRegistryWithinByteBudget } from "./factionRegistryCore.js";
+import { retainInitiativeCardRegistryWithinByteBudget } from "./initiativeCardRegistryCore.js";
+import { retainActorVitalsRegistryWithinByteBudget } from "./actorVitalsCore.js";
 
 const HISTORY_UNDO_TOOL_ID = `${ID}/history-undo`;
 const HISTORY_UNDO_TOOL_SHORTCUT = "Alt+Z";
 let historyUndoToolInProgress = false;
+
+async function reconcileRoomMetadataBudget() {
+  const role = await OBR.player.getRole().catch(() => "PLAYER");
+  if (String(role).toUpperCase() !== "GM") return null;
+  return reconcileOwnedRoomMetadataBudget(OBR.room, [
+    {
+      key: METADATA_OWNERSHIP.ACTOR_VITALS.key,
+      retain: retainActorVitalsRegistryWithinByteBudget,
+    },
+    {
+      key: METADATA_OWNERSHIP.ROOM_MEMORY.key,
+      retain: retainHPMapWithinByteBudget,
+    },
+    {
+      key: METADATA_OWNERSHIP.INITIATIVE_CARDS.key,
+      retain: retainInitiativeCardRegistryWithinByteBudget,
+    },
+    {
+      key: METADATA_OWNERSHIP.REGISTRY.key,
+      retain: retainFactionRegistryWithinByteBudget,
+    },
+    { key: METADATA_OWNERSHIP.ROOM_OPTIONS.key },
+    { key: METADATA_OWNERSHIP.SHARED_UI.key },
+    { key: METADATA_OWNERSHIP.SPEED_CHECK_CONTROL.key },
+  ], { runtime: "background-room-metadata-budget" });
+}
 
 async function runHistoryUndoTool() {
   if (historyUndoToolInProgress) return;
@@ -234,6 +268,9 @@ OBR.onReady(async () => {
   void startRuntimeOptions().catch(() => {});
   mountCombatLogEventSink();
   mountTurnNoticeHost();
+  void reconcileRoomMetadataBudget().catch((error) => {
+    console.warn("[room-metadata-budget] bootstrap:", error?.message || error);
+  });
   void bootstrapActorVitalsRuntime();
   void mountEffectsMutationCoordinatorService().then(async () => {
     await Promise.all(optionalRuntimes.map(([selector, lifecycle]) => (

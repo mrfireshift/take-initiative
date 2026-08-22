@@ -7,6 +7,8 @@ import {
   exhaustionLevelFromInstances,
   normalizeExhaustionLevel,
 } from "./exhaustionCore.js";
+import { normalizeSaveSpellAutomation } from "./saveSpellCore.js";
+import { getAreaSaveAutomation } from "./spells-srd.js";
 
 export const REMINDER_RESOLUTION_VERSION = 1;
 export const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
@@ -593,6 +595,51 @@ function zoneFailureActions({
   }];
 }
 
+function zoneFailureAutomationActions({
+  failureAutomation,
+  spellId,
+  choiceValue = "",
+  targetId,
+  sourceId,
+  sourceName,
+  parentEffectId,
+  triggerId,
+} = {}) {
+  const automationSource =
+    typeof failureAutomation === "string"
+      ? failureAutomation
+      : failureAutomation?.source;
+  if (automationSource !== "spell-save" || !spellId || !targetId) {
+    return [];
+  }
+
+  const automation = normalizeSaveSpellAutomation(
+    getAreaSaveAutomation(spellId, choiceValue) || {},
+  );
+
+  return automation.rulesByOutcome.failed.map((rule) => {
+    const ruleOptions =
+      rule.options && typeof rule.options === "object"
+        ? rule.options
+        : {};
+    return {
+      kind: "condition",
+      action: "apply",
+      targetId,
+      name: rule.conditionName,
+      options: {
+        type: "spell",
+        sourceId,
+        sourceName,
+        expiry: { mode: "manual" },
+        ...(triggerId ? { effectId: triggerId } : {}),
+        ...ruleOptions,
+        ...(parentEffectId ? { parentEffectId } : {}),
+      },
+    };
+  });
+}
+
 export function buildZoneTriggerReminderResolution({
   activation = null,
   targetId = "",
@@ -619,6 +666,9 @@ export function buildZoneTriggerReminderResolution({
   const activationContext = {
     kind: "zone",
     activationId: text(activation?.id, "", 300),
+    ...(activation?.sourceActivationId
+      ? { sourceActivationId: text(activation.sourceActivationId, "", 300) }
+      : {}),
     zoneItemId: text(activation?.zoneItemId, "", 200),
     instanceId: text(activation?.instanceId, "", 200),
     triggerId: text(activation?.triggerId, "", 200),
@@ -664,6 +714,22 @@ export function buildZoneTriggerReminderResolution({
         actions: [
           ...zoneFailureActions({
             failureCondition: activation?.failureCondition || resolutionData.failureCondition,
+            targetId: normalizedTargetId,
+            sourceId: normalizedSourceId,
+            sourceName,
+            parentEffectId: activation?.instanceId,
+            triggerId: activation?.triggerId,
+          }),
+          ...zoneFailureAutomationActions({
+            failureAutomation:
+              activation?.failureAutomation || resolutionData.failureAutomation,
+            spellId: activation?.spellId || resolutionData.spellId,
+            choiceValue:
+              activation?.choiceValue ||
+              activation?.ruleChoice ||
+              resolutionData.choiceValue ||
+              resolutionData.ruleChoice ||
+              "",
             targetId: normalizedTargetId,
             sourceId: normalizedSourceId,
             sourceName,
@@ -818,6 +884,30 @@ function reminderMarkerBaseMap(markerMap, context = {}) {
   return Object.fromEntries(entries.filter(([key]) =>
     !reminderMarkerBelongsToEffectInstance(key, context)
   ));
+}
+
+function reminderMarkerHistoryDelta(markerMap, nextMarkers, { beforePresent = false } = {}) {
+  const before = normalizedMarkerMap(markerMap);
+  const after = normalizedMarkerMap(nextMarkers);
+  const touchedKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  const beforeOwned = {};
+  const afterOwned = {};
+  for (const key of touchedKeys) {
+    const beforeHas = Object.prototype.hasOwnProperty.call(before, key);
+    const afterHas = Object.prototype.hasOwnProperty.call(after, key);
+    if (beforeHas === afterHas
+      && (!beforeHas || JSON.stringify(before[key]) === JSON.stringify(after[key]))) {
+      continue;
+    }
+    if (beforeHas) beforeOwned[key] = clone(before[key]);
+    if (afterHas) afterOwned[key] = clone(after[key]);
+  }
+  return {
+    before: beforePresent
+      ? { present: true, value: beforeOwned }
+      : { present: false },
+    after: { present: true, value: afterOwned },
+  };
 }
 
 function outcomeActions(resolution, outcome) {
@@ -1065,6 +1155,13 @@ export function buildReminderResolutionPlan({
     300,
   );
   if (!activationId) return { status: "unsupported", message: "Il reminder non ha un identificativo risolvibile." };
+  const sourceActivationId = text(
+    resolution.activation?.sourceActivationId
+      || resolution.activation?.rootActivationId,
+    "",
+    300,
+  );
+  const pendingActivationId = sourceActivationId || activationId;
   const itemsById = new Map((Array.isArray(items) ? items : []).map((item) => [String(item?.id || ""), item]));
   const target = itemsById.get(targetId);
   if (!target) return { status: "stale", message: "Il bersaglio del reminder non esiste più." };
@@ -1085,7 +1182,7 @@ export function buildReminderResolutionPlan({
     const zoneItemId = text(resolution.activation?.zoneItemId, "", 200);
     const metadataKey = text(resolution.activation?.metadataKey, "", 200);
     const root = itemsById.get(zoneItemId);
-    const currentActivation = activationMetadata(root, metadataKey, activationId, targetId);
+    const currentActivation = activationMetadata(root, metadataKey, pendingActivationId, targetId);
     if (!root || !currentActivation) {
       return { status: "stale", message: "L'attivazione della zona non è più disponibile." };
     }
@@ -1093,7 +1190,7 @@ export function buildReminderResolutionPlan({
       type: "reminder:consume-zone-activation",
       itemId: zoneItemId,
       metadataKey,
-      activationId,
+      activationId: pendingActivationId,
       targetId,
     };
   }
@@ -1264,17 +1361,20 @@ export function buildReminderResolutionPlan({
   };
   const markerEntries = Object.entries(nextMarkers);
   const boundedMarkers = Object.fromEntries(markerEntries.slice(-128));
-  const historyBeforeMarkers = { ...boundedMarkers };
-  delete historyBeforeMarkers[activationId];
+  const markerSnapshot = metadataSnapshot(meta, REMINDER_RESOLUTIONS_FIELD);
+  const markerHistoryDelta = reminderMarkerHistoryDelta(
+    markerMap,
+    nextMarkers,
+    { beforePresent: markerSnapshot.present },
+  );
   const metadataFields = {
     [REMINDER_RESOLUTIONS_FIELD]: {
-      expected: metadataSnapshot(meta, REMINDER_RESOLUTIONS_FIELD),
+      expected: markerSnapshot,
       value: boundedMarkers,
-      // History deve annullare l'attivazione corrente, non resuscitare marker
-      // tecnici ormai stali della stessa istanza che stiamo compattando ora.
-      historyBefore: Object.keys(historyBeforeMarkers).length
-        ? { present: true, value: historyBeforeMarkers }
-        : { present: false },
+      // Il live resta compattato; History possiede soltanto i key realmente
+      // aggiunti, rimossi o modificati dalla compaction corrente.
+      historyBefore: markerHistoryDelta.before,
+      historyAfter: markerHistoryDelta.after,
     },
   };
   if (hpChange) {

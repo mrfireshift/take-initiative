@@ -22,7 +22,7 @@ test("il controller consegna al reconcile l'ultimo snapshot metadata ricevuto", 
     "let queuedSceneMetadata = null;",
     "const sceneMetadataOverride = queuedSceneMetadata;",
     "queuedSceneMetadata = null;",
-    "await reconcileStaticSpellZones(sceneMetadataOverride);",
+    "await reconcileStaticSpellZones(\n          sceneMetadataOverride,\n          rearmActivationIds,\n          historyUndoMovementSuppressions,\n          movementRecords,\n        );",
     "queuedSceneMetadata = metadata;",
     "requestStaticSpellZoneReconcile();",
   ]);
@@ -72,7 +72,12 @@ test("i trigger condizionali filtrano concentrazione e condizioni attive", () =>
 });
 
 test("il controller lascia il trascinamento nativo delle zone mobili", () => {
-  assert.match(source, /filter: \(event\) => !event\?\.derived\?\.output,/);
+  assert.match(
+    source,
+    /filter: \(event\) => \([\s\S]*restoredStaticSpellZoneActivationIds\(event\)\.length > 0/,
+  );
+  assert.match(source, /rearmedStaticSpellZoneNotices\(/);
+  assert.match(source, /rearmActivationIds/);
   assert.doesNotMatch(source, /guardControlledMobileZoneChanges/);
   assert.doesNotMatch(source, /CONTROLLED_MOBILE_ZONE_SPELL_IDS/);
 });

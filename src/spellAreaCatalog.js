@@ -115,7 +115,6 @@ const MOVABLE_ZONE_SPELL_IDS = new Set([
 
 const DRIFTING_ZONE_SPELL_IDS = new Set([
   "cloudkill",
-  "incendiary-cloud",
   "phb2014-tsunami",
 ]);
 
@@ -184,6 +183,9 @@ const AREA_OVERRIDES = Object.freeze({
   "flame-strike": {
     shape: "circle",
     sizeMeters: 3,
+  },
+  "incendiary-cloud": {
+    placementOptional: false,
   },
   "forcecage": {
     shape: "square",
@@ -297,6 +299,56 @@ const AREA_OVERRIDES = Object.freeze({
     origin: "point",
     rangeMeters: 36,
     note: "La sagoma rappresenta l'esplosione di una meteora",
+  },
+  "wall-of-fire": {
+    shape: "line",
+    sizeMeters: 18,
+    widthMeters: 0.3,
+    origin: "point",
+    rangeMeters: 36,
+    placementOptional: false,
+    placementChoices: [
+      {
+        id: "line-hot-left",
+        label: "Muro lineare — lato caldo a sinistra",
+        shape: "line",
+        sizeMeters: 18,
+        widthMeters: 0.3,
+        snapOrigin: "vertex",
+        widthAnchor: "edge",
+        hotBand: { side: "left", widthMeters: 3 },
+      },
+      {
+        id: "line-hot-right",
+        label: "Muro lineare — lato caldo a destra",
+        shape: "line",
+        sizeMeters: 18,
+        widthMeters: 0.3,
+        snapOrigin: "vertex",
+        widthAnchor: "edge",
+        hotBand: { side: "right", widthMeters: 3 },
+      },
+      {
+        id: "ring-hot-inside",
+        label: "Muro circolare — lato caldo interno",
+        shape: "circle",
+        sizeMeters: 3,
+        widthMeters: 0.3,
+        innerSizeMeters: 2.7,
+        ring: true,
+        hotBand: { side: "inside", widthMeters: 3 },
+      },
+      {
+        id: "ring-hot-outside",
+        label: "Muro circolare — lato caldo esterno",
+        shape: "circle",
+        sizeMeters: 3,
+        widthMeters: 0.3,
+        innerSizeMeters: 2.7,
+        ring: true,
+        hotBand: { side: "outside", widthMeters: 3 },
+      },
+    ],
   },
   "xanathar-muro-di-luce": {
     shape: "line",

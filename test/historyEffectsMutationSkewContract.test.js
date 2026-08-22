@@ -56,7 +56,8 @@ test("un Undo background non può superare una History Effects ancora pending", 
   assert.match(mountBlock, /history-pending/);
 });
 
-test("la readiness non rivalida come conflitto entry già committate ma pending removal", () => {
-  assert.match(historySource, /filterPendingHistoryRemovalEntries/);
+test("la readiness blocca una removal History pending fino alla conferma owner-side", () => {
+  assert.match(historySource, /convergePendingHistoryRemovals/);
   assert.match(historySource, /pendingHistoryRemovalIds/);
+  assert.match(historySource, /history-removal-pending/);
 });

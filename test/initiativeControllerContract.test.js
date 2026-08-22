@@ -58,7 +58,7 @@ test("il controller reale serializza gli eventi metadata prima di processarli", 
 
 test("il primo metadata di un nuovo scene epoch usa la baseline senza perdere il primo cambio", () => {
   const lifecycle = sourceSection(
-    "function __mountSceneEpochLifecycle() {",
+    "function __mountSceneEpochLifecycle(renderCapability = null) {",
     "// Scansione e deduplicazione una tantum all'avvio."
   );
   assert.match(lifecycle, /createInitiativeReadinessHandshake\(/);
@@ -78,7 +78,7 @@ test("il primo metadata di un nuovo scene epoch usa la baseline senza perdere il
     "OBR.scene.onMetadataChange((meta) => {"
   );
   const baseline = metadata.indexOf("if (__sceneBaselineEpoch !== sceneEpoch)");
-  const firstRoundTick = metadata.indexOf('type: "effects:tick-round"');
+  const firstRoundTick = metadata.indexOf('mutationType: "effects:tick-round"');
   assert.ok(baseline >= 0, "manca il gate baseline del metadata");
   assert.ok(firstRoundTick > baseline, "il baseline deve precedere ogni tick di round");
   assertOrdered(metadata.slice(baseline, firstRoundTick), [
@@ -96,7 +96,7 @@ test("il bootstrap separa setup UI e gate scene prima delle letture dipendenti d
     "await __mountTrackerSelectionSync();"
   );
   assertOrdered(boot, [
-    "const sceneReadiness = __mountSceneEpochLifecycle();",
+    "const sceneReadiness = __mountSceneEpochLifecycle(renderCapability);",
     "await OBR.player?.getRole?.()",
     "IS_GM = String(role).toUpperCase() === \"GM\";",
     "const readinessState = await sceneReadiness?.waitUntilReady();",
@@ -105,6 +105,205 @@ test("il bootstrap separa setup UI e gate scene prima delle letture dipendenti d
   assert.match(boot, /if \(!readinessState\?\.ready\) return;/);
   assert.doesNotMatch(boot, /const bootstrapSceneEpoch = currentSceneEpoch\(\);\s*mountTracker/);
   assert.doesNotMatch(boot, /mountTurnNoticeBroadcast/);
+});
+
+test("il lifecycle baseline usa gli helper di stato nello scope modulo", async () => {
+  const mountStart = normalizedSource.indexOf(
+    "export function mountInitiativeList(container) {",
+  );
+  const activeStart = normalizedSource.indexOf("function __activeIdForState(state) {");
+  const conditionStart = normalizedSource.indexOf(
+    "function __conditionTurnStateSnapshot(state) {",
+  );
+  assert.ok(mountStart >= 0, "mountInitiativeList assente");
+  assert.ok(activeStart >= 0 && activeStart < mountStart);
+  assert.ok(conditionStart >= 0 && conditionStart < mountStart);
+  assert.equal(
+    (normalizedSource.match(/function __activeIdForState\s*\(/g) || []).length,
+    1,
+    "__activeIdForState deve avere una sola definizione canonica",
+  );
+  assert.equal(
+    (normalizedSource.match(/function __conditionTurnStateSnapshot\s*\(/g) || []).length,
+    1,
+    "__conditionTurnStateSnapshot deve avere una sola definizione canonica",
+  );
+  assert.equal(
+    normalizedSource.slice(mountStart).includes("function __activeIdForState(state)"),
+    false,
+    "__activeIdForState non deve tornare annidato in mountInitiativeList",
+  );
+  assert.equal(
+    normalizedSource.slice(mountStart).includes("function __conditionTurnStateSnapshot(state)"),
+    false,
+    "__conditionTurnStateSnapshot non deve tornare annidato in mountInitiativeList",
+  );
+
+  const activeHelper = sourceSectionIn(
+    normalizedSource,
+    "function __activeIdForState(state) {",
+    "function __conditionTurnStateSnapshot(state) {",
+  );
+  const conditionHelper = sourceSectionIn(
+    normalizedSource,
+    "function __conditionTurnStateSnapshot(state) {",
+    "function __getInitiativeRenderScheduler() {",
+  );
+  const adoptBaseline = sourceSectionIn(
+    normalizedSource,
+    "async function __adoptInitiativeSceneBaseline(",
+    "async function __acquireInitiativeSceneBaseline(",
+  );
+  const acquireBaseline = sourceSectionIn(
+    normalizedSource,
+    "async function __acquireInitiativeSceneBaseline(",
+    "function __mountSceneEpochLifecycle(renderCapability = null) {",
+  );
+
+  const runBaseline = new Function(`
+    let __sceneBaselineEpoch = null;
+    let __lastInitiativeMetadataDigest;
+    let __lastQueuedInitiativeMetadataDigest;
+    let __latestInitiativeState = null;
+    let __lastActiveId = null;
+    let __lastTurnNoticeActiveId = null;
+    let __lastRoundSeen = null;
+    let __lastRoundSeenConfirmed = null;
+    let __lastConditionTurnState = null;
+    let __lastConditionTurnStateConfirmed = null;
+    let __conditionNavigationHint = null;
+    const STATE_KEY = "state";
+    const state = { order: ["A", "B"], current: 1, round: 3 };
+    const OBR = { scene: { getMetadata: async () => ({ [STATE_KEY]: state }) } };
+    function __isCurrentSceneOperation() { return true; }
+    function syncSpeedCheckTurn() {}
+    function __initiativeDiag() {}
+    function initiativeStateDigest(value) { return JSON.stringify(value); }
+    ${activeHelper}
+    ${conditionHelper}
+    ${adoptBaseline}
+    ${acquireBaseline}
+    return (async () => {
+      const acquired = await __acquireInitiativeSceneBaseline(7, "scene-ready", false);
+      return {
+        acquired,
+        activeId: __lastActiveId,
+        round: __lastRoundSeen,
+        condition: __lastConditionTurnState,
+      };
+    })();
+  `);
+
+  const result = await runBaseline();
+  assert.equal(result.acquired, true);
+  assert.equal(result.activeId, "B");
+  assert.equal(result.round, 3);
+  assert.deepEqual(result.condition, {
+    order: ["A", "B"],
+    current: 1,
+    round: 3,
+  });
+});
+
+test("il baseline metadata precoce attende la capability render senza perdere l'update", async () => {
+  const metadata = sourceSection(
+    "async function __processInitiativeMetadata(",
+    "OBR.scene.onMetadataChange((meta) => {",
+  );
+  assert.match(metadata, /renderCapability/);
+  assert.match(metadata, /await renderCapability\("metadata"\)/);
+  assert.match(
+    normalizedSource,
+    /const renderCapability = async \(reason\) => \{\s*await renderRuntimeReady;\s*return renderAll\(reason\);/s,
+  );
+  const listener = sourceSection(
+    "OBR.scene.onMetadataChange((meta) => {",
+    "subscribeSceneItemChanges(({ items }) => {",
+  );
+  assert.match(listener, /renderCapability,/);
+
+  const activeHelper = sourceSectionIn(
+    normalizedSource,
+    "function __activeIdForState(state) {",
+    "function __conditionTurnStateSnapshot(state) {",
+  );
+  const conditionHelper = sourceSectionIn(
+    normalizedSource,
+    "function __conditionTurnStateSnapshot(state) {",
+    "function __getInitiativeRenderScheduler() {",
+  );
+  const adoptBaseline = sourceSectionIn(
+    normalizedSource,
+    "async function __adoptInitiativeSceneBaseline(",
+    "async function __acquireInitiativeSceneBaseline(",
+  );
+  const acquireBaseline = sourceSectionIn(
+    normalizedSource,
+    "async function __acquireInitiativeSceneBaseline(",
+    "function __mountSceneEpochLifecycle(renderCapability = null) {",
+  );
+
+  const runEarlyMetadata = new Function(`
+    let __sceneBaselineEpoch = null;
+    let __lastInitiativeMetadataDigest;
+    let __lastQueuedInitiativeMetadataDigest;
+    let __latestInitiativeState = null;
+    let __lastActiveId = null;
+    let __lastTurnNoticeActiveId = null;
+    let __lastRoundSeen = null;
+    let __lastRoundSeenConfirmed = null;
+    let __lastConditionTurnState = null;
+    let __lastConditionTurnStateConfirmed = null;
+    let __conditionNavigationHint = null;
+    let releaseRender;
+    const renderReady = new Promise((resolve) => { releaseRender = resolve; });
+    const renderCalls = [];
+    const renderCapability = async (reason) => {
+      await renderReady;
+      renderCalls.push(reason);
+      return { status: "committed" };
+    };
+    const STATE_KEY = "state";
+    const state = { order: ["A", "B"], current: 1, round: 3 };
+    const OBR = { scene: { getMetadata: async () => ({ [STATE_KEY]: state }) } };
+    function __isCurrentSceneOperation() { return true; }
+    function syncSpeedCheckTurn() {}
+    function __initiativeDiag() {}
+    function initiativeStateDigest(value) { return JSON.stringify(value); }
+    ${activeHelper}
+    ${conditionHelper}
+    ${adoptBaseline}
+    ${acquireBaseline}
+    return (async () => {
+      const pending = __acquireInitiativeSceneBaseline(
+        7,
+        "metadata",
+        true,
+        renderCapability,
+      );
+      await Promise.resolve();
+      releaseRender();
+      const acquired = await pending;
+      return {
+        acquired,
+        renderCalls,
+        activeId: __lastActiveId,
+        round: __lastRoundSeen,
+        condition: __lastConditionTurnState,
+      };
+    })();
+  `);
+
+  const result = await runEarlyMetadata();
+  assert.equal(result.acquired, true);
+  assert.deepEqual(result.renderCalls, ["scene-baseline"]);
+  assert.equal(result.activeId, "B");
+  assert.equal(result.round, 3);
+  assert.deepEqual(result.condition, {
+    order: ["A", "B"],
+    current: 1,
+    round: 3,
+  });
 });
 
 test("il dirty flush degli editor condivide lo scope del renderer del tracker", () => {
@@ -168,8 +367,9 @@ test("il background apre il turn notice on demand e lo chiude quando è invisibi
     "async function showConcentrationDamageWarning("
   );
   assert.doesNotMatch(sender, /mountTurnNoticeBroadcast|__turnNoticeReady|__pendingTurnNotice/);
-  assert.match(sender, /return __sendTurnNoticePayload\(notice, sceneEpoch\)/);
-  assert.match(sender, /const deliveryKey = `\$\{sceneEpoch\}:\$\{notice\.turnKey\}`/);
+  assert.match(sender, /return __turnNoticeDelivery\.request\(notice, sceneEpoch/);
+  assert.match(sender, /__lastTurnNoticeDeliveryKey = event\.key/);
+  assert.doesNotMatch(sender, /__lastTurnNoticeDeliveryKey = deliveryKey/);
   assert.match(backgroundSource, /mountTurnNoticeHost\(\)/);
   assert.match(turnNoticeHostSource, /enqueueTurnNoticeHostPayload\(pendingPayloads, payload\)/);
   assert.match(turnNoticeHostSource, /await openTurnNoticePopover\(pendingPayloads\[0\]\)/);
@@ -214,15 +414,20 @@ test("il reminder di turno precede render e tick; i TS restano al solo backgroun
   assertOrdered(metadata, [
     "const noticeActiveId = __activeIdForState(st);",
     "isInitiativeTurnTransition(",
-    "broadcastTurnNotice(st, sceneEpoch)",
-    'await renderAll("metadata")',
-    "await roundEffectAdjustment",
-    'type: "effects:tick-boundaries"',
+    "const transitionSeq = ++__temporalTransitionSequence;",
+    "const temporalDescriptors = [];",
+    "void __enqueueInitiativeTemporalDescriptor(",
+    'await renderCapability("metadata")',
+    'if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick"',
   ]);
+  assert.match(metadata, /temporalCapture: true/);
+  assert.match(metadata, /metadata:temporal-captured-stale-navigation/);
+  assert.doesNotMatch(metadata, /sceneMetadataPreconditions/);
   assert.equal(
-    (metadata.match(/broadcastTurnNotice\(st, sceneEpoch\)/g) || []).length,
+    (metadata.match(/broadcastTurnNotice\(st, sceneEpoch, \{ source: "metadata" \}\)/g) || []).length,
     1,
   );
+  assert.doesNotMatch(metadata, /await runEffectsMutation\(\[operation\]/);
   assert.doesNotMatch(source, /__broadcastEffectSaveReminderTransition/);
   assert.doesNotMatch(source, /planEffectSaveReminderNotices/);
 
@@ -235,7 +440,7 @@ test("il reminder di turno precede render e tick; i TS restano al solo backgroun
     'kind: "advance-turn"',
     "if (!initiativeStateResultApplied(applied)) return;",
     "shouldSuppressTurnNoticeBroadcast({",
-    "broadcastTurnNotice(desired, sceneEpoch)",
+    'broadcastTurnNotice(desired, sceneEpoch, { source: "navigation" })',
   ]);
   assert.equal((source.match(/prewarmSpeedCheckTurn\(next\)/g) || []).length, 2);
 });
@@ -277,17 +482,23 @@ test("il full render condivide il raw item snapshot tra tracker e spell board", 
 test("la scadenza naturale degli incantesimi elimina atomicamente le zone concluse", () => {
   const section = sourceSectionIn(
     normalizedSource,
-    "const run = async () => {\n            if (!__isCurrentSceneOperation(sceneEpoch, \"round-tick\"",
-    "roundEffectAdjustment = run();"
+    "async function __applyInitiativeTemporalDescriptor(descriptor)",
+    "function __enqueueInitiativeTemporalDescriptor(descriptor)"
   );
   assertOrdered(section, [
-    "const mutation = await runEffectsMutation([{",
-    'type: "effects:tick-round"',
-    "sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }]",
-    'type: "static-zone:remove-ended"',
+    "const mutationType = descriptor.mutationType;",
+    "const commandId = mutationType ===",
+    'kind: mutationType',
+    '...(mutationType === "effects:tick-round" ? { history: false } : {})',
+    "commandId,",
+    'sideEffects: [{',
     "selectors: [{ all: true }]",
+    'type: mutationType',
+    "operationId: `${commandId}:operation`",
     "requireAppliedEffectsMutation(mutation)",
   ]);
+  assert.doesNotMatch(section, /sceneMetadataPreconditions/);
+  assert.match(section, /mutationType === "effects:tick-round" \? \{ history: false \} : \{\}/);
 });
 
 test("la riconciliazione reale propaga lo scene epoch a GC e backfill", () => {

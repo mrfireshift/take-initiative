@@ -3,6 +3,7 @@ import { ID } from "./constants.js";
 import {
   mergeFactionAssets,
   normalizeFactionRegistry,
+  retainFactionRegistryWithinByteBudget,
   registeredAttitudeForItem,
   removeFactionFromRegistry,
 } from "./factionRegistryCore.js";
@@ -72,7 +73,12 @@ async function updateFactionRegistry(updater, { isCurrent = () => true } = {}) {
         OBR.room,
         METADATA_OWNERSHIP.REGISTRY,
         next,
-        { runtime: "factionRegistry" },
+        {
+          runtime: "factionRegistry",
+          roomBudget: {
+            retain: retainFactionRegistryWithinByteBudget,
+          },
+        },
       );
     } catch (error) {
       if (!localWritten) throw error;

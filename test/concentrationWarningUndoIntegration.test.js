@@ -4,6 +4,7 @@ import {
   createVersionedIndexedDB,
   versionedKeyRange,
 } from "../test-support/fakeVersionedIndexedDb.js";
+import { combatEventFromHistoryEntry } from "../src/combatLogCore.js";
 
 const previousIndexedDB = globalThis.indexedDB;
 const previousKeyRange = globalThis.IDBKeyRange;
@@ -216,6 +217,20 @@ async function createCauseAndResolution(messages, resolutionOutcome = "failed") 
     sceneEpoch,
   });
   assert.equal(first.status, "applied");
+  assert.deepEqual(first.mutation.historyEntry.payload.hpChange, {
+    before: 20,
+    after: 12,
+    hpMax: 20,
+  });
+  const firstCombatEvent = combatEventFromHistoryEntry(first.mutation.historyEntry);
+  assert.deepEqual(firstCombatEvent.facets.hp.targets[0], {
+    id: TARGET_ID,
+    name: "Target",
+    before: { hp: 20, hpMax: 20 },
+    after: { hp: 12, hpMax: 20 },
+    delta: -8,
+    hpMaxDelta: 0,
+  });
 
   const causeHistoryEntryId = first.mutation.historyEntry.id;
   await persistDeferredEntry(first.mutation.historyEntry);
@@ -387,6 +402,75 @@ test("Undo della sola resolution riproduce il warning se la causa resta presente
   );
   unsubscribe();
 });
+
+test("il replay concentration usa l'identità background corrente dopo un remount", async () => {
+  const messages = [];
+  const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
+    messages.push(event.data);
+  });
+  try {
+    const { resolutionEntry, warning } = await createCauseAndResolution(messages);
+    const historicalScope = String(warning.warningRuntimeScope || "").trim();
+    assert.ok(historicalScope);
+
+    effects.unmountEffectsMutationCoordinatorService();
+    await effects.mountEffectsMutationCoordinatorService();
+    const currentScope = String(
+      (await effects.getEffectsMutationSceneContext({ commandId: "scope-remount" }))
+        ?.sceneIdentity || "",
+    ).trim();
+    assert.ok(currentScope);
+    assert.notEqual(currentScope, historicalScope);
+
+    const beforeUndo = messages.length;
+    await history.undoHistoryThrough(resolutionEntry.id, {
+      sceneEpoch: currentSceneEpoch(),
+    });
+    const replay = messages.slice(beforeUndo).find(
+      (message) => message.type === "show-concentration-warning",
+    );
+    assert.ok(replay);
+    assert.equal(replay.warnings[0].warningRuntimeScope, currentScope);
+    assert.notEqual(replay.warnings[0].warningRuntimeScope, historicalScope);
+  } finally {
+    unsubscribe();
+  }
+});
+
+for (const [damage, expectedDc] of [[8, 10], [30, 15]]) {
+  test(`danno reale ${damage} produce il warning concentration con CD ${expectedDc}`, async () => {
+    const messages = [];
+    const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
+      messages.push(event.data);
+    });
+    try {
+      if (damage === 30) {
+        sceneState.items[0].metadata[META_KEY].hp = 30;
+        sceneState.items[0].metadata[META_KEY].hpMax = 30;
+      }
+      const result = await reminderResolution.resolveReminder({
+        notice: damageReminderNotice(),
+        outcome: "failed",
+        damageRoll: damage,
+        sceneEpoch: currentSceneEpoch(),
+      });
+      assert.equal(result.status, "applied");
+      const warningMessage = messages.find(
+        (message) => message.type === "show-concentration-warning",
+      );
+      assert.ok(warningMessage);
+      const warning = warningMessage.warnings[0];
+      assert.equal(warning.damage, damage);
+      assert.equal(warning.dc, expectedDc);
+      assert.equal(
+        warning.notice.causeHistoryEntryId,
+        result.mutation.historyEntry.id,
+      );
+    } finally {
+      unsubscribe();
+    }
+  });
+}
 
 test("Undo della causa e della resolution nello stesso batch non riproduce il warning", async () => {
   const messages = [];

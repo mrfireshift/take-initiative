@@ -86,6 +86,20 @@ test("le spell ad area e le spell con regole di area aprono sempre il pannello",
   }
 });
 
+test("Guardiani Spirituali usa la transazione area diretta quando non richiede scelte", () => {
+  const decision = buildQuickActionSpellLaunchPlan({
+    action: spellAction("spirit-guardians", { slotLevel: 3 }),
+    sourceId: "cleric",
+  });
+
+  assert.equal(decision.mode, "direct");
+  assert.equal(decision.reason, "direct-safe");
+  assert.equal(decision.areaExecution, true);
+  assert.equal(decision.replacesConcentration, true);
+  assert.equal(decision.session.casterId, "cleric");
+  assert.deepEqual(decision.session.targetIds, []);
+});
+
 test("un attacco single-target e un trucchetto area restano in review nel pannello canonico", () => {
   const attack = buildQuickActionSpellLaunchPlan({
     action: spellAction("chill-touch", {

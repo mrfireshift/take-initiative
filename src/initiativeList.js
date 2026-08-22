@@ -33,6 +33,7 @@ import { readFullRenderItemSnapshot } from "./initiativeFullRenderSnapshotCore.j
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { openReferencePopover, REFERENCE_POPUP_ID } from "./referencePopover.js";
 import {
+  getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
@@ -110,6 +111,8 @@ import {
   createInitiativeRenderScheduler,
 } from "./initiativeRenderSchedulerCore.js";
 import { summarizeInitiativeDiagnostics } from "./initiativeDiagnosticsCore.js";
+import { createInitiativeTemporalLane } from "./initiativeTemporalLaneCore.js";
+import { createTurnNoticeDeliveryCapability } from "./turnNoticeDeliveryCore.js";
 import {
   currentSceneEpoch,
   invalidateSceneEpoch,
@@ -424,7 +427,12 @@ let __optimisticNavigationDigest = null;
 let __lastActiveId = null;
 let __lastTurnNoticeActiveId = null;
 let __lastConditionTurnState = null;
+let __lastConditionTurnStateConfirmed = null;
 let __conditionNavigationHint = null;
+let __temporalTransitionSequence = 0;
+let __temporalSceneIdentity = "";
+let __temporalSceneIdentityPromise = null;
+let __temporalLaneGeneration = 0;
 let __sceneBaselineEpoch = null;
 let __sceneEpochLifecycleMounted = false;
 let __sceneEpochUnsubscribe = null;
@@ -514,6 +522,27 @@ function __isCurrentSceneOperation(sceneEpoch, operation, detail = {}) {
   return false;
 }
 
+function __activeIdForState(state) {
+  return Array.isArray(state?.order) ? state.order[state.current] : null;
+}
+
+function __conditionTurnStateSnapshot(state) {
+  const order = Array.isArray(state?.order) ? state.order.slice() : [];
+  if (!order.length) return null;
+  const current = Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)));
+  const round = Math.max(1, Math.floor(Number(state?.round) || 1));
+  return { order, current, round };
+}
+
+function __immutableConditionTurnState(state) {
+  const snapshot = __conditionTurnStateSnapshot(state);
+  if (!snapshot) return null;
+  return Object.freeze({
+    ...snapshot,
+    order: Object.freeze(snapshot.order),
+  });
+}
+
 function __getInitiativeRenderScheduler() {
   if (__initiativeRenderScheduler) return __initiativeRenderScheduler;
   __initiativeRenderScheduler = createInitiativeRenderScheduler({
@@ -536,6 +565,143 @@ function __getInitiativeRenderScheduler() {
   return __initiativeRenderScheduler;
 }
 
+function __initiativeTemporalDiag(event, detail = {}) {
+  __initiativeDiag(`temporal:${event}`, detail);
+  if (__initiativeDiagnosticsEnabled) {
+    console.debug("[initiative-temporal]", event, detail);
+  }
+}
+
+function __onInitiativeTemporalLaneEvent(event, descriptor) {
+  const detail = {
+    transitionSeq: event?.transitionSeq,
+    metadataRevision: event?.metadataRevision,
+    roundDelta: event?.roundDelta,
+    boundaryCount: event?.boundaryCount,
+    commandId: event?.commandId,
+    ...(event?.attempt ? { attempt: event.attempt } : {}),
+    ...(event?.recoveryAttempt ? { recoveryAttempt: event.recoveryAttempt } : {}),
+    ...(event?.reason ? { reason: event.reason } : {}),
+  };
+  __initiativeTemporalDiag(event?.type || "unknown", detail);
+
+  if (event?.type !== "applied") return;
+  if (descriptor?.mutationType === "effects:tick-round") {
+    __lastRoundSeenConfirmed = descriptor.nextRound;
+  }
+  if (descriptor?.mutationType === "effects:tick-boundaries") {
+    __lastConditionTurnStateConfirmed = descriptor.nextTurnState;
+  }
+}
+
+const __initiativeTemporalLane = createInitiativeTemporalLane({
+  apply: (descriptor) => __applyInitiativeTemporalDescriptor(descriptor),
+  isCurrent: (descriptor) => (
+    descriptor?.runtimeGeneration === __temporalLaneGeneration
+    && __isCurrentSceneOperation(descriptor?.sceneEpoch, "temporal-lane", {
+      metadataRevision: descriptor?.metadataRevision,
+      transitionSeq: descriptor?.transitionSeq,
+    })
+  ),
+  onEvent: __onInitiativeTemporalLaneEvent,
+});
+
+function __ensureInitiativeTemporalSceneIdentity(sceneEpoch = currentSceneEpoch()) {
+  if (typeof getEffectsMutationSceneContext !== "function") return Promise.resolve("");
+  if (__temporalSceneIdentity) return Promise.resolve(__temporalSceneIdentity);
+  if (__temporalSceneIdentityPromise) return __temporalSceneIdentityPromise;
+
+  const generation = __temporalLaneGeneration;
+  const promise = Promise.resolve()
+    .then(() => getEffectsMutationSceneContext({
+      commandId: `initiative-temporal-context:${sceneEpoch}:${generation}`,
+    }))
+    .then((context) => {
+      const scope = String(context?.sceneIdentity || "").trim();
+      if (
+        scope
+        && generation === __temporalLaneGeneration
+        && isCurrentSceneEpoch(sceneEpoch)
+      ) {
+        __temporalSceneIdentity = scope;
+      }
+      if (__temporalSceneIdentityPromise === promise) {
+        __temporalSceneIdentityPromise = null;
+      }
+      return scope;
+    })
+    .catch(() => {
+      if (__temporalSceneIdentityPromise === promise) {
+        __temporalSceneIdentityPromise = null;
+      }
+      return "";
+    });
+  __temporalSceneIdentityPromise = promise;
+  return promise;
+}
+
+function __temporalCommandId(descriptor, mutationType) {
+  const kind = mutationType === "effects:tick-round" ? "round" : "boundaries";
+  const scope = String(descriptor?.sceneIdentity || "").trim()
+    || `epoch-${descriptor?.sceneEpoch}`;
+  return `initiative-temporal:${scope}:${descriptor?.transitionSeq}:${kind}`;
+}
+
+async function __applyInitiativeTemporalDescriptor(descriptor) {
+  if (!descriptor || !__isCurrentSceneOperation(
+    descriptor.sceneEpoch,
+    "temporal-mutation",
+    { metadataRevision: descriptor.metadataRevision, transitionSeq: descriptor.transitionSeq },
+  )) return { status: "rejected", reason: "stale-scene-epoch" };
+  if (!IS_GM) return { status: "applied", skipped: true };
+
+  const mutationType = descriptor.mutationType;
+  const commandId = mutationType === "effects:tick-round"
+    ? descriptor.roundCommandId
+    : descriptor.boundaryCommandId;
+  const options = {
+    kind: mutationType,
+    label: mutationType === "effects:tick-round"
+      ? "Scadenza effetti di round"
+      : "Scadenza effetti di turno",
+    targetIds: descriptor.targetIds,
+    ...(mutationType === "effects:tick-round" ? { history: false } : {}),
+    commandId,
+    sceneEpoch: descriptor.sceneEpoch,
+    ...(descriptor.sceneIdentity ? { sceneIdentity: descriptor.sceneIdentity } : {}),
+    ...(mutationType === "effects:tick-round"
+      ? {
+        sideEffects: [{
+          type: "static-zone:remove-ended",
+          selectors: [{ all: true }],
+        }],
+      }
+      : {}),
+  };
+  const operation = mutationType === "effects:tick-round"
+    ? {
+      type: mutationType,
+      targetIds: descriptor.targetIds,
+      delta: descriptor.roundDelta,
+      operationId: `${commandId}:operation`,
+      createdAt: descriptor.createdAt,
+    }
+    : {
+      type: mutationType,
+      targetIds: descriptor.targetIds,
+      boundaries: descriptor.conditionBoundaries,
+      operationId: `${commandId}:operation`,
+      createdAt: descriptor.createdAt,
+    };
+  const mutation = await runEffectsMutation([operation], options);
+  requireAppliedEffectsMutation(mutation);
+  return mutation;
+}
+
+function __enqueueInitiativeTemporalDescriptor(descriptor) {
+  return __initiativeTemporalLane.enqueue(Object.freeze(descriptor));
+}
+
 function __markEditorDirtyFromCard(card) {
   if (!(card instanceof HTMLElement)) return;
   __editorDirtyTrackerItemIds.add(card.dataset.itemId);
@@ -555,6 +721,11 @@ function __cancelSceneEditorsWithoutCommit() {
 }
 
 function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
+  __temporalLaneGeneration += 1;
+  __initiativeTemporalLane.reset(reason || "scene-reset");
+  __temporalSceneIdentity = "";
+  __temporalSceneIdentityPromise = null;
+  __temporalTransitionSequence = 0;
   __cancelSceneEditorsWithoutCommit();
   __resetConcentrationWarningRuntime();
   __draggingId = null;
@@ -605,13 +776,16 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __lastActiveId = null;
   __lastTurnNoticeActiveId = null;
   __lastTurnNoticeDeliveryKey = "";
+  __turnNoticeDelivery.reset(reason || "scene-reset");
   __lastConditionTurnState = null;
+  __lastConditionTurnStateConfirmed = null;
   __conditionNavigationHint = null;
   __selectedSceneItemIds = new Set();
   __trackerSelectionAnchorId = null;
   __lastRenderedActiveId = null;
   __prevActiveId = null;
   __lastRoundSeen = null;
+  __lastRoundSeenConfirmed = null;
   __scrollActiveOnNextRender = false;
   __selectFocusDesired = null;
   __selectFocusRunningKey = null;
@@ -624,9 +798,20 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __initiativeDiag("scene:reset", { sceneEpoch, reason });
 }
 
-async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, source, render = true) {
+async function __adoptInitiativeSceneBaseline(
+  st,
+  stateDigest,
+  sceneEpoch,
+  source,
+  render = true,
+  renderCapability = null,
+) {
   if (!__isCurrentSceneOperation(sceneEpoch, "baseline", { source })) return false;
   if (__sceneBaselineEpoch === sceneEpoch) return false;
+  if (render && typeof renderCapability !== "function") {
+    __initiativeDiag("scene:baseline-render-deferred", { sceneEpoch, source });
+    return false;
+  }
 
   __sceneBaselineEpoch = sceneEpoch;
   __lastInitiativeMetadataDigest = stateDigest;
@@ -635,7 +820,9 @@ async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, sourc
   __lastActiveId = __activeIdForState(st);
   __lastTurnNoticeActiveId = __lastActiveId;
   __lastRoundSeen = Math.max(1, Number(st?.round || 1));
-  __lastConditionTurnState = __conditionTurnStateSnapshot(st);
+  __lastRoundSeenConfirmed = __lastRoundSeen;
+  __lastConditionTurnState = __immutableConditionTurnState(st);
+  __lastConditionTurnStateConfirmed = __lastConditionTurnState;
   __conditionNavigationHint = null;
   syncSpeedCheckTurn(st);
   __initiativeDiag("scene:baseline-acquired", {
@@ -646,11 +833,16 @@ async function __adoptInitiativeSceneBaseline(st, stateDigest, sceneEpoch, sourc
   });
 
   if (!render) return true;
-  await renderAll("scene-baseline");
+  await renderCapability("scene-baseline");
   return __isCurrentSceneOperation(sceneEpoch, "baseline-render", { source });
 }
 
-async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-ready", render = true) {
+async function __acquireInitiativeSceneBaseline(
+  sceneEpoch,
+  source = "scene-ready",
+  render = true,
+  renderCapability = null,
+) {
   if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
   const metadata = await OBR.scene.getMetadata();
   if (!__isCurrentSceneOperation(sceneEpoch, "baseline-read", { source })) return false;
@@ -661,10 +853,11 @@ async function __acquireInitiativeSceneBaseline(sceneEpoch, source = "scene-read
     sceneEpoch,
     source,
     render,
+    renderCapability,
   );
 }
 
-function __mountSceneEpochLifecycle() {
+function __mountSceneEpochLifecycle(renderCapability = null) {
   if (__sceneEpochLifecycleMounted) return __sceneReadinessHandshake;
   __sceneEpochLifecycleMounted = true;
   __sceneEpochUnsubscribe = subscribeSceneEpoch(({ phase, epoch, reason }) => {
@@ -674,7 +867,8 @@ function __mountSceneEpochLifecycle() {
     }
     if (!__initiativeBootstrapStarted) return;
     __requestTurnNoticeReady(epoch);
-    void __acquireInitiativeSceneBaseline(epoch, reason).catch((error) => {
+    void __ensureInitiativeTemporalSceneIdentity(epoch);
+    void __acquireInitiativeSceneBaseline(epoch, reason, true, renderCapability).catch((error) => {
       console.warn("[initiative] scene baseline:", error?.message || error);
     });
   });
@@ -806,6 +1000,7 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
   let __lastRenderedActiveId = null;
   let __prevActiveId = null;
   let __lastRoundSeen = null;
+  let __lastRoundSeenConfirmed = null;
   let __scrollActiveOnNextRender = false;
 
   function isLairId(id) { return id === LAIR_ID; }
@@ -936,6 +1131,15 @@ const EPIC_TAG_CFG = {
 
 
   export function mountInitiativeList(container) {
+    let resolveRenderRuntimeReady;
+    const renderRuntimeReady = new Promise((resolve) => {
+      resolveRenderRuntimeReady = resolve;
+    });
+    const renderCapability = async (reason) => {
+      await renderRuntimeReady;
+      return renderAll(reason);
+    };
+
     // Il dirty flush deve vivere nello stesso scope di renderAll() e
     // __requestIncrementalTrackerItems(). Quando una card ha un editor aperto,
     // gli update vengono accodati qui e drenati appena l'editor si chiude.
@@ -4313,6 +4517,7 @@ async function __flushNavigationState() {
   __navigationDesiredState = null;
   __navigationDesiredEpoch = null;
   if (!__isCurrentSceneOperation(sceneEpoch, "navigation-flush")) return;
+  __initiativeTemporalLane.recover("navigation");
   __navigationPumpRunning = true;
   const flushNavigationRevision = __navigationRevision;
   __initiativeDiag("navigation:flush-start", {
@@ -4360,7 +4565,7 @@ async function __flushNavigationState() {
       latestActiveId,
     });
     if (!suppressTurnNotice) {
-      void broadcastTurnNotice(desired, sceneEpoch).catch((err) => {
+      void broadcastTurnNotice(desired, sceneEpoch, { source: "navigation" }).catch((err) => {
         console.warn("[turn-notice] navigation broadcast error:", err?.message || err);
       });
     } else {
@@ -4409,10 +4614,6 @@ function queueNavigationState(next, sceneEpoch = currentSceneEpoch()) {
   });
   __scheduleNavigationStateFlush();
 }
-function __activeIdForState(state) {
-  return Array.isArray(state?.order) ? state.order[state.current] : null;
-}
-
 function __matchesLatestActiveTurn(state) {
   if (!__latestInitiativeState) return true;
   return (
@@ -4421,14 +4622,6 @@ function __matchesLatestActiveTurn(state) {
     Math.max(1, Math.floor(Number(state?.round) || 1)) ===
       Math.max(1, Math.floor(Number(__latestInitiativeState?.round) || 1))
   );
-}
-
-function __conditionTurnStateSnapshot(state) {
-  const order = Array.isArray(state?.order) ? state.order.slice() : [];
-  if (!order.length) return null;
-  const current = Math.max(0, Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)));
-  const round = Math.max(1, Math.floor(Number(state?.round) || 1));
-  return { order, current, round };
 }
 
 function __conditionActorId(id) {
@@ -5291,6 +5484,55 @@ let __concentrationWarningPopoverSession = "";
 let __concentrationWarningPopoverSequence = 0;
 const __concentrationWarningsByActivationId = new Map();
 const __dismissedConcentrationWarningCauseIds = new Set();
+let __concentrationWarningRuntimeScope = "";
+let __concentrationWarningRuntimeScopePromise = null;
+let __concentrationWarningScopeRefreshPromise = null;
+
+function concentrationWarningUsesCrossRealmScope() {
+  return typeof getEffectsMutationSceneContext === "function";
+}
+
+function ensureConcentrationWarningRuntimeScope() {
+  if (!concentrationWarningUsesCrossRealmScope()) return Promise.resolve("");
+  if (__concentrationWarningRuntimeScope) {
+    return Promise.resolve(__concentrationWarningRuntimeScope);
+  }
+  if (__concentrationWarningRuntimeScopePromise) {
+    return __concentrationWarningRuntimeScopePromise;
+  }
+  const generation = __concentrationWarningRuntimeGeneration;
+  const promise = Promise.resolve()
+    .then(() => getEffectsMutationSceneContext({
+      commandId: `concentration-warning-host:${generation}`,
+    }))
+    .then((context) => {
+      const scope = String(context?.sceneIdentity || "").trim();
+      if (generation === __concentrationWarningRuntimeGeneration && scope) {
+        __concentrationWarningRuntimeScope = scope;
+      }
+      if (!scope && __concentrationWarningRuntimeScopePromise === promise) {
+        __concentrationWarningRuntimeScopePromise = null;
+      }
+      return scope;
+    })
+    .catch(() => {
+      if (__concentrationWarningRuntimeScopePromise === promise) {
+        __concentrationWarningRuntimeScopePromise = null;
+      }
+      return "";
+    });
+  __concentrationWarningRuntimeScopePromise = promise;
+  return promise;
+}
+
+function isCurrentConcentrationWarningScope(value, legacySceneEpoch) {
+  const scope = String(value || "").trim();
+  if (concentrationWarningUsesCrossRealmScope()) {
+    return !!scope && !!__concentrationWarningRuntimeScope
+      && scope === __concentrationWarningRuntimeScope;
+  }
+  return isCurrentConcentrationWarningEpoch(legacySceneEpoch);
+}
 
 function concentrationWarningPopoverIdForSession(generation, sequence) {
   return `${CONCENTRATION_WARNING_MODAL_ID}:${generation}:${sequence}`;
@@ -5323,6 +5565,9 @@ function __resetConcentrationWarningRuntime() {
   __concentrationWarningCleanupPromise = null;
   __concentrationWarningPopoverId = null;
   __concentrationWarningPopoverSession = "";
+  __concentrationWarningRuntimeScope = "";
+  __concentrationWarningRuntimeScopePromise = null;
+  __concentrationWarningScopeRefreshPromise = null;
 
   // Do not await this cleanup: the generation change invalidates old tasks,
   // while the session-scoped ID prevents the late close from touching a new
@@ -5330,7 +5575,8 @@ function __resetConcentrationWarningRuntime() {
   void requestConcentrationWarningPopoverClose(stalePopoverId);
 }
 
-function normalizeConcentrationWarnings(values = []) {
+function normalizeConcentrationWarnings(values = [], defaultWarningRuntimeScope = "") {
+  const fallbackScope = String(defaultWarningRuntimeScope || "").trim();
   return (Array.isArray(values) ? values : []).slice(0, 20).map((warning) => ({
     name: String(warning?.name || "Token").trim().slice(0, 80) || "Token",
     damage: Math.max(0, Math.floor(Number(warning?.damage) || 0)),
@@ -5338,6 +5584,9 @@ function normalizeConcentrationWarnings(values = []) {
     portrait: String(warning?.portrait || "").trim().slice(0, 2048),
     attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
     spellName: String(warning?.spellName || "").trim().slice(0, 240),
+    ...(String(warning?.warningRuntimeScope || fallbackScope).trim()
+      ? { warningRuntimeScope: String(warning?.warningRuntimeScope || fallbackScope).trim().slice(0, 256) }
+      : {}),
     notice: warning?.notice && typeof warning.notice === "object"
       ? warning.notice
       : null,
@@ -5369,6 +5618,13 @@ async function openConcentrationWarningModal(
   if (!isCurrentConcentrationWarningRuntime(generation, sceneEpoch)) return false;
   const warnings = normalizeConcentrationWarnings(data?.warnings);
   if (!warnings.length) return false;
+  const warningRuntimeScope = String(
+    concentrationWarningUsesCrossRealmScope()
+      ? __concentrationWarningRuntimeScope
+      : warnings.find((warning) => String(warning?.warningRuntimeScope || "").trim())
+        ?.warningRuntimeScope || "",
+  ).trim();
+  if (concentrationWarningUsesCrossRealmScope() && !warningRuntimeScope) return false;
 
   const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
   if (__concentrationWarningPopoverOpen) {
@@ -5384,7 +5640,8 @@ async function openConcentrationWarningModal(
         {
           type: "update-concentration-warnings",
           warnings,
-          sceneEpoch,
+          warningSceneEpoch: sceneEpoch,
+          ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
           runtimeGeneration: generation,
           runtimeSession: session,
         },
@@ -5414,7 +5671,10 @@ async function openConcentrationWarningModal(
   const payload = encodeURIComponent(JSON.stringify({ warnings }));
   const url = [
     `/concentration-warning.html?payload=${payload}`,
-    `sceneEpoch=${encodeURIComponent(String(sceneEpoch))}`,
+    `warningSceneEpoch=${encodeURIComponent(String(sceneEpoch))}`,
+    ...(warningRuntimeScope
+      ? [`warningRuntimeScope=${encodeURIComponent(warningRuntimeScope)}`]
+      : []),
     `runtimeGeneration=${encodeURIComponent(String(generation))}`,
     `runtimeSession=${encodeURIComponent(session)}`,
     `popoverId=${encodeURIComponent(popoverId)}`,
@@ -5455,7 +5715,8 @@ async function openConcentrationWarningModal(
       {
         type: "update-concentration-warnings",
         warnings,
-        sceneEpoch,
+        warningSceneEpoch: sceneEpoch,
+        ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
         runtimeGeneration: generation,
         runtimeSession: session,
       },
@@ -5490,8 +5751,14 @@ function closeConcentrationWarningPopoverHost() {
   return cleanup;
 }
 
-function dismissConcentrationWarningsByHistoryEntryIds(historyEntryIds = [], sceneEpoch) {
-  if (!isCurrentConcentrationWarningEpoch(sceneEpoch)) return false;
+function dismissConcentrationWarningsByHistoryEntryIds(
+  historyEntryIds = [],
+  sceneEpoch,
+  warningRuntimeScope = "",
+) {
+  if (!isCurrentConcentrationWarningScope(warningRuntimeScope, sceneEpoch)) {
+    return false;
+  }
   const ids = new Set(
     (Array.isArray(historyEntryIds) ? historyEntryIds : [])
       .map((value) => String(value || "").trim())
@@ -5559,6 +5826,109 @@ function requestConcentrationWarningPump() {
   void run();
 }
 
+async function reacquireConcentrationWarningRuntimeScope(
+  expectedScope,
+  generation = __concentrationWarningRuntimeGeneration,
+  sceneEpoch = currentSceneEpoch(),
+) {
+  const wanted = String(expectedScope || "").trim();
+  if (
+    !wanted
+    || !concentrationWarningUsesCrossRealmScope()
+    || !isCurrentConcentrationWarningRuntime(generation, sceneEpoch)
+  ) return false;
+  if (__concentrationWarningRuntimeScope === wanted) return true;
+  if (__concentrationWarningScopeRefreshPromise) {
+    return __concentrationWarningScopeRefreshPromise;
+  }
+  const refresh = Promise.resolve()
+    .then(() => getEffectsMutationSceneContext({
+      commandId: `concentration-warning-scope-refresh:${generation}`,
+    }))
+    .then((context) => {
+      const freshScope = String(context?.sceneIdentity || "").trim();
+      if (
+        !freshScope
+        || freshScope !== wanted
+        || !isCurrentConcentrationWarningRuntime(generation, sceneEpoch)
+      ) return false;
+      __concentrationWarningRuntimeScope = freshScope;
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      if (__concentrationWarningScopeRefreshPromise === refresh) {
+        __concentrationWarningScopeRefreshPromise = null;
+      }
+    });
+  __concentrationWarningScopeRefreshPromise = refresh;
+  return refresh;
+}
+
+async function handleConcentrationWarningChannelMessage(data) {
+  if (data?.type === "dismiss-concentration-warnings-by-history") {
+    const generation = __concentrationWarningRuntimeGeneration;
+    const sceneEpoch = Number(data?.sceneEpoch);
+    const incomingScope = String(data?.warningRuntimeScope || "").trim();
+    if (
+      concentrationWarningUsesCrossRealmScope()
+      && !isCurrentConcentrationWarningScope(incomingScope, sceneEpoch)
+      && !await reacquireConcentrationWarningRuntimeScope(incomingScope, generation, sceneEpoch)
+    ) return;
+    dismissConcentrationWarningsByHistoryEntryIds(
+      data?.historyEntryIds,
+      data?.sceneEpoch,
+      data?.warningRuntimeScope,
+    );
+    return;
+  }
+  if (data?.type !== "show-concentration-warning") return;
+  const payloadSceneEpoch = Number(data?.sceneEpoch);
+  const payloadWarningRuntimeScope = String(
+    data?.warningRuntimeScope
+      || data?.warnings?.find((warning) => warning?.warningRuntimeScope)?.warningRuntimeScope
+      || "",
+  ).trim();
+  const incomingWarnings = normalizeConcentrationWarnings(
+    data?.warnings,
+    payloadWarningRuntimeScope,
+  );
+  if (concentrationWarningUsesCrossRealmScope()) {
+    const generation = __concentrationWarningRuntimeGeneration;
+    if (
+      !isCurrentConcentrationWarningScope(payloadWarningRuntimeScope, payloadSceneEpoch)
+      && !await reacquireConcentrationWarningRuntimeScope(
+        payloadWarningRuntimeScope,
+        generation,
+        payloadSceneEpoch,
+      )
+    ) {
+      return;
+    }
+  } else {
+    if (!Number.isSafeInteger(payloadSceneEpoch) || payloadSceneEpoch < 0) {
+      return;
+    }
+    if (!isCurrentConcentrationWarningEpoch(payloadSceneEpoch)) {
+      return;
+    }
+  }
+  const createdAt = Math.max(0, Math.floor(Number(data?.createdAt) || Date.now()));
+  const currentWarnings = incomingWarnings.filter((warning) => {
+    const causeHistoryEntryId = String(
+      warning?.notice?.causeHistoryEntryId || "",
+    ).trim();
+    const dismissed = !!causeHistoryEntryId
+      && __dismissedConcentrationWarningCauseIds.has(causeHistoryEntryId);
+    return !dismissed;
+  });
+  currentWarnings.forEach((warning, index) => {
+    const activationId = concentrationWarningActivationId(warning, index, createdAt);
+    __concentrationWarningsByActivationId.set(activationId, warning);
+  });
+  if (currentWarnings.length) requestConcentrationWarningPump();
+}
+
 function mountConcentrationWarningBroadcast() {
   if (__concentrationWarningListenerMounted) return;
   __concentrationWarningListenerMounted = true;
@@ -5569,37 +5939,26 @@ function mountConcentrationWarningBroadcast() {
       __concentrationWarningCleanupPromise = null;
     }
   });
+  void ensureConcentrationWarningRuntimeScope();
   OBR.broadcast.onMessage(CONCENTRATION_WARNING_CHANNEL, (event) => {
-    if (event?.data?.type === "dismiss-concentration-warnings-by-history") {
-      dismissConcentrationWarningsByHistoryEntryIds(
-        event.data?.historyEntryIds,
-        event.data?.sceneEpoch,
-      );
+    const data = event?.data;
+    if (!data || ![
+      "dismiss-concentration-warnings-by-history",
+      "show-concentration-warning",
+    ].includes(data.type)) return;
+    if (!concentrationWarningUsesCrossRealmScope()) {
+      void handleConcentrationWarningChannelMessage(data);
       return;
     }
-    if (event?.data?.type !== "show-concentration-warning") return;
-    if (!isCurrentConcentrationWarningEpoch(event.data?.sceneEpoch)) return;
-    const createdAt = Math.max(0, Math.floor(Number(event.data?.createdAt) || Date.now()));
-    const warnings = normalizeConcentrationWarnings(event.data?.warnings);
-    const currentWarnings = warnings.filter((warning) => {
-      const causeHistoryEntryId = String(
-        warning?.notice?.causeHistoryEntryId || "",
-      ).trim();
-      return !causeHistoryEntryId
-        || !__dismissedConcentrationWarningCauseIds.has(causeHistoryEntryId);
+    void ensureConcentrationWarningRuntimeScope().then((scope) => {
+      if (!scope && data.type === "show-concentration-warning") return;
+      void handleConcentrationWarningChannelMessage(data);
     });
-    currentWarnings.forEach((warning, index) => {
-      __concentrationWarningsByActivationId.set(
-        concentrationWarningActivationId(warning, index, createdAt),
-        warning,
-      );
-    });
-    if (currentWarnings.length) requestConcentrationWarningPump();
   });
   OBR.broadcast.onMessage(CONCENTRATION_WARNING_HOST_CHANNEL, (event) => {
     const data = event?.data;
     const runtimeGeneration = Number(data?.runtimeGeneration);
-    const sceneEpoch = Number(data?.sceneEpoch);
+    const sceneEpoch = Number(data?.warningSceneEpoch ?? data?.sceneEpoch);
     const runtimeSession = String(data?.runtimeSession || "").trim();
     if (
       !isCurrentConcentrationWarningRuntime(runtimeGeneration, sceneEpoch)
@@ -5642,14 +6001,41 @@ async function __sendTurnNoticePayload(notice, sceneEpoch) {
   return __isCurrentSceneOperation(sceneEpoch, "turn-notice");
 }
 
-async function broadcastTurnNotice(state, sceneEpoch = currentSceneEpoch()) {
+function __onTurnNoticeDeliveryEvent(event) {
+  const detail = {
+    key: event?.key,
+    sceneEpoch: event?.sceneEpoch,
+    turnKey: event?.turnKey,
+    activeId: event?.activeId,
+    ...(event?.byKey ? { byKey: event.byKey } : {}),
+    ...(event?.source ? { source: event.source } : {}),
+    ...(event?.reason ? { reason: event.reason } : {}),
+  };
+  __initiativeDiag(`turn-notice:${event?.type || "unknown"}`, detail);
+  if (__initiativeDiagnosticsEnabled) {
+    console.debug("[initiative-turn-notice]", event?.type, detail);
+  }
+  if (event?.type === "delivered") {
+    __lastTurnNoticeDeliveryKey = event.key || "";
+    __lastTurnNoticeActiveId = event.activeId || __lastTurnNoticeActiveId;
+  }
+}
+
+const __turnNoticeDelivery = createTurnNoticeDeliveryCapability({
+  send: __sendTurnNoticePayload,
+  isCurrent: (sceneEpoch) => __isCurrentSceneOperation(sceneEpoch, "turn-notice"),
+  onEvent: __onTurnNoticeDeliveryEvent,
+});
+
+async function broadcastTurnNotice(
+  state,
+  sceneEpoch = currentSceneEpoch(),
+  { source = "metadata" } = {},
+) {
   if (!IS_GM || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
   const notice = buildTurnNoticePayload(state, __activeLabelEntriesById);
   if (!notice || !__isCurrentSceneOperation(sceneEpoch, "turn-notice")) return false;
-  const deliveryKey = `${sceneEpoch}:${notice.turnKey}`;
-  if (deliveryKey === __lastTurnNoticeDeliveryKey) return false;
-  __lastTurnNoticeDeliveryKey = deliveryKey;
-  return __sendTurnNoticePayload(notice, sceneEpoch);
+  return __turnNoticeDelivery.request(notice, sceneEpoch, { source });
 }
 
 async function showConcentrationDamageWarning(
@@ -9913,7 +10299,7 @@ try {
   }
 
     OBR.onReady(async () => {
-      const sceneReadiness = __mountSceneEpochLifecycle();
+      const sceneReadiness = __mountSceneEpochLifecycle(renderCapability);
       mountTrackerPopoverToggleListener();
       mountInitiativeCardContextMenuListener();
       mountTrackerQuickActionsPopoverListener();
@@ -10061,6 +10447,7 @@ try {
     }
   }
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-speed-check")) return;
+  void __ensureInitiativeTemporalSceneIdentity(bootstrapSceneEpoch);
   await ensureState(bootstrapSceneEpoch);
   if (!__isCurrentSceneOperation(bootstrapSceneEpoch, "bootstrap-ensure-state")) return;
   await reconcileStateWithItems(bootstrapSceneEpoch);
@@ -10130,31 +10517,41 @@ try {
   }
 });
 
-async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sceneEpoch = currentSceneEpoch()) {
+async function __processInitiativeMetadata(
+  st,
+  stateDigest,
+  metadataRevision,
+  sceneEpoch = currentSceneEpoch(),
+  renderCapability = null,
+) {
   if (!__isCurrentSceneOperation(sceneEpoch, "metadata", { metadataRevision })) return;
+  __initiativeTemporalLane.recover("metadata");
   if (__sceneBaselineEpoch !== sceneEpoch) {
     const previousState = __latestInitiativeState;
     const baselineState = previousState || st;
     const baselineDigest = previousState
       ? initiativeStateDigest(previousState)
       : stateDigest;
-    await __adoptInitiativeSceneBaseline(
+    const baselineAdopted = await __adoptInitiativeSceneBaseline(
       baselineState,
       baselineDigest,
       sceneEpoch,
       "metadata",
       !previousState,
+      renderCapability,
     );
+    if (!baselineAdopted) return;
     if (!previousState || baselineDigest === stateDigest) return;
     __lastQueuedInitiativeMetadataDigest = stateDigest;
   }
   __lastInitiativeMetadataDigest = stateDigest;
-  if (__isStaleNavigationState(st)) {
+  const staleNavigationState = __isStaleNavigationState(st);
+  if (staleNavigationState) {
     __initiativeDiag("metadata:skipped-stale-navigation", {
       activeId: __activeIdForState(st),
       metadataRevision,
+      temporalCapture: true,
     });
-    return;
   }
   __initiativeDiag("metadata:processing", {
     activeId: __activeIdForState(st),
@@ -10169,121 +10566,142 @@ async function __processInitiativeMetadata(st, stateDigest, metadataRevision, sc
     __lastConditionTurnState,
     st,
   );
-  if (noticeActiveId && noticeActiveId !== __lastTurnNoticeActiveId) {
-    const previousNoticeActiveId = __lastTurnNoticeActiveId;
-    __lastTurnNoticeActiveId = noticeActiveId;
-    if (
-      previousNoticeActiveId
-      && isTurnTransition
-      && IS_GM
-      && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })
-    ) {
-      void broadcastTurnNotice(st, sceneEpoch).catch((err) => {
-        console.warn("[turn-notice] broadcast error:", err?.message || err);
-      });
-    }
-  }
+  const transitionSeq = ++__temporalTransitionSequence;
+  const runtimeGeneration = __temporalLaneGeneration;
+  const sceneIdentity = __temporalSceneIdentity || null;
+  const temporalCreatedAt = Date.now();
 
   let conditionTransition = null;
   if (st && Array.isArray(st.order) && st.order.length > 0) {
     const previousTurnState = __lastConditionTurnState;
-    const nextTurnState = __conditionTurnStateSnapshot(st);
+    const nextTurnState = __immutableConditionTurnState(st);
     const directionHint = __conditionDirectionHintFor(st);
     const boundaries = __forwardConditionTurnBoundaries(previousTurnState, nextTurnState, directionHint);
     __lastConditionTurnState = nextTurnState;
     conditionTransition = { previousTurnState, nextTurnState, boundaries };
   } else {
     __lastConditionTurnState = null;
+    __lastConditionTurnStateConfirmed = null;
     __conditionNavigationHint = null;
   }
 
-  let roundEffectAdjustment = Promise.resolve();
-  try {
-    if (st && Array.isArray(st.order) && st.order.length > 0) {
-      const roundNow = Math.max(1, Number(st.round || 1));
-      if (__lastRoundSeen == null) {
-        __lastRoundSeen = roundNow;
-      } else if (roundNow !== __lastRoundSeen) {
-        const delta = __lastRoundSeen - roundNow;
-        __lastRoundSeen = roundNow;
-
-        if (IS_GM) {
-          const tokenIds = st.order
-            .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
-            .filter(id => id && !isLairId(id) && !isEpicActionId(id));
-          const unique = Array.from(new Set(tokenIds));
-          const run = async () => {
-            if (!__isCurrentSceneOperation(sceneEpoch, "round-tick", { metadataRevision })) return;
-            const mutation = await runEffectsMutation([{
-              type: "effects:tick-round",
-              targetIds: unique,
-              delta,
-            }], {
-              kind: "effects:tick-round",
-              label: "Scadenza effetti di round",
-              targetIds: unique,
-              history: false,
-              sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }],
-              sideEffects: [{
-                type: "static-zone:remove-ended",
-                selectors: [{ all: true }],
-              }],
-            });
-            if (mutation.status !== "applied") {
-              requireAppliedEffectsMutation(mutation);
-            }
-          };
-          roundEffectAdjustment = run();
-        }
+  const temporalDescriptors = [];
+  if (st && Array.isArray(st.order) && st.order.length > 0) {
+    const roundNow = Math.max(1, Number(st.round || 1));
+    if (__lastRoundSeen == null) {
+      __lastRoundSeen = roundNow;
+      __lastRoundSeenConfirmed = roundNow;
+    } else if (roundNow !== __lastRoundSeen) {
+      const roundDelta = __lastRoundSeen - roundNow;
+      const previousRound = __lastRoundSeen;
+      __lastRoundSeen = roundNow;
+      const tokenIds = st.order
+        .map(id => (typeof splitParagonId === "function" ? splitParagonId(id).baseId : id))
+        .filter(id => id && !isLairId(id) && !isEpicActionId(id));
+      const unique = Array.from(new Set(tokenIds));
+      if (IS_GM && unique.length) {
+        const baseDescriptor = {
+          sceneEpoch,
+          sceneIdentity,
+          runtimeGeneration,
+          metadataRevision,
+          transitionSeq,
+          mutationType: "effects:tick-round",
+          previousRound,
+          nextRound: roundNow,
+          createdAt: temporalCreatedAt,
+          roundDelta,
+          previousState: conditionTransition?.previousTurnState || null,
+          nextState: conditionTransition?.nextTurnState || null,
+          conditionBoundaries: Object.freeze([]),
+          targetIds: Object.freeze(unique),
+        };
+        temporalDescriptors.push(Object.freeze({
+          ...baseDescriptor,
+          roundCommandId: __temporalCommandId(baseDescriptor, "effects:tick-round"),
+        }));
+      } else {
+        __lastRoundSeenConfirmed = roundNow;
       }
     }
-  } catch (err) {
-    console.warn("[effects] queue round tick error:", err);
+  } else {
+    __lastRoundSeen = null;
+    __lastRoundSeenConfirmed = null;
   }
 
-  await renderAll("metadata"); // ridisegna UI
+  const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
+  const boundaryTokenIds = Array.from(new Set(
+    [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
+      .map(__conditionActorId)
+      .filter(Boolean),
+  ));
+  if (boundaries.length && IS_GM && boundaryTokenIds.length) {
+    const baseDescriptor = {
+      sceneEpoch,
+      sceneIdentity,
+      runtimeGeneration,
+      metadataRevision,
+      transitionSeq,
+      mutationType: "effects:tick-boundaries",
+      createdAt: temporalCreatedAt,
+      previousState: previousTurnState || null,
+      nextState: nextTurnState || null,
+      previousTurnState: previousTurnState || null,
+      nextTurnState: nextTurnState || null,
+      roundDelta: 0,
+      conditionBoundaries: Object.freeze(boundaries.map((boundary) => Object.freeze({ ...boundary }))),
+      targetIds: Object.freeze(boundaryTokenIds),
+    };
+    temporalDescriptors.push(Object.freeze({
+      ...baseDescriptor,
+      boundaryCommandId: __temporalCommandId(baseDescriptor, "effects:tick-boundaries"),
+    }));
+  } else if (nextTurnState) {
+    __lastConditionTurnStateConfirmed = nextTurnState;
+  }
+
+  for (const descriptor of temporalDescriptors) {
+    void __enqueueInitiativeTemporalDescriptor(descriptor).catch((error) => {
+      console.warn("[initiative-temporal] enqueue error:", error?.message || error);
+    });
+  }
+
+  const latestMetadataRevision = metadataRevision === __initiativeMetadataRevision;
+  const candidateNotice = noticeActiveId
+    ? buildTurnNoticePayload(st, __activeLabelEntriesById)
+    : null;
+  const retryableNotice = candidateNotice
+    && __turnNoticeDelivery.hasRetryable(candidateNotice, sceneEpoch);
+  if (
+    noticeActiveId
+    && __lastTurnNoticeActiveId
+    && (isTurnTransition || retryableNotice)
+    && latestMetadataRevision
+    && !staleNavigationState
+    && IS_GM
+    && __isCurrentSceneOperation(sceneEpoch, "turn-notice", { metadataRevision })
+  ) {
+    void broadcastTurnNotice(st, sceneEpoch, { source: "metadata" }).catch((err) => {
+      console.warn("[turn-notice] broadcast error:", err?.message || err);
+    });
+  }
+
+  if (staleNavigationState) {
+    __initiativeDiag("metadata:temporal-captured-stale-navigation", {
+      activeId: noticeActiveId,
+      metadataRevision,
+      transitionSeq,
+    });
+    return;
+  }
+
+  await renderCapability("metadata"); // ridisegna UI
   if (!__isCurrentSceneOperation(sceneEpoch, "metadata-render", { metadataRevision })) return;
   if (!st || !Array.isArray(st.order) || st.order.length === 0) {
     return;
   }
 
   const activeId = st.order[st.current];
-
-// --- Tick incantesimi/condizioni per ROUND (con direzione) ---
-try {
-  await roundEffectAdjustment;
-} catch (err) {
-  console.warn("[effects] tick round error:", err);
-}
-
-try {
-  const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
-  if (IS_GM && boundaries.length) {
-    const run = async () => {
-      if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) return;
-      const tokenIds = Array.from(new Set(
-        [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
-          .map(__conditionActorId)
-          .filter(Boolean)
-      ));
-      if (!tokenIds.length) return;
-      const mutation = await runEffectsMutation([{
-        type: "effects:tick-boundaries",
-        targetIds: tokenIds,
-        boundaries,
-      }], {
-        kind: "effects:tick-boundaries",
-        label: "Scadenza effetti di turno",
-        targetIds: tokenIds,
-        sceneMetadataPreconditions: [{ key: STATE_KEY, value: st }],
-      });
-      requireAppliedEffectsMutation(mutation);
-    };
-    await run();
-  }
-} catch (err) {
-  console.warn("[conditions] tick turn boundary error:", err?.message || err);
-}
 
   if (!__isCurrentSceneOperation(sceneEpoch, "condition-turn-tick", { metadataRevision })) return;
 
@@ -10323,7 +10741,7 @@ if (!isLairId(activeId) && !isEpicActionId(activeId)) {
         && __isCurrentSceneOperation(sceneEpoch, "auto-collapse", { metadataRevision })
         && metadataRevision === __initiativeMetadataRevision
       ) {
-        await renderAll("auto-collapse");
+        await renderCapability("auto-collapse");
       }
     } else {
       __initiativeDiag("collapse:skipped-stale", {
@@ -10349,7 +10767,13 @@ OBR.scene.onMetadataChange((meta) => {
   }
   __lastQueuedInitiativeMetadataDigest = stateDigest;
   const metadataRevision = ++__initiativeMetadataRevision;
-  const run = () => __processInitiativeMetadata(st, stateDigest, metadataRevision, sceneEpoch);
+  const run = () => __processInitiativeMetadata(
+    st,
+    stateDigest,
+    metadataRevision,
+    sceneEpoch,
+    renderCapability,
+  );
   void __initiativeMetadataProcessor.enqueue(run).catch((err) => {
     console.warn("[initiative] metadata queue error:", err?.message || err);
   });
@@ -10605,4 +11029,5 @@ try {
 
   });
 
+  resolveRenderRuntimeReady();
 }

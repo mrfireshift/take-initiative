@@ -386,4 +386,3 @@ window.addEventListener("beforeunload", () => {
   if (selectionPollTimer) window.clearInterval(selectionPollTimer);
   selectionPollTimer = null;
 });
-

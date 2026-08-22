@@ -28,3 +28,11 @@ test("le aure di classe vengono terminate quando la fonte riceve una condizione 
   assert.match(classAuraSource, /deactivateClassFeature/);
   assert.match(classAuraSource, /requested = true/);
 });
+
+test("il controller delle aure spell riconsegna le pending activation ripristinate da History", () => {
+  assert.match(spellAuraSource, /REMINDER_HISTORY_REARM_CHANNEL/);
+  assert.match(spellAuraSource, /data\?\.owner !== "spell-aura"/);
+  assert.match(spellAuraSource, /historyRestoredActivationIds\.add\(request\.sourceActivationId\)/);
+  assert.match(spellAuraSource, /rearmedMobileAuraNotices\(\{/);
+  assert.match(spellAuraSource, /rearmActivationIds: rearmedActivationIds/);
+});

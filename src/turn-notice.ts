@@ -8,15 +8,18 @@ import {
   planZoneTriggerNoticeDelivery,
   shouldClearZoneNoticeAtTurn,
   zoneTriggerNoticeDetail,
-  zoneTriggerNoticeFromActivation,
+  zoneTriggerNoticesFromActivation,
 } from "./zoneTriggerNoticeCore.js";
 import {
   mergeSaveReminderNoticeBatch,
+  pruneEffectSaveReminderNoticeBatch,
   pruneZoneReminderNoticeBatch,
   saveReminderNoticeBatchPresentation,
 } from "./saveReminderNoticeCore.js";
+import { effectSaveReminderNoticeFromHistoryReplay } from "./effectSaveReminderCore.js";
 import {
   REMINDER_OUTCOMES,
+  normalizeReminderResolution,
   reminderResolutionNeedsDamage,
   reminderResolutionOutcomeNeedsDamage,
 } from "./reminderResolutionCore.js";
@@ -27,6 +30,7 @@ import { isTurnNoticeForScene } from "./turnNotice.js";
 import { projectReminderNotices } from "./options/optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
 import { selectReminderProjectionPolicy } from "./options/optionsSelectors.js";
+import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
@@ -392,6 +396,110 @@ function dismissResolvedReminder(activationId: string, { zone = false } = {}) {
   currentSaveReminderBatch = nextBatch;
 }
 
+function historyReplayForReminder(row: any) {
+  const resolution = row?.resolution && typeof row.resolution === "object"
+    ? row.resolution
+    : null;
+  const activation = resolution?.activation && typeof resolution.activation === "object"
+    ? resolution.activation
+    : null;
+  const activationId = String(row?.activationId || activation?.activationId || "").trim();
+  const target = Array.isArray(row?.targets) ? row.targets[0] : null;
+  const targetId = String(
+    target?.id
+      || resolution?.target?.id
+      || "",
+  ).trim();
+  const compactResolution = normalizeReminderResolution(resolution, {
+    targetId,
+    activation,
+  });
+  if (!activationId || !targetId || !resolution || !activation || !compactResolution) return null;
+  const owner = activation.kind === "zone"
+    ? activation.metadataKey === SPELL_AURA_META_KEY
+      ? "spell-aura"
+      : "static-zone"
+    : "effect-save";
+  const descriptor = {
+    activationId,
+    targetId,
+    ...(String(resolution?.effect?.instanceId || "").trim()
+      ? { instanceId: String(resolution.effect.instanceId).trim().slice(0, 200) }
+      : {}),
+    ...(String(activation?.zoneItemId || "").trim()
+      ? { zoneItemId: String(activation.zoneItemId).trim().slice(0, 200) }
+      : {}),
+    notice: {
+      activationId,
+      ...(String(row?.turnKey || "").trim()
+        ? { turnKey: String(row.turnKey).trim().slice(0, 300) }
+        : {}),
+      ...(String(row?.timing || "").trim()
+        ? { timing: String(row.timing).trim().slice(0, 40) }
+        : {}),
+      ...(String(row?.spellName || "").trim()
+        ? { spellName: String(row.spellName).trim().slice(0, 120) }
+        : {}),
+      ...(String(row?.effectName || "").trim()
+        ? { effectName: String(row.effectName).trim().slice(0, 120) }
+        : {}),
+      ...(String(row?.saveLabel || "").trim()
+        ? { saveLabel: String(row.saveLabel).trim().slice(0, 160) }
+        : {}),
+      ...(String(row?.instruction || "").trim()
+        ? { instruction: String(row.instruction).trim().slice(0, 320) }
+        : {}),
+      ...(String(row?.ability || "").trim()
+        ? { ability: String(row.ability).trim().slice(0, 20) }
+        : {}),
+      ...(Number.isFinite(Number(row?.dc)) ? { dc: Number(row.dc) } : {}),
+      ...(String(row?.sourceName || "").trim()
+        ? { sourceName: String(row.sourceName).trim().slice(0, 100) }
+        : {}),
+      ...(String(row?.kind || "").trim()
+        ? { kind: String(row.kind).trim().slice(0, 40) }
+        : {}),
+      ...(String(row?.eyebrow || "").trim()
+        ? { eyebrow: String(row.eyebrow).trim().slice(0, 80) }
+        : {}),
+      targets: [{
+        id: targetId,
+        name: String(target?.name || "Token").trim().slice(0, 100) || "Token",
+      }],
+       resolution: compactResolution,
+    },
+  };
+  return {
+    type: "reminder",
+    owner,
+    activationId,
+    targetId,
+    descriptor,
+  };
+}
+
+function currentEffectSaveReminderActivationIds(batch: any, items: any[]) {
+  const current = new Set<string>();
+  for (const entry of Array.isArray(batch?.entries) ? batch.entries : []) {
+    const activationId = String(entry?.activationId || "").trim();
+    if (!activationId
+      || (entry?.kind !== "effect-save" && entry?.kind !== "effect-reminder")) {
+      continue;
+    }
+    const replay = historyReplayForReminder(entry);
+    // Preserve unknown informational rows: only descriptors understood by the
+    // effect-save owner may be invalidated from canonical scene state.
+    if (!replay || replay.owner !== "effect-save") {
+      current.add(activationId);
+      continue;
+    }
+    if (effectSaveReminderNoticeFromHistoryReplay({ replay, items })) {
+      current.add(activationId);
+    }
+  }
+  return current;
+}
+
 function buildResolutionControls(line: HTMLElement, row: any) {
   if (!reminderRowRequiresResponse(row)) return;
   const activationId = String(row.activationId || "").trim();
@@ -473,6 +581,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         outcome: draft.outcome,
         damageRoll: draft.damageRoll,
         sceneEpoch: currentSceneEpoch(),
+        historyReplay: historyReplayForReminder(row),
       });
       if (result.status === "applied" || result.status === "already-resolved") {
         setResolutionStatus(
@@ -716,6 +825,16 @@ function showZoneNotices(raw: any, { baseline = false } = {}) {
     policy: reminderProjectionPolicy.player,
     directResolution: reminderProjectionPolicy.directResolution,
   });
+  if (Array.isArray(raw?.rearmActivationIds)) {
+    const rearmIds = new Set(
+      raw.rearmActivationIds
+        .map((value: any) => String(value || "").trim())
+        .filter(Boolean),
+    );
+    for (const activationId of rearmIds) {
+      announcedZoneActivationIds.delete(activationId);
+    }
+  }
   const plan = planZoneTriggerNoticeDelivery(
     values,
     [...announcedZoneActivationIds],
@@ -742,7 +861,7 @@ async function syncPendingZoneNotices() {
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const itemsById = new Map(items.map((item) => [item.id, item]));
   const notices = pendingSpellZoneTriggerActivations(items)
-    .map((activation) => zoneTriggerNoticeFromActivation(
+    .flatMap((activation) => zoneTriggerNoticesFromActivation(
       activation,
       itemsById,
     ))
@@ -757,9 +876,13 @@ async function syncPendingZoneNotices() {
     const currentEntries = Array.isArray(currentSaveReminderBatch.entries)
       ? currentSaveReminderBatch.entries
       : [];
-    const nextCurrentBatch = pruneZoneReminderNoticeBatch(
+    const zonePrunedBatch = pruneZoneReminderNoticeBatch(
       currentSaveReminderBatch,
       pendingIds,
+    );
+    const nextCurrentBatch = pruneEffectSaveReminderNoticeBatch(
+      zonePrunedBatch,
+      currentEffectSaveReminderActivationIds(currentSaveReminderBatch, items),
     );
     const nextCurrentIds = new Set(
       Array.isArray(nextCurrentBatch?.entries)
@@ -773,6 +896,11 @@ async function syncPendingZoneNotices() {
         resolutionDrafts.delete(activationId);
         resolutionStatus.delete(activationId);
         resolvingActivations.delete(activationId);
+        if (entry?.kind === "zone" || entry?.kind === "zone-effect") {
+          announcedZoneActivationIds.delete(activationId);
+        } else {
+          announcedEffectActivationIds.delete(activationId);
+        }
       }
       if (!nextCurrentBatch) {
         clearZoneNotice();

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   SPELL_AREA_RULES,
   getSpellAreaRuleById,
+  getSpellAreaRuleForPlacement,
   getSpellAreaRules,
   validateSpellAreaRule,
 } from "../src/spellAreaRules.js";
@@ -18,6 +19,7 @@ import {
 } from "../src/areaSaveSpellRules.js";
 import { SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED } from "../src/spellZoneTriggerCore.js";
 import { getSpellCatalog, getSpellDefinition } from "../src/spells-srd.js";
+import { spellSaveDamageFormula } from "../src/spellCastResolutionRules.js";
 
 test("tutte le regole iniziali rispettano il contratto e puntano al catalogo", () => {
   assert.ok(SPELL_AREA_RULES.length > 0);
@@ -428,7 +430,13 @@ test("i trigger manuali migrati espongono dati di risoluzione strutturati", () =
   assert.equal(web.ability, "dex");
   assert.deepEqual(web.resolutionData.failureCondition, {
     condition: "Trattenuto",
+    options: {
+      manualRemoval: true,
+      effectDetail: "Può usare un'azione per effettuare una prova di Forza contro la CD del tiro salvezza dell'incantesimo. Se ha successo, non è più Trattenuto.",
+    },
   });
+  assert.equal(web.requiresOwnTurn, true);
+  assert.equal(web.removeLinkedConditionOnLeave, true);
   assert.equal(moonbeam.ability, "con");
   assert.equal(moonbeam.resolutionData.damage.onSave, "half");
   assert.deepEqual(dawn.resolutionData.damage, {
@@ -489,7 +497,7 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
     "flaming-sphere": ["turn-end:manual-save", "enter:manual-save"],
     "incendiary-cloud": ["enter:manual-save", "turn-end:manual-save"],
     "insect-plague": ["enter:manual-save", "turn-end:manual-save"],
-    "wall-of-fire": ["enter:informational", "turn-end:informational"],
+    "wall-of-fire": ["enter:manual-effect", "turn-end:manual-effect"],
     "wall-of-thorns": ["enter:manual-save", "turn-end:manual-save"],
     "xanathar-creare-falo": ["enter:manual-save", "turn-end:manual-save"],
     "xanathar-muro-di-luce": ["turn-end:manual-effect"],
@@ -530,6 +538,44 @@ test("i tre lotti di danno a fine turno dichiarano tutti i trigger auditati", ()
     stopOnFirstContact: true,
   });
   assert.equal(flamingSphere.zonePolicy.membershipPaddingSquares, 1);
+  const wallOfFire = getSpellAreaRuleById("wall-of-fire:cast");
+  assert.equal(wallOfFire.zonePolicy.placementOptional, false);
+  assert.equal(wallOfFire.targeting.confirmTargets, false);
+  assert.equal(wallOfFire.targeting.includeCaster, true);
+  assert.deepEqual(
+    wallOfFire.placementChoices.map((choice) => [
+      choice.id,
+      choice.geometry.shape,
+      choice.geometry.ring === true,
+      choice.geometry.hotBand?.side,
+      choice.placement.snapOrigin,
+      choice.geometry.widthAnchor,
+    ]),
+    [
+      ["line-hot-left", "line", false, "left", "vertex", "edge"],
+      ["line-hot-right", "line", false, "right", "vertex", "edge"],
+      ["ring-hot-inside", "circle", true, "inside", undefined, undefined],
+      ["ring-hot-outside", "circle", true, "outside", undefined, undefined],
+    ],
+  );
+  assert.equal(
+    getSpellAreaRuleForPlacement("wall-of-fire:cast", "line-hot-left").placement.snapOrigin,
+    "vertex",
+  );
+  assert.equal(
+    getSpellAreaRuleForPlacement("wall-of-fire:cast", "line-hot-left").geometry.widthAnchor,
+    "edge",
+  );
+  assert.equal(wallOfFire.zonePolicy.triggers[0].requiresCrossing, true);
+  assert.equal(wallOfFire.zonePolicy.triggers[0].targetArea, "body");
+  assert.equal(wallOfFire.zonePolicy.triggers[1].targetArea, "body-or-hot-band");
+  assert.deepEqual(wallOfFire.zonePolicy.triggers[0].damage, {
+    dice: "5d8",
+    type: "fuoco",
+    onSave: "none",
+    baseSlot: 4,
+    additionalPerSlotAbove: 1,
+  });
   const contactTrigger = flamingSphere.zonePolicy.triggers.find(
     (trigger) => trigger.id === "flaming-sphere-save-on-contact"
   );
@@ -1014,4 +1060,10 @@ test("Nube di Pugnali espone danno manuale scalabile nei reminder", () => {
     && trigger.damage?.baseSlot === 2
     && trigger.damage?.additionalPerSlotAbove === 2
   )));
+});
+
+test("Muro di Fuoco scala il danno iniziale in base allo slot senza automatizzare il tiro", () => {
+  assert.equal(spellSaveDamageFormula("wall-of-fire", "failed", 4), "5d8");
+  assert.equal(spellSaveDamageFormula("wall-of-fire", "passed", 5), "6d8");
+  assert.equal(spellSaveDamageFormula("wall-of-fire", "failed", 7), "8d8");
 });

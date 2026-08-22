@@ -77,7 +77,9 @@ function snapshotValue(change, side, field) {
 }
 
 function numberText(value) {
-  const number = Number(value) || 0;
+  if (value === null || value === undefined || value === "") return "?";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "?";
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
@@ -97,13 +99,45 @@ function targetSnapshot(change, names = null) {
   };
 }
 
-function numericOrZero(value) {
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
+  return Number.isFinite(number) ? number : null;
 }
 
-function hpPayload(changes, names = null) {
-  const targets = changes
+function reminderHpSnapshotChanges(changes, reminderHpChange, targetId) {
+  if (!reminderHpChange || typeof reminderHpChange !== "object") return changes;
+  const hasSnapshot = ["before", "after", "hpMax"].some((field) => hasOwn(reminderHpChange, field));
+  if (!hasSnapshot) return changes;
+  const normalizedTargetId = String(targetId || changes[0]?.id || "").trim();
+  if (!normalizedTargetId) return changes;
+  const index = changes.findIndex((change) => String(change?.id || "") === normalizedTargetId);
+  const base = index >= 0 ? changes[index] : { id: normalizedTargetId };
+  const patched = {
+    ...base,
+    before: {
+      ...(base.before || {}),
+      hp: reminderHpChange.before,
+      hpMax: reminderHpChange.hpMax,
+    },
+    after: {
+      ...(base.after || {}),
+      hp: reminderHpChange.after,
+      hpMax: reminderHpChange.hpMax,
+    },
+  };
+  if (index < 0) return [...changes, patched];
+  return changes.map((change, changeIndex) => changeIndex === index ? patched : change);
+}
+
+function hpPayload(
+  changes,
+  names = null,
+  reminderHpChange = null,
+  reminderTargetId = null,
+) {
+  const sourceChanges = reminderHpSnapshotChanges(changes, reminderHpChange, reminderTargetId);
+  const targets = sourceChanges
     .filter((change) => (
       fieldSnapshot(change, "before", "hp").present
       || fieldSnapshot(change, "after", "hp").present
@@ -111,10 +145,10 @@ function hpPayload(changes, names = null) {
       || fieldSnapshot(change, "after", "hpMax").present
     ))
     .map((change) => {
-    const beforeHP = numericOrZero(snapshotValue(change, "before", "hp"));
-    const afterHP = numericOrZero(snapshotValue(change, "after", "hp"));
-    const beforeMax = numericOrZero(snapshotValue(change, "before", "hpMax"));
-    const afterMax = numericOrZero(snapshotValue(change, "after", "hpMax"));
+    const beforeHP = numericOrNull(snapshotValue(change, "before", "hp"));
+    const afterHP = numericOrNull(snapshotValue(change, "after", "hp"));
+    const beforeMax = numericOrNull(snapshotValue(change, "before", "hpMax"));
+    const afterMax = numericOrNull(snapshotValue(change, "after", "hpMax"));
     return {
       ...targetSnapshot(change, names),
       before: {
@@ -125,14 +159,21 @@ function hpPayload(changes, names = null) {
         hp: afterHP,
         hpMax: afterMax,
       },
-      delta: afterHP - beforeHP,
-      hpMaxDelta: afterMax - beforeMax,
+      delta: Number.isFinite(beforeHP) && Number.isFinite(afterHP)
+        ? afterHP - beforeHP
+        : null,
+      hpMaxDelta: Number.isFinite(beforeMax) && Number.isFinite(afterMax)
+        ? afterMax - beforeMax
+        : null,
     };
   });
-  const deltas = targets.map((target) => target.delta).filter((delta) => delta !== 0);
-  const action = deltas.length && deltas.every((delta) => delta < 0)
+  const deltas = targets
+    .map((target) => target.delta)
+    .filter((delta) => Number.isFinite(delta) && delta !== 0);
+  const allDeltasKnown = targets.every((target) => Number.isFinite(target.delta));
+  const action = allDeltasKnown && deltas.length && deltas.every((delta) => delta < 0)
     ? "damage"
-    : deltas.length && deltas.every((delta) => delta > 0)
+    : allDeltasKnown && deltas.length && deltas.every((delta) => delta > 0)
       ? "healing"
       : "change";
   return { action, targets };
@@ -318,9 +359,9 @@ function collectionFacet(changes, field, names) {
   return { added, removed, updated, targets };
 }
 
-function buildFacets(changes, names) {
+function buildFacets(changes, names, reminderHpChange = null, reminderTargetId = null) {
   const facets = {};
-  const hp = hpPayload(changes, names);
+  const hp = hpPayload(changes, names, reminderHpChange, reminderTargetId);
   if (hp.targets.length) facets.hp = hp;
   for (const field of ["conditions", "spells", "concentrations"]) {
     const facet = collectionFacet(changes, field, names);
@@ -337,7 +378,13 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
   const changes = mergeHistoryChanges(entry);
   const names = historyNameMap(entry, changes);
   const kind = String(entry?.kind || "change");
-  const facets = buildFacets(changes, names);
+  const reminderHpChange = kind === "reminder-resolution"
+    ? entry?.payload?.hpChange
+    : null;
+  const reminderTargetId = kind === "reminder-resolution"
+    ? entry?.payload?.targetId
+    : null;
+  const facets = buildFacets(changes, names, reminderHpChange, reminderTargetId);
   const base = {
     version: 2,
     at: Number.isFinite(Number(entry?.at)) ? Number(entry.at) : Date.now(),
@@ -361,7 +408,7 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
   };
 
   if (combatEventCategory(kind) === "hp") {
-    const hp = hpPayload(changes, names);
+    const hp = hpPayload(changes, names, reminderHpChange, reminderTargetId);
     return { ...base, action: hp.action, targets: hp.targets };
   }
   if (kind === "move") {

@@ -9,6 +9,23 @@ const clone = (value) => {
 // only on a later attack, as a reaction, or through an active action.
 const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "grease": Object.freeze({ initialHP: false }),
+  "wall-of-fire": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({
+        formula: "5d8",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
+        type: "fuoco",
+      }),
+      failed: Object.freeze({
+        formula: "5d8",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
+        type: "fuoco",
+      }),
+    }),
+  }),
   "chain-lightning": Object.freeze({
     initialHP: true,
     resolution: "chain-lightning",

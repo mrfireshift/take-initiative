@@ -735,7 +735,15 @@ function normalizeHp(
   const boardTokenInitial = rule?.kind === "board-token" && !activeAction;
   const automaticAuraInitial = rule?.kind === "aura" && !activeAction;
   const contractHpRequired = contract?.presentation?.inputs?.hp?.required === true;
-  const required = contractHpRequired && !boardTokenInitial && !automaticAuraInitial;
+  const targeting = contract?.presentation?.targeting || {};
+  const emptyInitialZone = targetIds.length === 0
+    && rule?.kind === "zone"
+    && targeting.mode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
+    && targeting.confirmTargets !== true;
+  const required = contractHpRequired
+    && !boardTokenInitial
+    && !automaticAuraInitial
+    && !emptyInitialZone;
   const mode = text(
     rawHp.mode
       || input.hpMode
@@ -1259,7 +1267,10 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TARGET_LIMIT);
   }
   const ruleKind = placement.rule?.kind;
-  const allowEmptyTargets = targetMode === SPELL_UNIFIED_TARGETING_MODES.NONE
+  const nonConfirmedZoneAllowsEmptyTargets = ruleKind === "zone"
+    && targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
+    && targetingContract.confirmTargets !== true;
+  const allowEmptyTargets = (targetMode === SPELL_UNIFIED_TARGETING_MODES.NONE
     || phase === "prepare"
     || ruleKind === "zone"
     || ruleKind === "aura"
@@ -1267,7 +1278,8 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     || isTeleportSpell(spellId)
       ? placement.rule?.zonePolicy?.targetScope !== "spell-targets"
         && placement.rule?.zonePolicy?.initialResolution !== "manual-save"
-      : false;
+      : false)
+    || nonConfirmedZoneAllowsEmptyTargets;
   if (contract?.presentation?.inputs?.targets?.required === true
     && !targetIds.length
     && !allowEmptyTargets) {

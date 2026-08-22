@@ -565,10 +565,20 @@ async function buildPlan(command, runtime) {
   const phaseResolution = command?.phaseResolution && typeof command.phaseResolution === "object"
     ? command.phaseResolution
     : null;
-  const automation = command?.automation
+  const configuredAutomation = command?.automation
     || getAreaSaveAutomation(spell, text(command?.spell?.choiceValue))
     || spell.saveAutomation
     || null;
+  const suppressInitialZoneAutomation = staticZonePlacement
+    && placementRule?.zonePolicy?.initialResolution === "none";
+  const automation = suppressInitialZoneAutomation
+    ? {
+      ...(configuredAutomation?.concentrationAction
+        ? { concentrationAction: configuredAutomation.concentrationAction }
+        : {}),
+      trackOutcomes: [],
+    }
+    : configuredAutomation;
   const validation = await runtime.validateSpatial({
     command,
     spell,
@@ -810,6 +820,9 @@ async function buildPlan(command, runtime) {
     : null;
   let matchedVisualContext = null;
   const chainLightningVisualTargetIds = uniqueIds(command?.targeting?.targetIds);
+  const matchedVisualPlacementChoice = text(
+    command?.spell?.choiceValue || placement?.ruleChoice,
+  );
   if (teleportRule && teleportDestination) {
     matchedVisualContext = {
       spellId: spell.id,
@@ -849,13 +862,20 @@ async function buildPlan(command, runtime) {
       sceneEpoch: runtime.sceneEpoch,
     };
   } else if (placement?.preview && !boardToken && spell.id !== "call-lightning") {
+    const matchedVisualPreview = clone(placement.preview);
+    if (spell.id === "wall-of-fire" && placementRule?.geometry?.widthAnchor) {
+      matchedVisualPreview.widthAnchor = placementRule.geometry.widthAnchor;
+    }
     matchedVisualContext = {
       spellId: spell.id,
       casterId,
       targetIds: resolved.spellTargetIds,
       eventId: spellInstanceId,
       lifecycleId: spellInstanceId,
-      preview: clone(placement.preview),
+      preview: matchedVisualPreview,
+      ...(matchedVisualPlacementChoice
+        ? { placementChoice: matchedVisualPlacementChoice }
+        : {}),
       sceneEpoch: runtime.sceneEpoch,
     };
   }

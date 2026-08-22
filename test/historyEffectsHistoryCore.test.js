@@ -37,3 +37,41 @@ test("i cambi effects usano il nome di plan.states senza fallback Token", () => 
   assert.deepEqual(result.changes[0].before.conditions, [{ id: "condition-1" }]);
   assert.deepEqual(result.changes[0].after.conditions, [{ id: "condition-2" }]);
 });
+
+test("reminderResolutions serializza in History il delta after senza alterare il valore live", () => {
+  const liveAfter = {
+    independent: { version: 1, outcome: "passed", resolvedAt: 1 },
+    current: { version: 1, outcome: "failed", resolvedAt: 2 },
+  };
+  const plan = {
+    changes: [{
+      id: "target-1",
+      fields: {},
+      before: {},
+      after: {},
+      metadataFields: { reminderResolutions: true },
+      beforeMetadata: {
+        reminderResolutions: {
+          present: true,
+          value: { previous: { version: 1, outcome: "failed", resolvedAt: 1 } },
+        },
+      },
+      afterMetadata: {
+        reminderResolutions: { present: true, value: liveAfter },
+      },
+      historyAfterMetadata: {
+        reminderResolutions: {
+          present: true,
+          value: { current: liveAfter.current },
+        },
+      },
+    }],
+  };
+
+  const result = buildEffectsMutationHistoryChanges(plan);
+  assert.deepEqual(
+    result.changes[0].afterMetadata.reminderResolutions.value,
+    { current: liveAfter.current },
+  );
+  assert.deepEqual(plan.changes[0].afterMetadata.reminderResolutions.value, liveAfter);
+});

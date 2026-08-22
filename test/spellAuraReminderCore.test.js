@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 
 import { ID } from "../src/constants.js";
 import { SPELL_AURA_META_KEY } from "../src/spellAuraCore.js";
-import { planMobileAuraReminder } from "../src/spellAuraReminderCore.js";
+import {
+  planMobileAuraReminder,
+  rearmedMobileAuraNotices,
+} from "../src/spellAuraReminderCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
 
 const META_KEY = `${ID}/meta`;
@@ -73,6 +76,124 @@ test("Guardiani Spirituali genera il TS a inizio turno nell'aura mobile", () => 
   assert.equal(turnStart.notices[0].spellName, "Guardiani Spirituali");
   assert.equal(turnStart.notices[0].dc, 19);
   assert.equal(turnStart.notices[0].casterName, "Lavera");
+});
+
+test("Guardiani Spirituali espande un ingresso multi-target in risoluzioni indipendenti", () => {
+  const multiItems = new Map(itemsById);
+  multiItems.set("target-a", {
+    id: "target-a",
+    name: "Bersaglio A",
+    metadata: { [META_KEY]: {} },
+  });
+  multiItems.set("target-b", {
+    id: "target-b",
+    name: "Bersaglio B",
+    metadata: { [META_KEY]: {} },
+  });
+  const multiState = {
+    order: ["caster", "target-a", "target-b"],
+    current: 0,
+    round: 1,
+  };
+  const initialized = planMobileAuraReminder({
+    aura,
+    desiredTargetIds: [],
+    initiativeState: multiState,
+    itemsById: multiItems,
+    areaPosition: { x: 0, y: 0 },
+    now: 1,
+  });
+  const entering = planMobileAuraReminder({
+    aura,
+    auraItem: {
+      id: "aura-item",
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: aura.instanceId,
+          triggerRuntime: initialized.runtime,
+        },
+      },
+    },
+    desiredTargetIds: ["target-a", "target-b"],
+    initiativeState: multiState,
+    itemsById: multiItems,
+    areaPosition: { x: 0, y: 0 },
+    now: 2,
+  });
+
+  assert.equal(entering.newActivations.length, 1);
+  assert.deepEqual(entering.newActivations[0].targetIds, ["target-a", "target-b"]);
+  assert.equal(entering.notices.length, 2);
+  assert.deepEqual(
+    entering.notices.map((notice) => notice.targets.map((target) => target.id)),
+    [["target-a"], ["target-b"]],
+  );
+  assert.equal(new Set(entering.notices.map((notice) => notice.activationId)).size, 2);
+  for (const notice of entering.notices) {
+    assert.equal(notice.resolution.save.ability, "wis");
+    assert.equal(notice.resolution.damage.dice, "3d8");
+    assert.equal(notice.resolution.activation.sourceActivationId, entering.newActivations[0].id);
+  }
+
+  const targetBNotice = entering.notices.find((notice) => notice.targets[0].id === "target-b");
+  const rearmed = rearmedMobileAuraNotices({
+    auraItem: {
+      id: "aura-item",
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: aura.instanceId,
+          triggerRuntime: entering.runtime,
+        },
+      },
+    },
+    pendingActivations: entering.runtime.pending,
+    rearmRequests: [{
+      activationId: targetBNotice.activationId,
+      sourceActivationId: entering.newActivations[0].id,
+    }],
+    itemsById: multiItems,
+  });
+
+  assert.deepEqual(rearmed.map((notice) => notice.activationId), [targetBNotice.activationId]);
+  assert.deepEqual(rearmed[0].targets.map((target) => target.id), ["target-b"]);
+});
+
+test("un rearm root dell'aura riconsegna la pending activation senza crearne una nuova", () => {
+  const initialized = planMobileAuraReminder({
+    aura,
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(0),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 1,
+  });
+  const turnStart = planMobileAuraReminder({
+    aura,
+    auraItem: {
+      id: "aura-item",
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: aura.instanceId,
+          triggerRuntime: initialized.runtime,
+        },
+      },
+    },
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(1),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 2,
+  });
+  const activation = turnStart.runtime.pending[0];
+  const notices = rearmedMobileAuraNotices({
+    auraItem: { id: "aura-item" },
+    pendingActivations: turnStart.runtime.pending,
+    rearmRequests: [{ activationId: activation.id, sourceActivationId: activation.id }],
+    itemsById,
+  });
+
+  assert.equal(turnStart.newActivations.length, 1);
+  assert.deepEqual(notices.map((notice) => notice.activationId), [activation.id]);
 });
 
 test("spostare l'aura sui token non simula il loro ingresso", () => {

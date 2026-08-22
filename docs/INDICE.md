@@ -13,6 +13,7 @@ plugin.
 | [Riferimento delle funzioni](RIFERIMENTO_FUNZIONI.md) | Matrice GM/player, dati e regole applicate. |
 | [Capacità di classe](CAPACITA_CLASSE.md) | Classi, sottoclassi, risorse e capacità attivabili. |
 | [Incantesimi, zone e reminder](INCANTESIMI_E_ZONE.md) | Catalogo, registro, aree, zone, aure e limiti RAW. |
+| [Spell Architecture Master](SPELL_ARCHITECTURE_MASTER.md) | Reuse map runtime per polishing, nuove spell e batch futuri. |
 | [Audit automazione incantesimi](AUDIT_AUTOMAZIONE_INCANTESIMI.md) | Matrice completa tra testi RAW e tracking, aree, status, trigger e fasi. |
 | [Architettura e dati](ARCHITETTURA.md) | Entry point, metadata, persistenza e riconciliazione. |
 | [Contratto del movimento](MOVEMENT_MECHANICS.md) | Modalità di movimento, costi e condizioni. |

@@ -10,6 +10,10 @@ const turnNoticeHtml = readFileSync(
   new URL("../turn-notice.html", import.meta.url),
   "utf8",
 );
+const historySource = readFileSync(
+  new URL("../src/history.js", import.meta.url),
+  "utf8",
+);
 const reminderRender = turnNotice.slice(
   turnNotice.indexOf("function renderSaveReminderBatch(batch: any)"),
   turnNotice.indexOf("function flushSaveReminderNotices()"),
@@ -138,4 +142,19 @@ test("il riarmo generico avviene solo nel payload canonico successivo", () => {
     turnNotice.indexOf("function buildResolutionControls"),
   );
   assert.doesNotMatch(dismissBlock, /announcedEffectActivationIds\.delete/);
+});
+
+test("il Turn Notice elimina gli effect-save replay che non sono più canonici", () => {
+  assert.match(turnNotice, /function currentEffectSaveReminderActivationIds/);
+  assert.match(turnNotice, /effectSaveReminderNoticeFromHistoryReplay\(\{ replay, items \}\)/);
+  assert.match(turnNotice, /pruneEffectSaveReminderNoticeBatch\(/);
+  assert.match(turnNotice, /announcedEffectActivationIds\.delete\(activationId\)/);
+});
+
+test("History indirizza le activation di aura mobile al relativo owner", () => {
+  assert.match(
+    turnNotice,
+    /activation\.metadataKey === SPELL_AURA_META_KEY[\s\S]{0,80}\? "spell-aura"/,
+  );
+  assert.match(historySource, /replay\.owner === "spell-aura"/);
 });

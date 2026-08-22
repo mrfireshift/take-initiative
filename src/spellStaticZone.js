@@ -1,9 +1,15 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
-import { buildArea, buildCellBoundaryLoops } from "./aoeGeometryCore.js";
+import {
+  areaIntersectsSegment,
+  buildArea,
+  buildCellBoundaryLoops,
+  areaHitsBounds,
+} from "./aoeGeometryCore.js";
 import { AOE_AREA_META_KEY, loadAoEStyle, normalizeAoEStyle } from "./aoeStyle.js";
 import {
   ID,
+  REMINDER_HISTORY_REARM_CHANNEL,
   RUNTIME_CACHE_CLEANUP_CHANNEL,
   SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
 } from "./constants.js";
@@ -16,6 +22,7 @@ import {
 } from "./spellAreaMembershipCore.js";
 import {
   getSpellAreaRuleById,
+  getSpellAreaRuleForPlacement,
   SPELL_AREA_RULES,
 } from "./spellAreaRules.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
@@ -29,6 +36,7 @@ import {
   scopedStaticSpellZoneTargetIds,
   spellStaticZoneFollowCasterPosition,
   translatedZoneArea,
+  translatedZoneTriggerAreas,
 } from "./spellStaticZoneCore.js";
 import {
   SPELL_BOARD_TOKEN_META_KEY,
@@ -36,6 +44,7 @@ import {
 } from "./spellBoardTokenCore.js";
 import {
   SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED,
+  normalizeSpellZoneTriggerRuntime,
 } from "./spellZoneTriggerCore.js";
 import {
   clipChildZoneAreaToParent,
@@ -45,6 +54,7 @@ import {
 import {
   mergeStaticSpellZoneReminderMetadata,
   planStaticSpellZoneReminder,
+  rearmedStaticSpellZoneNotices,
 } from "./spellStaticZoneReminderCore.js";
 import { createSceneItemBoundsCache } from "./sceneItemBoundsCache.js";
 import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCore.js";
@@ -63,6 +73,20 @@ const ITEM_BOUNDS_TIMEOUT_MS = 1200;
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
 const CONCENTRATION_KEY = `${ID}/concentration`;
+const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
+const MAX_HISTORY_UNDO_MOVEMENT_SUPPRESSIONS = 8;
+
+function spellZoneLifecycleEffectIds() {
+  return [...new Set(SPELL_AREA_RULES
+    .filter((rule) => rule.kind === "zone")
+    .flatMap((rule) => [
+      ...areaMembershipEffects(rule).map((effect) => effect.id),
+      ...(Array.isArray(rule.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
+        .filter((trigger) => trigger?.removeLinkedConditionOnLeave === true)
+        .map((trigger) => trigger.id),
+    ])
+    .filter(Boolean))];
+}
 
 let mounted = false;
 let running = false;
@@ -71,20 +95,29 @@ let timer = null;
 let watchdogTimer = null;
 let recoveryTimer = null;
 let unsubscribeItems = null;
+let unsubscribeImmediateMovement = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
 let unsubscribeRuntimeCacheCleanup = null;
+let unsubscribeRuntimeHistoryRearm = null;
+let unsubscribeRuntimeHistoryUndo = null;
 let queuedSceneMetadata = null;
 let queuedSceneItems = null;
 let queuedSceneGeneration = 0;
 let queuedReconcileReason = "event";
 let queuedReconcileForce = false;
+const queuedRearmActivationIds = new Set();
+const queuedHistoryUndoMovementSuppressions = [];
+const queuedMovementRecords = new Map();
+const pendingHistoryUndoMovementSuppressions = new Map();
+let historyUndoRuntimeIdentity = null;
 let activeSceneItemsOverride = null;
 let activeSceneGeneration = 0;
 let activeReconcileForce = false;
 let completedGenerationKey = null;
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 let fallbackGeneration = 0;
+const undoRestoredActivationIds = new Set();
 const sceneItemBounds = createSceneItemBoundsCache(
   (itemId) => OBR.scene.items.getItemBounds([itemId]),
   { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
@@ -114,7 +147,9 @@ function boundaryCommands(cells) {
 }
 
 function geometryCommands(area) {
-  if (area?.clippedToParent) return boundaryCommands(area.cells);
+  if (area?.clippedToParent || area?.ring || area?.areaRole === "side-band") {
+    return boundaryCommands(area.cells);
+  }
   if (area?.type === "circle") {
     const { x, y } = area.origin;
     const radius = area.radius;
@@ -141,6 +176,128 @@ function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function samePoint(left, right) {
+  return !!left && !!right && left.x === right.x && left.y === right.y;
+}
+
+function queueMovementRecords(event) {
+  if (event?.flags?.movement !== true) return;
+  for (const record of Array.isArray(event?.changedRecords)
+    ? event.changedRecords
+    : []) {
+    const beforeItem = record?.before?.item;
+    const afterItem = record?.after?.item;
+    const id = String(afterItem?.id || beforeItem?.id || "").trim();
+    const beforePosition = point(beforeItem?.position);
+    const afterPosition = point(afterItem?.position);
+    if (!id || !beforePosition || !afterPosition || samePoint(beforePosition, afterPosition)) {
+      continue;
+    }
+    const previous = queuedMovementRecords.get(id);
+    queuedMovementRecords.set(id, {
+      id,
+      beforePosition: previous?.beforePosition || beforePosition,
+      afterPosition,
+      item: afterItem || previous?.item || null,
+    });
+  }
+}
+
+function installHistoryUndoMovementSuppressions(data) {
+  const requestId = String(data?.requestId || "").trim();
+  if (!requestId) return;
+  const requestedUntil = Number(data?.until);
+  const until = Math.max(Date.now() + 500, Number.isFinite(requestedUntil) ? requestedUntil : 0);
+  const sceneEpoch = Number(data?.sceneEpoch);
+  const sceneIdentity = String(data?.sceneIdentity || "").trim();
+  if (
+    sceneIdentity
+    && historyUndoRuntimeIdentity
+    && sceneIdentity !== historyUndoRuntimeIdentity
+  ) {
+    pendingHistoryUndoMovementSuppressions.clear();
+    queuedHistoryUndoMovementSuppressions.length = 0;
+    return;
+  }
+  if (sceneIdentity) historyUndoRuntimeIdentity = sceneIdentity;
+  for (const rawId of Array.isArray(data?.ids) ? data.ids : []) {
+    const id = String(rawId || "").trim();
+    const positions = (Array.isArray(data?.positions?.[id]) ? data.positions[id] : [])
+      .map(point)
+      .filter(Boolean);
+    if (!id || !positions.length) continue;
+    const records = pendingHistoryUndoMovementSuppressions.get(id) || [];
+    records.push({
+      requestId,
+      id,
+      positions,
+      until,
+      ...(Number.isSafeInteger(sceneEpoch) ? { sceneEpoch } : {}),
+      ...(sceneIdentity ? { sceneIdentity } : {}),
+    });
+    pendingHistoryUndoMovementSuppressions.set(
+      id,
+      records.slice(-MAX_HISTORY_UNDO_MOVEMENT_SUPPRESSIONS),
+    );
+  }
+}
+
+function consumeHistoryUndoMovementSuppressions(event) {
+  if (!event?.flags?.movement) return;
+  const eventEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+  if (!isCurrentSceneEpoch(eventEpoch)) return;
+  for (const record of Array.isArray(event?.changedRecords) ? event.changedRecords : []) {
+    const afterItem = record?.after?.item;
+    const beforePosition = point(record?.before?.item?.position);
+    const afterPosition = point(afterItem?.position);
+    const id = String(afterItem?.id || record?.before?.item?.id || "").trim();
+    if (!id || !beforePosition || !afterPosition || samePoint(beforePosition, afterPosition)) continue;
+    const now = Date.now();
+    const pending = pendingHistoryUndoMovementSuppressions.get(id) || [];
+    const validPending = pending.filter((suppression) => (
+      suppression.until > now
+      && (!Number.isSafeInteger(suppression.sceneEpoch)
+        || suppression.sceneEpoch === Number(eventEpoch))
+    ));
+    const matchingIndex = validPending.findIndex((suppression) => (
+      suppression.positions.some((position) => samePoint(position, afterPosition))
+    ));
+    if (matchingIndex < 0) {
+      // Un movimento dello stesso item verso un'altra posizione rende obsoleto
+      // il contesto Undo: non deve riapparire su una successiva entrata reale.
+      pendingHistoryUndoMovementSuppressions.delete(id);
+      for (let index = queuedHistoryUndoMovementSuppressions.length - 1; index >= 0; index -= 1) {
+        if (queuedHistoryUndoMovementSuppressions[index]?.id === id) {
+          queuedHistoryUndoMovementSuppressions.splice(index, 1);
+        }
+      }
+      continue;
+    }
+    const [suppression] = validPending.splice(matchingIndex, 1);
+    if (validPending.length) pendingHistoryUndoMovementSuppressions.set(id, validPending);
+    else pendingHistoryUndoMovementSuppressions.delete(id);
+    queuedHistoryUndoMovementSuppressions.push({
+      ...suppression,
+      expectedPosition: afterPosition,
+    });
+  }
+}
+
+function historyUndoGeometricSuppressionTargetIds(records, items, sceneEpoch) {
+  const byId = new Map((Array.isArray(items) ? items : []).map((item) => [item?.id, item]));
+  const ids = [];
+  for (const record of Array.isArray(records) ? records : []) {
+    if (
+      !record?.id
+      || !(Number(record.until) > Date.now())
+      || (Number.isSafeInteger(record.sceneEpoch) && record.sceneEpoch !== Number(sceneEpoch))
+    ) continue;
+    const currentPosition = point(byId.get(record.id)?.position);
+    if (samePoint(currentPosition, record.expectedPosition)) ids.push(record.id);
+  }
+  return [...new Set(ids)];
 }
 
 function clone(value) {
@@ -293,7 +450,9 @@ export function buildStaticSpellZoneItems({
   followCaster = false,
   casterOrigin = null,
 } = {}) {
-  const rule = getSpellAreaRuleById(ruleId);
+  const baseRule = getSpellAreaRuleById(ruleId);
+  const rule = getSpellAreaRuleForPlacement(baseRule?.id || ruleId, ruleChoice)
+    || baseRule;
   if (!isStaticSpellZoneRule(rule)) throw new Error("static-zone-rule-invalid");
   if (!String(instanceId || "").trim()) throw new Error("static-zone-instance-required");
   const type = String(preview?.type || "");
@@ -311,6 +470,36 @@ export function buildStaticSpellZoneItems({
     throw new Error("static-zone-preview-invalid");
   }
   const dpi = Math.max(1, rawDpi);
+  const widthSquares = Number(preview?.widthSquares) > 0
+    ? Math.max(1, Math.round(Number(preview.widthSquares)))
+    : Math.max(
+      1,
+      Math.round(Number(rule.geometry?.width?.value) / 1.5 || 1),
+    );
+  const outerSquares = Math.max(
+    1,
+    Math.round(
+      Math.hypot(Number(end.x) - Number(start.x), Number(end.y) - Number(start.y))
+      / dpi,
+    ),
+  );
+  const ringInnerSquares = rule.geometry?.ring === true
+    ? Math.max(
+      0,
+      Math.round(Number(preview?.ringInnerSquares))
+        || Math.max(0, outerSquares - widthSquares),
+    )
+    : 0;
+  const hotBandSquares = rule.geometry?.hotBand
+    ? Math.max(
+      1,
+      Math.round(
+        Number(preview?.hotBand?.widthSquares)
+        || Number(rule.geometry.hotBand.width?.value) / 1.5
+        || 1,
+      ),
+    )
+    : 0;
 
   const area = buildArea(
     type,
@@ -319,10 +508,36 @@ export function buildStaticSpellZoneItems({
     dpi,
     gridOrigin,
     {
-      widthSquares: preview?.widthSquares,
+      widthSquares,
       widthAnchor: rule.geometry?.widthAnchor,
+      ...(rule.geometry?.ring === true
+        ? {
+          ring: true,
+          ringInnerSquares,
+        }
+        : {}),
     },
   );
+  const hotBand = hotBandSquares > 0 && rule.geometry?.hotBand
+    ? buildArea(
+      type,
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      {
+        widthSquares,
+        widthAnchor: rule.geometry?.widthAnchor,
+        ...(rule.geometry?.ring === true
+          ? { ringInnerSquares }
+          : {}),
+        band: {
+          side: preview?.hotBand?.side || rule.geometry.hotBand.side,
+          bandSquares: hotBandSquares,
+        },
+      },
+    )
+    : null;
   const resolvedStyle = spellAreaStyle(
     rule.spellId,
     normalizeAoEStyle(style || loadAoEStyle()),
@@ -349,16 +564,32 @@ export function buildStaticSpellZoneItems({
     gridOrigin,
     basePosition: { x: 0, y: 0 },
     style: resolvedStyle,
-    ...(Number(preview?.widthSquares) > 0
+    ...(widthSquares > 0
       ? {
-        widthSquares: Math.max(
-          1,
-          Math.round(Number(preview.widthSquares)),
-        ),
+        widthSquares,
+      }
+      : {}),
+    ...(rule.geometry?.ring === true && ringInnerSquares > 0
+      ? {
+        ring: true,
+        ringInnerSquares,
+      }
+      : {}),
+    ...(hotBand
+      ? {
+        hotBand: {
+          side: String(
+            preview?.hotBand?.side || rule.geometry?.hotBand?.side || "",
+          ).trim(),
+          widthSquares: Math.max(
+            1,
+            hotBandSquares,
+          ),
+        },
       }
       : {}),
     ...(rule.geometry?.widthAnchor === "edge" ? { widthAnchor: "edge" } : {}),
-  };
+};
   const label = String(spellName || rule.spellId || "Incantesimo").trim();
   const root = buildZonePath({
     name: `Zona: ${label}`,
@@ -376,9 +607,12 @@ export function buildStaticSpellZoneItems({
   });
   const geometry = buildZonePath({
     name: `Geometria zona: ${label}`,
-    commands: geometryCommands(area),
+    commands: [
+      ...geometryCommands(area),
+      ...(hotBand ? geometryCommands(hotBand) : []),
+    ],
     style: resolvedStyle,
-    fillOpacity: 0,
+    fillOpacity: hotBand ? Math.min(0.18, resolvedStyle.fillOpacity) : 0,
     strokeOpacity: 0.9,
     strokeWidth: Math.max(2, outlineWidth * 0.72),
     metadata: {
@@ -766,7 +1000,32 @@ export async function commitWithStaticSpellZoneRemoval(
   });
 }
 
-async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
+function restoredStaticSpellZoneActivationIds(event) {
+  if (event?.flags?.reminderResolutions !== true) return [];
+  const restored = [];
+  for (const record of Array.isArray(event?.changedRecords) ? event.changedRecords : []) {
+    const beforeMetadata = record?.before?.item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    const afterMetadata = record?.after?.item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+    if (!afterMetadata || !record?.after?.item?.id) continue;
+    const beforeIds = new Set(
+      normalizeSpellZoneTriggerRuntime(beforeMetadata?.triggerRuntime).pending
+        .map((activation) => String(activation?.id || "").trim())
+        .filter(Boolean),
+    );
+    for (const activation of normalizeSpellZoneTriggerRuntime(afterMetadata.triggerRuntime).pending) {
+      const activationId = String(activation?.id || "").trim();
+      if (activationId && !beforeIds.has(activationId)) restored.push(activationId);
+    }
+  }
+  return [...new Set(restored)];
+}
+
+async function reconcileStaticSpellZones(
+  sceneMetadataOverride = null,
+  rearmActivationIds = [],
+  historyUndoMovementSuppressions = [],
+  movementRecords = [],
+) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const suppliedItems = Array.isArray(activeSceneItemsOverride)
@@ -898,12 +1157,10 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       .filter((item) => item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root");
   }
   if (!zoneRoots.length) {
-    const zoneEffectIds = SPELL_AREA_RULES
-      .filter((rule) => rule.kind === "zone")
-      .flatMap((rule) =>
-        areaMembershipEffects(rule).map((effect) => effect.id)
-      )
-      .filter(Boolean);
+    // No canonical zone remains: any restored activation tied to a removed
+    // cause/zone must stop receiving temporal-pruning protection.
+    undoRestoredActivationIds.clear();
+    const zoneEffectIds = spellZoneLifecycleEffectIds();
     const staleEffectRemovals = staleAreaMembershipEffectRemovals(items, {
       activeInstanceIds: [],
       effectIds: zoneEffectIds,
@@ -950,16 +1207,28 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     bounds: boundsById.get(item.id),
     center: boundsCenter(boundsById.get(item.id)),
   }));
+  const suppressGeometricActivationTargetIds = historyUndoGeometricSuppressionTargetIds(
+    historyUndoMovementSuppressions,
+    currentItems,
+    sceneEpoch,
+  );
   const operations = [];
   const triggerRuntimeUpdates = new Map();
   const newTriggerActivations = [];
   const newTriggerNotices = [];
+  const rearmedTriggerNotices = [];
+  const canonicalPendingActivationIds = new Set();
   const initiativeState = sceneMetadata?.[STATE_KEY] || {};
 
   for (const item of [...zoneRoots, ...childZones]) {
     const zoneMetadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
-    const rule = getSpellAreaRuleById(zoneMetadata.ruleId);
-    const area = translatedZoneArea(item);
+    const baseRule = getSpellAreaRuleById(zoneMetadata.ruleId);
+    const rule = getSpellAreaRuleForPlacement(
+      baseRule?.id || zoneMetadata.ruleId,
+      zoneMetadata.ruleChoice,
+    ) || baseRule;
+    const triggerAreas = translatedZoneTriggerAreas(item);
+    const area = triggerAreas.body;
     if (!rule || !area) continue;
     const desiredTargetIds = scopedStaticSpellZoneTargetIds({
       rule,
@@ -988,6 +1257,86 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
         }),
       })
       : [];
+    const currentTargetIdsByTrigger = {};
+    const crossingTargetIdsByTrigger = {};
+    const triggers = Array.isArray(rule.zonePolicy?.triggers)
+      ? rule.zonePolicy.triggers
+      : [];
+    const usePerTriggerMembership = triggers.some((trigger) =>
+      trigger?.requiresCrossing === true
+      || ["hot-band", "body-or-hot-band"].includes(trigger?.targetArea)
+    );
+    const hotBand = triggerAreas.hotBand;
+    const unionArea = (areas) => {
+      const cellsByKey = new Map();
+      for (const candidateArea of areas.filter(Boolean)) {
+        for (const cell of Array.isArray(candidateArea.cells) ? candidateArea.cells : []) {
+          cellsByKey.set(`${cell.column}:${cell.row}`, cell);
+        }
+      }
+      return {
+        ...(areas.find(Boolean) || {}),
+        cells: [...cellsByKey.values()],
+      };
+    };
+    for (const trigger of triggers) {
+      if (!usePerTriggerMembership) continue;
+      const triggerArea = trigger.targetArea === "hot-band"
+        ? hotBand
+        : trigger.targetArea === "body-or-hot-band"
+          ? unionArea([area, hotBand])
+          : area;
+      if (!triggerArea) continue;
+      currentTargetIdsByTrigger[trigger.id] = scopedStaticSpellZoneTargetIds({
+        rule,
+        zoneMetadata,
+        targetIds: areaMembershipTargetIds({
+          sourceId: zoneMetadata.casterId,
+          rule,
+          area: triggerArea,
+          candidates,
+          metaKey: META_KEY,
+        }),
+      });
+      if (trigger.requiresCrossing === true) {
+        const crossing = [];
+        for (const record of Array.isArray(movementRecords) ? movementRecords : []) {
+          const candidate = candidates.find(({ item: candidateItem }) =>
+            candidateItem.id === record.id
+          );
+          if (!candidate?.bounds || !candidate.center || !record.beforePosition || !record.afterPosition) {
+            continue;
+          }
+          const delta = {
+            x: record.afterPosition.x - record.beforePosition.x,
+            y: record.afterPosition.y - record.beforePosition.y,
+          };
+          const beforeCenter = {
+            x: candidate.center.x - delta.x,
+            y: candidate.center.y - delta.y,
+          };
+          const beforeBounds = {
+            min: {
+              x: Number(candidate.bounds.min?.x) - delta.x,
+              y: Number(candidate.bounds.min?.y) - delta.y,
+            },
+            max: {
+              x: Number(candidate.bounds.max?.x) - delta.x,
+              y: Number(candidate.bounds.max?.y) - delta.y,
+            },
+          };
+          if (areaHitsBounds(area, beforeBounds)) continue;
+          if (areaIntersectsSegment(area, beforeCenter, candidate.center, candidate.bounds)) {
+            crossing.push(record.id);
+          }
+        }
+        crossingTargetIdsByTrigger[trigger.id] = [...new Set(crossing)];
+      }
+    }
+    const triggerTargetIds = [
+      ...desiredTargetIds,
+      ...Object.values(currentTargetIdsByTrigger).flat(),
+    ];
     const caster = byId.get(zoneMetadata.casterId);
     operations.push(...areaMembershipPlan({
       instanceId: zoneMetadata.instanceId,
@@ -999,6 +1348,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       metaKey: META_KEY,
       sourceName: caster?.name || "",
       defaultExpiry: { mode: "manual" },
+      removeLinkedTriggerConditions: zoneMetadata.role === "root",
     }).operations);
     if (!SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) continue;
     const triggerPlan = planStaticSpellZoneReminder({
@@ -1006,10 +1356,12 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       rule,
       desiredTargetIds,
       directTargetIds,
+      currentTargetIdsByTrigger,
+      crossingTargetIdsByTrigger,
       currentTargetPositions: Object.fromEntries(
         candidates
           .filter(({ item: candidate, center }) =>
-            desiredTargetIds.includes(candidate.id) && center
+            triggerTargetIds.includes(candidate.id) && center
           )
           .map(({ item: candidate, center }) => [candidate.id, center])
       ),
@@ -1019,6 +1371,8 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
         zoneMetadata.instanceId,
         candidates,
       ),
+      preservePendingActivationIds: [...undoRestoredActivationIds],
+      suppressGeometricActivationTargetIds,
       itemsById: byId,
     });
     if (triggerPlan.changed) {
@@ -1030,6 +1384,22 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     }
     newTriggerActivations.push(...triggerPlan.newActivations);
     newTriggerNotices.push(...triggerPlan.notices);
+    for (const activation of triggerPlan.runtime.pending) {
+      const activationId = String(activation?.id || "").trim();
+      if (activationId) canonicalPendingActivationIds.add(activationId);
+    }
+    rearmedTriggerNotices.push(...rearmedStaticSpellZoneNotices({
+      zoneItem: item,
+      pendingActivations: triggerPlan.runtime.pending,
+      rearmActivationIds,
+      itemsById: byId,
+    }));
+  }
+
+  for (const activationId of [...undoRestoredActivationIds]) {
+    if (!canonicalPendingActivationIds.has(activationId)) {
+      undoRestoredActivationIds.delete(activationId);
+    }
   }
 
   const activeInstanceIds = zoneRoots
@@ -1037,12 +1407,7 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
       item.metadata[SPELL_STATIC_ZONE_META_KEY]?.instanceId
     )
     .filter(Boolean);
-  const zoneEffectIds = SPELL_AREA_RULES
-    .filter((rule) => rule.kind === "zone")
-    .flatMap((rule) =>
-      areaMembershipEffects(rule).map((effect) => effect.id)
-    )
-    .filter(Boolean);
+  const zoneEffectIds = spellZoneLifecycleEffectIds();
   const staleEffectRemovals = staleAreaMembershipEffectRemovals(items, {
     activeInstanceIds,
     effectIds: zoneEffectIds,
@@ -1077,15 +1442,26 @@ async function reconcileStaticSpellZones(sceneMetadataOverride = null) {
     );
   }
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
-  if (newTriggerNotices.length) {
+  const rearmedActivationIdsForDelivery = [...new Set(
+    rearmedTriggerNotices.map((notice) => String(notice?.activationId || "").trim())
+      .filter(Boolean),
+  )];
+  const deliveryNotices = [...newTriggerNotices, ...rearmedTriggerNotices];
+  if (deliveryNotices.length) {
     // La coda persistente serve alla risoluzione in Effetti ad Area; il
     // reminder visivo riceve invece un payload live già completo.
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
       {
         type: "show-zone-trigger-notices",
-        activationIds: newTriggerActivations.map((activation) => activation.id),
-        notices: newTriggerNotices,
+        activationIds: [...new Set([
+          ...newTriggerActivations.map((activation) => activation.id),
+          ...rearmedActivationIdsForDelivery,
+        ])],
+        notices: deliveryNotices,
+        ...(rearmedActivationIdsForDelivery.length
+          ? { rearmActivationIds: rearmedActivationIdsForDelivery }
+          : {}),
       },
     ).catch((error) => {
       console.warn(
@@ -1116,13 +1492,38 @@ async function pump() {
       activeSceneItemsOverride = queuedSceneItems;
       activeSceneGeneration = queuedSceneGeneration;
       activeReconcileForce = queuedReconcileForce;
+      const rearmActivationIds = [...queuedRearmActivationIds];
+      queuedRearmActivationIds.clear();
+      const historyUndoMovementSuppressions = [...queuedHistoryUndoMovementSuppressions];
+      queuedHistoryUndoMovementSuppressions.length = 0;
+      const movementRecords = [...queuedMovementRecords.values()];
+      queuedMovementRecords.clear();
       queuedSceneItems = null;
       queuedSceneGeneration = 0;
       queuedReconcileReason = "event";
       queuedReconcileForce = false;
       try {
-        await reconcileStaticSpellZones(sceneMetadataOverride);
+        await reconcileStaticSpellZones(
+          sceneMetadataOverride,
+          rearmActivationIds,
+          historyUndoMovementSuppressions,
+          movementRecords,
+        );
       } catch (error) {
+        for (const activationId of rearmActivationIds) {
+          queuedRearmActivationIds.add(activationId);
+        }
+        queuedHistoryUndoMovementSuppressions.push(...historyUndoMovementSuppressions);
+        for (const record of movementRecords) {
+          const current = queuedMovementRecords.get(record.id);
+          queuedMovementRecords.set(record.id, current
+            ? {
+              ...current,
+              beforePosition: current.beforePosition || record.beforePosition,
+              afterPosition: record.afterPosition,
+            }
+            : record);
+        }
         console.error("[spell-static-zone] reconcile:", error);
         scheduleStaticSpellZoneRecovery();
       } finally {
@@ -1164,15 +1565,41 @@ export async function mountStaticSpellZoneController() {
   const role = await OBR.player.getRole().catch(() => "PLAYER");
   if (role !== "GM") return false;
   mounted = true;
+  unsubscribeImmediateMovement = subscribeSceneItemChanges(
+    (event) => {
+      consumeHistoryUndoMovementSuppressions(event);
+      queueMovementRecords(event);
+      // Un batch di update che torna alla posizione iniziale può non produrre
+      // un delta netto nel dispatcher. Il reconcile immediato mantiene comunque
+      // allineata la membership alla posizione finale osservata.
+      requestStaticSpellZoneReconcile({ reason: "movement-immediate" });
+    },
+    { domains: ["movement"], immediate: true },
+  );
   unsubscribeItems = subscribeSceneItemChanges(
     (event) => {
+      queueMovementRecords(event);
       queuedSceneItems = Array.isArray(event?.allItems) ? event.allItems : null;
       queuedSceneGeneration = Number(event?.generation) || 0;
+      const rearmActivationIds = restoredStaticSpellZoneActivationIds(event);
+      for (const activationId of rearmActivationIds) {
+        undoRestoredActivationIds.add(activationId);
+        queuedRearmActivationIds.add(activationId);
+      }
       requestStaticSpellZoneReconcile({ reason: "items" });
+      if (rearmActivationIds.length) {
+        requestStaticSpellZoneReconcile({
+          reason: "reminder-resolution-undo",
+          force: true,
+        });
+      }
     },
     {
       domains: ["zone"],
-      filter: (event) => !event?.derived?.output,
+      filter: (event) => (
+        !event?.derived?.output
+        || restoredStaticSpellZoneActivationIds(event).length > 0
+      ),
     },
   );
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
@@ -1180,6 +1607,12 @@ export async function mountStaticSpellZoneController() {
       queuedSceneMetadata = null;
       queuedSceneItems = null;
       queuedSceneGeneration = 0;
+      queuedRearmActivationIds.clear();
+      queuedHistoryUndoMovementSuppressions.length = 0;
+      queuedMovementRecords.clear();
+      pendingHistoryUndoMovementSuppressions.clear();
+      historyUndoRuntimeIdentity = null;
+      undoRestoredActivationIds.clear();
       completedGenerationKey = null;
       stateMetadataWatcher.reset();
       sceneItemBounds.clear();
@@ -1206,11 +1639,33 @@ export async function mountStaticSpellZoneController() {
       requestStaticSpellZoneReconcile({ reason: "runtime-cache-cleanup", force: true });
     },
   );
+  unsubscribeRuntimeHistoryUndo = OBR.broadcast.onMessage(
+    HISTORY_CONTROL_CHANNEL,
+    (event) => {
+      const data = event?.data;
+      if (data?.type !== "suppress-history-undo") return;
+      installHistoryUndoMovementSuppressions(data);
+    },
+  );
+  unsubscribeRuntimeHistoryRearm = OBR.broadcast.onMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    (event) => {
+      const data = event?.data;
+      if (data?.type !== "restore-reminder-activation" || data?.owner !== "static-zone") return;
+      const activationId = String(data?.activationId || "").trim();
+      if (!activationId) return;
+      undoRestoredActivationIds.add(activationId);
+      queuedRearmActivationIds.add(activationId);
+      requestStaticSpellZoneReconcile({ reason: "reminder-history-rearm", force: true });
+    },
+  );
   requestStaticSpellZoneReconcile({ reason: "mount", force: true });
   return true;
 }
 
 export function unmountStaticSpellZoneController() {
+  unsubscribeImmediateMovement?.();
+  unsubscribeImmediateMovement = null;
   unsubscribeItems?.();
   unsubscribeItems = null;
   unsubscribeSceneReady?.();
@@ -1219,6 +1674,10 @@ export function unmountStaticSpellZoneController() {
   unsubscribeSceneMetadata = null;
   unsubscribeRuntimeCacheCleanup?.();
   unsubscribeRuntimeCacheCleanup = null;
+  unsubscribeRuntimeHistoryRearm?.();
+  unsubscribeRuntimeHistoryRearm = null;
+  unsubscribeRuntimeHistoryUndo?.();
+  unsubscribeRuntimeHistoryUndo = null;
   if (watchdogTimer) clearTimeout(watchdogTimer);
   watchdogTimer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
@@ -1228,6 +1687,12 @@ export function unmountStaticSpellZoneController() {
   queuedSceneMetadata = null;
   queuedSceneItems = null;
   queuedSceneGeneration = 0;
+  queuedRearmActivationIds.clear();
+  queuedHistoryUndoMovementSuppressions.length = 0;
+  queuedMovementRecords.clear();
+  pendingHistoryUndoMovementSuppressions.clear();
+  historyUndoRuntimeIdentity = null;
+  undoRestoredActivationIds.clear();
   queuedReconcileReason = "event";
   queuedReconcileForce = false;
   activeSceneItemsOverride = null;

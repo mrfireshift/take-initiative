@@ -177,10 +177,15 @@ export function areaMembershipPlan({
   defaultExpiry = { mode: "manual" },
   effectType = "spell",
   manualRemoval = false,
+  removeLinkedTriggerConditions = false,
 } = {}) {
   const parentEffectId = String(instanceId || "").trim();
   const effects = areaMembershipEffects(rule);
-  if (!parentEffectId || !effects.length) {
+  const linkedConditionTriggers = removeLinkedTriggerConditions === true
+    ? (Array.isArray(rule?.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
+      .filter((trigger) => trigger?.removeLinkedConditionOnLeave === true)
+    : [];
+  if (!parentEffectId || (!effects.length && !linkedConditionTriggers.length)) {
     return { entering: [], leaving: [], operations: [] };
   }
 
@@ -291,6 +296,40 @@ export function areaMembershipPlan({
             : { ...(defaultExpiry || { mode: "manual" }) },
         },
       });
+    }
+  }
+
+  const linkedRemovalKeys = new Set(
+    removals.map((removal) => `${removal.itemId}:${removal.instanceId}`),
+  );
+  for (const trigger of linkedConditionTriggers) {
+    const triggerId = String(trigger?.id || "").trim();
+    const failureCondition = trigger?.failureCondition
+      || trigger?.resolutionData?.failureCondition;
+    const conditionName = String(
+      failureCondition?.condition || failureCondition?.name || "",
+    ).trim().toLocaleLowerCase("it");
+    if (!triggerId || !conditionName) continue;
+    for (const item of Array.isArray(items) ? items : []) {
+      const targetId = String(item?.id || "").trim();
+      if (!targetId || desired.has(targetId)) continue;
+      for (const instance of conditionInstances(item, metaKey)) {
+        const instanceId = String(instance?.id || "").trim();
+        const currentConditionName = String(
+          instance?.condition || instance?.name || "",
+        ).trim().toLocaleLowerCase("it");
+        if (
+          instance?.active === false
+          || !instanceId
+          || String(instance?.parentEffectId || "") !== parentEffectId
+          || String(instance?.effectId || "") !== triggerId
+          || currentConditionName !== conditionName
+        ) continue;
+        const key = `${targetId}:${instanceId}`;
+        if (linkedRemovalKeys.has(key)) continue;
+        linkedRemovalKeys.add(key);
+        removals.push({ itemId: targetId, instanceId });
+      }
     }
   }
 

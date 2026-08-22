@@ -12,6 +12,7 @@ const clone = (value) => {
 };
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
+const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -380,6 +381,76 @@ function granularReconcileClassFeatureState(actualSnapshot, beforeDescriptor, af
   return { conflict: false, restored: nextState };
 }
 
+function reminderResolutionMarkerMap(descriptor) {
+  if (descriptor?.present !== true) return { valid: true, markers: {} };
+  const value = descriptor.value;
+  const valid = !!value && typeof value === "object" && !Array.isArray(value);
+  return { valid, markers: valid ? value : {} };
+}
+
+function granularReconcileReminderResolutions(actualSnapshot, beforeDescriptor, afterDescriptor) {
+  const actual = reminderResolutionMarkerMap(actualSnapshot);
+  const before = reminderResolutionMarkerMap(beforeDescriptor);
+  const after = reminderResolutionMarkerMap(afterDescriptor);
+  if (!actual.valid || !before.valid || !after.valid) {
+    return {
+      conflict: true,
+      expected: clone(afterDescriptor),
+      actual: clone(actualSnapshot),
+    };
+  }
+
+  const allKeys = new Set([
+    ...Object.keys(before.markers),
+    ...Object.keys(after.markers),
+  ]);
+  const touchedKeys = [...allKeys].filter((key) => (
+    hasOwn(before.markers, key) !== hasOwn(after.markers, key)
+    || !historyUndoSame(before.markers[key], after.markers[key])
+  ));
+  if (!touchedKeys.length) {
+    if (!historyUndoSame(actualSnapshot, afterDescriptor)) {
+      return {
+        conflict: true,
+        expected: clone(afterDescriptor),
+        actual: clone(actualSnapshot),
+      };
+    }
+    return { conflict: false, restored: clone(beforeDescriptor) };
+  }
+
+  for (const key of touchedKeys) {
+    const expected = hasOwn(after.markers, key)
+      ? { present: true, value: clone(after.markers[key]) }
+      : { present: false };
+    const current = hasOwn(actual.markers, key)
+      ? { present: true, value: clone(actual.markers[key]) }
+      : { present: false };
+    if (!historyUndoSame(current, expected)) {
+      return {
+        conflict: true,
+        key,
+        expected,
+        actual: current,
+      };
+    }
+  }
+
+  const restoredMarkers = clone(actual.markers);
+  for (const key of touchedKeys) {
+    if (hasOwn(before.markers, key)) restoredMarkers[key] = clone(before.markers[key]);
+    else delete restoredMarkers[key];
+  }
+  const restoredPresent = Object.keys(restoredMarkers).length > 0
+    || beforeDescriptor?.present === true;
+  return {
+    conflict: false,
+    restored: restoredPresent
+      ? { present: true, value: restoredMarkers }
+      : { present: false },
+  };
+}
+
 function metadata(item, metadataKey) {
   const value = item?.metadata?.[metadataKey];
   return value && typeof value === "object" && !Array.isArray(value)
@@ -591,6 +662,13 @@ export function historyUndoItemMatches(item, change, {
     const beforeDesc = descriptorFor(change?.beforeMetadata || change?.before || {}, field, false);
     const afterDesc = descriptorFor(change?.afterMetadata || change?.after || {}, field, false);
     const actualDesc = historyUndoSnapshot(canonical, field);
+    if (field === REMINDER_RESOLUTIONS_FIELD) {
+      const result = phase === "before"
+        ? granularReconcileReminderResolutions(actualDesc, afterDesc, beforeDesc)
+        : granularReconcileReminderResolutions(actualDesc, beforeDesc, afterDesc);
+      if (result.conflict) return false;
+      continue;
+    }
     if (!historyUndoSame(
       actualDesc,
       phase === "before" ? beforeDesc : afterDesc,
@@ -954,7 +1032,22 @@ function processChange({
       ? snapshotValue(rawChange.afterMetadata[field], false)
       : descriptorFor(rawChange?.after || {}, field, false);
     const actual = historyUndoSnapshot(metadata(item, keys.meta), field);
-    if (field === "classFeatureState" && before.present && after.present) {
+    if (field === REMINDER_RESOLUTIONS_FIELD) {
+      const res = granularReconcileReminderResolutions(actual, before, after);
+      if (res.conflict) {
+        conflict(conflicts, entry, id, "current-value-mismatch", field, {
+          expected: res.expected,
+          actual: res.actual,
+          ...(res.key ? { markerKey: res.key } : {}),
+        });
+        continue;
+      }
+      touch.metadata.add(field);
+      const next = { ...metadata(item, keys.meta) };
+      if (res.restored.present) next[field] = clone(res.restored.value);
+      else delete next[field];
+      writeMetadata(item, keys.meta, next);
+    } else if (field === "classFeatureState" && before.present && after.present) {
       const res = granularReconcileClassFeatureState(actual, before, after);
       if (res.conflict) {
         conflict(conflicts, entry, id, "current-value-mismatch", res.field || field, {

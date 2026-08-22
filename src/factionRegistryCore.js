@@ -1,3 +1,8 @@
+import {
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  jsonBytes,
+} from "./roomMetadataBudget.js";
+
 export const VALID_FACTIONS = new Set(["ally", "neutral", "enemy", "pc"]);
 
 export function imageUrlOf(value) {
@@ -43,6 +48,26 @@ export function normalizeFactionRegistry(value) {
     };
   }
   return registry;
+}
+
+export function retainFactionRegistryWithinByteBudget(
+  value,
+  maxBytes = ROOM_METADATA_DOMAIN_MAX_BYTES.registry,
+) {
+  const source = normalizeFactionRegistry(value);
+  const budget = Math.max(2, Math.floor(Number(maxBytes) || 0));
+  if (jsonBytes(source) <= budget) return { ...source };
+
+  const ordered = Object.entries(source).sort(([leftKey, left], [rightKey, right]) => {
+    const updatedAt = (Number(right?.updatedAt) || 0) - (Number(left?.updatedAt) || 0);
+    return updatedAt || leftKey.localeCompare(rightKey);
+  });
+  const retained = {};
+  for (const [key, entry] of ordered) {
+    const candidate = { ...retained, [key]: entry };
+    if (jsonBytes(candidate) <= budget) retained[key] = entry;
+  }
+  return retained;
 }
 
 export function mergeFactionAssets(value, attitude, assets, updatedAt = Date.now()) {

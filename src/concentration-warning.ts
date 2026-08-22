@@ -8,7 +8,8 @@ const HOST_CHANNEL = ID + "/concentration-warning/host";
 const AUTO_CLOSE_MS = 6000;
 
 type RuntimeScope = {
-  sceneEpoch: number | null;
+  warningSceneEpoch: number | null;
+  warningRuntimeScope: string;
   runtimeGeneration: number | null;
   runtimeSession: string;
   popoverId: string;
@@ -16,10 +17,13 @@ type RuntimeScope = {
 
 function readRuntimeScope(): RuntimeScope {
   const params = new URLSearchParams(window.location.search);
-  const sceneEpoch = Number(params.get("sceneEpoch"));
+  const warningSceneEpoch = Number(params.get("warningSceneEpoch"));
   const runtimeGeneration = Number(params.get("runtimeGeneration"));
   return {
-    sceneEpoch: Number.isSafeInteger(sceneEpoch) && sceneEpoch >= 0 ? sceneEpoch : null,
+    warningSceneEpoch: Number.isSafeInteger(warningSceneEpoch) && warningSceneEpoch >= 0
+      ? warningSceneEpoch
+      : null,
+    warningRuntimeScope: String(params.get("warningRuntimeScope") || "").trim(),
     runtimeGeneration: Number.isSafeInteger(runtimeGeneration) && runtimeGeneration >= 0
       ? runtimeGeneration
       : null,
@@ -38,6 +42,7 @@ type Warning = {
   attitude: string;
   spellName: string;
   createdAt: number;
+  warningRuntimeScope?: string;
   notice: any;
 };
 
@@ -49,18 +54,21 @@ let pendingWarnings: Warning[] | null = null;
 
 function runtimeMessageScope() {
   return {
-    sceneEpoch: runtimeScope.sceneEpoch,
+    warningSceneEpoch: runtimeScope.warningSceneEpoch,
+    warningRuntimeScope: runtimeScope.warningRuntimeScope || undefined,
     runtimeGeneration: runtimeScope.runtimeGeneration,
     runtimeSession: runtimeScope.runtimeSession,
   };
 }
 
 function isMatchingRuntimeScope(data: any) {
-  return runtimeScope.sceneEpoch !== null
+  return runtimeScope.warningSceneEpoch !== null
     && runtimeScope.runtimeGeneration !== null
-    && Number(data?.sceneEpoch) === runtimeScope.sceneEpoch
+    && Number(data?.warningSceneEpoch ?? data?.sceneEpoch) === runtimeScope.warningSceneEpoch
     && Number(data?.runtimeGeneration) === runtimeScope.runtimeGeneration
-    && String(data?.runtimeSession || "").trim() === runtimeScope.runtimeSession;
+    && String(data?.runtimeSession || "").trim() === runtimeScope.runtimeSession
+    && (!runtimeScope.warningRuntimeScope
+      || String(data?.warningRuntimeScope || "").trim() === runtimeScope.warningRuntimeScope);
 }
 
 function normalizeWarnings(values: any): Warning[] {
@@ -71,6 +79,9 @@ function normalizeWarnings(values: any): Warning[] {
     portrait: String(warning?.portrait || "").trim().slice(0, 2048),
     attitude: String(warning?.attitude || "neutral").trim().toLowerCase(),
     spellName: String(warning?.spellName || "").trim().slice(0, 240),
+    ...(String(warning?.warningRuntimeScope || "").trim()
+      ? { warningRuntimeScope: String(warning.warningRuntimeScope).trim().slice(0, 256) }
+      : {}),
     createdAt: Math.max(0, Math.floor(Number(warning?.createdAt) || 0)),
     notice: warning?.notice && typeof warning.notice === "object" ? warning.notice : null,
   })).filter((warning: Warning) => warning.damage > 0);

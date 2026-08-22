@@ -456,7 +456,7 @@ test("M14 — spell aura controller delivers planned notices after its own trigg
     "utf8",
   );
   const reconcileIndex = source.indexOf("const auraVisualReconcile = await reconcileAuraVisuals");
-  const noticeIndex = source.indexOf("if (newTriggerNotices.length)", reconcileIndex);
+  const noticeIndex = source.indexOf("if (deliveryNotices.length)", reconcileIndex);
   assert.ok(reconcileIndex >= 0 && noticeIndex > reconcileIndex);
   const bridge = source.slice(reconcileIndex, noticeIndex);
   assert.match(bridge, /auraVisualReconcilePerformedOwnedWrite\(auraVisualReconcile\)/);

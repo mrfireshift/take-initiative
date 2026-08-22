@@ -195,7 +195,10 @@ function buildLocalVideoItem(event, layer, plan) {
   );
   const attachedTo = layerAttachmentId(event, layer);
   const builder = image
-    .scale({ x: plan.scale, y: plan.scale })
+    .scale({
+      x: Number.isFinite(Number(plan.scaleX)) ? Number(plan.scaleX) : plan.scale,
+      y: Number.isFinite(Number(plan.scaleY)) ? Number(plan.scaleY) : plan.scale,
+    })
     .position(plan.position)
     .rotation(plan.rotation || 0)
     .disableHit(true)
@@ -552,6 +555,7 @@ export async function emitMatchedSpellVisual({
   casterId = "",
   targetIds = [],
   zoneId = "",
+  placementChoice = "",
   preview = null,
   eventId = "",
   lifecycleId = "",
@@ -571,6 +575,7 @@ export async function emitMatchedSpellVisual({
     casterId,
     targetIds,
     zoneId,
+    placementChoice,
     preview,
     eventId,
     lifecycleId,
@@ -653,6 +658,7 @@ async function emitVisual({
   casterId,
   targetIds,
   zoneId = "",
+  placementChoice = "",
   preview,
   eventId,
   lifecycleId = "",
@@ -712,6 +718,7 @@ async function emitVisual({
     casterId: normalizedCasterId,
     targetIds: normalizedTargetIds,
     zoneId,
+    placementChoice,
     caster,
     targets,
     preview,

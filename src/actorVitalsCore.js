@@ -1,7 +1,12 @@
 import { normalizeActorProfileId } from "./actorIdentityCore.js";
+import {
+  ROOM_METADATA_DOMAIN_MAX_BYTES,
+  jsonBytes,
+} from "./roomMetadataBudget.js";
 
 export const ACTOR_VITALS_SCHEMA_VERSION = 1;
-export const ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES = 10_000;
+export const ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES =
+  ROOM_METADATA_DOMAIN_MAX_BYTES["actor-vitals"];
 
 function plainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -32,14 +37,6 @@ function validTimestamp(value) {
 function validRevision(value) {
   const number = nonNegativeInteger(value);
   return number !== null ? number : 0;
-}
-
-function jsonBytes(value) {
-  try {
-    return new TextEncoder().encode(JSON.stringify(value ?? null)).byteLength;
-  } catch {
-    return Number.MAX_SAFE_INTEGER;
-  }
 }
 
 export function isValidActorVitalsRecord(value) {

@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import { ID } from "./constants.js";
+import { ID, REMINDER_HISTORY_REARM_CHANNEL } from "./constants.js";
 import {
   readSceneItemsSnapshot,
   subscribeSceneItemChanges,
@@ -32,6 +32,8 @@ const HISTORY_VERSION = 1;
 const MAX_HISTORY_ENTRIES = 30;
 const MOVEMENT_SETTLE_MS = 350;
 const SCENE_HISTORY_SUPPRESS_MS = 2000;
+const HISTORY_PENDING_UNDO_WAIT_MS = 1500;
+const HISTORY_PENDING_UNDO_RECHECK_MS = 100;
 const INITIATIVE_HISTORY_FIELDS = ["inInitiative", "initiative", "attitude"];
 const EFFECTS_HISTORY_FIELDS = ["conditions", "spells", "concentrations"];
 
@@ -95,6 +97,64 @@ export async function flushPendingHistoryRemovals(sceneEpoch = currentSceneEpoch
   }
 }
 
+function pendingHistoryRemovalRecords(sceneEpoch = currentSceneEpoch()) {
+  return [...__pendingHistoryRemovals.entries()].filter(([, pending]) => (
+    pending?.sceneEpoch === sceneEpoch
+    && isCurrentSceneEpoch(pending.sceneEpoch)
+  ));
+}
+
+function pendingHistoryRemovalIds(sceneEpoch = currentSceneEpoch()) {
+  return [...new Set(
+    pendingHistoryRemovalRecords(sceneEpoch)
+      .flatMap(([, pending]) => Array.isArray(pending?.ids) ? pending.ids : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  )];
+}
+
+async function convergePendingHistoryRemovals(sceneEpoch = currentSceneEpoch()) {
+  const pending = pendingHistoryRemovalRecords(sceneEpoch);
+  if (!pending.length) return { converged: true, pendingIds: [] };
+
+  const pendingIds = pendingHistoryRemovalIds(sceneEpoch);
+  await flushPendingHistoryRemovals(sceneEpoch);
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return { converged: false, pendingIds };
+  }
+
+  let removed = false;
+  try {
+    removed = await waitForHistoryEntriesRemoved(pendingIds, { sceneEpoch });
+  } catch {}
+  if (removed) {
+    for (const [commandId, record] of pendingHistoryRemovalRecords(sceneEpoch)) {
+      const recordIds = Array.isArray(record?.ids) ? record.ids : [];
+      if (recordIds.every((id) => pendingIds.includes(id))) {
+        __pendingHistoryRemovals.delete(commandId);
+      }
+    }
+    return { converged: true, pendingIds: [] };
+  }
+
+  // An owner acknowledgement can race with the read-back. Keep a durable
+  // barrier record in that case; a later Undo must never treat the visible
+  // entry as a fresh target until the owner state is confirmed.
+  for (const [commandId, record] of pending) {
+    if (!__pendingHistoryRemovals.has(commandId) && isCurrentSceneEpoch(sceneEpoch)) {
+      __pendingHistoryRemovals.set(commandId, {
+        ...record,
+        ids: Array.isArray(record?.ids) ? [...record.ids] : [],
+      });
+    }
+  }
+  scheduleHistoryRemovalRetry();
+  return {
+    converged: false,
+    pendingIds: pendingHistoryRemovalIds(sceneEpoch),
+  };
+}
+
 export async function flushPendingHistoryAppends(sceneEpoch = currentSceneEpoch()) {
   if (!isCurrentSceneEpoch(sceneEpoch) || !__pendingHistoryAppends.size) return;
   for (const [entryId, pending] of [...__pendingHistoryAppends]) {
@@ -124,6 +184,46 @@ export function hasPendingHistoryAppends(sceneEpoch = currentSceneEpoch()) {
   return [...__pendingHistoryAppends.values()].some((p) => (
     !sceneEpoch || isCurrentSceneEpoch(p.sceneEpoch)
   ));
+}
+
+async function waitForHistoryPendingUndoConvergence(
+  sceneEpoch,
+  {
+    flushPendingEffectsHistory,
+    hasPendingEffectsHistory,
+    hasPendingEffectsHistoryAuthoritative,
+  } = {},
+) {
+  const deadline = Date.now() + HISTORY_PENDING_UNDO_WAIT_MS;
+  while (isCurrentSceneEpoch(sceneEpoch)) {
+    const localPending = hasPendingHistoryAppends(sceneEpoch)
+      || hasPendingEffectsHistory(sceneEpoch);
+    if (localPending) {
+      void flushPendingHistoryAppends(sceneEpoch).catch(() => {});
+      try {
+        flushPendingEffectsHistory(sceneEpoch);
+      } catch {}
+    }
+
+    let authoritativePending = localPending;
+    if (!localPending) {
+      try {
+        authoritativePending = await hasPendingEffectsHistoryAuthoritative(sceneEpoch);
+      } catch {
+        authoritativePending = true;
+      }
+    }
+    const stillLocalPending = hasPendingHistoryAppends(sceneEpoch)
+      || hasPendingEffectsHistory(sceneEpoch);
+    if (!stillLocalPending && !authoritativePending) return true;
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return false;
+    await new Promise((resolve) => {
+      setTimeout(resolve, Math.min(HISTORY_PENDING_UNDO_RECHECK_MS, remaining));
+    });
+  }
+  return false;
 }
 
 function replaceSceneHistorySnapshot(items = []) {
@@ -569,7 +669,10 @@ function effectHistoryChange(change, namesById = new Map()) {
   if (Object.keys(metadataFields).length) {
     output.metadataFields = metadataFields;
     output.beforeMetadata = cloneValue(change.beforeMetadata || {});
-    output.afterMetadata = cloneValue(change.afterMetadata || {});
+    output.afterMetadata = cloneValue({
+      ...(change.afterMetadata || {}),
+      ...(change.historyAfterMetadata || {}),
+    });
   }
   return output;
 }
@@ -605,7 +708,10 @@ export function buildEffectsMutationHistoryChanges(plan = null) {
         after: {},
         metadataFields,
         beforeMetadata: cloneValue(change.beforeMetadata || {}),
-        afterMetadata: cloneValue(change.afterMetadata || {}),
+        afterMetadata: cloneValue({
+          ...(change.afterMetadata || {}),
+          ...(change.historyAfterMetadata || {}),
+        }),
       };
     })
     .filter(Boolean);
@@ -922,17 +1028,47 @@ export async function getHistoryUndoReadiness({
   }
 
   const maxAttempts = Math.max(1, Math.floor(Number(attempts) || 1));
-  const { flushPendingEffectsHistory, hasPendingEffectsHistory } = await import("./effectsMutations.js");
-  if (hasPendingHistoryAppends(sceneEpoch) || hasPendingEffectsHistory(sceneEpoch)) {
+  const {
+    flushPendingEffectsHistory,
+    hasPendingEffectsHistory,
+    hasPendingEffectsHistoryAuthoritative,
+  } = await import("./effectsMutations.js");
+  const localEffectsHistoryPending = hasPendingHistoryAppends(sceneEpoch)
+    || hasPendingEffectsHistory(sceneEpoch);
+  if (localEffectsHistoryPending) {
     // Pending History is a causal barrier. Kick retries in the background, but
     // never make readiness wait for the 8s owner transport timeout.
     void flushPendingHistoryAppends(sceneEpoch);
     flushPendingEffectsHistory(sceneEpoch);
     return { status: "blocked", reason: "history-pending", entries: [], rows: [], chainToken: "" };
   }
-  // Removal retries concern an Undo that is already committed; keep retrying
-  // them asynchronously instead of stalling unrelated readiness checks.
-  void flushPendingHistoryRemovals(sceneEpoch);
+  let authoritativeEffectsHistoryPending = true;
+  try {
+    authoritativeEffectsHistoryPending = await hasPendingEffectsHistoryAuthoritative(sceneEpoch);
+  } catch {
+    // The background realm is authoritative; an unavailable answer is a
+    // barrier, not permission to race an append against Undo.
+    authoritativeEffectsHistoryPending = true;
+  }
+  if (authoritativeEffectsHistoryPending) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+    }
+    return { status: "blocked", reason: "history-pending", entries: [], rows: [], chainToken: "" };
+  }
+  const removalBarrier = await convergePendingHistoryRemovals(sceneEpoch);
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return { status: "unavailable", reason: "stale-scene", entries: [], rows: [], chainToken: "" };
+  }
+  if (!removalBarrier.converged) {
+    return {
+      status: "blocked",
+      reason: "history-removal-pending",
+      entries: [],
+      rows: [],
+      chainToken: "",
+    };
+  }
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const entries = await getHistoryEntries();
@@ -1538,6 +1674,18 @@ function undoResult(status, reason, extra = {}) {
   };
 }
 
+function pendingHistoryRemovalUndoResult(pendingIds = []) {
+  return decorateUndoResult([], undoResult("rejected", "history-removal-pending", {
+    historyRemovalPending: true,
+    pendingRemoval: true,
+    pendingRemovalIds: [...new Set(
+      (Array.isArray(pendingIds) ? pendingIds : [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    )],
+  }));
+}
+
 function undoCommandIdFor(entries, sceneEpoch) {
   return `history-undo:${sceneEpoch}:${(Array.isArray(entries) ? entries : [])
     .map((entry) => String(entry?.id || ""))
@@ -1666,6 +1814,18 @@ async function logHistoryUndoLiveState(tag, itemIds = []) {
   }
 }
 
+async function concentrationWarningRuntimeScopeForEntries(entries = []) {
+  try {
+    const { getEffectsMutationSceneContext } = await import("./effectsMutations.js");
+    const context = await getEffectsMutationSceneContext({
+      commandId: "history-concentration-warning",
+    });
+    return String(context?.sceneIdentity || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 async function dismissConcentrationWarningsCausedByEntries(entries = [], sceneEpoch = currentSceneEpoch()) {
   if (!isCurrentSceneEpoch(sceneEpoch)) return [];
   const historyEntryIds = [...new Set(
@@ -1674,12 +1834,14 @@ async function dismissConcentrationWarningsCausedByEntries(entries = [], sceneEp
       .filter(Boolean),
   )];
   if (!historyEntryIds.length) return [];
+  const warningRuntimeScope = await concentrationWarningRuntimeScopeForEntries(entries);
   await OBR.broadcast.sendMessage(
     CONCENTRATION_WARNING_CHANNEL,
     {
       type: "dismiss-concentration-warnings-by-history",
       historyEntryIds,
       sceneEpoch,
+      ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
     },
     { destination: "ALL" },
   );
@@ -1693,32 +1855,78 @@ async function reannounceHistoryReminderEntries(entries = [], sceneEpoch = curre
       .map((entry) => String(entry?.id || "").trim())
       .filter(Boolean),
   );
+  let defaultWarningRuntimeScope = "";
+  const rearmSent = new Set();
   const replayed = [];
   for (const entry of Array.isArray(entries) ? entries : []) {
     if (String(entry?.kind || "") !== "reminder-resolution") continue;
     const replay = entry?.payload?.replay;
     if (!replay || typeof replay !== "object") continue;
+    if (replay.type === "reminder") {
+      const owner = replay.owner === "effect-save"
+        || replay.owner === "static-zone"
+        || replay.owner === "spell-aura"
+        ? replay.owner
+        : "";
+      const activationId = String(replay.activationId || "").trim();
+      const descriptor = replay.descriptor && typeof replay.descriptor === "object"
+        ? cloneValue(replay.descriptor)
+        : null;
+      const replayKey = `${owner}:${activationId}`;
+      if (!owner || !activationId || !descriptor || rearmSent.has(replayKey)) continue;
+      await OBR.broadcast.sendMessage(
+        REMINDER_HISTORY_REARM_CHANNEL,
+        {
+          type: "restore-reminder-activation",
+          owner,
+          activationId,
+          descriptor,
+          historyEntryId: String(entry?.id || "").trim(),
+          sceneEpoch,
+        },
+        { destination: "ALL" },
+      );
+      rearmSent.add(replayKey);
+      replayed.push(activationId);
+      continue;
+    }
     if (replay.type === "concentration-warning" && replay.warning) {
       const replaySceneEpoch = Number(entry?.effectsMutation?.sceneEpoch);
+      if (!defaultWarningRuntimeScope) {
+        defaultWarningRuntimeScope = await concentrationWarningRuntimeScopeForEntries([entry]);
+      }
+      const warningRuntimeScope = defaultWarningRuntimeScope;
+      const storedWarning = cloneValue(replay.warning) || {};
+      const warningWithoutHistoricalScope = { ...storedWarning };
+      delete warningWithoutHistoricalScope.warningRuntimeScope;
+      const replayWarning = {
+        ...warningWithoutHistoricalScope,
+        ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
+      };
       if (
         !Number.isSafeInteger(replaySceneEpoch)
         || replaySceneEpoch < 0
         || replaySceneEpoch !== sceneEpoch
-      ) continue;
+      ) {
+        continue;
+      }
       const causeHistoryEntryId = String(
         replay.warning?.notice?.causeHistoryEntryId || "",
       ).trim();
       // If the same Undo batch also rewinds the action that generated this
       // concentration save, the reminder is no longer causally valid and
       // must not be replayed.
-      if (causeHistoryEntryId && undoEntryIds.has(causeHistoryEntryId)) continue;
+      if (causeHistoryEntryId && undoEntryIds.has(causeHistoryEntryId)) {
+        continue;
+      }
       await OBR.broadcast.sendMessage(
         CONCENTRATION_WARNING_CHANNEL,
         {
           type: "show-concentration-warning",
-          warnings: [cloneValue(replay.warning)],
+          warnings: [replayWarning],
           createdAt: Date.now(),
           sceneEpoch: replaySceneEpoch,
+          ...(warningRuntimeScope ? { warningRuntimeScope } : {}),
         },
         { destination: "ALL" },
       );
@@ -1787,16 +1995,54 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     return decorateUndoResult([], undoResult("rejected", "stale-after-role-read"));
   }
 
-  const { flushPendingEffectsHistory, hasPendingEffectsHistory } = await import("./effectsMutations.js");
-  if (hasPendingHistoryAppends(sceneEpoch) || hasPendingEffectsHistory(sceneEpoch)) {
-    // Do not wait synchronously for owner retry timeouts. A missing History
-    // entry is a barrier, so this Undo is rejected immediately and the durable
-    // retry lanes continue in the background.
-    void flushPendingHistoryAppends(sceneEpoch);
-    flushPendingEffectsHistory(sceneEpoch);
-    return decorateUndoResult([], undoResult("rejected", "history-pending"));
+  const {
+    flushPendingEffectsHistory,
+    hasPendingEffectsHistory,
+    hasPendingEffectsHistoryAuthoritative,
+  } = await import("./effectsMutations.js");
+  const localEffectsHistoryPending = hasPendingHistoryAppends(sceneEpoch)
+    || hasPendingEffectsHistory(sceneEpoch);
+  if (localEffectsHistoryPending) {
+    // A reminder may close after its canonical Effects commit while its
+    // deferred History entry is still materializing. Give the already-owned
+    // retry lane a bounded chance to converge before rejecting Alt+Z; the
+    // barrier remains fail-closed when the owner does not settle.
+    const converged = await waitForHistoryPendingUndoConvergence(sceneEpoch, {
+      flushPendingEffectsHistory,
+      hasPendingEffectsHistory,
+      hasPendingEffectsHistoryAuthoritative,
+    });
+    if (!converged) {
+      return decorateUndoResult([], undoResult("rejected", "history-pending"));
+    }
   }
-  void flushPendingHistoryRemovals(sceneEpoch);
+  let authoritativeEffectsHistoryPending = true;
+  try {
+    authoritativeEffectsHistoryPending = await hasPendingEffectsHistoryAuthoritative(sceneEpoch);
+  } catch {
+    // Fail closed if the cross-realm context cannot answer.
+    authoritativeEffectsHistoryPending = true;
+  }
+  if (authoritativeEffectsHistoryPending) {
+    const converged = await waitForHistoryPendingUndoConvergence(sceneEpoch, {
+      flushPendingEffectsHistory,
+      hasPendingEffectsHistory,
+      hasPendingEffectsHistoryAuthoritative,
+    });
+    if (!converged) {
+      if (!isCurrentSceneEpoch(sceneEpoch)) {
+        return decorateUndoResult([], undoResult("rejected", "stale-after-history-pending-check"));
+      }
+      return decorateUndoResult([], undoResult("rejected", "history-pending"));
+    }
+  }
+  const removalBarrier = await convergePendingHistoryRemovals(sceneEpoch);
+  if (!isCurrentSceneEpoch(sceneEpoch)) {
+    return decorateUndoResult([], undoResult("rejected", "stale-after-history-removal"));
+  }
+  if (!removalBarrier.converged) {
+    return pendingHistoryRemovalUndoResult(removalBarrier.pendingIds);
+  }
 
   const md = await OBR.scene.getMetadata();
   if (!isCurrentSceneEpoch(sceneEpoch)) {
@@ -1829,18 +2075,17 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
     ))
   ));
   if (alreadyCommitted) {
-    const removalResult = await removeUndoHistoryEntries(selectedIds, {
-      sceneEpoch,
-      commandId: `history-recommit:${undoCommandId}`,
-      correlationId: undoCommandId,
-    });
-    return decorateUndoResult(selected, {
-      status: "applied",
-      reason: removalResult.pending ? "history-removal-pending" : null,
-      committed: true,
-      pendingRemoval: removalResult.pending,
-      changedIds: [],
-    });
+    // A pending removal means that this entry was already undone locally.
+    // Never expose it as a second successful Undo: converge the owner state
+    // and reload the canonical History before selecting another target.
+    const retryBarrier = await convergePendingHistoryRemovals(sceneEpoch);
+    if (!isCurrentSceneEpoch(sceneEpoch)) {
+      return decorateUndoResult([], undoResult("rejected", "stale-after-history-removal"));
+    }
+    if (!retryBarrier.converged) {
+      return pendingHistoryRemovalUndoResult(retryBarrier.pendingIds);
+    }
+    return undoHistoryThroughNow(entryId, sceneEpoch, { through });
   }
 
   if (undoOrder.length === 1) {
@@ -1955,7 +2200,6 @@ async function undoHistoryThroughNow(entryId, sceneEpoch) {
       message: String(cleanup.error?.message || cleanup.error || "history-removal-pending"),
     });
   }
-
   // recordCombatUndo(undoOrder, { sceneEpoch }) remains best-effort after commit.
   try {
     await recordUndoCombatLogOnce(undoOrder, { sceneEpoch, commandId: undoCommandId });

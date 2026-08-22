@@ -230,6 +230,89 @@ test("registra una risoluzione reminder con esito e danno nel Combat Log", () =>
   assert.equal(combatEventDetail(event), "Fallito · 7 danni");
 });
 
+test("reminder-resolution usa lo snapshot HP History per Bella senza hpMax sintetico", () => {
+  const event = combatEventFromHistoryEntry({
+    id: "effects-history:reminder-resolution:bella",
+    kind: "reminder-resolution",
+    payload: {
+      targetId: "bella",
+      outcome: "failed",
+      damage: 13,
+      hpChange: { before: 112, after: 99, hpMax: 112 },
+    },
+    changes: [{
+      id: "bella",
+      name: "Bella",
+      metadataFields: { hp: true },
+      beforeMetadata: { hp: { present: true, value: 112 } },
+      afterMetadata: { hp: { present: true, value: 99 } },
+    }],
+  });
+
+  assert.deepEqual(event.facets.hp.targets, [{
+    id: "bella",
+    name: "Bella",
+    before: { hp: 112, hpMax: 112 },
+    after: { hp: 99, hpMax: 112 },
+    delta: -13,
+    hpMaxDelta: 0,
+  }]);
+});
+
+test("reminder-resolution usa lo snapshot HP History per Morgantha senza hpMax sintetico", () => {
+  const event = combatEventFromHistoryEntry({
+    id: "effects-history:reminder-resolution:morgantha",
+    kind: "reminder-resolution",
+    payload: {
+      targetId: "morgantha",
+      outcome: "failed",
+      damage: 11,
+      hpChange: { before: 105, after: 94, hpMax: 112 },
+    },
+    effectsMutation: {
+      changes: [{
+        id: "morgantha",
+        name: "Morgantha",
+        metadataFields: { hp: true },
+        beforeMetadata: { hp: { present: true, value: 105 } },
+        afterMetadata: { hp: { present: true, value: 94 } },
+      }],
+    },
+  });
+
+  assert.deepEqual(event.facets.hp.targets[0], {
+    id: "morgantha",
+    name: "Morgantha",
+    before: { hp: 105, hpMax: 112 },
+    after: { hp: 94, hpMax: 112 },
+    delta: -11,
+    hpMaxDelta: 0,
+  });
+});
+
+test("un HP max non disponibile resta null e non diventa zero", () => {
+  const event = combatEventFromHistoryEntry({
+    id: "history-hp-unknown-max",
+    kind: "hp",
+    changes: [{
+      id: "target-unknown-max",
+      name: "Target",
+      before: { hp: snapshot(10) },
+      after: { hp: snapshot(5) },
+    }],
+  });
+
+  assert.deepEqual(event.facets.hp.targets[0], {
+    id: "target-unknown-max",
+    name: "Target",
+    before: { hp: 10, hpMax: null },
+    after: { hp: 5, hpMax: null },
+    delta: -5,
+    hpMaxDelta: null,
+  });
+  assert.match(combatEventDetail(event), /Target: 10\/\? → 5\/\?/u);
+});
+
 test("cumula il movimento dello stesso token nello stesso turno", () => {
   const base = {
     kind: "move",

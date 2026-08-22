@@ -130,6 +130,30 @@ export function pruneZoneReminderNoticeBatch(
   return groupKey ? batchFromEntries(remaining, groupKey) : null;
 }
 
+export function pruneEffectSaveReminderNoticeBatch(
+  currentBatch = null,
+  currentActivationIds = [],
+) {
+  const entries = Array.isArray(currentBatch?.entries)
+    ? currentBatch.entries.map(normalizeEntry).filter(Boolean)
+    : [];
+  if (!entries.length) return null;
+  const current = new Set(
+    (Array.isArray(currentActivationIds)
+      ? currentActivationIds
+      : [...(currentActivationIds || [])])
+      .map((value) => normalizedText(value, "", 300))
+      .filter(Boolean),
+  );
+  const remaining = entries.filter((entry) => (
+    (entry.kind !== "effect-save" && entry.kind !== "effect-reminder")
+    || current.has(entry.activationId)
+  ));
+  if (!remaining.length) return null;
+  const groupKey = normalizedText(currentBatch?.groupKey, "", 700);
+  return groupKey ? batchFromEntries(remaining, groupKey) : null;
+}
+
 export function mergeSaveReminderNoticeBatch(
   currentBatch = null,
   incomingValues = [],

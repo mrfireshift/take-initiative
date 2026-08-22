@@ -6,6 +6,7 @@ import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 import {
   mergeStaticSpellZoneReminderMetadata,
   planStaticSpellZoneReminder,
+  rearmedStaticSpellZoneNotices,
 } from "../src/spellStaticZoneReminderCore.js";
 import { consumeSpellZoneTrigger } from "../src/spellZoneTriggerCore.js";
 
@@ -40,11 +41,13 @@ function zoneItem() {
 }
 
 function reconcile(item, current, round, now) {
+  const preservePendingActivationIds = arguments[4] || [];
   const update = planStaticSpellZoneReminder({
     zoneItem: item,
     rule,
     desiredTargetIds: ["first", "second", "third"],
     initiativeState: initiativeState(current, round),
+    preservePendingActivationIds,
     itemsById,
     now,
   });
@@ -174,5 +177,124 @@ test("SP-B04A — Unto non perde il primo ingresso se avviene prima del primo re
       targetIds: activation.targetIds,
     })),
     [{ triggerId: "grease-save-on-entry", targetIds: ["second"] }],
+  );
+});
+
+test("Undo di una resolution static-zone riproietta la stessa activation pending", () => {
+  const item = zoneItem();
+  const initialized = reconcile(item, 0, 1, 100);
+  const triggered = reconcile(item, 1, 1, 200);
+  const activationId = triggered.notices[0].activationId;
+  consume(item, activationId);
+
+  const restoredItem = {
+    ...item,
+    metadata: {
+      ...item.metadata,
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        ...item.metadata[SPELL_STATIC_ZONE_META_KEY],
+        triggerRuntime: triggered.runtime,
+      },
+    },
+  };
+  const notices = rearmedStaticSpellZoneNotices({
+    zoneItem: restoredItem,
+    pendingActivations: triggered.runtime.pending,
+    rearmActivationIds: [activationId],
+    itemsById,
+  });
+
+  assert.equal(initialized.notices.length, 0);
+  assert.deepEqual(notices.map((notice) => notice.activationId), [activationId]);
+  assert.deepEqual(
+    rearmedStaticSpellZoneNotices({
+      zoneItem: restoredItem,
+      pendingActivations: triggered.runtime.pending,
+      rearmActivationIds: [],
+      itemsById,
+    }),
+    [],
+  );
+});
+
+test("il restore geometrico aggiorna membership senza creare un nuovo enter", () => {
+  const greaseRule = getSpellAreaRuleById("grease:cast");
+  const item = {
+    id: "grease-zone",
+    name: "Zona: Unto",
+    position: { x: 100, y: 200 },
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        version: 1,
+        instanceId: "grease-instance",
+        ruleId: greaseRule.id,
+        spellId: greaseRule.spellId,
+        casterId: "caster",
+        role: "root",
+      },
+    },
+  };
+  const outside = planStaticSpellZoneReminder({
+    zoneItem: item,
+    rule: greaseRule,
+    desiredTargetIds: [],
+    initiativeState: initiativeState(0, 1),
+    itemsById,
+    now: 100,
+  });
+  item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime = outside.runtime;
+  const restored = planStaticSpellZoneReminder({
+    zoneItem: item,
+    rule: greaseRule,
+    runtime: outside.runtime,
+    desiredTargetIds: ["first"],
+    initiativeState: initiativeState(0, 1),
+    suppressGeometricActivationTargetIds: ["first"],
+    itemsById,
+    now: 200,
+  });
+  assert.deepEqual(restored.runtime.memberIds, ["first"]);
+  assert.deepEqual(restored.newActivations, []);
+
+  item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime = outside.runtime;
+  const normal = planStaticSpellZoneReminder({
+    zoneItem: item,
+    rule: greaseRule,
+    runtime: outside.runtime,
+    desiredTargetIds: ["first"],
+    initiativeState: initiativeState(0, 1),
+    itemsById,
+    now: 300,
+  });
+  assert.deepEqual(
+    normal.newActivations.map((activation) => activation.triggerId),
+    ["grease-save-on-entry"],
+  );
+});
+
+test("una activation static-zone restaurata resta pending dopo reconcile ripetuti di un turno vecchio", () => {
+  const item = zoneItem();
+  reconcile(item, 0, 1, 100);
+  const triggered = reconcile(item, 1, 1, 200);
+  const activationId = triggered.notices[0].activationId;
+  consume(item, activationId);
+  item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime = triggered.runtime;
+
+  for (const [current, round] of [[0, 2], [1, 2], [0, 3]]) {
+    const update = reconcile(item, current, round, 300 + round, [activationId]);
+    assert.equal(update.notices.length, 0);
+    assert.deepEqual(
+      item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime.pending.map((entry) => entry.id),
+      [activationId],
+    );
+  }
+  assert.equal(
+    rearmedStaticSpellZoneNotices({
+      zoneItem: item,
+      pendingActivations: item.metadata[SPELL_STATIC_ZONE_META_KEY].triggerRuntime.pending,
+      rearmActivationIds: [activationId],
+      itemsById,
+    }).length,
+    1,
   );
 });

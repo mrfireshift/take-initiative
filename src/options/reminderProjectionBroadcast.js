@@ -22,7 +22,9 @@ export async function sendProjectedReminderPayload(channel, payload = {}) {
     startRuntimeOptions().catch(() => {}),
     reminderSenderIsGM(),
   ]);
-  if (!isGM) return { gm: 0, player: 0 };
+  if (!isGM) {
+    return { gm: 0, player: 0 };
+  }
   const projection = runtimeOptionsService.get(selectReminderProjectionPolicy);
   const rawNotices = Array.isArray(payload.notices) ? payload.notices : [];
   const gmNotices = projectReminderNotices(rawNotices, {
@@ -37,19 +39,29 @@ export async function sendProjectedReminderPayload(channel, payload = {}) {
   });
   const deliveries = [];
   if (gmNotices.length) {
-    deliveries.push(OBR.broadcast.sendMessage(
-      channel,
-      { ...payload, notices: gmNotices },
-      { destination: "LOCAL" },
-    ));
+    deliveries.push(sendProjectedPayload(channel, payload, "LOCAL", gmNotices));
   }
   if (playerNotices.length) {
-    deliveries.push(OBR.broadcast.sendMessage(
-      channel,
-      { ...payload, notices: playerNotices },
-      { destination: "REMOTE" },
-    ));
+    deliveries.push(sendProjectedPayload(channel, payload, "REMOTE", playerNotices));
   }
   await Promise.all(deliveries);
   return { gm: gmNotices.length, player: playerNotices.length };
+}
+
+function sendProjectedPayload(channel, basePayload, destination, notices) {
+  const payload = { ...basePayload, notices };
+  let delivery;
+  try {
+    delivery = OBR.broadcast.sendMessage(channel, payload, { destination });
+  } catch (error) {
+    throw error;
+  }
+  if (!delivery || typeof delivery.then !== "function") {
+    return delivery;
+  }
+  return delivery.then(() => {
+    return undefined;
+  }, (error) => {
+    throw error;
+  });
 }

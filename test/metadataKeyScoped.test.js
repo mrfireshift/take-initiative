@@ -183,6 +183,11 @@ test("ARCH-002 Room separa registry, initiative cards, memory e speed control se
     { runtime: "speedCheck" },
   );
 
+  // Il budget Room deve leggere il documento completo prima del setMetadata.
+  // Lasciamo completare quel read per poter controllare le quattro operazioni
+  // key-scoped già accodate nel harness.
+  await new Promise((resolve) => setImmediate(resolve));
+
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, ROOM_MEMORY_KEY)));
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, REGISTRY_KEY)));
   harness.commit(pendingId(harness, (operation) => Object.hasOwn(operation.update, CARDS_KEY)));

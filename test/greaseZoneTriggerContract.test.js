@@ -13,3 +13,9 @@ test("SP-B04A — le zone non target-scoped salvano la membership geometrica del
   assert.match(executor, /const passiveTargetIds = staticZoneCastMemberIds;/);
   assert.match(executor, /targetIds: staticZoneCastMemberIds,/);
 });
+
+test("SP-B04A — initialResolution none sopprime l'automazione iniziale anche per Unto/Web", () => {
+  assert.match(executor, /const suppressInitialZoneAutomation = staticZonePlacement/);
+  assert.match(executor, /initialResolution === "none"/);
+  assert.match(executor, /trackOutcomes: \[\]/);
+});

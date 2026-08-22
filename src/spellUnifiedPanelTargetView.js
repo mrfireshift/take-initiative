@@ -325,11 +325,37 @@ export function renderPlacementStage(documentRef, model, callbacks = {}) {
   const details = createNode(documentRef, "div", {
     className: "unified-placement-card",
   });
+  if (placement.choices?.length) {
+    const choice = createSelect(documentRef, {
+      id: "spell-unified-placement-choice",
+      options: [
+        { value: "", label: "Seleziona forma e lato caldo" },
+        ...placement.choices,
+      ],
+      value: placement.choice || "",
+      invalid: model.workflow.validation.firstInvalidField === "rule-choice",
+      attributes: {
+        "data-field": "rule-choice",
+        "aria-label": "Forma e lato caldo della sagoma",
+      },
+    });
+    choice.addEventListener("change", (event) => callbacks.onVariantChange?.(
+      event.target.value,
+    ));
+    details.append(createField(documentRef, {
+      id: choice.id,
+      label: "Forma / lato caldo",
+      control: choice,
+      hint: "La scelta viene salvata nella zona persistente.",
+      invalid: model.workflow.validation.firstInvalidField === "rule-choice",
+    }));
+  }
   if (placement.visibleAction) {
+    const choiceMissing = placement.choiceRequired && !placement.choice;
     const button = createButton(documentRef, {
       label: placement.actionLabel,
       className: "unified-secondary-button unified-placement-action",
-      disabled: placement.pending,
+      disabled: placement.pending || choiceMissing,
       attributes: {
         "data-placement-action": placement.policy,
       },

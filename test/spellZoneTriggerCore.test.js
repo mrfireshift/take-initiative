@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CLASS_FEATURE_AURA_META_KEY } from "../src/classFeatureAuraCore.js";
-import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
+import {
+  getSpellAreaRuleById,
+  getSpellAreaRuleForPlacement,
+} from "../src/spellAreaRules.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 import {
   consumeSpellZoneTrigger,
@@ -163,6 +166,295 @@ test("i reminder scaduti non sopravvivono all'uscita o al turno successivo", () 
   assert.deepEqual(nextRound.runtime.pending, []);
 });
 
+test("una activation esplicitamente restaurata sopravvive ai reconcile dei turni successivi", () => {
+  const rule = getSpellAreaRuleById("web:cast");
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata(),
+    currentTargetIds: ["target"],
+    initiativeState: state(0),
+    now: 100,
+  });
+  const triggered = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata(),
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    initiativeState: state(1),
+    now: 200,
+  });
+  const activationId = triggered.runtime.pending[0].id;
+
+  let runtime = triggered.runtime;
+  for (const [current, round] of [[0, 2], [1, 2], [0, 3]]) {
+    const reconciled = planSpellZoneTriggers({
+      rule,
+      zoneMetadata: zoneMetadata(),
+      runtime,
+      currentTargetIds: ["target"],
+      initiativeState: state(current, round),
+      preservePendingActivationIds: [activationId],
+      now: 300 + round,
+    });
+    runtime = reconciled.runtime;
+    assert.deepEqual(runtime.pending.map((entry) => entry.id), [activationId]);
+    assert.equal(reconciled.newActivations.length, 0);
+  }
+});
+
+test("un restore geometrico sopprime solo enter/leave/move e aggiorna la membership", () => {
+  const rule = {
+    id: "movement-restore-test",
+    zonePolicy: {
+      triggers: [
+        {
+          id: "enter",
+          event: "enter",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+        {
+          id: "move",
+          event: "move",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+        {
+          id: "leave",
+          event: "leave",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+        {
+          id: "turn",
+          event: "turn-start",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+      ],
+    },
+  };
+  const outside = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    currentTargetIds: [],
+    initiativeState: state(0),
+    areaPosition: { x: 10, y: 20 },
+    now: 100,
+  });
+  const restored = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: outside.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0),
+    suppressGeometricActivationTargetIds: ["target"],
+    now: 200,
+  });
+
+  assert.deepEqual(restored.runtime.memberIds, ["target"]);
+  assert.deepEqual(restored.newActivations, []);
+
+  const normal = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: outside.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0),
+    areaPosition: { x: 10, y: 20 },
+    now: 300,
+  });
+  assert.deepEqual(
+    normal.newActivations.map((activation) => activation.triggerId),
+    ["enter"],
+  );
+
+  const turnAfterRestore = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: restored.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(1),
+    suppressGeometricActivationTargetIds: ["target"],
+    now: 400,
+  });
+  assert.deepEqual(
+    turnAfterRestore.newActivations.map((activation) => activation.triggerId),
+    ["turn"],
+  );
+});
+
+test("un restore dopo il cambio turno non riattiva una enter potata", () => {
+  const rule = {
+    id: "movement-restore-turn-test",
+    zonePolicy: {
+      triggers: [{
+        id: "enter",
+        event: "enter",
+        frequency: "once-per-turn",
+        resolution: "manual-save",
+      }],
+    },
+  };
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    currentTargetIds: [],
+    initiativeState: state(0),
+    now: 100,
+  });
+  const entered = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0),
+    now: 200,
+  });
+  const consumed = consumeSpellZoneTrigger(
+    entered.runtime,
+    entered.newActivations[0]?.id,
+  );
+  const nextTurn = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: consumed,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0, 2),
+    now: 300,
+  });
+  const outside = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: nextTurn.runtime,
+    currentTargetIds: [],
+    initiativeState: state(0, 2),
+    now: 400,
+  });
+  const restored = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: outside.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0, 2),
+    suppressGeometricActivationTargetIds: ["target"],
+    now: 500,
+  });
+
+  assert.deepEqual(nextTurn.runtime.handledKeys, []);
+  assert.deepEqual(restored.runtime.memberIds, ["target"]);
+  assert.deepEqual(restored.runtime.pending, []);
+  assert.deepEqual(restored.newActivations, []);
+});
+
+test("outside-inside seguito da Undo sopprime anche la leave sintetica", () => {
+  const rule = {
+    id: "movement-undo-opposite-direction-test",
+    zonePolicy: {
+      triggers: [
+        {
+          id: "enter",
+          event: "enter",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+        {
+          id: "leave",
+          event: "leave",
+          frequency: "once-per-turn",
+          resolution: "manual-save",
+        },
+      ],
+    },
+  };
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 0, y: 0 } },
+    initiativeState: state(0),
+    now: 100,
+  });
+  const outside = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: initialized.runtime,
+    currentTargetIds: [],
+    initiativeState: state(0),
+    now: 200,
+  });
+  const outsideConsumed = consumeSpellZoneTrigger(
+    outside.runtime,
+    outside.newActivations.find((activation) => activation.triggerId === "leave")?.id,
+  );
+  const entered = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: outsideConsumed,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 0 } },
+    initiativeState: state(0),
+    now: 300,
+  });
+  const undone = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata({ ruleId: rule.id }),
+    runtime: entered.runtime,
+    currentTargetIds: [],
+    initiativeState: state(0),
+    suppressGeometricActivationTargetIds: ["target"],
+    now: 400,
+  });
+
+  assert.deepEqual(entered.newActivations.map((activation) => activation.triggerId), ["enter"]);
+  assert.deepEqual(undone.runtime.memberIds, []);
+  assert.deepEqual(undone.runtime.pending, []);
+  assert.deepEqual(undone.newActivations, []);
+});
+
+test("un restore di posizione conserva la stessa activation pending storica", () => {
+  const rule = getSpellAreaRuleById("web:cast");
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata(),
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0),
+    now: 100,
+  });
+  const triggered = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata(),
+    runtime: initialized.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(1),
+    now: 200,
+  });
+  const activationId = triggered.runtime.pending[0]?.id;
+  const restored = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: zoneMetadata(),
+    runtime: triggered.runtime,
+    currentTargetIds: ["target"],
+    currentTargetPositions: { target: { x: 10, y: 20 } },
+    initiativeState: state(0, 2),
+    preservePendingActivationIds: [activationId],
+    suppressGeometricActivationTargetIds: ["target"],
+    now: 300,
+  });
+
+  assert.ok(activationId);
+  assert.deepEqual(restored.runtime.pending.map((entry) => entry.id), [activationId]);
+  assert.deepEqual(restored.newActivations, []);
+});
+
 test("il merge applica la pulizia pianificata senza perdere aggiunte concorrenti", () => {
   const base = {
     initialized: true,
@@ -309,7 +601,7 @@ test("un effetto già collegato alla zona sopprime il trigger ridondante", () =>
   assert.deepEqual(turnStart.newActivations, []);
 });
 
-test("Ragnatela ricorda il TS anche quando una creatura entra fuori dal proprio turno", () => {
+test("Ragnatela non anticipa il TS quando una creatura entra fuori dal proprio turno", () => {
   const rule = getSpellAreaRuleById("web:cast");
   const initialized = planSpellZoneTriggers({
     rule,
@@ -324,15 +616,7 @@ test("Ragnatela ricorda il TS anche quando una creatura entra fuori dal proprio 
     currentTargetIds: ["target"],
     initiativeState: state(0),
   });
-  assert.equal(enteredOutsideOwnTurn.newActivations.length, 1);
-  assert.equal(
-    enteredOutsideOwnTurn.newActivations[0].triggerId,
-    "web-save-on-entry",
-  );
-  assert.deepEqual(
-    enteredOutsideOwnTurn.newActivations[0].targetIds,
-    ["target"],
-  );
+  assert.deepEqual(enteredOutsideOwnTurn.newActivations, []);
 
   const reset = planSpellZoneTriggers({
     rule,
@@ -653,7 +937,7 @@ test("persistent runtime permits later tokens, entries, and rounds with unresolv
   );
   assert.deepEqual(
     reconcile({
-      current: 2,
+      current: 3,
       members: ["first", "second", "third"],
       now: 400,
     }).map((activation) => activation.targetIds),
@@ -1798,4 +2082,111 @@ test("Collera della Natura ricorda al caster Liane e Alberi ai confini corretti"
     ]),
     [["wrath-of-nature-trees-on-source-turn-start", ["caster"]]],
   );
+});
+
+test("consuma solo il bersaglio richiesto di una activation multi-target", () => {
+  const runtime = {
+    initialized: true,
+    pending: [{
+      id: "multi-activation",
+      targetIds: ["target-a", "target-b"],
+      createdAt: 1,
+    }],
+  };
+
+  const afterFirst = consumeSpellZoneTrigger(runtime, "multi-activation", "target-a");
+  assert.deepEqual(afterFirst.pending[0].targetIds, ["target-b"]);
+
+  const afterSecond = consumeSpellZoneTrigger(afterFirst, "multi-activation", "target-b");
+  assert.deepEqual(afterSecond.pending, []);
+});
+
+test("Muro di Fuoco separa corpo e fascia calda e deduplica il turno", () => {
+  const rule = getSpellAreaRuleForPlacement("wall-of-fire:cast", "line-hot-left");
+  const metadata = zoneMetadata({
+    ruleId: rule.id,
+    spellId: rule.spellId,
+    targetIds: [],
+  });
+  const initial = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: [],
+    currentTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": [],
+      "wall-of-fire-damage-on-turn-end": [],
+    },
+    initiativeState: state(1),
+    now: 100,
+  });
+  const entered = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initial.runtime,
+    currentTargetIds: ["target"],
+    currentTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": ["target"],
+      "wall-of-fire-damage-on-turn-end": ["target"],
+    },
+    initiativeState: state(1),
+    now: 200,
+  });
+  assert.equal(entered.newActivations.length, 1);
+  assert.equal(entered.newActivations[0].event, "enter");
+  assert.equal(entered.newActivations[0].resolution, "manual-effect");
+  assert.equal(entered.newActivations[0].damage.additionalPerSlotAbove, 1);
+
+  const turnEnd = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: entered.runtime,
+    currentTargetIds: ["target"],
+    currentTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": ["target"],
+      // Corpo e fascia coincidono per il target: la mappa è già deduplicata.
+      "wall-of-fire-damage-on-turn-end": ["target", "target"],
+    },
+    initiativeState: state(0, 2),
+    now: 300,
+  });
+  assert.deepEqual(
+    turnEnd.newActivations.map((activation) => activation.event),
+    ["turn-end"],
+  );
+  assert.deepEqual(turnEnd.newActivations[0].targetIds, ["target"]);
+});
+
+test("Muro di Fuoco rileva il passaggio continuo fuori-dentro-fuori", () => {
+  const rule = getSpellAreaRuleForPlacement("wall-of-fire:cast", "line-hot-right");
+  const metadata = zoneMetadata({ ruleId: rule.id, spellId: rule.spellId });
+  const initial = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: [],
+    currentTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": [],
+      "wall-of-fire-damage-on-turn-end": [],
+    },
+    initiativeState: state(0),
+    now: 100,
+  });
+  const crossing = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: initial.runtime,
+    currentTargetIds: [],
+    currentTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": [],
+      "wall-of-fire-damage-on-turn-end": [],
+    },
+    crossingTargetIdsByTrigger: {
+      "wall-of-fire-damage-on-entry": ["runner"],
+    },
+    initiativeState: state(0),
+    now: 200,
+  });
+  assert.equal(crossing.newActivations.length, 1);
+  assert.equal(crossing.newActivations[0].event, "enter");
+  assert.deepEqual(crossing.newActivations[0].targetIds, ["runner"]);
+  assert.equal(crossing.runtime.pending.length, 1);
 });

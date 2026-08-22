@@ -160,7 +160,7 @@ return {
     scope(index) {
       const url = new URL(openRequests[index].options.url, "https://example.test");
       return {
-        sceneEpoch: Number(url.searchParams.get("sceneEpoch")),
+        sceneEpoch: Number(url.searchParams.get("warningSceneEpoch")),
         runtimeGeneration: Number(url.searchParams.get("runtimeGeneration")),
         runtimeSession: url.searchParams.get("runtimeSession"),
       };
@@ -375,4 +375,3 @@ test("dopo reset il runtime A/B/A usa epoch successive e parte pulito", async ()
   );
   assert.equal(host.state().popoverOpen, true);
 });
-

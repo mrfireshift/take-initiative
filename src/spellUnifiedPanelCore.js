@@ -103,6 +103,7 @@ export const SPELL_PANEL_VALIDATION_LABELS = Object.freeze({
   "slot-level": "livello dello slot",
   duration: "durata",
   variant: "variante",
+  "rule-choice": "variante della sagoma",
   targets: "bersagli",
   "primary-target": "bersaglio primario",
   "target-context": "contesto dei bersagli",
@@ -119,6 +120,7 @@ const SPELL_PANEL_VALIDATION_MESSAGES = Object.freeze({
   "slot-level": "Scegli il livello dello slot",
   duration: "Inserisci la durata",
   variant: "Scegli una variante",
+  "rule-choice": "Scegli la forma e il lato caldo della sagoma",
   targets: "Seleziona almeno un bersaglio",
   "primary-target": "Seleziona il bersaglio primario",
   "target-context": "Completa il contesto dei bersagli",
@@ -1874,6 +1876,18 @@ function optionContains(options, value) {
     && options.some((option) => String(option?.value) === String(value));
 }
 
+function initialZoneResolutionMayHaveNoTargets(contract, targetIds = []) {
+  const targeting = contract?.presentation?.targeting || {};
+  const placementRules = Array.isArray(contract?.presentation?.placement?.rules)
+    ? contract.presentation.placement.rules
+    : [];
+  return targetIds.length === 0
+    && contract?.execution?.hasZones === true
+    && targeting.mode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
+    && targeting.confirmTargets !== true
+    && placementRules.some((rule) => rule?.kind === "zone");
+}
+
 function outcomeFor(outcomes, targetId) {
   return outcomes && typeof outcomes === "object"
     ? outcomes[targetId]
@@ -1906,6 +1920,10 @@ function placementView(contract, session) {
   const runtime = session?.placement && typeof session.placement === "object"
     ? session.placement
     : null;
+  const choices = Array.isArray(descriptor.choices)
+    ? cloneValue(descriptor.choices)
+    : [];
+  const choice = text(runtime?.ruleChoice || session?.variant || descriptor.choice);
   const runtimeState = text(runtime?.state || runtime?.status);
   const confirmed = policy === SPELL_PANEL_PLACEMENT_POLICIES.AUTOMATIC
     || runtime?.confirmed === true
@@ -1937,6 +1955,10 @@ function placementView(contract, session) {
     requestId: text(runtime?.requestId) || null,
     targetLocked: runtime?.targetLocked === true,
     required: policy === SPELL_PANEL_PLACEMENT_POLICIES.REQUIRED,
+    choice,
+    choices,
+    choiceRequired: choices.length > 0,
+    rules: cloneValue(descriptor.rules || []),
     mode: descriptor.mode || "none",
     kind: descriptor.rules?.[0]?.kind || null,
     batchIndex: Math.max(0, Math.floor(Number(runtime?.batchIndex) || 0)),
@@ -1985,6 +2007,9 @@ function validationFor(contract, session, placement) {
       add("composition", "composition-invalid");
     }
   }
+  if (placement.choiceRequired && !optionContains(placement.choices, placement.choice)) {
+    add("rule-choice", "choice-required");
+  }
   const postPlacementTargeting = contract.presentation.targeting?.selectionMode === "post-placement";
   if (postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
@@ -2020,7 +2045,9 @@ function validationFor(contract, session, placement) {
       add("outcomes", "outcomes-required");
     }
   }
-  if (inputs.damage?.required && !hasSessionValue(session.hpValues.damage)) {
+  if (inputs.damage?.required
+    && !initialZoneResolutionMayHaveNoTargets(contract, session.targetIds)
+    && !hasSessionValue(session.hpValues.damage)) {
     add("damage", "damage-required");
   }
   if (inputs.healing?.required && !hasSessionValue(session.hpValues.healing)) {
