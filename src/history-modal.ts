@@ -1712,9 +1712,9 @@ function syncHistoryPendingReadinessRefresh(undoState: any, operation: any) {
   if (!sceneLifecycle.isCurrent(operation)) return;
 
   // HISTORY_CHANGE_CHANNEL can arrive while the background still owns a
-  // pending History append. When that append settles there may be no second
-  // broadcast, leaving the modal stuck in `history-pending` until reload.
-  // Recheck only while that transient barrier is visible.
+  // pending History append/removal. When that operation settles there may be
+  // no second broadcast, leaving the modal stuck behind a transient History
+  // barrier until reload. Recheck only while that barrier is visible.
   historyPendingReadinessTimer = window.setTimeout(() => {
     historyPendingReadinessTimer = null;
     if (!sceneLifecycle.isCurrent(operation)) return;

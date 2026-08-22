@@ -23,7 +23,10 @@ export function shouldHandleHistoryUndoShortcut({
 
 export function shouldAutoRefreshHistoryUndoReadiness(undoState = {}) {
   return undoState?.status === "blocked"
-    && undoState?.reason === "history-pending";
+    && (
+      undoState?.reason === "history-pending"
+      || undoState?.reason === "history-removal-pending"
+    );
 }
 
 export function partitionHistoryUndoRows(rows = []) {

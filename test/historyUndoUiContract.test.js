@@ -51,6 +51,7 @@ test("pannello Undo espone un reset completo GM-only tramite History Owner", () 
 
 test("History pending si rivaluta live senza richiedere reload del modal", () => {
   assert.equal(shouldAutoRefreshHistoryUndoReadiness({ status: "blocked", reason: "history-pending" }), true);
+  assert.equal(shouldAutoRefreshHistoryUndoReadiness({ status: "blocked", reason: "history-removal-pending" }), true);
   assert.equal(shouldAutoRefreshHistoryUndoReadiness({ status: "ready", reason: null }), false);
   assert.equal(shouldAutoRefreshHistoryUndoReadiness({ status: "blocked", reason: "stale-scene" }), false);
   const uiCoreSource = readFileSync(new URL("../src/historyUndoUiCore.js", import.meta.url), "utf8");
