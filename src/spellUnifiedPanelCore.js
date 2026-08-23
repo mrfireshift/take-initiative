@@ -3,6 +3,7 @@ import {
   getSpellDefinition,
   getSpellEffectChoices,
   getSpellAttackResolution,
+  getSpellDurationTurns,
 } from "./spells-srd.js";
 import {
   getSpellCastPhaseOptions,
@@ -635,7 +636,13 @@ function primaryTargetDescriptor({ chainRule, selectedAction }) {
   };
 }
 
-function targetingSpatialRules({ selectedAction, chainRule, workflowTargeting, selectedRuleTargeting }) {
+function targetingSpatialRules({
+  selectedAction,
+  chainRule,
+  workflowTargeting,
+  selectedRuleTargeting,
+  spellTargeting,
+}) {
   if (chainRule) {
     return {
       mode: "primary-and-secondary-range",
@@ -655,6 +662,7 @@ function targetingSpatialRules({ selectedAction, chainRule, workflowTargeting, s
       source: "active-action",
     };
   }
+  if (spellTargeting?.spatial) return cloneValue(spellTargeting.spatial);
   return selectedRuleTargeting.spatialRules
     ? cloneValue(selectedRuleTargeting.spatialRules)
     : null;
@@ -735,6 +743,7 @@ function targetingDescriptor({
     chainRule,
     workflowTargeting,
     selectedRuleTargeting,
+    spellTargeting: spell?.targeting,
   });
   return {
     mode,
@@ -832,9 +841,9 @@ function saveOutcomeRequired({
     && castRules.some((rule) => rule.effectPolicy?.mode === "on-confirm");
 }
 
-function durationDescriptor(spell) {
+function durationDescriptor(spell, castContext = {}) {
   const label = text(spell?.duration);
-  const defaultTurns = positiveIntegerOrNull(spell?.defaultTurns);
+  const defaultTurns = positiveIntegerOrNull(getSpellDurationTurns(spell, castContext));
   const normalizedLabel = label.toLocaleLowerCase("it");
   const policy = normalizedLabel === "instantaneous"
     ? "instantaneous"
@@ -1335,7 +1344,7 @@ export function buildSpellUnifiedPanelContract({
     selectedActionRule,
     areaTransaction,
   });
-  const duration = durationDescriptor(spell);
+  const duration = durationDescriptor(spell, castContext);
   const slot = slotDescriptor({ spell, workflowRule, selectedAction });
   const caster = casterDescriptor({
     spell,

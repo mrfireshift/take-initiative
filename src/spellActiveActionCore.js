@@ -1,4 +1,7 @@
-import { spellEffectConditionOptions } from "./spellEffectCore.js";
+import {
+  spellEffectConditionName,
+  spellEffectConditionOptions,
+} from "./spellEffectCore.js";
 import { isPreparedSpellCast } from "./spellCastPhaseCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
@@ -26,6 +29,13 @@ function manualActions(spell) {
   return [...byId.values()];
 }
 
+export function getSpellActiveAction(spell, actionId = "") {
+  const requestedId = String(actionId || "").trim();
+  if (!requestedId) return null;
+  return manualActions(spell)
+    .find((action) => String(action?.id || "").trim() === requestedId) || null;
+}
+
 function linkedEffectIds(effectInstances = []) {
   return new Set((Array.isArray(effectInstances) ? effectInstances : [])
     .filter((entry) => entry?.active !== false)
@@ -39,6 +49,17 @@ function consumedEffectIds(action) {
 
 function rejectedActiveEffectIds(action) {
   return new Set(uniqueIds(action?.rejectActiveEffectIds));
+}
+
+function requiredTargetIds(action, effectInstances = []) {
+  const requiredEffectId = String(action?.requiredTargetEffectId || "").trim();
+  if (!requiredEffectId) return [];
+  return uniqueIds((Array.isArray(effectInstances) ? effectInstances : [])
+    .filter((entry) => (
+      entry?.active !== false
+      && String(entry?.effectId || "").trim() === requiredEffectId
+    ))
+    .map((entry) => entry?.itemId));
 }
 
 function maximumTargets(action) {
@@ -112,6 +133,12 @@ export function getSpellOverviewActions({
         ...uniqueIds(targetIds).filter((targetId) => targetId !== casterId),
       );
     }
+    const linkedTargetIds = requiredTargetIds(action, effectInstances);
+    if (action.requiredTargetEffectId) {
+      unavailableTargetIds.push(
+        ...uniqueIds(targetIds).filter((targetId) => !linkedTargetIds.includes(targetId)),
+      );
+    }
     const activeEffectIds = rejectedActiveEffectIds(action);
     if (activeEffectIds.size) {
       unavailableTargetIds.push(...(Array.isArray(effectInstances) ? effectInstances : [])
@@ -133,6 +160,7 @@ export function getSpellOverviewActions({
       subjectMode,
       requiresTargets: subjectMode === "selected",
       unavailableTargetIds: uniqueIds(unavailableTargetIds),
+      ...(action.requiredTargetEffectId ? { requiredTargetIds: linkedTargetIds } : {}),
       ...(unavailableReason ? { unavailableReason } : {}),
     });
   }
@@ -160,6 +188,10 @@ export function spellActiveActionPresentation(
   const hasUnavailableTarget = selectedTargetIds.some((targetId) =>
     unavailableTargets.has(targetId)
   );
+  const requiredTargetIdSet = new Set(uniqueIds(action?.requiredTargetIds));
+  const requiredTargetMissing = !!String(action?.requiredTargetEffectId || "").trim()
+    && (!requiredTargetIdSet.size
+      || selectedTargetIds.some((targetId) => !requiredTargetIdSet.has(targetId)));
   const choice = action?.choice && typeof action.choice === "object"
     ? action.choice
     : null;
@@ -176,7 +208,10 @@ export function spellActiveActionPresentation(
   const plural = String(action?.countLabelPlural || "bersagli").trim();
   return {
     disabled: !!unavailableReason
-      || needsTargets && (count < 1 || tooManyTargets || hasUnavailableTarget)
+      || needsTargets && (count < 1
+        || tooManyTargets
+        || hasUnavailableTarget
+        || requiredTargetMissing)
       || choiceMissing
       || choiceUnknown,
     text: needsTargets ? `${label} · ${count} ${count === 1 ? singular : plural}` : label,
@@ -192,6 +227,11 @@ export function spellActiveActionPresentation(
             ? String(
               action?.unavailableSelectionTitle
               || "La selezione contiene un bersaglio non disponibile."
+            ).trim()
+          : requiredTargetMissing
+            ? String(
+              action?.unavailableSelectionTitle
+              || "Seleziona un bersaglio collegato a questa istanza."
             ).trim()
           : String(action?.detail || label).trim()
       : unavailableReason
@@ -219,9 +259,7 @@ export function buildSpellActiveActionPlan({
     : null;
   const casterId = String(group?.casterId || "").trim();
   const parentInstanceId = String(group?.instanceId || "").trim();
-  const subjectIds = action?.id === "heat-metal-repeat"
-    ? uniqueIds(selectedTargetIds)
-    : action?.subjectMode === "caster"
+  const subjectIds = action?.subjectMode === "caster"
     ? uniqueIds([casterId])
     : action?.subjectMode === "none"
       ? uniqueIds([casterId])
@@ -253,6 +291,12 @@ export function buildSpellActiveActionPlan({
   const effectInstances = Array.isArray(group?.effectInstances)
     ? group.effectInstances
     : [];
+  const requiredTargetIdSet = new Set(requiredTargetIds(action, effectInstances));
+  if (action?.requiredTargetEffectId
+    && (!requiredTargetIdSet.size
+      || subjectIds.some((targetId) => !requiredTargetIdSet.has(targetId)))) {
+    errors.push(`targets-required-effect:${String(action.requiredTargetEffectId).trim()}`);
+  }
   const activeEffectIds = rejectedActiveEffectIds(action);
   const activeEffectTargetIds = new Set(effectInstances
     .filter((entry) => (
@@ -352,7 +396,7 @@ export function buildSpellActiveActionPlan({
     });
   }
   for (const effect of action.effects || []) {
-    const label = String(effect?.label || "").trim();
+    const label = spellEffectConditionName(effect);
     const kind = effect?.kind === "buff" || effect?.kind === "debuff"
       ? effect.kind
       : "";
@@ -374,7 +418,7 @@ export function buildSpellActiveActionPlan({
       subjectIds,
     });
   }
-  if (action.rememberTargets === true) {
+  if (action.rememberTargets === true && action.subjectMode !== "none") {
     operations.push({
       type: "concentration:register",
       casterId,
@@ -392,8 +436,7 @@ export function buildSpellActiveActionPlan({
     ? { ...clone(action.entityAction), actionId: String(action.id || "").trim() }
     : null;
   const delegatedResolution = ["save-area", "single-attack", "single-save", "child-zone"]
-    .includes(String(action?.resolutionKind || "").trim())
-    && action?.id !== "heat-metal-repeat";
+    .includes(String(action?.resolutionKind || "").trim());
   const hasAction = operations.length > 0
     || !!zoneRuleChoice
     || !!entityAction

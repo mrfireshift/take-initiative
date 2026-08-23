@@ -2,7 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import { createSpellInstanceId } from "./spells.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
-import { spellEffectConditionOptions } from "./spellEffectCore.js";
+import {
+  spellEffectConditionName,
+  spellEffectConditionOptions,
+} from "./spellEffectCore.js";
 import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
@@ -15,6 +18,7 @@ import { buildSpellActiveActionPlan } from "./spellActiveActionCore.js";
 import {
   buildSpellActiveResolutionFailureOperations,
   buildSpellActiveResolutionSuccessOperations,
+  buildSpellActiveResolutionPostDamageOperations,
   buildSpellActiveResolutionLinkedEffectRemovals,
   buildSpellActiveResolutionResourceOperations,
   normalizeActiveResolutionTargetIds,
@@ -43,7 +47,10 @@ import {
   createSpellBoardTokenId,
   getSpellBoardTokenRule,
 } from "./spellBoardTokenCore.js";
-import { buildStaticSpellChildZoneItem } from "./spellStaticZone.js";
+import {
+  buildStaticSpellChildZoneItem,
+  requestStaticSpellZoneReconcile,
+} from "./spellStaticZone.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
 import { planWallOfLightShortening } from "./wallOfLightActiveCore.js";
 import {
@@ -350,6 +357,23 @@ export async function executeSpellActiveAction({
       stale: true,
       postCommitPending: true,
     });
+  }
+  if (actionPlan.zoneRuleChoice) {
+    // Il cambio di variante è una scrittura della zona persistente: completa
+    // subito la stessa pipeline static-zone, anche quando l'azione arriva dal
+    // popup di turno (il suo overview può non esporre zoneItemId).
+    await requestStaticSpellZoneReconcile({
+      reason: "active-action",
+      force: true,
+      immediate: true,
+    });
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      return attachSpellExecutionHistory(changedIds, {
+        ...mutation,
+        stale: true,
+        postCommitPending: true,
+      });
+    }
   }
   await refreshConditionLabels(changedIds);
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
@@ -778,6 +802,11 @@ export async function executeSpellActiveResolution({
         }
       }
     }
+    operations.push(...buildSpellActiveResolutionPostDamageOperations({
+      action,
+      payload,
+      targetIds: ids,
+    }));
     operations.push(...buildSpellActiveResolutionFailureOperations({
       action,
       payload,
@@ -802,7 +831,7 @@ export async function executeSpellActiveResolution({
         : [];
     if (hitEffectTargetIds.length && action?.effectOn === "hit") {
       for (const effect of actionEffects) {
-        const conditionName = String(effect?.label || "").trim();
+        const conditionName = spellEffectConditionName(effect);
         if (!conditionName) continue;
         operations.push({
           type: "condition:add",

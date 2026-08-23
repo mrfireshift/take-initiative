@@ -253,6 +253,15 @@ async function createCauseAndResolution(messages, resolutionOutcome = "failed") 
     sceneEpoch,
   });
   assert.equal(second.status, "applied");
+  const concentrationOutcomeLabel = {
+    passed: "TS superato",
+    failed: "TS fallito",
+    immune: "TS immune",
+  }[second.plan.outcome] || "Confermato";
+  assert.equal(
+    second.mutation.historyEntry.label,
+    `Concentrazione: Ragnatela · ${concentrationOutcomeLabel}`,
+  );
   await persistDeferredEntry(second.mutation.historyEntry);
 
   const entriesAfterResolution = await waitForHistoryCount(2);

@@ -20,3 +20,11 @@ test("la rimozione dalla pill usa la lane effects e gli ID delle istanze", () =>
   assert.match(trackerSource, /instanceId: String\(instance\?\.id \|\| ""\)\.trim\(\)/);
   assert.match(trackerSource, /requireAppliedEffectsMutation\(mutation\)/);
 });
+
+test("la card proietta gli effetti storici nella condizione canonica", () => {
+  assert.match(trackerSource, /const safeConditions = __safeConditions\(meta\.conditions\);/);
+  assert.match(
+    trackerSource,
+    /instances: getEffectiveConditionInstances\(safeConditions\)/,
+  );
+});

@@ -248,7 +248,7 @@ test("TEST H1 & H5 — FAILED SAVE: Semantic Combat Log label, damage detail pre
   const proj = presentation.events[0];
 
   // Assertions for title & summary
-  assert.equal(proj.title, "Immolazione · TS fallito");
+  assert.equal(proj.title, "Incantesimo: Immolazione · Fallito");
   assert.doesNotMatch(proj.title, /[0-9a-f]{8}-[0-9a-f]{4}/i, "Title must not contain UUID");
   assert.doesNotMatch(proj.title, /^Reminder:/, "Title must not have generic Reminder: prefix");
   assert.match(proj.summary, /14 danni/);
@@ -327,7 +327,7 @@ test("TEST H2, H3 & H4 — PASSED SAVE: Semantic title, no damage roll noise, no
   assert.equal(presentation.events.length, 1);
   const proj = presentation.events[0];
 
-  assert.equal(proj.title, "Immolazione · TS superato");
+  assert.equal(proj.title, "Incantesimo: Immolazione · Superato");
   assert.doesNotMatch(proj.title, /[0-9a-f]{8}-[0-9a-f]{4}/i, "Title must not contain UUID");
   assert.doesNotMatch(proj.title, /^Reminder:/, "Title must not have generic Reminder: prefix");
 

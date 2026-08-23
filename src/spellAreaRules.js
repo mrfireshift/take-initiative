@@ -327,6 +327,15 @@ function validateTriggerEntries(triggers, errors) {
       errors.push("zone-trigger-require-conditions-invalid");
     }
     if (
+      trigger?.requireMovementModes !== undefined
+      && (
+        !Array.isArray(trigger.requireMovementModes)
+        || trigger.requireMovementModes.some((mode) => !String(mode || "").trim())
+      )
+    ) {
+      errors.push("zone-trigger-require-movement-modes-invalid");
+    }
+    if (
       trigger?.failureEffect !== undefined
       && !String(trigger.failureEffect || "").trim()
     ) {
@@ -403,6 +412,23 @@ function validateZonePolicy(policy, errors) {
   } else {
     for (const effect of policy.membershipEffects) {
       validateMembershipEffect(effect, errors);
+    }
+  }
+  if (policy.membershipEffectsByChoice !== undefined) {
+    if (
+      !policy.membershipEffectsByChoice
+      || typeof policy.membershipEffectsByChoice !== "object"
+      || Array.isArray(policy.membershipEffectsByChoice)
+    ) {
+      errors.push("zone-membership-effects-by-choice-invalid");
+    } else {
+      for (const effects of Object.values(policy.membershipEffectsByChoice)) {
+        if (!Array.isArray(effects)) {
+          errors.push("zone-membership-effects-by-choice-invalid");
+          continue;
+        }
+        for (const effect of effects) validateMembershipEffect(effect, errors);
+      }
     }
   }
   if (!Array.isArray(policy.triggers)) {
@@ -1409,6 +1435,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       triggerOnAreaMove: false,
       ruleChoice: "downdraft",
       requiresRuleChoices: ["downdraft"],
+      requireMovementModes: ["fly"],
     },
     {
       id: "control-winds-downdraft-save-on-turn-start",
@@ -1420,6 +1447,7 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
       failureEffect: "Se sta volando, cade Prono.",
       ruleChoice: "downdraft",
       requiresRuleChoices: ["downdraft"],
+      requireMovementModes: ["fly"],
     },
   ],
   "xanathar-sfera-acquea": [{
@@ -1986,6 +2014,29 @@ function catalogAreaRule(spec) {
       detail: "Vantaggio ai TS contro incantesimi ed effetti magici nell'aura.",
     }],
   }[spec.spellId] || [];
+  const membershipEffectsByChoice = spec.spellId === "xanathar-controllare-venti"
+    ? {
+      gusts: [{
+        id: "control-winds-membership",
+        kind: "debuff",
+        label: "Folate / Svantaggio a distanza / Controvento ×2",
+        detail: "Folate attive / Svantaggio con vento moderato o forte / Costo controvento raddoppiato con vento forte / Intensità e direzione scelte dal caster.",
+      }],
+      downdraft: [{
+        id: "control-winds-membership",
+        kind: "debuff",
+        label: "Discendente / Svantaggio a distanza / TS Forza se vola",
+        detail: "Corrente discendente / Svantaggio agli attacchi a distanza / TS Forza alle creature volanti / Prono su fallimento tramite il trigger condiviso.",
+      }],
+      updraft: [{
+        id: "control-winds-membership",
+        kind: "buff",
+        label: "Ascendente / Caduta dimezzata / Salto in alto +3 m",
+        detail: "Corrente ascendente / Danni da caduta dimezzati / Salti in alto fino a 3 m aggiuntivi.",
+      }],
+      paused: [],
+    }
+    : null;
   const placementChoices = Array.isArray(spec.placementChoices)
     ? spec.placementChoices.map((choice) => {
       const choiceShape = choice?.shape || spec.shape;
@@ -2109,6 +2160,7 @@ function catalogAreaRule(spec) {
               : {}),
           },
           membershipEffects,
+          ...(membershipEffectsByChoice ? { membershipEffectsByChoice } : {}),
           triggers: CATALOG_ZONE_TRIGGERS[spec.spellId] || [],
         },
       }

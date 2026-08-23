@@ -257,7 +257,7 @@ test("il replay effect-save ricostruisce la stessa activation anche da una front
   );
 });
 
-test("Riscaldare il Metallo deriva il reminder dalla concentrazione del caster", () => {
+test("Riscaldare il Metallo non usa più il reminder speciale di concentrazione", () => {
   const heatMetalCaster = caster({
     [CONC_META_KEY]: {
       "riscaldare il metallo": {
@@ -275,13 +275,7 @@ test("Riscaldare il Metallo deriva il reminder dalla concentrazione del caster",
     initiativeState: state(0, 2),
   });
 
-  assert.equal(notices.length, 1);
-  assert.equal(notices[0].target.id, "caster");
-  assert.equal(notices[0].effectName, "Riscaldare il Metallo");
-  assert.equal(notices[0].kind, "effect-reminder");
-  assert.equal(notices[0].eyebrow, "Concentrazione");
-  assert.match(notices[0].instruction, /azione bonus/);
-  assert.match(notices[0].instruction, /2d8/);
+  assert.deepEqual(notices, []);
 
   assert.deepEqual(planEffectSaveReminderNotices({
     items: [caster(), target("first", [])],

@@ -107,6 +107,11 @@ function scheduleIndependent(callback, delay = 0) {
   return schedule(callback, delay);
 }
 
+function hasOneShotLayers(event) {
+  return Array.isArray(event?.layers)
+    && event.layers.some((layer) => layer?.oneShot === true);
+}
+
 function clearLifecycleTimers(lifecycleId) {
   const normalized = String(lifecycleId || "").trim();
   if (!normalized) return;
@@ -217,6 +222,7 @@ function buildLocalVideoItem(event, layer, plan) {
         mode: String(event.mode || "start"),
         spellId: String(event.spellId || ""),
         effectId: String(layer.effectId || ""),
+        oneShot: layer.oneShot === true,
         targetId: String(layer.targetId || ""),
         anchor: String(layer.anchor || ""),
         casterId: String(event.casterId || ""),
@@ -337,7 +343,13 @@ async function renderLayer(event, layer) {
   const plan = matchedVisualLayerPlan(layer, event.dpi);
   if (!plan?.url || !plan.position) return false;
   const lifecycleId = String(event.lifecycleId || "").trim();
-  if (event.mode === "start" && lifecycleId && lifecycleTargetEnded(lifecycleId, layer, event.casterId)) {
+  const isOneShot = layer.oneShot === true;
+  if (
+    event.mode === "start"
+    && lifecycleId
+    && !isOneShot
+    && lifecycleTargetEnded(lifecycleId, layer, event.casterId)
+  ) {
     return false;
   }
   const currentPlan = await refreshAttachedPlan(event, layer, plan);
@@ -356,12 +368,17 @@ async function renderLayer(event, layer) {
     if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) {
       return false;
     }
-    if (event.mode === "start" && lifecycleId && lifecycleTargetEnded(lifecycleId, layer, event.casterId)) {
+    if (
+      event.mode === "start"
+      && lifecycleId
+      && !isOneShot
+      && lifecycleTargetEnded(lifecycleId, layer, event.casterId)
+    ) {
       await OBR.scene.local.deleteItems([item.id]).catch(() => {});
       return false;
     }
     activeLocalVideoIds.add(item.id);
-    if (event.mode === "start" && lifecycleId) {
+    if (event.mode === "start" && lifecycleId && !isOneShot) {
       const entries = activeLifecycleVisuals.get(lifecycleId) || [];
       const attachmentId = layerAttachmentId(event, layer);
       entries.push({
@@ -449,7 +466,9 @@ async function renderEvent(event) {
     }
   }
   for (const layer of layers) {
-    if (event.mode === "end") {
+    if (event.mode === "end" || layer.oneShot === true) {
+      // One-shot sequences must survive a later lifecycle-end signal. Their
+      // item cleanup is owned by the per-layer duration timer below.
       scheduleIndependent(() => renderLayer(event, layer), layer.delay);
     } else {
       schedule(() => renderLayer(event, layer), layer.delay, lifecycleId);
@@ -736,10 +755,12 @@ async function emitVisual({
       event,
       { destination: "ALL" },
     );
-    schedule(() => renderEvent(event), 0, event.lifecycleId);
+    const scheduleEvent = hasOneShotLayers(event) ? scheduleIndependent : schedule;
+    scheduleEvent(() => renderEvent(event), 0, event.lifecycleId);
     return { sent: true, eventId: event.eventId, sceneEpoch: originEpoch };
   } catch (error) {
-    schedule(() => renderEvent(event), 0, event.lifecycleId);
+    const scheduleEvent = hasOneShotLayers(event) ? scheduleIndependent : schedule;
+    scheduleEvent(() => renderEvent(event), 0, event.lifecycleId);
     console.warn("[embers-matched] broadcast:", error?.message || error);
     return { sent: false, reason: "broadcast-failed", error, sceneEpoch: originEpoch };
   }
@@ -926,7 +947,8 @@ export function mountEmbersMatchedVisualRenderer() {
     const localEpoch = currentSceneEpoch();
     if (!isCurrentSceneEpoch(localEpoch)) return;
     const localEvent = { ...data, sceneEpoch: localEpoch };
-    schedule(() => renderEvent(localEvent), 0, localEvent?.lifecycleId);
+    const scheduleEvent = hasOneShotLayers(localEvent) ? scheduleIndependent : schedule;
+    scheduleEvent(() => renderEvent(localEvent), 0, localEvent?.lifecycleId);
   });
   return true;
 }

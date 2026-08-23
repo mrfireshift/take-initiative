@@ -46,6 +46,11 @@ function normalizeEntry(value) {
   const activationId = normalizedText(value?.activationId, "", 300);
   const targets = uniqueTargets(value?.targets);
   if (!activationId || !targets.length) return null;
+  const spellId = normalizedText(value?.spellId, "", 200);
+  const casterId = normalizedText(value?.casterId, "", 200);
+  const casterName = normalizedText(value?.casterName, "", 100);
+  const sourceId = normalizedText(value?.sourceId, "", 200);
+  const sourceName = normalizedText(value?.sourceName, "", 100);
   const turnKey = normalizedText(value?.turnKey, "", 300);
   const kind = value?.kind === "effect-save"
     ? "effect-save"
@@ -61,6 +66,11 @@ function normalizeEntry(value) {
     ...(turnKey ? { turnKey } : {}),
     ...(timing ? { timing } : {}),
     spellName: normalizedText(value?.spellName, "Incantesimo", 100),
+    ...(spellId ? { spellId } : {}),
+    ...(casterId ? { casterId } : {}),
+    ...(casterName ? { casterName } : {}),
+    ...(sourceId ? { sourceId } : {}),
+    ...(sourceName ? { sourceName } : {}),
     label: normalizedText(value?.label, "Tiro salvezza richiesto", 160),
     kind,
     ...(value?.eyebrow
@@ -185,6 +195,22 @@ function targetSummary(targets = []) {
   return `${values[0].name}, ${values[1].name} e altri ${values.length - 2}`;
 }
 
+function presentationRow(entry, title, detail) {
+  return {
+    activationId: entry.activationId,
+    title,
+    detail,
+    targets: entry.targets,
+    spellName: entry.spellName,
+    ...(entry.spellId ? { spellId: entry.spellId } : {}),
+    ...(entry.casterId ? { casterId: entry.casterId } : {}),
+    ...(entry.casterName ? { casterName: entry.casterName } : {}),
+    ...(entry.sourceId ? { sourceId: entry.sourceId } : {}),
+    ...(entry.sourceName ? { sourceName: entry.sourceName } : {}),
+    ...(entry.resolution ? { resolution: entry.resolution } : {}),
+  };
+}
+
 export function saveReminderNoticeBatchPresentation(batch = null) {
   const entries = Array.isArray(batch?.entries) ? batch.entries : [];
   const targets = uniqueTargets(batch?.targets);
@@ -213,13 +239,7 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
       title: `${affectedTargets} (${entry.spellName})`,
       primaryTarget: targets[0],
       ariaLabel: `${entry.spellName}: ${ariaAction} per ${affectedTargets}`,
-      rows: [{
-        activationId: entry.activationId,
-        title: "",
-        detail: entry.instruction || entry.label,
-        targets: entry.targets,
-        ...(entry.resolution ? { resolution: entry.resolution } : {}),
-      }],
+      rows: [presentationRow(entry, "", entry.instruction || entry.label)],
     };
   }
 
@@ -249,15 +269,13 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
       const baseTitle = sharedTarget
         ? entry.spellName
         : `${entry.spellName} · ${targetSummary(entry.targets)}`;
-      return {
-        activationId: entry.activationId,
-        title: !sharedPhase && entryPhase
+      return presentationRow(
+        entry,
+        !sharedPhase && entryPhase
           ? `${baseTitle} · ${entryPhase}`
           : baseTitle,
-        detail: entry.instruction || entry.label,
-        targets: entry.targets,
-        ...(entry.resolution ? { resolution: entry.resolution } : {}),
-      };
+        entry.instruction || entry.label,
+      );
     }),
   };
 }

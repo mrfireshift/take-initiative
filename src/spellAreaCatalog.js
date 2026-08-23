@@ -187,6 +187,9 @@ const AREA_OVERRIDES = Object.freeze({
   "incendiary-cloud": {
     placementOptional: false,
   },
+  "xanathar-controllare-venti": {
+    placementOptional: false,
+  },
   "forcecage": {
     shape: "square",
     sizeMeters: 6,

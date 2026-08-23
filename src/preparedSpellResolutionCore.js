@@ -11,7 +11,6 @@ export const PREPARED_SPELL_RESOLUTION_CHANNEL =
   `${ID}/prepared-spell-resolution`;
 
 const BOARD_POPOVER_ACTIVE_ACTION_IDS = Object.freeze({
-  "heat-metal": "heat-metal-repeat",
   "xanathar-colpo-dello-zefiro": "zephyr-strike-attack",
 });
 

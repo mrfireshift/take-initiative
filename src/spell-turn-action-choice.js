@@ -285,7 +285,8 @@ async function renderEyebiteDirect() {
 }
 
 function renderLegacyChoice() {
-  hint.textContent = "Scegli Afferra o Stritola. Le stesse azioni restano disponibili nel modulo Incantesimi.";
+  hint.textContent = request?.choiceHint
+    || "Scegli un'azione. Le stesse azioni restano disponibili nel modulo Incantesimi.";
   for (const payload of Array.isArray(request?.actions) ? request.actions : []) {
     const button = document.createElement("button");
     button.type = "button";

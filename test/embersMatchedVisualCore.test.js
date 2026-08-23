@@ -758,6 +758,8 @@ test("Passo Velato conserva le durate Embers dei due one-shot", () => {
   const incoming = event.layers.find((layer) => layer.effectId === "mistyStepIn");
   assert.equal(out.delay, 0);
   assert.equal(incoming.delay, 1500);
+  assert.equal(out.oneShot, true);
+  assert.equal(incoming.oneShot, true);
   assert.equal(matchedVisualLayerPlan(out, event.dpi).duration, 3000);
   assert.equal(matchedVisualLayerPlan(incoming, event.dpi).duration, 4870);
 });

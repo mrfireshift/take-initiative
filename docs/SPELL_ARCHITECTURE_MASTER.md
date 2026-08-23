@@ -613,6 +613,23 @@ Spell
 └─ mutation: active executor → HP/effect operations through runEffectsMutation
 ```
 
+### Riscaldare il metallo — `heat-metal`
+
+```text
+Spell
+├─ cast: area resolution/application path → danno pieno + scelta immediata post-danno
+├─ targeting: un bersaglio collegato all'istanza entro 18 m
+├─ area/zone/aura: N/A
+├─ save: il danno non dipende dal TS; dopo “Non può / non lascia”, reminder shared → TS Costituzione
+├─ damage/healing: 2d8 fuoco al 2° livello, +1d8 per slot superiore, sempre pieno
+├─ persistent state: spell instance di concentrazione + marker deferred choice
+├─ reminders: scelta immediata `mode: "choice"`; il fallimento del TS applica la penalità
+├─ turn prompts: `heat-metal-repeat`, azione bonus, disponibile dal turno successivo e nell'overview
+├─ active actions: una sola dichiarazione in `spellActiveResolutionRules.js`; popup mobile shared con box danno e target collegato
+├─ cleanup: la penalità scade all'inizio del prossimo turno del caster, indipendentemente dalla concentrazione
+└─ mutation: area/active/reminder executors → `runEffectsMutation`; Undo condiviso
+```
+
 ### Colpo Intrappolante / Ensnaring Strike — `phb2014-colpo-intrappolante`
 
 ```text
@@ -899,26 +916,30 @@ inizio turno, TS indipendenti, condizione collegata e cleanup; `Muro di Fuoco`
 lato caldo, fascia adiacente, attraversamento su segmento e danno manuale
 scalabile; `Nube Incendiaria` (`incendiary-cloud`) completa lo stesso workflow
 con placement obbligatorio, TS iniziale/di ingresso/fine turno, fan-out per
-bersaglio, scaling e movimento della zona lasciato manuale. Non sono più
-candidati P1; i risultati sono registrati nell'audit di automazione.
+bersaglio, scaling e movimento della zona lasciato manuale. Anche `Arma Sacra`
+e `Controllare Venti` sono ora auditati e approvati: la prima chiude
+l'esplosione con Condition nativa, reminder TS indipendente dalla
+concentrazione e popup di turno; la seconda chiude il popup delle modalità, le
+pill sintetiche e il reconcile immediato senza swept-area trigger. Non sono più
+candidati P1; anche il batch multi-target (`Anatema`, `Benedizione`, `Lentezza`,
+`Confusione`, `Parola Radiosa`) e le zone statiche `Nube di Pugnali`/
+`Nube Maleodorante` sono auditati e approvati. Per `Parola Radiosa` resta solo
+il follow-up visuale del tema colore dell'area; i risultati sono registrati
+nell'audit di automazione.
 
 | Priorità | Batch candidato | Spell candidate da verificare nel catalogo | Primitive riusabili | Perché è il prossimo passo naturale | Rischio principale |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Multi-target con esiti indipendenti | `Anatema`, `Benedizione`, `Lentezza`, `Confusione`, `Parola Radiosa`, altre area-save senza zona | `MULTI_TARGET_SAVE_SPELL_ID_SET`, area command, notice fan-out, `buildReminderResolutionPlan`, partial consume | Il contratto multi-target è ora esplicito: si può ampliare la copertura senza creare un nuovo resolver | distinguere target context, outcome e condition action per ogni bersaglio |
-| 2 | Zone statiche con più momenti di trigger | `Nube di Pugnali`, `Nube Maleodorante` | `spellStaticZone.js`, `planStaticSpellZoneReminder`, membership/trigger core | Estende direttamente il modello Unto/Ragnatela/Muro/Sfera; alto riuso e testabile per turn boundary | interazione tra cast baseline, enter/leave e turn-start/end |
-| 3 | Azioni ricorrenti e counters | `Calore del Metallo`, `Evoca Fulmine`, `Spada Arcana`, `Spada del Disastro`, altre spell con azione successiva | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, resource/counter, turn notice | Le primitive per Corona, Fiamma, Sfera e Telecinesi coprono già economy, target e consumo | parent instance stale, consumo anche su miss, fine spell a counter zero |
-| 4 | Save persistenti e cleanup condizionale | `Paura`, `Lentezza`, `Dominare Persone/Mostri`, `Confusione`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
-| 5 | Prepared/next-hit e danno persistente | `Punizione Incandescente`, `Punizione Tonante`, `Raffica di Spine`, `Marchio del Cacciatore` | `spellCastPhaseCore.js`, lifecycle adapter, `spellApplicationOperations`, reminders | Colpo Intrappolante dimostra il modello prepared → extend → effect persistente | transizione prepared/resolve e collegamento con l'attacco che innesca |
-| 6 | Aree istantanee con placement e scaling | `Fulmine`, `Cono di Freddo`, `Tempesta di Ghiaccio`, `Catena di Fulmini`, altre area-save | area rule, placement grid, target filtering, slot geometry/scaling, area executor | È il batch a minor costo architetturale se il workflow è realmente istantaneo | differenza tra area geometrica e target discreti/area-subset |
+| 1 | Azioni ricorrenti e counters | altre spell con azione successiva non approvata | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, resource/counter, turn notice | `Invocare il fulmine`, `Spada Arcana`, `Lama del Disastro`, `Sguardo Penetrante`, `Arma Sacra`, `Controllare Venti` e `Riscaldare il metallo` sono golden references già approvate; restano da verificare i casi non chiusi | parent instance stale, consumo anche su miss, fine spell a counter zero |
+| 2 | Save persistenti e cleanup condizionale | `Paura`, `Dominare Persone/Mostri`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
+| 3 | Prepared/next-hit e danno persistente | `Punizione Incandescente`, `Punizione Tonante`, `Raffica di Spine`, `Marchio del Cacciatore` | `spellCastPhaseCore.js`, lifecycle adapter, `spellApplicationOperations`, reminders | Colpo Intrappolante dimostra il modello prepared → extend → effect persistente | transizione prepared/resolve e collegamento con l'attacco che innesca |
+| 4 | Aree istantanee con placement e scaling | `Fulmine`, `Cono di Freddo`, `Tempesta di Ghiaccio`, altre area-save non approvate | area rule, placement grid, target filtering, slot geometry/scaling, area executor | È il batch a minor costo architetturale se il workflow è realmente istantaneo | differenza tra area geometrica e target discreti/area-subset |
 
 ### Ordine raccomandato
 
 Per massimizzare il riuso e la copertura del rischio:
 
 ```text
-multi-target independent outcomes
-        → static zones multi-trigger
-        → active actions/counters
+active actions/counters
         → persistent saves/cleanup
         → prepared next-hit
         → remaining instantaneous areas

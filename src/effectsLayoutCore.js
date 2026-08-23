@@ -138,12 +138,44 @@ function visualTokenBox(token, sceneDpi) {
 }
 
 function conditionWidth(label, measureText, config) {
+  if (String(label || "").endsWith("…")) return config.conditionMaxWidth;
   return Math.min(
     config.conditionMaxWidth,
     Math.ceil(measureText(label, config.fontSize, config.fontWeight))
       + config.conditionPadX * 2
       + config.conditionStroke * 4,
   );
+}
+
+function fitConditionText(label, measureText, config) {
+  const raw = String(label || "").trim();
+  if (!raw) return raw;
+  const maxTextWidth = Math.max(
+    1,
+    Number(config.conditionMaxWidth)
+      - Number(config.conditionPadX) * 2
+      - Number(config.conditionStroke) * 4,
+  );
+  if (measureText(raw, config.fontSize, config.fontWeight) <= maxTextWidth) {
+    return raw;
+  }
+
+  const characters = Array.from(raw);
+  const ellipsis = "…";
+  let low = 0;
+  let high = characters.length;
+  let best = ellipsis;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = `${characters.slice(0, middle).join("").trimEnd()}${ellipsis}`;
+    if (measureText(candidate, config.fontSize, config.fontWeight) <= maxTextWidth) {
+      best = candidate;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return best;
 }
 
 function spellWidth(label, measureText, config) {
@@ -452,9 +484,10 @@ export function planEffectsLayout({
       const redundantParentLabel = spellEffect && linkedToSpell
         && rawText.localeCompare(spellContext.title, "it", { sensitivity: "base" }) === 0;
       if (redundantParentLabel) continue;
-      const text = linkedToSpell
+      const compactText = linkedToSpell
         ? compactLinkedSpellEffectLabel(rawText, spellContext.title)
         : rawText;
+      const text = fitConditionText(compactText, measureText, config);
       appendRow(token.id, {
         identity: `condition|${token.id}|${key}`,
         kind: spellEffect ? "spell-effect" : "condition",

@@ -289,6 +289,78 @@ test("Folata di vento persiste sourceId, istanza e zona nel modificatore direzio
   }]);
 });
 
+test("Controllare Venti espone una pill sintetica per modalità e la rimuove quando i venti sono sospesi", () => {
+  const rule = getSpellAreaRuleById("xanathar-controllare-venti:cast");
+  const labels = ["gusts", "downdraft", "updraft"].map((choice) => {
+    const effect = areaMembershipEffects(rule, choice)[0];
+    assert.ok(effect);
+    assert.ok(effect.label.split(" / ").every((segment) => /^\p{Lu}/u.test(segment)));
+    return effect.label;
+  });
+  assert.deepEqual(labels, [
+    "Folate / Svantaggio a distanza / Controvento ×2",
+    "Discendente / Svantaggio a distanza / TS Forza se vola",
+    "Ascendente / Caduta dimezzata / Salto in alto +3 m",
+  ]);
+
+  const plan = areaMembershipPlan({
+    instanceId: "winds-instance",
+    sourceId: "caster",
+    rule,
+    ruleChoice: "downdraft",
+    desiredTargetIds: ["target"],
+    items: [],
+    metaKey: META,
+  });
+  assert.equal(plan.operations[0].conditionName, labels[1]);
+  assert.equal(plan.operations[0].options.effectId, "control-winds-membership");
+
+  const switched = areaMembershipPlan({
+    instanceId: "winds-instance",
+    sourceId: "caster",
+    rule,
+    ruleChoice: "gusts",
+    desiredTargetIds: ["target"],
+    items: [token("target", {
+      conditions: [{
+        id: "winds-condition",
+        condition: labels[1],
+        parentEffectId: "winds-instance",
+        effectId: "control-winds-membership",
+        effectKind: "debuff",
+      }],
+    })],
+    metaKey: META,
+  });
+  assert.deepEqual(switched.operations[0], {
+    type: "condition:remove-instances",
+    removals: [{ itemId: "target", instanceId: "winds-condition" }],
+  });
+  assert.equal(switched.operations[1].conditionName, labels[0]);
+
+  const paused = areaMembershipPlan({
+    instanceId: "winds-instance",
+    sourceId: "caster",
+    rule,
+    ruleChoice: "paused",
+    desiredTargetIds: [],
+    items: [token("target", {
+      conditions: [{
+        id: "winds-condition",
+        condition: labels[1],
+        parentEffectId: "winds-instance",
+        effectId: "control-winds-membership",
+        effectKind: "debuff",
+      }],
+    })],
+    metaKey: META,
+  });
+  assert.deepEqual(paused.operations, [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "target", instanceId: "winds-condition" }],
+  }]);
+});
+
 test("gli effetti passivi sono dichiarativi e il cleanup rispetta le istanze attive", () => {
   const web = getSpellAreaRuleById("web:cast");
   assert.deepEqual(

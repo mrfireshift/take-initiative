@@ -188,6 +188,172 @@ test("save e reminder mostrano soltanto outcome espliciti", () => {
   assert.match(model.events[0].details.flatMap((section) => section.lines).join(" "), /Goblin: 42 danni/u);
 });
 
+test("i reminder di concentrazione hanno badge e titolo distinti dagli eventi spell", () => {
+  const model = buildCombatLogPresentation(null, [
+    event({
+      id: "concentration-reminder",
+      kind: "reminder-resolution",
+      category: "save",
+      label: "Blocca persone · Fallito",
+      payload: {
+        outcome: "failed",
+        replay: {
+          type: "concentration-warning",
+          warning: {
+            spellName: "Blocca persone",
+            notice: {
+              resolution: {
+                activation: { kind: "concentration-save" },
+              },
+            },
+          },
+        },
+      },
+    }),
+    event({
+      id: "spell-reminder",
+      kind: "reminder-resolution",
+      category: "save",
+      label: "Blocca persone · Fallito",
+      payload: {
+        outcome: "failed",
+        causality: {
+          cause: {
+            kind: "spell",
+            spellName: "Blocca persone",
+            slotLevel: 2,
+          },
+        },
+      },
+    }),
+  ]);
+
+  assert.equal(model.events[0].categoryLabel, "Concentrazione");
+  assert.equal(model.events[0].title, "Concentrazione: Blocca persone · TS fallito");
+  assert.equal(model.events[1].categoryLabel, "Incantesimo");
+  assert.equal(model.events[1].title, "Incantesimo: Blocca persone · Fallito");
+});
+
+test("i reminder TS di permanenza area hanno badge dedicato e non mostrano Incantesimo come nome", () => {
+  const model = buildCombatLogPresentation(null, [
+    event({
+      id: "area-save-reminder",
+      kind: "reminder-resolution",
+      category: "save",
+      label: "Incantesimo · Fallito",
+      payload: {
+        outcome: "failed",
+        spellName: "Incantesimo",
+        causality: {
+          cause: { kind: "spell", spellName: "Nube mortale", slotLevel: 5 },
+          zone: { action: "resolve", zoneItemId: "cloudkill-zone" },
+        },
+      },
+    }),
+    event({
+      id: "area-save-without-name",
+      kind: "reminder-resolution",
+      category: "save",
+      label: "Incantesimo · Superato",
+      payload: {
+        outcome: "passed",
+        spellName: "Incantesimo",
+        causality: { zone: { action: "resolve", zoneItemId: "cloudkill-zone" } },
+      },
+    }),
+  ]);
+
+  assert.equal(model.events[0].categoryLabel, "Permanenza area");
+  assert.equal(model.events[0].title, "Permanenza area: Nube mortale · Fallito");
+  assert.equal(model.events[1].categoryLabel, "Permanenza area");
+  assert.equal(model.events[1].title, "Permanenza area · Superato");
+});
+
+test("un reminder v2 recupera spell e caster dal cast precedente tramite instanceId esplicito", () => {
+  const model = buildCombatLogPresentation(null, [
+    event({
+      id: "cast-spirit-guardians",
+      sequence: 1,
+      kind: "save-resolution",
+      category: "save",
+      payload: {
+        causality: {
+          source: "spell-area",
+          spellId: "spirit-guardians",
+          spellName: "Guardiani spirituali",
+          casterId: "gideon",
+          casterName: "Gideon Lightward",
+          concentrationInstanceId: "instance-spirit-1",
+        },
+      },
+    }),
+    event({
+      id: "area-reminder-v2",
+      sequence: 2,
+      kind: "reminder-resolution",
+      category: "save",
+      label: "Permanenza area · TS superato",
+      payload: {
+        outcome: "passed",
+        causality: {
+          cause: { kind: "spell", slotLevel: 3 },
+          actor: { role: "source" },
+          zone: { action: "resolve", zoneItemId: "zone-1" },
+        },
+        replay: {
+          type: "reminder",
+          descriptor: {
+            notice: {
+              resolution: {
+                activation: {
+                  kind: "zone",
+                  instanceId: "instance-spirit-1",
+                  zoneItemId: "zone-1",
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const reminder = model.events.find((item) => item.id === "area-reminder-v2");
+  const details = reminder.details.flatMap((section) => section.lines).join(" ");
+  assert.equal(reminder.title, "Permanenza area: Guardiani spirituali · Superato");
+  assert.equal(reminder.causality.cause.spellId, "spirit-guardians");
+  assert.equal(reminder.causality.actor.id, "gideon");
+  assert.match(details, /Incantesimo: Guardiani spirituali/u);
+  assert.match(details, /Incantatore: Gideon Lightward/u);
+});
+
+test("un reminder legacy senza dati di provenienza conserva titolo e categoria tecnici", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "reminder-resolution",
+    category: "save",
+    label: "Promemoria · Fallito",
+    payload: { outcome: "failed" },
+  })]);
+
+  assert.equal(model.events[0].categoryLabel, "Tiro salvezza");
+  assert.equal(model.events[0].title, "Promemoria · Fallito");
+});
+
+test("un reminder di feature senza marker spell non viene classificato come incantesimo", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    kind: "reminder-resolution",
+    category: "save",
+    label: "Ira Implacabile · TS fallito",
+    payload: {
+      outcome: "failed",
+      causality: { cause: { kind: "spell" } },
+    },
+  })]);
+
+  assert.equal(model.events[0].categoryLabel, "Tiro salvezza");
+  assert.equal(model.events[0].title, "Ira Implacabile · TS fallito");
+});
+
 test("movimento viene aggregato per target e turno", () => {
   const base = { kind: "move", category: "movement", round: 1, turn: { id: "a", name: "Arannis" } };
   const model = buildCombatLogPresentation(null, [

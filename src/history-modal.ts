@@ -436,8 +436,11 @@ function safeFileName(value: string) {
 function categoryBadge(event: any) {
   const badge = document.createElement("span");
   const meta = getCombatLogCategoryMeta(event?.category);
-  badge.textContent = event?.categoryLabel || meta.label;
-  badge.title = `Categoria ${meta.label} · kind ${String(event?.kind || "change")}`;
+  const label = event?.categoryLabel || meta.label;
+  badge.textContent = label;
+  badge.title = label === meta.label
+    ? `Categoria ${meta.label} · kind ${String(event?.kind || "change")}`
+    : `Tipo ${label} · categoria tecnica ${meta.label} · kind ${String(event?.kind || "change")}`;
   Object.assign(badge.style, {
     display: "inline-flex",
     alignItems: "center",

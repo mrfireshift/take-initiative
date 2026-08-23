@@ -146,6 +146,24 @@ test("la presentazione singola identifica token ed effetto senza una riga aggiun
   );
 });
 
+test("la riga risolvibile conserva spell e caster espliciti del notice", () => {
+  const batch = mergeSaveReminderNoticeBatch(null, [{
+    ...notice({
+      activationId: "cloudkill-turn",
+      spellName: "Nube mortale",
+    }),
+    spellId: "cloudkill",
+    casterId: "caster-1",
+    casterName: "Gideon Lightward",
+  }]);
+  const row = saveReminderNoticeBatchPresentation(batch).rows[0];
+
+  assert.equal(row.spellName, "Nube mortale");
+  assert.equal(row.spellId, "cloudkill");
+  assert.equal(row.casterId, "caster-1");
+  assert.equal(row.casterName, "Gideon Lightward");
+});
+
 test("la presentazione singola da condizione mostra Nome token (Condizione)", () => {
   const batch = mergeSaveReminderNoticeBatch(null, [
     notice({

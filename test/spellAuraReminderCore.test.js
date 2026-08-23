@@ -74,8 +74,14 @@ test("Guardiani Spirituali genera il TS a inizio turno nell'aura mobile", () => 
   assert.equal(turnStart.newActivations[0].event, "turn-start");
   assert.equal(turnStart.newActivations[0].damage.dice, "3d8");
   assert.equal(turnStart.notices[0].spellName, "Guardiani Spirituali");
+  assert.equal(turnStart.notices[0].spellId, "spirit-guardians");
   assert.equal(turnStart.notices[0].dc, 19);
+  assert.equal(turnStart.notices[0].casterId, "caster");
   assert.equal(turnStart.notices[0].casterName, "Lavera");
+  assert.equal(turnStart.notices[0].resolution.activation.spellId, "spirit-guardians");
+  assert.equal(turnStart.notices[0].resolution.activation.spellName, "Guardiani Spirituali");
+  assert.equal(turnStart.notices[0].resolution.activation.casterId, "caster");
+  assert.equal(turnStart.notices[0].resolution.activation.casterName, "Lavera");
 });
 
 test("Guardiani Spirituali espande un ingresso multi-target in risoluzioni indipendenti", () => {

@@ -12,32 +12,32 @@
 - Definizioni tracciabili: **355**; definizioni con regole d'area: **132**.
 - Workflow che richiedono smoke test runtime: **389**.
 - Lacune RAW confermate P1: **37**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `09acc6deb1fa84d1`.
+- Impronta deterministica: `69504d8a361a5611`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 33 |
+| FULL | 42 |
 | MANUAL | 88 |
-| PARTIAL | 210 |
+| PARTIAL | 201 |
 | TRACK_ONLY | 146 |
 
 ### Stato di copertura (coverageStatus)
 
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 36 |
+| ACCEPTED | 45 |
 | GAP | 39 |
-| UNREVIEWED | 402 |
+| UNREVIEWED | 393 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 33 |
+| FULL | 42 |
 | MANUAL | 3 |
-| UNREVIEWED | 441 |
+| UNREVIEWED | 432 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -255,7 +255,7 @@ Nessuna voce.
 | Antipatia/simpatia | `antipathy-sympathy` | SRD 5.1 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Arma Elementale | `phb2014-arma-elementale` | PHB 2014 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Arma magica | `magic-weapon` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Arma Sacra | `xanathar-arma-sacra` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Arma Sacra | `xanathar-arma-sacra` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Arma spirituale | `spiritual-weapon` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Armatura di Agathys | `phb2014-armatura-di-agathys` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Armatura magica | `mage-armor` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -312,7 +312,7 @@ Nessuna voce.
 | Compulsione | `compulsion` | SRD 5.1 / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; meccanica di movimento assente |
 | Comunione | `commune` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Comunione con la natura | `commune-with-nature` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Confusione | `confusion` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Confusione | `confusion` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Cono di freddo | `cone-of-cold` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Conoscenza delle leggende | `legend-lore` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Contagio | `contagion` | SRD 5.1 / 5 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | stato di successi/fallimenti multipli assente; trigger condizionale durante la durata assente |
@@ -322,7 +322,7 @@ Nessuna voce.
 | Controllare acqua | `control-water` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Controllare Fiamme | `xanathar-controllare-fiamme` | Xanathar / 0 | MANUAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Controllare tempo atmosferico | `control-weather` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Controllare Venti | `xanathar-controllare-venti` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Controllare Venti | `xanathar-controllare-venti` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Cordone di Frecce | `phb2014-cordone-di-frecce` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Corona di Follia | `phb2014-corona-di-follia` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Corona di Stelle | `xanathar-corona-di-stelle` | Xanathar / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente |
@@ -472,7 +472,7 @@ Nessuna voce.
 | Legame con le Bestie | `xanathar-legame-con-le-bestie` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Legame planare | `planar-binding` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Legame telepatico | `telepathic-bond` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Lentezza | `slow` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Lentezza | `slow` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Lenza Elettrizzante | `tasha-lenza-elettrizzante` | Tasha / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Levitazione | `levitate` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Libertà di movimento | `freedom-of-movement` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -517,9 +517,9 @@ Nessuna voce.
 | Muro prismatico | `prismatic-wall` | SRD 5.1 / 9 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | strati distruttibili e stato per strato assenti; attraversamento continuo non rilevato; sequenza di più TS e uscita dalla condizione incompleta |
 | Nemici in Abbondanza | `xanathar-nemici-in-abbondanza` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Nube di nebbia | `fog-cloud` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Nube di Pugnali | `phb2014-nube-di-pugnali` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Nube di Pugnali | `phb2014-nube-di-pugnali` | PHB 2014 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Nube incendiaria | `incendiary-cloud` | SRD 5.1 / 8 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Nube maleodorante | `stinking-cloud` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Nube maleodorante | `stinking-cloud` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Nube mortale | `cloudkill` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Occhio arcano | `arcane-eye` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ombra di Moil | `xanathar-ombra-di-moil` | Xanathar / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -543,7 +543,7 @@ Nessuna voce.
 | Parola divina | `divine-word` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parola guaritrice | `healing-word` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Parola guaritrice di massa | `mass-healing-word` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Parola Radiosa | `xanathar-parola-radiosa` | Xanathar / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Parola Radiosa | `xanathar-parola-radiosa` | Xanathar / 0 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Passapareti | `passwall` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passare senza tracce | `pass-without-trace` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo del Tuono | `xanathar-passo-del-tuono` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -603,7 +603,7 @@ Nessuna voce.
 | Riparare | `mending` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Riposo inviolato | `gentle-repose` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Risata incontenibile | `hideous-laughter` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Riscaldare il metallo | `heat-metal` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Riscaldare il metallo | `heat-metal` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Ristorare inferiore | `lesser-restoration` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Ristorare superiore | `greater-restoration` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Risveglio | `awaken` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
@@ -646,7 +646,7 @@ Nessuna voce.
 | Sfera elastica | `resilient-sphere` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sfera infuocata | `flaming-sphere` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfocatura | `blur` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Sguardo penetrante | `eyebite` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Sguardo penetrante | `eyebite` | SRD 5.1 / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Silenzio | `silence` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Simbolo | `symbol` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Simulacro | `simulacrum` | SRD 5.1 / 7 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

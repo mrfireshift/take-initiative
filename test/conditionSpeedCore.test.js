@@ -306,6 +306,27 @@ test("il profilo multimodale concede volo e conserva camminare come modalità at
   assert.equal(resolveMovementProfile(9, [fly], [], "fly").speedMeters, 18);
 });
 
+test("una velocità di volo effettiva è distinta dalla sola velocità a piedi", () => {
+  const flying = resolveConditionSpeed(9, [condition("Volare", {
+    mechanics: { movement: { modes: { fly: { grantMeters: 18 } } } },
+  })]);
+  assert.equal(
+    flying.movementModes.find((entry) => entry.id === "fly")?.speedMeters > 0,
+    true,
+  );
+
+  const grounded = resolveConditionSpeed(9, [
+    condition("Volare", {
+      mechanics: { movement: { modes: { fly: { grantMeters: 18 } } } },
+    }),
+    condition("Privo di sensi"),
+  ]);
+  assert.equal(
+    grounded.movementModes.find((entry) => entry.id === "fly")?.speedMeters > 0,
+    false,
+  );
+});
+
 test("le modalità copiate ricevono i modificatori globali senza bonus solo-camminare", () => {
   const spiderClimb = effectCondition(getSpellEffects("Movimenti del ragno")[0]);
   const primalBeast = effectCondition(

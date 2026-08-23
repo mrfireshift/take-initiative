@@ -13,23 +13,7 @@ import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 const META_KEY = `${ID}/meta`;
 const CONC_META_KEY = `${ID}/concentration`;
 const TIMINGS = new Set(["turn-start", "turn-end", "damage"]);
-const CONCENTRATION_TURN_REMINDERS = Object.freeze({
-  "heat-metal": Object.freeze({
-    effectName: "Riscaldare il Metallo",
-    saveLabel: "Azione bonus",
-    instruction: "Può usare un'azione bonus per infliggere di nuovo 2d8 danni da fuoco; risolvi poi l'eventuale TS Costituzione del portatore.",
-  }),
-  "heat metal": Object.freeze({
-    effectName: "Riscaldare il Metallo",
-    saveLabel: "Azione bonus",
-    instruction: "Può usare un'azione bonus per infliggere di nuovo 2d8 danni da fuoco; risolvi poi l'eventuale TS Costituzione del portatore.",
-  }),
-  "riscaldare il metallo": Object.freeze({
-    effectName: "Riscaldare il Metallo",
-    saveLabel: "Azione bonus",
-    instruction: "Può usare un'azione bonus per infliggere di nuovo 2d8 danni da fuoco; risolvi poi l'eventuale TS Costituzione del portatore.",
-  }),
-});
+const CONCENTRATION_TURN_REMINDERS = Object.freeze({});
 const ABILITIES = Object.freeze({
   str: Object.freeze({ key: "str", label: "Forza", short: "FOR" }),
   dex: Object.freeze({ key: "dex", label: "Destrezza", short: "DES" }),

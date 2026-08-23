@@ -15,7 +15,7 @@ import {
 } from "./constants.js";
 import { queueSpellAreaEffectsMutation } from "./spellAreaMutationQueue.js";
 import {
-  areaMembershipEffects,
+  areaMembershipEffectIds,
   areaMembershipPlan,
   areaMembershipTargetIds,
   staleAreaMembershipEffectRemovals,
@@ -61,6 +61,7 @@ import { runStaticSpellZoneRemovalTransaction } from "./staticSpellZoneRemovalCo
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
+import { itemHasEffectiveMovementMode } from "./movementProfileItemCore.js";
 import {
   createSceneMetadataKeyWatcher,
   sceneMetadataKeyDigest,
@@ -80,7 +81,7 @@ function spellZoneLifecycleEffectIds() {
   return [...new Set(SPELL_AREA_RULES
     .filter((rule) => rule.kind === "zone")
     .flatMap((rule) => [
-      ...areaMembershipEffects(rule).map((effect) => effect.id),
+      ...areaMembershipEffectIds(rule),
       ...(Array.isArray(rule.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
         .filter((trigger) => trigger?.removeLinkedConditionOnLeave === true)
         .map((trigger) => trigger.id),
@@ -91,6 +92,7 @@ function spellZoneLifecycleEffectIds() {
 let mounted = false;
 let running = false;
 let requested = false;
+let pumpPromise = null;
 let timer = null;
 let watchdogTimer = null;
 let recoveryTimer = null;
@@ -363,11 +365,19 @@ function suppressedTriggerTargets(rule, instanceId, candidates) {
         .map((name) => String(name || "").trim().toLocaleLowerCase("it"))
         .filter(Boolean)
     );
+    const requiredMovementModes = new Set(
+      (Array.isArray(trigger?.requireMovementModes)
+        ? trigger.requireMovementModes
+        : [])
+        .map((mode) => String(mode || "").trim().toLocaleLowerCase("it"))
+        .filter(Boolean)
+    );
     const requiresConcentration = trigger?.requiresConcentration === true;
     if (
       !skippedNames.size
       && !skippedConditionNames.size
       && !requiredNames.size
+      && !requiredMovementModes.size
       && !requiresConcentration
     ) {
       continue;
@@ -397,13 +407,18 @@ function suppressedTriggerTargets(rule, instanceId, candidates) {
             )
             .filter(Boolean)
         );
+        const hasRequiredMovementMode = requiredMovementModes.size === 0
+          || [...requiredMovementModes].some((mode) =>
+            itemHasEffectiveMovementMode(item, mode)
+          );
         return (requiresConcentration && !itemIsConcentrating(item))
           || [...skippedNames].some((name) => linkedConditionNames.has(name))
           || [...skippedConditionNames].some((name) => conditionNames.has(name))
           || (
             requiredNames.size > 0
             && ![...requiredNames].some((name) => conditionNames.has(name))
-          );
+          )
+          || !hasRequiredMovementMode;
       })
       .map(({ item }) => item.id);
   }
@@ -1343,6 +1358,7 @@ async function reconcileStaticSpellZones(
       sourceId: zoneMetadata.casterId,
       zoneId: item.id,
       rule,
+      ruleChoice: zoneMetadata.ruleChoice,
       desiredTargetIds,
       items: currentItems,
       metaKey: META_KEY,
@@ -1482,65 +1498,69 @@ function scheduleStaticSpellZoneRecovery() {
 }
 
 async function pump() {
-  if (running) return;
+  if (running) return pumpPromise;
   running = true;
-  try {
-    while (requested) {
-      requested = false;
-      const sceneMetadataOverride = queuedSceneMetadata;
-      queuedSceneMetadata = null;
-      activeSceneItemsOverride = queuedSceneItems;
-      activeSceneGeneration = queuedSceneGeneration;
-      activeReconcileForce = queuedReconcileForce;
-      const rearmActivationIds = [...queuedRearmActivationIds];
-      queuedRearmActivationIds.clear();
-      const historyUndoMovementSuppressions = [...queuedHistoryUndoMovementSuppressions];
-      queuedHistoryUndoMovementSuppressions.length = 0;
-      const movementRecords = [...queuedMovementRecords.values()];
-      queuedMovementRecords.clear();
-      queuedSceneItems = null;
-      queuedSceneGeneration = 0;
-      queuedReconcileReason = "event";
-      queuedReconcileForce = false;
-      try {
-        await reconcileStaticSpellZones(
-          sceneMetadataOverride,
-          rearmActivationIds,
-          historyUndoMovementSuppressions,
-          movementRecords,
-        );
-      } catch (error) {
-        for (const activationId of rearmActivationIds) {
-          queuedRearmActivationIds.add(activationId);
+  const currentPump = (async () => {
+    try {
+      while (requested) {
+        requested = false;
+        const sceneMetadataOverride = queuedSceneMetadata;
+        queuedSceneMetadata = null;
+        activeSceneItemsOverride = queuedSceneItems;
+        activeSceneGeneration = queuedSceneGeneration;
+        activeReconcileForce = queuedReconcileForce;
+        const rearmActivationIds = [...queuedRearmActivationIds];
+        queuedRearmActivationIds.clear();
+        const historyUndoMovementSuppressions = [...queuedHistoryUndoMovementSuppressions];
+        queuedHistoryUndoMovementSuppressions.length = 0;
+        const movementRecords = [...queuedMovementRecords.values()];
+        queuedMovementRecords.clear();
+        queuedSceneItems = null;
+        queuedSceneGeneration = 0;
+        queuedReconcileReason = "event";
+        queuedReconcileForce = false;
+        try {
+          await reconcileStaticSpellZones(
+            sceneMetadataOverride,
+            rearmActivationIds,
+            historyUndoMovementSuppressions,
+            movementRecords,
+          );
+        } catch (error) {
+          for (const activationId of rearmActivationIds) {
+            queuedRearmActivationIds.add(activationId);
+          }
+          queuedHistoryUndoMovementSuppressions.push(...historyUndoMovementSuppressions);
+          for (const record of movementRecords) {
+            const current = queuedMovementRecords.get(record.id);
+            queuedMovementRecords.set(record.id, current
+              ? {
+                ...current,
+                beforePosition: current.beforePosition || record.beforePosition,
+                afterPosition: record.afterPosition,
+              }
+              : record);
+          }
+          console.error("[spell-static-zone] reconcile:", error);
+          scheduleStaticSpellZoneRecovery();
+        } finally {
+          activeSceneItemsOverride = null;
+          activeSceneGeneration = 0;
+          activeReconcileForce = false;
         }
-        queuedHistoryUndoMovementSuppressions.push(...historyUndoMovementSuppressions);
-        for (const record of movementRecords) {
-          const current = queuedMovementRecords.get(record.id);
-          queuedMovementRecords.set(record.id, current
-            ? {
-              ...current,
-              beforePosition: current.beforePosition || record.beforePosition,
-              afterPosition: record.afterPosition,
-            }
-            : record);
-        }
-        console.error("[spell-static-zone] reconcile:", error);
-        scheduleStaticSpellZoneRecovery();
-      } finally {
-        activeSceneItemsOverride = null;
-        activeSceneGeneration = 0;
-        activeReconcileForce = false;
+      }
+    } finally {
+      running = false;
+      if (requested && !timer) {
+        timer = setTimeout(() => {
+          timer = null;
+          void pump();
+        }, 0);
       }
     }
-  } finally {
-    running = false;
-    if (requested && !timer) {
-      timer = setTimeout(() => {
-        timer = null;
-        void pump();
-      }, 0);
-    }
-  }
+  })();
+  pumpPromise = currentPump;
+  return currentPump;
 }
 
 export function requestStaticSpellZoneReconcile(options = {}) {
@@ -1553,6 +1573,11 @@ export function requestStaticSpellZoneReconcile(options = {}) {
     || queuedReconcileReason === "recovery"
     || queuedReconcileReason === "watchdog"
     || queuedReconcileReason === "runtime-cache-cleanup";
+  if (normalized.immediate === true) {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    return pump();
+  }
   if (running || timer) return;
   timer = setTimeout(() => {
     timer = null;

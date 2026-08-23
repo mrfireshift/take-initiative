@@ -284,7 +284,7 @@ test("azione manuale, movimento zona e popup annullato non duplicano la risoluzi
   assert.equal(executorCalled, false);
 });
 
-test("Riscaldare il metallo apre il popup per danno e penalità, senza falso successo", async () => {
+test("Riscaldare il metallo apre il popup single-save senza falso successo", async () => {
   const action = actionFor("heat-metal", "heat-metal-repeat");
   const overview = overviewFor("heat-metal", action, {
     targetIds: ["target-1"],
@@ -305,15 +305,19 @@ test("Riscaldare il metallo apre il popup per danno e penalità, senza falso suc
 
   assert.equal(result.status, SPELL_UNIFIED_ACTIVE_STATUS.POPUP_OPENED);
   assert.equal(activeCalls, 0);
-  assert.equal(payload.action.resolutionKind, "single-attack");
+  assert.equal(payload.action.resolutionKind, "single-save");
   assert.equal(payload.action.requiresZoneRoot, false);
+  assert.equal(payload.action.economy, "bonus-action");
+  assert.equal(payload.action.save.ability, "con");
+  assert.equal(payload.action.attack, undefined);
   assert.deepEqual(payload.action.damage, {
     formula: "2d8",
     type: "fuoco",
-    onSave: "none",
+    onSave: "full",
     baseSlot: 2,
+    additionalPerSlotAbove: 1,
   });
-  assert.equal(payload.action.effectOn, "hit");
+  assert.equal(payload.action.effectOn, undefined);
 });
 
 test("il provider normalizzato ricostruisce il contesto senza imporre ID alla view", () => {

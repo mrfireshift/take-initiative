@@ -88,3 +88,18 @@ test("VFX-001A.1: un delete locale fallito resta recuperabile", () => {
   assert.match(block, /transientVisualExpiries\.delete\(normalized\)/u);
 });
 
+test("VFX-001A.2: i layer one-shot non dipendono dal lifecycle timer", () => {
+  const renderEvent = functionBlock("renderEvent");
+  assert.match(
+    renderEvent,
+    /event\.mode === "end" \|\| layer\.oneShot === true[\s\S]*?scheduleIndependent\(\(\) => renderLayer\(event, layer\), layer\.delay\)/u,
+  );
+
+  const renderLayer = source.slice(
+    source.indexOf("async function renderLayer("),
+    source.indexOf("async function renderEvent("),
+  );
+  assert.match(renderLayer, /const isOneShot = layer\.oneShot === true/u);
+  assert.match(renderLayer, /!isOneShot[\s\S]*?lifecycleTargetEnded/u);
+  assert.match(source, /oneShot: layer\.oneShot === true/u);
+});

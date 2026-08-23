@@ -122,10 +122,9 @@ test("costruisce la stessa richiesta di risoluzione sul target selezionato", () 
   assert.equal(request.historyLabel, "Risoluzione: Punizione Collerica");
 });
 
-test("estende il popover solo a Riscaldare il Metallo e Colpo dello Zefiro", () => {
+test("il popover preparato resta solo per Colpo dello Zefiro", () => {
   const heat = preparedSpellResolutionGroups(activeItems("heat-metal"));
-  assert.equal(heat.length, 1);
-  assert.equal(preparedSpellResolutionAction(heat[0]).id, "heat-metal-repeat");
+  assert.equal(heat.length, 0);
 
   const zephyr = preparedSpellResolutionGroups(activeItems(
     "xanathar-colpo-dello-zefiro",
@@ -141,10 +140,6 @@ test("estende il popover solo a Riscaldare il Metallo e Colpo dello Zefiro", () 
   assert.equal(
     preparedSpellResolutionGroups(activeItems("control-water")).length,
     0,
-  );
-  assert.throws(
-    () => buildPreparedSpellResolutionRequest({ group: heat[0], targetIds: ["enemy"] }),
-    /prepared-spell-stale/,
   );
 });
 

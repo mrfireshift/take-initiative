@@ -538,7 +538,10 @@ async function buildPlan(command, runtime) {
   const allById = new Map(allItems.map((item) => [item.id, item]));
   const casterId = text(command?.spell?.casterId);
   const caster = casterId
-    ? allById.get(casterId) || (await runtime.readItems([casterId]))[0] || null
+    ? allById.get(casterId)
+      || liveById.get(casterId)
+      || (await runtime.readItems([casterId]))[0]
+      || null
     : null;
   const placement = command?.placement || null;
   const placementRule = placementRuleFor(command, spell);
@@ -565,6 +568,9 @@ async function buildPlan(command, runtime) {
   const phaseResolution = command?.phaseResolution && typeof command.phaseResolution === "object"
     ? command.phaseResolution
     : null;
+  const directDamageCast = command?.source?.kind === "cast"
+    && text(command?.spell?.phase) === "cast"
+    && getSpellCastResolutionRule(spell)?.resolution === "manual-damage";
   const configuredAutomation = command?.automation
     || getAreaSaveAutomation(spell, text(command?.spell?.choiceValue))
     || spell.saveAutomation
@@ -615,6 +621,20 @@ async function buildPlan(command, runtime) {
         targetIds,
         spellTargetIds: [...targetIds],
         conditionApplications: [],
+      }
+    : directDamageCast
+      ? {
+        valid: true,
+        errors: [],
+        spellId: spell.id,
+        spellName: spell.displayName || spell.name,
+        concentration: spell.concentration === true,
+        casterId,
+        targetIds,
+        spellTargetIds: [...targetIds],
+        conditionApplications: Array.isArray(command?.resolution?.conditionApplications)
+          ? command.resolution.conditionApplications
+          : [],
       }
     : resolveSaveSpellResolution({
       spell,
@@ -801,6 +821,14 @@ async function buildPlan(command, runtime) {
   const teleportDestination = teleportRule
     ? spellTeleportDestinationPosition(placement?.preview)
     : null;
+  const teleportOrigin = caster?.position
+    && Number.isFinite(Number(caster.position.x))
+    && Number.isFinite(Number(caster.position.y))
+    ? {
+      x: Number(caster.position.x),
+      y: Number(caster.position.y),
+    }
+    : null;
   const teleportSideEffects = teleportDestination && casterId
     ? [{
       type: "token:teleport",
@@ -832,7 +860,7 @@ async function buildPlan(command, runtime) {
       lifecycleId: spellInstanceId,
       preview: {
         destination: teleportDestination,
-        origin: teleportDestination,
+        origin: teleportOrigin || teleportDestination,
         start: teleportDestination,
         end: teleportDestination,
         type: "circle",
@@ -935,6 +963,7 @@ async function buildPlan(command, runtime) {
         instanceId: spellInstanceId,
         sourceId: casterId,
         rule: placementRule,
+        ruleChoice: text(command?.spell?.choiceValue),
         desiredTargetIds: passiveTargetIds,
         items: membershipItems,
         metaKey: META_KEY,

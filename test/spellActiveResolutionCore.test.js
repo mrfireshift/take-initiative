@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildSpellActiveResolutionFailureOperations,
   buildSpellActiveResolutionPayload,
+  buildSpellActiveResolutionPostDamageOperations,
   getSpellResolutionAction,
   resolveSpellActiveResolutionDamage,
   spellActiveResolutionSelectedTargetId,
@@ -164,6 +165,55 @@ test("il danno applica metà ai TS superati, zero alle immunità e scala lo slot
   }).amount, 0);
 });
 
+test("Riscaldare il Metallo usa un solo single-save, danno pieno e scaling dello slot", () => {
+  const spell = getSpellDefinition("heat-metal");
+  const action = getSpellResolutionAction("heat-metal", "heat-metal-repeat");
+  assert.equal(spell.activeActions.filter((candidate) => candidate.id === "heat-metal-repeat").length, 1);
+  assert.equal(validateSpellActiveResolutionAction(action).valid, true);
+  assert.equal(action.economy, "bonus-action");
+  assert.equal(action.resolutionKind, "single-save");
+  assert.equal(action.save.ability, "con");
+  assert.equal(action.manualSaveAtTable, true);
+  assert.equal(action.assumedOutcome, "passed");
+  assert.equal(action.manualOutcomeLabel, "Danno");
+  assert.equal(action.attack, undefined);
+  assert.equal(action.effectOn, undefined);
+
+  for (const [slotLevel, expectedFormula] of [[2, "2d8"], [3, "3d8"], [5, "5d8"]]) {
+    for (const outcome of ["passed", "failed"]) {
+      const damage = resolveSpellActiveResolutionDamage({
+        action,
+        slotLevel,
+        outcome,
+        roll: 18,
+      });
+      assert.equal(damage.valid, true);
+      assert.equal(damage.scaledFormula, expectedFormula);
+      assert.equal(damage.factor, 1);
+      assert.equal(damage.amount, 18);
+    }
+  }
+
+  const failureOperations = buildSpellActiveResolutionFailureOperations({
+    action,
+    payload: { casterId: "caster-1", casterName: "Omar", instanceId: "heat-1" },
+    targetIds: ["target-1"],
+    outcomes: { "target-1": "failed" },
+  });
+  assert.deepEqual(failureOperations, []);
+  const postDamageOperations = buildSpellActiveResolutionPostDamageOperations({
+    action,
+    payload: { casterId: "caster-1", casterName: "Omar", instanceId: "heat-1" },
+    targetIds: ["target-1"],
+  });
+  assert.equal(postDamageOperations[0].conditionName, "Scelta oggetto");
+  assert.equal(postDamageOperations[0].options.parentEffectId, "");
+  assert.deepEqual(postDamageOperations[0].options.deferredEffects[0].resolution.choiceLabels, {
+    passed: "Lascia cadere",
+    failed: "Non può / non lascia",
+  });
+});
+
 test("il contratto rifiuta economia, esiti e risoluzione sconosciuti", () => {
   const action = getSpellDefinition("Sfera della Tempesta").activeActions[0];
   assert.equal(validateSpellActiveResolutionAction({
@@ -241,6 +291,8 @@ test("Arma Sacra applica Accecato solo ai fallimenti e lo rende indipendente dal
   assert.equal(operations.length, 2);
   assert.deepEqual(operations[0].targetIds, ["failed-1"]);
   assert.equal(operations[0].conditionName, "Accecato");
+  assert.equal(operations[0].options.effectKind, "");
+  assert.equal(operations[0].options.displayLabel, undefined);
   assert.equal(operations[0].options.parentEffectId, "");
   assert.deepEqual(operations[0].options.expiry, {
     mode: "rounds",

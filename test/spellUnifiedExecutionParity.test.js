@@ -287,7 +287,9 @@ test("Riscaldare il Metallo separa cast iniziale e Ripeti calore", () => {
     selectedTargetIds: ["target"],
   });
   assert.equal(plan.valid, true);
-  assert.equal(plan.operations.length > 0, true);
+  assert.equal(plan.delegatedResolution, true);
+  assert.equal(plan.resolutionKind, "single-save");
+  assert.deepEqual(plan.operations, []);
 });
 
 test("le active action future non bloccano da sole il cast iniziale", () => {

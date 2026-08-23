@@ -462,6 +462,7 @@ const circle = (effectId, anchor = "area", options = {}) => ({
   ...(options.firstTargetIsCaster === true ? { firstTargetIsCaster: true } : {}),
   delay: Number(options.delay) || 0,
   persistent: options.persistent === true,
+  oneShot: options.oneShot === true,
   attachedTo: options.attachedTo || "",
   layer: options.layer || "",
   duration: visualDuration(options),
@@ -556,7 +557,10 @@ const VISUALS = freeze({
   sleep: [circle("sleepSymbol", "target", persistent({ attachedTo: "target" }))],
   darkness: [circle("darkness", "area", persistent())],
   "flaming-sphere": [circle("flamingSphere", "area", persistent({ attachedTo: "zone" }))],
-  "misty-step": [circle("mistyStepOut", "caster"), circle("mistyStepIn", "area", { delay: 1500 })],
+  "misty-step": [
+    circle("mistyStepOut", "caster", { oneShot: true }),
+    circle("mistyStepIn", "area", { delay: 1500, oneShot: true }),
+  ],
   "gust-of-wind": [cone("gustOfWind", persistent({
     attachedTo: "caster",
     layer: "ATTACHMENT",
@@ -681,12 +685,16 @@ function normalizedPreview(preview, sceneDpi) {
   const gridOrigin = finitePoint(preview?.gridOrigin);
   const widthSquares = positiveNumber(preview?.widthSquares, 0);
   const widthAnchor = String(preview?.widthAnchor || "").trim();
+  const origin = finitePoint(preview?.origin);
+  const destination = finitePoint(preview?.destination);
   return {
     type,
     start,
     end: end || start,
     dpi,
     radius,
+    ...(origin ? { origin } : {}),
+    ...(destination ? { destination } : {}),
     ...(gridOrigin ? { gridOrigin } : {}),
     ...(widthSquares > 0 ? { widthSquares } : {}),
     ...(widthAnchor ? { widthAnchor } : {}),
@@ -801,6 +809,7 @@ function buildCircleLayer(effectId, effect, anchor, center, radius, delay, visua
     anchor: anchor.anchor,
     scale: visual?.scale ?? anchor.scale,
     persistent: visual?.persistent === true,
+    oneShot: visual?.oneShot === true,
     attachedTo: visual?.attachedTo || "",
     ...(String(visual?.layer || "").trim()
       ? { layer: String(visual.layer).trim() }
@@ -983,7 +992,14 @@ export function buildMatchedVisualEvent({
   const casterTarget = normalizedTargets.find((targetValue) => (
     normalizedCasterId && targetValue.id === normalizedCasterId
   ));
-  const source = finitePoint(caster) || finitePoint(caster?.center) || casterTarget?.center || null;
+  const teleportOrigin = ["misty-step", "dimension-door"].includes(normalizedSpellId)
+    ? previewData?.origin
+    : null;
+  const source = teleportOrigin
+    || finitePoint(caster)
+    || finitePoint(caster?.center)
+    || casterTarget?.center
+    || null;
   const sourceDiameter = positiveNumber(caster?.diameter, dpi);
   const fallbackAreaRadius = defaultAuraRadius(normalizedSpellId, dpi, gridScale);
   const firstTarget = fallbackTarget(targetPoints);

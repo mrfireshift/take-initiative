@@ -36,10 +36,35 @@ import {
   getSpellBoardTokenRule,
   SPELL_BOARD_TOKEN_RULES,
 } from "./spellBoardTokenCore.js";
-import { SPELL_ACTIVE_RESOLUTION_ACTIONS } from "./spellActiveResolutionRules.js";
+import {
+  SPELL_ACTIVE_RESOLUTION_ACTIONS,
+} from "./spellActiveResolutionRules.js";
 import { FLESH_TO_STONE_SAVE_AUTOMATION } from "./fleshToStoneRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
+
+const DOMINATE_CONDITION_EFFECT_ID = "dominate-charmed";
+
+function dominateAutomation(spellLabel) {
+  return {
+    mode: "confirm",
+    conditions: ["Affascinato"],
+    conditionOptions: {
+      Affascinato: {
+        effectId: DOMINATE_CONDITION_EFFECT_ID,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        parentRemoval: "target",
+        saveReminder: {
+          ability: "wis",
+          timing: "damage",
+          dcSource: "source-spell",
+          label: `Se supera il TS, termina ${spellLabel}.`,
+        },
+      },
+    },
+  };
+}
 
 const ITALIAN_ALIASES = Object.freeze({
   "animal-friendship": ["Amicizia con gli Animali"],
@@ -110,48 +135,9 @@ const AUTOMATION = Object.freeze({
     },
   },
   "charm-person": { mode: "confirm", conditions: ["Affascinato"] },
-  "dominate-beast": {
-    mode: "confirm",
-    conditions: ["Affascinato"],
-    conditionOptions: {
-      Affascinato: {
-        saveReminder: {
-          ability: "wis",
-          timing: "damage",
-          dcSource: "source-spell",
-          label: "Se supera il TS, termina Dominare Bestie.",
-        },
-      },
-    },
-  },
-  "dominate-monster": {
-    mode: "confirm",
-    conditions: ["Affascinato"],
-    conditionOptions: {
-      Affascinato: {
-        saveReminder: {
-          ability: "wis",
-          timing: "damage",
-          dcSource: "source-spell",
-          label: "Se supera il TS, termina Dominare Mostri.",
-        },
-      },
-    },
-  },
-  "dominate-person": {
-    mode: "confirm",
-    conditions: ["Affascinato"],
-    conditionOptions: {
-      Affascinato: {
-        saveReminder: {
-          ability: "wis",
-          timing: "damage",
-          dcSource: "source-spell",
-          label: "Se supera il TS, termina Dominare Persone.",
-        },
-      },
-    },
-  },
+  "dominate-beast": dominateAutomation("Dominare Bestie"),
+  "dominate-monster": dominateAutomation("Dominare Mostri"),
+  "dominate-person": dominateAutomation("Dominare Persone"),
   "entangle": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
   "fear": {
     mode: "confirm",
@@ -219,17 +205,6 @@ const AUTOMATION = Object.freeze({
           dcSource: "source-spell",
           label: "Se supera il TS, termina Blocca Persone.",
         },
-      },
-    },
-  },
-  "heat-metal": {
-    mode: "confirm",
-    conditions: ["Metallo rovente"],
-    conditionOptions: {
-      "Metallo rovente": {
-        effectId: "heat-metal-heated-object",
-        effectKind: "debuff",
-        effectDetail: "Il caster può usare un'azione bonus nei propri turni per infliggere di nuovo 2d8 danni da fuoco. Chi stringe o indossa l'oggetto effettua un TS Costituzione e, se fallisce, lo lascia cadere se può.",
       },
     },
   },
@@ -375,38 +350,6 @@ const SRD_ACTIVE_ACTIONS = Object.freeze({
       effects: Object.freeze([]),
     }),
   ]),
-  "heat-metal": Object.freeze([Object.freeze({
-    id: "heat-metal-repeat",
-    label: "Riscaldare di nuovo",
-    buttonLabel: "Ripeti calore",
-    detail: "Infliggi manualmente 2d8 danni da fuoco. Seleziona il bersaglio che, dopo il TS, non lascia o non può lasciare l'oggetto per applicare lo svantaggio.",
-    emptySelectionTitle: "Seleziona il bersaglio che non lascia o non può lasciare l'oggetto.",
-    tooManySelectionTitle: "Riscaldare il Metallo può interessare un solo portatore alla volta.",
-    resolutionKind: "single-attack",
-    requiresTargets: false,
-    requiresParentInstance: true,
-    requiresZoneRoot: false,
-    rangeOrigin: "caster",
-    attack: Object.freeze({ outcomes: Object.freeze(["hit", "miss"]) }),
-    damage: Object.freeze({ formula: "2d8", type: "fuoco", onSave: "none", baseSlot: 2 }),
-    effectOn: "hit",
-    subjectMode: "none",
-    maxTargets: 1,
-    countLabelSingular: "penalizzato",
-    countLabelPlural: "penalizzati",
-    effects: Object.freeze([Object.freeze({
-      id: "heat-metal-penalty",
-      kind: "debuff",
-      label: "Svant. attacchi e prove",
-      detail: "Svantaggio ai tiri per colpire e alle prove di caratteristica fino all'inizio del turno successivo del caster.",
-      expiry: Object.freeze({
-        mode: "turn-start",
-        actor: "source",
-        remaining: 1,
-        anchor: "next-turn",
-      }),
-    })]),
-  })]),
 });
 
 const TARGET_MODE_OVERRIDES = Object.freeze({
@@ -435,6 +378,37 @@ const TARGETING_OVERRIDES = Object.freeze({
   }),
   "xanathar-immolazione": Object.freeze({
     maxTargets: 1,
+  }),
+  "heat-metal": Object.freeze({
+    maxTargets: 1,
+    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
+  }),
+  "dominate-beast": Object.freeze({
+    maxTargets: 1,
+    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
+  }),
+  "dominate-monster": Object.freeze({
+    maxTargets: 1,
+    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
+  }),
+  "dominate-person": Object.freeze({
+    maxTargets: 1,
+    spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
+  }),
+});
+
+const SLOT_DURATION_OVERRIDES = Object.freeze({
+  "dominate-beast": Object.freeze({
+    baseSlot: 4,
+    turnsBySlot: Object.freeze({ 4: 10, 5: 100, 6: 600, 7: 4800 }),
+  }),
+  "dominate-person": Object.freeze({
+    baseSlot: 5,
+    turnsBySlot: Object.freeze({ 5: 10, 6: 100, 7: 600, 8: 4800 }),
+  }),
+  "dominate-monster": Object.freeze({
+    baseSlot: 8,
+    turnsBySlot: Object.freeze({ 8: 600, 9: 4800 }),
   }),
 });
 
@@ -1345,6 +1319,36 @@ function durationToRounds(duration) {
   return Number.isFinite(amount) && multiplier ? amount * multiplier : null;
 }
 
+function durationTurnsForSlot(spell, castContext = {}) {
+  const rule = spell?.durationBySlot;
+  if (!rule || !rule.turnsBySlot || typeof rule.turnsBySlot !== "object") return null;
+  const baseSlot = Math.max(
+    1,
+    Math.floor(Number(rule.baseSlot) || Number(spell?.level) || 1),
+  );
+  const requestedSlot = Math.floor(Number(castContext?.slotLevel));
+  const slotLevel = Number.isFinite(requestedSlot)
+    ? Math.max(baseSlot, Math.min(9, requestedSlot))
+    : baseSlot;
+  const levels = Object.keys(rule.turnsBySlot)
+    .map(Number)
+    .filter((level) => Number.isInteger(level) && level <= slotLevel)
+    .sort((left, right) => left - right);
+  const selectedLevel = levels.length ? levels[levels.length - 1] : null;
+  const turns = selectedLevel === null ? null : Number(rule.turnsBySlot[selectedLevel]);
+  return Number.isFinite(turns) && turns > 0 ? Math.floor(turns) : null;
+}
+
+export function getSpellDurationTurns(value, castContext = {}) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  return durationTurnsForSlot(spell, castContext)
+    ?? (Number.isFinite(Number(spell?.defaultTurns)) && Number(spell.defaultTurns) > 0
+      ? Math.floor(Number(spell.defaultTurns))
+      : null)
+    ?? durationToRounds(spell?.duration)
+    ?? null;
+}
+
 const RAW_SPELLS = Array.isArray(catalogData?.spells) ? catalogData.spells : [];
 const SPELL_TRACKING_OVERRIDES = Object.freeze({
   "acid-arrow": Object.freeze({ trackable: true, defaultTurns: 1 }),
@@ -1483,6 +1487,9 @@ const ALL_SPELLS = [
     aliases: Object.freeze([...aliases]),
     displayName: italianName || aliases[0] || spell.name,
     defaultTurns: tracking?.defaultTurns ?? spell.defaultTurns ?? durationToRounds(spell.duration),
+    ...(SLOT_DURATION_OVERRIDES[spell.id]
+      ? { durationBySlot: SLOT_DURATION_OVERRIDES[spell.id] }
+      : {}),
     trackable: tracking?.trackable === true || spell.trackable === true,
     targetMode: TARGET_MODE_OVERRIDES[spell.id]
       || automation?.targetMode
@@ -1620,6 +1627,8 @@ export function getSpellChoiceTiming(value, choiceValue = "", castContext = {}) 
   if (Number.isFinite(Number(selected?.defaultTurns)) && Number(selected.defaultTurns) > 0) {
     timing.defaultTurns = Math.floor(Number(selected.defaultTurns));
   }
+  const scaledDefaultTurns = durationTurnsForSlot(spell, castContext);
+  if (scaledDefaultTurns !== null) timing.defaultTurns = scaledDefaultTurns;
   if (selected && Object.prototype.hasOwnProperty.call(selected, "spellExpiry")) {
     timing.spellExpiry = selected.spellExpiry ? { ...selected.spellExpiry } : null;
   }

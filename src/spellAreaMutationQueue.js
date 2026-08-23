@@ -11,5 +11,19 @@ export function queueSpellAreaEffectsMutation(operations = []) {
     history: false,
     kind: "spell-area",
     label: "Aggiornata area effetti",
-  }).then((result) => requireAppliedEffectsMutation(result));
+  }).then(async (result) => {
+    const applied = requireAppliedEffectsMutation(result);
+    if (applied.changedIds?.length) {
+      // La mutation area viene spesso avviata dal controller static-zone,
+      // mentre il normale refresh del bottone non passa dal percorso cast.
+      // Aggiorna subito le pill dopo il commit canonico.
+      try {
+        const { refreshConditionLabels } = await import("./conditions.js");
+        await refreshConditionLabels(applied.changedIds);
+      } catch (error) {
+        console.warn("[spell-area] refresh pill condizioni:", error?.message || error);
+      }
+    }
+    return applied;
+  });
 }

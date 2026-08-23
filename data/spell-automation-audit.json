@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "09acc6deb1fa84d1",
+  "fingerprint": "69504d8a361a5611",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -17,20 +17,20 @@
       "gestione manuale intenzionale": 3
     },
     "currentAutomationLevel": {
-      "FULL": 33,
+      "FULL": 42,
       "MANUAL": 88,
-      "PARTIAL": 210,
+      "PARTIAL": 201,
       "TRACK_ONLY": 146
     },
     "coverageStatus": {
-      "ACCEPTED": 36,
+      "ACCEPTED": 45,
       "GAP": 39,
-      "UNREVIEWED": 402
+      "UNREVIEWED": 393
     },
     "targetAutomationLevel": {
-      "FULL": 33,
+      "FULL": 42,
       "MANUAL": 3,
-      "UNREVIEWED": 441
+      "UNREVIEWED": 432
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -47,7 +47,7 @@
     "highConfidence": 1,
     "reviewCandidates": 0,
     "curatedP1": 37,
-    "manuallyReviewed": 74,
+    "manuallyReviewed": 83,
     "knownIntegrationGaps": 1,
     "knownRawGaps": 38,
     "byPriority": {
@@ -2675,9 +2675,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -2691,7 +2691,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area"
@@ -2781,9 +2781,11 @@
           "panelActionIds": [
             "holy-weapon-dismiss"
           ],
-          "reminderActionIds": [],
+          "reminderActionIds": [
+            "holy-weapon-dismiss"
+          ],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -2810,7 +2812,8 @@
         ],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il cast persistente e il congedo dell'arma sono esposti nel popup condiviso al turno del caster e restano disponibili nel pannello Incantesimi come fallback; l'esplosione mantiene il placement previsto dalla situazione dell'arma, risolve TS Costituzione e 4d8 radiosi con metà al successo. Il fallimento applica Accecato come Condition nativa con durata di 1 minuto e TS Costituzione a fine turno, indipendente dalla concentrazione; fan-out, reminder resolution e cleanup restano sul workflow shared."
     },
     {
       "id": "spiritual-weapon",
@@ -9747,9 +9750,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -9762,7 +9765,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "area",
@@ -9870,7 +9873,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il workflow area-save multi-target, lo scaling della geometria, gli esiti indipendenti, l'effetto persistente per bersaglio, il TS ricorrente di fine turno e il cleanup di concentrazione sono auditati e approvati sui contratti condivisi."
     },
     {
       "id": "cone-of-cold",
@@ -10943,9 +10947,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -10960,7 +10964,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "area",
@@ -11035,7 +11039,7 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
@@ -11072,9 +11076,14 @@
             "control-winds-updraft",
             "control-winds-pause"
           ],
-          "reminderActionIds": [],
+          "reminderActionIds": [
+            "control-winds-gusts",
+            "control-winds-downdraft",
+            "control-winds-updraft",
+            "control-winds-pause"
+          ],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -11105,7 +11114,8 @@
           "Quando l'incantatore lancia l'incantesimo, sceglie uno degli effetti seguenti."
         ],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: la zona persistente espone nel popup del turno del caster le quattro modalità RAW (Folate, Corrente Discendente, Corrente Ascendente, Sospendi), con il pannello Incantesimi come fallback. Le pill membership sintetiche si aggiornano immediatamente al cambio di modalità; Corrente Discendente limita il reminder TS Forza alle creature con velocità di volo effettiva. Reconcile membership, trigger di ingresso/inizio turno, cleanup, reload e assenza di swept-area trigger sul cambio modalità usano i contratti shared."
     },
     {
       "id": "phb2014-cordone-di-frecce",
@@ -29008,9 +29018,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -29023,7 +29033,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area",
@@ -29133,7 +29143,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il workflow area-save multi-target, il limite dei bersagli, gli esiti indipendenti, la condizione persistente con le penalità RAW, il TS ricorrente di fine turno e il cleanup di concentrazione sono auditati e approvati sui contratti condivisi."
     },
     {
       "id": "tasha-lenza-elettrizzante",
@@ -34678,9 +34689,9 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -34694,7 +34705,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "area",
@@ -34807,7 +34818,8 @@
         "spatial": [
           "Una creatura subisce 4d4 danni taglienti quando entra nell'area dell'incantesimo per la prima volta in un turno o inizia il proprio turno al suo interno."
         ]
-      }
+      },
+      "curatedNote": "PASS: la zona statica persistente, i trigger di ingresso e inizio turno, i danni 4d4 con scaling dello slot, il fan-out per bersaglio, la resolution manuale dell'effetto, membership e cleanup sono auditati e approvati."
     },
     {
       "id": "incendiary-cloud",
@@ -34973,9 +34985,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -34989,7 +35001,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area",
@@ -35108,7 +35120,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: la zona statica persistente, il TS Costituzione a inizio turno, la conseguenza di azione persa, il reminder per bersaglio, membership e cleanup di concentrazione sono auditati e approvati."
     },
     {
       "id": "cloudkill",
@@ -37896,9 +37909,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -37908,7 +37921,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area"
@@ -38002,7 +38015,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il workflow area-save multi-target, danno e scaling, fan-out indipendente e reminder resolution sono auditati e approvati. Resta soltanto un follow-up visuale non bloccante: assegnare all'area il tema colore radiant della spell."
     },
     {
       "id": "passwall",
@@ -44824,9 +44838,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -44839,7 +44853,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo",
@@ -44850,8 +44864,7 @@
         "tracking",
         "TS",
         "turni",
-        "fasi/azioni",
-        "varianti"
+        "fasi/azioni"
       ],
       "assessment": "coperto",
       "priority": "—",
@@ -44869,7 +44882,6 @@
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [
-          "heat-metal-repeat",
           "heat-metal-repeat"
         ],
         "phaseOptions": [],
@@ -44901,8 +44913,7 @@
             "slot",
             "targets",
             "hp",
-            "damage",
-            "automation"
+            "damage"
           ]
         },
         "cast": {
@@ -44924,9 +44935,11 @@
           "panelActionIds": [
             "heat-metal-repeat"
           ],
-          "reminderActionIds": [],
+          "reminderActionIds": [
+            "heat-metal-repeat"
+          ],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -44952,7 +44965,8 @@
         ],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il cast applica sempre il danno pieno e crea subito il reminder condiviso per la decisione di lasciare cadere l'oggetto; solo l'esito \"Non può / non lascia\" apre il TS Costituzione e soltanto il fallimento applica Svant. attacchi e prove fino all'inizio del prossimo turno del caster. Il repeat usa una sola active action `heat-metal-repeat`, azione bonus, dal turno successivo al lancio, con target collegato, box del danno, scaling 2d8 +1d8 per slot sopra il 2° e workflow Undo condiviso."
     },
     {
       "id": "lesser-restoration",
@@ -49877,9 +49891,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -49892,7 +49906,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo",
@@ -50022,7 +50036,8 @@
         ],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il cast persistente e il popup condiviso del turno del caster espongono le quattro scelte RAW; ogni bersaglio mantiene il proprio esito del TS Saggezza e un bersaglio che supera il tiro viene escluso da questa istanza. Privo di sensi, Spaventato e Nauseato usano gli effetti e i reminder shared con cleanup legato alla concentrazione, mentre il pannello resta il fallback operativo."
     },
     {
       "id": "silence",

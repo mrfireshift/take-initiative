@@ -762,6 +762,7 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
   ));
 
   const winds = getSpellAreaRuleById("xanathar-controllare-venti:cast");
+  assert.equal(winds.zonePolicy.placementOptional, false);
   assert.equal(winds.zonePolicy.initialResolution, "none");
   assert.deepEqual(
     winds.zonePolicy.triggers.map((trigger) => trigger.event),
@@ -770,7 +771,12 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
   assert.ok(winds.zonePolicy.triggers.every((trigger) =>
     trigger.ruleChoice === "downdraft"
     && trigger.requiresRuleChoices.includes("downdraft")
+    && trigger.requireMovementModes.includes("fly")
   ));
+  assert.deepEqual(
+    Object.keys(winds.zonePolicy.membershipEffectsByChoice),
+    ["gusts", "downdraft", "updraft", "paused"],
+  );
 });
 
 test("lo smoke test logico di Folata copre sagoma, direzioni e lifecycle di membership", () => {

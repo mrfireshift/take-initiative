@@ -65,10 +65,14 @@ type ZoneTriggerNotice = {
   turnKey?: string;
   timing?: "turn-start" | "turn-end" | "damage" | "enter" | "leave";
   spellName: string;
+  spellId?: string;
   label: string;
   failureEffect?: string;
   dc?: number;
+  casterId?: string;
   casterName?: string;
+  sourceId?: string;
+  sourceName?: string;
   targets: ZoneNoticeTarget[];
   kind?: "zone" | "zone-effect" | "effect-save" | "effect-reminder";
   eyebrow?: string;
@@ -440,6 +444,9 @@ function historyReplayForReminder(row: any) {
       ...(String(row?.spellName || "").trim()
         ? { spellName: String(row.spellName).trim().slice(0, 120) }
         : {}),
+      ...(String(row?.spellId || "").trim()
+        ? { spellId: String(row.spellId).trim().slice(0, 200) }
+        : {}),
       ...(String(row?.effectName || "").trim()
         ? { effectName: String(row.effectName).trim().slice(0, 120) }
         : {}),
@@ -453,6 +460,15 @@ function historyReplayForReminder(row: any) {
         ? { ability: String(row.ability).trim().slice(0, 20) }
         : {}),
       ...(Number.isFinite(Number(row?.dc)) ? { dc: Number(row.dc) } : {}),
+      ...(String(row?.casterId || "").trim()
+        ? { casterId: String(row.casterId).trim().slice(0, 200) }
+        : {}),
+      ...(String(row?.casterName || "").trim()
+        ? { casterName: String(row.casterName).trim().slice(0, 100) }
+        : {}),
+      ...(String(row?.sourceId || "").trim()
+        ? { sourceId: String(row.sourceId).trim().slice(0, 200) }
+        : {}),
       ...(String(row?.sourceName || "").trim()
         ? { sourceName: String(row.sourceName).trim().slice(0, 100) }
         : {}),
@@ -573,7 +589,11 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         notice: {
           activationId,
           spellName: row.spellName,
+          ...(row.spellId ? { spellId: row.spellId } : {}),
+          ...(row.casterId ? { casterId: row.casterId } : {}),
           casterName: row.casterName,
+          ...(row.sourceId ? { sourceId: row.sourceId } : {}),
+          ...(row.sourceName ? { sourceName: row.sourceName } : {}),
           ...(row.kind ? { kind: row.kind } : {}),
           targets: row.targets || [],
           resolution: row.resolution,
@@ -764,6 +784,8 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
   const targetName = String(raw?.target?.name || "Token").trim().slice(0, 100)
     || "Token";
   const casterName = String(raw?.sourceName || "").trim().slice(0, 100);
+  const sourceId = String(raw?.sourceId || "").trim().slice(0, 200);
+  const spellId = String(raw?.spellId || "").trim().slice(0, 200);
   const informational = raw?.kind === "effect-reminder";
   return {
     activationId,
@@ -774,6 +796,7 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
       || raw?.timing === "damage"
     ) ? raw.timing : undefined,
     spellName: effectName,
+    ...(spellId ? { spellId } : {}),
     label: saveLabel,
     kind: informational ? "effect-reminder" : "effect-save",
     eyebrow: informational
@@ -785,6 +808,8 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
         String(raw?.instruction || "Risolvi il tiro salvezza.").trim()
       }`,
     ...(raw?.resolution ? { resolution: raw.resolution } : {}),
+    ...(sourceId ? { sourceId } : {}),
+    ...(casterName ? { sourceName: casterName } : {}),
     targets: [{
       id: targetId,
       name: targetName,

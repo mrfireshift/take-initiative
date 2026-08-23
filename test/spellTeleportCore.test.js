@@ -99,7 +99,8 @@ test("genera il comando e il piano di esecuzione con side-effect token:teleport 
   const plan = await buildSpellAreaResolutionExecutionPlan(command, {
     sceneEpoch: 1,
     isCurrent: () => true,
-    getItems: async (ids) => ids.map((id) => id === "caster-1" ? mockCaster : null).filter(Boolean),
+    readItems: async (ids) => ids.map((id) => id === "caster-1" ? mockCaster : null).filter(Boolean),
+    readAllItems: async () => [mockCaster],
     getStaticZoneItems: async () => [],
     getBoardTokenItems: async () => [],
     buildStaticZoneItems: () => [],
@@ -114,7 +115,8 @@ test("genera il comando e il piano di esecuzione con side-effect token:teleport 
   )));
   assert.ok(plan.matchedVisualContext);
   assert.equal(plan.matchedVisualContext.spellId, "misty-step");
-  assert.equal(plan.matchedVisualContext.preview.origin.x, 300);
+  assert.equal(plan.matchedVisualContext.preview.origin.x, 0);
+  assert.equal(plan.matchedVisualContext.preview.destination.x, 300);
 });
 
 test("il pannello unificato mostra 'Posiziona destinazione' per Passo Velato", async () => {
@@ -192,7 +194,7 @@ test("il layer plan di Passo Velato posiziona mistyStepOut sull'origine e mistyS
     caster: { center: { x: 75, y: 75 }, diameter: 150 },
     preview: {
       destination: { x: 375, y: 375 },
-      origin: { x: 375, y: 375 },
+      origin: { x: 75, y: 75 },
       start: { x: 375, y: 375 },
       end: { x: 375, y: 375 },
       type: "circle",
@@ -207,11 +209,11 @@ test("il layer plan di Passo Velato posiziona mistyStepOut sull'origine e mistyS
   assert.ok(outLayer);
   assert.deepEqual(outLayer.center, { x: 75, y: 75 });
   assert.equal(outLayer.delay, 0);
+  assert.equal(outLayer.oneShot, true);
 
   const inLayer = event.layers.find((l) => l.effectId === "mistyStepIn");
   assert.ok(inLayer);
   assert.deepEqual(inLayer.center, { x: 375, y: 375 });
   assert.equal(inLayer.delay, 1500);
+  assert.equal(inLayer.oneShot, true);
 });
-
-

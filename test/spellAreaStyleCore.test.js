@@ -14,6 +14,8 @@ test("le aree usano palette coerenti col flavor della spell", () => {
   assert.equal(spellAreaTheme("xanathar-maelstrom"), "water");
   assert.equal(spellAreaTheme("silence"), "silence");
   assert.equal(spellAreaTheme("xanathar-sfera-al-vetriolo"), "acid");
+  assert.equal(spellAreaTheme("xanathar-arma-sacra"), "radiant");
+  assert.equal(spellAreaTheme("xanathar-parola-radiosa"), "radiant");
 });
 
 test("la palette tematica conserva opacità e spessore scelti dall'utente", () => {

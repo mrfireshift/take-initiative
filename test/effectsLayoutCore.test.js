@@ -413,6 +413,40 @@ test("l'ingresso in una zona ricostruisce la pill spell prima dell'effetto colle
   );
 });
 
+test("Controllare Venti usa la label sintetica senza overflow nella pill membership", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Controllare Venti",
+          displayName: "Controllare Venti",
+          instanceId: "winds-zone",
+          targets: ["caster"],
+          color: { solid: "#15803d", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [{
+          key: "spell-effect:winds-membership",
+          label: "Folate / Svantaggio a distanza / Controvento ×2",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "winds-zone",
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y);
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Controllare Venti",
+    "Folate / Dist.− / Vento ×2",
+  ]);
+  assert.ok(rows[1].width <= 300);
+  assert.equal(rows[1].text.includes("Svantaggio a distanza"), false);
+});
+
 test("Folata di vento non mostra la durata sulla pill dei bersagli", () => {
   const rows = planEffectsLayout({
     measureText,

@@ -4763,8 +4763,15 @@ function entryFromSceneItem(it, characterBuildBySourceId = null) {
   const meta = it?.metadata?.[META_KEY];
   if (!it?.id || !meta || meta.inInitiative !== true) return null;
   const initiativeCard = getInitiativeCard(it);
+  const safeConditions = __safeConditions(meta.conditions);
   const conditions = appendClassFeatureConditionInstances(
-    __safeConditions(meta.conditions),
+    {
+      ...safeConditions,
+      // Le card devono consumare la stessa normalizzazione delle pill mappa:
+      // questo proietta anche i vecchi effetti Arma Sacra nella condizione
+      // canonica Accecato, senza riscrivere il metadata durante il render.
+      instances: getEffectiveConditionInstances(safeConditions),
+    },
     meta[CLASS_FEATURE_STATE_FIELD],
     CLASS_FEATURE_BY_ID,
     __latestInitiativeState?.round ?? null,

@@ -6,6 +6,10 @@ const source = readFileSync(
   new URL("../src/spellStaticZone.js", import.meta.url),
   "utf8",
 );
+const executorSource = readFileSync(
+  new URL("../src/spellApplicationExecutor.js", import.meta.url),
+  "utf8",
+);
 
 function assertOrdered(markers) {
   let cursor = -1;
@@ -22,13 +26,25 @@ test("il controller consegna al reconcile l'ultimo snapshot metadata ricevuto", 
     "let queuedSceneMetadata = null;",
     "const sceneMetadataOverride = queuedSceneMetadata;",
     "queuedSceneMetadata = null;",
-    "await reconcileStaticSpellZones(\n          sceneMetadataOverride,\n          rearmActivationIds,\n          historyUndoMovementSuppressions,\n          movementRecords,\n        );",
+    "await reconcileStaticSpellZones(",
     "queuedSceneMetadata = metadata;",
     "requestStaticSpellZoneReconcile();",
   ]);
   assert.match(
     source,
     /const sceneMetadata = sceneMetadataOverride[\s\S]*\? sceneMetadataOverride[\s\S]*: fetchedSceneMetadata;/,
+  );
+});
+
+test("il reconcile può essere eseguito subito dopo un'azione di zona", () => {
+  assert.match(source, /normalized\.immediate === true/);
+  assert.match(source, /return pump\(\);/);
+});
+
+test("il cambio modalità della zona riconcilia subito la membership", () => {
+  assert.match(
+    executorSource,
+    /if \(actionPlan\.zoneRuleChoice\) \{[\s\S]*?requestStaticSpellZoneReconcile\([\s\S]*?immediate: true/,
   );
 });
 
@@ -63,7 +79,9 @@ test("i trigger condizionali filtrano concentrazione e condizioni attive", () =>
     /requiresConcentration && !itemIsConcentrating\(item\)/,
   );
   assert.match(source, /trigger\?\.requireConditions/);
+  assert.match(source, /trigger\?\.requireMovementModes/);
   assert.match(source, /requiredNames\.size > 0/);
+  assert.match(source, /itemHasEffectiveMovementMode\(item, mode\)/);
   assert.match(source, /const conditionNames = new Set/);
   assert.ok(
     source.indexOf("suppressedTriggerTargets(")

@@ -1,5 +1,9 @@
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 
+export function spellEffectConditionName(effect) {
+  return String(effect?.conditionName || effect?.label || "").trim();
+}
+
 export function spellEffectConditionOptions(effect, conditionOptions = {}, parentEffectId = "") {
   const resolvedParentEffectId = Object.prototype.hasOwnProperty.call(effect || {}, "parentEffectId")
     ? String(effect.parentEffectId || "")
@@ -10,6 +14,9 @@ export function spellEffectConditionOptions(effect, conditionOptions = {}, paren
     type: "spell",
     effectId: String(effect?.id || ""),
     effectKind: effect?.kind === "buff" || effect?.kind === "debuff" ? effect.kind : "",
+    ...(String(effect?.displayLabel || "").trim()
+      ? { displayLabel: String(effect.displayLabel).trim() }
+      : {}),
     effectDetail: String(effect?.detail || ""),
     ...(effect?.mechanics && typeof effect.mechanics === "object"
       ? { mechanics: effect.mechanics }

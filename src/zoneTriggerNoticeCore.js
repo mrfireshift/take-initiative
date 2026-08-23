@@ -62,6 +62,8 @@ function spellSlotLevel(item, instanceId) {
 export function normalizeZoneTriggerNotice(value) {
   const activationId = normalizedText(value?.activationId, "", 300);
   const turnKey = normalizedText(value?.turnKey, "", 300);
+  const spellId = normalizedText(value?.spellId, "", 200);
+  const casterId = normalizedText(value?.casterId, "", 200);
   const casterName = normalizedText(value?.casterName, "", 100);
   const targets = (Array.isArray(value?.targets) ? value.targets : [])
     .map(normalizeTarget)
@@ -84,6 +86,8 @@ export function normalizeZoneTriggerNotice(value) {
     ...(timing ? { timing } : {}),
     ...(kind ? { kind } : {}),
     spellName: normalizedText(value?.spellName, "Incantesimo", 100),
+    ...(spellId ? { spellId } : {}),
+    ...(casterId ? { casterId } : {}),
     label: normalizedText(
       value?.label,
       "Tiro salvezza richiesto",
@@ -122,10 +126,21 @@ export function zoneTriggerNoticeFromActivation(
     "",
     200,
   );
+  const spellId = normalizedText(
+    activation?.spellId || zoneMetadata.spellId,
+    "",
+    200,
+  );
   const dc = optionalDC(
     source.get(casterId)?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC,
   );
   const casterName = normalizedText(source.get(casterId)?.name, "", 100);
+  const spellName = normalizedText(
+    activation?.spellName
+    || String(root?.name || "").replace(/^(?:Zona|Aura mobile):\s*/i, ""),
+    "Incantesimo",
+    100,
+  );
   const slotLevel = spellSlotLevel(source.get(casterId), activation?.instanceId);
   const targets = (Array.isArray(activation?.targetIds)
     ? activation.targetIds
@@ -146,12 +161,9 @@ export function zoneTriggerNoticeFromActivation(
     turnKey: activation?.noticeTurnKey || activation?.turnKey,
     timing: activation?.event,
     resolution: activation?.resolution,
-    spellName: normalizedText(
-      activation?.spellName
-      || String(root?.name || "").replace(/^(?:Zona|Aura mobile):\s*/i, ""),
-      "Incantesimo",
-      100,
-    ),
+    spellName,
+    ...(spellId ? { spellId } : {}),
+    ...(casterId ? { casterId } : {}),
     label: activation?.label,
     failureEffect: activation?.failureEffect,
     eyebrow: activation?.eyebrow,
@@ -175,7 +187,14 @@ export function zoneTriggerNoticeFromActivation(
   }
   const resolution = targets.length === 1
     ? buildZoneTriggerReminderResolution({
-      activation: { ...activation, zoneItemId: activation?.zoneItemId },
+      activation: {
+        ...activation,
+        zoneItemId: activation?.zoneItemId,
+        ...(spellId ? { spellId } : {}),
+        ...(spellName ? { spellName } : {}),
+        ...(casterId ? { casterId } : {}),
+        ...(casterName ? { casterName } : {}),
+      },
       targetId: targets[0].id,
       sourceId: casterId,
       sourceName: casterName,

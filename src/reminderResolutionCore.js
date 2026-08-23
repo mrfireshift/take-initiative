@@ -315,6 +315,12 @@ function replaceReminderReference(action, context) {
   if (next.targetId === "$target") next.targetId = context.targetId;
   if (next.targetId === "$source") next.targetId = context.sourceId;
   if (next.parentEffectId === "$parent") next.parentEffectId = context.parentEffectId;
+  if (next.options && typeof next.options === "object") {
+    const options = { ...next.options };
+    if (options.sourceId === "$source") options.sourceId = context.sourceId;
+    if (options.parentEffectId === "$parent") options.parentEffectId = context.parentEffectId;
+    next.options = options;
+  }
   return next;
 }
 
@@ -532,10 +538,16 @@ export function buildDeferredEffectResolution({
   const explicit = deferredEffect.resolution && typeof deferredEffect.resolution === "object"
     ? clone(deferredEffect.resolution)
     : {};
+  const sourceId = text(
+    instance?.sourceId || deferredEffect.provenance?.casterId || explicit?.source?.id,
+    "",
+    200,
+  );
   const resolution = normalizeReminderResolution({
     ...explicit,
-    ...(save ? { save } : { mode: "consume" }),
+    ...(save ? { save } : (explicit.mode ? {} : { mode: "consume" })),
     target: { id: targetId },
+    ...(sourceId && !explicit.source ? { source: { id: sourceId } } : {}),
     activation: {
       kind: "deferred-effect",
       activationId: text(activationId, "", 300),
@@ -549,7 +561,11 @@ export function buildDeferredEffectResolution({
     },
   });
   if (!resolution) return null;
-  const context = { targetId, instanceId };
+  const context = {
+    targetId,
+    instanceId,
+    sourceId: text(resolution.source?.id || sourceId, "", 200),
+  };
   if (resolution.mode === "consume") {
     return resolution;
   }
@@ -671,6 +687,21 @@ export function buildZoneTriggerReminderResolution({
       : {}),
     zoneItemId: text(activation?.zoneItemId, "", 200),
     instanceId: text(activation?.instanceId, "", 200),
+    ...(activation?.ruleId
+      ? { ruleId: text(activation.ruleId, "", 200) }
+      : {}),
+    ...(activation?.spellId || resolutionData.spellId
+      ? { spellId: text(activation?.spellId || resolutionData.spellId, "", 200) }
+      : {}),
+    ...(activation?.spellName || resolutionData.spellName
+      ? { spellName: text(activation?.spellName || resolutionData.spellName, "", 120) }
+      : {}),
+    ...(activation?.casterId || normalizedSourceId
+      ? { casterId: text(activation?.casterId || normalizedSourceId, "", 200) }
+      : {}),
+    ...(activation?.casterName || sourceName
+      ? { casterName: text(activation?.casterName || sourceName, "", 100) }
+      : {}),
     triggerId: text(activation?.triggerId, "", 200),
     turnKey: text(activation?.turnKey, "", 300),
     ...(metadataKey ? { metadataKey } : {}),

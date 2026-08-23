@@ -4,12 +4,14 @@ import {
   buildSpellActiveResolutionPayload,
   getSpellResolutionAction,
 } from "./spellActiveResolutionCore.js";
+import { getSpellActiveAction } from "./spellActiveActionCore.js";
 import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
+const CONC_META_KEY = `${ID}/concentration`;
 
 export const CALL_LIGHTNING_TURN_PROMPT_ACTION_ID = "call-lightning-strike";
 export const STORM_SPHERE_TURN_PROMPT_ACTION_ID = "storm-sphere-lightning";
@@ -23,8 +25,14 @@ export const EYEBITE_ASLEEP_TURN_PROMPT_ACTION_ID = "eyebite-asleep";
 export const EYEBITE_PANICKED_TURN_PROMPT_ACTION_ID = "eyebite-panicked";
 export const EYEBITE_SICKENED_TURN_PROMPT_ACTION_ID = "eyebite-sickened";
 export const ENERVATION_TURN_PROMPT_ACTION_ID = "enervation-repeat";
+export const HEAT_METAL_TURN_PROMPT_ACTION_ID = "heat-metal-repeat";
 export const CROWN_OF_STARS_TURN_PROMPT_ACTION_ID = "crown-of-stars-launch";
 export const WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID = "wall-of-light-beam";
+export const HOLY_WEAPON_TURN_PROMPT_ACTION_ID = "holy-weapon-dismiss";
+export const CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID = "control-winds-gusts";
+export const CONTROL_WINDS_DOWNDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-downdraft";
+export const CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-updraft";
+export const CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID = "control-winds-pause";
 
 const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
@@ -60,6 +68,12 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableAfterCast: true,
   }),
   Object.freeze({
+    spellId: "heat-metal",
+    actionId: HEAT_METAL_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableAfterCast: true,
+  }),
+  Object.freeze({
     spellId: "xanathar-corona-di-stelle",
     actionId: CROWN_OF_STARS_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
@@ -71,6 +85,26 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     actionId: WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
     availableAfterCast: true,
+  }),
+  Object.freeze({
+    spellId: "xanathar-arma-sacra",
+    actionId: HOLY_WEAPON_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableAfterCast: true,
+  }),
+  Object.freeze({
+    spellId: "xanathar-controllare-venti",
+    actionIds: Object.freeze([
+      CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID,
+      CONTROL_WINDS_DOWNDRAFT_TURN_PROMPT_ACTION_ID,
+      CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID,
+      CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID,
+    ]),
+    ownerContext: "caster",
+    availableAfterCast: true,
+    choice: true,
+    executionKind: "active-action",
+    choiceHint: "Scegli la modalità di Controllare Venti. Il cambio usa l'azione del caster e resta disponibile anche nel pannello Incantesimi.",
   }),
   Object.freeze({
     spellId: "xanathar-stretta-della-terra-di-maximilian",
@@ -120,6 +154,17 @@ export function spellTurnPromptSelectedCandidateId(request = null, selection = [
 
 function turnPromptOwnerInstanceIds(items, actorId, prompt, turnKey = "") {
   const ownerIds = new Set();
+  const spellDefinition = getSpellDefinition(prompt?.spellId);
+  const expectedSpellKeys = new Set([
+    prompt?.spellId,
+    spellDefinition?.name,
+    spellDefinition?.displayName,
+  ].map((value) => String(value || "").trim().toLocaleLowerCase("it")).filter(Boolean));
+  const matchesSpell = (key, spell) => [
+    key,
+    spell?.spellId,
+    spell?.name,
+  ].some((value) => expectedSpellKeys.has(String(value || "").trim().toLocaleLowerCase("it")));
   for (const item of Array.isArray(items) ? items : []) {
     const spells = item?.metadata?.[META_KEY]?.[SPELLS_KEY];
     for (const spell of Array.isArray(spells) ? spells : []) {
@@ -147,6 +192,28 @@ function turnPromptOwnerInstanceIds(items, actorId, prompt, turnKey = "") {
       }
     }
   }
+  if (prompt?.ownerContext === "caster") {
+    for (const item of Array.isArray(items) ? items : []) {
+      if (baseActorId(item?.id) !== actorId) continue;
+      const concentrations = item?.metadata?.[META_KEY]?.[CONC_META_KEY];
+      for (const [key, concentration] of Object.entries(
+        concentrations && typeof concentrations === "object" ? concentrations : {},
+      )) {
+        const instanceId = String(concentration?.instanceId || "").trim();
+        const casterId = baseActorId(concentration?.casterId || item?.id);
+        const appliedTurnKey = String(concentration?.appliedAt?.turnKey || "").trim();
+        const castOnCurrentTurn = !!turnKey && !!appliedTurnKey && appliedTurnKey === turnKey;
+        if (
+          matchesSpell(key, concentration)
+          && instanceId
+          && casterId === actorId
+          && (!castOnCurrentTurn || prompt?.availableOnCastTurn === true)
+        ) {
+          ownerIds.add(instanceId);
+        }
+      }
+    }
+  }
   return ownerIds;
 }
 
@@ -168,6 +235,38 @@ function turnPromptZoneItemId(items, instanceId, casterId, prompt = null) {
 function promptActionIds(prompt) {
   if (Array.isArray(prompt?.actionIds)) return prompt.actionIds;
   return prompt?.actionId ? [prompt.actionId] : [];
+}
+
+function buildSpellTurnActiveActionPayload({
+  spell,
+  action,
+  group,
+  sceneEpoch,
+  zoneItemId = "",
+  turnKey = "",
+} = {}) {
+  const actionId = String(action?.id || "").trim();
+  return {
+    type: `${ID}/spell-active-action-prompt`,
+    version: 1,
+    executionKind: "active-action",
+    spellId: String(spell?.id || "").trim(),
+    spellName: String(spell?.displayName || spell?.name || group?.name || "Incantesimo").trim(),
+    instanceId: String(group?.instanceId || "").trim(),
+    casterId: String(group?.casterId || "").trim(),
+    casterName: String(group?.casterName || "").trim(),
+    castContext: group?.castContext && typeof group.castContext === "object"
+      ? { ...group.castContext }
+      : {},
+    slotLevel: Number.isInteger(Number(group?.castContext?.slotLevel))
+      ? Number(group.castContext.slotLevel)
+      : Math.max(0, Number(spell?.level) || 0),
+    sceneEpoch: Number(sceneEpoch),
+    actionId,
+    action,
+    ...(String(zoneItemId || "").trim() ? { zoneItemId: String(zoneItemId).trim() } : {}),
+    ...(String(turnKey || "").trim() ? { turnKey: String(turnKey).trim() } : {}),
+  };
 }
 
 function choiceCandidateTargets(items, group, actions) {
@@ -212,8 +311,11 @@ export function spellTurnPromptRequests({
   const requests = [];
   for (const prompt of TURN_PROMPT_SPELLS) {
     const spell = getSpellDefinition(prompt.spellId);
+    const activeActionPrompt = prompt.executionKind === "active-action";
     const actions = promptActionIds(prompt)
-      .map((actionId) => getSpellResolutionAction(prompt.spellId, actionId))
+      .map((actionId) => activeActionPrompt
+        ? getSpellActiveAction(spell, actionId)
+        : getSpellResolutionAction(prompt.spellId, actionId))
       .filter(Boolean);
     const ownerInstanceIds = turnPromptOwnerInstanceIds(
       items,
@@ -233,14 +335,23 @@ export function spellTurnPromptRequests({
         group?.casterId,
         prompt,
       );
-      const payloads = actions.map((action) => buildSpellActiveResolutionPayload({
-        spell,
-        action,
-        group,
-        sceneEpoch,
-        ...(zoneItemId ? { zoneItemId } : {}),
-        ...(normalizedTurnKey ? { turnKey: normalizedTurnKey } : {}),
-      }));
+      const payloads = activeActionPrompt
+        ? actions.map((action) => buildSpellTurnActiveActionPayload({
+          spell,
+          action,
+          group,
+          sceneEpoch,
+          ...(zoneItemId ? { zoneItemId } : {}),
+          ...(normalizedTurnKey ? { turnKey: normalizedTurnKey } : {}),
+        }))
+        : actions.map((action) => buildSpellActiveResolutionPayload({
+          spell,
+          action,
+          group,
+          sceneEpoch,
+          ...(zoneItemId ? { zoneItemId } : {}),
+          ...(normalizedTurnKey ? { turnKey: normalizedTurnKey } : {}),
+        }));
       if (prompt.choice === true && payloads.length > 1) {
         requests.push({
           kind: "choice",
@@ -253,6 +364,7 @@ export function spellTurnPromptRequests({
           turnKey: normalizedTurnKey,
           sceneEpoch,
           actions: payloads,
+          ...(prompt.choiceHint ? { choiceHint: prompt.choiceHint } : {}),
           ...(prompt.spellId === "eyebite"
             ? { candidateTargets: choiceCandidateTargets(items, group, actions) }
             : {}),

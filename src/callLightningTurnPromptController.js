@@ -9,8 +9,14 @@ import {
   spellTurnPromptRequests,
   spellTurnPromptSelectedCandidateId,
 } from "./callLightningTurnPromptCore.js";
-import { executeSpellActiveResolution } from "./spellApplicationExecutor.js";
+import {
+  executeSpellActiveAction,
+  executeSpellActiveResolution,
+} from "./spellApplicationExecutor.js";
+import { buildSpellUnifiedActivePopoverRequest } from "./spellUnifiedActiveAdapter.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
+import { getSpellDefinition } from "./spells-srd.js";
+import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 
 const STATE_KEY = `${ID}/state`;
 export const CALL_LIGHTNING_TURN_NOTICE_CHANNEL = `${ID}/turn-notice`;
@@ -160,9 +166,15 @@ async function requestsForTurn(descriptor) {
 async function openRequest(request, stackIndex, taskRevision) {
   if (taskRevision !== revision) return;
   const payload = request?.payload || request;
-  const id = popoverId(request);
-  const height = popoverHeight(request);
-  const width = popoverWidth(request);
+  const activePopover = request?.kind === "choice"
+    ? null
+    : buildSpellUnifiedActivePopoverRequest(payload, {
+      width: POPOVER_WIDTH,
+      height: popoverHeight(request),
+    });
+  const id = activePopover?.id || popoverId(request);
+  const height = activePopover?.height || popoverHeight(request);
+  const width = activePopover?.width || popoverWidth(request);
   const casterId = request?.casterId || payload?.casterId;
   const anchorId = request?.kind === "choice"
     ? request?.zoneItemId || casterId
@@ -193,7 +205,7 @@ async function openRequest(request, stackIndex, taskRevision) {
         : { popoverId: id, request: JSON.stringify(storedRequest) });
       return `/spell-turn-action-choice.html?${query.toString()}`;
     })()
-    : `/spell-active-resolution.html?payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    : activePopover.url;
   await openTrackedPopover({
     id,
     url,
@@ -375,6 +387,52 @@ export async function mountCallLightningTurnPromptController() {
           ? request.actions.find((entry) => String(entry?.actionId || "") === String(data.actionId || ""))
           : null;
         if (!payload) return;
+
+        if (payload.executionKind === "active-action") {
+          try {
+            const actionSceneEpoch = currentSceneEpoch();
+            const actionTurnKey = runtimeTurnKey || currentTurnKey;
+            const items = await OBR.scene.items.getItems();
+            const group = spellOverviewGroups(items).find((candidate) => (
+              String(candidate?.instanceId || "").trim() === String(payload.instanceId || "").trim()
+              && String(candidate?.casterId || "").trim() === String(payload.casterId || "").trim()
+            ));
+            const spell = getSpellDefinition(payload.spellId);
+            if (!group || !spell) throw new Error("L'istanza di Controllare Venti non è più disponibile.");
+            const commandId = `turn-prompt:${String(data.instanceId || "").trim()}:${String(data.actionId || "").trim()}:${Date.now().toString(36)}`;
+            const sceneContext = await getEffectsMutationSceneContext({ commandId });
+            await executeSpellActiveAction({
+              spell,
+              actionId: payload.actionId,
+              group,
+              appliedAt: group.appliedAt,
+              casterName: group.casterName,
+              sceneEpoch: actionSceneEpoch,
+              sceneIdentity: sceneContext?.sceneIdentity || null,
+              commandId: sceneContext?.commandId || commandId,
+              isCurrent: (epoch) => (
+                Number(epoch) === actionSceneEpoch
+                && currentSceneEpoch() === actionSceneEpoch
+                && actionTurnKey === currentTurnKey
+              ),
+            });
+            opened.delete(runtime.popoverId);
+            await closeRuntime(runtime);
+          } catch (error) {
+            await OBR.broadcast.sendMessage(
+              SPELL_TURN_PROMPT_ACTION_CHANNEL,
+              {
+                type: "choice-action-error",
+                instanceId: data.instanceId,
+                turnKey: data.turnKey,
+                message: error?.message || "Impossibile cambiare modalità dell'incantesimo.",
+              },
+              { destination: "LOCAL" },
+            ).catch(() => {});
+            console.warn("[spell-turn-prompt] active action:", error?.message || error);
+          }
+          return;
+        }
 
         if (data.type === "apply-choice-action") {
           const targetId = String(data.targetId || "").trim();

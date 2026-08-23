@@ -19,10 +19,14 @@ import assert from "node:assert/strict";
 
 import { ID } from "../src/constants.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
-import { STORM_SPHERE_TURN_PROMPT_ACTION_ID } from "../src/callLightningTurnPromptCore.js";
+import {
+  HEAT_METAL_TURN_PROMPT_ACTION_ID,
+  STORM_SPHERE_TURN_PROMPT_ACTION_ID,
+} from "../src/callLightningTurnPromptCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
+const CONC_META_KEY = `${ID}/concentration`;
 
 let sceneItemsMock = [];
 let openPopoverCalls = [];
@@ -117,6 +121,12 @@ mock.module("@owlbear-rodeo/sdk", {
   },
 });
 
+mock.module("../src/initiativeCards.js", {
+  exports: {
+    getInitiativeCard: () => null,
+  },
+});
+
 const {
   mountCallLightningTurnPromptController,
   unmountCallLightningTurnPromptController,
@@ -146,7 +156,7 @@ function createCasterToken(id, instanceId) {
             slotLevel: 4,
           },
         }],
-        concentration: {
+        [CONC_META_KEY]: {
           [instanceId]: {
             instanceId,
             spellId: "xanathar-sfera-della-tempesta",
@@ -169,6 +179,57 @@ function createZoneRoot(instanceId, casterId) {
         instanceId,
         casterId,
         spellId: "xanathar-sfera-della-tempesta",
+      },
+    },
+  };
+}
+
+function createHeatMetalCasterToken(id, instanceId, turnKey) {
+  return {
+    id,
+    name: "Mago",
+    position: { x: 100, y: 100 },
+    layer: "CHARACTER",
+    metadata: {
+      [META_KEY]: {
+        hp: 30,
+        hpMax: 30,
+        attitude: "pc",
+        conditions: { version: 2, instances: [] },
+        [SPELLS_KEY]: [],
+        [CONC_META_KEY]: {
+          [instanceId]: {
+            instanceId,
+            spellId: "heat-metal",
+            name: "Riscaldare il Metallo",
+            targets: ["heat-target"],
+            appliedAt: { round: 1, actorId: id, turnKey },
+            castContext: { slotLevel: 3 },
+          },
+        },
+      },
+    },
+  };
+}
+
+function createHeatMetalTargetToken(instanceId, casterId, turnKey) {
+  return {
+    id: "heat-target",
+    name: "Portatore",
+    position: { x: 180, y: 100 },
+    layer: "CHARACTER",
+    metadata: {
+      [META_KEY]: {
+        conditions: { version: 2, instances: [] },
+        [SPELLS_KEY]: [{
+          name: "Riscaldare il Metallo",
+          spellId: "heat-metal",
+          instanceId,
+          casterId,
+          appliedAt: { round: 1, actorId: casterId, turnKey },
+          conc: true,
+          castContext: { slotLevel: 3 },
+        }],
       },
     },
   };
@@ -265,6 +326,61 @@ test("CONTROLLER INTEGRATION — Turn notice triggers openTrackedPopover exactly
   });
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(openPopoverCalls.length, 0, "No popover after concentration ends");
+
+  await unmountCallLightningTurnPromptController();
+});
+
+test("CONTROLLER INTEGRATION — Heat Metal apre il popup mobile solo dal turno successivo", async () => {
+  const casterId = "heat-caster";
+  const instanceId = "heat-instance-1";
+  const castTurn = "1:0:heat-caster";
+  sceneItemsMock = [
+    createHeatMetalCasterToken(casterId, instanceId, castTurn),
+    createHeatMetalTargetToken(instanceId, casterId, castTurn),
+  ];
+  openPopoverCalls = [];
+  closePopoverCalls = [];
+
+  await mountCallLightningTurnPromptController();
+  assert.ok(typeof turnNoticeHandler === "function", "Turn notice listener must be registered");
+
+  await turnNoticeHandler({
+    data: {
+      type: "show-turn-notice",
+      currentId: casterId,
+      turnKey: castTurn,
+      sceneEpoch: 2,
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(openPopoverCalls.length, 0, "Heat Metal must not open on the cast turn");
+
+  await turnNoticeHandler({
+    data: {
+      type: "show-turn-notice",
+      currentId: casterId,
+      turnKey: "2:0:heat-caster",
+      sceneEpoch: 2,
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  assert.equal(openPopoverCalls.length, 1, "Heat Metal must open on the next caster turn");
+  const call = openPopoverCalls[0];
+  assert.ok(call.url.includes("spell-active-resolution.html"));
+  assert.equal(call.width, 360);
+  const urlObj = new URL(call.url, "http://localhost");
+  const payload = JSON.parse(decodeURIComponent(urlObj.searchParams.get("payload")));
+  assert.equal(payload.spellId, "heat-metal");
+  assert.equal(payload.actionId, HEAT_METAL_TURN_PROMPT_ACTION_ID);
+  assert.equal(payload.action.resolutionKind, "single-save");
+  assert.equal(payload.action.economy, "bonus-action");
+  assert.deepEqual(payload.action.save, { ability: "con", onSuccess: "none" });
+  assert.equal(payload.action.damage.onSave, "full");
+  assert.equal(payload.action.attack, undefined);
+  assert.equal(payload.action.effectOn, undefined);
+  assert.equal(payload.linkedTargetId, "heat-target");
+  assert.doesNotMatch(call.url, /prepared-spell-resolution\.html/);
 
   await unmountCallLightningTurnPromptController();
 });

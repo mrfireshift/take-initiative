@@ -250,6 +250,108 @@ function outcomeLabel(value) {
   return OUTCOME_LABELS[raw.toLocaleLowerCase("it-IT")] || raw;
 }
 
+function reminderResolutionParts(event) {
+  const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  const replay = payload.replay && typeof payload.replay === "object" ? payload.replay : {};
+  const warning = replay.warning && typeof replay.warning === "object" ? replay.warning : {};
+  const notice = warning.notice && typeof warning.notice === "object" ? warning.notice : {};
+  const resolution = payload.resolution && typeof payload.resolution === "object"
+    ? payload.resolution
+    : (notice.resolution && typeof notice.resolution === "object" ? notice.resolution : {});
+  return { payload, replay, warning, notice, resolution };
+}
+
+function meaningfulReminderName(...values) {
+  for (const value of values) {
+    const name = stringValue(value);
+    if (!name) continue;
+    const normalized = name.toLocaleLowerCase("it-IT").replace(/\s+/gu, " ");
+    if (!["incantesimo", "promemoria", "tiro salvezza"].includes(normalized)) return name;
+  }
+  return "";
+}
+
+function hasConcentrationResolutionAction(resolution) {
+  return Object.values(resolution?.outcomes || {}).some((outcome) =>
+    Array.isArray(outcome?.actions)
+      && outcome.actions.some((action) => String(action?.kind || "").trim().toLowerCase() === "concentration")
+  );
+}
+
+function reminderResolutionType(event) {
+  if (String(event?.kind || "") !== "reminder-resolution") return "";
+  const { payload, replay, notice, resolution } = reminderResolutionParts(event);
+  const activationKind = String(
+    resolution?.activation?.kind
+      || notice?.resolution?.activation?.kind
+      || payload?.activation?.kind
+      || "",
+  ).trim().toLowerCase();
+  const causality = payload.causality && typeof payload.causality === "object"
+    ? payload.causality
+    : {};
+  if (
+    activationKind === "concentration-save"
+    || replay.type === "concentration-warning"
+    || causality.concentration
+    || hasConcentrationResolutionAction(resolution)
+  ) return "concentration";
+
+  const outcome = stringValue(payload.outcome).toLocaleLowerCase("it-IT");
+  const hasSaveOutcome = ["passed", "failed", "immune"].includes(outcome);
+  const hasAreaMarker = activationKind === "zone" || Boolean(causality.zone);
+  if (hasAreaMarker && (hasSaveOutcome || !outcome || notice.kind === "zone")) {
+    return "area-save";
+  }
+
+  const cause = causality.cause && typeof causality.cause === "object" ? causality.cause : {};
+  const hasSpellEvidence = Boolean(
+    payload.spellName
+    || payload.spellId
+    || payload.spell?.name
+    || cause.spellId
+    || cause.spellName
+    || Object.prototype.hasOwnProperty.call(cause, "slotLevel")
+    || notice.spellName
+    || replay.warning?.spellName
+    || ["effect-save", "effect-reminder", "zone", "zone-effect"].includes(String(notice?.kind || ""))
+    || activationKind === "zone"
+  );
+  return hasSpellEvidence ? "spell" : "";
+}
+
+function reminderResolutionSpellName(event) {
+  const { payload, warning, notice } = reminderResolutionParts(event);
+  const causality = payload.causality && typeof payload.causality === "object"
+    ? payload.causality
+    : {};
+  return meaningfulReminderName(
+    payload.spellName,
+    payload.spell?.name,
+    causality.cause?.spellName,
+    warning.spellName,
+    notice.spellName,
+  );
+}
+
+function reminderResolutionTitle(event, fallback) {
+  const type = reminderResolutionType(event);
+  if (!type) return fallback;
+  const outcome = outcomeLabel(event?.payload?.outcome);
+  const spellName = reminderResolutionSpellName(event);
+  const prefix = type === "concentration"
+    ? "Concentrazione"
+    : type === "area-save"
+      ? "Permanenza area"
+      : "Incantesimo";
+  const subject = spellName ? `: ${spellName}` : "";
+  const outcomeText = type === "concentration"
+    && ["Superato", "Fallito", "Immune"].includes(outcome)
+    ? `TS ${outcome.toLocaleLowerCase("it-IT")}`
+    : outcome;
+  return [`${prefix}${subject}`, outcomeText].filter(Boolean).join(" · ") || fallback;
+}
+
 function outcomeValue(item) {
   if (item && typeof item === "object") return item.outcome || item.result || item.attackOutcome;
   return item;
@@ -326,9 +428,10 @@ function explicitContextLines(event) {
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
   const causality = eventCausality(event);
   const lines = [];
-  const legacySpellName = stringValue(payload.spellName || payload.spell?.name);
+  const legacySpellName = meaningfulReminderName(payload.spellName, payload.spell?.name);
   const legacyCasterName = stringValue(payload.casterName || payload.caster?.name);
-  const spellName = legacySpellName || stringValue(causality?.cause?.spellName);
+  const spellName = legacySpellName
+    || meaningfulReminderName(causality?.cause?.spellName);
   const casterName = legacyCasterName || stringValue(causality?.actor?.name);
   const explicitSource = stringValue(payload.sourceName || payload.causeName);
   if (spellName) lines.push(`Incantesimo: ${spellName}`);
@@ -465,15 +568,173 @@ function detailSections(event, targets, outcomes, turnName) {
   return sections;
 }
 
+function identityFacetItems(facet) {
+  const direct = [
+    ...(Array.isArray(facet?.added) ? facet.added : []),
+    ...(Array.isArray(facet?.removed) ? facet.removed : []),
+    ...(Array.isArray(facet?.updated)
+      ? facet.updated.flatMap((item) => [item?.before, item?.after])
+      : []),
+  ];
+  const scoped = Array.isArray(facet?.targets)
+    ? facet.targets.flatMap((target) => identityFacetItems(target))
+    : [];
+  return [...direct, ...scoped].filter((item) => item && typeof item === "object");
+}
+
+function explicitSourceIdentity(event) {
+  const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  const causality = eventCausality(event) || {};
+  const spellItems = [
+    ...identityFacetItems(event?.facets?.spells),
+    ...identityFacetItems(event?.facets?.concentrations),
+  ];
+  const sourceSpellName = meaningfulReminderName(
+    causality?.cause?.spellName,
+    payload.spellName,
+    payload.spell?.name,
+    ...spellItems.map((item) => item?.spellName || item?.name || item?.key),
+  );
+  const sourceSpellId = stringValue(
+    causality?.cause?.spellId
+    || payload.spellId
+    || payload.spell?.id
+    || spellItems.find((item) => item?.spellId)?.spellId,
+  );
+  const instanceIds = [
+    causality?.cause?.instanceId,
+    causality?.concentration?.instanceId,
+    payload.causality?.instanceId,
+    payload.causality?.concentrationInstanceId,
+    ...spellItems.map((item) => item?.instanceId),
+  ].map(stringValue).filter(Boolean);
+  const actorId = stringValue(
+    causality?.actor?.id
+    || payload.casterId
+    || payload.caster?.id
+    || spellItems.find((item) => item?.casterId)?.casterId,
+  );
+  const actorName = stringValue(
+    causality?.actor?.name
+    || payload.casterName
+    || payload.caster?.name,
+  );
+  if (!sourceSpellName && !sourceSpellId) return null;
+  return {
+    spellId: sourceSpellId,
+    spellName: sourceSpellName,
+    actorId,
+    actorName,
+    instanceIds: [...new Set(instanceIds)],
+  };
+}
+
+function reminderInstanceIds(event) {
+  if (String(event?.kind || "") !== "reminder-resolution") return [];
+  const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  const descriptor = payload.replay?.descriptor && typeof payload.replay.descriptor === "object"
+    ? payload.replay.descriptor
+    : {};
+  const notice = descriptor.notice && typeof descriptor.notice === "object"
+    ? descriptor.notice
+    : {};
+  const resolution = payload.resolution && typeof payload.resolution === "object"
+    ? payload.resolution
+    : notice.resolution && typeof notice.resolution === "object"
+      ? notice.resolution
+      : {};
+  const activation = resolution.activation && typeof resolution.activation === "object"
+    ? resolution.activation
+    : {};
+  return [...new Set([
+    activation.instanceId,
+    descriptor.instanceId,
+    payload.causality?.concentrationInstanceId,
+    payload.causality?.concentration?.instanceId,
+  ].map(stringValue).filter(Boolean))];
+}
+
+function buildLegacySourceIndex(events) {
+  const index = new Map();
+  for (const [position, event] of (Array.isArray(events) ? events : []).entries()) {
+    const source = explicitSourceIdentity(event);
+    if (!source) continue;
+    for (const instanceId of source.instanceIds) {
+      const entries = index.get(instanceId) || [];
+      entries.push({ position, source });
+      index.set(instanceId, entries);
+    }
+  }
+  return index;
+}
+
+function legacyReminderSource(event, sourceIndex, position) {
+  const reminderIds = reminderInstanceIds(event);
+  if (!reminderIds.length) return null;
+  let latest = null;
+  for (const instanceId of reminderIds) {
+    const entries = sourceIndex.get(instanceId) || [];
+    for (const entry of entries) {
+      if (entry.position >= position) continue;
+      if (!latest || entry.position > latest.position) latest = entry;
+    }
+  }
+  return latest?.source || null;
+}
+
+function applyLegacyReminderSource(event, source) {
+  if (!source) return event;
+  const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+  const currentCausality = payload.causality && typeof payload.causality === "object"
+    ? payload.causality
+    : {};
+  const currentCause = currentCausality.cause && typeof currentCausality.cause === "object"
+    ? currentCausality.cause
+    : {};
+  const currentActor = currentCausality.actor && typeof currentCausality.actor === "object"
+    ? currentCausality.actor
+    : {};
+  const spellName = meaningfulReminderName(currentCause.spellName) || source.spellName;
+  const cause = {
+    ...currentCause,
+    ...(source.spellId && !currentCause.spellId ? { spellId: source.spellId } : {}),
+    ...(spellName ? { spellName } : {}),
+  };
+  const actor = {
+    ...(source.actorId ? { id: source.actorId } : {}),
+    ...(source.actorName ? { name: source.actorName } : {}),
+    ...currentActor,
+  };
+  return {
+    ...event,
+    payload: {
+      ...payload,
+      causality: {
+        ...currentCausality,
+        cause,
+        ...(Object.keys(actor).length ? { actor } : {}),
+      },
+    },
+  };
+}
+
 function projectedEvent(rawEvent, index) {
   const event = normalizeCombatLogEvent(rawEvent);
   const category = COMBAT_LOG_CATEGORY_ORDER.includes(String(event.category)) ? String(event.category) : "other";
   const meta = getCombatLogCategoryMeta(category);
+  const reminderType = reminderResolutionType(event);
+  const categoryLabel = reminderType === "concentration"
+    ? "Concentrazione"
+    : reminderType === "area-save"
+      ? "Permanenza area"
+    : reminderType === "spell"
+      ? "Incantesimo"
+      : meta.label;
   const context = turnContext(event);
   const causality = eventCausality(event);
   const targets = uniqueTargets(mergePresentationTargets(event, causality));
   const outcomes = collectOutcomes(event);
-  const title = stringValue(event.label) || meta.label;
+  const title = reminderResolutionTitle(event, stringValue(event.label) || meta.label);
   const summary = eventSummary({ ...event, category }, targets, outcomes);
   const details = detailSections({ ...event, category }, targets, outcomes, context.turnName);
   const sequence = positiveInteger(event.sequence, index + 1);
@@ -501,6 +762,7 @@ function projectedEvent(rawEvent, index) {
     targets.map((target) => target.name).join(" "),
     outcomes.join(" "),
     detailText,
+    categoryLabel,
     causality?.cause?.spellName || "",
     causality?.actor?.name || "",
     causality?.phase || "",
@@ -517,7 +779,7 @@ function projectedEvent(rawEvent, index) {
     turnName: context.turnName,
     turn: context.turn,
     category,
-    categoryLabel: meta.label,
+    categoryLabel,
     tone: meta.tone,
     kind: technical.kind,
     title,
@@ -596,8 +858,12 @@ function buildSummary(session, events, groups) {
 }
 
 export function buildCombatLogPresentation(session, rawEvents = []) {
-  const normalizedEvents = aggregateCombatLogEvents(Array.isArray(rawEvents) ? rawEvents : [])
-    .map((event, index) => projectedEvent(event, index));
+  const aggregatedEvents = aggregateCombatLogEvents(Array.isArray(rawEvents) ? rawEvents : []);
+  const legacySourceIndex = buildLegacySourceIndex(aggregatedEvents);
+  const normalizedEvents = aggregatedEvents.map((event, index) => projectedEvent(
+    applyLegacyReminderSource(event, legacyReminderSource(event, legacySourceIndex, index)),
+    index,
+  ));
   const groups = groupEvents(normalizedEvents);
   const sessionSummary = buildSummary(session, normalizedEvents, groups);
   const availableCategories = COMBAT_LOG_CATEGORY_ORDER

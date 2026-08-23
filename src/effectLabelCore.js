@@ -40,6 +40,11 @@ const COMPACT_EFFECT_LABELS = Object.freeze({
   "Niente res. fulmine · +2d6/turno": "Fulmine: no res. / +2d6/turno",
   "Niente res. fuoco · +2d6/turno": "Fuoco: no res. / +2d6/turno",
   "Niente res. tuono · +2d6/turno": "Tuono: no res. / +2d6/turno",
+  // Controllare Venti mantiene il dettaglio completo nel tooltip; la pill
+  // sulla mappa usa una sintesi a riga singola.
+  "Folate / Svantaggio a distanza / Controvento ×2": "Folate / Dist.− / Vento ×2",
+  "Discendente / Svantaggio a distanza / TS Forza se vola": "Discendente / Dist.− / TS volo",
+  "Ascendente / Caduta dimezzata / Salto in alto +3 m": "Ascendente / Caduta ½ / Salto +3",
 });
 
 export function compactSpellEffectLabel(value) {

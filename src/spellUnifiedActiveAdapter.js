@@ -182,6 +182,15 @@ export function normalizeSpellUnifiedActiveContext(overview = {}) {
 
 export function normalizeSpellUnifiedActiveAction(action = null) {
   const definition = actionDefinition(action);
+  const requiredTargetEffectId = text(
+    action?.requiredTargetEffectId || definition?.requiredTargetEffectId,
+  );
+  const requiredTargetIds = uniqueIds(
+    action?.requiredTargetIds ?? definition?.requiredTargetIds,
+  );
+  const unavailableTargetIds = uniqueIds(
+    action?.unavailableTargetIds ?? definition?.unavailableTargetIds,
+  );
   return {
     id: actionId(action),
     type: actionType(action),
@@ -194,6 +203,9 @@ export function normalizeSpellUnifiedActiveAction(action = null) {
     maxTargets: Number.isInteger(Number(action?.maxTargets ?? definition?.maxTargets))
       ? Math.max(0, Number(action?.maxTargets ?? definition?.maxTargets))
       : 0,
+    ...(requiredTargetEffectId ? { requiredTargetEffectId } : {}),
+    ...(requiredTargetIds.length ? { requiredTargetIds } : {}),
+    ...(unavailableTargetIds.length ? { unavailableTargetIds } : {}),
     available: action?.available !== false && action?.disabled !== true,
     disabledReason: text(action?.disabledReason || action?.unavailableReason),
     definition,

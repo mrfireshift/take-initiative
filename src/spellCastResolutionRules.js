@@ -1,3 +1,5 @@
+import { HEAT_METAL_DROP_CHOICE_EFFECT } from "./spellActiveResolutionRules.js";
+
 const clone = (value) => {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
@@ -118,7 +120,11 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "fire-shield": { initialHP: false, deferredHP: "reaction" },
   "flame-blade": { initialHP: false, deferredHP: "active-attack" },
   "guiding-bolt": { initialHP: true, resolution: "single-attack" },
-  "heat-metal": { initialHP: true, resolution: "manual-damage", repeatAction: true },
+  "heat-metal": {
+    initialHP: true,
+    resolution: "manual-damage",
+    postDamageEffects: Object.freeze([HEAT_METAL_DROP_CHOICE_EFFECT]),
+  },
   "phantasmal-killer": { initialHP: false, deferredHP: "turn-end-save" },
   "produce-flame": { initialHP: false, deferredHP: "optional-attack" },
   "ray-of-frost": { initialHP: true, resolution: "single-attack" },

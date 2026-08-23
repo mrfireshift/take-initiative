@@ -1,5 +1,8 @@
 import { ID } from "./constants.js";
-import { spellEffectConditionOptions } from "./spellEffectCore.js";
+import {
+  spellEffectConditionName,
+  spellEffectConditionOptions,
+} from "./spellEffectCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
 
 export const SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE = `${ID}/spell-active-resolution`;
@@ -70,6 +73,18 @@ const uniqueIds = (values = []) => Array.from(new Set(
     .map((value) => String(value || "").trim())
     .filter(Boolean),
 ));
+
+function rememberedGroupTargetIds(group, casterId = "") {
+  const targets = group?.targets;
+  const values = targets instanceof Map
+    ? [...targets.keys()]
+    : Array.isArray(targets)
+      ? targets
+      : targets && typeof targets === "object"
+        ? Object.keys(targets)
+        : [];
+  return uniqueIds(values).filter((targetId) => targetId !== casterId);
+}
 
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -160,6 +175,7 @@ export function validateSpellActiveResolutionAction(action) {
     && (
       (Array.isArray(action?.failureEffects) && action.failureEffects.length > 0)
       || (Array.isArray(action?.successEffects) && action.successEffects.length > 0)
+      || (Array.isArray(action?.postDamageEffects) && action.postDamageEffects.length > 0)
     );
   const damageOptional = (kind === "single-save" && !damageRule) || saveHasDeclarativeEffects;
   if (kind !== "child-zone" && !damageOptional
@@ -171,7 +187,7 @@ export function validateSpellActiveResolutionAction(action) {
   if (baseSlot < 0 || perSlot < 0) errors.push("action-damage-scaling-invalid");
   if (["save-area", "single-save"].includes(kind)
     && damageRule
-    && !["half", "none"].includes(damageRule?.onSave)) {
+    && !["full", "half", "none"].includes(damageRule?.onSave)) {
     errors.push("action-save-damage-invalid");
   }
   if (["save-area", "single-save"].includes(kind)) {
@@ -195,6 +211,16 @@ export function validateSpellActiveResolutionAction(action) {
       for (const effect of action.successEffects) {
         if (!String(effect?.id || "").trim()) errors.push("action-success-effect-id-required");
         if (!String(effect?.label || "").trim()) errors.push("action-success-effect-label-required");
+      }
+    }
+  }
+  if (action?.postDamageEffects !== undefined) {
+    if (!Array.isArray(action.postDamageEffects)) {
+      errors.push("action-post-damage-effects-invalid");
+    } else {
+      for (const effect of action.postDamageEffects) {
+        if (!String(effect?.id || "").trim()) errors.push("action-post-damage-effect-id-required");
+        if (!String(effect?.label || "").trim()) errors.push("action-post-damage-effect-label-required");
       }
     }
   }
@@ -311,6 +337,8 @@ export function buildSpellActiveResolutionPayload({
         && String(effect?.effectId || "").trim() === requiredTargetEffectId
       ))
       .map((effect) => effect?.itemId))
+    : action?.rememberTargets === true
+      ? rememberedGroupTargetIds(group, casterId)
     : [];
   const payload = {
     type: SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
@@ -369,7 +397,7 @@ export function buildSpellActiveResolutionFailureOperations({
   if (!failedIds.length || !effects.length) return [];
   const operations = [];
   for (const effect of effects) {
-    const conditionName = String(effect?.label || "").trim();
+    const conditionName = spellEffectConditionName(effect);
     if (!conditionName) continue;
     operations.push({
       type: "condition:add",
@@ -392,6 +420,42 @@ export function buildSpellActiveResolutionFailureOperations({
   return operations;
 }
 
+export function buildSpellActiveResolutionPostDamageOperations({
+  action = null,
+  payload = null,
+  targetIds = [],
+} = {}) {
+  if (! ["save-area", "single-save"].includes(action?.resolutionKind)) return [];
+  const resolvedTargetIds = normalizeActiveResolutionTargetIds(targetIds);
+  const effects = Array.isArray(action?.postDamageEffects)
+    ? action.postDamageEffects
+    : [];
+  if (!resolvedTargetIds.length || !effects.length) return [];
+  const operations = [];
+  for (const effect of effects) {
+    const conditionName = spellEffectConditionName(effect);
+    if (!conditionName) continue;
+    operations.push({
+      type: "condition:add",
+      targetIds: resolvedTargetIds,
+      conditionName,
+      options: spellEffectConditionOptions(
+        effect,
+        {
+          sourceId: payload?.casterId,
+          sourceName: payload?.casterName,
+          expiry: effect.expiry || { mode: "manual" },
+        },
+        payload?.instanceId,
+      ),
+    });
+  }
+  if (operations.length) {
+    operations.push({ type: "condition:automate", subjectIds: resolvedTargetIds });
+  }
+  return operations;
+}
+
 export function buildSpellActiveResolutionSuccessOperations({
   action = null,
   payload = null,
@@ -407,7 +471,7 @@ export function buildSpellActiveResolutionSuccessOperations({
   if (!passedIds.length || !effects.length) return [];
   const operations = [];
   for (const effect of effects) {
-    const conditionName = String(effect?.label || "").trim();
+    const conditionName = spellEffectConditionName(effect);
     if (!conditionName) continue;
     operations.push({
       type: "condition:add",
@@ -497,8 +561,12 @@ export function resolveSpellActiveResolutionDamage({
     || normalizedOutcome === "hit"
     || normalizedOutcome === "critical"
     ? 1
-    : normalizedOutcome === "passed" && rule.onSave === "half"
-      ? 0.5
+    : normalizedOutcome === "passed"
+      ? rule.onSave === "full"
+        ? 1
+        : rule.onSave === "half"
+          ? 0.5
+          : 0
       : 0;
   return {
     valid: true,

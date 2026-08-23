@@ -115,9 +115,23 @@ function areaWithCellPadding(area, paddingSquares) {
     : area;
 }
 
-export function areaMembershipEffects(rule) {
-  if (Array.isArray(rule?.zonePolicy?.membershipEffects)) {
-    return rule.zonePolicy.membershipEffects;
+export function areaMembershipEffects(rule, ruleChoice = "") {
+  const zonePolicy = rule?.zonePolicy;
+  const normalizedChoice = String(ruleChoice || "").trim();
+  const choiceEffects = zonePolicy?.membershipEffectsByChoice;
+  if (
+    normalizedChoice
+    && choiceEffects
+    && typeof choiceEffects === "object"
+    && !Array.isArray(choiceEffects)
+    && Object.prototype.hasOwnProperty.call(choiceEffects, normalizedChoice)
+  ) {
+    return Array.isArray(choiceEffects[normalizedChoice])
+      ? choiceEffects[normalizedChoice]
+      : [];
+  }
+  if (Array.isArray(zonePolicy?.membershipEffects)) {
+    return zonePolicy.membershipEffects;
   }
   if (Array.isArray(rule?.effectPolicy?.effects)) {
     return rule.effectPolicy.effects;
@@ -126,6 +140,23 @@ export function areaMembershipEffects(rule) {
     ? rule.effectPolicy.effect
     : null;
   return auraEffect ? [auraEffect] : [];
+}
+
+export function areaMembershipEffectIds(rule) {
+  const zonePolicy = rule?.zonePolicy;
+  const variants = zonePolicy?.membershipEffectsByChoice;
+  const effects = [
+    ...(Array.isArray(zonePolicy?.membershipEffects)
+      ? zonePolicy.membershipEffects
+      : []),
+    ...(
+      variants && typeof variants === "object" && !Array.isArray(variants)
+        ? Object.values(variants).flatMap((entries) => Array.isArray(entries) ? entries : [])
+        : []
+    ),
+    ...areaMembershipEffects(rule),
+  ];
+  return uniqueIds(effects.map((effect) => effect?.id));
 }
 
 export function areaMembershipTargetIds({
@@ -170,6 +201,7 @@ export function areaMembershipPlan({
   sourceId = "",
   zoneId = "",
   rule = null,
+  ruleChoice = "",
   desiredTargetIds = [],
   items = [],
   metaKey = "",
@@ -180,12 +212,20 @@ export function areaMembershipPlan({
   removeLinkedTriggerConditions = false,
 } = {}) {
   const parentEffectId = String(instanceId || "").trim();
-  const effects = areaMembershipEffects(rule);
+  const effects = areaMembershipEffects(rule, ruleChoice);
+  const trackedEffectIds = new Set(areaMembershipEffectIds(rule));
+  const expectedEffectIds = new Set(
+    effects.map((effect) => String(effect?.id || "").trim()).filter(Boolean),
+  );
   const linkedConditionTriggers = removeLinkedTriggerConditions === true
     ? (Array.isArray(rule?.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
       .filter((trigger) => trigger?.removeLinkedConditionOnLeave === true)
     : [];
-  if (!parentEffectId || (!effects.length && !linkedConditionTriggers.length)) {
+  if (!parentEffectId || (
+    !effects.length
+    && !linkedConditionTriggers.length
+    && !trackedEffectIds.size
+  )) {
     return { entering: [], leaving: [], operations: [] };
   }
 
@@ -296,6 +336,32 @@ export function areaMembershipPlan({
             : { ...(defaultExpiry || { mode: "manual" }) },
         },
       });
+    }
+  }
+
+  if (trackedEffectIds.size) {
+    for (const item of Array.isArray(items) ? items : []) {
+      const targetId = String(item?.id || "").trim();
+      if (!targetId) continue;
+      for (const instance of conditionInstances(item, metaKey)) {
+        const instanceId = String(instance?.id || "").trim();
+        const effectId = String(instance?.effectId || "").trim();
+        if (
+          instance?.active === false
+          || !instanceId
+          || String(instance?.parentEffectId || "") !== parentEffectId
+          || !trackedEffectIds.has(effectId)
+          || expectedEffectIds.has(effectId)
+        ) continue;
+        currentMembers.add(targetId);
+        removals.push({
+          itemId: targetId,
+          instanceId,
+          ...(skipClassFeatureReconcile
+            ? { skipClassFeatureReconcile: true }
+            : {}),
+        });
+      }
     }
   }
 

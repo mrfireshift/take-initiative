@@ -30,7 +30,14 @@ import {
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
 import { QUICK_HP_FACTORS } from "./quickHpCore.js";
-import { spellSaveDamageFactor } from "./spellCastResolutionRules.js";
+import {
+  getSpellCastResolutionRule,
+  spellSaveDamageFactor,
+} from "./spellCastResolutionRules.js";
+import {
+  spellEffectConditionName,
+  spellEffectConditionOptions,
+} from "./spellEffectCore.js";
 
 export const SPELL_AREA_RESOLUTION_COMMAND_TYPE = "spell-area-resolution";
 
@@ -1241,6 +1248,12 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   }
 
   const workflowRule = isChainLightning ? null : getSpellSaveWorkflowRule(spellId);
+  const castResolutionRule = spell
+    ? getSpellCastResolutionRule(spell)
+    : null;
+  const directDamageCast = sourceKind === "cast"
+    && phase === "cast"
+    && castResolutionRule?.resolution === "manual-damage";
   const requestedAttackOutcome = normalizeAttackOutcome(
     sourceInput,
     session,
@@ -1332,7 +1345,36 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   );
 
   let resolutionResult = null;
-  if (spell && !attackRequired) {
+  if (spell && !attackRequired && directDamageCast) {
+    const postDamageEffects = Array.isArray(castResolutionRule?.postDamageEffects)
+      ? castResolutionRule.postDamageEffects
+      : [];
+    resolutionResult = {
+      valid: true,
+      errors: [],
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      concentration: spell.concentration === true,
+      casterId,
+      targetIds,
+      spellTargetIds: [...targetIds],
+      conditionApplications: postDamageEffects
+        .map((effect) => {
+          const conditionName = spellEffectConditionName(effect);
+          if (!conditionName) return null;
+          return {
+            targetIds: [...targetIds],
+            conditionName,
+            options: spellEffectConditionOptions(
+              effect,
+              { expiry: effect.expiry || { mode: "manual" } },
+              effect.parentEffectId || "",
+            ),
+          };
+        })
+        .filter(Boolean),
+    };
+  } else if (spell && !attackRequired) {
     const resolutionOutcomes = saveOutcomesRequired
       ? outcomes.byTarget
       : workflowRule?.manualSaveAtTable === true

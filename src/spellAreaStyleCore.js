@@ -38,7 +38,9 @@ const EXPLICIT_THEMES = new Map([
   ["xanathar-collera-della-natura", "nature"],
   ["xanathar-diavoletto-di-polvere", "earth"],
   ["xanathar-fulgore-nauseante", "radiant"],
+  ["xanathar-arma-sacra", "radiant"],
   ["xanathar-oscurita-della-follia", "darkness"],
+  ["xanathar-parola-radiosa", "radiant"],
   ["xanathar-sfera-al-vetriolo", "acid"],
   ["xanathar-spirito-guaritore", "nature"],
 ]);

@@ -362,10 +362,14 @@ function renderContext() {
       ? ""
       : failedOnlyDamage
         ? failedCondition ? " · solo se fallisce e viene trattenuto" : " · solo se fallisce"
+        : payload?.action?.damage?.onSave === "full"
+          ? " · pieno anche se supera"
         : payload?.action?.damage?.onSave === "half"
           ? " · metà se supera"
           : "";
-    $("singleSaveTitle").textContent = `${payload?.action?.label || "Tiro salvezza"}${ability ? ` · TS ${ability}` : ""}`;
+    $("singleSaveTitle").textContent = manualSave
+      ? String(payload?.action?.manualOutcomeLabel || "Esito al tavolo").trim()
+      : ability ? `TS ${ability}` : "Tiro salvezza";
     $("singleSaveDamageLabel").textContent = damageLabel ? `Danno ${damageLabel}${damageSuffix}` : "Danno";
   }
   $("damageLabel").textContent = callLightning
@@ -759,7 +763,9 @@ async function renderSingleSave() {
   for (const item of entries) select.appendChild(new Option(displayName(item), item.id));
   const requiredEffectId = String(payload?.action?.requiredTargetEffectId || "").trim();
   const requiredEffect = !!requiredEffectId;
-  const automaticRequiredTarget = requiredEffect && entries.length === 1;
+  const linkedTargetId = String(payload?.linkedTargetId || "").trim();
+  const automaticLinkedTarget = linkedTargetId && entries.some((entry) => entry.id === linkedTargetId);
+  const automaticRequiredTarget = (requiredEffect || automaticLinkedTarget) && entries.length === 1;
   selectedSaveTarget = automaticRequiredTarget
     ? entries[0].id
     : spellActiveResolutionSelectedTargetId(entries, currentPlayerSelection, previous);
@@ -771,7 +777,7 @@ async function renderSingleSave() {
   if (manualSave) saveOutcome = String(payload?.action?.assumedOutcome || "failed").trim() || "failed";
   const linkedTargetHint = String(payload?.action?.linkedTargetHint || "").trim();
   const maximilianLinkedTarget = requiredEffectId === "maximilian-earth-grasp-restrained";
-  $("saveTargetHint").textContent = requiredEffect
+  $("saveTargetHint").textContent = requiredEffect || automaticLinkedTarget
     ? entries.length === 1
       ? linkedTargetHint
         ? `Bersaglio: ${displayName(entries[0])} · ${linkedTargetHint}`
@@ -946,12 +952,14 @@ async function renderStorm() {
 function render() {
   if (!payload) return;
   renderContext();
-  $("title").textContent = payload.spellName || payload.spellId;
-  $("economy").textContent = economyLabel(payload.action.economy);
-  $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
   const child = childZone();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const singleSave = isSingleSave();
+  $("title").textContent = singleSave
+    ? payload.action?.buttonLabel || payload.action?.label || payload.spellName || payload.spellId
+    : payload.spellName || payload.spellId;
+  $("economy").textContent = economyLabel(payload.action.economy);
+  $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   const multiAttack = !save && !singleSave && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();

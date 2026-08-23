@@ -12,6 +12,89 @@ const damage = ({ formula, type, onSave = "none", baseSlot = 0, additionalPerSlo
   ...(additionalPerSlotAbove > 0 ? { additionalPerSlotAbove } : {}),
 });
 
+const HEAT_METAL_PENALTY_ACTION = freeze({
+  kind: "condition",
+  action: "apply",
+  targetId: "$target",
+  name: "Svant. attacchi e prove",
+  options: {
+    sourceId: "$source",
+    parentEffectId: "",
+    effectId: "heat-metal-penalty",
+    effectKind: "debuff",
+    effectDetail: "Svantaggio ai tiri per colpire e alle prove di caratteristica fino all'inizio del prossimo turno del caster.",
+    expiry: {
+      mode: "turn-start",
+      actor: "source",
+      remaining: 1,
+      anchor: "next-turn",
+    },
+  },
+});
+
+const HEAT_METAL_CONSTITUTION_SAVE_EFFECT = freeze({
+  id: "heat-metal-constitution-save",
+  label: "TS Costituzione",
+  detail: "Se il portatore non lascia cadere l'oggetto, effettua un TS Costituzione: solo un fallimento applica lo svantaggio.",
+  parentEffectId: "",
+  deferredEffects: [
+    {
+      id: "heat-metal-constitution-save",
+      timing: "immediate",
+      actor: "target",
+      reminder: "Effettua un TS Costituzione: se fallisce, subisce svantaggio ai tiri per colpire e alle prove di caratteristica.",
+      save: { ability: "con" },
+      resolution: {
+        outcomes: {
+          passed: { mode: "none" },
+          failed: { actions: [HEAT_METAL_PENALTY_ACTION] },
+          immune: { mode: "none" },
+        },
+      },
+    },
+  ],
+});
+
+export const HEAT_METAL_DROP_CHOICE_EFFECT = freeze({
+  id: "heat-metal-drop-choice",
+  label: "Scelta oggetto",
+  detail: "Dopo il danno, scegli se il portatore lascia cadere l'oggetto.",
+  parentEffectId: "",
+  deferredEffects: [
+    {
+      id: "heat-metal-drop-choice",
+      timing: "immediate",
+      actor: "target",
+      reminder: "Scegli: lascia cadere l'oggetto oppure non può / non lascia.",
+      resolution: {
+        mode: "choice",
+        choiceLabels: {
+          passed: "Lascia cadere",
+          failed: "Non può / non lascia",
+        },
+        outcomes: {
+          passed: { mode: "none" },
+          failed: {
+            actions: [{
+              kind: "condition",
+              action: "apply",
+              targetId: "$target",
+              name: HEAT_METAL_CONSTITUTION_SAVE_EFFECT.label,
+              options: {
+                sourceId: "$source",
+                parentEffectId: HEAT_METAL_CONSTITUTION_SAVE_EFFECT.parentEffectId,
+                effectId: HEAT_METAL_CONSTITUTION_SAVE_EFFECT.id,
+                effectDetail: HEAT_METAL_CONSTITUTION_SAVE_EFFECT.detail,
+                deferredEffects: HEAT_METAL_CONSTITUTION_SAVE_EFFECT.deferredEffects,
+              },
+            }],
+          },
+        },
+      },
+    },
+  ],
+});
+
 // Azioni ripetibili dopo il lancio. Il contratto è volutamente indipendente
 // dalla Console HP: il pannello usa soltanto questa dichiarazione per
 // esporre il comando e delega la risoluzione al popup dedicato.
@@ -293,20 +376,33 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
   "heat-metal": [
     {
       id: "heat-metal-repeat",
-      label: "Ripeti calore Â· 2d8 fuoco",
+      label: "Ripeti calore",
       buttonLabel: "Ripeti calore",
-      detail: "Risolvi il nuovo TS di Costituzione e applica, se necessario, lo svantaggio fino all'inizio del prossimo turno del caster.",
-      economy: "action",
-      resolutionKind: "single-attack",
+      detail: "Azione bonus: infliggi 2d8 danni da fuoco; dopo il danno il portatore decide se lasciare cadere l'oggetto.",
+      economy: "bonus-action",
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "single-save",
       subjectMode: "none",
       requiresTargets: false,
       requiresParentInstance: true,
       requiresZoneRoot: false,
       rangeOrigin: "caster",
       maxTargets: 1,
-      attack: { outcomes: ["hit", "miss"] },
-      damage: damage({ formula: "2d8", type: "fuoco", baseSlot: 2 }),
-      effectOn: "hit",
+      rememberTargets: true,
+      manualSaveAtTable: true,
+      assumedOutcome: "passed",
+      manualOutcomeLabel: "Danno",
+      save: { ability: "con", onSuccess: "none" },
+      damage: damage({
+        formula: "2d8",
+        type: "fuoco",
+        onSave: "full",
+        baseSlot: 2,
+        additionalPerSlotAbove: 1,
+      }),
+      postDamageEffects: [HEAT_METAL_DROP_CHOICE_EFFECT],
     },
   ],
   "arcane-sword": [
@@ -571,6 +667,8 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       resolutionKind: "save-area",
       subjectMode: "none",
       requiresTargets: false,
+      turnStartPrompt: true,
+      showInOverview: true,
       requiresParentInstance: true,
       requiresZoneRoot: false,
       availableAfterCast: true,
@@ -586,7 +684,6 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       failureEffects: [
         {
           id: "holy-weapon-blinded",
-          kind: "debuff",
           label: "Accecato",
           detail: "Accecato per 1 minuto. Alla fine di ogni turno, TS Costituzione per terminare l'effetto.",
           expiry: { mode: "rounds", remaining: 10 },

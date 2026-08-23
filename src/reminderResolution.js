@@ -260,14 +260,33 @@ function reminderCausality(notice, plan) {
 
   return buildSpellCausality({
     eventType: "reminder-resolution",
-    spellId: notice?.spellId || effect?.spellId || resolution.spellId || effect.spellId,
-    spellName: notice?.spellName || effect?.spellName || notice?.effectName || resolution.spellName || effect.spellName,
-    instanceId: notice?.instanceId || effect.instanceId,
+    spellId: notice?.spellId
+      || effect?.spellId
+      || resolution.spellId
+      || effect.spellId
+      || activation.spellId,
+    spellName: notice?.spellName
+      || effect?.spellName
+      || resolution.spellName
+      || effect.spellName
+      || activation.spellName,
+    instanceId: notice?.instanceId || effect.instanceId || activation.instanceId,
     slotLevel: notice?.slotLevel || resolution.slotLevel || effect.slotLevel,
     phase: notice?.phase || resolution.phase,
-    casterId: notice?.casterId || plan?.sourceId || resolution.source?.id,
-    casterName: notice?.casterName || notice?.sourceName || resolution.source?.name,
-    actorRole: notice?.casterId ? "caster" : "source",
+    casterId: notice?.casterId
+      || plan?.sourceId
+      || resolution.source?.id
+      || activation.casterId,
+    casterName: notice?.casterName
+      || notice?.sourceName
+      || resolution.source?.name
+      || activation.casterName,
+    actorRole: notice?.casterId
+      || notice?.casterName
+      || activation.casterId
+      || activation.casterName
+      ? "caster"
+      : "source",
     targets: [{
       id: plan?.targetId,
       name: target?.name,
@@ -280,7 +299,7 @@ function reminderCausality(notice, plan) {
     action,
     damageRoll: actionDamageRoll,
     concentrationAction,
-    concentrationInstanceId: effect.instanceId || notice?.instanceId,
+    concentrationInstanceId: effect.instanceId || notice?.instanceId || activation.instanceId,
     zone: activation.kind === "zone"
       ? {
         action: "resolve",
@@ -293,26 +312,84 @@ function reminderCausality(notice, plan) {
 }
 
 function formatReminderResolutionLabel({ notice, plan }) {
-  const effect = notice?.resolution?.effect || {};
+  const resolution = notice?.resolution && typeof notice.resolution === "object"
+    ? notice.resolution
+    : {};
+  const effect = resolution.effect || {};
+  const meaningfulName = (...values) => {
+    for (const value of values) {
+      const candidate = String(value || "").trim();
+      if (!candidate) continue;
+      const normalized = candidate.toLocaleLowerCase("it-IT").replace(/\s+/gu, " ");
+      if (!["incantesimo", "promemoria", "tiro salvezza"].includes(normalized)) return candidate;
+    }
+    return "";
+  };
+  const spellName = meaningfulName(
+    notice?.spellName,
+    effect?.spellName,
+    effect?.provenance?.spellName,
+    resolution?.spellName,
+    resolution?.activation?.spellName,
+  );
   const rawName = String(
-    notice?.spellName
-    || effect?.spellName
+    spellName
     || notice?.effectName
-    || ""
+    || "",
   ).trim();
+  const namedSubject = meaningfulName(rawName);
   const isInternalId = !rawName
     || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawName)
     || /^cond-inst-/i.test(rawName)
     || /^spell-inst-/i.test(rawName);
+  const activationKind = String(resolution?.activation?.kind || "").trim().toLowerCase();
+  const hasConcentrationAction = Object.values(resolution?.outcomes || {}).some((outcome) =>
+    Array.isArray(outcome?.actions)
+      && outcome.actions.some((action) => String(action?.kind || "").trim().toLowerCase() === "concentration")
+  );
+  const isConcentration = activationKind === "concentration-save" || hasConcentrationAction;
+  const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== "";
+  const hasSpellIdentity = Boolean(
+    spellName
+    || notice?.spellId
+    || effect?.spellId
+    || effect?.provenance?.spellId
+    || resolution?.spellId
+    || hasValue(notice?.slotLevel)
+    || hasValue(effect?.slotLevel)
+    || hasValue(resolution?.slotLevel)
+  );
   const isSave = !!(
     notice?.ability
     || notice?.saveLabel
     || plan?.save
+    || resolution?.save?.ability
     || notice?.kind === "effect-save"
+    || isConcentration
   );
+  const isAreaReminder = !isConcentration && activationKind === "zone" && isSave;
+  const isSpellReminder = !isConcentration && !isAreaReminder && (
+    hasSpellIdentity
+    || ["zone", "zone-effect"].includes(String(notice?.kind || ""))
+    || activationKind === "zone"
+  );
+  const hasNamedSubject = !isInternalId && Boolean(namedSubject);
   const humanName = isInternalId
-    ? (isSave ? "Tiro salvezza" : "Promemoria")
-    : rawName;
+    ? (isConcentration
+      ? "Concentrazione"
+      : isAreaReminder
+        ? "Permanenza area"
+        : isSpellReminder
+          ? "Incantesimo"
+          : (isSave ? "Tiro salvezza" : "Promemoria"))
+    : namedSubject;
+  const labelName = isConcentration
+    ? `Concentrazione${hasNamedSubject ? `: ${namedSubject}` : ""}`
+    : isAreaReminder
+      ? `Permanenza area${hasNamedSubject ? `: ${namedSubject}` : ""}`
+    : isSpellReminder
+      ? `Incantesimo${hasNamedSubject ? `: ${namedSubject}` : ""}`
+      : humanName;
   const outcome = plan?.outcome;
   const outcomeText = {
     passed: isSave ? "TS superato" : "Superato",
@@ -320,7 +397,7 @@ function formatReminderResolutionLabel({ notice, plan }) {
     immune: "Immune",
     confirmed: "Confermato",
   }[outcome] || (plan?.resolutionMode === "consume" ? "Chiuso" : outcome || "Risolto");
-  return `${humanName} · ${outcomeText}`;
+  return `${labelName} · ${outcomeText}`;
 }
 
 async function completeReminderResolution({

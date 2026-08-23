@@ -63,6 +63,19 @@ test("le attivazioni offensive usano il popup dedicato e Sfera richiede la radic
   assert.equal(callLightningActions[0].buttonLabel, "Invoca fulmine");
   assert.equal(callLightningActions[0].turnStartPrompt, true);
 
+  const holyWeapon = getSpellDefinition("Arma Sacra");
+  const holyWeaponActions = getSpellOverviewActions({
+    spell: holyWeapon,
+    casterId: "caster",
+    targetIds: [],
+  });
+  assert.deepEqual(holyWeaponActions.map((action) => action.id), [
+    "holy-weapon-dismiss",
+  ]);
+  assert.equal(holyWeaponActions[0].turnStartPrompt, true);
+  assert.equal(holyWeaponActions[0].showInOverview, true);
+  assert.equal(holyWeaponActions[0].availableAfterCast, true);
+
   const flame = getSpellDefinition("Investitura della Fiamma");
   const flameSameTurn = getSpellOverviewActions({
     spell: flame,
@@ -176,15 +189,36 @@ test("Investitura del Ghiaccio richiede i falliti selezionati e prepara il dimez
   });
 });
 
-test("Riscaldare il Metallo applica il debuff temporaneo al solo portatore selezionato", () => {
+test("Riscaldare il Metallo delega la riattivazione al resolver single-save", () => {
   const spell = getSpellDefinition("heat-metal");
+  const sameTurnActions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+    appliedAt: { turnKey: "4:0:caster" },
+    currentTurnKey: "4:0:caster",
+  });
+  assert.equal(sameTurnActions.length, 1);
+  assert.equal(sameTurnActions[0].unavailableReason, "Disponibile dal turno successivo al lancio.");
+
+  const nextTurnActions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+    appliedAt: { turnKey: "4:0:caster" },
+    currentTurnKey: "5:0:caster",
+  });
+  assert.equal(nextTurnActions.length, 1);
+  assert.equal(nextTurnActions[0].unavailableReason, undefined);
+
   const overviewActions = getSpellOverviewActions({
     spell,
     casterId: "caster",
   });
   assert.equal(overviewActions.filter((action) => action.id === "heat-metal-repeat").length, 1);
-  assert.equal(overviewActions[0].resolutionKind, "single-attack");
-  assert.equal(overviewActions[0].effects[0].label, "Svant. attacchi e prove");
+  assert.equal(overviewActions[0].resolutionKind, "single-save");
+  assert.equal(overviewActions[0].economy, "bonus-action");
+  assert.equal(overviewActions[0].turnStartPrompt, true);
+  assert.equal(overviewActions[0].availableAfterCast, true);
+  assert.equal(overviewActions[0].postDamageEffects[0].label, "Scelta oggetto");
   const plan = buildSpellActiveActionPlan({
     spell,
     actionId: "heat-metal-repeat",
@@ -195,15 +229,9 @@ test("Riscaldare il Metallo applica il debuff temporaneo al solo portatore selez
   });
 
   assert.equal(plan.valid, true);
-  assert.equal(plan.operations[0].conditionName, "Svant. attacchi e prove");
-  assert.deepEqual(plan.operations[0].targetIds, ["target"]);
-  assert.equal(plan.operations[0].options.parentEffectId, "cast-1");
-  assert.deepEqual(plan.operations[0].options.expiry, {
-    mode: "turn-start",
-    actor: "source",
-    remaining: 1,
-    anchor: "next-turn",
-  });
+  assert.equal(plan.delegatedResolution, true);
+  assert.equal(plan.resolutionKind, "single-save");
+  assert.deepEqual(plan.operations, []);
 });
 
 test("Sguardo Penetrante delega TS superato e le tre varianti al resolver single-save dedicato", () => {
@@ -306,6 +334,26 @@ test("le zone mobili non espongono piÃ¹ un'azione di spostamento", () => {
 
 test("Controllare Venti prepara il cambio di modalità della zona senza inventare effetti sui token", () => {
   const spell = getSpellDefinition("xanathar-controllare-venti");
+  const overviewActions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+    targetIds: ["caster"],
+    zoneItemId: "winds-root",
+  });
+  assert.deepEqual(
+    overviewActions.map((action) => action.id),
+    [
+      "control-winds-gusts",
+      "control-winds-downdraft",
+      "control-winds-updraft",
+      "control-winds-pause",
+    ],
+  );
+  assert.ok(overviewActions.every((action) => (
+    action.economy === "action"
+    && action.turnStartPrompt === true
+    && action.showInOverview === true
+  )));
   const plan = buildSpellActiveActionPlan({
     spell,
     actionId: "control-winds-downdraft",

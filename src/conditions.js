@@ -184,6 +184,9 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.effectKind === "buff" || value.effectKind === "debuff") {
     instance.effectKind = value.effectKind;
   }
+  if (value.displayLabel) {
+    instance.displayLabel = String(value.displayLabel);
+  }
   if (value.magical === true) instance.magical = true;
   if (value.resourceDie) instance.resourceDie = String(value.resourceDie).trim();
   if (value.effectDetail) instance.effectDetail = String(value.effectDetail);

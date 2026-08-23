@@ -202,6 +202,7 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.effectKind === "buff" || options.effectKind === "debuff") {
     instance.effectKind = options.effectKind;
   }
+  if (options.displayLabel) instance.displayLabel = String(options.displayLabel);
   if (options.magical === true) instance.magical = true;
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);
   if (options.theme && typeof options.theme === "object") {

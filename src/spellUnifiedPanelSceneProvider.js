@@ -445,7 +445,7 @@ export async function getSpellAreaSpatialValidation(
   }
 
   const rule = spell ? getSpellSaveWorkflowRule(spell.id) : null;
-  const spatial = rule?.targeting?.spatial;
+  const spatial = rule?.targeting?.spatial || spell?.targeting?.spatial;
   if (!spatial) return {};
   const geometry = await sceneGeometry(
     obr,
@@ -584,10 +584,26 @@ export async function validateSpellAreaSceneSpatial(
     return { valid: result.valid, errors: [...result.errors] };
   }
   const workflowRule = spell ? getSpellSaveWorkflowRule(spell.id) : null;
-  if (!workflowRule?.targeting?.spatial) return { valid: true, errors: [] };
+  const spellSpatial = spell?.targeting?.spatial && typeof spell.targeting.spatial === "object"
+    ? spell.targeting.spatial
+    : null;
+  const targetingRule = workflowRule?.targeting?.spatial
+    ? workflowRule
+    : spellSpatial
+      ? {
+        spellId: spell.id,
+        targeting: {
+          baseMaximum: 1,
+          additionalPerSlotAbove: 0,
+          baseSlot: 1,
+          spatial: spellSpatial,
+        },
+      }
+      : null;
+  if (!targetingRule) return { valid: true, errors: [] };
   const result = resolveSpellSaveTargeting({
     spellId: spell.id,
-    rule: workflowRule,
+    rule: targetingRule,
     slotLevel: command?.spell?.slotLevel,
     targetIds: uniqueSceneIds(targetIds),
     choiceValue: command?.spell?.choiceValue,
