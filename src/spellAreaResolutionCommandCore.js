@@ -11,7 +11,10 @@ import {
   getSpellDefinition,
 } from "./spells-srd.js";
 import { getSpellSaveWorkflowRule } from "./spellSaveWorkflowRules.js";
-import { getSpellSaveTargetMaximum } from "./spellSaveTargetingCore.js";
+import {
+  applyTargetingLimitState,
+  resolveTargetingCapacity,
+} from "./spellTargetingCapacityCore.js";
 import {
   getSpellAreaRuleForPlacement,
   getSpellAreaRuleById,
@@ -38,6 +41,9 @@ import {
   spellEffectConditionName,
   spellEffectConditionOptions,
 } from "./spellEffectCore.js";
+import {
+  spellPhaseAttackOutcomeRequired,
+} from "./spellCastPhaseCore.js";
 
 export const SPELL_AREA_RESOLUTION_COMMAND_TYPE = "spell-area-resolution";
 
@@ -88,6 +94,8 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
   PLACEMENT_TARGETS_MISSING: "placement-targets-missing",
   PLACEMENT_TARGET_NOT_CANDIDATE: "placement-target-not-candidate",
   PLACEMENT_LOCK_REQUIRED: "placement-target-lock-required",
+  PLACEMENT_ANCHOR_REQUIRED: "placement-anchor-required",
+  PLACEMENT_ANCHOR_MISMATCH: "placement-anchor-mismatch",
   PLACEMENT_STALE: "placement-stale",
   PLACEMENT_POSITION_REQUIRED: "placement-position-required",
   COMPOSITION_REQUIRED: "composition-required",
@@ -116,10 +124,6 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
 const SOURCE_KIND_SET = new Set(SPELL_AREA_RESOLUTION_SOURCE_KINDS);
 const OUTCOME_SET = new Set(Object.values(SAVE_SPELL_OUTCOMES));
 const ATTACK_OUTCOME_SET = new Set(["hit", "miss", "critical"]);
-const PREPARED_AREA_HIT_SPELL_IDS = new Set([
-  "phb2014-raffica-di-spine",
-  "phb2014-freccia-folgorante",
-]);
 const PLACEMENT_POLICY_SET = new Set(Object.values(SPELL_PANEL_PLACEMENT_POLICIES));
 
 const text = (value) => String(value ?? "").trim();
@@ -349,6 +353,15 @@ function placementPayload(value) {
   const preview = result.preview && typeof result.preview === "object"
     ? result.preview
     : null;
+  const context = result.context && typeof result.context === "object"
+    ? result.context
+    : null;
+  const anchorTargetId = text(firstDefined(
+    result.anchorTargetId,
+    preview?.anchorTargetId,
+    context?.anchorTargetId,
+    "",
+  ));
   return {
     raw: result,
     preview,
@@ -382,6 +395,7 @@ function placementPayload(value) {
       ...(Array.isArray(result.targetIds) ? result.targetIds : []),
       ...(Array.isArray(preview?.targetIds) ? preview.targetIds : []),
     ]),
+    ...(anchorTargetId ? { anchorTargetId } : {}),
     previewSnapshot: preview ? normalizePreview(preview) : null,
   };
 }
@@ -401,6 +415,8 @@ function normalizePreview(value) {
     "widthSquares",
     "parentClip",
     "targetIds",
+    "anchorTargetId",
+    "anchorOrigin",
   ]) {
     if (value[key] !== undefined) preview[key] = serializable(value[key]);
   }
@@ -468,6 +484,7 @@ function placementSnapshot(payload, {
     spellId: text(rule?.spellId || payload?.spellId || spellId),
     casterId: text(payload?.casterId || casterId) || null,
     ruleChoice: text(payload?.ruleChoice || rule?.placementChoice || choiceValue) || null,
+    ...(payload?.anchorTargetId ? { anchorTargetId: payload.anchorTargetId } : {}),
     preview: payload?.previewSnapshot || null,
     targetIds: uniqueIds(targetIds),
   };
@@ -709,7 +726,14 @@ function chainSpatialSnapshot(input, primaryTargetId, targetIds) {
   };
 }
 
-function chainTargeting({ input, slotLevel, primaryTargetId, targetIds, errors }) {
+function chainTargeting({
+  input,
+  slotLevel,
+  primaryTargetId,
+  targetIds,
+  errors,
+  ignoreTargetLimit = false,
+}) {
   const spatial = chainSpatialSnapshot(input, primaryTargetId, targetIds);
   const result = resolveChainLightningTargeting({
     spellId: CHAIN_LIGHTNING_TARGETING.spellId,
@@ -719,17 +743,51 @@ function chainTargeting({ input, slotLevel, primaryTargetId, targetIds, errors }
     primaryDistanceMeters: spatial.primaryDistanceMeters,
     secondaryDistancesMeters: spatial.secondaryDistancesMeters,
     validateDistances: input.validateSpatial !== false,
+    ignoreTargetLimit,
   });
   addErrors(errors, result.errors);
   return result;
 }
 
-function targetLimit(contract, slotLevel, chainResult, workflowRule) {
-  if (chainResult) return chainResult.maximumTargets;
-  if (workflowRule) return getSpellSaveTargetMaximum(workflowRule, slotLevel);
-  const maximum = contract?.presentation?.targeting?.limit?.maximum;
-  if (maximum === null || maximum === undefined || text(maximum) === "") return null;
-  return Number.isInteger(Number(maximum)) ? Number(maximum) : null;
+function targetingCapacity({
+  contract,
+  slotLevel,
+  chainResult,
+  workflowRule,
+  targetIds,
+  ignoreTargetLimit = false,
+}) {
+  if (chainResult) {
+    return applyTargetingLimitState({
+      maximum: chainResult.maximumTargets,
+      effectiveMaximum: chainResult.effectiveMaximumTargets,
+      baseMaximum: contract?.presentation?.targeting?.limit?.baseMaximum,
+      additionalPerSlotAbove: contract?.presentation?.targeting?.limit?.additionalPerSlotAbove,
+      baseSlot: contract?.presentation?.targeting?.limit?.baseSlot,
+      source: "chain-lightning-targeting",
+      classification: contract?.presentation?.targeting?.limit?.classification,
+      bypassable: true,
+    }, {
+      ignoreTargetLimit,
+      targetIds,
+    });
+  }
+  if (workflowRule) {
+    return resolveTargetingCapacity({
+      mode: "discrete",
+      declaration: workflowRule,
+      slotLevel,
+      targetIds,
+      ignoreTargetLimit,
+      initialTargeting: true,
+      defaultDiscreteTargeting: false,
+      source: "save-workflow",
+    });
+  }
+  return applyTargetingLimitState(
+    contract?.presentation?.targeting?.limit || {},
+    { ignoreTargetLimit, targetIds },
+  );
 }
 
 function normalizeHp(
@@ -813,8 +871,10 @@ function normalizeHp(
     || text(primaryDamageValue) === ""
     ? null
     : finiteOrNull(primaryDamageValue);
-  const primaryDamageRequired = spell?.id === "phb2014-freccia-folgorante"
-    && text(contract?.presentation?.phase?.selected) === "resolve";
+  const primaryDamageMode = text(
+    contract?.presentation?.phase?.plan?.attack?.primaryDamageMode,
+  );
+  const primaryDamageRequired = contract?.presentation?.inputs?.primaryDamage?.required === true;
   if (primaryDamageRequired && !primaryDamageProvided && !legacyPreparedArea) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_DAMAGE_REQUIRED);
   }
@@ -849,8 +909,11 @@ function normalizeHp(
     amount: amount === null ? null : Math.floor(amount),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
     primaryRequired: primaryDamageRequired,
+    ...(primaryDamageMode ? { primaryDamageMode } : {}),
     primaryTargetId: text(primaryTargetId),
-    primaryOutcomeFactor: attackOutcome === "miss"
+    primaryOutcomeFactor: primaryDamageMode === "final-applied"
+      ? QUICK_HP_FACTORS.FULL
+      : attackOutcome === "miss"
       ? QUICK_HP_FACTORS.HALF
       : QUICK_HP_FACTORS.FULL,
     outcomeFactors,
@@ -1132,6 +1195,10 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PREPARED_INSTANCE_REQUIRED);
   }
 
+  const ignoreTargetLimit = sourceInput.ignoreTargetLimit !== undefined
+    ? sourceInput.ignoreTargetLimit === true
+    : session.ignoreTargetLimit === true;
+
   const activeAction = selectedActionFor(contract, actionId);
   if (actionId && !activeAction) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ACTIVE_ACTION_INVALID);
   if (contract?.execution?.selectedActionId
@@ -1184,6 +1251,19 @@ export function buildSpellAreaResolutionCommand(input = {}) {
 
   const targetingContract = contract?.presentation?.targeting || {};
   const targetMode = text(targetingContract.mode) || SPELL_UNIFIED_TARGETING_MODES.NONE;
+  const phasePlan = contract?.presentation?.phase?.plan || null;
+  const phaseAttack = phasePlan?.attack || null;
+  const areaAnchor = text(targetingContract.areaAnchor || phaseAttack?.areaAnchor);
+  const primaryDamageMode = text(phaseAttack?.primaryDamageMode);
+  const preparedAttackOutcomeRequired = sourceKind === "prepared-resolution"
+    && phase === "resolve"
+    && spellPhaseAttackOutcomeRequired(phasePlan);
+  const primaryTargetArea = phase === "resolve" && areaAnchor === "primary-target";
+  const optionalPreparedAttackOutcome = sourceKind === "prepared-resolution"
+    && phase === "resolve"
+    && primaryTargetArea
+    && phaseAttack?.outcomeRequired === false
+    && primaryDamageMode !== "final-applied";
   const rawTargetIds = normalizeTargetIds(sourceInput, session);
   const rawTargetContexts = firstDefined(
     sourceInput.targetContexts,
@@ -1282,8 +1362,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const explicitAttackOutcome = hasProvidedValue(sourceInput.attackOutcome)
     || hasProvidedValue(sourceInput.attack?.outcome)
     || hasProvidedValue(session.attackOutcome);
-  const legacyPreparedArea = sourceKind === "prepared-resolution"
-    && PREPARED_AREA_HIT_SPELL_IDS.has(spellId)
+  const legacyPreparedArea = optionalPreparedAttackOutcome
     && !explicitAttackOutcome;
   let primaryTargetId = text(firstDefined(
     sourceInput.primaryTargetId,
@@ -1294,7 +1373,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const isChainLightning = spellId === CHAIN_LIGHTNING_TARGETING.spellId;
   const requiresPrimary = targetingContract.primaryTarget?.required === true
     || isChainLightning
-    || (phase === "resolve" && PREPARED_AREA_HIT_SPELL_IDS.has(spellId));
+    || primaryTargetArea;
   if (requiresPrimary && !primaryTargetId && !legacyPreparedArea) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_REQUIRED);
   } else if (requiresPrimary && !primaryTargetId && legacyPreparedArea) {
@@ -1302,6 +1381,14 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   }
   if (primaryTargetId && !targetIds.includes(primaryTargetId)) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_NOT_SELECTED);
+  }
+  if (primaryTargetArea && placement.payload && placementIsConfirmed(placement.payload)) {
+    const anchorTargetId = text(placement.payload.anchorTargetId);
+    if (!anchorTargetId) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_ANCHOR_REQUIRED);
+    } else if (!primaryTargetId || anchorTargetId !== primaryTargetId) {
+      addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PLACEMENT_ANCHOR_MISMATCH);
+    }
   }
   if (new Set(targetIds).size !== targetIds.length) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.DUPLICATE_TARGETS);
@@ -1314,11 +1401,9 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   const directDamageCast = sourceKind === "cast"
     && phase === "cast"
     && castResolutionRule?.resolution === "manual-damage";
-  const requestedAttackOutcome = normalizeAttackOutcome(
-    sourceInput,
-    session,
-    outcomesInput,
-  );
+  const requestedAttackOutcome = primaryDamageMode === "final-applied"
+    ? null
+    : normalizeAttackOutcome(sourceInput, session, outcomesInput);
   const attackResolution = spell
     ? getSpellAttackResolution(
       spell,
@@ -1333,12 +1418,21 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       primaryTargetId,
       targetIds,
       errors,
+      ignoreTargetLimit,
     })
     : null;
-  const maximumTargets = targetLimit(contract, slotLevel, chainResult, workflowRule);
-  if (maximumTargets !== null && targetIds.length > maximumTargets) {
+  const targetCapacity = targetingCapacity({
+    contract,
+    slotLevel,
+    chainResult,
+    workflowRule,
+    targetIds,
+    ignoreTargetLimit,
+  });
+  if (targetCapacity.exceeded) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TARGET_LIMIT);
   }
+  addErrors(errors, targetCapacity.errors);
   const ruleKind = placement.rule?.kind;
   const nonConfirmedZoneAllowsEmptyTargets = ruleKind === "zone"
     && targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
@@ -1361,17 +1455,18 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   validateTargetContexts(contract, workflowRule, targetIds, targetContexts, errors);
 
   const attackChoice = text(choiceValue).toLocaleLowerCase("it");
-  let attackOutcome = attackResolution
+  let attackOutcome = primaryDamageMode === "final-applied"
+    ? null
+    : attackResolution
     ? requestedAttackOutcome
       || (ATTACK_OUTCOME_SET.has(attackChoice) ? attackChoice : null)
     : requestedAttackOutcome;
-  const preparedAttackRequired = sourceKind === "prepared-resolution"
-    && phase === "resolve"
-    && contract?.presentation?.phase?.plan?.attack?.required === true;
-  if (preparedAttackRequired && !attackOutcome && legacyPreparedArea) attackOutcome = "hit";
+  if ((preparedAttackOutcomeRequired || optionalPreparedAttackOutcome)
+    && !attackOutcome
+    && legacyPreparedArea) attackOutcome = "hit";
   const attackRequired = activeAction?.capabilities?.attack === true
     || !!attackResolution
-    || preparedAttackRequired;
+    || preparedAttackOutcomeRequired;
   if (attackRequired && !attackOutcome && !legacyPreparedArea) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ATTACK_OUTCOME_REQUIRED);
   }
@@ -1484,6 +1579,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
         ?? {},
       validateSpatial: sourceInput.validateSpatial !== false,
       targetContexts,
+      ignoreTargetLimit,
     });
     addErrors(errors, resolutionResult.errors);
   }
@@ -1559,9 +1655,12 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       ].includes(targetMode) ? targetMode : SPELL_UNIFIED_TARGETING_MODES.NONE,
       targetIds,
       primaryTargetId: primaryTargetId || null,
+      ...(areaAnchor ? { areaAnchor } : {}),
       targetContexts,
       locked,
       spatialValidation,
+      ignoreTargetLimit,
+      capacity: targetCapacity,
     },
     placement: placement.commandPlacement,
     outcomes: {

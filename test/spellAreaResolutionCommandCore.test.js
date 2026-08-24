@@ -21,7 +21,12 @@ function placement({
   status = "confirmed",
   sceneEpoch,
   boardToken = false,
+  anchorTargetId,
 } = {}) {
+  const effectiveAnchorTargetId = anchorTargetId
+    ?? (["phb2014-raffica-di-spine", "phb2014-freccia-folgorante"].includes(spellId)
+      ? targetIds[0]
+      : "");
   return {
     status,
     spellId,
@@ -34,8 +39,15 @@ function placement({
         end: { x: 3, y: 0 },
         gridOrigin: { x: 0, y: 0 },
       }),
+      ...(effectiveAnchorTargetId
+        ? {
+          anchorTargetId: effectiveAnchorTargetId,
+          anchorOrigin: { x: 0, y: 0 },
+        }
+        : {}),
       targetIds,
     },
+    ...(effectiveAnchorTargetId ? { anchorTargetId: effectiveAnchorTargetId } : {}),
   };
 }
 
@@ -457,7 +469,7 @@ test("Raffica di Spine lega l'area al primary target e il miss lascia pending", 
   assert.equal(miss.hp.mode, "none");
 });
 
-test("Freccia Folgorante separa primary damage, area e fattore miss", () => {
+test("Freccia Folgorante usa il primary finale senza esito attack", () => {
   const command = buildSpellAreaResolutionCommand({
     contract: contract("phb2014-freccia-folgorante", "resolve"),
     spellId: "phb2014-freccia-folgorante",
@@ -467,7 +479,6 @@ test("Freccia Folgorante separa primary damage, area e fattore miss", () => {
     slotLevel: 3,
     primaryTargetId: "target-a",
     primaryDamageAmount: 16,
-    attackOutcome: "miss",
     targetIds: ["target-a", "target-b"],
     outcomes: { "target-a": "failed", "target-b": "passed" },
     placement: placement({
@@ -480,12 +491,79 @@ test("Freccia Folgorante separa primary damage, area e fattore miss", () => {
 
   assert.equal(command.valid, true, command.errors?.join(", "));
   assert.equal(command.targeting.primaryTargetId, "target-a");
-  assert.equal(command.outcomes.attack, "miss");
+  assert.equal(command.outcomes.attack, undefined);
   assert.equal(command.hp.primaryAmount, 16);
-  assert.equal(command.hp.primaryOutcomeFactor, "half");
+  assert.equal(command.hp.primaryOutcomeFactor, "full");
+  assert.equal(command.hp.primaryDamageMode, "final-applied");
   assert.equal(command.hp.amount, 8);
   assert.equal(command.hp.outcomeFactors["target-a"], "full");
   assert.equal(command.hp.outcomeFactors["target-b"], "half");
+});
+
+test("Freccia Folgorante richiede primario, danno finale e anchor coerente", () => {
+  const base = {
+    contract: contract("phb2014-freccia-folgorante", "resolve"),
+    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
+    casterId,
+    slotLevel: 3,
+    targetIds: ["target-a", "target-b"],
+    outcomes: { "target-a": "failed", "target-b": "passed" },
+    hpAmount: 8,
+    placement: placement({
+      spellId: "phb2014-freccia-folgorante",
+      ruleId: "phb2014-freccia-folgorante:cast",
+      targetIds: ["target-a", "target-b"],
+    }),
+  };
+  const missingPrimary = buildSpellAreaResolutionCommand({
+    ...base,
+    primaryDamageAmount: 13,
+    primaryTargetId: "",
+  });
+  assert.equal(missingPrimary.valid, false);
+  hasError(missingPrimary, "primary-required");
+
+  const missingDamage = buildSpellAreaResolutionCommand({
+    ...base,
+    primaryTargetId: "target-a",
+  });
+  assert.equal(missingDamage.valid, false);
+  hasError(missingDamage, "primary-damage-required");
+
+  const mismatch = buildSpellAreaResolutionCommand({
+    ...base,
+    primaryTargetId: "target-a",
+    primaryDamageAmount: 13,
+    placement: placement({
+      spellId: "phb2014-freccia-folgorante",
+      ruleId: "phb2014-freccia-folgorante:cast",
+      targetIds: ["target-a", "target-b"],
+      anchorTargetId: "target-b",
+    }),
+  });
+  assert.equal(mismatch.valid, false);
+  hasError(mismatch, "placement-anchor-mismatch");
+});
+
+test("Freccia Folgorante trasporta primary damage numerico pari a zero", () => {
+  const command = buildSpellAreaResolutionCommand({
+    contract: contract("phb2014-freccia-folgorante", "resolve"),
+    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
+    casterId,
+    slotLevel: 3,
+    primaryTargetId: "target-a",
+    primaryDamageAmount: 0,
+    targetIds: ["target-a"],
+    outcomes: { "target-a": "failed" },
+    placement: placement({
+      spellId: "phb2014-freccia-folgorante",
+      ruleId: "phb2014-freccia-folgorante:cast",
+      targetIds: ["target-a"],
+    }),
+    hpAmount: 8,
+  });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.primaryAmount, 0);
 });
 
 test("zone trigger valido è precompilato ma non consumato", () => {

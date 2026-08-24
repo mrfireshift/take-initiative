@@ -34,7 +34,7 @@ test("Arma Sacra conserva Accecato come Condition nativa", () => {
   assert.equal(part.effectKind, undefined);
 });
 
-test("Lentezza proietta sei summary parts su una sola effect instance", () => {
+test("Lentezza proietta cinque summary parts su una sola effect instance", () => {
   const [part] = getConditionWidgetLayoutParts({
     instances: [{
       id: "slow-effect",
@@ -48,14 +48,13 @@ test("Lentezza proietta sei summary parts su una sola effect instance", () => {
 
   assert.equal(part.key, "spell-effect:slow-effect");
   assert.equal(part.parentEffectId, "slow-cast");
-  assert.equal(part.summaryParts.length, 6);
+  assert.equal(part.summaryParts.length, 5);
   assert.deepEqual(part.summaryParts.map(({ label }) => label), [
     "Vel ½",
     "CA −2 / TS Des −2",
     "No reaz.",
     "Azione o Bonus",
     "Max 1 att.",
-    "Spell 1 az.: d20",
   ]);
 });
 

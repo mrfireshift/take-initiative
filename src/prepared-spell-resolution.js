@@ -32,7 +32,6 @@ const eyebrow = document.getElementById("eyebrow");
 const title = document.getElementById("spellName");
 const caster = document.getElementById("casterName");
 const choice = document.getElementById("resolutionChoice");
-const attackOutcome = document.getElementById("attackOutcome");
 const saveOutcome = document.getElementById("saveOutcome");
 const damageValue = document.getElementById("damageValue");
 const status = document.getElementById("status");
@@ -113,30 +112,26 @@ function updateResolvePresentation() {
   const phasePlan = spell
     ? getSpellCastPhasePlan(spell, "resolve", currentGroup.castContext || {})
     : null;
-  const attackRequired = phasePlan?.attack?.required === true;
   const damageRequired = !!phasePlan?.resolution?.mechanics?.damageBonus;
-  const attackMissing = !manual && attackRequired && !String(attackOutcome.value || "").trim();
   const damageMissing = !manual
     && damageRequired
-    && attackOutcome.value !== "miss"
     && !String(damageValue.value || "").trim();
-  damageValue.disabled = !damageRequired || attackOutcome.value === "miss";
+  const targetMissing = !manual && currentTargetIds.length === 0;
+  damageValue.disabled = !damageRequired;
   resolveButton.disabled = !sceneLifecycle.isReady()
-    || resolving || !currentGroup || presentation.disabled || attackMissing || damageMissing;
+    || resolving || !currentGroup || presentation.disabled || targetMissing || damageMissing;
   resolveButton.textContent = resolving
     ? manual ? "Attivazione…" : "Risoluzione…"
-    : presentation.text;
-  resolveButton.title = presentation.title;
+    : manual ? presentation.text : "Risolvi";
+  resolveButton.title = manual ? presentation.title : "";
   if (manual && action.subjectMode === "caster") {
     status.textContent = "Pronto sul caster";
-  } else if (attackMissing) {
-    status.textContent = "Conferma l'esito dell'attacco.";
+  } else if (targetMissing) {
+    status.textContent = "Seleziona un bersaglio prima di continuare.";
   } else if (damageMissing) {
-    status.textContent = "Inserisci il danno extra già tirato.";
+    status.textContent = "Inserisci il danno extra prima di continuare.";
   } else {
-    status.textContent = currentTargetIds.length
-      ? presentation.title
-      : "Seleziona il bersaglio sul tabellone";
+    status.textContent = "";
   }
 }
 
@@ -158,26 +153,19 @@ function updateManualResolutionControls(group) {
   const phasePlan = group && spell
     ? getSpellCastPhasePlan(spell, "resolve", group.castContext || {})
     : null;
-  const attackRequired = phasePlan?.attack?.required === true;
-  setOptions(attackOutcome, [
-    { value: "", label: "Esito attacco…" },
-    { value: "hit", label: "Colpito" },
-    { value: "miss", label: "Mancato" },
-    { value: "critical", label: "Critico" },
-  ], attackOutcome.value || "");
-  attackOutcome.hidden = !attackRequired;
   const saveRequired = !!phasePlan?.resolution?.mechanics?.savingThrow;
   setOptions(saveOutcome, [
-    { value: "", label: "Esito TS…" },
-    { value: "failed", label: "TS fallito" },
-    { value: "passed", label: "TS superato" },
+    { value: "", label: "Seleziona esito" },
+    { value: "failed", label: "Fallito" },
+    { value: "passed", label: "Superato" },
     { value: "immune", label: "Immune" },
   ], saveOutcome.value || "");
   saveOutcome.hidden = !saveRequired;
   const damageRequired = !!phasePlan?.resolution?.mechanics?.damageBonus;
   damageValue.hidden = !damageRequired;
   damageValue.required = damageRequired;
-  damageValue.disabled = attackOutcome.value === "miss";
+  damageValue.placeholder = "Totale";
+  damageValue.disabled = !damageRequired;
   if (!damageRequired) damageValue.value = "";
 }
 
@@ -308,7 +296,7 @@ async function resolvePreparedSpell() {
         group: latestGroup,
         targetIds,
         selectedChoice: choice.hidden ? "" : choice.value,
-        attackOutcome: attackOutcome.hidden ? undefined : attackOutcome.value,
+        attackOutcome: "hit",
         saveOutcome: saveOutcome.hidden ? "" : saveOutcome.value,
         damageValue: damageValue.hidden ? undefined : damageValue.value,
       });
@@ -323,7 +311,7 @@ async function resolvePreparedSpell() {
     }
     if (!sceneLifecycle.isCurrent(operation)) return;
     if (executionResult?.status === "miss" && executionResult?.pending === true) {
-      status.textContent = "Mancato: preparazione ancora disponibile.";
+      status.textContent = "La preparazione resta disponibile.";
       await requestControllerSync();
       if (!sceneLifecycle.isCurrent(operation)) return;
       await refresh();
@@ -401,7 +389,7 @@ OBR.onReady(async () => {
   }
   document.getElementById("close")?.addEventListener("click", () => void closePopup());
   resolveButton.addEventListener("click", resolvePreparedSpell);
-  [attackOutcome, saveOutcome, damageValue].forEach((control) => {
+  [saveOutcome, damageValue].forEach((control) => {
     control?.addEventListener("input", updateResolvePresentation);
     control?.addEventListener("change", updateResolvePresentation);
   });

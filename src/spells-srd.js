@@ -146,6 +146,9 @@ const AUTOMATION = Object.freeze({
     targetMode: "area",
     conditionOptions: {
       Spaventato: {
+        summaryParts: [
+          { id: "fear-flight", label: "Scatto: allontanati dal caster" },
+        ],
         saveReminder: {
           ability: "wis",
           timing: "turn-end",
@@ -223,6 +226,11 @@ const AUTOMATION = Object.freeze({
         effectId: "irresistible-dance",
         effectKind: "debuff",
         effectDetail: "Usa tutto il movimento per danzare; ha svantaggio ai TS Destrezza e ai tiri per colpire, mentre gli attacchi contro di lui hanno vantaggio.",
+        summaryParts: [
+          { id: "irresistible-dance-in-place", label: "Danza sul posto" },
+          { id: "irresistible-dance-penalties", label: "TS Des/att. −" },
+          { id: "irresistible-dance-incoming-advantage", label: "Attacchi contro vant." },
+        ],
         manualRemoval: true,
         endsParentOnRemoval: true,
         parentRemoval: "target",
@@ -240,6 +248,9 @@ const AUTOMATION = Object.freeze({
     conditions: ["Spaventato"],
     conditionOptions: {
       Spaventato: {
+        summaryParts: [
+          { id: "phantasmal-killer-psychic-damage", label: "4d10 psichici se fallisce" },
+        ],
         expiry: { mode: "concentration" },
         manualRemoval: true,
         endsParentOnRemoval: true,
@@ -284,6 +295,9 @@ const AUTOMATION = Object.freeze({
         effectId: "ray-of-enfeeblement-penalty",
         effectKind: "debuff",
         effectDetail: "Gli attacchi con arma basati su Forza infliggono metà danni.",
+        summaryParts: [
+          { id: "ray-of-enfeeblement-strength-damage", label: "Danni Forza dimezzati" },
+        ],
         endsParentOnRemoval: true,
         parentRemoval: "spell",
         saveReminder: {
@@ -359,6 +373,7 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "phb2014-punizione-tonante": "selected",
   "phb2014-allucinazione-di-forza": "selected",
   "xanathar-immolazione": "selected",
+  "etherealness": "selected",
   "spiritual-weapon": "self",
   "arcane-sword": "self",
   "arcane-hand": "self",
@@ -374,36 +389,63 @@ const TARGETING_OVERRIDES = Object.freeze({
     additionalPerSlotAbove: 1,
     baseSlot: 1,
   }),
-  "magic-weapon": Object.freeze({
-    maxTargets: 1,
-  }),
-  "xanathar-immolazione": Object.freeze({
-    maxTargets: 1,
-  }),
+  // Mantiene la superficie targeting dichiarata per il picker; il cap 1
+  // proviene dal contratto discrete di default, non da un override numerico.
+  "magic-weapon": Object.freeze({}),
   "heat-metal": Object.freeze({
-    maxTargets: 1,
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
   "dominate-beast": Object.freeze({
-    maxTargets: 1,
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
   "dominate-monster": Object.freeze({
-    maxTargets: 1,
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
   "dominate-person": Object.freeze({
-    maxTargets: 1,
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
   "contagion": Object.freeze({
-    maxTargets: 1,
     spatial: Object.freeze({
       mode: "manual",
       label: "Portata: Contatto · verifica manuale",
       requiresCaster: true,
     }),
   }),
+  "aid": Object.freeze({ maximum: 3 }),
+  "feather-fall": Object.freeze({ maximum: 5 }),
+  "prayer-of-healing": Object.freeze({ maximum: 6 }),
+  "mass-healing-word": Object.freeze({ maximum: 6 }),
+  "water-breathing": Object.freeze({ maximum: 10 }),
+  "water-walk": Object.freeze({ maximum: 10 }),
+  "telepathic-bond": Object.freeze({ maximum: 8 }),
+  "mass-suggestion": Object.freeze({ maximum: 12 }),
+  "xanathar-colpo-del-vento-dacciaio": Object.freeze({ maximum: 5 }),
+  "tasha-fortezza-della-mente": Object.freeze({ maximum: 5 }),
+  "xanathar-sonnellino": Object.freeze({ maximum: 3 }),
+  "xanathar-metamorfosi-di-massa": Object.freeze({ maximum: 10 }),
+  "magic-missile": Object.freeze({
+    baseMaximum: 3,
+    additionalPerSlotAbove: 1,
+    baseSlot: 1,
+  }),
+  "scorching-ray": Object.freeze({
+    baseMaximum: 3,
+    additionalPerSlotAbove: 1,
+    baseSlot: 2,
+  }),
+  "eldritch-blast": Object.freeze({
+    resolver: "eldritch-blast-beams",
+  }),
+  "etherealness": Object.freeze({
+    resolver: "etherealness-passengers",
+    baseSlot: 7,
+  }),
+  "animal-shapes": Object.freeze({ unbounded: true }),
+  "teleport": Object.freeze({ resolver: "passenger-capacity" }),
+  "dimension-door": Object.freeze({ resolver: "passenger-capacity" }),
+  "astral-projection": Object.freeze({ resolver: "passenger-capacity" }),
+  "wind-walk": Object.freeze({ resolver: "passenger-capacity" }),
+  "mass-cure-wounds": Object.freeze({ maximum: 6 }),
 });
 
 const SLOT_DURATION_OVERRIDES = Object.freeze({
@@ -588,6 +630,12 @@ const SPELL_EFFECTS = Object.freeze({
           label: "Libertà di movimento: immunità selettive",
         }),
       }),
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "freedom-of-movement-difficult-terrain", label: "No terreno diff." }),
+        Object.freeze({ id: "freedom-of-movement-speed-reduction", label: "No riduz. velocità mag." }),
+        Object.freeze({ id: "freedom-of-movement-condition-immunity", label: "Imm. Par./Tratt. mag." }),
+        Object.freeze({ id: "freedom-of-movement-escape", label: "Libera con 1,5 m" }),
+      ]),
     }),
   ]),
   "fly": Object.freeze([
@@ -663,6 +711,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "-1d4 Att/TS",
       detail: "Sottrae 1d4 ai tiri per colpire e ai tiri salvezza.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "bane-attack-penalty", label: "Att −1d4" }),
+        Object.freeze({ id: "bane-save-penalty", label: "TS −1d4" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         attackRoll: Object.freeze({ modifierDice: "-1d4" }),
@@ -676,6 +728,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 Att/TS",
       detail: "Aggiunge 1d4 ai tiri per colpire e ai tiri salvezza.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "bless-attack-bonus", label: "Att +1d4" }),
+        Object.freeze({ id: "bless-save-bonus", label: "TS +1d4" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         attackRoll: Object.freeze({ modifierDice: "1d4" }),
@@ -717,6 +773,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "3d6 danni da fuoco",
       detail: "L'attacco in mischia con la lama infuocata infligge questi danni da fuoco se colpisce.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 danni da fuoco" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         damageBonus: Object.freeze({
@@ -742,6 +801,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Attacchi contro: vant.",
       detail: "Gli attacchi contro il bersaglio dispongono di vantaggio se l'attaccante può vederlo; il bersaglio non beneficia dell'invisibilità.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "faerie-fire-incoming-advantage", label: "Attacchi contro vant." }),
+        Object.freeze({ id: "faerie-fire-no-invisibility", label: "No invis." }),
+      ]),
     }),
   ]),
   "guidance": Object.freeze([
@@ -785,6 +848,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Vantaggio TS · svantaggio Att",
       detail: "Vantaggio ai tiri salvezza; gli attacchi contro il bersaglio hanno svantaggio.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "holy-aura-saving-throw-advantage", label: "Vant. TS" }),
+        Object.freeze({ id: "holy-aura-incoming-attack-disadvantage", label: "Attacchi contro svant." }),
+      ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
     }),
@@ -795,6 +862,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Arma magica · +1",
       detail: "L'arma diventa magica e riceve un bonus di +1 ai tiri per colpire e ai danni.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "magic-weapon-magical", label: "Arma magica" }),
+        Object.freeze({ id: "magic-weapon-attack-damage-bonus", label: "+1 Att/danni" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         weaponBonus: Object.freeze({
@@ -841,6 +912,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+5 CA",
       detail: "Aggiunge 5 alla Classe Armatura e protegge da Dardo Incantato.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "shield-armor-class", label: "+5 CA" }),
+        Object.freeze({ id: "shield-magic-missile-immunity", label: "Imm. Dardo Incantato" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         armorClass: Object.freeze({ bonus: 5 }),
@@ -898,6 +973,10 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "No reazioni · turno limitato",
       detail: "Niente reazioni; nel turno successivo può scegliere soltanto movimento, azione o azione bonus.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "mind-whip-no-reactions", label: "No reaz." }),
+        Object.freeze({ id: "mind-whip-limited-turn", label: "Solo mov./az./bonus" }),
+      ]),
       expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1, anchor: "next-turn" }),
     }),
   ]),
@@ -919,6 +998,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Respirare sott'acqua · nuotare = base",
         detail: "Concede respirazione subacquea e una velocità di nuotare pari alla velocità base.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "alter-self-water-breathing", label: "Respira sott'acqua" }),
+          Object.freeze({ id: "alter-self-swim-speed", label: "Nuoto = Vel. base" }),
+        ]),
         mechanics: Object.freeze({
           movement: Object.freeze({
             modes: Object.freeze({
@@ -937,6 +1020,11 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Armi naturali magiche · +1",
         detail: "Concede un'arma naturale magica, competenza e +1 ai tiri per colpire e per i danni.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "alter-self-natural-weapon", label: "Arma nat. magica" }),
+          Object.freeze({ id: "alter-self-natural-weapon-proficiency", label: "Comp. arma" }),
+          Object.freeze({ id: "alter-self-natural-weapon-bonus", label: "+1 Att/danni" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -983,6 +1071,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS For",
         detail: "Svantaggio alle prove e ai tiri salvezza su Forza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-strength-checks", label: "Svant. prove For" }),
+          Object.freeze({ id: "curse-strength-saves", label: "Svant. TS For" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -993,6 +1085,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS Des",
         detail: "Svantaggio alle prove e ai tiri salvezza su Destrezza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-dexterity-checks", label: "Svant. prove Des" }),
+          Object.freeze({ id: "curse-dexterity-saves", label: "Svant. TS Des" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1003,6 +1099,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS Cos",
         detail: "Svantaggio alle prove e ai tiri salvezza su Costituzione.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-constitution-checks", label: "Svant. prove Cos" }),
+          Object.freeze({ id: "curse-constitution-saves", label: "Svant. TS Cos" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1013,6 +1113,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS Int",
         detail: "Svantaggio alle prove e ai tiri salvezza su Intelligenza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-intelligence-checks", label: "Svant. prove Int" }),
+          Object.freeze({ id: "curse-intelligence-saves", label: "Svant. TS Int" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1023,6 +1127,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS Sag",
         detail: "Svantaggio alle prove e ai tiri salvezza su Saggezza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-wisdom-checks", label: "Svant. prove Sag" }),
+          Object.freeze({ id: "curse-wisdom-saves", label: "Svant. TS Sag" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1033,6 +1141,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. prove/TS Car",
         detail: "Svantaggio alle prove e ai tiri salvezza su Carisma.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-charisma-checks", label: "Svant. prove Car" }),
+          Object.freeze({ id: "curse-charisma-saves", label: "Svant. TS Car" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1093,6 +1205,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove For · Trasporto x2",
         detail: "Vantaggio alle prove di Forza e capacità di trasporto raddoppiata.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-strength-checks", label: "Vant. prove For" }),
+          Object.freeze({ id: "enhance-strength-carrying", label: "Trasporto ×2" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1103,6 +1219,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove Des · Cadute 6m",
         detail: "Vantaggio alle prove di Destrezza e nessun danno dalle cadute fino a 6 metri.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-dexterity-checks", label: "Vant. prove Des" }),
+          Object.freeze({ id: "enhance-dexterity-falling", label: "Cadute ≤6 m: 0 danni" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1113,6 +1233,10 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove Cos · 2d6 PF temp",
         detail: "Vantaggio alle prove di Costituzione e 2d6 punti ferita temporanei.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-constitution-checks", label: "Vant. prove Cos" }),
+          Object.freeze({ id: "enhance-constitution-temporary-hit-points", label: "2d6 PF temp." }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1145,6 +1269,11 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Taglia +1 · Vant. For/TS · +1d4",
         detail: "Taglia aumentata, vantaggio a prove e TS Forza, 1d4 danni extra con le armi.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enlarged-size", label: "Taglia +1" }),
+          Object.freeze({ id: "enlarged-strength", label: "Vant. For/TS" }),
+          Object.freeze({ id: "enlarged-weapon-damage", label: "+1d4 armi" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1155,6 +1284,11 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Taglia -1 · Svant. For/TS · -1d4",
         detail: "Taglia ridotta, svantaggio a prove e TS Forza, 1d4 danni in meno con le armi.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "reduced-size", label: "Taglia −1" }),
+          Object.freeze({ id: "reduced-strength", label: "Svant. For/TS" }),
+          Object.freeze({ id: "reduced-weapon-damage", label: "−1d4 armi" }),
+        ]),
       })]),
     }),
   ]),
@@ -1387,6 +1521,9 @@ function effectSaveRule(effect, spell) {
     effectDetail: String(effect?.detail || "").trim(),
     ...(effect?.mechanics && typeof effect.mechanics === "object"
       ? { mechanics: effect.mechanics }
+      : {}),
+    ...(Array.isArray(effect?.summaryParts)
+      ? { summaryParts: effect.summaryParts }
       : {}),
     ...(effect?.saveReminder && typeof effect.saveReminder === "object"
       ? { saveReminder: effect.saveReminder }

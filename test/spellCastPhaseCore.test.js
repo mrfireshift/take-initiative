@@ -6,11 +6,45 @@ import {
   getSpellCastPhaseOptions,
   getSpellCastPhasePlan,
   isPreparedSpellCast,
+  spellPhaseAttackOutcomeRequired,
   withSpellPhaseTransitionOperations,
 } from "../src/spellCastPhaseCore.js";
 import { getSpellDefinition } from "../src/spells-srd.js";
 
-test("le punizioni e i colpi preparati espongono preparazione e risoluzione", () => {
+test("le punizioni espongono solo la preparazione nel pannello Incantesimi", () => {
+  for (const name of [
+    "Punizione Collerica",
+    "Punizione Incandescente",
+    "Punizione Tonante",
+    "Punizione Accecante",
+    "Punizione Demoralizzante",
+    "Punizione Esiliante",
+  ]) {
+    const spell = getSpellDefinition(name);
+    assert.deepEqual(
+      getSpellCastPhaseOptions(spell).map((phase) => phase.value),
+      ["prepare"],
+      name,
+    );
+    assert.equal(getSpellCastPhasePlan(spell).subjectMode, "caster", name);
+    assert.deepEqual(
+      getSpellCastPhaseOptions(spell, "resolve").map((phase) => phase.value),
+      ["resolve"],
+      name,
+    );
+    assert.equal(getSpellCastPhasePlan(spell, "resolve").subjectMode, "selected", name);
+  }
+
+  for (const name of ["Colpo Intrappolante", "Raffica di Spine", "Freccia Folgorante"]) {
+    assert.deepEqual(
+      getSpellCastPhaseOptions(getSpellDefinition(name)).map((phase) => phase.value),
+      ["prepare", "resolve"],
+      name,
+    );
+  }
+});
+
+test("gli esiti dell'attacco appartengono solo alla risoluzione prepared", () => {
   for (const name of [
     "Colpo Intrappolante",
     "Punizione Collerica",
@@ -23,16 +57,15 @@ test("le punizioni e i colpi preparati espongono preparazione e risoluzione", ()
     "Punizione Esiliante",
   ]) {
     const spell = getSpellDefinition(name);
-    assert.deepEqual(
-      getSpellCastPhaseOptions(spell).map((phase) => phase.value),
-      ["prepare", "resolve"],
-      name,
-    );
-    assert.equal(getSpellCastPhasePlan(spell).subjectMode, "caster", name);
     assert.equal(
-      getSpellCastPhasePlan(spell, "resolve").subjectMode,
-      "selected",
-      name,
+      spellPhaseAttackOutcomeRequired(getSpellCastPhasePlan(spell, "prepare")),
+      false,
+      `${name} prepare`,
+    );
+    assert.equal(
+      spellPhaseAttackOutcomeRequired(getSpellCastPhasePlan(spell, "resolve")),
+      name === "Raffica di Spine" || name === "Freccia Folgorante" ? false : true,
+      `${name} resolve`,
     );
   }
 });
@@ -66,7 +99,24 @@ test("le fasi misurabili espongono dati coerenti e non scalano spell senza upcas
   assert.match(blinding.label, /\+3d8 radiosi/);
 });
 
-test("il contratto prepared distingue weapon generico, ranged e miss consumabili", () => {
+test("Freccia Folgorante scala in modo indipendente primary e area", () => {
+  const expected = new Map([
+    [3, ["4d8", "2d8"]],
+    [4, ["5d8", "3d8"]],
+    [5, ["6d8", "4d8"]],
+    [9, ["10d8", "8d8"]],
+  ]);
+  const spell = getSpellDefinition("Freccia Folgorante");
+
+  for (const [slotLevel, [primary, secondary]] of expected) {
+    const mechanics = getSpellCastPhasePlan(spell, "resolve", { slotLevel })
+      .resolution.mechanics;
+    assert.equal(mechanics.damageReplacement.dice, primary, `${slotLevel} primary`);
+    assert.equal(mechanics.areaDamage.dice, secondary, `${slotLevel} secondary`);
+  }
+});
+
+test("il contratto prepared distingue weapon, anchor e outcome fisico opzionale", () => {
   const ensnaring = getSpellCastPhasePlan(
     getSpellDefinition("Colpo Intrappolante"),
     "resolve",
@@ -88,8 +138,13 @@ test("il contratto prepared distingue weapon generico, ranged e miss consumabili
   assert.equal(banishing.attack.restriction, "weapon");
   assert.equal(hail.attack.restriction, "weapon-ranged");
   assert.equal(lightning.attack.restriction, "weapon-ranged");
-  assert.deepEqual(lightning.attack.outcomes, ["hit", "miss", "critical"]);
+  assert.deepEqual(lightning.attack.outcomes, []);
+  assert.equal(lightning.attack.outcomeRequired, false);
+  assert.equal(lightning.attack.primaryDamageMode, "final-applied");
+  assert.equal(lightning.attack.areaAnchor, "primary-target");
   assert.equal(lightning.attack.consumeOnMiss, true);
+  assert.equal(hail.attack.areaAnchor, "primary-target");
+  assert.equal(hail.attack.outcomeRequired, false);
   assert.equal(hail.attack.consumeOnMiss, false);
 });
 

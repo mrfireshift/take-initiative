@@ -27,6 +27,32 @@ test("risolve valori meccanici scalabili dal livello dello slot", () => {
   );
 });
 
+test("scala anche le summaryParts di Armatura di Agathys", () => {
+  const effect = resolveSpellEffect({
+    id: "agathys-armor",
+    label: "5 PF temp. / 5 freddo a chi colpisce in mischia",
+    summaryParts: [
+      { id: "agathys-temporary-hit-points", label: "5 PF temp." },
+      { id: "agathys-cold-retaliation", label: "5 danni freddo in mischia" },
+    ],
+    mechanics: {
+      deriveLabel: true,
+      tempHp: {
+        amount: { base: 5, baseSlot: 1, perSlotAbove: 5 },
+      },
+      retaliationDamage: {
+        amount: { base: 5, baseSlot: 1, perSlotAbove: 5 },
+        type: "freddo",
+      },
+    },
+  }, { slotLevel: 4 });
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "agathys-temporary-hit-points", label: "20 PF temp." },
+    { id: "agathys-cold-retaliation", label: "20 danni freddo in mischia" },
+  ]);
+});
+
 test("deriva una label compatta da bonus misurabili", () => {
   const effect = resolveSpellEffect({
     label: "fallback",

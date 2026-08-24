@@ -6,6 +6,7 @@ import {
   getAreaSaveRuleChoices,
   getAreaSaveSpellOptions,
   getSpellDefinition,
+  getSpellEffects,
 } from "../src/spells-srd.js";
 
 test("il catalogo espone gli incantesimi ad area per la Console HP", () => {
@@ -93,6 +94,11 @@ test("Aculeo Mentale applica Localizzato soltanto ai TS falliti", () => {
   assert.equal(automation.immune, undefined);
   assert.deepEqual(automation.failed.map((rule) => rule.effectId), ["location-known"]);
   assert.equal(automation.failed[0].condition, "Localizzato · invis. inefficace");
+  assert.deepEqual(automation.failed[0].summaryParts, [
+    { id: "mind-spike-location", label: "Localizzato" },
+    { id: "mind-spike-no-hiding", label: "No nascondersi" },
+    { id: "mind-spike-no-invisibility", label: "No invis." },
+  ]);
 });
 
 test("Anatema Elementale riusa l'effetto del tipo scelto soltanto sui fallimenti", () => {
@@ -106,6 +112,10 @@ test("Anatema Elementale riusa l'effetto del tipo scelto soltanto sui fallimenti
     effectId: "elemental-bane-fuoco",
     effectKind: "debuff",
     effectDetail: "Perde la resistenza ai danni da fuoco; la prima volta in ogni turno in cui li subisce, riceve 2d6 danni extra.",
+    summaryParts: [
+      { id: "elemental-bane-resistance-fuoco", label: "No res. fuoco" },
+      { id: "elemental-bane-damage", label: "+2d6/turno" },
+    ],
     expiry: { mode: "concentration" },
   }]);
   assert.equal(getAreaSaveAutomation("xanathar-anatema-elementale", "inesistente"), null);
@@ -202,6 +212,22 @@ test("le nuove aree collegano condizioni e casi senza effetto persistente", () =
   );
 });
 
+test("Libertà di movimento e Aura sacra condividono summaryParts con i percorsi area", () => {
+  const freedom = getSpellEffects("Libertà di movimento")[0];
+  assert.deepEqual(freedom.summaryParts, [
+    { id: "freedom-of-movement-difficult-terrain", label: "No terreno diff." },
+    { id: "freedom-of-movement-speed-reduction", label: "No riduz. velocità mag." },
+    { id: "freedom-of-movement-condition-immunity", label: "Imm. Par./Tratt. mag." },
+    { id: "freedom-of-movement-escape", label: "Libera con 1,5 m" },
+  ]);
+  assert.ok(freedom.detail);
+
+  assert.deepEqual(getAreaSaveAutomation("holy-aura").failed[0].summaryParts, [
+    { id: "holy-aura-saving-throw-advantage", label: "Vant. TS" },
+    { id: "holy-aura-incoming-attack-disadvantage", label: "Attacchi contro svant." },
+  ]);
+});
+
 test("Trama Ipnotica descrive due condizioni solo per i falliti", () => {
   const spell = getSpellDefinition("hypnotic-pattern");
 
@@ -234,6 +260,10 @@ test("Luminescenza riusa il debuff del catalogo sui soli falliti", () => {
   assert.equal(rule.condition, "Attacchi contro: vant.");
   assert.equal(rule.effectId, "incoming-attack-advantage");
   assert.equal(rule.effectKind, "debuff");
+  assert.deepEqual(rule.summaryParts, [
+    { id: "faerie-fire-incoming-advantage", label: "Attacchi contro vant." },
+    { id: "faerie-fire-no-invisibility", label: "No invis." },
+  ]);
   assert.deepEqual(rule.expiry, { mode: "concentration" });
 });
 

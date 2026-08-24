@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "74b530e900e57100",
+  "fingerprint": "6c8b172f67dc89c9",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -17,20 +17,20 @@
       "gestione manuale intenzionale": 3
     },
     "currentAutomationLevel": {
-      "FULL": 45,
+      "FULL": 47,
       "MANUAL": 88,
-      "PARTIAL": 199,
+      "PARTIAL": 197,
       "TRACK_ONLY": 145
     },
     "coverageStatus": {
-      "ACCEPTED": 48,
+      "ACCEPTED": 50,
       "GAP": 37,
-      "UNREVIEWED": 392
+      "UNREVIEWED": 390
     },
     "targetAutomationLevel": {
-      "FULL": 45,
+      "FULL": 47,
       "MANUAL": 3,
-      "UNREVIEWED": 429
+      "UNREVIEWED": 427
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -47,7 +47,7 @@
     "highConfidence": 1,
     "reviewCandidates": 0,
     "curatedP1": 35,
-    "manuallyReviewed": 84,
+    "manuallyReviewed": 86,
     "knownIntegrationGaps": 1,
     "knownRawGaps": 36,
     "byPriority": {
@@ -9027,9 +9027,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -9039,7 +9039,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area"
@@ -9093,6 +9093,7 @@
             "caster",
             "slot",
             "targets",
+            "primaryTarget",
             "placement",
             "outcomes",
             "hp",
@@ -9134,7 +9135,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il workflow area condiviso conserva il bersaglio primario dell’attacco, il danno perforante iniziale manuale solo su colpo e l’esplosione indipendente dal colpo, con TS Destrezza, danno freddo e scaling secondo il descriptor della spell. Tiro per colpire, dadi e modificatori restano manuali al tavolo; membership, mutazioni HP, History e cleanup seguono il percorso condiviso."
     },
     {
       "id": "command",
@@ -20435,11 +20437,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "none",
+          "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
-            "caster",
-            "slot"
+            "slot",
+            "targets"
           ]
         },
         "cast": {
@@ -21284,7 +21286,6 @@
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "slot",
-            "variant",
             "targets",
             "outcomes",
             "hp",
@@ -21341,9 +21342,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -21356,7 +21357,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area"
@@ -21386,7 +21387,9 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "lightning-arrow-area"
+        ],
         "phaseOptions": [
           "prepare",
           "resolve"
@@ -21439,11 +21442,15 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "lightning-arrow-area"
+          ],
+          "panelActionIds": [
+            "lightning-arrow-area"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -21464,7 +21471,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il cast prepara sul caster un’istanza concentrata; la risoluzione del prossimo attacco a distanza non richiede Hit/Miss/Critical e riceve dal GM il danno primario finale già applicato. Il click sul bersaglio primario ancora automaticamente il cerchio di 3 m, calcola la membership e raccoglie i TS Destrezza con danno secondario e scaling indipendente; primary, secondary, consumo della preparazione, concentrazione, History composita e Undo restano nella stessa transazione. Tiro per colpire e dadi restano manuali al tavolo."
     },
     {
       "id": "phb2014-frusta-di-spine",
@@ -41163,8 +41171,7 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [
@@ -41299,8 +41306,7 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [
@@ -41430,8 +41436,7 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [
@@ -41566,8 +41571,7 @@
         "effectCount": 2,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [
@@ -41693,8 +41697,7 @@
         "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [
@@ -41960,8 +41963,7 @@
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [
-          "prepare",
-          "resolve"
+          "prepare"
         ],
         "movementMechanics": false,
         "smokeCategories": [

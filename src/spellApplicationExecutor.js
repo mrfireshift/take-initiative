@@ -271,6 +271,7 @@ export async function executeSpellActiveAction({
   sceneIdentity = null,
   commandId = "",
   isCurrent = null,
+  ignoreTargetLimit = false,
 } = {}) {
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-active-action");
@@ -288,6 +289,7 @@ export async function executeSpellActiveAction({
     selectedTargetIds,
     appliedAt: resolvedAppliedAt,
     casterName,
+    ignoreTargetLimit,
   });
   if (!actionPlan.valid) {
     throw new Error("Invalid active spell action: " + actionPlan.errors.join(", "));
@@ -619,7 +621,9 @@ export async function executeSpellActiveResolution({
     ...targetIds,
     ...attackEntries.map((entry) => entry.targetId),
   ]);
-  if (!ids.length && payload?.action?.resolutionKind !== "child-zone") {
+  if (!ids.length
+    && payload?.action?.resolutionKind !== "child-zone"
+    && payload?.action?.allowEmptyTargets !== true) {
     throw new Error("active-resolution-targets-required");
   }
   const commitInput = {
@@ -1320,6 +1324,7 @@ export async function executeSpellApplication({
   primaryDamageValue = undefined,
   primaryTargetId = "",
   manualAttackOutcomeRequired = false,
+  ignoreTargetLimit = false,
 } = {}) {
   const intent = buildSpellApplicationIntent({
     spell,
@@ -1341,6 +1346,7 @@ export async function executeSpellApplication({
     primaryDamageValue,
     primaryTargetId,
     manualAttackOutcomeRequired,
+    ignoreTargetLimit,
   });
   if (!intent) return [];
 

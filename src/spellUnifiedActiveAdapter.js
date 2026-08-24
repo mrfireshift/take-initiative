@@ -17,6 +17,8 @@ import {
 } from "./spellActiveResolutionCore.js";
 import { spellActiveActionPresentation } from "./spellActiveActionCore.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
+import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
+import { currentSceneEpoch } from "./sceneEpoch.js";
 
 export const SPELL_UNIFIED_ACTIVE_STATUS = Object.freeze({
   POPUP_OPENED: "popup-opened",
@@ -45,7 +47,6 @@ export const SPELL_UNIFIED_ACTIVE_ERROR_CODES = Object.freeze({
 
 export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze([
   "phb2014-raffica-di-spine",
-  "phb2014-freccia-folgorante",
 ]);
 
 const PREPARED_AREA_SPELL_IDS = new Set(SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS);
@@ -197,8 +198,9 @@ export function normalizeSpellUnifiedActiveAction(action = null) {
   return {
     id: actionId(action),
     type: actionType(action),
-    label: text(action?.label || definition?.label || action?.id),
-    buttonLabel: text(action?.buttonLabel || definition?.buttonLabel || action?.label || action?.id),
+    label: text(action?.label || definition?.label) || "Azione",
+    buttonLabel: text(action?.buttonLabel || definition?.buttonLabel || action?.label)
+      || "Azione",
     detail: text(action?.detail || definition?.detail),
     resolutionKind: text(action?.resolutionKind || definition?.resolutionKind),
     subjectMode: text(action?.subjectMode || definition?.subjectMode) || "none",
@@ -327,10 +329,28 @@ export function validateSpellUnifiedActiveContext({
     && normalized.resolutionKind === ""
     && normalized.subjectMode !== "caster"
     && normalized.subjectMode !== "none";
+  const activeTargetingCapacity = (usesPanelTargets || normalized.maxTargets > 0)
+    ? resolveTargetingCapacity({
+      mode: "discrete",
+      declaration: normalized.definition?.targeting
+        || (normalized.maxTargets > 0 ? { maximum: normalized.maxTargets } : null),
+      targetIds: selectedTargetIds,
+      initialTargeting: true,
+      defaultDiscreteTargeting: true,
+      source: "active-action",
+    })
+    : null;
   if (usesPanelTargets && presentation.disabled) errors.push({
     code: SPELL_UNIFIED_ACTIVE_ERROR_CODES.TARGETS_INVALID,
     message: presentation.title || "La selezione dei bersagli non è valida.",
   });
+  if ((activeTargetingCapacity?.exceeded || activeTargetingCapacity?.errors?.length)
+    && !errors.some((error) => error.code === SPELL_UNIFIED_ACTIVE_ERROR_CODES.TARGETS_INVALID)) {
+    errors.push({
+      code: SPELL_UNIFIED_ACTIVE_ERROR_CODES.TARGETS_INVALID,
+      message: "La selezione supera la capacità canonica dei bersagli.",
+    });
+  }
 
   return {
     valid: errors.length === 0,
@@ -339,6 +359,7 @@ export function validateSpellUnifiedActiveContext({
     action: declared || action,
     normalizedAction: normalized,
     presentation,
+    targetingCapacity: activeTargetingCapacity,
     sceneEpoch: epoch,
   };
 }
@@ -560,6 +581,32 @@ export function buildSpellUnifiedPreparedPopoverRequest(overview, {
   const spell = getSpellDefinition(context.spellId);
   const action = preparedSpellResolutionAction(group);
   const manualAction = action?.type === "manual";
+  const activeResolutionAction = manualAction && String(action?.resolutionKind || "").trim();
+  if (activeResolutionAction) {
+    const built = buildSpellUnifiedActiveResolutionPayload({
+      overview,
+      action,
+      actionId: action.id,
+      sceneEpoch: context.sceneEpoch ?? currentSceneEpoch(),
+    });
+    if (!built.payload) {
+      throw new Error(
+        `prepared-active-resolution-invalid: ${(built.errors || [])
+          .map((error) => error?.code || error?.message || error)
+          .join(",")}`,
+      );
+    }
+    const request = buildSpellUnifiedActivePopoverRequest(built.payload, {
+      width,
+      height,
+      urlBase,
+    });
+    return {
+      ...request,
+      instanceId: context.instanceId,
+      preparedActiveResolution: true,
+    };
+  }
   const phasePlan = spell
     ? getSpellCastPhasePlan(spell, "resolve", context.castContext || {})
     : null;

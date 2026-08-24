@@ -9,6 +9,7 @@ import {
 import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
 import { resolveSpellConcentration } from "./spellCastContextCore.js";
 import { resolveSaveSpellResolution } from "./saveSpellCore.js";
+import { getSpellSaveWorkflowRule } from "./spellSaveWorkflowRules.js";
 import {
   getSpellCastPhasePlan,
   withSpellPhaseTransitionOperations,
@@ -79,6 +80,7 @@ export function buildSpellApplicationIntent({
   primaryDamageValue = undefined,
   primaryTargetId = "",
   manualAttackOutcomeRequired = false,
+  ignoreTargetLimit = false,
 } = {}) {
   const subjects = uniqueIds(targetIds);
   if (!subjects.length) return null;
@@ -158,9 +160,11 @@ export function buildSpellApplicationIntent({
       targetIds: subjects,
       outcomes: normalizedSaveOutcomeMap,
       automation: getAreaSaveAutomation(spell, selectedChoice),
+      saveWorkflowRule: getSpellSaveWorkflowRule(spell?.id),
       choiceValue: selectedChoice,
       slotLevel: persistedCastContext?.slotLevel,
       validateSpatial: false,
+      ignoreTargetLimit,
     })
     : null;
   if (saveResolution && !saveResolution.valid) {
@@ -201,6 +205,7 @@ export function buildSpellApplicationIntent({
     manualAttackOutcomeRequired: manualAttackOutcomeRequired === true,
     primaryDamageValue,
     primaryTargetId: String(primaryTargetId || "").trim(),
+    ignoreTargetLimit: ignoreTargetLimit === true,
     saveOutcomes: normalizedSaveOutcomeMap,
     saveResolution,
     damageValue,

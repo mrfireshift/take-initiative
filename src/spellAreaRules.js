@@ -2000,18 +2000,32 @@ function catalogAreaRule(spec) {
       kind: "buff",
       label: "Res. veleno / vant. TS / no malattie",
       detail: "Resistenza ai veleni e vantaggio ai TS contro varie condizioni.",
+      summaryParts: [
+        { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+        { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
+        { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
+      ],
     }],
     "phb2014-aura-di-vita": [{
       id: "aura-of-life-zone",
       kind: "buff",
       label: "Res. necrotici / max PF / +1 PF a 0",
       detail: "Resistenza ai danni necrotici e protezione della vita nell'aura.",
+      summaryParts: [
+        { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+        { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
+        { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
+      ],
     }],
     "phb2014-cerchio-di-potere": [{
       id: "circle-of-power-zone",
       kind: "buff",
       label: "Cerchio di Potere",
       detail: "Vantaggio ai TS contro incantesimi ed effetti magici nell'aura.",
+      summaryParts: [
+        { id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" },
+        { id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" },
+      ],
     }],
   }[spec.spellId] || [];
   const membershipEffectsByChoice = spec.spellId === "xanathar-controllare-venti"

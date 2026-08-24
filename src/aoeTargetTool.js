@@ -415,6 +415,11 @@ async function beginSpellPlacement(data) {
     await setSpellPlacementToolState(true);
     await OBR.tool.activateTool(TOOL_ID);
     await OBR.tool.activateMode(TOOL_ID, areaModeId(rule.geometry.shape));
+    if (placementContext?.autoConfirmAnchor === true) {
+      // A target-anchored area has no independent placement decision: the
+      // selected token supplies both the origin and the confirmation.
+      startDrag(rule.geometry.shape, { pointerPosition: anchorBounds.center });
+    }
   } catch (error) {
     if (spellPlacementSession !== runtime) return;
     const message = String(error?.message || error || "placement-start-failed");
@@ -1374,6 +1379,10 @@ async function finishDrag(state) {
     && state.spellPlacementRequestId
     && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
   ) {
+    if (state.context?.autoConfirmAnchor === true) {
+      await confirmSpellPlacement();
+      return;
+    }
     spellPlacementSession.session = reviewSpellAreaPlacement(
       spellPlacementSession.session,
       {
@@ -1395,6 +1404,10 @@ async function finishDrag(state) {
             },
           }
           : {}),
+        ...(state.context?.anchorTargetId
+          ? { anchorTargetId: String(state.context.anchorTargetId).trim() }
+          : {}),
+        ...(state.anchorOrigin ? { anchorOrigin: point(state.anchorOrigin) } : {}),
       },
     );
     return;
@@ -1492,7 +1505,7 @@ function startDrag(type, event) {
     unit: "m",
     style: { ...currentStyle },
     ready: false,
-    ended: false,
+    ended: placementContext?.autoConfirmAnchor === true,
     cancelled: false,
     finishing: false,
     interaction: null,
@@ -1617,6 +1630,10 @@ async function confirmSpellPlacement() {
         },
       }
       : {}),
+    ...(state.context?.anchorTargetId
+      ? { anchorTargetId: String(state.context.anchorTargetId).trim() }
+      : {}),
+    ...(state.anchorOrigin ? { anchorOrigin: point(state.anchorOrigin) } : {}),
     ...(state.context?.childKind === "fissure" && state.parentArea?.type === "circle"
       ? {
         parentClip: {

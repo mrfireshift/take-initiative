@@ -166,6 +166,10 @@ test("Confusione espone tabella RAW, d10 fisico e reminder TS senza automazione 
   assert.match(rule.effectDetail, /7-8/u);
   assert.match(rule.effectDetail, /9-10/u);
   assert.match(rule.effectDetail, /manuali al tavolo/u);
+  assert.deepEqual(rule.summaryParts, [
+    { id: "confusion-no-reactions", label: "No reaz." },
+    { id: "confusion-random-table", label: "Tira d10 inizio turno" },
+  ]);
   assert.deepEqual(turnStart, {
     timing: "turn-start",
     mode: "consume",

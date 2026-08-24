@@ -406,12 +406,21 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Localizzato · invis. inefficace",
     detail: "Il caster conosce la posizione del bersaglio, che non può nascondersi e non beneficia dell'invisibilità contro di lui.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "mind-spike-location", label: "Localizzato" }),
+      Object.freeze({ id: "mind-spike-no-hiding", label: "No nascondersi" }),
+      Object.freeze({ id: "mind-spike-no-invisibility", label: "No invis." }),
+    ]),
   })]),
   "xanathar-arma-sacra": Object.freeze([Object.freeze({
     id: "holy-weapon",
     kind: "buff",
     label: "Arma magica · +2d8 radiosi",
     detail: "L'arma diventa magica e infligge 2d8 danni radiosi extra.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "holy-weapon-magical", label: "Arma magica" }),
+      Object.freeze({ id: "holy-weapon-radiant-damage", label: "+2d8 radiosi" }),
+    ]),
   })]),
   "xanathar-colpo-dello-zefiro": Object.freeze([
     Object.freeze({
@@ -433,6 +442,10 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Debilitazione: danni e cura",
     detail: "Il caster può ripetere i danni necrotici e recupera metà dei danni inflitti.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "enervation-repeat-damage", label: "Azione: ripeti danni" }),
+      Object.freeze({ id: "enervation-heal-half", label: "Cura metà danni" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
     parentRemoval: "spell",
@@ -442,6 +455,10 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "In fiamme · 4d6 a fine turno",
     detail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "immolation-end-turn-save", label: "TS Des fine turno" }),
+      Object.freeze({ id: "immolation-fire-damage", label: "4d6 fuoco" }),
+    ]),
     saveReminder: Object.freeze({
       ability: "dex",
       timing: "turn-end",
@@ -462,18 +479,31 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. acido/freddo/fulmine/fuoco/tuono",
     detail: "Resistenza ai cinque tipi di danno elementale finché non viene attivata l'immunità con una reazione.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "elemental-resistances-five-types", label: "Res. 5 elementi" }),
+      Object.freeze({ id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" }),
+    ]),
   })]),
   "xanathar-investitura-del-ghiaccio": Object.freeze([Object.freeze({
     id: "ice-investiture",
     kind: "buff",
     label: "Imm. freddo · Res. fuoco · aura ghiaccio",
     detail: "Immunità al freddo, resistenza al fuoco e terreno difficile ghiacciato attorno al caster.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "ice-investiture-cold-immunity", label: "Imm. freddo" }),
+      Object.freeze({ id: "ice-investiture-fire-resistance", label: "Res. fuoco" }),
+      Object.freeze({ id: "ice-investiture-difficult-terrain-aura", label: "Terreno diff. aura" }),
+    ]),
   })]),
   "xanathar-investitura-del-vento": Object.freeze([Object.freeze({
     id: "wind-investiture",
     kind: "buff",
     label: "Volo · attacchi distanza svant.",
     detail: "Velocità di volare e svantaggio agli attacchi con arma a distanza contro il caster.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "wind-investiture-flight", label: "Volo 18 m" }),
+      Object.freeze({ id: "wind-investiture-ranged-disadvantage", label: "Svant. att. distanza" }),
+    ]),
     mechanics: Object.freeze({
       movement: Object.freeze({
         modes: Object.freeze({
@@ -488,12 +518,20 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Imm. fuoco · Res. freddo",
     detail: "L'incantatore è immune ai danni da fuoco e possiede resistenza ai danni da freddo.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "flame-investiture-fire-immunity", label: "Imm. fuoco" }),
+      Object.freeze({ id: "flame-investiture-cold-resistance", label: "Res. freddo" }),
+    ]),
   })]),
   "xanathar-investitura-della-pietra": Object.freeze([Object.freeze({
     id: "stone-investiture",
     kind: "buff",
     label: "Res. armi non magiche · passo nella roccia",
     detail: "Resistenza ai danni fisici da attacchi non magici e movimento attraverso terra e pietra.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "stone-investiture-weapon-resistance", label: "Res. armi non magiche" }),
+      Object.freeze({ id: "stone-investiture-rock-walk", label: "Passo nella roccia" }),
+    ]),
   })]),
   "xanathar-legame-con-le-bestie": Object.freeze([Object.freeze({
     id: "beast-attack-advantage",
@@ -515,6 +553,9 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Tutti considerati nemici",
     detail: "Il bersaglio non distingue alleati e nemici; può ripetere il TS ogni volta che subisce danni.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "enemies-abound-hostile-targets", label: "Tutti nemici" }),
+    ]),
     saveReminder: Object.freeze({
       ability: "int",
       timing: "damage",
@@ -530,12 +571,21 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Oscurato · Res. radiosi · ritorsione",
     detail: "Il caster è pesantemente oscurato, resiste ai radiosi e danneggia chi lo colpisce in mischia.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "shadow-of-moil-obscured", label: "Oscurato" }),
+      Object.freeze({ id: "shadow-of-moil-radiant-resistance", label: "Res. radiosi" }),
+      Object.freeze({ id: "shadow-of-moil-melee-retaliation", label: "Ritorsione mischia" }),
+    ]),
   })]),
   "xanathar-parola-del-potere-dolore": Object.freeze([Object.freeze({
     id: "power-word-pain",
     kind: "debuff",
     label: "Vel. max 3m · svantaggi · rischio spell",
     detail: "Velocità massima 3 metri, svantaggio ad attacchi, prove e TS non-Cos; TS Cos per lanciare incantesimi. TS Cos a fine turno per terminare.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "power-word-pain-speed-limit", label: "Vel max 3m" }),
+      Object.freeze({ id: "power-word-pain-penalties", label: "Att/prove/TS −" }),
+    ]),
     mechanics: Object.freeze({
       movement: Object.freeze({
         maximumMeters: 3,
@@ -558,6 +608,11 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "-1d6 Att/prove/TS concentrazione",
     detail: "Sottrae 1d6 ad attacchi, prove e TS Costituzione per mantenere concentrazione; TS Int a fine turno per terminare.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "synaptic-attack-penalty", label: "Att −1d6" }),
+      Object.freeze({ id: "synaptic-check-penalty", label: "Prove −1d6" }),
+      Object.freeze({ id: "synaptic-concentration-save-penalty", label: "TS concentrazione −1d6" }),
+    ]),
     saveReminder: Object.freeze({
       ability: "int",
       timing: "turn-end",
@@ -580,6 +635,12 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Tenser: 50 PFt · vant. · +2d12 forza",
     detail: "Conferisce 50 PF temporanei, vantaggio agli attacchi con armi, danni da forza extra e competenze marziali.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "tensers-temporary-hit-points", label: "50 PF temp." }),
+      Object.freeze({ id: "tensers-weapon-attack-advantage", label: "Vant. att. armi" }),
+      Object.freeze({ id: "tensers-force-damage", label: "+2d12 forza" }),
+      Object.freeze({ id: "tensers-martial-proficiency", label: "Comp. marziali" }),
+    ]),
   })]),
   "xanathar-vincolo-della-terra": Object.freeze([Object.freeze({
     id: "flying-speed-zero",
@@ -600,6 +661,10 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. psichici · vant. TS Int/Sag/Car",
     detail: "Resistenza ai danni psichici e vantaggio ai tiri salvezza su Intelligenza, Saggezza e Carisma.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "intellect-fortress-psychic-resistance", label: "Res. psichici" }),
+      Object.freeze({ id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" }),
+    ]),
   })]),
   "tasha-miscela-caustica-di-tasha": Object.freeze([Object.freeze({
     id: "caustic-acid",
@@ -632,6 +697,10 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: `Niente res. ${type} · +2d6/turno`,
         detail: `Perde la resistenza ai danni da ${type}; la prima volta in ogni turno in cui li subisce, riceve 2d6 danni extra.`,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: `elemental-bane-resistance-${type}`, label: `No res. ${type}` }),
+          Object.freeze({ id: "elemental-bane-damage", label: "+2d6/turno" }),
+        ]),
       })]),
     }))
   ),
@@ -690,6 +759,12 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Bestia: +3m · scurovisione · vant. For · +1d6",
         detail: "Velocità aumentata, scurovisione, vantaggio agli attacchi basati su Forza e danni da forza extra.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "primal-beast-speed", label: "Vel +3 m" }),
+          Object.freeze({ id: "primal-beast-darkvision", label: "Scurovisione" }),
+          Object.freeze({ id: "primal-beast-strength-advantage", label: "Vant. att. Forza" }),
+          Object.freeze({ id: "primal-beast-force-damage", label: "+1d6 forza" }),
+        ]),
         mechanics: Object.freeze({
           movement: Object.freeze({
             addMeters: 3,
@@ -707,6 +782,12 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Albero: 10 PFt · vant. Cos · Des/Sag · terreno diff.",
         detail: "Punti ferita temporanei, vantaggio ai TS Costituzione, vantaggio ad attacchi Des/Sag e terreno difficile attorno al caster.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "great-tree-temporary-hit-points", label: "10 PF temp." }),
+          Object.freeze({ id: "great-tree-constitution-save-advantage", label: "Vant. TS Cos" }),
+          Object.freeze({ id: "great-tree-dex-wis-attack-advantage", label: "Vant. att. Des/Sag" }),
+          Object.freeze({ id: "great-tree-difficult-terrain-aura", label: "Terreno diff. aura" }),
+        ]),
       })]),
     }),
   ]),
@@ -748,6 +829,14 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+2 CA · volo · Imm. fuoco/veleno",
         detail: "Bonus di 2 alla CA, volo, immunità al fuoco o veleno e alla condizione avvelenato, attacchi magici e attacco extra.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "lower-planes-armor-class", label: "+2 CA" }),
+          Object.freeze({ id: "lower-planes-flight", label: "Volo 12 m" }),
+          Object.freeze({ id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" }),
+          Object.freeze({ id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" }),
+          Object.freeze({ id: "lower-planes-magical-attacks", label: "Attacchi magici" }),
+          Object.freeze({ id: "lower-planes-extra-attack", label: "Attacco extra" }),
+        ]),
         mechanics: Object.freeze({
           movement: Object.freeze({
             modes: Object.freeze({
@@ -766,6 +855,14 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+2 CA · volo · Imm. radiosi/necrotici",
         detail: "Bonus di 2 alla CA, volo, immunità ai radiosi o necrotici e alla condizione affascinato, attacchi magici e attacco extra.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "upper-planes-armor-class", label: "+2 CA" }),
+          Object.freeze({ id: "upper-planes-flight", label: "Volo 12 m" }),
+          Object.freeze({ id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" }),
+          Object.freeze({ id: "upper-planes-charmed-immunity", label: "Imm. affascinato" }),
+          Object.freeze({ id: "upper-planes-magical-attacks", label: "Attacchi magici" }),
+          Object.freeze({ id: "upper-planes-extra-attack", label: "Attacco extra" }),
+        ]),
         mechanics: Object.freeze({
           movement: Object.freeze({
             modes: Object.freeze({

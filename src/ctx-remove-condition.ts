@@ -5,6 +5,7 @@ import {
   getConditionInstances,
   refreshConditionLabels,
 } from "./conditions.js";
+import { compactSpellEffectLabel } from "./effectLabelCore.js";
 import {
   getEffectsMutationSceneContext,
   requireAppliedEffectsMutation,
@@ -48,7 +49,10 @@ async function readRows(ids: string[]) {
       itemId: item.id,
       instanceId: String(instance.id || ""),
       name: String(instance.condition || "Condizione"),
-      label: formatConditionInstance(instance),
+      label: compactSpellEffectLabel(
+        String(instance.displayLabel || instance.condition || "Condizione").trim(),
+      ),
+      detail: formatConditionInstance(instance),
       target: showTarget ? String(item.name || "Token") : "",
     }));
   });
@@ -80,6 +84,8 @@ async function render() {
     const name = document.createElement("span");
     name.className = "condition-name";
     name.textContent = row.label;
+    name.title = row.detail;
+    name.setAttribute("aria-label", row.detail);
     button.appendChild(name);
 
     if (row.target) {

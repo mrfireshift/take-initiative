@@ -12,32 +12,32 @@
 - Definizioni tracciabili: **355**; definizioni con regole d'area: **132**.
 - Workflow che richiedono smoke test runtime: **389**.
 - Lacune RAW confermate P1: **35**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `74b530e900e57100`.
+- Impronta deterministica: `6c8b172f67dc89c9`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 45 |
+| FULL | 47 |
 | MANUAL | 88 |
-| PARTIAL | 199 |
+| PARTIAL | 197 |
 | TRACK_ONLY | 145 |
 
 ### Stato di copertura (coverageStatus)
 
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 48 |
+| ACCEPTED | 50 |
 | GAP | 37 |
-| UNREVIEWED | 392 |
+| UNREVIEWED | 390 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 45 |
+| FULL | 47 |
 | MANUAL | 3 |
-| UNREVIEWED | 429 |
+| UNREVIEWED | 427 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -304,7 +304,7 @@ Nessuna voce.
 | Colpo dello Zefiro | `xanathar-colpo-dello-zefiro` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Colpo infuocato | `flame-strike` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Colpo Intrappolante | `phb2014-colpo-intrappolante` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Coltello di Ghiaccio | `xanathar-coltello-di-ghiaccio` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Coltello di Ghiaccio | `xanathar-coltello-di-ghiaccio` | Xanathar / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Comando | `command` | SRD 5.1 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Comprensione dei linguaggi | `comprehend-languages` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Compulsione | `compulsion` | SRD 5.1 / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; meccanica di movimento assente |
@@ -408,7 +408,7 @@ Nessuna voce.
 | Frantumare | `shatter` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Frecce Infuocate | `xanathar-frecce-infuocate` | Xanathar / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente |
 | Freccia acida | `acid-arrow` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Freccia Folgorante | `phb2014-freccia-folgorante` | PHB 2014 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Freccia Folgorante | `phb2014-freccia-folgorante` | PHB 2014 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Frusta di Spine | `phb2014-frusta-di-spine` | PHB 2014 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Fulgore Nauseante | `xanathar-fulgore-nauseante` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Fulmine | `lightning-bolt` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

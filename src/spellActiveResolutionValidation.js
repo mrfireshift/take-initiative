@@ -17,6 +17,7 @@ import {
 } from "./spellStaticZoneCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
 import { wallOfLightTargetWithinRange } from "./wallOfLightActiveCore.js";
+import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
 import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
@@ -52,6 +53,14 @@ function itemCenter(bounds, item) {
   const max = point(bounds?.max);
   if (min && max) return { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 };
   return point(item?.position);
+}
+
+function pointsMatch(left, right, tolerance = 1) {
+  const first = point(left);
+  const second = point(right);
+  if (!first || !second) return false;
+  return Math.abs(first.x - second.x) <= tolerance
+    && Math.abs(first.y - second.y) <= tolerance;
 }
 
 function boundsSize(bounds, dpi = 1) {
@@ -165,9 +174,30 @@ function validateOutcomes({ targetIds, outcomes, allowed }) {
 
 async function validateSaveArea({ payload, placement, targetIds, outcomes, damageRoll }) {
   const fixedRadius = fixedCasterRadiusConfig(payload);
+  const action = payload?.action || {};
+  const anchoredToPrimary = action.areaAnchor === "primary-target";
+  const allowEmptyTargets = action.allowEmptyTargets === true;
   const errors = [];
-  const maxTargets = Number(payload.action.maxTargets);
-  if (Number.isInteger(maxTargets) && maxTargets > 0 && targetIds.length > maxTargets) {
+  const ids = uniqueIds(targetIds);
+  if (!allowEmptyTargets && !ids.length) errors.push("targets-required");
+  const anchorTargetId = anchoredToPrimary
+    ? String(placement?.anchorTargetId || "").trim()
+    : "";
+  if (anchoredToPrimary && !anchorTargetId) errors.push("placement-anchor-required");
+  if (anchoredToPrimary && anchorTargetId && ids.includes(anchorTargetId)) {
+    errors.push("anchor-target-must-be-excluded");
+  }
+  const targetCapacity = resolveTargetingCapacity({
+    mode: "discrete",
+    declaration: payload.action,
+    targetIds,
+    ignoreTargetLimit: payload.ignoreTargetLimit === true,
+    initialTargeting: false,
+    defaultDiscreteTargeting: false,
+    source: "active-action",
+  });
+  if (targetCapacity.errors.length) errors.push(...targetCapacity.errors);
+  if (targetCapacity.exceeded) {
     errors.push("target-limit-exceeded");
   }
   errors.push(...validateOutcomes({
@@ -175,17 +205,33 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     outcomes,
     allowed: SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   }));
-  if (payload?.action?.damage && numericRoll(damageRoll) === null) errors.push("damage-required");
+  const damageRequired = !!action.damage
+    && (!action.damageRequiredWithTargetsOnly || ids.length > 0);
+  if (damageRequired && numericRoll(damageRoll) === null) errors.push("damage-required");
 
   const [caster] = await OBR.scene.items.getItems([payload.casterId]);
-  const [casterBounds, dpi, scale] = await Promise.all([
+  const [anchorTarget] = anchorTargetId
+    ? await OBR.scene.items.getItems([anchorTargetId])
+    : [];
+  const [casterBounds, anchorBounds, dpi, scale] = await Promise.all([
     caster ? OBR.scene.items.getItemBounds([payload.casterId]).catch(() => null) : null,
+    anchoredToPrimary && anchorTarget
+      ? OBR.scene.items.getItemBounds([anchorTargetId]).catch(() => null)
+      : null,
     OBR.scene.grid.getDpi().catch(() => 150),
     OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
   ]);
   if (!caster || !casterBounds) errors.push("caster-missing");
+  if (anchoredToPrimary && (!anchorTarget || !anchorBounds)) {
+    errors.push("anchor-target-missing");
+  }
+  const anchorCenter = anchoredToPrimary ? itemCenter(anchorBounds, anchorTarget) : null;
+  const placementAnchorOrigin = point(placement?.anchorOrigin);
+  if (anchoredToPrimary && anchorCenter
+    && !pointsMatch(placementAnchorOrigin, anchorCenter, 1)) {
+    errors.push("placement-anchor-stale");
+  }
 
-  const ids = uniqueIds(targetIds);
   if (ids.length !== targetIds.length) errors.push("duplicate-targets");
   const items = ids.length ? await OBR.scene.items.getItems(ids) : [];
   if (items.length !== ids.length) errors.push("target-missing");
@@ -222,6 +268,10 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
   const rule = getSpellAreaRuleForPlacement(payload.action.placementRuleId);
   const area = placementArea(placement);
   if (!rule || !area || area.type !== rule.geometry.shape) errors.push("placement-invalid");
+  if (anchoredToPrimary && area && placementAnchorOrigin
+    && !pointsMatch(area.origin, placementAnchorOrigin, 1)) {
+    errors.push("placement-anchor-mismatch");
+  }
   if (!rule?.targeting?.includeCaster && targetIds.includes(payload.casterId)) {
     errors.push("caster-target-forbidden");
   }

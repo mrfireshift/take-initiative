@@ -3,6 +3,7 @@ import {
   spellEffectConditionOptions,
 } from "./spellEffectCore.js";
 import { isPreparedSpellCast } from "./spellCastPhaseCore.js";
+import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -62,9 +63,37 @@ function requiredTargetIds(action, effectInstances = []) {
     .map((entry) => entry?.itemId));
 }
 
-function maximumTargets(action) {
-  const value = Math.floor(Number(action?.maxTargets) || 0);
-  return value > 0 ? value : 0;
+function actionTargetingCapacity(
+  action,
+  {
+    targetIds = [],
+    targetCount = null,
+    castContext = null,
+    ignoreTargetLimit = false,
+  } = {},
+) {
+  const normalizedTargetIds = uniqueIds(targetIds);
+  const countTargetIds = normalizedTargetIds.length || targetCount === null
+    ? normalizedTargetIds
+    : Array.from({ length: Math.max(0, Math.floor(Number(targetCount) || 0)) }, (_, index) => (
+      `active-target-${index}`
+    ));
+  return resolveTargetingCapacity({
+    mode: "discrete",
+    declaration: action,
+    slotLevel: castContext?.slotLevel,
+    castContext,
+    targetIds: countTargetIds,
+    initialTargeting: false,
+    defaultDiscreteTargeting: false,
+    ignoreTargetLimit,
+    source: "active-action",
+  });
+}
+
+function maximumTargets(action, options = {}) {
+  const maximum = actionTargetingCapacity(action, options).maximum;
+  return Number.isInteger(maximum) && maximum > 0 ? maximum : 0;
 }
 
 function groupTargetIds(group) {
@@ -182,8 +211,14 @@ export function spellActiveActionPresentation(
   const label = String(action?.buttonLabel || action?.label || "Attiva").trim() || "Attiva";
   const needsTargets = action?.subjectMode !== "caster"
     && action?.subjectMode !== "none";
-  const maxTargets = maximumTargets(action);
-  const tooManyTargets = needsTargets && maxTargets > 0 && count > maxTargets;
+  const targetCapacity = actionTargetingCapacity(action, {
+    targetIds: selectedTargetIds,
+    targetCount: selectedTargetIds.length ? null : count,
+  });
+  const maxTargets = Number.isInteger(targetCapacity.maximum) && targetCapacity.maximum > 0
+    ? targetCapacity.maximum
+    : 0;
+  const tooManyTargets = needsTargets && targetCapacity.exceeded;
   const unavailableTargets = new Set(uniqueIds(action?.unavailableTargetIds));
   const hasUnavailableTarget = selectedTargetIds.some((targetId) =>
     unavailableTargets.has(targetId)
@@ -251,6 +286,7 @@ export function buildSpellActiveActionPlan({
   selectedTargetIds = [],
   appliedAt = null,
   casterName = "",
+  ignoreTargetLimit = false,
 } = {}) {
   const actionCandidates = manualActions(spell)
     .filter((candidate) => String(candidate?.id || "") === String(actionId || ""));
@@ -269,8 +305,14 @@ export function buildSpellActiveActionPlan({
   if (!casterId) errors.push("caster-required");
   if (!parentInstanceId) errors.push("instance-required");
   if (!subjectIds.length) errors.push("targets-required");
-  const maxTargets = maximumTargets(action);
-  if (maxTargets > 0 && subjectIds.length > maxTargets) {
+  const targetCapacity = actionTargetingCapacity(action, {
+    targetIds: subjectIds,
+    castContext: group?.castContext,
+    ignoreTargetLimit,
+  });
+  if (targetCapacity.errors.length) errors.push(...targetCapacity.errors);
+  if (targetCapacity.exceeded && !ignoreTargetLimit) {
+    const maxTargets = maximumTargets(action, { castContext: group?.castContext });
     errors.push(`targets-maximum:${maxTargets}`);
   }
   const rememberedTargetIds = new Set(

@@ -584,8 +584,6 @@ export function bootSpellUnifiedPanel(
     let nextIds = sceneIds.includes(currentPrimary)
       ? sceneIds
       : uniqueIds([...state.session.targetIds, ...sceneIds]);
-    const maximum = state.contract?.presentation?.targeting?.limit?.maximum;
-    if (Number.isInteger(maximum) && maximum >= 0) nextIds = nextIds.slice(0, maximum);
     const validation = await validateTargetSelection({
       contract: state.contract,
       session: { ...state.session, targetIds: nextIds, primaryTargetId: currentPrimary },
@@ -1059,13 +1057,13 @@ export function bootSpellUnifiedPanel(
     const descriptor = placementDescriptor();
     const manualTargetSelection = state.contract?.presentation?.targeting?.selectionMode === "manual";
     const preparedHitArea = state.session?.phase === "resolve"
-      && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(state.contract?.spell?.id || "");
+      && state.contract?.presentation?.targeting?.areaAnchor === "primary-target";
     const primaryTargetId = String(state.session?.primaryTargetId || "").trim();
     if (preparedHitArea && !primaryTargetId) {
       patchSession({
         feedback: {
           state: "info",
-          message: "Seleziona il bersaglio primario colpito prima di posizionare l'area.",
+          message: "Seleziona il bersaglio primario dell'attacco prima di posizionare l'area.",
         },
       }, { clearFeedback: false });
       return;
@@ -2379,6 +2377,9 @@ export function bootSpellUnifiedPanel(
       });
       await writeSelection(nextIds);
     },
+    onIgnoreTargetLimitChange: (checked) => patchSession({
+      ignoreTargetLimit: checked === true,
+    }),
     onTargetNameFilter: (name) => {
       state.targetFilters = { ...state.targetFilters, name };
       render();

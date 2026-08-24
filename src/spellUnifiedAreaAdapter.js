@@ -40,6 +40,12 @@ function text(value) {
   return String(value ?? "").trim();
 }
 
+function hasInputValue(value) {
+  return value !== null
+    && value !== undefined
+    && (typeof value !== "string" || value.trim() !== "");
+}
+
 function uniqueIds(values = []) {
   return Array.from(new Set(
     (Array.isArray(values) ? values : [])
@@ -216,13 +222,12 @@ function hpInput(contract, session) {
     };
   }
   if (inputs.damage?.required === true) {
+    const primaryDamage = session?.hpValues?.primaryDamage;
     return {
       mode: "damage",
       amount: session?.hpValues?.damage,
-      ...(session?.hpValues?.primaryDamage !== null
-        && session?.hpValues?.primaryDamage !== undefined
-        && String(session?.hpValues?.primaryDamage || "").trim() !== ""
-        ? { primaryAmount: session.hpValues.primaryDamage }
+      ...(hasInputValue(primaryDamage)
+        ? { primaryAmount: primaryDamage }
         : {}),
     };
   }
@@ -311,7 +316,10 @@ export function buildSpellUnifiedAreaCommand({
     primaryTargetId: text(session?.primaryTargetId),
     targetContexts: session?.targetContext || {},
     outcomes: session?.outcomes || {},
-    attackOutcome: session?.attackOutcome || "",
+    ignoreTargetLimit: session?.ignoreTargetLimit === true,
+    ...(contract?.presentation?.phase?.plan?.attack?.primaryDamageMode === "final-applied"
+      ? {}
+      : { attackOutcome: session?.attackOutcome || "" }),
     targetLocked: locked,
     placement,
     hp: hpInput(contract, session),

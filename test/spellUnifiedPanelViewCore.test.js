@@ -107,6 +107,73 @@ test("Muro di Fuoco proietta le scelte di placement nel modello visuale", () => 
   assert.equal(selected.placement.rules[0].shape, "line");
 });
 
+test("il view model del batch 7 non duplica label e placeholder e conserva il detail", () => {
+  const curse = modelFor("bestow-curse");
+  assert.equal(curse.context.variant.visible, true);
+  assert.equal(curse.context.variant.label, "Effetto");
+  assert.equal(curse.context.variant.options[0].label, "Scegli");
+  assert.match(curse.context.variant.hint, /prove e ai tiri salvezza su Forza/u);
+
+  const contagion = modelFor("contagion", {
+    targetIds: ["target-a"],
+    variant: "mind-fire",
+  });
+  assert.equal(contagion.context.variant.label, "Effetto");
+  assert.match(contagion.context.variant.hint, /Non effettua il normale TS SAG/u);
+});
+
+test("Freccia acida lascia l'esito soltanto nel controllo del bersaglio", () => {
+  const view = modelFor("acid-arrow", {
+    targetIds: ["target-a"],
+    attackOutcome: "miss",
+    hpValues: { damage: 8 },
+  });
+
+  assert.equal(view.context.variant.visible, false);
+  assert.equal(view.targets.outcomes.visible, true);
+  assert.deepEqual(
+    view.targets.candidates[0].outcomeOptions.map((option) => option.label),
+    ["Colpito", "Mancato"],
+  );
+  assert.equal(view.targets.candidates[0].outcome.value, "miss");
+});
+
+test("Freccia Folgorante richiede i valori finali e non espone l'esito dell'attacco", () => {
+  const view = modelFor("phb2014-freccia-folgorante", {
+    targetIds: ["target-a"],
+    primaryTargetId: "target-a",
+    outcomes: { "target-a": "failed" },
+    hpValues: { primaryDamage: 13, damage: 7 },
+    placement: {
+      state: "confirmed",
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      anchorTargetId: "target-a",
+      targetIds: ["target-a"],
+      preview: { anchorTargetId: "target-a", targetIds: ["target-a"] },
+    },
+  }, { contractOptions: { phase: "resolve" } });
+
+  assert.equal(view.workflow.controls.includes("attack-outcomes"), false);
+  assert.equal(view.targets.primary.required, true);
+  assert.equal(view.targets.outcomes.mode, "save");
+  assert.equal(view.targets.outcomes.attack.visible, false);
+  assert.deepEqual(view.targets.outcomes.options.map((option) => option.value), [
+    "passed",
+    "failed",
+    "immune",
+  ]);
+  assert.deepEqual(view.effects.fields.map((field) => field.id), [
+    "damage",
+    "primaryDamage",
+  ]);
+  assert.equal(view.effects.fields.find((field) => field.id === "damage").label, "Danno area · 2d8 fulmine");
+  assert.equal(view.effects.fields.find((field) => field.id === "primaryDamage").label, "Danno primario · 4d8 fulmine");
+  assert.equal(view.effects.fields.find((field) => field.id === "primaryDamage").value, 13);
+  assert.equal(view.workflow.validation.valid, true);
+});
+
 test("Catena di fulmini proietta gli step di selezione primaria e secondaria", () => {
   const primaryStep = modelFor("chain-lightning");
   assert.equal(primaryStep.targets.selection.mode, "primary-then-secondary");

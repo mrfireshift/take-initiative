@@ -48,6 +48,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-collerica": Object.freeze({
+    prepareOnly: true,
     resolveAction: "extend",
     attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
@@ -61,6 +62,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-incandescente": Object.freeze({
+    prepareOnly: true,
     resolveAction: "extend",
     attack: meleeWeaponAttack,
     prepared: (slot) => freezeEffect({
@@ -74,6 +76,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-tonante": Object.freeze({
+    prepareOnly: true,
     resolveAction: "dismiss",
     attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
@@ -89,7 +92,11 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-raffica-di-spine": Object.freeze({
     resolveAction: "dismiss",
-    attack: rangedWeaponAttack,
+    attack: Object.freeze({
+      ...rangedWeaponAttack,
+      outcomeRequired: false,
+      areaAnchor: "primary-target",
+    }),
     excludeResolvedEffects: true,
     prepared: (slot) => freezeEffect({
       id: "hail-of-thorns-trigger",
@@ -114,6 +121,11 @@ const PHASED_SPELLS = Object.freeze({
     resolveAction: "dismiss",
     attack: Object.freeze({
       ...rangedWeaponAttack,
+      // Il tiro per colpire viene risolto al tavolo. La risoluzione preparata
+      // riceve soltanto il danno primario finale già determinato dal GM.
+      outcomes: Object.freeze([]),
+      outcomeRequired: false,
+      primaryDamageMode: "final-applied",
       consumeOnMiss: true,
       missResolves: true,
       areaAnchor: "primary-target",
@@ -141,6 +153,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-accecante": Object.freeze({
+    prepareOnly: true,
     resolveAction: "extend",
     attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
@@ -154,6 +167,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-demoralizzante": Object.freeze({
+    prepareOnly: true,
     resolveAction: "dismiss",
     attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
@@ -167,6 +181,7 @@ const PHASED_SPELLS = Object.freeze({
     }),
   }),
   "phb2014-punizione-esiliante": Object.freeze({
+    prepareOnly: true,
     resolveAction: "extend",
     attack: weaponAttack,
     prepared: () => freezeEffect({
@@ -191,8 +206,15 @@ function slotLevel(spell, castContext = {}) {
   return Number.isFinite(requested) ? Math.max(base, Math.min(9, requested)) : base;
 }
 
-export function getSpellCastPhaseOptions(value) {
-  if (!PHASED_SPELLS[spellId(value)]) return [];
+export function getSpellCastPhaseOptions(value, requestedPhase = "") {
+  const rule = PHASED_SPELLS[spellId(value)];
+  if (!rule) return [];
+  const phase = String(requestedPhase || "").trim().toLocaleLowerCase("it");
+  if (rule.prepareOnly) {
+    return [phase === "resolve"
+      ? { value: "resolve", label: "Risoluzione del colpo" }
+      : { value: "prepare", label: "Preparazione sul caster" }];
+  }
   return [
     { value: "prepare", label: "Preparazione sul caster" },
     { value: "resolve", label: "Risoluzione del colpo" },
@@ -252,6 +274,17 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
     attack: rule.attack || null,
     concentrationAction: rule.resolveAction,
   };
+}
+
+export function spellPhaseAttackOutcomeRequired(phasePlan = null) {
+  return phasePlan?.phase === "resolve"
+    && phasePlan?.attack?.required === true
+    && phasePlan?.attack?.outcomeRequired !== false;
+}
+
+export function spellPhaseUsesPrimaryTargetAnchor(phasePlan = null) {
+  return phasePlan?.phase === "resolve"
+    && phasePlan?.attack?.areaAnchor === "primary-target";
 }
 
 export function findActiveSpellConcentration(concentrations, spell) {

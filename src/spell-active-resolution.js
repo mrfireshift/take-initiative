@@ -112,6 +112,33 @@ function isHolyWeapon() {
   return payload?.spellId === "xanathar-arma-sacra";
 }
 
+function isPrimaryTargetAnchoredArea() {
+  return payload?.action?.areaAnchor === "primary-target";
+}
+
+function selectedPrimaryTargetIds() {
+  const selected = Array.from(new Set(
+    (Array.isArray(currentPlayerSelection) ? currentPlayerSelection : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  ));
+  const characterIds = new Set(characters().map((item) => String(item?.id || "").trim()));
+  return selected.filter((id) => characterIds.has(id));
+}
+
+function autoPlaceAnchoredAreaFromSelection() {
+  if (!isPrimaryTargetAnchoredArea()
+    || payload?.action?.anchorTargetFromSelection !== true
+    || busy
+    || pendingPlacementRequestId
+    || placement
+    || !sceneLifecycle.isReady()) {
+    return;
+  }
+  if (selectedPrimaryTargetIds().length !== 1) return;
+  void placeArea();
+}
+
 function selectedZoneShorteningFrom() {
   const config = payload?.action?.shortenStaticZone;
   const fallback = ["start", "end"].includes(String(config?.from || "").trim())
@@ -368,18 +395,20 @@ function renderContext() {
     $("attackAdvantage").hidden = true;
     $("saveTargetHint").hidden = true;
     $("summary").hidden = true;
-    if (damageField) damageField.hidden = false;
+    if (damageField) damageField.hidden = true;
     attackOutcome = "hit";
-    $("attackTitle").textContent = "Bersaglio colpito";
-    $("attackDamageLabel").textContent = damage?.dice
-      ? `Danno iniziale ${damage.dice}${damage.type ? ` ${damage.type}` : ""}`
-      : "Danno iniziale";
+    $("attackTitle").textContent = "Bersaglio";
+    const damageLabel = [damage?.dice, damage?.type].filter(Boolean).join(" ");
+    $("attackDamageLabel").textContent = damageLabel
+      ? `Danno extra · ${damageLabel}`
+      : "Danno extra";
     $("attackDamage").placeholder = "Totale";
     return;
   }
   const callLightning = isCallLightning();
   const flameInvestiture = isFlameInvestiture();
   const holyWeapon = isHolyWeapon();
+  const primaryTargetArea = isPrimaryTargetAnchoredArea();
   const child = childZone();
   const singleSave = isSingleSave();
   const fixedRadius = fixedCasterRadiusConfig();
@@ -390,30 +419,38 @@ function renderContext() {
       ? "Investitura della Fiamma"
       : holyWeapon
         ? "Arma Sacra"
+      : primaryTargetArea
+        ? payload.spellName || "Freccia Folgorante"
       : child
         ? payload.spellName || "Sottozona incantesimo"
       : singleSave
         ? payload.spellName || "Tiro salvezza"
     : "Attivazione incantesimo";
-  $("saveTitle").hidden = callLightning;
+  $("saveTitle").hidden = callLightning && !primaryTargetArea;
   $("saveTitle").textContent = callLightning
       ? "Richiama il fulmine"
       : flameInvestiture
         ? "Linea di fuoco"
         : holyWeapon
         ? "Esplosione radiosa · TS Costituzione"
+      : primaryTargetArea
+        ? "Esplosione sul bersaglio dell'attacco · TS Destrezza"
       : child
         ? `${childLabel}: posizionamento e bersagli`
       : fixedRadius
         ? `${payload?.action?.label || "Tiro salvezza"} · TS ${saveAbilityLabel(payload?.action?.save?.ability)}`
     : "Sagoma e tiri salvezza";
-  $("placementToolbar").hidden = !!fixedRadius;
+  const autoAnchoredArea = primaryTargetArea
+    && payload?.action?.anchorTargetFromSelection === true;
+  $("placementToolbar").hidden = !!fixedRadius || autoAnchoredArea;
   $("place").textContent = callLightning
     ? "Posiziona il fulmine"
     : flameInvestiture
       ? "Posiziona la linea di fuoco"
       : holyWeapon
         ? "Posiziona l'esplosione"
+      : primaryTargetArea
+        ? "Centra sul bersaglio dell'attacco"
       : child
         ? `Posiziona ${childLabel.toLocaleLowerCase("it-IT")}`
     : "Posiziona sagoma";
@@ -470,6 +507,8 @@ function renderContext() {
     : flameInvestiture
       ? "Danno della linea di fuoco"
       : holyWeapon
+        ? "Danno dell'esplosione"
+      : primaryTargetArea
         ? "Danno dell'esplosione"
     : damageLabel ? "Danno " + damageLabel : "Danno pieno";
   if (child) {
@@ -700,7 +739,8 @@ function renderSave() {
     : placement && targets.length
       ? `${targets.length} bersagli`
       : "";
-  const damageRequired = !!payload?.action?.damage;
+  const damageRequired = !!payload?.action?.damage
+    && (!payload?.action?.damageRequiredWithTargetsOnly || targets.length > 0);
   $("damageField").hidden = child || targets.length === 0 || !damageRequired;
   $("bulkOutcomes").hidden = child
     ? child.resolution !== "save"
@@ -890,7 +930,7 @@ async function renderSingleSave() {
         ? payload?.action?.rangeOrigin === "root"
           ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dalla mano.`
           : `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit}.`
-        : "Scegli una creatura.";
+        : "";
   const damageRequired = !!payload?.action?.damage;
   const damageReady = !damageRequired || String($("saveDamage")?.value || "").trim() !== "";
   const canResolve = sceneLifecycle.isReady() && !busy && !!selectedSaveTarget
@@ -902,7 +942,7 @@ async function renderSingleSave() {
   $("apply").disabled = !canResolve;
   $("apply").textContent = manualSave ? (payload?.action?.buttonLabel || "Applica") : "Applica";
   $("summary").textContent = selectedSaveTarget
-    ? manualSave ? "Bersaglio pronto" : saveOutcome ? "TS pronto" : "Seleziona l'esito del TS"
+    ? manualSave ? "" : saveOutcome ? "" : "Seleziona l'esito del TS"
     : "Nessun bersaglio";
 }
 
@@ -1075,7 +1115,7 @@ function renderPreparedChoice(group) {
 }
 
 function renderPreparedSave(group, targetItems, saveRequired) {
-  const visible = saveRequired && ["hit", "critical"].includes(attackOutcome);
+  const visible = saveRequired;
   const section = $("singleSaveSection");
   section.hidden = !visible;
   $("singleSaveDamageField").hidden = true;
@@ -1083,7 +1123,7 @@ function renderPreparedSave(group, targetItems, saveRequired) {
     selectedSaveTarget = "";
     return;
   }
-  const target = targetItems.find((item) => item?.id === selectedAttackTarget) || targetItems[0];
+  const target = targetItems.find((item) => item?.id === selectedAttackTarget);
   selectedSaveTarget = String(target?.id || "").trim();
   const select = $("saveTarget");
   select.replaceChildren();
@@ -1094,6 +1134,7 @@ function renderPreparedSave(group, targetItems, saveRequired) {
     select.appendChild(option);
     select.value = target.id;
   }
+  select.disabled = busy || !target;
   select.hidden = true;
   for (const button of document.querySelectorAll("[data-save-outcome]")) {
     button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
@@ -1135,13 +1176,15 @@ async function renderPrepared() {
   targetSelect.disabled = true;
   if (targets.length === 1) {
     selectedAttackTarget = targets[0].id;
-    $("attackTitle").textContent = "Bersaglio colpito: " + displayName(targets[0]);
-  } else if (!targets.length) {
-    selectedAttackTarget = "";
-    $("attackTitle").textContent = "Bersaglio colpito: seleziona un token";
+    $("attackTitle").textContent = `Bersaglio: ${displayName(targets[0])}`;
   } else {
     selectedAttackTarget = "";
-    $("attackTitle").textContent = "Bersaglio colpito: selezionane uno";
+    $("attackTitle").textContent = "Bersaglio";
+  }
+  if (!selectedAttackTarget) {
+    setStatus("Seleziona un bersaglio prima di continuare.");
+  } else if (statusMessage === "Seleziona un bersaglio prima di continuare.") {
+    setStatus("");
   }
 
   attackOutcome = "hit";
@@ -1149,7 +1192,8 @@ async function renderPrepared() {
 
   const damageRequired = !!plan.resolution?.mechanics?.damageBonus;
   const damageInput = $("attackDamage");
-  damageInput.hidden = !damageRequired;
+  damageInput.closest(".field").hidden = !damageRequired;
+  damageInput.hidden = false;
   damageInput.disabled = !damageRequired
     || busy;
   damageInput.value = damageInput.dataset.value || "";
@@ -1158,8 +1202,7 @@ async function renderPrepared() {
     targets,
     !!plan.resolution?.mechanics?.savingThrow,
   );
-  const saveRequired = !!plan.resolution?.mechanics?.savingThrow
-    && attackOutcome === "hit";
+  const saveRequired = !!plan.resolution?.mechanics?.savingThrow;
   const damageReady = !damageRequired
     || String(damageInput.value || "").trim() !== "";
   const saveReady = !saveRequired || !!saveOutcome;
@@ -1211,6 +1254,10 @@ function render() {
   } else if (save) {
     const selectedCount = child ? childPlacements.length : 1;
     const requiredCount = child ? childPlacementCount() : 1;
+    const areaTargets = currentTargetItems();
+    const areaDamageRequired = !!payload?.action?.damage
+      && (!payload?.action?.damageRequiredWithTargetsOnly || areaTargets.length > 0);
+    const damageInputMissing = (!child && !!payload?.action?.damage && !$("damage").value.trim());
     const depthValid = !child?.depth || childPlacements.every((entry) => {
       if (entry.depthRoll === undefined || entry.depthRoll === "") return true;
       const value = Number(entry.depthRoll);
@@ -1220,11 +1267,15 @@ function render() {
     });
     $("apply").disabled = !sceneReady || busy
       || !placement
-      || (child ? selectedCount !== requiredCount : !placement.targetIds?.length)
+      || (child
+        ? selectedCount !== requiredCount
+        : !placement.targetIds?.length && payload?.action?.allowEmptyTargets !== true)
       || requiresSave && currentTargetItems().some((item) => !SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcomes.get(item.id)))
       || !depthValid
-      || (!child && !!payload?.action?.damage && !$("damage").value.trim());
-    $("apply").textContent = child ? "Conferma" : "Applica";
+      || (damageInputMissing && areaDamageRequired);
+    $("apply").textContent = child
+      ? "Conferma"
+      : payload?.action?.buttonLabel || "Risolvi";
     $("summary").textContent = "";
     renderSave();
   } else if (singleSave) {
@@ -1242,7 +1293,7 @@ function render() {
       $("apply").textContent = "Applica attacchi";
       $("summary").textContent = `${completeAttacks.length}/${maxAttackCount()} attacchi pronti`;
     } else {
-      $("summary").textContent = selectedAttackTarget ? "Bersaglio selezionato" : "Nessun bersaglio";
+      $("summary").textContent = selectedAttackTarget ? "" : "Nessun bersaglio";
     }
     void renderStorm();
   }
@@ -1261,12 +1312,23 @@ async function placeArea() {
     ? childPlacements.length - 1
     : -1;
   if (child && !childCount) return;
+  const anchoredArea = isPrimaryTargetAnchoredArea() && !child;
+  const selectedAnchorIds = anchoredArea ? selectedPrimaryTargetIds() : [];
+  if (anchoredArea && selectedAnchorIds.length !== 1) {
+    setStatus(selectedAnchorIds.length
+      ? "Seleziona un solo bersaglio dell'attacco sulla mappa."
+      : "Seleziona il bersaglio dell'attacco sulla mappa.");
+    return;
+  }
+  const anchorTargetId = selectedAnchorIds[0] || "";
   const requestId = createSpellAreaPlacementRequestId();
   pendingPlacementRequestId = requestId;
   busy = true;
   render();
   setStatus(child
     ? `${childKindLabel(child.childKind)} ${Math.min(childPlacements.length + 1, childCount)} di ${childCount}: posiziona e conferma sulla mappa.`
+    : anchoredArea
+    ? "Calcolo l'esplosione attorno al bersaglio dell'attacco."
     : isCallLightning()
     ? "Scegli e conferma il punto del fulmine sulla mappa."
     : isFlameInvestiture()
@@ -1286,6 +1348,13 @@ async function placeArea() {
           childIndex: replacingIndex >= 0 ? replacingIndex : childPlacements.length,
           activationId: childActivationId || (childActivationId = createChildActivationId()),
         }
+        : anchoredArea
+          ? {
+            anchorTargetId,
+            primaryTargetId: anchorTargetId,
+            areaAnchor: "primary-target",
+            autoConfirmAnchor: true,
+          }
         : null,
       requestId,
     }, { broadcast: OBR.broadcast, windowRef: window });
@@ -1310,14 +1379,24 @@ async function placeArea() {
       const allowedIds = new Set(placement.targetIds);
       outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
     } else {
+      const resultAnchorTargetId = String(
+        result.preview.anchorTargetId || anchorTargetId,
+      ).trim();
+      if (anchoredArea && resultAnchorTargetId !== anchorTargetId) {
+        throw new Error("placement-anchor-mismatch");
+      }
       placement = {
         ...result.preview,
-        targetIds: Array.from(new Set(result.preview.targetIds || [])),
+        ...(resultAnchorTargetId ? { anchorTargetId: resultAnchorTargetId } : {}),
+        targetIds: Array.from(new Set(result.preview.targetIds || []))
+          .filter((id) => !anchoredArea || id !== anchorTargetId),
       };
       outcomes = new Map();
     }
     setStatus(child
       ? `${childKindLabel(child.childKind)} confermato. ${childPlacements.length} di ${childCount}.`
+      : anchoredArea
+      ? "Esplosione ancorata. Seleziona gli esiti dei TS nell'area."
       : isCallLightning()
       ? "Fulmine confermato. I bersagli sono ora bloccati."
       : isFlameInvestiture()
@@ -1367,7 +1446,7 @@ async function applyPreparedResolution() {
   const action = preparedAction(group);
   const manual = action?.type === "manual";
   if (!group || !action || (!manual && !selectedAttackTarget)) {
-    setStatus("Seleziona il bersaglio colpito.");
+    setStatus("Seleziona un bersaglio prima di continuare.");
     return;
   }
   attackOutcome = "hit";
@@ -1410,7 +1489,7 @@ async function applyPreparedResolution() {
       })();
     if (!sceneLifecycle.isCurrent(operation)) return;
     if (executionResult?.status === "miss" && executionResult?.pending === true) {
-      setStatus("Mancato: la preparazione resta disponibile.");
+      setStatus("La preparazione resta disponibile.");
       await OBR.broadcast.sendMessage(
         PREPARED_SPELL_RESOLUTION_CHANNEL,
         { type: "request-sync", instanceId: payload.instanceId },
@@ -1539,6 +1618,7 @@ async function loadScene() {
     if (!sceneLifecycle.isCurrent(operation)) return false;
   }
   render();
+  autoPlaceAnchoredAreaFromSelection();
   return true;
 }
 
@@ -1646,9 +1726,11 @@ if (!payload) {
       // sincronizzare; render() mantiene invariati gli altri workflow.
       if (isPreparedResolution()
         || isSingleSave()
+        || isPrimaryTargetAnchoredArea()
         || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
         render();
       }
+      autoPlaceAnchoredAreaFromSelection();
     });
     if (typeof ResizeObserver === "function") {
       const observer = new ResizeObserver(() => requestCompactPopoverResize());

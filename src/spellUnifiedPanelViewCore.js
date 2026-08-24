@@ -41,6 +41,10 @@ import {
   spellSaveDamageFactor,
   spellSaveDamageFormula,
 } from "./spellCastResolutionRules.js";
+import {
+  applyTargetingLimitState,
+  resolveTargetingCapacity,
+} from "./spellTargetingCapacityCore.js";
 
 const SUBJECT_LABELS = Object.freeze({
   none: "Nessun soggetto",
@@ -76,9 +80,9 @@ const FEEDBACK_LABELS = Object.freeze({
 });
 
 const LANES = Object.freeze({
-  "spell-lifecycle": "Lifecycle spell",
-  "area-transaction": "Transazione area",
-  "active-resolution": "Risoluzione attiva",
+  "spell-lifecycle": "Incantesimo",
+  "area-transaction": "Area",
+  "active-resolution": "Azione attiva",
 });
 
 const FACTION_LABELS = Object.freeze({
@@ -438,6 +442,16 @@ function targetContextFields(presentation, session, selectedTargets = []) {
 function normalizeEffectFields(presentation, session, validation, spellId = "") {
   const inputs = presentation?.inputs || {};
   const hpValues = session?.hpValues || {};
+  const mechanics = presentation?.phase?.plan?.resolution?.mechanics || {};
+  const areaDamage = mechanics.areaDamage && typeof mechanics.areaDamage === "object"
+    ? mechanics.areaDamage
+    : null;
+  const primaryDamage = mechanics.damageReplacement && typeof mechanics.damageReplacement === "object"
+    ? mechanics.damageReplacement
+    : null;
+  const damageFormula = areaDamage?.dice
+    ? `Danno area · ${areaDamage.dice}${areaDamage.type ? ` ${areaDamage.type}` : ""}`
+    : "Danno";
   const fields = [];
   if (inputs.damage?.visible) {
     const selectedOutcomes = Array.from(new Set(
@@ -456,23 +470,28 @@ function normalizeEffectFields(presentation, session, validation, spellId = "") 
     fields.push({
       id: "damage",
       type: "number",
-      label: selectedFormula ? `Danno · ${selectedFormula}` : "Danno",
+      label: selectedFormula ? `Danno · ${selectedFormula}` : damageFormula,
       hint: selectedFormula
-        ? `Inserisci il totale del tiro ${selectedFormula}.`
-        : passedFormula && failedFormula
-          ? `TS superato: ${passedFormula}. TS fallito: ${failedFormula}. Inserisci il totale effettivo.`
-          : "Valore da applicare ai bersagli.",
+        ? ""
+        : areaDamage
+          ? "Tiro unico dell'esplosione; il fattore dipende dall'esito del TS."
+          : passedFormula && failedFormula
+          ? `TS superato: ${passedFormula}. TS fallito: ${failedFormula}.`
+          : "",
       min: 0,
       value: hpValues.damage ?? "",
       invalid: validation.firstInvalidField === "damage",
     });
-    if (spellId === "phb2014-freccia-folgorante"
-      && session?.phase === "resolve") {
+    if (inputs.primaryDamage?.visible && session?.phase === "resolve") {
       fields.push({
         id: "primaryDamage",
         type: "number",
-        label: "Danno primario",
-        hint: "Totale già tirato sul bersaglio colpito (sostitutivo).",
+        label: primaryDamage?.dice
+          ? `Danno primario · ${primaryDamage.dice}${primaryDamage.type ? ` ${primaryDamage.type}` : ""}`
+          : "Danno primario",
+        hint: primaryDamage
+          ? "Totale finale da applicare al bersaglio primario; non viene ricalcolato dal runtime."
+          : "Totale finale da applicare al bersaglio primario.",
         min: 0,
         value: hpValues.primaryDamage ?? "",
         invalid: validation.firstInvalidField === "primaryDamage",
@@ -484,7 +503,7 @@ function normalizeEffectFields(presentation, session, validation, spellId = "") 
       id: "healing",
       type: "number",
       label: "Cura",
-      hint: "Valore da applicare ai bersagli.",
+      hint: "",
       min: 0,
       value: hpValues.healing ?? "",
       invalid: validation.firstInvalidField === "healing",
@@ -579,11 +598,11 @@ export function buildUnifiedPanelViewModel({
   const targetingMode = asText(targeting.mode) || "none";
   const inputs = presentation.inputs || {};
   const selectedTargetIds = Array.isArray(session?.targetIds) ? session.targetIds : [];
-  const workflowMaxTargets = Number.isInteger(inputs.targets?.maximum)
-    ? inputs.targets.maximum
-    : Number.isInteger(targeting.limit?.maximum)
-      ? targeting.limit.maximum
-      : null;
+  const ignoreTargetLimit = session?.ignoreTargetLimit === true;
+  const workflowCapacity = applyTargetingLimitState(
+    targeting.limit || { maximum: inputs.targets?.maximum },
+    { ignoreTargetLimit, targetIds: selectedTargetIds },
+  );
   const activeActions = Array.isArray(presentation.activeActions)
     ? clone(presentation.activeActions)
     : [];
@@ -605,11 +624,31 @@ export function buildUnifiedPanelViewModel({
       || ["save-area", "single-attack", "single-save", "child-zone", "zone-movement"]
         .includes(selectedActiveAction.resolutionKind)
     );
-  const maxTargets = activeActionNeedsPanelTargets
-    && Number.isInteger(Number(selectedActiveAction.maxTargets))
-    && Number(selectedActiveAction.maxTargets) > 0
-    ? Number(selectedActiveAction.maxTargets)
-    : workflowMaxTargets;
+  const activeActionHasExplicitCapacity = activeActionNeedsPanelTargets
+    && (
+      (Number.isInteger(Number(selectedActiveAction?.maxTargets))
+        && Number(selectedActiveAction.maxTargets) > 0)
+      || (selectedActiveAction?.targeting && typeof selectedActiveAction.targeting === "object")
+      || selectedActiveAction?.requiresTargets === true
+    );
+  const activeActionCapacity = activeActionHasExplicitCapacity
+    ? resolveTargetingCapacity({
+      mode: "discrete",
+      declaration: selectedActiveAction.targeting
+        || (Number.isInteger(Number(selectedActiveAction.maxTargets))
+          && Number(selectedActiveAction.maxTargets) > 0
+          ? { maximum: Number(selectedActiveAction.maxTargets) }
+          : null),
+      targetIds: selectedTargetIds,
+      ignoreTargetLimit,
+      minimum: selectedActiveAction.requiresTargets ? 1 : null,
+      initialTargeting: false,
+      defaultDiscreteTargeting: false,
+      source: "active-action",
+    })
+    : null;
+  const targetCapacity = activeActionCapacity || workflowCapacity;
+  const maxTargets = targetCapacity.effectiveMaximum;
   const outcomeMode = asText(presentation.outcomes?.mode) || "save";
   const outcomeOptions = Array.isArray(presentation.outcomes?.options)
     ? clone(presentation.outcomes.options)
@@ -649,6 +688,8 @@ export function buildUnifiedPanelViewModel({
   const placement = placementLabels(workflow.placement, contract);
   const phase = presentation.phase || {};
   const variant = presentation.variant || {};
+  const selectedVariantOption = (Array.isArray(variant.options) ? variant.options : [])
+    .find((option) => asText(option?.value) === asText(session?.variant));
   const composition = presentation.composition || {};
   const compositionSelected = session?.castContext?.[asText(composition.key) || "composition"]
     || (composition.selected && typeof composition.selected === "object"
@@ -752,7 +793,7 @@ export function buildUnifiedPanelViewModel({
     }),
     execution: {
       lane: asText(executionContract.lane),
-      laneLabel: LANES[executionContract.lane] || executionContract.lane,
+      laneLabel: LANES[executionContract.lane] || "Catalogo pronto",
       lanes: Array.isArray(executionContract.lanes) ? executionContract.lanes : [],
       hasHP: executionContract.hasHP === true,
       hasZones: executionContract.hasZones === true,
@@ -778,7 +819,7 @@ export function buildUnifiedPanelViewModel({
         label: "Caster",
         hint: presentation.caster?.required
           ? "Serve per definire l'origine e la portata dell'incantesimo."
-          : "Chi lancia l'incantesimo.",
+          : "",
         value: asText(session?.casterId),
         options: normalizeCasterOptions(casterOptions),
       },
@@ -788,7 +829,7 @@ export function buildUnifiedPanelViewModel({
         label: "Slot",
         hint: presentation.slot?.min
           ? `Dal ${presentation.slot.min}° livello in su.`
-          : "Livello dello slot usato.",
+          : "",
         value: session?.slotLevel ?? "",
         options: optionList(presentation.slot?.options, "Seleziona slot"),
       },
@@ -829,12 +870,13 @@ export function buildUnifiedPanelViewModel({
           : "Applica le condizioni previste dall'incantesimo.",
       },
       variant: {
-        visible: inputs.variant?.visible === true,
+        visible: inputs.variant?.visible === true
+          && variant.control !== "attack-outcome",
         required: inputs.variant?.required === true,
-        label: "Variante",
-         hint: "Scegli l'effetto da applicare.",
+        label: asText(variant.label) || "Scelta",
+        hint: asText(selectedVariantOption?.detail),
         value: asText(session?.variant),
-        options: optionList(variant.options, "Seleziona variante"),
+        options: optionList(variant.options, asText(variant.placeholder) || "Scegli"),
       },
       composition: {
         visible: inputs.composition?.visible === true,
@@ -858,7 +900,21 @@ export function buildUnifiedPanelViewModel({
       candidates,
       filters: normalizedTargetFilters,
       selectedIds: [...selectedTargetIds],
-      countLabel: `${selectedTargetIds.length}${maxTargets === null ? "" : `/${maxTargets}`} bersagli`,
+      countLabel: `${selectedTargetIds.length}${targetCapacity.maximum === null
+        ? ""
+        : `/${targetCapacity.maximum}`} bersagli`,
+      limit: {
+        maximum: targetCapacity.maximum,
+        effectiveMaximum: targetCapacity.effectiveMaximum,
+        bypassable: targetCapacity.bypassable === true,
+        ignoreTargetLimit,
+        exceeded: targetCapacity.exceeded,
+        rawExceeded: targetCapacity.rawExceeded,
+        classification: targetCapacity.classification || null,
+      },
+      limitWarning: targetCapacity.exceeded && !ignoreTargetLimit
+        ? "Riduci manualmente i bersagli per rientrare nel limite."
+        : "",
        ruleLabel: targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
       spatialRules: clone(targeting.spatialRules),
       spatialLabel: spatialRuleLabel(targeting.spatialRules),
@@ -888,7 +944,7 @@ export function buildUnifiedPanelViewModel({
       outcomes: {
         visible: inputs.outcomes?.visible === true,
         required: inputs.outcomes?.required === true,
-        label: "Esiti TS / attacco",
+        label: outcomeMode === "save" ? "Esiti TS" : "Esiti TS / attacco",
         mode: outcomeMode,
         options: outcomeOptions,
         attack: {
@@ -957,7 +1013,7 @@ export function buildUnifiedPanelViewModel({
     manual: {
       visible: !activeActionDelegatesResolution && manualControlsVisible,
       sourceLabel: "Inserimento guidato",
-      description: "Inserisci i valori richiesti dall'effetto.",
+      description: "",
       fields: effectFields,
     },
     effects: {
@@ -965,7 +1021,7 @@ export function buildUnifiedPanelViewModel({
         && manualCapability.available !== true
         && effectFields.length > 0,
       label: "Valori effetto",
-      description: "Inserisci il valore da applicare ai bersagli.",
+      description: "",
       fields: effectFields,
       preview: hpPreview,
     },

@@ -249,6 +249,50 @@ test("la revisione conserva il raggio reale della sagoma circolare", () => {
   assert.equal(review.preview.radius, 600);
 });
 
+test("un placement ancorato conserva identità e origine del bersaglio grande", () => {
+  const session = createSpellAreaPlacementSession({
+    requestId: "request-lightning-anchor",
+    rule: getSpellAreaRuleById("phb2014-freccia-folgorante:cast"),
+  });
+  const review = reviewSpellAreaPlacement(session, {
+    type: "circle",
+    start: { x: 300, y: 300 },
+    end: { x: 750, y: 300 },
+    radius: 450,
+    gridOrigin: { x: 0, y: 0 },
+    dpi: 150,
+    anchorTargetId: "large-primary",
+    anchorOrigin: { x: 300, y: 300 },
+    targetIds: ["large-primary", "nearby"],
+  });
+
+  assert.equal(review.phase, "review");
+  assert.equal(review.preview.anchorTargetId, "large-primary");
+  assert.deepEqual(review.preview.anchorOrigin, { x: 300, y: 300 });
+  assert.deepEqual(review.preview.targetIds, ["large-primary", "nearby"]);
+});
+
+test("un'area circolare ancorata mantiene il centro anche se il cursore si sposta", () => {
+  const anchor = { x: 300, y: 300 };
+  const first = constrainedSpellAreaEnd({
+    shape: "circle",
+    start: anchor,
+    pointer: { x: 450, y: 300 },
+    dpi: 150,
+    sizeCells: 3,
+  });
+  const second = constrainedSpellAreaEnd({
+    shape: "circle",
+    start: anchor,
+    pointer: { x: 3000, y: 30 },
+    dpi: 150,
+    sizeCells: 3,
+  });
+
+  assert.deepEqual(first, { x: 750, y: 300 });
+  assert.deepEqual(second, first);
+});
+
 test("la revisione conserva il centro confermato di una pedina magica", () => {
   const rule = getSpellAreaRuleById("spiritual-weapon:board-token");
   const session = createSpellAreaPlacementSession({

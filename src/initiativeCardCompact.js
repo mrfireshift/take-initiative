@@ -68,7 +68,7 @@ export function __compactEffectItems(
   const effects = conditionInstances.filter((instance) =>
     instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
   ).map((instance) => {
-    const summaryParts = effectSummaryPartsFor(instance);
+    const summaryParts = effectSummaryPartsFor(instance, { suppressSaveReminderParts: true });
     return {
       kind: instance?.type === "class-feature" ? "class-feature" : "condition",
       label: __compactConditionPillLabel(instance, formatting),
@@ -92,7 +92,7 @@ export function __compactEffectItems(
       ? conditionInstances.flatMap((instance) => (
         (instance?.effectKind === "buff" || instance?.effectKind === "debuff")
         && String(instance?.parentEffectId || "").trim() === spellInstanceId
-          ? effectSummaryPartsFor(instance)
+          ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
           : []
       ))
       : [];

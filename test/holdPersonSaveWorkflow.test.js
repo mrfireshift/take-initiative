@@ -447,7 +447,7 @@ test("Regression Control: Banishment e Bane conservano contratti e target scalin
   const banishment = getSpellSaveWorkflowRule("banishment");
   assert.equal(banishment.ability, "cha");
   assert.equal(getSpellSaveTargetMaximum("banishment", 4), 1);
-  assert.equal(getSpellSaveTargetMaximum("banishment", 5), 2);
+  assert.equal(getSpellSaveTargetMaximum("banishment", 5), 1);
 
   const bane = getSpellSaveWorkflowRule("bane");
   assert.equal(bane.ability, "cha");

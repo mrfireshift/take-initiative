@@ -69,6 +69,9 @@ function validContextValue(field) {
 
 function syntheticPlacement(contract, targetIds, castContext = {}) {
   const placement = contract.presentation.placement || {};
+  const anchorTargetId = contract.presentation.targeting?.areaAnchor === "primary-target"
+    ? targetIds[0]
+    : "";
   if (placement.policy === "unavailable") return null;
   const rule = placement.rules?.[0] || {};
   if (placement.policy === "automatic") {
@@ -98,8 +101,15 @@ function syntheticPlacement(contract, targetIds, castContext = {}) {
       gridOrigin: { x: 0, y: 0 },
       dpi: 50,
       position: { x: 0, y: 0 },
+      ...(anchorTargetId
+        ? {
+          anchorTargetId,
+          anchorOrigin: { x: 0, y: 0 },
+        }
+        : {}),
       targetIds,
     },
+    ...(anchorTargetId ? { anchorTargetId } : {}),
   };
   const composition = contract.presentation.composition;
   if (composition?.required) {
@@ -154,6 +164,7 @@ function completeSession(contract, overrides = {}) {
     placement: syntheticPlacement(contract, targetIds, castContext),
     hpValues: {
       damage: inputs.damage?.required ? 12 : null,
+      primaryDamage: inputs.primaryDamage?.required ? 13 : null,
       healing: inputs.healing?.required ? 12 : null,
     },
     activeConcentration: overrides.activeConcentration || null,

@@ -524,6 +524,7 @@ export async function validateSpellUnifiedTargetSelection(
     primaryDistanceMeters: spatial.primaryDistanceMeters,
     secondaryDistancesMeters: spatial.secondaryDistancesMeters,
     rule,
+    ignoreTargetLimit: session?.ignoreTargetLimit === true,
   });
 }
 
@@ -539,6 +540,38 @@ export async function validateSpellAreaSceneSpatial(
     const placementIds = uniqueSceneIds(command?.placement?.targetIds);
     if (placementIds.some((id) => liveIds.size > 0 && !liveIds.has(id))) {
       return { valid: false, errors: ["target-missing"] };
+    }
+    if (command?.targeting?.areaAnchor === "primary-target") {
+      const primaryId = text(command?.targeting?.primaryTargetId);
+      const anchorTargetId = text(
+        command?.placement?.anchorTargetId
+          || command?.placement?.preview?.anchorTargetId,
+      );
+      if (!primaryId || !anchorTargetId) {
+        return { valid: false, errors: ["placement-anchor-required"] };
+      }
+      if (anchorTargetId !== primaryId) {
+        return { valid: false, errors: ["placement-anchor-mismatch"] };
+      }
+      if (liveIds.size > 0 && !liveIds.has(primaryId)) {
+        return { valid: false, errors: ["target-missing"] };
+      }
+      if (placementIds.length && !placementIds.includes(primaryId)) {
+        return { valid: false, errors: ["primary-not-selected"] };
+      }
+      const capturedOrigin = command?.placement?.preview?.anchorOrigin;
+      if (capturedOrigin) {
+        const geometry = await sceneGeometry(obr, [primaryId], items);
+        const liveOrigin = geometry.byId.get(primaryId)?.position;
+        const capturedX = Number(capturedOrigin.x);
+        const capturedY = Number(capturedOrigin.y);
+        if (liveOrigin
+          && Number.isFinite(capturedX)
+          && Number.isFinite(capturedY)
+          && Math.hypot(liveOrigin.x - capturedX, liveOrigin.y - capturedY) > 1e-6) {
+          return { valid: false, errors: ["placement-anchor-stale"] };
+        }
+      }
     }
     if (command?.targeting?.spatialValidation?.mode === "placement-range") {
       const invalidTargetIds = Array.isArray(command.targeting.spatialValidation.invalidTargetIds)
@@ -580,6 +613,7 @@ export async function validateSpellAreaSceneSpatial(
       primaryDistanceMeters: spatial.primaryDistanceMeters,
       secondaryDistancesMeters: spatial.secondaryDistancesMeters,
       rule,
+      ignoreTargetLimit: command?.targeting?.ignoreTargetLimit === true,
     });
     return { valid: result.valid, errors: [...result.errors] };
   }
@@ -593,9 +627,9 @@ export async function validateSpellAreaSceneSpatial(
       ? {
         spellId: spell.id,
         targeting: {
-          baseMaximum: 1,
-          additionalPerSlotAbove: 0,
-          baseSlot: 1,
+          ...(spell?.targeting && typeof spell.targeting === "object"
+            ? spell.targeting
+            : {}),
           spatial: spellSpatial,
         },
       }
@@ -608,6 +642,7 @@ export async function validateSpellAreaSceneSpatial(
     targetIds: uniqueSceneIds(targetIds),
     choiceValue: command?.spell?.choiceValue,
     targetContexts: command?.targeting?.targetContexts || {},
+    ignoreTargetLimit: command?.targeting?.ignoreTargetLimit === true,
     ...spatial,
   });
   return { valid: result.valid, errors: [...result.errors] };

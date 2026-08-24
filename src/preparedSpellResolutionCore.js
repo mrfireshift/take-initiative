@@ -12,6 +12,7 @@ export const PREPARED_SPELL_RESOLUTION_CHANNEL =
 
 const BOARD_POPOVER_ACTIVE_ACTION_IDS = Object.freeze({
   "xanathar-colpo-dello-zefiro": "zephyr-strike-attack",
+  "phb2014-freccia-folgorante": "lightning-arrow-area",
 });
 
 const uniqueIds = (values = []) => Array.from(new Set(
@@ -45,12 +46,12 @@ export function preparedSpellResolutionAction(group) {
     targetIds: groupTargetIds(group),
     effectInstances: group?.effectInstances,
   });
-  const resolution = actions.find((action) => action.type === "resolve");
-  if (resolution) return resolution;
   const activeActionId = BOARD_POPOVER_ACTIVE_ACTION_IDS[spell.id];
-  return actions.find((action) => (
+  const activeAction = actions.find((action) => (
     action.type === "manual" && action.id === activeActionId
-  )) || null;
+  ));
+  if (activeAction) return activeAction;
+  return actions.find((action) => action.type === "resolve") || null;
 }
 
 export function isPreparedSpellResolutionGroup(group) {

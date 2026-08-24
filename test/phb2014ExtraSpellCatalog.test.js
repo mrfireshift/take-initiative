@@ -229,6 +229,97 @@ test("le pill con scadenza speciale non ereditano una durata errata dal parent",
   assert.equal(tsunami.failed[0].endsParentOnRemoval, undefined);
 });
 
+test("le difese PHB multi-componente dichiarano summaryParts senza perdere mechanics", () => {
+  const expected = {
+    "phb2014-aura-di-purezza": [
+      { id: "aura-of-purity-poison-resistance", label: "Res. veleno" },
+      { id: "aura-of-purity-disease-immunity", label: "Imm. malattie" },
+      { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
+    ],
+    "phb2014-aura-di-vita": [
+      { id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" },
+      { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
+      { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
+    ],
+    "phb2014-cerchio-di-potere": [
+      { id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" },
+      { id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" },
+    ],
+  };
+
+  for (const [spellId, summaryParts] of Object.entries(expected)) {
+    const [effect] = getSpellEffects(spellId);
+    assert.deepEqual(effect.summaryParts, summaryParts, spellId);
+    assert.ok(effect.mechanics, spellId);
+    assert.ok(effect.detail, spellId);
+  }
+});
+
+test("Morte Apparente separa protezioni persistenti senza duplicare le condizioni canoniche", () => {
+  const [effect] = getSpellEffects("phb2014-morte-apparente");
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" },
+    { id: "feign-death-speed-zero", label: "Vel 0" },
+    { id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" },
+  ]);
+  assert.equal(effect.mechanics.movement.setMeters, 0);
+  assert.ok(effect.detail);
+});
+
+test("gli effetti PHB ricorrenti separano i modificatori senza perdere scaling e reminder", () => {
+  const expected = {
+    "phb2014-armatura-di-agathys": [
+      { id: "agathys-temporary-hit-points", label: "5 PF temp." },
+      { id: "agathys-cold-retaliation", label: "5 danni freddo in mischia" },
+    ],
+    "phb2014-dardo-stregato": [
+      { id: "witch-bolt-damage", label: "1d12 fulmine" },
+      { id: "witch-bolt-repeat-action", label: "Azione: ripeti" },
+    ],
+    "phb2014-punizione-incandescente": [
+      { id: "searing-smite-save", label: "TS Cos inizio turno" },
+      { id: "searing-smite-fire-damage", label: "1d6 fuoco" },
+    ],
+    "phb2014-rampicante-afferrante": [
+      { id: "grasping-vine-bonus-action", label: "Azione bonus" },
+      { id: "grasping-vine-pull", label: "Trascina 6 m" },
+    ],
+    "phb2014-faretra-rapida": [
+      { id: "swift-quiver-bonus-action", label: "Azione bonus" },
+      { id: "swift-quiver-two-attacks", label: "2 attacchi distanza" },
+    ],
+  };
+
+  for (const [spellId, summaryParts] of Object.entries(expected)) {
+    const [effect] = getSpellEffects(spellId);
+    assert.deepEqual(effect.summaryParts, summaryParts, spellId);
+    assert.ok(effect.detail, spellId);
+  }
+
+  const agathys = getSpellEffects("phb2014-armatura-di-agathys", "", { slotLevel: 3 })[0];
+  assert.equal(agathys.mechanics.tempHp.amount, 15);
+  assert.equal(agathys.mechanics.retaliationDamage.amount, 15);
+  assert.deepEqual(agathys.summaryParts, [
+    { id: "agathys-temporary-hit-points", label: "15 PF temp." },
+    { id: "agathys-cold-retaliation", label: "15 danni freddo in mischia" },
+  ]);
+
+  const searingSmite = getSpellEffects("phb2014-punizione-incandescente")[0];
+  assert.equal(searingSmite.saveReminder.timing, "turn-start");
+});
+
+test("Sortilegio espone il bonus al danno e la prova penalizzata per la scelta", () => {
+  const [effect] = getSpellEffects("phb2014-sortilegio", "forza");
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" },
+    { id: "hex-ability-check-disadvantage", label: "Svant. prove Forza" },
+  ]);
+  assert.equal(effect.mechanics.damageBonus.sourceOnly, true);
+  assert.equal(effect.mechanics.abilityCheck.ability, "Forza");
+});
+
 test("le nuove etichette meccaniche usano lo slash e non il separatore a punto", () => {
   const labels = catalog.spells.flatMap((entry) => {
     const definition = spell(entry.id);

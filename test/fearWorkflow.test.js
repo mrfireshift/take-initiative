@@ -160,6 +160,9 @@ test("Paura espone drop iniziale, regola turn-start e summaryParts senza automaz
     frightened.saveReminder.label,
     "Effettua questo TS solo se il caster non è in vista. Se lo supera, termina Paura su di sé.",
   );
+  assert.deepEqual(forcedFlight.summaryParts, [
+    { id: "fear-flight", label: "Scatto: allontanati dal caster" },
+  ]);
 
   assert.deepEqual(effectSummaryPartsFor({ effectId: "fear-forced-flight" }), [
     { id: "fear-flight", label: "Scatto: allontanati dal caster" },

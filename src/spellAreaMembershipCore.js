@@ -326,6 +326,9 @@ export function areaMembershipPlan({
             ? { effectKind: effect.kind }
             : {}),
           effectDetail: String(effect.detail || ""),
+          ...(Array.isArray(effect?.summaryParts)
+            ? { summaryParts: effect.summaryParts }
+            : {}),
           ...(manualRemoval ? { manualRemoval: true } : {}),
           ...(effect?.theme && typeof effect.theme === "object"
             ? { theme: { ...effect.theme } }

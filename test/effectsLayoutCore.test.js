@@ -377,7 +377,6 @@ test("Lentezza mantiene la parent pill e rende i summary parts come mini-pill to
     { id: "no-reactions", label: "No reaz." },
     { id: "action-or-bonus", label: "Azione o Bonus" },
     { id: "attack-limit", label: "Max 1 att." },
-    { id: "spell-delay", label: "Spell 1 az.: d20" },
   ];
   const rows = planEffectsLayout({
     measureText,
@@ -415,22 +414,20 @@ test("Lentezza mantiene la parent pill e rende i summary parts come mini-pill to
     "Lentezza (10)",
     ...summaryParts.map((part) => part.label),
   ]);
-  assert.equal(rows.filter((entry) => entry.summaryPart).length, 6);
+  assert.equal(rows.filter((entry) => entry.summaryPart).length, 5);
   assert.equal(rows[1].fontSize, 13);
   assert.equal(rows[1].height, 19);
   assert.ok(rows[1].width < 220);
   assert.equal(rows[1].y, rows[2].y);
   assert.equal(rows[3].y, rows[4].y);
-  assert.equal(rows[5].y, rows[6].y);
   assert.ok(rows[2].x > rows[1].x);
   assert.ok(rows[4].x > rows[3].x);
-  assert.ok(rows[6].x > rows[5].x);
   assert.ok(rows.slice(1).every((entry) => (
     entry.summaryParentKey === "spell-effect:slow-effect"
     && entry.summaryPart === true
     && !entry.text.includes("…")
   )));
-  assert.equal(rows.filter((entry) => entry.kind === "spell-effect").length, 6);
+  assert.equal(rows.filter((entry) => entry.kind === "spell-effect").length, 5);
   assert.equal(rows.filter((entry) => entry.kind === "spell").length, 1);
 });
 
@@ -539,7 +536,7 @@ test("Contagio terminale separa nome e debuff su due righe", () => {
   assert.match(debuffs.text, /\s\/\s/);
 });
 
-test("la vista compatta conta una sola effect instance anche con sei summary parts", () => {
+test("la vista compatta conta una sola effect instance anche con cinque summary parts", () => {
   const rows = planEffectsLayout({
     measureText,
     compact: true,
@@ -555,7 +552,6 @@ test("la vista compatta conta una sola effect instance anche con sei summary par
           { id: "no-reactions", label: "No reaz." },
           { id: "action-or-bonus", label: "Azione o Bonus" },
           { id: "attack-limit", label: "Max 1 att." },
-          { id: "spell-delay", label: "Spell 1 az.: d20" },
         ],
       }],
     })],

@@ -5,12 +5,14 @@ import {
 } from "./spellCastContextCore.js";
 import {
   getSpellCastPhasePlan,
+  spellPhaseAttackOutcomeRequired,
 } from "./spellCastPhaseCore.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import {
   SPELL_UNIFIED_PANEL_LANES,
 } from "./spellUnifiedPanelCore.js";
+import { applyTargetingLimitState } from "./spellTargetingCapacityCore.js";
 
 export const SPELL_UNIFIED_LIFECYCLE_STATUS = Object.freeze({
   COMMITTED: "committed",
@@ -167,9 +169,16 @@ function validationErrors(contract, session, targetIds, phasePlan, slotLevel, du
   }
   if (inputs.variant?.required && !text(session.variant)) add("variant", "variant-required");
   if (inputs.targets?.required && !targetIds.length) add("targets", "targets-required");
-  if (Number.isInteger(inputs.targets?.maximum)
-    && inputs.targets.maximum >= 0
-    && targetIds.length > inputs.targets.maximum) {
+  const targetingCapacity = applyTargetingLimitState(
+    contract.presentation?.targeting?.limit || {
+      maximum: inputs.targets?.maximum,
+    },
+    {
+      ignoreTargetLimit: session.ignoreTargetLimit === true,
+      targetIds,
+    },
+  );
+  if (targetingCapacity.exceeded) {
     add("targets", "target-limit-exceeded");
   }
   if (inputs.primaryTarget?.required && (
@@ -248,6 +257,8 @@ export function buildSpellUnifiedLifecycleRequest({
     phase === "cast" ? "" : phase,
     mergedCastContext,
   );
+  const attackOutcomeRequired = phase === "resolve"
+    && spellPhaseAttackOutcomeRequired(phasePlan);
   const targetIds = resolveSpellSubjectIds({
     spell: runtimeSpell,
     casterId: session.casterId,
@@ -289,6 +300,7 @@ export function buildSpellUnifiedLifecycleRequest({
     turns: Math.max(1, durationTurns || 1),
     casterId: text(session.casterId),
     targetIds: uniqueIds(targetIds),
+    ignoreTargetLimit: session.ignoreTargetLimit === true,
     castContext: mergedCastContext,
     selectedChoice,
     phasePlan,
@@ -298,13 +310,12 @@ export function buildSpellUnifiedLifecycleRequest({
       runtimeSpell,
       session.requestedConcentration === true,
     ),
-    attackOutcome: phase === "resolve" && phasePlan.attack?.required === true
+    attackOutcome: attackOutcomeRequired
       ? text(session.attackOutcome)
       : undefined,
     saveOutcomes: session.outcomes,
     damageValue: session.hpValues?.damage,
-    manualAttackOutcomeRequired: phase === "resolve"
-      && phasePlan.attack?.required === true,
+    manualAttackOutcomeRequired: attackOutcomeRequired,
     ...(appliedAt !== undefined ? { appliedAt } : {}),
     ...(text(casterName) ? { casterName: text(casterName) } : {}),
   };

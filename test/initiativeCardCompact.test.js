@@ -334,7 +334,6 @@ test("una card compatta non mostra pill buff o debuff collegate alla spell", () 
     { id: "no-reactions", label: "No reaz." },
     { id: "action-or-bonus", label: "Azione o Bonus" },
     { id: "attack-limit", label: "Max 1 att." },
-    { id: "spell-delay", label: "Spell 1 az.: d20" },
   ]);
   assert.equal(effect, undefined);
 });
@@ -449,7 +448,6 @@ test("Lentezza usa una sola parent pill e mini-pill condivise senza ellissi", ()
       { id: "no-reactions", label: "No reaz." },
       { id: "action-or-bonus", label: "Azione o Bonus" },
       { id: "attack-limit", label: "Max 1 att." },
-      { id: "spell-delay", label: "Spell 1 az.: d20" },
     ],
   };
 
@@ -459,7 +457,7 @@ test("Lentezza usa una sola parent pill e mini-pill condivise senza ellissi", ()
   assert.equal(summary.style.display, "flex");
   assert.equal(summary.style.flexWrap, "wrap");
   assert.equal(summary.style.gap, "2px");
-  assert.equal(summary.children.length, 7);
+  assert.equal(summary.children.length, 6);
   assert.equal(summary.children[0].textContent, "Lentezza (10)");
   assert.equal(summary.children[0].style.flex, "0 0 100%");
   assert.deepEqual(

@@ -128,7 +128,7 @@ test("SP-B06B.1 — cast espone TS Destrezza a due esiti e danno pieno manuale",
     targetCandidates: [{ key: "target", label: "Target", subtitle: "Creatura" }],
   });
   assert.equal(view.effects.fields[0].label, "Danno · 6d8");
-  assert.match(view.effects.fields[0].hint, /6d8/);
+  assert.equal(view.effects.fields[0].hint, "");
 });
 
 test("SP-B06B.2 — Superato applica il danno inserito senza metà e non persiste la spell", () => {

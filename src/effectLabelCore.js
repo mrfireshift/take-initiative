@@ -54,7 +54,6 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "no-reactions", label: "No reaz." }),
     Object.freeze({ id: "action-or-bonus", label: "Azione o Bonus" }),
     Object.freeze({ id: "attack-limit", label: "Max 1 att." }),
-    Object.freeze({ id: "spell-delay", label: "Spell 1 az.: d20" }),
   ]),
   "fear-forced-flight": Object.freeze([
     Object.freeze({ id: "fear-flight", label: "Scatto: allontanati dal caster" }),
@@ -62,6 +61,220 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
   "confusion-random-turn": Object.freeze([
     Object.freeze({ id: "confusion-no-reactions", label: "No reaz." }),
     Object.freeze({ id: "confusion-random-table", label: "Tira d10 inizio turno" }),
+  ]),
+  "attack-save-penalty": Object.freeze([
+    Object.freeze({ id: "bane-attack-penalty", label: "Att −1d4" }),
+    Object.freeze({ id: "bane-save-penalty", label: "TS −1d4" }),
+  ]),
+  "attack-save-bonus": Object.freeze([
+    Object.freeze({ id: "bless-attack-bonus", label: "Att +1d4" }),
+    Object.freeze({ id: "bless-save-bonus", label: "TS +1d4" }),
+  ]),
+  "hex-forza": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Forza" }),
+  ]),
+  "hex-destrezza": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Destrezza" }),
+  ]),
+  "hex-costituzione": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Costituzione" }),
+  ]),
+  "hex-intelligenza": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Intelligenza" }),
+  ]),
+  "hex-saggezza": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Saggezza" }),
+  ]),
+  "hex-carisma": Object.freeze([
+    Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+    Object.freeze({ id: "hex-ability-check-disadvantage", label: "Svant. prove Carisma" }),
+  ]),
+  "agathys-armor": Object.freeze([
+    Object.freeze({ id: "agathys-temporary-hit-points", label: "5 PF temp." }),
+    Object.freeze({ id: "agathys-cold-retaliation", label: "5 danni freddo in mischia" }),
+  ]),
+  "magic-weapon-bonus": Object.freeze([
+    Object.freeze({ id: "magic-weapon-magical", label: "Arma magica" }),
+    Object.freeze({ id: "magic-weapon-attack-damage-bonus", label: "+1 Att/danni" }),
+  ]),
+  "flame-blade-damage": Object.freeze([
+    Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 danni da fuoco" }),
+  ]),
+  "elemental-weapon-acido": Object.freeze([
+    Object.freeze({ id: "elemental-weapon-acido-magical", label: "Arma magica" }),
+    Object.freeze({ id: "elemental-weapon-acido-attack-bonus", label: "+1 Att" }),
+    Object.freeze({ id: "elemental-weapon-acido-damage", label: "+1d4 acido" }),
+  ]),
+  "elemental-weapon-freddo": Object.freeze([
+    Object.freeze({ id: "elemental-weapon-freddo-magical", label: "Arma magica" }),
+    Object.freeze({ id: "elemental-weapon-freddo-attack-bonus", label: "+1 Att" }),
+    Object.freeze({ id: "elemental-weapon-freddo-damage", label: "+1d4 freddo" }),
+  ]),
+  "elemental-weapon-fulmine": Object.freeze([
+    Object.freeze({ id: "elemental-weapon-fulmine-magical", label: "Arma magica" }),
+    Object.freeze({ id: "elemental-weapon-fulmine-attack-bonus", label: "+1 Att" }),
+    Object.freeze({ id: "elemental-weapon-fulmine-damage", label: "+1d4 fulmine" }),
+  ]),
+  "elemental-weapon-fuoco": Object.freeze([
+    Object.freeze({ id: "elemental-weapon-fuoco-magical", label: "Arma magica" }),
+    Object.freeze({ id: "elemental-weapon-fuoco-attack-bonus", label: "+1 Att" }),
+    Object.freeze({ id: "elemental-weapon-fuoco-damage", label: "+1d4 fuoco" }),
+  ]),
+  "elemental-weapon-tuono": Object.freeze([
+    Object.freeze({ id: "elemental-weapon-tuono-magical", label: "Arma magica" }),
+    Object.freeze({ id: "elemental-weapon-tuono-attack-bonus", label: "+1 Att" }),
+    Object.freeze({ id: "elemental-weapon-tuono-damage", label: "+1d4 tuono" }),
+  ]),
+  "ray-of-enfeeblement-penalty": Object.freeze([
+    Object.freeze({ id: "ray-of-enfeeblement-strength-damage", label: "Danni Forza dimezzati" }),
+  ]),
+  "witch-bolt-link": Object.freeze([
+    Object.freeze({ id: "witch-bolt-damage", label: "1d12 fulmine" }),
+    Object.freeze({ id: "witch-bolt-repeat-action", label: "Azione: ripeti" }),
+  ]),
+  "searing-smite-burning": Object.freeze([
+    Object.freeze({ id: "searing-smite-save", label: "TS Cos inizio turno" }),
+    Object.freeze({ id: "searing-smite-fire-damage", label: "1d6 fuoco" }),
+  ]),
+  "grasping-vine-command": Object.freeze([
+    Object.freeze({ id: "grasping-vine-bonus-action", label: "Azione bonus" }),
+    Object.freeze({ id: "grasping-vine-pull", label: "Trascina 6 m" }),
+  ]),
+  "swift-quiver-attacks": Object.freeze([
+    Object.freeze({ id: "swift-quiver-bonus-action", label: "Azione bonus" }),
+    Object.freeze({ id: "swift-quiver-two-attacks", label: "2 attacchi distanza" }),
+  ]),
+  "no-reaction-and-limited-turn-options": Object.freeze([
+    Object.freeze({ id: "mind-whip-no-reactions", label: "No reaz." }),
+    Object.freeze({ id: "mind-whip-limited-turn", label: "Solo mov./az./bonus" }),
+  ]),
+  "incoming-attack-advantage": Object.freeze([
+    Object.freeze({ id: "faerie-fire-incoming-advantage", label: "Attacchi contro vant." }),
+    Object.freeze({ id: "faerie-fire-no-invisibility", label: "No invis." }),
+  ]),
+  "location-known": Object.freeze([
+    Object.freeze({ id: "mind-spike-location", label: "Localizzato" }),
+    Object.freeze({ id: "mind-spike-no-hiding", label: "No nascondersi" }),
+    Object.freeze({ id: "mind-spike-no-invisibility", label: "No invis." }),
+  ]),
+  "ice-investiture": Object.freeze([
+    Object.freeze({ id: "ice-investiture-cold-immunity", label: "Imm. freddo" }),
+    Object.freeze({ id: "ice-investiture-fire-resistance", label: "Res. fuoco" }),
+    Object.freeze({ id: "ice-investiture-difficult-terrain-aura", label: "Terreno diff. aura" }),
+  ]),
+  "wind-investiture": Object.freeze([
+    Object.freeze({ id: "wind-investiture-flight", label: "Volo 18 m" }),
+    Object.freeze({ id: "wind-investiture-ranged-disadvantage", label: "Svant. att. distanza" }),
+  ]),
+  "flame-investiture": Object.freeze([
+    Object.freeze({ id: "flame-investiture-fire-immunity", label: "Imm. fuoco" }),
+    Object.freeze({ id: "flame-investiture-cold-resistance", label: "Res. freddo" }),
+  ]),
+  "stone-investiture": Object.freeze([
+    Object.freeze({ id: "stone-investiture-weapon-resistance", label: "Res. armi non magiche" }),
+    Object.freeze({ id: "stone-investiture-rock-walk", label: "Passo nella roccia" }),
+  ]),
+  "freedom-of-movement-immunities": Object.freeze([
+    Object.freeze({ id: "freedom-of-movement-difficult-terrain", label: "No terreno diff." }),
+    Object.freeze({ id: "freedom-of-movement-speed-reduction", label: "No riduz. velocità mag." }),
+    Object.freeze({ id: "freedom-of-movement-condition-immunity", label: "Imm. Par./Tratt. mag." }),
+    Object.freeze({ id: "freedom-of-movement-escape", label: "Libera con 1,5 m" }),
+  ]),
+  "holy-aura-protection": Object.freeze([
+    Object.freeze({ id: "holy-aura-saving-throw-advantage", label: "Vant. TS" }),
+    Object.freeze({ id: "holy-aura-incoming-attack-disadvantage", label: "Attacchi contro svant." }),
+  ]),
+  "tensers-transformation": Object.freeze([
+    Object.freeze({ id: "tensers-temporary-hit-points", label: "50 PF temp." }),
+    Object.freeze({ id: "tensers-weapon-attack-advantage", label: "Vant. att. armi" }),
+    Object.freeze({ id: "tensers-force-damage", label: "+2d12 forza" }),
+    Object.freeze({ id: "tensers-martial-proficiency", label: "Comp. marziali" }),
+  ]),
+  "aura-of-purity": Object.freeze([
+    Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+    Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
+    Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
+  ]),
+  "aura-of-life": Object.freeze([
+    Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+    Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
+    Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
+  ]),
+  "circle-of-power": Object.freeze([
+    Object.freeze({ id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" }),
+    Object.freeze({ id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" }),
+  ]),
+  "aura-of-purity-zone": Object.freeze([
+    Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+    Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
+    Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
+  ]),
+  "aura-of-life-zone": Object.freeze([
+    Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+    Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
+    Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
+  ]),
+  "circle-of-power-zone": Object.freeze([
+    Object.freeze({ id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" }),
+    Object.freeze({ id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" }),
+  ]),
+  "enervation-link": Object.freeze([
+    Object.freeze({ id: "enervation-repeat-damage", label: "Azione: ripeti danni" }),
+    Object.freeze({ id: "enervation-heal-half", label: "Cura metà danni" }),
+  ]),
+  "immolation-burning": Object.freeze([
+    Object.freeze({ id: "immolation-end-turn-save", label: "TS Des fine turno" }),
+    Object.freeze({ id: "immolation-fire-damage", label: "4d6 fuoco" }),
+  ]),
+  "holy-weapon": Object.freeze([
+    Object.freeze({ id: "holy-weapon-magical", label: "Arma magica" }),
+    Object.freeze({ id: "holy-weapon-radiant-damage", label: "+2d8 radiosi" }),
+  ]),
+  "elemental-resistances": Object.freeze([
+    Object.freeze({ id: "elemental-resistances-five-types", label: "Res. 5 elementi" }),
+    Object.freeze({ id: "elemental-resistances-reaction-immunity", label: "Reaz.: Imm. tipo" }),
+  ]),
+  "intellect-fortress": Object.freeze([
+    Object.freeze({ id: "intellect-fortress-psychic-resistance", label: "Res. psichici" }),
+    Object.freeze({ id: "intellect-fortress-mental-save-advantage", label: "Vant. TS Int/Sag/Car" }),
+  ]),
+  "feign-death-protections": Object.freeze([
+    Object.freeze({ id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" }),
+    Object.freeze({ id: "feign-death-speed-zero", label: "Vel 0" }),
+    Object.freeze({ id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" }),
+  ]),
+  "primal-beast-benefits": Object.freeze([
+    Object.freeze({ id: "primal-beast-speed", label: "Vel +3 m" }),
+    Object.freeze({ id: "primal-beast-darkvision", label: "Scurovisione" }),
+    Object.freeze({ id: "primal-beast-strength-advantage", label: "Vant. att. Forza" }),
+    Object.freeze({ id: "primal-beast-force-damage", label: "+1d6 forza" }),
+  ]),
+  "great-tree-benefits": Object.freeze([
+    Object.freeze({ id: "great-tree-temporary-hit-points", label: "10 PF temp." }),
+    Object.freeze({ id: "great-tree-constitution-save-advantage", label: "Vant. TS Cos" }),
+    Object.freeze({ id: "great-tree-dex-wis-attack-advantage", label: "Vant. att. Des/Sag" }),
+    Object.freeze({ id: "great-tree-difficult-terrain-aura", label: "Terreno diff. aura" }),
+  ]),
+  "lower-planes-benefits": Object.freeze([
+    Object.freeze({ id: "lower-planes-armor-class", label: "+2 CA" }),
+    Object.freeze({ id: "lower-planes-flight", label: "Volo 12 m" }),
+    Object.freeze({ id: "lower-planes-elemental-immunity", label: "Imm. fuoco/veleno" }),
+    Object.freeze({ id: "lower-planes-poisoned-immunity", label: "Imm. avvelenato" }),
+    Object.freeze({ id: "lower-planes-magical-attacks", label: "Attacchi magici" }),
+    Object.freeze({ id: "lower-planes-extra-attack", label: "Attacco extra" }),
+  ]),
+  "upper-planes-benefits": Object.freeze([
+    Object.freeze({ id: "upper-planes-armor-class", label: "+2 CA" }),
+    Object.freeze({ id: "upper-planes-flight", label: "Volo 12 m" }),
+    Object.freeze({ id: "upper-planes-elemental-immunity", label: "Imm. radiosi/necrotici" }),
+    Object.freeze({ id: "upper-planes-charmed-immunity", label: "Imm. affascinato" }),
+    Object.freeze({ id: "upper-planes-magical-attacks", label: "Attacchi magici" }),
+    Object.freeze({ id: "upper-planes-extra-attack", label: "Attacco extra" }),
   ]),
 });
 
@@ -81,7 +294,58 @@ function normalizedSummaryParts(value) {
     .filter(Boolean);
 }
 
-export function effectSummaryPartsFor(effect = {}) {
+function isSaveReminderSummaryPart(part, effect) {
+  if (!effect?.saveReminder) return false;
+  const id = String(part?.id || "").trim().toLocaleLowerCase("it");
+  return /(?:^|-)save$/u.test(id);
+}
+
+function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
+  if (!mechanics || typeof mechanics !== "object") return parts;
+  const temporaryHitPoints = Number(mechanics.tempHp?.amount);
+  const retaliationDamage = Number(mechanics.retaliationDamage?.amount);
+  const damageType = String(mechanics.retaliationDamage?.type || "freddo").trim();
+  const weaponBonus = Number(mechanics.weaponBonus?.bonus);
+  const attackBonus = Number(mechanics.attackRoll?.bonus);
+  const damageDice = String(mechanics.damageBonus?.dice || "").trim();
+  const bonusDamageType = String(mechanics.damageBonus?.type || "").trim();
+  return parts.map((part) => {
+    if (effectId === "agathys-armor"
+      && part.id === "agathys-temporary-hit-points"
+      && Number.isFinite(temporaryHitPoints)) {
+      return { ...part, label: `${Math.round(temporaryHitPoints)} PF temp.` };
+    }
+    if (effectId === "agathys-armor"
+      && part.id === "agathys-cold-retaliation"
+      && Number.isFinite(retaliationDamage)) {
+      return { ...part, label: `${Math.round(retaliationDamage)} danni ${damageType} in mischia` };
+    }
+    if (effectId === "magic-weapon-bonus"
+      && part.id === "magic-weapon-attack-damage-bonus"
+      && Number.isFinite(weaponBonus)) {
+      return { ...part, label: `+${Math.round(weaponBonus)} Att/danni` };
+    }
+    if (effectId === "flame-blade-damage"
+      && part.id === "flame-blade-fire-damage"
+      && damageDice) {
+      return { ...part, label: `${damageDice} ${bonusDamageType || "danni da fuoco"}` };
+    }
+    if (effectId.startsWith("elemental-weapon-")
+      && part.id.endsWith("-attack-bonus")
+      && Number.isFinite(attackBonus)) {
+      return { ...part, label: `+${Math.round(attackBonus)} Att` };
+    }
+    if (effectId.startsWith("elemental-weapon-")
+      && part.id.endsWith("-damage")
+      && damageDice) {
+      const type = bonusDamageType || effectId.slice("elemental-weapon-".length);
+      return { ...part, label: `+${damageDice} ${type}` };
+    }
+    return part;
+  });
+}
+
+export function effectSummaryPartsFor(effect = {}, options = {}) {
   const descriptor = typeof effect === "string"
     ? { effectId: effect }
     : effect && typeof effect === "object"
@@ -94,7 +358,15 @@ export function effectSummaryPartsFor(effect = {}) {
   const configured = Array.isArray(descriptor.summaryParts)
     ? descriptor.summaryParts
     : EFFECT_SUMMARY_PARTS[effectId] || EFFECT_SUMMARY_PARTS_BY_CONDITION[condition] || [];
-  return normalizedSummaryParts(configured);
+  const normalizedParts = normalizedSummaryParts(configured);
+  const presentationParts = options?.suppressSaveReminderParts
+    ? normalizedParts.filter((part) => !isSaveReminderSummaryPart(part, descriptor))
+    : normalizedParts;
+  return summaryPartsWithResolvedMechanics(
+    presentationParts,
+    effectId,
+    descriptor.mechanics,
+  );
 }
 
 export function compactSpellEffectLabel(value) {

@@ -248,6 +248,7 @@ export function resolveSaveSpellResolution({
   casterDistancesMeters = {},
   validateSpatial = true,
   targetContexts = {},
+  ignoreTargetLimit = false,
 } = {}) {
   const inputTargetIds = Array.isArray(targetIds) ? targetIds : [];
   const targets = uniqueIds(targetIds);
@@ -266,6 +267,7 @@ export function resolveSaveSpellResolution({
       casterDistancesMeters,
       validateSpatial,
       targetContexts,
+      ignoreTargetLimit,
     })
     : null;
   const automaticOutcomes = targeting?.targetContext?.automaticOutcomeByTarget || {};

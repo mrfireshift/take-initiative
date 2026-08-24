@@ -40,6 +40,20 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
     "lifecycle-missing": "dati dell'incantesimo mancanti",
     orphaned: "da controllare",
   };
+  const triggerTypeLabels = {
+    "turn-start": "Inizio turno",
+    "turn-end": "Fine turno",
+    damage: "Dopo il danno",
+    enter: "Ingresso nell'area",
+    leave: "Uscita dall'area",
+  };
+  const triggerResolutionLabels = {
+    save: "TS",
+    "save-area": "TS area",
+    "manual-damage": "Danno manuale",
+    "manual-heal": "Cura manuale",
+    consume: "Chiusura",
+  };
   for (const [index, overview] of (active.overview || []).entries()) {
     const persistent = overview.persistent;
     const spellColor = spellColorFor(overview.name || overview.spellId);
@@ -70,7 +84,7 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
     if (persistent?.state && persistent.state !== "present") {
       headerChildren.push(createNode(documentRef, "span", {
         className: "unified-active-pill unified-active-pill--warn",
-        text: persistentStateLabels[persistent.state] || persistent.state,
+        text: persistentStateLabels[persistent.state] || "da controllare",
       }));
     }
 
@@ -137,7 +151,7 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
         const detailId = `spell-unified-active-${index}-${actionId}`
           .replace(/[^a-zA-Z0-9_-]/g, "-");
         const button = createButton(documentRef, {
-          label: action.buttonLabel || action.label || actionId,
+          label: action.buttonLabel || action.label || "Azione",
           className: "unified-action-button",
           value: actionId,
           pressed: action.selected === true,
@@ -175,7 +189,10 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
         className: "unified-active-triggers",
       });
       for (const trigger of persistent.triggers) {
-        const text = trigger.label || [trigger.type, trigger.resolution].filter(Boolean).join(" · ");
+        const text = trigger.label || [
+          triggerTypeLabels[trigger.type] || "",
+          triggerResolutionLabels[trigger.resolution] || "",
+        ].filter(Boolean).join(" · ");
         if (!text) continue;
         triggerList.append(createNode(documentRef, "li", {
           className: "unified-active-trigger-item",
@@ -251,7 +268,7 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
   const catalogActions = [];
   for (const action of catalogActions) {
     const button = createButton(documentRef, {
-      label: action.buttonLabel || action.label,
+      label: action.buttonLabel || action.label || "Azione",
       className: "unified-action-button",
       value: action.id,
       pressed: action.id === active.selectedActionId,
@@ -362,10 +379,12 @@ export function renderManualSpellEffectPanel(documentRef, model, callbacks = {})
       }),
     ],
   }));
-  section.append(createNode(documentRef, "p", {
-    className: "unified-section__description",
-    text: manual.description,
-  }));
+  if (manual.description) {
+    section.append(createNode(documentRef, "p", {
+      className: "unified-section__description",
+      text: manual.description,
+    }));
+  }
   const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
   for (const field of manual.fields) {
     const input = createNode(documentRef, "input", {
@@ -414,10 +433,13 @@ export function renderEffectInputPanel(documentRef, model, callbacks = {}) {
         text: "Valori richiesti",
       }),
     ],
-  }), createNode(documentRef, "p", {
-    className: "unified-section__description",
-    text: effects.description,
   }));
+  if (effects.description) {
+    section.append(createNode(documentRef, "p", {
+      className: "unified-section__description",
+      text: effects.description,
+    }));
+  }
   const grid = createNode(documentRef, "div", { className: "unified-context-grid" });
   for (const field of effects.fields) {
     const input = createNode(documentRef, "input", {

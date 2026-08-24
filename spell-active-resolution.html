@@ -94,17 +94,6 @@
         <div id="targets" class="targets"></div>
         <div id="damageField" class="field" hidden><label id="damageLabel" for="damage">Danno pieno</label><input id="damage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
       </section>
-      <section id="singleSaveSection" class="section" hidden>
-        <div id="singleSaveTitle" class="section-title">Tiro salvezza</div>
-        <select id="saveTarget" aria-label="Bersaglio del tiro salvezza"><option value="">Seleziona il bersaglio</option></select>
-        <div id="saveTargetHint" class="hint"></div>
-        <div id="singleSaveOutcomes" class="outcomes">
-          <button type="button" data-save-outcome="passed">Superato</button>
-          <button type="button" data-save-outcome="failed">Fallito</button>
-          <button type="button" data-save-outcome="immune">Immune</button>
-        </div>
-        <div id="singleSaveDamageField" class="field"><label id="singleSaveDamageLabel" for="saveDamage">Danno</label><input id="saveDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
-      </section>
       <section id="attackSection" class="section" hidden>
         <div id="attackTitle" class="section-title">Fulmine</div>
         <div id="attackRows" class="attack-rows" hidden></div>
@@ -126,6 +115,17 @@
           <button type="button" data-attack-outcome="critical" hidden>Critico</button>
         </div>
         <div class="field"><label id="attackDamageLabel" for="attackDamage">Danno</label><input id="attackDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
+      </section>
+      <section id="singleSaveSection" class="section" hidden>
+        <div id="singleSaveTitle" class="section-title">Tiro salvezza</div>
+        <select id="saveTarget" aria-label="Bersaglio del tiro salvezza"><option value="">Seleziona il bersaglio</option></select>
+        <div id="saveTargetHint" class="hint"></div>
+        <div id="singleSaveOutcomes" class="outcomes">
+          <button type="button" data-save-outcome="passed">Superato</button>
+          <button type="button" data-save-outcome="failed">Fallito</button>
+          <button type="button" data-save-outcome="immune">Immune</button>
+        </div>
+        <div id="singleSaveDamageField" class="field"><label id="singleSaveDamageLabel" for="saveDamage">Danno</label><input id="saveDamage" type="number" min="0" step="1" inputmode="numeric" placeholder="Totale" /></div>
       </section>
       <div id="footer" class="footer"><span id="summary" class="hint"></span><button id="apply" class="primary" type="button" disabled>Applica</button></div>
     </main>

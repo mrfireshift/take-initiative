@@ -8,6 +8,8 @@ import {
 import {
   getSpellCastPhaseOptions,
   getSpellCastPhasePlan,
+  spellPhaseAttackOutcomeRequired,
+  spellPhaseUsesPrimaryTargetAnchor,
 } from "./spellCastPhaseCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
 import {
@@ -27,16 +29,15 @@ import {
   getSpellSaveWorkflowTargetContext,
 } from "./spellSaveWorkflowRules.js";
 import {
-  getSpellSaveTargetMaximum,
-  MAX_SPELL_SLOT_LEVEL,
-} from "./spellSaveTargetingCore.js";
+  applyTargetingLimitState,
+  resolveTargetingCapacity,
+} from "./spellTargetingCapacityCore.js";
 import {
   getSpellBoardTokenPlacementRule,
   getSpellBoardTokenRule,
 } from "./spellBoardTokenCore.js";
 import {
   CHAIN_LIGHTNING_TARGETING,
-  chainLightningSecondaryMaximum,
 } from "./chainLightningTargetingCore.js";
 import {
   getSpellCastResolutionRule,
@@ -213,6 +214,70 @@ function uniqueByKey(values = [], key = "id") {
   });
 }
 
+function choiceDetail(choice) {
+  const direct = text(choice?.detail);
+  if (direct) return direct;
+  return (Array.isArray(choice?.effects) ? choice.effects : [])
+    .map((effect) => text(effect?.detail))
+    .find(Boolean) || "";
+}
+
+function sourcedChoiceOptions(options = [], source, detailsByValue = new Map()) {
+  return (Array.isArray(options) ? options : [])
+    .map((option) => {
+      const value = text(option?.value);
+      const label = text(option?.label) || value;
+      const detail = text(detailsByValue.get(value));
+      return {
+        value,
+        label,
+        source,
+        ...(detail ? { detail } : {}),
+      };
+    })
+    .filter((option) => option.value);
+}
+
+function effectChoiceOptions(spell) {
+  const rawChoices = Array.isArray(spell?.effectChoices) ? spell.effectChoices : [];
+  const detailsByValue = new Map(rawChoices.map((choice) => [
+    text(choice?.id),
+    choiceDetail(choice),
+  ]));
+  return sourcedChoiceOptions(getSpellEffectChoices(spell), "effect", detailsByValue);
+}
+
+function sameChoiceOptions(left = [], right = []) {
+  return left.length === right.length
+    && left.every((option, index) => (
+      text(option?.value) === text(right[index]?.value)
+      && text(option?.label) === text(right[index]?.label)
+    ));
+}
+
+function variantChoicePresentation(spell, choices, variantOptions) {
+  const attackOptions = spellAttackResolutionChoiceOptions(spell);
+  const effectChoicesAreAttackOutcomes = choices.effect.length > 0
+    && choices.save.length === 0
+    && choices.area.length === 0
+    && sameChoiceOptions(choices.effect, attackOptions);
+  const options = effectChoicesAreAttackOutcomes ? [] : variantOptions;
+  const sources = new Set(options.map((option) => text(option?.source)).filter(Boolean));
+  const label = sources.size === 1 && sources.has("effect")
+    ? "Effetto"
+    : sources.size === 1 && sources.has("area")
+      ? "Modalità"
+      : sources.size === 1 && sources.has("save")
+        ? "Scelta"
+        : "Scelta";
+  return {
+    options,
+    label,
+    placeholder: "Scegli",
+    control: effectChoicesAreAttackOutcomes ? "attack-outcome" : "choice",
+  };
+}
+
 function cloneValue(value) {
   if (Array.isArray(value)) return value.map(cloneValue);
   if (!value || typeof value !== "object") return value;
@@ -236,8 +301,8 @@ function resolveSpell(value, spellId = "") {
   return getSpellDefinition(value || spellId);
 }
 
-function phaseOptions(spell) {
-  const options = getSpellCastPhaseOptions(spell);
+function phaseOptions(spell, requestedPhase = "") {
+  const options = getSpellCastPhaseOptions(spell, requestedPhase);
   if (options.length) {
     return options.map((option) => ({
       value: text(option.value),
@@ -337,7 +402,7 @@ function actionDescriptor(entry) {
     : {
       subjectMode: text(action.subjectMode) || "none",
       requiresTargets: action.requiresTargets === true,
-      maxTargets,
+      ...(maxTargets === null ? {} : { maxTargets }),
       primaryTarget: action.primaryTarget ? cloneValue(action.primaryTarget) : null,
     };
   const availability = action.availability && typeof action.availability === "object"
@@ -367,8 +432,8 @@ function actionDescriptor(entry) {
     ...cloneValue(action),
     id: entry.id,
     definition: cloneValue(action),
-    label: text(action.label) || entry.id,
-    buttonLabel: text(action.buttonLabel) || text(action.label) || entry.id,
+    label: text(action.label) || "Azione",
+    buttonLabel: text(action.buttonLabel) || text(action.label) || "Azione",
     detail: text(action.detail),
     economy: text(action.economy || action.actionEconomy),
     resolutionKind,
@@ -432,7 +497,7 @@ export function getSpellUnifiedActiveActionDeclarations(spellValue = null) {
     .map(actionDescriptor);
 }
 
-function placementDescriptor(rule) {
+function placementDescriptor(rule, primaryTargetAnchor = false) {
   if (!rule) return null;
   const placement = rule.placement || {};
   const geometry = rule.geometry || {};
@@ -457,9 +522,9 @@ function placementDescriptor(rule) {
     kind: text(rule.kind),
     mode: rule.kind === "board-token" ? "board-token" : "area",
     shape: text(geometry.shape),
-    origin: text(placement.origin),
+    origin: primaryTargetAnchor ? "primary-target" : text(placement.origin),
     direction: text(placement.direction),
-    anchor: text(placement.anchor),
+    anchor: primaryTargetAnchor ? "primary-target" : text(placement.anchor),
     range: placement.range ? cloneValue(placement.range) : null,
     choice: text(rule.placementChoice) || null,
     policy,
@@ -475,7 +540,9 @@ function placementFor({
   boardTokenPlacementRule,
   selectedAction,
   choiceValue = "",
+  phasePlan = null,
 }) {
+  const primaryTargetAnchor = spellPhaseUsesPrimaryTargetAnchor(phasePlan);
   const rules = selectedAction
     ? [actionPlacementRule(selectedAction, choiceValue)].filter(Boolean)
     : [
@@ -490,7 +557,7 @@ function placementFor({
       ...(castRules.length ? [] : [boardTokenPlacementRule].filter(Boolean)),
     ];
   const descriptors = uniqueByKey(
-    rules.map(placementDescriptor).filter(Boolean),
+    rules.map((rule) => placementDescriptor(rule, primaryTargetAnchor)).filter(Boolean),
     "ruleId",
   );
   const selected = descriptors[0] || null;
@@ -512,7 +579,10 @@ function ruleTargeting(rule) {
     includeCaster: targeting.includeCaster === true,
     confirmTargets: targeting.confirmTargets === true,
     selectionMode: text(targeting.selectionMode) || "area",
-    maximum: integerOrNull(targeting.maxTargets),
+    maximum: integerOrNull(
+      targeting.maximum !== undefined ? targeting.maximum : targeting.maxTargets,
+    ),
+    unbounded: targeting.unbounded === true || targeting.unlimitedTargets === true,
     spatialRules: targeting.spatial ? cloneValue(targeting.spatial) : null,
   };
 }
@@ -523,92 +593,72 @@ function chainLightningTargeting(spell) {
     : null;
 }
 
-function targetingLimit({ spell, targetingRule, selectedAction, chainRule, slotLevel = null }) {
+function targetingLimit({
+  spell,
+  targetingRule,
+  selectedAction,
+  chainRule,
+  mode = SPELL_UNIFIED_TARGETING_MODES.NONE,
+  slotLevel = null,
+  characterLevel = null,
+  castContext = null,
+}) {
   if (chainRule) {
-    const resolvedSlot = integerOrNull(slotLevel) ?? chainRule.baseSlot;
-    return {
-      minimum: 1,
-      maximum: 1 + chainLightningSecondaryMaximum(resolvedSlot, chainRule),
-      baseMaximum: 1 + Number(chainRule.baseSecondaryMaximum || 0),
-      additionalPerSlotAbove: Number(chainRule.additionalSecondaryPerSlotAbove || 0),
-      baseSlot: Number(chainRule.baseSlot),
-      maximumIncludesPrimary: true,
+    return resolveTargetingCapacity({
+      mode: SPELL_UNIFIED_TARGETING_MODES.DISCRETE,
+      declaration: {
+        baseMaximum: 1 + Number(chainRule.baseSecondaryMaximum || 0),
+        additionalPerSlotAbove: Number(chainRule.additionalSecondaryPerSlotAbove || 0),
+        baseSlot: Number(chainRule.baseSlot),
+      },
+      slotLevel,
+      characterLevel,
+      castContext,
       source: "chain-lightning-targeting",
-    };
+    });
   }
   if (targetingRule) {
-    const normalizedRule = targetingRule.targeting || targetingRule;
-    const baseMaximum = integerOrNull(normalizedRule.baseMaximum);
-    const additionalPerSlotAbove = integerOrNull(normalizedRule.additionalPerSlotAbove);
-    const baseSlot = integerOrNull(normalizedRule.baseSlot);
-    const maximum = targetingRule.targeting
-      ? getSpellSaveTargetMaximum(targetingRule, slotLevel)
-      : getSpellSaveTargetMaximum({ targeting: normalizedRule }, slotLevel);
-    return {
-      minimum: 1,
-      maximum,
-      baseMaximum,
-      additionalPerSlotAbove,
-      baseSlot,
-      maximumIncludesPrimary: true,
+    return resolveTargetingCapacity({
+      mode,
+      declaration: targetingRule,
+      slotLevel,
+      characterLevel,
+      castContext,
+      initialTargeting: mode === SPELL_UNIFIED_TARGETING_MODES.DISCRETE,
+      defaultDiscreteTargeting: false,
       source: "save-workflow",
-    };
+    });
   }
-  if (selectedAction && selectedAction.maxTargets !== null) {
-    return {
-      minimum: selectedAction.requiresTargets ? 1 : 0,
-      maximum: selectedAction.maxTargets,
-      baseMaximum: selectedAction.maxTargets,
-      additionalPerSlotAbove: 0,
-      baseSlot: null,
-      maximumIncludesPrimary: true,
+  if (selectedAction) {
+    const actionDeclaration = selectedAction.targeting
+      || (selectedAction.maxTargets !== null && selectedAction.maxTargets !== undefined
+        ? { maximum: selectedAction.maxTargets }
+        : null);
+    return resolveTargetingCapacity({
+      mode,
+      declaration: actionDeclaration,
+      slotLevel,
+      characterLevel,
+      castContext,
+      minimum: selectedAction.requiresTargets ? 1 : null,
+      initialTargeting: mode === SPELL_UNIFIED_TARGETING_MODES.DISCRETE,
+      defaultDiscreteTargeting: false,
       source: "active-action",
-    };
+    });
   }
   const spellTargeting = spell?.targeting && typeof spell.targeting === "object"
     ? spell.targeting
     : null;
-  const spellMaximum = integerOrNull(spellTargeting?.maxTargets);
-  const spellBaseMaximum = integerOrNull(spellTargeting?.baseMaximum);
-  const spellAdditionalPerSlotAbove = integerOrNull(
-    spellTargeting?.additionalPerSlotAbove,
-  );
-  const spellBaseSlot = integerOrNull(spellTargeting?.baseSlot);
-  if (spellMaximum !== null || (
-    spellBaseMaximum !== null
-    && spellAdditionalPerSlotAbove !== null
-    && spellBaseSlot !== null
-  )) {
-    const maximum = spellMaximum !== null
-      ? spellMaximum
-      : spellBaseMaximum + Math.max(
-        0,
-        Math.min(
-          MAX_SPELL_SLOT_LEVEL,
-          integerOrNull(slotLevel) ?? spellBaseSlot,
-        ) - spellBaseSlot,
-      ) * spellAdditionalPerSlotAbove;
-    return {
-      minimum: 1,
-      maximum,
-      baseMaximum: spellMaximum ?? spellBaseMaximum,
-      additionalPerSlotAbove: spellMaximum === null
-        ? spellAdditionalPerSlotAbove
-        : 0,
-      baseSlot: spellMaximum === null ? spellBaseSlot : null,
-      maximumIncludesPrimary: true,
-      source: "spell-targeting",
-    };
-  }
-  return {
-    minimum: 0,
-    maximum: null,
-    baseMaximum: null,
-    additionalPerSlotAbove: 0,
-    baseSlot: null,
-    maximumIncludesPrimary: true,
-    source: null,
-  };
+  return resolveTargetingCapacity({
+    mode,
+    declaration: spellTargeting,
+    slotLevel,
+    characterLevel,
+    castContext,
+    initialTargeting: mode === SPELL_UNIFIED_TARGETING_MODES.DISCRETE,
+    defaultDiscreteTargeting: mode === SPELL_UNIFIED_TARGETING_MODES.DISCRETE,
+    source: spellTargeting ? "spell-targeting" : null,
+  });
 }
 
 function primaryTargetDescriptor({ chainRule, selectedAction, spell, phasePlan }) {
@@ -628,9 +678,16 @@ function primaryTargetDescriptor({ chainRule, selectedAction, spell, phasePlan }
       ...cloneValue(selectedAction.primaryTarget),
     };
   }
+  if (spell?.id === "xanathar-coltello-di-ghiaccio") {
+    return {
+      required: true,
+      maximum: 1,
+      source: "primary-splash-target",
+      rangeMeters: null,
+    };
+  }
   if (
-    phasePlan?.phase === "resolve"
-    && ["phb2014-raffica-di-spine", "phb2014-freccia-folgorante"].includes(spell?.id)
+    spellPhaseUsesPrimaryTargetAnchor(phasePlan)
   ) {
     return {
       required: true,
@@ -689,6 +746,8 @@ function targetingDescriptor({
   workflowRule,
   areaPlacement,
   slotLevel = null,
+  characterLevel = null,
+  castContext = null,
 }) {
   const areaCatalogEnabled = phasePlan.phase !== "prepare";
   const actionRule = selectedAction
@@ -733,20 +792,30 @@ function targetingDescriptor({
     ? cloneValue(workflowRule.targeting)
     : null;
   const chainRule = chainLightningTargeting(spell);
-  const limit = targetingLimit({
+  let limit = targetingLimit({
     spell,
     targetingRule: workflowRule || chainRule,
     selectedAction,
     chainRule,
+    mode,
     slotLevel,
+    characterLevel,
+    castContext,
   });
   if (limit.maximum === null && selectedRuleTargeting.maximum !== null) {
-    limit.minimum = selectedRuleTargeting.confirmTargets ? 1 : 0;
-    limit.maximum = selectedRuleTargeting.maximum;
-    limit.baseMaximum = selectedRuleTargeting.maximum;
-    limit.additionalPerSlotAbove = 0;
-    limit.baseSlot = null;
-    limit.source = "placement-targeting";
+    limit = resolveTargetingCapacity({
+      mode,
+      declaration: {
+        maximum: selectedRuleTargeting.maximum,
+        minimum: selectedRuleTargeting.confirmTargets ? 1 : 0,
+      },
+      slotLevel,
+      characterLevel,
+      castContext,
+      initialTargeting: false,
+      defaultDiscreteTargeting: false,
+      source: "placement-targeting",
+    });
   }
   const primaryTarget = primaryTargetDescriptor({
     chainRule,
@@ -765,6 +834,9 @@ function targetingDescriptor({
     mode,
     source,
     subjectMode,
+    areaAnchor: spellPhaseUsesPrimaryTargetAnchor(phasePlan)
+      ? "primary-target"
+      : null,
     ruleIds: unique([
       ...castRules.map((entry) => entry.id),
       actionRule?.id,
@@ -1048,13 +1120,13 @@ function inputDescriptor({
     || selectedAction?.requiresTargets === true
     || (selectedAction?.maxTargets || 0) > 0;
   const outcomeRequired = saveOutcomes
-    || (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true)
+    || spellPhaseAttackOutcomeRequired(phasePlan)
     || selectedAction?.capabilities.attack === true
     || !!getSpellAttackResolution(spell);
   const choiceRequired = choices.length > 0;
   const damageRequired = hpInputVisible && !healing;
-  const primaryDamageRequired = spell?.id === "phb2014-freccia-folgorante"
-    && phasePlan?.phase === "resolve";
+  const primaryDamageRequired = phasePlan?.phase === "resolve"
+    && phasePlan?.attack?.primaryDamageMode === "final-applied";
   const healingRequired = hpInputVisible && healing;
   const compositionRequired = !!composition;
   return {
@@ -1112,7 +1184,7 @@ function outcomeOptions({
   saveOutcomes,
   workflowRule = null,
 }) {
-  if (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true) {
+  if (spellPhaseAttackOutcomeRequired(phasePlan)) {
     const labels = {
       hit: "Colpito",
       miss: "Mancato",
@@ -1214,7 +1286,7 @@ function controlList({
   if (
     selectedAction?.capabilities.attack
     || getSpellAttackResolution(spell)
-    || (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true)
+    || spellPhaseAttackOutcomeRequired(phasePlan)
   ) {
     controls.add("attack-outcomes");
   }
@@ -1315,7 +1387,7 @@ export function buildSpellUnifiedPanelContract({
   const spell = resolveSpell(spellValue, spellId);
   if (!spell) return null;
 
-  const phases = phaseOptions(spell);
+  const phases = phaseOptions(spell, phase);
   const selected = selectedPhase(phases, phase);
   const phasePlan = getSpellCastPhasePlan(
     spell,
@@ -1338,21 +1410,26 @@ export function buildSpellUnifiedPanelContract({
     boardTokenPlacementRule,
     selectedAction,
     choiceValue,
+    phasePlan,
   });
   const workflowRule = getSpellSaveWorkflowRule(spell.id);
   const workflowContext = getSpellSaveWorkflowTargetContext(spell.id);
   const choices = {
-    placement: getSpellAreaPlacementChoices(spell.id),
-    save: getSpellSaveWorkflowChoiceOptions(spell.id),
-    area: getAreaSaveRuleChoices(spell),
-    effect: getSpellEffectChoices(spell),
+    placement: sourcedChoiceOptions(getSpellAreaPlacementChoices(spell.id), "placement"),
+    save: sourcedChoiceOptions(getSpellSaveWorkflowChoiceOptions(spell.id), "save"),
+    area: sourcedChoiceOptions(getAreaSaveRuleChoices(spell), "area"),
+    effect: effectChoiceOptions(spell),
   };
-  const allChoices = uniqueByKey([
-    ...choices.placement,
+  const variantOptions = uniqueByKey([
     ...choices.save,
     ...choices.area,
     ...choices.effect,
   ].filter((choice) => text(choice?.value)), "value");
+  const variantPresentation = variantChoicePresentation(spell, choices, variantOptions);
+  const visibleChoiceOptions = uniqueByKey([
+    ...choices.placement,
+    ...variantPresentation.options,
+  ], "value");
   const targeting = targetingDescriptor({
     spell,
     phasePlan,
@@ -1363,6 +1440,8 @@ export function buildSpellUnifiedPanelContract({
     workflowRule,
     areaPlacement,
     slotLevel: integerOrNull(castContext?.slotLevel),
+    characterLevel: integerOrNull(castContext?.characterLevel),
+    castContext,
   });
   const saveOutcomes = saveOutcomeRequired({
     spell,
@@ -1379,8 +1458,7 @@ export function buildSpellUnifiedPanelContract({
     workflowRule,
   });
   const saveOutcomeOptionsValue = saveOutcomeOptions({ saveOutcomes, workflowRule });
-  const combinedAttackAndSave = phasePlan.phase === "resolve"
-    && phasePlan.attack?.required === true
+  const combinedAttackAndSave = spellPhaseAttackOutcomeRequired(phasePlan)
     && saveOutcomes;
   const automation = automationDescriptor({ spell, phasePlan });
   const controls = controlList({
@@ -1389,7 +1467,7 @@ export function buildSpellUnifiedPanelContract({
     phasePlan,
     targeting,
     placement: areaPlacement,
-    choices: allChoices,
+    choices: visibleChoiceOptions,
     workflowRule,
     workflowContext,
     composition: boardTokenRule?.composition || null,
@@ -1433,11 +1511,6 @@ export function buildSpellUnifiedPanelContract({
     selectedAction,
     workflowContext,
   });
-  const variantOptions = uniqueByKey([
-    ...choices.save,
-    ...choices.area,
-    ...choices.effect,
-  ].filter((choice) => text(choice?.value)), "value");
   const composition = boardTokenRule?.composition || null;
   const inputs = inputDescriptor({
     spell,
@@ -1447,7 +1520,7 @@ export function buildSpellUnifiedPanelContract({
     caster,
     targeting,
     placement: areaPlacement,
-    choices: variantOptions,
+    choices: variantPresentation.options,
     workflowContext,
     workflowRule,
     saveOutcomes,
@@ -1484,9 +1557,14 @@ export function buildSpellUnifiedPanelContract({
       subjectMode: targeting.subjectMode,
       choice: text(choiceValue) || null,
       variant: {
-        selected: text(choiceValue) || null,
-        options: variantOptions,
+        selected: variantPresentation.options.some((option) => (
+          text(option.value) === text(choiceValue)
+        )) ? text(choiceValue) : null,
+        options: variantPresentation.options,
         required: inputs.variant.required,
+        label: variantPresentation.label,
+        placeholder: variantPresentation.placeholder,
+        control: variantPresentation.control,
         preserveTargets: workflowRule?.preserveTargetsOnChoiceChange === true,
       },
       composition: composition
@@ -1511,7 +1589,7 @@ export function buildSpellUnifiedPanelContract({
       outcomes: {
         mode: combinedAttackAndSave
           ? "attack-and-save"
-          : phasePlan.phase === "resolve" && phasePlan.attack?.required === true
+          : spellPhaseAttackOutcomeRequired(phasePlan)
           || getSpellAttackResolution(spell)
           || selectedAction?.capabilities?.attack
           ? "attack"
@@ -1701,6 +1779,7 @@ export function createSpellPanelSession({
   activeConcentration = null,
   durationTurns,
   targetIds = [],
+  ignoreTargetLimit = false,
   primaryTargetId = "",
   outcomes = {},
   attackOutcome = "",
@@ -1741,6 +1820,7 @@ export function createSpellPanelSession({
     requestedConcentration: requestedConcentration === true,
     activeConcentration: normalizedActiveConcentration(activeConcentration),
     targetIds: unique(targetIds),
+    ignoreTargetLimit: ignoreTargetLimit === true,
     primaryTargetId: text(primaryTargetId),
     outcomes: recordValue(outcomes),
     attackOutcome: text(attackOutcome).toLocaleLowerCase("it"),
@@ -1817,6 +1897,7 @@ function resetRuntimeState(current) {
     activeInstanceId: "",
     activeActionState: normalizedActiveActionState(null),
     targetIds: [],
+    ignoreTargetLimit: false,
     primaryTargetId: "",
     outcomes: {},
     attackOutcome: "",
@@ -2112,9 +2193,16 @@ function validationFor(contract, session, placement) {
   if (inputs.targets?.required && session.targetIds.length < 1) {
     add("targets", "targets-required");
   }
-  if (Number.isInteger(inputs.targets?.maximum)
-    && inputs.targets.maximum >= 0
-    && session.targetIds.length > inputs.targets.maximum) {
+  const targetingCapacity = applyTargetingLimitState(
+    contract.presentation?.targeting?.limit || {
+      maximum: inputs.targets?.maximum,
+    },
+    {
+      ignoreTargetLimit: session.ignoreTargetLimit === true,
+      targetIds: session.targetIds,
+    },
+  );
+  if (targetingCapacity.exceeded) {
     add("targets", "target-limit-exceeded");
   }
   if (inputs.primaryTarget?.required && (

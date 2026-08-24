@@ -919,7 +919,9 @@ function __orderedParts(cond = {}) {
       effectId: group.effectId,
       condition: group.name,
       summaryParts: group.instances[0]?.summaryParts,
-    });
+      saveReminder: group.instances[0]?.saveReminder,
+      mechanics: group.instances[0]?.mechanics,
+    }, { suppressSaveReminderParts: true });
     return {
       name: group.name,
       label: group.label,

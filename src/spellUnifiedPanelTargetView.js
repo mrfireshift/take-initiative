@@ -96,7 +96,7 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       "data-target-mode": targets.mode,
     },
   });
-  section.append(createNode(documentRef, "div", {
+  const heading = createNode(documentRef, "div", {
     className: "unified-section__heading",
     children: [
       createNode(documentRef, "h2", {
@@ -108,7 +108,42 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         text: targets.countLabel,
       }),
     ],
-  }));
+  });
+  if (targets.limit?.bypassable === true) {
+    const toggle = createNode(documentRef, "input", {
+      attributes: {
+        type: "checkbox",
+        title: "Ignora limite target",
+        "aria-label": "Ignora limite target",
+      },
+    });
+    toggle.checked = targets.limit.ignoreTargetLimit === true;
+    toggle.addEventListener("change", (event) => callbacks.onIgnoreTargetLimitChange?.(
+      event.target.checked,
+    ));
+    const toggleLabel = createNode(documentRef, "label", {
+      className: "unified-target-limit-toggle",
+      attributes: {
+        title: "Ignora limite target",
+      },
+      children: [
+        toggle,
+        createNode(documentRef, "span", {
+          className: "unified-target-limit-toggle__text",
+          text: "Ignora numero massimo bersagli",
+        }),
+      ],
+    });
+    heading.append(toggleLabel);
+  }
+  section.append(heading);
+  if (targets.limitWarning) {
+    section.append(createNode(documentRef, "div", {
+      className: "unified-target-limit-warning",
+      attributes: { role: "alert" },
+      text: targets.limitWarning,
+    }));
+  }
 
   const filters = targets.filters || {};
   const filterBar = createNode(documentRef, "div", {

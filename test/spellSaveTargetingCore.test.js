@@ -312,7 +312,7 @@ test("Esilio dichiara limite, gittata e contesto del piano per bersaglio", () =>
 
   assert.equal(rule.ability, "cha");
   assert.equal(getSpellSaveTargetMaximum(rule, 4), 1);
-  assert.equal(getSpellSaveTargetMaximum(rule, 6), 3);
+  assert.equal(getSpellSaveTargetMaximum(rule, 6), 1);
   assert.deepEqual(rule.targeting.spatial, {
     mode: "caster-range",
     maxMeters: 18,
@@ -328,6 +328,7 @@ test("Esilio dichiara limite, gittata e contesto del piano per bersaglio", () =>
     spellId: "banishment",
     rule,
     slotLevel: 6,
+    ignoreTargetLimit: true,
     targetIds: ["native", "extraplanar", "third"],
     targetContexts: {
       native: { planeOrigin: "current-plane" },

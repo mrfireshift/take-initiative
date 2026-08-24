@@ -26,6 +26,10 @@ const activeResolutionHtml = readFileSync(
   new URL("../spell-active-resolution.html", import.meta.url),
   "utf8",
 );
+const legacyResolutionHtml = readFileSync(
+  new URL("../prepared-spell-resolution.html", import.meta.url),
+  "utf8",
+);
 const background = readFileSync(
   new URL("../src/background.js", import.meta.url),
   "utf8",
@@ -79,10 +83,17 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.match(activeResolution, /isPreparedResolution/);
   assert.match(activeResolution, /executeSpellActiveAction/);
   assert.match(activeResolution, /action\?\.type === "manual"/);
+  assert.match(activeResolution, /Incantesimo preparato/);
+  assert.match(activeResolution, /\$\("caster"\)\.textContent = `Caster:/);
   assert.match(activeResolution, /"Pronto sul caster"/);
   assert.match(activeResolution, /executeSpellApplication/);
   assert.match(activeResolution, /\$\("attackOutcomes"\)\.hidden = true/);
-  assert.match(activeResolution, /"Bersaglio colpito: " \+ displayName\(targets\[0\]\)/);
+  assert.match(activeResolution, /\$\("attackTitle"\)\.textContent = "Bersaglio"/);
+  assert.match(activeResolution, /targetSelect\.hidden = true/);
+  assert.match(activeResolution, /Bersaglio: \$\{displayName\(targets\[0\]\)\}/);
+  assert.match(activeResolution, /damageInput\.closest\("\.field"\)\.hidden = !damageRequired/);
+  assert.match(activeResolution, /const visible = saveRequired/);
+  assert.match(activeResolution, /Danno extra · \$\{damageLabel\}/);
   assert.match(activeResolution, /\$\("attackDamage"\)\.placeholder = "Totale"/);
   assert.doesNotMatch(activeResolution, /Totale \$\{damage\.dice\} già tirato/);
   assert.doesNotMatch(activeResolution, /preparedTargetInfo/);
@@ -92,4 +103,27 @@ test("le preparazioni usano il popup mobile shared e non il route legacy ancorat
   assert.match(activeResolution, /attackOutcome: "hit"/);
   assert.doesNotMatch(activeResolutionHtml, /id="preparedTargetInfo"/);
   assert.match(activeResolutionHtml, /id="preparedChoice"/);
+
+  const preparedBranch = activeResolution.slice(
+    activeResolution.indexOf("if (isPreparedResolution())"),
+    activeResolution.indexOf("const callLightning = isCallLightning();"),
+  );
+  assert.doesNotMatch(preparedBranch, /Esito del colpo|Esito dell'attacco|Colpito|Mancato|Critico/);
+  assert.doesNotMatch(preparedBranch, /weapon-melee|weapon-ranged|weapon/);
+  assert.doesNotMatch(preparedBranch, /Risoluzione pronta|Conferma la risoluzione|Conferma il risultato del tiro già effettuato/);
+  assert.match(preparedBranch, /\$\("summary"\)\.hidden = true/);
+  assert.match(activeResolution, /\$\("apply"\)\.textContent = "Risolvi"/);
+  assert.match(activeResolution, /Seleziona un bersaglio prima di continuare/);
+  assert.match(popover, /: manual \? presentation\.text : "Risolvi"/);
+  assert.match(popover, /resolveButton\.title = manual \? presentation\.title : ""/);
+  assert.match(popover, /status\.textContent = ""/);
+  assert.doesNotMatch(popover, /status\.textContent = currentTargetIds\.length/);
+  assert.match(popover, /label: "Fallito"/);
+  assert.match(popover, /label: "Superato"/);
+  assert.doesNotMatch(popover, /label: "TS fallito"|label: "TS superato"/);
+  assert.doesNotMatch(legacyResolutionHtml, /attackOutcome|Esito dell'attacco|Colpito|Mancato|Critico/);
+  assert.match(legacyResolutionHtml, /<span id="status"><\/span>/);
+  assert.match(legacyResolutionHtml, /placeholder="Totale"/);
+  assert.match(popover, /attackOutcome: "hit"/);
+  assert.doesNotMatch(popover, /Conferma l'esito dell'attacco|Inserisci il danno extra già tirato/);
 });

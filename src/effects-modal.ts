@@ -7,6 +7,7 @@ import {
   getConditionInstances,
   refreshConditionLabels,
 } from "./conditions.js";
+import { compactSpellEffectLabel } from "./effectLabelCore.js";
 import {
   conditionMutationOperations,
   getEffectsMutationSceneContext,
@@ -121,7 +122,10 @@ function conditionRows(target: any) {
     targetId: String(target.id || ""),
     targetName: displayName(target.name),
     name: String(instance.condition || ""),
-    label: formatConditionInstance(instance),
+    label: compactSpellEffectLabel(
+      String(instance.displayLabel || instance.condition || "Effetto").trim(),
+    ),
+    detail: formatConditionInstance(instance),
     managed: instance.type === "initiative-card",
   }));
 }
@@ -616,6 +620,8 @@ async function render(sourceId: string, preservedTargetIds: string[] | null = nu
       text.style.textOverflow = "ellipsis";
       text.style.whiteSpace = "nowrap";
       text.style.fontSize = "var(--obrt-type-body, 12px)";
+      text.title = row.detail;
+      text.setAttribute("aria-label", row.detail);
 
       const targetBadge = document.createElement("strong");
       targetBadge.textContent = row.targetName;

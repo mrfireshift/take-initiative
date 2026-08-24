@@ -294,7 +294,9 @@ function hpEntries({ command, items, spell }) {
       const primaryChange = calculateQuickHPChange({
         mode,
         value: primaryAmount,
-        factor: normalizeFactor(hp.primaryOutcomeFactor),
+        factor: hp.primaryDamageMode === "final-applied"
+          ? QUICK_HP_FACTORS.FULL
+          : normalizeFactor(hp.primaryOutcomeFactor),
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
       });
@@ -694,6 +696,7 @@ async function buildPlan(command, runtime) {
       casterDistancesMeters: command?.targeting?.spatialValidation?.casterDistancesMeters,
       validateSpatial: false,
       targetContexts,
+      ignoreTargetLimit: command?.targeting?.ignoreTargetLimit === true,
     });
   if (!resolution.valid) {
     return { valid: false, errors: errorList(resolution.errors, "spell-resolution-invalid") };
@@ -1180,6 +1183,7 @@ async function buildPlan(command, runtime) {
   const historyIds = uniqueIds([
     ...ids,
     ...effectSubjectIds,
+    ...(command?.source?.kind === "prepared-resolution" && casterId ? [casterId] : []),
     ...(cloudPlacement || teleportRule ? [casterId] : []),
     ...await runtime.getZeroHPConditionHistoryIds(ids),
   ]);

@@ -297,6 +297,7 @@ function conditionRule(condition, {
   effectKind = "",
   effectDetail = "",
   exhaustionContribution = false,
+  summaryParts = null,
   saveReminder = null,
   deferredEffect = null,
 } = {}) {
@@ -314,6 +315,7 @@ function conditionRule(condition, {
     ...(effectId ? { effectId } : {}),
     ...(effectKind ? { effectKind } : {}),
     ...(effectDetail ? { effectDetail } : {}),
+    ...(Array.isArray(summaryParts) ? { summaryParts } : {}),
     ...(saveReminder ? { saveReminder } : {}),
     ...(deferredEffect ? { deferredEffect } : {}),
   });
@@ -397,6 +399,10 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "confusion-no-reactions", label: "No reaz." }),
+          Object.freeze({ id: "confusion-random-table", label: "Tira d10 inizio turno" }),
+        ]),
         saveReminder: Object.freeze([
           Object.freeze({
             timing: "turn-start",
@@ -422,6 +428,9 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "fear-flight", label: "Scatto: allontanati dal caster" }),
+        ]),
         saveReminder: Object.freeze({
           timing: "turn-start",
           mode: "consume",
@@ -479,6 +488,13 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "speed-half", label: "Vel ½" }),
+          Object.freeze({ id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" }),
+          Object.freeze({ id: "no-reactions", label: "No reaz." }),
+          Object.freeze({ id: "action-or-bonus", label: "Azione o Bonus" }),
+          Object.freeze({ id: "attack-limit", label: "Max 1 att." }),
+        ]),
         saveReminder: Object.freeze({
           ability: "wis",
           timing: "turn-end",
@@ -525,6 +541,9 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: concentration,
       manualRemoval: true,
       endsParentOnRemoval: true,
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "weird-psychic-damage", label: "4d10 psichici se fallisce" }),
+      ]),
       saveReminder: Object.freeze({
         ability: "wis",
         timing: "turn-end",

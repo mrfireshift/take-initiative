@@ -1,3 +1,5 @@
+import { effectSummaryPartsFor } from "./effectLabelCore.js";
+
 const clone = (value) => {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
@@ -105,6 +107,9 @@ export function resolveSpellEffect(effect, castContext = {}) {
   return {
     ...(effect || {}),
     ...(mechanics ? { mechanics } : {}),
+    ...(Array.isArray(effect?.summaryParts)
+      ? { summaryParts: effectSummaryPartsFor({ ...effect, mechanics }) }
+      : {}),
     label: spellMechanicsLabel(mechanics, effect?.label),
   };
 }

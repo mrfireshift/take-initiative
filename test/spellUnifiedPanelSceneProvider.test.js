@@ -404,3 +404,73 @@ test("il provider applica la validazione spaziale del workflow save", async () =
   assert.equal(result.valid, false);
   assert.equal(result.errors.includes("caster-range-exceeded"), true);
 });
+
+test("l'area ancorata mantiene il primary di una pedina grande e rifiuta anchor stale", async () => {
+  const items = [
+    character("large-primary", "Primario grande"),
+    character("nearby", "Vicino"),
+  ];
+  const obr = fakeObr(items, {
+    geometryById: {
+      "large-primary": { min: { x: 0, y: 0 }, max: { x: 300, y: 300 } },
+      nearby: { min: { x: 450, y: 0 }, max: { x: 600, y: 150 } },
+    },
+  });
+  const baseCommand = {
+    spell: {
+      spellId: "phb2014-freccia-folgorante",
+      casterId: "caster",
+      slotLevel: 3,
+    },
+    targeting: {
+      mode: "geometric",
+      areaAnchor: "primary-target",
+      primaryTargetId: "large-primary",
+      targetIds: ["large-primary", "nearby"],
+    },
+    placement: {
+      status: "confirmed",
+      targetIds: ["large-primary", "nearby"],
+      anchorTargetId: "large-primary",
+      preview: {
+        anchorTargetId: "large-primary",
+        anchorOrigin: { x: 150, y: 150 },
+        targetIds: ["large-primary", "nearby"],
+      },
+    },
+  };
+
+  const valid = await validateSpellAreaSceneSpatial(obr, {
+    command: baseCommand,
+    items,
+    targetIds: ["large-primary", "nearby"],
+  });
+  assert.equal(valid.valid, true, valid.errors?.join(", "));
+
+  const mismatch = await validateSpellAreaSceneSpatial(obr, {
+    command: {
+      ...baseCommand,
+      placement: {
+        ...baseCommand.placement,
+        anchorTargetId: "nearby",
+        preview: { ...baseCommand.placement.preview, anchorTargetId: "nearby" },
+      },
+    },
+    items,
+    targetIds: ["large-primary", "nearby"],
+  });
+  assert.deepEqual(mismatch, { valid: false, errors: ["placement-anchor-mismatch"] });
+
+  const stale = await validateSpellAreaSceneSpatial(obr, {
+    command: {
+      ...baseCommand,
+      placement: {
+        ...baseCommand.placement,
+        preview: { ...baseCommand.placement.preview, anchorOrigin: { x: 999, y: 999 } },
+      },
+    },
+    items,
+    targetIds: ["large-primary", "nearby"],
+  });
+  assert.deepEqual(stale, { valid: false, errors: ["placement-anchor-stale"] });
+});

@@ -2,6 +2,7 @@ import {
   getSpellSaveWorkflowRule,
   validateSpellSaveWorkflowChoice,
 } from "./spellSaveWorkflowRules.js";
+import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
 
 export const MAX_SPELL_SLOT_LEVEL = 9;
 
@@ -338,14 +339,14 @@ export function getSpellSaveTargetMaximum(ruleOrSpellId, slotLevel) {
     ? getSpellSaveWorkflowRule(ruleOrSpellId)
     : ruleOrSpellId;
   if (!rule) return 0;
-  if (rule?.targeting?.unlimitedTargets === true) return null;
-
-  const { baseSlot, baseMaximum, additionalPerSlotAbove } = targetingNumbers(rule);
-  const requestedSlot = integerValue(slotLevel);
-  const resolvedSlot = requestedSlot === null
-    ? baseSlot
-    : Math.max(baseSlot, Math.min(MAX_SPELL_SLOT_LEVEL, requestedSlot));
-  return baseMaximum + Math.max(0, resolvedSlot - baseSlot) * additionalPerSlotAbove;
+  return resolveTargetingCapacity({
+    mode: "discrete",
+    declaration: rule,
+    slotLevel,
+    initialTargeting: true,
+    defaultDiscreteTargeting: false,
+    source: "save-workflow",
+  }).maximum;
 }
 
 export function resolveSpellSaveTargeting({
@@ -359,6 +360,7 @@ export function resolveSpellSaveTargeting({
   casterDistancesMeters = {},
   validateSpatial = true,
   targetContexts = {},
+  ignoreTargetLimit = false,
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
   const workflowRule = resolveRule(rule, normalizedSpellId);
@@ -391,9 +393,19 @@ export function resolveSpellSaveTargeting({
     errors.push("slot-level-invalid");
   }
   const normalizedSlotLevel = requestedSlot === null ? baseSlot : requestedSlot;
-  const maximumTargets = workflowRule
-    ? getSpellSaveTargetMaximum(workflowRule, normalizedSlotLevel)
-    : 0;
+  const targetingCapacity = workflowRule
+    ? resolveTargetingCapacity({
+      mode: "discrete",
+      declaration: workflowRule,
+      slotLevel: normalizedSlotLevel,
+      targetIds: uniqueTargetIds,
+      ignoreTargetLimit,
+      initialTargeting: true,
+      defaultDiscreteTargeting: false,
+      source: "save-workflow",
+    })
+    : null;
+  const maximumTargets = workflowRule ? targetingCapacity?.maximum : 0;
   const choiceValidation = validateSpellSaveWorkflowChoice(workflowRule, choiceValue);
   const targetContext = resolveTargetContext(
     workflowRule,
@@ -408,8 +420,11 @@ export function resolveSpellSaveTargeting({
 
   if (duplicateTargetIds.length) errors.push("duplicate-targets");
   if (!allowEmptyTargets && uniqueTargetIds.length === 0) errors.push("targets-required");
-  if (maximumTargets !== null && uniqueTargetIds.length > maximumTargets) {
+  if (targetingCapacity?.exceeded) {
     errors.push("target-limit-exceeded");
+  }
+  for (const error of targetingCapacity?.errors || []) {
+    if (!errors.includes(error)) errors.push(error);
   }
   for (const error of choiceValidation.errors) {
     if (!errors.includes(error)) errors.push(error);
@@ -427,6 +442,11 @@ export function resolveSpellSaveTargeting({
     spellId: resolvedSpellId,
     slotLevel: normalizedSlotLevel,
     maximumTargets,
+    effectiveMaximumTargets: targetingCapacity
+      ? targetingCapacity.effectiveMaximum
+      : maximumTargets,
+    ignoreTargetLimit: ignoreTargetLimit === true,
+    targetingCapacity,
     targetIds: uniqueTargetIds,
     duplicateTargetIds,
     rule: workflowRule,

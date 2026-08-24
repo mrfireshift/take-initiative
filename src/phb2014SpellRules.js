@@ -17,6 +17,7 @@ function conditionRule(condition, {
   effectId = "",
   effectKind = "",
   effectDetail = "",
+  summaryParts = null,
   saveReminder = null,
 } = {}) {
   const options = independent ? Object.freeze({ parentEffectId: "" }) : null;
@@ -29,6 +30,7 @@ function conditionRule(condition, {
     ...(effectId ? { effectId } : {}),
     ...(effectKind ? { effectKind } : {}),
     ...(effectDetail ? { effectDetail } : {}),
+    ...(Array.isArray(summaryParts) ? { summaryParts } : {}),
     ...(saveReminder ? { saveReminder } : {}),
   });
 }
@@ -57,10 +59,11 @@ function saveAutomation(rules, {
   });
 }
 
-const concentrationCondition = (condition, saveReminder = null) => conditionRule(condition, {
+const concentrationCondition = (condition, saveReminder = null, options = {}) => conditionRule(condition, {
   expiry: concentration,
   manualRemoval: true,
   endsParentOnRemoval: true,
+  ...options,
   saveReminder,
 });
 
@@ -197,6 +200,12 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       "Svant. attacchi vs altri / limite 9 m",
       "compelled-duel-restrictions",
       "Svantaggio agli attacchi contro creature diverse dal caster; TS Saggezza per muoversi oltre 9 metri.",
+      {
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "compelled-duel-attack-restriction", label: "Svant. attacchi vs altri" }),
+          Object.freeze({ id: "compelled-duel-movement-save", label: "TS Sag per >9 m" }),
+        ]),
+      },
     ),
   ]),
   "phb2014-punizione-collerica": saveAutomation([
@@ -227,19 +236,33 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       "Illusione / 1d6 psichici per round",
       "phantasmal-force",
       "Considera reale l'allucinazione; può subire 1d6 danni psichici per round e può esaminarla con Indagare.",
+      {
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "phantasmal-force-real-illusion", label: "Illusione reale" }),
+          Object.freeze({ id: "phantasmal-force-psychic-damage", label: "1d6 psichici/round" }),
+        ]),
+      },
     ),
   ]),
   "phb2014-corona-di-follia": saveAutomation([
-    concentrationCondition("Affascinato", Object.freeze({
-      ability: "wis",
-      timing: "turn-end",
-      dcSource: "source-spell",
-      label: "Se supera il TS, termina Corona di Follia.",
-    })),
+    concentrationCondition(
+      "Affascinato",
+      Object.freeze({
+        ability: "wis",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Corona di Follia.",
+      }),
+    ),
     concentrationDebuff(
       "Azione: attacco imposto",
       "crown-of-madness-commanded-attack",
       "Il caster può imporre un attacco in mischia nel turno del bersaglio e deve usare l'azione per mantenere il controllo.",
+      {
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "crown-of-madness-commanded-attack", label: "Azione: attacco imposto" }),
+        ]),
+      },
     ),
   ]),
   "phb2014-fame-di-hadar": saveAutomation([], {
@@ -250,12 +273,15 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
     concentrationAction: "dismiss",
   }),
   "phb2014-punizione-accecante": saveAutomation([
-    concentrationCondition("Accecato", Object.freeze({
-      ability: "con",
-      timing: "turn-end",
-      dcSource: "source-spell",
-      label: "Se supera il TS, termina Accecato su di sé.",
-    })),
+    concentrationCondition(
+      "Accecato",
+      Object.freeze({
+        ability: "con",
+        timing: "turn-end",
+        dcSource: "source-spell",
+        label: "Se supera il TS, termina Accecato su di sé.",
+      }),
+    ),
   ]),
   "phb2014-punizione-demoralizzante": saveAutomation([
     debuffRule(
@@ -265,6 +291,10 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       {
         expiry: nextTurn("turn-end", "target"),
         independent: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "staggering-smite-attack-check-penalty", label: "Svant. attacchi/prove" }),
+          Object.freeze({ id: "staggering-smite-no-reactions", label: "No reaz." }),
+        ]),
       },
     ),
   ], {
@@ -287,6 +317,10 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       {
         expiry: concentration,
         manualRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "tsunami-wall-state", label: "Nel muro" }),
+          Object.freeze({ id: "tsunami-wall-athletics-check", label: "Atletica per muoversi" }),
+        ]),
       },
     ),
   ], {
@@ -297,6 +331,10 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       {
         expiry: concentration,
         manualRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "tsunami-wall-state", label: "Nel muro" }),
+          Object.freeze({ id: "tsunami-wall-athletics-check", label: "Atletica per muoversi" }),
+        ]),
       },
     )],
     trackOutcomes: ["passed", "failed"],
@@ -322,6 +360,11 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. contundenti/perforanti/taglienti da armi",
     detail: "Resistenza ai danni contundenti, perforanti e taglienti inferti dagli attacchi con armi.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "weapon-resistance-bludgeoning", label: "Res. contundenti da armi" }),
+      Object.freeze({ id: "weapon-resistance-piercing", label: "Res. perforanti da armi" }),
+      Object.freeze({ id: "weapon-resistance-slashing", label: "Res. taglienti da armi" }),
+    ]),
     expiry: nextTurn("turn-end", "source"),
   })]),
   "phb2014-armatura-di-agathys": Object.freeze([Object.freeze({
@@ -329,6 +372,10 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "5 PF temp. / 5 freddo a chi colpisce in mischia",
     detail: "Conferisce 5 PF temporanei e infligge 5 danni da freddo a chi colpisce in mischia finché restano quei PF; entrambi aumentano di 5 per livello di slot.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "agathys-temporary-hit-points", label: "5 PF temp." }),
+      Object.freeze({ id: "agathys-cold-retaliation", label: "5 danni freddo in mischia" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
     mechanics: Object.freeze({
@@ -348,6 +395,10 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "1d12 fulmine / azione per ripetere",
     detail: "Il caster può usare l'azione nei turni successivi per infliggere automaticamente 1d12 danni da fulmine.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "witch-bolt-damage", label: "1d12 fulmine" }),
+      Object.freeze({ id: "witch-bolt-repeat-action", label: "Azione: ripeti" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
@@ -356,6 +407,10 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "1d6 fuoco a inizio turno",
     detail: "All'inizio del turno effettua un TS Costituzione: 1d6 fuoco se fallisce, fine dello spell se supera. Un'azione può estinguere le fiamme.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "searing-smite-save", label: "TS Cos inizio turno" }),
+      Object.freeze({ id: "searing-smite-fire-damage", label: "1d6 fuoco" }),
+    ]),
     saveReminder: Object.freeze({
       ability: "con",
       timing: "turn-start",
@@ -400,6 +455,11 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. danni tranne psichici / velocità 0",
     detail: "Resistenza a tutti i danni tranne gli psichici, velocità 0; malattie e veleno restano sospesi.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "feign-death-damage-resistance", label: "Res. danni (no psichici)" }),
+      Object.freeze({ id: "feign-death-speed-zero", label: "Vel 0" }),
+      Object.freeze({ id: "feign-death-disease-poison-suspended", label: "Malattie/veleno sospesi" }),
+    ]),
     mechanics: Object.freeze({
       movement: Object.freeze({
         setMeters: 0,
@@ -415,6 +475,11 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. veleno / vant. TS / no malattie",
     detail: "Resistenza al veleno, immunità alle malattie e vantaggio ai TS contro accecato, affascinato, assordato, avvelenato, paralizzato, spaventato e stordito.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "aura-of-purity-poison-resistance", label: "Res. veleno" }),
+      Object.freeze({ id: "aura-of-purity-disease-immunity", label: "Imm. malattie" }),
+      Object.freeze({ id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" }),
+    ]),
     mechanics: Object.freeze({
       damageResistances: Object.freeze(["poison"]),
       diseaseImmunity: true,
@@ -436,6 +501,11 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Res. necrotici / max PF / +1 PF a 0",
     detail: "Resistenza ai danni necrotici, massimo PF non riducibile e recupero di 1 PF a inizio turno quando si è a 0 PF.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "aura-of-life-necrotic-resistance", label: "Res. necrotici" }),
+      Object.freeze({ id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" }),
+      Object.freeze({ id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" }),
+    ]),
     mechanics: Object.freeze({
       damageResistances: Object.freeze(["necrotic"]),
       hitPointMaximumProtected: true,
@@ -447,12 +517,20 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Azione bonus / trascina 6 m",
     detail: "A ogni turno il caster può usare un'azione bonus per tentare di trascinare una creatura di 6 metri verso il rampicante.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "grasping-vine-bonus-action", label: "Azione bonus" }),
+      Object.freeze({ id: "grasping-vine-pull", label: "Trascina 6 m" }),
+    ]),
   })]),
   "phb2014-cerchio-di-potere": Object.freeze([Object.freeze({
     id: "circle-of-power",
     kind: "buff",
     label: "Vant. TS magia / 0 danni su TS riuscito",
     detail: "Vantaggio ai TS contro spell ed effetti magici; un TS riuscito che dimezzerebbe i danni li annulla.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" }),
+      Object.freeze({ id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" }),
+    ]),
     mechanics: Object.freeze({
       savingThrow: Object.freeze({ advantageAgainstMagic: true }),
       damageOnSuccessfulSave: "none",
@@ -463,6 +541,10 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Azione bonus / 2 attacchi a distanza",
     detail: "A ogni turno può usare un'azione bonus per effettuare due attacchi con un'arma che usa le munizioni della faretra.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "swift-quiver-bonus-action", label: "Azione bonus" }),
+      Object.freeze({ id: "swift-quiver-two-attacks", label: "2 attacchi distanza" }),
+    ]),
   })]),
   "phb2014-telepatia": Object.freeze([Object.freeze({
     id: "telepathic-link",
@@ -501,6 +583,10 @@ export const PHB2014_EFFECT_CHOICES = Object.freeze({
       kind: "debuff",
       label: `+1d6 necrotici dal caster / svant. prove ${ability}`,
       detail: `Il caster infligge 1d6 danni necrotici extra quando colpisce; svantaggio alle prove di ${ability}.`,
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "hex-damage-bonus", label: "+1d6 necrotici dal caster" }),
+        Object.freeze({ id: "hex-ability-check-disadvantage", label: `Svant. prove ${ability}` }),
+      ]),
       mechanics: Object.freeze({
         damageBonus: Object.freeze({ dice: "1d6", type: "necrotici", sourceOnly: true }),
         abilityCheck: Object.freeze({ disadvantage: true, ability }),
@@ -515,6 +601,11 @@ export const PHB2014_EFFECT_CHOICES = Object.freeze({
       kind: "buff",
       label: `+1 al colpire / +1d4 ${type}`,
       detail: `L'arma è magica, conferisce +1 ai tiri per colpire e infligge 1d4 danni da ${type} extra; i bonus aumentano con lo slot.`,
+      summaryParts: Object.freeze([
+        Object.freeze({ id: `elemental-weapon-${type}-magical`, label: "Arma magica" }),
+        Object.freeze({ id: `elemental-weapon-${type}-attack-bonus`, label: "+1 Att" }),
+        Object.freeze({ id: `elemental-weapon-${type}-damage`, label: `+1d4 ${type}` }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         attackRoll: Object.freeze({

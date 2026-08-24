@@ -261,6 +261,7 @@ const eyebiteChoice = castChoice([
 const workflowRule = ({
   spellId,
   ability,
+  maximum = null,
   baseMaximum,
   additionalPerSlotAbove,
   baseSlot,
@@ -279,9 +280,12 @@ const workflowRule = ({
   ability,
   targeting: Object.freeze({
     mode: "selected",
-    baseMaximum,
-    additionalPerSlotAbove,
-    baseSlot,
+    ...(maximum !== null && maximum !== undefined ? { maximum } : {}),
+    ...(baseMaximum !== null && baseMaximum !== undefined ? { baseMaximum } : {}),
+    ...(additionalPerSlotAbove !== null && additionalPerSlotAbove !== undefined
+      ? { additionalPerSlotAbove }
+      : {}),
+    ...(baseSlot !== null && baseSlot !== undefined ? { baseSlot } : {}),
     consent: "all-save",
     ...(unlimitedTargets === true ? { unlimitedTargets: true } : {}),
     ...(spatial && typeof spatial === "object"
@@ -455,8 +459,6 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
   "compulsion": workflowRule({
     spellId: "compulsion",
     ability: "wis",
-    baseMaximum: 0,
-    additionalPerSlotAbove: 0,
     baseSlot: 4,
     unlimitedTargets: true,
     spatial: {
@@ -501,8 +503,7 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
   "banishment": workflowRule({
     spellId: "banishment",
     ability: "cha",
-    baseMaximum: 1,
-    additionalPerSlotAbove: 1,
+    maximum: 1,
     baseSlot: 4,
     spatial: {
       mode: "caster-range",

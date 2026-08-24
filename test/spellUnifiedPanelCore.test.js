@@ -197,7 +197,13 @@ test("gli input danno e l'upcasting usano le dichiarazioni del workflow", () => 
   });
   assert.equal(acidArrow.execution.lane, "area-transaction");
   assert.equal(acidArrow.presentation.inputs.damage.required, true);
-  assert.equal(acidArrow.presentation.inputs.variant.required, true);
+  assert.equal(acidArrow.presentation.inputs.variant.required, false);
+  assert.deepEqual(acidArrow.presentation.variant.options, []);
+  assert.equal(acidArrow.presentation.variant.control, "attack-outcome");
+  assert.deepEqual(
+    acidArrow.presentation.outcomes.options.map((option) => option.value),
+    ["hit", "miss"],
+  );
 });
 
 test("Aculeo Mentale usa il workflow TS/danno senza sagoma", () => {
@@ -217,6 +223,68 @@ test("Aculeo Mentale usa il workflow TS/danno senza sagoma", () => {
   assert.equal(model.presentation.inputs.outcomes.required, true);
   assert.equal(model.execution.hasHP, true);
   assert.equal(model.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
+});
+
+test("il batch 7 espone scelte human-readable con dettaglio operativo", () => {
+  for (const spellId of [
+    "bestow-curse",
+    "contagion",
+    "enhance-ability",
+    "phb2014-punizione-esiliante",
+  ]) {
+    const contract = buildSpellUnifiedPanelContract({ spellId });
+    assert.equal(contract.presentation.variant.required, true, spellId);
+    assert.equal(contract.presentation.variant.label, "Effetto", spellId);
+    assert.equal(contract.presentation.variant.placeholder, "Scegli", spellId);
+    assert.ok(contract.presentation.variant.options.length > 0, spellId);
+    assert.ok(contract.presentation.variant.options.every((option) => option.source === "effect"), spellId);
+    assert.ok(contract.presentation.variant.options.every((option) => option.detail), spellId);
+  }
+});
+
+test("le Punizioni al cast preparano soltanto e non espongono Colpito/Mancato/Critico", () => {
+  for (const spellId of [
+    "phb2014-punizione-collerica",
+    "phb2014-punizione-incandescente",
+    "phb2014-punizione-tonante",
+    "phb2014-punizione-accecante",
+    "phb2014-punizione-demoralizzante",
+    "phb2014-punizione-esiliante",
+  ]) {
+    const prepare = buildSpellUnifiedPanelContract({ spellId });
+    assert.equal(prepare.presentation.phase.selected, "prepare", spellId);
+    assert.deepEqual(
+      prepare.presentation.phase.options.map((option) => option.value),
+      ["prepare"],
+      spellId,
+    );
+    assert.deepEqual(prepare.presentation.outcomes.options, [], spellId);
+    assert.equal(prepare.presentation.inputs.outcomes.visible, false, spellId);
+    assert.equal(prepare.presentation.controls.includes("attack-outcomes"), false, spellId);
+
+    const resolve = buildSpellUnifiedPanelContract({ spellId, phase: "resolve" });
+    assert.equal(resolve.presentation.phase.selected, "resolve", spellId);
+    assert.ok(
+      resolve.presentation.outcomes.attackOptions?.some((option) => option.value === "hit")
+        || resolve.presentation.outcomes.options.some((option) => option.value === "hit"),
+      `${spellId} resolve keeps attack outcome`,
+    );
+  }
+});
+
+test("Freccia acida usa un solo controllo per Colpito/Mancato", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "acid-arrow" });
+
+  assert.equal(contract.presentation.inputs.variant.visible, false);
+  assert.equal(contract.presentation.inputs.variant.required, false);
+  assert.equal(contract.presentation.variant.control, "attack-outcome");
+  assert.deepEqual(contract.presentation.variant.options, []);
+  assert.deepEqual(
+    contract.presentation.outcomes.options.map((option) => option.label),
+    ["Colpito", "Mancato"],
+  );
+  assert.equal(contract.presentation.controls.includes("rule-choice"), false);
+  assert.equal(contract.presentation.controls.includes("attack-outcomes"), true);
 });
 
 test("Scossa Sinaptica espone il danno iniziale nella Console unificata", () => {
@@ -423,6 +491,30 @@ test("Raffica di Spine separa preparazione e risoluzione", () => {
   assert.equal(resolve.presentation.placement.ruleId, "phb2014-raffica-di-spine:cast");
   assert.equal(resolve.execution.lane, SPELL_UNIFIED_PANEL_LANES.AREA_TRANSACTION);
   has(resolve.presentation.controls, "save-outcomes");
+});
+
+test("Freccia Folgorante risolve primary finale e TS senza attack outcome", () => {
+  const resolve = buildSpellUnifiedPanelContract({
+    spellId: "phb2014-freccia-folgorante",
+    phase: "resolve",
+  });
+
+  assert.equal(resolve.presentation.phase.plan.attack.restriction, "weapon-ranged");
+  assert.equal(resolve.presentation.phase.plan.attack.areaAnchor, "primary-target");
+  assert.equal(resolve.presentation.phase.plan.attack.outcomeRequired, false);
+  assert.equal(resolve.presentation.targeting.areaAnchor, "primary-target");
+  assert.equal(resolve.presentation.placement.rules[0].origin, "primary-target");
+  assert.equal(resolve.presentation.placement.rules[0].anchor, "primary-target");
+  assert.equal(resolve.presentation.targeting.primaryTarget.required, true);
+  assert.equal(resolve.presentation.outcomes.mode, "save");
+  assert.deepEqual(
+    resolve.presentation.outcomes.options.map((option) => option.value),
+    ["passed", "failed", "immune"],
+  );
+  assert.equal(resolve.presentation.outcomes.attackOptions, undefined);
+  assert.equal(resolve.presentation.inputs.primaryDamage.required, true);
+  assert.equal(resolve.presentation.inputs.damage.required, true);
+  assert.equal(resolve.presentation.controls.includes("attack-outcomes"), false);
 });
 
 test("Investitura della Fiamma distingue aura e linea attiva", () => {

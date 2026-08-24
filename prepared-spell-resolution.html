@@ -99,7 +99,6 @@
         color: #f8fafc;
         font-size: 11px;
       }
-      #attackOutcome,
       #saveOutcome,
       #damageValue {
         width: 100%;
@@ -159,12 +158,11 @@
         <button id="close" type="button" aria-label="Chiudi">×</button>
       </div>
       <select id="resolutionChoice" aria-label="Variante di risoluzione" hidden></select>
-      <select id="attackOutcome" aria-label="Esito dell'attacco" hidden></select>
       <select id="saveOutcome" aria-label="Esito del tiro salvezza" hidden></select>
       <input id="damageValue" type="number" min="0" step="1" inputmode="numeric"
-        aria-label="Danno iniziale già tirato" placeholder="Danno iniziale già tirato" hidden />
+        aria-label="Danno extra" placeholder="Totale" hidden />
       <div class="action-row">
-        <span id="status">Seleziona il bersaglio sul tabellone</span>
+        <span id="status"></span>
         <button id="resolve" type="button" disabled>Risolvi</button>
       </div>
     </main>

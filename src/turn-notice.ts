@@ -790,6 +790,25 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
   const sourceId = String(raw?.sourceId || "").trim().slice(0, 200);
   const spellId = String(raw?.spellId || "").trim().slice(0, 200);
   const informational = raw?.kind === "effect-reminder";
+  const rawInstruction = String(raw?.instruction || "")
+    .trim()
+    .replace(/\s*\.?\s*Risolvi il tiro salvezza\.?\s*$/iu, "")
+    .trim();
+  const saveLabelWithCaster = `${saveLabel}${casterName ? ` (${casterName})` : ""}`;
+  const normalizeInstruction = (value: string) => String(value || "")
+    .replace(/[.!?]+$/gu, "")
+    .trim()
+    .toLocaleLowerCase("it");
+  const repeatedLabels = new Set([saveLabel, saveLabelWithCaster].map(normalizeInstruction));
+  const instructionParts = rawInstruction
+    .split(/\s*\.\s*/u)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index) => index !== 0 || !repeatedLabels.has(normalizeInstruction(part)));
+  const saveInstruction = [
+    saveLabelWithCaster,
+    instructionParts.join(". "),
+  ].filter(Boolean).join(". ");
   return {
     activationId,
     turnKey: String(raw?.turnKey || "").trim().slice(0, 300) || undefined,
@@ -807,9 +826,7 @@ function effectSaveNotice(raw: any): ZoneTriggerNotice | null {
       : "Tiro salvezza",
     instruction: informational
       ? String(raw?.instruction || saveLabel).trim()
-      : `${saveLabel}${casterName ? ` (${casterName})` : ""}. ${
-        String(raw?.instruction || "Risolvi il tiro salvezza.").trim()
-      }`,
+      : saveInstruction,
     ...(raw?.resolution ? { resolution: raw.resolution } : {}),
     ...(sourceId ? { sourceId } : {}),
     ...(casterName ? { sourceName: casterName } : {}),

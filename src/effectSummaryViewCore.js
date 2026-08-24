@@ -1,11 +1,17 @@
 function summaryPartsForView(effect) {
+  const seenLabels = new Set();
   return (Array.isArray(effect?.summaryParts) ? effect.summaryParts : [])
     .map((part, index) => ({
       id: String(part?.id || part?.key || `part-${index + 1}`).trim(),
       label: String(part?.label || part?.text || "").trim(),
       ...(part?.stack === true ? { stack: true } : {}),
     }))
-    .filter((part) => part.id && part.label);
+    .filter((part) => {
+      const key = part.label.toLocaleLowerCase("it").replace(/\s+/gu, " ");
+      if (!part.id || !part.label || seenLabels.has(key)) return false;
+      seenLabels.add(key);
+      return true;
+    });
 }
 
 export function buildEffectSummaryContainer(
@@ -17,7 +23,12 @@ export function buildEffectSummaryContainer(
     maxWidth = preview ? "100%" : "196px",
   } = {},
 ) {
-  const summaryParts = summaryPartsForView(effect);
+  const parentLabel = String(effect?.label || "")
+    .trim()
+    .toLocaleLowerCase("it")
+    .replace(/\s+/gu, " ");
+  const summaryParts = summaryPartsForView(effect)
+    .filter((part) => part.label.toLocaleLowerCase("it").replace(/\s+/gu, " ") !== parentLabel);
   if (!summaryParts.length) return parentPill;
 
   const document = documentRef || globalThis.document;

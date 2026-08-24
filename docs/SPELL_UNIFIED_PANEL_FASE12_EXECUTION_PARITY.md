@@ -81,6 +81,17 @@ Per `phb2014-raffica-di-spine` e `phb2014-freccia-folgorante`:
 5. la rottura della concentrazione è scoped al parent verificato e appartiene alla stessa transazione;
 6. parent mancante, stale o già consumato vengono rifiutati prima della mutation.
 
+## Stato audit approvato
+
+La documentazione di audit dichiara **PASS** per entrambe le spell di riferimento della tranche:
+
+| Spell | Stato | Contratto operativo |
+| --- | --- | --- |
+| Freccia Folgorante (`phb2014-freccia-folgorante`) | PASS | Preparazione concentrata sul caster; risoluzione senza `attackOutcome`; danno primario finale inserito manualmente dal GM; click sul bersaglio primario che ancora automaticamente l’area di 3 m; TS Destrezza e danno secondario con scaling dello slot; consumo scoped e transazione composita. |
+| Coltello di Ghiaccio (`xanathar-coltello-di-ghiaccio`) | PASS | Bersaglio primario dell’attacco, danno perforante iniziale manuale, esplosione indipendente, TS Destrezza, danno secondario e scaling secondo il descriptor; dadi e modificatori restano manuali al tavolo. |
+
+In entrambi i casi `Hit`, `Miss`, `Critical` e `attackOutcome` non fanno parte del contratto UI approvato.
+
 ## Gap dichiarati manuali
 
 Questi casi non riportano più `operations-required` come falso successo:

@@ -573,6 +573,7 @@ test("Esilio distingue interruzione anticipata e scadenza naturale per origine d
     automation: getAreaSaveAutomation("banishment"),
     saveWorkflowRule: getSpellSaveWorkflowRule("banishment"),
     slotLevel: 5,
+    ignoreTargetLimit: true,
     targetContexts: {
       native: { planeOrigin: "current-plane" },
       other: { planeOrigin: "other-plane" },

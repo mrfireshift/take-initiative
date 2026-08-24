@@ -31,6 +31,9 @@ function setup(spellId, {
 }
 
 function confirmedPlacement(contract, targetIds = []) {
+  const anchorTargetId = contract.presentation.targeting?.areaAnchor === "primary-target"
+    ? targetIds[0]
+    : "";
   return {
     state: "confirmed",
     status: "confirmed",
@@ -44,8 +47,15 @@ function confirmedPlacement(contract, targetIds = []) {
       start: { x: 0, y: 0 },
       end: { x: 150, y: 0 },
       gridOrigin: { x: 0, y: 0 },
+      ...(anchorTargetId
+        ? {
+          anchorTargetId,
+          anchorOrigin: { x: 0, y: 0 },
+        }
+        : {}),
       targetIds,
     },
+    ...(anchorTargetId ? { anchorTargetId } : {}),
     targetIds,
   };
 }
@@ -106,6 +116,40 @@ test("Palla di fuoco collega placement, esiti, HP e executor condiviso", async (
   assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED);
   assert.equal(result.undoAvailable, true);
   assert.deepEqual(result.targetIds, ["target-a", "target-b"]);
+});
+
+test("Freccia Folgorante trasporta zero e non richiede attack outcome", async () => {
+  const { contract, session } = setup("phb2014-freccia-folgorante", {
+    phase: "resolve",
+    slotLevel: 3,
+    activeConcentration: {
+      instanceId: "prepared-lightning",
+      spellId: "phb2014-freccia-folgorante",
+    },
+    targetIds: ["target-a"],
+    primaryTargetId: "target-a",
+    outcomes: { "target-a": "failed" },
+    hpValues: { damage: 8, primaryDamage: 0 },
+  });
+  const placement = confirmedPlacement(contract, ["target-a"]);
+  let observed = null;
+  const result = await executeSpellUnifiedArea({
+    contract,
+    session: { ...session, placement },
+    source: { sceneEpoch: 7 },
+    candidateTargetIds: ["target-a"],
+    runtime: {
+      executor: async (command) => {
+        observed = command;
+        return appliedExecutor()(command);
+      },
+    },
+  });
+
+  assert.equal(result.status, SPELL_UNIFIED_AREA_STATUS.APPLIED);
+  assert.equal(observed.hp.primaryAmount, 0);
+  assert.equal(observed.hp.primaryDamageMode, "final-applied");
+  assert.equal(observed.outcomes.attack, undefined);
 });
 
 test("Anatema usa targeting discreto e conserva gli esiti TS", async () => {
