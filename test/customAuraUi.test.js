@@ -29,7 +29,7 @@ const vite = readFileSync(
   assert.doesNotMatch(contextMenu, /OBR\.modal\.open/);
 });
 
-test("l'editor espone dimensione, stile, pill, warning e selezione automatica", () => {
+test("l'editor espone dimensione, stile, pill, warning e scope stabile dai tokenId", () => {
   for (const marker of [
     "radiusMeters",
     "style.fillColor",
@@ -46,11 +46,8 @@ test("l'editor espone dimensione, stile, pill, warning e selezione automatica", 
   assert.match(modal, /OBR\.popover\.close/);
   assert.match(modal, /updateItems\(tokens\.map/);
   assert.match(modal, /getAll\("tokenId"\)/);
-  assert.match(modal, /getSelection\(\)/);
-  assert.match(modal, /OBR\.player\.onChange/);
-  assert.match(modal, /setActiveSelection/);
-  assert.match(modal, /preserveInitialOnEmpty/);
-  assert.match(modal, /setInterval/);
+  assert.match(modal, /loadTokensFromScene/);
+  assert.doesNotMatch(modal, /OBR\.player\.onChange/);
   assert.doesNotMatch(html, /add-selection/);
   assert.match(html, /class="glass-shell"/);
   assert.match(html, /custom-aura\.css\?v=4/);
@@ -59,3 +56,27 @@ test("l'editor espone dimensione, stile, pill, warning e selezione automatica", 
   assert.match(html, /data-drag-handle/);
   assert.match(vite, /customAuraModal/);
 });
+
+test("il menu GM offre l'azione rapida per applicare preset di aura", () => {
+
+  assert.match(contextMenu, /custom-aura-apply-preset/);
+  assert.match(contextMenu, /Applica preset aura…/);
+  assert.match(contextMenu, /mode: "apply-preset"/);
+});
+
+test("l'editor supporta multi-pills, multi-reminders, preset e gestione libreria", () => {
+  assert.match(modal, /pills\.\$\{pillIndex\}\.label/);
+  assert.match(modal, /reminders\.\$\{remIndex\}\.label/);
+  assert.match(modal, /reminders\.\$\{remIndex\}\.resolution/);
+  assert.match(modal, /reminders\.\$\{remIndex\}\.ability/);
+  assert.match(modal, /reminders\.\$\{remIndex\}\.dc/);
+  assert.match(modal, /save-as-preset/);
+  assert.match(modal, /apply-preset/);
+  assert.match(modal, /detach-preset/);
+  assert.match(modal, /update-preset/);
+  assert.match(modal, /preset-dialog/);
+  assert.match(html, /presets-btn/);
+  assert.match(html, /Libreria Preset/);
+});
+
+

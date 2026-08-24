@@ -156,3 +156,117 @@ test("rimuove solo pill di aure personalizzate non piu attive", () => {
   });
   assert.deepEqual(removals, [{ itemId: "ally", instanceId: "stale-pill" }]);
 });
+
+test("rimuove la pill applicata quando viene disabilitata o rimossa lasciando l'aura attiva", () => {
+  const removals = staleCustomAuraEffectRemovals([{
+    id: "ally",
+    metadata: {
+      [META_KEY]: {
+        conditions: { instances: [
+          {
+            id: "removed-pill",
+            active: true,
+            type: CUSTOM_AURA_EFFECT_TYPE,
+            parentEffectId: "source:ward",
+            effectId: "ward:pill",
+          },
+        ] },
+      },
+    },
+  }], {
+    activeInstanceIds: ["source:ward"],
+    activeEffectKeys: new Set(),
+    metaKey: META_KEY,
+  });
+  assert.deepEqual(removals, [{ itemId: "ally", instanceId: "removed-pill" }]);
+});
+
+test("migra formato legacy a pills[], reminders[] e genera ID persistenti", () => {
+  const legacy = {
+    id: "holy-aura",
+    name: "Aura Sacra",
+    pill: { enabled: true, label: "Benedetto", detail: "Bonus ai TS", kind: "buff" },
+    warnings: {
+      start: { enabled: true, label: "Inizia nel sacro" },
+      end: { enabled: false, label: "Fine nel sacro" },
+    },
+  };
+  const normalized = normalizeCustomAura(legacy);
+  assert.equal(normalized.pills.length, 1);
+  assert.equal(normalized.pills[0].id, "pill");
+  assert.equal(normalized.pills[0].label, "Benedetto");
+  assert.equal(normalized.pills[0].kind, "buff");
+
+  assert.equal(normalized.reminders.length, 2);
+  assert.equal(normalized.reminders[0].id, "warning-start");
+  assert.equal(normalized.reminders[0].enabled, true);
+  assert.equal(normalized.reminders[0].event, "turn-start");
+  assert.equal(normalized.reminders[0].label, "Inizia nel sacro");
+  assert.equal(normalized.reminders[0].resolution, "informational");
+
+  assert.equal(normalized.reminders[1].id, "warning-end");
+  assert.equal(normalized.reminders[1].enabled, false);
+
+  // Backward compatibility mirrors
+  assert.equal(normalized.pill.enabled, true);
+  assert.equal(normalized.pill.label, "Benedetto");
+  assert.equal(normalized.warnings.start.enabled, true);
+  assert.equal(normalized.warnings.start.label, "Inizia nel sacro");
+});
+
+test("proietta piu pills indipendenti nella membership", () => {
+  const aura = normalizeCustomAura({
+    id: "paladin-aura",
+    name: "Aura di Protezione",
+    pills: [
+      { id: "p1", enabled: true, label: "Coraggio", kind: "buff" },
+      { id: "p2", enabled: true, label: "Devozione", kind: "buff" },
+      { id: "p3", enabled: false, label: "Disattivata", kind: "buff" },
+    ],
+  });
+  const rule = customAuraRule(aura);
+  assert.equal(rule.effectPolicy.effects.length, 2);
+  assert.deepEqual(
+    rule.effectPolicy.effects.map((e) => ({ id: e.id, label: e.label })),
+    [
+      { id: "paladin-aura:p1", label: "Coraggio" },
+      { id: "paladin-aura:p2", label: "Devozione" },
+    ],
+  );
+});
+
+test("compila reminder manual-save con TS Des, CD fissa, danno dimezzato e condizione su fallimento", () => {
+  const aura = normalizeCustomAura({
+    id: "fire-aura",
+    name: "Aura di Fuoco",
+    reminders: [
+      {
+        id: "burn",
+        enabled: true,
+        event: "turn-start",
+        label: "TS Destrezza per evitare bruciature",
+        resolution: "manual-save",
+        ability: "dex",
+        dcMode: "fixed",
+        dc: 14,
+        damage: { dice: "2d6", type: "fuoco", onSave: "half" },
+        failureCondition: { condition: "Prono" },
+      },
+    ],
+  });
+  const rule = customAuraRule(aura);
+  assert.equal(rule.triggerPolicy.triggers.length, 1);
+  const trigger = rule.triggerPolicy.triggers[0];
+  assert.equal(trigger.id, "fire-aura:burn");
+  assert.equal(trigger.event, "turn-start");
+  assert.equal(trigger.resolution, "manual-save");
+  assert.equal(trigger.ability, "dex");
+  assert.equal(trigger.dc, 14);
+  assert.equal(trigger.resolutionData.dc, 14);
+  assert.equal(trigger.damage.dice, "2d6");
+  assert.equal(trigger.damage.onPassed, "half");
+  assert.equal(trigger.damage.onFailed, "full");
+  assert.equal(trigger.failureCondition.condition, "Prono");
+});
+
+

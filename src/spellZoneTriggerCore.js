@@ -36,7 +36,15 @@ function samePoint(left, right) {
     || (!!left && !!right && left.x === right.x && left.y === right.y);
 }
 
+function optionalDC(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.max(0, Math.min(99, Math.round(number)));
+}
+
 function normalizedMemberPositions(value = {}) {
+
   const source = value && typeof value === "object" ? value : {};
   const entries = Array.isArray(source)
     ? source.map((entry) => [entry?.id, entry])
@@ -437,6 +445,9 @@ export function planSpellZoneTriggers({
       ...(trigger.requiresConcentration === true ? { requiresConcentration: true } : {}),
       ...(String(trigger.ability || "").trim()
         ? { ability: String(trigger.ability).trim() }
+        : {}),
+      ...(optionalDC(trigger.dc ?? trigger.resolutionData?.dc) !== null
+        ? { dc: optionalDC(trigger.dc ?? trigger.resolutionData?.dc) }
         : {}),
       label: String(trigger.label || "").trim(),
       ...(String(trigger.failureEffect || "").trim()

@@ -174,14 +174,19 @@ test("smoke harness produce schema, correctness e moduli produttivi", { timeout:
 });
 
 test("comando perf:harness completo è eseguibile", { timeout: 30000 }, () => {
-  const output = execFileSync(process.env.ComSpec || "cmd.exe", [
-    "/d", "/s", "/c", "npm.cmd run perf:harness -- --json",
-  ], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-    maxBuffer: 16 * 1024 * 1024,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const isWindows = process.platform === "win32";
+  const output = execFileSync(
+    isWindows ? (process.env.ComSpec || "cmd.exe") : "/bin/sh",
+    isWindows
+      ? ["/d", "/s", "/c", "npm.cmd run perf:harness -- --json"]
+      : ["-c", "npm run perf:harness -- --json"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   assert.match(output, /take-initiative-performance-v1/);
   assert.match(output, /\"tokens\": 40/);
   assert.match(output, /\"correctness\"/);

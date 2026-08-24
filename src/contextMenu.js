@@ -95,7 +95,7 @@ async function dumpItems(ids, label) {
   const MENU_GROUP = `${ID}/initiative-manage`;
   const CUSTOM_AURA_MODAL_ID = `${ID}/custom-aura-modal`;
 
-  async function customAuraPopoverOptions(tokenIds) {
+  async function customAuraPopoverOptions(tokenIds, { mode = "" } = {}) {
     let viewportWidth = 1200;
     let viewportHeight = 800;
     try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
@@ -104,6 +104,8 @@ async function dumpItems(ids, label) {
     const height = Math.min(720, Math.max(360, viewportHeight - 96));
     const query = new URLSearchParams();
     for (const tokenId of tokenIds) query.append("tokenId", tokenId);
+    if (mode) query.append("mode", mode);
+
     return {
       id: CUSTOM_AURA_MODAL_ID,
       url: `/custom-aura-modal.html?${query.toString()}`,
@@ -401,6 +403,33 @@ async function toggleEpicBossOn(ids) {
       },
     });
 
+    OBR.contextMenu.create({
+      id: `${ID}/custom-aura-apply-preset`,
+      group: MENU_GROUP,
+      icons: [{
+        icon: ICON_CUSTOM_AURA,
+        label: "Applica preset aura…",
+        filter: {
+          roles: ["GM"],
+          every: [isCharacter(), hasMeta("!=")],
+        },
+      }],
+      onClick: async (ctx) => {
+        try {
+          const tokenIds = [...new Set(
+            (Array.isArray(ctx?.items) ? ctx.items : [])
+              .map((item) => String(typeof item === "string" ? item : item?.id || "").trim())
+              .filter(Boolean),
+          )];
+          if (!tokenIds.length) return;
+          await OBR.modal.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
+          await OBR.popover.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
+          await openTrackedPopover(await customAuraPopoverOptions(tokenIds, { mode: "apply-preset" }));
+        } catch (error) {
+          console.warn("[custom-aura] preset picker:", error?.message || error);
+        }
+      },
+    });
 
     // Pulisce le registrazioni legacy, ora gestite dal lister.
     void OBR.contextMenu.remove(`${ID}/spells-embed`).catch(() => {});
@@ -410,6 +439,7 @@ async function toggleEpicBossOn(ids) {
   OBR.contextMenu.create({
     id: `${ID}/legendary-enable`,
     group: MENU_GROUP,
+
     icons: [{
       icon: ICON_BOSS,
       label: "Abilita Azioni Leggendarie",

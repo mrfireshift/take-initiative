@@ -131,9 +131,15 @@ export function zoneTriggerNoticeFromActivation(
     "",
     200,
   );
-  const dc = optionalDC(
-    source.get(casterId)?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC,
+  const explicitDC = optionalDC(
+    activation?.dc ?? activation?.resolutionData?.dc ?? activation?.resolution?.dc,
   );
+  const dc = explicitDC !== null
+    ? explicitDC
+    : optionalDC(
+      source.get(casterId)?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC,
+    );
+
   const casterName = normalizedText(source.get(casterId)?.name, "", 100);
   const spellName = normalizedText(
     activation?.spellName

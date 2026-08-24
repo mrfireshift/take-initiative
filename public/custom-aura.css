@@ -353,6 +353,163 @@ button:disabled {
 
 #status.error { color: #fca5a5; }
 
+.sub-list {
+  display: grid;
+  gap: 6px;
+}
+
+.sub-card {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.sub-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px dashed rgba(148, 163, 184, 0.24);
+}
+
+.preset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.18);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: var(--obrt-weight-semibold);
+}
+
+.button-sm {
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid var(--aura-line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--aura-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: var(--obrt-weight-medium);
+  transition: background-color .14s ease, border-color .14s ease;
+}
+
+.button-sm:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.button-sm.danger {
+  border-color: rgba(248, 113, 113, 0.38);
+  background: rgba(127, 29, 29, 0.4);
+  color: #fecaca;
+}
+
+.button-sm.danger:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.58);
+}
+
+.preset-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 999;
+}
+
+.preset-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 1px solid var(--aura-line);
+  border-radius: 12px;
+  background: #0f172a;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.preset-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.preset-dialog-body {
+  padding: 12px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.preset-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--aura-line);
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--aura-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.preset-item-info {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.preset-item-name {
+  font-weight: var(--obrt-weight-semibold);
+  font-size: var(--obrt-type-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-item-meta {
+  color: var(--aura-subtle);
+  font-size: 11px;
+}
+
+.preset-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 520px) {
   header,
   footer { padding-inline: 10px; }
@@ -384,3 +541,4 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
   .button { transition: none; }
 }
+

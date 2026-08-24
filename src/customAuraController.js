@@ -3,12 +3,17 @@ import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadc
 import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import {
+  CUSTOM_AURAS_FIELD,
   CUSTOM_AURA_META_KEY,
   collectActiveCustomAuras,
   customAuraMembershipPlan,
+  customAuraRule,
   customAuraTargetIds,
   staleCustomAuraEffectRemovals,
 } from "./customAuraCore.js";
+import { syncCustomAurasListWithPresets } from "./customAuraPresetCore.js";
+import { getCustomAuraPresetStore } from "./customAuraPresetStore.js";
+
 import {
   mergeCustomAuraReminderMetadata,
   planCustomAuraReminder,
@@ -41,7 +46,9 @@ let unsubscribeItems = null;
 let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
+let unsubscribePresetStore = null;
 let requestedReason = "event";
+
 let requestedForce = false;
 let completedSnapshotKey = null;
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
@@ -164,6 +171,12 @@ function auraVisualNeedsUpdate(item, desired) {
   return JSON.stringify(metadata) !== JSON.stringify(merged);
 }
 
+function auraVisualReconcilePerformedOwnedWrite(result) {
+  const metrics = result?.metrics || {};
+  return [metrics.addCalls, metrics.updateCalls, metrics.deleteCalls]
+    .some((value) => Number(value) > 0);
+}
+
 async function reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot = null) {
   return reconcileOwnedSceneItems({
     desired: desiredVisuals,
@@ -237,6 +250,40 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
     dpiValue,
     scale,
   } = snapshot;
+
+  const presetCatalog = getCustomAuraPresetStore().readPresets();
+  const presetUpdates = [];
+  for (const item of items) {
+    const rawAuras = item?.metadata?.[META_KEY]?.[CUSTOM_AURAS_FIELD];
+    if (!Array.isArray(rawAuras) || !rawAuras.length) continue;
+    const { auras: syncedAuras, changed } = syncCustomAurasListWithPresets(
+      rawAuras,
+      presetCatalog,
+    );
+    if (changed) {
+      presetUpdates.push({ itemId: item.id, auras: syncedAuras });
+    }
+  }
+  if (presetUpdates.length) {
+    const updateMap = new Map(presetUpdates.map((u) => [u.itemId, u.auras]));
+    await OBR.scene.items.updateItems(presetUpdates.map((u) => u.itemId), (drafts) => {
+      for (const draft of drafts) {
+        const nextAuras = updateMap.get(draft.id);
+        if (!nextAuras) continue;
+        draft.metadata = {
+          ...(draft.metadata || {}),
+          [META_KEY]: {
+            ...(draft.metadata?.[META_KEY] || {}),
+            [CUSTOM_AURAS_FIELD]: nextAuras,
+          },
+        };
+      }
+    });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    requestCustomAuraReconcile({ reason: "preset-sync" });
+    return;
+  }
+
   const auras = collectActiveCustomAuras(items, { metaKey: META_KEY });
   const byId = new Map(items.map((item) => [item.id, item]));
   const order = Array.isArray(sceneMetadata?.[STATE_KEY]?.order)
@@ -245,6 +292,7 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
   const orderedIds = new Set(
     order.map((id) => String(id || "").replace(/::p\d+$/u, "")),
   );
+
   const creatures = items.filter((item) => trackedCreature(item, orderedIds));
   const requiredIds = new Set([
     ...creatures.map((item) => item.id),
@@ -290,7 +338,13 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
       ]),
   );
 
+  const activeEffectKeys = new Set();
   for (const aura of auras) {
+    const rule = customAuraRule(aura);
+    for (const effect of (rule?.effectPolicy?.effects || [])) {
+      const effectId = String(effect?.id || "").trim();
+      if (effectId) activeEffectKeys.add(`${aura.instanceId}:${effectId}`);
+    }
     const source = byId.get(aura.sourceId);
     const sourceBounds = boundsById.get(aura.sourceId);
     const center = boundsCenter(sourceBounds) || point(source?.position);
@@ -358,6 +412,7 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
 
   const staleRemovals = staleCustomAuraEffectRemovals(items, {
     activeInstanceIds: auras.map((aura) => aura.instanceId),
+    activeEffectKeys,
     metaKey: META_KEY,
   });
   if (staleRemovals.length) {
@@ -375,9 +430,24 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
     });
     requireAppliedEffectsMutation(mutation);
   }
-  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
-  await reconcileAuraVisuals(desiredVisuals, sceneEpoch, snapshot);
-  if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (!spatialSceneSnapshot.isCurrent(snapshot)) {
+    requestCustomAuraReconcile({ reason: "effects-mutation" });
+    return;
+  }
+  const auraVisualReconcile = await reconcileAuraVisuals(
+    desiredVisuals,
+    sceneEpoch,
+    snapshot,
+  );
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (
+    !spatialSceneSnapshot.isCurrent(snapshot)
+    && !auraVisualReconcilePerformedOwnedWrite(auraVisualReconcile)
+  ) {
+    scheduleCustomAuraRecovery();
+    return;
+  }
   if (newTriggerNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
@@ -394,6 +464,7 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
     completedSnapshotKey = processingKey;
   }
 }
+
 
 function scheduleCustomAuraRecovery() {
   if (!mounted || recoveryTimer) return;
@@ -472,6 +543,9 @@ export async function mountCustomAuraController() {
       : stateMetadataWatcher.seed(metadata);
     if (observed.changed) requestCustomAuraReconcile({ reason: "metadata" });
   });
+  unsubscribePresetStore = getCustomAuraPresetStore().subscribe(() => {
+    requestCustomAuraReconcile({ reason: "preset-store-change", force: true });
+  });
   requestCustomAuraReconcile({ reason: "mount", force: true });
   return true;
 }
@@ -485,6 +559,8 @@ export function unmountCustomAuraController() {
   unsubscribeSceneReady = null;
   unsubscribeSceneMetadata?.();
   unsubscribeSceneMetadata = null;
+  unsubscribePresetStore?.();
+  unsubscribePresetStore = null;
   if (timer) clearTimeout(timer);
   timer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
@@ -497,6 +573,7 @@ export function unmountCustomAuraController() {
   mounted = false;
   running = false;
 }
+
 
 globalThis.__tbpCustomAuraController = {
   request: requestCustomAuraReconcile,
