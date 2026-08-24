@@ -1,5 +1,5 @@
 import OBR from "@owlbear-rodeo/sdk";
-import defaults from "./initiative-cards.json";
+import defaults from "./initiative-cards.json" with { type: "json" };
 import { ID } from "./constants.js";
 import {
   requireAppliedEffectsMutation,

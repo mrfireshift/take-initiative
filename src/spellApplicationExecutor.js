@@ -392,6 +392,179 @@ function metadataSnapshot(meta, field) {
     : { present: false };
 }
 
+function manualDamageValue(value) {
+  const raw = value && typeof value === "object"
+    ? value.amount ?? value.total ?? value.damage ?? value.value
+    : value;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : null;
+}
+
+function banishmentThresholdTargetIds({ spell, phasePlan, damageTargets = [] } = {}) {
+  if (spell?.id !== "phb2014-punizione-esiliante") return null;
+  const threshold = Number(phasePlan?.resolution?.mechanics?.banishmentThresholdHp);
+  if (!Number.isFinite(threshold)) return null;
+  return Array.from(new Set((Array.isArray(damageTargets) ? damageTargets : [])
+    .filter((target) => Number(target?.afterHP) <= threshold
+      && Number(target?.afterHP) < Number(target?.beforeHP))
+    .map((target) => String(target?.id || "").trim())
+    .filter(Boolean)));
+}
+
+function scopeBanishmentOperations(operations, eligibleTargetIds) {
+  if (!Array.isArray(operations) || eligibleTargetIds === null) return operations;
+  const eligible = new Set(eligibleTargetIds);
+  return operations.flatMap((operation) => {
+    if (!operation || typeof operation !== "object") return [];
+    if (operation.type === "condition:add") {
+      const targetIds = (Array.isArray(operation.targetIds) ? operation.targetIds : [])
+        .filter((targetId) => eligible.has(String(targetId || "").trim()));
+      return targetIds.length ? [{ ...operation, targetIds }] : [];
+    }
+    if (operation.type === "condition:automate") {
+      const subjectIds = (Array.isArray(operation.subjectIds) ? operation.subjectIds : [])
+        .filter((targetId) => eligible.has(String(targetId || "").trim()));
+      return subjectIds.length ? [{ ...operation, subjectIds }] : [];
+    }
+    if (operation.type === "spell:upsert" || operation.type === "concentration:register") {
+      return eligible.size ? [operation] : [];
+    }
+    return [operation];
+  });
+}
+
+function spellApplicationNoop(status, reason, extra = {}) {
+  const result = [];
+  Object.defineProperties(result, {
+    status: { value: status, enumerable: false, configurable: true },
+    reason: { value: reason, enumerable: false, configurable: true },
+    changedIds: { value: [], enumerable: false, configurable: true },
+    ...Object.fromEntries(Object.entries(extra).map(([key, value]) => [key, {
+      value,
+      enumerable: false,
+      configurable: true,
+    }])),
+  });
+  return result;
+}
+
+async function preparedInstanceIsCurrent(casterId, activeConcentration, spellId) {
+  const instanceId = String(activeConcentration?.instanceId || "").trim();
+  const caster = String(casterId || "").trim();
+  if (!instanceId || !caster) return true;
+  const [item] = await OBR.scene.items.getItems([caster]);
+  const meta = item?.metadata?.[`${ID}/meta`] || {};
+  const spells = Array.isArray(meta[`${ID}/spells`]) ? meta[`${ID}/spells`] : [];
+  return spells.some((entry) => (
+    String(entry?.instanceId || "").trim() === instanceId
+    && (!spellId || String(entry?.spellId || "").trim() === String(spellId).trim())
+    && String(entry?.castContext?.phase || "").trim() === "prepare"
+  ));
+}
+
+async function buildPreparedInitialDamageMutation({
+  targetIds = [],
+  amount = null,
+} = {}) {
+  const damage = manualDamageValue(amount);
+  if (damage === null || damage <= 0) {
+    return { metadataPatches: [], operations: [], applied: 0, targets: [] };
+  }
+  const ids = Array.from(new Set((targetIds || []).filter(Boolean)));
+  const items = await OBR.scene.items.getItems(ids);
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const metadataPatches = [];
+  const operations = [];
+  const unconsciousIds = [];
+  const unconsciousRemovals = [];
+  const targets = [];
+  const currentHpById = new Map();
+
+  for (const targetId of ids) {
+    const item = byId.get(targetId);
+    const meta = item?.metadata?.[`${ID}/meta`] || {};
+    if (
+      !item
+      || !Object.prototype.hasOwnProperty.call(meta, "hp")
+      || !Object.prototype.hasOwnProperty.call(meta, "hpMax")
+    ) {
+      throw new Error("spell-initial-damage-hp-required");
+    }
+    const currentHp = currentHpById.has(targetId)
+      ? currentHpById.get(targetId)
+      : meta.hp;
+    const hpChange = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.DAMAGE,
+      value: damage,
+      factor: QUICK_HP_FACTORS.FULL,
+      hp: currentHp,
+      hpMax: meta.hpMax,
+    });
+    currentHpById.set(targetId, hpChange.afterHP);
+    targets.push({
+      id: targetId,
+      name: item.name,
+      requestedDamage: damage,
+      appliedDamage: Math.max(0, Number(currentHp) - Number(hpChange.afterHP)),
+      beforeHP: currentHp,
+      afterHP: hpChange.afterHP,
+    });
+    if (!hpChange.changed) continue;
+    metadataPatches.push({
+      id: targetId,
+      fields: {
+        hp: {
+          expected: metadataSnapshot(meta, "hp"),
+          value: hpChange.afterHP,
+        },
+        hpMax: {
+          expected: metadataSnapshot(meta, "hpMax"),
+          value: hpChange.hpMax,
+        },
+      },
+    });
+    const zeroAction = resolveZeroHPUnconsciousAction({
+      ...meta,
+      hp: hpChange.afterHP,
+      hpMax: hpChange.hpMax,
+    }, getConditionInstances(meta.conditions || {}));
+    if (zeroAction.add) unconsciousIds.push(targetId);
+    unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
+      itemId: targetId,
+      instanceId,
+    })));
+    if (hpChange.afterHP < Number(currentHp)) {
+      for (const instanceId of resolveDamageEndsConditionRemovals(
+        getConditionInstances(meta.conditions || {}),
+      )) {
+        unconsciousRemovals.push({ itemId: targetId, instanceId });
+      }
+    }
+  }
+
+  if (unconsciousIds.length) {
+    operations.push({
+      type: "condition:add",
+      targetIds: Array.from(new Set(unconsciousIds)),
+      conditionName: "Privo di sensi",
+      options: { type: ZERO_HP_UNCONSCIOUS_TYPE, expiry: { mode: "manual" } },
+    }, {
+      type: "condition:automate",
+      subjectIds: Array.from(new Set(unconsciousIds)),
+    });
+  }
+  if (unconsciousRemovals.length) {
+    operations.push({ type: "condition:remove-instances", removals: unconsciousRemovals });
+  }
+  return {
+    metadataPatches,
+    operations,
+    applied: damage,
+    targets,
+  };
+}
+
 function activeResolutionAction(payload) {
   return payload?.action && typeof payload.action === "object"
     ? payload.action
@@ -1140,6 +1313,13 @@ export async function executeSpellApplication({
   sceneIdentity = null,
   commandId = "",
   isCurrent = null,
+  attackOutcome = undefined,
+  saveOutcomes = undefined,
+  saveOutcome = "",
+  damageValue = undefined,
+  primaryDamageValue = undefined,
+  primaryTargetId = "",
+  manualAttackOutcomeRequired = false,
 } = {}) {
   const intent = buildSpellApplicationIntent({
     spell,
@@ -1154,13 +1334,35 @@ export async function executeSpellApplication({
     activeConcentration,
     historyLabel,
     requestedConcentration,
+    attackOutcome,
+    saveOutcomes,
+    saveOutcome,
+    damageValue,
+    primaryDamageValue,
+    primaryTargetId,
+    manualAttackOutcomeRequired,
   });
   if (!intent) return [];
+
+  if (
+    intent.phasePlan?.phase === "resolve"
+    && intent.attackOutcome === "miss"
+    && intent.phasePlan.attack?.consumeOnMiss !== true
+  ) {
+    return spellApplicationNoop("miss", "prepared-attack-miss", { pending: true });
+  }
 
   const instanceId = String(activeConcentration?.instanceId || "").trim()
     || createSpellInstanceId();
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-spell-application");
+  }
+  if (
+    intent.phasePlan?.phase === "resolve"
+    && activeConcentration?.instanceId
+    && !(await preparedInstanceIsCurrent(casterId, activeConcentration, spell?.id))
+  ) {
+    return spellApplicationNoop("stale", "prepared-instance-stale", { stale: true });
   }
   const resolvedAppliedAt = appliedAt === undefined
     ? await getCurrentSpellAppliedAt()
@@ -1174,6 +1376,41 @@ export async function executeSpellApplication({
     appliedAt: resolvedAppliedAt,
     casterName,
   });
+  const initialDamage = applicationPlan.initialDamage;
+  const manualDamage = manualDamageValue(damageValue);
+  if (
+    applicationPlan.damageRequired
+    && intent.manualAttackOutcomeRequired === true
+    && intent.attackOutcome !== "miss"
+    && manualDamage === null
+  ) {
+    throw new Error("spell-initial-damage-required");
+  }
+  const initialDamageMutation = initialDamage && intent.attackOutcome !== "miss"
+    ? await buildPreparedInitialDamageMutation({
+      targetIds: intent.subjects,
+      amount: manualDamage,
+    })
+    : { metadataPatches: [], operations: [], applied: 0, targets: [] };
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-spell-application");
+  }
+  if (
+    intent.phasePlan?.phase === "resolve"
+    && activeConcentration?.instanceId
+    && !(await preparedInstanceIsCurrent(casterId, activeConcentration, spell?.id))
+  ) {
+    return spellApplicationNoop("stale", "prepared-instance-stale", { stale: true });
+  }
+  const banishmentEligibleTargetIds = banishmentThresholdTargetIds({
+    spell,
+    phasePlan: applicationPlan.phasePlan,
+    damageTargets: initialDamageMutation.targets,
+  });
+  const applicationOperations = [
+    ...scopeBanishmentOperations(applicationPlan.operations, banishmentEligibleTargetIds),
+    ...initialDamageMutation.operations,
+  ];
   const removeReplacedZones = intent.wantsConcentration
     && applicationPlan.concentrationAction === "replace"
     && casterId;
@@ -1187,10 +1424,11 @@ export async function executeSpellApplication({
       selectors: [{ casterId }],
     });
   }
-  const mutation = await runEffectsMutation(applicationPlan.operations, {
+  const mutation = await runEffectsMutation(applicationOperations, {
     kind: "spell",
     label: applicationPlan.historyLabel,
     targetIds: [casterId, ...targetIds],
+    metadataPatches: initialDamageMutation.metadataPatches,
     sideEffects,
     history: {
       kind: "spell",
@@ -1216,6 +1454,28 @@ export async function executeSpellApplication({
             ? applicationPlan.concentrationAction
             : undefined,
           concentrationInstanceId: instanceId,
+          attackOutcome: intent.attackOutcome || undefined,
+          damageRoll: initialDamage ? initialDamageMutation.applied : undefined,
+          outcomes: intent.saveOutcomes,
+          targets: initialDamageMutation.targets.length
+            ? initialDamageMutation.targets
+            : intent.subjects,
+          ...(initialDamage
+            ? {
+              initialDamage: {
+                dice: initialDamage.dice,
+                type: initialDamage.type,
+                amount: initialDamageMutation.applied,
+                targets: initialDamageMutation.targets,
+              },
+            }
+            : {}),
+          ...(Object.keys(intent.saveOutcomes || {}).length
+            ? { saveOutcomes: intent.saveOutcomes }
+            : {}),
+          ...(banishmentEligibleTargetIds !== null
+            ? { banishmentEligibleTargetIds }
+            : {}),
         }),
       },
     },

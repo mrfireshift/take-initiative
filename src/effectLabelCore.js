@@ -1,7 +1,7 @@
 const COMPACT_EFFECT_LABELS = Object.freeze({
-  "Confusione: azioni e movimento casuali": "Azioni/mov. casuali",
+  "Confusione: azioni e movimento casuali": "No reaz. · Tira d10 inizio turno",
   "Gravità invertita: sospeso": "Sospeso verso l'alto",
-  "Lentezza: -2 CA/TS Des · no reazioni": "Vel. 1/2 / -2 CA/TS Des / no reaz.",
+  "Lentezza: -2 CA/TS Des · no reazioni": "Vel. ½ · CA -2 · TS Des -2 · No reazioni · Azione O Bonus",
   "Zona di Verità: non può mentire": "Non può mentire",
   "Fulgore: invisibilità inefficace": "No invisibilità",
   "Acido ritardato: 5d4 a fine turno": "5d4 acido a fine turno",
@@ -46,6 +46,56 @@ const COMPACT_EFFECT_LABELS = Object.freeze({
   "Discendente / Svantaggio a distanza / TS Forza se vola": "Discendente / Dist.− / TS volo",
   "Ascendente / Caduta dimezzata / Salto in alto +3 m": "Ascendente / Caduta ½ / Salto +3",
 });
+
+const EFFECT_SUMMARY_PARTS = Object.freeze({
+  "slow-penalty": Object.freeze([
+    Object.freeze({ id: "speed-half", label: "Vel ½" }),
+    Object.freeze({ id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" }),
+    Object.freeze({ id: "no-reactions", label: "No reaz." }),
+    Object.freeze({ id: "action-or-bonus", label: "Azione o Bonus" }),
+    Object.freeze({ id: "attack-limit", label: "Max 1 att." }),
+    Object.freeze({ id: "spell-delay", label: "Spell 1 az.: d20" }),
+  ]),
+  "fear-forced-flight": Object.freeze([
+    Object.freeze({ id: "fear-flight", label: "Scatto: allontanati dal caster" }),
+  ]),
+  "confusion-random-turn": Object.freeze([
+    Object.freeze({ id: "confusion-no-reactions", label: "No reaz." }),
+    Object.freeze({ id: "confusion-random-table", label: "Tira d10 inizio turno" }),
+  ]),
+});
+
+const EFFECT_SUMMARY_PARTS_BY_CONDITION = Object.freeze({
+  "Lentezza: -2 CA/TS Des · no reazioni": EFFECT_SUMMARY_PARTS["slow-penalty"],
+});
+
+function normalizedSummaryParts(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((part, index) => {
+      const id = String(part?.id || part?.key || `part-${index + 1}`).trim();
+      const label = String(part?.label || part?.text || "").trim();
+      return id && label
+        ? { id, label, ...(part?.stack === true ? { stack: true } : {}) }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+export function effectSummaryPartsFor(effect = {}) {
+  const descriptor = typeof effect === "string"
+    ? { effectId: effect }
+    : effect && typeof effect === "object"
+      ? effect
+      : {};
+  const effectId = String(descriptor.effectId || descriptor.id || "").trim();
+  const condition = String(
+    descriptor.condition || descriptor.conditionName || descriptor.name || "",
+  ).trim();
+  const configured = Array.isArray(descriptor.summaryParts)
+    ? descriptor.summaryParts
+    : EFFECT_SUMMARY_PARTS[effectId] || EFFECT_SUMMARY_PARTS_BY_CONDITION[condition] || [];
+  return normalizedSummaryParts(configured);
+}
 
 export function compactSpellEffectLabel(value) {
   const label = String(value || "").trim();

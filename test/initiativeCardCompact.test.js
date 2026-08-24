@@ -309,8 +309,10 @@ test("Arma spirituale usa la pill spell normale e non una micro-card", () => {
 test("una card compatta non mostra pill buff o debuff collegate alla spell", () => {
   const instance = {
     condition: "Lentezza: -2 CA/TS Des · no reazioni",
+    effectId: "slow-penalty",
     effectKind: "debuff",
     parentEffectId: "spell-1",
+    effectDetail: "Velocità dimezzata; CA -2; TS Des -2; niente reazioni; azione o bonus; massimo 1 attacco; d20 al lancio.",
   };
   const [spell, effect] = __compactEffectItems(
     [instance],
@@ -322,7 +324,59 @@ test("una card compatta non mostra pill buff o debuff collegate alla spell", () 
   );
 
   assert.equal(spell.kind, "spell");
+  assert.equal(spell.label, "Lentezza (1)");
+  assert.match(spell.title, /Velocità dimezzata/u);
+  assert.match(spell.title, /massimo 1 attacco/u);
+  assert.match(spell.title, /d20/u);
+  assert.deepEqual(spell.summaryParts, [
+    { id: "speed-half", label: "Vel ½" },
+    { id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" },
+    { id: "no-reactions", label: "No reaz." },
+    { id: "action-or-bonus", label: "Azione o Bonus" },
+    { id: "attack-limit", label: "Max 1 att." },
+    { id: "spell-delay", label: "Spell 1 az.: d20" },
+  ]);
   assert.equal(effect, undefined);
+});
+
+test("Paura conserva una sola parent pill con summaryParts dello stesso forced-flight", () => {
+  const [spell, effect] = __compactEffectItems(
+    [{
+      condition: "Paura: deve fuggire",
+      effectId: "fear-forced-flight",
+      effectKind: "debuff",
+      parentEffectId: "fear-cast",
+      effectDetail: "Al fallimento iniziale lascia cadere ciò che impugna; durante il turno deve usare Scatto e allontanarsi dal caster.",
+    }],
+    [{ name: "Paura", instanceId: "fear-cast", turns: 1 }],
+    false,
+    { formatConditionInstance: (value) => value.condition },
+  );
+
+  assert.equal(spell.label, "Paura (1)");
+  assert.match(spell.title, /lascia cadere/u);
+  assert.deepEqual(spell.summaryParts, [
+    { id: "fear-flight", label: "Scatto: allontanati dal caster" },
+  ]);
+  assert.equal(effect, undefined);
+});
+
+test("Carne in pietra espone il contatore sulla pill della condition canonica", () => {
+  const [effect] = __compactEffectItems(
+    [{
+      condition: "Trattenuto",
+      effectId: "flesh-to-stone-restrained",
+      summaryParts: [{ id: "flesh-to-stone-progress", label: "S 1/3 · F 2/3" }],
+      effectDetail: "Il corpo si sta pietrificando.",
+    }],
+    [],
+    false,
+    { formatConditionInstance: (value) => value.condition },
+  );
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "flesh-to-stone-progress", label: "S 1/3 · F 2/3" },
+  ]);
 });
 
 test("la concentrazione senza spell tracciata resta un effetto autonomo", () => {
@@ -380,6 +434,45 @@ test("le pill compatte conservano palette spell e dimensioni preview", () => {
   assert.equal(preview.style.border, "1px solid #86efac");
   assert.equal(preview.style.maxWidth, "100%");
   assert.equal(preview.style.height, "14px");
+});
+
+test("Lentezza usa una sola parent pill e mini-pill condivise senza ellissi", () => {
+  const documentRef = createTestDocument();
+  const effect = {
+    kind: "spell",
+    key: "lentezza",
+    label: "Lentezza (10)",
+    title: "Lentezza · 10 round rimanenti",
+    summaryParts: [
+      { id: "speed-half", label: "Vel ½" },
+      { id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" },
+      { id: "no-reactions", label: "No reaz." },
+      { id: "action-or-bonus", label: "Azione o Bonus" },
+      { id: "attack-limit", label: "Max 1 att." },
+      { id: "spell-delay", label: "Spell 1 az.: d20" },
+    ],
+  };
+
+  const summary = __buildCompactEffectPill(effect, false, { documentRef });
+
+  assert.equal(summary.tagName, "DIV");
+  assert.equal(summary.style.display, "flex");
+  assert.equal(summary.style.flexWrap, "wrap");
+  assert.equal(summary.style.gap, "2px");
+  assert.equal(summary.children.length, 7);
+  assert.equal(summary.children[0].textContent, "Lentezza (10)");
+  assert.equal(summary.children[0].style.flex, "0 0 100%");
+  assert.deepEqual(
+    summary.children.slice(1).map((part) => part.textContent),
+    effect.summaryParts.map((part) => part.label),
+  );
+  assert.ok(summary.children.slice(1).every((part) => (
+    part.style.whiteSpace === "nowrap"
+    && part.style.textOverflow === "clip"
+    && part.style.overflow === "visible"
+    && part.style.flex === "0 0 auto"
+    && !part.textContent.includes("…")
+  )));
 });
 
 test("la pill compatta della Feature usa il tema e permette la terminazione", async () => {

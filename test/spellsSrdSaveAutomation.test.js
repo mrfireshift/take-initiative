@@ -339,11 +339,56 @@ test("Paura, Trama Ipnotica e Luminescenza includono le regole specifiche dello 
   assert.equal(fear.failed.some((rule) => rule.condition === "Spaventato"), true);
   assert.equal(fear.failed.some((rule) => rule.effectId === "fear-forced-flight"), true);
   assert.equal(fear.failed.every((rule) => rule.endsParentOnRemoval === true), true);
+  const fearForcedFlight = fear.failed.find((rule) => rule.effectId === "fear-forced-flight");
+  const fearSave = fear.failed.find((rule) => rule.condition === "Spaventato");
+  assert.match(fearForcedFlight.effectDetail, /lascia cadere ciò che impugna/u);
+  assert.match(fearForcedFlight.effectDetail, /drop avviene una sola volta/u);
+  assert.match(fearForcedFlight.effectDetail, /percorso disponibile più sicuro/u);
+  assert.deepEqual(fearForcedFlight.saveReminder, {
+    timing: "turn-start",
+    mode: "consume",
+    label: "Nel tuo turno usa Scatto e allontanati dal caster lungo il percorso più sicuro, se hai un luogo verso cui muoverti.",
+  });
+  assert.equal(
+    fearSave.saveReminder.label,
+    "Effettua questo TS solo se il caster non è in vista. Se lo supera, termina Paura su di sé.",
+  );
   assert.equal(
     hypnoticPattern.failed.every((rule) => rule.endsParentOnRemoval === true),
     true,
   );
   assert.match(faerieFire.failed[0].effectDetail, /invisibilità/u);
+});
+
+test("Lentezza rende visibili tutte le limitazioni RAW senza automatizzare il turno", () => {
+  const automation = getAreaSaveAutomation("slow");
+  assert.deepEqual(automation.trackOutcomes, ["failed"]);
+  assert.equal(automation.failed.length, 1);
+
+  const [rule] = automation.failed;
+  assert.equal(rule.effectId, "slow-penalty");
+  assert.equal(rule.effectKind, "debuff");
+  assert.equal(rule.parentRemoval, "target");
+  assert.match(rule.effectDetail, /Velocità dimezzata/u);
+  assert.match(rule.effectDetail, /CA -2/u);
+  assert.match(rule.effectDetail, /TS Des -2/u);
+  assert.match(rule.effectDetail, /niente reazioni/u);
+  assert.match(rule.effectDetail, /una sola tra azione e azione bonus/u);
+  assert.match(rule.effectDetail, /più di un attacco in mischia o a distanza/u);
+  assert.match(rule.effectDetail, /d20/u);
+  assert.match(rule.effectDetail, /11\+/u);
+  assert.match(rule.effectDetail, /turno successivo/u);
+  assert.match(rule.effectDetail, /manuali al tavolo/u);
+  assert.deepEqual(rule.saveReminder, {
+    ability: "wis",
+    timing: "turn-end",
+    dcSource: "source-spell",
+    label: "Se supera il TS, termina Lentezza su di sé.",
+  });
+  assert.equal(rule.saveReminder.damage, undefined);
+  assert.equal(rule.dice, undefined);
+  assert.equal(rule.attackLimit, undefined);
+  assert.equal(rule.spellCastingInterception, undefined);
 });
 
 test("gli effetti istantanei restano indipendenti dalla pill tecnica dello spell", () => {

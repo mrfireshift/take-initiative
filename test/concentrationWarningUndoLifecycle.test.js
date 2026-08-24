@@ -2,55 +2,57 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  historyUndoCutoffAt,
-  shouldDismissConcentrationWarningAfterUndo,
+  buildConcentrationSaveWarning,
+  concentrationSaveWarningsForItems,
 } from "../src/concentrationSaveReminderCore.js";
 
-test("Undo chiude solo i warning nati dal punto temporale annullato in poi", () => {
-  const warning = { createdAt: 200 };
+test("il warning conserva l'ID History causale senza dipendere dai timestamp", () => {
+  const warning = buildConcentrationSaveWarning({
+    casterId: "caster",
+    concentration: { bless: { instanceId: "bless-1", name: "Benedizione" } },
+    damage: 12,
+    causeHistoryEntryId: " history-entry-1 ",
+  });
 
-  assert.equal(
-    shouldDismissConcentrationWarningAfterUndo(warning, 250),
-    false,
-    "annullare un'azione successiva al warning non deve chiuderlo",
-  );
-  assert.equal(
-    shouldDismissConcentrationWarningAfterUndo(warning, 200),
-    true,
-    "annullare l'azione al confine del warning deve chiuderlo",
-  );
-  assert.equal(
-    shouldDismissConcentrationWarningAfterUndo(warning, 150),
-    true,
-    "tornare prima del warning deve chiuderlo",
-  );
-  assert.equal(shouldDismissConcentrationWarningAfterUndo({}, 150), false);
+  assert.equal(warning.notice.causeHistoryEntryId, "history-entry-1");
+  assert.equal(buildConcentrationSaveWarning({
+    casterId: "caster",
+    concentration: { bless: { instanceId: "bless-1" } },
+    damage: 12,
+  }).notice.causeHistoryEntryId, undefined);
 });
 
-test("il cutoff di un Undo multiplo usa l'azione piu vecchia realmente annullata", () => {
-  assert.equal(historyUndoCutoffAt([
-    { id: "new", at: 400 },
-    { id: "mid", at: 300 },
-    { id: "old", at: 200 },
-  ]), 200);
-  assert.equal(historyUndoCutoffAt([{ id: "legacy" }]), 0);
+test("la generazione batch propaga lo stesso ID History causale", () => {
+  const warnings = concentrationSaveWarningsForItems({
+    items: [{
+      id: "caster",
+      metadata: {
+        "com.thebigpicture.initiative/meta": {
+          "com.thebigpicture.initiative/concentration": {
+            bless: { instanceId: "bless-1", name: "Benedizione" },
+          },
+        },
+      },
+    }],
+    changes: [{ itemId: "caster", damage: 12 }],
+    causeHistoryEntryId: "history-entry-2",
+  });
+
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0].notice.causeHistoryEntryId, "history-entry-2");
 });
 
-test("History e host collegano il lifecycle del popup al cutoff dell'Undo", () => {
+test("History e host collegano il lifecycle del popup agli ID delle entry annullate", () => {
   const history = readFileSync(new URL("../src/history.js", import.meta.url), "utf8");
   const initiative = readFileSync(new URL("../src/initiativeList.js", import.meta.url), "utf8");
-  const warningUi = readFileSync(new URL("../src/concentration-warning.ts", import.meta.url), "utf8");
 
-  assert.match(history, /historyUndoCutoffAt\(undoOrder\)/);
-  assert.match(history, /type: "concentration-warning-history-undo", cutoffAt/);
-  assert.match(history, /replay\.warning\?\.createdAt/);
+  assert.match(history, /dismissConcentrationWarningsCausedByEntries\(undoOrder, sceneEpoch\)/);
+  assert.match(history, /type: "dismiss-concentration-warnings-by-history"/);
+  assert.match(history, /historyEntryIds,/);
+  assert.match(history, /causeHistoryEntryId && undoEntryIds\.has\(causeHistoryEntryId\)/);
 
-  assert.match(initiative, /normalizeConcentrationWarnings\(event\.data\?\.warnings, createdAt\)/);
-  assert.match(initiative, /data\?\.type === "concentration-warning-history-undo"/);
-  assert.match(initiative, /shouldDismissConcentrationWarningAfterUndo\(warning, cutoffAt\)/);
-  assert.match(initiative, /OBR\.popover\.close\(CONCENTRATION_WARNING_MODAL_ID\)/);
-
-  assert.match(warningUi, /createdAt: number;/);
-  assert.match(warningUi, /function normalizeWarnings\(values: any\)/);
-  assert.match(warningUi, /createdAt: Math\.max\(0, Math\.floor\(Number\(warning\?\.createdAt\) \|\| 0\)\)/);
+  assert.match(initiative, /function dismissConcentrationWarningsByHistoryEntryIds\(/);
+  assert.match(initiative, /warning\?\.notice\?\.causeHistoryEntryId/);
+  assert.match(initiative, /__dismissedConcentrationWarningCauseIds\.has\(causeHistoryEntryId\)/);
+  assert.match(initiative, /"dismiss-concentration-warnings-by-history"/);
 });

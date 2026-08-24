@@ -7,7 +7,7 @@ const normalizedSource = source.replace(/\r\n/g, "\n");
 const turnNoticeSource = readFileSync(
   new URL("../src/turn-notice.ts", import.meta.url),
   "utf8"
-);
+).replace(/\r\n/g, "\n");
 const turnNoticeHostSource = readFileSync(
   new URL("../src/turnNoticeHost.js", import.meta.url),
   "utf8"

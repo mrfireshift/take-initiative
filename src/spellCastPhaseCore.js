@@ -6,9 +6,37 @@ const freezeEffect = (effect) => Object.freeze({
   ...effect,
 });
 
+export const PREPARED_ATTACK_OUTCOMES = Object.freeze([
+  "hit",
+  "miss",
+  "critical",
+]);
+
+const meleeWeaponAttack = Object.freeze({
+  required: true,
+  restriction: "weapon-melee",
+  outcomes: PREPARED_ATTACK_OUTCOMES,
+  consumeOnMiss: false,
+});
+
+const rangedWeaponAttack = Object.freeze({
+  required: true,
+  restriction: "weapon-ranged",
+  outcomes: PREPARED_ATTACK_OUTCOMES,
+  consumeOnMiss: false,
+});
+
+const weaponAttack = Object.freeze({
+  required: true,
+  restriction: "weapon",
+  outcomes: PREPARED_ATTACK_OUTCOMES,
+  consumeOnMiss: false,
+});
+
 const PHASED_SPELLS = Object.freeze({
   "phb2014-colpo-intrappolante": Object.freeze({
     resolveAction: "extend",
+    attack: weaponAttack,
     prepared: (slot) => freezeEffect({
       id: "ensnaring-strike-ready",
       label: `Prossimo colpo / TS For o Trattenuto / ${slot}d6 per turno`,
@@ -21,6 +49,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-collerica": Object.freeze({
     resolveAction: "extend",
+    attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
       id: "wrathful-smite-ready",
       label: "Prossimo colpo / +1d6 psichici / TS o Spaventato",
@@ -33,6 +62,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-incandescente": Object.freeze({
     resolveAction: "extend",
+    attack: meleeWeaponAttack,
     prepared: (slot) => freezeEffect({
       id: "searing-smite-ready",
       label: `Prossimo colpo / +${slot}d6 fuoco / incendio`,
@@ -45,6 +75,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-tonante": Object.freeze({
     resolveAction: "dismiss",
+    attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
       id: "thunderous-smite-ready",
       label: "Prossimo colpo / +2d6 tuono / spinta 3 m / TS o Prono",
@@ -58,6 +89,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-raffica-di-spine": Object.freeze({
     resolveAction: "dismiss",
+    attack: rangedWeaponAttack,
     excludeResolvedEffects: true,
     prepared: (slot) => freezeEffect({
       id: "hail-of-thorns-trigger",
@@ -80,6 +112,12 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-freccia-folgorante": Object.freeze({
     resolveAction: "dismiss",
+    attack: Object.freeze({
+      ...rangedWeaponAttack,
+      consumeOnMiss: true,
+      missResolves: true,
+      areaAnchor: "primary-target",
+    }),
     excludeResolvedEffects: true,
     prepared: (slot) => freezeEffect({
       id: "lightning-arrow-trigger",
@@ -104,6 +142,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-accecante": Object.freeze({
     resolveAction: "extend",
+    attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
       id: "blinding-smite-ready",
       label: "Prossimo colpo / +3d8 radiosi / TS o Accecato",
@@ -116,6 +155,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-demoralizzante": Object.freeze({
     resolveAction: "dismiss",
+    attack: meleeWeaponAttack,
     prepared: () => freezeEffect({
       id: "staggering-smite-ready",
       label: "Prossimo colpo / +4d6 psichici / penalità",
@@ -128,6 +168,7 @@ const PHASED_SPELLS = Object.freeze({
   }),
   "phb2014-punizione-esiliante": Object.freeze({
     resolveAction: "extend",
+    attack: weaponAttack,
     prepared: () => freezeEffect({
       id: "banishing-smite-ready",
       label: "Prossimo colpo / +5d10 forza / esilio a 50 PF",
@@ -194,6 +235,7 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
       phase,
       subjectMode: "caster",
       useCatalogAutomation: false,
+      attack: rule.attack || null,
       effects: [rule.prepared(slotLevel(spell, castContext))],
       resolution: null,
       concentrationAction: "replace",
@@ -204,9 +246,10 @@ export function getSpellCastPhasePlan(spell, requestedPhase = "", castContext = 
     subjectMode: "selected",
     useCatalogAutomation: true,
     effects: rule.excludeResolvedEffects ? [] : null,
-    resolution: typeof rule.resolution === "function"
-      ? rule.resolution(slotLevel(spell, castContext))
-      : null,
+      resolution: typeof rule.resolution === "function"
+        ? rule.resolution(slotLevel(spell, castContext))
+      : rule.prepared(slotLevel(spell, castContext)),
+    attack: rule.attack || null,
     concentrationAction: rule.resolveAction,
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "./spells-srd.js";
 import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
 import { resolveSpellConcentration } from "./spellCastContextCore.js";
+import { resolveSaveSpellResolution } from "./saveSpellCore.js";
 import {
   getSpellCastPhasePlan,
   withSpellPhaseTransitionOperations,
@@ -16,6 +17,30 @@ import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCor
 import { spellEffectThemeFor } from "./spellColorCore.js";
 
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
+
+function normalizeAttackOutcome(value) {
+  const outcome = String(value || "").trim().toLocaleLowerCase("it");
+  if (["hit", "colpito", "successo"].includes(outcome)) return "hit";
+  if (["miss", "mancato", "fallimento"].includes(outcome)) return "miss";
+  if (["critical", "critico", "critico!", "crit"].includes(outcome)) return "critical";
+  return "";
+}
+
+function normalizedSaveOutcomes(value, targetIds, singleOutcome) {
+  const result = {};
+  if (value instanceof Map) {
+    for (const [targetId, outcome] of value.entries()) {
+      if (targetId) result[String(targetId)] = String(outcome || "").trim().toLocaleLowerCase("it");
+    }
+  } else if (value && typeof value === "object") {
+    for (const [targetId, outcome] of Object.entries(value)) {
+      if (targetId) result[targetId] = String(outcome || "").trim().toLocaleLowerCase("it");
+    }
+  }
+  const scalar = String(singleOutcome || "").trim().toLocaleLowerCase("it");
+  if (scalar && targetIds.length === 1 && !result[targetIds[0]]) result[targetIds[0]] = scalar;
+  return result;
+}
 
 function initialSpellUses(spell, castContext = {}) {
   const context = castContext && typeof castContext === "object" ? { ...castContext } : {};
@@ -47,6 +72,13 @@ export function buildSpellApplicationIntent({
   activeConcentration = null,
   historyLabel = "",
   requestedConcentration = false,
+  attackOutcome = undefined,
+  saveOutcomes = undefined,
+  saveOutcome = "",
+  damageValue = undefined,
+  primaryDamageValue = undefined,
+  primaryTargetId = "",
+  manualAttackOutcomeRequired = false,
 } = {}) {
   const subjects = uniqueIds(targetIds);
   if (!subjects.length) return null;
@@ -69,7 +101,7 @@ export function buildSpellApplicationIntent({
   const phaseEffects = resolvedPhasePlan.effects === null
     ? catalogEffects
     : resolvedPhasePlan.effects;
-  const castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
+  let castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
     ? buildSpellCastAutomationPlan({
       proposedConditions: getProposedConditions(spell, selectedChoice),
       proposedEffects: phaseEffects,
@@ -87,6 +119,62 @@ export function buildSpellApplicationIntent({
     || choiceTiming?.concentrationAction
     || resolvedPhasePlan.concentrationAction
     || "replace";
+  const normalizedAttackOutcome = normalizeAttackOutcome(attackOutcome);
+  const attackContract = resolvedPhasePlan.attack && typeof resolvedPhasePlan.attack === "object"
+    ? resolvedPhasePlan.attack
+    : null;
+  const attackOutcomeSupplied = attackOutcome !== undefined;
+  if (
+    resolvedPhasePlan.phase === "resolve"
+    && attackContract?.required === true
+    && manualAttackOutcomeRequired === true
+    && !normalizedAttackOutcome
+  ) {
+    throw new Error("attack-outcome-required");
+  }
+  if (attackOutcomeSupplied && !normalizedAttackOutcome) {
+    throw new Error("attack-outcome-invalid");
+  }
+  const normalizedSaveOutcomeMap = normalizedSaveOutcomes(
+    saveOutcomes,
+    subjects,
+    saveOutcome,
+  );
+  const saveRequired = resolvedPhasePlan.phase === "resolve"
+    && !!resolvedPhasePlan.resolution?.mechanics?.savingThrow;
+  if (
+    saveRequired
+    && manualAttackOutcomeRequired === true
+    && normalizedAttackOutcome !== "miss"
+    && subjects.some((targetId) => !normalizedSaveOutcomeMap[targetId])
+  ) {
+    throw new Error("save-outcome-required");
+  }
+  const explicitSaveOutcomes = Object.keys(normalizedSaveOutcomeMap).length > 0;
+  const saveResolution = explicitSaveOutcomes && saveRequired
+    ? resolveSaveSpellResolution({
+      spell,
+      casterId,
+      targetIds: subjects,
+      outcomes: normalizedSaveOutcomeMap,
+      automation: getAreaSaveAutomation(spell, selectedChoice),
+      choiceValue: selectedChoice,
+      slotLevel: persistedCastContext?.slotLevel,
+      validateSpatial: false,
+    })
+    : null;
+  if (saveResolution && !saveResolution.valid) {
+    throw new Error(`save-resolution-invalid: ${saveResolution.errors.join(", ")}`);
+  }
+  if (saveResolution) {
+    // Quando il tavolo ha già fornito l'esito, le regole di automazione non
+    // possono più trattare implicitamente tutti i bersagli come falliti.
+    // Le applicazioni target-specifiche arrivano dal resolver condiviso.
+    castAutomationPlan = {
+      ...castAutomationPlan,
+      conditions: [],
+    };
+  }
   if (
     resolvedPhasePlan.phase === "resolve"
     && concentrationAction === "extend"
@@ -108,6 +196,14 @@ export function buildSpellApplicationIntent({
     phasePlan: resolvedPhasePlan,
     spell,
     attackResolution,
+    attackOutcome: normalizedAttackOutcome,
+    attackOutcomeSupplied,
+    manualAttackOutcomeRequired: manualAttackOutcomeRequired === true,
+    primaryDamageValue,
+    primaryTargetId: String(primaryTargetId || "").trim(),
+    saveOutcomes: normalizedSaveOutcomeMap,
+    saveResolution,
+    damageValue,
     subjects,
     turns,
     wantsConcentration,
@@ -135,6 +231,12 @@ export function buildSpellApplicationPlan({
     phasePlan,
     spell,
     attackResolution,
+    attackOutcome,
+    damageValue,
+    primaryDamageValue,
+    primaryTargetId,
+    saveResolution,
+    saveOutcomes,
     subjects,
     turns,
     wantsConcentration,
@@ -149,6 +251,16 @@ export function buildSpellApplicationPlan({
     ? { mode: "concentration" }
     : { mode: "rounds", remaining: turns });
   const spellEffectTheme = spellEffectThemeFor(spell);
+  const initialDamage = phasePlan?.resolution?.mechanics?.damageBonus || null;
+  const hasPersistentResolutionEffect = castAutomationPlan.conditions.length > 0
+    || castAutomationPlan.effects.length > 0
+    || (saveResolution?.conditionApplications?.length || 0) > 0;
+  const resolvedConcentrationAction = phasePlan.phase === "resolve"
+    && concentrationAction === "extend"
+    && saveResolution
+    && !hasPersistentResolutionEffect
+    ? "dismiss"
+    : concentrationAction;
   const lifecycleOperations = catalogSpellApplicationOperations({
     targetIds: subjects,
     casterId,
@@ -167,14 +279,26 @@ export function buildSpellApplicationPlan({
       ...castAutomationPlan.effects,
       ...(attackResolution?.effect ? [attackResolution.effect] : []),
     ],
+    conditionApplications: saveResolution?.conditionApplications || [],
     conditionOptions: {
       sourceId: casterId || "",
       sourceName: casterName,
       appliedAt,
+      ...(Number.isFinite(Number(persistedCastContext?.spellSaveDC))
+        ? {
+          spellSaveDC: Math.max(
+            0,
+            Math.min(99, Math.round(Number(persistedCastContext.spellSaveDC))),
+          ),
+        }
+        : {}),
       expiry,
       ...(spellEffectTheme ? { theme: spellEffectTheme } : {}),
     },
-    concentrationAction,
+    concentrationAction: resolvedConcentrationAction,
+    concentrationReference: phasePlan.phase === "resolve"
+      ? activeConcentration?.instanceId || null
+      : null,
     casterName,
     onSpellEnd: spell?.onSpellEnd,
     persistSpell: !attackResolution,
@@ -182,7 +306,7 @@ export function buildSpellApplicationPlan({
   const operations = withSpellPhaseTransitionOperations({
     operations: lifecycleOperations,
     phasePlan,
-    concentrationAction,
+    concentrationAction: resolvedConcentrationAction,
     activeConcentration,
     casterId,
   });
@@ -191,7 +315,7 @@ export function buildSpellApplicationPlan({
     ? ` · ${attackResolution.outcomeLabel}: ${attackResolution.initialDamage.dice} ${attackResolution.initialDamage.factor === "half" ? "(metà)" : "(pieno)"} manuali`
     : "";
   return {
-    concentrationAction,
+    concentrationAction: resolvedConcentrationAction,
     historyLabel: historyLabel || (
       phasePlan.phase === "prepare"
         ? "Preparazione: " + name
@@ -202,6 +326,13 @@ export function buildSpellApplicationPlan({
     name,
     operations,
     attackResolution,
+    attackOutcome,
+    damageValue,
+    primaryDamageValue,
+    primaryTargetId,
+    saveOutcomes,
+    initialDamage,
+    damageRequired: phasePlan.phase === "resolve" && !!initialDamage,
     phasePlan,
     spellExpiry,
   };

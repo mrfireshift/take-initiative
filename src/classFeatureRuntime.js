@@ -4,7 +4,6 @@ import {
   gridFootprintSize,
   gridGeometryFromBounds,
 } from "./distance3dCore.js";
-import { withItemMetaHistory } from "./history.js";
 import { calculateQuickHPChange, QUICK_HP_MODES } from "./quickHpCore.js";
 import { getInitiativeCard } from "./initiativeCards.js";
 import { getConditionInstances, refreshConditionLabels } from "./conditions.js";
@@ -35,9 +34,6 @@ import {
   normalizeClassFeatureState,
   planClassFeatureActivation,
   planClassFeatureDeactivation,
-  planClassFeatureResourceAdjustment,
-  planClassFeatureSpecialRefresh,
-  planClassFeatureResourceReset,
 } from "./classFeatureCore.js";
 import {
   CLASS_FEATURE_RESOURCE_POOL_BY_ID,
@@ -69,6 +65,44 @@ function metadataFieldExpectation(meta, field) {
   return Object.prototype.hasOwnProperty.call(meta || {}, field)
     ? { present: true, value: structuredClone(meta[field]) }
     : { present: false };
+}
+
+function classFeatureStateOperationId(kind = "state") {
+  return `${createInstanceId()}:${String(kind || "state")}`;
+}
+
+function classFeatureMutationResult(mutation, operationId) {
+  const results = mutation?.classFeatureMutationResults
+    || mutation?.plan?.classFeatureMutationResults
+    || [];
+  const entry = results.find((candidate) => candidate?.operationId === operationId) || null;
+  if (!entry) return null;
+  const {
+    operationId: _operationId,
+    type: _type,
+    sourceId: _sourceId,
+    ...result
+  } = entry;
+  return result;
+}
+
+function requireClassFeatureStateMutation(mutation, operationId) {
+  const conflict = (Array.isArray(mutation?.conflicts) ? mutation.conflicts : [])
+    .find((entry) => !operationId || entry?.operationId === operationId);
+  if (conflict?.reason) throw classFeatureError(conflict.reason, conflict.poolId);
+  requireAppliedEffectsMutation(mutation);
+  const result = classFeatureMutationResult(mutation, operationId);
+  if (!result) throw classFeatureError("invalid-activation");
+  return result;
+}
+
+function classFeatureMutationPools(feature) {
+  const poolIds = new Set((Array.isArray(feature?.resourceCosts) ? feature.resourceCosts : [])
+    .map((entry) => String(entry?.poolId || "").trim())
+    .filter(Boolean));
+  return [...poolIds]
+    .map((poolId) => getClassFeatureResourcePool(poolId))
+    .filter(Boolean);
 }
 
 function classFeatureError(reason, poolId = "") {
@@ -298,65 +332,76 @@ async function applyLayOnHandsResolved({
   const turnState = await currentTurnState();
   const instanceId = createInstanceId();
   const itemIds = Array.from(new Set([sourceItem.id, targetId]));
-  let activation = null;
+  const enabledFeatureIds = getEnabledClassFeatures(profile).map((entry) => entry.id);
+  const activationInput = {
+    feature,
+    characterBuild: profile.characterBuild,
+    sourceId: sourceItem.id,
+    targetIds: resolvedTargetIds,
+    currentRound: turnState.round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    resourceValues: { [cost.poolId]: costAmount },
+    enabledFeatureIds,
+  };
+  const currentItems = await OBR.scene.items.getItems(itemIds);
+  const currentById = new Map(currentItems.map((item) => [item.id, item]));
+  const currentSourceItem = currentById.get(sourceItem.id);
+  const targetItem = currentById.get(targetId);
+  if (!currentSourceItem || !targetItem) throw classFeatureError("target-required");
+  const preflightActivation = planClassFeatureActivation({
+    ...activationInput,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    state: currentSourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
+  });
+  if (!preflightActivation.ok) {
+    throw classFeatureError(preflightActivation.reason || "invalid-activation", preflightActivation.poolId);
+  }
   let hpChange = null;
-  await withItemMetaHistory({
+  const metadataPatches = [];
+  if (normalizedMode === "heal") {
+    const targetMeta = targetItem.metadata?.[META_KEY] || {};
+    const hp = Number(targetMeta.hp);
+    const hpMax = Number(targetMeta.hpMax);
+    if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) {
+      throw classFeatureError("hp-invalid");
+    }
+    hpChange = calculateQuickHPChange({
+      mode: QUICK_HP_MODES.HEAL,
+      value: requestedValue,
+      hp,
+      hpMax,
+    });
+    if (hpChange.changed) {
+      metadataPatches.push({
+        id: targetId,
+        fields: {
+          hp: {
+            mode: "set",
+            value: hpChange.afterHP,
+            expected: metadataFieldExpectation(targetMeta, "hp"),
+          },
+          hpMax: {
+            mode: "assert",
+            expected: metadataFieldExpectation(targetMeta, "hpMax"),
+          },
+        },
+      });
+    }
+  }
+  const operationId = classFeatureStateOperationId("lay-on-hands");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:activate-state",
+    operationId,
+    ...activationInput,
+    pools: classFeatureMutationPools(feature),
+  }], {
     kind: "class-feature",
     label: `Capacità: ${feature.name}`,
-    itemIds,
-    fields: [CLASS_FEATURE_STATE_FIELD, "hp"],
-  }, () => OBR.scene.items.updateItems(itemIds, (drafts) => {
-    const sourceDraft = drafts.find((entry) => entry.id === sourceItem.id);
-    const targetDraft = drafts.find((entry) => entry.id === targetId);
-    if (!sourceDraft || !targetDraft) {
-      activation = { ok: false, reason: "target-required" };
-      return;
-    }
-    const sourceMeta = { ...(sourceDraft.metadata?.[META_KEY] || {}) };
-    activation = planClassFeatureActivation({
-      state: sourceMeta[CLASS_FEATURE_STATE_FIELD],
-      feature,
-      poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
-      characterBuild: profile.characterBuild,
-      sourceId: sourceItem.id,
-      targetIds: resolvedTargetIds,
-      currentRound: turnState.round,
-      currentTurnKey: turnState.turnKey,
-      instanceId,
-      resourceValues: { [cost.poolId]: costAmount },
-      enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
-    });
-    if (!activation.ok) return;
-
-    if (normalizedMode === "heal") {
-      const targetMeta = { ...(targetDraft.metadata?.[META_KEY] || {}) };
-      const hp = Number(targetMeta.hp);
-      const hpMax = Number(targetMeta.hpMax);
-      if (!Number.isFinite(hp) || !Number.isFinite(hpMax) || hpMax <= 0) {
-        activation = { ok: false, reason: "hp-invalid" };
-        return;
-      }
-      hpChange = calculateQuickHPChange({
-        mode: QUICK_HP_MODES.HEAL,
-        value: requestedValue,
-        hp,
-        hpMax,
-      });
-      if (targetDraft.id === sourceDraft.id) {
-        if (hpChange.changed) sourceMeta.hp = hpChange.afterHP;
-      } else if (hpChange.changed) {
-        targetMeta.hp = hpChange.afterHP;
-        targetDraft.metadata = { ...(targetDraft.metadata || {}), [META_KEY]: targetMeta };
-      }
-    }
-
-    sourceMeta[CLASS_FEATURE_STATE_FIELD] = activation.state;
-    sourceDraft.metadata = { ...(sourceDraft.metadata || {}), [META_KEY]: sourceMeta };
-  }));
-
-  if (!activation?.ok) {
-    throw classFeatureError(activation?.reason || "invalid-activation", activation?.poolId);
-  }
+    targetIds: itemIds,
+    metadataPatches,
+  });
+  const activation = requireClassFeatureStateMutation(mutation, operationId);
   await refreshConditionLabels(itemIds);
   return {
     feature,
@@ -412,10 +457,8 @@ export async function purifyClassFeatureSpell({
 
   const turnState = await currentTurnState();
   const instanceId = createInstanceId();
-  const activation = planClassFeatureActivation({
-    state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
+  const activationInput = {
     feature,
-    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
     characterBuild: profile.characterBuild,
     sourceId: sourceItem.id,
     targetIds: resolvedTargetIds,
@@ -423,12 +466,26 @@ export async function purifyClassFeatureSpell({
     currentTurnKey: turnState.turnKey,
     instanceId,
     enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  };
+  const preflightActivation = planClassFeatureActivation({
+    ...activationInput,
+    poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
+    state: sourceItem.metadata?.[META_KEY]?.[CLASS_FEATURE_STATE_FIELD],
   });
-  if (!activation.ok) {
-    throw classFeatureError(activation.reason || "invalid-activation", activation.poolId);
+  if (!preflightActivation.ok) {
+    throw classFeatureError(
+      preflightActivation.reason || "invalid-activation",
+      preflightActivation.poolId,
+    );
   }
 
+  const operationId = classFeatureStateOperationId("purify-spell");
   const mutation = await runEffectsMutation([{
+    type: "class-feature:activate-state",
+    operationId,
+    ...activationInput,
+    pools: classFeatureMutationPools(feature),
+  }, {
     type: "spell:remove-requested",
     targetIds: [targetId],
     instanceId: requestedInstanceId,
@@ -438,18 +495,9 @@ export async function purifyClassFeatureSpell({
     label: "Tocco Purificatore",
     targetIds: [targetId],
     requireChanges: true,
-    metadataPatches: [{
-      id: sourceItem.id,
-      fields: {
-        [CLASS_FEATURE_STATE_FIELD]: {
-          expected: metadataFieldExpectation(sourceItem.metadata?.[META_KEY], CLASS_FEATURE_STATE_FIELD),
-          value: activation.state,
-        },
-      },
-    }],
     sideEffects: [{ type: "static-zone:remove-ended", selectors: [{ all: true }] }],
   });
-  requireAppliedEffectsMutation(mutation);
+  const activation = requireClassFeatureStateMutation(mutation, operationId);
   if (!mutation.changedIds?.length) throw classFeatureError("target-spell-required");
   const targetChange = mutation.changes.find((change) => change.id === targetId);
   const remainingIds = new Set((targetChange?.after?.spells || []).map((entry) => entry?.instanceId));
@@ -767,37 +815,27 @@ async function createSorcerySlot({ sourceId, feature, slotLevel } = {}) {
     trackingMode: "active",
     duration: { rounds: null },
   };
-  let activation = null;
-  await withItemMetaHistory({
+  const operationId = classFeatureStateOperationId("create-spell-slot");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:activate-state",
+    operationId,
+    sourceId: sourceItem.id,
+    feature: reminderFeature,
+    pools: classFeatureMutationPools(reminderFeature),
+    characterBuild: profile.characterBuild,
+    targetIds: [sourceItem.id],
+    currentRound: turnState.round,
+    currentTurnKey: turnState.turnKey,
+    instanceId,
+    choiceId: `slot-${level}`,
+    resourceValues: { [poolId]: costAmount },
+    enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
+  }], {
     kind: "class-feature",
     label: `Slot temporaneo di livello ${level}`,
-    itemIds: [sourceItem.id],
-    fields: [CLASS_FEATURE_STATE_FIELD],
-  }, () => OBR.scene.items.updateItems([sourceItem.id], (drafts) => {
-    const draft = drafts[0];
-    if (!draft) return;
-    const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-    activation = planClassFeatureActivation({
-      state: meta[CLASS_FEATURE_STATE_FIELD],
-      feature: reminderFeature,
-      poolsById: CLASS_FEATURE_RESOURCE_POOL_BY_ID,
-      characterBuild: profile.characterBuild,
-      sourceId: sourceItem.id,
-      targetIds: [sourceItem.id],
-      currentRound: turnState.round,
-      currentTurnKey: turnState.turnKey,
-      instanceId,
-      choiceId: `slot-${level}`,
-      resourceValues: { [poolId]: costAmount },
-      enabledFeatureIds: getEnabledClassFeatures(profile).map((entry) => entry.id),
-    });
-    if (!activation.ok) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = activation.state;
-    draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-  }));
-  if (!activation?.ok) {
-    throw classFeatureError(activation?.reason || "invalid-activation", activation?.poolId);
-  }
+    targetIds: [sourceItem.id],
+  });
+  const activation = requireClassFeatureStateMutation(mutation, operationId);
   return {
     feature,
     instance: activation.instance,
@@ -830,32 +868,23 @@ export async function convertClassFeatureSpellSlot({
   const poolId = feature.resourceCosts?.[0]?.poolId;
   const pool = getClassFeatureResourcePool(poolId);
   if (!pool) throw classFeatureError("resource-pool-missing", poolId);
-  let result = null;
-  await withItemMetaHistory({
+  const operationId = classFeatureStateOperationId("convert-spell-slot");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:adjust-resource",
+    operationId,
+    sourceId: sourceItem.id,
+    pool,
+    characterBuild: profile.characterBuild,
+    adjustment: { delta: level },
+  }], {
     kind: "class-feature",
     label: `Slot di livello ${level} convertito in punti stregoneria`,
-    itemIds: [sourceItem.id],
-    fields: [CLASS_FEATURE_STATE_FIELD],
-  }, () => OBR.scene.items.updateItems([sourceItem.id], (drafts) => {
-    const draft = drafts[0];
-    if (!draft) return;
-    const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-    result = planClassFeatureResourceAdjustment(
-      meta[CLASS_FEATURE_STATE_FIELD],
-      pool,
-      profile.characterBuild,
-      { delta: level },
-    );
-    if (!result.changed) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = result.state;
-    draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-  }));
+    targetIds: [sourceItem.id],
+  });
+  const result = requireClassFeatureStateMutation(mutation, operationId);
   return {
     feature,
-    ...(result || {
-      changed: false,
-      state: getClassFeatureState(sourceItem),
-    }),
+    ...result,
     slotLevel: level,
     pointsRecovered: level,
   };
@@ -869,27 +898,20 @@ export async function applySorcerousRestoration({
   const { sourceItem, profile } = await loadEnabledClassFeatureSource(sourceId, feature);
   const pool = getClassFeatureResourcePool("stregone-punti-stregoneria");
   if (!pool) throw classFeatureError("resource-pool-missing", "stregone-punti-stregoneria");
-  let result = null;
-  await withItemMetaHistory({
+  const operationId = classFeatureStateOperationId("sorcerous-restoration");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:special-refresh",
+    operationId,
+    sourceId: sourceItem.id,
+    pool,
+    characterBuild: profile.characterBuild,
+    event: "riposo_breve",
+  }], {
     kind: "class-feature",
     label: "Ripristino Stregonesco: +4 punti",
-    itemIds: [sourceItem.id],
-    fields: [CLASS_FEATURE_STATE_FIELD],
-  }, () => OBR.scene.items.updateItems([sourceItem.id], (drafts) => {
-    const draft = drafts[0];
-    if (!draft) return;
-    const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-    result = planClassFeatureSpecialRefresh(
-      meta[CLASS_FEATURE_STATE_FIELD],
-      pool,
-      profile.characterBuild,
-      { event: "riposo_breve" },
-    );
-    if (!result.changed) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = result.state;
-    draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-  }));
-  if (!result?.refresh) throw classFeatureError("special-refresh-unavailable");
+    targetIds: [sourceItem.id],
+  });
+  const result = requireClassFeatureStateMutation(mutation, operationId);
   return { feature, ...result };
 }
 
@@ -1505,31 +1527,20 @@ export async function adjustClassFeatureResource(
   const [sourceItem] = await OBR.scene.items.getItems([sourceId]);
   if (!sourceItem) throw classFeatureError("source-not-found");
   const profile = getInitiativeCard(sourceItem);
-  let result = null;
-
-  await withItemMetaHistory({
+  const operationId = classFeatureStateOperationId("adjust-resource");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:adjust-resource",
+    operationId,
+    sourceId,
+    pool,
+    characterBuild: profile.characterBuild,
+    adjustment,
+  }], {
     kind: "class-feature",
     label: `Risorsa: ${pool.name}`,
-    itemIds: [sourceId],
-    fields: [CLASS_FEATURE_STATE_FIELD],
-  }, () => OBR.scene.items.updateItems([sourceId], (drafts) => {
-    const draft = drafts[0];
-    if (!draft) return;
-    const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-    result = planClassFeatureResourceAdjustment(
-      meta[CLASS_FEATURE_STATE_FIELD],
-      pool,
-      profile.characterBuild,
-      adjustment
-    );
-    if (!result.changed) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = result.state;
-    draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-  }));
-  return result || {
-    changed: false,
-    state: getClassFeatureState(sourceItem),
-  };
+    targetIds: [sourceId],
+  });
+  return requireClassFeatureStateMutation(mutation, operationId);
 }
 
 export async function resetClassFeatureResources(sourceId) {
@@ -1549,29 +1560,21 @@ export async function resetClassFeatureResources(sourceId) {
     }
   }
 
-  let result = null;
-  await withItemMetaHistory({
+  const pools = [...poolIds]
+    .map((poolId) => getClassFeatureResourcePool(poolId))
+    .filter(Boolean);
+  const operationId = classFeatureStateOperationId("reset-resources");
+  const mutation = await runEffectsMutation([{
+    type: "class-feature:reset-resources",
+    operationId,
+    sourceId,
+    pools,
+    characterBuild: profile.characterBuild,
+    poolIds: [...poolIds],
+  }], {
     kind: "class-feature",
     label: "Risorse di classe ripristinate",
-    itemIds: [sourceId],
-    fields: [CLASS_FEATURE_STATE_FIELD],
-  }, () => OBR.scene.items.updateItems([sourceId], (drafts) => {
-    const draft = drafts[0];
-    if (!draft) return;
-    const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-    result = planClassFeatureResourceReset(
-      meta[CLASS_FEATURE_STATE_FIELD],
-      CLASS_FEATURE_RESOURCE_POOL_BY_ID,
-      profile.characterBuild,
-      [...poolIds],
-    );
-    if (!result.changed) return;
-    meta[CLASS_FEATURE_STATE_FIELD] = result.state;
-    draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-  }));
-  return result || {
-    changed: false,
-    state: getClassFeatureState(sourceItem),
-    poolIds: [],
-  };
+    targetIds: [sourceId],
+  });
+  return requireClassFeatureStateMutation(mutation, operationId);
 }

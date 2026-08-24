@@ -294,7 +294,47 @@ test("SP-R06A — il fallimento iniziale applica Trattenuto e inizializza 0 succ
     successes: 0,
     failures: 1,
   });
+  assert.deepEqual(restrained.summaryParts, [
+    { id: "flesh-to-stone-progress", label: "S 0/3 · F 1/3" },
+  ]);
   assert.equal(progress, undefined);
+});
+
+test("SP-R06A — il cast iniziale rende visibile la minipill S 0/3 · F 1/3", () => {
+  const spell = getSpellDefinition(SPELL_ID);
+  const resolution = resolveSaveSpellResolution({
+    spell,
+    casterId: "caster",
+    targetIds: ["target"],
+    outcomes: { target: "failed" },
+    automation: getAreaSaveAutomation(spell),
+    saveWorkflowRule: getSpellSaveWorkflowRule(SPELL_ID),
+    slotLevel: 6,
+    validateSpatial: false,
+  });
+  const operations = saveSpellResolutionOperations({
+    resolution,
+    instanceId: "fts-initial-cast",
+    casterName: "Mago",
+    turns: 10,
+    spellExpiry: { mode: "concentration" },
+  });
+  const mutation = buildEffectsMutationPlan([
+    { id: "caster", name: "Mago", spells: [], concentrations: {}, conditions: [] },
+    { id: "target", name: "Bersaglio", spells: [], concentrations: {}, conditions: [] },
+  ], preparedOperations(operations, "fts-initial-cast"));
+  const restrained = state(mutation, "target").conditions.find((entry) =>
+    entry.effectId === "flesh-to-stone-restrained"
+  );
+
+  assert.ok(restrained);
+  assert.deepEqual(restrained.mechanics.fleshToStoneProgress, {
+    successes: 0,
+    failures: 1,
+  });
+  assert.deepEqual(restrained.summaryParts, [
+    { id: "flesh-to-stone-progress", label: "S 0/3 · F 1/3" },
+  ]);
 });
 
 test("SP-R06A — il reminder mostra i contatori e aggiorna lo stato senza rimuovere Trattenuto", () => {
@@ -312,6 +352,11 @@ test("SP-R06A — il reminder mostra i contatori e aggiorna lo stato senza rimuo
     passedTarget.conditions.find((entry) => entry.effectId === "flesh-to-stone-restrained")
       ?.mechanics?.fleshToStoneProgress,
     { successes: 2, failures: 1 },
+  );
+  assert.deepEqual(
+    passedTarget.conditions.find((entry) => entry.effectId === "flesh-to-stone-restrained")
+      ?.summaryParts,
+    [{ id: "flesh-to-stone-progress", label: "S 2/3 · F 1/3" }],
   );
 
   const failed = resolutionMutation({ successes: 1, failures: 1 }, "failed");
@@ -337,7 +382,7 @@ test("SP-R06A — la terza riuscita rimuove Trattenuto e termina spell + concent
   assert.equal(target.conditions.some((entry) => entry.effectId === "flesh-to-stone-progress"), false);
 });
 
-test("SP-R06A — il terzo fallimento sostituisce Trattenuto/progresso con Pietrificato e mantiene la concentrazione", () => {
+test("SP-R06A — il terzo fallimento sostituisce Trattenuto/progresso con la sola condizione Pietrificato", () => {
   const { mutation, resolution } = resolutionMutation({ successes: 1, failures: 2 }, "failed");
   assert.deepEqual(
     resolution.operations.map((operation) => operation.type),
@@ -357,6 +402,7 @@ test("SP-R06A — il terzo fallimento sostituisce Trattenuto/progresso con Pietr
   assert.equal(petrified.theme, undefined);
   assert.equal(petrified.parentEffectId, "fts-1");
   assert.deepEqual(petrified.expiry, { mode: "concentration" });
+  assert.equal(petrified.summaryParts, undefined);
   assert.equal(petrified.parentEndCondition?.condition, "Pietrificato");
   assert.equal(petrified.parentEndCondition?.naturalOnly, true);
 });

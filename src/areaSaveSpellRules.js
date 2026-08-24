@@ -392,17 +392,24 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     debuffRule(
       "Confusione: azioni e movimento casuali",
       "confusion-random-turn",
-      "All'inizio del turno determina casualmente movimento e azione; TS Saggezza a fine turno per terminare.",
+      "Niente reazioni. All'inizio del turno tira fisicamente un d10: 1 usa tutto il movimento in una direzione casuale (il caster assegna una direzione a ogni faccia di un d8) e non effettua un'azione; 2-6 non si muove né effettua un'azione; 7-8 usa l'azione per un attacco in mischia contro un'altra creatura a portata determinata casualmente, oppure non fa nulla se non c'è una creatura a portata; 9-10 può agire e muoversi normalmente. I risultati restano manuali al tavolo. A fine turno può effettuare il TS Saggezza; se lo supera, Confusione termina su di sé.",
       {
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
-        saveReminder: Object.freeze({
-          ability: "wis",
-          timing: "turn-end",
-          dcSource: "source-spell",
-          label: "Se supera il TS, termina Confusione su di sé.",
-        }),
+        saveReminder: Object.freeze([
+          Object.freeze({
+            timing: "turn-start",
+            mode: "consume",
+            label: "Tira il d10 fisico: 1 movimento casuale + d8 direzione, no azione; 2-6 niente; 7-8 attacco mischia casuale se disponibile; 9-10 normale.",
+          }),
+          Object.freeze({
+            ability: "wis",
+            timing: "turn-end",
+            dcSource: "source-spell",
+            label: "Se supera il TS, termina Confusione su di sé.",
+          }),
+        ]),
       },
     ),
   ]),
@@ -410,11 +417,16 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     debuffRule(
       "Paura: deve fuggire",
       "fear-forced-flight",
-      "Nel proprio turno deve Scattare e allontanarsi dal caster lungo il percorso più sicuro.",
+      "Al fallimento iniziale: lascia cadere ciò che impugna e diventa Spaventato. Durante il proprio turno deve usare Scatto e allontanarsi dal caster lungo il percorso disponibile più sicuro, salvo che non abbia un luogo verso cui muoversi. Drop, movimento e percorso sono manuali al tavolo; il drop avviene una sola volta. A fine turno può effettuare il TS Saggezza solo se il caster non è in vista; il GM verifica manualmente la linea di vista.",
       {
         expiry: concentration,
         manualRemoval: true,
         endsParentOnRemoval: true,
+        saveReminder: Object.freeze({
+          timing: "turn-start",
+          mode: "consume",
+          label: "Nel tuo turno usa Scatto e allontanati dal caster lungo il percorso più sicuro, se hai un luogo verso cui muoverti.",
+        }),
       },
     ),
   ]),
@@ -462,7 +474,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     debuffRule(
       "Lentezza: -2 CA/TS Des · no reazioni",
       "slow-penalty",
-      "Velocità dimezzata, -2 a CA e TS Destrezza, niente reazioni e scelta limitata tra azione e azione bonus.",
+      "Velocità dimezzata; CA -2; TS Des -2; niente reazioni; nel turno può usare una sola tra azione e azione bonus. Non può effettuare più di un attacco in mischia o a distanza, indipendentemente dalle capacità. Se tenta un incantesimo con tempo di lancio di 1 azione, tira d20: con 11+ l'incantesimo è ritardato al turno successivo e deve completarlo con un'azione; se non può, è sprecato. Tiro e gestione restano manuali al tavolo.",
       {
         expiry: concentration,
         manualRemoval: true,

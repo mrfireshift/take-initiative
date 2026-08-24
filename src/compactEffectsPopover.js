@@ -1,4 +1,5 @@
 import { ID } from "./constants.js";
+import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 
 const PAYLOAD_KEY = `${ID}/compact-effects-payload`;
 const root = document.querySelector("#effects");
@@ -57,7 +58,10 @@ function buildPill(effect) {
     whiteSpace: "nowrap",
     boxShadow: "0 1px 4px rgba(0,0,0,.45)",
   });
-  return pill;
+  return buildEffectSummaryContainer(effect, pill, {
+    documentRef: document,
+    preview: true,
+  });
 }
 
 let payload = {};

@@ -7,8 +7,10 @@ import {
 
 const previousIndexedDB = globalThis.indexedDB;
 const previousKeyRange = globalThis.IDBKeyRange;
+const previousLocation = globalThis.location;
 globalThis.indexedDB = createVersionedIndexedDB();
 globalThis.IDBKeyRange = versionedKeyRange;
+globalThis.location = { pathname: "/plugin.html" };
 
 const META_KEY = "com.thebigpicture.initiative/meta";
 const STATE_KEY = "com.thebigpicture.initiative/state";
@@ -146,15 +148,31 @@ mock.module("@owlbear-rodeo/sdk", {
   },
 });
 
-const effects = await import("../src/effectsMutations.js");
-const history = await import("../src/history.js");
-const historyOwner = await import("../src/historyOwner.js");
+const clientEffects = await import("../src/effectsMutations.js?immolation-real-client");
+globalThis.location = { pathname: "/background.html" };
+const backgroundEffects = await import("../src/effectsMutations.js?immolation-real-background");
+globalThis.location = { pathname: "/plugin.html" };
+const baseEffects = await import("../src/effectsMutations.js?immolation-real-base");
+mock.module("../src/effectsMutations.js", {
+  exports: {
+    ...baseEffects,
+    EFFECTS_MUTATION_STATUS: clientEffects.EFFECTS_MUTATION_STATUS,
+    runEffectsMutation: clientEffects.runEffectsMutation,
+    undoEffectsMutation: clientEffects.undoEffectsMutation,
+    hasPendingEffectsHistory: clientEffects.hasPendingEffectsHistory,
+    flushPendingEffectsHistory: clientEffects.flushPendingEffectsHistory,
+  },
+});
+
+const history = await import("../src/history.js?immolation-real-history");
+const historyOwner = await import("../src/historyOwner.js?immolation-real-owner");
+mock.module("../src/history.js", { exports: { ...history } });
 const { currentSceneEpoch, markSceneEpochReady } = await import("../src/sceneEpoch.js");
-const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js");
-const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js");
-const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js");
-const { planEffectSaveReminderNotices } = await import("../src/effectSaveReminderCore.js");
-const { resolveReminder } = await import("../src/reminderResolution.js");
+const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js?immolation-real-panel");
+const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js?immolation-real-command");
+const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js?immolation-real-executor");
+const { planEffectSaveReminderNotices } = await import("../src/effectSaveReminderCore.js?immolation-real-reminder-core");
+const { resolveReminder, clearReminderResolutionQueue } = await import("../src/reminderResolution.js?immolation-real-reminder");
 const { normalizeHistoryUndoResult, HISTORY_UNDO_OUTCOME } = await import("../src/historyUndoResultCore.js");
 const { refreshConditionLabels } = await import("../src/conditions.js");
 
@@ -163,8 +181,9 @@ const TARGET_ID = "target-immolation-repro";
 const OTHER_ID = "other-token-repro";
 
 async function resetScene(tokens = []) {
-  await historyOwner.mountHistoryOwner();
-  await effects.mountEffectsMutationCoordinatorService();
+  historyOwner.unmountHistoryOwner();
+  backgroundEffects.unmountEffectsMutationCoordinatorService();
+  clearReminderResolutionQueue();
   sceneState.metadata = {
     [STATE_KEY]: {
       round: 1,
@@ -179,19 +198,37 @@ async function resetScene(tokens = []) {
   };
   sceneState.items = tokens.map(clone);
   markSceneEpochReady("test-reset");
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await historyOwner.mountHistoryOwner();
+  await backgroundEffects.mountEffectsMutationCoordinatorService();
+}
+
+async function convergeDeferredEffectsHistory() {
+  const sceneEpoch = currentSceneEpoch();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    clientEffects.flushPendingEffectsHistory(sceneEpoch);
+    backgroundEffects.flushPendingEffectsHistory(sceneEpoch);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (
+      !clientEffects.hasPendingEffectsHistory(sceneEpoch)
+      && !backgroundEffects.hasPendingEffectsHistory(sceneEpoch)
+    ) return;
+  }
+  assert.fail("Deferred Effects History did not converge");
 }
 
 test.before(async () => {
   await historyOwner.mountHistoryOwner();
-  await effects.mountEffectsMutationCoordinatorService();
+  await backgroundEffects.mountEffectsMutationCoordinatorService();
 });
 
 test.after(() => {
-  effects.unmountEffectsMutationCoordinatorService();
+  clearReminderResolutionQueue();
+  backgroundEffects.unmountEffectsMutationCoordinatorService();
   historyOwner.unmountHistoryOwner();
   globalThis.indexedDB = previousIndexedDB;
   globalThis.IDBKeyRange = previousKeyRange;
+  if (previousLocation === undefined) delete globalThis.location;
+  else globalThis.location = previousLocation;
 });
 
 function createStandardTokens() {
@@ -296,7 +333,7 @@ test("TEST 1 (SUCCESSFUL SAVE REAL UNDO) — Cast -> Passed Save -> Production U
 
   // Allow async post-resolution derived tasks and condition label refresh
   await refreshConditionLabels([TARGET_ID, CASTER_ID]);
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await convergeDeferredEffectsHistory();
 
   // Inspect History entries and Readiness
   const entries = await history.getHistoryEntries();
@@ -375,7 +412,7 @@ test("TEST 2 (FAILED SAVE REAL UNDO) — Cast -> Failed Save -> Production Undo 
 
   // Allow async tasks
   await refreshConditionLabels([TARGET_ID]);
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await convergeDeferredEffectsHistory();
 
   const liveTargetBeforeUndo = (await sdkStub.scene.items.getItems([TARGET_ID]))[0];
   assert.equal(liveTargetBeforeUndo.metadata[META_KEY].hp, 58, "Target HP must be 58 after 14 damage");
@@ -433,7 +470,7 @@ test("TEST 3 (GLOBAL UNDO / ALT+Z) — undoLastHistoryEntry reverts top reminder
     sceneEpoch: currentSceneEpoch(),
   });
 
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await convergeDeferredEffectsHistory();
 
   // Invoke global undo (undoLastHistoryEntry / Alt+Z equivalent)
   const undoneEntry = await history.undoLastHistoryEntry({

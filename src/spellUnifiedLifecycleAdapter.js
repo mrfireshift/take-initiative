@@ -14,6 +14,7 @@ import {
 
 export const SPELL_UNIFIED_LIFECYCLE_STATUS = Object.freeze({
   COMMITTED: "committed",
+  NOOP: "noop",
   REJECTED: "rejected",
   FAILED: "failed",
 });
@@ -103,9 +104,12 @@ export function getSpellUnifiedLifecycleEligibility(contract = null) {
   if (placement.policy === "required" || inputs.placement?.required === true) {
     return reject("placement-not-supported", "Il placement richiesto resta nella lane area.");
   }
-  if (inputs.hp?.required === true
+  const preparedResolution = text(contract.presentation?.phase?.selected) === "resolve"
+    && contract.presentation?.phase?.plan?.attack?.required === true;
+  if ((inputs.hp?.required === true
     || inputs.damage?.required === true
-    || inputs.healing?.required === true) {
+    || inputs.healing?.required === true)
+    && !preparedResolution) {
     return reject("hp-input-not-supported", "Gli input HP restano nella lane area.");
   }
   return { eligible: true, code: null, message: "" };
@@ -147,6 +151,8 @@ function requiredTargetContextComplete(contract, targetIds, targetContext) {
 
 function validationErrors(contract, session, targetIds, phasePlan, slotLevel, durationTurns) {
   const inputs = contract.presentation?.inputs || {};
+  const preparedResolution = phasePlan?.phase === "resolve"
+    && phasePlan?.attack?.required === true;
   const errors = [];
   const add = (field, code) => {
     if (!errors.some((entry) => entry.field === field)) errors.push({ field, code });
@@ -179,10 +185,16 @@ function validationErrors(contract, session, targetIds, phasePlan, slotLevel, du
   if (inputs.placement?.required && !placementConfirmed(contract, session)) {
     add("placement", "placement-required");
   }
-  if (inputs.outcomes?.required && targetIds.some((id) => !session.outcomes?.[id])) {
-    add("outcomes", "outcomes-required");
+  if (inputs.outcomes?.required && !preparedResolution) {
+    const outcomeMode = contract.presentation?.outcomes?.mode;
+    if (["attack", "attack-and-save"].includes(outcomeMode)) {
+      if (!text(session.attackOutcome)) add("outcomes", "attack-outcome-required");
+    }
+    if (outcomeMode !== "attack" && targetIds.some((id) => !session.outcomes?.[id])) {
+      add("outcomes", "outcomes-required");
+    }
   }
-  if (inputs.damage?.required && !hasValue(session.hpValues?.damage)) {
+  if (inputs.damage?.required && !preparedResolution && !hasValue(session.hpValues?.damage)) {
     add("damage", "damage-required");
   }
   if (inputs.healing?.required && !hasValue(session.hpValues?.healing)) {
@@ -286,6 +298,13 @@ export function buildSpellUnifiedLifecycleRequest({
       runtimeSpell,
       session.requestedConcentration === true,
     ),
+    attackOutcome: phase === "resolve" && phasePlan.attack?.required === true
+      ? text(session.attackOutcome)
+      : undefined,
+    saveOutcomes: session.outcomes,
+    damageValue: session.hpValues?.damage,
+    manualAttackOutcomeRequired: phase === "resolve"
+      && phasePlan.attack?.required === true,
     ...(appliedAt !== undefined ? { appliedAt } : {}),
     ...(text(casterName) ? { casterName: text(casterName) } : {}),
   };
@@ -391,15 +410,24 @@ export async function executeSpellUnifiedLifecycle({
       ? executionResult
       : executionResult?.changedIds;
     const history = spellExecutionHistoryDetails(executionResult);
+    const executionStatus = text(executionResult?.status).toLocaleLowerCase("it");
+    const noOp = executionStatus === "miss" || executionStatus === "stale";
     const stale = typeof runtime.isCurrent === "function"
       && runtime.sceneEpoch != null
       && !runtime.isCurrent(runtime.sceneEpoch);
     return {
-      status: SPELL_UNIFIED_LIFECYCLE_STATUS.COMMITTED,
+      status: noOp
+        ? SPELL_UNIFIED_LIFECYCLE_STATUS.NOOP
+        : SPELL_UNIFIED_LIFECYCLE_STATUS.COMMITTED,
       changedIds: uniqueIds(changedIds),
       ...history,
       error: null,
       request,
+      ...(noOp ? {
+        reason: executionResult?.reason || executionStatus,
+        pending: executionResult?.pending === true,
+        stale: executionStatus === "stale" || executionResult?.stale === true,
+      } : {}),
       ...(stale ? { stale: true, postCommitPending: true } : {}),
     };
   } catch (error) {

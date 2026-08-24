@@ -153,7 +153,8 @@ altri browser o GM.
 TXT include nome sessione, storage locale, inizio, intervallo, Round, Turno,
 eventi e sezioni delle facet per tutti gli eventi della sessione, senza seguire
 i filtri UI; l’operazione carica esplicitamente la sessione completa da
-IndexedDB. JSON continua a usare i dati raw CL-1, completi e non filtrati;
+IndexedDB. JSON esporta il bundle v3 completo e non filtrato, normalizzando in
+uscita anche gli eventi legacy senza riscrivere la History;
 non viene introdotto export Markdown. I testi utente sono inseriti con
 `textContent`, i filtri hanno label accessibili, timeline e messaggi usano
 etichette/`aria-live`, e i dettagli sono navigabili con tastiera e wrapping.
@@ -240,11 +241,59 @@ in collisione ricevono ID deterministici senza sovrascrivere dati esistenti.
 Non esiste sincronizzazione live multi-GM: la portabilità avviene solo tramite
 export/import.
 
-## Amend contratto v3 — specifica non ancora implementata
+## Contratto v3 — implementazione additiva
 
-Questa sezione aggiorna esclusivamente il contratto v3. Non abilita il writer
-v3, non modifica lo schema IndexedDB e non cambia il comportamento degli
-eventi v2.
+Il writer e il normalizzatore v3 estendono il log esistente. Non viene creato
+un secondo log, non viene modificato lo schema IndexedDB e gli eventi v1/v2
+restano leggibili senza essere riscritti nel database.
+
+Ogni evento letto o scritto nella forma v3 espone, quando non già noto, questi
+campi osservativi:
+
+```js
+{
+  version: 3,
+  turnContext: {
+    activeId, activeName, turnIndex, turnKey, orderRevision,
+  },
+  provenance: {
+    recordingSource, // origine tecnica, oppure "unknown" in un import legacy
+    actor,           // soggetto esplicito dell’azione, oppure null
+    cause,           // fonte meccanica esplicita, oppure null
+  },
+  facets: {
+    hp: { action, targets: [{ before, after, delta, hpMaxDelta }] },
+    // conditions/spells/concentrations: added/updated/removed per elemento
+    // initiativeCard: diff/diffs quando il producer espone before/after
+    // movement: origin.kind + targets quando la posizione cambia
+  },
+}
+```
+
+`turnContext` non contiene `actorId` o `actorName`; `provenance.actor` non viene
+mai ricavato dal turno. Gli snapshot HP canonici esistono soltanto in
+`facets.hp`; `payload.hpOperation` può descrivere un intento esplicito (per
+esempio `{ kind: "sheet-edit", fields: ["hp", "hpMax"] }`) ma non contiene
+snapshot duplicati. Un delta osservato può essere classificato come danno o
+cura, mentre un edit manuale viene indicato come tale soltanto se il producer
+lo dichiara esplicitamente.
+
+`removalReason` e `causeHistoryEntryId` sono proprietà degli elementi in
+`removed[]`; `lineage` è proprietà dell’elemento in `added[]`, `updated[]` o
+`removed[]` quando la derivazione è osservata. Un dato non disponibile resta
+`null`/`unknown`; `0` è ammesso solo se osservato realmente.
+
+`orderRevision` cambia soltanto per una modifica strutturale dell’ordine dei
+partecipanti, non per l’avanzamento del turno. L’ordine completo è conservato
+nel roster iniziale, quando cambia e negli snapshot roster, non duplicato in
+ogni evento; quando cambia, il turno che osserva la modifica può esporlo anche
+in `facets.roster`. `movement.origin.kind` appartiene alla tassonomia disgiunta
+`scene-drag`, `speed-tool`, `system-effect`, `history-undo`,
+`obr-native-undo`, `unknown`. Un effetto non-`move` che sposta davvero un token
+espone `facets.movement`; Passo Velato resta un solo evento spell.
+
+L’import accetta bundle v1, v2 e v3 e li normalizza in memoria alla forma v3;
+l’export JSON emette v3. Non esiste down-conversion v3→v2.
 
 ### Snapshot roster
 

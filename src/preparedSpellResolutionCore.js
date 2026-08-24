@@ -83,6 +83,12 @@ export function buildPreparedSpellResolutionRequest({
   group = null,
   targetIds = [],
   selectedChoice = "",
+  attackOutcome = undefined,
+  saveOutcomes = undefined,
+  saveOutcome = "",
+  damageValue = undefined,
+  primaryDamageValue = undefined,
+  primaryTargetId = "",
 } = {}) {
   if (preparedSpellResolutionAction(group)?.type !== "resolve") {
     throw new Error("prepared-spell-stale");
@@ -100,6 +106,7 @@ export function buildPreparedSpellResolutionRequest({
   const choice = String(
     selectedChoice || group.castContext?.choice || ""
   ).trim();
+  const phasePlan = getSpellCastPhasePlan(spell, "resolve", castContext);
 
   return {
     spell,
@@ -109,8 +116,15 @@ export function buildPreparedSpellResolutionRequest({
     targetIds: targets,
     castContext,
     selectedChoice: choice,
-    phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+    phasePlan,
     applyAutomatedConditions: group.castContext?.applyAutomatedConditions !== false,
+    manualAttackOutcomeRequired: phasePlan.attack?.required === true,
+    ...(attackOutcome !== undefined ? { attackOutcome } : {}),
+    ...(saveOutcomes !== undefined ? { saveOutcomes } : {}),
+    ...(saveOutcome ? { saveOutcome } : {}),
+    ...(damageValue !== undefined ? { damageValue } : {}),
+    ...(primaryDamageValue !== undefined ? { primaryDamageValue } : {}),
+    ...(primaryTargetId ? { primaryTargetId: String(primaryTargetId).trim() } : {}),
     activeConcentration: {
       instanceId: String(group.instanceId || "").trim(),
       spellId: String(group.spellId || spell?.id || "").trim(),

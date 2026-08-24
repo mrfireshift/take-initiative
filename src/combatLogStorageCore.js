@@ -1,5 +1,10 @@
+import {
+  normalizeCombatLogEventV3,
+  normalizeCombatLogSessionV3,
+} from "./combatLogV3Core.js";
+
 const STORAGE_FORMAT = "take-initiative-combat-log";
-const STORAGE_BUNDLE_VERSION = 2;
+const STORAGE_BUNDLE_VERSION = 3;
 const PAGE_CURSOR_VERSION = 1;
 
 export const COMBAT_LOG_STORAGE_LIMITS = Object.freeze({
@@ -136,8 +141,8 @@ function parseInput(input) {
 }
 
 function validateVersion(version, format) {
-  if (version === 1 && !format) return;
-  if (version === STORAGE_BUNDLE_VERSION && format === STORAGE_FORMAT) return;
+  if (version === 1 && (!format || format === STORAGE_FORMAT)) return;
+  if ((version === 2 || version === STORAGE_BUNDLE_VERSION) && format === STORAGE_FORMAT) return;
   if (version > STORAGE_BUNDLE_VERSION) {
     throw new CombatLogStorageError(
       COMBAT_LOG_STORAGE_ERROR_CODES.UNSUPPORTED_VERSION,
@@ -199,7 +204,7 @@ export function normalizeCombatLogStorageBundle(input, options = {}) {
     }
     const sequence = finiteNumber(event.sequence);
     return {
-      ...event,
+      ...normalizeCombatLogEventV3(event),
       ...(sequence === null ? { sequence: index + 1 } : { sequence }),
     };
   });
@@ -207,10 +212,11 @@ export function normalizeCombatLogStorageBundle(input, options = {}) {
   delete fingerprintSource.exportedAt;
   const fingerprint = fingerprintCombatLogBundle(fingerprintSource);
   return {
-    format: version === STORAGE_BUNDLE_VERSION ? parsed.format : STORAGE_FORMAT,
+    format: STORAGE_FORMAT,
     version,
+    normalizedVersion: STORAGE_BUNDLE_VERSION,
     source: cloneJson(source),
-    session: cloneJson(session),
+    session: normalizeCombatLogSessionV3(session),
     events: cloneJson(normalizedEvents),
     fingerprint,
   };

@@ -214,6 +214,7 @@ const {
   getCombatLogEvents,
   listCombatLogSessions,
   peekActiveCombatLogData,
+  recordCombatTurn,
   recordHistoryInCombatLog,
   unmountCombatLogEventSink,
 } = await import("../src/combatLog.js");
@@ -294,6 +295,16 @@ test("duplicate incompatibile conserva il primo payload e le note manuali restan
   await addCombatLogNote("Nota identica", { sceneEpoch: currentSceneEpoch() });
   const after = await getCombatLogEvents(session.id);
   assert.equal(after.filter((event) => event.kind === "note").length, 2);
+});
+
+test("History observer eredita la revisione corrente dal session writer", async () => {
+  await recordCombatTurn({ order: ["target-1"], current: 0, round: 3 });
+  const created = await recordHistoryInCombatLog(
+    hpEntry({ source: "order-revision" }, "history-runtime-order-revision"),
+    { sceneEpoch: currentSceneEpoch() },
+  );
+  assert.equal(created.length, 1);
+  assert.equal(created[0].turnContext.orderRevision, 1);
 });
 
 test("Combat Log disabilitato non esegue scritture", async () => {

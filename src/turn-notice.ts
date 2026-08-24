@@ -721,6 +721,9 @@ function renderSaveReminderBatch(batch: any) {
   }
 
   const requiresResponse = presentation.rows.some(reminderRowRequiresResponse);
+  const hasPersistentReminder = presentation.rows.some((row: any) =>
+    row.resolution?.mode === "consume"
+  );
   panel.append(portrait, copy, detail);
   window.clearTimeout(zoneHideTimer);
   zoneHideTimer = 0;
@@ -728,7 +731,7 @@ function renderSaveReminderBatch(batch: any) {
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
   announceNoticeLayout({ force: true });
-  if (!requiresResponse) {
+  if (!requiresResponse && !hasPersistentReminder) {
     const timer = document.createElement("div");
     timer.className = "zone-timer";
     panel.appendChild(timer);

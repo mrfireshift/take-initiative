@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8").repl
 const effects = read("../src/effectsMutations.js");
 const conditions = read("../src/conditions.js");
 const classRuntime = read("../src/classFeatureRuntime.js");
+const classStateMutationCore = read("../src/classFeatureStateMutationCore.js");
 const initiativeCards = read("../src/initiativeCards.js");
 const quickHp = read("../src/quick-hp-modal.js");
 const reminderResolution = read("../src/reminderResolution.js");
@@ -75,6 +76,33 @@ test("initiativeCards e classFeatureRuntime non conservano writer conditions fuo
   assert.match(prepare, /mergeClassFeatureReconciliation\(plan/);
   assert.doesNotMatch(commit, /reconcileClassFeatureActivationsAfterConditionRemoval/);
   assert.equal((commit.match(/OBR\.scene\.items\.updateItems/g) || []).length, 1);
+});
+
+test("GS-010: i writer applicativi classFeatureState passano dalla mutation lane esistente", () => {
+  const resourceWriters = section(
+    classRuntime,
+    "export async function adjustClassFeatureResource",
+    "export async function resetClassFeatureResources",
+  );
+  const resetWriter = classRuntime.slice(classRuntime.indexOf(
+    "export async function resetClassFeatureResources",
+  ));
+  assert.match(resourceWriters, /class-feature:adjust-resource/);
+  assert.match(resetWriter, /class-feature:reset-resources/);
+  assert.doesNotMatch(resourceWriters, /OBR\.scene\.items\.updateItems/);
+  assert.doesNotMatch(resetWriter, /OBR\.scene\.items\.updateItems/);
+
+  for (const operationType of [
+    "class-feature:activate-state",
+    "class-feature:adjust-resource",
+    "class-feature:reset-resources",
+    "class-feature:special-refresh",
+    "class-feature:clear-stale-suppressions",
+  ]) {
+    assert.match(classStateMutationCore, new RegExp(operationType));
+  }
+  assert.match(effects, /planClassFeatureStateMutations/);
+  assert.match(effects, /classFeatureStatePlan\.patches/);
 });
 
 test("i side effect persistenti iniziano soltanto dopo il commit canonico", () => {

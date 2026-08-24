@@ -67,7 +67,7 @@ test("il planner unificato ordina spell e condizioni nello stesso stack", () => 
   assert.deepEqual(rows.map((entry) => entry.y), [74, 102, 131, 159]);
 });
 
-test("la vista compatta mostra icone di condizione e un conteggio distinto", () => {
+test("la vista compatta mostra icone di condizione con spine rientrata del 25%", () => {
   const rows = planEffectsLayout({
     measureText,
     compact: true,
@@ -104,15 +104,15 @@ test("la vista compatta mostra icone di condizione e un conteggio distinto", () 
     "😨",
     "+1 · ✨1 · ✦1",
   ]);
-  assert.ok(rows.every((entry) => entry.x + entry.width <= 135));
-  assert.ok(rows.every((entry) => entry.x >= 65));
+  assert.ok(rows.every((entry) => entry.x >= 118));
   assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
-  assert.equal(Math.max(...rows.map((entry) => entry.x + entry.width)), 135);
+  assert.equal(Math.min(...rows.map((entry) => entry.x)), 118);
+  assert.ok(Math.max(...rows.map((entry) => entry.x + entry.width)) > 118);
   assert.equal(rows.some((entry) => entry.text === "Prono"), false);
   assert.equal(rows.find((entry) => entry.compactMode === "effect-count").key, "compact:count");
 });
 
-test("la selezione del token mantiene tutte le label estese", () => {
+test("la selezione del token mantiene la stessa spine delle pill compatte", () => {
   const rows = planEffectsLayout({
     measureText,
     compact: true,
@@ -147,7 +147,7 @@ test("la selezione del token mantiene tutte le label estese", () => {
     "Prono",
   ]);
   assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
-  assert.equal(rows[0].x, 94);
+  assert.equal(rows[0].x, 118);
   assert.equal(rows.some((entry) => entry.compactMode), false);
 });
 
@@ -187,7 +187,7 @@ test("la modalità globale compatta prevale anche su un token selezionato", () =
   assert.ok(rows.every((entry) => entry.compactMode));
 });
 
-test("le pill compatte restano dentro la footprint anche su un token multicasella", () => {
+test("le pill compatte rientrano del 25% anche su un token multicasella", () => {
   const rows = planEffectsLayout({
     measureText,
     compact: true,
@@ -204,10 +204,9 @@ test("le pill compatte restano dentro la footprint anche su un token multicasell
     })],
   }).filter((entry) => entry.targetId === "large-target");
 
-  assert.ok(rows.every((entry) => entry.x >= 130));
-  assert.ok(rows.every((entry) => entry.x + entry.width <= 270));
+  assert.ok(rows.every((entry) => entry.x >= 235));
   assert.equal(new Set(rows.map((entry) => entry.x)).size, 1);
-  assert.equal(Math.max(...rows.map((entry) => entry.x + entry.width)), 270);
+  assert.ok(Math.max(...rows.map((entry) => entry.x + entry.width)) > 235);
   const topmost = Math.min(...rows.map((entry) => entry.y - entry.height / 2));
   assert.ok(topmost >= 95 && topmost < 96);
 });
@@ -369,6 +368,200 @@ test("gli effetti collegati seguono la spell, ne usano il colore e accorciano la
     ["#6d28d9", "#6d28d9", "#6d28d9"],
   );
   assert.equal(rows[1].backgroundOpacity, 0.82);
+});
+
+test("Lentezza mantiene la parent pill e rende i summary parts come mini-pill token", () => {
+  const summaryParts = [
+    { id: "speed-half", label: "Vel ½" },
+    { id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" },
+    { id: "no-reactions", label: "No reaz." },
+    { id: "action-or-bonus", label: "Azione o Bonus" },
+    { id: "attack-limit", label: "Max 1 att." },
+    { id: "spell-delay", label: "Spell 1 az.: d20" },
+  ];
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Lentezza",
+          displayName: "Lentezza",
+          instanceId: "slow-cast",
+          targets: ["target"],
+          color: { solid: "#b91c1c", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        spellEntries: [{
+          name: "Lentezza",
+          instanceId: "slow-cast",
+          casterId: "caster",
+          turns: 10,
+        }],
+        conditionParts: [{
+          key: "spell-effect:slow-effect",
+          label: "Lentezza: -2 CA/TS Des · no reazioni",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "slow-cast",
+          summaryParts,
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y || left.sortKey.localeCompare(right.sortKey));
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Lentezza (10)",
+    ...summaryParts.map((part) => part.label),
+  ]);
+  assert.equal(rows.filter((entry) => entry.summaryPart).length, 6);
+  assert.equal(rows[1].fontSize, 13);
+  assert.equal(rows[1].height, 19);
+  assert.ok(rows[1].width < 220);
+  assert.equal(rows[1].y, rows[2].y);
+  assert.equal(rows[3].y, rows[4].y);
+  assert.equal(rows[5].y, rows[6].y);
+  assert.ok(rows[2].x > rows[1].x);
+  assert.ok(rows[4].x > rows[3].x);
+  assert.ok(rows[6].x > rows[5].x);
+  assert.ok(rows.slice(1).every((entry) => (
+    entry.summaryParentKey === "spell-effect:slow-effect"
+    && entry.summaryPart === true
+    && !entry.text.includes("…")
+  )));
+  assert.equal(rows.filter((entry) => entry.kind === "spell-effect").length, 6);
+  assert.equal(rows.filter((entry) => entry.kind === "spell").length, 1);
+});
+
+test("Carne in pietra mantiene Trattenuto separato dalla mini pill del progresso", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Carne in pietra",
+          displayName: "Carne in pietra",
+          instanceId: "flesh-stone-1",
+          targets: ["target"],
+          color: { solid: "#b91c1c", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [{
+          key: "flag:Trattenuto",
+          label: "Trattenuto",
+          kind: "condition",
+          parentEffectId: "flesh-stone-1",
+          summaryParts: [{ id: "flesh-to-stone-progress", label: "S 0/3 · F 1/3" }],
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y || left.sortKey.localeCompare(right.sortKey));
+
+  assert.deepEqual(rows.map((entry) => entry.text), [
+    "Carne in pietra",
+    "Trattenuto",
+    "S 0/3 · F 1/3",
+  ]);
+  assert.equal(rows.find((entry) => entry.text === "Trattenuto").summaryPart, undefined);
+  assert.equal(rows.find((entry) => entry.text === "S 0/3 · F 1/3").summaryPart, true);
+});
+
+test("la vista compatta non trasforma la mini pill S/F nell'icona di Trattenuto", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    tokens: [token("target", {
+      conditionParts: [{
+        key: "flag:Trattenuto",
+        label: "Trattenuto",
+        kind: "condition",
+        icon: "⛓️",
+        summaryParts: [{ id: "flesh-to-stone-progress", label: "S 0/3 · F 1/3" }],
+      }],
+    })],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y || left.sortKey.localeCompare(right.sortKey));
+
+  assert.deepEqual(rows.map((entry) => entry.text), ["⛓️", "S 0/3 · F 1/3"]);
+  assert.equal(rows[0].compactMode, "condition-icon");
+  assert.equal(rows[1].compactMode, "summary-part");
+  assert.equal(rows[1].summaryPart, true);
+});
+
+test("Contagio terminale separa nome e debuff su due righe", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    tokens: [
+      token("caster", {
+        assignments: [{
+          key: "Contagio",
+          displayName: "Contagio",
+          instanceId: "contagion-1",
+          targets: ["target"],
+          color: { solid: "#7e22ce", fillOpacity: 0.88 },
+        }],
+      }),
+      token("target", {
+        conditionParts: [{
+          key: "spell-effect:contagion-viscous-devastation",
+          label: "Contagio · Devastazione vischiosa",
+          kind: "spell-effect",
+          tone: "debuff",
+          parentEffectId: "contagion-1",
+          summaryParts: [
+            {
+              id: "contagion-terminal-name:viscous-devastation",
+              label: "Devastazione vischiosa",
+              stack: true,
+            },
+            {
+              id: "contagion-terminal-debuff:viscous-devastation",
+              label: "Cos − / TS Cos − / Danni → Stordito",
+              stack: true,
+            },
+          ],
+        }],
+      }),
+    ],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
+    .sort((left, right) => left.y - right.y || left.sortKey.localeCompare(right.sortKey));
+
+  const name = rows.find((entry) => entry.text === "Devastazione vischiosa");
+  const debuffs = rows.find((entry) => entry.text === "Cos − / TS Cos − / Danni → Stordito");
+  assert.equal(name.summaryPart, true);
+  assert.equal(debuffs.summaryPart, true);
+  assert.equal(name.stack, true);
+  assert.equal(debuffs.stack, true);
+  assert.ok(debuffs.y > name.y);
+  assert.match(debuffs.text, /\s\/\s/);
+});
+
+test("la vista compatta conta una sola effect instance anche con sei summary parts", () => {
+  const rows = planEffectsLayout({
+    measureText,
+    compact: true,
+    tokens: [token("target", {
+      conditionParts: [{
+        key: "spell-effect:slow-effect",
+        label: "Lentezza: -2 CA/TS Des · no reazioni",
+        kind: "spell-effect",
+        tone: "debuff",
+        summaryParts: [
+          { id: "speed-half", label: "Vel ½" },
+          { id: "ac-dex-save-penalty", label: "CA −2 / TS Des −2" },
+          { id: "no-reactions", label: "No reaz." },
+          { id: "action-or-bonus", label: "Azione o Bonus" },
+          { id: "attack-limit", label: "Max 1 att." },
+          { id: "spell-delay", label: "Spell 1 az.: d20" },
+        ],
+      }],
+    })],
+  }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot");
+
+  assert.deepEqual(rows.map((entry) => entry.text), ["✦1"]);
 });
 
 test("l'ingresso in una zona ricostruisce la pill spell prima dell'effetto collegato", () => {
@@ -591,7 +784,7 @@ test("il layout usa le dimensioni IMAGE quando width e height non sono esposte a
   });
 
   const condition = desired.find((entry) => entry.kind === "condition");
-  assert.equal(condition.x, 89);
+  assert.equal(condition.x, 135);
   assert.equal(condition.y, 36);
 });
 
@@ -621,8 +814,8 @@ test("un token IMAGE da una casella ancora pill e badge al suo ingombro di scena
   const condition = desired.find((entry) => entry.kind === "condition");
   assert.ok(Math.abs(dot.x - 71.75) < 0.01);
   assert.ok(Math.abs(dot.y - 71.75) < 0.01);
-  assert.deepEqual({ x: spell.x, y: spell.y }, { x: 94, y: 74 });
-  assert.deepEqual({ x: condition.x, y: condition.y }, { x: 94, y: 103 });
+  assert.deepEqual({ x: spell.x, y: spell.y }, { x: 118, y: 74 });
+  assert.deepEqual({ x: condition.x, y: condition.y }, { x: 118, y: 103 });
 });
 
 test("le pill effetto molto lunghe hanno una larghezza massima", () => {

@@ -366,6 +366,9 @@ export function buildEffectSaveReminderResolution({
   const explicit = reminder?.resolution && typeof reminder.resolution === "object"
     ? reminder.resolution
     : {};
+  const explicitHasActions = Object.values(explicit.outcomes || {}).some((outcome) =>
+    Array.isArray(outcome?.actions) && outcome.actions.length > 0,
+  );
   const isDamageOnly = !explicit.ability && !reminder?.ability && (explicit.damage || reminder?.damage);
   const scaled = scaleReminderResolutionData({
     damage: explicit.damage || reminder?.damage,
@@ -374,7 +377,8 @@ export function buildEffectSaveReminderResolution({
   const informational = !explicit.ability
     && !reminder?.ability
     && !scaled.damage
-    && reminder?.mode === "consume";
+    && reminder?.mode === "consume"
+    && !explicitHasActions;
   if (informational) {
     return normalizeReminderResolution({
       mode: "consume",
@@ -1009,6 +1013,17 @@ function actionOperations({ action, targetId, itemsById, sceneMetadata = null })
     const options = action?.options && typeof action.options === "object"
       ? clone(action.options)
       : {};
+    if (options.expiry?.anchor === "next-turn" && !options.appliedAt) {
+      const currentTurnKey = sceneTurnKey(sceneMetadata);
+      if (currentTurnKey) {
+        const state = sceneMetadata?.[`${ID}/state`] || {};
+        options.appliedAt = {
+          round: Math.max(1, Math.floor(Number(state.round) || 1)),
+          phase: "turn",
+          turnKey: currentTurnKey,
+        };
+      }
+    }
     if (String(action?.parentEffectId || "").trim()) {
       options.parentEffectId = String(action.parentEffectId).trim();
     }
@@ -1203,11 +1218,13 @@ export function buildReminderResolutionPlan({
   }
 
   const sourceId = text(resolution.source?.id, "", 200);
-  if (sourceId && !itemsById.has(sourceId)) {
+  const activationKind = text(resolution.activation?.kind, "", 40);
+  const sourceCanBeAbsent = activationKind === "effect-save"
+    && (!resolution.save || resolution.save.dc !== undefined);
+  if (sourceId && !itemsById.has(sourceId) && !sourceCanBeAbsent) {
     return { status: "stale", message: "La sorgente dell'effetto non esiste più." };
   }
 
-  const activationKind = text(resolution.activation?.kind, "", 40);
   let zoneSideEffect = null;
   if (activationKind === "zone") {
     const zoneItemId = text(resolution.activation?.zoneItemId, "", 200);

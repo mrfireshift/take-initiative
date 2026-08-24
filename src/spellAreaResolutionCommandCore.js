@@ -95,6 +95,8 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
   TARGET_LOCK_REQUIRED: "target-lock-required",
   HP_REQUIRED: "hp-required",
   HP_INVALID: "hp-invalid",
+  PRIMARY_DAMAGE_REQUIRED: "primary-damage-required",
+  PRIMARY_DAMAGE_INVALID: "primary-damage-invalid",
   HP_UNEXPECTED: "hp-unexpected",
   ZONE_TRIGGER_REQUIRED: "zone-trigger-required",
   ZONE_TRIGGER_ACTIVATION_REQUIRED: "zone-trigger-activation-required",
@@ -114,6 +116,10 @@ export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
 const SOURCE_KIND_SET = new Set(SPELL_AREA_RESOLUTION_SOURCE_KINDS);
 const OUTCOME_SET = new Set(Object.values(SAVE_SPELL_OUTCOMES));
 const ATTACK_OUTCOME_SET = new Set(["hit", "miss", "critical"]);
+const PREPARED_AREA_HIT_SPELL_IDS = new Set([
+  "phb2014-raffica-di-spine",
+  "phb2014-freccia-folgorante",
+]);
 const PLACEMENT_POLICY_SET = new Set(Object.values(SPELL_PANEL_PLACEMENT_POLICIES));
 
 const text = (value) => String(value ?? "").trim();
@@ -248,6 +254,7 @@ function normalizeOutcomes(value) {
   for (const [targetIdValue, outcomeValue] of recordEntries(source)) {
     const targetId = text(targetIdValue);
     if (!targetId) continue;
+    if (["attack", "attackOutcome"].includes(targetId)) continue;
     const outcome = text(outcomeValue).toLocaleLowerCase("it");
     if (!OUTCOME_SET.has(outcome)) {
       invalidTargetIds.push(targetId);
@@ -274,7 +281,9 @@ function normalizeAttackOutcome(input, session, outcomeValue) {
     ? "hit"
     : normalized === "mancato"
       ? "miss"
-      : normalized || null;
+      : normalized === "critico" || normalized === "crit"
+        ? "critical"
+        : normalized || null;
 }
 
 function normalizeTargetIds(input, session) {
@@ -734,6 +743,9 @@ function normalizeHp(
   errors,
   attackResolution = null,
   attackOutcome = null,
+  spell = null,
+  primaryTargetId = "",
+  legacyPreparedArea = false,
 ) {
   const rawHp = input.hp && typeof input.hp === "object" ? input.hp : {
     ...(input.hp === null || input.hp === undefined ? {} : { amount: input.hp }),
@@ -748,6 +760,11 @@ function normalizeHp(
     && targeting.mode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     && targeting.confirmTargets !== true;
   const required = contractHpRequired
+    && !(
+      spell?.id === "phb2014-raffica-di-spine"
+      && text(contract?.presentation?.phase?.selected) === "resolve"
+      && attackOutcome === "miss"
+    )
     && !boardTokenInitial
     && !automaticAuraInitial
     && !emptyInitialZone;
@@ -779,6 +796,31 @@ function normalizeHp(
   const amount = amountValue === null || amountValue === undefined || text(amountValue) === ""
     ? null
     : finiteOrNull(amountValue);
+  const primaryDamageValue = firstDefined(
+    rawHp.primaryAmount,
+    rawHp.primaryDamage,
+    input.primaryDamageAmount,
+    input.primaryDamageValue,
+    input.primaryDamage,
+    session.hpValues?.primaryDamage,
+    null,
+  );
+  const primaryDamageProvided = primaryDamageValue !== null
+    && primaryDamageValue !== undefined
+    && text(primaryDamageValue) !== "";
+  const primaryAmount = primaryDamageValue === null
+    || primaryDamageValue === undefined
+    || text(primaryDamageValue) === ""
+    ? null
+    : finiteOrNull(primaryDamageValue);
+  const primaryDamageRequired = spell?.id === "phb2014-freccia-folgorante"
+    && text(contract?.presentation?.phase?.selected) === "resolve";
+  if (primaryDamageRequired && !primaryDamageProvided && !legacyPreparedArea) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_DAMAGE_REQUIRED);
+  }
+  if (primaryDamageProvided && (primaryAmount === null || primaryAmount < 0)) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_DAMAGE_INVALID);
+  }
   if (required && !amountProvided) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_REQUIRED);
   if (amountProvided && (amount === null || amount < 0 || !Number.isFinite(amount))) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_INVALID);
@@ -805,6 +847,12 @@ function normalizeHp(
     required,
     mode: required || amount !== null ? validMode : "none",
     amount: amount === null ? null : Math.floor(amount),
+    primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
+    primaryRequired: primaryDamageRequired,
+    primaryTargetId: text(primaryTargetId),
+    primaryOutcomeFactor: attackOutcome === "miss"
+      ? QUICK_HP_FACTORS.HALF
+      : QUICK_HP_FACTORS.FULL,
     outcomeFactors,
     targetIds: uniqueIds(targetIds),
   };
@@ -1231,15 +1279,27 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       }
     }
   }
-  const primaryTargetId = text(firstDefined(
+  const explicitAttackOutcome = hasProvidedValue(sourceInput.attackOutcome)
+    || hasProvidedValue(sourceInput.attack?.outcome)
+    || hasProvidedValue(session.attackOutcome);
+  const legacyPreparedArea = sourceKind === "prepared-resolution"
+    && PREPARED_AREA_HIT_SPELL_IDS.has(spellId)
+    && !explicitAttackOutcome;
+  let primaryTargetId = text(firstDefined(
     sourceInput.primaryTargetId,
     sourceInput.primaryId,
     session.primaryTargetId,
     "",
   ));
   const isChainLightning = spellId === CHAIN_LIGHTNING_TARGETING.spellId;
-  const requiresPrimary = targetingContract.primaryTarget?.required === true || isChainLightning;
-  if (requiresPrimary && !primaryTargetId) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_REQUIRED);
+  const requiresPrimary = targetingContract.primaryTarget?.required === true
+    || isChainLightning
+    || (phase === "resolve" && PREPARED_AREA_HIT_SPELL_IDS.has(spellId));
+  if (requiresPrimary && !primaryTargetId && !legacyPreparedArea) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_REQUIRED);
+  } else if (requiresPrimary && !primaryTargetId && legacyPreparedArea) {
+    primaryTargetId = targetIds[0] || "";
+  }
   if (primaryTargetId && !targetIds.includes(primaryTargetId)) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_NOT_SELECTED);
   }
@@ -1301,17 +1361,29 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   validateTargetContexts(contract, workflowRule, targetIds, targetContexts, errors);
 
   const attackChoice = text(choiceValue).toLocaleLowerCase("it");
-  const attackOutcome = attackResolution
+  let attackOutcome = attackResolution
     ? requestedAttackOutcome
       || (ATTACK_OUTCOME_SET.has(attackChoice) ? attackChoice : null)
     : requestedAttackOutcome;
+  const preparedAttackRequired = sourceKind === "prepared-resolution"
+    && phase === "resolve"
+    && contract?.presentation?.phase?.plan?.attack?.required === true;
+  if (preparedAttackRequired && !attackOutcome && legacyPreparedArea) attackOutcome = "hit";
   const attackRequired = activeAction?.capabilities?.attack === true
-    || !!attackResolution;
-  if (attackRequired && !attackOutcome) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ATTACK_OUTCOME_REQUIRED);
+    || !!attackResolution
+    || preparedAttackRequired;
+  if (attackRequired && !attackOutcome && !legacyPreparedArea) {
+    addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ATTACK_OUTCOME_REQUIRED);
+  }
   if (attackOutcome && !ATTACK_OUTCOME_SET.has(attackOutcome)) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.ATTACK_OUTCOME_INVALID);
   }
-  const saveOutcomesRequired = contract?.presentation?.capabilities?.saveOutcomes === true
+  const saveOutcomesRequired = (
+    contract?.presentation?.capabilities?.saveOutcomes === true
+    && !(sourceKind === "prepared-resolution"
+      && spellId === "phb2014-raffica-di-spine"
+      && attackOutcome === "miss")
+  )
     || activeAction?.capabilities?.save === true
     || validatedTrigger?.resolution === "manual-save";
   if (saveOutcomesRequired) {
@@ -1342,6 +1414,9 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     errors,
     attackResolution,
     attackOutcome,
+    spell,
+    primaryTargetId,
+    legacyPreparedArea,
   );
 
   let resolutionResult = null;

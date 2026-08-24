@@ -7,8 +7,10 @@ import {
 
 const previousIndexedDB = globalThis.indexedDB;
 const previousKeyRange = globalThis.IDBKeyRange;
+const previousLocation = globalThis.location;
 globalThis.indexedDB = createVersionedIndexedDB();
 globalThis.IDBKeyRange = versionedKeyRange;
+globalThis.location = { pathname: "/plugin.html" };
 
 const META_KEY = "com.thebigpicture.initiative/meta";
 const SPELLS_KEY = "com.thebigpicture.initiative/spells";
@@ -24,6 +26,7 @@ const sceneState = {
 };
 const readyListeners = new Set();
 const broadcastListeners = new Map();
+let mockPathSequence = 0;
 
 function currentItems(ids) {
   if (typeof ids === "function") {
@@ -93,22 +96,60 @@ mock.module("@owlbear-rodeo/sdk", {
     default: sdkStub,
     buildLabel: (...args) => ({ type: "LABEL", args, plainText() { return this; }, position() { return this; }, width() { return this; }, height() { return this; }, padding() { return this; }, fontSize() { return this; }, fontWeight() { return this; }, fillColor() { return this; }, strokeColor() { return this; }, strokeWidth() { return this; }, backgroundColor() { return this; }, backgroundOpacity() { return this; }, cornerRadius() { return this; }, pointerWidth() { return this; }, pointerHeight() { return this; }, attachedTo() { return this; }, layer() { return this; }, locked() { return this; }, disableHit() { return this; }, zIndex() { return this; }, name() { return this; }, metadata() { return this; }, build() { return { id: "mock-label" }; } }),
     buildImage: (...args) => ({ type: "IMAGE", args, build() { return { id: "mock-image" }; } }),
-    buildPath: (...args) => ({ type: "PATH", args, build() { return { id: "mock-path" }; } }),
+    buildPath: (...args) => {
+      const built = { id: `mock-path-${++mockPathSequence}`, metadata: {} };
+      const path = {
+        type: "PATH",
+        args,
+        commands() { return path; },
+        fillRule() { return path; },
+        fillColor() { return path; },
+        fillOpacity() { return path; },
+        strokeColor() { return path; },
+        strokeOpacity() { return path; },
+        strokeWidth() { return path; },
+        position(value) { built.position = clone(value); return path; },
+        locked(value) { built.locked = value; return path; },
+        disableHit(value) { built.disableHit = value; return path; },
+        layer(value) { built.layer = value; return path; },
+        metadata(value) { built.metadata = clone(value); return path; },
+        name(value) { built.name = value; return path; },
+        build() { return clone(built); },
+      };
+      return path;
+    },
     buildText: (...args) => ({ type: "TEXT", args, build() { return { id: "mock-text" }; } }),
     buildShape: (...args) => ({ type: "SHAPE", args, build() { return { id: "mock-shape" }; } }),
-    Command: class Command {},
+    Command: { MOVE: "MOVE", LINE: "LINE", CLOSE: "CLOSE", CUBIC: "CUBIC" },
   },
 });
 
-const effects = await import("../src/effectsMutations.js");
-const history = await import("../src/history.js");
-const historyOwner = await import("../src/historyOwner.js");
-const historyOwnerCore = await import("../src/historyOwnerCore.js");
-const historyUndoCore = await import("../src/historyUndoCore.js");
-const reminderResolution = await import("../src/reminderResolution.js");
-const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js");
-const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js");
-const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js");
+const clientEffects = await import("../src/effectsMutations.js?corrective-pass-client");
+globalThis.location = { pathname: "/background.html" };
+const backgroundEffects = await import("../src/effectsMutations.js?corrective-pass-background");
+globalThis.location = { pathname: "/plugin.html" };
+const baseEffects = await import("../src/effectsMutations.js?corrective-pass-base");
+mock.module("../src/effectsMutations.js", {
+  exports: {
+    ...baseEffects,
+    EFFECTS_MUTATION_STATUS: clientEffects.EFFECTS_MUTATION_STATUS,
+    runEffectsMutation: clientEffects.runEffectsMutation,
+    undoEffectsMutation: clientEffects.undoEffectsMutation,
+    hasPendingEffectsHistory: clientEffects.hasPendingEffectsHistory,
+    flushPendingEffectsHistory: clientEffects.flushPendingEffectsHistory,
+  },
+});
+
+const effects = clientEffects;
+const history = await import("../src/history.js?corrective-pass-history");
+const historyOwner = await import("../src/historyOwner.js?corrective-pass-owner");
+mock.module("../src/history.js", { exports: { ...history } });
+const historyOwnerCore = await import("../src/historyOwnerCore.js?corrective-pass-owner-core");
+const historyUndoCore = await import("../src/historyUndoCore.js?corrective-pass-undo-core");
+const reminderResolution = await import("../src/reminderResolution.js?corrective-pass-reminder");
+const { executeSpellAreaResolution } = await import("../src/spellAreaResolutionExecutor.js?corrective-pass-executor");
+const { buildSpellUnifiedPanelContract } = await import("../src/spellUnifiedPanelCore.js?corrective-pass-panel");
+const { buildSpellAreaResolutionCommand } = await import("../src/spellAreaResolutionCommandCore.js?corrective-pass-command");
 const { currentSceneEpoch } = await import("../src/sceneEpoch.js");
 const { normalizeHistoryUndoResult, HISTORY_UNDO_OUTCOME } = await import("../src/historyUndoResultCore.js");
 
@@ -118,12 +159,14 @@ function sleep(ms) {
 
 async function resetScene(items = []) {
   historyOwner.unmountHistoryOwner();
-  effects.unmountEffectsMutationCoordinatorService();
+  backgroundEffects.unmountEffectsMutationCoordinatorService();
+  reminderResolution.clearReminderResolutionQueue();
   sceneState.ready = true;
   sceneState.metadata = {};
   sceneState.items = clone(items);
   await historyOwner.mountHistoryOwner();
-  await effects.mountEffectsMutationCoordinatorService();
+  await backgroundEffects.mountEffectsMutationCoordinatorService();
+  await history.mountMovementHistoryWatcher();
 }
 
 const CASTER_ID = "token-caster";
@@ -165,6 +208,43 @@ function createStandardTokens() {
     },
   ];
 }
+
+function teleportSideEffect(targetId, position, { skipAnimation = false } = {}) {
+  return {
+    type: "token:teleport",
+    targetId,
+    position,
+    skipAnimation,
+  };
+}
+
+function manualDamageNotice({ activationId, amount }) {
+  return {
+    id: `notice:${activationId}`,
+    activationId,
+    kind: "zone-effect",
+    spellName: "Immolazione",
+    targets: [{ id: TARGET_ID, name: "Bersaglio" }],
+    resolution: {
+      version: 1,
+      mode: "manual-damage",
+      target: { id: TARGET_ID },
+      source: { id: CASTER_ID },
+      damage: { dice: amount === 10 ? "1d10" : "4d6", type: "fuoco" },
+      activation: { kind: "manual-damage", activationId },
+    },
+  };
+}
+
+test.after(() => {
+  reminderResolution.clearReminderResolutionQueue();
+  backgroundEffects.unmountEffectsMutationCoordinatorService();
+  historyOwner.unmountHistoryOwner();
+  globalThis.indexedDB = previousIndexedDB;
+  globalThis.IDBKeyRange = previousKeyRange;
+  if (previousLocation === undefined) delete globalThis.location;
+  else globalThis.location = previousLocation;
+});
 
 test("P0-A: TEST A1 — Cross-realm storeSeq ordering", async () => {
   await resetScene(createStandardTokens());
@@ -244,19 +324,27 @@ test("P0-A: TEST A4 — Real workflow: HP -> Condition -> Movement -> HP -> 4x A
   });
 
   // 2. Condition applied to Target
-  await effects.runEffectsMutation([{
+  const conditionResult = await effects.runEffectsMutation([{
     type: "condition:add",
-    targetId: TARGET_ID,
-    condition: { id: "blinded", label: "Accecato" },
-  }], { kind: "condition", label: "Accecato" });
+    targetIds: [TARGET_ID],
+    conditionName: "Accecato",
+  }], {
+    kind: "condition",
+    label: "Accecato",
+    targetIds: [TARGET_ID],
+    sceneEpoch: currentSceneEpoch(),
+  });
+  assert.equal(conditionResult.status, "applied");
 
   // 3. Movement of Caster from (0,0) to (50, 50)
-  await effects.runEffectsMutation([{
-    type: "token:teleport",
-    targetId: CASTER_ID,
-    position: { x: 50, y: 50 },
-    skipAnimation: true,
-  }], { kind: "move", label: "Movimento Mago" });
+  const movementResult = await effects.runEffectsMutation([], {
+    kind: "move",
+    label: "Movimento Mago",
+    targetIds: [CASTER_ID],
+    sceneEpoch: currentSceneEpoch(),
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 50, y: 50 }, { skipAnimation: true })],
+  });
+  assert.equal(movementResult.status, "applied");
 
   // 4. HP heal to Target (30 -> 35)
   await history.withItemMetaHistory({
@@ -274,26 +362,26 @@ test("P0-A: TEST A4 — Real workflow: HP -> Condition -> Movement -> HP -> 4x A
   assert.equal(initialEntries.length, 4);
 
   // Undo 1: Reverts HP heal (35 -> 30)
-  const u1 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u1).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u1 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u1).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   let [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].hp, 30);
 
   // Undo 2: Reverts Movement (50,50 -> 0,0)
-  const u2 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u2).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u2 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u2).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   let [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
   assert.deepEqual(caster.position, { x: 0, y: 0 });
 
   // Undo 3: Reverts Condition (removes blinded)
-  const u3 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u3).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u3 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u3).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].conditions?.instances?.length || 0, 0);
 
   // Undo 4: Reverts HP damage (30 -> 40)
-  const u4 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u4).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u4 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u4).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].hp, 40);
 
@@ -347,15 +435,32 @@ test("P0-B: TEST B2 — Real cast of Muro di Luce + complete Undo", async () => 
     contract,
     spellId: "xanathar-muro-di-luce",
     phase: "cast",
+    source: { kind: "cast", sceneEpoch: currentSceneEpoch() },
     casterId: CASTER_ID,
     slotLevel: 5,
-    targetIds: [],
-    outcomes: {},
+    targetIds: [TARGET_ID],
+    candidateTargetIds: [TARGET_ID],
+    outcomes: { [TARGET_ID]: "failed" },
+    hpAmount: 12,
     validateSpatial: false,
-    wallGeometry: {
-      origin: { x: 0, y: 0 },
-      end: { x: 300, y: 0 },
-      lengthFeet: 60,
+    targetLocked: true,
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      ruleId: "xanathar-muro-di-luce:cast",
+      spellId: "xanathar-muro-di-luce",
+      casterId: CASTER_ID,
+      targetIds: [TARGET_ID],
+      targetLocked: true,
+      preview: {
+        type: "line",
+        start: { x: 0, y: 0 },
+        end: { x: 300, y: 0 },
+        gridOrigin: { x: 0, y: 0 },
+        dpi: 100,
+        targetIds: [TARGET_ID],
+        targetLocked: true,
+      },
     },
   });
 
@@ -372,15 +477,15 @@ test("P0-B: TEST B2 — Real cast of Muro di Luce + complete Undo", async () => 
     emitFireballVisual: async () => {},
     withItemMetaHistory: history.withItemMetaHistory,
   });
-  assert.equal(castResult.status, "applied");
+  assert.equal(castResult.status, "applied", JSON.stringify(castResult));
 
   const itemsAfterCast = await sdkStub.scene.items.getItems();
   const wallItems = itemsAfterCast.filter((i) => i.metadata?.[STATIC_ZONE_KEY]);
   assert.ok(wallItems.length > 0, "Wall static zone items should be created on scene");
 
   // Perform Undo via production ALT+Z
-  const undoResult = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const undoResult = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
   const itemsAfterUndo = await sdkStub.scene.items.getItems();
   const wallItemsAfterUndo = itemsAfterUndo.filter((i) => i.metadata?.[STATIC_ZONE_KEY]);
@@ -419,11 +524,13 @@ test("P0-C: TEST C1 — Real animated teleport + Undo after completion", async (
   await resetScene(createStandardTokens());
 
   // Animated teleport from (0,0) to (300, 300)
-  const mutationResult = await effects.runEffectsMutation([{
-    type: "token:teleport",
-    targetId: CASTER_ID,
-    position: { x: 300, y: 300 },
-  }], { kind: "teleport", label: "Teletrasporto", skipAnimation: false });
+  const mutationResult = await effects.runEffectsMutation([], {
+    kind: "teleport",
+    label: "Teletrasporto",
+    targetIds: [CASTER_ID],
+    sceneEpoch: currentSceneEpoch(),
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 300, y: 300 })],
+  });
 
   assert.equal(mutationResult.status, "applied");
 
@@ -435,8 +542,8 @@ test("P0-C: TEST C1 — Real animated teleport + Undo after completion", async (
   assert.equal(caster.visible, true);
 
   // ALT+Z to Undo teleport
-  const undoResult = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const undoResult = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
   [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
   assert.deepEqual(caster.position, { x: 0, y: 0 });
@@ -447,11 +554,13 @@ test("P0-C: TEST C2 — Real animated teleport + Undo DURING animation (at 500ms
   await resetScene(createStandardTokens());
 
   // Start animated teleport
-  const mutationResult = await effects.runEffectsMutation([{
-    type: "token:teleport",
-    targetId: CASTER_ID,
-    position: { x: 400, y: 400 },
-  }], { kind: "teleport", label: "Teletrasporto in corso", skipAnimation: false });
+  const mutationResult = await effects.runEffectsMutation([], {
+    kind: "teleport",
+    label: "Teletrasporto in corso",
+    targetIds: [CASTER_ID],
+    sceneEpoch: currentSceneEpoch(),
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 400, y: 400 })],
+  });
 
   assert.equal(mutationResult.status, "applied");
 
@@ -459,8 +568,8 @@ test("P0-C: TEST C2 — Real animated teleport + Undo DURING animation (at 500ms
   await sleep(500);
 
   // Trigger Undo during active animation
-  const undoResult = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const undoResult = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
   // Let all forward animation timers (scheduled for 1000ms, 1500ms, 3000ms) elapse
   await sleep(3000);
@@ -475,18 +584,22 @@ test("P0-C: TEST C3 — Teleport + HP composite mutation", async () => {
   await resetScene(createStandardTokens());
 
   // Teleport Caster to (200,200) + 15 damage to Target in single mutation
-  const mutationResult = await effects.runEffectsMutation([
-    {
-      type: "token:teleport",
-      targetId: CASTER_ID,
-      position: { x: 200, y: 200 },
-    },
-    {
-      type: "hp:apply",
-      targetId: TARGET_ID,
-      amount: -15,
-    },
-  ], { kind: "composite", label: "Teleport + Danno" });
+  const mutationResult = await effects.runEffectsMutation([], {
+    kind: "composite",
+    label: "Teleport + Danno",
+    targetIds: [CASTER_ID, TARGET_ID],
+    sceneEpoch: currentSceneEpoch(),
+    metadataPatches: [{
+      id: TARGET_ID,
+      fields: {
+        hp: {
+          expected: { present: true, value: 40 },
+          value: 25,
+        },
+      },
+    }],
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 200, y: 200 })],
+  });
 
   assert.equal(mutationResult.status, "applied");
   await sleep(3200);
@@ -496,8 +609,8 @@ test("P0-C: TEST C3 — Teleport + HP composite mutation", async () => {
   assert.deepEqual(caster.position, { x: 200, y: 200 });
   assert.equal(target.metadata[META_KEY].hp, 25);
 
-  const undoResult = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const undoResult = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
   [caster] = await sdkStub.scene.items.getItems([CASTER_ID]);
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
@@ -509,20 +622,24 @@ test("P0-C: TEST C4 — Two rapid teleports cancel previous animation timers", a
   await resetScene(createStandardTokens());
 
   // Teleport 1 to (100, 100)
-  await effects.runEffectsMutation([{
-    type: "token:teleport",
-    targetId: CASTER_ID,
-    position: { x: 100, y: 100 },
-  }], { kind: "teleport", label: "Teleport 1", skipAnimation: false });
+  await effects.runEffectsMutation([], {
+    kind: "teleport",
+    label: "Teleport 1",
+    targetIds: [CASTER_ID],
+    sceneEpoch: currentSceneEpoch(),
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 100, y: 100 })],
+  });
 
   await sleep(400);
 
   // Teleport 2 to (500, 500) overrides Teleport 1
-  await effects.runEffectsMutation([{
-    type: "token:teleport",
-    targetId: CASTER_ID,
-    position: { x: 500, y: 500 },
-  }], { kind: "teleport", label: "Teleport 2", skipAnimation: false });
+  await effects.runEffectsMutation([], {
+    kind: "teleport",
+    label: "Teleport 2",
+    targetIds: [CASTER_ID],
+    sceneEpoch: currentSceneEpoch(),
+    sideEffects: [teleportSideEffect(CASTER_ID, { x: 500, y: 500 })],
+  });
 
   // Wait for all timers to complete
   await sleep(3500);
@@ -535,39 +652,12 @@ test("P0-C: TEST C4 — Two rapid teleports cancel previous animation timers", a
 test("P0-D: TEST D1 — Real reminder resolution with deferHistory: true + Undo", async () => {
   await resetScene(createStandardTokens());
 
-  const notice = {
-    id: "reminder-notice-1",
-    kind: "save",
-    type: "start-of-turn",
-    targetId: TARGET_ID,
-    sourceId: CASTER_ID,
-    spellId: "xanathar-immolazione",
-    ruleId: "immolation-turn-start-save",
-    activationId: "act-immolation-1",
-    save: { ability: "DEX", dc: 15, damageOnFail: { formula: "4d6", amount: 14 } },
-  };
-
-  const plan = {
-    noticeId: notice.id,
-    activationId: notice.activationId,
-    targetId: TARGET_ID,
-    sourceId: CASTER_ID,
-    spellId: notice.spellId,
-    ruleId: notice.ruleId,
-    outcome: "failed",
-    resolutionMode: "apply",
-    targetIds: [TARGET_ID],
-    operations: [
-      { type: "hp:apply", targetId: TARGET_ID, amount: -14 },
-    ],
-    damage: { amount: 14, factor: 1 },
-    metadataPatches: [],
-    sideEffects: [],
-  };
+  const notice = manualDamageNotice({ activationId: "act-immolation-1", amount: 14 });
 
   const resolveResult = await reminderResolution.resolveReminder({
     notice,
-    plan,
+    outcome: "confirmed",
+    damageRoll: 14,
     sceneEpoch: currentSceneEpoch(),
   });
   assert.equal(resolveResult.status, "applied");
@@ -583,8 +673,8 @@ test("P0-D: TEST D1 — Real reminder resolution with deferHistory: true + Undo"
   assert.equal(entries[0].kind, "reminder-resolution");
 
   // ALT+Z reverts the reminder resolution
-  const undoResult = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const undoResult = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(undoResult).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
 
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].hp, 40);
@@ -606,11 +696,22 @@ test("P0-D: TEST D2 — Causal barrier blocks Undo when history is pending", asy
   });
 
   // Action B applied with deferHistory: true (pending history)
-  await effects.runEffectsMutation([{
-    type: "hp:apply",
-    targetId: TARGET_ID,
-    amount: -10,
-  }], { kind: "reminder-resolution", label: "Azione B Deferred", deferHistory: true });
+  await effects.runEffectsMutation([], {
+    kind: "reminder-resolution",
+    label: "Azione B Deferred",
+    targetIds: [TARGET_ID],
+    sceneEpoch: currentSceneEpoch(),
+    deferHistory: true,
+    metadataPatches: [{
+      id: TARGET_ID,
+      fields: {
+        hp: {
+          expected: { present: true, value: 35 },
+          value: 25,
+        },
+      },
+    }],
+  });
 
   // Simulate pending history not flushed yet
   const readiness = await history.getHistoryUndoReadiness({ attempts: 1 });
@@ -621,24 +722,13 @@ test("P0-D: TEST D4 — Reminder then normal action -> 2x Undo in correct order"
   await resetScene(createStandardTokens());
 
   // 1. Reminder resolution (Target HP: 40 -> 30)
-  const notice = {
-    id: "notice-2",
-    activationId: "act-2",
-    targetId: TARGET_ID,
-    sourceId: CASTER_ID,
-    spellId: "immolation",
-    ruleId: "immolation-save",
-  };
-  const plan = {
-    activationId: "act-2",
-    targetId: TARGET_ID,
-    outcome: "failed",
-    resolutionMode: "apply",
-    targetIds: [TARGET_ID],
-    operations: [{ type: "hp:apply", targetId: TARGET_ID, amount: -10 }],
-    damage: { amount: 10, factor: 1 },
-  };
-  await reminderResolution.resolveReminder({ notice, plan, sceneEpoch: currentSceneEpoch() });
+  const notice = manualDamageNotice({ activationId: "act-2", amount: 10 });
+  await reminderResolution.resolveReminder({
+    notice,
+    outcome: "confirmed",
+    damageRoll: 10,
+    sceneEpoch: currentSceneEpoch(),
+  });
   await sleep(1000); // Allow deferred persistence
 
   // 2. Normal action (Target HP: 30 -> 25)
@@ -657,14 +747,14 @@ test("P0-D: TEST D4 — Reminder then normal action -> 2x Undo in correct order"
   assert.equal(target.metadata[META_KEY].hp, 25);
 
   // Undo 1: Reverts Normal Action (25 -> 30)
-  const u1 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u1).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u1 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u1).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].hp, 30);
 
   // Undo 2: Reverts Reminder (30 -> 40)
-  const u2 = await history.undoLastHistoryEntry();
-  assert.equal(normalizeHistoryUndoResult(u2).outcome, HISTORY_UNDO_OUTCOME.APPLIED);
+  const u2 = await history.undoHistoryThrough(undefined, { sceneEpoch: currentSceneEpoch() });
+  assert.equal(normalizeHistoryUndoResult(u2).outcome, HISTORY_UNDO_OUTCOME.COMMITTED);
   [target] = await sdkStub.scene.items.getItems([TARGET_ID]);
   assert.equal(target.metadata[META_KEY].hp, 40);
 });

@@ -1,0 +1,45 @@
+{
+  "version": 3,
+  "id": "event-seq-63",
+  "sequence": 63,
+  "kind": "condition",
+  "category": "condition",
+  "source": "automatic",
+  "turn": {
+    "id": "dars",
+    "name": "Dars"
+  },
+  "turnContext": {
+    "activeId": "dars",
+    "activeName": "Dars",
+    "turnIndex": null,
+    "turnKey": null,
+    "orderRevision": null
+  },
+  "provenance": {
+    "recordingSource": "unknown",
+    "actor": null,
+    "cause": null
+  },
+  "targets": [
+    {
+      "id": "dars",
+      "name": "Dars"
+    }
+  ],
+  "facets": {
+    "conditions": {
+      "added": [
+        {
+          "id": "prone",
+          "name": "Prono",
+          "lineage": null
+        }
+      ],
+      "updated": [],
+      "removed": [],
+      "targets": []
+    }
+  },
+  "payload": {}
+}

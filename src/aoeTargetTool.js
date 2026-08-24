@@ -286,8 +286,22 @@ async function beginSpellPlacement(data) {
   const placementContext = data?.context && typeof data.context === "object"
     ? data.context
     : null;
+  const anchorTargetId = String(placementContext?.anchorTargetId || "").trim();
   const baseRule = getSpellAreaRuleById(ruleId);
   const rule = getSpellAreaRuleForPlacement(ruleId, ruleChoice, placementContext);
+  const anchorBounds = anchorTargetId
+    ? await OBR.scene.items.getItemBounds([anchorTargetId]).catch(() => null)
+    : null;
+  if (anchorTargetId && !anchorBounds?.center) {
+    await sendSpellPlacementResult({
+      requestId,
+      ruleId,
+      status: "error",
+      error: "placement-anchor-target-unavailable",
+      context: placementContext,
+    });
+    return;
+  }
   const parentZoneId = String(placementContext?.parentZoneId || "").trim();
   const [parentZone] = parentZoneId
     ? await OBR.scene.items.getItems([parentZoneId]).catch(() => [])
@@ -365,6 +379,7 @@ async function beginSpellPlacement(data) {
       parentArea,
       casterOrigin: caster?.center || null,
       casterBounds: caster?.bounds || null,
+      anchorOrigin: anchorBounds?.center || null,
       rangePreview: null,
       batch: normalizedBatchObjects(data?.context).length
         ? {
@@ -1447,9 +1462,11 @@ function startDrag(type, event) {
   const placement = spellPlacementSession;
   const constrained = !!placement;
   const effectiveType = constrained ? placement.rule.geometry.shape : type;
-  const rawStart = constrained && placement.rule.placement.origin === "caster"
-    ? placement.casterOrigin
-    : pointer;
+  const rawStart = constrained && placement.anchorOrigin
+    ? placement.anchorOrigin
+    : constrained && placement.rule.placement.origin === "caster"
+      ? placement.casterOrigin
+      : pointer;
   const batchObject = currentBatchObject(placement);
   const placementContext = placement
     ? {
@@ -1488,6 +1505,7 @@ function startDrag(type, event) {
     parentArea: constrained ? placement.parentArea : null,
     casterOrigin: constrained ? placement.casterOrigin : null,
     casterBounds: constrained ? placement.casterBounds : null,
+    anchorOrigin: constrained ? placement.anchorOrigin : null,
     sizeCells: 0,
     widthCells: 0,
     measureLabel: "",

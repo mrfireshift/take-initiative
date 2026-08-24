@@ -169,6 +169,7 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "placement-not-confirmed": "L'area non è stata confermata.",
   "placement-stale": "La scena o l'area sono cambiate: ripeti il posizionamento.",
   "placement-target-lock-required": "Conferma i bersagli dell'area prima di applicare.",
+  "placement-anchor-target-unavailable": "Il bersaglio primario non è più presente nella scena.",
   "target-lock-required": "Conferma i bersagli dell'area prima di applicare.",
   "targets-required": "Seleziona almeno un bersaglio.",
   "target-limit-exceeded": "Il numero di bersagli supera il limite dichiarato.",
@@ -445,8 +446,8 @@ export function bootSpellUnifiedPanel(
       height: request.height,
       anchorReference: "POSITION",
       anchorPosition: await activePopoverAnchor(casterId),
-      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
-      transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       disableClickAway: true,
       marginThreshold: 8,
       hidePaper: true,
@@ -629,7 +630,8 @@ export function bootSpellUnifiedPanel(
       primaryTargetId: targetSet.has(state.session.primaryTargetId)
         ? state.session.primaryTargetId
         : "",
-      ...(state.model?.targets?.outcomes?.mode === "attack" && !nextIds.length
+      ...( ["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)
+        && !nextIds.length
         ? { attackOutcome: "" }
         : {}),
       outcomes,
@@ -844,7 +846,8 @@ export function bootSpellUnifiedPanel(
       primaryTargetId: targetSet.has(state.session.primaryTargetId)
         ? state.session.primaryTargetId
         : "",
-      ...(state.model?.targets?.outcomes?.mode === "attack" && !nextIds.length
+      ...( ["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)
+        && !nextIds.length
         ? { attackOutcome: "" }
         : {}),
       outcomes: Object.fromEntries(
@@ -1055,9 +1058,23 @@ export function bootSpellUnifiedPanel(
     const eligibility = getSpellUnifiedAreaEligibility(state.contract, state.session);
     const descriptor = placementDescriptor();
     const manualTargetSelection = state.contract?.presentation?.targeting?.selectionMode === "manual";
+    const preparedHitArea = state.session?.phase === "resolve"
+      && PREPARED_AREA_RESOLUTION_SPELL_IDS.has(state.contract?.spell?.id || "");
+    const primaryTargetId = String(state.session?.primaryTargetId || "").trim();
+    if (preparedHitArea && !primaryTargetId) {
+      patchSession({
+        feedback: {
+          state: "info",
+          message: "Seleziona il bersaglio primario colpito prima di posizionare l'area.",
+        },
+      }, { clearFeedback: false });
+      return;
+    }
     const retainedTargetIds = manualTargetSelection
       ? uniqueIds(state.session.targetIds)
-      : [];
+      : preparedHitArea
+        ? uniqueIds([primaryTargetId])
+        : [];
     if (!eligibility.eligible || !descriptor.ruleId || state.committing) return;
     if (descriptor.policy === "automatic") return;
     if (state.session.placement?.state === "pending") return;
@@ -1092,7 +1109,7 @@ export function bootSpellUnifiedPanel(
         error: null,
         targetIds: retainedTargetIds,
       },
-      ...(manualTargetSelection
+      ...(manualTargetSelection || preparedHitArea
         ? {}
         : {
           targetIds: [],
@@ -1112,7 +1129,7 @@ export function bootSpellUnifiedPanel(
     render();
 
     try {
-      if (!manualTargetSelection) await writeSelection([]);
+      if (!manualTargetSelection) await writeSelection(retainedTargetIds);
       if (!sceneLifecycle.isCurrent(operation)) return;
       const result = await requestSpellAreaPlacement({
         requestId,
@@ -1123,6 +1140,7 @@ export function bootSpellUnifiedPanel(
           phase: state.session.phase,
           spellId: state.contract?.spell?.id || "",
           slotLevel: state.session.slotLevel,
+          ...(preparedHitArea ? { anchorTargetId: primaryTargetId } : {}),
         },
       }, {
         broadcast: runtimeOverrides.broadcast || OBR.broadcast,
@@ -2079,6 +2097,9 @@ export function bootSpellUnifiedPanel(
     state.revision += 1;
     render();
     const caster = state.casters.find((item) => item.id === state.session.casterId);
+    const spellSaveDC = numeric(
+      caster?.metadata?.[`${ID}/meta`]?.initiativeCard?.spellSaveDC,
+    );
     const result = await executeSpellUnifiedLifecycle({
       contract: state.contract,
       session: state.session,
@@ -2088,6 +2109,7 @@ export function bootSpellUnifiedPanel(
           isCurrent: () => sceneLifecycle.isCurrent(operation),
           spell: getSpellDefinition(state.contract?.spell?.id),
           casterName: caster?.name || "",
+          ...(spellSaveDC === null ? {} : { castContext: { spellSaveDC } }),
           getAppliedAt: () => provider.getAppliedAt?.(),
           resolveActiveConcentration: ({ casterId, spell }) =>
             provider.getActiveConcentration?.(casterId, spell),
@@ -2116,6 +2138,22 @@ export function bootSpellUnifiedPanel(
         },
       });
       await refreshScene();
+      return;
+    }
+    if (result.status === SPELL_UNIFIED_LIFECYCLE_STATUS.NOOP) {
+      const pending = result.pending === true;
+      state.session = updateSpellPanelSession(state.session, {
+        commitState: { state: "idle" },
+        feedback: {
+          state: "info",
+          message: pending
+            ? "Attacco mancato: la preparazione resta disponibile."
+            : "La risoluzione è già stata consumata.",
+        },
+      });
+      await refreshScene();
+      state.revision += 1;
+      render();
       return;
     }
     state.session = updateSpellPanelSession(state.session, {
@@ -2392,6 +2430,10 @@ export function bootSpellUnifiedPanel(
       });
       if (!wasSelected) await writeSelection(targetIds);
     },
+    onAttackOutcomeChange: (value) => {
+      if (!["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)) return;
+      patchSession({ attackOutcome: value });
+    },
     onOutcomeBulkChange: (value) => {
       const selectedIds = uniqueIds(state.session.targetIds || []);
       if (!selectedIds.length) return;
@@ -2402,6 +2444,10 @@ export function bootSpellUnifiedPanel(
       patchSession({
         outcomes: Object.fromEntries(selectedIds.map((key) => [key, value])),
       });
+    },
+    onAttackOutcomeBulkChange: (value) => {
+      if (!["attack", "attack-and-save"].includes(state.model?.targets?.outcomes?.mode)) return;
+      patchSession({ attackOutcome: value });
     },
     onTargetContextChange: (targetId, field, value) => patchSession({
       targetContext: {

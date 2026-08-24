@@ -176,6 +176,70 @@ test("la risoluzione dismiss interrompe senza ricreare spell o concentrazione", 
   assert.equal(plan.historyLabel, "Colpo tonante risolto");
 });
 
+test("la risoluzione prepared usa esito TS esplicito e dismiss scoped", () => {
+  const spell = getSpellDefinition("Colpo Intrappolante");
+  const castContext = { slotLevel: 1, phase: "resolve" };
+  const intent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 9,
+    casterId: "caster",
+    targetIds: ["enemy"],
+    castContext,
+    phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+    activeConcentration: {
+      instanceId: "ensnaring-instance",
+      targets: ["caster"],
+    },
+    attackOutcome: "hit",
+    saveOutcome: "passed",
+    manualAttackOutcomeRequired: true,
+    requestedConcentration: true,
+  });
+  const plan = planFor(intent, { instanceId: "ensnaring-instance" });
+
+  assert.equal(intent.attackOutcome, "hit");
+  assert.deepEqual(intent.saveOutcomes, { enemy: "passed" });
+  assert.equal(plan.concentrationAction, "dismiss");
+  assert.deepEqual(plan.operations, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "ensnaring-instance",
+  }]);
+});
+
+test("Searing usa lo scaling dello slot solo sul danno iniziale e accetta critical", () => {
+  const spell = getSpellDefinition("Punizione Incandescente");
+  const castContext = { slotLevel: 3, phase: "resolve" };
+  const intent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 9,
+    casterId: "caster",
+    targetIds: ["enemy"],
+    castContext,
+    phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+    activeConcentration: {
+      instanceId: "searing-instance",
+      targets: ["caster"],
+    },
+    attackOutcome: "critical",
+    damageValue: 12,
+    manualAttackOutcomeRequired: true,
+    requestedConcentration: true,
+  });
+  const plan = planFor(intent, { instanceId: "searing-instance" });
+
+  assert.equal(intent.attackOutcome, "critical");
+  assert.deepEqual(plan.initialDamage, { dice: "3d6", type: "fuoco" });
+  assert.equal(plan.damageRequired, true);
+  assert.equal(
+    getSpellCastPhasePlan(spell, "prepare", { slotLevel: 3 })
+      .effects[0].mechanics.ongoingDamage.dice,
+    "1d6",
+  );
+});
+
 test("Parola del potere stordire persiste il TS ricorrente senza TS iniziale", () => {
   const intent = intentFor("Parola del potere stordire", {
     turns: 1,

@@ -537,11 +537,11 @@ Spell
 ├─ area/zone/aura: N/A
 ├─ save: fleshToStoneRules.js → FLESH_TO_STONE_SAVE_AUTOMATION; repeated Constitution saves
 ├─ damage/healing: N/A
-├─ persistent state: restrained effect, progress marker/counter, petrified effect
+├─ persistent state: Trattenuto con progress S/F sulla stessa effect instance, poi Pietrificato
 ├─ reminders: fleshToStoneReminderForInstance
 ├─ turn prompts: repeated save reminder
 ├─ active actions: N/A; progress is outcome-driven
-├─ cleanup: success, two failures, parent removal and marker cleanup
+├─ cleanup: three successes, three failures/stabilization, parent removal and concentration lifecycle
 └─ mutation: reminder resolution / condition operations → runEffectsMutation
 ```
 
@@ -812,7 +812,7 @@ entry in registri condivisi.
 | Entry `xanathar-muro-di-luce` | Muro di Luce | initial save, zone trigger, beam/counter | Media-alta: lunghezza e parent action | Riusa zone, reminder, active resolution e mutation | `JUSTIFIED` |
 | Entry `grease` | Unto | zone membership, prone save e terrain | Bassa | Riusa static zone e trigger core | `MOSTLY CONFIGURATION` |
 | Entry `xanathar-sfera-della-tempesta` | Sfera della Tempesta | zone + active lightning | Media | Riusa static zone, trigger e active action executor | `JUSTIFIED` |
-| `fleshToStoneRules.js` | Carne in Pietra | progress 2 failures/2 successes e marker | Alta: progress semantics specifica | Riusa reminder, condition e mutation layer | `JUSTIFIED` |
+| `fleshToStoneRules.js` | Carne in Pietra | progress S/F, repeated save e branch terminali | Alta: progress semantics specifica | Riusa reminder, condition e mutation layer | `JUSTIFIED` |
 | `spellActiveResolutionRules.js` entry | Eyebite, Corona, Telecinesi, Debilitazione | active action declarations | Variabile, prevalentemente dati | Usa active action executor comune | `MOSTLY CONFIGURATION` |
 | `spells-srd.js` `AUTOMATION` / `SAVE_AUTOMATION` | Cecità/Sordità, Hold, Risata, Carne in Pietra | condition, repeated save, expiry | Bassa-media | Usa lifecycle/reminder/mutation | `MOSTLY CONFIGURATION` |
 | `supplementSpellRules.js` / `phb2014SpellRules.js` entry | Debilitazione, Colpo Intrappolante, Muro | effect/condition/phase declaration | Variabile | Usa application/reminder/mutation | `MOSTLY CONFIGURATION` |
@@ -920,17 +920,20 @@ bersaglio, scaling e movimento della zona lasciato manuale. Anche `Arma Sacra`
 e `Controllare Venti` sono ora auditati e approvati: la prima chiude
 l'esplosione con Condition nativa, reminder TS indipendente dalla
 concentrazione e popup di turno; la seconda chiude il popup delle modalità, le
-pill sintetiche e il reconcile immediato senza swept-area trigger. Non sono più
-candidati P1; anche il batch multi-target (`Anatema`, `Benedizione`, `Lentezza`,
-`Confusione`, `Parola Radiosa`) e le zone statiche `Nube di Pugnali`/
-`Nube Maleodorante` sono auditati e approvati. Per `Parola Radiosa` resta solo
-il follow-up visuale del tema colore dell'area; i risultati sono registrati
-nell'audit di automazione.
+pill sintetiche e il reconcile immediato senza swept-area trigger. Anche
+`Paura`, `Contagio` e `Carne in Pietra` sono ora auditati e approvati: i
+reminder, i contatori S/F, le condizioni canoniche, i branch terminali e il
+cleanup target-scoped/concentrazione o non-concentration sono coperti dai
+contratti shared. Non sono più candidati P1; anche il batch multi-target
+(`Anatema`, `Benedizione`, `Lentezza`, `Confusione`, `Parola Radiosa`) e le
+zone statiche `Nube di Pugnali`/`Nube Maleodorante` sono auditati e approvati.
+Per `Parola Radiosa` resta solo il follow-up visuale del tema colore dell'area;
+i risultati sono registrati nell'audit di automazione.
 
 | Priorità | Batch candidato | Spell candidate da verificare nel catalogo | Primitive riusabili | Perché è il prossimo passo naturale | Rischio principale |
 | ---: | --- | --- | --- | --- | --- |
 | 1 | Azioni ricorrenti e counters | altre spell con azione successiva non approvata | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, resource/counter, turn notice | `Invocare il fulmine`, `Spada Arcana`, `Lama del Disastro`, `Sguardo Penetrante`, `Arma Sacra`, `Controllare Venti` e `Riscaldare il metallo` sono golden references già approvate; restano da verificare i casi non chiusi | parent instance stale, consumo anche su miss, fine spell a counter zero |
-| 2 | Save persistenti e cleanup condizionale | `Paura`, `Dominare Persone/Mostri`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
+| 2 | Save persistenti e cleanup condizionale | `Dominare Persone/Mostri`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata, Paura, Contagio e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
 | 3 | Prepared/next-hit e danno persistente | `Punizione Incandescente`, `Punizione Tonante`, `Raffica di Spine`, `Marchio del Cacciatore` | `spellCastPhaseCore.js`, lifecycle adapter, `spellApplicationOperations`, reminders | Colpo Intrappolante dimostra il modello prepared → extend → effect persistente | transizione prepared/resolve e collegamento con l'attacco che innesca |
 | 4 | Aree istantanee con placement e scaling | `Fulmine`, `Cono di Freddo`, `Tempesta di Ghiaccio`, altre area-save non approvate | area rule, placement grid, target filtering, slot geometry/scaling, area executor | È il batch a minor costo architetturale se il workflow è realmente istantaneo | differenza tra area geometrica e target discreti/area-subset |
 

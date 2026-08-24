@@ -40,6 +40,7 @@ import {
   SPELL_ACTIVE_RESOLUTION_ACTIONS,
 } from "./spellActiveResolutionRules.js";
 import { FLESH_TO_STONE_SAVE_AUTOMATION } from "./fleshToStoneRules.js";
+import { CONTAGION_EFFECT_CHOICES } from "./contagionRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -149,7 +150,7 @@ const AUTOMATION = Object.freeze({
           ability: "wis",
           timing: "turn-end",
           dcSource: "source-spell",
-          label: "TS solo se il caster non è in vista; se supera, termina l'effetto.",
+          label: "Effettua questo TS solo se il caster non è in vista. Se lo supera, termina Paura su di sé.",
         },
       },
     },
@@ -395,6 +396,14 @@ const TARGETING_OVERRIDES = Object.freeze({
     maxTargets: 1,
     spatial: Object.freeze({ mode: "caster-range", maxMeters: 18 }),
   }),
+  "contagion": Object.freeze({
+    maxTargets: 1,
+    spatial: Object.freeze({
+      mode: "manual",
+      label: "Portata: Contatto · verifica manuale",
+      requiresCaster: true,
+    }),
+  }),
 });
 
 const SLOT_DURATION_OVERRIDES = Object.freeze({
@@ -433,7 +442,7 @@ const SAVE_AUTOMATION = Object.freeze({
         ability: "wis",
         timing: "turn-end",
         dcSource: "source-spell",
-        label: "TS solo se il caster non è in vista; se supera, termina l'effetto.",
+        label: "Effettua questo TS solo se il caster non è in vista. Se lo supera, termina Paura su di sé.",
       }),
       manualRemoval: true,
       endsParentOnRemoval: true,
@@ -1161,6 +1170,7 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
       })]),
     })),
   ]),
+  contagion: CONTAGION_EFFECT_CHOICES,
   ...SUPPLEMENT_EFFECT_CHOICES,
   ...PHB2014_EFFECT_CHOICES,
 });

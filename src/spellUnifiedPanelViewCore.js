@@ -311,6 +311,7 @@ function targetFilterModel(candidates, targetFilters = {}) {
 
 function spatialRuleLabel(spatial = null) {
   if (!spatial || typeof spatial !== "object") return "";
+  if (asText(spatial.label)) return asText(spatial.label);
   const mode = asText(spatial.mode);
   const primary = spatial.primaryRangeMeters ?? spatial.range?.value;
   const secondary = spatial.secondaryRangeMeters;
@@ -465,6 +466,18 @@ function normalizeEffectFields(presentation, session, validation, spellId = "") 
       value: hpValues.damage ?? "",
       invalid: validation.firstInvalidField === "damage",
     });
+    if (spellId === "phb2014-freccia-folgorante"
+      && session?.phase === "resolve") {
+      fields.push({
+        id: "primaryDamage",
+        type: "number",
+        label: "Danno primario",
+        hint: "Totale già tirato sul bersaglio colpito (sostitutivo).",
+        min: 0,
+        value: hpValues.primaryDamage ?? "",
+        invalid: validation.firstInvalidField === "primaryDamage",
+      });
+    }
   }
   if (inputs.healing?.visible) {
     fields.push({
@@ -601,6 +614,9 @@ export function buildUnifiedPanelViewModel({
   const outcomeOptions = Array.isArray(presentation.outcomes?.options)
     ? clone(presentation.outcomes.options)
     : [];
+  const attackOutcomeOptions = Array.isArray(presentation.outcomes?.attackOptions)
+    ? clone(presentation.outcomes.attackOptions)
+    : [];
   const isAreaSubset = targeting.selectionMode === "area-subset";
   const isPostPlacement = targeting.selectionMode === "post-placement";
   const placementCandidateIds = isAreaSubset && workflow.placement.confirmed === true
@@ -619,9 +635,9 @@ export function buildUnifiedPanelViewModel({
     session?.outcomes,
     maxTargets,
     effectiveTargetLocked,
-    outcomeMode,
-    session?.attackOutcome,
-    outcomeOptions,
+      outcomeMode,
+      session?.attackOutcome,
+      outcomeOptions,
     placementCandidateIds,
   );
   const normalizedTargetFilters = targetFilterModel(allCandidates, targetFilters);
@@ -875,6 +891,13 @@ export function buildUnifiedPanelViewModel({
         label: "Esiti TS / attacco",
         mode: outcomeMode,
         options: outcomeOptions,
+        attack: {
+          visible: outcomeMode === "attack-and-save",
+          required: outcomeMode === "attack-and-save",
+          label: "Esito dell'attacco",
+          value: asText(session?.attackOutcome),
+          options: attackOutcomeOptions,
+        },
       },
       context: targetContextFields(
         presentation,

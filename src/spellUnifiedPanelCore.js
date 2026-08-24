@@ -611,7 +611,7 @@ function targetingLimit({ spell, targetingRule, selectedAction, chainRule, slotL
   };
 }
 
-function primaryTargetDescriptor({ chainRule, selectedAction }) {
+function primaryTargetDescriptor({ chainRule, selectedAction, spell, phasePlan }) {
   if (chainRule) {
     return {
       required: true,
@@ -626,6 +626,17 @@ function primaryTargetDescriptor({ chainRule, selectedAction }) {
       maximum: integerOrNull(selectedAction.primaryTarget.maximum),
       source: "active-action",
       ...cloneValue(selectedAction.primaryTarget),
+    };
+  }
+  if (
+    phasePlan?.phase === "resolve"
+    && ["phb2014-raffica-di-spine", "phb2014-freccia-folgorante"].includes(spell?.id)
+  ) {
+    return {
+      required: true,
+      maximum: 1,
+      source: "prepared-hit-target",
+      rangeMeters: null,
     };
   }
   return {
@@ -737,7 +748,12 @@ function targetingDescriptor({
     limit.baseSlot = null;
     limit.source = "placement-targeting";
   }
-  const primaryTarget = primaryTargetDescriptor({ chainRule, selectedAction });
+  const primaryTarget = primaryTargetDescriptor({
+    chainRule,
+    selectedAction,
+    spell,
+    phasePlan,
+  });
   const spatialRules = targetingSpatialRules({
     selectedAction,
     chainRule,
@@ -780,7 +796,8 @@ function hasExplicitDamage({
   )) return true;
   if (phasePlan?.resolution?.mechanics?.areaDamage
     || phasePlan?.resolution?.mechanics?.damage
-    || phasePlan?.resolution?.mechanics?.damageReplacement) return true;
+    || phasePlan?.resolution?.mechanics?.damageReplacement
+    || phasePlan?.resolution?.mechanics?.damageBonus) return true;
   if ((castRules || []).some((rule) => rule?.zonePolicy?.initialResolution === "manual-save")) {
     return true;
   }
@@ -803,7 +820,10 @@ function hasAreaTransaction({
   const castResolution = getSpellCastResolutionRule(spell);
   return castRules.length > 0
     || castResolution?.resolution === "manual-damage"
-    || (phasePlan?.phase === "resolve" && !!phasePlan?.resolution)
+    || (phasePlan?.phase === "resolve" && (
+      !!phasePlan?.resolution?.mechanics?.areaDamage
+      || !!phasePlan?.resolution?.mechanics?.damageReplacement
+    ))
     || (areaCatalogEnabled && !!getSpellAttackResolution(spell))
     || (areaCatalogEnabled && AREA_POPOVER_SAVE_SPELL_ID_SET.has(text(spell?.id)))
     || (areaCatalogEnabled && AREA_SAVE_SPELL_ID_SET.has(text(spell?.id)))
@@ -904,6 +924,7 @@ function casterDescriptor({ spell, targeting, placement, selectedAction, saveOut
   const reasons = [];
   if (spell?.concentration === true) reasons.push("concentration");
   if (saveOutcomes) reasons.push("save");
+  if (targeting.spatialRules?.requiresCaster === true) reasons.push("targeting-source");
   if (["self", "caster"].includes(targeting.subjectMode)) reasons.push("subject");
   if (["caster-range", "primary-and-secondary-range", "action-range"].includes(
     targeting.spatialRules?.mode,
@@ -1027,10 +1048,13 @@ function inputDescriptor({
     || selectedAction?.requiresTargets === true
     || (selectedAction?.maxTargets || 0) > 0;
   const outcomeRequired = saveOutcomes
+    || (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true)
     || selectedAction?.capabilities.attack === true
     || !!getSpellAttackResolution(spell);
   const choiceRequired = choices.length > 0;
   const damageRequired = hpInputVisible && !healing;
+  const primaryDamageRequired = spell?.id === "phb2014-freccia-folgorante"
+    && phasePlan?.phase === "resolve";
   const healingRequired = hpInputVisible && healing;
   const compositionRequired = !!composition;
   return {
@@ -1071,12 +1095,34 @@ function inputDescriptor({
       mode: healing ? "healing" : "damage",
     },
     damage: { required: damageRequired, visible: damageRequired },
+    primaryDamage: {
+      required: primaryDamageRequired,
+      visible: primaryDamageRequired,
+      mode: "damage",
+    },
     healing: { required: healingRequired, visible: healingRequired },
     automation: { required: false, visible: automation.available },
   };
 }
 
-function outcomeOptions({ spell, selectedAction, saveOutcomes, workflowRule = null }) {
+function outcomeOptions({
+  spell,
+  phasePlan,
+  selectedAction,
+  saveOutcomes,
+  workflowRule = null,
+}) {
+  if (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true) {
+    const labels = {
+      hit: "Colpito",
+      miss: "Mancato",
+      critical: "Critico",
+    };
+    return (phasePlan.attack.outcomes || [])
+      .map((value) => text(value).toLocaleLowerCase("it"))
+      .filter(Boolean)
+      .map((value) => ({ value, label: labels[value] || value }));
+  }
   const declaredAttackOutcomes = Array.isArray(selectedAction?.attack?.outcomes)
     ? selectedAction.attack.outcomes
     : [];
@@ -1093,6 +1139,22 @@ function outcomeOptions({ spell, selectedAction, saveOutcomes, workflowRule = nu
   }
   const castAttackOptions = spellAttackResolutionChoiceOptions(spell);
   if (castAttackOptions.length) return castAttackOptions;
+  if (!saveOutcomes) return [];
+  const labels = {
+    passed: "Superato",
+    failed: "Fallito",
+    immune: "Immune",
+  };
+  const declaredSaveOutcomes = Array.isArray(workflowRule?.outcomeOptions)
+    ? workflowRule.outcomeOptions
+    : ["passed", "failed", "immune"];
+  return declaredSaveOutcomes
+    .map((value) => text(value).toLocaleLowerCase("it"))
+    .filter(Boolean)
+    .map((value) => ({ value, label: labels[value] || value }));
+}
+
+function saveOutcomeOptions({ saveOutcomes, workflowRule }) {
   if (!saveOutcomes) return [];
   const labels = {
     passed: "Superato",
@@ -1149,7 +1211,11 @@ function controlList({
   if (choices.length) controls.add("rule-choice");
   if (workflowRule) controls.add("save-workflow");
   if (saveOutcomes) controls.add("save-outcomes");
-  if (selectedAction?.capabilities.attack || getSpellAttackResolution(spell)) {
+  if (
+    selectedAction?.capabilities.attack
+    || getSpellAttackResolution(spell)
+    || (phasePlan?.phase === "resolve" && phasePlan?.attack?.required === true)
+  ) {
     controls.add("attack-outcomes");
   }
   if (workflowContext) controls.add("target-context");
@@ -1184,7 +1250,8 @@ function executionDescriptor({
   );
   const phaseResolutionHasHP = !!phasePlan?.resolution?.mechanics?.areaDamage
     || !!phasePlan?.resolution?.mechanics?.damage
-    || !!phasePlan?.resolution?.mechanics?.damageReplacement;
+    || !!phasePlan?.resolution?.mechanics?.damageReplacement
+    || !!phasePlan?.resolution?.mechanics?.damageBonus;
   const activeActionHasHP = !!selectedAction?.capabilities?.hp
     || selectedAction?.requiresHPInput === true
     || selectedAction?.inputRequirements?.hp === true
@@ -1306,10 +1373,15 @@ export function buildSpellUnifiedPanelContract({
   });
   const outcomeOptionsValue = outcomeOptions({
     spell,
+    phasePlan,
     selectedAction,
     saveOutcomes,
     workflowRule,
   });
+  const saveOutcomeOptionsValue = saveOutcomeOptions({ saveOutcomes, workflowRule });
+  const combinedAttackAndSave = phasePlan.phase === "resolve"
+    && phasePlan.attack?.required === true
+    && saveOutcomes;
   const automation = automationDescriptor({ spell, phasePlan });
   const controls = controlList({
     spell,
@@ -1405,6 +1477,7 @@ export function buildSpellUnifiedPanelContract({
           subjectMode: text(phasePlan.subjectMode),
           useCatalogAutomation: phasePlan.useCatalogAutomation === true,
           concentrationAction: text(phasePlan.concentrationAction),
+          attack: phasePlan.attack ? cloneValue(phasePlan.attack) : null,
           resolution: phasePlan.resolution ? cloneValue(phasePlan.resolution) : null,
         },
       },
@@ -1436,10 +1509,15 @@ export function buildSpellUnifiedPanelContract({
       automation,
       targeting,
       outcomes: {
-        mode: getSpellAttackResolution(spell) || selectedAction?.capabilities?.attack
+        mode: combinedAttackAndSave
+          ? "attack-and-save"
+          : phasePlan.phase === "resolve" && phasePlan.attack?.required === true
+          || getSpellAttackResolution(spell)
+          || selectedAction?.capabilities?.attack
           ? "attack"
           : "save",
-        options: outcomeOptionsValue,
+        options: combinedAttackAndSave ? saveOutcomeOptionsValue : outcomeOptionsValue,
+        ...(combinedAttackAndSave ? { attackOptions: outcomeOptionsValue } : {}),
       },
       placement: areaPlacement,
       inputs,
@@ -1581,11 +1659,17 @@ function normalizedUndoState(value) {
 
 function normalizedHpValues(value = {}, overrides = {}) {
   const source = value && typeof value === "object" ? value : {};
-  return {
+  const normalized = {
     hp: inputValue(overrides.hp !== undefined ? overrides.hp : source.hp),
     damage: inputValue(overrides.damage !== undefined ? overrides.damage : source.damage),
     healing: inputValue(overrides.healing !== undefined ? overrides.healing : source.healing),
   };
+  if (overrides.primaryDamage !== undefined || source.primaryDamage !== undefined) {
+    normalized.primaryDamage = inputValue(
+      overrides.primaryDamage !== undefined ? overrides.primaryDamage : source.primaryDamage,
+    );
+  }
+  return normalized;
 }
 
 function contractPhase(contract, requestedPhase = "") {
@@ -1625,6 +1709,7 @@ export function createSpellPanelSession({
   hpValues = {},
   hpValue,
   damageValue,
+  primaryDamageValue,
   healingValue,
   triggerRuntime = null,
   feedback = null,
@@ -1665,6 +1750,7 @@ export function createSpellPanelSession({
     hpValues: normalizedHpValues(hpValues, {
       hp: hpValue,
       damage: damageValue,
+      primaryDamage: primaryDamageValue,
       healing: healingValue,
     }),
     triggerRuntime: triggerRuntime && typeof triggerRuntime === "object"
@@ -2044,20 +2130,32 @@ function validationFor(contract, session, placement) {
   if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }
+  const preparedHailMiss = contract?.spell?.id === "phb2014-raffica-di-spine"
+    && contract?.presentation?.phase?.selected === "resolve"
+    && session.attackOutcome === "miss";
   if (inputs.outcomes?.required) {
-    const attackOutcomes = contract.presentation.outcomes?.mode === "attack";
+    const outcomeMode = contract.presentation.outcomes?.mode;
+    const attackOutcomes = ["attack", "attack-and-save"].includes(outcomeMode);
     if (attackOutcomes) {
       if (!hasSessionValue(session.attackOutcome, { type: "text" })) {
         add("outcomes", "outcomes-required");
       }
-    } else if (session.targetIds.some((id) => !outcomeFor(session.outcomes, id))) {
+    }
+    if (outcomeMode !== "attack"
+      && !preparedHailMiss
+      && session.targetIds.some((id) => !outcomeFor(session.outcomes, id))) {
       add("outcomes", "outcomes-required");
     }
   }
   if (inputs.damage?.required
+    && !preparedHailMiss
     && !initialZoneResolutionMayHaveNoTargets(contract, session.targetIds)
     && !hasSessionValue(session.hpValues.damage)) {
     add("damage", "damage-required");
+  }
+  if (inputs.primaryDamage?.required
+    && !hasSessionValue(session.hpValues.primaryDamage)) {
+    add("primaryDamage", "primary-damage-required");
   }
   if (inputs.healing?.required && !hasSessionValue(session.hpValues.healing)) {
     add("healing", "healing-required");
@@ -2086,6 +2184,7 @@ function visibleControlsFor(contract, session, placement) {
   addInputControl("targetContext", "target-context");
   addInputControl("outcomes", "save-outcomes");
   addInputControl("damage");
+  addInputControl("primaryDamage");
   addInputControl("healing");
   if (contract.presentation.capabilities?.manualSpellEffect?.available) {
     controls.add("manual-effect");

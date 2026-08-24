@@ -157,6 +157,23 @@ function normalizedAppliedAt(value) {
   return Object.keys(result).length ? result : null;
 }
 
+function normalizedSummaryParts(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((part, index) => {
+      const id = String(part?.id || part?.key || `part-${index + 1}`).trim();
+      const label = String(part?.label || part?.text || "").trim();
+      return id && label
+        ? {
+          id: id.slice(0, 80),
+          label: label.slice(0, 160),
+          ...(part?.stack === true ? { stack: true } : {}),
+        }
+        : null;
+    })
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 function boundaryMatchCount(expiry, actorId, appliedAt, boundaries) {
   return boundaries.filter((boundary) => {
     if (boundary.mode !== expiry.mode || boundary.actorId !== actorId) return false;
@@ -202,6 +219,8 @@ function conditionInstance(operation, targetId, instanceId, conditionName, overr
   if (options.effectKind === "buff" || options.effectKind === "debuff") {
     instance.effectKind = options.effectKind;
   }
+  const summaryParts = normalizedSummaryParts(options.summaryParts);
+  if (summaryParts.length) instance.summaryParts = summaryParts;
   if (options.displayLabel) instance.displayLabel = String(options.displayLabel);
   if (options.magical === true) instance.magical = true;
   if (options.effectDetail) instance.effectDetail = String(options.effectDetail);

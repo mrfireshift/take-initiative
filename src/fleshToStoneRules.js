@@ -1,3 +1,9 @@
+import {
+  advanceRepeatedSaveProgress,
+  normalizeRepeatedSaveProgress,
+  repeatedSaveProgressLabel,
+} from "./repeatedSaveProgressCore.js";
+
 export const FLESH_TO_STONE_SPELL_ID = "flesh-to-stone";
 export const FLESH_TO_STONE_RESTRAINED_EFFECT_ID = "flesh-to-stone-restrained";
 // Kept for backward compatibility with casts created by the first SP-R06A build.
@@ -11,14 +17,14 @@ const freeze = (value) => {
   return Object.freeze(value);
 };
 
-const clampProgress = (value) => Math.max(0, Math.min(2, Math.floor(Number(value) || 0)));
-
 function progressPayload(successes, failures) {
-  const normalizedSuccesses = clampProgress(successes);
-  const normalizedFailures = Math.max(1, Math.min(2, Math.floor(Number(failures) || 1)));
+  const progress = normalizeRepeatedSaveProgress({ successes, failures }, {
+    successThreshold: 3,
+    failureThreshold: 3,
+  });
   return {
-    successes: normalizedSuccesses,
-    failures: normalizedFailures,
+    successes: Math.min(2, progress.successes),
+    failures: Math.max(1, Math.min(2, progress.failures)),
   };
 }
 
@@ -34,6 +40,14 @@ function progressMechanics(successes, failures) {
   return {
     fleshToStoneProgress: progressPayload(successes, failures),
   };
+}
+
+function progressSummaryParts(successes, failures) {
+  const progress = progressPayload(successes, failures);
+  return [{
+    id: "flesh-to-stone-progress",
+    label: repeatedSaveProgressLabel(progress),
+  }];
 }
 
 function restrainedEffectDetail(successes, failures) {
@@ -52,6 +66,7 @@ const restrainedRule = freeze({
   options: { theme: null, spellName: "", spellId: "" },
   expiry: { mode: "concentration" },
   mechanics: progressMechanics(0, 1),
+  summaryParts: progressSummaryParts(0, 1),
   manualRemoval: true,
   endsParentOnRemoval: true,
   parentRemoval: "spell",
@@ -103,6 +118,7 @@ function restrainedProgressAction(instance, successes, failures) {
       effectDetail: restrainedEffectDetail(progress.successes, progress.failures),
       expiry: { mode: "concentration" },
       mechanics: progressMechanics(progress.successes, progress.failures),
+      summaryParts: progressSummaryParts(progress.successes, progress.failures),
       manualRemoval: true,
       endsParentOnRemoval: true,
       parentRemoval: "spell",
@@ -176,16 +192,30 @@ export function fleshToStoneReminderForInstance({
     ? [legacyProgressCleanupAction(legacyMarker)].filter(Boolean)
     : [];
 
-  const successOutcome = successes >= 2
+  const successAdvance = advanceRepeatedSaveProgress(
+    { successes, failures },
+    "success",
+    { successThreshold: 3, failureThreshold: 3 },
+  );
+  const failureAdvance = advanceRepeatedSaveProgress(
+    { successes, failures },
+    "failure",
+    { successThreshold: 3, failureThreshold: 3 },
+  );
+  const successOutcome = successAdvance.terminal === "success"
     ? "remove-effect"
     : {
       mode: "keep-effect",
       actions: [
         ...migrateActions,
-        restrainedProgressAction(instance, successes + 1, failures),
+        restrainedProgressAction(
+          instance,
+          successAdvance.progress.successes,
+          successAdvance.progress.failures,
+        ),
       ],
     };
-  const failureOutcome = failures >= 2
+  const failureOutcome = failureAdvance.terminal === "failure"
     ? {
       mode: "keep-effect",
       actions: [
@@ -202,7 +232,11 @@ export function fleshToStoneReminderForInstance({
       mode: "keep-effect",
       actions: [
         ...migrateActions,
-        restrainedProgressAction(instance, successes, failures + 1),
+        restrainedProgressAction(
+          instance,
+          failureAdvance.progress.successes,
+          failureAdvance.progress.failures,
+        ),
       ],
     };
 

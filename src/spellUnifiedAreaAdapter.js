@@ -219,6 +219,11 @@ function hpInput(contract, session) {
     return {
       mode: "damage",
       amount: session?.hpValues?.damage,
+      ...(session?.hpValues?.primaryDamage !== null
+        && session?.hpValues?.primaryDamage !== undefined
+        && String(session?.hpValues?.primaryDamage || "").trim() !== ""
+        ? { primaryAmount: session.hpValues.primaryDamage }
+        : {}),
     };
   }
   return undefined;

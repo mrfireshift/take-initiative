@@ -130,13 +130,57 @@ function conditionOwnedSnapshot(instance) {
   return next;
 }
 
-function conditionSnapshotSame(left, right) {
+function conditionComparableSnapshot(instance, { ignoreExpiryRemaining = false } = {}) {
+  const next = conditionOwnedSnapshot(instance);
+  if (!ignoreExpiryRemaining || !next?.expiry || typeof next.expiry !== "object") {
+    return next;
+  }
+  const expiry = { ...next.expiry };
+  delete expiry.remaining;
+  next.expiry = expiry;
+  return next;
+}
+
+function conditionExpiryRemainingChanged(before, after) {
+  const beforeExpiry = before?.expiry && typeof before.expiry === "object"
+    ? before.expiry
+    : null;
+  const afterExpiry = after?.expiry && typeof after.expiry === "object"
+    ? after.expiry
+    : null;
+  const beforeHasRemaining = hasOwn(beforeExpiry, "remaining");
+  const afterHasRemaining = hasOwn(afterExpiry, "remaining");
+  if (beforeHasRemaining !== afterHasRemaining) return true;
+  if (!beforeHasRemaining) return false;
+  return !historyUndoSame(beforeExpiry.remaining, afterExpiry.remaining);
+}
+
+function conditionSnapshotSame(left, right, options = {}) {
   if (!left || !right) return !left && !right;
   if (conditionIdentityKey(left) !== conditionIdentityKey(right)) return false;
-  if (isOwnedEffectCondition(left) && isOwnedEffectCondition(right)) {
-    return historyUndoSame(conditionOwnedSnapshot(left), conditionOwnedSnapshot(right));
+  return historyUndoSame(
+    conditionComparableSnapshot(left, options),
+    conditionComparableSnapshot(right, options),
+  );
+}
+
+function restoreConditionSnapshot(before, current, { preserveExpiryRemaining = false } = {}) {
+  const restored = clone(before);
+  if (!preserveExpiryRemaining || !restored?.expiry || typeof restored.expiry !== "object") {
+    return restored;
   }
-  return historyUndoSame(left, right);
+
+  const currentExpiry = current?.expiry && typeof current.expiry === "object"
+    ? current.expiry
+    : null;
+  const expiry = { ...restored.expiry };
+  if (hasOwn(currentExpiry, "remaining")) {
+    expiry.remaining = clone(currentExpiry.remaining);
+  } else {
+    delete expiry.remaining;
+  }
+  restored.expiry = expiry;
+  return restored;
 }
 
 export function granularReconcileConditions(current = [], before = [], after = []) {
@@ -163,7 +207,9 @@ export function granularReconcileConditions(current = [], before = [], after = [
     const currentInst = currentMap.get(key);
 
     if (afterInst && !beforeInst) {
-      if (!currentInst || !conditionSnapshotSame(currentInst, afterInst)) {
+      if (!currentInst || !conditionSnapshotSame(currentInst, afterInst, {
+        ignoreExpiryRemaining: true,
+      })) {
         conflictReason = "current-value-mismatch";
         conflictExpected = clone(afterInst);
         conflictActual = currentInst ? clone(currentInst) : null;
@@ -177,7 +223,10 @@ export function granularReconcileConditions(current = [], before = [], after = [
         break;
       }
     } else if (beforeInst && afterInst) {
-      if (!currentInst || !conditionSnapshotSame(currentInst, afterInst)) {
+      const ignoreExpiryRemaining = !conditionExpiryRemainingChanged(beforeInst, afterInst);
+      if (!currentInst || !conditionSnapshotSame(currentInst, afterInst, {
+        ignoreExpiryRemaining,
+      })) {
         conflictReason = "current-value-mismatch";
         conflictExpected = clone(afterInst);
         conflictActual = currentInst ? clone(currentInst) : null;
@@ -202,7 +251,10 @@ export function granularReconcileConditions(current = [], before = [], after = [
         next.push(clone(beforeInst));
       }
     } else if (beforeInst && afterInst) {
-      next = next.map((c) => conditionIdentityKey(c) === key ? clone(beforeInst) : c);
+      const preserveExpiryRemaining = !conditionExpiryRemainingChanged(beforeInst, afterInst);
+      next = next.map((c) => conditionIdentityKey(c) === key
+        ? restoreConditionSnapshot(beforeInst, c, { preserveExpiryRemaining })
+        : c);
     }
   }
 

@@ -53,6 +53,9 @@ function normalizeConditionRule(value) {
   if (rule.mechanics && typeof rule.mechanics === "object") {
     options.mechanics = clone(rule.mechanics);
   }
+  if (Array.isArray(rule.summaryParts)) {
+    options.summaryParts = clone(rule.summaryParts);
+  }
   if (rule.saveReminder && typeof rule.saveReminder === "object") {
     options.saveReminder = clone(rule.saveReminder);
   }

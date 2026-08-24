@@ -144,12 +144,22 @@ test("le risoluzioni persistenti trasferiscono i reminder supportati nella condi
   );
   assert.equal(
     failedRule("confusion", "confusion-random-turn")
-      .saveReminder.ability,
+      .saveReminder
+      .find((reminder) => reminder.timing === "turn-end")
+      .ability,
     "wis",
   );
   assert.equal(
     failedRule("slow", "slow-penalty").saveReminder.timing,
     "turn-end",
+  );
+  assert.equal(
+    failedRule("fear").saveReminder.label,
+    "Effettua questo TS solo se il caster non è in vista. Se lo supera, termina Paura su di sé.",
+  );
+  assert.equal(
+    failedRule("fear", "fear-forced-flight").saveReminder.mode,
+    "consume",
   );
   assert.equal(
     failedRule("sunburst").saveReminder.ability,

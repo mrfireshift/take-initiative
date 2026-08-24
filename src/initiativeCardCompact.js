@@ -4,6 +4,8 @@ import {
 } from "./spellExpiryCore.js";
 import { enableInlineNameEditor } from "./initiativeEditors.js";
 import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js";
+import { effectSummaryPartsFor } from "./effectLabelCore.js";
+import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
 
 export const COMPACT_CARD_WIDTH = 92;
 export const COMPACT_CARD_HEIGHT = 120;
@@ -65,27 +67,58 @@ export function __compactEffectItems(
     : compactSpellKey;
   const effects = conditionInstances.filter((instance) =>
     instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
-  ).map((instance) => ({
-    kind: instance?.type === "class-feature" ? "class-feature" : "condition",
-    label: __compactConditionPillLabel(instance, formatting),
-    title: formatConditionInstance(instance),
-    ...(instance?.type === "class-feature"
-      ? {
-        classFeatureInstance: instance,
-        theme: instance.theme && typeof instance.theme === "object"
-          ? { ...instance.theme }
-          : null,
-      }
-      : {}),
-  }));
+  ).map((instance) => {
+    const summaryParts = effectSummaryPartsFor(instance);
+    return {
+      kind: instance?.type === "class-feature" ? "class-feature" : "condition",
+      label: __compactConditionPillLabel(instance, formatting),
+      title: formatConditionInstance(instance),
+      ...(summaryParts.length ? { summaryParts } : {}),
+      ...(instance?.type === "class-feature"
+        ? {
+          classFeatureInstance: instance,
+          theme: instance.theme && typeof instance.theme === "object"
+            ? { ...instance.theme }
+            : null,
+        }
+        : {}),
+    };
+  });
   for (const spell of spells) {
     const counter = spellPillCounter(spell);
     const spellName = String(spell?.name || "Incantesimo");
+    const spellInstanceId = String(spell?.instanceId || "").trim();
+    const linkedEffectSummaryParts = spellInstanceId
+      ? conditionInstances.flatMap((instance) => (
+        (instance?.effectKind === "buff" || instance?.effectKind === "debuff")
+        && String(instance?.parentEffectId || "").trim() === spellInstanceId
+          ? effectSummaryPartsFor(instance)
+          : []
+      ))
+      : [];
+    const summaryParts = Array.from(
+      new Map(linkedEffectSummaryParts.map((part) => [part.id, part])).values(),
+    );
+    const linkedEffectDetails = spellInstanceId
+      ? Array.from(new Set(
+        conditionInstances
+          .filter((instance) => (
+            (instance?.effectKind === "buff" || instance?.effectKind === "debuff")
+            && String(instance?.parentEffectId || "").trim() === spellInstanceId
+          ))
+          .map((instance) => String(instance?.effectDetail || "").trim())
+          .filter(Boolean),
+      ))
+      : [];
     effects.push({
       kind: "spell",
       key: spellKey(spell?.name),
       label: counter ? `${spellName} (${counter})` : spellName,
-      title: `${spellName} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
+      title: [
+        `${spellName} · ${spellExpiryDescription(spell)}${spell?.conc ? " · concentrazione" : ""}`,
+        ...linkedEffectDetails,
+      ].join(" · "),
+      ...(summaryParts.length ? { summaryParts } : {}),
     });
   }
   if (concentrating && !spells.some((spell) => spell?.conc)) {
@@ -255,7 +288,10 @@ export function __buildCompactEffectPill(
     });
     pill.appendChild(terminate);
   }
-  return pill;
+  return buildEffectSummaryContainer(effect, pill, {
+    documentRef,
+    preview,
+  });
 }
 
 export function buildCompactCardShell(
@@ -768,15 +804,18 @@ export function buildCompactCardStatus(
 ) {
   const document = compactDocument(documentRef);
   const status = document.createElement("div");
+  const firstEffectHasSummary = Array.isArray(compactEffects[0]?.summaryParts)
+    && compactEffects[0].summaryParts.length > 0;
   status.dataset.cardSelectionIgnore = "1";
   Object.assign(status.style, {
     width: "100%",
-    height: "14px",
-    flex: "0 0 14px",
+    minHeight: "14px",
+    height: firstEffectHasSummary ? "auto" : "14px",
+    flex: firstEffectHasSummary ? "0 0 auto" : "0 0 14px",
     marginTop: "0",
     padding: "0",
     display: "flex",
-    alignItems: "center",
+    alignItems: firstEffectHasSummary ? "flex-start" : "center",
     justifyContent: "center",
     gap: "2px",
     overflow: "visible",
@@ -793,9 +832,9 @@ export function buildCompactCardStatus(
       position: "relative",
       minWidth: "0",
       flex: "1 1 auto",
-      height: "14px",
+      height: firstEffectHasSummary ? "auto" : "14px",
       display: "flex",
-      alignItems: "center",
+      alignItems: firstEffectHasSummary ? "flex-start" : "center",
       justifyContent: "center",
       overflow: "visible",
     });

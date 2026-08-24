@@ -1,0 +1,49 @@
+{
+  "version": 3,
+  "id": "event-seq-63",
+  "sequence": 63,
+  "kind": "condition",
+  "category": "condition",
+  "source": "automatic",
+  "turnContext": {
+    "activeId": "dars",
+    "activeName": "Dars",
+    "turnIndex": 2,
+    "turnKey": "25:dars",
+    "orderRevision": 4
+  },
+  "provenance": {
+    "recordingSource": "history-observer",
+    "actor": null,
+    "cause": {
+      "kind": "condition-automation",
+      "parentEffectId": "effect-unconscious-1"
+    }
+  },
+  "targets": [
+    {
+      "id": "dars",
+      "name": "Dars"
+    }
+  ],
+  "facets": {
+    "conditions": {
+      "added": [
+        {
+          "id": "prone",
+          "name": "Prono",
+          "lineage": {
+            "relation": "derived",
+            "parentEffectId": "effect-unconscious-1",
+            "parentInstanceId": "condition-unconscious-1",
+            "causeHistoryEntryId": "history-zero-hp-1"
+          }
+        }
+      ],
+      "updated": [],
+      "removed": [],
+      "targets": []
+    }
+  },
+  "payload": {}
+}

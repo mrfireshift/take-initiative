@@ -7,6 +7,7 @@ import {
 } from "../src/spellUnifiedPanelCore.js";
 import {
   buildSpellUnifiedActivePopoverRequest,
+  buildSpellUnifiedPreparedPopoverRequest,
   buildSpellUnifiedActiveResolutionPayload,
   buildSpellUnifiedPreparedResolutionRequest,
   executeSpellUnifiedActiveAction,
@@ -94,6 +95,54 @@ test("prepare → resolve costruisce la richiesta compatibile con il popup esist
   assert.deepEqual(built.request.targetIds, ["target-1"]);
   assert.equal(built.request.castContext.phase, "resolve");
   assert.equal(built.request.activeConcentration.instanceId, "ready-1");
+});
+
+test("la risoluzione prepared usa il popup mobile shared con payload canonico", () => {
+  const spell = getSpellDefinition("phb2014-punizione-incandescente");
+  const action = {
+    id: "resolve-prepared",
+    type: "resolve",
+    subjectMode: "selected",
+    requiresTargets: true,
+  };
+  const overview = overviewFor(spell.id, action, {
+    instanceId: "prepared-mobile-1",
+    casterId: "caster-1",
+    castContext: { phase: "prepare", slotLevel: 2 },
+  });
+  const popover = buildSpellUnifiedPreparedPopoverRequest(overview);
+  const payload = JSON.parse(new URL(`https://local.test${popover.url}`).searchParams.get("payload"));
+  assert.match(popover.url, /\/spell-active-resolution\.html\?payload=/);
+  assert.equal(popover.width, 360);
+  assert.equal(payload.mode, "prepared");
+  assert.equal(payload.instanceId, "prepared-mobile-1");
+  assert.equal(payload.actionId, "resolve-prepared");
+  assert.equal(payload.action.resolutionKind, "prepared");
+  assert.equal(payload.popoverId, popover.id);
+});
+
+test("Colpo dello Zefiro usa il popup mobile senza trasformare l'azione in un next-hit", () => {
+  const spell = getSpellDefinition("xanathar-colpo-dello-zefiro");
+  const action = spell.activeActions[0];
+  const overview = overviewFor(spell.id, action, {
+    instanceId: "zephyr-mobile-1",
+    casterId: "caster-1",
+    effectInstances: [{
+      itemId: "caster-1",
+      instanceId: "zephyr-ready",
+      effectId: "zephyr-strike",
+      active: true,
+    }],
+  });
+  const popover = buildSpellUnifiedPreparedPopoverRequest(overview);
+  const payload = JSON.parse(new URL(`https://local.test${popover.url}`).searchParams.get("payload"));
+
+  assert.match(popover.url, /\/spell-active-resolution\.html\?payload=/);
+  assert.equal(payload.mode, "prepared");
+  assert.equal(payload.actionId, "zephyr-strike-attack");
+  assert.equal(payload.action.type, "manual");
+  assert.equal(payload.action.resolutionKind, undefined);
+  assert.equal(payload.action.subjectMode, "caster");
 });
 
 test("payload single-attack conserva istanza, caster, slot, epoch, revisione e root", () => {

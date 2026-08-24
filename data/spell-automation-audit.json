@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "69504d8a361a5611",
+  "fingerprint": "74b530e900e57100",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -17,20 +17,20 @@
       "gestione manuale intenzionale": 3
     },
     "currentAutomationLevel": {
-      "FULL": 42,
+      "FULL": 45,
       "MANUAL": 88,
-      "PARTIAL": 201,
-      "TRACK_ONLY": 146
+      "PARTIAL": 199,
+      "TRACK_ONLY": 145
     },
     "coverageStatus": {
-      "ACCEPTED": 45,
-      "GAP": 39,
-      "UNREVIEWED": 393
+      "ACCEPTED": 48,
+      "GAP": 37,
+      "UNREVIEWED": 392
     },
     "targetAutomationLevel": {
-      "FULL": 42,
+      "FULL": 45,
       "MANUAL": 3,
-      "UNREVIEWED": 432
+      "UNREVIEWED": 429
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -42,27 +42,27 @@
     },
     "trackable": 355,
     "withAreaRules": 132,
-    "openRows": 38,
-    "confirmed": 37,
+    "openRows": 36,
+    "confirmed": 35,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 37,
-    "manuallyReviewed": 83,
+    "curatedP1": 35,
+    "manuallyReviewed": 84,
     "knownIntegrationGaps": 1,
-    "knownRawGaps": 38,
+    "knownRawGaps": 36,
     "byPriority": {
-      "—": 439,
-      "P1": 37,
+      "—": 441,
+      "P1": 35,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 258,
+      "coperto": 260,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
       "istantaneo: gestione manuale": 57,
       "manuale intenzionale": 3,
-      "parziale: revisione curata": 37,
+      "parziale: revisione curata": 35,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 21
     },
@@ -77,7 +77,7 @@
       "AURA_PASSIVE_RUNTIME": 1,
       "BOUNDARY_REJECTION": 1,
       "CHOICE_WORKFLOW_MISSING": 3,
-      "CONDITIONAL_TRIGGER": 12,
+      "CONDITIONAL_TRIGGER": 11,
       "CROSSING_DETECTION": 3,
       "ENDING_DETONATION": 1,
       "ENTRY_EXIT_FALL": 2,
@@ -86,7 +86,6 @@
       "MOVEMENT_IMMUNITY": 1,
       "MOVEMENT_MECHANICS_MISSING": 6,
       "MULTI_SAVE_SEQUENCE": 3,
-      "MULTI_SAVE_STATE": 2,
       "PASSIVE_RULES_MISSING": 1,
       "POST_EXPIRY_EFFECT": 4,
       "PROJECTILE_BOUNDARY": 1,
@@ -95,7 +94,7 @@
       "REPEATED_ACTION": 16,
       "RESOURCE_STATE": 5,
       "ROUND_STATE_MACHINE": 1,
-      "STATUS_MISSING": 6,
+      "STATUS_MISSING": 5,
       "TEXT_MISSING": 1,
       "TURN_EFFECT_MISSING": 3,
       "VARIANT_ZONE_RUNTIME": 1,
@@ -103,8 +102,8 @@
     },
     "byIntegrationStatus": {
       "fragile": 1,
-      "partial": 38,
-      "reachable": 353,
+      "partial": 36,
+      "reachable": 355,
       "unexposed": 85
     },
     "byIntegrationPriority": {
@@ -119,11 +118,11 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 33,
       "AREA_GEOMETRY": 132,
-      "CAST": 222,
+      "CAST": 223,
       "CLEANUP": 105,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
-      "TURN_TRIGGER": 84
+      "TURN_TRIGGER": 85
     },
     "unifiedCatalogExposed": 392,
     "integrationDisconnected": 0,
@@ -6547,9 +6546,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -6573,20 +6572,9 @@
         "status:Trattenuto",
         "turni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MULTI_SAVE_STATE",
-          "label": "stato di successi/fallimenti multipli assente",
-          "evidence": []
-        },
-        {
-          "code": "STATUS_MISSING",
-          "label": "condizione o stato RAW non rappresentato",
-          "evidence": []
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Trattenuto",
@@ -6615,7 +6603,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -6675,7 +6663,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Richiede Trattenuto iniziale, conteggio indipendente di tre successi o fallimenti e transizione a Pietrificato permanente dopo concentrazione completa."
+      "curatedNote": "PASS: il cast single-target entro 18 m applica Trattenuto soltanto al fallimento del TS Costituzione iniziale e mostra subito il contatore S 0/3 · F 1/3 sulla stessa condition. Il TS Costituzione di fine turno aggiorna contatori indipendenti; tre successi rimuovono l'istanza e il parent target-scoped, mentre tre fallimenti terminano i reminder e sostituiscono Trattenuto con la sola condition canonica Pietrificato, che diventa permanente alla concentrazione mantenuta. Il lifecycle di concentrazione, cleanup e Undo restano identity-based e il primo tiro per colpire/save viene risolto al tavolo."
     },
     {
       "id": "xanathar-catapulta",
@@ -9874,7 +9862,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "PASS: il workflow area-save multi-target, lo scaling della geometria, gli esiti indipendenti, l'effetto persistente per bersaglio, il TS ricorrente di fine turno e il cleanup di concentrazione sono auditati e approvati sui contratti condivisi."
+      "curatedNote": "PASS: il workflow area-save multi-target, lo scaling della geometria, gli esiti indipendenti, l'effetto persistente per bersaglio e il cleanup target-scoped/concentrazione sono auditati e approvati. La tabella RAW d10 (movimento/direzione casuali, nessun movimento o azione, attacco in mischia casuale, oppure turno normale) è rappresentata nel detail e nel reminder turn-start come tiro fisico manuale: nessun dice roller, action enforcement o automazione del risultato; il TS Saggezza resta il reminder di fine turno."
     },
     {
       "id": "cone-of-cold",
@@ -10109,13 +10097,15 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "PERSISTENCE"
+        "CAST",
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -10127,29 +10117,19 @@
         "turni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "status:Accecato",
+        "turni",
+        "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MULTI_SAVE_STATE",
-          "label": "stato di successi/fallimenti multipli assente",
-          "evidence": [
-            "Inoltre, ogni volta che subisce danni, è stordita fino al termine del proprio turno successivo."
-          ]
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "Inoltre, ogni volta che subisce danni, è stordita fino al termine del proprio turno successivo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
-        "implemented": []
+        "implemented": [
+          "Accecato"
+        ]
       },
       "runtime": {
         "trackable": true,
@@ -10158,16 +10138,18 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 6,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
-          "PERSISTENCE"
+          "CAST",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -10181,17 +10163,22 @@
           "targetingMode": "discrete",
           "placementPolicy": "unavailable",
           "visibleInputs": [
+            "caster",
             "slot",
-            "targets"
+            "variant",
+            "targets",
+            "automation"
           ]
         },
         "cast": {
           "adapter": "spell-lifecycle",
           "valid": true,
           "operationTypes": [
-            "spell:upsert"
+            "spell:upsert",
+            "condition:add",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -10208,7 +10195,9 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "PERSISTENCE"
+          "CAST",
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -10224,7 +10213,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Occorrono conteggio 3 successi/3 fallimenti, sei malattie alternative e trigger specifici come Stordito quando il bersaglio subisce danni."
+      "curatedNote": "PASS: il cast single-target a Contatto confermato dopo il colpo applica una malattia obbligatoria fra le sei opzioni RAW, con durata di 7 giorni senza concentrazione. Ogni bersaglio conserva sulla stessa disease instance la progressione S/F non consecutiva e il reminder TS Costituzione di fine turno; tre successi rimuovono malattia, child effects e parent, mentre tre fallimenti stabilizzano l'effetto e interrompono i TS successivi. I descriptor delle malattie, le conditions canoniche Accecato/Stordito e il trigger danno→Stordito riusano primitive shared; tiro per colpire e dadi restano manuali al tavolo."
     },
     {
       "id": "contact-other-plane",
@@ -29144,7 +29133,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "PASS: il workflow area-save multi-target, il limite dei bersagli, gli esiti indipendenti, la condizione persistente con le penalità RAW, il TS ricorrente di fine turno e il cleanup di concentrazione sono auditati e approvati sui contratti condivisi."
+      "curatedNote": "PASS: il workflow area-save multi-target, il limite massimo di 6 bersagli, gli esiti indipendenti, la singola condizione persistente e il cleanup target-scoped/concentrazione sono auditati e approvati. Velocità dimezzata, CA -2, TS Destrezza -2, niente reazioni e vincolo azione o bonus action sono visibili nelle summary pills; il limite di un attacco e la regola del lancio da 1 azione con d20/ritardo al turno successivo restano nel detail, senza action-economy enforcement, attack limiter o spell interception."
     },
     {
       "id": "tasha-lenza-elettrizzante",
@@ -38696,9 +38685,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -38711,7 +38700,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "area",
@@ -38821,7 +38810,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il cono di 9 m, il targeting area multi-target, gli esiti indipendenti e il TS Saggezza iniziale sono auditati e approvati. Il fallimento applica Spaventato e forced-flight alla stessa parent spell target-scoped; il reminder turn-start ricorda Scatto e allontanamento dal caster lungo il percorso più sicuro, mentre il drop iniziale e la verifica di linea di vista restano manuali/informativi. Il TS Saggezza ricorrente vale solo se il caster non è in vista; successo, concentrazione e cleanup preservano l'identità per bersaglio, senza inventory/drop system, movimento, pathfinding o motore LOS."
     },
     {
       "id": "barkskin",

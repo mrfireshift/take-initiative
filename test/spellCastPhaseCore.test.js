@@ -66,6 +66,33 @@ test("le fasi misurabili espongono dati coerenti e non scalano spell senza upcas
   assert.match(blinding.label, /\+3d8 radiosi/);
 });
 
+test("il contratto prepared distingue weapon generico, ranged e miss consumabili", () => {
+  const ensnaring = getSpellCastPhasePlan(
+    getSpellDefinition("Colpo Intrappolante"),
+    "resolve",
+  );
+  const banishing = getSpellCastPhasePlan(
+    getSpellDefinition("Punizione Esiliante"),
+    "resolve",
+  );
+  const hail = getSpellCastPhasePlan(
+    getSpellDefinition("Raffica di Spine"),
+    "resolve",
+  );
+  const lightning = getSpellCastPhasePlan(
+    getSpellDefinition("Freccia Folgorante"),
+    "resolve",
+  );
+
+  assert.equal(ensnaring.attack.restriction, "weapon");
+  assert.equal(banishing.attack.restriction, "weapon");
+  assert.equal(hail.attack.restriction, "weapon-ranged");
+  assert.equal(lightning.attack.restriction, "weapon-ranged");
+  assert.deepEqual(lightning.attack.outcomes, ["hit", "miss", "critical"]);
+  assert.equal(lightning.attack.consumeOnMiss, true);
+  assert.equal(hail.attack.consumeOnMiss, false);
+});
+
 test("la risoluzione distingue trasferimento e consumo della concentrazione", () => {
   assert.equal(
     getSpellCastPhasePlan(

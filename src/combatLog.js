@@ -1,10 +1,14 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
 import {
-  combatEventFromHistoryEntry,
-  normalizeCombatLogEvent,
   serializeCombatLogText,
 } from "./combatLogCore.js";
+import {
+  combatEventFromHistoryEntryV3,
+  mergeCombatLogTurnContext,
+  normalizeCombatLogEventV3,
+  normalizeCombatLogSessionV3,
+} from "./combatLogV3Core.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { recordCombatTurnForEpoch } from "./combatLogTurnCore.js";
 import {
@@ -38,6 +42,7 @@ const EVENT_SESSION_INDEX = "sessionId";
 const EVENT_SEQUENCE_INDEX = "sessionSequence";
 const SESSION_STATE_KEY = `${ID}/combat-log-state`;
 const STATE_KEY = `${ID}/state`;
+const ROSTER_META_KEY = `${ID}/meta`;
 const CHANNEL = `${ID}/combat-log-change`;
 const LAIR_ID = "__LAIR__";
 let writeQueue = Promise.resolve();
@@ -178,7 +183,9 @@ async function getStoredSession(id, { sceneEpoch = currentSceneEpoch() } = {}) {
   const db = await openDatabase();
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
   const session = await requestResult(db.transaction(SESSION_STORE, "readonly").objectStore(SESSION_STORE).get(id));
-  return isSceneEpochCurrent(sceneEpoch) ? session : null;
+  return isSceneEpochCurrent(sceneEpoch) && session
+    ? normalizeCombatLogSessionV3(session)
+    : null;
 }
 
 async function putStoredSession(session, { sceneEpoch = currentSceneEpoch() } = {}) {
@@ -232,7 +239,7 @@ export async function startCombatLogSession(name = "", { sceneEpoch = currentSce
   const now = Date.now();
   const session = {
     id: createId(),
-    version: 1,
+    version: 3,
     roomId: String(OBR.room.id || ""),
     name: String(name || "").trim() || defaultSessionName(),
     startedAt: now,
@@ -240,6 +247,7 @@ export async function startCombatLogSession(name = "", { sceneEpoch = currentSce
     nextSequence: 1,
     lastRound: null,
     lastTurnKey: "",
+    roster: { initial: null, atExport: null },
   };
   if (!await putStoredSession(session, { sceneEpoch })) return null;
   if (!isSceneEpochCurrent(sceneEpoch)) return null;
@@ -266,7 +274,7 @@ export async function ensureCombatLogSession({
     if (peek) return null;
     const recovered = {
       id: state.sessionId,
-      version: 1,
+      version: 3,
       roomId: String(OBR.room.id || ""),
       name: String(state.name || "").trim() || defaultSessionName(),
       startedAt: Number(state.startedAt) || Date.now(),
@@ -274,6 +282,7 @@ export async function ensureCombatLogSession({
       nextSequence: 1,
       lastRound: null,
       lastTurnKey: "",
+      roster: { initial: null, atExport: null },
     };
     if (!await putStoredSession(recovered, { sceneEpoch })) return null;
     return isSceneEpochCurrent(sceneEpoch) ? recovered : null;
@@ -299,7 +308,7 @@ function stableEventValue(value, seen = new Set()) {
 }
 
 function comparableEvent(event) {
-  const normalized = normalizeCombatLogEvent(event);
+  const normalized = normalizeCombatLogEventV3(event);
   delete normalized.sequence;
   return stableEventValue(normalized);
 }
@@ -389,21 +398,39 @@ async function appendEventsNow(
             abortAsStale();
             return;
           }
+          const initialRosterCandidate = sessionPatch?.rosterInitialCandidate;
+          const persistedSessionPatch = { ...(sessionPatch || {}) };
+          delete persistedSessionPatch.rosterInitialCandidate;
+          const existingRoster = session?.roster && typeof session.roster === "object"
+            ? session.roster
+            : { initial: null, atExport: null };
+          const nextRoster = initialRosterCandidate && !existingRoster.initial
+            ? { ...existingRoster, initial: clone(initialRosterCandidate) }
+            : existingRoster;
           sessions.put({
             ...session,
-            ...sessionPatch,
+            ...persistedSessionPatch,
+            version: 3,
+            roster: nextRoster,
             nextSequence: sequence,
             updatedAt: Date.now(),
           });
           return;
         }
         const input = inputs[inputIndex++];
-        const event = normalizeCombatLogEvent({
+        const event = normalizeCombatLogEventV3({
           ...input,
-          version: input?.version ?? 2,
+          version: input?.version ?? 3,
           id: storageEventId(sessionId, input),
           sessionId,
           at: Number(input?.at) || Date.now(),
+          provenance: input?.provenance || {
+            recordingSource: input?.source === "manual" ? "manual-ui" : "combat-log-writer",
+            actor: null,
+            cause: null,
+          },
+        }, {
+          recordingSource: input?.source === "manual" ? "manual-ui" : "combat-log-writer",
         });
         const existingRequest = events.get(event.id);
         existingRequest.onsuccess = () => {
@@ -480,15 +507,140 @@ function queueWrite(action) {
   return writeQueue;
 }
 
+function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function rosterVirtualName(id) {
+  const value = String(id || "");
+  if (value === LAIR_ID) return "Azioni di Tana";
+  if (value.startsWith("__EPIC__")) return "Azione Epica";
+  return null;
+}
+
+function rosterRealId(id) {
+  const value = String(id || "");
+  return value.includes("::p") ? value.slice(0, value.indexOf("::p")) : value;
+}
+
+/**
+ * Cattura una fotografia osservata del roster usando soltanto lo stato
+ * iniziativa e i metadata token già canonici. Se anche un token reale
+ * dell'ordine non è leggibile, la fotografia non è completa e resta null:
+ * il chiamante potrà riprovare al prossimo evento/export.
+ */
+export async function captureCombatLogRosterSnapshot(
+  state,
+  {
+    sceneEpoch = currentSceneEpoch(),
+    capturedAtSequence = null,
+    orderRevision = null,
+  } = {},
+) {
+  if (!isSceneEpochCurrent(sceneEpoch) || !Array.isArray(state?.order) || !state.order.length) return null;
+  const orderIds = state.order.map((id) => String(id ?? "").trim());
+  if (orderIds.some((id) => !id)) return null;
+  const realIds = Array.from(new Set(orderIds
+    .filter((id) => !rosterVirtualName(id))
+    .map(rosterRealId)
+    .filter(Boolean)));
+  let items = [];
+  try {
+    items = realIds.length ? await OBR.scene.items.getItems(realIds) : [];
+  } catch {
+    return null;
+  }
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const byId = new Map((Array.isArray(items) ? items : []).map((item) => [String(item?.id || ""), item]));
+  if (realIds.some((id) => !byId.has(id))) return null;
+  const entries = orderIds.map((id) => {
+    const virtualName = rosterVirtualName(id);
+    if (virtualName) {
+      return {
+        id,
+        name: virtualName,
+        attitude: null,
+        hp: null,
+        hpMax: null,
+        initiative: null,
+      };
+    }
+    const item = byId.get(rosterRealId(id));
+    const meta = item?.metadata?.[ROSTER_META_KEY];
+    return {
+      id,
+      name: String(item?.name || "").trim() || null,
+      attitude: String(meta?.attitude || "").trim() || null,
+      hp: finiteOrNull(meta?.hp),
+      hpMax: finiteOrNull(meta?.hpMax),
+      initiative: finiteOrNull(meta?.initiative),
+    };
+  });
+  return {
+    capturedAt: Date.now(),
+    capturedAtSequence: finiteOrNull(capturedAtSequence),
+    orderRevision: finiteOrNull(orderRevision),
+    orderIds,
+    entries,
+  };
+}
+
 async function currentContext({ sceneEpoch = currentSceneEpoch() } = {}) {
-  if (!isSceneEpochCurrent(sceneEpoch)) return { round: 1, turn: null };
+  if (!isSceneEpochCurrent(sceneEpoch)) {
+    return {
+      round: 1,
+      turn: null,
+      state: null,
+      turnContext: {
+        activeId: null,
+        activeName: null,
+        turnIndex: null,
+        turnKey: null,
+        orderRevision: null,
+      },
+    };
+  }
   const metadata = await OBR.scene.getMetadata();
-  if (!isSceneEpochCurrent(sceneEpoch)) return { round: 1, turn: null };
+  if (!isSceneEpochCurrent(sceneEpoch)) {
+    return {
+      round: 1,
+      turn: null,
+      state: null,
+      turnContext: {
+        activeId: null,
+        activeName: null,
+        turnIndex: null,
+        turnKey: null,
+        orderRevision: null,
+      },
+    };
+  }
   const state = metadata?.[STATE_KEY] || {};
   const round = Math.max(1, Number(state.round) || 1);
   const activeId = Array.isArray(state.order) ? state.order[state.current] : null;
   const turn = await resolveTurn(activeId, { sceneEpoch });
-  return isSceneEpochCurrent(sceneEpoch) ? { round, turn } : { round: 1, turn: null };
+  const turnIndex = Number.isFinite(Number(state.current)) ? Number(state.current) : null;
+  const turnKey = activeId === null || activeId === undefined || activeId === ""
+    ? null
+    : `${round}:${String(activeId)}`;
+  const turnContext = {
+    activeId: activeId === null || activeId === undefined ? null : String(activeId),
+    activeName: turn?.name || null,
+    turnIndex,
+    turnKey,
+    orderRevision: Number.isFinite(Number(state.orderRevision)) ? Number(state.orderRevision) : null,
+  };
+  return isSceneEpochCurrent(sceneEpoch)
+    ? { round, turn, state, turnContext }
+    : { round: 1, turn: null, state: null, turnContext: {
+      activeId: null,
+      activeName: null,
+      turnIndex: null,
+      turnKey: null,
+      orderRevision: null,
+    } };
 }
 
 function realActorId(value) {
@@ -528,13 +680,34 @@ export async function appendCombatLogEvent(
       ? context
       : await currentContext({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    const rosterInitialCandidate = !session?.roster?.initial && eventContext?.state
+      ? await captureCombatLogRosterSnapshot(eventContext.state, {
+        sceneEpoch,
+        capturedAtSequence: session.nextSequence,
+        orderRevision: session.orderRevision ?? eventContext.turnContext?.orderRevision,
+      })
+      : null;
+    if (!isSceneEpochCurrent(sceneEpoch)) return [];
+    const turnContext = mergeCombatLogTurnContext(
+      eventContext.turnContext,
+      input?.turnContext,
+      session.orderRevision,
+    );
     return appendEventsNow(session.id, [{
       source: "automatic",
       round: eventContext.round,
       turn: eventContext.turn,
       ...input,
-      version: input?.version ?? 2,
-    }], {}, { sceneEpoch });
+      turnContext,
+      version: input?.version ?? 3,
+      provenance: input?.provenance || {
+        recordingSource: input?.source === "manual" ? "manual-ui" : "combat-log-writer",
+        actor: null,
+        cause: null,
+      },
+    }], {
+      ...(rosterInitialCandidate ? { rosterInitialCandidate } : {}),
+    }, { sceneEpoch });
   });
 }
 
@@ -543,7 +716,7 @@ export async function recordHistoryInCombatLog(entry, { sceneEpoch = currentScen
   try {
     const context = await currentContext({ sceneEpoch });
     if (!isSceneEpochCurrent(sceneEpoch)) return [];
-    return appendCombatLogEvent(combatEventFromHistoryEntry(entry, context), { sceneEpoch, context });
+    return appendCombatLogEvent(combatEventFromHistoryEntryV3(entry, context), { sceneEpoch, context });
   } catch (error) {
     console.warn("[combat-log] history event:", error?.message || error);
     return [];
@@ -569,6 +742,12 @@ export async function recordCombatUndo(
     payload: {
       historyEntryIds: list.map((entry) => entry?.id).filter(Boolean),
       description: labels.join(" | "),
+    },
+    version: 3,
+    provenance: {
+      recordingSource: "history-undo",
+      actor: null,
+      cause: null,
     },
   }, { sceneEpoch });
 }
@@ -622,6 +801,20 @@ export async function recordNativeMovementUndo(
       nativeUndo: logicalUndoSource === "obr-native",
       ...(historyEntryIds.length ? { historyEntryIds } : {}),
     },
+    version: 3,
+    facets: {
+      movement: {
+        origin: {
+          kind: logicalUndoSource === "obr-native" ? "obr-native-undo" : "history-undo",
+        },
+        targets,
+      },
+    },
+    provenance: {
+      recordingSource: logicalUndoSource === "obr-native" ? "native-undo" : "history-undo",
+      actor: null,
+      cause: null,
+    },
   }, { sceneEpoch });
 }
 
@@ -636,6 +829,15 @@ export async function recordCombatTurn(state, { sceneEpoch = currentSceneEpoch()
       getStoredSession(sessionId, { sceneEpoch: operationEpoch }),
     resolveTurn: (activeId, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
       resolveTurn(activeId, { sceneEpoch: operationEpoch }),
+    resolveRoster: (initiativeState, {
+      sceneEpoch: operationEpoch = sceneEpoch,
+      capturedAtSequence,
+      orderRevision,
+    } = {}) => captureCombatLogRosterSnapshot(initiativeState, {
+      sceneEpoch: operationEpoch,
+      capturedAtSequence,
+      orderRevision,
+    }),
     appendEvents: (sessionId, inputs, patch, { sceneEpoch: operationEpoch = sceneEpoch } = {}) =>
       appendEventsNow(sessionId, inputs, patch, { sceneEpoch: operationEpoch }),
   }) : []);
@@ -663,7 +865,7 @@ export async function getCombatLogEvents(sessionId, { sceneEpoch = currentSceneE
   const events = await requestResult(index.getAll(sessionId));
   if (!isSceneEpochCurrent(sceneEpoch)) return [];
   return (Array.isArray(events) ? events : [])
-    .map(normalizeCombatLogEvent)
+    .map(normalizeCombatLogEventV3)
     .sort((a, b) => Number(a.sequence) - Number(b.sequence));
 }
 
@@ -754,7 +956,7 @@ export async function getCombatLogEventPage(
   const totalCount = await totalPromise;
   if (!isSceneEpochCurrent(sceneEpoch)) return emptyCombatLogEventPage(sessionId, options);
   const events = rawEvents
-    .map(normalizeCombatLogEvent)
+    .map(normalizeCombatLogEventV3)
     .sort((left, right) => Number(left.sequence) - Number(right.sequence));
   const oldestSequence = events.length ? Number(events[0].sequence) : null;
   const newestSequence = events.length ? Number(events[events.length - 1].sequence) : null;
@@ -807,7 +1009,7 @@ export async function listCombatLogSessions({
       : Promise.resolve(0)
   )));
   return list.map((session, index) => ({
-    ...session,
+    ...normalizeCombatLogSessionV3(session),
     eventCount: Number(counts[index]) || 0,
   }));
 }
@@ -1013,7 +1215,12 @@ export function exportCombatLogText(session, events) {
 }
 
 export function exportCombatLogJSON(session, events) {
-  return JSON.stringify({ version: 1, session, events }, null, 2);
+  return JSON.stringify({
+    format: COMBAT_LOG_STORAGE_FORMAT,
+    version: COMBAT_LOG_STORAGE_BUNDLE_VERSION,
+    session: normalizeCombatLogSessionV3(session),
+    events: (Array.isArray(events) ? events : []).map(normalizeCombatLogEventV3),
+  }, null, 2);
 }
 
 export async function getCombatLogExportData(
@@ -1027,19 +1234,48 @@ export async function getCombatLogExportData(
   return isSceneEpochCurrent(sceneEpoch) ? { session, events } : null;
 }
 
+async function sessionWithExportRoster(session, { sceneEpoch = currentSceneEpoch() } = {}) {
+  if (!session || !isSceneEpochCurrent(sceneEpoch)) return null;
+  let metadata = null;
+  try {
+    metadata = await OBR.scene.getMetadata();
+  } catch {
+    return normalizeCombatLogSessionV3(session);
+  }
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const state = metadata?.[STATE_KEY];
+  const sequence = Number(session.nextSequence);
+  const atExport = await captureCombatLogRosterSnapshot(state, {
+    sceneEpoch,
+    capturedAtSequence: Number.isFinite(sequence) && sequence > 1 ? sequence - 1 : null,
+    orderRevision: session.orderRevision,
+  });
+  if (!isSceneEpochCurrent(sceneEpoch)) return null;
+  const normalized = normalizeCombatLogSessionV3(session);
+  return {
+    ...normalized,
+    roster: {
+      ...normalized.roster,
+      atExport: atExport || normalized.roster.atExport || null,
+    },
+  };
+}
+
 export async function exportCombatLogJSONFromStorage(
   sessionId,
   { sceneEpoch = currentSceneEpoch() } = {},
 ) {
   const data = await getCombatLogExportData(sessionId, { sceneEpoch });
   if (!data) return "";
+  const session = await sessionWithExportRoster(data.session, { sceneEpoch });
+  if (!session) return "";
   return JSON.stringify({
     format: COMBAT_LOG_STORAGE_FORMAT,
     version: COMBAT_LOG_STORAGE_BUNDLE_VERSION,
     exportedAt: Date.now(),
     source: { roomId: String(OBR.room.id || "") },
-    session: data.session,
-    events: data.events,
+    session,
+    events: data.events.map(normalizeCombatLogEventV3),
   }, null, 2);
 }
 

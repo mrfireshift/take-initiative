@@ -201,8 +201,8 @@ test("OPTIONS-002: i reminder pubblici usano solo la consegna REMOTE redatta", (
   assert.match(broadcast, /if \(!isGM\)/);
   assert.match(broadcast, /reminderSenderIsGMPromise/);
   assert.match(broadcast, /Promise\.all\(\[/);
-  assert.match(broadcast, /destination: "LOCAL"/);
-  assert.match(broadcast, /destination: "REMOTE"/);
+  assert.match(broadcast, /sendProjectedPayload\(channel, payload, "LOCAL", gmNotices\)/);
+  assert.match(broadcast, /sendProjectedPayload\(channel, payload, "REMOTE", playerNotices\)/);
   assert.doesNotMatch(broadcast, /destination: "ALL"/);
 
   for (const file of [

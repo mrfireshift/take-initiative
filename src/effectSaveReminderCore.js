@@ -1,6 +1,7 @@
 import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { fleshToStoneReminderForInstance } from "./fleshToStoneRules.js";
+import { contagionReminderForInstance } from "./contagionRules.js";
 import {
   buildEffectSaveReminderResolution,
   buildMovementEscapeReminderResolution,
@@ -75,7 +76,8 @@ export function normalizeEffectSaveReminder(value) {
     ? value.mode
     : (!ability && hasValidDamage ? "manual-damage" : "");
   const informational = mode === "consume";
-  if ((!ability && !hasValidDamage && !informational) || !TIMINGS.has(timing)) return null;
+  const actionableChoice = mode === "choice";
+  if ((!ability && !hasValidDamage && !informational && !actionableChoice) || !TIMINGS.has(timing)) return null;
   const dc = optionalDC(value.dc);
   const dcSource = value.dcSource === "source-spell" ? "source-spell" : "";
   const resolution = normalizeReminderResolution(value.resolution);
@@ -376,7 +378,8 @@ function reminderNotice({
   const ability = ABILITIES[reminder.ability];
   const hasDamageOnly = !ability && !!(reminder.damage?.dice && reminder.damage?.type);
   const informational = !ability && !hasDamageOnly && reminder.mode === "consume";
-  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational) || !activationId) return null;
+  const actionableChoice = !ability && !hasDamageOnly && reminder.mode === "choice";
+  if (!item?.id || !instance?.id || (!ability && !hasDamageOnly && !informational && !actionableChoice) || !activationId) return null;
   const dc = ability ? reminderDC(reminder, instance, itemsById) : null;
   const sourceName = String(
     itemsById.get(String(instance?.sourceId || "").trim())?.name
@@ -429,7 +432,9 @@ function reminderNotice({
     ...(dc !== null ? { dc } : {}),
     ...(sourceName ? { sourceName } : {}),
     kind: ability ? "effect-save" : "effect-reminder",
-    ...(ability ? {} : { eyebrow: informational ? "Promemoria effetto" : "Danno continuo" }),
+    ...(ability ? {} : {
+      eyebrow: informational || actionableChoice ? "Promemoria effetto" : "Danno continuo",
+    }),
     ...(resolution ? { resolution } : {}),
     target: {
       id: item.id,
@@ -518,12 +523,16 @@ function noticesForTiming(
       for (const normalizedReminder of normalizeEffectSaveReminders(
         instance.saveReminder,
       )) {
-        const reminder = fleshToStoneReminderForInstance({
+        const fleshReminder = fleshToStoneReminderForInstance({
           instance,
           conditions: conditionInstances(item),
           reminder: normalizedReminder,
         });
-        if (reminder.timing !== timing) continue;
+        const reminder = contagionReminderForInstance({
+          instance,
+          reminder: fleshReminder,
+        });
+        if (!reminder || reminder.timing !== timing) continue;
         const wantedActorId = reminder.actor === "source"
           ? actorId(instance.sourceId)
           : String(item.id || "").trim();

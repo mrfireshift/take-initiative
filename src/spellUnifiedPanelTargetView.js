@@ -46,6 +46,46 @@ function renderOutcomeButtons(documentRef, target, callbacks) {
   return group;
 }
 
+function renderAttackOutcomeButtons(documentRef, attack, callbacks) {
+  const options = Array.isArray(attack?.options) && attack.options.length
+    ? attack.options
+    : [];
+  if (!attack?.visible || !options.length) return null;
+  const group = createNode(documentRef, "div", {
+    className: "unified-attack-outcome",
+    attributes: {
+      role: "group",
+      "aria-label": attack.label || "Esito dell'attacco",
+    },
+    children: [
+      createNode(documentRef, "span", {
+        className: "unified-field__label",
+        text: attack.label || "Esito dell'attacco",
+      }),
+    ],
+  });
+  const actions = createNode(documentRef, "div", {
+    className: `unified-outcome-group is-count-${Math.max(1, options.length)}`,
+  });
+  for (const option of options) {
+    const button = createButton(documentRef, {
+      label: option.label,
+      className: `unified-outcome-button is-${option.value}`,
+      value: option.value,
+      pressed: attack.value === option.value,
+      disabled: attack.required !== true && !attack.visible,
+      attributes: { "data-attack-outcome": option.value },
+    });
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      callbacks.onAttackOutcomeChange?.(option.value);
+    });
+    actions.append(button);
+  }
+  group.append(actions);
+  return group;
+}
+
 export function renderTargetMatrix(documentRef, model, callbacks = {}) {
   const targets = model.targets;
   if (!targets.visible) return null;
@@ -108,6 +148,13 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       text: spatialLabel,
     }));
   }
+
+  const attackOutcomeButtons = renderAttackOutcomeButtons(
+    documentRef,
+    targets.outcomes.attack,
+    callbacks,
+  );
+  if (attackOutcomeButtons) section.append(attackOutcomeButtons);
 
   if (targets.selection?.mode) {
     const stage = createNode(documentRef, "div", {

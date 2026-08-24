@@ -1,15 +1,24 @@
 import OBR from "@owlbear-rodeo/sdk";
 import { ID } from "./constants.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
 import {
   PREPARED_SPELL_RESOLUTION_CHANNEL,
+  preparedSpellResolutionAction,
   preparedSpellResolutionChoices,
   preparedSpellResolutionGroups,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
+import {
+  buildSpellUnifiedPreparedPopoverRequest,
+  SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS,
+} from "./spellUnifiedActiveAdapter.js";
+import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 
 const META_KEY = `${ID}/meta`;
+const STATE_KEY = `${ID}/state`;
 const POPOVER_WIDTH = 250;
+const MOBILE_POPOVER_WIDTH = 360;
 const BASE_POPOVER_HEIGHT = 116;
 const CHOICE_POPOVER_HEIGHT = 150;
 const ANCHOR_POLL_MS = 40;
@@ -22,8 +31,32 @@ let anchorRefreshRequested = false;
 let anchorTimer = null;
 let unsubscribeItems = null;
 let unsubscribeSceneReady = null;
+let unsubscribeSceneMetadata = null;
 let unsubscribeBroadcast = null;
+let currentTurnActorId = "";
+const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 const opened = new Map();
+
+function initiativeTurnActorId(state = {}) {
+  const order = Array.isArray(state?.order) ? state.order.filter(Boolean) : [];
+  if (!order.length) return "";
+  const current = Math.max(
+    0,
+    Math.min(order.length - 1, Math.floor(Number(state.current) || 0)),
+  );
+  return String(order[current] || "").trim();
+}
+
+function observeInitiativeState(metadata, { seed = false } = {}) {
+  const observed = seed || !stateMetadataWatcher.initialized
+    ? stateMetadataWatcher.seed(metadata)
+    : stateMetadataWatcher.observe(metadata);
+  const state = observed.value && typeof observed.value === "object"
+    ? observed.value
+    : {};
+  currentTurnActorId = initiativeTurnActorId(state);
+  return observed;
+}
 
 function point(value) {
   const x = Number(value?.x);
@@ -77,6 +110,31 @@ async function screenAnchor(worldAnchor, stackIndex, popoverHeight) {
 }
 
 function popoverOptions(group, anchorPosition, stackIndex) {
+  const action = preparedSpellResolutionAction(group);
+  if (action?.type === "resolve" || action?.type === "manual") {
+    const request = buildSpellUnifiedPreparedPopoverRequest(group, {
+      width: MOBILE_POPOVER_WIDTH,
+    });
+    return {
+      popoverId: request.id,
+      height: request.height,
+      stackIndex,
+      mobile: true,
+      options: {
+        id: request.id,
+        url: request.url,
+        width: request.width,
+        height: request.height,
+        anchorReference: "POSITION",
+        anchorPosition,
+        anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+        disableClickAway: true,
+        marginThreshold: 8,
+        hidePaper: true,
+      },
+    };
+  }
   const hasChoices = preparedSpellResolutionChoices(group).length > 1;
   const height = hasChoices ? CHOICE_POPOVER_HEIGHT : BASE_POPOVER_HEIGHT;
   const popoverId = preparedSpellResolutionPopoverId(group.instanceId);
@@ -104,8 +162,13 @@ async function openOrMoveGroup(group, stackIndex = 0, worldAnchor = null) {
   const instanceId = String(group?.instanceId || "").trim();
   const casterId = String(group?.casterId || "").trim();
   if (!instanceId || !casterId) return;
+  const actionType = preparedSpellResolutionAction(group)?.type;
+  const mobile = actionType === "resolve" || actionType === "manual";
+  const mobileRequest = mobile
+    ? buildSpellUnifiedPreparedPopoverRequest(group, { width: MOBILE_POPOVER_WIDTH })
+    : null;
   const hasChoices = preparedSpellResolutionChoices(group).length > 1;
-  const height = hasChoices ? CHOICE_POPOVER_HEIGHT : BASE_POPOVER_HEIGHT;
+  const height = mobileRequest?.height || (hasChoices ? CHOICE_POPOVER_HEIGHT : BASE_POPOVER_HEIGHT);
   const anchorPosition = await screenAnchor(worldAnchor, stackIndex, height);
   if (!anchorPosition) return;
 
@@ -123,7 +186,8 @@ async function openOrMoveGroup(group, stackIndex = 0, worldAnchor = null) {
   }
 
   const next = popoverOptions(group, anchorPosition, stackIndex);
-  await OBR.popover.open(next.options);
+  if (next.mobile) await openTrackedPopover(next.options);
+  else await OBR.popover.open(next.options);
   opened.set(instanceId, {
     instanceId,
     casterId,
@@ -139,7 +203,23 @@ async function reconcilePreparedSpellPopovers() {
     return;
   }
 
-  const groups = preparedSpellResolutionGroups(await preparedSpellItems());
+  if (!stateMetadataWatcher.initialized) {
+    observeInitiativeState(await OBR.scene.getMetadata().catch(() => ({})), { seed: true });
+  }
+  const groups = preparedSpellResolutionGroups(await preparedSpellItems())
+    // Raffica di Spine e Freccia Folgorante completano la risoluzione nel
+    // pannello unificato, che possiede già placement e transazione area.
+    .filter((group) => !SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS.includes(
+      String(group?.spellId || "").trim(),
+    ))
+    // Le risoluzioni prepared sono prompt del turno del caster: fuori da quel
+    // turno il popup viene chiuso e riaperto quando l'iniziativa ritorna.
+    .filter((group) => {
+      const actionType = preparedSpellResolutionAction(group)?.type;
+      if (actionType !== "resolve" && actionType !== "manual") return true;
+      return currentTurnActorId
+        && String(group?.casterId || "").trim() === currentTurnActorId;
+    });
   const desiredIds = new Set(groups.map((group) => String(group.instanceId)));
   for (const [instanceId, runtime] of [...opened]) {
     if (desiredIds.has(instanceId)) continue;
@@ -170,6 +250,7 @@ async function reconcilePreparedSpellPopovers() {
 async function refreshPreparedSpellAnchors() {
   if (!opened.size) return;
   await Promise.all([...opened.values()].map(async (runtime) => {
+    if (runtime.mobile) return;
     const anchorPosition = await screenAnchor(
       runtime.worldAnchor,
       runtime.stackIndex,
@@ -242,10 +323,18 @@ export async function mountPreparedSpellResolutionController() {
   );
   unsubscribeSceneReady = OBR.scene.onReadyChange((ready) => {
     if (!ready) {
+      stateMetadataWatcher.reset();
+      currentTurnActorId = "";
       requestControllerWork({ reconcile: true });
       return;
     }
+    stateMetadataWatcher.reset();
     requestControllerWork({ reconcile: true });
+  });
+  unsubscribeSceneMetadata = OBR.scene.onMetadataChange((metadata) => {
+    if (observeInitiativeState(metadata).changed) {
+      requestControllerWork({ reconcile: true });
+    }
   });
   unsubscribeBroadcast = OBR.broadcast.onMessage(
     PREPARED_SPELL_RESOLUTION_CHANNEL,
@@ -268,11 +357,15 @@ export async function unmountPreparedSpellResolutionController() {
   unsubscribeItems = null;
   unsubscribeSceneReady?.();
   unsubscribeSceneReady = null;
+  unsubscribeSceneMetadata?.();
+  unsubscribeSceneMetadata = null;
   unsubscribeBroadcast?.();
   unsubscribeBroadcast = null;
   if (anchorTimer !== null) window.clearInterval(anchorTimer);
   anchorTimer = null;
   mounted = false;
+  stateMetadataWatcher.reset();
+  currentTurnActorId = "";
   reconcileRequested = false;
   anchorRefreshRequested = false;
   await closeAllPreparedSpellPopovers();

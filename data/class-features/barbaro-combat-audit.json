@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedOn": "2026-08-15",
+  "generatedOn": "2026-08-23",
   "sourceAudit": {
     "path": "data/class-features/class-feature-automation-audit.json",
     "version": 2
@@ -365,12 +365,16 @@
   "features": [
     {
       "id": "barbaro-difesa-senza-armatura",
+      "featureId": "barbaro-difesa-senza-armatura",
+      "featureName": "Difesa Senza Armatura",
       "name": "Difesa Senza Armatura",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 1,
       "page": 48,
       "recommendation": {
@@ -430,6 +434,46 @@
           "classe_armatura"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 48"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Difesa Senza Armatura",
       "combatAudit": {
         "id": "barbaro-difesa-senza-armatura",
@@ -442,12 +486,16 @@
     },
     {
       "id": "barbaro-ira",
+      "featureId": "barbaro-ira",
+      "featureName": "Ira",
       "name": "Ira",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 1,
       "page": 48,
       "recommendation": {
@@ -522,6 +570,57 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "FULL",
+      "targetAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "CUSTOM_CODE",
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
+      "usesCustomCode": true,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 48"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js",
+          "test/classFeatureAuraCore.test.js",
+          "test/classFeatureCatalog.test.js",
+          "test/classFeatureCore.test.js",
+          "test/classFeatureReminderCore.test.js"
+        ]
+      },
+      "notes": [
+        "Utilizza adapter dedicato: condition",
+        "Interrompe la concentrazione all'attivazione",
+        "Attiva automaticamente: barbaro-cammino-della-magia-selvaggia-impeto-selvaggio, barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa"
+      ],
       "sourceName": "Ira",
       "combatAudit": {
         "id": "barbaro-ira",
@@ -534,12 +633,16 @@
     },
     {
       "id": "barbaro-attacco-irruento",
+      "featureId": "barbaro-attacco-irruento",
+      "featureName": "Attacco Irruento",
       "name": "Attacco Irruento",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 2,
       "page": 48,
       "recommendation": {
@@ -598,6 +701,47 @@
           "vantaggio"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "FULL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 48"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Attacco Irruento",
       "combatAudit": {
         "id": "barbaro-attacco-irruento",
@@ -610,12 +754,16 @@
     },
     {
       "id": "barbaro-percezione-del-pericolo",
+      "featureId": "barbaro-percezione-del-pericolo",
+      "featureName": "Percezione del Pericolo",
       "name": "Percezione del Pericolo",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 2,
       "page": 48,
       "recommendation": {
@@ -675,6 +823,46 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 48"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Percezione del Pericolo",
       "combatAudit": {
         "id": "barbaro-percezione-del-pericolo",
@@ -687,12 +875,16 @@
     },
     {
       "id": "barbaro-cammino-primordiale",
+      "featureId": "barbaro-cammino-primordiale",
+      "featureName": "Cammino Primordiale",
       "name": "Cammino Primordiale",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 3,
       "page": 48,
       "recommendation": {
@@ -746,6 +938,43 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": false,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "HIDDEN",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "NO_TARGET",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 48"
+        ],
+        "runtime": [
+          "Non presente nel runtime catalog 551"
+        ],
+        "ui": [
+          "Non esposta nella UI"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Cammino Primordiale",
       "combatAudit": {
         "id": "barbaro-cammino-primordiale",
@@ -758,12 +987,16 @@
     },
     {
       "id": "barbaro-aumento-dei-punteggi-di-caratteristica",
+      "featureId": "barbaro-aumento-dei-punteggi-di-caratteristica",
+      "featureName": "Aumento dei Punteggi di Caratteristica",
       "name": "Aumento dei Punteggi di Caratteristica",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 4,
       "page": 49,
       "recommendation": {
@@ -819,6 +1052,43 @@
           "risorsa"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": false,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "HIDDEN",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "NO_TARGET",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "Non presente nel runtime catalog 551"
+        ],
+        "ui": [
+          "Non esposta nella UI"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Aumento dei Punteggi di Caratteristica",
       "combatAudit": {
         "id": "barbaro-aumento-dei-punteggi-di-caratteristica",
@@ -831,12 +1101,16 @@
     },
     {
       "id": "barbaro-attacco-extra",
+      "featureId": "barbaro-attacco-extra",
+      "featureName": "Attacco Extra",
       "name": "Attacco Extra",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 5,
       "page": 49,
       "recommendation": {
@@ -892,6 +1166,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Attacco Extra",
       "combatAudit": {
         "id": "barbaro-attacco-extra",
@@ -904,12 +1218,16 @@
     },
     {
       "id": "barbaro-movimento-veloce",
+      "featureId": "barbaro-movimento-veloce",
+      "featureName": "Movimento Veloce",
       "name": "Movimento Veloce",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 5,
       "page": 49,
       "recommendation": {
@@ -967,6 +1285,46 @@
           "movimento"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Movimento Veloce",
       "combatAudit": {
         "id": "barbaro-movimento-veloce",
@@ -979,12 +1337,16 @@
     },
     {
       "id": "barbaro-istinto-ferino",
+      "featureId": "barbaro-istinto-ferino",
+      "featureName": "Istinto Ferino",
       "name": "Istinto Ferino",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 7,
       "page": 49,
       "recommendation": {
@@ -1043,6 +1405,46 @@
           "condizione"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Istinto Ferino",
       "combatAudit": {
         "id": "barbaro-istinto-ferino",
@@ -1055,12 +1457,16 @@
     },
     {
       "id": "barbaro-critico-brutale",
+      "featureId": "barbaro-critico-brutale",
+      "featureName": "Critico Brutale",
       "name": "Critico Brutale",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 9,
       "page": 49,
       "recommendation": {
@@ -1116,6 +1522,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Critico Brutale",
       "combatAudit": {
         "id": "barbaro-critico-brutale",
@@ -1128,12 +1574,16 @@
     },
     {
       "id": "barbaro-ira-implacabile",
+      "featureId": "barbaro-ira-implacabile",
+      "featureName": "Ira Implacabile",
       "name": "Ira Implacabile",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 11,
       "page": 49,
       "recommendation": {
@@ -1191,6 +1641,47 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js",
+          "test/classFeatureReminderCore.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Ira Implacabile",
       "combatAudit": {
         "id": "barbaro-ira-implacabile",
@@ -1203,12 +1694,16 @@
     },
     {
       "id": "barbaro-ira-persistente",
+      "featureId": "barbaro-ira-persistente",
+      "featureName": "Ira Persistente",
       "name": "Ira Persistente",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 15,
       "page": 49,
       "recommendation": {
@@ -1264,6 +1759,47 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js",
+          "test/classFeatureCore.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Ira Persistente",
       "combatAudit": {
         "id": "barbaro-ira-persistente",
@@ -1276,12 +1812,16 @@
     },
     {
       "id": "barbaro-potenza-indomabile",
+      "featureId": "barbaro-potenza-indomabile",
+      "featureName": "Potenza Indomabile",
       "name": "Potenza Indomabile",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 18,
       "page": 49,
       "recommendation": {
@@ -1337,6 +1877,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Potenza Indomabile",
       "combatAudit": {
         "id": "barbaro-potenza-indomabile",
@@ -1349,12 +1929,16 @@
     },
     {
       "id": "barbaro-campione-primordiale",
+      "featureId": "barbaro-campione-primordiale",
+      "featureName": "Campione Primordiale",
       "name": "Campione Primordiale",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": null,
+      "subclassName": null,
       "minimumLevel": 20,
       "page": 49,
       "recommendation": {
@@ -1410,6 +1994,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Campione Primordiale",
       "combatAudit": {
         "id": "barbaro-campione-primordiale",
@@ -1422,12 +2046,16 @@
     },
     {
       "id": "barbaro-cammino-del-berserker-frenesia",
+      "featureId": "barbaro-cammino-del-berserker-frenesia",
+      "featureName": "Frenesia",
       "name": "Frenesia",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-berserker",
+      "subclassName": "Cammino del Berserker",
       "minimumLevel": 3,
       "page": 49,
       "recommendation": {
@@ -1479,6 +2107,52 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "FULL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "CUSTOM_CODE",
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": true,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Utilizza adapter dedicato: condition",
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Frenesia",
       "combatAudit": {
         "id": "barbaro-cammino-del-berserker-frenesia",
@@ -1491,12 +2165,16 @@
     },
     {
       "id": "barbaro-cammino-del-berserker-ira-incontenibile",
+      "featureId": "barbaro-cammino-del-berserker-ira-incontenibile",
+      "featureName": "Ira Incontenibile",
       "name": "Ira Incontenibile",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-berserker",
+      "subclassName": "Cammino del Berserker",
       "minimumLevel": 6,
       "page": 49,
       "recommendation": {
@@ -1554,6 +2232,46 @@
           "condizione"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Ira Incontenibile",
       "combatAudit": {
         "id": "barbaro-cammino-del-berserker-ira-incontenibile",
@@ -1566,12 +2284,16 @@
     },
     {
       "id": "barbaro-cammino-del-berserker-presenza-intimidatoria",
+      "featureId": "barbaro-cammino-del-berserker-presenza-intimidatoria",
+      "featureName": "Presenza Intimidatoria",
       "name": "Presenza Intimidatoria",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-berserker",
+      "subclassName": "Cammino del Berserker",
       "minimumLevel": 10,
       "page": 49,
       "recommendation": {
@@ -1638,6 +2360,48 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 49"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Presenza Intimidatoria",
       "combatAudit": {
         "id": "barbaro-cammino-del-berserker-presenza-intimidatoria",
@@ -1650,12 +2414,16 @@
     },
     {
       "id": "barbaro-cammino-del-berserker-ritorsione",
+      "featureId": "barbaro-cammino-del-berserker-ritorsione",
+      "featureName": "Ritorsione",
       "name": "Ritorsione",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-berserker",
+      "subclassName": "Cammino del Berserker",
       "minimumLevel": 14,
       "page": 50,
       "recommendation": {
@@ -1709,6 +2477,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Ritorsione",
       "combatAudit": {
         "id": "barbaro-cammino-del-berserker-ritorsione",
@@ -1721,12 +2529,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-cercatore-di-spiriti",
+      "featureId": "barbaro-cammino-del-combattente-totemico-cercatore-di-spiriti",
+      "featureName": "Cercatore di Spiriti",
       "name": "Cercatore di Spiriti",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 3,
       "page": 50,
       "recommendation": {
@@ -1784,6 +2596,46 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Cercatore di Spiriti",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-cercatore-di-spiriti",
@@ -1796,12 +2648,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico",
+      "featureId": "barbaro-cammino-del-combattente-totemico-spirito-totemico",
+      "featureName": "Spirito Totemico",
       "name": "Spirito Totemico",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 3,
       "page": 50,
       "recommendation": {
@@ -1859,6 +2715,50 @@
           "guarigione"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js",
+          "test/classFeatureAuraCore.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Spirito Totemico",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico",
@@ -1871,12 +2771,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+      "featureId": "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
+      "featureName": "Aquila",
       "name": "Spirito Totemico: Aquila",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 3,
       "page": 50,
       "recommendation": {
@@ -1938,6 +2842,50 @@
           "movimento"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Aquila",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-aquila",
@@ -1950,12 +2898,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+      "featureId": "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
+      "featureName": "Lupo",
       "name": "Spirito Totemico: Lupo",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 3,
       "page": 50,
       "recommendation": {
@@ -2014,6 +2966,52 @@
           "vantaggio"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "FULL",
+      "targetAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "AURA"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureAudit.test.js",
+          "test/classFeatureAuraCore.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Lupo",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-lupo",
@@ -2026,12 +3024,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
+      "featureId": "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
+      "featureName": "Orso",
       "name": "Spirito Totemico: Orso",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 3,
       "page": 50,
       "recommendation": {
@@ -2089,6 +3091,50 @@
           "resistenza_danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Orso",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-spirito-totemico-orso",
@@ -2101,12 +3147,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-aquila",
+      "featureId": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-aquila",
+      "featureName": "Aquila",
       "name": "Aquila",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 6,
       "page": 50,
       "recommendation": {
@@ -2166,6 +3216,46 @@
           "svantaggio"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Aquila",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-aquila",
@@ -2178,12 +3268,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia",
+      "featureId": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia",
+      "featureName": "Aspetto della Bestia",
       "name": "Aspetto della Bestia",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 6,
       "page": 50,
       "recommendation": {
@@ -2239,6 +3333,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Aspetto della Bestia",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia",
@@ -2251,12 +3385,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-lupo",
+      "featureId": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-lupo",
+      "featureName": "Lupo",
       "name": "Lupo",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 6,
       "page": 50,
       "recommendation": {
@@ -2312,6 +3450,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Lupo",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-lupo",
@@ -2324,12 +3502,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-orso",
+      "featureId": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-orso",
+      "featureName": "Orso",
       "name": "Orso",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 6,
       "page": 50,
       "recommendation": {
@@ -2387,6 +3569,46 @@
           "vantaggio"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Orso",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-aspetto-della-bestia-orso",
@@ -2399,12 +3621,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-viandante-spirituale",
+      "featureId": "barbaro-cammino-del-combattente-totemico-viandante-spirituale",
+      "featureName": "Viandante Spirituale",
       "name": "Viandante Spirituale",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 10,
       "page": 50,
       "recommendation": {
@@ -2462,6 +3688,46 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Viandante Spirituale",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-viandante-spirituale",
@@ -2474,12 +3740,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica",
+      "featureId": "barbaro-cammino-del-combattente-totemico-sintonia-totemica",
+      "featureName": "Sintonia Totemica",
       "name": "Sintonia Totemica",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 14,
       "page": 50,
       "recommendation": {
@@ -2535,6 +3805,47 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "PASSIVE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Sintonia Totemica",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica",
@@ -2547,12 +3858,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
+      "featureId": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
+      "featureName": "Aquila",
       "name": "Sintonia Totemica: Aquila",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 14,
       "page": 50,
       "recommendation": {
@@ -2610,6 +3925,49 @@
           "movimento"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js",
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Aquila",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-aquila",
@@ -2622,12 +3980,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
+      "featureId": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
+      "featureName": "Lupo",
       "name": "Sintonia Totemica: Lupo",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 14,
       "page": 50,
       "recommendation": {
@@ -2684,6 +4046,46 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Lupo",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-lupo",
@@ -2696,12 +4098,16 @@
     },
     {
       "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso",
+      "featureId": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso",
+      "featureName": "Orso",
       "name": "Sintonia Totemica: Orso",
       "source": "phb2014",
       "sourceLabel": "Manuale del Giocatore 2014",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-combattente-totemico",
+      "subclassName": "Cammino del Combattente Totemico",
       "minimumLevel": 14,
       "page": 50,
       "recommendation": {
@@ -2761,6 +4167,48 @@
           "condizione"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "INDIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "AURA"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": false,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Manuale del Giocatore 2014",
+          "Pagina 50"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/classFeatureCatalog.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Orso",
       "combatAudit": {
         "id": "barbaro-cammino-del-combattente-totemico-sintonia-totemica-orso",
@@ -2773,12 +4221,16 @@
     },
     {
       "id": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+      "featureId": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
+      "featureName": "Protettori Ancestrali",
       "name": "Protettori Ancestrali",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-guardiano-ancestrale",
+      "subclassName": "Cammino del Guardiano Ancestrale",
       "minimumLevel": 3,
       "page": 10,
       "recommendation": {
@@ -2844,6 +4296,49 @@
           "resistenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "FULL",
+      "targetAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Protettori Ancestrali",
       "combatAudit": {
         "id": "barbaro-cammino-del-guardiano-ancestrale-protettori-ancestrali",
@@ -2856,12 +4351,16 @@
     },
     {
       "id": "barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori",
+      "featureId": "barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori",
+      "featureName": "Spiriti Protettori",
       "name": "Spiriti Protettori",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-guardiano-ancestrale",
+      "subclassName": "Cammino del Guardiano Ancestrale",
       "minimumLevel": 6,
       "page": 10,
       "recommendation": {
@@ -2920,6 +4419,44 @@
           "danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Spiriti Protettori",
       "combatAudit": {
         "id": "barbaro-cammino-del-guardiano-ancestrale-spiriti-protettori",
@@ -2932,12 +4469,16 @@
     },
     {
       "id": "barbaro-cammino-del-guardiano-ancestrale-consultare-gli-spiriti",
+      "featureId": "barbaro-cammino-del-guardiano-ancestrale-consultare-gli-spiriti",
+      "featureName": "Consultare gli Spiriti",
       "name": "Consultare gli Spiriti",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-guardiano-ancestrale",
+      "subclassName": "Cammino del Guardiano Ancestrale",
       "minimumLevel": 10,
       "page": 10,
       "recommendation": {
@@ -2999,6 +4540,44 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "TRACK_ONLY",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "SHORT_REST",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Consultare gli Spiriti",
       "combatAudit": {
         "id": "barbaro-cammino-del-guardiano-ancestrale-consultare-gli-spiriti",
@@ -3011,12 +4590,16 @@
     },
     {
       "id": "barbaro-cammino-del-guardiano-ancestrale-antenati-vendicativi",
+      "featureId": "barbaro-cammino-del-guardiano-ancestrale-antenati-vendicativi",
+      "featureName": "Antenati Vendicativi",
       "name": "Antenati Vendicativi",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-del-guardiano-ancestrale",
+      "subclassName": "Cammino del Guardiano Ancestrale",
       "minimumLevel": 14,
       "page": 10,
       "recommendation": {
@@ -3072,6 +4655,44 @@
           "danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Antenati Vendicativi",
       "combatAudit": {
         "id": "barbaro-cammino-del-guardiano-ancestrale-antenati-vendicativi",
@@ -3084,12 +4705,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
+      "featureName": "Aura Tempestosa",
       "name": "Aura Tempestosa",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 3,
       "page": 10,
       "recommendation": {
@@ -3156,6 +4781,49 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "AURA"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "AURA",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Aura Tempestosa",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa",
@@ -3168,12 +4836,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto",
+      "featureName": "Deserto",
       "name": "Deserto",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 3,
       "page": 10,
       "recommendation": {
@@ -3233,6 +4905,46 @@
           "aura"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Deserto",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-deserto",
@@ -3245,12 +4957,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare",
+      "featureName": "Mare",
       "name": "Mare",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 3,
       "page": 10,
       "recommendation": {
@@ -3312,6 +5028,46 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Mare",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-mare",
@@ -3324,12 +5080,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra",
+      "featureName": "Tundra",
       "name": "Tundra",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 3,
       "page": 10,
       "recommendation": {
@@ -3390,6 +5150,47 @@
           "aura"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Tundra",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-aura-tempestosa-tundra",
@@ -3402,12 +5203,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-anima-tempestosa",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-anima-tempestosa",
+      "featureName": "Anima Tempestosa",
       "name": "Anima Tempestosa",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 6,
       "page": 10,
       "recommendation": {
@@ -3471,6 +5276,44 @@
           "resistenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Anima Tempestosa",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-anima-tempestosa",
@@ -3483,12 +5326,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice",
+      "featureName": "Tempesta Protettrice",
       "name": "Tempesta Protettrice",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 10,
       "page": 10,
       "recommendation": {
@@ -3546,6 +5393,46 @@
           "resistenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "AURA"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "PERSISTENT",
+      "persistentCategory": "SPATIAL_AURA",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": "OTHER",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 10"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Tempesta Protettrice",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-protettrice",
@@ -3558,12 +5445,16 @@
     },
     {
       "id": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-furibonda",
+      "featureId": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-furibonda",
+      "featureName": "Tempesta Furibonda",
       "name": "Tempesta Furibonda",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dell-araldo-della-tempesta",
+      "subclassName": "Cammino dell'Araldo della Tempesta",
       "minimumLevel": 14,
       "page": 11,
       "recommendation": {
@@ -3630,6 +5521,44 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Tempesta Furibonda",
       "combatAudit": {
         "id": "barbaro-cammino-dell-araldo-della-tempesta-tempesta-furibonda",
@@ -3642,12 +5571,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-forma-della-bestia-artigli",
+      "featureId": "barbaro-cammino-della-bestia-forma-della-bestia-artigli",
+      "featureName": "Artigli",
       "name": "Artigli",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 3,
       "page": 24,
       "recommendation": {
@@ -3703,6 +5636,46 @@
           "danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 24"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Artigli",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-forma-della-bestia-artigli",
@@ -3716,12 +5689,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-forma-della-bestia-coda",
+      "featureId": "barbaro-cammino-della-bestia-forma-della-bestia-coda",
+      "featureName": "Coda",
       "name": "Coda",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 3,
       "page": 24,
       "recommendation": {
@@ -3778,6 +5755,46 @@
           "tiro_per_colpire"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": true,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 24"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Coda",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-forma-della-bestia-coda",
@@ -3791,12 +5808,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-forma-della-bestia",
+      "featureId": "barbaro-cammino-della-bestia-forma-della-bestia",
+      "featureName": "Forma della Bestia",
       "name": "Forma della Bestia",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 3,
       "page": 24,
       "recommendation": {
@@ -3860,6 +5881,49 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 24"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Forma della Bestia",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-forma-della-bestia",
@@ -3872,12 +5936,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-forma-della-bestia-morso",
+      "featureId": "barbaro-cammino-della-bestia-forma-della-bestia-morso",
+      "featureName": "Morso",
       "name": "Morso",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 3,
       "page": 24,
       "recommendation": {
@@ -3935,6 +6003,44 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 24"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Morso",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-forma-della-bestia-morso",
@@ -3948,12 +6054,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-anima-bestiale",
+      "featureId": "barbaro-cammino-della-bestia-anima-bestiale",
+      "featureName": "Anima Bestiale",
       "name": "Anima Bestiale",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 6,
       "page": 25,
       "recommendation": {
@@ -4015,6 +6125,44 @@
           "resistenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 25"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Anima Bestiale",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-anima-bestiale",
@@ -4027,12 +6175,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-furia-contagiosa",
+      "featureId": "barbaro-cammino-della-bestia-furia-contagiosa",
+      "featureName": "Furia Contagiosa",
       "name": "Furia Contagiosa",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 10,
       "page": 25,
       "recommendation": {
@@ -4096,6 +6248,44 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "TRACK_ONLY",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 25"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Furia Contagiosa",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-furia-contagiosa",
@@ -4108,12 +6298,16 @@
     },
     {
       "id": "barbaro-cammino-della-bestia-chiamata-alla-caccia",
+      "featureId": "barbaro-cammino-della-bestia-chiamata-alla-caccia",
+      "featureName": "Chiamata alla Caccia",
       "name": "Chiamata alla Caccia",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-bestia",
+      "subclassName": "Cammino della Bestia",
       "minimumLevel": 14,
       "page": 25,
       "recommendation": {
@@ -4176,6 +6370,49 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 25"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Chiamata alla Caccia",
       "combatAudit": {
         "id": "barbaro-cammino-della-bestia-chiamata-alla-caccia",
@@ -4188,12 +6425,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-consapevolezza-magica",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-consapevolezza-magica",
+      "featureName": "Consapevolezza Magica",
       "name": "Consapevolezza Magica",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 25,
       "recommendation": {
@@ -4259,6 +6500,44 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "TRACK_ONLY",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 25"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Consapevolezza Magica",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-consapevolezza-magica",
@@ -4271,12 +6550,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
+      "featureName": "Impeto Selvaggio",
       "name": "Impeto Selvaggio",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 25,
       "recommendation": {
@@ -4331,6 +6614,48 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 25"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Impeto Selvaggio",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio",
@@ -4343,12 +6668,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-4",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-4",
+      "featureName": "Risultato 4",
       "name": "Magia Selvaggia: Arma Infusa",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4404,6 +6733,44 @@
           "danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 4",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-4",
@@ -4416,12 +6783,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-8",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-8",
+      "featureName": "Risultato 8",
       "name": "Magia Selvaggia: Dardo di Luce",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4486,6 +6857,44 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 8",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-8",
@@ -4498,12 +6907,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-6",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-6",
+      "featureName": "Risultato 6",
       "name": "Magia Selvaggia: Luci Protettive",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4561,6 +6974,44 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 6",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-6",
@@ -4573,12 +7024,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-7",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-7",
+      "featureName": "Risultato 7",
       "name": "Magia Selvaggia: Rampicanti",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4635,6 +7090,44 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 7",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-7",
@@ -4647,12 +7140,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-5",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-5",
+      "featureName": "Risultato 5",
       "name": "Magia Selvaggia: Ritorsione della Forza",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4707,6 +7204,48 @@
           "tiro_per_colpire"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Risultato 5",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-5",
@@ -4719,12 +7258,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-3",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-3",
+      "featureName": "Risultato 3",
       "name": "Magia Selvaggia: Spirito Esplosivo",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4787,6 +7330,44 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 3",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-3",
@@ -4799,12 +7380,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2",
+      "featureName": "Risultato 2",
       "name": "Magia Selvaggia: Teletrasporto",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4862,6 +7447,48 @@
           "movimento"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SELF",
+      "durationMode": "TOGGLE",
+      "persistentCategory": "TOGGLE_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [
+        "Interrompe la concentrazione all'attivazione"
+      ],
       "sourceName": "Risultato 2",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-2",
@@ -4874,12 +7501,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-1",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-1",
+      "featureName": "Risultato 1",
       "name": "Magia Selvaggia: Viti Oscure",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "opzioni",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 3,
       "page": 26,
       "recommendation": {
@@ -4938,6 +7569,44 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Risultato 1",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-selvaggio-risultato-1",
@@ -4950,12 +7619,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-magia-corroborante",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-magia-corroborante",
+      "featureName": "Magia Corroborante",
       "name": "Magia Corroborante",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 6,
       "page": 26,
       "recommendation": {
@@ -5018,6 +7691,47 @@
           "competenza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "ROUND_BASED",
+      "persistentCategory": "ROUND_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Magia Corroborante",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-magia-corroborante",
@@ -5030,12 +7744,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-reazione-instabile",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-reazione-instabile",
+      "featureName": "Reazione Instabile",
       "name": "Reazione Instabile",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 10,
       "page": 26,
       "recommendation": {
@@ -5092,6 +7810,44 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "REACTION",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Reazione Instabile",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-reazione-instabile",
@@ -5104,12 +7860,16 @@
     },
     {
       "id": "barbaro-cammino-della-magia-selvaggia-impeto-controllato",
+      "featureId": "barbaro-cammino-della-magia-selvaggia-impeto-controllato",
+      "featureName": "Impeto Controllato",
       "name": "Impeto Controllato",
       "source": "tasha",
       "sourceLabel": "Calderone Omnicomprensivo di Tasha",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-della-magia-selvaggia",
+      "subclassName": "Cammino della Magia Selvaggia",
       "minimumLevel": 14,
       "page": 26,
       "recommendation": {
@@ -5163,6 +7923,44 @@
         "targetRequirements": [],
         "effectTags": []
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "RESOURCE_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Calderone Omnicomprensivo di Tasha",
+          "Pagina 26"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Impeto Controllato",
       "combatAudit": {
         "id": "barbaro-cammino-della-magia-selvaggia-impeto-controllato",
@@ -5175,12 +7973,16 @@
     },
     {
       "id": "barbaro-cammino-dello-zelota-furia-divina",
+      "featureId": "barbaro-cammino-dello-zelota-furia-divina",
+      "featureName": "Furia Divina",
       "name": "Furia Divina",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dello-zelota",
+      "subclassName": "Cammino dello Zelota",
       "minimumLevel": 3,
       "page": 11,
       "recommendation": {
@@ -5239,6 +8041,44 @@
           "danni"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "FULL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Furia Divina",
       "combatAudit": {
         "id": "barbaro-cammino-dello-zelota-furia-divina",
@@ -5251,12 +8091,16 @@
     },
     {
       "id": "barbaro-cammino-dello-zelota-guerriero-degli-dei",
+      "featureId": "barbaro-cammino-dello-zelota-guerriero-degli-dei",
+      "featureName": "Guerriero degli Dèi",
       "name": "Guerriero degli Dèi",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dello-zelota",
+      "subclassName": "Cammino dello Zelota",
       "minimumLevel": 3,
       "page": 11,
       "recommendation": {
@@ -5310,6 +8154,43 @@
           "incantesimo"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": false,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "HIDDEN",
+      "executionPath": [
+        "NONE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "NO_TARGET",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "Non presente nel runtime catalog 551"
+        ],
+        "ui": [
+          "Non esposta nella UI"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Guerriero degli Dèi",
       "combatAudit": {
         "id": "barbaro-cammino-dello-zelota-guerriero-degli-dei",
@@ -5322,12 +8203,16 @@
     },
     {
       "id": "barbaro-cammino-dello-zelota-concentrazione-fanatica",
+      "featureId": "barbaro-cammino-dello-zelota-concentrazione-fanatica",
+      "featureName": "Concentrazione Fanatica",
       "name": "Concentrazione Fanatica",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dello-zelota",
+      "subclassName": "Cammino dello Zelota",
       "minimumLevel": 6,
       "page": 11,
       "recommendation": {
@@ -5381,6 +8266,43 @@
           "tiro_salvezza"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": false,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "MANUAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "HIDDEN",
+      "executionPath": [
+        "NONE"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "PASSIVE",
+      "targetingMode": "NO_TARGET",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "Non presente nel runtime catalog 551"
+        ],
+        "ui": [
+          "Non esposta nella UI"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Concentrazione Fanatica",
       "combatAudit": {
         "id": "barbaro-cammino-dello-zelota-concentrazione-fanatica",
@@ -5393,12 +8315,16 @@
     },
     {
       "id": "barbaro-cammino-dello-zelota-presenza-zelante",
+      "featureId": "barbaro-cammino-dello-zelota-presenza-zelante",
+      "featureName": "Presenza Zelante",
       "name": "Presenza Zelante",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dello-zelota",
+      "subclassName": "Cammino dello Zelota",
       "minimumLevel": 10,
       "page": 11,
       "recommendation": {
@@ -5462,6 +8388,47 @@
           "vantaggio"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "PARTIAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "ACCEPTED",
+      "testCoverageStatus": "DIRECT",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "EFFECTS_MUTATION"
+      ],
+      "resourceModel": "LONG_REST",
+      "activationType": "BONUS_ACTION",
+      "targetingMode": "SINGLE_TARGET",
+      "durationMode": "UNTIL_TURN",
+      "persistentCategory": "TURN_BOUND_STATE",
+      "usesCustomCode": false,
+      "hasCleanup": true,
+      "hasDirectTest": true,
+      "gapCategory": null,
+      "severity": null,
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: implemented)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": [
+          "test/barbarianCombatAudit.test.js",
+          "test/barbarianFeatureRuntime.test.js"
+        ]
+      },
+      "notes": [],
       "sourceName": "Presenza Zelante",
       "combatAudit": {
         "id": "barbaro-cammino-dello-zelota-presenza-zelante",
@@ -5474,12 +8441,16 @@
     },
     {
       "id": "barbaro-cammino-dello-zelota-ira-imperitura",
+      "featureId": "barbaro-cammino-dello-zelota-ira-imperitura",
+      "featureName": "Ira Imperitura",
       "name": "Ira Imperitura",
       "source": "xanathar",
       "sourceLabel": "Guida Omnicomprensiva di Xanathar",
       "collection": "privilegi",
       "classId": "barbaro",
+      "className": "Barbaro",
       "subclassId": "barbaro-cammino-dello-zelota",
+      "subclassName": "Cammino dello Zelota",
       "minimumLevel": 14,
       "page": 11,
       "recommendation": {
@@ -5539,6 +8510,44 @@
           "guarigione"
         ]
       },
+      "catalogStatus": "CATALOGED",
+      "runtimeExposed": true,
+      "currentAutomationLevel": "MANUAL",
+      "targetAutomationLevel": "PARTIAL",
+      "coverageStatus": "GAP",
+      "testCoverageStatus": "NONE",
+      "testGap": false,
+      "sourceConflict": false,
+      "sourceConflictDetails": null,
+      "currentUiExposure": "PANEL",
+      "executionPath": [
+        "REMINDER"
+      ],
+      "resourceModel": "NONE",
+      "activationType": "FREE",
+      "targetingMode": "SELF",
+      "durationMode": "NONE",
+      "persistentCategory": null,
+      "usesCustomCode": false,
+      "hasCleanup": false,
+      "hasDirectTest": false,
+      "gapCategory": "EXECUTION_GAP",
+      "severity": "P2",
+      "evidence": {
+        "catalog": [
+          "Guida Omnicomprensiva di Xanathar",
+          "Pagina 11"
+        ],
+        "runtime": [
+          "src/class-features-runtime.json (status: not-automated)"
+        ],
+        "ui": [
+          "initiativeCardModal (Scheda Capacità)",
+          "trackerQuickActions"
+        ],
+        "tests": []
+      },
+      "notes": [],
       "sourceName": "Ira Imperitura",
       "combatAudit": {
         "id": "barbaro-cammino-dello-zelota-ira-imperitura",

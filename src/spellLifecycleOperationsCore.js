@@ -123,8 +123,10 @@ export function catalogSpellApplicationOperations({
   castContext = null,
   proposedConditions = [],
   proposedEffects = [],
+  conditionApplications = [],
   conditionOptions = {},
   concentrationAction = "replace",
+  concentrationReference = null,
   casterName = "",
   onSpellEnd = null,
   persistSpell = true,
@@ -174,6 +176,25 @@ export function catalogSpellApplicationOperations({
     });
   }
 
+  for (const application of conditionApplications || []) {
+    const applicationTargetIds = uniqueIds(application?.targetIds);
+    const conditionName = String(application?.conditionName || "").trim();
+    if (!applicationTargetIds.length || !conditionName) continue;
+    const applicationOptions = application?.options && typeof application.options === "object"
+      ? application.options
+      : {};
+    applications.push({
+      targetIds: applicationTargetIds,
+      conditionName,
+      options: {
+        ...conditionOptions,
+        parentEffectId: persistSpell === true ? instanceId : "",
+        type: persistSpell === true ? "spell" : "automatic",
+        ...applicationOptions,
+      },
+    });
+  }
+
   return spellLifecycleOperations({
     targetIds: targets,
     casterId,
@@ -190,6 +211,7 @@ export function catalogSpellApplicationOperations({
     replaceNames: [enteredName, name, storedName],
     conditionApplications: applications,
     concentrationAction,
+    concentrationReference,
     persistSpell,
   });
 }

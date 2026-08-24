@@ -10,6 +10,10 @@ import {
   reconcileExhaustionCondition,
 } from "./conditions.js";
 import { CLASS_FEATURE_STATE_FIELD } from "./classFeatureCore.js";
+import {
+  isClassFeatureStateMutationOperation,
+  planClassFeatureStateMutations,
+} from "./classFeatureStateMutationCore.js";
 import { effectsDiagnostics } from "./effectsDiagnostics.js";
 import {
   saveSpellResolutionOperations,
@@ -76,6 +80,31 @@ const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const HISTORY_CONTROL_ACK_CHANNEL = `${ID}/history-control-ack`;
 const HISTORY_UNDO_SUPPRESSION_ACK_MS = 1500;
 const HISTORY_UNDO_SUPPRESSION_MS = 5000;
+const activeTeleportAnimations = new Map();
+
+function activeTeleportAnimation(targetId) {
+  return activeTeleportAnimations.get(String(targetId || "").trim()) || null;
+}
+
+function teleportAnimationIsActive(targetId, operationId) {
+  const active = activeTeleportAnimation(targetId);
+  return !!active && active.operationId === operationId;
+}
+
+function cancelActiveTeleportAnimation(targetId) {
+  const normalizedTargetId = String(targetId || "").trim();
+  const active = activeTeleportAnimations.get(normalizedTargetId);
+  if (!active) return false;
+  for (const timer of active.timers || []) clearTimeout(timer);
+  activeTeleportAnimations.delete(normalizedTargetId);
+  return true;
+}
+
+function clearActiveTeleportAnimations() {
+  for (const targetId of [...activeTeleportAnimations.keys()]) {
+    cancelActiveTeleportAnimation(targetId);
+  }
+}
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -848,9 +877,40 @@ export async function prepareEffectsMutation(operations = [], {
       conflicts: [conflictOp],
     };
   }
+  const classFeatureStateOperations = preparedOperations
+    .filter(isClassFeatureStateMutationOperation);
+  const effectsOperations = preparedOperations
+    .filter((operation) => !isClassFeatureStateMutationOperation(operation));
+  const classFeatureStateSourceIds = new Set(
+    classFeatureStateOperations.map((operation) => String(operation.sourceId || "").trim()),
+  );
+  const duplicateClassFeatureStatePatches = (Array.isArray(command.metadataPatches)
+    ? command.metadataPatches
+    : [])
+    .filter((patch) => classFeatureStateSourceIds.has(String(patch?.id || "").trim()))
+    .filter((patch) => Object.prototype.hasOwnProperty.call(
+      patch?.fields || {},
+      CLASS_FEATURE_STATE_FIELD,
+    ));
+  if (duplicateClassFeatureStatePatches.length) {
+    return {
+      status: EFFECTS_MUTATION_STATUS.CONFLICT,
+      conflicts: duplicateClassFeatureStatePatches.map((patch) => ({
+        itemId: String(patch?.id || "").trim() || null,
+        field: CLASS_FEATURE_STATE_FIELD,
+        reason: "duplicate-class-feature-state-writer",
+      })),
+    };
+  }
+  const classFeatureStatePlan = planClassFeatureStateMutations(
+    sceneItems,
+    classFeatureStateOperations,
+    { metadataKey: META_KEY },
+  );
+  if (classFeatureStatePlan?.status) return classFeatureStatePlan;
   const plan = buildEffectsMutationPlan(
     sceneItems.map(normalizedSceneItem),
-    preparedOperations,
+    effectsOperations,
     {
       knownConditionNames: CONDITION_LIST,
       maxCustomConditions: 3,
@@ -859,9 +919,13 @@ export async function prepareEffectsMutation(operations = [], {
   const patchedPlan = applyMetadataPatchesToPlan(
     plan,
     sceneItems,
-    command.metadataPatches,
+    [
+      ...(Array.isArray(command.metadataPatches) ? command.metadataPatches : []),
+      ...classFeatureStatePlan.patches,
+    ],
   );
   if (patchedPlan?.status) return patchedPlan;
+  plan.classFeatureMutationResults = classFeatureStatePlan.results;
   plan.mutationId = mutationId;
   plan.scannedItems = sceneItems.length;
   plan.skipClassFeatureReconcileIds = preparedOperations
@@ -1130,6 +1194,7 @@ function applyHistoryChangeToDraft(item, change, targetPhase) {
     item.metadata = { ...(item.metadata || {}), [META_KEY]: meta };
   }
   if (change?.position) {
+    if (cancelActiveTeleportAnimation(item.id)) item.visible = true;
     item.position = clone(targetPhase === "final" ? change.afterPosition : change.beforePosition);
   }
   if (change?.commands) {
@@ -1626,6 +1691,7 @@ export async function prepareEffectsMutationUndo(entryOrEntries, {
     },
     normalizeConditions: getConditionInstances,
     conditionVersion: EFFECTS_MUTATION_CONDITION_VERSION,
+    teleportAnimationLookup: activeTeleportAnimation,
   });
   if (plan.status) return plan;
   plan.mutationId = createId("effects-undo");
@@ -2365,6 +2431,7 @@ async function prepareEffectsSideEffects(plan, command) {
       prepared.push({
         type: descriptor.type,
         id: targetId,
+        operationId: String(descriptor.operationId || command.commandId || "").trim(),
         name: String(targetItem.name || "").trim(),
         beforePosition,
         afterPosition,
@@ -2464,38 +2531,48 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     if (!isCurrent()) throw new Error("stale-before-token-teleport");
     suppressMovementHistory(targetId, afterPosition, 5000);
     const skipAnimation = sideEffect.skipAnimation === true;
+    const operationId = String(sideEffect.operationId || "").trim();
+    cancelActiveTeleportAnimation(targetId);
     if (!skipAnimation) {
-      setTimeout(async () => {
+      const animation = { operationId, timers: [] };
+      activeTeleportAnimations.set(targetId, animation);
+      animation.timers.push(setTimeout(async () => {
         try {
-          if (!isCurrent()) return;
+          if (!isCurrent() || !teleportAnimationIsActive(targetId, operationId)) return;
           await OBR.scene.items.updateItems([targetId], (drafts) => {
+            if (!teleportAnimationIsActive(targetId, operationId)) return;
             for (const draft of drafts) {
               if (draft.id === targetId) draft.visible = false;
             }
           });
         } catch {}
-      }, 1000);
-      setTimeout(async () => {
+      }, 1000));
+      animation.timers.push(setTimeout(async () => {
         try {
-          if (!isCurrent()) return;
+          if (!isCurrent() || !teleportAnimationIsActive(targetId, operationId)) return;
           suppressMovementHistory(targetId, afterPosition, 5000);
           await OBR.scene.items.updateItems([targetId], (drafts) => {
+            if (!teleportAnimationIsActive(targetId, operationId)) return;
             for (const draft of drafts) {
               if (draft.id === targetId) draft.position = clone(afterPosition);
             }
           });
         } catch {}
-      }, 1500);
-      setTimeout(async () => {
+      }, 1500));
+      animation.timers.push(setTimeout(async () => {
         try {
-          if (!isCurrent()) return;
+          if (!isCurrent() || !teleportAnimationIsActive(targetId, operationId)) return;
           await OBR.scene.items.updateItems([targetId], (drafts) => {
+            if (!teleportAnimationIsActive(targetId, operationId)) return;
             for (const draft of drafts) {
               if (draft.id === targetId) draft.visible = true;
             }
           });
+          if (teleportAnimationIsActive(targetId, operationId)) {
+            activeTeleportAnimations.delete(targetId);
+          }
         } catch {}
-      }, 3000);
+      }, 3000));
     } else {
       await OBR.scene.items.updateItems([targetId], (drafts) => {
         for (const draft of drafts) {
@@ -2509,6 +2586,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     return [{
       id: targetId,
       type: "token:teleport",
+      operationId,
       name: String(actual.name || sideEffect.name || "").trim(),
       beforePosition: clone(beforePosition || actual.position),
       afterPosition: clone(afterPosition),
@@ -3446,6 +3524,7 @@ export function unmountEffectsMutationCoordinatorService() {
   pendingHistoryRetryQueue = Promise.resolve();
   clearTimeout(pendingHistoryRetryTimer);
   pendingHistoryRetryTimer = null;
+  clearActiveTeleportAnimations();
 }
 
 function compatibilityPlan(result) {

@@ -17,9 +17,19 @@ import {
   unmountHPBars,
 } from "./hpbar-items.js";
 import { applyHPMemoryToSceneForMissingHP, saveHPToMemoryByItemId, scheduleHPMemoryAutofill } from "./hpMemory.js";
-import { buildConditionChips, refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
+import { refreshConditionLabels, adjustConditionDurationsForItems, CONDITION_LIST as EFFECT_CONDITIONS, formatConditionName, formatConditionInstance, getEffectiveConditionInstances } from "./conditions";
 import { buildSpellChips, getVisibleSpellsFromItem, adjustSpellsForItems } from "./spells.js";
-import { spellColorFor } from "./spellColorCore.js";
+import {
+  CHIP_GAP_PX,
+  __buildConditionChipsSafe,
+  __spellColor,
+  __spellKey,
+  __styleChip,
+} from "./initiativeChipFallback.js";
+import {
+  bindReferenceChips,
+  mountChipsWithOverflow,
+} from "./initiativeChipOverflow.js";
 import {
   appendSpellBoardTokenCompanions,
   hasSpellBoardTokenChange,
@@ -43,6 +53,11 @@ import { recordCombatTurn } from "./combatLog.js";
 import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
 import { shouldKeepSpeedReadoutOpen } from "./speedCheckCore.js";
+import {
+  makeMovementStepper,
+  movementNumber,
+  movementReadoutSummary,
+} from "./initiativeMovementPresentation.js";
 import {
   isCurrentSceneItemEvent,
   readSceneItemsSnapshot,
@@ -93,6 +108,14 @@ import {
   sanitizeState,
   sortByInitiative,
 } from "./initiativeOrderCore.js";
+import {
+  INITIATIVE_EPIC_ACTION_PREFIX as EPIC_ACT_PREFIX,
+  INITIATIVE_LAIR_ID as LAIR_ID,
+  isEpicActionId,
+  isLairId,
+  selectionIdsForEntry as __selectionIdsForEntry,
+  splitParagonId,
+} from "./initiativeSelectionProjectionCore.js";
 import {
   advanceInitiativeState,
   createSerialProcessor,
@@ -249,44 +272,11 @@ const COND_DOCK_CFG = {
   const CONCENTRATION_WARNING_UI_CHANNEL = `${CONCENTRATION_WARNING_CHANNEL}/ui`;
   const CONCENTRATION_WARNING_HOST_CHANNEL = `${CONCENTRATION_WARNING_CHANNEL}/host`;
   const TURN_NOTICE_CHANNEL = ID + "/turn-notice";
-  // —— CHIP STYLE PRESET (condizioni + spell)
-const CHIP_FONT_PX   = 11;  // dimensione testo dentro la pill
-const CHIP_HEIGHT_PX = 18;  // altezza visiva della pill
-const CHIP_PAD_X_PX  = 6;   // padding orizzontale
-const CHIP_RADIUS_PX = 9;   // bordo arrotondato (mezzo dell'altezza)
-const CHIP_GAP_PX    = 2;   // distanza tra pill adiacenti
-
-function __styleChip(el) {
-  Object.assign(el.style, {
-    display: "inline-flex",
-    alignItems: "center",
-    height: CHIP_HEIGHT_PX + "px",
-    lineHeight: CHIP_HEIGHT_PX + "px",
-    padding: `0 ${CHIP_PAD_X_PX}px`,
-    borderRadius: CHIP_RADIUS_PX + "px",
-    fontSize: CHIP_FONT_PX + "px",
-    fontWeight: "600",
-    letterSpacing: "0.2px",
-    // opzionali:
-    // boxShadow: "inset 0 -1px 0 rgba(255,255,255,.12)"
-  });
-}
-
-// Normalizza il nome spell a chiave
-function __spellKey(name) {
-  return String(name || "").trim().toLowerCase();
-}
-// Hash → hue (0..359) e palette leggibile
-function __spellColor(key) {
-  return spellColorFor(key);
-}
-  
   const FOCUS_MIN_PAD_PX = 64;
   const FOCUS_GRID_SPAN = 10; // Campo visivo fisso, indipendente dalle dimensioni token
   const FOCUS_FALLBACK_DPI = 150;
   const ARROW_PROXY_WINDOW_MS = 2000
   // ===== LAIR ACTIONS =====
-  const LAIR_ID          = "__LAIR__";
   const LAIR_NAME        = "Azioni di Tana";
   const LAIR_INITIATIVE  = 20;
   const LAIR_PORTRAIT = "/lair-actions.svg";
@@ -308,89 +298,6 @@ function __spellColor(key) {
   const ACTIVE_LABEL_POINTER_HEIGHT = 10;
 
   // === EPIC ACTIONS (voci virtuali in lista) ===
-  const EPIC_ACT_PREFIX = "__EPIC__";
-
-  // --- Fallback chips condizioni (se conditions.js lancia)
-function __chip(label, compact=true) {
-  const s = document.createElement("span");
-  s.textContent = String(label);
-  Object.assign(s.style, {
-    fontSize: compact ? "10px" : "11px",
-    fontWeight: "700",
-    padding: compact ? "1px 5px" : "2px 6px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,.72)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    lineHeight: "1",
-    userSelect: "none",
-    whiteSpace: "nowrap",
-  });
-  return s;
-}
-
-function __buildChipsSimple(cond, opts = {}) {
-  const frag = document.createDocumentFragment();
-  const cap = Array.isArray(opts.cap) ? opts.cap : [];
-  const compact = !!opts.compact;
-
-  const flags  = (cond && typeof cond === "object" && cond.flags && typeof cond.flags === "object")
-    ? cond.flags : {};
-  let custom = (cond && typeof cond === "object" && Array.isArray(cond.custom))
-    ? cond.custom
-    : [];
-
-  // se custom è oggetto (vecchi dump), usa le chiavi truthy
-  if (!Array.isArray(custom) && custom && typeof custom === "object") {
-    custom = Object.keys(custom).filter(k => !!custom[k]);
-  }
-
-  const instances = getEffectiveConditionInstances(cond);
-  if (instances.length) {
-    const grouped = new Map();
-    for (const instance of instances) {
-      const name = String(instance.condition || "").trim();
-      if (!name) continue;
-      const current = grouped.get(name) || 0;
-      grouped.set(name, current + 1);
-    }
-    const names = [
-      ...cap.filter((name) => grouped.has(name)),
-      ...Array.from(grouped.keys()).filter((name) => !cap.includes(name)),
-    ];
-    for (const name of names) {
-      const count = grouped.get(name) || 0;
-      frag.appendChild(__chip(count > 1 ? `${name} x${count}` : name, compact));
-    }
-    return frag;
-  }
-  // standard (rispetta l’ordine/whitelist di cap)
-  for (const name of cap) {
-    if (flags[name]) frag.appendChild(__chip(name, compact));
-  }
-  // eventuali flag “fuori cap”
-  for (const k of Object.keys(flags)) {
-    if (!cap.includes(k) && flags[k]) frag.appendChild(__chip(k, compact));
-  }
-  // custom
-  for (const t of custom) {
-    if (t != null && String(t).trim()) frag.appendChild(__chip(String(t), compact));
-  }
-  return frag;
-}
-
-function __buildConditionChipsSafe(cond, opts) {
-  try {
-    if (typeof buildConditionChips === "function") {
-      return buildConditionChips(cond, opts);
-    }
-  } catch (err) {
-    console.warn("[conditions] chip render (fallback):", err?.message || err);
-  }
-  // fallback nostro (silenzioso)
-  return __buildChipsSimple(cond, opts);
-}
-
 let __activeTurnLabel = null;
 let __activeTurnLabelInitialized = false;
 let __activeTurnLabelDpi = null;
@@ -936,10 +843,6 @@ async function __cleanupActiveTurnLabels(sceneEpoch = currentSceneEpoch()) {
   __activeTurnLabelInitialized = true;
   return __activeTurnLabel;
 }
-  function isEpicActionId(id) {
-  return typeof id === "string" && id.startsWith(EPIC_ACT_PREFIX);
-}
-
 // Copia - Aggiunta (subito dopo isEpicActionId)
 function __safeConditions(c) {
   const src = (c && typeof c === "object") ? c : {};
@@ -1003,7 +906,6 @@ function makeEpicActionEntry(bossEntry, pcEntry) {
   let __lastRoundSeenConfirmed = null;
   let __scrollActiveOnNextRender = false;
 
-  function isLairId(id) { return id === LAIR_ID; }
   function makeLairEntry() {
   return {
     id: LAIR_ID,
@@ -2205,57 +2107,6 @@ Object.assign(movementAllowanceControls.style, {
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
   gap: "6px",
 });
-function makeMovementStepper(label, onDecrease, onIncrease) {
-  const wrap = document.createElement("div");
-  Object.assign(wrap.style, {
-    display: "grid",
-    gridTemplateColumns: "24px minmax(0, 1fr) 24px",
-    alignItems: "center",
-    gap: "4px",
-    padding: "4px",
-    border: "1px solid rgba(255,255,255,.11)",
-    borderRadius: "6px",
-    background: "rgba(255,255,255,.055)",
-  });
-  const decrease = document.createElement("button");
-  const increase = document.createElement("button");
-  const value = document.createElement("strong");
-  decrease.type = increase.type = "button";
-  decrease.textContent = "-";
-  increase.textContent = "+";
-  value.textContent = label;
-  Object.assign(value.style, {
-    overflow: "hidden",
-    fontSize: "10px",
-    textAlign: "center",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  });
-  for (const button of [decrease, increase]) {
-    Object.assign(button.style, {
-      width: "24px",
-      height: "24px",
-      padding: "0",
-      border: "1px solid rgba(255,255,255,.18)",
-      borderRadius: "50%",
-      background: "rgba(0,0,0,.28)",
-      color: "#fff",
-      fontSize: "15px",
-      lineHeight: "1",
-      cursor: "pointer",
-    });
-  }
-  decrease.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onDecrease();
-  });
-  increase.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onIncrease();
-  });
-  wrap.append(decrease, value, increase);
-  return { wrap, value };
-}
 const movementDashStepper = makeMovementStepper(
   "Scatto x0",
   () => adjustSpeedCheckDash(-1),
@@ -2417,17 +2268,6 @@ document.addEventListener("click", (event) => {
 let latestMovementSnapshot = null;
 let movementReadoutVisible = false;
 
-function movementNumber(value) {
-  return Number(value || 0).toLocaleString("it-IT", { maximumFractionDigits: 1 });
-}
-
-function movementReadoutSummary(snapshot, compact = isCompactTrackerLayout()) {
-  if (!snapshot) return "";
-  return compact
-    ? movementNumber(snapshot.totalMeters) + "/" + movementNumber(snapshot.allowanceMeters) + " m · (" + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + ")"
-    : movementNumber(snapshot.totalMeters) + " / " + movementNumber(snapshot.allowanceMeters) + " m · " + movementNumber(snapshot.totalCells) + "/" + movementNumber(snapshot.allowanceCells) + " caselle";
-}
-
 function syncMovementModeSelect(snapshot) {
   const modes = Array.isArray(snapshot?.movementModes) ? snapshot.movementModes : [];
   const selectable = modes.length > 1;
@@ -2489,7 +2329,7 @@ subscribeSpeedCheckState((snapshot) => {
     : "none";
   if (!snapshot.available) return;
   movementReadoutValue.textContent = snapshot.name || "Movimento";
-  movementReadoutMeta.textContent = movementReadoutSummary(snapshot);
+  movementReadoutMeta.textContent = movementReadoutSummary(snapshot, isCompactTrackerLayout());
   syncMovementModeSelect(snapshot);
   movementReadout.title = snapshot.name + ": " + movementNumber(snapshot.totalMeters) + " m totali nel turno; " + movementNumber(snapshot.remainingMeters) + " m al limite disponibile"
     + "; modalità " + snapshot.activeModeLabel
@@ -4872,25 +4712,6 @@ async function getEntriesWithLair(state, items = null) {
   return base;
 }
 
-// id virtuali paragon: "<baseId>::p<k>" con k>=1
-function isParagonVirtualId(id) {
-  return typeof id === "string" && id.includes("::p");
-}
-function splitParagonId(id) {
-  if (!isParagonVirtualId(id)) return { baseId: id, idx: 0 };
-  const [baseId, tail] = id.split("::p");
-  const idx = Math.max(0, parseInt(tail, 10) || 0);
-  return { baseId, idx };
-}
-function __selectionIdsForEntry(entry) {
-  const members = Array.isArray(entry?.__groupMembers) && entry.__groupMembers.length
-    ? entry.__groupMembers
-    : [entry];
-  return Array.from(new Set(members
-    .map((member) => splitParagonId(member?.id).baseId)
-    .filter((id) => id && !isLairId(id) && !isEpicActionId(id))));
-}
-
 function __applyTrackerSelectionState(card) {
   const ids = Array.isArray(card?.__selectionItemIds) ? card.__selectionItemIds : [];
   const selectedCount = ids.filter((id) => __selectedSceneItemIds.has(id)).length;
@@ -7153,158 +6974,6 @@ function mkLegendaryResistancePips(resistances, onSet) {
   return mkLegendaryResourcePips(resistances, onSet, "enemy", "resistance");
 }
 
-// Quanti chip mostrare prima del "+N"
-const MAX_VISIBLE_CHIPS = 3;
-
-// Stile pill generico, simile ai chip
-function styleChipPill(el, { compact = true } = {}) {
-  Object.assign(el.style, {
-    fontSize: compact ? "10px" : "11px",
-    fontWeight: "600",
-    padding: compact ? "1px 6px" : "2px 8px",
-    borderRadius: "999px",
-    background: "rgba(0,0,0,.72)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,.18)",
-    lineHeight: "1",
-    whiteSpace: "nowrap",
-    userSelect: "none",
-    cursor: "pointer",
-  });
-}
-
-// Estrae TUTTE le chip reali da un fragment (anche se miste cond/spell).
-// - Prende elementi marcati esplicitamente (.chip, .spell-chip, .condition-chip, [data-chip])
-// - In AGGIUNTA, raccoglie i "leaf" (span/div senza figli) non già presi.
-//   Questo copre le condition chip che non usano classi specifiche.
-function __collectChipsDeep(frag) {
-  const tmp = document.createElement("div");
-  tmp.appendChild(frag); // reparent temporaneo
-
-  const out = [];
-  const seen = new Set();
-
-  // 1) chip esplicite (spell usa .chip, condizioni potrebbero avere data-attr)
-  const explicit = tmp.querySelectorAll(".chip, .spell-chip, .condition-chip, .cond-chip, [data-chip]");
-  explicit.forEach(el => { if (!seen.has(el)) { seen.add(el); out.push(el); } });
-
-  // 2) fallback robusto: tutti i leaf elements significativi (span/div senza figli)
-  const leaves = tmp.querySelectorAll("span, div");
-  leaves.forEach(el => {
-    for (const explicit of seen) {
-      if (explicit !== el && explicit.contains?.(el)) return;
-    }
-    if (el.children.length === 0 && !seen.has(el)) {
-      // escludi micro-elementi vuoti/spaziatori
-      const txt = (el.textContent || "").trim();
-      if (txt.length) { seen.add(el); out.push(el); }
-    }
-  });
-
-  return out;
-}
-
-// Monta i chip con overflow → +N che espande/comprime **su seconda riga**
-// Monta chip con overflow condiviso (condizioni + incantesimi):
-// prime `limit` in riga 1, le altre dietro al toggle +N in riga 2.
-function mountChipsWithOverflow(dock, frag, { compact = true, limit = MAX_VISIBLE_CHIPS } = {}) {
-  const chips = __collectChipsDeep(frag); // 👈 ora abbiamo TUTTE le chip “piatte”
-  dock.style.flexDirection = "column";
-  dock.style.alignItems = "flex-start";
-  const row1 = document.createElement("div");
-  Object.assign(row1.style, {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: CHIP_GAP_PX + "px",
-  });
-
-  // di default nascosta; la apro col toggle
-  const row2 = document.createElement("div");
-  Object.assign(row2.style, {
-    display: "none",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    gap: "0px",
-    paddingTop: "0px",
-    position: "relative",
-    zIndex: "1",
-  });
-  dock.style.rowGap = "0px";
-
-  if (chips.length <= limit) {
-    row1.append(...chips);
-    dock.append(row1);
-    return;
-  }
-
-  const visible = chips.slice(0, limit);
-  const hidden  = chips.slice(limit);
-
-  row1.append(...visible);
-  row2.append(...hidden);
-
-  const more = document.createElement("button");
-  more.type = "button";
-  more.textContent = `+${hidden.length}`;
-  more.dataset.cardSelectionIgnore = "1";
-  more.setAttribute("aria-expanded", "false");
-  more.setAttribute("aria-label", `Mostra altri ${hidden.length} effetti`);
-  styleChipPill(more, { compact });
-  Object.assign(more.style, {
-    minHeight: "16px",
-    height: "16px",
-    padding: "0 4px",
-    fontSize: "10px",
-    fontFamily: "inherit",
-    borderColor: "rgba(255,255,255,.24)",
-    boxShadow: "none",
-  });
-  more.title = `Mostra altri ${hidden.length} effetti`;
-  let expanded = false;
-
-  more.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    expanded = !expanded;
-    row2.style.display = expanded ? "flex" : "none";
-    more.setAttribute("aria-expanded", expanded ? "true" : "false");
-    more.setAttribute("aria-label", expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`);
-    more.textContent = expanded ? "\u2212" : `+${hidden.length}`;
-    more.style.background = expanded ? "rgba(59,130,246,.64)" : "rgba(0,0,0,.72)";
-    more.title = expanded ? "Comprimi effetti" : `Mostra altri ${hidden.length} effetti`;
-    const ownerCard = dock.closest('[data-tracker-card="1"]');
-    const ownerZIndex = ownerCard?.style.zIndex || "";
-    if (ownerCard) ownerCard.style.zIndex = expanded ? "30" : ownerZIndex;
-  });
-
-  row1.appendChild(more);
-  dock.append(row1, row2);
-}
-
-function bindReferenceChips(dock) {
-  for (const chip of dock.querySelectorAll("[data-reference-entry]")) {
-    const hasNestedAction = !!chip.querySelector("button");
-    chip.dataset.cardSelectionIgnore = "1";
-    chip.setAttribute("role", hasNestedAction ? "group" : "button");
-    chip.setAttribute("tabindex", "0");
-    chip.title = `${chip.title ? `${chip.title} · ` : ""}Apri nell'Enciclopedia DM`;
-    const open = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void openReferencePopover({
-        tab: chip.dataset.referenceType === "spells" ? "spells" : "conditions",
-        entry: chip.dataset.referenceEntry || "",
-      });
-    };
-    chip.addEventListener("click", open);
-    chip.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      open(event);
-    });
-  }
-}
-
-
 async function getTrackerPopoverAnchor() {
   let trackerWidth = 340;
   try {
@@ -9273,7 +8942,13 @@ async function __toggleCompactEffectsPopover(card, effectAnchor, entryId, effect
     top: Math.round(trackerOrigin.top + effectAnchorRect.bottom),
   };
   const width = Math.max(72, Math.round(cardRect.width));
-  const height = remainingEffects.length * 14 + Math.max(0, remainingEffects.length - 1) + 4;
+  const height = remainingEffects.reduce((total, effect, index) => {
+    const summaryPartCount = Array.isArray(effect?.summaryParts)
+      ? effect.summaryParts.length
+      : 0;
+    const effectHeight = 14 + summaryPartCount * 16;
+    return total + effectHeight + (index > 0 ? 1 : 0);
+  }, 4);
 
   await OBR.popover.close(COMPACT_EFFECTS_POPOVER_ID).catch(() => {});
   try {

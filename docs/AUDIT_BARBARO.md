@@ -1,6 +1,6 @@
 # Audit capacità del Barbaro
 
-Report generato il 2026-08-15 a partire dal catalogo meccanico generale (versione 2).
+Report generato il 2026-08-23 a partire dal catalogo meccanico generale (versione 2).
 
 ## Obiettivo
 

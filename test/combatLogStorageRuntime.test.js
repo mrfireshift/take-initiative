@@ -106,11 +106,12 @@ test("paginazione indexedDB bounded ritorna pagina più recente e cursore preced
   assert.equal(oldest.hasNewer, true);
 });
 
-test("export completo usa bundle v2 e import è atomico/idempotente con collisione deterministica", async () => {
+test("export completo usa bundle v3 e import v3 è atomico/idempotente con collisione deterministica", async () => {
   const exported = JSON.parse(await exportCombatLogJSONFromStorage(session.id));
   assert.equal(exported.format, "take-initiative-combat-log");
-  assert.equal(exported.version, 2);
+  assert.equal(exported.version, 3);
   assert.equal(exported.events.length, 75);
+  assert.equal(exported.events.every((event) => event.version === 3), true);
 
   const first = await importCombatLogBundle(exported);
   assert.equal(first.status, "imported");

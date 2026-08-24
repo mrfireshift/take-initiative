@@ -2,7 +2,6 @@ import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
 import { getConditionInstances } from "./conditions.js";
-import { withItemMetaHistory } from "./history.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
@@ -18,10 +17,6 @@ import {
   CLASS_FEATURE_BY_ID,
 } from "./classFeatureCatalog.js";
 import { getInitiativeCard } from "./initiativeCards.js";
-import {
-  CLASS_FEATURE_STATE_FIELD,
-  normalizeClassFeatureState,
-} from "./classFeatureCore.js";
 import { deactivateClassFeature } from "./classFeatureRuntime.js";
 import { requireAppliedEffectsMutation, runEffectsMutation } from "./effectsMutations.js";
 import {
@@ -231,34 +226,24 @@ async function clearStaleSuppressions(plans, isCurrent = () => true) {
     bySource.set(plan.sourceId, entry);
   }
   if (!bySource.size) return;
+  if (!isCurrent()) return;
   const sourceIds = [...bySource.keys()];
-  await withItemMetaHistory({
+  const operations = sourceIds.map((sourceId) => ({
+    type: "class-feature:clear-stale-suppressions",
+    sourceId,
+    ignoreMissing: true,
+    removals: [...bySource.get(sourceId)].map(([instanceId, targetIds]) => ({
+      instanceId,
+      targetIds: [...targetIds],
+    })),
+  }));
+  const mutation = await runEffectsMutation(operations, {
     kind: "class-feature",
     label: "Aggiornata membership aura",
-    itemIds: sourceIds,
-    fields: [CLASS_FEATURE_STATE_FIELD],
-    isCurrent: () => isCurrent(),
-  }, () => OBR.scene.items.updateItems(sourceIds, (drafts) => {
-    for (const draft of drafts) {
-      const removals = bySource.get(draft.id);
-      if (!removals) continue;
-      const meta = { ...(draft.metadata?.[META_KEY] || {}) };
-      const state = normalizeClassFeatureState(meta[CLASS_FEATURE_STATE_FIELD]);
-      let changed = false;
-      const instances = state.instances.map((instance) => {
-        const stale = removals.get(instance.instanceId);
-        if (!stale?.size) return instance;
-        const nextSuppressed = instance.suppressedTargetIds
-          .filter((targetId) => !stale.has(targetId));
-        if (nextSuppressed.length === instance.suppressedTargetIds.length) return instance;
-        changed = true;
-        return { ...instance, suppressedTargetIds: nextSuppressed };
-      });
-      if (!changed) continue;
-      meta[CLASS_FEATURE_STATE_FIELD] = { ...state, instances };
-      draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
-    }
-  }));
+    targetIds: sourceIds,
+    sceneEpoch: currentSceneEpoch(),
+  });
+  if (isCurrent()) requireAppliedEffectsMutation(mutation);
 }
 
 async function currentRound(sceneMetadata) {

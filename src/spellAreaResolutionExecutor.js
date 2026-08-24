@@ -262,6 +262,10 @@ function hpEntries({ command, items, spell }) {
   const hp = command?.hp || {};
   if (![QUICK_HP_MODES.DAMAGE, QUICK_HP_MODES.HEAL].includes(hp.mode)) return [];
   const amount = Math.max(0, Math.floor(Number(hp.amount) || 0));
+  const primaryAmount = hp.primaryAmount === null || hp.primaryAmount === undefined
+    ? 0
+    : Math.max(0, Math.floor(Number(hp.primaryAmount) || 0));
+  const primaryTargetId = text(hp.primaryTargetId || command?.targeting?.primaryTargetId);
   const outcomes = command?.outcomes?.byTarget || {};
   const mode = hp.mode === "heal" || AREA_HEALING_SPELL_ID_SET.has(text(spell?.id))
     ? QUICK_HP_MODES.HEAL
@@ -275,14 +279,47 @@ function hpEntries({ command, items, spell }) {
       const factorName = zeroDamage
         ? QUICK_HP_FACTORS.FULL
         : normalizeFactor(hp.outcomeFactors?.[targetId]);
-      const change = calculateQuickHPChange({
+      const areaChange = calculateQuickHPChange({
         mode,
         value: zeroDamage || outcome === SAVE_SPELL_OUTCOMES.IMMUNE ? 0 : amount,
         factor: factorName,
         hp: itemMeta(item).hp,
         hpMax: itemMeta(item).hpMax,
       });
-      return { item, change, outcome };
+      if (mode !== QUICK_HP_MODES.DAMAGE
+        || targetId !== primaryTargetId
+        || primaryAmount <= 0) {
+        return { item, change: areaChange, outcome };
+      }
+      const primaryChange = calculateQuickHPChange({
+        mode,
+        value: primaryAmount,
+        factor: normalizeFactor(hp.primaryOutcomeFactor),
+        hp: itemMeta(item).hp,
+        hpMax: itemMeta(item).hpMax,
+      });
+      const combinedChange = calculateQuickHPChange({
+        mode,
+        value: amount,
+        factor: factorName,
+        hp: primaryChange.afterHP,
+        hpMax: itemMeta(item).hpMax,
+      });
+      return {
+        item,
+        outcome,
+        change: {
+          ...combinedChange,
+          hp: primaryChange.hp,
+          requested: primaryChange.requested + combinedChange.requested,
+          delta: combinedChange.afterHP - primaryChange.hp,
+          changed: combinedChange.afterHP !== primaryChange.hp,
+          primaryRequested: primaryChange.requested,
+          primaryFactor: primaryChange.factor,
+          areaRequested: combinedChange.requested,
+          areaFactor: combinedChange.factor,
+        },
+      };
     })
     .filter((entry) => entry.change.changed);
 }
@@ -1273,6 +1310,12 @@ function spellAreaCausality(plan) {
     || ["dismiss", "end", "break", "trigger", "extend"].includes(plan?.concentrationAction)
     ? plan?.concentrationAction
     : undefined;
+  const attackOutcome = text(command?.outcomes?.attack);
+  const primaryTargetId = text(
+    command?.targeting?.primaryTargetId || command?.hp?.primaryTargetId,
+  );
+  const primaryAmount = Number(command?.hp?.primaryAmount);
+  const primaryFactor = causalDamageFactor(command?.hp?.primaryOutcomeFactor);
   return {
     source: "spell-area",
     spellId: plan?.spell?.id || "",
@@ -1282,6 +1325,17 @@ function spellAreaCausality(plan) {
     ...(teleportRule ? { teleport: true, destination: spellTeleportDestinationPosition(command?.placement?.preview) } : {}),
     targets,
     outcomes: outcomeMap,
+    ...(attackOutcome ? { attackOutcome } : {}),
+    ...(primaryTargetId ? { primaryTargetId } : {}),
+    ...(Number.isFinite(primaryAmount) && primaryAmount >= 0
+      ? {
+        primaryDamage: {
+          targetId: primaryTargetId || undefined,
+          requestedDamage: Math.max(0, Math.floor(primaryAmount)),
+          ...(primaryFactor !== undefined ? { damageFactor: primaryFactor } : {}),
+        },
+      }
+      : {}),
     damageRoll: hasRawDamage ? Math.max(0, Math.floor(rawAmount)) : undefined,
     concentrationAction,
     concentrationInstanceId: plan?.spellInstanceId,
@@ -1344,6 +1398,14 @@ function hpResultChanges(entries) {
     requested: entry.change.requested,
     mode: entry.change.mode,
     factor: entry.change.factor,
+    ...(entry.change.primaryRequested !== undefined
+      ? {
+        primaryRequested: entry.change.primaryRequested,
+        primaryFactor: entry.change.primaryFactor,
+        areaRequested: entry.change.areaRequested,
+        areaFactor: entry.change.areaFactor,
+      }
+      : {}),
     outcome: entry.outcome || null,
   }));
 }
@@ -1428,6 +1490,18 @@ export async function executeSpellAreaResolution(
 ) {
   const plan = await buildSpellAreaResolutionExecutionPlan(command, runtimeDependencies);
   if (!plan.valid) return resultBase(command, RESULT_STATUSES.REJECTED, { errors: plan.errors });
+  if (
+    command?.source?.kind === "prepared-resolution"
+    && command?.spell?.spellId === "phb2014-raffica-di-spine"
+    && command?.outcomes?.attack === "miss"
+  ) {
+    return {
+      ...resultBase(command, RESULT_STATUSES.NOOP, {}),
+      instanceId: plan.spellInstanceId,
+      pending: true,
+      reason: "prepared-attack-miss",
+    };
+  }
   const {
     runtime,
     entries,

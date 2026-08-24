@@ -13,7 +13,19 @@ import {
   createSpellAreaPlacementRequestId,
   requestSpellAreaPlacement,
 } from "./spellAreaPlacementClient.js";
-import { executeSpellActiveResolution } from "./spellApplicationExecutor.js";
+import {
+  buildPreparedSpellResolutionRequest,
+  findPreparedSpellResolutionGroup,
+  preparedSpellDefinition,
+  preparedSpellResolutionAction,
+  PREPARED_SPELL_RESOLUTION_CHANNEL,
+} from "./preparedSpellResolutionCore.js";
+import { getSpellCastPhasePlan } from "./spellCastPhaseCore.js";
+import {
+  executeSpellActiveAction,
+  executeSpellActiveResolution,
+  executeSpellApplication,
+} from "./spellApplicationExecutor.js";
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
@@ -33,10 +45,8 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 
 const META_KEY = `${ID}/meta`;
 const params = new URLSearchParams(globalThis.location?.search || "");
-const popoverIdFromPayload = (payload) => spellActiveResolutionPopoverId(
-  payload?.instanceId,
-  payload?.actionId,
-);
+const popoverIdFromPayload = (payload) => String(payload?.popoverId || "").trim()
+  || spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);
 
 let payload = null;
 let placement = null;
@@ -48,6 +58,7 @@ let selectedAttackTarget = "";
 let selectedSaveTarget = "";
 let saveOutcome = "";
 let attackOutcome = "";
+let selectedChoice = "";
 let attackEntries = [];
 let busy = false;
 let pendingPlacementRequestId = "";
@@ -117,6 +128,41 @@ function isChildZone() {
 
 function isSingleSave() {
   return payload?.action?.resolutionKind === "single-save";
+}
+
+function isPreparedResolution() {
+  return payload?.mode === "prepared"
+    || payload?.type === `${ID}/spell-prepared-resolution`;
+}
+
+function preparedGroup() {
+  return isPreparedResolution()
+    ? findPreparedSpellResolutionGroup(sceneItems, payload?.instanceId)
+    : null;
+}
+
+function preparedPhasePlan(group = preparedGroup()) {
+  const spell = preparedSpellDefinition(group);
+  return spell
+    ? getSpellCastPhasePlan(spell, "resolve", group?.castContext || {})
+    : null;
+}
+
+function preparedAction(group = preparedGroup()) {
+  return group
+    ? preparedSpellResolutionAction(group)
+    : payload?.action?.type === "manual"
+      ? payload.action
+      : null;
+}
+
+function preparedTargetItems() {
+  const byId = new Map(characters().map((item) => [String(item?.id || ""), item]));
+  return Array.from(new Set(
+    (Array.isArray(currentPlayerSelection) ? currentPlayerSelection : [])
+      .map((id) => String(id || "").trim())
+      .filter((id) => byId.has(id)),
+  )).map((id) => byId.get(id));
 }
 
 function fixedCasterRadiusConfig() {
@@ -284,6 +330,53 @@ function createChildActivationId() {
 }
 
 function renderContext() {
+  if (isPreparedResolution()) {
+    const action = preparedAction();
+    if (action?.type === "manual") {
+      const damageField = $("attackDamage")?.closest(".field");
+      $("eyebrow").textContent = "Incantesimo attivo";
+      $("saveTitle").hidden = true;
+      $("placementToolbar").hidden = true;
+      $("childCountField").hidden = true;
+      $("childDepths").hidden = true;
+      $("bulkOutcomes").hidden = true;
+      $("attackRows").hidden = true;
+      $("attackTarget").hidden = true;
+      $("attackTarget").disabled = true;
+      $("attackOutcomes").hidden = true;
+      $("attackAdvantage").hidden = !String(action.detail || "").trim();
+      $("attackAdvantage").textContent = String(action.detail || "").trim();
+      $("saveTargetHint").hidden = true;
+      $("summary").hidden = true;
+      $("singleSaveSection").hidden = true;
+      if (damageField) damageField.hidden = true;
+      attackOutcome = "";
+      $("attackTitle").textContent = "Pronto sul caster";
+      return;
+    }
+    const plan = preparedPhasePlan();
+    const damage = plan?.resolution?.mechanics?.damageBonus || null;
+    const damageField = $("attackDamage")?.closest(".field");
+    $("eyebrow").textContent = "Incantesimo preparato";
+    $("saveTitle").hidden = true;
+    $("placementToolbar").hidden = true;
+    $("childCountField").hidden = true;
+    $("childDepths").hidden = true;
+    $("bulkOutcomes").hidden = true;
+    $("attackRows").hidden = true;
+    $("attackOutcomes").hidden = true;
+    $("attackAdvantage").hidden = true;
+    $("saveTargetHint").hidden = true;
+    $("summary").hidden = true;
+    if (damageField) damageField.hidden = false;
+    attackOutcome = "hit";
+    $("attackTitle").textContent = "Bersaglio colpito";
+    $("attackDamageLabel").textContent = damage?.dice
+      ? `Danno iniziale ${damage.dice}${damage.type ? ` ${damage.type}` : ""}`
+      : "Danno iniziale";
+    $("attackDamage").placeholder = "Totale";
+    return;
+  }
   const callLightning = isCallLightning();
   const flameInvestiture = isFlameInvestiture();
   const holyWeapon = isHolyWeapon();
@@ -949,24 +1042,158 @@ async function renderStorm() {
   $("status").hidden = !!area || !requiresZoneRoot;
 }
 
+function preparedChoiceOptions(group = preparedGroup()) {
+  const declared = Array.isArray(payload?.choiceOptions) ? payload.choiceOptions : [];
+  if (declared.length) return declared;
+  const spell = preparedSpellDefinition(group);
+  return spell?.effectChoices && Array.isArray(spell.effectChoices)
+    ? spell.effectChoices.map((entry) => ({
+      value: String(entry?.value || ""),
+      label: String(entry?.label || entry?.value || ""),
+    }))
+    : [];
+}
+
+function renderPreparedChoice(group) {
+  const select = $("preparedChoice");
+  if (!select) return;
+  const options = preparedChoiceOptions(group);
+  select.replaceChildren();
+  for (const entry of options) {
+    const option = document.createElement("option");
+    option.value = String(entry?.value || "");
+    option.textContent = String(entry?.label || entry?.value || "");
+    select.appendChild(option);
+  }
+  const groupChoice = String(group?.castContext?.choice || "").trim();
+  const nextChoice = selectedChoice || groupChoice || String(payload?.selectedChoice || "").trim();
+  selectedChoice = options.some((entry) => String(entry?.value || "") === nextChoice)
+    ? nextChoice
+    : String(options[0]?.value || "");
+  select.value = selectedChoice;
+  select.hidden = options.length <= 1;
+}
+
+function renderPreparedSave(group, targetItems, saveRequired) {
+  const visible = saveRequired && ["hit", "critical"].includes(attackOutcome);
+  const section = $("singleSaveSection");
+  section.hidden = !visible;
+  $("singleSaveDamageField").hidden = true;
+  if (!visible) {
+    selectedSaveTarget = "";
+    return;
+  }
+  const target = targetItems.find((item) => item?.id === selectedAttackTarget) || targetItems[0];
+  selectedSaveTarget = String(target?.id || "").trim();
+  const select = $("saveTarget");
+  select.replaceChildren();
+  if (target) {
+    const option = document.createElement("option");
+    option.value = target.id;
+    option.textContent = displayName(target);
+    select.appendChild(option);
+    select.value = target.id;
+  }
+  select.hidden = true;
+  for (const button of document.querySelectorAll("[data-save-outcome]")) {
+    button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
+    button.disabled = busy || !selectedSaveTarget;
+  }
+  $("singleSaveTitle").textContent = `TS ${String(
+    group && preparedPhasePlan(group)?.resolution?.mechanics?.savingThrow?.ability || "",
+  ).trim() || "al tavolo"}`;
+}
+
+async function renderPrepared() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("prepared-render") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const group = preparedGroup();
+  const plan = preparedPhasePlan(group);
+  if (!group || !plan) {
+    setStatus("La preparazione non è più disponibile.", true);
+    $("apply").disabled = true;
+    return;
+  }
+  if (preparedAction(group)?.type === "manual") {
+    selectedAttackTarget = "";
+    $("attackTarget").replaceChildren();
+    $("attackTarget").hidden = true;
+    $("attackTarget").disabled = true;
+    $("attackOutcomes").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("attackDamage").closest(".field").hidden = true;
+    $("apply").disabled = !sceneLifecycle.isReady() || busy;
+    $("apply").textContent = preparedAction(group)?.buttonLabel || "Usa colpo";
+    $("summary").textContent = "";
+    return;
+  }
+  renderPreparedChoice(group);
+  const targets = preparedTargetItems();
+  const targetSelect = $("attackTarget");
+  targetSelect.replaceChildren();
+  targetSelect.hidden = true;
+  targetSelect.disabled = true;
+  if (targets.length === 1) {
+    selectedAttackTarget = targets[0].id;
+    $("attackTitle").textContent = "Bersaglio colpito: " + displayName(targets[0]);
+  } else if (!targets.length) {
+    selectedAttackTarget = "";
+    $("attackTitle").textContent = "Bersaglio colpito: seleziona un token";
+  } else {
+    selectedAttackTarget = "";
+    $("attackTitle").textContent = "Bersaglio colpito: selezionane uno";
+  }
+
+  attackOutcome = "hit";
+  $("attackOutcomes").hidden = true;
+
+  const damageRequired = !!plan.resolution?.mechanics?.damageBonus;
+  const damageInput = $("attackDamage");
+  damageInput.hidden = !damageRequired;
+  damageInput.disabled = !damageRequired
+    || busy;
+  damageInput.value = damageInput.dataset.value || "";
+  renderPreparedSave(
+    group,
+    targets,
+    !!plan.resolution?.mechanics?.savingThrow,
+  );
+  const saveRequired = !!plan.resolution?.mechanics?.savingThrow
+    && attackOutcome === "hit";
+  const damageReady = !damageRequired
+    || String(damageInput.value || "").trim() !== "";
+  const saveReady = !saveRequired || !!saveOutcome;
+  $("apply").disabled = !sceneLifecycle.isReady()
+    || busy
+    || !selectedAttackTarget
+    || !damageReady
+    || !saveReady;
+  $("apply").textContent = "Risolvi";
+  $("summary").textContent = "";
+}
+
 function render() {
   if (!payload) return;
   renderContext();
+  const prepared = isPreparedResolution();
   const child = childZone();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const singleSave = isSingleSave();
-  $("title").textContent = singleSave
+  $("title").textContent = prepared
+    ? payload.spellName || payload.spellId
+    : singleSave
     ? payload.action?.buttonLabel || payload.action?.label || payload.spellName || payload.spellId
     : payload.spellName || payload.spellId;
-  $("economy").textContent = economyLabel(payload.action.economy);
+  $("economy").textContent = prepared ? "" : economyLabel(payload.action.economy);
   $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   const multiAttack = !save && !singleSave && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();
-  $("saveSection").hidden = !save;
-  $("singleSaveSection").hidden = !singleSave;
-  $("attackSection").hidden = save || singleSave;
-  $("footer").hidden = !save && !singleSave && !multiAttack;
+  $("saveSection").hidden = prepared || !save;
+  $("singleSaveSection").hidden = prepared || !singleSave;
+  $("attackSection").hidden = prepared ? false : save || singleSave;
+  $("footer").hidden = !save;
+  if (prepared || singleSave || multiAttack) $("footer").hidden = false;
   const placementPending = !!pendingPlacementRequestId;
   const confirmPlacementButton = $("confirmPlacement");
   const cancelPlacementButton = $("cancelPlacement");
@@ -978,7 +1205,10 @@ function render() {
     cancelPlacementButton.hidden = !placementPending;
     cancelPlacementButton.disabled = !placementPending || !sceneReady;
   }
-  if (save) {
+  if (prepared) {
+    $("apply").disabled = true;
+    void renderPrepared();
+  } else if (save) {
     const selectedCount = child ? childPlacements.length : 1;
     const requiredCount = child ? childPlacementCount() : 1;
     const depthValid = !child?.depth || childPlacements.every((entry) => {
@@ -1129,7 +1359,99 @@ async function cancelPlacement() {
   }
 }
 
+async function applyPreparedResolution() {
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("prepared-resolution") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const group = preparedGroup();
+  const action = preparedAction(group);
+  const manual = action?.type === "manual";
+  if (!group || !action || (!manual && !selectedAttackTarget)) {
+    setStatus("Seleziona il bersaglio colpito.");
+    return;
+  }
+  attackOutcome = "hit";
+  busy = true;
+  render();
+  try {
+    const ownerSceneContext = await getEffectsMutationSceneContext({
+      commandId: operation.operationId,
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const executionResult = manual
+      ? await executeSpellActiveAction({
+        spell: preparedSpellDefinition(group),
+        actionId: action.id,
+        group,
+        selectedTargetIds: [],
+        casterName: group.casterName,
+        sceneEpoch: operation.epoch,
+        sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+        commandId: ownerSceneContext?.commandId || operation.operationId,
+        isCurrent: () => sceneLifecycle.isCurrent(operation),
+      })
+      : await (async () => {
+        const request = buildPreparedSpellResolutionRequest({
+          group,
+          targetIds: [selectedAttackTarget],
+          selectedChoice,
+          attackOutcome: "hit",
+          saveOutcome,
+          damageValue: $("attackDamage").value,
+        });
+        return executeSpellApplication({
+          ...request,
+          casterName: group.casterName,
+          sceneEpoch: operation.epoch,
+          sceneIdentity: ownerSceneContext?.sceneIdentity || null,
+          commandId: ownerSceneContext?.commandId || operation.operationId,
+          isCurrent: () => sceneLifecycle.isCurrent(operation),
+        });
+      })();
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    if (executionResult?.status === "miss" && executionResult?.pending === true) {
+      setStatus("Mancato: la preparazione resta disponibile.");
+      await OBR.broadcast.sendMessage(
+        PREPARED_SPELL_RESOLUTION_CHANNEL,
+        { type: "request-sync", instanceId: payload.instanceId },
+        { destination: "LOCAL" },
+      ).catch(() => {});
+      await loadScene();
+      return;
+    }
+    if (executionResult?.status === "stale") {
+      await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED, "prepared-spell-stale");
+    } else {
+      await notifyParent(
+        SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
+        "",
+        executionResult,
+      );
+    }
+    await OBR.broadcast.sendMessage(
+      PREPARED_SPELL_RESOLUTION_CHANNEL,
+      { type: "request-sync", instanceId: payload.instanceId },
+      { destination: "LOCAL" },
+    ).catch(() => {});
+    await OBR.popover.close(popoverIdFromPayload(payload)).catch(() => {});
+  } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    const code = String(error?.message || error);
+    setStatus(code === "prepared-spell-targets-required"
+      ? "Seleziona un bersaglio valido."
+      : `Risoluzione non riuscita: ${code}`);
+    await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED, code);
+  } finally {
+    busy = false;
+    if (sceneLifecycle.isReady()) render();
+  }
+}
+
 async function apply() {
+  if (isPreparedResolution()) {
+    await applyPreparedResolution();
+    return;
+  }
   if (busy || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("active-resolution") });
   if (!sceneLifecycle.isCurrent(operation)) return;
@@ -1225,6 +1547,7 @@ if (!payload) {
   $("app").dataset.state = "stale";
   setStatus("Payload di attivazione non valido.", true);
 } else {
+  selectedChoice = String(payload.selectedChoice || "").trim();
   $("app").dataset.popoverId = popoverIdFromPayload(payload);
   void import("./popoverDrag.js").then(({ initializePopoverDrag }) => {
     initializePopoverDrag($("app"));
@@ -1268,7 +1591,14 @@ if (!payload) {
     }
     render();
   });
-  $("attackDamage").addEventListener("input", render);
+  $("attackDamage").addEventListener("input", (event) => {
+    if (isPreparedResolution()) event.target.dataset.value = event.target.value;
+    render();
+  });
+  $("preparedChoice")?.addEventListener("change", (event) => {
+    selectedChoice = String(event.target.value || "").trim();
+    render();
+  });
   $("zoneShorteningFrom")?.addEventListener("change", render);
   $("saveDamage").addEventListener("input", render);
   $("saveTarget").addEventListener("change", (event) => {
@@ -1302,7 +1632,8 @@ if (!payload) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       attackOutcome = button.dataset.attackOutcome;
-      void apply();
+      if (isPreparedResolution()) render();
+      else void apply();
     });
   }
   void OBR.onReady(async () => {
@@ -1313,7 +1644,9 @@ if (!payload) {
       currentPlayerSelection = [...player.selection];
       // Solo i resolver con un singolo bersaglio hanno un dropdown da
       // sincronizzare; render() mantiene invariati gli altri workflow.
-      if (isSingleSave() || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
+      if (isPreparedResolution()
+        || isSingleSave()
+        || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
         render();
       }
     });

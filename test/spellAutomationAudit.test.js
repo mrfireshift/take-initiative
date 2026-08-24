@@ -68,6 +68,20 @@ test("Haste include la meccanica di movimento ed e ACCEPTED tramite review curat
   assert.equal(haste.targetAutomationLevel, "FULL");
 });
 
+test("le spell lavorate nella tranche RAW sono PASS", () => {
+  const audit = buildSpellAutomationAudit();
+  for (const id of ["slow", "confusion", "fear", "contagion", "flesh-to-stone"]) {
+    const spell = audit.rows.find((row) => row.id === id);
+    assert.ok(spell, id);
+    assert.equal(spell.currentAutomationLevel, "FULL", id);
+    assert.equal(spell.coverageStatus, "ACCEPTED", id);
+    assert.equal(spell.targetAutomationLevel, "FULL", id);
+    assert.equal(spell.priority, "—", id);
+    assert.deepEqual(spell.gaps, [], id);
+    assert.match(spell.curatedNote || "", /^PASS:/u, id);
+  }
+});
+
 test("Longstrider include la meccanica di movimento ma resta UNREVIEWED senza review curata", () => {
   const audit = buildSpellAutomationAudit();
   const longstrider = audit.rows.find((row) => row.id === "longstrider");

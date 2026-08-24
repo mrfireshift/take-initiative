@@ -9,6 +9,7 @@ import {
   preparedSpellResolutionChoices,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
+import { getSpellCastPhasePlan } from "./spellCastPhaseCore.js";
 import {
   executeSpellActiveAction,
   executeSpellApplication,
@@ -31,6 +32,9 @@ const eyebrow = document.getElementById("eyebrow");
 const title = document.getElementById("spellName");
 const caster = document.getElementById("casterName");
 const choice = document.getElementById("resolutionChoice");
+const attackOutcome = document.getElementById("attackOutcome");
+const saveOutcome = document.getElementById("saveOutcome");
+const damageValue = document.getElementById("damageValue");
 const status = document.getElementById("status");
 const resolveButton = document.getElementById("resolve");
 
@@ -105,19 +109,76 @@ function updateResolvePresentation() {
   const presentation = manual
     ? spellActiveActionPresentation(action, currentTargetIds)
     : spellResolveActionPresentation(currentTargetIds.length);
+  const spell = preparedSpellDefinition(currentGroup);
+  const phasePlan = spell
+    ? getSpellCastPhasePlan(spell, "resolve", currentGroup.castContext || {})
+    : null;
+  const attackRequired = phasePlan?.attack?.required === true;
+  const damageRequired = !!phasePlan?.resolution?.mechanics?.damageBonus;
+  const attackMissing = !manual && attackRequired && !String(attackOutcome.value || "").trim();
+  const damageMissing = !manual
+    && damageRequired
+    && attackOutcome.value !== "miss"
+    && !String(damageValue.value || "").trim();
+  damageValue.disabled = !damageRequired || attackOutcome.value === "miss";
   resolveButton.disabled = !sceneLifecycle.isReady()
-    || resolving || !currentGroup || presentation.disabled;
+    || resolving || !currentGroup || presentation.disabled || attackMissing || damageMissing;
   resolveButton.textContent = resolving
     ? manual ? "Attivazione…" : "Risoluzione…"
     : presentation.text;
   resolveButton.title = presentation.title;
   if (manual && action.subjectMode === "caster") {
     status.textContent = "Pronto sul caster";
+  } else if (attackMissing) {
+    status.textContent = "Conferma l'esito dell'attacco.";
+  } else if (damageMissing) {
+    status.textContent = "Inserisci il danno extra già tirato.";
   } else {
     status.textContent = currentTargetIds.length
       ? presentation.title
       : "Seleziona il bersaglio sul tabellone";
   }
+}
+
+function setOptions(select, options = [], selected = "") {
+  select.replaceChildren();
+  for (const optionValue of options) {
+    const option = document.createElement("option");
+    option.value = optionValue.value;
+    option.textContent = optionValue.label;
+    select.appendChild(option);
+  }
+  if (selected && options.some((option) => option.value === selected)) {
+    select.value = selected;
+  }
+}
+
+function updateManualResolutionControls(group) {
+  const spell = preparedSpellDefinition(group);
+  const phasePlan = group && spell
+    ? getSpellCastPhasePlan(spell, "resolve", group.castContext || {})
+    : null;
+  const attackRequired = phasePlan?.attack?.required === true;
+  setOptions(attackOutcome, [
+    { value: "", label: "Esito attacco…" },
+    { value: "hit", label: "Colpito" },
+    { value: "miss", label: "Mancato" },
+    { value: "critical", label: "Critico" },
+  ], attackOutcome.value || "");
+  attackOutcome.hidden = !attackRequired;
+  const saveRequired = !!phasePlan?.resolution?.mechanics?.savingThrow;
+  setOptions(saveOutcome, [
+    { value: "", label: "Esito TS…" },
+    { value: "failed", label: "TS fallito" },
+    { value: "passed", label: "TS superato" },
+    { value: "immune", label: "Immune" },
+  ], saveOutcome.value || "");
+  saveOutcome.hidden = !saveRequired;
+  const damageRequired = !!phasePlan?.resolution?.mechanics?.damageBonus;
+  damageValue.hidden = !damageRequired;
+  damageValue.required = damageRequired;
+  damageValue.disabled = attackOutcome.value === "miss";
+  if (!damageRequired) damageValue.value = "";
 }
 
 function renderGroup(group) {
@@ -154,6 +215,7 @@ function renderGroup(group) {
   if (storedChoice && choices.some((entry) => entry.value === storedChoice)) {
     choice.value = storedChoice;
   }
+  updateManualResolutionControls(group);
   updateResolvePresentation();
 }
 
@@ -246,6 +308,9 @@ async function resolvePreparedSpell() {
         group: latestGroup,
         targetIds,
         selectedChoice: choice.hidden ? "" : choice.value,
+        attackOutcome: attackOutcome.hidden ? undefined : attackOutcome.value,
+        saveOutcome: saveOutcome.hidden ? "" : saveOutcome.value,
+        damageValue: damageValue.hidden ? undefined : damageValue.value,
       });
       executionResult = await executeSpellApplication({
         ...request,
@@ -257,6 +322,19 @@ async function resolvePreparedSpell() {
       });
     }
     if (!sceneLifecycle.isCurrent(operation)) return;
+    if (executionResult?.status === "miss" && executionResult?.pending === true) {
+      status.textContent = "Mancato: preparazione ancora disponibile.";
+      await requestControllerSync();
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      await refresh();
+      return;
+    }
+    if (executionResult?.status === "stale") {
+      renderGroup(null);
+      await notifyParent(SPELL_UNIFIED_PANEL_POPUP_STATUSES.CLOSED, "prepared-spell-stale");
+      await requestControllerSync();
+      return;
+    }
     await notifyParent(
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
       "",
@@ -323,6 +401,10 @@ OBR.onReady(async () => {
   }
   document.getElementById("close")?.addEventListener("click", () => void closePopup());
   resolveButton.addEventListener("click", resolvePreparedSpell);
+  [attackOutcome, saveOutcome, damageValue].forEach((control) => {
+    control?.addEventListener("input", updateResolvePresentation);
+    control?.addEventListener("change", updateResolvePresentation);
+  });
   unsubscribeItems = OBR.scene.items.onChange(queueRefresh);
   unsubscribePlayer = OBR.player.onChange((player) => {
     if (Array.isArray(player?.selection)) void refreshSelection(player.selection);

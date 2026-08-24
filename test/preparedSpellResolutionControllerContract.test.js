@@ -18,6 +18,14 @@ const activeAdapter = readFileSync(
   new URL("../src/spellUnifiedActiveAdapter.js", import.meta.url),
   "utf8",
 );
+const activeResolution = readFileSync(
+  new URL("../src/spell-active-resolution.js", import.meta.url),
+  "utf8",
+);
+const activeResolutionHtml = readFileSync(
+  new URL("../spell-active-resolution.html", import.meta.url),
+  "utf8",
+);
 const background = readFileSync(
   new URL("../src/background.js", import.meta.url),
   "utf8",
@@ -56,4 +64,32 @@ test("popover e pannello condividono lo stesso executor delle azioni attive", ()
   assert.match(unifiedPanel, /executeSpellUnifiedActiveAction/);
   assert.match(activeAdapter, /importedExecutor\("executeSpellActiveAction"\)/);
   assert.doesNotMatch(unifiedPanel, /spells-panel\.js/);
+});
+
+test("le preparazioni usano il popup mobile shared e non il route legacy ancorato", () => {
+  assert.match(activeAdapter, /urlBase = "\/spell-active-resolution\.html"/);
+  assert.match(activeAdapter, /mode: "prepared"/);
+  assert.match(controller, /buildSpellUnifiedPreparedPopoverRequest/);
+  assert.match(controller, /SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS/);
+  assert.match(controller, /openTrackedPopover/);
+  assert.match(controller, /action\?\.type === "resolve" \|\| action\?\.type === "manual"/);
+  assert.match(controller, /actionType !== "resolve" && actionType !== "manual"/);
+  assert.match(controller, /createSceneMetadataKeyWatcher/);
+  assert.match(controller, /currentTurnActorId/);
+  assert.match(activeResolution, /isPreparedResolution/);
+  assert.match(activeResolution, /executeSpellActiveAction/);
+  assert.match(activeResolution, /action\?\.type === "manual"/);
+  assert.match(activeResolution, /"Pronto sul caster"/);
+  assert.match(activeResolution, /executeSpellApplication/);
+  assert.match(activeResolution, /\$\("attackOutcomes"\)\.hidden = true/);
+  assert.match(activeResolution, /"Bersaglio colpito: " \+ displayName\(targets\[0\]\)/);
+  assert.match(activeResolution, /\$\("attackDamage"\)\.placeholder = "Totale"/);
+  assert.doesNotMatch(activeResolution, /Totale \$\{damage\.dice\} già tirato/);
+  assert.doesNotMatch(activeResolution, /preparedTargetInfo/);
+  assert.doesNotMatch(activeResolution, /TS già risolto al tavolo/);
+  assert.doesNotMatch(activeResolution, /Il bersaglio viene considerato colpito/);
+  assert.doesNotMatch(activeResolution, /Conferma l'esito del TS/);
+  assert.match(activeResolution, /attackOutcome: "hit"/);
+  assert.doesNotMatch(activeResolutionHtml, /id="preparedTargetInfo"/);
+  assert.match(activeResolutionHtml, /id="preparedChoice"/);
 });

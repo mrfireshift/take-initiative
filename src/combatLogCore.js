@@ -433,9 +433,10 @@ export function combatEventFromHistoryEntry(entry, context = {}) {
 export function normalizeCombatLogEvent(event) {
   const copy = clone(event && typeof event === "object" ? event : {}) || {};
   const kind = String(copy.kind || "change");
+  const version = Number(copy.version);
   return {
     ...copy,
-    version: Number(copy.version) === 2 ? 2 : 1,
+    version: version === 3 ? 3 : version === 2 ? 2 : 1,
     kind,
     category: String(copy.category || combatEventCategory(kind)),
     source: String(copy.source || "automatic"),

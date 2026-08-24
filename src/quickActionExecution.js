@@ -161,6 +161,14 @@ export async function executeDirectQuickAction({
   if (lifecycleResult.status === "failed") {
     throw new Error(lifecycleResult.error?.code || "quick-action-spell-failed");
   }
+  if (lifecycleResult.status === "noop") {
+    return {
+      ...decision,
+      mode: "review",
+      reason: lifecycleResult.reason || "spell-resolution-noop",
+      lifecycleResult,
+    };
+  }
   return {
     ...decision,
     mode: "executed",

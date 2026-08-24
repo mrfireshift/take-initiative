@@ -14,6 +14,12 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   conditionPadX: 9,
   conditionStroke: 1,
   conditionMaxWidth: 300,
+  summaryPartFontSize: 13,
+  summaryPartLabelHeight: 19,
+  summaryPartPadX: 6,
+  summaryPartMaxWidth: 240,
+  summaryPartColumns: 2,
+  summaryPartGap: 2,
   compactConditionIconLimit: 3,
   conditionBackground: "#0e131f",
   conditionBackgroundOpacity: 0.9,
@@ -28,8 +34,10 @@ export const EFFECTS_LAYOUT_CONFIG = Object.freeze({
   stackTopInset: -4 / 70,
   compactStackTopInset: 0,
   stackOffsetY: -1,
-  labelOffsetX: 0.42,
-  compactLabelOffsetX: 1,
+  // Una sola spine condivisa: vale sia per stack compatto sia per stack esteso.
+  // Rientra del 25% nel token, come nello schizzo OBR.
+  labelOffsetX: 0.75,
+  compactLabelOffsetX: 0.75,
   conditionZIndex: 100000,
   spellZIndex: 220000,
   dotDiameter: 42,
@@ -147,6 +155,57 @@ function conditionWidth(label, measureText, config) {
   );
 }
 
+function summaryPartWidth(label, measureText, config) {
+  const fontSize = Number(config.summaryPartFontSize) || config.fontSize;
+  const padX = Number(config.summaryPartPadX) || config.conditionPadX;
+  const stroke = Number(config.conditionStroke) || 1;
+  const maxWidth = Number(config.summaryPartMaxWidth) || config.conditionMaxWidth;
+  return Math.min(
+    maxWidth,
+    Math.ceil(measureText(label, fontSize, config.fontWeight))
+      + padX * 2
+      + stroke * 4,
+  );
+}
+
+function layoutRowGroups(rows, config) {
+  const groups = [];
+  const summaryColumns = Math.max(
+    1,
+    Math.floor(Number(config.summaryPartColumns) || 2),
+  );
+  const sourceRows = Array.isArray(rows) ? rows : [];
+
+  for (let index = 0; index < sourceRows.length;) {
+    const row = sourceRows[index];
+    if (!row?.summaryPart) {
+      groups.push([row]);
+      index += 1;
+      continue;
+    }
+    if (row.stack === true) {
+      groups.push([row]);
+      index += 1;
+      continue;
+    }
+
+    const parentKey = row.summaryParentKey || row.key;
+    const group = [];
+    while (
+      index < sourceRows.length
+      && sourceRows[index]?.summaryPart
+      && (sourceRows[index]?.summaryParentKey || sourceRows[index]?.key) === parentKey
+      && group.length < summaryColumns
+    ) {
+      group.push(sourceRows[index]);
+      index += 1;
+    }
+    groups.push(group);
+  }
+
+  return groups;
+}
+
 function fitConditionText(label, measureText, config) {
   const raw = String(label || "").trim();
   if (!raw) return raw;
@@ -195,7 +254,16 @@ function compactConditionIcon(row) {
 
 function compactRowsForTarget(rows, { measureText, config }) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const conditionRows = sourceRows.filter((row) => row.kind === "condition");
+  // A canonical condition and its summary parts are different visual rows.
+  // Only the condition itself may collapse to its emoji/icon in compact mode;
+  // otherwise a progress pill (for example S/F on Trattenuto) inherits the
+  // condition icon and becomes indistinguishable from the condition.
+  const conditionRows = sourceRows.filter((row) =>
+    row.kind === "condition" && row.summaryPart !== true
+  );
+  const conditionSummaryRows = sourceRows.filter((row) =>
+    row.kind === "condition" && row.summaryPart === true
+  );
   const spellRows = sourceRows.filter((row) => row.kind === "spell");
   const spellEffectRows = sourceRows.filter((row) => row.kind === "spell-effect");
   const configuredLimit = Number(config.compactConditionIconLimit);
@@ -224,11 +292,25 @@ function compactRowsForTarget(rows, { measureText, config }) {
     };
   });
 
+  for (const [index, row] of conditionSummaryRows.entries()) {
+    compactRows.push({
+      ...row,
+      identity: `condition|${targetId}|compact:summary:${row.key}`,
+      key: `compact:summary:${row.key}`,
+      compactMode: "summary-part",
+      sortKey: `1|${String(conditionRows.length + index).padStart(3, "0")}|summary`,
+      offsetY: 0,
+    });
+  }
+
   const summaryParts = [];
   const hiddenConditionCount = Math.max(0, conditionRows.length - limit);
   if (hiddenConditionCount > 0) summaryParts.push(`+${hiddenConditionCount}`);
   if (spellRows.length > 0) summaryParts.push(`✨${spellRows.length}`);
-  if (spellEffectRows.length > 0) summaryParts.push(`✦${spellEffectRows.length}`);
+  const spellEffectCount = new Set(
+    spellEffectRows.map((row) => row.summaryParentKey || row.key),
+  ).size;
+  if (spellEffectCount > 0) summaryParts.push(`✦${spellEffectCount}`);
 
   if (summaryParts.length > 0) {
     const text = summaryParts.join(" · ");
@@ -488,7 +570,7 @@ export function planEffectsLayout({
         ? compactLinkedSpellEffectLabel(rawText, spellContext.title)
         : rawText;
       const text = fitConditionText(compactText, measureText, config);
-      appendRow(token.id, {
+      const baseRow = {
         identity: `condition|${token.id}|${key}`,
         kind: spellEffect ? "spell-effect" : "condition",
         targetId: token.id,
@@ -518,7 +600,39 @@ export function planEffectsLayout({
           ? `${spellContext.sortPrefix}|1|${key}`
           : `${spellEffect ? "-1" : "1"}|${key}`,
         offsetY: 0,
-      });
+      };
+      const summaryParts = Array.isArray(condition?.summaryParts)
+        ? condition.summaryParts
+          .map((part, index) => ({
+            id: String(part?.id || `part-${index + 1}`).trim(),
+            label: String(part?.label || "").trim(),
+            ...(part?.stack === true ? { stack: true } : {}),
+          }))
+          .filter((part) => part.id && part.label)
+        : [];
+
+      // Solo una riga spell-effect collegata ha già la pill parent sopra.
+      // Una condition canonica parent-linked, come Trattenuto, resta invece
+      // visibile insieme alle proprie mini pill.
+      const hideBaseRow = spellEffect && linkedToSpell;
+      if (!summaryParts.length || !hideBaseRow) appendRow(token.id, baseRow);
+      for (const [partIndex, part] of summaryParts.entries()) {
+        const summaryKey = `${key}:summary:${part.id}`;
+        appendRow(token.id, {
+          ...baseRow,
+          identity: `condition|${token.id}|${summaryKey}`,
+          key: summaryKey,
+          text: part.label,
+          width: summaryPartWidth(part.label, measureText, config),
+          height: config.summaryPartLabelHeight,
+          fontSize: config.summaryPartFontSize,
+          summaryPart: true,
+          summaryParentKey: key,
+          summaryPartId: part.id,
+          ...(part.stack === true ? { stack: true } : {}),
+          sortKey: `${baseRow.sortKey}|summary|${String(partIndex).padStart(3, "0")}`,
+        });
+      }
     }
   }
 
@@ -535,39 +649,39 @@ export function planEffectsLayout({
     const baseY = compactTarget
       ? box.top + box.height * config.compactStackTopInset
       : box.top + box.diameter * config.stackTopInset;
-    const fullStackX = Math.round(box.left + box.diameter * config.labelOffsetX);
-    const compactRight = Math.min(
-      box.left + box.width,
-      Math.max(box.left, box.left + box.width * config.compactLabelOffsetX),
-    );
+    const stackSpineX = Math.round(box.left + box.width * config.labelOffsetX);
     let centerY = baseY;
     let previousStackHeight = 0;
     const layoutRows = compactTarget
       ? rows.map((row) => fitCompactRowToBox(row, box))
       : rows;
     layoutRows.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
-    // In vista compatta manteniamo la footprint attuale dello stack, ma
-    // usiamo il bordo sinistro della pill piu larga come dorsale comune.
-    // Le pill piu corte quindi si sviluppano verso destra invece di restare
-    // allineate al bordo destro del token.
-    const compactSpineX = compactTarget
-      ? Math.round(Math.max(
-        box.left,
-        compactRight - Math.max(0, ...layoutRows.map((row) => Number(row.width) || 0)),
-      ))
-      : fullStackX;
+    const rowGroups = layoutRowGroups(layoutRows, config);
+    // La dorsale è identica in entrambe le modalità: le pill si sviluppano
+    // nella casella adiacente e non cambiano ancoraggio quando si espandono.
 
-    for (let index = 0; index < layoutRows.length; index += 1) {
-      const row = layoutRows[index];
-      const stackHeight = Math.ceil(row.height * config.stackClearanceScale);
-      centerY = index === 0
+    for (let groupIndex = 0; groupIndex < rowGroups.length; groupIndex += 1) {
+      const group = rowGroups[groupIndex];
+      const groupHeights = group.map((row) =>
+        Math.ceil(row.height * config.stackClearanceScale)
+      );
+      const stackHeight = Math.max(...groupHeights, 0);
+      centerY = groupIndex === 0
         ? baseY + stackHeight / 2
         : centerY + previousStackHeight / 2 + config.stackGap + stackHeight / 2;
-      desired.push({
-        ...row,
-        x: compactTarget ? compactSpineX : fullStackX,
-        y: Math.round(centerY + row.offsetY),
-      });
+      let columnX = stackSpineX;
+      for (let columnIndex = 0; columnIndex < group.length; columnIndex += 1) {
+        const row = group[columnIndex];
+        desired.push({
+          ...row,
+          x: columnX,
+          y: Math.round(centerY + row.offsetY),
+        });
+        columnX += Number(row.width) || 0;
+        if (columnIndex < group.length - 1) {
+          columnX += Number(config.summaryPartGap) || config.stackGap;
+        }
+      }
       previousStackHeight = stackHeight;
     }
   }

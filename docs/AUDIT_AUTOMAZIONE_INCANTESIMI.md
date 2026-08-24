@@ -11,33 +11,33 @@
 - Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **1**.
 - Definizioni tracciabili: **355**; definizioni con regole d'area: **132**.
 - Workflow che richiedono smoke test runtime: **389**.
-- Lacune RAW confermate P1: **37**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `69504d8a361a5611`.
+- Lacune RAW confermate P1: **35**; discrepanze ad alta confidenza P2: **1**.
+- Impronta deterministica: `74b530e900e57100`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 42 |
+| FULL | 45 |
 | MANUAL | 88 |
-| PARTIAL | 201 |
-| TRACK_ONLY | 146 |
+| PARTIAL | 199 |
+| TRACK_ONLY | 145 |
 
 ### Stato di copertura (coverageStatus)
 
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 45 |
-| GAP | 39 |
-| UNREVIEWED | 393 |
+| ACCEPTED | 48 |
+| GAP | 37 |
+| UNREVIEWED | 392 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 42 |
+| FULL | 45 |
 | MANUAL | 3 |
-| UNREVIEWED | 432 |
+| UNREVIEWED | 429 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -59,19 +59,19 @@
 | --- | ---: |
 | ACTIVE_ACTION | 33 |
 | AREA_GEOMETRY | 132 |
-| CAST | 222 |
+| CAST | 223 |
 | CLEANUP | 105 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 84 |
+| TURN_TRIGGER | 85 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
 | fragile | 1 |
-| partial | 38 |
-| reachable | 353 |
+| partial | 36 |
+| reachable | 355 |
 | unexposed | 85 |
 
 ### Problemi di integrazione
@@ -185,9 +185,7 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Aura di Vita | PHB 2014 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente | Servono resistenza necrotica, protezione del massimo PF e recupero di 1 PF a inizio turno per creature non ostili a 0 PF. |
 | Aura di Vitalità | PHB 2014 | azione di cura entro l'aura assente | L'aura deve delimitare i bersagli validi dell'azione bonus di cura da 2d6. |
 | Aura sacra | SRD 5.1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato | Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell. |
-| Carne in pietra | SRD 5.1 | stato di successi/fallimenti multipli assente; condizione o stato RAW non rappresentato | Richiede Trattenuto iniziale, conteggio indipendente di tre successi o fallimenti e transizione a Pietrificato permanente dopo concentrazione completa. |
 | Compulsione | SRD 5.1 | azione ripetibile della spell assente; meccanica di movimento assente | Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento. |
-| Contagio | SRD 5.1 | stato di successi/fallimenti multipli assente; trigger condizionale durante la durata assente | Occorrono conteggio 3 successi/3 fallimenti, sei malattie alternative e trigger specifici come Stordito quando il bersaglio subisce danni. |
 | Corona di Stelle | Xanathar | contatore o risorsa interna della spell assente; azione ripetibile della spell assente | La spell parte con sette scintille, ne consuma una per azione bonus e termina alla settima; anche la luce dipende dal residuo. |
 | Debilitazione | Xanathar | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell. |
 | Dominare bestie | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
@@ -286,7 +284,7 @@ Nessuna voce.
 | Camuffare se stesso | `disguise-self` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Capanna | `tiny-hut` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Caratteristica potenziata | `enhance-ability` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Carne in pietra | `flesh-to-stone` | SRD 5.1 / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | stato di successi/fallimenti multipli assente; condizione o stato RAW non rappresentato |
+| Carne in pietra | `flesh-to-stone` | SRD 5.1 / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Catapulta | `xanathar-catapulta` | Xanathar / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Catena di fulmini | `chain-lightning` | SRD 5.1 / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Cecità/sordità | `blindness-deafness` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -315,7 +313,7 @@ Nessuna voce.
 | Confusione | `confusion` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Cono di freddo | `cone-of-cold` | SRD 5.1 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Conoscenza delle leggende | `legend-lore` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Contagio | `contagion` | SRD 5.1 / 5 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | stato di successi/fallimenti multipli assente; trigger condizionale durante la durata assente |
+| Contagio | `contagion` | SRD 5.1 / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Contattare altri piani | `contact-other-plane` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Contingenza | `contingency` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Controincantesimo | `counterspell` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
@@ -550,7 +548,7 @@ Nessuna voce.
 | Passo Remoto | `xanathar-passo-remoto` | Xanathar / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo velato | `misty-step` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Passo veloce | `longstrider` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Paura | `fear` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Paura | `fear` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Pelle coriacea | `barkskin` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Pelle di pietra | `stoneskin` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Percezione delle Bestie | `phb2014-percezione-delle-bestie` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

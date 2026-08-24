@@ -1,12 +1,86 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { ID } from "../src/constants.js";
+import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
+import { planEffectSaveReminderNotices } from "../src/effectSaveReminderCore.js";
+import { buildReminderResolutionPlan, REMINDER_OUTCOMES } from "../src/reminderResolutionCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
 import { buildSpellUnifiedPanelContract } from "../src/spellUnifiedPanelCore.js";
 import { buildSpellAreaResolutionCommand } from "../src/spellAreaResolutionCommandCore.js";
+import { getAreaSaveAutomation } from "../src/spells-srd.js";
 import { getSpellSaveWorkflowRule } from "../src/spellSaveWorkflowRules.js";
 
 const SPELL_ID = "slow";
+const META_KEY = `${ID}/meta`;
+
+function slowCondition(id) {
+  const rule = getAreaSaveAutomation(SPELL_ID).failed[0];
+  return {
+    id,
+    ...rule,
+    active: true,
+    sourceId: "caster",
+    sourceName: "Caster",
+    parentEffectId: "slow-cast",
+    spellName: "Lentezza",
+    spellId: SPELL_ID,
+    type: "spell",
+  };
+}
+
+function slowReminderItems() {
+  return [
+    {
+      id: "caster",
+      name: "Caster",
+      metadata: { [META_KEY]: { initiativeCard: { spellSaveDC: 15 } } },
+    },
+    {
+      id: "target-a",
+      name: "Target A",
+      metadata: { [META_KEY]: { conditions: [slowCondition("slow-effect-a")] } },
+    },
+    {
+      id: "target-b",
+      name: "Target B",
+      metadata: { [META_KEY]: { conditions: [slowCondition("slow-effect-b")] } },
+    },
+  ];
+}
+
+function slowStateItems() {
+  return [
+    {
+      id: "caster",
+      spells: [],
+      conditions: [],
+      concentrations: {
+        lentezza: {
+          name: "Lentezza",
+          spellId: SPELL_ID,
+          instanceId: "slow-cast",
+          targets: ["target-a", "target-b"],
+        },
+      },
+    },
+    ...["a", "b"].map((suffix) => ({
+      id: `target-${suffix}`,
+      spells: [{
+        name: "Lentezza",
+        spellId: SPELL_ID,
+        instanceId: "slow-cast",
+        conc: true,
+        casterId: "caster",
+      }],
+      conditions: [slowCondition(`slow-effect-${suffix}`)],
+    })),
+  ];
+}
+
+function stateOf(plan, id) {
+  return plan.states.find((entry) => entry.id === id);
+}
 
 function contract() {
   return buildSpellUnifiedPanelContract({ spellId: SPELL_ID, castContext: { slotLevel: 3 } });
@@ -74,4 +148,62 @@ test("SP-B05F — oltre sei bersagli selezionati viene rifiutato", () => {
 
   assert.equal(command.valid, false);
   assert.ok(command.errors.includes("target-limit-exceeded"));
+});
+
+test("SP-B05F — il TS SAG ricorrente mantiene Lentezza se fallisce e pulisce solo il bersaglio passato", () => {
+  const [notice] = planEffectSaveReminderNotices({
+    items: slowReminderItems(),
+    previousInitiativeState: {
+      order: ["caster", "target-a", "target-b"],
+      current: 1,
+      round: 1,
+    },
+    initiativeState: {
+      order: ["caster", "target-a", "target-b"],
+      current: 2,
+      round: 1,
+    },
+    includeCurrentTurnStart: false,
+  });
+
+  assert.ok(notice);
+  assert.equal(notice.target.id, "target-a");
+  assert.equal(notice.saveLabel, "TS Saggezza CD 15");
+  assert.equal(notice.resolution.damage, undefined);
+
+  const failed = buildReminderResolutionPlan({
+    notice,
+    items: slowReminderItems(),
+    outcome: REMINDER_OUTCOMES.FAILED,
+    now: 100,
+  });
+  assert.equal(failed.status, "ready");
+  assert.equal(
+    failed.operations.some((operation) => operation.type === "condition:remove-instances"),
+    false,
+  );
+  const afterFailed = buildEffectsMutationPlan(slowStateItems(), failed.operations);
+  assert.equal(stateOf(afterFailed, "target-a").conditions.length, 1);
+  assert.equal(stateOf(afterFailed, "target-a").spells.length, 1);
+
+  const passed = buildReminderResolutionPlan({
+    notice,
+    items: slowReminderItems(),
+    outcome: REMINDER_OUTCOMES.PASSED,
+    now: 101,
+  });
+  assert.equal(passed.status, "ready");
+  assert.deepEqual(passed.operations, [{
+    type: "condition:remove-instances",
+    removals: [{ itemId: "target-a", instanceId: "slow-effect-a" }],
+  }]);
+  const afterPassed = buildEffectsMutationPlan(slowStateItems(), passed.operations);
+  assert.equal(stateOf(afterPassed, "target-a").conditions.length, 0);
+  assert.equal(stateOf(afterPassed, "target-a").spells.length, 0);
+  assert.equal(stateOf(afterPassed, "target-b").conditions.length, 1);
+  assert.equal(stateOf(afterPassed, "target-b").spells.length, 1);
+  assert.deepEqual(
+    stateOf(afterPassed, "caster").concentrations.lentezza.targets,
+    ["target-b"],
+  );
 });

@@ -417,6 +417,77 @@ test("Raffica di Spine in resolve usa il placement area", () => {
   assert.deepEqual(command.targeting.targetIds, ["target-a"]);
 });
 
+test("Raffica di Spine lega l'area al primary target e il miss lascia pending", () => {
+  const base = {
+    contract: contract("phb2014-raffica-di-spine", "resolve"),
+    spellId: "phb2014-raffica-di-spine",
+    phase: "resolve",
+    source: { kind: "prepared-resolution", parentInstanceId: "prepared-hail" },
+    casterId,
+    slotLevel: 2,
+    primaryTargetId: "target-a",
+    placement: placement({
+      spellId: "phb2014-raffica-di-spine",
+      ruleId: "phb2014-raffica-di-spine:cast",
+      targetIds: ["target-a", "target-b"],
+    }),
+  };
+  const hit = buildSpellAreaResolutionCommand({
+    ...base,
+    attackOutcome: "hit",
+    outcomes: { "target-a": "failed", "target-b": "passed" },
+    hpAmount: 12,
+  });
+  assert.equal(hit.valid, true, hit.errors?.join(", "));
+  assert.equal(hit.targeting.primaryTargetId, "target-a");
+  assert.equal(hit.outcomes.attack, "hit");
+  assert.equal(hit.hp.amount, 12);
+
+  const miss = buildSpellAreaResolutionCommand({
+    ...base,
+    placement: placement({
+      spellId: "phb2014-raffica-di-spine",
+      ruleId: "phb2014-raffica-di-spine:cast",
+      targetIds: ["target-a"],
+    }),
+    attackOutcome: "miss",
+  });
+  assert.equal(miss.valid, true, miss.errors?.join(", "));
+  assert.equal(miss.targeting.primaryTargetId, "target-a");
+  assert.equal(miss.hp.mode, "none");
+});
+
+test("Freccia Folgorante separa primary damage, area e fattore miss", () => {
+  const command = buildSpellAreaResolutionCommand({
+    contract: contract("phb2014-freccia-folgorante", "resolve"),
+    spellId: "phb2014-freccia-folgorante",
+    phase: "resolve",
+    source: { kind: "prepared-resolution", parentInstanceId: "prepared-lightning" },
+    casterId,
+    slotLevel: 3,
+    primaryTargetId: "target-a",
+    primaryDamageAmount: 16,
+    attackOutcome: "miss",
+    targetIds: ["target-a", "target-b"],
+    outcomes: { "target-a": "failed", "target-b": "passed" },
+    placement: placement({
+      spellId: "phb2014-freccia-folgorante",
+      ruleId: "phb2014-freccia-folgorante:cast",
+      targetIds: ["target-a", "target-b"],
+    }),
+    hpAmount: 8,
+  });
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.targeting.primaryTargetId, "target-a");
+  assert.equal(command.outcomes.attack, "miss");
+  assert.equal(command.hp.primaryAmount, 16);
+  assert.equal(command.hp.primaryOutcomeFactor, "half");
+  assert.equal(command.hp.amount, 8);
+  assert.equal(command.hp.outcomeFactors["target-a"], "full");
+  assert.equal(command.hp.outcomeFactors["target-b"], "half");
+});
+
 test("zone trigger valido è precompilato ma non consumato", () => {
   const command = buildSpellAreaResolutionCommand({
     contract: contract("xanathar-sfera-della-tempesta"),

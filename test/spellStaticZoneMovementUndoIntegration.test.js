@@ -115,6 +115,10 @@ const sdkStub = {
 mock.module("@owlbear-rodeo/sdk", {
   exports: {
     default: sdkStub,
+    buildLabel: () => ({ build: () => ({ id: "mock-label" }) }),
+    buildImage: () => ({ build: () => ({ id: "mock-image" }) }),
+    buildShape: () => ({ build: () => ({ id: "mock-shape" }) }),
+    buildText: () => ({ build: () => ({ id: "mock-text" }) }),
     buildPath: () => {
       const path = {
         commands() { return path; },

@@ -69,7 +69,7 @@ test("i reminder con risposta GM restano aperti senza timer automatico", () => {
   assert.match(turnNotice, /if \(!reminderRowRequiresResponse\(row\)\) return;/);
   assert.match(turnNotice, /const requiresResponse = presentation\.rows\.some\(reminderRowRequiresResponse\)/);
   assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
-  assert.match(reminderRender, /if \(!requiresResponse\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
+  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
   assert.match(turnNotice, /shouldClearZoneNoticeAtTurn\(currentZoneTurnKey, notice\.turnKey\)/);
   assert.match(turnNotice, /clearZoneNotice\(\);/);
@@ -91,9 +91,13 @@ test("il modal mantiene il click solo sui controlli e il layer zona sopra l'iniz
   assert.match(turnNoticeHtml, /\.zone-resolution button,[\s\S]{0,280}pointer-events: auto;/);
 });
 
-test("un reminder consumabile non mostra Chiudi e usa il timer automatico", () => {
+test("un reminder consumabile resta visibile senza barra o timer automatico", () => {
   assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
-  assert.match(reminderRender, /if \(!requiresResponse\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
+  assert.match(
+    reminderRender,
+    /const hasPersistentReminder = presentation\.rows\.some\(\(row: any\) =>\s*row\.resolution\?\.mode === "consume"\s*\);/,
+  );
+  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder\) \{/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
 });
 

@@ -15,7 +15,10 @@ import {
   getEffectiveConditionInstances as resolveEffectiveConditionInstances,
 } from "./conditionRulesCore.js";
 import { preserveConditionTimingMetadata } from "./conditionTimingCore.js";
-import { compactSpellEffectLabel } from "./effectLabelCore.js";
+import {
+  compactSpellEffectLabel,
+  effectSummaryPartsFor,
+} from "./effectLabelCore.js";
 import { normalizeDeferredEffects } from "./spellLifecycleContracts.js";
 import { normalizeEffectSaveReminders } from "./effectSaveReminderCore.js";
 import {
@@ -110,6 +113,23 @@ function __conditionName(value) {
   return String(value || "").trim();
 }
 
+function __normalizeSummaryParts(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((part, index) => {
+      const id = String(part?.id || part?.key || `part-${index + 1}`).trim();
+      const label = String(part?.label || part?.text || "").trim();
+      return id && label
+        ? {
+          id: id.slice(0, 80),
+          label: label.slice(0, 160),
+          ...(part?.stack === true ? { stack: true } : {}),
+        }
+        : null;
+    })
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 function __normalizeAppliedAt(value) {
   if (!value || typeof value !== "object") return null;
   const out = {};
@@ -184,6 +204,8 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.effectKind === "buff" || value.effectKind === "debuff") {
     instance.effectKind = value.effectKind;
   }
+  const summaryParts = __normalizeSummaryParts(value.summaryParts);
+  if (summaryParts.length) instance.summaryParts = summaryParts;
   if (value.displayLabel) {
     instance.displayLabel = String(value.displayLabel);
   }
@@ -268,6 +290,9 @@ function __allConditionInstances(cond = {}) {
 function __cloneConditionInstance(instance) {
   return {
     ...instance,
+    ...(Array.isArray(instance.summaryParts)
+      ? { summaryParts: instance.summaryParts.map((part) => ({ ...part })) }
+      : {}),
     expiry: { ...(instance.expiry || { mode: "manual" }) },
     ...(instance.activation ? { activation: { ...instance.activation } } : {}),
     ...(instance.theme ? { theme: { ...instance.theme } } : {}),
@@ -352,6 +377,8 @@ function __buildConditionInstance(conditionName, opts = {}, targetId = "") {
   if (opts.effectKind === "buff" || opts.effectKind === "debuff") {
     instance.effectKind = opts.effectKind;
   }
+  const summaryParts = __normalizeSummaryParts(opts.summaryParts);
+  if (summaryParts.length) instance.summaryParts = summaryParts;
   if (opts.magical === true) instance.magical = true;
   if (opts.effectDetail) instance.effectDetail = String(opts.effectDetail);
   if (opts.theme && typeof opts.theme === "object") {
@@ -830,7 +857,7 @@ const CHIP_Z = {
 };
 
 const CHIP_LAYOUT_NUDGE = {
-  x: 0.42,  // dorsale piÃ¹ interna, sovrapposta al token
+  x: 0.75,  // spine rientrata del 25%: le pill si sviluppano nella casella adiacente
   topGap: 48,  // usato anche come baseGap per anchor top/bottom
   rowGap: CHIP_GAP,
 };
@@ -884,22 +911,31 @@ function __orderedParts(cond = {}) {
       instances: cond.instances.filter((instance) => instance?.mapVisible !== false),
     }
     : cond;
-  return __groupConditionInstances(mapConditions).map((group) => ({
-    name: group.name,
-    label: group.label,
-    key: group.effectKind
+  return __groupConditionInstances(mapConditions).map((group) => {
+    const key = group.effectKind
       ? `spell-effect:${String(group.instances[0]?.id || group.effectId || group.name)}`
-      : __chipKeyFor(group.name),
-    kind: group.effectKind ? "spell-effect" : "condition",
-    tone: group.effectKind || "",
-    // Il marker di resistenza di Sguardo penetrante resta parent-linked nei
-    // metadata per blacklist/cleanup, ma sulla mappa deve apparire come pill
-    // autonoma senza proiettare anche la pill parent della spell.
-    parentEffectId: group.effectId === "eyebite-resisted" ? "" : group.parentEffectId,
-    sourceId: String(group.instances[0]?.sourceId || ""),
-    icon: String(group.theme?.emoji || CONDITION_EMOJI[group.name] || "").trim(),
-    theme: group.theme,
-  }));
+      : __chipKeyFor(group.name);
+    const summaryParts = effectSummaryPartsFor({
+      effectId: group.effectId,
+      condition: group.name,
+      summaryParts: group.instances[0]?.summaryParts,
+    });
+    return {
+      name: group.name,
+      label: group.label,
+      key,
+      kind: group.effectKind ? "spell-effect" : "condition",
+      tone: group.effectKind || "",
+      // Il marker di resistenza di Sguardo penetrante resta parent-linked nei
+      // metadata per blacklist/cleanup, ma sulla mappa deve apparire come pill
+      // autonoma senza proiettare anche la pill parent della spell.
+      parentEffectId: group.effectId === "eyebite-resisted" ? "" : group.parentEffectId,
+      sourceId: String(group.instances[0]?.sourceId || ""),
+      icon: String(group.theme?.emoji || CONDITION_EMOJI[group.name] || "").trim(),
+      theme: group.theme,
+      ...(summaryParts.length ? { summaryParts } : {}),
+    };
+  });
 }
 
 // Dati intrinseci delle pill; il writer unificato calcola ordine e coordinate.
@@ -1258,7 +1294,7 @@ async function upsertCondWidgetForItem(it, diagnosticsSession = null) {
       sizes,
       stackSpellLabels,
     );
-    const labelLeft = tokenBox.left + tokenBox.diameter * CHIP_LAYOUT_NUDGE.x;
+    const labelLeft = tokenBox.left + tokenBox.width * CHIP_LAYOUT_NUDGE.x;
     // Il punto della LABEL coincide con il bordo sinistro, non con il centro:
     // così la dorsale resta stabile anche con lo scaling screen-space di OBR.
     const cx = labelLeft;

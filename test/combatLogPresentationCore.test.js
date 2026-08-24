@@ -435,6 +435,73 @@ test("caster viene mostrato solo se esplicito nel payload", () => {
   assert.match(text, /Incantesimo: Palla di Fuoco/u);
 });
 
+test("la proiezione v3 usa turnContext e provenance senza inferire l'attore dal turno", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    id: "v3-provenance",
+    version: 3,
+    kind: "spell",
+    category: "spell",
+    turn: null,
+    turnContext: {
+      activeId: "turn-token",
+      activeName: "Turno corrente",
+      turnIndex: 2,
+      turnKey: "7:turn-token",
+      orderRevision: 4,
+    },
+    provenance: {
+      recordingSource: "history-observer",
+      actor: { id: "caster", name: "Caster esplicito" },
+      cause: { kind: "spell", spellId: "spell-1", spellName: "Nube mortale" },
+    },
+    payload: {},
+  })]);
+  const projected = model.events[0];
+  assert.equal(projected.turnName, "Turno corrente");
+  assert.equal(projected.turnKey, "turn:7:turn-token");
+  assert.equal(projected.turnContext.orderRevision, 4);
+  assert.equal(projected.causality.actor.name, "Caster esplicito");
+  assert.match(projected.searchableText, /Caster esplicito/u);
+  assert.match(projected.details.flatMap((section) => section.lines).join(" "), /Incantatore: Caster esplicito/u);
+});
+
+test("la presentation v3 rende movement di uno spell e diff della initiative card ricercabili", () => {
+  const model = buildCombatLogPresentation(null, [event({
+    id: "v3-spell-move",
+    version: 3,
+    kind: "spell",
+    category: "spell",
+    label: "Passo Velato",
+    facets: {
+      movement: {
+        origin: { kind: "system-effect", spellName: "Passo Velato" },
+        targets: [{ id: "mage", name: "Mago", from: { x: 3075, y: -2775 }, to: { x: 2175, y: -2775 }, cells: null }],
+      },
+    },
+    provenance: {
+      recordingSource: "history-observer",
+      actor: { id: "mage", name: "Mago" },
+      cause: { kind: "spell", spellId: "misty-step", spellName: "Passo Velato" },
+    },
+  }), event({
+    id: "v3-card",
+    version: 3,
+    kind: "initiative-card",
+    category: "resource",
+    changes: [{
+      id: "mage",
+      beforeMetadata: { initiativeCard: { level: 4 } },
+      afterMetadata: { initiativeCard: { level: 5 } },
+    }],
+  })]);
+  const teleport = model.events.find((item) => item.id === "v3-spell-move");
+  const teleportDetails = teleport.details.flatMap((section) => section.lines).join(" ");
+  assert.match(teleportDetails, /Mago: \(3075, -2775\) → \(2175, -2775\)/u);
+  assert.equal(filterCombatLogPresentation(model, { query: "system-effect" }).events.length, 1);
+  const card = model.events.find((item) => item.id === "v3-card");
+  assert.match(card.details.flatMap((section) => section.lines).join(" "), /initiativeCard/u);
+});
+
 test("la ricerca è case-insensitive e accent-insensitive", () => {
   assert.equal(normalizePresentationSearch("Palla di Fuòco"), "palla di fuoco");
   const model = buildCombatLogPresentation(null, [event({ label: "Palla di Fuoco", category: "spell", kind: "spell" })]);

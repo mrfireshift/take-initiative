@@ -1,8 +1,8 @@
 import {
   aggregateCombatLogEvents,
-  normalizeCombatLogEvent,
 } from "./combatLogCore.js";
 import { normalizeCombatLogCausality } from "./combatLogCausalityCore.js";
+import { normalizeCombatLogEventV3 } from "./combatLogV3Core.js";
 
 export const COMBAT_LOG_CATEGORY_ORDER = Object.freeze([
   "hp",
@@ -139,9 +139,26 @@ function uniqueTargets(items) {
 
 function eventCausality(event) {
   const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
-  return payload.causality && typeof payload.causality === "object"
+  const legacy = payload.causality && typeof payload.causality === "object"
     ? normalizeCombatLogCausality(payload.causality)
     : null;
+  const provenance = event?.provenance && typeof event.provenance === "object"
+    ? event.provenance
+    : {};
+  const actor = provenance.actor && typeof provenance.actor === "object"
+    ? clone(provenance.actor)
+    : null;
+  const cause = provenance.cause && typeof provenance.cause === "object"
+    ? clone(provenance.cause)
+    : null;
+  if (!legacy && !actor && !cause) return null;
+  return {
+    ...(legacy || { version: 1, domain: "spell" }),
+    ...(actor && !legacy?.actor ? { actor } : {}),
+    ...(cause
+      ? { cause: { ...(legacy?.cause || {}), ...cause } }
+      : {}),
+  };
 }
 
 function mergePresentationTargets(event, causality) {
@@ -179,13 +196,62 @@ function mergePresentationTargets(event, causality) {
 }
 
 function turnContext(event) {
+  const context = event?.turnContext && typeof event.turnContext === "object"
+    ? event.turnContext
+    : null;
+  if (context) {
+    const id = stringValue(context.activeId);
+    const name = stringValue(context.activeName);
+    const explicitKey = stringValue(context.turnKey);
+    if (id || name || explicitKey) {
+      const turnName = name || id || "Contesto turno non disponibile";
+      return {
+        turnKey: explicitKey ? `turn:${explicitKey}` : `turn:${id || name}`,
+        turnName,
+        turn: event?.turn && typeof event.turn === "object"
+          ? clone(event.turn)
+          : (id || name ? { id: id || null, name: name || null } : null),
+        turnContext: {
+          activeId: id || null,
+          activeName: name || null,
+          turnIndex: finiteNumber(context.turnIndex),
+          turnKey: explicitKey || null,
+          orderRevision: finiteNumber(context.orderRevision),
+        },
+      };
+    }
+  }
   const turn = event?.turn && typeof event.turn === "object" ? event.turn : null;
   const id = stringValue(turn?.id);
   const name = stringValue(turn?.name);
-  if (!id && !name) return { turnKey: NO_TURN_KEY, turnName: "Fuori turno", turn: null };
+  if (!id && !name) {
+    return {
+      turnKey: NO_TURN_KEY,
+      turnName: "Fuori turno",
+      turn: null,
+      turnContext: {
+        activeId: null,
+        activeName: null,
+        turnIndex: null,
+        turnKey: null,
+        orderRevision: null,
+      },
+    };
+  }
   const turnKey = `turn:${id || name}`;
   const turnName = name || id || "Contesto turno non disponibile";
-  return { turnKey, turnName, turn: clone(turn) };
+  return {
+    turnKey,
+    turnName,
+    turn: clone(turn),
+    turnContext: {
+      activeId: id || null,
+      activeName: name || null,
+      turnIndex: null,
+      turnKey: null,
+      orderRevision: null,
+    },
+  };
 }
 
 function collectionItemName(item, field) {
@@ -229,19 +295,65 @@ function facetChangeLines(facet, field) {
 function hpTargetLine(target) {
   const before = target?.before || {};
   const after = target?.after || {};
+  const beforeHp = finiteNumber(before.hp);
+  const afterHp = finiteNumber(after.hp);
+  const beforeHpMax = finiteNumber(before.hpMax);
+  const afterHpMax = finiteNumber(after.hpMax);
   const delta = finiteNumber(target?.delta)
-    ?? ((finiteNumber(after.hp) ?? 0) - (finiteNumber(before.hp) ?? 0));
+    ?? (beforeHp !== null && afterHp !== null ? afterHp - beforeHp : null);
   const hpMaxDelta = finiteNumber(target?.hpMaxDelta)
-    ?? ((finiteNumber(after.hpMax) ?? 0) - (finiteNumber(before.hpMax) ?? 0));
+    ?? (beforeHpMax !== null && afterHpMax !== null ? afterHpMax - beforeHpMax : null);
   const name = targetName(target);
-  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)} → ${numberText(after.hp)}/${numberText(after.hpMax)} (${signedNumber(delta)} HP)`;
-  return hpMaxDelta === 0 ? line : `${line}; HP max ${signedNumber(hpMaxDelta)}`;
+  const deltaText = delta === null ? "?" : signedNumber(delta);
+  const line = `${name}: ${numberText(before.hp)}/${numberText(before.hpMax)} → ${numberText(after.hp)}/${numberText(after.hpMax)} (${deltaText} HP)`;
+  return hpMaxDelta === null || hpMaxDelta === 0
+    ? line
+    : `${line}; HP max ${signedNumber(hpMaxDelta)}`;
 }
 
 function hpTargets(event) {
   const facetTargets = event?.facets?.hp?.targets;
   if (Array.isArray(facetTargets) && facetTargets.length) return facetTargets;
   return Array.isArray(event?.targets) ? event.targets.filter((target) => target?.before || target?.after) : [];
+}
+
+function positionText(position) {
+  if (!position || typeof position !== "object") return "posizione sconosciuta";
+  const x = finiteNumber(position.x);
+  const y = finiteNumber(position.y);
+  return x === null || y === null ? "posizione sconosciuta" : `(${numberText(x)}, ${numberText(y)})`;
+}
+
+function movementFacetLines(event) {
+  const movement = event?.facets?.movement;
+  if (!movement || !Array.isArray(movement.targets)) return [];
+  return movement.targets.map((target) => {
+    const name = targetName(target);
+    const from = positionText(target?.from);
+    const to = positionText(target?.to);
+    const cells = finiteNumber(target?.cells);
+    const distance = cells === null ? "" : ` · ${numberText(cells)} caselle`;
+    return `${name}: ${from} → ${to}${distance}`;
+  });
+}
+
+function initiativeCardDiffLines(event) {
+  const facet = event?.facets?.initiativeCard;
+  const diffs = Array.isArray(facet?.diffs)
+    ? facet.diffs
+    : facet?.diff
+      ? [facet.diff]
+      : [];
+  return diffs.flatMap((diff) => (Array.isArray(diff?.changedFields) ? diff.changedFields : [])
+    .map((field) => {
+      const before = diff?.before && Object.prototype.hasOwnProperty.call(diff.before, field)
+        ? safeJson(diff.before[field])
+        : "non disponibile";
+      const after = diff?.after && Object.prototype.hasOwnProperty.call(diff.after, field)
+        ? safeJson(diff.after[field])
+        : "non disponibile";
+      return `${field}: ${before} → ${after}`;
+    }));
 }
 
 function outcomeLabel(value) {
@@ -541,6 +653,12 @@ function detailSections(event, targets, outcomes, turnName) {
   if (causalityLines.length) sections.push({ label: "Causalità", lines: causalityLines });
   const damageLines = explicitDamageLines(event);
   if (damageLines.length) sections.push({ label: "Danno esplicito", lines: damageLines });
+  const movementLines = movementFacetLines(event);
+  if (movementLines.length && event?.category !== "movement") {
+    sections.push({ label: "Movimento", lines: movementLines });
+  }
+  const initiativeLines = initiativeCardDiffLines(event);
+  if (initiativeLines.length) sections.push({ label: "Diff scheda iniziativa", lines: initiativeLines });
   const contextLines = explicitContextLines(event);
   if (contextLines.length) sections.push({ label: "Contesto", lines: contextLines });
   if (turnName && turnName !== "Fuori turno") {
@@ -719,7 +837,7 @@ function applyLegacyReminderSource(event, source) {
 }
 
 function projectedEvent(rawEvent, index) {
-  const event = normalizeCombatLogEvent(rawEvent);
+  const event = normalizeCombatLogEventV3(rawEvent);
   const category = COMBAT_LOG_CATEGORY_ORDER.includes(String(event.category)) ? String(event.category) : "other";
   const meta = getCombatLogCategoryMeta(category);
   const reminderType = reminderResolutionType(event);
@@ -754,6 +872,9 @@ function projectedEvent(rawEvent, index) {
     },
   };
   const detailText = details.flatMap((section) => section.lines).join(" ");
+  const movementText = movementFacetLines(event).join(" ");
+  const movementOriginText = stringValue(event?.facets?.movement?.origin?.kind);
+  const initiativeText = initiativeCardDiffLines(event).join(" ");
   const searchableText = [
     title,
     meta.label,
@@ -769,6 +890,10 @@ function projectedEvent(rawEvent, index) {
     causality?.action?.label || "",
     causality?.concentration?.action || "",
     safeJson(event.payload),
+    safeJson(event.provenance),
+    movementText,
+    movementOriginText,
+    initiativeText,
   ].join(" ");
   return {
     id,
@@ -788,6 +913,8 @@ function projectedEvent(rawEvent, index) {
     targets,
     outcomes,
     causality,
+    provenance: clone(event.provenance),
+    turnContext: clone(context.turnContext),
     searchableText,
     technical,
     boundary: category === "turn" || category === "round",

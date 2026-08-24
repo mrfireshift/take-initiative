@@ -50,6 +50,9 @@ test("normalizza v1/v2 preservando campi sconosciuti e causality", () => {
 
   const original = bundle();
   const normalized = normalizeCombatLogStorageBundle(original);
+  assert.equal(normalized.normalizedVersion, 3);
+  assert.equal(normalized.events[0].version, 3);
+  assert.equal(normalized.session.version, 3);
   normalized.session.customSessionField.keep = false;
   normalized.events[0].payload.custom = "changed";
   assert.equal(original.session.customSessionField.keep, true);
@@ -67,9 +70,12 @@ test("fingerprint è deterministico anche se cambia exportedAt", () => {
 
 test("rifiuta versioni future, JSON invalido, bundle ciclici e limiti", () => {
   assert.throws(
-    () => normalizeCombatLogStorageBundle({ ...bundle(), version: 3 }),
+    () => normalizeCombatLogStorageBundle({ ...bundle(), version: 4 }),
     (error) => error.code === COMBAT_LOG_STORAGE_ERROR_CODES.UNSUPPORTED_VERSION,
   );
+  const v3 = normalizeCombatLogStorageBundle({ ...bundle(), version: 3 });
+  assert.equal(v3.version, 3);
+  assert.equal(v3.normalizedVersion, 3);
   const invalid = validateCombatLogStorageBundle("not-json");
   assert.equal(invalid.valid, false);
   assert.equal(invalid.error.code, COMBAT_LOG_STORAGE_ERROR_CODES.INVALID_FILE);

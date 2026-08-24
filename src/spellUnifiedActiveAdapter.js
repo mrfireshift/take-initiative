@@ -1,3 +1,4 @@
+import { ID } from "./constants.js";
 import { getSpellDefinition } from "./spells-srd.js";
 import {
   buildSpellUnifiedPanelContract,
@@ -5,9 +6,11 @@ import {
 } from "./spellUnifiedPanelCore.js";
 import {
   buildPreparedSpellResolutionRequest,
+  preparedSpellResolutionAction,
   preparedSpellResolutionChoices,
   preparedSpellResolutionPopoverId,
 } from "./preparedSpellResolutionCore.js";
+import { getSpellCastPhasePlan } from "./spellCastPhaseCore.js";
 import {
   buildSpellActiveResolutionPayload,
   spellActiveResolutionPopoverId,
@@ -547,20 +550,59 @@ export function buildSpellUnifiedActivePopoverRequest(payload, {
 }
 
 export function buildSpellUnifiedPreparedPopoverRequest(overview, {
-  width = 250,
+  width = 360,
   height = null,
-  urlBase = "/prepared-spell-resolution.html",
+  urlBase = "/spell-active-resolution.html",
 } = {}) {
   const context = contextFromOverview(overview);
-  const choices = preparedSpellResolutionChoices(groupFromContext(context));
-  const resolvedHeight = height ?? (choices.length > 1 ? 150 : 116);
+  const group = groupFromContext(context);
+  const choices = preparedSpellResolutionChoices(group);
+  const spell = getSpellDefinition(context.spellId);
+  const action = preparedSpellResolutionAction(group);
+  const manualAction = action?.type === "manual";
+  const phasePlan = spell
+    ? getSpellCastPhasePlan(spell, "resolve", context.castContext || {})
+    : null;
+  const hasManualResolutionInputs = !manualAction && (phasePlan?.attack?.required === true
+    || !!phasePlan?.resolution?.mechanics?.savingThrow
+    || !!phasePlan?.resolution?.mechanics?.damageBonus);
+  const resolvedHeight = height ?? (manualAction
+    ? 250
+    : hasManualResolutionInputs
+    ? 380
+    : choices.length > 1
+      ? 340
+      : 320);
   const popoverId = preparedSpellResolutionPopoverId(context.instanceId);
+  const payload = {
+    type: `${ID}/spell-prepared-resolution`,
+    version: 1,
+    mode: "prepared",
+    spellId: context.spellId,
+    spellName: context.name || spell?.displayName || spell?.name || context.spellId,
+    instanceId: context.instanceId,
+    casterId: context.casterId,
+    casterName: context.casterName,
+    castContext: context.castContext,
+    slotLevel: context.castContext?.slotLevel ?? spell?.level ?? null,
+    sceneEpoch: context.sceneEpoch,
+    actionId: action?.id || "resolve-prepared",
+    action: {
+      ...(action && typeof action === "object" ? clone(action) : {}),
+      type: manualAction ? "manual" : "resolve",
+      ...(manualAction ? {} : { resolutionKind: "prepared" }),
+    },
+    choiceOptions: choices,
+    selectedChoice: context.castContext?.choice || "",
+    popoverId,
+  };
   return {
     id: popoverId,
-    url: `${urlBase}?instance=${encodeURIComponent(context.instanceId)}`,
+    url: `${urlBase}?payload=${encodeURIComponent(JSON.stringify(payload))}`,
     width,
     height: resolvedHeight,
     instanceId: context.instanceId,
+    payload,
   };
 }
 

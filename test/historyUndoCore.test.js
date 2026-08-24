@@ -55,6 +55,60 @@ function metadataOf(result, id) {
   return result.finalItems.find((entry) => entry.id === id)?.item?.metadata?.[META];
 }
 
+function contagionCondition({ successes, failures, remaining = 100798, id = "contagion-1" }) {
+  return {
+    id,
+    condition: "Contagio · Carne putrefatta",
+    active: true,
+    sourceId: "caster",
+    sourceName: "Anyanca",
+    targetId: "hero",
+    parentEffectId: "contagion-parent",
+    type: "spell",
+    effectId: "contagion-rotting-flesh",
+    effectKind: "debuff",
+    expiry: { mode: "rounds", remaining },
+    summaryParts: [
+      { id: "contagion-disease:rotting-flesh", label: "Carne putrefatta" },
+      { id: "contagion-progress", label: `S ${successes}/3 · F ${failures}/3` },
+    ],
+    effectDetail: "Svantaggio alle prove di Carisma; vulnerabilità a tutti i danni.",
+    mechanics: {
+      contagionDiseaseId: "rotting-flesh",
+      repeatedSaveProgress: {
+        successes,
+        failures,
+        successThreshold: 3,
+        failureThreshold: 3,
+      },
+    },
+    manualRemoval: true,
+    parentRemoval: "target",
+    saveReminder: {
+      ability: "con",
+      timing: "turn-end",
+      actor: "target",
+      success: "keep-effect",
+      dcSource: "source-spell",
+      label: "Contagio: ripeti il TS Costituzione.",
+    },
+  };
+}
+
+function conditionMutationEntry(id, before, after, entryId) {
+  return {
+    id: entryId,
+    effectsMutation: {
+      changes: [{
+        id,
+        fields: { conditions: true },
+        before: { conditions: before },
+        after: { conditions: after },
+      }],
+    },
+  };
+}
+
 test("ripristina un solo campo metadata e conserva i campi estranei", () => {
   const result = plan([item("a", { hp: 5, initiative: 18, foreign: { v: 2 } })], [
     fieldEntry("a", "hp", 10, 5),
@@ -678,6 +732,96 @@ test("granular conditions: azione modifica Condizione A; modifica successiva alt
   const result = plan([targetToken], [entry]);
   assert.equal(result.status, "conflict", "Direct modification of owned Condition A must CONFLICT");
   assert.equal(result.conflicts[0].field, "conditions");
+});
+
+test("granular conditions: update con solo drift temporale preserva remaining live durante Undo", () => {
+  const before = contagionCondition({ successes: 1, failures: 0 });
+  const after = contagionCondition({ successes: 2, failures: 0 });
+  const current = contagionCondition({ successes: 2, failures: 0, remaining: 100797 });
+  const result = plan([item("hero", {
+    conditions: { version: 2, instances: [current] },
+  })], [conditionMutationEntry("hero", [before], [after], "contagion-success-2")]);
+
+  assert.equal(result.status, undefined);
+  const restored = metadataOf(result, "hero").conditions.instances[0];
+  assert.equal(restored.mechanics.repeatedSaveProgress.successes, 1);
+  assert.equal(restored.mechanics.repeatedSaveProgress.failures, 0);
+  assert.equal(restored.expiry.remaining, 100797);
+});
+
+test("granular conditions: un conflitto semantico resta bloccato anche con lo stesso drift temporale", () => {
+  const before = contagionCondition({ successes: 1, failures: 0 });
+  const after = contagionCondition({ successes: 2, failures: 0 });
+  const current = contagionCondition({ successes: 3, failures: 0, remaining: 100797 });
+  const result = plan([item("hero", {
+    conditions: { version: 2, instances: [current] },
+  })], [conditionMutationEntry("hero", [before], [after], "contagion-success-2")]);
+
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflicts[0].field, "conditions");
+  assert.equal(result.conflicts[0].reason, "current-value-mismatch");
+});
+
+test("granular conditions: expiry realmente modificata resta strict e viene ripristinata", () => {
+  const before = contagionCondition({ successes: 1, failures: 0, remaining: 100798 });
+  const after = contagionCondition({ successes: 2, failures: 0, remaining: 100797 });
+  const current = contagionCondition({ successes: 2, failures: 0, remaining: 100797 });
+  const result = plan([item("hero", {
+    conditions: { version: 2, instances: [current] },
+  })], [conditionMutationEntry("hero", [before], [after], "contagion-expiry-update")]);
+
+  assert.equal(result.status, undefined);
+  assert.equal(metadataOf(result, "hero").conditions.instances[0].expiry.remaining, 100798);
+
+  const staleCurrent = contagionCondition({ successes: 2, failures: 0, remaining: 100796 });
+  const conflict = plan([item("hero", {
+    conditions: { version: 2, instances: [staleCurrent] },
+  })], [conditionMutationEntry("hero", [before], [after], "contagion-expiry-update")]);
+  assert.equal(conflict.status, "conflict");
+});
+
+test("granular conditions: add con countdown avanzato resta annullabile", () => {
+  const after = contagionCondition({ successes: 0, failures: 0 });
+  const current = contagionCondition({ successes: 0, failures: 0, remaining: 100797 });
+  const result = plan([item("hero", {
+    conditions: { version: 2, instances: [current] },
+  })], [conditionMutationEntry("hero", [], [after], "contagion-add")]);
+
+  assert.equal(result.status, undefined);
+  assert.deepEqual(metadataOf(result, "hero").conditions, undefined);
+});
+
+test("granular conditions: remove conserva il conflitto su una condition ricreata", () => {
+  const before = contagionCondition({ successes: 1, failures: 0 });
+  const recreated = contagionCondition({ successes: 2, failures: 0, remaining: 100797 });
+  const result = plan([item("hero", {
+    conditions: { version: 2, instances: [recreated] },
+  })], [conditionMutationEntry("hero", [before], [], "contagion-remove")]);
+
+  assert.equal(result.status, "conflict");
+  assert.equal(result.conflicts[0].field, "conditions");
+});
+
+test("granular conditions: due Undo consecutivi di Contagio preservano il countdown live", () => {
+  const s0 = contagionCondition({ successes: 0, failures: 0, remaining: 100800 });
+  const s1 = contagionCondition({ successes: 1, failures: 0, remaining: 100800 });
+  const s2 = contagionCondition({ successes: 2, failures: 0, remaining: 100800 });
+  const first = conditionMutationEntry("hero", [s0], [s1], "contagion-success-1");
+  const second = conditionMutationEntry("hero", [s1], [s2], "contagion-success-2");
+
+  const afterSecondSave = plan([item("hero", {
+    conditions: {
+      version: 2,
+      instances: [{ ...s2, expiry: { mode: "rounds", remaining: 100797 } }],
+    },
+  })], [second]);
+  assert.equal(afterSecondSave.status, undefined);
+  const afterFirstUndo = afterSecondSave.finalItems.find((entry) => entry.id === "hero").item;
+  const firstUndo = plan([afterFirstUndo], [first]);
+  assert.equal(firstUndo.status, undefined);
+  const restored = metadataOf(firstUndo, "hero").conditions.instances[0];
+  assert.equal(restored.mechanics.repeatedSaveProgress.successes, 0);
+  assert.equal(restored.expiry.remaining, 100797);
 });
 
 

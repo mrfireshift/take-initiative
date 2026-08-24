@@ -1,6 +1,10 @@
 import { ID } from "../src/constants.js";
 import { actorProfileIdFromItem } from "../src/actorIdentityCore.js";
-import { createActorVitalsStore } from "../src/actorVitalsStore.js";
+import {
+  ACTOR_VITALS_ROOM_MAX_BYTES,
+  createActorVitalsStore,
+} from "../src/actorVitalsStore.js";
+import { actorVitalsByteSize } from "../src/actorVitalsCore.js";
 import {
   createEffectsReconcileQueue,
   collectEffectsInvalidation,
@@ -2210,13 +2214,42 @@ async function runSingleScenario({ seed, config, commit = null, smoke = false } 
   const stateB = sceneB.metadata?.[PERFORMANCE_STATE_KEY] || {};
   const room = server.getRoomMetadata();
   const diagnosticsBeforeDispose = server.getDiagnostics();
-  const actorVitals = room?.[ACTOR_VITALS_KEY]?.actors || {};
+  const actorVitalsRegistry = room?.[ACTOR_VITALS_KEY] || {};
+  const actorVitals = actorVitalsRegistry?.actors || {};
   const hpAActual = Object.fromEntries(sceneATokens.map((item) => [item.id, item.metadata?.[PERFORMANCE_META_KEY]?.hp]));
   const hpBActual = Object.fromEntries(sceneBTokens.map((item) => [item.id, item.metadata?.[PERFORMANCE_META_KEY]?.hp]));
-  const actorVitalsCorrect = sceneATokens.every((item) => {
-    const actor = actorProfileIdFromItem(item, PERFORMANCE_META_KEY);
-    return !!actor && actorVitals[actor]?.hp === expectedHpA[item.id];
+  const actorVitalsExpectations = new Map([
+    ...sceneATokens.map((item) => [
+      actorProfileIdFromItem(item, PERFORMANCE_META_KEY),
+      { item, hp: expectedHpA[item.id] },
+    ]),
+    ...sceneBTokens.map((item) => [
+      actorProfileIdFromItem(item, PERFORMANCE_META_KEY),
+      { item, hp: fixture.expected.sceneB.initialHp[item.id] },
+    ]),
+  ].filter(([actorProfileId]) => actorProfileId));
+  const actorVitalsMismatches = Object.entries(actorVitals).flatMap(([actorProfileId, record]) => {
+    const expectation = actorVitalsExpectations.get(actorProfileId);
+    if (!expectation) return [{ actorProfileId, reason: "unknown-actor" }];
+    const { item, hp: expectedHp } = expectation;
+    const expectedHpMax = item.metadata?.[PERFORMANCE_META_KEY]?.hpMax;
+    if (record?.hp === expectedHp && record?.hpMax === expectedHpMax) return [];
+    return [{
+      actorProfileId,
+      itemId: item.id,
+      actual: { hp: record?.hp, hpMax: record?.hpMax },
+      expected: { hp: expectedHp, hpMax: expectedHpMax },
+    }];
   });
+  const actorVitalsMissingActorIds = [...actorVitalsExpectations.keys()]
+    .filter((actorProfileId) => !actorVitals[actorProfileId]);
+  // actorVitals is intentionally retained within a bounded Room budget. A
+  // missing actor is therefore not a stale overwrite; any retained record
+  // must still match the latest canonical HP observed for that actor exactly.
+  const actorVitalsCorrect = Object.keys(actorVitals).length > 0
+    && actorVitalsMismatches.length === 0;
+  const actorVitalsWithinBudget = actorVitalsByteSize(actorVitalsRegistry)
+    <= ACTOR_VITALS_ROOM_MAX_BYTES;
   const historyIds = historyA.entries.map((entry) => entry.id);
   const orphanLists = await Promise.all([backgroundRealm, trackerRealm, playerRealm]
     .map((realm) => collectOutputOrphans(server, fixture, realm)));
@@ -2247,6 +2280,7 @@ async function runSingleScenario({ seed, config, commit = null, smoke = false } 
     deterministicHp: fixture.tokenIds.every((id) => hpAActual[id] === expectedHpA[id])
       && fixture.tokenIds.every((id) => hpBActual[id] === fixture.expected.sceneB.initialHp[id]),
     noStaleActorVitalsOverwrite: actorVitalsCorrect,
+    actorVitalsRetentionWithinBudget: actorVitalsWithinBudget,
     historyNoDuplicates: historyIds.length === new Set(historyIds).size
       && historyIds.length === fixture.config.hpChanges,
     queuesIdle,
@@ -2330,6 +2364,10 @@ async function runSingleScenario({ seed, config, commit = null, smoke = false } 
         effectProjectionsA: sceneAEffects.length,
         effectProjectionsB: sceneBEffects.length,
         actorVitalsActors: Object.keys(actorVitals).length,
+        actorVitalsBytes: actorVitalsByteSize(actorVitalsRegistry),
+        actorVitalsBudgetBytes: ACTOR_VITALS_ROOM_MAX_BYTES,
+        actorVitalsMissingActorIds,
+        actorVitalsMismatches,
         crossSceneWritesBlocked: diagnosticsBeforeDispose.crossSceneWrites.length,
         playerWriteViolations: diagnosticsBeforeDispose.playerWriteViolations.length,
         listenerCountAfterDispose: diagnosticsAfterDispose.activeListeners,
