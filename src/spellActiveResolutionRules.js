@@ -203,6 +203,9 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
           id: "eyebite-panicked",
           label: "Spaventato",
           detail: "Deve usare Scatto e allontanarsi lungo il percorso più breve e sicuro. Rimuovi l'effetto quando è oltre 18 m e non vede più il caster.",
+          summaryParts: [
+            { id: "eyebite-forced-flight", label: "Scatto: allontanati dal caster" },
+          ],
           expiry: { mode: "concentration" },
           manualRemoval: true,
           saveReminder: {
@@ -244,6 +247,9 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
           id: "eyebite-sickened",
           label: "Nauseato",
           detail: "Svantaggio ai tiri per colpire e alle prove di caratteristica.",
+          summaryParts: [
+            { id: "eyebite-attack-check-penalty", label: "Svant. attacchi/prove" },
+          ],
           expiry: { mode: "concentration" },
           manualRemoval: true,
           saveReminder: {

@@ -57,8 +57,9 @@ Moduli da individuare prima di una modifica:
 - HP sulla mappa: `src/hpbar-items.js`;
 - memoria HP: `src/hpMemory.js`;
 - condizioni: `src/conditions.js`, `src/effects-modal.ts`;
-- incantesimi e registro: `src/spells.js`, `src/spells-panel.js`,
-  `src/spellsPanelViewCore.js`, `src/spells-tag.js`;
+- incantesimi e registro: `src/spells.js`, `src/spell-unified-panel.js`,
+  `src/spellUnifiedPanelCore.js`, `src/spellsPanelViewCore.js`,
+  `src/spells-tag.js`;
 - catalogo e automazioni: `src/spells-srd.js`,
   `src/supplementSpellRules.js`, `src/phb2014SpellRules.js`,
   `src/spellEffectCore.js`;

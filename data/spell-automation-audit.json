@@ -40,8 +40,10 @@
       "UNIFIED": 392,
       "UNREVIEWED": 85
     },
+    "trackableOptions": 358,
     "trackable": 355,
     "withAreaRules": 132,
+    "areaRuleEntries": 137,
     "openRows": 36,
     "confirmed": 35,
     "highConfidence": 1,
@@ -118,7 +120,7 @@
     "smokeCategories": {
       "ACTIVE_ACTION": 33,
       "AREA_GEOMETRY": 132,
-      "CAST": 223,
+      "CAST": 224,
       "CLEANUP": 105,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
@@ -56931,6 +56933,7 @@
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "CAST",
         "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -56962,11 +56965,12 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": true,
         "smokeCategories": [
+          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -56989,7 +56993,8 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "automation"
           ]
         },
         "cast": {
@@ -56998,9 +57003,11 @@
           "operationTypes": [
             "concentration:break",
             "spell:upsert",
-            "concentration:register"
+            "condition:add",
+            "concentration:register",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -57017,6 +57024,7 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"

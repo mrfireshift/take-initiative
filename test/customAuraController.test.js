@@ -24,6 +24,15 @@ test("il controller custom aura e autonomo, GM-only e usa il reconciler protetto
   assert.match(background, /mountCustomAuraController/);
 });
 
+test("Custom Aura mantiene il contratto History rearm e non sopprime notice possedute", () => {
+  assert.match(source, /REMINDER_HISTORY_REARM_CHANNEL/);
+  assert.match(source, /data\?\.owner !== "custom-aura"/);
+  assert.match(source, /historyRestoredActivationIds\.add\(request\.sourceActivationId\)/);
+  assert.match(source, /rearmedCustomAuraNotices\(\{/);
+  assert.match(source, /rearmActivationIds: rearmedActivationIds/);
+  assert.match(source, /requestCustomAuraReconcile\(\{ reason: "effects-mutation" \}\)/);
+});
+
 test("disegna solo attachment dedicati e applica le pill dal coordinatore", () => {
   assert.match(source, /\.attachedTo\(aura\.sourceId\)/);
   assert.match(source, /\.layer\("DRAWING"\)/);
@@ -108,6 +117,5 @@ test("i warning di turno vengono generati con il payload notice corretto per il 
   assert.equal(update.notices[0].targets[0].id, "rogue");
   assert.deepEqual(update.newActivations[0].targetIds, ["rogue"]);
 });
-
 
 

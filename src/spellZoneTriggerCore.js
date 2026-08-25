@@ -442,6 +442,27 @@ export function planSpellZoneTriggers({
       triggerId: String(trigger.id || "").trim(),
       event: String(trigger.event || "").trim(),
       resolution: String(trigger.resolution || "").trim(),
+      ...(String(
+        trigger.effectType
+          || trigger.resolutionData?.effectType
+          || zoneMetadata?.effectType
+          || "",
+      ).trim()
+        ? {
+          effectType: String(
+            trigger.effectType
+              || trigger.resolutionData?.effectType
+              || zoneMetadata?.effectType,
+          ).trim(),
+        }
+        : {}),
+      ...(String(trigger.metadataKey || zoneMetadata?.metadataKey || "").trim()
+        ? {
+          metadataKey: String(
+            trigger.metadataKey || zoneMetadata?.metadataKey,
+          ).trim(),
+        }
+        : {}),
       ...(trigger.requiresConcentration === true ? { requiresConcentration: true } : {}),
       ...(String(trigger.ability || "").trim()
         ? { ability: String(trigger.ability).trim() }

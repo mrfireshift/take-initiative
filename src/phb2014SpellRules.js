@@ -181,6 +181,9 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       "ensnaring-strike-damage",
       "Subisce danni perforanti all'inizio di ogni proprio turno; il danno aumenta con lo slot.",
       {
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ensnaring-strike-recurring-damage", label: "Danni perforanti/turno" }),
+        ]),
         saveReminder: Object.freeze({
           timing: "turn-start",
           mode: "manual-damage",
@@ -203,7 +206,6 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       {
         summaryParts: Object.freeze([
           Object.freeze({ id: "compelled-duel-attack-restriction", label: "Svant. attacchi vs altri" }),
-          Object.freeze({ id: "compelled-duel-movement-save", label: "TS Sag per >9 m" }),
         ]),
       },
     ),
@@ -631,6 +633,9 @@ export const PHB2014_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Esiliato / Incapacitato (≤50 PF)",
         detail: "Esiliato in un semipiano innocuo e incapacitato finché dura la concentrazione; si applica solo se l'attacco lo porta a 50 PF o meno.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "banishing-smite-exiled", label: "Esiliato" }),
+        ]),
         manualRemoval: true,
         endsParentOnRemoval: true,
       })]),
@@ -644,6 +649,9 @@ export const PHB2014_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Esiliato sul piano natio (≤50 PF)",
         detail: "Ritorna sul proprio piano natio se l'attacco lo porta a 50 PF o meno; l'esilio non dipende più dalla concentrazione.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "banishing-smite-exiled", label: "Esiliato" }),
+        ]),
         parentEffectId: "",
         expiry: manual,
         manualRemoval: true,

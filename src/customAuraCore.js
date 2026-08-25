@@ -275,6 +275,7 @@ export function customAuraRule(aura = null) {
         frequency: "once-per-turn",
         resolution,
         label: reminder.label,
+        effectType: CUSTOM_AURA_EFFECT_TYPE,
       };
       if (resolution === "manual-save") {
         trigger.ability = reminder.ability || "dex";
@@ -399,4 +400,3 @@ export function staleCustomAuraEffectRemovals(items = [], {
   }
   return removals;
 }
-

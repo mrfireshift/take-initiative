@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   applyPresetToCustomAura,
+  appendPresetToCustomAuraList,
   createPresetFromAura,
   createPresetTombstone,
   detachCustomAuraPreset,
@@ -159,6 +160,84 @@ test("sincronizzazione linked aura aggiorna le istanze stale mantenendo aura.id 
   assert.equal(synced.pills[0].label, "SuperBuff");
 });
 
+test("una linked aura con definition drift a parità di revision viene riallineata al preset", () => {
+  const preset = {
+    id: "preset-drift",
+    revision: 2,
+    name: "Preset stabile",
+    definition: {
+      name: "Aura canonica",
+      radiusMeters: 3,
+      style: { fillColor: "#111111", strokeColor: "#222222", fillOpacity: 0.2, strokeWidth: 1 },
+      targeting: { filter: "all", includeSource: false },
+      pills: [{ id: "pill", enabled: true, label: "Canonica", detail: "", kind: "buff" }],
+      reminders: [],
+    },
+  };
+  const drifted = applyPresetToCustomAura(preset, { auraId: "aura-drift" });
+  drifted.name = "Modifica locale non autorizzata";
+  drifted.pills[0].label = "Drift";
+  const synced = syncCustomAuraWithPresets(drifted, [preset]);
+  assert.equal(synced.id, "aura-drift");
+  assert.equal(synced.name, "Aura canonica");
+  assert.equal(synced.pills[0].label, "Canonica");
+  assert.deepEqual(synced.presetRef, { presetId: "preset-drift", revision: 2 });
+});
+
+test("un catalogo preset più vecchio non regredisce una linked aura più recente", () => {
+  const current = {
+    id: "aura-current",
+    enabled: true,
+    name: "Aura rev 3",
+    radiusMeters: 3,
+    targeting: { filter: "all", includeSource: false },
+    style: { fillColor: "#111111", strokeColor: "#222222", fillOpacity: 0.2, strokeWidth: 1 },
+    pills: [{ id: "pill", enabled: true, label: "Rev 3", detail: "", kind: "buff" }],
+    reminders: [],
+    presetRef: { presetId: "preset-order", revision: 3 },
+  };
+  const older = {
+    id: "preset-order",
+    revision: 2,
+    name: "Preset rev 2",
+    definition: {
+      name: "Aura rev 2",
+      radiusMeters: 3,
+      style: current.style,
+      targeting: current.targeting,
+      pills: [{ id: "pill", enabled: true, label: "Rev 2", detail: "", kind: "buff" }],
+      reminders: [],
+    },
+  };
+  const synced = syncCustomAuraWithPresets(current, [older]);
+  assert.equal(synced.name, "Aura rev 3");
+  assert.equal(synced.pills[0].label, "Rev 3");
+  assert.deepEqual(synced.presetRef, { presetId: "preset-order", revision: 3 });
+});
+
+test("quick apply appende una linked instance distinta per ogni lista token", () => {
+  const preset = {
+    id: "preset-quick",
+    revision: 1,
+    name: "Preset Quick",
+    definition: {
+      name: "Aura Quick",
+      radiusMeters: 3,
+      style: { fillColor: "#111111", strokeColor: "#222222", fillOpacity: 0.2, strokeWidth: 1 },
+      targeting: { filter: "all", includeSource: false },
+      pills: [],
+      reminders: [],
+    },
+  };
+  const first = appendPresetToCustomAuraList([{ id: "existing-a", name: "A" }], preset);
+  const second = appendPresetToCustomAuraList([{ id: "existing-b", name: "B" }], preset);
+  assert.deepEqual(first.map((aura) => aura.id).slice(0, 1), ["existing-a"]);
+  assert.deepEqual(second.map((aura) => aura.id).slice(0, 1), ["existing-b"]);
+  assert.equal(first.at(-1).presetRef.presetId, "preset-quick");
+  assert.equal(second.at(-1).presetRef.presetId, "preset-quick");
+  assert.notEqual(first.at(-1).id, second.at(-1).id);
+});
+
 test("preset mancante o non disponibile: preserva invariato lo snapshot dell'aura linked", () => {
   const linkedAura = {
     id: "aura-token-1",
@@ -277,4 +356,44 @@ test("store gestisce persistenza, sottoscrizioni e cancellazione con tombstone",
   assert.equal(heroRecord.deleted, true);
   assert.equal(heroRecord.revision, 3);
   assert.equal(emitted, 4);
+});
+
+test("preset store propaga l'invalidazione cross-runtime via broadcast senza polling", () => {
+  const storage = mockStorage();
+  const listeners = new Set();
+  const broadcast = {
+    addEventListener(type, listener) {
+      if (type === "message") listeners.add(listener);
+    },
+    removeEventListener(type, listener) {
+      if (type === "message") listeners.delete(listener);
+    },
+    postMessage(data) {
+      for (const listener of listeners) listener({ data });
+    },
+  };
+  const first = createCustomAuraPresetStore({ storage, eventTarget: {}, broadcast });
+  const second = createCustomAuraPresetStore({ storage, eventTarget: {}, broadcast });
+  let secondRefreshes = 0;
+  second.subscribe((_catalog, detail) => {
+    if (detail.reason === "refresh") secondRefreshes += 1;
+  });
+
+  first.savePreset({
+    id: "preset-cross-runtime",
+    name: "Cross runtime",
+    definition: {
+      name: "Aura Cross",
+      radiusMeters: 3,
+      style: { fillColor: "#111111", strokeColor: "#222222", fillOpacity: 0.2, strokeWidth: 1 },
+      targeting: { filter: "all", includeSource: false },
+      pills: [],
+      reminders: [],
+    },
+  });
+
+  assert.equal(second.getPreset("preset-cross-runtime").revision, 1);
+  assert.equal(secondRefreshes, 1);
+  first.dispose();
+  second.dispose();
 });

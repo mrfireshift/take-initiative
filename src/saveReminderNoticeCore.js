@@ -119,6 +119,7 @@ function batchFromEntries(entries, groupKey) {
 export function pruneZoneReminderNoticeBatch(
   currentBatch = null,
   pendingActivationIds = [],
+  { preserveActivationIds = [] } = {},
 ) {
   const entries = Array.isArray(currentBatch?.entries)
     ? currentBatch.entries.map(normalizeEntry).filter(Boolean)
@@ -131,9 +132,19 @@ export function pruneZoneReminderNoticeBatch(
       .map((value) => normalizedText(value, "", 300))
       .filter(Boolean),
   );
+  const preserved = new Set(
+    (Array.isArray(preserveActivationIds)
+      ? preserveActivationIds
+      : [...(preserveActivationIds || [])])
+      .map((value) => normalizedText(value, "", 300))
+      .filter(Boolean),
+  );
   const remaining = entries.filter((entry) => (
-    (entry.kind !== "zone" && entry.kind !== "zone-effect")
-    || pending.has(entry.activationId)
+    preserved.has(entry.activationId)
+    || (
+      (entry.kind !== "zone" && entry.kind !== "zone-effect")
+      || pending.has(entry.activationId)
+    )
   ));
   if (!remaining.length) return null;
   const groupKey = normalizedText(currentBatch?.groupKey, "", 700);

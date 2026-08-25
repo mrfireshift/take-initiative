@@ -589,12 +589,16 @@ function zoneFailureActions({
   sourceName,
   parentEffectId,
   triggerId,
+  effectType = "",
 } = {}) {
   const condition = failureCondition && typeof failureCondition === "object"
     ? failureCondition
     : null;
   const name = text(condition?.condition || condition?.name, "", 160);
   if (!name) return [];
+  const conditionOptions = condition?.options && typeof condition.options === "object"
+    ? clone(condition.options)
+    : {};
   const options = {
     type: "spell",
     sourceId,
@@ -602,8 +606,9 @@ function zoneFailureActions({
     parentEffectId,
     ...(triggerId ? { effectId: triggerId } : {}),
     expiry: { mode: "manual" },
-    ...(condition?.options && typeof condition.options === "object"
-      ? clone(condition.options)
+    ...conditionOptions,
+    ...(String(effectType || "").trim()
+      ? { type: String(effectType).trim() }
       : {}),
   };
   return [{
@@ -709,6 +714,9 @@ export function buildZoneTriggerReminderResolution({
     triggerId: text(activation?.triggerId, "", 200),
     turnKey: text(activation?.turnKey, "", 300),
     ...(metadataKey ? { metadataKey } : {}),
+    ...(activation?.effectType || resolutionData.effectType
+      ? { effectType: text(activation?.effectType || resolutionData.effectType, "", 80) }
+      : {}),
   };
   if (activation?.resolution === "manual-heal") {
     if (!normalizedTargetId || !scaled.healing) return null;
@@ -740,6 +748,8 @@ export function buildZoneTriggerReminderResolution({
     ability,
     dc,
     damage: scaled.damage,
+    target: { id: normalizedTargetId },
+    source: { id: normalizedSourceId },
     slotLevel: scaled.slotLevel,
     outcomes: {
       passed: activation?.success && typeof activation.success === "object"
@@ -754,6 +764,7 @@ export function buildZoneTriggerReminderResolution({
             sourceName,
             parentEffectId: activation?.instanceId,
             triggerId: activation?.triggerId,
+            effectType: activation?.effectType || resolutionData.effectType,
           }),
           ...zoneFailureAutomationActions({
             failureAutomation:
@@ -1219,8 +1230,9 @@ export function buildReminderResolutionPlan({
 
   const sourceId = text(resolution.source?.id, "", 200);
   const activationKind = text(resolution.activation?.kind, "", 40);
-  const sourceCanBeAbsent = activationKind === "effect-save"
-    && (!resolution.save || resolution.save.dc !== undefined);
+  const sourceCanBeAbsent = activationKind === "zone"
+    || (activationKind === "effect-save"
+      && (!resolution.save || resolution.save.dc !== undefined));
   if (sourceId && !itemsById.has(sourceId) && !sourceCanBeAbsent) {
     return { status: "stale", message: "La sorgente dell'effetto non esiste più." };
   }

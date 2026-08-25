@@ -1,6 +1,10 @@
 import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
-import { ID, SPELL_ZONE_TRIGGER_NOTICE_CHANNEL } from "./constants.js";
+import {
+  ID,
+  REMINDER_HISTORY_REARM_CHANNEL,
+  SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
+} from "./constants.js";
 import { buildArea } from "./aoeGeometryCore.js";
 import {
   CUSTOM_AURAS_FIELD,
@@ -17,6 +21,7 @@ import { getCustomAuraPresetStore } from "./customAuraPresetStore.js";
 import {
   mergeCustomAuraReminderMetadata,
   planCustomAuraReminder,
+  rearmedCustomAuraNotices,
 } from "./customAuraReminderCore.js";
 import {
   requireAppliedEffectsMutation,
@@ -25,7 +30,11 @@ import {
 import { reconcileOwnedSceneItems } from "./sceneItemReconcileCore.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
+import {
+  normalizeSpellZoneTriggerRuntime,
+} from "./spellZoneTriggerCore.js";
 import { spellAreaGridCells } from "./spellAreaPlacementCore.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { getSpatialSceneSnapshotService } from "./spatialSceneSnapshot.js";
 import {
   createSceneMetadataKeyWatcher,
@@ -47,10 +56,13 @@ let unsubscribeGrid = null;
 let unsubscribeSceneReady = null;
 let unsubscribeSceneMetadata = null;
 let unsubscribePresetStore = null;
+let unsubscribeRuntimeHistoryRearm = null;
 let requestedReason = "event";
 
 let requestedForce = false;
 let completedSnapshotKey = null;
+const queuedRearmRequests = new Map();
+const historyRestoredActivationIds = new Set();
 const stateMetadataWatcher = createSceneMetadataKeyWatcher(STATE_KEY);
 const spatialSceneSnapshot = getSpatialSceneSnapshotService();
 
@@ -87,7 +99,31 @@ function trackedCreature(item, orderedIds) {
   const meta = item?.metadata?.[META_KEY];
   return !!item?.id
     && !!meta
-    && (meta.inInitiative === true || orderedIds.has(item.id));
+    && (
+      item.layer === "CHARACTER"
+      || meta.inInitiative === true
+      || orderedIds.has(item.id)
+    );
+}
+
+function historyCustomAuraRearmRequest(data) {
+  if (data?.type !== "restore-reminder-activation") return null;
+  if (data?.owner !== "custom-aura") return null;
+  if (Number(data?.sceneEpoch) !== currentSceneEpoch()) return null;
+  const descriptor = data?.descriptor && typeof data.descriptor === "object"
+    ? data.descriptor
+    : null;
+  const activation = descriptor?.notice?.resolution?.activation;
+  if (!descriptor || activation?.metadataKey !== CUSTOM_AURA_META_KEY) return null;
+  const activationId = String(data?.activationId || descriptor?.activationId || "").trim();
+  const sourceActivationId = String(
+    activation?.sourceActivationId
+      || activation?.rootActivationId
+      || activationId,
+  ).trim();
+  return activationId && sourceActivationId
+    ? { activationId, sourceActivationId }
+    : null;
 }
 
 function auraVisualMetadata(aura, dpi, sizeCells) {
@@ -224,7 +260,11 @@ function spatialSnapshotProcessingKey(snapshot) {
   });
 }
 
-async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
+async function reconcileCustomAuras({
+  reason = "event",
+  force = false,
+  rearmRequests = [],
+} = {}) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
   const snapshot = await spatialSceneSnapshot.getSnapshot({ sceneEpoch });
@@ -329,6 +369,8 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
   const operations = [];
   const desiredVisuals = [];
   const newTriggerNotices = [];
+  const rearmedTriggerNotices = [];
+  const canonicalPendingActivationIds = new Set();
   const existingAuraVisualByInstance = new Map(
     items
       .filter((item) => item?.metadata?.[CUSTOM_AURA_META_KEY]?.instanceId)
@@ -385,6 +427,17 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
       candidates,
       metaKey: META_KEY,
     });
+    const currentTurnKey = currentInitiativeTurnKey(sceneMetadata?.[STATE_KEY] || {});
+    const existingRuntime = normalizeSpellZoneTriggerRuntime(
+      existingAuraVisualByInstance.get(aura.instanceId)
+        ?.metadata?.[CUSTOM_AURA_META_KEY]?.triggerRuntime,
+    );
+    const preservePendingActivationIds = [...historyRestoredActivationIds].filter(
+      (activationId) => {
+        const activation = existingRuntime.pending.find((entry) => entry.id === activationId);
+        return !activation?.turnKey || activation.turnKey === currentTurnKey;
+      },
+    );
     operations.push(...customAuraMembershipPlan({
       aura,
       desiredTargetIds,
@@ -398,8 +451,19 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
       initiativeState: sceneMetadata?.[STATE_KEY] || {},
       itemsById: byId,
       areaPosition: center,
+      preservePendingActivationIds,
     });
     newTriggerNotices.push(...reminderUpdate.notices);
+    for (const activation of reminderUpdate.runtime.pending) {
+      const activationId = String(activation?.id || "").trim();
+      if (activationId) canonicalPendingActivationIds.add(activationId);
+    }
+    rearmedTriggerNotices.push(...rearmedCustomAuraNotices({
+      auraItem: existingAuraVisualByInstance.get(aura.instanceId) || null,
+      pendingActivations: reminderUpdate.runtime.pending,
+      rearmRequests,
+      itemsById: byId,
+    }));
     desiredVisuals.push({
       aura,
       center,
@@ -408,6 +472,12 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
       sizeCells,
       reminderUpdate,
     });
+  }
+
+  for (const activationId of [...historyRestoredActivationIds]) {
+    if (!canonicalPendingActivationIds.has(activationId)) {
+      historyRestoredActivationIds.delete(activationId);
+    }
   }
 
   const staleRemovals = staleCustomAuraEffectRemovals(items, {
@@ -422,6 +492,7 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
     });
   }
   if (!isCurrentSceneEpoch(sceneEpoch) || !spatialSceneSnapshot.isCurrent(snapshot)) return;
+  let ownedEffectsMutation = false;
   if (operations.length) {
     const mutation = await runEffectsMutation(operations, {
       history: false,
@@ -429,16 +500,19 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
       label: "Aggiornata membership aura personalizzata",
     });
     requireAppliedEffectsMutation(mutation);
+    ownedEffectsMutation = true;
   }
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (!spatialSceneSnapshot.isCurrent(snapshot)) {
     requestCustomAuraReconcile({ reason: "effects-mutation" });
-    return;
+    if (!ownedEffectsMutation) return;
   }
   const auraVisualReconcile = await reconcileAuraVisuals(
     desiredVisuals,
     sceneEpoch,
-    snapshot,
+    ownedEffectsMutation && !spatialSceneSnapshot.isCurrent(snapshot)
+      ? null
+      : snapshot,
   );
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (
@@ -448,13 +522,25 @@ async function reconcileCustomAuras({ reason = "event", force = false } = {}) {
     scheduleCustomAuraRecovery();
     return;
   }
-  if (newTriggerNotices.length) {
+  const rearmedActivationIds = [...new Set(
+    rearmedTriggerNotices
+      .map((notice) => String(notice?.activationId || "").trim())
+      .filter(Boolean),
+  )];
+  const deliveryNotices = [...new Map(
+    [...newTriggerNotices, ...rearmedTriggerNotices]
+      .map((notice) => [notice.activationId, notice]),
+  ).values()];
+  if (deliveryNotices.length) {
     void sendProjectedReminderPayload(
       SPELL_ZONE_TRIGGER_NOTICE_CHANNEL,
       {
         type: "show-zone-trigger-notices",
-        activationIds: newTriggerNotices.map((notice) => notice.activationId),
-        notices: newTriggerNotices,
+        activationIds: deliveryNotices.map((notice) => notice.activationId),
+        notices: deliveryNotices,
+        ...(rearmedActivationIds.length
+          ? { rearmActivationIds: rearmedActivationIds }
+          : {}),
       },
     ).catch((error) => {
       console.warn("[custom-aura] trigger notice:", error?.message || error);
@@ -482,11 +568,16 @@ async function pump() {
       requested = false;
       const reason = requestedReason;
       const force = requestedForce;
+      const rearmRequests = [...queuedRearmRequests.values()];
+      queuedRearmRequests.clear();
       requestedReason = "event";
       requestedForce = false;
       try {
-        await reconcileCustomAuras({ reason, force });
+        await reconcileCustomAuras({ reason, force, rearmRequests });
       } catch (error) {
+        for (const request of rearmRequests) {
+          queuedRearmRequests.set(request.activationId, request);
+        }
         console.error("[custom-aura] reconcile:", error);
         scheduleCustomAuraRecovery();
       }
@@ -546,6 +637,16 @@ export async function mountCustomAuraController() {
   unsubscribePresetStore = getCustomAuraPresetStore().subscribe(() => {
     requestCustomAuraReconcile({ reason: "preset-store-change", force: true });
   });
+  unsubscribeRuntimeHistoryRearm = OBR.broadcast.onMessage(
+    REMINDER_HISTORY_REARM_CHANNEL,
+    (event) => {
+      const request = historyCustomAuraRearmRequest(event?.data);
+      if (!request) return;
+      queuedRearmRequests.set(request.activationId, request);
+      historyRestoredActivationIds.add(request.sourceActivationId);
+      requestCustomAuraReconcile({ reason: "reminder-history-rearm", force: true });
+    },
+  );
   requestCustomAuraReconcile({ reason: "mount", force: true });
   return true;
 }
@@ -561,6 +662,8 @@ export function unmountCustomAuraController() {
   unsubscribeSceneMetadata = null;
   unsubscribePresetStore?.();
   unsubscribePresetStore = null;
+  unsubscribeRuntimeHistoryRearm?.();
+  unsubscribeRuntimeHistoryRearm = null;
   if (timer) clearTimeout(timer);
   timer = null;
   if (recoveryTimer) clearTimeout(recoveryTimer);
@@ -568,6 +671,8 @@ export function unmountCustomAuraController() {
   requested = false;
   requestedReason = "event";
   requestedForce = false;
+  queuedRearmRequests.clear();
+  historyRestoredActivationIds.clear();
   completedSnapshotKey = null;
   stateMetadataWatcher.reset();
   mounted = false;

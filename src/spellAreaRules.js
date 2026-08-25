@@ -2035,18 +2035,32 @@ function catalogAreaRule(spec) {
         kind: "debuff",
         label: "Folate / Svantaggio a distanza / Controvento ×2",
         detail: "Folate attive / Svantaggio con vento moderato o forte / Costo controvento raddoppiato con vento forte / Intensità e direzione scelte dal caster.",
+        summaryParts: [
+          { id: "control-winds-gusts", label: "Folate attive" },
+          { id: "control-winds-ranged-disadvantage", label: "Svant. att. distanza" },
+          { id: "control-winds-counterwind-double", label: "Controvento ×2" },
+        ],
       }],
       downdraft: [{
         id: "control-winds-membership",
         kind: "debuff",
         label: "Discendente / Svantaggio a distanza / TS Forza se vola",
         detail: "Corrente discendente / Svantaggio agli attacchi a distanza / TS Forza alle creature volanti / Prono su fallimento tramite il trigger condiviso.",
+        summaryParts: [
+          { id: "control-winds-downdraft", label: "Corrente discendente" },
+          { id: "control-winds-ranged-disadvantage", label: "Svant. att. distanza" },
+        ],
       }],
       updraft: [{
         id: "control-winds-membership",
         kind: "buff",
         label: "Ascendente / Caduta dimezzata / Salto in alto +3 m",
         detail: "Corrente ascendente / Danni da caduta dimezzati / Salti in alto fino a 3 m aggiuntivi.",
+        summaryParts: [
+          { id: "control-winds-updraft", label: "Corrente ascendente" },
+          { id: "control-winds-fall-half", label: "Caduta ½" },
+          { id: "control-winds-jump-bonus", label: "Salto +3 m" },
+        ],
       }],
       paused: [],
     }

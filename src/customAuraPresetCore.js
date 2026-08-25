@@ -11,6 +11,14 @@ const TARGET_FILTERS = new Set(["all", "friendly", "hostile"]);
 const normalizedText = (value, fallback = "", maxLength = 160) =>
   (String(value || "").trim() || fallback).slice(0, maxLength);
 
+function samePresetDefinition(left, right) {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
 export function createPresetId() {
   return createCustomAuraChildId("preset");
 }
@@ -213,6 +221,14 @@ export function applyPresetToCustomAura(preset, {
   };
 }
 
+export function appendPresetToCustomAuraList(values = [], preset) {
+  const current = Array.isArray(values) ? values : [];
+  return [
+    ...current,
+    applyPresetToCustomAura(preset),
+  ];
+}
+
 export function detachCustomAuraPreset(aura) {
   if (!aura || typeof aura !== "object") return aura;
   const copy = JSON.parse(JSON.stringify(aura));
@@ -246,8 +262,18 @@ export function syncCustomAuraWithPresets(aura, presetCatalog = []) {
     return aura;
   }
 
-  // Preset attivo: se la revisione è più recente, aggiorna la definition
-  if (normalized.revision > currentRevision) {
+  // Preset attivo: aggiorna anche un'istanza che presenta drift a parità di
+  // revision. Le modifiche locali devono passare da detach, non restare una
+  // linked aura ambigua.
+  const currentDefinition = normalizeCustomAuraPresetDefinition(aura);
+  const definitionDrifted = !samePresetDefinition(
+    currentDefinition,
+    normalized.definition,
+  );
+  if (
+    normalized.revision > currentRevision
+    || (normalized.revision === currentRevision && definitionDrifted)
+  ) {
     const updated = applyPresetToCustomAura(normalized, {
       existingAura: aura,
       auraId: aura.id,

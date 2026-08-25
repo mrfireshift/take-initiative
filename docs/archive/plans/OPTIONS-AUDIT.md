@@ -8,7 +8,7 @@ Fonti esaminate:
 
 - codice runtime in `src/`, entry point Vite e pagine HTML;
 - test contrattuali in `test/`;
-- `README.md`, `docs/ARCHITETTURA.md`, `docs/ARCH-002-METADATA-KEY-SCOPED.md`, `docs/ARCH-003-EFFECTS-MUTATION-COORDINATOR.md`, `docs/ARCH-004-EVENT-HUB-RENDER-SCHEDULER.md`, `docs/ARCH-005-IDEMPOTENT-RECONCILERS.md`, `docs/DESKTOP-PORT-AUDIT.md` e guide funzionali correnti;
+- `README.md`, `docs/ARCHITETTURA.md`, `docs/ARCH-002-METADATA-KEY-SCOPED.md`, `docs/ARCH-003-EFFECTS-MUTATION-COORDINATOR.md`, `docs/ARCH-004-EVENT-HUB-RENDER-SCHEDULER.md`, `docs/ARCH-005-IDEMPOTENT-RECONCILERS.md`, `docs/archive/strategy/DESKTOP-PORT-AUDIT.md` e guide funzionali correnti;
 - brief allegato. La cartella dell'allegato non contiene una review architetturale separata; il codice e la documentazione corrente su `main` sono quindi stati usati come fonte autorevole, come richiesto dal brief.
 
 Il conteggio finale usa la nozione di **famiglia configurabile esistente**: una preferenza, un controllo persistente o sessionale, oppure una configurazione room/scena/oggetto regolabile dal GM. Non conta separatamente ogni campo di una stessa form, non conta i payload transitori tra iframe e non conta lo stato canonico prodotto automaticamente dal runtime. Con questo criterio esistono **36 famiglie configurabili già presenti ma sparse**: 13 locali/sessionali, 4 room, 7 di scena e 12 object-level.

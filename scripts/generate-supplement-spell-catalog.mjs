@@ -5,7 +5,7 @@ import italian from "../src/spells-it-2014.json" with { type: "json" };
 
 const OUTPUT_PATH = "src/spells-supplements-2014.json";
 const RUNTIME_OUTPUT_PATH = "src/spells-supplements-runtime.json";
-const REPORT_PATH = "docs/REVISIONE_INCANTESIMI_SUPPLEMENTI.md";
+const REPORT_PATH = "docs/archive/generated/REVISIONE_INCANTESIMI_SUPPLEMENTI.md";
 const SCHEMA_VERSION = 1;
 
 const SOURCES = Object.freeze({
@@ -488,6 +488,7 @@ fs.writeFileSync(RUNTIME_OUTPUT_PATH, `${JSON.stringify({
     return spell;
   }),
 }, null, 2)}\n`, "utf8");
+fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
 fs.writeFileSync(REPORT_PATH, markdownReport(payload), "utf8");
 console.log(`Scritti ${spells.length} incantesimi in ${OUTPUT_PATH}`);
 console.log(`Scritti ${runtimeIds.length} incantesimi in ${RUNTIME_OUTPUT_PATH}`);

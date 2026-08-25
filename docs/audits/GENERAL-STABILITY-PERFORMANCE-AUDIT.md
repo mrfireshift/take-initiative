@@ -64,10 +64,10 @@ Gli script `audit:*` non sono stati eseguiti perché scrivono report JSON/Markdo
 
 Sono stati letti i documenti architetturali e gli audit correnti in `docs/`, inclusi:
 
-- `ARCHITETTURA.md`, `ACTOR-HP-PERSISTENCE.md`, `STABILIZZAZIONE_1_3.md`;
+- `ARCHITETTURA.md`, `ACTOR-HP-PERSISTENCE.md`, `docs/archive/historical/STABILIZZAZIONE_1_3.md`;
 - `ARCH-002-METADATA-KEY-SCOPED.md`, `ARCH-003-EFFECTS-MUTATION-COORDINATOR.md`, `ARCH-004-EVENT-HUB-RENDER-SCHEDULER.md`, `ARCH-005-IDEMPOTENT-RECONCILERS.md`;
 - `EFFETTI_LOCAL_ITEMS.md`, `MOVEMENT_MECHANICS.md`, `INCANTESIMI_E_ZONE.md`, `CAPACITA_CLASSE.md`;
-- `OPTIONS-ARCHITECTURE.md`, `OPTIONS-AUDIT.md`, `DESKTOP-PORT-AUDIT.md`;
+- `OPTIONS-ARCHITECTURE.md`, `docs/archive/plans/OPTIONS-AUDIT.md`, `docs/archive/strategy/DESKTOP-PORT-AUDIT.md`;
 - gli audit spell, Barbaro, capacità di classe, Embers, Unified Panel e tutti gli audit in `docs/class-features/audits/`.
 
 La verifica sul codice corrente porta a questo stato effettivo:
@@ -804,7 +804,8 @@ La traceability corretta e':
   risolto: writer diretti e coordinatori concorrenti su `classFeatureState`
   richiedono ancora una validazione multi-client o un owner di dominio unico.
 
-Lo stato di release corrente e' documentato in `docs/ROADMAP-CLOSURE.md`:
+Lo stato di release storico e' documentato in
+`docs/archive/releases/ROADMAP-CLOSURE.md`:
 **GO condizionato** al checklist manuale browser/Owlbear per il contratto
 single-GM; **NO-GO** se il requisito e' multi-GM con serializzazione globale,
 perche' l'History Owner attuale garantisce ownership per client e last-commit-wins

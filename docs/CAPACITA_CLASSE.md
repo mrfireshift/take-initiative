@@ -8,23 +8,23 @@ bersagli e reminder, ma non tira dadi e non decide gli esiti di gioco.
 ## Stato corrente del catalogo
 
 Il catalogo runtime è `src/class-features-runtime.json`, versione `4`.
-Contiene **542 capacità**, **104 pool di risorse** e 13 identificatori di
+Contiene **551 capacità**, **104 pool di risorse** e 13 identificatori di
 classe. L'identificatore `ranger-revised` è il dataset opzionale Unearthed
 Arcana 2016 e non è la stessa progressione del Ranger 2014.
 
 | Sorgente | Record runtime |
 | --- | ---: |
-| Manuale del Giocatore 2014 | 197 |
+| Manuale del Giocatore 2014 | 206 |
 | Guida Omnicomprensiva di Xanathar | 144 |
 | Calderone Omnicomprensivo di Tasha | 156 |
 | Unearthed Arcana: Ranger, Revised (2016) | 45 |
-| **Totale** | **542** |
+| **Totale** | **551** |
 
 Lo stato di supporto è intenzionalmente esplicito:
 
 - **59 `implemented`**: la capacità può essere attivata dal runtime secondo
   l'adapter dichiarato;
-- **483 `not-automated`**: la voce resta consultabile e gestibile manualmente,
+- **492 `not-automated`**: la voce resta consultabile e gestibile manualmente,
   ma il pulsante di attivazione non applica una meccanica automatica;
 - anche una capacità `implemented` può chiedere al GM un tiro, una scelta o una
   conferma manuale.

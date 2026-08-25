@@ -114,9 +114,10 @@ Condizioni, Incantesimi e Console HP condividono la stessa logica:
 | Alias legacy | 2 |
 | **Totale runtime** | **477** |
 
-Sono tracciabili nel pannello Incantesimi 357 definizioni. Il catalogo
-comprende inoltre 133 regole di area per 132 incantesimi distinti, 71 definizioni con automazioni esplicite
-per il tiro salvezza e 7 definizioni con azioni attive. La presenza di una
+Il pannello unificato espone 392 voci, di cui 358 provengono dalle opzioni
+trackable. Il catalogo comprende inoltre 137 regole di area per 132 incantesimi
+distinti, 81 definizioni con `saveAutomation` e 26 definizioni con azioni
+attive esposte dal contratto unificato. La presenza di una
 geometria non implica che ogni clausola RAW dell'incantesimo sia già
 automatizzata.
 
@@ -183,7 +184,10 @@ Ogni trigger può essere un semplice reminder, un tiro salvezza oppure un
 effetto condizionato da condizioni già presenti. Il sistema mantiene separati
 i trigger concorrenti dello stesso incantesimo.
 
-### Azioni attive
+### Esempi di azioni attive
+
+La tabella è rappresentativa: il contratto unificato espone attualmente azioni
+attive per 26 definizioni.
 
 | Incantesimo | Azioni |
 | --- | --- |
@@ -209,8 +213,8 @@ le fazioni già presenti nei metadata dei token.
 ## Capacità di classe
 
 La card può contenere una build fino a quattro classi, con livelli 1–20 e
-sottoclassi. Il catalogo runtime contiene 542 record, 104 pool di risorse, 59
-capacità `implemented` e 483 voci `not-automated`. Le prime sono attivabili dal
+sottoclassi. Il catalogo runtime contiene 551 record, 104 pool di risorse, 59
+capacità `implemented` e 492 voci `not-automated`. Le prime sono attivabili dal
 GM; le seconde restano descrittive o manuali. Le capacità pronte possono usare
 risorse, creare condizioni persistenti o proiettare aure, ma tiri, scelte ed
 esiti non deterministici restano conferme del GM. Il riferimento completo è in

@@ -33,8 +33,8 @@ Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
 
 ## Capacità di classe
 
-Il catalogo runtime espone 542 capacità e 104 pool di risorse. Al momento 59
-sono `implemented`; le restanti 483 sono intenzionalmente consultabili come
+Il catalogo runtime espone 551 capacità e 104 pool di risorse. Al momento 59
+sono `implemented`; le restanti 492 sono intenzionalmente consultabili come
 `not-automated` e richiedono gestione manuale. L'espansione degli adapter deve
 partire dai dati in `data/class-features/`, passare da
 `npm run generate:class-features` e aggiornare i test prima di essere descritta

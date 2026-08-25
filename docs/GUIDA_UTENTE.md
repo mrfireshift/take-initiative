@@ -2,6 +2,11 @@
 
 Questa guida descrive l'uso di Take Initiative! nel suo scenario principale: un DM usa la vista GM come regia e proietta una seconda vista player sul tavolo.
 
+Le impostazioni locali e condivise sono raccolte nel pannello **Opzioni**; per
+scope, precedenza e limiti consulta [Architettura Options](OPTIONS-ARCHITECTURE.md).
+Le animazioni visuali delle spell sono opzionali e descritte in
+[Embers/JB2A](EMBERS.md).
+
 ## 1. Preparare la scena
 
 Inserisci sulla mappa tutti i token che devono partecipare al combattimento. Dal menu contestuale di ogni token puoi:
@@ -162,9 +167,14 @@ L'indebolimento è gestito direttamente nella scheda iniziativa con un controllo
 ## 7. Incantesimi e concentrazione
 
 Apri **Incantesimi** dalla toolbar. Il catalogo runtime contiene 477
-definizioni tratte dal catalogo base SRD 5.1 e dalle integrazioni 2014; 357
-sono tracciabili dal pannello, mentre gli istantanei senza stato persistente
-restano soprattutto nel riferimento o nei workflow ad area.
+definizioni tratte dal catalogo base SRD 5.1 e dalle integrazioni 2014; il
+pannello unificato espone 392 voci, di cui 358 provengono dal catalogo
+trackable. Gli istantanei senza stato persistente restano soprattutto nel
+riferimento o nei workflow ad area.
+
+Per le spell con visuale abbinata il GM può lasciare attive le animazioni
+Embers/JB2A dalla policy Room. La visuale è un effetto decorativo best-effort e
+non cambia la risoluzione o la persistenza della spell.
 
 Dal pannello puoi:
 
@@ -306,6 +316,9 @@ Il log raggruppa gli eventi per round, accumula il movimento totale degli attori
 - iniziare un nuovo log;
 - cancellare il log con conferma;
 - esportare in TXT o JSON.
+
+Il registro è locale al browser GM e separato dalla Cronologia: per il contratto
+di storage, compatibilità ed export consulta [Combat Log](COMBAT-LOG.md).
 
 ## 11. Clock
 

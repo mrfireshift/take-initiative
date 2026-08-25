@@ -10,7 +10,8 @@ Versione plugin: `1.3.0`
 
 Questa chiusura parte dallo stato documentato in
 `CANONICAL-MUTATION-HARDENING.md` e non riapre le decisioni di
-`ARCHITETTURA.md`, ARCH-002/003/004/005/006/008 o `ROADMAP-CLOSURE.md`.
+`ARCHITETTURA.md`, ARCH-002/003/004/005/006/008 o
+`docs/archive/releases/ROADMAP-CLOSURE.md`.
 Il repository resta in feature freeze: nessuna nuova feature, nuova chiave o
 nuovo schema metadata, nessun cambiamento intenzionale di UX e nessun secondo
 framework di mutazione.

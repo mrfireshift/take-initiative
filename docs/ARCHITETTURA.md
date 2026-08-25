@@ -18,7 +18,8 @@ Il progetto evita un backend proprio: la sincronizzazione avviene tramite metada
 | `src/contextMenu.js` | Comandi contestuali su token. |
 | `src/faction-configurator.ts` / `src/factionRegistry.js` | Configurazione e registry persistente delle fazioni. |
 | `src/effects-modal.ts` | Popup Condizioni. |
-| `src/spells-panel.js` | Popup Incantesimi, registro globale, preparazione e azioni attive. |
+| `src/spell-unified-panel.js` | Entry point del pannello unificato Incantesimi, targeting e workflow. |
+| `src/spells.js` | Facade per registro/lifecycle delle spell e accesso agli stati persistiti. |
 | `src/quick-hp-modal.js` | Console HP multi-bersaglio e Console effetti ad area. |
 | `src/spellAreaCatalog.js` / `src/spellAreaRules.js` | Geometrie e comportamento dichiarativo delle spell ad area. |
 | `src/spellStaticZone.js` | Ciclo di vita, appartenenza e pulizia delle zone persistenti. |

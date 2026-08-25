@@ -92,9 +92,10 @@ Per installazione locale e pubblicazione consulta
 ## Compatibilità e principi
 
 - Regole di riferimento: **D&D 5e 2014**.
-- Catalogo runtime: **477 definizioni**, di cui **357 tracciabili** nel pannello
-  Incantesimi, provenienti da SRD 5.1, Xanathar, Tasha e integrazioni PHB 2014.
-- Catalogo capacità: **542 record runtime**, di cui **59 attivabili** e **483
+- Catalogo runtime: **477 definizioni**, di cui **358 opzioni trackable** e **392
+  esposte dal pannello unificato** Incantesimi, provenienti da SRD 5.1, Xanathar,
+  Tasha e integrazioni PHB 2014.
+- Catalogo capacità: **551 record runtime**, di cui **59 attivabili** e **492
   gestiti come riferimento/manuale**; include 104 pool di risorse.
 - SDK Owlbear Rodeo: `@owlbear-rodeo/sdk` 3.x.
 - Browser moderni supportati da Owlbear Rodeo.

@@ -62,6 +62,40 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "confusion-no-reactions", label: "No reaz." }),
     Object.freeze({ id: "confusion-random-table", label: "Tira d10 inizio turno" }),
   ]),
+  "gaseous-form-movement": Object.freeze([
+    Object.freeze({ id: "gaseous-form-fly-only", label: "Solo volo 3 m" }),
+  ]),
+  "calm-emotions-suppression": Object.freeze([
+    Object.freeze({ id: "calm-emotions-suppressed", label: "Aff./Spav. soppressi" }),
+  ]),
+  "eyebite-panicked": Object.freeze([
+    Object.freeze({ id: "eyebite-forced-flight", label: "Scatto: allontanati dal caster" }),
+  ]),
+  "eyebite-sickened": Object.freeze([
+    Object.freeze({ id: "eyebite-attack-check-penalty", label: "Svant. attacchi/prove" }),
+  ]),
+  "ensnaring-strike-damage": Object.freeze([
+    Object.freeze({ id: "ensnaring-strike-recurring-damage", label: "Danni perforanti/turno" }),
+  ]),
+  "banishing-smite-demiplane": Object.freeze([
+    Object.freeze({ id: "banishing-smite-exiled", label: "Esiliato" }),
+  ]),
+  "banishing-smite-home-plane": Object.freeze([
+    Object.freeze({ id: "banishing-smite-exiled", label: "Esiliato" }),
+  ]),
+  "symbol-discord": Object.freeze([
+    Object.freeze({ id: "symbol-discord-attacks", label: "Svant. attacchi" }),
+    Object.freeze({ id: "symbol-discord-checks", label: "Svant. prove" }),
+  ]),
+  "symbol-despair": Object.freeze([
+    Object.freeze({ id: "symbol-despair-no-attacks", label: "No attacchi" }),
+    Object.freeze({ id: "symbol-despair-no-harmful-targets", label: "No bersagli dannosi" }),
+  ]),
+  "symbol-insanity": Object.freeze([
+    Object.freeze({ id: "symbol-insanity-no-actions", label: "No azioni" }),
+    Object.freeze({ id: "symbol-insanity-no-communication", label: "No parole/compr." }),
+    Object.freeze({ id: "symbol-insanity-gm-movement", label: "Mov. controllato GM" }),
+  ]),
   "attack-save-penalty": Object.freeze([
     Object.freeze({ id: "bane-attack-penalty", label: "Att −1d4" }),
     Object.freeze({ id: "bane-save-penalty", label: "TS −1d4" }),

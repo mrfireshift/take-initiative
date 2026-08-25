@@ -9,7 +9,7 @@
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **1**.
-- Definizioni tracciabili: **355**; definizioni con regole d'area: **132**.
+- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **132** (137 regole).
 - Workflow che richiedono smoke test runtime: **389**.
 - Lacune RAW confermate P1: **35**; discrepanze ad alta confidenza P2: **1**.
 - Impronta deterministica: `6c8b172f67dc89c9`.
@@ -59,7 +59,7 @@
 | --- | ---: |
 | ACTIVE_ACTION | 33 |
 | AREA_GEOMETRY | 132 |
-| CAST | 223 |
+| CAST | 224 |
 | CLEANUP | 105 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |

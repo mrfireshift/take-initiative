@@ -315,6 +315,23 @@ test("prune zone reminder batch closes when no zone activation remains", async (
   assert.equal(pruneZoneReminderNoticeBatch(batch, []), null);
 });
 
+test("il sync non chiude dopo 500 ms un reminder informativo di zona già mostrato", async () => {
+  const { pruneZoneReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
+  const batch = mergeSaveReminderNoticeBatch(null, [
+    notice({
+      activationId: "custom-aura-info",
+      kind: "zone-effect",
+      instruction: "Ricorda l'effetto dell'aura.",
+    }),
+  ]);
+
+  const preserved = pruneZoneReminderNoticeBatch(batch, [], {
+    preserveActivationIds: ["custom-aura-info"],
+  });
+
+  assert.deepEqual(preserved.activationIds, ["custom-aura-info"]);
+});
+
 test("prune effect-save reminder batch removes only invalidated effect activations", async () => {
   const { pruneEffectSaveReminderNoticeBatch } = await import("../src/saveReminderNoticeCore.js");
   const batch = mergeSaveReminderNoticeBatch(null, [

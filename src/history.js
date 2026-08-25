@@ -1866,6 +1866,7 @@ async function reannounceHistoryReminderEntries(entries = [], sceneEpoch = curre
       const owner = replay.owner === "effect-save"
         || replay.owner === "static-zone"
         || replay.owner === "spell-aura"
+        || replay.owner === "custom-aura"
         ? replay.owner
         : "";
       const activationId = String(replay.activationId || "").trim();

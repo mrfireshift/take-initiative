@@ -50,7 +50,7 @@ test("l'editor espone dimensione, stile, pill, warning e scope stabile dai token
   assert.doesNotMatch(modal, /OBR\.player\.onChange/);
   assert.doesNotMatch(html, /add-selection/);
   assert.match(html, /class="glass-shell"/);
-  assert.match(html, /custom-aura\.css\?v=4/);
+  assert.match(html, /custom-aura\.css\?v=5/);
   assert.match(html, /src="\/src\/custom-aura-modal\.js"/);
   assert.match(html, /src="\/src\/popoverDrag\.js"/);
   assert.match(html, /data-drag-handle/);
@@ -79,4 +79,35 @@ test("l'editor supporta multi-pills, multi-reminders, preset e gestione libreria
   assert.match(html, /Libreria Preset/);
 });
 
+test("linked aura è read-only e offre modifica preset o detach espliciti", () => {
+  assert.match(modal, /const readOnly = isLinked && !isEditingPreset/);
+  assert.match(modal, /disabled\(readOnly\)/);
+  assert.match(modal, /Modifica preset/);
+  assert.match(modal, /Scollega \(Modifica solo questa\)/);
+  assert.match(modal, /editingPresetIndex = index/);
+  assert.match(modal, /updatePresetDefinition\(existingPreset/);
+  assert.match(modal, /presetStore\.savePreset\(updatedPreset\)/);
+});
 
+test("quick apply è append-only e salva la lista corrente di ogni token", () => {
+  assert.match(modal, /const quickApplyMode = .*mode.*apply-preset/);
+  assert.match(modal, /presetDialogTargetIndex = null;[\s\S]{0,180}renderPresetDialog\(\)/);
+  assert.match(modal, /appendPresetToCustomAuraList\(current, preset\)/);
+  assert.match(modal, /normalizeCustomAuras\(meta\[CUSTOM_AURAS_FIELD\]\)/);
+  assert.match(modal, /Preset non disponibile: nessuna istanza è stata modificata/);
+  assert.match(contextMenu, /mode: "apply-preset"/);
+});
+
+test("la gestione rapida delle aure esistenti è separata dall'editor dettagliato", () => {
+  assert.match(modal, /function auraSummaryTemplate/);
+  assert.match(modal, /data-existing-toggle/);
+  assert.match(modal, /data-existing-rename/);
+  assert.match(modal, /data-action="delete-existing"/);
+  assert.match(modal, /data-action="edit-details"/);
+  assert.match(modal, /async function persistExistingAuraChange/);
+  assert.match(modal, /saveButton\.hidden = !hasDetailDraft/);
+  assert.match(modal, /currentIndex = current\.findIndex/);
+  assert.match(modal, /delete meta\[CUSTOM_AURAS_FIELD\]/);
+  assert.match(modal, /Attiva, rinomina o elimina un’aura dall’elenco/);
+  assert.match(html, /id="save"[^>]*hidden[^>]*>Salva modifiche/);
+});

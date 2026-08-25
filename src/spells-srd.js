@@ -660,6 +660,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Forma gassosa · solo volo 3 m",
       detail: "La velocità di volare di 3 metri è l'unico metodo di movimento.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "gaseous-form-fly-only", label: "Solo volo 3 m" }),
+      ]),
       mechanics: Object.freeze({
         movement: Object.freeze({
           modes: Object.freeze({
@@ -669,6 +672,20 @@ const SPELL_EFFECTS = Object.freeze({
           label: "Forma Gassosa: solo volo 3 m",
         }),
       }),
+    }),
+  ]),
+  haste: Object.freeze([
+    Object.freeze({
+      id: "haste-buff",
+      kind: "buff",
+      label: "Velocità ×2 · +2 CA · vant. TS Des · azione extra",
+      detail: "La velocità è raddoppiata; ottiene +2 alla CA e vantaggio ai tiri salvezza su Destrezza. Può effettuare una sola azione aggiuntiva in ogni turno, limitata a Attacco (un solo attacco con arma), Scatto, Disimpegno, Nascondersi o Usare un Oggetto.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "haste-speed-double", label: "Vel ×2" }),
+        Object.freeze({ id: "haste-armor-class", label: "CA +2" }),
+        Object.freeze({ id: "haste-dexterity-save-advantage", label: "Vant. TS Des" }),
+        Object.freeze({ id: "haste-extra-action", label: "Azione extra" }),
+      ]),
     }),
   ]),
   "spider-climb": Object.freeze([

@@ -31,6 +31,7 @@ import { projectReminderNotices } from "./options/optionsProjection.js";
 import { runtimeOptionsService, startRuntimeOptions } from "./options/optionsRuntime.js";
 import { selectReminderProjectionPolicy } from "./options/optionsSelectors.js";
 import { SPELL_AURA_META_KEY } from "./spellAuraCore.js";
+import { CUSTOM_AURA_META_KEY } from "./customAuraCore.js";
 
 const CHANNEL = ID + "/turn-notice";
 const READY_CHANNEL = CHANNEL + "/ready";
@@ -422,7 +423,9 @@ function historyReplayForReminder(row: any) {
   const owner = activation.kind === "zone"
     ? activation.metadataKey === SPELL_AURA_META_KEY
       ? "spell-aura"
-      : "static-zone"
+      : activation.metadataKey === CUSTOM_AURA_META_KEY
+        ? "custom-aura"
+        : "static-zone"
     : "effect-save";
   const descriptor = {
     activationId,
@@ -924,6 +927,17 @@ async function syncPendingZoneNotices() {
     const zonePrunedBatch = pruneZoneReminderNoticeBatch(
       currentSaveReminderBatch,
       pendingIds,
+      {
+        // I reminder informativi e i danni automatici non hanno una
+        // activation pendente da consumare: restano visibili fino al timeout
+        // del pannello, invece di essere chiusi dal sync a 500 ms.
+        preserveActivationIds: currentEntries
+          .filter((entry: any) => (
+            entry?.kind === "zone-effect"
+            && !entry?.resolution
+          ))
+          .map((entry: any) => entry.activationId),
+      },
     );
     const nextCurrentBatch = pruneEffectSaveReminderNoticeBatch(
       zonePrunedBatch,

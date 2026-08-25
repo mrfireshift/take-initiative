@@ -5,13 +5,13 @@
 Questo rapporto accompagna l'hardening repository-wide richiesto in modalita
 **feature freeze / zero behavioral change**. Non sostituisce gli audit gia
 chiusi e non modifica le decisioni di `ARCHITETTURA.md`, ARCH-002/003/004/005,
-ARCH-006, ARCH-008 o `ROADMAP-CLOSURE.md`.
+ARCH-006, ARCH-008 o `docs/archive/releases/ROADMAP-CLOSURE.md`.
 
 Riferimenti riletti prima dell'inventory:
 
 - `docs/ARCHITETTURA.md`;
 - `docs/audits/GENERAL-STABILITY-PERFORMANCE-AUDIT.md`;
-- `docs/ROADMAP-CLOSURE.md`;
+- `docs/archive/releases/ROADMAP-CLOSURE.md`;
 - `docs/ARCH-002-METADATA-KEY-SCOPED.md`;
 - `docs/ARCH-003-EFFECTS-MUTATION-COORDINATOR.md`;
 - `docs/ARCH-004-EVENT-HUB-RENDER-SCHEDULER.md`;
@@ -24,7 +24,8 @@ Riferimenti riletti prima dell'inventory:
 
 Contratto verificato: un GM autorevole per scena. La lane background e
 l'History Owner serializzano i realm del singolo client; client GM distinti
-restano last-commit-wins come gia dichiarato in `ROADMAP-CLOSURE.md`.
+restano last-commit-wins come gia dichiarato in
+`docs/archive/releases/ROADMAP-CLOSURE.md`.
 
 ## Baseline prima delle modifiche
 

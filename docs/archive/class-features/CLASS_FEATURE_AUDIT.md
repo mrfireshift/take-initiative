@@ -2,13 +2,17 @@
 
 ## 1. Executive Summary & Documentation Governance
 
-Il presente documento costituisce il **Report Narrativo Autorevole** per l'inventario, lo stato corrente e lo stato target delle capacità di classe nel plugin Owlbear Rodeo **Take Initiative!** (v1.3.0).
+Il presente documento è un **report narrativo di audit** per l'inventario, lo
+stato corrente e lo stato target delle capacità di classe nel plugin Owlbear
+Rodeo **Take Initiative!** (v1.3.0). La sintesi operativa corrente resta in
+`docs/CAPACITA_CLASSE.md`; i conteggi macchina sono quelli del JSON generato.
 
 ### Ownership e Ruoli dei Documenti:
 - **`data/class-features/class-feature-automation-audit.json`**: **Source of Truth Canonica Machine-Readable** (generata deterministicamente da `npm run audit:class-features`).
 - **`scripts/audit-class-features.mjs`**: **Generatore Canonico** che assicura la perfetta riproducibilità senza script scratch esterni.
 - **`docs/AUDIT_CAPACITA_CLASSE.md`**: **Output Tecnico Generato** ad ogni esecuzione dell'audit script.
-- **`docs/CLASS_FEATURE_AUDIT.md`**: **Report Narrativo Autorevole** e guida interpretativa dei percorsi e microbatch futuri.
+- **`docs/CAPACITA_CLASSE.md`**: riferimento corrente per il comportamento osservabile.
+- **`docs/archive/class-features/CLASS_FEATURE_AUDIT.md`**: report narrativo e guida interpretativa dei percorsi e microbatch futuri; non è una fonte numerica autonoma.
 
 L'audit è stato eseguito in modalità **READ-ONLY**, con una baseline di **1788 test passanti (0 fallimenti)** e build di produzione verificata.
 
@@ -56,7 +60,7 @@ L'audit è stato eseguito in modalità **READ-ONLY**, con una baseline di **1788
 ## 2. Schema della Source of Truth
 
 Tutti gli 860 record sono persistiti in un unico file canonico:
-[class-feature-automation-audit.json](file:///c:/Progetti/obr-initiative/data/class-features/class-feature-automation-audit.json)
+[class-feature-automation-audit.json](../../../data/class-features/class-feature-automation-audit.json)
 
 Ogni record include:
 - `classId`, `className`, `subclassId`, `subclassName`, `featureId`, `featureName`
@@ -465,7 +469,7 @@ npm run build
 
 Nessun file in `src/` è stato modificato:
 - `data/class-features/class-feature-automation-audit.json` (Source of Truth canonica aggiornata ed estesa)
-- `docs/CLASS_FEATURE_AUDIT.md` (Report di audit ufficiale reconciliato)
+- `docs/archive/class-features/CLASS_FEATURE_AUDIT.md` (Report di audit reconciliato)
 
 ---
 

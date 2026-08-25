@@ -35,16 +35,18 @@ Il catalogo runtime contiene **477 definizioni**:
 | Integrazioni PHB 2014 | 41 |
 | Alias legacy di compatibilità | 2 |
 
-Di queste, **357 definizioni sono tracciabili** nel pannello Incantesimi. Gli
-istantanei senza stato persistente restano nel riferimento o nei workflow ad
-area, ma non creano necessariamente una spell attiva.
+Di queste, **358 definizioni sono disponibili come opzioni trackable** e il
+pannello unificato espone **392 voci** dopo la deduplicazione tra catalogo
+spell e workflow ad area. Gli istantanei senza stato persistente restano nel
+riferimento o nei workflow ad area, ma non creano necessariamente una spell
+attiva.
 
 Il catalogo dichiara inoltre:
 
-- 133 regole geometriche per 132 incantesimi distinti: 58 effetti istantanei,
-  63 zone persistenti, 11 aure mobili e 1 emissione;
-- 71 definizioni con automazioni esplicite per il tiro salvezza;
-- 7 definizioni con azioni attive successive al lancio.
+- 137 regole geometriche per 132 incantesimi distinti: 54 effetti istantanei,
+  67 zone persistenti, 12 aure mobili e 4 emissioni;
+- 81 definizioni con `saveAutomation` nel catalogo runtime;
+- 26 definizioni con azioni attive esposte dal contratto del pannello unificato.
 
 Questi numeri descrivono il catalogo tecnico, non il numero di incantesimi
 completamente automatizzati. Alcune geometrie possono essere disegnate senza
@@ -62,6 +64,9 @@ parte da tutte le 477 definizioni, ma limita la matrice operativa alle spell con
 casting time non superiore a 1 azione. Confronta quel perimetro con i testi
 regolamentari locali e con i contratti runtime effettivi per individuare le
 lacune residue di tracking, aree, TS, status, movimento, trigger e fasi.
+Nel report, il valore **355** indica soltanto le definizioni che superano il
+criterio più restrittivo di tracking persistente dell'audit; non sostituisce le
+358 opzioni esposte da `getTrackableSpellOptions()`.
 
 ## Lanciare e registrare un incantesimo
 
@@ -275,7 +280,10 @@ dai test.
 - **Fame di Hadar:** inizio e fine turno sono due eventi distinti; la condizione
   Accecato non deve essere duplicata.
 
-## Azioni attive supportate
+## Esempi di azioni attive supportate
+
+La tabella è rappresentativa: il contratto unificato espone attualmente azioni
+attive per 26 definizioni.
 
 | Incantesimo | Azioni dal registro |
 | --- | --- |

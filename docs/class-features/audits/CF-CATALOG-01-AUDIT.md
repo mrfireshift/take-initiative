@@ -1,6 +1,6 @@
 Aggiungerei `CF-CATALOG-01` come workstream parallelo: non implementa feature, ma costruisce il modello con cui valutare le 395 rimanenti e misurare l’impatto dei ticket strutturali.
 
-Lo schema riusa i campi già presenti in [class-features-runtime.json](/C:/Progetti/obr-initiative/src/class-features-runtime.json) e [class-feature-automation-audit.json](/C:/Progetti/obr-initiative/data/class-features/class-feature-automation-audit.json). Non introduce metadata runtime né una nuova fonte regolistica.
+Lo schema riusa i campi già presenti in [class-features-runtime.json](../../../src/class-features-runtime.json) e [class-feature-automation-audit.json](../../../data/class-features/class-feature-automation-audit.json). Non introduce metadata runtime né una nuova fonte regolistica.
 
 ## 1. Schema della matrice
 

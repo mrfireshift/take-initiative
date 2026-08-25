@@ -45,6 +45,7 @@ export function createCustomAuraPresetStore({
   let serializedCache = JSON.stringify(cachedPresets);
   const listeners = new Set();
   let removeStorageListener = null;
+  let removeBroadcastListener = null;
 
   function notify(reason = "change", changedPresetId = null) {
     const catalog = [...cachedPresets];
@@ -174,6 +175,24 @@ export function createCustomAuraPresetStore({
     removeStorageListener = () => eventTarget.removeEventListener?.("storage", handler);
   }
 
+  if (typeof broadcast?.addEventListener === "function") {
+    const handler = (event) => {
+      if (event?.data?.type === "presets-changed") readPresets({ refresh: true });
+    };
+    broadcast.addEventListener("message", handler);
+    removeBroadcastListener = () => broadcast.removeEventListener?.("message", handler);
+  } else if (broadcast && "onmessage" in broadcast) {
+    const previous = broadcast.onmessage;
+    const handler = (event) => {
+      previous?.(event);
+      if (event?.data?.type === "presets-changed") readPresets({ refresh: true });
+    };
+    broadcast.onmessage = handler;
+    removeBroadcastListener = () => {
+      if (broadcast.onmessage === handler) broadcast.onmessage = previous || null;
+    };
+  }
+
   return {
     readPresets,
     getActivePresets,
@@ -187,6 +206,8 @@ export function createCustomAuraPresetStore({
     dispose() {
       removeStorageListener?.();
       removeStorageListener = null;
+      removeBroadcastListener?.();
+      removeBroadcastListener = null;
       listeners.clear();
     },
   };
@@ -196,7 +217,13 @@ let defaultStoreInstance = null;
 
 export function getCustomAuraPresetStore() {
   if (!defaultStoreInstance) {
-    defaultStoreInstance = createCustomAuraPresetStore();
+    let broadcast = null;
+    if (typeof window !== "undefined" && typeof globalThis.BroadcastChannel === "function") {
+      try {
+        broadcast = new globalThis.BroadcastChannel(CUSTOM_AURA_PRESETS_BROADCAST_CHANNEL);
+      } catch {}
+    }
+    defaultStoreInstance = createCustomAuraPresetStore({ broadcast });
   }
   return defaultStoreInstance;
 }

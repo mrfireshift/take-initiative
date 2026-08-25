@@ -1554,6 +1554,7 @@ function countBy(rows, read) {
 export function buildSpellAutomationAudit() {
   const references = referenceMap();
   const trackableIds = new Set(getTrackableSpellOptions().map((entry) => entry.id));
+  const trackableOptionCount = trackableIds.size;
   const unifiedCatalogById = new Map(
     buildSpellUnifiedCatalogEntries().map((entry) => [entry.key, entry]),
   );
@@ -1568,6 +1569,10 @@ export function buildSpellAutomationAudit() {
   const legacyOperationalRows = allRows.filter((row) => row.inAuditScope);
   const excludedRows = allRows.filter((row) => !row.inAuditScope);
   const openRows = allRows.filter((row) => row.gaps.length > 0);
+  const areaRuleEntries = allRows.reduce(
+    (total, row) => total + row.runtime.areaRuleIds.length,
+    0,
+  );
   const fingerprint = createHash("sha256")
     .update(JSON.stringify({
       rows: allRows.map((row) => [row.id, row.currentAutomationLevel, row.coverageStatus, row.targetAutomationLevel, row.priority, row.gaps.map((g) => g.code)]),
@@ -1594,8 +1599,10 @@ export function buildSpellAutomationAudit() {
       targetAutomationLevel: countBy(allRows, (row) => row.targetAutomationLevel),
       currentUiExposure: countBy(allRows, (row) => row.currentUiExposure),
       targetUiExposure: countBy(allRows, (row) => row.targetUiExposure),
+      trackableOptions: trackableOptionCount,
       trackable: allRows.filter((row) => row.runtime.trackable).length,
       withAreaRules: allRows.filter((row) => row.runtime.areaRuleIds.length).length,
+      areaRuleEntries,
       openRows: openRows.length,
       confirmed: allRows.filter((row) => row.priority === "P1").length,
       highConfidence: allRows.filter((row) => row.priority === "P2").length,
@@ -1703,7 +1710,7 @@ export function renderSpellAutomationMarkdown(audit) {
     `- Catalogo totale: **${audit.summary.catalogTotal}** definizioni su 477 record.`,
     `- Testi disponibili: **${audit.summary.textsAvailable}** / ${audit.summary.catalogTotal}.`,
     `- Esposti nella console unificata: **${audit.summary.unifiedCatalogExposed}**; disconnessi: **${audit.summary.integrationDisconnected}**; fragili: **${audit.summary.integrationFragile}**.`,
-    `- Definizioni tracciabili: **${audit.summary.trackable}**; definizioni con regole d'area: **${audit.summary.withAreaRules}**.`,
+    `- Opzioni trackable del runtime: **${audit.summary.trackableOptions}**; definizioni con tracking persistente verificate dall'audit: **${audit.summary.trackable}**; definizioni con regole d'area: **${audit.summary.withAreaRules}** (${audit.summary.areaRuleEntries} regole).`,
     `- Workflow che richiedono smoke test runtime: **${audit.summary.runtimeSmokeRequired}**.`,
     `- Lacune RAW confermate P1: **${audit.summary.curatedP1}**; discrepanze ad alta confidenza P2: **${audit.summary.highConfidence}**.`,
     `- Impronta deterministica: \`${audit.fingerprint}\`.`,
