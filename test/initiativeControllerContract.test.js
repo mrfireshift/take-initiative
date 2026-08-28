@@ -499,6 +499,7 @@ test("la scadenza naturale degli incantesimi elimina atomicamente le zone conclu
   ]);
   assert.doesNotMatch(section, /sceneMetadataPreconditions/);
   assert.match(section, /mutationType === "effects:tick-round" \? \{ history: false \} : \{\}/);
+  assert.match(section, /suppressHistoryOnTerminalAccumulation: true/);
 });
 
 test("la riconciliazione reale propaga lo scene epoch a GC e backfill", () => {

@@ -667,6 +667,11 @@ function reminderRowRequiresResponse(row: any) {
     && !!String(row.activationId || "").trim();
 }
 
+function reminderRowRequiresPersistentDisplay(row: any) {
+  return row?.spellId === "prismatic-wall"
+    && row.resolution?.mode === "manual-save";
+}
+
 function renderSaveReminderBatch(batch: any) {
   const app = document.getElementById("zone-app");
   const presentation = saveReminderNoticeBatchPresentation(batch);
@@ -727,6 +732,9 @@ function renderSaveReminderBatch(batch: any) {
   const hasPersistentReminder = presentation.rows.some((row: any) =>
     row.resolution?.mode === "consume"
   );
+  const hasPersistentPrismaticWallSave = presentation.rows.some(
+    reminderRowRequiresPersistentDisplay,
+  );
   panel.append(portrait, copy, detail);
   window.clearTimeout(zoneHideTimer);
   zoneHideTimer = 0;
@@ -734,7 +742,7 @@ function renderSaveReminderBatch(batch: any) {
   currentZonePanel = panel;
   currentZoneTurnKey = String(batch.turnKey || "").trim();
   announceNoticeLayout({ force: true });
-  if (!requiresResponse && !hasPersistentReminder) {
+  if (!requiresResponse && !hasPersistentReminder && !hasPersistentPrismaticWallSave) {
     const timer = document.createElement("div");
     timer.className = "zone-timer";
     panel.appendChild(timer);

@@ -126,13 +126,21 @@ export function normalizeCustomAuraReminder(
   return result;
 }
 
-export function normalizeCustomAura(value = {}) {
-  const id = normalizedText(value?.id, "", 120);
+export function normalizeCustomAuraDefinition(value = {}) {
   const name = normalizedText(value?.name, "Aura personalizzata", 100);
-  const radiusMeters = Math.max(
-    0.5,
-    Math.min(300, Number(value?.radiusMeters) || 3),
-  );
+  const rawRadius = value?.radiusMeters;
+  const numericRadius =
+    typeof rawRadius === "number" ||
+    (typeof rawRadius === "string" && rawRadius.trim() !== "")
+      ? Number(rawRadius)
+      : Number.NaN;
+  const radiusMeters = Number.isFinite(numericRadius)
+    ? Number(
+        (
+          Math.round(Math.max(0, Math.min(300, numericRadius)) / 1.5) * 1.5
+        ).toFixed(10),
+      )
+    : 3;
   const style = normalizeAoEStyle({
     ...DEFAULT_CUSTOM_AURA_STYLE,
     ...(value?.style && typeof value.style === "object" ? value.style : {}),
@@ -172,21 +180,7 @@ export function normalizeCustomAura(value = {}) {
     }
   }
 
-  let presetRef = undefined;
-  if (value?.presetRef && typeof value.presetRef === "object" && value.presetRef.presetId) {
-    presetRef = {
-      presetId: normalizedText(value.presetRef.presetId, "", 120),
-      revision: Math.max(1, Math.floor(Number(value.presetRef.revision) || 1)),
-    };
-  }
-
-  const firstPill = pills[0] || { enabled: false, label: name, detail: "", kind: "buff" };
-  const startReminder = reminders.find((r) => r.event === "turn-start");
-  const endReminder = reminders.find((r) => r.event === "turn-end");
-
   return {
-    id,
-    enabled: value?.enabled !== false,
     name,
     radiusMeters,
     style,
@@ -196,23 +190,24 @@ export function normalizeCustomAura(value = {}) {
     },
     pills,
     reminders,
+  };
+}
+
+export function normalizeCustomAura(value = {}) {
+  const id = normalizedText(value?.id, "", 120);
+  let presetRef = undefined;
+  if (value?.presetRef && typeof value.presetRef === "object" && value.presetRef.presetId) {
+    presetRef = {
+      presetId: normalizedText(value.presetRef.presetId, "", 120),
+      revision: Math.max(1, Math.floor(Number(value.presetRef.revision) || 1)),
+    };
+  }
+
+  return {
+    id,
+    enabled: value?.enabled !== false,
+    ...normalizeCustomAuraDefinition(value),
     ...(presetRef ? { presetRef } : {}),
-    pill: {
-      enabled: firstPill.enabled === true,
-      label: firstPill.label || name,
-      detail: firstPill.detail || "",
-      kind: firstPill.kind || "buff",
-    },
-    warnings: {
-      start: {
-        enabled: startReminder?.enabled === true,
-        label: startReminder?.label || `Inizia il turno nell'aura ${name}.`,
-      },
-      end: {
-        enabled: endReminder?.enabled === true,
-        label: endReminder?.label || `Termina il turno nell'aura ${name}.`,
-      },
-    },
   };
 }
 

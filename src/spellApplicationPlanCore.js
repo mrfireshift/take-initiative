@@ -4,6 +4,7 @@ import {
   getProposedConditions,
   getSpellEffectChoices,
   getSpellEffects,
+  getSpellSummaryParts,
   getSpellAttackResolution,
 } from "./spells-srd.js";
 import { buildSpellCastAutomationPlan } from "./spellCastAutomationCore.js";
@@ -43,16 +44,37 @@ function normalizedSaveOutcomes(value, targetIds, singleOutcome) {
   return result;
 }
 
+const INITIAL_SPELL_USE_RULES = Object.freeze({
+  "xanathar-corona-di-stelle": Object.freeze({
+    key: "stars",
+    label: "stelle",
+    baseSlot: 7,
+    baseUses: 7,
+    usesPerSlot: 2,
+  }),
+  "xanathar-frecce-infuocate": Object.freeze({
+    key: "ammunition",
+    label: "munizioni",
+    baseSlot: 3,
+    baseUses: 12,
+    usesPerSlot: 2,
+  }),
+});
+
 function initialSpellUses(spell, castContext = {}) {
   const context = castContext && typeof castContext === "object" ? { ...castContext } : {};
-  if (spell?.id !== "xanathar-corona-di-stelle") return context;
-  const slotLevel = Math.max(7, Math.min(9, Math.floor(Number(context.slotLevel) || 7)));
-  const total = 7 + Math.max(0, slotLevel - 7) * 2;
+  const rule = INITIAL_SPELL_USE_RULES[spell?.id];
+  if (!rule) return context;
+  const slotLevel = Math.max(
+    rule.baseSlot,
+    Math.min(9, Math.floor(Number(context.slotLevel) || rule.baseSlot)),
+  );
+  const total = rule.baseUses + Math.max(0, slotLevel - rule.baseSlot) * rule.usesPerSlot;
   return {
     ...context,
     uses: {
-      key: "stars",
-      label: "stelle",
+      key: rule.key,
+      label: rule.label,
       remaining: total,
       total,
       showInPill: true,
@@ -95,6 +117,7 @@ export function buildSpellApplicationIntent({
     applyAutomatedConditions: applyAutomatedConditions !== false,
   });
   const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
+  const summaryParts = getSpellSummaryParts(spell, selectedChoice, persistedCastContext);
   const attackResolution = getSpellAttackResolution(
     spell,
     selectedChoice,
@@ -197,6 +220,7 @@ export function buildSpellApplicationIntent({
     historyLabel,
     name,
     persistedCastContext,
+    summaryParts,
     phasePlan: resolvedPhasePlan,
     spell,
     attackResolution,
@@ -233,6 +257,7 @@ export function buildSpellApplicationPlan({
     historyLabel,
     name,
     persistedCastContext,
+    summaryParts,
     phasePlan,
     spell,
     attackResolution,
@@ -279,6 +304,7 @@ export function buildSpellApplicationPlan({
     spellExpiry,
     appliedAt,
     castContext: persistedCastContext,
+    ...(summaryParts.length ? { summaryParts } : {}),
     proposedConditions: castAutomationPlan.conditions,
     proposedEffects: [
       ...castAutomationPlan.effects,
@@ -337,6 +363,7 @@ export function buildSpellApplicationPlan({
     primaryTargetId,
     saveOutcomes,
     initialDamage,
+    summaryParts,
     damageRequired: phasePlan.phase === "resolve" && !!initialDamage,
     phasePlan,
     spellExpiry,

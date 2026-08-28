@@ -10,6 +10,7 @@ import { loadAoEStyle } from "./aoeStyle.js";
 import { queueSpellAreaEffectsMutation } from "./spellAreaMutationQueue.js";
 import {
   collectActiveMobileAuras,
+  mobileAuraLegacyCasterEffectRemovals,
   mobileAuraMembershipPlan,
   mobileAuraTargetIds,
   SPELL_AURA_META_KEY,
@@ -330,6 +331,17 @@ async function reconcileSpellAuras({
 
   for (const aura of auras) {
     const caster = byId.get(aura.casterId);
+    const legacyCasterEffectRemovals = mobileAuraLegacyCasterEffectRemovals({
+      aura,
+      items,
+      metaKey: META_KEY,
+    });
+    if (legacyCasterEffectRemovals.length) {
+      operations.push({
+        type: "condition:remove-instances",
+        removals: legacyCasterEffectRemovals,
+      });
+    }
     const casterBounds = boundsById.get(aura.casterId);
     const center = boundsCenter(casterBounds);
     if (!caster || !center) continue;

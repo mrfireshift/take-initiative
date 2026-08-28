@@ -285,6 +285,10 @@ export function normalizeRoomOptions(value) {
         ["selected", "all", "compact"],
         defaults.uiSync.effectsDisplayMode,
       ),
+      showEffectSummaryParts: booleanOr(
+        uiSync.showEffectSummaryParts,
+        defaults.uiSync.showEffectSummaryParts,
+      ),
     },
   };
 }
@@ -311,6 +315,9 @@ const overrideValueNormalizers = Object.freeze({
   "map.effectLabels": (value) => normalizeRoomOptions({ map: { effectLabels: value } }).map.effectLabels,
   "map.activeTurnLabel": (value) => normalizeRoomOptions({ map: { activeTurnLabel: value } }).map.activeTurnLabel,
   "map.elevationLabels": (value) => normalizeRoomOptions({ map: { elevationLabels: value } }).map.elevationLabels,
+  "uiSync.showEffectSummaryParts": (value) => normalizeRoomOptions({
+    uiSync: { showEffectSummaryParts: value },
+  }).uiSync.showEffectSummaryParts,
 });
 
 function normalizeOverride(value, normalizeValue) {

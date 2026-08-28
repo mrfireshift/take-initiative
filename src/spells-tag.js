@@ -1,7 +1,7 @@
   // src/spells-tag.js
   import OBR, { buildLabel } from "@owlbear-rodeo/sdk";
   import { ID } from "./constants.js";
-  import { getSpellDefinition } from "./spells-srd.js";
+  import { getSpellDefinition, getSpellSummaryParts } from "./spells-srd.js";
   import { spellPillCounter } from "./spellExpiryCore.js";
   import { spellColorFor } from "./spellColorCore.js";
   import { effectsDiagnostics } from "./effectsDiagnostics.js";
@@ -393,6 +393,32 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
     };
   }
 
+  function readSpellSummaryParts(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((part, index) => {
+        const id = String(part?.id || part?.key || `part-${index + 1}`).trim();
+        const label = String(part?.label || part?.text || "").trim();
+        return id && label
+          ? {
+            id: id.slice(0, 80),
+            label: label.slice(0, 160),
+            ...(part?.stack === true ? { stack: true } : {}),
+          }
+          : null;
+      })
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+
+  function summaryPartsForSpell(value) {
+    const spellId = String(value?.spellId || value?.id || "").trim();
+    if (spellId === "delayed-blast-fireball") {
+      return getSpellSummaryParts(spellId, "", value?.castContext || {});
+    }
+    return readSpellSummaryParts(value?.summaryParts);
+  }
+
   // Normalizza qualsiasi forma di META_KEY[SPELLS_META_KEY] in array di {name,id,conc,targets}
   function readSpellsList(it) {
     const meta = it?.metadata?.[META_KEY] || {};
@@ -410,6 +436,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           turns: readSpellTurns(s.turns),
           expiry: s.expiry && typeof s.expiry === "object" ? { ...s.expiry } : null,
           castContext: readSpellCastContext(s.castContext),
+          summaryParts: summaryPartsForSpell(s),
           conc: !!s.conc,
           targets: Array.isArray(s.targets) ? s.targets.filter(Boolean) : undefined,
         });
@@ -425,6 +452,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
           turns: readSpellTurns(v?.turns),
           expiry: v?.expiry && typeof v.expiry === "object" ? { ...v.expiry } : null,
           castContext: readSpellCastContext(v?.castContext),
+          summaryParts: summaryPartsForSpell(v),
           conc: !!v?.conc,
           targets: Array.isArray(v?.targets) ? v.targets.filter(Boolean) : undefined,
         });
@@ -557,6 +585,8 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
         r: spell.turns,
         e: spell.expiry || null,
         u: spell.castContext?.uses || null,
+        x: spell.castContext || null,
+        s: spell.summaryParts || null,
       }))
       .sort((A, B) => A.i.localeCompare(B.i) || A.k.localeCompare(B.k));
     return JSON.stringify({ assignments: norm, durations });

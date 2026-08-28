@@ -100,8 +100,9 @@ async function dumpItems(ids, label) {
     let viewportHeight = 800;
     try { viewportWidth = Number(await OBR.viewport.getWidth()) || viewportWidth; } catch {}
     try { viewportHeight = Number(await OBR.viewport.getHeight()) || viewportHeight; } catch {}
-    const width = Math.min(560, Math.max(360, viewportWidth - 32));
-    const height = Math.min(720, Math.max(360, viewportHeight - 96));
+    const isQuickApply = mode === "apply-preset";
+    const width = Math.min(isQuickApply ? 460 : 540, Math.max(360, viewportWidth - 32));
+    const height = Math.min(isQuickApply ? 480 : 680, Math.max(360, viewportHeight - 96));
     const query = new URLSearchParams();
     for (const tokenId of tokenIds) query.append("tokenId", tokenId);
     if (mode) query.append("mode", mode);
@@ -383,7 +384,7 @@ async function toggleEpicBossOn(ids) {
         label: "Gestisci aure personalizzate…",
         filter: {
           roles: ["GM"],
-          every: [isCharacter(), hasMeta("!=")],
+          every: [isCharacter()],
         },
       }],
       onClick: async (ctx) => {
@@ -394,6 +395,14 @@ async function toggleEpicBossOn(ids) {
               .filter(Boolean),
           )];
           if (!tokenIds.length) return;
+          if (tokenIds.length > 1) {
+            await OBR.notification.show(
+              "Gestisci aure personalizzate richiede un solo token. Per più token usa Applica preset aura…",
+              "INFO",
+            ).catch(() => {});
+            closeContextMenuSoon();
+            return;
+          }
           await OBR.modal.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
           await OBR.popover.close(CUSTOM_AURA_MODAL_ID).catch(() => {});
           await openTrackedPopover(await customAuraPopoverOptions(tokenIds));
@@ -411,7 +420,7 @@ async function toggleEpicBossOn(ids) {
         label: "Applica preset aura…",
         filter: {
           roles: ["GM"],
-          every: [isCharacter(), hasMeta("!=")],
+          every: [isCharacter()],
         },
       }],
       onClick: async (ctx) => {

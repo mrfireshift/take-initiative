@@ -2,6 +2,11 @@ import { CATALOG_SPELL_AREA_SPECS } from "./spellAreaCatalog.js";
 import { AREA_SAVE_SPELL_ID_SET } from "./areaSaveSpellRules.js";
 import { getSpellBoardTokenPlacementRuleById } from "./spellBoardTokenCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
+import {
+  DELAYED_BLAST_FIREBALL_ID,
+  DELAYED_BLAST_FIREBALL_RANGE_METERS,
+  DELAYED_BLAST_FIREBALL_RADIUS_METERS,
+} from "./delayedBlastFireballRules.js";
 
 export const SPELL_AREA_KINDS = Object.freeze([
   "instant",
@@ -27,7 +32,7 @@ const SPELL_AREA_ORIGINS = Object.freeze(["caster", "caster-adjacent", "point"])
 const SPELL_AREA_DIRECTIONS = Object.freeze(["none", "pointer"]);
 const SPELL_AREA_ANCHORS = Object.freeze(["world", "caster"]);
 const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
-const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly"]);
+const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly", "non-hostile"]);
 export const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual", "area-subset"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
@@ -38,6 +43,29 @@ const SPELL_ZONE_OWNERS = Object.freeze(["caster"]);
 const SPELL_ZONE_MOVEMENTS = Object.freeze(["fixed", "manual", "drift"]);
 export const SPELL_ZONE_MOVEMENT_MODES = Object.freeze(["action", "bonus-action"]);
 export const SPELL_ZONE_MOVEMENT_ECONOMIES = Object.freeze(["action", "bonus-action"]);
+
+export function spellPlacedDamageCastAllowsEmptyTargets({
+  sourceKind = "cast",
+  phase = "cast",
+  activeActionId = "",
+  damageRequired = false,
+  targeting = null,
+  rule = null,
+} = {}) {
+  const kind = String(rule?.kind || "").trim();
+  const targetingMode = String(targeting?.mode || "").trim();
+  const selectionMode = String(targeting?.selectionMode || "").trim();
+  const areaAnchor = String(targeting?.areaAnchor || "").trim();
+  return String(sourceKind || "").trim() === "cast"
+    && String(phase || "").trim() === "cast"
+    && !String(activeActionId || "").trim()
+    && targetingMode === "geometric"
+    && ["area", "area-subset"].includes(selectionMode)
+    && areaAnchor !== "primary-target"
+    && targeting?.primaryTarget?.required !== true
+    && (kind === "zone" || (kind === "instant" && damageRequired === true));
+}
+
 const SPELL_ZONE_EVENTS = Object.freeze([
   "cast",
   "enter",
@@ -105,12 +133,16 @@ export function normalizeSpellZoneMovement(value) {
   ) return null;
   const choice = normalizeSpellZoneMovementChoice(value.choice);
   if (value.choice !== undefined && !choice) return null;
+  const label = String(value.label || "").trim();
+  const buttonLabel = String(value.buttonLabel || "").trim();
   return {
     mode,
     economy,
     maximumMeters,
     triggerOnAreaMove: value.triggerOnAreaMove,
     stopOnFirstContact: value.stopOnFirstContact,
+    ...(label ? { label } : {}),
+    ...(buttonLabel ? { buttonLabel } : {}),
     ...(choice ? { choice } : {}),
   };
 }
@@ -248,7 +280,7 @@ function validateTriggerEntries(triggers, errors) {
     }
     if (
       trigger?.targetArea !== undefined
-      && !["body", "hot-band", "body-or-hot-band"].includes(trigger.targetArea)
+      && !["body", "hot-band", "body-or-hot-band", "proximity"].includes(trigger.targetArea)
     ) {
       errors.push("zone-trigger-target-area-invalid");
     }
@@ -378,6 +410,20 @@ function validateZonePolicy(policy, errors) {
   }
   if (!allowed(SPELL_ZONE_INITIAL_RESOLUTIONS, policy.initialResolution)) {
     errors.push("zone-initial-resolution-invalid");
+  }
+  if (policy.initialSave !== undefined) {
+    const ability = String(policy.initialSave?.ability || "").trim().toLowerCase();
+    if (
+      !policy.initialSave
+      || typeof policy.initialSave !== "object"
+      || Array.isArray(policy.initialSave)
+      || !SPELL_SAVE_ABILITIES.has(ability)
+    ) {
+      errors.push("zone-initial-save-invalid");
+    }
+    if (policy.initialResolution !== "manual-save") {
+      errors.push("zone-initial-save-resolution-invalid");
+    }
   }
   if (
     policy.membershipPaddingSquares !== undefined
@@ -611,6 +657,22 @@ const SELF_CAST_AURA_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   confirmTargets: false,
 });
+const SELF_CAST_AURA_TARGETING_BY_SPELL = Object.freeze({
+  "antilife-shell": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    includeCaster: true,
+  }),
+  "phb2014-aura-di-purezza": SELF_CAST_AURA_TARGETING,
+  "phb2014-aura-di-vita": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    filter: "non-hostile",
+    includeCaster: true,
+  }),
+  "phb2014-aura-di-vitalita": Object.freeze({
+    ...SELF_CAST_AURA_TARGETING,
+    includeCaster: true,
+  }),
+});
 const NO_CONFIRM_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   confirmTargets: false,
@@ -623,8 +685,10 @@ const NO_CONFIRM_AREA_SAVE_SPELL_IDS = new Set([
   "wall-of-fire",
 ]);
 const SELF_CAST_AURA_SPELL_IDS = new Set([
+  "antilife-shell",
   "phb2014-aura-di-purezza",
   "phb2014-aura-di-vita",
+  "phb2014-aura-di-vitalita",
 ]);
 const CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS = new Set([
   "phb2014-braccia-di-hadar",
@@ -651,7 +715,7 @@ const areaSaveTargeting = (spellId) =>
   isTeleportSpell(spellId)
     ? NO_CONFIRM_TARGETING
     : SELF_CAST_AURA_SPELL_IDS.has(spellId)
-    ? SELF_CAST_AURA_TARGETING
+    ? SELF_CAST_AURA_TARGETING_BY_SPELL[spellId] || SELF_CAST_AURA_TARGETING
     : NO_CONFIRM_AREA_SAVE_SPELL_IDS.has(spellId)
     ? NO_CONFIRM_AREA_SAVE_TARGETING
     : AREA_SUBSET_SAVE_SPELL_IDS.has(spellId)
@@ -713,6 +777,25 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "phb2014-tsunami",
 ]);
 const CATALOG_ZONE_TRIGGERS = Object.freeze({
+  "phb2014-aura-di-vita": [
+    {
+      id: "aura-of-life-heal-on-turn-start",
+      group: "aura-of-life-heal",
+      label: "A inizio turno: +1 PF se vivente, a 0 PF e non ostile",
+      event: "turn-start",
+      frequency: "once-per-turn",
+      resolution: "manual-heal",
+      targetMode: "actor",
+      requiresConcentration: true,
+      healing: { dice: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+      resolutionData: {
+        requiresLiving: true,
+        requiresHpZero: true,
+        requiresNonHostile: true,
+        healing: { dice: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+      },
+    },
+  ],
   "control-water": [
     {
       id: "control-water-whirlpool-save-on-entry",
@@ -1616,6 +1699,18 @@ const CATALOG_ZONE_TRIGGERS = Object.freeze({
 // Only triggers with an explicit entry here become actionable reminders.  The
 // catalog labels remain presentation text; they are never parsed to infer a
 // saving throw or an effect.
+const PRISMATIC_WALL_PROXIMITY_REMINDER = Object.freeze({
+  ability: "con",
+  failureCondition: {
+    condition: "Accecato",
+    options: {
+      expiry: { mode: "rounds", remaining: 10 },
+      manualRemoval: true,
+      effectDetail: "Accecato per 1 minuto; il RAW locale non prevede un tiro salvezza ripetuto.",
+    },
+  },
+});
+
 const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   "control-water-whirlpool-save-on-entry": {
     ability: "str",
@@ -1724,7 +1819,13 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "storm-sphere-save-on-turn-end": {
     ability: "str",
-    damage: { dice: "2d6", type: "contundenti", onSave: "none" },
+    damage: {
+      dice: "2d6",
+      type: "contundenti",
+      onSave: "none",
+      baseSlot: 4,
+      additionalPerSlotAbove: 1,
+    },
   },
   "cordon-of-arrows-save-on-entry": { ability: "dex" },
   "cordon-of-arrows-save-on-turn-end": { ability: "dex" },
@@ -1759,6 +1860,8 @@ const REMINDER_TRIGGER_RESOLUTION_DATA = Object.freeze({
   },
   "spirit-guardians-save-on-entry": { ability: "wis" },
   "spirit-guardians-save-on-turn-start": { ability: "wis" },
+  "prismatic-wall-proximity-blindness-on-entry": PRISMATIC_WALL_PROXIMITY_REMINDER,
+  "prismatic-wall-proximity-blindness": PRISMATIC_WALL_PROXIMITY_REMINDER,
 });
 
 function enrichReminderTriggers(triggers) {
@@ -2016,6 +2119,16 @@ function catalogAreaRule(spec) {
         { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
         { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
       ],
+      mechanics: {
+        damageResistances: ["necrotic"],
+        hitPointMaximumProtected: true,
+        healingAtTurnStart: {
+          amount: 1,
+          whenAtHp: 0,
+          requiresLiving: true,
+          requiresNonHostile: true,
+        },
+      },
     }],
     "phb2014-cerchio-di-potere": [{
       id: "circle-of-power-zone",
@@ -2156,6 +2269,13 @@ function catalogAreaRule(spec) {
       : zone
         ? { mode: "manual-trigger" }
         : ON_CONFIRM,
+    ...(aura && (CATALOG_ZONE_TRIGGERS[spec.spellId] || []).length
+      ? {
+        triggerPolicy: {
+          triggers: CATALOG_ZONE_TRIGGERS[spec.spellId],
+        },
+      }
+      : {}),
     ...(zone
       ? {
           zonePolicy: {
@@ -2171,6 +2291,7 @@ function catalogAreaRule(spec) {
           initialResolution: ZONE_INITIAL_SAVE_SPELL_IDS.has(spec.spellId)
             ? "manual-save"
             : "none",
+          ...(spec.initialSave ? { initialSave: { ...spec.initialSave } } : {}),
           membershipTargeting: {
             filter: [
               "guardian-of-faith",
@@ -2290,6 +2411,44 @@ export const SPELL_AREA_RULES = Object.freeze([
         requiresSourceTurn: true,
         damage: { dice: "1d6", type: "psichici", onSave: "none" },
       }],
+    },
+  }),
+  defineRule({
+    id: `${DELAYED_BLAST_FIREBALL_ID}:cast`,
+    spellId: DELAYED_BLAST_FIREBALL_ID,
+    trigger: CAST_TRIGGER,
+    kind: "zone",
+    geometry: {
+      shape: "circle",
+      size: meters(DELAYED_BLAST_FIREBALL_RADIUS_METERS, "radius"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      range: meters(DELAYED_BLAST_FIREBALL_RANGE_METERS, "range"),
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: false,
+    },
+    effectPolicy: { mode: "manual-trigger" },
+    zonePolicy: {
+      placementOptional: false,
+      owner: "caster",
+      // The pearl is repositioned with the existing scene-item tools.  It is
+      // not an action in the spell panel and therefore must not consume turn
+      // economy or expose a generated "move" CTA here.
+      movement: "fixed",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: false,
+      },
+      membershipEffects: [],
+      triggers: [],
     },
   }),
   defineRule({
@@ -2447,6 +2606,99 @@ export const SPELL_AREA_RULES = Object.freeze([
     lifecycle: PREVIEW_LIFECYCLE,
     targeting: areaSaveTargeting("lightning-bolt"),
     effectPolicy: ON_CONFIRM,
+  }),
+  defineRule({
+    id: "prismatic-wall:cast",
+    spellId: "prismatic-wall",
+    trigger: CAST_TRIGGER,
+    kind: "zone",
+    geometry: {
+      shape: "line",
+      size: meters(27, "length"),
+      // Il runtime lavora per caselle: 2,5 cm è conservato come RAW ma viene
+      // proiettato alla larghezza minima di una casella nella scena.
+      width: meters(0.025, "width"),
+      // La fascia esterna rappresenta la distanza RAW di 6 m / 20 ft su
+      // entrambi i lati della parete; la membership usa la stessa larghezza.
+      hotBand: { side: "both", width: meters(6, "width") },
+    },
+    placement: {
+      origin: "point",
+      direction: "pointer",
+      anchor: "world",
+      range: meters(18, "range"),
+    },
+    placementChoices: [
+      {
+        id: "wall",
+        label: "Muro · 27 m × 9 m",
+        geometry: {
+          shape: "line",
+          size: meters(27, "length"),
+          width: meters(0.025, "width"),
+          hotBand: { side: "both", width: meters(6, "width") },
+        },
+        placement: { snapOrigin: "vertex" },
+      },
+      {
+        id: "sphere",
+        label: "Sfera · diametro 9 m",
+        geometry: {
+          shape: "circle",
+          size: meters(4.5, "radius"),
+          hotBand: { side: "outside", width: meters(6, "width") },
+        },
+      },
+    ],
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+    },
+    effectPolicy: { mode: "manual-trigger" },
+    zonePolicy: {
+      placementOptional: false,
+      owner: "caster",
+      movement: "fixed",
+      initialResolution: "none",
+      membershipTargeting: {
+        filter: "all",
+        includeCaster: true,
+      },
+      membershipEffects: [],
+      triggers: [{
+        id: "prismatic-wall-proximity-blindness-on-entry",
+        group: "prismatic-wall-proximity-blindness",
+        label: "Quando giunge entro 6 m dal Muro Prismatico: TS Costituzione per Accecato (verifica manuale della visuale)",
+        instruction: "Il requisito RAW che la creatura possa vedere il muro resta una verifica del GM; il trigger automatico usa la membership di prossimità disponibile.",
+        event: "enter",
+        frequency: "once-per-turn",
+        resolution: "manual-save",
+        targetArea: "proximity",
+        proximityMeters: 6,
+        proximityPaddingSquares: 4,
+        triggerOnAreaMove: false,
+        failureEffect: "Accecato per 1 minuto.",
+        skipConditions: ["Accecato"],
+        skipLinkedConditions: ["Accecato"],
+      }, {
+        id: "prismatic-wall-proximity-blindness",
+        group: "prismatic-wall-proximity-blindness",
+        label: "TS Costituzione per Accecato entro 6 m dal Muro Prismatico (verifica manuale della visuale)",
+        instruction: "Il requisito RAW che la creatura possa vedere il muro resta una verifica del GM; il trigger automatico usa la membership di prossimità disponibile.",
+        event: "turn-start",
+        frequency: "once-per-turn",
+        resolution: "manual-save",
+        targetArea: "proximity",
+        proximityMeters: 6,
+        proximityPaddingSquares: 4,
+        failureEffect: "Accecato per 1 minuto.",
+        skipConditions: ["Accecato"],
+        skipLinkedConditions: ["Accecato"],
+      }],
+    },
+    placementNote: "RAW: muro verticale fino a 27 m × 9 m × 2,5 cm oppure sfera di diametro massimo 9 m. Il runtime rappresenta la parete come linea a larghezza minima di una casella e la sfera come cerchio; altezza e requisito di visuale restano verifiche manuali.",
   }),
   defineRule({
     id: "web:cast",

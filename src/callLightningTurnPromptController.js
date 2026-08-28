@@ -24,10 +24,12 @@ export const SPELL_TURN_PROMPT_ACTION_CHANNEL = `${ID}/spell-turn-prompt-action`
 const POPOVER_WIDTH = 360;
 const POPOVER_HEIGHT = 470;
 const SINGLE_ATTACK_POPOVER_HEIGHT = 300;
+const SINGLE_HEAL_POPOVER_HEIGHT = 300;
 const STORM_SPHERE_POPOVER_HEIGHT = 300;
 const ENERVATION_POPOVER_HEIGHT = 245;
 const CHOICE_POPOVER_WIDTH = 360;
 const CHOICE_POPOVER_HEIGHT = 210;
+const SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 150;
 const EYEBITE_CHOICE_POPOVER_HEIGHT = 330;
 
 let mounted = false;
@@ -91,6 +93,7 @@ function popoverHeight(request) {
   if (request?.kind === "choice") {
     if (request?.spellId === "eyebite") return EYEBITE_CHOICE_POPOVER_HEIGHT;
     const actionCount = Array.isArray(request?.actions) ? request.actions.length : 0;
+    if (actionCount === 1) return SINGLE_ACTION_CHOICE_POPOVER_HEIGHT;
     return Math.max(CHOICE_POPOVER_HEIGHT, 80 + actionCount * 65);
   }
   const payload = request?.payload || request;
@@ -100,6 +103,8 @@ function popoverHeight(request) {
       ? STORM_SPHERE_POPOVER_HEIGHT
       : payload?.action?.resolutionKind === "single-attack"
         ? SINGLE_ATTACK_POPOVER_HEIGHT
+        : payload?.action?.resolutionKind === "single-heal"
+          ? SINGLE_HEAL_POPOVER_HEIGHT
         : POPOVER_HEIGHT;
 }
 
@@ -416,6 +421,28 @@ export async function mountCallLightningTurnPromptController() {
                 && actionTurnKey === currentTurnKey
               ),
             });
+            if (payload.action?.repeatableThisTurn === true) {
+              const updatedItems = await OBR.scene.items.getItems().catch(() => []);
+              const remainingGroup = spellOverviewGroups(updatedItems).find((candidate) => (
+                String(candidate?.instanceId || "").trim() === String(payload.instanceId || "").trim()
+                && String(candidate?.casterId || "").trim() === String(payload.casterId || "").trim()
+              ));
+              const remaining = Number(remainingGroup?.castContext?.uses?.remaining);
+              if (remainingGroup && Number.isFinite(remaining) && remaining > 0) {
+                await OBR.broadcast.sendMessage(
+                  SPELL_TURN_PROMPT_ACTION_CHANNEL,
+                  {
+                    type: "active-action-complete",
+                    instanceId: data.instanceId,
+                    actionId: data.actionId,
+                    turnKey: data.turnKey,
+                    remaining,
+                  },
+                  { destination: "LOCAL" },
+                ).catch(() => {});
+                return;
+              }
+            }
             opened.delete(runtime.popoverId);
             await closeRuntime(runtime);
           } catch (error) {
@@ -424,6 +451,7 @@ export async function mountCallLightningTurnPromptController() {
               {
                 type: "choice-action-error",
                 instanceId: data.instanceId,
+                actionId: data.actionId,
                 turnKey: data.turnKey,
                 message: error?.message || "Impossibile cambiare modalità dell'incantesimo.",
               },

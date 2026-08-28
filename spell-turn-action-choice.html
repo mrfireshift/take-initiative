@@ -36,10 +36,14 @@
       button:disabled { cursor:default; opacity:.45; }
       .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:auto; }
       #app[data-mode="direct"] .actions { grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:4px; }
+      #app[data-mode="compact"] .actions { grid-template-columns:minmax(0,1fr); margin-top:4px; }
       .action { min-height:62px; padding:8px; text-align:left; border-color:rgba(196,181,253,.4); background:rgba(76,29,149,.18); }
       .action:hover:not(:disabled) { border-color:rgba(221,214,254,.85); background:rgba(109,40,217,.38); }
       .action strong { display:block; font-size:12px; line-height:1.1; }
       .action span { display:block; margin-top:4px; color:rgba(226,232,240,.68); font-size:9px; line-height:1.2; }
+      .action--compact { min-height:28px; padding:4px 8px; border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); text-align:center; }
+      .action--compact:hover:not(:disabled) { border-color:#ddd6fe; background:linear-gradient(#8b5cf6,#6d28d9); filter:brightness(1.12); }
+      .action--compact strong { font:inherit; }
       .action--direct { text-align:center; }
       .action--direct span { min-height:22px; }
     </style>

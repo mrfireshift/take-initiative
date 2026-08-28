@@ -27,8 +27,10 @@ export const EYEBITE_SICKENED_TURN_PROMPT_ACTION_ID = "eyebite-sickened";
 export const ENERVATION_TURN_PROMPT_ACTION_ID = "enervation-repeat";
 export const HEAT_METAL_TURN_PROMPT_ACTION_ID = "heat-metal-repeat";
 export const CROWN_OF_STARS_TURN_PROMPT_ACTION_ID = "crown-of-stars-launch";
+export const FLAME_ARROWS_TURN_PROMPT_ACTION_ID = "flame-arrows-consume";
 export const WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID = "wall-of-light-beam";
 export const HOLY_WEAPON_TURN_PROMPT_ACTION_ID = "holy-weapon-dismiss";
+export const AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID = "aura-of-vitality-heal";
 export const CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID = "control-winds-gusts";
 export const CONTROL_WINDS_DOWNDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-downdraft";
 export const CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-updraft";
@@ -42,6 +44,7 @@ const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
     spellId: "xanathar-sfera-della-tempesta",
     actionId: STORM_SPHERE_TURN_PROMPT_ACTION_ID,
+    availableOnCastTurn: true,
   }),
   Object.freeze({
     spellId: "xanathar-investitura-del-vento",
@@ -81,6 +84,15 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableOnCastTurn: true,
   }),
   Object.freeze({
+    spellId: "xanathar-frecce-infuocate",
+    actionId: FLAME_ARROWS_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableAfterCast: true,
+    executionKind: "active-action",
+    choice: true,
+    choiceHint: "Dopo aver effettuato l'attacco, consuma una munizione infuocata. Il tiro per colpire e il danno restano risolti manualmente al tavolo.",
+  }),
+  Object.freeze({
     spellId: "xanathar-muro-di-luce",
     actionId: WALL_OF_LIGHT_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
@@ -91,6 +103,12 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     actionId: HOLY_WEAPON_TURN_PROMPT_ACTION_ID,
     ownerContext: "caster",
     availableAfterCast: true,
+  }),
+  Object.freeze({
+    spellId: "phb2014-aura-di-vitalita",
+    actionId: AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableOnCastTurn: true,
   }),
   Object.freeze({
     spellId: "xanathar-controllare-venti",
@@ -352,7 +370,9 @@ export function spellTurnPromptRequests({
           ...(zoneItemId ? { zoneItemId } : {}),
           ...(normalizedTurnKey ? { turnKey: normalizedTurnKey } : {}),
         }));
-      if (prompt.choice === true && payloads.length > 1) {
+      const useChoicePopup = prompt.choice === true
+        && (payloads.length > 1 || activeActionPrompt);
+      if (useChoicePopup) {
         requests.push({
           kind: "choice",
           spellId: prompt.spellId,

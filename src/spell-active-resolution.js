@@ -4,9 +4,16 @@ import {
   SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES,
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   spellActiveResolutionDamageFormula,
+  spellActiveResolutionHealingFormula,
   spellActiveResolutionAttackDamageRequired,
   spellActiveResolutionSelectedTargetId,
 } from "./spellActiveResolutionCore.js";
+import {
+  PRISMATIC_WALL_LAYER_IDS,
+  prismaticWallFirstRemainingLayer,
+  prismaticWallLayerById,
+  prismaticWallStateFromCastContext,
+} from "./prismaticWallRules.js";
 import {
   cancelSpellAreaPlacementRequest,
   confirmSpellAreaPlacementRequest,
@@ -29,9 +36,10 @@ import {
 import { getEffectsMutationSceneContext } from "./effectsMutations.js";
 import { spellExecutionHistoryDetails } from "./spellExecutionHistoryCore.js";
 import { ID } from "./constants.js";
-import { areaHitsBounds, buildCellBoundaryLoops, buildCircleArea } from "./aoeGeometryCore.js";
+import { areaHitsBounds, buildArea, buildCellBoundaryLoops, buildCircleArea } from "./aoeGeometryCore.js";
 import { gridPlanarDistance } from "./distance3dCore.js";
-import { spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
+import { spellAreaGridCells, spellAreaOriginWithinRange } from "./spellAreaPlacementCore.js";
+import { mobileAuraTargetIds, getMobileAuraRule } from "./spellAuraCore.js";
 import { loadAoEStyle } from "./aoeStyle.js";
 import { spellAreaStyle } from "./spellAreaStyleCore.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
@@ -56,16 +64,27 @@ let sceneItems = [];
 let outcomes = new Map();
 let selectedAttackTarget = "";
 let selectedSaveTarget = "";
+let selectedHealTarget = "";
+let selectedPrismaticTarget = "";
 let saveOutcome = "";
 let attackOutcome = "";
 let selectedChoice = "";
 let attackEntries = [];
+let prismaticLayerOutcomes = new Map();
+let prismaticLayerDamage = new Map();
+let prismaticWallLayerId = "";
+let prismaticTraversalId = "";
 let busy = false;
 let pendingPlacementRequestId = "";
 let statusMessage = "";
 let parentNotified = false;
 let currentPlayerSelection = [];
 let unsubscribePlayer = null;
+let pendingPlacementPromise = null;
+let pendingPlacementAnchorTargetId = "";
+let committingPlacementRequestId = "";
+let anchoredTargetSyncPromise = null;
+let desiredAnchoredTargetId = "";
 let resizeFrame = 0;
 let lastPopoverHeight = 0;
 let sdkReady = false;
@@ -112,8 +131,39 @@ function isHolyWeapon() {
   return payload?.spellId === "xanathar-arma-sacra";
 }
 
+function isPrismaticWallAction() {
+  return payload?.spellId === "prismatic-wall"
+    && ["prismatic-wall-traversal", "prismatic-wall-layers"]
+      .includes(String(payload?.action?.resolutionKind || "").trim());
+}
+
+function isPrismaticWallTraversal() {
+  return isPrismaticWallAction()
+    && payload?.action?.resolutionKind === "prismatic-wall-traversal";
+}
+
+function prismaticWallParentFromScene() {
+  const caster = sceneItems.find((item) => item?.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[`${ID}/spells`];
+  return (Array.isArray(spells) ? spells : []).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(entry?.spellId || "").trim() === "prismatic-wall"
+    && String(entry?.casterId || payload?.casterId || "").trim() === String(payload?.casterId || "").trim()
+  )) || null;
+}
+
+function prismaticWallLiveState() {
+  return prismaticWallStateFromCastContext(prismaticWallParentFromScene()?.castContext);
+}
+
 function isPrimaryTargetAnchoredArea() {
   return payload?.action?.areaAnchor === "primary-target";
+}
+
+function isAutoTargetAnchoredArea() {
+  return isPrimaryTargetAnchoredArea()
+    && payload?.action?.anchorTargetFromSelection === true
+    && !childZone();
 }
 
 function selectedPrimaryTargetIds() {
@@ -126,17 +176,68 @@ function selectedPrimaryTargetIds() {
   return selected.filter((id) => characterIds.has(id));
 }
 
+function selectedPrimaryTargetId() {
+  const ids = selectedPrimaryTargetIds();
+  return ids.length === 1 ? ids[0] : "";
+}
+
+function currentAnchoredTargetId() {
+  return String(
+    pendingPlacementAnchorTargetId
+      || placement?.anchorTargetId
+      || "",
+  ).trim();
+}
+
 function autoPlaceAnchoredAreaFromSelection() {
-  if (!isPrimaryTargetAnchoredArea()
-    || payload?.action?.anchorTargetFromSelection !== true
-    || busy
-    || pendingPlacementRequestId
-    || placement
+  if (!isAutoTargetAnchoredArea()
+    || committingPlacementRequestId
+    || (busy && !pendingPlacementRequestId)
     || !sceneLifecycle.isReady()) {
     return;
   }
-  if (selectedPrimaryTargetIds().length !== 1) return;
-  void placeArea();
+  desiredAnchoredTargetId = selectedPrimaryTargetId();
+  const currentTargetId = currentAnchoredTargetId();
+  const hasCurrentPlacement = !!pendingPlacementRequestId || !!placement;
+  if (desiredAnchoredTargetId === currentTargetId
+    && (desiredAnchoredTargetId ? hasCurrentPlacement : !hasCurrentPlacement)) {
+    return;
+  }
+  if (anchoredTargetSyncPromise) return;
+  anchoredTargetSyncPromise = (async () => {
+    while (sceneLifecycle.isReady()) {
+      const desiredTargetId = desiredAnchoredTargetId;
+      const currentTargetId = currentAnchoredTargetId();
+      const hasCurrentPlacement = !!pendingPlacementRequestId || !!placement;
+      if (desiredTargetId === currentTargetId
+        && (desiredTargetId ? hasCurrentPlacement : !hasCurrentPlacement)) {
+        return;
+      }
+      if (pendingPlacementRequestId) {
+        const requestId = pendingPlacementRequestId;
+        const request = pendingPlacementPromise;
+        await cancelSpellAreaPlacementRequest(requestId, { broadcast: OBR.broadcast }).catch(() => {});
+        await request?.catch(() => {});
+        continue;
+      }
+      placement = null;
+      outcomes = new Map();
+      if (!desiredTargetId) {
+        busy = false;
+        render();
+        return;
+      }
+      void placeArea(desiredTargetId);
+      return;
+    }
+  })().finally(() => {
+    anchoredTargetSyncPromise = null;
+    if (sceneLifecycle.isReady()
+      && isPrimaryTargetAnchoredArea()
+      && desiredAnchoredTargetId !== currentAnchoredTargetId()) {
+      autoPlaceAnchoredAreaFromSelection();
+    }
+  });
 }
 
 function selectedZoneShorteningFrom() {
@@ -155,6 +256,10 @@ function isChildZone() {
 
 function isSingleSave() {
   return payload?.action?.resolutionKind === "single-save";
+}
+
+function isSingleHeal() {
+  return payload?.action?.resolutionKind === "single-heal";
 }
 
 function isPreparedResolution() {
@@ -357,6 +462,28 @@ function createChildActivationId() {
 }
 
 function renderContext() {
+  if (isPrismaticWallAction()) {
+    $("eyebrow").textContent = "Comando GM";
+    $("saveTitle").hidden = true;
+    $("placementToolbar").hidden = true;
+    $("childCountField").hidden = true;
+    $("childDepths").hidden = true;
+    $("bulkOutcomes").hidden = true;
+    $("attackRows").hidden = true;
+    $("attackTarget").hidden = true;
+    $("attackOutcomes").hidden = true;
+    $("attackAdvantage").hidden = true;
+    $("saveTargetHint").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("damageField").hidden = true;
+    $("singleSaveDamageField").hidden = true;
+    $("prismaticWallTitle").textContent = isPrismaticWallTraversal()
+      ? "Attraversamento · strati residui"
+      : "Gestione strati";
+    return;
+  }
   if (isPreparedResolution()) {
     const action = preparedAction();
     if (action?.type === "manual") {
@@ -376,6 +503,7 @@ function renderContext() {
       $("saveTargetHint").hidden = true;
       $("summary").hidden = true;
       $("singleSaveSection").hidden = true;
+      $("singleHealSection").hidden = true;
       if (damageField) damageField.hidden = true;
       attackOutcome = "";
       $("attackTitle").textContent = "Pronto sul caster";
@@ -395,6 +523,7 @@ function renderContext() {
     $("attackAdvantage").hidden = true;
     $("saveTargetHint").hidden = true;
     $("summary").hidden = true;
+    $("singleHealSection").hidden = true;
     if (damageField) damageField.hidden = true;
     attackOutcome = "hit";
     $("attackTitle").textContent = "Bersaglio";
@@ -411,6 +540,7 @@ function renderContext() {
   const primaryTargetArea = isPrimaryTargetAnchoredArea();
   const child = childZone();
   const singleSave = isSingleSave();
+  const singleHeal = isSingleHeal();
   const fixedRadius = fixedCasterRadiusConfig();
   const childLabel = childKindLabel(child?.childKind);
   $("eyebrow").textContent = callLightning
@@ -425,6 +555,8 @@ function renderContext() {
         ? payload.spellName || "Sottozona incantesimo"
       : singleSave
         ? payload.spellName || "Tiro salvezza"
+      : singleHeal
+        ? "Aura Attiva"
     : "Attivazione incantesimo";
   $("saveTitle").hidden = callLightning && !primaryTargetArea;
   $("saveTitle").textContent = callLightning
@@ -501,6 +633,16 @@ function renderContext() {
       ? String(payload?.action?.manualOutcomeLabel || "Esito al tavolo").trim()
       : ability ? `TS ${ability}` : "Tiro salvezza";
     $("singleSaveDamageLabel").textContent = damageLabel ? `Danno ${damageLabel}${damageSuffix}` : "Danno";
+  }
+  if (singleHeal) {
+    const healingFormula = spellActiveResolutionHealingFormula({
+      action: payload?.action,
+      slotLevel: payload?.slotLevel,
+    }).scaledFormula;
+    $("singleHealTitle").textContent = "Bersaglio";
+    $("healAmountLabel").textContent = healingFormula
+      ? `Cura · ${healingFormula}`
+      : "Cura";
   }
   $("damageLabel").textContent = callLightning
     ? "Danno del fulmine"
@@ -667,7 +809,9 @@ function manualSaveAtTable() {
 }
 
 function economyLabel(value) {
-  return value === "bonus-action" ? "Azione bonus" : "Azione";
+  return value === "gm"
+    ? "Comando GM"
+    : value === "bonus-action" ? "Azione bonus" : "Azione";
 }
 
 async function stormTargetData() {
@@ -883,6 +1027,89 @@ async function singleSaveTargetData() {
   }
   if (!sceneLifecycle.isCurrent(operation)) return [];
   return filtered;
+}
+
+async function singleHealTargetData() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("single-heal-read") });
+  if (!sceneLifecycle.isCurrent(operation)) return [];
+  const caster = sceneItems.find((item) => item.id === payload?.casterId);
+  const rule = getMobileAuraRule(payload?.spellId);
+  if (!caster || !rule) return [];
+  const [dpi, scale, casterBounds] = await Promise.all([
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+    OBR.scene.items.getItemBounds([caster.id]).catch(() => null),
+  ]);
+  if (!sceneLifecycle.isCurrent(operation)) return [];
+  const casterOrigin = itemCenter(casterBounds, caster);
+  if (!casterOrigin) return [];
+  const sizeCells = spellAreaGridCells(rule.geometry?.size, scale?.parsed || scale);
+  const snappedOrigin = typeof OBR.scene.grid.snapPosition === "function"
+    ? await OBR.scene.grid.snapPosition(casterOrigin, 1, true, false).catch(() => casterOrigin)
+    : casterOrigin;
+  const gridOrigin = point(snappedOrigin) || casterOrigin;
+  const area = casterOrigin && gridOrigin && sizeCells > 0
+    ? buildArea(
+      rule.geometry.shape,
+      casterOrigin,
+      { x: casterOrigin.x + sizeCells * Math.max(1, Number(dpi) || 1), y: casterOrigin.y },
+      Math.max(1, Number(dpi) || 1),
+      gridOrigin,
+    )
+    : null;
+  if (!area) return [];
+  const candidates = await Promise.all(characters().map(async (item) => ({
+    item,
+    bounds: await OBR.scene.items.getItemBounds([item.id]).catch(() => null),
+  })));
+  if (!sceneLifecycle.isCurrent(operation)) return [];
+  const membership = payload?.action?.membership;
+  const membershipRule = membership?.targeting && typeof membership.targeting === "object"
+    ? { ...rule, targeting: { ...rule.targeting, ...membership.targeting } }
+    : rule;
+  const targetIds = mobileAuraTargetIds({
+    aura: { casterId: payload.casterId, rule: membershipRule },
+    area,
+    candidates,
+    metaKey: META_KEY,
+  });
+  const allowed = new Set(targetIds);
+  return characters().filter((item) => allowed.has(item.id));
+}
+
+async function renderSingleHeal() {
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("single-heal-render") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const previous = selectedHealTarget;
+  const entries = await singleHealTargetData();
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const resolvedTarget = spellActiveResolutionSelectedTargetId(
+    entries,
+    currentPlayerSelection,
+    previous,
+  );
+  selectedHealTarget = resolvedTarget || (entries.length === 1 ? entries[0].id : "");
+  const selectedEntry = entries.find((item) => item?.id === selectedHealTarget);
+  $("singleHealTitle").textContent = selectedEntry
+    ? `Bersaglio: ${displayName(selectedEntry)}`
+    : "Bersaglio: —";
+  const healingFormula = spellActiveResolutionHealingFormula({
+    action: payload?.action,
+    slotLevel: payload?.slotLevel,
+  }).scaledFormula;
+  $("healAmountLabel").textContent = healingFormula
+    ? `Cura ${healingFormula}`
+    : "Cura";
+  $("healAmount").value = $("healAmount").dataset.value || "";
+  $("healAmount").disabled = busy || !selectedHealTarget;
+  const healingReady = String($("healAmount").value || "").trim() !== "";
+  const canResolve = sceneLifecycle.isReady()
+    && !busy
+    && !!selectedHealTarget
+    && healingReady;
+  $("apply").disabled = !canResolve;
+  $("apply").textContent = "Cura";
+  $("summary").textContent = "";
 }
 
 async function renderSingleSave() {
@@ -1215,6 +1442,169 @@ async function renderPrepared() {
   $("summary").textContent = "";
 }
 
+function prismaticWallNumericDamageReady(value) {
+  if (value === "" || value === null || value === undefined) return false;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && Number.isInteger(parsed);
+}
+
+function prismaticWallTraversalReady(state) {
+  if (!selectedPrismaticTarget) return false;
+  if (state.exemptCreatureIds.includes(selectedPrismaticTarget)) return true;
+  return state.remainingLayers.every((layerId) => {
+    const outcome = prismaticLayerOutcomes.get(layerId);
+    if (!SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES.includes(outcome)) return false;
+    const layer = prismaticWallLayerById(layerId);
+    return !layer?.damage
+      || outcome === "immune"
+      || prismaticWallNumericDamageReady(prismaticLayerDamage.get(layerId));
+  });
+}
+
+function updatePrismaticWallApplyState(state = prismaticWallLiveState()) {
+  const ready = isPrismaticWallTraversal()
+    ? prismaticWallTraversalReady(state)
+    : !!prismaticWallLayerId;
+  $("apply").disabled = !sceneLifecycle.isReady() || busy || !ready;
+  $("summary").textContent = isPrismaticWallTraversal()
+    ? state.exemptCreatureIds.includes(selectedPrismaticTarget)
+      ? state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati · creatura esente"
+      : state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati · "
+        + state.remainingLayers.filter((layerId) => prismaticLayerOutcomes.has(layerId)).length
+        + "/" + state.remainingLayers.length + " esiti"
+    : state.remainingLayers.length + "/" + PRISMATIC_WALL_LAYER_IDS.length + " strati"
+      + (prismaticWallLayerId
+        ? " · esposto: " + (prismaticWallLayerById(prismaticWallLayerId)?.label || prismaticWallLayerId)
+        : "");
+}
+
+function renderPrismaticWall() {
+  const state = prismaticWallLiveState();
+  const traversal = isPrismaticWallTraversal();
+  const targetSelect = $("prismaticWallTarget");
+  const layerWrap = $("prismaticWallLayers");
+  const detail = $("prismaticWallLayerDetail");
+  const candidates = characters().filter((item) => item?.id !== payload?.casterId);
+  if (traversal) {
+    const previous = selectedPrismaticTarget;
+    selectedPrismaticTarget = spellActiveResolutionSelectedTargetId(
+      candidates,
+      currentPlayerSelection,
+      previous,
+    );
+    targetSelect.hidden = false;
+    targetSelect.replaceChildren(new Option("Seleziona la creatura", ""));
+    for (const item of candidates) {
+      targetSelect.appendChild(new Option(displayName(item), item.id));
+    }
+    targetSelect.value = selectedPrismaticTarget;
+    targetSelect.disabled = busy || !sceneLifecycle.isReady();
+    const exempt = state.exemptCreatureIds.includes(selectedPrismaticTarget);
+    $("prismaticWallHint").textContent = selectedPrismaticTarget
+      ? exempt
+        ? "Creatura designata al lancio: ignora prossimità e strati del muro."
+        : "Risolvi un TS Destrezza per ogni strato ancora presente, dal Rosso al Viola."
+      : "Seleziona una sola creatura; il crossing è dichiarato dal GM al tavolo.";
+    detail.hidden = true;
+    layerWrap.replaceChildren();
+    for (const layerId of state.remainingLayers) {
+      const layer = prismaticWallLayerById(layerId);
+      if (!layer) continue;
+      const row = document.createElement("div");
+      row.className = "prismatic-wall-layer";
+      const top = document.createElement("div");
+      top.className = "prismatic-wall-layer__top";
+      const title = document.createElement("strong");
+      title.textContent = layer.label;
+      const meta = document.createElement("span");
+      meta.className = "prismatic-wall-layer__meta";
+      meta.textContent = "TS " + saveAbilityLabel(layer.saveAbility)
+        + (layer.damage ? " · " + layer.damage.dice + " " + layer.damage.type : "");
+      top.append(title, meta);
+      const layerDetail = document.createElement("div");
+      layerDetail.className = "prismatic-wall-layer__detail";
+      layerDetail.textContent = layer.damage
+        ? "Fallito: danno pieno · Superato: metà · Immune: nessun danno"
+        : layerId === "indigo"
+          ? "Fallito: Trattenuto · TS Cos alla fine del turno · 3S/3F"
+          : "Fallito: Accecato · TS Sag all'inizio del prossimo turno del caster";
+      const outcomeWrap = document.createElement("div");
+      outcomeWrap.className = "prismatic-wall-layer__outcomes";
+      const outcomeLabels = { passed: "Superato", failed: "Fallito", immune: "Immune" };
+      for (const outcome of SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = outcomeLabels[outcome];
+        button.classList.toggle("active", prismaticLayerOutcomes.get(layerId) === outcome);
+        button.disabled = busy || !sceneLifecycle.isReady() || !selectedPrismaticTarget;
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (busy || !selectedPrismaticTarget) return;
+          prismaticLayerOutcomes.set(layerId, outcome);
+          render();
+        });
+        outcomeWrap.appendChild(button);
+      }
+      row.append(top, layerDetail, outcomeWrap);
+      if (layer.damage) {
+        const damageField = document.createElement("div");
+        damageField.className = "prismatic-wall-layer__damage";
+        const damageLabel = document.createElement("label");
+        damageLabel.textContent = "Danno · " + layer.damage.dice + " " + layer.damage.type;
+        const damageInput = document.createElement("input");
+        damageInput.type = "number";
+        damageInput.min = "0";
+        damageInput.step = "1";
+        damageInput.inputMode = "numeric";
+        damageInput.placeholder = "Totale";
+        damageInput.value = prismaticLayerDamage.get(layerId) ?? "";
+        damageInput.disabled = busy || !selectedPrismaticTarget;
+        damageInput.addEventListener("input", (event) => {
+          prismaticLayerDamage.set(layerId, event.target.value);
+          updatePrismaticWallApplyState(state);
+        });
+        damageField.append(damageLabel, damageInput);
+        row.appendChild(damageField);
+      }
+      layerWrap.appendChild(row);
+    }
+  } else {
+    selectedPrismaticTarget = "";
+    targetSelect.hidden = true;
+    targetSelect.replaceChildren(new Option("", ""));
+    $("prismaticWallHint").textContent = state.remainingLayers.length
+      ? "Gli strati si distruggono solo dopo conferma GM e in ordine dal Rosso al Viola."
+      : "Tutti gli strati sono distrutti; il muro resta attivo fino alla durata RAW o alla rimozione GM.";
+    layerWrap.replaceChildren();
+    prismaticWallLayerId = prismaticWallFirstRemainingLayer(state.remainingLayers);
+    if (prismaticWallLayerId) {
+      const layer = prismaticWallLayerById(prismaticWallLayerId);
+      const row = document.createElement("div");
+      row.className = "prismatic-wall-layer";
+      const top = document.createElement("div");
+      top.className = "prismatic-wall-layer__top";
+      const title = document.createElement("strong");
+      title.textContent = "Esposto: " + layer.label;
+      const meta = document.createElement("span");
+      meta.className = "prismatic-wall-layer__meta";
+      meta.textContent = "Distruzione manuale";
+      top.append(title, meta);
+      const requirement = document.createElement("div");
+      requirement.className = "prismatic-wall-layer__detail";
+      requirement.textContent = "Requisito RAW: " + layer.destructionRequirement;
+      const passive = document.createElement("div");
+      passive.className = "prismatic-wall-layer__detail";
+      passive.textContent = "Proprietà: " + layer.passive;
+      row.append(top, requirement, passive);
+      layerWrap.appendChild(row);
+      detail.hidden = true;
+    } else {
+      detail.hidden = true;
+    }
+  }
+  updatePrismaticWallApplyState(state);
+}
+
 function render() {
   if (!payload) return;
   renderContext();
@@ -1222,31 +1612,55 @@ function render() {
   const child = childZone();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const singleSave = isSingleSave();
+  const singleHeal = isSingleHeal();
+  const prismaticWall = isPrismaticWallAction();
   $("title").textContent = prepared
     ? payload.spellName || payload.spellId
     : singleSave
     ? payload.action?.buttonLabel || payload.action?.label || payload.spellName || payload.spellId
+    : singleHeal
+    ? payload.spellName || payload.spellId || "Aura di Vitalità"
     : payload.spellName || payload.spellId;
   $("economy").textContent = prepared ? "" : economyLabel(payload.action.economy);
   $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
-  const multiAttack = !save && !singleSave && isMultiAttack();
+  const multiAttack = !save && !singleSave && !singleHeal && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();
   $("saveSection").hidden = prepared || !save;
   $("singleSaveSection").hidden = prepared || !singleSave;
-  $("attackSection").hidden = prepared ? false : save || singleSave;
+  $("singleHealSection").hidden = prepared || !singleHeal;
+  $("attackSection").hidden = prepared ? false : save || singleSave || singleHeal;
+  $("prismaticWallSection").hidden = !prismaticWall;
   $("footer").hidden = !save;
-  if (prepared || singleSave || multiAttack) $("footer").hidden = false;
+  if (prepared || singleSave || singleHeal || multiAttack) $("footer").hidden = false;
+  if (prismaticWall) {
+    $("saveSection").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("footer").hidden = false;
+    $("title").textContent = payload.spellName || "Muro Prismatico";
+    $("economy").textContent = "Comando GM";
+    $("apply").textContent = isPrismaticWallTraversal()
+      ? "Risolvi attraversamento"
+      : "Segna strato distrutto";
+    renderPrismaticWall();
+    if (statusMessage) $("status").textContent = statusMessage;
+    requestCompactPopoverResize();
+    return;
+  }
   const placementPending = !!pendingPlacementRequestId;
   const confirmPlacementButton = $("confirmPlacement");
   const cancelPlacementButton = $("cancelPlacement");
+  const autoAnchoredArea = isPrimaryTargetAnchoredArea()
+    && payload?.action?.anchorTargetFromSelection === true;
   if (confirmPlacementButton) {
-    confirmPlacementButton.hidden = !placementPending;
-    confirmPlacementButton.disabled = !placementPending || !sceneReady;
+    confirmPlacementButton.hidden = !placementPending || autoAnchoredArea;
+    confirmPlacementButton.disabled = !placementPending || autoAnchoredArea || !sceneReady;
   }
   if (cancelPlacementButton) {
-    cancelPlacementButton.hidden = !placementPending;
-    cancelPlacementButton.disabled = !placementPending || !sceneReady;
+    cancelPlacementButton.hidden = !placementPending || autoAnchoredArea;
+    cancelPlacementButton.disabled = !placementPending || autoAnchoredArea || !sceneReady;
   }
   if (prepared) {
     $("apply").disabled = true;
@@ -1283,6 +1697,11 @@ function render() {
     $("apply").textContent = "Applica";
     $("summary").textContent = "Caricamento bersagli…";
     void renderSingleSave();
+  } else if (singleHeal) {
+    $("apply").disabled = true;
+    $("apply").textContent = "Cura";
+    $("summary").textContent = "Caricamento bersagli…";
+    void renderSingleHeal();
   } else {
     const completeAttacks = attackEntries.filter((entry) => (
       entry.targetId && entry.attackOutcome && String(entry.damageRoll).trim() !== ""
@@ -1301,7 +1720,7 @@ function render() {
   requestCompactPopoverResize();
 }
 
-async function placeArea() {
+async function placeArea(anchorTargetOverride = "") {
   if (fixedCasterRadiusConfig()) return;
   if (busy || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement") });
@@ -1313,7 +1732,13 @@ async function placeArea() {
     : -1;
   if (child && !childCount) return;
   const anchoredArea = isPrimaryTargetAnchoredArea() && !child;
-  const selectedAnchorIds = anchoredArea ? selectedPrimaryTargetIds() : [];
+  const explicitAnchorTargetId = String(anchorTargetOverride || "").trim();
+  const selectedIds = selectedPrimaryTargetIds();
+  const selectedAnchorIds = anchoredArea
+    ? explicitAnchorTargetId
+      ? selectedIds.includes(explicitAnchorTargetId) ? [explicitAnchorTargetId] : []
+      : selectedIds
+    : [];
   if (anchoredArea && selectedAnchorIds.length !== 1) {
     setStatus(selectedAnchorIds.length
       ? "Seleziona un solo bersaglio dell'attacco sulla mappa."
@@ -1323,6 +1748,7 @@ async function placeArea() {
   const anchorTargetId = selectedAnchorIds[0] || "";
   const requestId = createSpellAreaPlacementRequestId();
   pendingPlacementRequestId = requestId;
+  pendingPlacementAnchorTargetId = anchorTargetId;
   busy = true;
   render();
   setStatus(child
@@ -1335,7 +1761,7 @@ async function placeArea() {
       ? "Scegli e conferma la linea di fuoco sulla mappa."
       : "Posiziona e conferma la sagoma sulla mappa.");
   try {
-    const result = await requestSpellAreaPlacement({
+    const request = requestSpellAreaPlacement({
       ruleId: child?.placementRuleId || payload.action.placementRuleId,
       casterId: payload.casterId,
       context: child
@@ -1357,8 +1783,37 @@ async function placeArea() {
           }
         : null,
       requestId,
-    }, { broadcast: OBR.broadcast, windowRef: window });
-    if (!sceneLifecycle.isCurrent(operation)) return;
+    }, {
+      broadcast: OBR.broadcast,
+      windowRef: window,
+      onProgress: anchoredArea
+        ? (progress) => {
+          if (!sceneLifecycle.isCurrent(operation)
+            || pendingPlacementRequestId !== requestId
+            || !progress?.preview) return;
+          const resultAnchorTargetId = String(
+            progress.preview.anchorTargetId || anchorTargetId,
+          ).trim();
+          if (resultAnchorTargetId !== anchorTargetId) return;
+          placement = {
+            ...progress.preview,
+            ...(resultAnchorTargetId ? { anchorTargetId: resultAnchorTargetId } : {}),
+            targetIds: Array.from(new Set(progress.preview.targetIds || []))
+              .filter((id) => payload?.action?.excludeAnchorTarget !== true
+                || id !== anchorTargetId),
+          };
+          const allowedIds = new Set(placement.targetIds);
+          outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
+          busy = committingPlacementRequestId === requestId;
+          setStatus("Esplosione ancorata. Seleziona gli esiti dei TS nell'area.");
+          render();
+        }
+        : undefined,
+    });
+    pendingPlacementPromise = request;
+    const result = await request;
+    if (!sceneLifecycle.isCurrent(operation)
+      || pendingPlacementRequestId !== requestId) return;
     if (result?.status !== "confirmed" || !result.preview) {
       setStatus(result?.status === "cancelled" ? "Posizionamento annullato." : "Posizionamento non confermato.");
       return;
@@ -1389,9 +1844,16 @@ async function placeArea() {
         ...result.preview,
         ...(resultAnchorTargetId ? { anchorTargetId: resultAnchorTargetId } : {}),
         targetIds: Array.from(new Set(result.preview.targetIds || []))
-          .filter((id) => !anchoredArea || id !== anchorTargetId),
+          .filter((id) => !anchoredArea
+            || payload?.action?.excludeAnchorTarget !== true
+            || id !== anchorTargetId),
       };
-      outcomes = new Map();
+      if (anchoredArea) {
+        const allowedIds = new Set(placement.targetIds);
+        outcomes = new Map([...outcomes].filter(([id]) => allowedIds.has(id)));
+      } else {
+        outcomes = new Map();
+      }
     }
     setStatus(child
       ? `${childKindLabel(child.childKind)} confermato. ${childPlacements.length} di ${childCount}.`
@@ -1403,11 +1865,17 @@ async function placeArea() {
         ? "Linea di fuoco confermata. I bersagli sono ora bloccati."
         : "Sagoma confermata. I bersagli sono ora bloccati.");
   } catch (error) {
-    setStatus(`Posizionamento non riuscito: ${error?.message || error}`);
+    if (pendingPlacementRequestId === requestId) {
+      setStatus(`Posizionamento non riuscito: ${error?.message || error}`);
+    }
   } finally {
-    pendingPlacementRequestId = "";
-    busy = false;
-    render();
+    if (pendingPlacementRequestId === requestId) {
+      pendingPlacementRequestId = "";
+      pendingPlacementPromise = null;
+      pendingPlacementAnchorTargetId = "";
+      if (committingPlacementRequestId !== requestId) busy = false;
+      render();
+    }
   }
 }
 
@@ -1534,9 +2002,28 @@ async function apply() {
   if (busy || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("active-resolution") });
   if (!sceneLifecycle.isCurrent(operation)) return;
+  const anchoredPlacementRequestId = isPrimaryTargetAnchoredArea()
+    ? String(pendingPlacementRequestId || "").trim()
+    : "";
+  const anchoredPlacementRequest = anchoredPlacementRequestId
+    ? pendingPlacementPromise
+    : null;
+  if (anchoredPlacementRequestId) committingPlacementRequestId = anchoredPlacementRequestId;
   busy = true;
   render();
   try {
+    if (anchoredPlacementRequestId) {
+      if (!anchoredPlacementRequest) throw new Error("placement-preview-required");
+      await confirmSpellAreaPlacementRequest(
+        anchoredPlacementRequestId,
+        { broadcast: OBR.broadcast },
+      );
+      const result = await anchoredPlacementRequest;
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      if (result?.status !== "confirmed" || !placement) {
+        throw new Error(result?.error || "placement-preview-required");
+      }
+    }
     const ownerSceneContext = await getEffectsMutationSceneContext({
       commandId: operation.operationId,
     });
@@ -1545,23 +2032,50 @@ async function apply() {
       return;
     }
     const zoneShorteningFrom = selectedZoneShorteningFrom();
+    if (isPrismaticWallTraversal() && !prismaticTraversalId) {
+      prismaticTraversalId = sceneOperationId("prismatic-wall-traversal");
+    }
     const executionResult = await executeSpellActiveResolution({
       payload,
       placement,
-      targetIds: isMultiAttack()
+      targetIds: isPrismaticWallAction()
+        ? isPrismaticWallTraversal()
+          ? [selectedPrismaticTarget]
+          : []
+        : isMultiAttack()
         ? attackEntries.filter((entry) => entry.targetId).map((entry) => entry.targetId)
         : payload.action.resolutionKind === "single-attack"
         ? [selectedAttackTarget]
         : payload.action.resolutionKind === "single-save"
           ? [selectedSaveTarget]
+          : payload.action.resolutionKind === "single-heal"
+            ? [selectedHealTarget]
           : currentTargetItems().map((item) => item.id),
-      outcomes: payload.action.resolutionKind === "single-save"
+      outcomes: isPrismaticWallAction()
+        ? {}
+        : payload.action.resolutionKind === "single-save"
         ? { [selectedSaveTarget]: saveOutcome }
+        : payload.action.resolutionKind === "single-heal"
+          ? {}
         : Object.fromEntries(outcomes),
-      damageRoll: payload.action.resolutionKind === "child-zone"
+      layerOutcomes: isPrismaticWallTraversal()
+        ? Object.fromEntries(prismaticLayerOutcomes)
+        : {},
+      layerDamage: isPrismaticWallTraversal()
+        ? Object.fromEntries(prismaticLayerDamage)
+        : {},
+      layerId: isPrismaticWallAction() && !isPrismaticWallTraversal()
+        ? prismaticWallLayerId
+        : "",
+      traversalId: isPrismaticWallTraversal() ? prismaticTraversalId : "",
+      damageRoll: isPrismaticWallAction()
+        ? 0
+        : payload.action.resolutionKind === "child-zone"
         ? 0
         : payload.action.resolutionKind === "single-attack"
         ? $("attackDamage").value
+        : payload.action.resolutionKind === "single-heal"
+          ? $("healAmount").value
         : payload.action.resolutionKind === "single-save"
           ? payload.action.damage ? $("saveDamage").value : 0
           : $("damage").value,
@@ -1603,6 +2117,9 @@ async function apply() {
     setStatus(`Risoluzione non riuscita: ${error?.message || error}`);
     render();
   } finally {
+    if (committingPlacementRequestId === anchoredPlacementRequestId) {
+      committingPlacementRequestId = "";
+    }
     busy = false;
     if (sceneLifecycle.isReady()) render();
   }
@@ -1652,6 +2169,10 @@ if (!payload) {
     event.target.dataset.value = event.target.value;
     render();
   });
+  $("healAmount").addEventListener("input", (event) => {
+    event.target.dataset.value = event.target.value;
+    render();
+  });
   $("childCount").addEventListener("input", (event) => {
     const config = childZone();
     if (!config) return;
@@ -1686,6 +2207,12 @@ if (!payload) {
     saveOutcome = manualSaveAtTable()
       ? String(payload?.action?.assumedOutcome || "failed").trim() || "failed"
       : "";
+    render();
+  });
+  $("prismaticWallTarget").addEventListener("change", (event) => {
+    selectedPrismaticTarget = String(event.target.value || "").trim();
+    prismaticLayerOutcomes = new Map();
+    prismaticLayerDamage = new Map();
     render();
   });
   $("attackTarget").addEventListener("change", (event) => {
@@ -1726,7 +2253,9 @@ if (!payload) {
       // sincronizzare; render() mantiene invariati gli altri workflow.
       if (isPreparedResolution()
         || isSingleSave()
+        || isSingleHeal()
         || isPrimaryTargetAnchoredArea()
+        || isPrismaticWallTraversal()
         || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
         render();
       }
@@ -1753,6 +2282,7 @@ if (!payload) {
         sceneItems = [];
         outcomes.clear();
         selectedSaveTarget = "";
+        selectedHealTarget = "";
         saveOutcome = "";
         busy = false;
         setStatus("Scena cambiata: riapri la risoluzione dal pannello Spells.", true);
@@ -1764,6 +2294,7 @@ if (!payload) {
         outcomes.clear();
         selectedAttackTarget = "";
         selectedSaveTarget = "";
+        selectedHealTarget = "";
         saveOutcome = "";
         setStatus(fixedCasterRadiusConfig()
           ? "Nuova scena pronta: ricalcolo i bersagli della scossa."

@@ -3,12 +3,14 @@ import test from "node:test";
 
 import { ID } from "../src/constants.js";
 import {
+  AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID,
   CALL_LIGHTNING_TURN_PROMPT_ACTION_ID,
   callLightningTurnPromptPayloads,
   CONTROL_WINDS_DOWNDRAFT_TURN_PROMPT_ACTION_ID,
   CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID,
   CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID,
   CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID,
+  FLAME_ARROWS_TURN_PROMPT_ACTION_ID,
   FLAME_INVESTITURE_TURN_PROMPT_ACTION_ID,
   HEAT_METAL_TURN_PROMPT_ACTION_ID,
   HOLY_WEAPON_TURN_PROMPT_ACTION_ID,
@@ -51,12 +53,13 @@ function ownerSpell(instanceId, casterId) {
   };
 }
 
-function stormSphereOwnerSpell(instanceId, casterId) {
+function stormSphereOwnerSpell(instanceId, casterId, turnKey = "") {
   return {
     name: "Sfera della Tempesta",
     spellId: "xanathar-sfera-della-tempesta",
     instanceId,
     casterId,
+    ...(turnKey ? { appliedAt: { round: 1, actorId: casterId, turnKey } } : {}),
     conc: true,
     castContext: {
       staticZoneOwner: true,
@@ -90,6 +93,36 @@ function heatMetalOwnerSpell(instanceId, casterId, turnKey) {
     appliedAt: { round: 1, actorId: casterId, turnKey },
     conc: true,
     castContext: { slotLevel: 2 },
+  };
+}
+
+function flameArrowsOwnerSpell(instanceId, casterId, turnKey) {
+  return {
+    name: "Frecce Infuocate",
+    spellId: "xanathar-frecce-infuocate",
+    instanceId,
+    casterId,
+    appliedAt: { round: 1, actorId: casterId, turnKey },
+    conc: true,
+    castContext: {
+      slotLevel: 3,
+      uses: { key: "ammunition", remaining: 12, maximum: 12 },
+    },
+  };
+}
+
+function auraOfVitalityOwnerSpell(instanceId, casterId, turnKey) {
+  return {
+    name: "Aura di Vitalità",
+    spellId: "phb2014-aura-di-vitalita",
+    instanceId,
+    casterId,
+    appliedAt: { round: 1, actorId: casterId, turnKey },
+    conc: true,
+    castContext: {
+      mobileAura: true,
+      slotLevel: 3,
+    },
   };
 }
 
@@ -168,6 +201,70 @@ test("il prompt di turno espone il fulmine opzionale della Sfera della Tempesta"
   assert.equal(payloads[0].zoneItemId, "storm-root");
 });
 
+test("Aura di Vitalità apre il popup sul turno del caster, incluso il turno del cast", () => {
+  const castTurn = "1:0:caster-a";
+  const items = [
+    item("caster-a", [auraOfVitalityOwnerSpell("aura-a", "caster-a", castTurn)]),
+    item("other", []),
+  ];
+
+  const castTurnRequests = spellTurnPromptRequests({
+    items,
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: castTurn,
+  });
+  assert.equal(castTurnRequests.length, 1);
+  assert.equal(castTurnRequests[0].kind, "action");
+  assert.equal(castTurnRequests[0].payload.spellId, "phb2014-aura-di-vitalita");
+  assert.equal(castTurnRequests[0].payload.actionId, AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID);
+  assert.equal(castTurnRequests[0].payload.action.resolutionKind, "single-heal");
+  assert.equal(castTurnRequests[0].payload.action.economy, "bonus-action");
+  assert.equal(castTurnRequests[0].payload.turnKey, castTurn);
+
+  const nextTurnPayloads = callLightningTurnPromptPayloads({
+    items,
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: "2:0:caster-a",
+  });
+  assert.equal(nextTurnPayloads.length, 1);
+  assert.equal(nextTurnPayloads[0].actionId, AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID);
+
+  assert.deepEqual(callLightningTurnPromptPayloads({
+    items,
+    actorId: "other",
+    sceneEpoch: 4,
+    turnKey: "1:1:other",
+  }), []);
+});
+
+test("il prompt della Sfera della Tempesta è disponibile anche nel turno del cast", () => {
+  const castTurn = "1:0:caster-a";
+  const payloads = callLightningTurnPromptPayloads({
+    items: [
+      item("caster-a", [stormSphereOwnerSpell("storm-a", "caster-a", castTurn)]),
+      {
+        id: "storm-root",
+        metadata: {
+          [SPELL_STATIC_ZONE_META_KEY]: {
+            role: "root",
+            instanceId: "storm-a",
+            casterId: "caster-a",
+          },
+        },
+      },
+    ],
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: castTurn,
+  });
+
+  assert.equal(payloads.length, 1);
+  assert.equal(payloads[0].actionId, STORM_SPHERE_TURN_PROMPT_ACTION_ID);
+  assert.equal(payloads[0].instanceId, "storm-a");
+});
+
 test("la Linea di fuoco compare dal turno successivo al lancio e usa il popup dedicato", () => {
   const castTurn = "1:0:caster-a";
   const items = [
@@ -234,6 +331,36 @@ test("Riscaldare il Metallo usa il turn prompt standard dalla tornata successiva
   assert.equal(requests[0].payload.action.save.ability, "con");
   assert.equal(requests[0].payload.action.requiredTargetEffectId, undefined);
   assert.equal(requests[0].payload.linkedTargetId, "target");
+});
+
+test("Frecce Infuocate usa il mini popup per l'azione manuale senza TxC", () => {
+  const castTurn = "1:0:caster-a";
+  const items = [item("caster-a", [flameArrowsOwnerSpell("arrows-a", "caster-a", castTurn)])];
+
+  assert.deepEqual(spellTurnPromptRequests({
+    items,
+    actorId: "caster-a",
+    sceneEpoch: 7,
+    turnKey: castTurn,
+  }), []);
+
+  const requests = spellTurnPromptRequests({
+    items,
+    actorId: "caster-a",
+    sceneEpoch: 7,
+    turnKey: "2:0:caster-a",
+  });
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].kind, "choice");
+  assert.equal(requests[0].spellId, "xanathar-frecce-infuocate");
+  assert.equal(requests[0].actions.length, 1);
+  assert.equal(requests[0].actions[0].actionId, FLAME_ARROWS_TURN_PROMPT_ACTION_ID);
+  assert.equal(requests[0].actions[0].executionKind, "active-action");
+  assert.equal(requests[0].actions[0].action.subjectMode, "none");
+  assert.equal(requests[0].actions[0].action.attack, undefined);
+  assert.equal(requests[0].actions[0].action.resolutionKind, undefined);
+  assert.match(requests[0].choiceHint, /manualmente al tavolo/iu);
 });
 
 test("Arma Sacra apre al turno successivo il popup condiviso per l'esplosione", () => {

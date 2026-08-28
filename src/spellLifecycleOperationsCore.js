@@ -27,6 +27,7 @@ export function spellLifecycleOperations({
   spellExpiry = null,
   appliedAt = null,
   castContext = null,
+  summaryParts = null,
   casterName = "",
   onSpellEnd = null,
   replaceNames = [],
@@ -65,6 +66,9 @@ export function spellLifecycleOperations({
       ...(spellExpiry ? { expiry: clone(spellExpiry) } : {}),
       ...(appliedAt ? { appliedAt: clone(appliedAt) } : {}),
       ...(castContext ? { castContext: clone(castContext) } : {}),
+      ...(Array.isArray(summaryParts) && summaryParts.length
+        ? { summaryParts: clone(summaryParts) }
+        : {}),
       ...(mode === "extend" ? {} : { replaceNames: uniqueIds(replaceNames) }),
     });
   }
@@ -121,6 +125,7 @@ export function catalogSpellApplicationOperations({
   spellExpiry = null,
   appliedAt = null,
   castContext = null,
+  summaryParts = null,
   proposedConditions = [],
   proposedEffects = [],
   conditionApplications = [],
@@ -206,6 +211,7 @@ export function catalogSpellApplicationOperations({
     spellExpiry,
     appliedAt,
     castContext,
+    summaryParts,
     casterName,
     onSpellEnd,
     replaceNames: [enteredName, name, storedName],

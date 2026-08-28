@@ -603,6 +603,10 @@ const VISUALS = freeze({
   // Keep the line as the legacy/default definition for callers without a
   // choice; buildMatchedVisualEvent selects the ring branch explicitly.
   "wall-of-fire": WALL_OF_FIRE_VISUALS.line,
+  // The shared mobile aura owns the mechanical boundary. Keep one Embers
+  // VideoItem attached to the caster so the VFX remains visible after its
+  // startup frames; the renderer removes this intentional playback loop when
+  // the spell lifecycle ends and markEvent prevents duplicate starts.
   "antilife-shell": [circle("antilifeShell", "area", persistent({ attachedTo: "caster" }))],
   "arcane-hand": [circle("arcaneHand", "area", persistent())],
   "cone-of-cold": [cone("coneOfCold", { attachedTo: "caster" })],

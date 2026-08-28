@@ -6,11 +6,16 @@ import {
   clipChildZoneAreaToParent,
   validateChildZoneContainment,
 } from "./spellChildZoneCore.js";
+import { mobileAuraTargetIds } from "./spellAuraCore.js";
 import {
   spellAreaOriginAdjacentToCaster,
   spellAreaOriginWithinRange,
+  spellAreaGridCells,
 } from "./spellAreaPlacementCore.js";
-import { getSpellAreaRuleForPlacement } from "./spellAreaRules.js";
+import {
+  getSpellAreaRuleById,
+  getSpellAreaRuleForPlacement,
+} from "./spellAreaRules.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
   translatedZoneArea,
@@ -24,6 +29,13 @@ import {
   SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   validateSpellActiveResolutionPayload,
 } from "./spellActiveResolutionCore.js";
+import {
+  PRISMATIC_WALL_SPELL_ID,
+  prismaticWallFirstRemainingLayer,
+  prismaticWallLayerManagementPlan,
+  prismaticWallStateFromCastContext,
+  prismaticWallTraversalPlan,
+} from "./prismaticWallRules.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -184,7 +196,10 @@ async function validateSaveArea({ payload, placement, targetIds, outcomes, damag
     ? String(placement?.anchorTargetId || "").trim()
     : "";
   if (anchoredToPrimary && !anchorTargetId) errors.push("placement-anchor-required");
-  if (anchoredToPrimary && anchorTargetId && ids.includes(anchorTargetId)) {
+  if (anchoredToPrimary
+    && action.excludeAnchorTarget === true
+    && anchorTargetId
+    && ids.includes(anchorTargetId)) {
     errors.push("anchor-target-must-be-excluded");
   }
   const targetCapacity = resolveTargetingCapacity({
@@ -452,6 +467,87 @@ async function validateSingleSave({ payload, targetIds, outcomes, damageRoll, al
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 }
 
+async function validateSingleHeal({ payload, targetIds, damageRoll, allItems }) {
+  const errors = [];
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== 1) errors.push("single-target-required");
+  if (ids.length !== targetIds.length) errors.push("duplicate-targets");
+  if (numericRoll(damageRoll) === null) errors.push("healing-required");
+
+  const target = allItems.find((item) => item?.id === ids[0]);
+  const caster = allItems.find((item) => item?.id === payload.casterId);
+  if (!target) errors.push("target-missing");
+  if (!caster) errors.push("caster-missing");
+  const targetMeta = target?.metadata?.[META_KEY] || {};
+  if (target && (
+    !Object.prototype.hasOwnProperty.call(targetMeta, "hp")
+    || !Object.prototype.hasOwnProperty.call(targetMeta, "hpMax")
+  )) {
+    errors.push("target-hp-required");
+  }
+
+  const membership = payload?.action?.membership;
+  const membershipRuleId = String(membership?.ruleId || "").trim();
+  const rule = getSpellAreaRuleById(membershipRuleId);
+  if (
+    !rule
+    || rule.kind !== "aura"
+    || String(rule.spellId || "").trim() !== String(payload?.spellId || "").trim()
+  ) {
+    errors.push("aura-membership-invalid");
+  }
+  if (!caster || !target || !rule) {
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
+  }
+
+  const [casterBounds, targetBounds, dpi, scale] = await Promise.all([
+    OBR.scene.items.getItemBounds([caster.id]).catch(() => null),
+    OBR.scene.items.getItemBounds([target.id]).catch(() => null),
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+  ]);
+  const casterOrigin = itemCenter(casterBounds, caster);
+  if (!casterBounds || !targetBounds || !casterOrigin) {
+    errors.push("aura-geometry-missing");
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
+  }
+  const snappedOrigin = typeof OBR.scene.grid.snapPosition === "function"
+    ? await OBR.scene.grid.snapPosition(casterOrigin, 1, true, false).catch(() => casterOrigin)
+    : casterOrigin;
+  const gridOrigin = point(snappedOrigin) || casterOrigin;
+  const sizeCells = spellAreaGridCells(rule.geometry?.size, scale?.parsed || scale);
+  const area = sizeCells > 0
+    ? buildArea(
+      rule.geometry.shape,
+      casterOrigin,
+      { x: casterOrigin.x + sizeCells * Math.max(1, Number(dpi) || 1), y: casterOrigin.y },
+      Math.max(1, Number(dpi) || 1),
+      gridOrigin,
+    )
+    : null;
+  if (!area) {
+    errors.push("aura-geometry-invalid");
+    return { valid: errors.length === 0, errors: [...new Set(errors)] };
+  }
+  const membershipRule = membership?.targeting && typeof membership.targeting === "object"
+    ? {
+      ...rule,
+      targeting: { ...rule.targeting, ...membership.targeting },
+    }
+    : rule;
+  const currentAuraTargetIds = mobileAuraTargetIds({
+    aura: { casterId: payload.casterId, rule: membershipRule },
+    area,
+    candidates: [
+      { item: caster, bounds: casterBounds },
+      { item: target, bounds: targetBounds },
+    ],
+    metaKey: META_KEY,
+  });
+  if (!currentAuraTargetIds.includes(ids[0])) errors.push("target-outside-aura");
+  return { valid: errors.length === 0, errors: [...new Set(errors)] };
+}
+
 function normalizedAttackEntries(attacks = []) {
   return (Array.isArray(attacks) ? attacks : [])
     .map((entry) => ({
@@ -565,6 +661,121 @@ async function validateChildZone({
   };
 }
 
+function prismaticWallParent(allItems, payload) {
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[SPELLS_KEY];
+  return (Array.isArray(spells) ? spells : []).find((spell) => (
+    String(spell?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(spell?.spellId || "").trim() === PRISMATIC_WALL_SPELL_ID
+    && String(spell?.casterId || payload?.casterId || "").trim() === String(payload?.casterId || "").trim()
+  )) || null;
+}
+
+function prismaticWallStateSnapshotMatches(live, snapshot) {
+  return live.shape === snapshot.shape
+    && JSON.stringify(live.remainingLayers) === JSON.stringify(snapshot.remainingLayers)
+    && JSON.stringify(live.exemptCreatureIds) === JSON.stringify(snapshot.exemptCreatureIds);
+}
+
+async function validatePrismaticWall({
+  payload,
+  targetIds,
+  layerOutcomes,
+  layerDamage,
+  layerId,
+  traversalId,
+  allItems,
+} = {}) {
+  const errors = [];
+  const parent = prismaticWallParent(allItems, payload);
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  if (!parent) errors.push("prismatic-wall-parent-missing");
+  if (!caster) errors.push("caster-missing");
+
+  const rootId = String(payload?.zoneItemId || "").trim();
+  const root = allItems.find((item) => item?.id === rootId);
+  const rootMetadata = root?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  if (
+    !root
+    || rootMetadata?.role !== "root"
+    || String(rootMetadata.instanceId || "").trim() !== String(payload?.instanceId || "").trim()
+    || String(rootMetadata.casterId || "").trim() !== String(payload?.casterId || "").trim()
+    || String(rootMetadata.spellId || "").trim() !== PRISMATIC_WALL_SPELL_ID
+  ) {
+    errors.push("prismatic-wall-zone-root-missing");
+  }
+
+  const liveState = prismaticWallStateFromCastContext(parent?.castContext);
+  const snapshotState = prismaticWallStateFromCastContext(payload?.castContext);
+  if (parent && !prismaticWallStateSnapshotMatches(liveState, snapshotState)) {
+    errors.push("prismatic-wall-state-stale");
+  }
+
+  const kind = String(payload?.action?.resolutionKind || "").trim();
+  if (kind === "prismatic-wall-layers") {
+    if (uniqueIds(targetIds).length) errors.push("prismatic-wall-layer-targets-forbidden");
+    const plan = prismaticWallLayerManagementPlan({
+      remainingLayers: liveState.remainingLayers,
+      layerId,
+    });
+    if (!String(layerId || "").trim()) errors.push("prismatic-wall-layer-required");
+    errors.push(...(plan.errors || []));
+    return {
+      valid: errors.length === 0,
+      errors: [...new Set(errors)],
+      parent,
+      state: liveState,
+      plan,
+    };
+  }
+
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== 1) errors.push("prismatic-wall-target-count-invalid");
+  if (ids.includes(String(payload?.casterId || "").trim())) {
+    errors.push("caster-target-forbidden");
+  }
+  const target = allItems.find((item) => item?.id === ids[0]);
+  if (!target) errors.push("target-missing");
+  const normalizedTraversalId = String(traversalId || "").trim();
+  if (!normalizedTraversalId) errors.push("prismatic-wall-traversal-id-required");
+  if (liveState.resolvedTraversalIds.includes(normalizedTraversalId)) {
+    errors.push("prismatic-wall-traversal-already-resolved");
+  }
+  const exempt = liveState.exemptCreatureIds.includes(ids[0]);
+  const outcomeKeys = layerOutcomes && typeof layerOutcomes === "object"
+    ? Object.keys(layerOutcomes)
+    : [];
+  const damageKeys = layerDamage && typeof layerDamage === "object"
+    ? Object.keys(layerDamage)
+    : [];
+  if (outcomeKeys.some((key) => !liveState.remainingLayers.includes(key))) {
+    errors.push("prismatic-wall-outcome-layer-mismatch");
+  }
+  if (damageKeys.some((key) => !liveState.remainingLayers.includes(key))) {
+    errors.push("prismatic-wall-damage-layer-mismatch");
+  }
+  const plan = prismaticWallTraversalPlan({
+    targetId: ids[0],
+    remainingLayers: liveState.remainingLayers,
+    outcomes: layerOutcomes,
+    damageTotals: layerDamage,
+    parentEffectId: payload?.instanceId,
+    sourceId: payload?.casterId,
+    sourceName: payload?.casterName,
+    exempt,
+  });
+  errors.push(...(plan.errors || []).map((error) => error?.code || error));
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    parent,
+    state: liveState,
+    plan,
+    target,
+    firstRemainingLayer: prismaticWallFirstRemainingLayer(liveState.remainingLayers),
+  };
+}
+
 export async function validateSpellActiveResolutionCommit({
   payload = null,
   placement = null,
@@ -573,6 +784,10 @@ export async function validateSpellActiveResolutionCommit({
   damageRoll = 0,
   attackOutcome = "",
   attacks = [],
+  layerOutcomes = {},
+  layerDamage = {},
+  layerId = "",
+  traversalId = "",
 } = {}) {
   const payloadValidation = validateSpellActiveResolutionPayload(payload);
   const errors = [...payloadValidation.errors];
@@ -589,7 +804,18 @@ export async function validateSpellActiveResolutionCommit({
   const ids = uniqueIds(targetIds);
   const attackEntries = normalizedAttackEntries(attacks);
   const maxAttacks = Math.max(1, Math.floor(Number(payload.action.maxAttacks) || 1));
-  const result = payload.action.resolutionKind === "single-attack"
+  const result = ["prismatic-wall-traversal", "prismatic-wall-layers"]
+    .includes(String(payload.action.resolutionKind || "").trim())
+    ? await validatePrismaticWall({
+      payload,
+      targetIds: ids,
+      layerOutcomes,
+      layerDamage,
+      layerId,
+      traversalId,
+      allItems,
+    })
+    : payload.action.resolutionKind === "single-attack"
     ? attackEntries.length
       ? {
         valid: attackEntries.length <= maxAttacks,
@@ -597,6 +823,8 @@ export async function validateSpellActiveResolutionCommit({
         insideRoot: false,
       }
       : await validateStorm({ payload, targetIds: ids, outcomes, damageRoll, attackOutcome })
+    : payload.action.resolutionKind === "single-heal"
+      ? await validateSingleHeal({ payload, targetIds: ids, damageRoll, allItems })
     : payload.action.resolutionKind === "single-save"
       ? await validateSingleSave({ payload, targetIds: ids, outcomes, damageRoll, allItems })
     : payload.action.resolutionKind === "child-zone"

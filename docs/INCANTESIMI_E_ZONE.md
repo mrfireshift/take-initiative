@@ -88,6 +88,34 @@ La concentrazione è registrata sul caster. La sua interruzione termina
 l'istanza collegata e avvia la pulizia di pill, condizioni figlie, zone e aure.
 Anche la scadenza naturale esegue la stessa pulizia.
 
+### Palla di Fuoco Ritardata
+
+Palla di Fuoco Ritardata è una spell di 7° livello con gittata 45 m e
+concentrazione fino a 1 minuto. Il lancio crea una perla persistente in un
+punto scelto dal GM; la zona circolare di raggio 6 m è soltanto l'anteprima del
+futuro impatto e non applica effetti quando una creatura vi entra.
+
+L'istanza conserva slot, CD, posizione corrente e `accumulatedDice` (da 0 a
+10). Il danno base è 12d6 al 7° livello, 13d6 all'8° e 14d6 al 9°; alla fine di
+ogni turno del caster ancora integro si aggiunge 1d6, fino al limite naturale di
+10d6. La micropill mostra sempre il totale corrente, ma i dadi vengono tirati
+fisicamente una sola volta quando la perla detona.
+
+La fine della concentrazione non rimuove silenziosamente la spell: interruzione
+volontaria, TS di concentrazione fallito, sostituzione con una nuova spell
+concentrata ed expiry aprono la risoluzione terminale prima del cleanup. Il GM
+conferma i bersagli presenti in quel momento entro 6 m dalla posizione corrente,
+dichiara un unico totale di danno e indica per ogni creatura il TS Destrezza;
+fallimento significa danno pieno, successo metà danno da fuoco. La stessa
+transazione aggiorna i PF, chiude spell/concentrazione, rimuove perla e zona e
+resta annullabile con History/Undo. Trigger concorrenti sulla stessa istanza
+sono arbitrati per `instanceId`, quindi producono una sola detonazione.
+
+Contatto automatico, lancio della perla, collisione con creatura/oggetto e
+incendio degli oggetti restano decisioni manuali al tavolo. Il GM può spostare
+la perla con gli strumenti scena esistenti; la spell non aggiunge un'azione o un
+motore di proiettile/collisione.
+
 ## Incantesimi preparati e risoluzione differita
 
 Gli incantesimi con una fase di preparazione possono essere registrati sul
@@ -306,6 +334,14 @@ attive per 26 definizioni.
 Per Sguardo penetrante, i bersagli già usati vengono ricordati e Nauseato
 genera il proprio reminder di fine turno.
 
+Muro di Vento è PASS/PARTIAL-ACCEPTED: il workflow automatico copre placement
+lineare fino a 15 m, targeting iniziale sulla sagoma, TS Forza e danno iniziale
+3d8 con metà al successo, zona statica, concentrazione, durata, History/Undo e
+cleanup. La deviazione dei proiettili, il passaggio delle creature o degli
+oggetti volanti, la forma gassosa, la dispersione di gas/fumo/nebbia, i
+materiali leggeri e ogni crossing restano regole manuali accettate; non vengono
+applicate Condition artificiali, reminder o active action.
+
 ## Esclusioni e copertura residua
 
 Questo workflow esclude intenzionalmente:
@@ -322,8 +358,8 @@ implica che siano assenti dal catalogo:
 - revisione completa di Controllare Acqua;
 - sottozone figlie, a partire dalle fenditure di Terremoto;
 - lato caldo, fascia e attraversamento di Muro di Fuoco;
-- Muro Prismatico, Invertire la Gravità, Tempesta di Vendetta, Muro di Vento,
-  Turbine, Tramutare Roccia, Guscio Antivita e le aure di Vita/Vitalità;
+- Muro Prismatico, Invertire la Gravità, Tempesta di Vendetta, Turbine,
+  Tramutare Roccia e le aure di Vita/Vitalità;
 - costo direzionale di Folata di Vento nello Speed Tracker.
 
 Lo stato operativo e i test ancora da eseguire sono elencati nel

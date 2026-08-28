@@ -146,8 +146,9 @@ function currentBatchObject(runtime) {
 
 async function sendSpellPlacementProgress(runtime) {
   const batch = runtime?.batch;
-  if (!batch?.objects?.length) return;
-  const placed = batch.positions.length;
+  const anchoredPreview = runtime?.context?.autoConfirmAnchor === true;
+  if (!batch?.objects?.length && !anchoredPreview) return;
+  const placed = batch?.positions?.length || 0;
   const next = currentBatchObject(runtime);
   await OBR.broadcast.sendMessage(
     SPELL_AREA_PLACEMENT_CHANNEL,
@@ -161,10 +162,12 @@ async function sendSpellPlacementProgress(runtime) {
       context: runtime.context,
       preview: runtime.session.preview,
       batchIndex: placed,
-      batchTotal: batch.objects.length,
-      message: next
-        ? `Posiziona ${next.label.toLocaleLowerCase("it")} (${placed + 1}/${batch.objects.length}).`
-        : "Tutti gli oggetti sono posizionati. Conferma il gruppo.",
+      batchTotal: batch?.objects?.length || 0,
+      message: anchoredPreview
+        ? "Area ancorata al bersaglio dell'attacco."
+        : next
+          ? `Posiziona ${next.label.toLocaleLowerCase("it")} (${placed + 1}/${batch.objects.length}).`
+          : "Tutti gli oggetti sono posizionati. Conferma il gruppo.",
     },
     { destination: "LOCAL" },
   ).catch(() => {});
@@ -286,6 +289,7 @@ async function beginSpellPlacement(data) {
   const placementContext = data?.context && typeof data.context === "object"
     ? data.context
     : null;
+  const autoAnchor = placementContext?.autoConfirmAnchor === true;
   const anchorTargetId = String(placementContext?.anchorTargetId || "").trim();
   const baseRule = getSpellAreaRuleById(ruleId);
   const rule = getSpellAreaRuleForPlacement(ruleId, ruleChoice, placementContext);
@@ -400,24 +404,29 @@ async function beginSpellPlacement(data) {
       multiplier: Math.max(0, Number(scale?.parsed?.multiplier) || 1.5),
       unit: String(scale?.parsed?.unit || "m").trim(),
     };
-    const rangePreview = await startSpellRangePreview({
-      origin: runtime.casterOrigin,
-      range: rule.placement.range,
-      dpi,
-      scale: gridScale,
-      strokeWidth: Math.max(2, dpi * 0.035 * currentStyle.strokeWidth),
-    });
+    const rangePreview = autoAnchor
+      ? null
+      : await startSpellRangePreview({
+        origin: runtime.casterOrigin,
+        range: rule.placement.range,
+        dpi,
+        scale: gridScale,
+        strokeWidth: Math.max(2, dpi * 0.035 * currentStyle.strokeWidth),
+      });
     if (spellPlacementSession !== runtime) {
       rangePreview?.[1]?.();
       return;
     }
     runtime.rangePreview = rangePreview;
-    await setSpellPlacementToolState(true);
-    await OBR.tool.activateTool(TOOL_ID);
-    await OBR.tool.activateMode(TOOL_ID, areaModeId(rule.geometry.shape));
-    if (placementContext?.autoConfirmAnchor === true) {
+    if (!autoAnchor) {
+      await setSpellPlacementToolState(true);
+      await OBR.tool.activateTool(TOOL_ID);
+      await OBR.tool.activateMode(TOOL_ID, areaModeId(rule.geometry.shape));
+    }
+    if (autoAnchor) {
       // A target-anchored area has no independent placement decision: the
-      // selected token supplies both the origin and the confirmation.
+      // selected token supplies the origin and the live preview is prepared
+      // without activating the interactive placement tool.
       startDrag(rule.geometry.shape, { pointerPosition: anchorBounds.center });
     }
   } catch (error) {
@@ -1380,7 +1389,39 @@ async function finishDrag(state) {
     && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
   ) {
     if (state.context?.autoConfirmAnchor === true) {
-      await confirmSpellPlacement();
+      const targetIds = await findHitTargetIds(area, spellPlacementSession.rule);
+      if (activeDrag !== state || spellPlacementSession?.session?.requestId !== state.spellPlacementRequestId) {
+        return;
+      }
+      spellPlacementSession.session = reviewSpellAreaPlacement(
+        spellPlacementSession.session,
+        {
+          type: state.type,
+          start: state.start,
+          end: state.end,
+          ...(area.type === "circle" ? { radius: area.radius } : {}),
+          dpi: state.dpi,
+          gridOrigin: state.gridOrigin,
+          widthSquares: state.widthCells,
+          ...(state.ringInnerCells > 0
+            ? { ringInnerSquares: state.ringInnerCells }
+            : {}),
+          ...(state.hotBandCells > 0
+            ? {
+              hotBand: {
+                side: String(state.rule?.geometry?.hotBand?.side || "").trim(),
+                widthSquares: state.hotBandCells,
+              },
+            }
+            : {}),
+          ...(state.context?.anchorTargetId
+            ? { anchorTargetId: String(state.context.anchorTargetId).trim() }
+            : {}),
+          ...(state.anchorOrigin ? { anchorOrigin: point(state.anchorOrigin) } : {}),
+          targetIds,
+        },
+      );
+      await sendSpellPlacementProgress(spellPlacementSession);
       return;
     }
     spellPlacementSession.session = reviewSpellAreaPlacement(

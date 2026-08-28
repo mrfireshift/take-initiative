@@ -5,8 +5,10 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const popupHtml = read("../spell-active-resolution.html");
 const popupController = read("../src/spell-active-resolution.js");
+const aoeTargetTool = read("../src/aoeTargetTool.js");
 const unifiedPanel = read("../src/spell-unified-panel.js");
 const activeAdapter = read("../src/spellUnifiedActiveAdapter.js");
+const unifiedPanelView = read("../src/spellUnifiedPanelViewCore.js");
 const executor = read("../src/spellApplicationExecutor.js");
 const validation = read("../src/spellActiveResolutionValidation.js");
 const popoverDrag = read("../src/popoverDrag.js");
@@ -25,13 +27,21 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.doesNotMatch(popupHtml, /Risolvi:/);
   assert.doesNotMatch(popupController, /`Risolvi: \${payload\.spellName/);
   assert.match(popupHtml, /id="close"/);
-  assert.match(popupHtml, /id="apply"[^>]*>Applica</);
+  assert.match(popupHtml, /id="apply"[^>]*>Cura</);
+  assert.match(popupHtml, /class="topline"><div id="eyebrow"/);
+  assert.match(popupHtml, /class="topline">[\s\S]*<button id="close"/);
+  assert.match(popupHtml, /id="footer" class="footer"><button id="apply"/);
   assert.match(popupController, /requestSpellAreaPlacement/);
   assert.match(popupController, /executeSpellActiveResolution/);
   assert.match(popupController, /Sagoma confermata\. I bersagli sono ora bloccati/);
   assert.match(popupHtml, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
   assert.match(popupHtml, /id="saveTitle"/);
   assert.match(popupHtml, /id="attackTitle"/);
+  assert.match(popupHtml, /id="singleHealSection"/);
+  assert.match(popupHtml, /id="singleHealTitle" class="section-title">Bersaglio: —<\/div>/);
+  assert.doesNotMatch(popupHtml, /<select id="healTarget"/);
+  assert.match(popupHtml, /id="healAmountLabel"[^>]*>Cura · 2d6<\/label>/);
+  assert.match(popupHtml, /id="healAmount"/);
   assert.match(popupHtml, /id="footer"/);
   assert.doesNotMatch(popupHtml, /id="rootNote"/);
   assert.match(popupHtml, /rgba\(76,29,149,.32\)/);
@@ -65,10 +75,40 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /Bersaglio: \${displayName\(entries\[0\]\)}/);
   assert.match(popupController, /manualSaveAtTable/);
   assert.match(popupController, /singleSaveOutcomes/);
+  assert.match(popupController, /:\s*"Bersaglio: —"/);
+  assert.match(popupController, /Bersaglio: \$\{displayName\(entries\[0\]\)\}/);
+  assert.doesNotMatch(popupController, /\$\("healTarget"\)/);
+  assert.match(popupController, /\$\("eyebrow"\)\.textContent[\s\S]*?"Aura Attiva"/);
+  assert.match(popupController, /`Cura · \$\{healingFormula\}`/);
+  assert.match(popupController, /\$\("apply"\)\.textContent = "Cura"/);
+  assert.doesNotMatch(popupController, /Inserisci il totale curato/);
+  assert.doesNotMatch(popupController, /Bersaglio attualmente nell'aura\./);
+  assert.match(popupController, /function isSingleHeal/);
+  assert.match(popupController, /singleHealTargetData/);
+  assert.match(popupController, /payload\.action\.resolutionKind === "single-heal"/);
+  assert.match(popupController, /mobileAuraTargetIds/);
   assert.match(popupController, /gridPlanarDistance/);
   assert.match(validation, /payload\.action\.rangeOrigin === "root"/);
   assert.match(popupController, /excludedTargetEffectIds/);
   assert.match(validation, /excludedTargetEffectIds/);
+  assert.match(popupController, /payload\?\.action\?\.excludeAnchorTarget !== true/);
+  assert.match(validation, /action\.excludeAnchorTarget === true/);
+  assert.match(popupController, /onProgress: anchoredArea/);
+  assert.match(popupController, /pendingPlacementPromise/);
+  assert.match(popupController, /desiredAnchoredTargetId/);
+  assert.match(popupController, /if \(anchoredArea\) \{\s*const allowedIds = new Set\(placement\.targetIds\)/);
+  assert.match(aoeTargetTool, /const anchoredPreview = runtime\?\.context\?\.autoConfirmAnchor === true/);
+  assert.match(aoeTargetTool, /const targetIds = await findHitTargetIds\(area, spellPlacementSession\.rule\)/);
+  assert.match(aoeTargetTool, /await sendSpellPlacementProgress\(spellPlacementSession\)/);
+  const anchoredPlacementStart = section(
+    aoeTargetTool,
+    "async function beginSpellPlacement",
+    "async function beginSpellZoneMovement",
+  );
+  assert.match(anchoredPlacementStart, /const autoAnchor = placementContext\?\.autoConfirmAnchor === true/);
+  assert.match(anchoredPlacementStart, /const rangePreview = autoAnchor/);
+  assert.match(anchoredPlacementStart, /if \(!autoAnchor\) \{/);
+  assert.match(anchoredPlacementStart, /startDrag\(rule\.geometry\.shape/);
   assert.match(popupController, /manualSaveAtTable/);
   assert.match(executor, /type: "token:teleport"/);
   assert.match(popupController, /attacks: isMultiAttack\(\)/);
@@ -84,6 +124,10 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
 
 test("il pannello costruisce un payload immutabile e apre il popup tracciato", () => {
   assert.match(activeAdapter, /buildSpellActiveResolutionPayload/);
+  assert.match(
+    unifiedPanelView,
+    /"single-save", "single-heal", "child-zone", "zone-movement"/,
+  );
   assert.match(activeAdapter, /zoneItemId/);
   assert.match(unifiedPanel, /openTrackedPopover/);
   assert.match(unifiedPanel, /disableClickAway: true/);

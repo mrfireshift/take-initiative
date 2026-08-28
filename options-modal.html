@@ -109,7 +109,7 @@
             <div><h2 id="turn-title">Turno e mappa</h2></div>
             <span class="scope-badge shared" data-current-scope-badge>Room</span>
           </div>
-          <div class="option-grid four turn-options-grid">
+          <div class="option-grid turn-options-grid">
             <article class="option-card compact-card" data-family-card="popup">
               <div class="option-card-heading"><div><h3>Popup cambio turno</h3><p>Mostra il cambio turno. I reminder restano attivi.</p></div></div>
               <label class="option-field room-value"><span>Impostazione</span><select data-family="popup" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
@@ -129,6 +129,11 @@
               <div class="option-card-heading"><div><h3>Nome del turno sulla mappa</h3><p>Mostra il nome del token attivo.</p></div></div>
               <label class="option-field room-value"><span>Impostazione</span><select data-family="activeTurnLabel" data-path="value" data-value-type="boolean"><option value="true">On</option><option value="false">Off</option></select></label>
               <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="activeTurnLabel" data-value-type="boolean"><option value="inherit">Eredita</option><option value="true">On</option><option value="false">Off</option></select></label>
+            </article>
+            <article class="option-card compact-card" data-family-card="summaryParts">
+              <div class="option-card-heading"><div><h3>Mini-pill degli effetti</h3><p>Mostra i dettagli sintetici sotto la label della spell.</p></div></div>
+              <label class="option-toggle compact room-value"><span>Mostra mini-pill</span><input type="checkbox" data-family="summaryParts" data-path="value" data-value-type="boolean" /></label>
+              <label class="option-field scene-choice" hidden><span>Questa scena</span><select data-scene-choice="summaryParts" data-value-type="boolean"><option value="inherit">Eredita</option><option value="true">On</option><option value="false">Off</option></select></label>
             </article>
           </div>
         </section>

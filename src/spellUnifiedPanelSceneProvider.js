@@ -1,5 +1,6 @@
 import { ID } from "./constants.js";
 import { gridGeometryFromBounds, gridPlanarDistance } from "./distance3dCore.js";
+import { areaHitsBounds, buildArea, buildCircleArea } from "./aoeGeometryCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import {
   CHAIN_LIGHTNING_TARGETING,
@@ -11,6 +12,7 @@ import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import {
   getSpellCatalog,
   getSpellDefinition,
+  getSpellSummaryParts,
 } from "./spells-srd.js";
 import { buildSpellUnifiedCatalogEntries } from "./spellUnifiedPanelCatalogCore.js";
 import {
@@ -33,7 +35,7 @@ import {
   spellBoardTokenView,
 } from "./spellBoardTokenCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
-import { getSpellAreaRules } from "./spellAreaRules.js";
+import { getSpellAreaRuleForPlacement, getSpellAreaRules } from "./spellAreaRules.js";
 import { getMobileAuraRule, SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 
@@ -528,6 +530,66 @@ export async function validateSpellUnifiedTargetSelection(
   });
 }
 
+function finitePoint(value) {
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+async function validatePrismaticWallOccupiedPlacement(obr, {
+  command = null,
+  spell = null,
+  items = [],
+} = {}) {
+  if (
+    spell?.id !== "prismatic-wall"
+    || command?.source?.kind !== "cast"
+    || command?.placement?.status !== "confirmed"
+  ) return { valid: true, errors: [] };
+  const preview = command.placement.preview;
+  const start = finitePoint(preview?.start);
+  const end = finitePoint(preview?.end);
+  const gridOrigin = finitePoint(preview?.gridOrigin);
+  const dpi = Number(preview?.dpi);
+  const choice = String(
+    command?.placement?.ruleChoice
+      || command?.spell?.choiceValue
+      || "",
+  ).trim();
+  const rule = getSpellAreaRuleForPlacement(
+    String(command?.placement?.ruleId || "prismatic-wall:cast").trim(),
+    choice,
+  );
+  if (!rule || !start || !end || !gridOrigin || !Number.isFinite(dpi) || dpi <= 0) {
+    return { valid: false, errors: ["placement-geometry-missing"] };
+  }
+  const shape = String(rule.geometry?.shape || "").trim();
+  const area = shape === "circle"
+    ? buildCircleArea(start, end, dpi, gridOrigin)
+    : shape === "line"
+      ? buildArea("line", start, end, dpi, gridOrigin, {
+        widthSquares: Number(preview.widthSquares) || 1,
+        widthAnchor: rule.geometry?.widthAnchor,
+      })
+      : null;
+  if (!area || area.type !== shape) {
+    return { valid: false, errors: ["placement-invalid"] };
+  }
+  const creatures = (Array.isArray(items) ? items : [])
+    .filter((item) => item?.layer === "CHARACTER" && item?.id);
+  const bounds = await Promise.all(creatures.map((item) =>
+    obr?.scene?.items?.getItemBounds?.([item.id]).catch?.(() => null)
+      || Promise.resolve(null)
+  ));
+  const occupied = creatures.some((item, index) => {
+    const itemBounds = bounds[index];
+    return !!itemBounds && areaHitsBounds(area, itemBounds);
+  });
+  return occupied
+    ? { valid: false, errors: ["prismatic-wall-placement-occupied"] }
+    : { valid: true, errors: [] };
+}
+
 export async function validateSpellAreaSceneSpatial(
   obr,
   { command = null, spell = null, items = [], targetIds = [], caster = null } = {},
@@ -582,6 +644,12 @@ export async function validateSpellAreaSceneSpatial(
         errors: invalidTargetIds.length ? ["target-out-of-range"] : [],
       };
     }
+    const prismaticPlacement = await validatePrismaticWallOccupiedPlacement(obr, {
+      command,
+      spell,
+      items,
+    });
+    if (!prismaticPlacement.valid) return prismaticPlacement;
     return { valid: true, errors: [] };
   }
 
@@ -760,6 +828,13 @@ function overviewProjection(group, currentTurnKey = "") {
     name: text(group?.name),
     storedName: text(group?.storedName || group?.name),
     castContext: cloneValue(group?.castContext || {}),
+    summaryParts: getSpellSummaryParts(
+      spell,
+      "",
+      cloneValue(group?.castContext || {}),
+    ),
+    terminalResolution: cloneValue(group?.castContext?.terminalResolution || null),
+    pendingTermination: cloneValue(group?.pendingTermination || null),
     appliedAt: cloneValue(group?.appliedAt),
     targetIds: targetIds.map(text).filter(Boolean),
     targetNames: group?.targets instanceof Map ? [...group.targets.values()].map(text) : [],
@@ -790,6 +865,7 @@ function overviewProjection(group, currentTurnKey = "") {
     prepared: actions.some((action) => action.type === "resolve"),
     actions,
     context,
+    summaryParts: context.summaryParts,
     actionLabels: actions
       .filter((action) => action.type === "manual" || action.type === "resolve")
       .map((action) => action.buttonLabel || action.label)

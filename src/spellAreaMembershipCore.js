@@ -73,7 +73,7 @@ function attitudeGroup(item, metaKey) {
   return "neutral";
 }
 
-function areaWithCellPadding(area, paddingSquares) {
+export function areaWithCellPadding(area, paddingSquares) {
   const padding = Math.max(0, Math.floor(Number(paddingSquares) || 0));
   if (!padding || !Array.isArray(area?.cells) || !area.cells.length) {
     return area;
@@ -189,6 +189,7 @@ export function areaMembershipTargetIds({
       const targetGroup = attitudeGroup(item, metaKey);
       if (filter === "hostile" && targetGroup === sourceGroup) return false;
       if (filter === "friendly" && targetGroup !== sourceGroup) return false;
+      if (filter === "non-hostile" && targetGroup === "enemy") return false;
       return targeting.containment === "fully-inside"
         ? areaContainsBounds(membershipArea, bounds)
         : areaHitsBounds(membershipArea, bounds);

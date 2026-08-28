@@ -45,7 +45,7 @@ export function buildEffectSummaryContainer(
     gap: "2px",
     alignItems: "center",
     justifyContent: "center",
-    overflow: "visible",
+    overflow: preview ? "hidden" : "visible",
   });
   summary.dataset.summaryParts = String(summaryParts.length);
 
@@ -53,7 +53,7 @@ export function buildEffectSummaryContainer(
     width: "100%",
     maxWidth: "100%",
     flex: "0 0 100%",
-    overflow: "visible",
+    overflow: preview ? "hidden" : "visible",
   });
   summary.appendChild(parentPill);
 
@@ -63,16 +63,16 @@ export function buildEffectSummaryContainer(
     miniPill.title = part.label;
     miniPill.dataset.summaryPartId = part.id;
     Object.assign(miniPill.style, {
-      minWidth: "max-content",
-      maxWidth: "none",
+      minWidth: preview ? "0" : "max-content",
+      maxWidth: preview ? "100%" : "none",
       height: preview ? "14px" : "17px",
       padding: "0 4px",
       boxSizing: "border-box",
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      flex: "0 0 auto",
-      overflow: "visible",
+      flex: preview ? "1 1 auto" : "0 0 auto",
+      overflow: preview ? "hidden" : "visible",
       border: "1px solid rgba(255,255,255,.38)",
       borderRadius: "999px",
       background: "rgba(8,12,21,.82)",
@@ -82,7 +82,7 @@ export function buildEffectSummaryContainer(
       fontWeight: "600",
       lineHeight: "1",
       whiteSpace: "nowrap",
-      textOverflow: "clip",
+      textOverflow: preview ? "ellipsis" : "clip",
       boxShadow: "0 1px 4px rgba(0,0,0,.35)",
     });
     summary.appendChild(miniPill);

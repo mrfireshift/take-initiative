@@ -21,6 +21,7 @@ import {
   getSpellAreaPlacementChoices,
   getSpellAreaRuleForPlacement,
   getSpellAreaRules,
+  spellPlacedDamageCastAllowsEmptyTargets,
 } from "./spellAreaRules.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import {
@@ -32,6 +33,7 @@ import {
   applyTargetingLimitState,
   resolveTargetingCapacity,
 } from "./spellTargetingCapacityCore.js";
+import { spellTargetContextConditionMatches } from "./spellSaveTargetingCore.js";
 import {
   getSpellBoardTokenPlacementRule,
   getSpellBoardTokenRule,
@@ -352,8 +354,8 @@ function mergeActionDeclarations(spell, boardTokenRule, castRules = []) {
     if (!ruleId) continue;
     add({
       id: `${ruleId}:move`,
-      label: "Sposta zona",
-      buttonLabel: "Sposta zona",
+      label: movement.label || "Sposta zona",
+      buttonLabel: movement.buttonLabel || movement.label || "Sposta zona",
       detail: `Riposiziona la zona fino a ${movement.maximumMeters} m.`,
       economy: text(movement.economy),
       resolutionKind: "zone-movement",
@@ -452,7 +454,7 @@ function actionDescriptor(entry) {
       save: resolutionKind === "save-area" || !!action.save,
       attack: Array.isArray(action.attack?.outcomes)
         && action.attack.outcomes.length > 0,
-      hp: !!action.damage,
+      hp: !!action.damage || !!action.healing,
       zone: ["child-zone", "zone-movement"].includes(resolutionKind)
         || rule?.kind === "zone",
     },
@@ -1242,6 +1244,29 @@ function saveOutcomeOptions({ saveOutcomes, workflowRule }) {
     .map((value) => ({ value, label: labels[value] || value }));
 }
 
+const SAVE_ABILITY_LABELS = Object.freeze({
+  str: "Forza",
+  dex: "Destrezza",
+  con: "Costituzione",
+  int: "Intelligenza",
+  wis: "Saggezza",
+  cha: "Carisma",
+});
+
+function initialSaveDescriptor(castRules = []) {
+  const rule = (Array.isArray(castRules) ? castRules : []).find((entry) => (
+    entry?.zonePolicy?.initialResolution === "manual-save"
+      && entry?.zonePolicy?.initialSave?.ability
+  ));
+  const ability = text(rule?.zonePolicy?.initialSave?.ability).toLowerCase();
+  if (!ability) return null;
+  return {
+    ability,
+    label: SAVE_ABILITY_LABELS[ability] || ability,
+    timing: "cast",
+  };
+}
+
 function controlList({
   spell,
   phaseOptions: phases,
@@ -1458,6 +1483,7 @@ export function buildSpellUnifiedPanelContract({
     workflowRule,
   });
   const saveOutcomeOptionsValue = saveOutcomeOptions({ saveOutcomes, workflowRule });
+  const initialSave = initialSaveDescriptor(presentationCastRules);
   const combinedAttackAndSave = spellPhaseAttackOutcomeRequired(phasePlan)
     && saveOutcomes;
   const automation = automationDescriptor({ spell, phasePlan });
@@ -1596,6 +1622,7 @@ export function buildSpellUnifiedPanelContract({
           : "save",
         options: combinedAttackAndSave ? saveOutcomeOptionsValue : outcomeOptionsValue,
         ...(combinedAttackAndSave ? { attackOptions: outcomeOptionsValue } : {}),
+        ...(initialSave ? { save: initialSave } : {}),
       },
       placement: areaPlacement,
       inputs,
@@ -2064,6 +2091,24 @@ function initialZoneResolutionMayHaveNoTargets(contract, targetIds = []) {
     && placementRules.some((rule) => rule?.kind === "zone");
 }
 
+function placedDamageCastMayHaveNoTargets(contract) {
+  const placementRules = Array.isArray(contract?.presentation?.placement?.rules)
+    ? contract.presentation.placement.rules
+    : [];
+  return spellPlacedDamageCastAllowsEmptyTargets({
+    sourceKind: "cast",
+    phase: contract?.presentation?.phase?.selected,
+    activeActionId: contract?.execution?.selectedActionId,
+    damageRequired: contract?.presentation?.inputs?.damage?.required === true,
+    targeting: contract?.presentation?.targeting,
+    rule: placementRules[0],
+  });
+}
+
+function emptyPlacedDamageCast(contract, targetIds = []) {
+  return targetIds.length === 0 && placedDamageCastMayHaveNoTargets(contract);
+}
+
 function outcomeFor(outcomes, targetId) {
   return outcomes && typeof outcomes === "object"
     ? outcomes[targetId]
@@ -2072,12 +2117,17 @@ function outcomeFor(outcomes, targetId) {
 
 function targetContextComplete(contextContract, targetIds, targetContext) {
   const fields = Array.isArray(contextContract?.fields)
-    ? contextContract.fields.filter((field) => field?.required === true)
+    ? contextContract.fields
     : [];
   if (!fields.length) return true;
   return targetIds.every((targetId) => {
     const values = targetContext?.[targetId];
-    return fields.every((field) => hasSessionValue(values?.[field.id], field));
+    return fields.every((field) => {
+      const required = field?.required === true
+        || (field?.requiredWhen
+          && spellTargetContextConditionMatches(values || {}, field.requiredWhen));
+      return !required || hasSessionValue(values?.[field.id], field);
+    });
   });
 }
 
@@ -2190,7 +2240,9 @@ function validationFor(contract, session, placement) {
   if (postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");
   }
-  if (inputs.targets?.required && session.targetIds.length < 1) {
+  if (inputs.targets?.required
+    && session.targetIds.length < 1
+    && !placedDamageCastMayHaveNoTargets(contract)) {
     add("targets", "targets-required");
   }
   const targetingCapacity = applyTargetingLimitState(
@@ -2238,6 +2290,7 @@ function validationFor(contract, session, placement) {
   if (inputs.damage?.required
     && !preparedHailMiss
     && !initialZoneResolutionMayHaveNoTargets(contract, session.targetIds)
+    && !emptyPlacedDamageCast(contract, session.targetIds)
     && !hasSessionValue(session.hpValues.damage)) {
     add("damage", "damage-required");
   }
@@ -2271,7 +2324,8 @@ function visibleControlsFor(contract, session, placement) {
   if (placement.available) controls.add("placement");
   addInputControl("targetContext", "target-context");
   addInputControl("outcomes", "save-outcomes");
-  addInputControl("damage");
+  if (emptyPlacedDamageCast(contract, session.targetIds)) controls.delete("damage");
+  else addInputControl("damage");
   addInputControl("primaryDamage");
   addInputControl("healing");
   if (contract.presentation.capabilities?.manualSpellEffect?.available) {

@@ -443,6 +443,39 @@ export function buildLineSideBandArea(
   widthAnchor = "center",
   options = {},
 ) {
+  const requestedSide = String(
+    options?.bandSide || options?.side || "left",
+  ).trim().toLowerCase();
+  if (requestedSide === "both") {
+    const left = buildLineSideBandArea(
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      widthSquares,
+      widthAnchor,
+      { ...options, bandSide: "left" },
+    );
+    const right = buildLineSideBandArea(
+      start,
+      end,
+      dpi,
+      gridOrigin,
+      widthSquares,
+      widthAnchor,
+      { ...options, bandSide: "right" },
+    );
+    const cellsByKey = new Map();
+    for (const cell of [...left.cells, ...right.cells]) {
+      cellsByKey.set(`${cell.column}:${cell.row}`, cell);
+    }
+    return {
+      ...left,
+      bandSide: "both",
+      cells: [...cellsByKey.values()],
+      points: [...left.points, ...right.points],
+    };
+  }
   const body = buildLineArea(
     start,
     end,

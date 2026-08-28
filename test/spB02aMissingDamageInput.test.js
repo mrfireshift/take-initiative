@@ -112,7 +112,7 @@ test("SP-B02A: Rombo di Tuono possiede initialHP: true e successfulSaveDamage: '
 // SP-B02A CONTRACT TESTS: UNIFIED PANEL VIEW (DAMAGE INPUT VISIBILITY)
 // ============================================================================
 
-test("SP-B02A: Tutte e quattro le spell espongono il campo danno visibile e richiesto", () => {
+test("SP-B02A: Le quattro spell richiedono il danno solo quando hanno bersagli", () => {
   const spells = [
     "xanathar-sciame-di-palle-di-neve-di-snilloc",
     "xanathar-vampa-di-aganazzar",
@@ -126,9 +126,16 @@ test("SP-B02A: Tutte e quattro le spell espongono il campo danno visibile e rich
     assert.equal(currentContract.presentation.inputs.damage?.required, true, `${spellId} inputs.damage.required`);
     assert.equal(currentContract.execution.hasHP, true, `${spellId} execution.hasHP`);
 
-    const view = modelFor(spellId);
-    assert.equal(view.effects.visible, true, `${spellId} view.effects.visible`);
-    const damageField = view.effects.fields.find((f) => f.id === "damage");
+    const emptyView = modelFor(spellId);
+    assert.equal(emptyView.effects.visible, false, `${spellId} empty view.effects.visible`);
+    assert.equal(emptyView.effects.fields.some((f) => f.id === "damage"), false);
+
+    const targetedView = modelFor(spellId, {
+      targetIds: ["target-failed"],
+      outcomes: { "target-failed": "failed" },
+    });
+    assert.equal(targetedView.effects.visible, true, `${spellId} targeted view.effects.visible`);
+    const damageField = targetedView.effects.fields.find((f) => f.id === "damage");
     assert.ok(damageField, `${spellId} must have damage field in effects.fields`);
     assert.equal(damageField.type, "number");
     assert.equal(damageField.label, "Danno");

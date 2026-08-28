@@ -11,6 +11,7 @@ const ITALIAN_OVERRIDES = Object.freeze({
   "arcane-sword": "Spada arcana",
   "arcanists-magic-aura": "Aura magica dell'arcanista",
   "black-tentacles": "Tentacoli neri",
+  "branding-smite": "Punizione Marchiante",
   "faithful-hound": "Segugio fedele",
   "floating-disk": "Disco fluttuante",
   "freezing-sphere": "Sfera congelante",

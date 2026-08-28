@@ -300,3 +300,64 @@ test("Investitura della Fiamma propone 1d10 fuoco all'ingresso e a fine turno", 
   assert.equal(turnEnd.newActivations[0].event, "turn-end");
   assert.equal(turnEnd.newActivations[0].damage.dice, "1d10");
 });
+
+test("Aura di Vita usa il trigger shared di inizio turno come reminder manuale", () => {
+  const lifeAura = {
+    instanceId: "life-1",
+    spellId: "phb2014-aura-di-vita",
+    spellName: "Aura di Vita",
+    casterId: "caster",
+    rule: getSpellAreaRuleById("phb2014-aura-di-vita:cast"),
+  };
+  const initialized = planMobileAuraReminder({
+    aura: lifeAura,
+    desiredTargetIds: ["caster", "target"],
+    initiativeState: {
+      order: ["caster", "target"],
+      current: 0,
+      round: 1,
+    },
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 1,
+  });
+  const turnStart = planMobileAuraReminder({
+    aura: lifeAura,
+    auraItem: {
+      id: "life-aura-item",
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: lifeAura.instanceId,
+          triggerRuntime: initialized.runtime,
+        },
+      },
+    },
+    desiredTargetIds: ["caster", "target"],
+    initiativeState: {
+      order: ["caster", "target"],
+      current: 1,
+      round: 1,
+    },
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 2,
+  });
+
+  assert.equal(turnStart.newActivations.length, 1);
+  assert.equal(turnStart.newActivations[0].event, "turn-start");
+  assert.equal(turnStart.newActivations[0].resolution, "manual-heal");
+  assert.deepEqual(turnStart.newActivations[0].targetIds, ["target"]);
+  assert.deepEqual(turnStart.newActivations[0].resolutionData, {
+    requiresLiving: true,
+    requiresHpZero: true,
+    requiresNonHostile: true,
+    healing: { dice: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+  });
+  assert.equal(turnStart.notices.length, 1);
+  assert.equal(turnStart.notices[0].resolution.mode, "manual-heal");
+  assert.deepEqual(turnStart.notices[0].resolution.healing, {
+    dice: "1",
+    baseSlot: 0,
+    additionalPerSlotAbove: 0,
+  });
+});

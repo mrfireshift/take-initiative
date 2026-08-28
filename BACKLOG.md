@@ -30,6 +30,14 @@ Il riferimento generale è [Indice della documentazione](docs/INDICE.md).
 - Azioni rapide persistenti nelle schede iniziativa.
 - Automazioni dei principali incantesimi da combattimento elencati nella
   documentazione corrente.
+- Guscio Anti-vita: PASS con spell instance, concentrazione, durata, aura mobile
+  di 3 m, confine visuale e cleanup shared; crossing e collisione restano manuali.
+- Palla di Fuoco Ritardata: PASS/PARTIAL-CLOSED con perla persistente, accumulo
+  fino a +10d6, detonazione terminale su ogni uscita dalla concentrazione,
+  risoluzione area, History/Undo e interazioni manuali al tavolo.
+- Muro di Vento: PASS/PARTIAL-ACCEPTED con placement lineare, TS Forza e danno
+  iniziale, zona statica, concentrazione e cleanup shared; proiettili, crossing
+  e vincoli passivi restano manuali accettati.
 
 ## Capacità di classe
 
@@ -51,4 +59,4 @@ come capacità attivabile. Il dettaglio dello snapshot è in
 - Revisione completa di Controllare Acqua: distinguere la massa controllata di 30 m dalla sottozona del Vortice di raggio 7,5 m; modellare trascinamento di 3 m, ingresso nel vortice, prova di Atletica per nuotare o liberarsi, onda ricorrente di Inondazione e geometrie specifiche delle quattro modalità.
 - Esplorare una meccanica generale di sottozone figlie per incantesimi con più geometrie, iniziando dalle Fenditure di Terremoto: posizionamento di più aree collegate alla stessa istanza, vincoli entro la zona madre, membership e trigger indipendenti, deduplicazione nelle sovrapposizioni, Undo e pulizia atomica al termine della spell.
 - Completare Muro di Fuoco: rappresentare il lato caldo, il margine di 3 m e l'attraversamento reale anche quando un token passa da un lato all'altro senza fermarsi nel muro; includere inoltre l'aumento dei danni per slot superiori.
-- Pass finale sulle zone da combattimento ancora prive di automazione completa: Muro Prismatico (strati e attraversamento), Invertire la Gravità (ingresso e caduta alla fine), Tempesta di Vendetta (progressione per round), Muro di Vento (attraversamento e vincoli ai proiettili), Turbine, Tramutare Roccia, Guscio Antivita e le aure di Vita/Vitalità. Restano esclusi evocazioni, utilità non da combattimento e tempi di lancio di almeno 1 minuto.
+- Pass finale sulle zone da combattimento ancora prive di automazione completa: Muro Prismatico (strati e attraversamento), Invertire la Gravità (ingresso e caduta alla fine), Tempesta di Vendetta (progressione per round), Turbine, Tramutare Roccia e le aure di Vita/Vitalità. Restano esclusi evocazioni, utilità non da combattimento e tempi di lancio di almeno 1 minuto.

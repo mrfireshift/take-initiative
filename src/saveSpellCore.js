@@ -1,6 +1,10 @@
 import { resolveSpellSaveTargeting } from "./spellSaveTargetingCore.js";
 import { getSpellSaveWorkflowChoiceAutomation } from "./spellSaveWorkflowRules.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
+import {
+  PRISMATIC_SPRAY_SPELL_ID,
+  prismaticSprayResolutionPlan,
+} from "./prismaticSprayRules.js";
 
 export const SAVE_SPELL_OUTCOMES = Object.freeze({
   PASSED: "passed",
@@ -351,6 +355,17 @@ export function resolveSaveSpellResolution({
     }
   }
 
+  const prismaticSpray = spellId === PRISMATIC_SPRAY_SPELL_ID
+    ? prismaticSprayResolutionPlan({
+      targetIds: targets,
+      outcomes: effectiveOutcomes,
+      targetContexts: targeting?.targetContext?.contextByTarget || targetContexts,
+    })
+    : null;
+  if (prismaticSpray) {
+    conditionApplications.push(...clone(prismaticSpray.conditionApplications));
+  }
+
   const spellTargetIds = uniqueIds([
     ...normalizedAutomation.trackOutcomes.flatMap(
       (outcome) => idsByOutcome[outcome] || [],
@@ -367,6 +382,9 @@ export function resolveSaveSpellResolution({
       if (!errors.includes(error)) errors.push(error);
     }
   }
+  for (const error of prismaticSpray?.errors || []) {
+    if (!errors.includes(error.code)) errors.push(error.code);
+  }
 
   return {
     valid: errors.length === 0,
@@ -379,6 +397,7 @@ export function resolveSaveSpellResolution({
     ...partitions,
     spellTargetIds,
     conditionApplications,
+    ...(prismaticSpray ? { prismaticSpray: clone(prismaticSpray) } : {}),
     trackOutcomes: [...normalizedAutomation.trackOutcomes],
     ...(saveWorkflowRule?.persistence && typeof saveWorkflowRule.persistence === "object"
       ? { persistence: clone(saveWorkflowRule.persistence) }

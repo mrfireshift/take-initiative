@@ -87,6 +87,41 @@ test("Palla di fuoco valida con placement ed esiti completi", () => {
   assert.equal(command.execution.requiresCompositeUndo, true);
 });
 
+test("Palla di fuoco accetta un placement vuoto senza richiedere il danno", () => {
+  const command = buildSpellAreaResolutionCommand(fireballInput({
+    placement: placement({
+      spellId: "fireball",
+      ruleId: "fireball:cast",
+      targetIds: [],
+    }),
+    outcomes: {},
+    hpAmount: null,
+  }));
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.deepEqual(command.targeting.targetIds, []);
+  assert.equal(command.targeting.allowEmptyTargets, true);
+  assert.equal(command.hp.required, false);
+  assert.equal(command.hp.mode, "none");
+  assert.equal(command.hp.amount, null);
+});
+
+test("Palla di fuoco senza bersagli ignora un valore danno rimasto in sessione", () => {
+  const command = buildSpellAreaResolutionCommand(fireballInput({
+    placement: placement({
+      spellId: "fireball",
+      ruleId: "fireball:cast",
+      targetIds: [],
+    }),
+    outcomes: {},
+  }));
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.equal(command.hp.required, false);
+  assert.equal(command.hp.mode, "none");
+  assert.equal(command.hp.amount, null);
+});
+
 test("Palla di fuoco invalida senza placement", () => {
   const command = buildSpellAreaResolutionCommand(fireballInput({ placement: null }));
 
@@ -318,6 +353,46 @@ test("Muro di Fuoco conserva TS e danno iniziali quando la sagoma contiene bersa
   assert.deepEqual(command.targeting.targetIds, ["target-a"]);
   assert.equal(command.hp.required, true);
   assert.equal(command.hp.amount, 20);
+});
+
+test("Muro di Vento crea la zona di danno anche senza bersagli iniziali", () => {
+  const contractValue = contract("wind-wall");
+  const command = buildSpellAreaResolutionCommand({
+    contract: contractValue,
+    casterId,
+    slotLevel: 3,
+    placement: placement({
+      spellId: "wind-wall",
+      ruleId: "wind-wall:cast",
+      targetIds: [],
+    }),
+  });
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.deepEqual(command.targeting.targetIds, []);
+  assert.equal(command.targeting.allowEmptyTargets, true);
+  assert.equal(command.hp.required, false);
+  assert.equal(command.hp.mode, "none");
+  assert.equal(command.execution.hasZones, true);
+});
+
+test("Nube Mortale conserva il placement anche quando l'area è vuota", () => {
+  const command = buildSpellAreaResolutionCommand({
+    contract: contract("cloudkill"),
+    casterId,
+    slotLevel: 5,
+    placement: placement({
+      spellId: "cloudkill",
+      ruleId: "cloudkill:cast",
+      targetIds: [],
+    }),
+  });
+
+  assert.equal(command.valid, true, command.errors?.join(", "));
+  assert.deepEqual(command.targeting.targetIds, []);
+  assert.equal(command.targeting.allowEmptyTargets, true);
+  assert.equal(command.hp.mode, "none");
+  assert.equal(command.execution.hasZones, true);
 });
 
 test("Sfera della Tempesta senza placement confermato è invalida", () => {

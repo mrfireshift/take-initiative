@@ -7,6 +7,11 @@ export const SPELL_STATIC_ZONE_META_KEY = `${ID}/spellStaticZone`;
 export const SPELL_ZONE_MOVEMENT_CONTROL_FIELD = "movementControl";
 
 const normalizedId = (value) => String(value || "").trim();
+const clone = (value) => {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+};
 const normalizedIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
     .map(normalizedId)
@@ -129,6 +134,7 @@ export function staticSpellZoneMetadata({
   parentId = "",
   ruleChoice = "",
   targetIds = [],
+  exemptCreatureIds = [],
   followCaster = false,
   casterOrigin = null,
   zoneOrigin = null,
@@ -147,6 +153,8 @@ export function staticSpellZoneMetadata({
   if (normalizedRuleChoice) metadata.ruleChoice = normalizedRuleChoice;
   const scopedTargetIds = normalizedIds(targetIds);
   metadata.targetIds = scopedTargetIds;
+  const scopedExemptCreatureIds = normalizedIds(exemptCreatureIds);
+  if (scopedExemptCreatureIds.length) metadata.exemptCreatureIds = scopedExemptCreatureIds;
   if (followCaster === true) {
     metadata.followCaster = true;
     const normalizedCasterOrigin = point(casterOrigin);
@@ -163,9 +171,11 @@ export function scopedStaticSpellZoneTargetIds({
   targetIds = [],
 } = {}) {
   const candidates = normalizedIds(targetIds);
-  if (rule?.zonePolicy?.targetScope !== "spell-targets") return candidates;
+  const exemptCreatureIds = new Set(normalizedIds(zoneMetadata?.exemptCreatureIds));
+  const withoutExemptions = candidates.filter((targetId) => !exemptCreatureIds.has(targetId));
+  if (rule?.zonePolicy?.targetScope !== "spell-targets") return withoutExemptions;
   const spellTargets = new Set(normalizedIds(zoneMetadata?.targetIds));
-  return candidates.filter((targetId) => spellTargets.has(targetId));
+  return withoutExemptions.filter((targetId) => spellTargets.has(targetId));
 }
 
 export function isStaticSpellZoneRule(rule) {
@@ -183,6 +193,8 @@ export function staticSpellZoneOwnerOperation({
   trackConcentration = false,
   ruleChoice = "",
   slotLevel = null,
+  summaryParts = null,
+  castContext = null,
 } = {}) {
   const normalizedInstanceId = normalizedId(instanceId);
   const normalizedCasterId = normalizedId(casterId);
@@ -226,7 +238,13 @@ export function staticSpellZoneOwnerOperation({
       ...(normalizedId(ruleChoice)
         ? { choice: normalizedId(ruleChoice) }
         : {}),
+      ...(castContext && typeof castContext === "object"
+        ? clone(castContext)
+        : {}),
     },
+    ...(Array.isArray(summaryParts) && summaryParts.length
+      ? { summaryParts: summaryParts.map((part) => ({ ...part })) }
+      : {}),
     replaceNames: [name],
   };
 }

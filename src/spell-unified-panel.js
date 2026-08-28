@@ -66,6 +66,7 @@ import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import { openTrackedPopover } from "./popoverDragHost.js";
 import { openReferencePopover } from "./referencePopover.js";
 import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
+import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
 import {
   isSpellUnifiedPopupEvent,
   SPELL_UNIFIED_PANEL_POPUP_CHANNEL,
@@ -187,6 +188,8 @@ const AREA_FEEDBACK_MESSAGES = Object.freeze({
   "scene-epoch-mismatch": "La scena è cambiata: ripeti la risoluzione.",
   "target-missing": "Un bersaglio non è più presente nella scena.",
   "spatial-validation-failed": "La validazione spaziale non è riuscita.",
+  "placement-geometry-missing": "La geometria del muro non è più disponibile: ripeti il posizionamento.",
+  "prismatic-wall-placement-occupied": "Muro Prismatico: il posizionamento attraversa lo spazio di una creatura.",
   "primary-out-of-range": "Il bersaglio primario supera la portata.",
   "secondary-out-of-range": "Un bersaglio secondario supera il raggio dal primario.",
   "pairwise-distance-exceeded": "La distanza tra alcuni bersagli non è valida.",
@@ -425,6 +428,48 @@ export function bootSpellUnifiedPanel(
       height: request.height,
       anchorReference: "POSITION",
       anchorPosition: await activePopoverAnchor(payload?.casterId),
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+      disableClickAway: true,
+      marginThreshold: 8,
+      hidePaper: true,
+    });
+  };
+
+  const openDelayedBlastFireballResolution = async (overview, pendingTermination) => {
+    const context = overview?.context || overview || {};
+    const instanceId = String(overview?.instanceId || context.instanceId || "").trim();
+    const casterId = String(context.casterId || "").trim();
+    if (!instanceId || !casterId) throw new Error("delayed-blast-fireball-terminal-context-required");
+    const actionId = `${DELAYED_BLAST_FIREBALL_ID}:detonate`;
+    const popoverId = spellActiveResolutionPopoverId(instanceId, actionId);
+    const payload = {
+      type: `${ID}/delayed-blast-fireball-terminal-resolution`,
+      version: 1,
+      spellId: DELAYED_BLAST_FIREBALL_ID,
+      spellName: context.name || overview?.name || "Palla di fuoco ritardata",
+      instanceId,
+      casterId,
+      casterName: context.casterName || overview?.casterName || "",
+      castContext: context.castContext || {},
+      pendingTermination: pendingTermination?.pendingTermination
+        || pendingTermination
+        || context.pendingTermination
+        || null,
+      sceneEpoch: currentSceneEpoch(),
+      actionId,
+      popoverId,
+    };
+    if (typeof runtimeOverrides.openDelayedBlastFireballResolution === "function") {
+      return runtimeOverrides.openDelayedBlastFireballResolution(payload);
+    }
+    await openTrackedPopover({
+      id: popoverId,
+      url: `/delayed-blast-fireball-resolution.html?payload=${encodeURIComponent(JSON.stringify(payload))}`,
+      width: 360,
+      height: 240,
+      anchorReference: "POSITION",
+      anchorPosition: await activePopoverAnchor(casterId),
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
       transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       disableClickAway: true,
@@ -717,7 +762,15 @@ export function bootSpellUnifiedPanel(
         ? (Array.isArray(selectedOverview.actions) ? selectedOverview.actions : [])
           .find((entry) => String(entry?.id || "").trim() === selectedActiveActionId)
         : null;
-      if (!selectedOverview || (selectedActiveActionId && !selectedAction)) {
+      // A terminal-resolution popup is intentionally not declared as a normal
+      // active action: it is a lifecycle affordance created only after the
+      // termination request is pending.  Keep that selection alive across the
+      // scene refresh triggered by the pending mutation so the popup result
+      // can still be arbitrated by this panel.
+      const selectedTerminalAction = selectedActiveActionId
+        === `${DELAYED_BLAST_FIREBALL_ID}:detonate`
+        && selectedOverview?.context?.terminalResolution;
+      if (!selectedOverview || (selectedActiveActionId && !selectedAction && !selectedTerminalAction)) {
         state.session = updateSpellPanelSession(state.session, {
           activeInstanceId: "",
           activeActionId: "",
@@ -1621,19 +1674,63 @@ export function bootSpellUnifiedPanel(
       requireMutation(mutation);
       mutationApplied = true;
       closeActivePopover();
-      if (instanceId) {
+      const pendingEvent = mutation?.pendingTerminations?.[0]
+        || mutation?.pendingTermination
+        || null;
+      const pendingTermination = pendingEvent?.pendingTermination || pendingEvent;
+      if (pendingTermination) {
+        state.session = updateSpellPanelSession(state.session, {
+          ...(context.terminalResolution ? {
+            activeInstanceId: instanceId,
+            activeActionId: `${DELAYED_BLAST_FIREBALL_ID}:detonate`,
+            activeActionState: {
+              state: "opened",
+              instanceId,
+              actionId: `${DELAYED_BLAST_FIREBALL_ID}:detonate`,
+            },
+          } : {}),
+          feedback: {
+            state: "info",
+            message: `Risoluzione terminale pronta per ${overview.name}.`,
+          },
+        });
+        if (context.terminalResolution) {
+          activePopupOperation = operation;
+          try {
+            await openDelayedBlastFireballResolution(overview, pendingTermination);
+          } catch (error) {
+            activePopupOperation = null;
+            state.session = updateSpellPanelSession(state.session, {
+              activeActionState: {
+                state: "selected",
+                instanceId,
+                actionId: `${DELAYED_BLAST_FIREBALL_ID}:detonate`,
+                error: error?.message || "Popup detonazione non disponibile.",
+              },
+              feedback: {
+                state: "error",
+                message: error?.message || "Popup detonazione non disponibile.",
+              },
+            });
+          }
+        }
+      } else if (instanceId) {
         state.activeOverview = state.activeOverview.filter((entry) => (
           String(entry?.instanceId || entry?.context?.instanceId || "").trim() !== instanceId
         ));
+        state.session = updateSpellPanelSession(state.session, {
+          ...(selectedActiveInstance ? {
+            activeInstanceId: "",
+            activeActionId: "",
+            activeActionState: null,
+          } : {}),
+          feedback: { state: "success", message: `${overview.name} terminato.` },
+        });
+      } else {
+        state.session = updateSpellPanelSession(state.session, {
+          feedback: { state: "success", message: `${overview.name} terminato.` },
+        });
       }
-      state.session = updateSpellPanelSession(state.session, {
-        ...(selectedActiveInstance ? {
-          activeInstanceId: "",
-          activeActionId: "",
-          activeActionState: null,
-        } : {}),
-        feedback: { state: "success", message: `${overview.name} terminato.` },
-      });
     } catch (error) {
       if (!sceneLifecycle.isCurrent(operation)) return;
       state.session = updateSpellPanelSession(state.session, {
@@ -2279,6 +2376,34 @@ export function bootSpellUnifiedPanel(
               ...counts,
               [sizeId]: Math.max(0, Math.floor(Number(value) || 0)),
             },
+          },
+        },
+      });
+    },
+    onExemptionToggle: (creatureId, checked) => {
+      if (state.contract?.spell?.id !== "prismatic-wall") return;
+      const currentCastContext = state.session.castContext
+        && typeof state.session.castContext === "object"
+        ? state.session.castContext
+        : {};
+      const currentWallState = currentCastContext.prismaticWall
+        && typeof currentCastContext.prismaticWall === "object"
+        ? currentCastContext.prismaticWall
+        : {};
+      const next = new Set(uniqueSceneIds([
+        ...uniqueSceneIds(currentCastContext.exemptCreatureIds),
+        ...uniqueSceneIds(currentWallState.exemptCreatureIds),
+      ]));
+      const normalizedId = String(creatureId || "").trim();
+      if (checked && normalizedId) next.add(normalizedId);
+      else next.delete(normalizedId);
+      const nextExemptions = [...next].filter(Boolean);
+      patchSession({
+        castContext: {
+          exemptCreatureIds: nextExemptions,
+          prismaticWall: {
+            ...currentWallState,
+            exemptCreatureIds: nextExemptions,
           },
         },
       });

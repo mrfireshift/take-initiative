@@ -131,11 +131,13 @@ function syntheticPlacement(contract, targetIds, castContext = {}) {
 function completeSession(contract, overrides = {}) {
   const inputs = contract.presentation.inputs || {};
   const targetIds = overrides.targetIds || targetIdsFor(contract);
-  const contextFields = contract.presentation.targeting?.workflow?.context?.fields || [];
+  const contextFields = contract.presentation.targeting?.workflow?.context?.fields
+    || contract.presentation.targeting?.context?.fields
+    || [];
   const targetContext = Object.fromEntries(targetIds.map((targetId) => [
     targetId,
     Object.fromEntries(contextFields
-      .filter((field) => field.required === true)
+      .filter((field) => field.required === true || field.requiredWhen)
       .map((field) => [field.id, validContextValue(field)])),
   ]));
   const attack = contract.presentation.outcomes?.mode === "attack";

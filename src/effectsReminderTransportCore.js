@@ -26,6 +26,9 @@ export function compactBackgroundReminderTransportResult(result) {
   const changes = Array.isArray(plan.changes)
     ? plan.changes
     : (Array.isArray(result.changes) ? result.changes : []);
+  const pendingTerminations = Array.isArray(plan.pendingTerminations)
+    ? plan.pendingTerminations
+    : (Array.isArray(result.pendingTerminations) ? result.pendingTerminations : []);
 
   return {
     status: result.status,
@@ -41,7 +44,9 @@ export function compactBackgroundReminderTransportResult(result) {
     plan: {
       changedIds: clone(changedIds),
       changes: clone(changes),
+      ...(pendingTerminations.length ? { pendingTerminations: clone(pendingTerminations) } : {}),
     },
+    ...(pendingTerminations.length ? { pendingTerminations: clone(pendingTerminations) } : {}),
     historyPending: result.historyPending === true,
     historyRecovered: result.historyRecovered === true,
     historySkipped: result.historySkipped === true,

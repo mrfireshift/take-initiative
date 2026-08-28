@@ -16,9 +16,13 @@ import {
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import {
+  prismaticWallCastContext,
+} from "./prismaticWallRules.js";
+import {
   getAreaSaveAutomation,
   getSpellAttackResolution,
   getSpellDefinition,
+  getSpellSummaryParts,
 } from "./spells-srd.js";
 import {
   AREA_HEALING_SPELL_ID_SET,
@@ -96,6 +100,7 @@ import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { emitFireballVisual } from "./fireballVisualRenderer.js";
 import { emitMatchedSpellVisual } from "./embersMatchedVisualRenderer.js";
 import { isMatchedSpellVisualSpell } from "./embersMatchedVisualCore.js";
+import { PRISMATIC_SPRAY_SPELL_ID } from "./prismaticSprayRules.js";
 import {
   consumeSpellZoneTrigger,
   pendingSpellZoneTriggerActivations,
@@ -103,6 +108,13 @@ import {
 import {
   SPELL_AREA_RESOLUTION_COMMAND_TYPE,
 } from "./spellAreaResolutionCommandCore.js";
+import {
+  DELAYED_BLAST_FIREBALL_ID,
+  delayedBlastFireballCastContext,
+  delayedBlastFireballSummaryParts,
+  isDelayedBlastFireball,
+} from "./delayedBlastFireballRules.js";
+import { buildTerminationResumeOperation } from "./spellTerminationGatewayCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -258,7 +270,48 @@ function casterHealingEntryFromAppliedDamage({ entries = [], caster = null, rati
   return change.changed ? { item: caster, change, outcome: "healing" } : null;
 }
 
-function hpEntries({ command, items, spell }) {
+function prismaticSprayHPEntries(items, prismaticSprayPlan) {
+  const contributionsByTarget = new Map();
+  for (const contribution of prismaticSprayPlan?.damageContributions || []) {
+    const targetId = text(contribution?.targetId);
+    if (!targetId) continue;
+    const entries = contributionsByTarget.get(targetId) || [];
+    entries.push(clone(contribution));
+    contributionsByTarget.set(targetId, entries);
+  }
+  return (Array.isArray(items) ? items : [])
+    .filter(trackedHP)
+    .map((item) => {
+      const contributions = contributionsByTarget.get(text(item.id)) || [];
+      if (!contributions.length) return null;
+      const value = contributions.reduce(
+        (total, contribution) => total + Math.max(0, Math.floor(Number(contribution.amount) || 0)),
+        0,
+      );
+      const change = calculateQuickHPChange({
+        mode: QUICK_HP_MODES.DAMAGE,
+        value,
+        factor: QUICK_HP_FACTORS.FULL,
+        hp: itemMeta(item).hp,
+        hpMax: itemMeta(item).hpMax,
+      });
+      return {
+        item,
+        outcome: prismaticSprayPlan.targetPlans
+          ?.find((target) => target.targetId === item.id)?.outcome || "",
+        change: {
+          ...change,
+          prismaticContributions: contributions,
+        },
+      };
+    })
+    .filter((entry) => entry?.change?.changed);
+}
+
+function hpEntries({ command, items, spell, prismaticSprayPlan = null }) {
+  if (spell?.id === PRISMATIC_SPRAY_SPELL_ID && prismaticSprayPlan) {
+    return prismaticSprayHPEntries(items, prismaticSprayPlan);
+  }
   const hp = command?.hp || {};
   if (![QUICK_HP_MODES.DAMAGE, QUICK_HP_MODES.HEAL].includes(hp.mode)) return [];
   const amount = Math.max(0, Math.floor(Number(hp.amount) || 0));
@@ -326,9 +379,43 @@ function hpEntries({ command, items, spell }) {
     .filter((entry) => entry.change.changed);
 }
 
-function castContextFor({ spell, resolution, command, mobileAura, boardToken }) {
+function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
   const hasActiveResolution = Array.isArray(spell?.activeActions)
     && spell.activeActions.some((action) => action?.resolutionKind);
+  if (spell?.id === "prismatic-wall" && command?.source?.kind === "cast") {
+    const requested = command?.spell?.castContext && typeof command.spell.castContext === "object"
+      ? command.spell.castContext
+      : {};
+    const shape = String(
+      placement?.ruleChoice
+      || command?.spell?.choiceValue
+      || requested?.prismaticWall?.shape
+      || "wall",
+    ).trim();
+    return prismaticWallCastContext({
+      castContext: requested,
+      shape,
+      ruleChoice: shape,
+      casterId: command?.spell?.casterId || caster?.id,
+      exemptCreatureIds: requested?.prismaticWall?.exemptCreatureIds
+        || requested?.exemptCreatureIds
+        || [],
+    });
+  }
+  if (isDelayedBlastFireball(spell) && command?.source?.kind === "cast") {
+    const previewPosition = placement?.preview?.position
+      || placement?.preview?.origin
+      || placement?.preview?.start
+      || placement?.preview?.gridOrigin;
+    const casterSaveDC = Number(caster?.metadata?.[META_KEY]?.initiativeCard?.spellSaveDC);
+    return delayedBlastFireballCastContext({
+      slotLevel: command?.spell?.slotLevel,
+      position: previewPosition,
+      spellSaveDC: command?.spell?.castContext?.spellSaveDC
+        ?? (Number.isFinite(casterSaveDC) ? casterSaveDC : null),
+      accumulatedDice: command?.spell?.castContext?.delayedBlastFireball?.accumulatedDice,
+    });
+  }
   if (!hasActiveResolution && !mobileAura && !boardToken
     && !resolution?.targeting && !resolution?.choice) return null;
   return {
@@ -400,6 +487,7 @@ function defaultRuntime(overrides = {}) {
     addItems: (items) => OBR.scene.items.addItems(items),
     deleteItems: (ids) => OBR.scene.items.deleteItems(ids),
     getStaticZoneItems: (selector) => getStaticSpellZoneItems(selector),
+    getItemBounds: (ids = []) => OBR.scene.items.getItemBounds(ids),
     getBoardTokenItems: (selector) => getSpellBoardTokenItems(selector),
     targetItems: [],
     buildStaticZoneItems: (options) => buildStaticSpellZoneItems(options),
@@ -532,9 +620,12 @@ async function defaultRestoreZoneTrigger(snapshot, runtime) {
 function placementRuleFor(command, spell) {
   const placementId = text(command?.placement?.ruleId);
   if (placementId) {
+    const placementChoice = text(
+      command?.placement?.ruleChoice || command?.spell?.choiceValue,
+    );
     return getSpellAreaRuleForPlacement(
       placementId,
-      text(command?.spell?.choiceValue),
+      placementChoice,
     ) || getSpellAreaRuleById(placementId);
   }
   const triggerId = text(command?.execution?.zoneTrigger?.ruleId);
@@ -542,6 +633,18 @@ function placementRuleFor(command, spell) {
   return getSpellAreaRules(spell?.id, { triggerType: "cast" })
     .find((rule) => rule.kind === "aura" || rule.kind === "zone" || rule.kind === "board-token")
     || null;
+}
+
+function auraMembershipOwnsCasterEffects(rule) {
+  const targeting = rule?.zonePolicy?.membershipTargeting
+    || rule?.targeting
+    || {};
+  const effectPolicy = rule?.effectPolicy || {};
+  const hasMembershipEffects = !!effectPolicy.effect
+    || (Array.isArray(effectPolicy.effects) && effectPolicy.effects.length > 0);
+  return effectPolicy.mode === "while-inside"
+    && targeting.includeCaster === true
+    && hasMembershipEffects;
 }
 
 function appliedTargetIds(command, placement) {
@@ -583,18 +686,33 @@ async function buildPlan(command, runtime) {
       || null
     : null;
   const placement = command?.placement || null;
+  const placementRuleChoice = text(
+    placement?.ruleChoice || command?.spell?.choiceValue,
+  );
   const placementRule = placementRuleFor(command, spell);
   const zoneTriggerResolution = command?.source?.kind === "zone-trigger";
   const mobileAura = !zoneTriggerResolution && placementRule?.kind === "aura";
+  const mobileAuraMembershipOwnsCasterEffects = mobileAura
+    && auraMembershipOwnsCasterEffects(placementRule);
   const boardToken = !zoneTriggerResolution && placementRule?.kind === "board-token";
   const cloudPending = spell.id === "call-lightning"
     && text(placement?.ruleId) === "call-lightning:cast";
+  const terminalResolutionRequest = command?.source?.kind === "terminal-resolution";
   const staticZonePlacement = !zoneTriggerResolution
+    && !terminalResolutionRequest
     && placementRule?.kind === "zone"
     && placement?.status === "confirmed";
+  const delayedBlastFireballCast = isDelayedBlastFireball(spell)
+    && command?.source?.kind === "cast"
+    && text(command?.spell?.phase) === "cast";
   const targetScopedStaticZone = staticZonePlacement
     && placementRule?.zonePolicy?.targetScope === "spell-targets";
-  const allowEmptyTargets = staticZonePlacement || mobileAura || boardToken || cloudPending || isTeleportSpell(spell.id);
+  const allowEmptyTargets = command?.targeting?.allowEmptyTargets === true
+    || staticZonePlacement
+    || mobileAura
+    || boardToken
+    || cloudPending
+    || isTeleportSpell(spell.id);
   const targetContexts = command?.targeting?.targetContexts || {};
   const outcomeEntries = Object.entries(command?.outcomes?.byTarget || {});
   const outcomes = new Map(outcomeEntries);
@@ -637,7 +755,32 @@ async function buildPlan(command, runtime) {
       errors: errorList(validation.errors, "spatial-validation-failed"),
     };
   }
-  const resolution = attackResolution
+  const resolution = terminalResolutionRequest
+    ? {
+      valid: true,
+      errors: [],
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      concentration: false,
+      casterId,
+      targetIds,
+      spellTargetIds: [],
+      conditionApplications: [],
+    }
+    : delayedBlastFireballCast
+    ? {
+      valid: true,
+      errors: [],
+      spellId: spell.id,
+      spellName: spell.displayName || spell.name,
+      concentration: spell.concentration === true,
+      casterId,
+      targetIds: [],
+      spellTargetIds: casterId ? [casterId] : [],
+      persistence: { owner: "caster" },
+      conditionApplications: [],
+    }
+    : attackResolution
     ? {
       valid: true,
       errors: [],
@@ -708,6 +851,23 @@ async function buildPlan(command, runtime) {
     await runtime.getInitiativeActorId(),
   );
   const activeConcentration = activeConcentrationForSpell(caster, spell);
+  if (terminalResolutionRequest) {
+    const parentInstanceId = text(command?.source?.parentInstanceId);
+    const requestId = text(command?.source?.requestId);
+    const pending = activeConcentration?.pendingTermination;
+    if (!parentInstanceId || !requestId
+      || text(activeConcentration?.instanceId) !== parentInstanceId
+      || text(pending?.instanceId) !== parentInstanceId
+      || text(pending?.requestId) !== requestId) {
+      return {
+        valid: false,
+        errors: [{
+          code: "terminal-resolution-stale",
+          message: "La risoluzione terminale non è più attiva per questa istanza.",
+        }],
+      };
+    }
+  }
   if (command?.source?.kind === "prepared-resolution") {
     const parentInstanceId = text(command.source.parentInstanceId);
     if (!parentInstanceId) {
@@ -758,7 +918,10 @@ async function buildPlan(command, runtime) {
     ...(resolved.conditionApplications || []).flatMap((application) => application.targetIds || []),
   ]);
   let effectOperations = [];
-  if (trigger) {
+  if (terminalResolutionRequest) {
+    spellInstanceId = text(command?.source?.parentInstanceId);
+    concentrationAction = "terminal";
+  } else if (trigger) {
     concentrationAction = "trigger";
     effectOperations = saveSpellTriggerResolutionOperations({
       resolution: resolved,
@@ -797,7 +960,22 @@ async function buildPlan(command, runtime) {
         command,
         mobileAura,
         boardToken,
+        placement,
+        caster,
       }),
+      summaryParts: getSpellSummaryParts(
+        spell,
+        text(command?.spell?.choiceValue),
+        castContextFor({
+          spell,
+          resolution: resolved,
+          command,
+          mobileAura,
+          boardToken,
+          placement,
+          caster,
+        }) || { slotLevel: command?.spell?.slotLevel },
+      ),
     });
     const attackEffects = Array.isArray(attackResolution?.effects)
       ? attackResolution.effects
@@ -832,22 +1010,27 @@ async function buildPlan(command, runtime) {
       });
     }
     if (mobileAura && casterId && Array.isArray(spell.effects)) {
-      const personalEffects = spell.effects
-        .filter((effect) => (
-          (effect?.kind === "buff" || effect?.kind === "debuff")
-          && text(effect?.label)
-        ))
-        .map((effect) => ({
-          type: "condition:add",
-          targetIds: [casterId],
-          conditionName: text(effect.label),
-          options: spellEffectConditionOptions(effect, {
-            sourceId: casterId,
-            sourceName: itemName(caster),
-            appliedAt,
-            expiry: spell.concentration ? { mode: "concentration" } : { mode: "manual" },
-          }, spellInstanceId),
-        }));
+      // Se la membership include il caster, il controller dell’aura applica
+      // già l’effetto condiviso sul caster. Gli effetti personali restano
+      // soltanto per le aure che lo escludono dalla membership.
+      const personalEffects = mobileAuraMembershipOwnsCasterEffects
+        ? []
+        : spell.effects
+          .filter((effect) => (
+            (effect?.kind === "buff" || effect?.kind === "debuff")
+            && text(effect?.label)
+          ))
+          .map((effect) => ({
+            type: "condition:add",
+            targetIds: [casterId],
+            conditionName: text(effect.label),
+            options: spellEffectConditionOptions(effect, {
+              sourceId: casterId,
+              sourceName: itemName(caster),
+              appliedAt,
+              expiry: spell.concentration ? { mode: "concentration" } : { mode: "manual" },
+            }, spellInstanceId),
+          }));
       if (personalEffects.length) {
         effectOperations.push(...personalEffects, {
           type: "condition:automate",
@@ -855,6 +1038,15 @@ async function buildPlan(command, runtime) {
         });
       }
     }
+  }
+
+  if (terminalResolutionRequest) {
+    effectOperations.push(buildTerminationResumeOperation({
+      casterId,
+      instanceId: spellInstanceId,
+      requestId: text(command?.source?.requestId),
+    }));
+    effectSubjectIds.push(casterId);
   }
 
   const teleportRule = getSpellTeleportRule(spell.id);
@@ -986,8 +1178,30 @@ async function buildPlan(command, runtime) {
       casterId,
       appliedAt,
       trackConcentration: spell.concentration === true && !hasTrackedSpellInstance,
-      ruleChoice: text(command?.spell?.choiceValue),
+      ruleChoice: placementRuleChoice,
       slotLevel: command?.spell?.slotLevel,
+      castContext: castContextFor({
+        spell,
+        resolution: resolved,
+        command,
+        mobileAura,
+        boardToken,
+        placement,
+        caster,
+      }),
+      summaryParts: getSpellSummaryParts(
+        spell,
+        placementRuleChoice,
+        castContextFor({
+          spell,
+          resolution: resolved,
+          command,
+          mobileAura,
+          boardToken,
+          placement,
+          caster,
+        }) || { slotLevel: command?.spell?.slotLevel },
+      ),
     });
     if (ownerOperation) effectOperations.push(ownerOperation);
     const passiveTargetIds = staticZoneCastMemberIds;
@@ -1003,7 +1217,7 @@ async function buildPlan(command, runtime) {
         instanceId: spellInstanceId,
         sourceId: casterId,
         rule: placementRule,
-        ruleChoice: text(command?.spell?.choiceValue),
+        ruleChoice: placementRuleChoice,
         desiredTargetIds: passiveTargetIds,
         items: membershipItems,
         metaKey: META_KEY,
@@ -1083,7 +1297,9 @@ async function buildPlan(command, runtime) {
       ...(placementRule?.composition ? { batch: true } : {}),
     })),
   ];
-  const previousStaticZoneItems = breaksExistingConcentration
+  const previousStaticZoneItems = terminalResolutionRequest
+    ? await runtime.getStaticZoneItems({ instanceId: spellInstanceId })
+    : breaksExistingConcentration
     ? await runtime.getStaticZoneItems({ casterId })
     : (committedStaticZonePlacement || cloudPlacement)
       ? await runtime.getStaticZoneItems({ instanceId: spellInstanceId })
@@ -1095,8 +1311,17 @@ async function buildPlan(command, runtime) {
       casterId,
       spellName: spell.displayName || spell.name,
       preview: placement.preview,
-      ruleChoice: text(command?.spell?.choiceValue),
+      ruleChoice: placementRuleChoice,
       targetIds: staticZoneCastMemberIds,
+      exemptCreatureIds: castContextFor({
+        spell,
+        resolution: resolved,
+        command,
+        mobileAura,
+        boardToken,
+        placement,
+        caster,
+      })?.prismaticWall?.exemptCreatureIds || [],
       followCaster: placementRule?.zonePolicy?.followCaster === true,
       casterOrigin: caster?.position,
     }) : []),
@@ -1121,7 +1346,12 @@ async function buildPlan(command, runtime) {
       ...(Array.isArray(operation?.subjectIds) ? operation.subjectIds : []),
     ]),
   );
-  const entries = hpEntries({ command, items: liveItems, spell });
+  const entries = hpEntries({
+    command,
+    items: liveItems,
+    spell,
+    prismaticSprayPlan: resolution.prismaticSpray,
+  });
   const casterHealingRatio = Number(getSpellCastResolutionRule(spell.id)?.casterHealingFromAppliedDamage) || 0;
   const casterHealingEntry = casterHealingEntryFromAppliedDamage({
     entries,
@@ -1225,6 +1455,7 @@ async function buildPlan(command, runtime) {
     staticZoneSceneItemIds,
     fireballVisualContext,
     matchedVisualContext,
+    prismaticSprayPlan: resolution.prismaticSpray || null,
     appliedAt,
     hpMode: command?.hp?.mode,
     operationSceneEpoch: runtime.sceneEpoch,
@@ -1293,6 +1524,9 @@ function spellAreaCausality(plan) {
       ...(Number.isFinite(requestedDamage) ? { requestedDamage } : {}),
       ...(Number.isFinite(appliedHpDelta) ? { appliedHpDelta } : {}),
       ...(factor !== undefined ? { damageFactor: factor } : {}),
+      ...(Array.isArray(change?.prismaticContributions)
+        ? { damageContributions: clone(change.prismaticContributions) }
+        : {}),
     };
   });
   const placement = command?.placement || {};
@@ -1411,6 +1645,9 @@ function hpResultChanges(entries) {
       }
       : {}),
     outcome: entry.outcome || null,
+    ...(Array.isArray(entry.change.prismaticContributions)
+      ? { damageContributions: clone(entry.change.prismaticContributions) }
+      : {}),
   }));
 }
 
@@ -1514,7 +1751,9 @@ export async function executeSpellAreaResolution(
   } = plan;
   if (!entries.length && !effectOperations.length
     && !plan.nextStaticZoneItems.length && !plan.requestedZoneTrigger
-    && !spellBoardTokenSideEffects.length) {
+    && !spellBoardTokenSideEffects.length
+    && !plan.fireballVisualContext
+    && !plan.matchedVisualContext) {
     return resultBase(command, RESULT_STATUSES.NOOP, {
       instanceId: plan.spellInstanceId,
       warnings: [],

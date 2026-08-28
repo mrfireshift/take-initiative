@@ -125,6 +125,49 @@ export function renderWorkflowContextBar(documentRef, model, callbacks = {}) {
     }));
   }
   if (grid.childElementCount) section.append(grid);
+  if (context.exemptions?.visible) {
+    const fieldset = createNode(documentRef, "fieldset", {
+      className: "unified-exemption-picker",
+      attributes: { "data-field": "exemptions" },
+    });
+    fieldset.append(createNode(documentRef, "legend", {
+      className: "unified-section__heading",
+      text: context.exemptions.label,
+    }));
+    fieldset.append(createNode(documentRef, "p", {
+      className: "unified-section__description",
+      text: context.exemptions.hint,
+    }));
+    const options = createNode(documentRef, "div", {
+      className: "unified-exemption-picker__options",
+      attributes: { role: "group", "aria-label": context.exemptions.label },
+    });
+    const selectedIds = new Set(context.exemptions.selectedIds || []);
+    for (const option of context.exemptions.options || []) {
+      const checkbox = createNode(documentRef, "input", {
+        id: `spell-unified-exempt-${option.key}`,
+        attributes: {
+          type: "checkbox",
+          value: option.key,
+          "data-exemption-id": option.key,
+        },
+      });
+      checkbox.checked = selectedIds.has(option.key);
+      checkbox.addEventListener("change", (event) => callbacks.onExemptionToggle?.(
+        option.key,
+        event.target.checked,
+      ));
+      options.append(createNode(documentRef, "label", {
+        className: "unified-exemption-picker__option",
+        children: [
+          checkbox,
+          createNode(documentRef, "span", { text: option.label }),
+        ],
+      }));
+    }
+    fieldset.append(options);
+    section.append(fieldset);
+  }
   return section;
 }
 

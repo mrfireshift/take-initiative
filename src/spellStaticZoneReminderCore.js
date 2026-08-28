@@ -6,6 +6,12 @@ import {
 } from "./spellZoneTriggerCore.js";
 import { zoneTriggerNoticesFromActivation } from "./zoneTriggerNoticeCore.js";
 
+const normalizedIds = (values = []) => Array.from(new Set(
+  (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean),
+));
+
 export function planStaticSpellZoneReminder({
   zoneItem = null,
   rule = null,
@@ -29,25 +35,69 @@ export function planStaticSpellZoneReminder({
     zoneMetadata,
     "targetIds",
   );
+  const exemptCreatureIds = new Set(
+    normalizedIds(zoneMetadata.exemptCreatureIds),
+  );
+  const withoutExemptions = (values = []) => normalizedIds(values)
+    .filter((targetId) => !exemptCreatureIds.has(targetId));
+  const scopedDesiredTargetIds = withoutExemptions(desiredTargetIds);
+  const scopedDirectTargetIds = withoutExemptions(directTargetIds);
+  const scopedCurrentTargetIdsByTrigger = Object.fromEntries(
+    Object.entries(currentTargetIdsByTrigger || {}).map(([triggerId, targetIds]) => [
+      triggerId,
+      withoutExemptions(targetIds),
+    ]),
+  );
+  const scopedCrossingTargetIdsByTrigger = Object.fromEntries(
+    Object.entries(crossingTargetIdsByTrigger || {}).map(([triggerId, targetIds]) => [
+      triggerId,
+      withoutExemptions(targetIds),
+    ]),
+  );
+  const suppressionTriggerIds = new Set([
+    ...Object.keys(suppressedTargetIdsByTrigger || {}),
+    ...Object.keys(scopedCurrentTargetIdsByTrigger),
+    ...Object.keys(scopedCrossingTargetIdsByTrigger),
+  ]);
+  const scopedSuppressedTargetIdsByTrigger = Object.fromEntries(
+    [...suppressionTriggerIds].map((triggerId) => [
+      triggerId,
+      normalizedIds([
+        ...(suppressedTargetIdsByTrigger?.[triggerId] || []),
+        ...exemptCreatureIds,
+      ]),
+    ]),
+  );
+  const prismaticWallProximityTriggerIds = new Set(
+    (Array.isArray(rule?.zonePolicy?.triggers) ? rule.zonePolicy.triggers : [])
+      .filter((trigger) => trigger?.targetArea === "proximity")
+      .map((trigger) => String(trigger?.id || "").trim())
+      .filter(Boolean),
+  );
+  const usePrismaticWallProximityBaseline = (
+    String(zoneMetadata.spellId || rule?.spellId || "").trim()
+      === "prismatic-wall"
+    && prismaticWallProximityTriggerIds.size > 0
+  );
   const planningRuntime = previousRuntime.initialized || !hasCastMembershipBaseline
     ? previousRuntime
     : {
       ...previousRuntime,
-      // La membership registrata al cast è la baseline reale della zona.
-      // Se una creatura entra prima del primo reconcile, deve risultare
-      // "entering" invece di essere assorbita dal bootstrap.
+      // Per le zone generiche la membership registrata al cast è la baseline
+      // reale. Muro Prismatico fa eccezione: per i trigger di prossimità la
+      // baseline deve fotografare la hot zone, altrimenti un token già vicino
+      // viene scambiato per un ingresso durante il bootstrap del cast.
       initialized: true,
-      memberIds: Array.isArray(zoneMetadata.targetIds)
-        ? [...zoneMetadata.targetIds]
-        : [],
-      ...(Object.keys(currentTargetIdsByTrigger || {}).length
+      memberIds: withoutExemptions(zoneMetadata.targetIds),
+      ...(Object.keys(scopedCurrentTargetIdsByTrigger).length
         ? {
           memberIdsByTrigger: Object.fromEntries(
-            Object.keys(currentTargetIdsByTrigger).map((triggerId) => [
+            Object.keys(scopedCurrentTargetIdsByTrigger).map((triggerId) => [
               triggerId,
-              Array.isArray(zoneMetadata.targetIds)
-                ? [...zoneMetadata.targetIds]
-                : [],
+              usePrismaticWallProximityBaseline
+                && prismaticWallProximityTriggerIds.has(triggerId)
+                ? scopedCurrentTargetIdsByTrigger[triggerId]
+                : withoutExemptions(zoneMetadata.targetIds),
             ]),
           ),
         }
@@ -60,13 +110,13 @@ export function planStaticSpellZoneReminder({
     rule,
     zoneMetadata,
     runtime: planningRuntime,
-    currentTargetIds: desiredTargetIds,
-    currentDirectTargetIds: directTargetIds,
-    currentTargetIdsByTrigger,
-    crossingTargetIdsByTrigger,
+    currentTargetIds: scopedDesiredTargetIds,
+    currentDirectTargetIds: scopedDirectTargetIds,
+    currentTargetIdsByTrigger: scopedCurrentTargetIdsByTrigger,
+    crossingTargetIdsByTrigger: scopedCrossingTargetIdsByTrigger,
     currentTargetPositions,
     initiativeState,
-    suppressedTargetIdsByTrigger,
+    suppressedTargetIdsByTrigger: scopedSuppressedTargetIdsByTrigger,
     preservePendingActivationIds,
     suppressGeometricActivationTargetIds,
     areaPosition: zoneItem?.position,

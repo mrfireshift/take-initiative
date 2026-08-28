@@ -19,6 +19,7 @@ test("le punizioni espongono solo la preparazione nel pannello Incantesimi", () 
     "Punizione Accecante",
     "Punizione Demoralizzante",
     "Punizione Esiliante",
+    "Punizione Marchiante",
   ]) {
     const spell = getSpellDefinition(name);
     assert.deepEqual(
@@ -55,6 +56,7 @@ test("gli esiti dell'attacco appartengono solo alla risoluzione prepared", () =>
     "Punizione Accecante",
     "Punizione Demoralizzante",
     "Punizione Esiliante",
+    "Punizione Marchiante",
   ]) {
     const spell = getSpellDefinition(name);
     assert.equal(
@@ -113,6 +115,25 @@ test("Freccia Folgorante scala in modo indipendente primary e area", () => {
       .resolution.mechanics;
     assert.equal(mechanics.damageReplacement.dice, primary, `${slotLevel} primary`);
     assert.equal(mechanics.areaDamage.dice, secondary, `${slotLevel} secondary`);
+  }
+});
+
+test("Punizione Marchiante conserva il contract weapon prepared e scala con lo slot", () => {
+  const spell = getSpellDefinition("Punizione Marchiante");
+  const expected = new Map([
+    [2, "2d6"],
+    [3, "3d6"],
+    [5, "5d6"],
+    [9, "9d6"],
+  ]);
+
+  assert.equal(spell.displayName, "Punizione Marchiante");
+  for (const [slotLevel, dice] of expected) {
+    const plan = getSpellCastPhasePlan(spell, "resolve", { slotLevel });
+    assert.equal(plan.attack.restriction, "weapon", `${slotLevel} attack`);
+    assert.equal(plan.concentrationAction, "extend", `${slotLevel} concentration`);
+    assert.equal(plan.resolution.mechanics.damageBonus.dice, dice, `${slotLevel} damage`);
+    assert.equal(plan.resolution.mechanics.damageBonus.type, "radiosi", `${slotLevel} type`);
   }
 });
 

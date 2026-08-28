@@ -148,6 +148,21 @@ test("Invocare il fulmine separa il punto della scarica dalla nube persistente",
   );
 });
 
+test("Raffica di Spine dichiara un cerchio di 1,5 m per il popup active", () => {
+  const rule = getSpellAreaRuleById("phb2014-raffica-di-spine:cast");
+
+  assert.equal(rule.kind, "instant");
+  assert.equal(rule.geometry.shape, "circle");
+  assert.deepEqual(rule.geometry.size, {
+    value: 1.5,
+    unit: "m",
+    measure: "radius",
+  });
+  assert.equal(rule.placement.origin, "point");
+  assert.equal(rule.targeting.includeCaster, true);
+  assert.equal(rule.targeting.confirmTargets, true);
+});
+
 test("Arma Sacra usa un'esplosione mobile di 9 m solo al congedo", () => {
   const rule = getSpellAreaRuleById("xanathar-arma-sacra:burst");
 
@@ -928,7 +943,8 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
     { id: "aura-of-purity-condition-save-advantage", label: "Vant. TS condizioni" },
   ]);
   assert.equal(lifeAura.targeting.confirmTargets, false);
-  assert.equal(lifeAura.targeting.includeCaster, false);
+  assert.equal(lifeAura.targeting.includeCaster, true);
+  assert.equal(lifeAura.targeting.filter, "non-hostile");
   assert.equal(getSpellDefinition("Aura di Vita").targetMode, "self");
   assert.equal(
     lifeAura.effectPolicy.effect.label,
@@ -939,6 +955,26 @@ test("le zone senza TS conservano geometria, ciclo di vita ed effetti di members
     { id: "aura-of-life-hit-point-maximum", label: "Max PF protetto" },
     { id: "aura-of-life-heal-at-zero", label: "+1 PF a 0" },
   ]);
+  assert.deepEqual(lifeAura.effectPolicy.effect.mechanics, {
+    damageResistances: ["necrotic"],
+    hitPointMaximumProtected: true,
+    healingAtTurnStart: {
+      amount: 1,
+      whenAtHp: 0,
+      requiresLiving: true,
+      requiresNonHostile: true,
+    },
+  });
+  assert.deepEqual(
+    lifeAura.triggerPolicy.triggers.map((trigger) => [trigger.event, trigger.resolution]),
+    [["turn-start", "manual-heal"]],
+  );
+  assert.deepEqual(lifeAura.triggerPolicy.triggers[0].resolutionData, {
+    requiresLiving: true,
+    requiresHpZero: true,
+    requiresNonHostile: true,
+    healing: { dice: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+  });
   assert.deepEqual(powerCircle.effectPolicy.effect.summaryParts, [
     { id: "circle-of-power-magic-save-advantage", label: "Vant. TS magia" },
     { id: "circle-of-power-zero-save-damage", label: "TS riuscito: 0 danni" },

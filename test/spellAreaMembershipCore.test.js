@@ -85,40 +85,84 @@ test("l'aura di Investitura della Fiamma include anche gli alleati ma esclude il
   }), ["ally", "enemy"]);
 });
 
-test("le aure self applicano la pill buff agli alleati senza duplicarla sul caster", () => {
+test("Aura di Purezza esclude il caster mentre applica la pill buff all'alleato", () => {
   const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
   const caster = token("caster", { attitude: "pc" });
   const ally = token("ally", { attitude: "ally" });
 
-  for (const spellId of ["phb2014-aura-di-purezza", "phb2014-aura-di-vita"]) {
-    const rule = getSpellAreaRuleById(`${spellId}:cast`);
-    const candidates = [
-      { item: caster, bounds: bounds(0, 0) },
-      { item: ally, bounds: bounds(100, 0) },
-    ];
-    assert.deepEqual(areaMembershipTargetIds({
-      sourceId: "caster",
-      rule,
-      area,
-      metaKey: META,
-      candidates,
-    }), ["ally"], spellId);
+  const rule = getSpellAreaRuleById("phb2014-aura-di-purezza:cast");
+  const candidates = [
+    { item: caster, bounds: bounds(0, 0) },
+    { item: ally, bounds: bounds(100, 0) },
+  ];
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+  }), ["ally"]);
 
-    const additions = areaMembershipPlan({
-      instanceId: `${spellId}-instance`,
-      sourceId: "caster",
-      rule,
-      desiredTargetIds: ["ally"],
-      items: candidates.map(({ item }) => item),
-      metaKey: META,
-    }).operations.filter((operation) => operation.type === "condition:add");
-    assert.deepEqual(additions.map((operation) => operation.targetIds), [["ally"]], spellId);
-    assert.equal(
-      additions[0].conditionName,
-      rule.effectPolicy.effect.label,
-      spellId,
-    );
-  }
+  const additions = areaMembershipPlan({
+    instanceId: "purity-instance",
+    sourceId: "caster",
+    rule,
+    desiredTargetIds: ["ally"],
+    items: candidates.map(({ item }) => item),
+    metaKey: META,
+  }).operations.filter((operation) => operation.type === "condition:add");
+  assert.deepEqual(additions.map((operation) => operation.targetIds), [["ally"]]);
+  assert.equal(additions[0].conditionName, rule.effectPolicy.effect.label);
+});
+
+test("Aura di Vita include caster e alleati, ma esclude i bersagli ostili", () => {
+  const rule = getSpellAreaRuleById("phb2014-aura-di-vita:cast");
+  const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
+  const candidates = [
+    { item: token("caster", { attitude: "pc" }), bounds: bounds(0, 0) },
+    { item: token("ally", { attitude: "ally" }), bounds: bounds(100, 0) },
+    { item: token("enemy", { attitude: "enemy" }), bounds: bounds(200, 0) },
+  ];
+
+  assert.equal(rule.targeting.includeCaster, true);
+  assert.equal(rule.targeting.filter, "non-hostile");
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+  }), ["caster", "ally"]);
+
+  const additions = areaMembershipPlan({
+    instanceId: "life-instance",
+    sourceId: "caster",
+    rule,
+    desiredTargetIds: ["caster", "ally"],
+    items: candidates.map(({ item }) => item),
+    metaKey: META,
+  }).operations.filter((operation) => operation.type === "condition:add");
+  assert.deepEqual(additions.map((operation) => operation.targetIds), [["caster", "ally"]]);
+  assert.equal(additions[0].conditionName, rule.effectPolicy.effect.label);
+});
+
+test("Aura di Vitalità include ogni creatura corrente, caster compreso", () => {
+  const rule = getSpellAreaRuleById("phb2014-aura-di-vitalita:cast");
+  const area = { cells: [{ x: 0, y: 0, width: 300, height: 300 }] };
+  const candidates = [
+    { item: token("caster", { attitude: "pc" }), bounds: bounds(0, 0) },
+    { item: token("ally", { attitude: "ally" }), bounds: bounds(100, 0) },
+    { item: token("enemy", { attitude: "enemy" }), bounds: bounds(200, 0) },
+  ];
+
+  assert.equal(rule.targeting.includeCaster, true);
+  assert.deepEqual(areaMembershipTargetIds({
+    sourceId: "caster",
+    rule,
+    area,
+    metaKey: META,
+    candidates,
+  }), ["caster", "ally", "enemy"]);
 });
 
 test("il caster nell'area resta incluso anche nella membership persistente", () => {

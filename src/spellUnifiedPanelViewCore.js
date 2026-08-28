@@ -4,6 +4,7 @@ import {
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
+import { spellTargetContextConditionMatches } from "./spellSaveTargetingCore.js";
 import {
   calculateQuickHPChange,
   QUICK_HP_FACTORS,
@@ -339,10 +340,11 @@ function hpPreviewFor(
   candidates,
   outcomeMode = "save",
   spellId = "",
+  damageInputVisible = true,
 ) {
   const inputs = presentation?.inputs || {};
   const isHealing = inputs.healing?.visible === true;
-  const isDamage = inputs.damage?.visible === true;
+  const isDamage = inputs.damage?.visible === true && damageInputVisible;
   if (!isHealing && !isDamage) return { visible: false, targets: [] };
 
   const mode = isHealing ? QUICK_HP_MODES.HEAL : QUICK_HP_MODES.DAMAGE;
@@ -431,15 +433,28 @@ function targetContextFields(presentation, session, selectedTargets = []) {
     label: "Contesto bersaglio",
     fields: clone(fields),
     values: clone(session?.targetContext || {}),
-    targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => ({
-      key: asText(target?.key),
-      label: asText(target?.label) || asText(target?.key),
-      values: clone(session?.targetContext?.[target?.key] || {}),
-    })).filter((target) => target.key),
+    targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {
+      const values = clone(session?.targetContext?.[target?.key] || {});
+      return {
+        key: asText(target?.key),
+        label: asText(target?.label) || asText(target?.key),
+        values,
+        fields: clone(fields.filter((field) => (
+          !field?.requiredWhen
+          || spellTargetContextConditionMatches(values, field.requiredWhen)
+        ))),
+      };
+    }).filter((target) => target.key),
   };
 }
 
-function normalizeEffectFields(presentation, session, validation, spellId = "") {
+function normalizeEffectFields(
+  presentation,
+  session,
+  validation,
+  spellId = "",
+  damageInputVisible = true,
+) {
   const inputs = presentation?.inputs || {};
   const hpValues = session?.hpValues || {};
   const mechanics = presentation?.phase?.plan?.resolution?.mechanics || {};
@@ -453,7 +468,7 @@ function normalizeEffectFields(presentation, session, validation, spellId = "") 
     ? `Danno area · ${areaDamage.dice}${areaDamage.type ? ` ${areaDamage.type}` : ""}`
     : "Danno";
   const fields = [];
-  if (inputs.damage?.visible) {
+  if (inputs.damage?.visible && damageInputVisible) {
     const selectedOutcomes = Array.from(new Set(
       Object.values(session?.outcomes || {})
         .map((value) => asText(value).toLocaleLowerCase("it"))
@@ -568,6 +583,11 @@ function normalizeActiveOverview(groups = [], session = {}) {
         .filter(Boolean),
       zoneLabel: asText(group?.zoneLabel),
       tokenLabel: asText(group?.tokenLabel),
+      summaryParts: (Array.isArray(group?.summaryParts)
+        ? group.summaryParts
+        : Array.isArray(context?.summaryParts) ? context.summaryParts : [])
+        .map((part) => ({ id: asText(part?.id), label: asText(part?.label) }))
+        .filter((part) => part.id && part.label),
       context,
       targetIds,
       actions: (Array.isArray(group?.actions) ? group.actions : [])
@@ -621,7 +641,7 @@ export function buildUnifiedPanelViewModel({
   const activeActionDelegatesResolution = !!selectedActiveAction
     && (
       selectedActiveAction.type === "resolve"
-      || ["save-area", "single-attack", "single-save", "child-zone", "zone-movement"]
+      || ["save-area", "single-attack", "single-save", "single-heal", "child-zone", "zone-movement"]
         .includes(selectedActiveAction.resolutionKind)
     );
   const activeActionHasExplicitCapacity = activeActionNeedsPanelTargets
@@ -650,6 +670,10 @@ export function buildUnifiedPanelViewModel({
   const targetCapacity = activeActionCapacity || workflowCapacity;
   const maxTargets = targetCapacity.effectiveMaximum;
   const outcomeMode = asText(presentation.outcomes?.mode) || "save";
+  const saveDescriptor = presentation.outcomes?.save
+    && typeof presentation.outcomes.save === "object"
+    ? clone(presentation.outcomes.save)
+    : null;
   const outcomeOptions = Array.isArray(presentation.outcomes?.options)
     ? clone(presentation.outcomes.options)
     : [];
@@ -710,6 +734,32 @@ export function buildUnifiedPanelViewModel({
     && workflow.placement.kind === "aura"
     && workflow.placement.policy === "automatic"
     && !workflow.activeAction;
+  const prismaticWallCast = contract?.spell?.id === "prismatic-wall"
+    && presentation.phase?.selected === "cast"
+    && !activeActionDelegatesResolution;
+  const prismaticWallState = session?.castContext?.prismaticWall
+    && typeof session.castContext.prismaticWall === "object"
+    ? session.castContext.prismaticWall
+    : session?.castContext || {};
+  const prismaticWallExemptIds = new Set(
+    (Array.isArray(prismaticWallState?.exemptCreatureIds)
+      ? prismaticWallState.exemptCreatureIds
+      : [])
+      .map(asText)
+      .filter(Boolean),
+  );
+  const prismaticWallExemptions = {
+    visible: prismaticWallCast,
+    label: "Creature designate come esenti",
+    hint: "Le creature selezionate ignorano prossimità, attraversamento e strati del muro.",
+    selectedIds: [...prismaticWallExemptIds],
+    options: (Array.isArray(targetCandidates) ? targetCandidates : [])
+      .map((candidate) => ({
+        key: asText(candidate?.key || candidate?.value || candidate?.id),
+        label: asText(candidate?.label || candidate?.name || candidate?.key || candidate?.id),
+      }))
+      .filter((candidate) => candidate.key && candidate.label),
+  };
 
   const targetVisible = isPostPlacement
     ? workflow.placement.confirmed === true
@@ -731,11 +781,13 @@ export function buildUnifiedPanelViewModel({
   const selectionStage = primarySecondarySelection
     ? asText(session?.primaryTargetId) ? "secondary" : "primary"
     : null;
+  const damageInputVisible = workflow.controls.includes("damage");
   const effectFields = normalizeEffectFields(
     presentation,
     session,
     workflow.validation,
     contract?.spell?.id,
+    damageInputVisible,
   );
   const manualControlsVisible = manualCapability.available === true && effectFields.length > 0;
   const automationVisible = Boolean(
@@ -748,6 +800,7 @@ export function buildUnifiedPanelViewModel({
     allCandidates,
     outcomeMode,
     contract?.spell?.id,
+    damageInputVisible,
   );
   const hpPreviewByKey = new Map(
     (hpPreview.targets || []).map((target) => [target.key, target]),
@@ -889,6 +942,7 @@ export function buildUnifiedPanelViewModel({
         counts: clone(compositionCounts),
         options: Array.isArray(composition.options) ? clone(composition.options) : [],
       },
+      exemptions: prismaticWallExemptions,
     },
     targets: {
       visible: activeActionDelegatesResolution ? false : targetVisible,
@@ -944,9 +998,12 @@ export function buildUnifiedPanelViewModel({
       outcomes: {
         visible: inputs.outcomes?.visible === true,
         required: inputs.outcomes?.required === true,
-        label: outcomeMode === "save" ? "Esiti TS" : "Esiti TS / attacco",
+        label: outcomeMode === "save"
+          ? saveDescriptor?.label ? `Esiti TS ${saveDescriptor.label}` : "Esiti TS"
+          : "Esiti TS / attacco",
         mode: outcomeMode,
         options: outcomeOptions,
+        save: saveDescriptor,
         attack: {
           visible: outcomeMode === "attack-and-save",
           required: outcomeMode === "attack-and-save",

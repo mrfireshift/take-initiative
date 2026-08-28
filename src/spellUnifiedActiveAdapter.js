@@ -45,9 +45,7 @@ export const SPELL_UNIFIED_ACTIVE_ERROR_CODES = Object.freeze({
   EXECUTOR_FAILED: "active-executor-failed",
 });
 
-export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze([
-  "phb2014-raffica-di-spine",
-]);
+export const SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS = Object.freeze([]);
 
 const PREPARED_AREA_SPELL_IDS = new Set(SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS);
 
@@ -79,7 +77,10 @@ const ACTIVE_POPUP_RESOLUTION_KINDS = new Set([
   "save-area",
   "single-attack",
   "single-save",
+  "single-heal",
   "child-zone",
+  "prismatic-wall-traversal",
+  "prismatic-wall-layers",
 ]);
 
 function normalizedError(error, fallbackCode = SPELL_UNIFIED_ACTIVE_ERROR_CODES.EXECUTOR_FAILED) {
@@ -557,7 +558,11 @@ export function buildSpellUnifiedActivePopoverRequest(payload, {
       ? 320
       : resolutionKind === "single-save"
         ? 350
+        : resolutionKind === "single-heal"
+          ? 300
         : resolutionKind === "child-zone"
+          ? 600
+        : resolutionKind.startsWith("prismatic-wall-")
           ? 600
           : 520);
   const popoverId = spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);

@@ -74,6 +74,7 @@ test("OPTIONS-001: i default versionati riproducono il comportamento legacy", ()
   assert.deepEqual(room.uiSync, {
     trackerOpen: true,
     effectsDisplayMode: "selected",
+    showEffectSummaryParts: true,
   });
   assert.ok(Object.values(scene.overrides).every((entry) => entry.mode === "inherit"));
 });

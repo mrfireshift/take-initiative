@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "6c8b172f67dc89c9",
+  "fingerprint": "2ec5e6437b42a732",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -17,20 +17,23 @@
       "gestione manuale intenzionale": 3
     },
     "currentAutomationLevel": {
-      "FULL": 47,
+      "FULL": 63,
       "MANUAL": 88,
-      "PARTIAL": 197,
-      "TRACK_ONLY": 145
+      "PARTIAL": 182,
+      "TRACK_ONLY": 144
     },
     "coverageStatus": {
-      "ACCEPTED": 50,
-      "GAP": 37,
-      "UNREVIEWED": 390
+      "ACCEPTED": 68,
+      "CLOSED": 6,
+      "GAP": 20,
+      "UNREVIEWED": 383
     },
     "targetAutomationLevel": {
-      "FULL": 47,
+      "FULL": 63,
       "MANUAL": 3,
-      "UNREVIEWED": 427
+      "PARTIAL": 5,
+      "TRACK_ONLY": 3,
+      "UNREVIEWED": 403
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -44,27 +47,27 @@
     "trackable": 355,
     "withAreaRules": 132,
     "areaRuleEntries": 137,
-    "openRows": 36,
-    "confirmed": 35,
+    "openRows": 20,
+    "confirmed": 19,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 35,
-    "manuallyReviewed": 86,
-    "knownIntegrationGaps": 1,
-    "knownRawGaps": 36,
+    "curatedP1": 19,
+    "manuallyReviewed": 93,
+    "knownIntegrationGaps": 0,
+    "knownRawGaps": 20,
     "byPriority": {
-      "—": 441,
-      "P1": 35,
+      "—": 457,
+      "P1": 19,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 260,
+      "coperto": 276,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
       "istantaneo: gestione manuale": 57,
       "manuale intenzionale": 3,
-      "parziale: revisione curata": 35,
+      "parziale: revisione curata": 19,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 21
     },
@@ -75,60 +78,46 @@
       "singolo": 73
     },
     "byGap": {
-      "AURA_HEAL_ACTION": 1,
-      "AURA_PASSIVE_RUNTIME": 1,
-      "BOUNDARY_REJECTION": 1,
       "CHOICE_WORKFLOW_MISSING": 3,
-      "CONDITIONAL_TRIGGER": 11,
-      "CROSSING_DETECTION": 3,
-      "ENDING_DETONATION": 1,
+      "CONDITIONAL_TRIGGER": 8,
       "ENTRY_EXIT_FALL": 2,
-      "LAYER_STATE_MACHINE": 1,
       "MOVABLE_ZONE_RUNTIME": 1,
-      "MOVEMENT_IMMUNITY": 1,
       "MOVEMENT_MECHANICS_MISSING": 6,
-      "MULTI_SAVE_SEQUENCE": 3,
-      "PASSIVE_RULES_MISSING": 1,
-      "POST_EXPIRY_EFFECT": 4,
-      "PROJECTILE_BOUNDARY": 1,
-      "RANDOM_RESULT_STATE": 1,
+      "MULTI_SAVE_SEQUENCE": 1,
+      "POST_EXPIRY_EFFECT": 2,
       "RANDOM_TURN_STATE": 1,
-      "REPEATED_ACTION": 16,
-      "RESOURCE_STATE": 5,
+      "REPEATED_ACTION": 9,
       "ROUND_STATE_MACHINE": 1,
-      "STATUS_MISSING": 5,
+      "STATUS_MISSING": 4,
       "TEXT_MISSING": 1,
-      "TURN_EFFECT_MISSING": 3,
+      "TURN_EFFECT_MISSING": 1,
       "VARIANT_ZONE_RUNTIME": 1,
       "ZONE_TRIGGER_MISSING": 2
     },
     "byIntegrationStatus": {
-      "fragile": 1,
-      "partial": 36,
-      "reachable": 355,
+      "partial": 20,
+      "reachable": 372,
       "unexposed": 85
     },
     "byIntegrationPriority": {
-      "—": 476,
-      "P1": 1
+      "—": 477
     },
     "byIntegrationIssue": {
-      "ACTIVE_ACTION_REMINDER_ONLY": 1,
       "CAST_NO_MUTATIONS": 3,
       "UNIFIED_CATALOG_MISSING": 85
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 33,
+      "ACTIVE_ACTION": 37,
       "AREA_GEOMETRY": 132,
-      "CAST": 224,
-      "CLEANUP": 105,
+      "CAST": 221,
+      "CLEANUP": 106,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
-      "TURN_TRIGGER": 85
+      "TURN_TRIGGER": 87
     },
     "unifiedCatalogExposed": 392,
     "integrationDisconnected": 0,
-    "integrationFragile": 1,
+    "integrationFragile": 0,
     "runtimeSmokeRequired": 389,
     "releaseReady": false
   },
@@ -3530,8 +3519,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -3539,7 +3528,8 @@
         "CAST",
         "CLEANUP",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -3552,30 +3542,12 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle"
+        "lifecycle",
+        "turni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "AURA_PASSIVE_RUNTIME",
-          "label": "effetti passivi dell'aura incompleti",
-          "evidence": [
-            "L'incantatore emana un'aura di energia che preserva la vita entro un raggio di 9 metri.",
-            "Finché l'incantesimo non termina, l'aura si muove assieme a lui ed è centrata su di lui.",
-            "Ogni creatura non ostile entro l'aura (incluso l'incantatore) è dotata di resistenza ai danni necrotici e il suo massimo dei punti ferita non può essere ridotto."
-          ]
-        },
-        {
-          "code": "TURN_EFFECT_MISSING",
-          "label": "effetto ricorrente di turno assente",
-          "evidence": [
-            "L'incantatore emana un'aura di energia che preserva la vita entro un raggio di 9 metri.",
-            "Finché l'incantesimo non termina, l'aura si muove assieme a lui ed è centrata su di lui.",
-            "Ogni creatura non ostile entro l'aura (incluso l'incantatore) è dotata di resistenza ai danni necrotici e il suo massimo dei punti ferita non può essere ridotto."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -3588,7 +3560,9 @@
         "areaKinds": [
           "aura"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "aura-of-life-heal-on-turn-start"
+        ],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 1,
@@ -3600,11 +3574,12 @@
           "CAST",
           "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -3652,7 +3627,8 @@
           "CAST",
           "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -3667,7 +3643,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Servono resistenza necrotica, protezione del massimo PF e recupero di 1 PF a inizio turno per creature non ostili a 0 PF."
+      "curatedNote": "PASS: Aura di Vita è PARTIAL/CLOSED per decisione di prodotto. Riusa aura mobile, membership non ostile, trigger di inizio turno e cleanup shared. Il recupero di 1 PF è un reminder manuale con la resolution di cura esistente, che conserva i controlli vivente/0 PF e le mutazioni canoniche; resistenza necrotica e protezione del massimo PF restano micropill/detail di tracking perché nel runtime non esiste un motore shared per applicarle. Queste proprietà manuali sono accettate e non richiedono ulteriori azioni di automazione."
     },
     {
       "id": "phb2014-aura-di-vitalita",
@@ -3680,14 +3656,14 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
-        "CAST",
         "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -3705,21 +3681,11 @@
         "tracking",
         "aree:aura",
         "lifecycle",
-        "TS"
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "AURA_HEAL_ACTION",
-          "label": "azione di cura entro l'aura assente",
-          "evidence": [
-            "L'incantatore emana un'aura di energia curativa entro un raggio di 9 metri.",
-            "Finché l'incantesimo non termina, l'aura si muove assieme a lui ed è centrata su di lui.",
-            "L'incantatore può usare un'azione bonus per far sì che una creatura entro l'aura (incluso l'incantatore) recuperi 2d6 punti ferita."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -3733,22 +3699,24 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "aura-of-vitality-heal"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -3765,7 +3733,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement"
           ]
         },
@@ -3784,16 +3751,22 @@
           ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
-          "reminderActionIds": [],
+          "declaredActionIds": [
+            "aura-of-vitality-heal"
+          ],
+          "panelActionIds": [
+            "aura-of-vitality-heal"
+          ],
+          "reminderActionIds": [
+            "aura-of-vitality-heal"
+          ],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -3813,7 +3786,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "L'aura deve delimitare i bersagli validi dell'azione bonus di cura da 2d6."
+      "curatedNote": "PASS: Aura di Vitalità è FULL/CLOSED. Riusa l'aura mobile, il calcolo shared dei membri, il controllo di istanza padre e la validazione della membership al commit. Il popup principale del turno del caster, disponibile anche nel turno del cast, espone l'azione bonus con un solo bersaglio corrente incluso il caster; il pannello Incantesimi resta fallback. Il totale manuale di 2d6 passa dalla mutazione HP/history condivisa; non consuma spell, slot o concentrazione e non usa dadi virtuali."
     },
     {
       "id": "arcanists-magic-aura",
@@ -11392,9 +11365,9 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -11413,28 +11386,9 @@
         "tracking",
         "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": [
-            "L'incantatore può usare un'azione bonus per inviare una delle scintille sfrecciando verso una creatura o un oggetto situato entro 36 metri da lui.",
-            "Se all'incantatore rimangono quattro o più scintille, esse proiettano luce intensa nel raggio di 9 metri e luce fioca per altri 9 metri.",
-            "Se all'incantatore rimangono da una a tre scintille, esse proiettano luce fioca nel raggio di 9 metri."
-          ]
-        },
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può usare un'azione bonus per inviare una delle scintille sfrecciando verso una creatura o un oggetto situato entro 36 metri da lui.",
-            "Se all'incantatore rimangono quattro o più scintille, esse proiettano luce intensa nel raggio di 9 metri e luce fioca per altri 9 metri.",
-            "Se all'incantatore rimangono da una a tre scintille, esse proiettano luce fioca nel raggio di 9 metri."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -11458,7 +11412,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -11523,7 +11477,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La spell parte con sette scintille, ne consuma una per azione bonus e termina alla settima; anche la luce dipende dal residuo."
+      "curatedNote": "PASS: il cast crea sette stelle, con +2 per ogni slot sopra il 7°, e conserva il residuo nella pill informativa. Il prompt dell'azione bonus è disponibile anche nel turno del lancio; ogni stella viene consumata sia su colpo sia su mancato, il popup usa il tiro per colpire e il danno manuali al tavolo e l'ultima stella termina l'istanza."
     },
     {
       "id": "geas",
@@ -21102,12 +21056,13 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -21120,22 +21075,12 @@
         "fasi/azioni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": []
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": []
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -21148,16 +21093,21 @@
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
-        "phaseOptions": [],
+        "activeActionIds": [
+          "flame-arrows-consume"
+        ],
+        "phaseOptions": [
+          "prepare"
+        ],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -21168,12 +21118,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -21182,9 +21131,11 @@
           "operationTypes": [
             "concentration:break",
             "spell:upsert",
-            "concentration:register"
+            "condition:add",
+            "concentration:register",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -21193,14 +21144,21 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
-          "reminderActionIds": [],
+          "declaredActionIds": [
+            "flame-arrows-consume"
+          ],
+          "panelActionIds": [
+            "flame-arrows-consume"
+          ],
+          "reminderActionIds": [
+            "flame-arrows-consume"
+          ],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -21216,7 +21174,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Servono il contatore condiviso delle dodici munizioni e il consumo dell'effetto al primo colpo o mancato di ogni freccia estratta."
+      "curatedNote": "PASS: il cast prepara sul caster un contatore persistente di munizioni infuocate, con pill informativa del danno extra scalato con lo slot. Il popup d'azione sulla mappa consuma una munizione dopo ogni attacco già risolto manualmente e resta riutilizzabile nello stesso turno finché ci sono munizioni; il contatore e la concentrazione sono scoped alla specifica istanza."
     },
     {
       "id": "acid-arrow",
@@ -22000,8 +21958,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "TRACK_ONLY",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -22020,28 +21978,9 @@
       "coverage": [
         "tracking"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": [
-            "L'incantatore può usare un'azione bonus per risucchiare vigore dall'anima e recuperare 2d8 punti ferita.",
-            "L'incantatore può usare un'azione bonus per rafforzarsi con le esperienze di vita dell'anima, disponendo di vantaggio al suo prossimo tiro per colpire, prova di caratteristica o tiro salvezza.",
-            "Se non usa questo beneficio prima dell'inizio del suo turno successivo, tale beneficio va perduto."
-          ]
-        },
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può usare un'azione bonus per risucchiare vigore dall'anima e recuperare 2d8 punti ferita.",
-            "L'incantatore può usare un'azione bonus per rafforzarsi con le esperienze di vita dell'anima, disponendo di vantaggio al suo prossimo tiro per colpire, prova di caratteristica o tiro salvezza.",
-            "Se non usa questo beneficio prima dell'inizio del suo turno successivo, tale beneficio va perduto."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -22062,7 +22001,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -22122,7 +22061,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "L'anima dispone di sei usi condivisi tra più azioni con durate e conseguenze differenti; il registro non espone il contatore né le opzioni."
+      "curatedNote": "PASS: Gabbia dell'Anima è intenzionalmente TRACK_ONLY/ACCEPTED. Il registro conserva l'anima intrappolata per 8 ore senza concentrazione e il riferimento RAW ricorda il limite complessivo di sei utilizzi e le quattro modalità (Rubare Vita, Interrogare Anima, Esperienza in Prestito e Occhi dei Morti); consumo e conseguenze restano manuali, senza workflow di reazione, risorsa, cura, vantaggio, interrogazione, sensore o concentrazione figlia."
     },
     {
       "id": "forcecage",
@@ -23471,13 +23410,12 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST",
         "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
@@ -23493,27 +23431,11 @@
       "coverage": [
         "tracking",
         "aree:aura",
-        "lifecycle",
-        "TS"
+        "lifecycle"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "BOUNDARY_REJECTION",
-          "label": "barriera e interruzione al contatto non risolte",
-          "evidence": [
-            "Una barriera scintillate si proietta dall'incantatore in un raggio di 3 metri, seguendolo nei suoi movimenti e rimanendo centrata su di lui, respingendo tutte le creature diverse da non morti e costrutti."
-          ]
-        },
-        {
-          "code": "CROSSING_DETECTION",
-          "label": "attraversamento continuo non rilevato",
-          "evidence": [
-            "Una barriera scintillate si proietta dall'incantatore in un raggio di 3 metri, seguendolo nei suoi movimenti e rimanendo centrata su di lui, respingendo tutte le creature diverse da non morti e costrutti."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -23527,7 +23449,7 @@
           "aura"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [],
@@ -23535,14 +23457,13 @@
         "movementMechanics": false,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -23559,7 +23480,6 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
             "placement"
           ]
         },
@@ -23587,7 +23507,6 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
           "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
@@ -23606,7 +23525,7 @@
           "Se l'incantatore si muove in modo che una creatura influenzata sia costretta ad attraversare la barriera, l'incantesimo termina."
         ]
       },
-      "curatedNote": "L'aura segue il caster, ma il confine deve respingere categorie selettive e terminare se il caster forza un attraversamento."
+      "curatedNote": "PASS: Guscio Anti-vita è PARTIAL/CLOSED per decisione di prodotto: automatici spell instance persistente sul caster, concentrazione, durata 1 ora, aura mobile di 3 m centrata e seguita dal caster, confine visuale e cleanup condiviso. Manuali accettati: esclusione di costrutti/non morti, attraversamento/crossing, protrusion, validazione reach/proiettili e terminazione quando il caster forza il passaggio; nessuna Condition artificiale, reminder o active action."
     },
     {
       "id": "identify",
@@ -26817,9 +26736,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -26847,28 +26766,9 @@
         "movimento",
         "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore ottiene una velocità di volare pari a 18 metri.",
-            "L'incantatore può usare la sua azione per creare un cubo con spigolo di 4,5 metri di vento turbinante centrato su un punto situato entro 18 metri dall'incantatore e che egli sia in grado di vedere.",
-            "Se una creatura di taglia Grande o inferiore fallisce il tiro salvezza, quella creatura viene anche spinta di un massimo di 3 metri lontano dal centro del cubo."
-          ]
-        },
-        {
-          "code": "POST_EXPIRY_EFFECT",
-          "label": "conseguenza alla fine della spell assente",
-          "evidence": [
-            "L'incantatore ottiene una velocità di volare pari a 18 metri.",
-            "L'incantatore può usare la sua azione per creare un cubo con spigolo di 4,5 metri di vento turbinante centrato su un punto situato entro 18 metri dall'incantatore e che egli sia in grado di vedere.",
-            "Se una creatura di taglia Grande o inferiore fallisce il tiro salvezza, quella creatura viene anche spinta di un massimo di 3 metri lontano dal centro del cubo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -26899,7 +26799,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -26977,7 +26877,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La velocità di volo è modellabile, ma mancano il cubo offensivo ripetibile e la caduta se la spell termina mentre il caster è in volo."
+      "curatedNote": "PASS: Investitura del Vento è accettata. Il self-buff persistente, il volo, il cubo di vento come active action ripetibile, la geometria, il TS, il danno, la spinta e il prompt di turno sono esposti attraverso i contratti runtime esistenti; i limiti e le conseguenze gestite manualmente restano nel riferimento RAW."
     },
     {
       "id": "xanathar-investitura-della-fiamma",
@@ -27150,9 +27050,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -27178,37 +27078,9 @@
         "TS",
         "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può usare la sua azione per creare un piccolo terremoto sul terreno in un raggio di 4,5 metri incentrato su di sé.",
-            "L'incantatore può muoversi su un terreno difficile fatto di terra o di pietra senza spendere movimento extra.",
-            "Se lo fa, viene espulso nello spazio libero più vicino, questo incantesimo termina e l'incantatore è stordito fino alla fine del suo turno successivo."
-          ]
-        },
-        {
-          "code": "MOVEMENT_IMMUNITY",
-          "label": "eccezioni e immunità ai costi di movimento assenti",
-          "evidence": [
-            "L'incantatore può usare la sua azione per creare un piccolo terremoto sul terreno in un raggio di 4,5 metri incentrato su di sé.",
-            "L'incantatore può muoversi su un terreno difficile fatto di terra o di pietra senza spendere movimento extra.",
-            "Se lo fa, viene espulso nello spazio libero più vicino, questo incantesimo termina e l'incantatore è stordito fino alla fine del suo turno successivo."
-          ]
-        },
-        {
-          "code": "POST_EXPIRY_EFFECT",
-          "label": "conseguenza alla fine della spell assente",
-          "evidence": [
-            "L'incantatore può usare la sua azione per creare un piccolo terremoto sul terreno in un raggio di 4,5 metri incentrato su di sé.",
-            "L'incantatore può muoversi su un terreno difficile fatto di terra o di pietra senza spendere movimento extra.",
-            "Se lo fa, viene espulso nello spazio libero più vicino, questo incantesimo termina e l'incantatore è stordito fino alla fine del suo turno successivo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Stordito"
@@ -27236,7 +27108,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -27313,7 +27185,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Servono terremoto ripetibile, immunità al costo del terreno difficile, attraversamento della pietra ed espulsione con Stordito se il movimento termina al suo interno."
+      "curatedNote": "PASS: Investitura della Pietra è accettata. Il self-buff persistente e Scossa tellurica come active action ripetibile usano il lifecycle e il prompt condivisi; il raggio fisso sul caster, il TS, Prono e il riferimento alle interazioni con terreno e roccia restano coerenti con il contratto runtime e con la gestione manuale al tavolo."
     },
     {
       "id": "sending",
@@ -28063,8 +27935,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "TRACK_ONLY",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -28083,18 +27955,9 @@
       "coverage": [
         "tracking"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Se l'incantatore lascia cadere l'arma o la lancia, essa si dissipa alla fine del turno.",
-            "Da allora in poi, finché l'incantesimo permane, l'incantatore può usare un'azione bonus per far ricomparire la spada nella sua mano."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -28116,7 +27979,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -28127,12 +27990,11 @@
         },
         "contract": {
           "lane": "spell-lifecycle",
-          "targetingMode": "discrete",
+          "targetingMode": "none",
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "targets"
+            "slot"
           ]
         },
         "cast": {
@@ -28177,7 +28039,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La spell non espone l'arma creata né l'azione bonus che la fa ricomparire nella mano dopo che è stata lasciata cadere o lanciata."
+      "curatedNote": "PASS: Lama d'Ombra è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 1 minuto, la durata, lo slot/cast context e il danno sintetico scalato; arma da mischia semplice, competenza, dissipazione dopo drop/lancio e ricomparsa con azione bonus restano manuali al tavolo, senza active action, prompt, popup o reminder."
     },
     {
       "id": "tasha-lama-del-disastro",
@@ -28328,13 +28190,12 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "TRACK_ONLY",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "TRACK_ONLY",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
-        "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -28349,18 +28210,9 @@
       "coverage": [
         "tracking"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Con questo incantesimo, l'incantatore può usare la sua azione per effettuare un attacco in mischia con la lama infuocata.",
-            "La lama infuocata emana luce intensa in un raggio di 3 metri e luce fioca perulteriori 3 metri."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -28372,18 +28224,17 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 1,
+        "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
-          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -28398,8 +28249,7 @@
           "placementPolicy": "unavailable",
           "visibleInputs": [
             "caster",
-            "slot",
-            "automation"
+            "slot"
           ]
         },
         "cast": {
@@ -28408,11 +28258,9 @@
           "operationTypes": [
             "concentration:break",
             "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
+            "concentration:register"
           ],
-          "mutationMode": "mechanical",
+          "mutationMode": "tracking",
           "errors": []
         },
         "persistence": {
@@ -28429,7 +28277,6 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
-          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -28447,7 +28294,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata."
+      "curatedNote": "PASS: Lama Infuocata è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 10 minuti, la durata, lo slot/cast context e il danno sintetico scalato; attacco, azione, drop/rievocazione e luce restano manuali al tavolo, senza active action, prompt, popup o reminder."
     },
     {
       "id": "tasha-lama-roboante",
@@ -33509,9 +33356,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -33543,37 +33390,9 @@
         "turni",
         "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": [
-            "Uno scintillante muro di luce intensa compare in un punto a scelta dell'incantatore entro gittata.",
-            "Il muro compare in qualsiasi orientamento a scelta dell'incantatore: orizzontalmente, verticalmente o diagonalmente.",
-            "Il muro può essere al massimo lungo 18 metri, alto 3 metri e spesso 1,5 metri."
-          ]
-        },
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Uno scintillante muro di luce intensa compare in un punto a scelta dell'incantatore entro gittata.",
-            "Il muro compare in qualsiasi orientamento a scelta dell'incantatore: orizzontalmente, verticalmente o diagonalmente.",
-            "Il muro può essere al massimo lungo 18 metri, alto 3 metri e spesso 1,5 metri."
-          ]
-        },
-        {
-          "code": "TURN_EFFECT_MISSING",
-          "label": "effetto ricorrente di turno assente",
-          "evidence": [
-            "Uno scintillante muro di luce intensa compare in un punto a scelta dell'incantatore entro gittata.",
-            "Il muro compare in qualsiasi orientamento a scelta dell'incantatore: orizzontalmente, verticalmente o diagonalmente.",
-            "Il muro può essere al massimo lungo 18 metri, alto 3 metri e spesso 1,5 metri."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": [
@@ -33610,7 +33429,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -33692,7 +33511,7 @@
           "Una creatura che termina il suo turno nell'area del muro subisce 4d8 danni radiosi."
         ]
       },
-      "curatedNote": "Ogni raggio usa un'azione e accorcia il muro di 3 m; restano inoltre danno a fine turno e TS ricorrente contro Accecato."
+      "curatedNote": "PASS: la zona persistente conserva la geometria del muro, il TS iniziale e i trigger ricorrenti di ingresso/fine turno, con Accecato e danno manuale scalato. Il prompt dell'azione del raggio usa il popup condiviso, accorcia il muro di 3 m anche su mancato, consuma l'estremità scelta e chiude la concentrazione quando la lunghezza arriva a zero; History e Undo restano compositi."
     },
     {
       "id": "wall-of-stone",
@@ -34088,8 +33907,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -34116,28 +33935,9 @@
         "TS",
         "movimento"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "PROJECTILE_BOUNDARY",
-          "label": "vincoli a proiettili e attraversamento assenti",
-          "evidence": [
-            "Un muro di vento forte si solleva dal terreno in un punto a scelta dell'incantatore situato entro gittata.",
-            "Il muro può essere lungo fino a 15 metri, alto 4,5 metri e spesso 30 cm.",
-            "Il muro permane per tutta la durata dell'incantesimo."
-          ]
-        },
-        {
-          "code": "CROSSING_DETECTION",
-          "label": "attraversamento continuo non rilevato",
-          "evidence": [
-            "Un muro di vento forte si solleva dal terreno in un punto a scelta dell'incantatore situato entro gittata.",
-            "Il muro può essere lungo fino a 15 metri, alto 4,5 metri e spesso 30 cm.",
-            "Il muro permane per tutta la durata dell'incantesimo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -34166,7 +33966,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -34179,7 +33979,7 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
@@ -34187,7 +33987,8 @@
             "placement",
             "outcomes",
             "hp",
-            "damage"
+            "damage",
+            "automation"
           ]
         },
         "cast": {
@@ -34236,7 +34037,7 @@
           "(1 macigni scagliati dai giganti o dalle macchine d'assedio e altri proiettili simili non sono influenzati dal muro.) Le creature in forma gassosa inoltre non possono attraversare questa barriera di vento."
         ]
       },
-      "curatedNote": "La sagoma esiste; mancano blocco selettivo di creature/oggetti, proiettili e forme gassose."
+      "curatedNote": "PASS: Muro di Vento è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: placement lineare supportato, targeting iniziale sulla sagoma, TS Forza indipendente, danno iniziale 3d8 contundenti con metà al successo, zona statica persistente, concentrazione fino a 1 minuto, durata, History/Undo e cleanup shared. Manuali accettati: forme continue non lineari, deviazione dei proiettili, attraversamento di creature o oggetti volanti Piccoli o inferiori, forma gassosa, dispersione di gas/fumo/nebbia, materiali leggeri e ogni interazione di crossing; nessuna Condition artificiale, trigger successivo, projectile/collision/crossing engine, active action o reminder."
     },
     {
       "id": "prismatic-wall",
@@ -34250,15 +34051,17 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -34279,39 +34082,13 @@
         "TS",
         "status:Accecato",
         "movimento",
+        "turni",
+        "fasi/azioni",
         "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "LAYER_STATE_MACHINE",
-          "label": "strati distruttibili e stato per strato assenti",
-          "evidence": [
-            "Un piano scintillante di luce multicolore forma un muro opaco verticale (che può misurare fino a 27 metri di lunghezza, 9 metri di altezza e 2,5 cm di spessore), centrato su un punto entro gittata che l'incantatore è in grado di vedere.",
-            "In alternativa, l'incantatore può modellare il muro in una sfera del diametro massimo di 9 metri centrata su un punto a sua scelta entro gittata.",
-            "Il muro rimane in quella posizione per la durata dell'incantesimo."
-          ]
-        },
-        {
-          "code": "CROSSING_DETECTION",
-          "label": "attraversamento continuo non rilevato",
-          "evidence": [
-            "Un piano scintillante di luce multicolore forma un muro opaco verticale (che può misurare fino a 27 metri di lunghezza, 9 metri di altezza e 2,5 cm di spessore), centrato su un punto entro gittata che l'incantatore è in grado di vedere.",
-            "In alternativa, l'incantatore può modellare il muro in una sfera del diametro massimo di 9 metri centrata su un punto a sua scelta entro gittata.",
-            "Il muro rimane in quella posizione per la durata dell'incantesimo."
-          ]
-        },
-        {
-          "code": "MULTI_SAVE_SEQUENCE",
-          "label": "sequenza di più TS e uscita dalla condizione incompleta",
-          "evidence": [
-            "Un piano scintillante di luce multicolore forma un muro opaco verticale (che può misurare fino a 27 metri di lunghezza, 9 metri di altezza e 2,5 cm di spessore), centrato su un punto entro gittata che l'incantatore è in grado di vedere.",
-            "In alternativa, l'incantatore può modellare il muro in una sfera del diametro massimo di 9 metri centrata su un punto a sua scelta entro gittata.",
-            "Il muro rimane in quella posizione per la durata dell'incantesimo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Pietrificato"
@@ -34328,22 +34105,30 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "prismatic-wall-proximity-blindness-on-entry",
+          "prismatic-wall-proximity-blindness"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "prismatic-wall-traversal",
+          "prismatic-wall-layers"
+        ],
         "phaseOptions": [],
         "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -34356,12 +34141,10 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
-            "variant",
-            "targets",
             "placement",
             "automation"
           ]
@@ -34381,18 +34164,26 @@
           ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "prismatic-wall-traversal",
+            "prismatic-wall-layers"
+          ],
+          "panelActionIds": [
+            "prismatic-wall-traversal",
+            "prismatic-wall-layers"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -34415,7 +34206,7 @@
           "Finché questo strato rimane al suo posto, gli attacchi magici a distanza non possono attraversare il muro."
         ]
       },
-      "curatedNote": "La sagoma base esiste, ma i sette strati, le distruzioni progressive, gli effetti per strato e le sequenze di TS non hanno uno stato dedicato."
+      "curatedNote": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, comando GM di attraversamento con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», crossing fisico, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, movimento/blocco/proiettili e trasferimento planare effettivo. Non vengono introdotti crossing detector, layer-state-machine generica o planar engine."
     },
     {
       "id": "xanathar-nemici-in-abbondanza",
@@ -36519,13 +36310,13 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "AREA_GEOMETRY",
-        "CAST",
+        "CLEANUP",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -36541,40 +36332,13 @@
       ],
       "coverage": [
         "tracking",
-        "aree:instant",
-        "TS"
+        "aree:zone",
+        "lifecycle",
+        "movimento"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "ENDING_DETONATION",
-          "label": "detonazione e accumulo alla terminazione assenti",
-          "evidence": [
-            "Un raggio di luce gialla si sprigiona dal dito indice dell'incantatore per poi condensarsi in un punto a sua scelta entro gittata, formando una sfera scintillante che permane per la durata dell'incantesimo.",
-            "Quando l'incantesimo termina per decisione dell'incantatore o perché la sua concentrazione viene interrotta, la sfera si disintegra con un cupo boato in un'esplosione di fiamme che si diffondono oltre gli angoli.",
-            "Ogni creatura situata entro una sfera del raggio di 6 metri centrata su quel punto deve effettuare un tiro salvezza su Destrezza."
-          ]
-        },
-        {
-          "code": "RESOURCE_STATE",
-          "label": "contatore o risorsa interna della spell assente",
-          "evidence": [
-            "Un raggio di luce gialla si sprigiona dal dito indice dell'incantatore per poi condensarsi in un punto a sua scelta entro gittata, formando una sfera scintillante che permane per la durata dell'incantesimo.",
-            "Quando l'incantesimo termina per decisione dell'incantatore o perché la sua concentrazione viene interrotta, la sfera si disintegra con un cupo boato in un'esplosione di fiamme che si diffondono oltre gli angoli.",
-            "Ogni creatura situata entro una sfera del raggio di 6 metri centrata su quel punto deve effettuare un tiro salvezza su Destrezza."
-          ]
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "Un raggio di luce gialla si sprigiona dal dito indice dell'incantatore per poi condensarsi in un punto a sua scelta entro gittata, formando una sfera scintillante che permane per la durata dell'incantesimo.",
-            "Quando l'incantesimo termina per decisione dell'incantatore o perché la sua concentrazione viene interrotta, la sfera si disintegra con un cupo boato in un'esplosione di fiamme che si diffondono oltre gli angoli.",
-            "Ogni creatura situata entro una sfera del raggio di 6 metri centrata su quel punto deve effettuare un tiro salvezza su Destrezza."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -36585,24 +36349,24 @@
           "delayed-blast-fireball:cast"
         ],
         "areaKinds": [
-          "instant"
+          "zone"
         ],
         "triggerIds": [],
-        "saveAutomation": true,
+        "saveAutomation": false,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
         "activeActionIds": [],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -36619,11 +36383,7 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets",
-            "placement",
-            "outcomes",
-            "hp",
-            "damage"
+            "placement"
           ]
         },
         "cast": {
@@ -36636,7 +36396,9 @@
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "delayed-blast-fireball:cast"
+          ]
         },
         "actions": {
           "declaredActionIds": [],
@@ -36648,7 +36410,7 @@
         "smokeRequired": true,
         "smokeCategories": [
           "AREA_GEOMETRY",
-          "CAST",
+          "CLEANUP",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -36670,7 +36432,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La sfera accumula 1d6 a fine turno, esplode alla terminazione o al contatto e può essere lanciata altrove dopo un TS riuscito."
+      "curatedNote": "PASS: Palla di Fuoco Ritardata è PARTIAL/CLOSED per decisione di prodotto. Il punto entro 45 m crea la perla come istanza persistente in concentrazione fino a 1 minuto; il contesto canonico conserva posizione corrente, slot, CD e accumulo 0..10d6. Ogni fine turno del caster incrementa l'istanza prima della scadenza sullo stesso boundary; terminazione volontaria, fallimento del TS di concentrazione, sostituzione della concentrazione e expiry passano dal terminal-resolution gateway, che sospende il cleanup fino alla detonazione. La detonazione ricalcola al momento il raggio di 6 m e i bersagli correnti, raccoglie un solo totale manuale dei dadi, applica TS Destrezza full/half e fuoco nella normale area transaction con History/Undo e idempotenza per instanceId/requestId. Restano manuali e accettati il contatto automatico, il lancio/collisione della perla e il fuoco sugli oggetti; lo spostamento usa gli strumenti scena esistenti e non una nuova action economy. La copertura della spell è quindi chiusa senza introdurre una nuova automazione per queste interazioni da tavolo."
     },
     {
       "id": "speak-with-animals",
@@ -41127,9 +40889,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41142,7 +40904,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo"
@@ -41248,7 +41010,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il prossimo colpo in mischia applica il danno radiante manuale, il TS Costituzione e Accecato sul fallimento, con concentrazione trasferita al bersaglio per la durata prevista."
     },
     {
       "id": "phb2014-punizione-collerica",
@@ -41261,9 +41024,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41275,7 +41038,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo",
@@ -41381,7 +41144,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: la preparazione sul caster, il prossimo colpo con arma, il danno extra manuale, il TS Saggezza e Spaventato sul fallimento usano il contract prepared condiviso; un mancato non consuma l'istanza e un colpo riuscito trasferisce la concentrazione al bersaglio."
     },
     {
       "id": "phb2014-punizione-demoralizzante",
@@ -41394,9 +41158,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41409,7 +41173,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo",
@@ -41514,7 +41278,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il prossimo colpo in mischia applica il danno psichico manuale, il TS Saggezza e le penalità/assenza di reazioni sul fallimento; il consumo e il dismiss sono scoped all'istanza preparata."
     },
     {
       "id": "phb2014-punizione-esiliante",
@@ -41527,9 +41292,9 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41541,7 +41306,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "status:Incapacitato"
@@ -41644,7 +41409,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il prossimo colpo con arma applica il danno forza manuale, lo scaling di slot e l'esilio condizionato ai PF residui secondo la variante del bersaglio; la risoluzione riusa il lifecycle prepared e il dismiss/trasferimento esistente."
     },
     {
       "id": "phb2014-punizione-incandescente",
@@ -41657,9 +41423,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41672,7 +41438,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo"
@@ -41773,11 +41539,12 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: la preparazione sul caster e il prossimo colpo con arma usano il contract prepared condiviso; il danno iniziale scala con lo slot, il danno ricorrente e il TS Costituzione sono registrati come effetto persistente e il mancato mantiene l'istanza preparata."
     },
     {
       "id": "branding-smite",
-      "name": "Punizione marchiante",
+      "name": "Punizione Marchiante",
       "source": "SRD 5.1",
       "level": 2,
       "castingTime": "1 azione bonus",
@@ -41786,12 +41553,14 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
+        "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -41804,26 +41573,12 @@
         "status:Invisibile"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "L'attacco infligge 2d6 danni radiosi extra al bersaglio, che diventa visibile nel caso fosse invisibile, proietta luce fioca in un raggio di 1,5 metri e non può tornare invisibile fino alla fine dell'incantesimo."
-          ]
-        },
-        {
-          "code": "PASSIVE_RULES_MISSING",
-          "label": "regole passive e limitazioni della spell incomplete",
-          "evidence": [
-            "L'attacco infligge 2d6 danni radiosi extra al bersaglio, che diventa visibile nel caso fosse invisibile, proietta luce fioca in un raggio di 1,5 metri e non può tornare invisibile fino alla fine dell'incantesimo."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Invisibile"
@@ -41837,17 +41592,21 @@
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
-        "effectCount": 0,
+        "effectCount": 1,
         "activeActionIds": [],
-        "phaseOptions": [],
+        "phaseOptions": [
+          "prepare"
+        ],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -41871,9 +41630,11 @@
           "operationTypes": [
             "concentration:break",
             "spell:upsert",
-            "concentration:register"
+            "condition:add",
+            "concentration:register",
+            "condition:automate"
           ],
-          "mutationMode": "tracking",
+          "mutationMode": "mechanical",
           "errors": []
         },
         "persistence": {
@@ -41890,6 +41651,8 @@
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -41905,7 +41668,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Manca la risoluzione sul prossimo colpo: danni radiosi, rivelazione di un bersaglio invisibile e blocco di nuova invisibilità fino alla fine della spell."
+      "curatedNote": "PASS: la preparazione sul caster usa il contract prepared condiviso; il prossimo colpo con arma applica il danno radiante manuale scalato con lo slot e trasferisce al bersaglio il marker persistente di bagliore astrale, visibilità, luce fioca e blocco della nuova invisibilità. Il mancato non consuma l'istanza; il tiro per colpire e i dadi restano manuali al tavolo."
     },
     {
       "id": "phb2014-punizione-tonante",
@@ -41918,9 +41681,9 @@
       "saveScope": "singolo",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -41932,7 +41695,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:singolo",
@@ -42037,7 +41800,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: il prossimo colpo con arma applica il danno extra manuale, il TS Forza e Prono sul fallimento; la concentrazione viene dismissata sul colpo risolto e il mancato lascia disponibile l'istanza preparata."
     },
     {
       "id": "purify-food-and-drink",
@@ -42151,9 +41915,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -42166,7 +41930,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area"
@@ -42196,7 +41960,9 @@
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 1,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "hail-of-thorns-area"
+        ],
         "phaseOptions": [
           "prepare",
           "resolve"
@@ -42249,11 +42015,15 @@
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "hail-of-thorns-area"
+          ],
+          "panelActionIds": [
+            "hail-of-thorns-area"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -42274,7 +42044,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: la preparazione sul caster e la risoluzione del prossimo attacco a distanza usano il contract prepared condiviso; il click sul bersaglio ancora automaticamente l'area di 1,5 m, include il bersaglio primario nella membership e raccoglie i TS Destrezza indipendenti. Il danno perforante dell'area scala con lo slot, il successo dimezza, il fallimento applica il danno pieno e consumo/concentrazione seguono la stessa risoluzione."
     },
     {
       "id": "ray-of-enfeeblement",
@@ -49327,9 +49098,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -49398,15 +49169,9 @@
         ]
       },
       "integration": {
-        "status": "fragile",
-        "priority": "P1",
-        "issues": [
-          {
-            "code": "ACTIVE_ACTION_REMINDER_ONLY",
-            "severity": "P1",
-            "label": "azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva"
-          }
-        ],
+        "status": "reachable",
+        "priority": "—",
+        "issues": [],
         "catalog": {
           "exposed": true,
           "sources": [
@@ -49451,7 +49216,7 @@
             "storm-sphere-lightning"
           ],
           "unreachableActionIds": [],
-          "mode": "reminder-only"
+          "mode": "turn-prompt"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -49482,7 +49247,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Il trigger di TS e danni a fine turno resta invariato; l'azione bonus Fulmine usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera."
+      "curatedNote": "PASS: il trigger di TS e danni a fine turno resta invariato; il prompt dell'azione bonus Fulmine è disponibile anche nel turno del lancio, usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera."
     },
     {
       "id": "resilient-sphere",
@@ -51665,9 +51430,9 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -51687,37 +51452,11 @@
       ],
       "coverage": [
         "aree:instant",
-        "TS",
-        "varianti"
+        "TS"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RANDOM_RESULT_STATE",
-          "label": "esito casuale e relativo stato non rappresentati",
-          "evidence": [
-            "Ogni creatura situata in un cono di 18 metri deve effettuare un tiro salvezza su Destrezza.",
-            "Se fallisce il tiro salvezza, il bersaglio è accecato e deve effettuare un tiro salvezza su Saggezza all'inizio del turno successivo dell'incantatore."
-          ]
-        },
-        {
-          "code": "MULTI_SAVE_SEQUENCE",
-          "label": "sequenza di più TS e uscita dalla condizione incompleta",
-          "evidence": [
-            "Ogni creatura situata in un cono di 18 metri deve effettuare un tiro salvezza su Destrezza.",
-            "Se fallisce il tiro salvezza, il bersaglio è accecato e deve effettuare un tiro salvezza su Saggezza all'inizio del turno successivo dell'incantatore."
-          ]
-        },
-        {
-          "code": "STATUS_MISSING",
-          "label": "condizione o stato RAW non rappresentato",
-          "evidence": [
-            "Ogni creatura situata in un cono di 18 metri deve effettuare un tiro salvezza su Destrezza.",
-            "Se fallisce il tiro salvezza, il bersaglio è accecato e deve effettuare un tiro salvezza su Saggezza all'inizio del turno successivo dell'incantatore."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Trattenuto",
@@ -51747,7 +51486,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -51763,8 +51502,8 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "variant",
             "targets",
+            "targetContext",
             "placement",
             "outcomes",
             "automation"
@@ -51811,7 +51550,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "La sagoma e il primo TS esistono, ma non il d8 per ciascun bersaglio, il doppio raggio con 8, i TS successivi e gli stati Accecato, Trattenuto e Pietrificato."
+      "curatedNote": "PASS: Spruzzo Prismatico è FULL/ACCEPTED. Il cono shared da 18 m, i TS Destrezza indipendenti, il risultato fisico d8 per bersaglio, il doppio raggio 8, i totali manuali 10d6, i cinque tipi di danno, Trattenuto/Accecato/Pietrificato canonici, il progresso Indaco 3 successi/3 fallimenti e il TS Viola al prossimo turno del caster confluiscono nella singola risoluzione area e nei reminder/History shared. Restano intenzionalmente manuali soltanto il tiro fisico del d8 e il trasferimento materiale fra piani; non servono primitive random o movimento planare."
     },
     {
       "id": "poison-spray",

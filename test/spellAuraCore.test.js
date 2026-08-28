@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   collectActiveMobileAuras,
+  mobileAuraLegacyCasterEffectRemovals,
   mobileAuraMembershipPlan,
   mobileAuraTargetIds,
   staleMobileAuraEffectRemovals,
@@ -127,6 +128,48 @@ test("entrata e uscita producono mutazioni limitate alla singola istanza", () =>
   }]);
   assert.equal(plan.operations[1].options.parentEffectId, "spell-1");
   assert.equal(plan.operations[1].options.mechanics.movement.costMultiplier, 2);
+});
+
+test("ripulisce la vecchia pill personale di Aura di Vita solo sul caster dell’istanza attiva", () => {
+  const spells = [{
+    spellId: "phb2014-aura-di-vita",
+    instanceId: "life-instance",
+    casterId: "caster",
+    castContext: { mobileAura: true },
+  }];
+  const [aura] = collectActiveMobileAuras([
+    token("caster", { spells }),
+  ], { metaKey: META, spellsKey: SPELLS });
+  const caster = token("caster", {
+    spells,
+    conditions: [
+      {
+        id: "legacy-personal",
+        parentEffectId: "life-instance",
+        effectId: "aura-of-life",
+      },
+      {
+        id: "shared-zone",
+        parentEffectId: "life-instance",
+        effectId: "aura-of-life-zone",
+      },
+      {
+        id: "inactive-personal",
+        active: false,
+        parentEffectId: "life-instance",
+        effectId: "aura-of-life",
+      },
+    ],
+  });
+
+  assert.deepEqual(mobileAuraLegacyCasterEffectRemovals({
+    aura,
+    items: [caster],
+    metaKey: META,
+  }), [{
+    itemId: "caster",
+    instanceId: "legacy-personal",
+  }]);
 });
 
 test("ripulisce soltanto gli effetti appartenenti ad aure non più attive", () => {

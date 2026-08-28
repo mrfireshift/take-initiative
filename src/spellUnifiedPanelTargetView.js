@@ -350,11 +350,19 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     });
     const contextTargets = targets.context.targets || [];
     for (const target of contextTargets) {
-      const targetSection = createNode(documentRef, "div", {
-        className: "unified-target-context__target",
-        children: [createNode(documentRef, "strong", { text: target.label })],
+      const targetHeader = createNode(documentRef, "div", {
+        className: "unified-target-context__target-header",
+        children: [
+          createNode(documentRef, "strong", {
+            className: "unified-target-context__target-name",
+            text: target.label,
+          }),
+        ],
       });
-      for (const field of targets.context.fields) {
+      const grid = createNode(documentRef, "div", {
+        className: "unified-target-context__grid",
+      });
+      for (const field of target.fields || targets.context.fields) {
         const control = field.type === "select"
           ? createSelect(documentRef, {
             id: `spell-unified-context-${target.key}-${field.id}`,
@@ -377,13 +385,20 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
           field.id,
           event.target.value,
         ));
-        targetSection.append(createField(documentRef, {
+        const fieldWrapper = createField(documentRef, {
           id: control.id,
           label: field.label || field.id,
           control,
           invalid: model.workflow.validation.firstInvalidField === "target-context",
-        }));
+        });
+        fieldWrapper.setAttribute("data-context-field", field.id);
+        grid.append(fieldWrapper);
       }
+      const targetSection = createNode(documentRef, "div", {
+        className: `unified-target-context__target${target.values?.ray === "8" ? " is-special-8" : ""}`,
+        attributes: { "data-target-key": target.key },
+        children: [targetHeader, grid],
+      });
       contextSection.append(targetSection);
     }
     if (!contextTargets.length) {

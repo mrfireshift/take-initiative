@@ -24,18 +24,27 @@ const FIREBALL_LOCAL_NAME = "Effetto locale: Palla di Fuoco";
 const FIREBALL_LOCAL_WEBM_NAME = "Effetto locale: Palla di Fuoco (JB2A)";
 const FIREBALL_EMBERS_PROBE_DELAY_MS = 120;
 const MAX_RENDERED_EVENTS = 256;
+const TRANSIENT_CLEANUP_MARGIN_MS = 120;
+const TRANSIENT_SWEEP_INTERVAL_MS = 1000;
 const renderedEvents = new Set();
 const pendingRenderTimers = new Set();
 const activeLocalVideoIds = new Set();
 const activeLocalPathIds = new Set();
+const transientVisualExpiries = new Map();
+const cleanupInFlight = new Set();
 let unsubscribe = null;
 let epochUnsubscribe = null;
+let transientSweepTimer = null;
+let rendererGeneration = 0;
+let rendererMounted = false;
 
-function resetFireballStateForSceneUnload() {
+function resetFireballStateForSceneUnload({ preserveTransientCleanup = false } = {}) {
+  rendererGeneration += 1;
   for (const timer of pendingRenderTimers) clearTimeout(timer);
   pendingRenderTimers.clear();
   activeLocalVideoIds.clear();
   activeLocalPathIds.clear();
+  if (!preserveTransientCleanup) transientVisualExpiries.clear();
   renderedEvents.clear();
 }
 
@@ -124,6 +133,55 @@ function markEvent(eventId) {
     renderedEvents.delete(renderedEvents.values().next().value);
   }
   return true;
+}
+
+function startTransientVisualSweeper() {
+  if (transientSweepTimer != null) return;
+  transientSweepTimer = setInterval(() => {
+    void sweepExpiredTransientVisuals();
+  }, TRANSIENT_SWEEP_INTERVAL_MS);
+}
+
+function stopTransientVisualSweeper() {
+  if (transientSweepTimer == null) return;
+  clearInterval(transientSweepTimer);
+  transientSweepTimer = null;
+}
+
+function maybeStopTransientVisualSweeper() {
+  if (rendererMounted || transientVisualExpiries.size > 0) return;
+  stopTransientVisualSweeper();
+}
+
+function clearTrackedVideo(itemId) {
+  const normalizedId = String(itemId || "").trim();
+  if (!normalizedId) return;
+  const record = transientVisualExpiries.get(normalizedId);
+  if (record?.timer) {
+    clearTimeout(record.timer);
+    pendingRenderTimers.delete(record.timer);
+  }
+  transientVisualExpiries.delete(normalizedId);
+  activeLocalVideoIds.delete(normalizedId);
+}
+
+function trackTransientVideo(item, duration, sceneEpoch = null) {
+  const cleanupDelay = Math.max(250, Number(duration) || FIREBALL_WEBM_ANIMATION_MS);
+  const effectiveDelay = Math.max(
+    0,
+    cleanupDelay - Math.min(TRANSIENT_CLEANUP_MARGIN_MS, cleanupDelay / 4),
+  );
+  const record = {
+    expiresAt: Date.now() + effectiveDelay,
+    sceneEpoch,
+    timer: null,
+  };
+  transientVisualExpiries.set(item.id, record);
+  startTransientVisualSweeper();
+  record.timer = scheduleTracked(
+    () => deleteLocalVideoItem(item.id, sceneEpoch),
+    effectiveDelay,
+  );
 }
 
 function buildLocalLayer(event, layer) {
@@ -243,10 +301,38 @@ async function updateLocalLayers(items, layers, scale, opacity) {
 
 async function deleteLocalVideoItem(itemId, sceneEpoch = null) {
   const normalizedId = String(itemId || "").trim();
-  if (!normalizedId) return;
-  activeLocalVideoIds.delete(normalizedId);
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
-  await OBR.scene.local.deleteItems([normalizedId]).catch(() => {});
+  if (!normalizedId) return true;
+  const record = transientVisualExpiries.get(normalizedId);
+  const targetEpoch = sceneEpoch ?? record?.sceneEpoch ?? null;
+  if (targetEpoch != null && !isCurrentSceneEpoch(targetEpoch)) {
+    clearTrackedVideo(normalizedId);
+    return true;
+  }
+  if (cleanupInFlight.has(normalizedId)) return false;
+  cleanupInFlight.add(normalizedId);
+  try {
+    await OBR.scene.local.deleteItems([normalizedId]);
+  } catch (error) {
+    cleanupInFlight.delete(normalizedId);
+    if (targetEpoch != null && !isCurrentSceneEpoch(targetEpoch)) {
+      clearTrackedVideo(normalizedId);
+      return false;
+    }
+    const retryEpoch = targetEpoch ?? currentSceneEpoch();
+    const retryRecord = transientVisualExpiries.get(normalizedId) || {};
+    transientVisualExpiries.set(normalizedId, {
+      ...retryRecord,
+      expiresAt: Date.now() + TRANSIENT_SWEEP_INTERVAL_MS,
+      sceneEpoch: retryEpoch,
+    });
+    startTransientVisualSweeper();
+    console.warn("[fireball] local WebM cleanup:", error?.message || error);
+    return false;
+  }
+  cleanupInFlight.delete(normalizedId);
+  clearTrackedVideo(normalizedId);
+  maybeStopTransientVisualSweeper();
+  return true;
 }
 
 async function deleteLocalPathItems(itemIds, sceneEpoch = null) {
@@ -258,36 +344,58 @@ async function deleteLocalPathItems(itemIds, sceneEpoch = null) {
   if (ids.length) await OBR.scene.local.deleteItems(ids).catch(() => {});
 }
 
-async function addLocalVideoItem(item, duration, sceneEpoch = null) {
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
+async function addLocalVideoItem(
+  item,
+  duration,
+  sceneEpoch = null,
+  generation = rendererGeneration,
+) {
+  if (generation !== rendererGeneration) return false;
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return false;
   await OBR.scene.local.addItems([item]);
-  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return;
+  if (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch)) return false;
   activeLocalVideoIds.add(item.id);
-  scheduleTracked(
-    () => deleteLocalVideoItem(item.id, sceneEpoch),
-    duration,
-  );
+  trackTransientVideo(item, duration, sceneEpoch);
+  if (generation !== rendererGeneration) {
+    await deleteLocalVideoItem(item.id, sceneEpoch);
+    return false;
+  }
+  return true;
 }
 
-async function renderLocalWebmFireball(event, plan) {
+async function renderLocalWebmFireball(event, plan, generation = rendererGeneration) {
   if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+  if (generation !== rendererGeneration) return false;
   const insertedItems = [];
   try {
     if (plan.beam) {
       const beam = buildLocalVideoItem(event, plan.beam, "beam");
       if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
-      await addLocalVideoItem(beam, plan.duration || FIREBALL_WEBM_ANIMATION_MS, event.sceneEpoch);
+      const added = await addLocalVideoItem(
+        beam,
+        plan.duration || FIREBALL_WEBM_ANIMATION_MS,
+        event.sceneEpoch,
+        generation,
+      );
+      if (!added || generation !== rendererGeneration) return false;
       if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
       insertedItems.push(beam);
     }
 
     const addExplosion = async () => {
       if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return;
+      if (generation !== rendererGeneration) return;
       if (!await animationsEnabled()) return;
       if (event?.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return;
+      if (generation !== rendererGeneration) return;
       const explosion = buildLocalVideoItem(event, plan.explosion, "explosion");
       try {
-        await addLocalVideoItem(explosion, plan.duration || FIREBALL_WEBM_ANIMATION_MS, event.sceneEpoch);
+        await addLocalVideoItem(
+          explosion,
+          plan.duration || FIREBALL_WEBM_ANIMATION_MS,
+          event.sceneEpoch,
+          generation,
+        );
       } catch (error) {
         console.warn("[fireball] local WebM explosion:", error?.message || error);
       }
@@ -322,6 +430,7 @@ async function hasValidFireballSceneAnchors(event) {
 async function renderLocalFireball(event) {
   if (!event || event.type !== FIREBALL_VISUAL_EVENT_TYPE) return false;
   if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
+  const generation = rendererGeneration;
   if (!await animationsEnabled()) return false;
   if (event.sceneEpoch != null && !isCurrentSceneEpoch(event.sceneEpoch)) return false;
   if (!markEvent(event.eventId)) return false;
@@ -332,7 +441,8 @@ async function renderLocalFireball(event) {
   const localEvent = await resolveLocalFireballSource(event);
   if (localEvent?.sceneEpoch != null && !isCurrentSceneEpoch(localEvent.sceneEpoch)) return false;
   const videoPlan = fireballVideoPlan(localEvent);
-  if (videoPlan && await renderLocalWebmFireball(localEvent, videoPlan)) return true;
+  if (videoPlan && await renderLocalWebmFireball(localEvent, videoPlan, generation)) return true;
+  if (generation !== rendererGeneration) return false;
 
   const layers = fireballLocalVisualLayers(localEvent);
   if (!layers || !localEvent.center) return false;
@@ -444,6 +554,8 @@ export async function emitFireballVisual({
 
 export function mountFireballVisualRenderer() {
   if (unsubscribe) return true;
+  rendererMounted = true;
+  startTransientVisualSweeper();
   setupFireballSceneEpochSubscription();
   unsubscribe = OBR.broadcast.onMessage(FIREBALL_VISUAL_CHANNEL, (event) => {
     const data = event?.data;
@@ -456,13 +568,15 @@ export function mountFireballVisualRenderer() {
 }
 
 export async function unmountFireballVisualRenderer() {
+  const cleanupEpoch = currentSceneEpoch();
   const trackedVideoIds = [...activeLocalVideoIds];
   const trackedPathIds = [...activeLocalPathIds];
   unsubscribe?.();
   unsubscribe = null;
   epochUnsubscribe?.();
   epochUnsubscribe = null;
-  resetFireballStateForSceneUnload();
+  rendererMounted = false;
+  resetFireballStateForSceneUnload({ preserveTransientCleanup: true });
   const ownedItems = await OBR.scene.local.getItems(
     (item) => !!item?.metadata?.[FIREBALL_LOCAL_META],
   ).catch(() => []);
@@ -471,7 +585,19 @@ export async function unmountFireballVisualRenderer() {
     ...trackedPathIds,
     ...ownedItems.map((item) => String(item?.id || "").trim()).filter(Boolean),
   ])];
-  if (cleanupIds.length) {
-    await OBR.scene.local.deleteItems(cleanupIds).catch(() => {});
+  for (const itemId of cleanupIds) {
+    await deleteLocalVideoItem(itemId, cleanupEpoch);
   }
+  maybeStopTransientVisualSweeper();
+}
+
+async function sweepExpiredTransientVisuals() {
+  const now = Date.now();
+  const expiredIds = [...transientVisualExpiries.entries()]
+    .filter(([, record]) => Number(record?.expiresAt) <= now)
+    .map(([itemId]) => itemId);
+  for (const itemId of expiredIds) {
+    await deleteLocalVideoItem(itemId);
+  }
+  maybeStopTransientVisualSweeper();
 }

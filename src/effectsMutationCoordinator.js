@@ -161,7 +161,15 @@ export function createEffectsMutationCoordinator({
       let historySkipped = false;
       const hasLogicalChanges = !!plan?.changedIds?.length;
       const hasSideEffectChanges = !!commitResult?.sideEffectChanges?.length;
-      if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges) && isCommandCurrent()) {
+      // Some temporal callers opt into silent History only when the prepared
+      // plan actually changed a terminal-resolution accumulator.  Keeping the
+      // decision here avoids making ordinary boundary ticks non-undoable.
+      const historyEnabled = command.history !== false
+        && !(
+          command.suppressHistoryOnTerminalAccumulation === true
+          && plan?.terminalAccumulationApplied === true
+        );
+      if (historyEnabled && (hasLogicalChanges || hasSideEffectChanges) && isCommandCurrent()) {
         if (command.deferHistory === true) {
           try {
             historyEntry = typeof buildHistoryEntry === "function"
@@ -194,7 +202,7 @@ export function createEffectsMutationCoordinator({
             historyEntry = clone(error?.historyEntry || null);
           }
         }
-      } else if (command.history !== false && (hasLogicalChanges || hasSideEffectChanges)) {
+      } else if (historyEnabled && (hasLogicalChanges || hasSideEffectChanges)) {
         historySkipped = true;
         historyError = {
           name: "SceneChangedAfterCommit",

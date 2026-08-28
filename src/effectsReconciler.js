@@ -31,6 +31,7 @@ import {
 } from "./sceneItemEvents.js";
 import { runtimeOptionsService } from "./options/optionsRuntime.js";
 import {
+  selectEffectSummaryPartsEnabled,
   selectEffectsDisplayMode,
   selectPlayerEffectsPolicy,
 } from "./options/optionsSelectors.js";
@@ -55,6 +56,7 @@ let unsubscribePlayer = null;
 let unsubscribeSelectionBroadcast = null;
 let expandedTargetIds = new Set();
 let effectsDisplayMode = "selected";
+let showEffectSummaryParts = true;
 let selectionSyncRevision = 0;
 let effectsRole = "PLAYER";
 let remoteGMSelectionActive = false;
@@ -185,6 +187,7 @@ function configureEffectsDisplayProjection() {
   configureEffectsLayoutProjection({
     expandedTargetIds: projectedExpandedTargetIds(),
     expansionMode: effectsDisplayMode,
+    showEffectSummaryParts,
   });
 }
 
@@ -239,11 +242,13 @@ export async function mountEffectsReconciler() {
   effectsDisplayMode = normalizeEffectsDisplayMode(
     runtimeOptionsService.get(selectEffectsDisplayMode),
   );
+  showEffectSummaryParts = runtimeOptionsService.get(selectEffectSummaryPartsEnabled) !== false;
   configureEffectsLayoutProjection({
     role: effectsRole,
     policy: runtimeOptionsService.get(selectPlayerEffectsPolicy),
     expandedTargetIds: projectedExpandedTargetIds(),
     expansionMode: effectsDisplayMode,
+    showEffectSummaryParts,
   });
   unsubscribeSelectionBroadcast = OBR.broadcast.onMessage(
     EFFECTS_SELECTION_CHANNEL,
@@ -258,15 +263,18 @@ export async function mountEffectsReconciler() {
     (options) => ({
       policy: selectPlayerEffectsPolicy(options),
       effectsDisplayMode: selectEffectsDisplayMode(options),
+      showEffectSummaryParts: selectEffectSummaryPartsEnabled(options),
     }),
-    ({ policy, effectsDisplayMode: nextDisplayMode }) => {
+    ({ policy, effectsDisplayMode: nextDisplayMode, showEffectSummaryParts: nextShowEffectSummaryParts }) => {
       const normalizedMode = normalizeEffectsDisplayMode(nextDisplayMode);
       effectsDisplayMode = normalizedMode;
+      showEffectSummaryParts = nextShowEffectSummaryParts !== false;
       configureEffectsLayoutProjection({
         role: effectsRole,
         policy,
         expandedTargetIds: projectedExpandedTargetIds(),
         expansionMode: effectsDisplayMode,
+        showEffectSummaryParts,
       });
       queue.request({ full: true }).done.catch((error) => {
         console.error("[effects] options reconcile", error);
@@ -392,6 +400,7 @@ export async function unmountEffectsReconciler() {
   await queue.idle();
   expandedTargetIds = new Set();
   effectsDisplayMode = "selected";
+  showEffectSummaryParts = true;
   resetEffectsLayoutProjection();
 }
 

@@ -362,6 +362,7 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
     }),
   ], { track: false }),
   "mass-cure-wounds": noPersistentEffect,
+  "wind-wall": noPersistentEffect,
   "sleep": failedAutomation([
     conditionRule("Privo di sensi", {
       expiry: rounds(10),
@@ -379,6 +380,9 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         manualRemoval: true,
         endsParentOnRemoval: true,
         parentRemoval: "target",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "compulsion-forced-movement", label: "Movimento imposto" }),
+        ]),
       },
     ),
   ]),
@@ -447,7 +451,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Gravità invertita: sospeso",
       "reverse-gravity-suspended",
       "Cade verso l'alto e rimane sospeso finché resta nell'area.",
-      { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: concentration,
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "reverse-gravity-suspended", label: "Sospeso" }),
+        ]),
+      },
     ),
   ]),
   "sleet-storm": noPersistentEffect,
@@ -513,6 +524,9 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       {
         expiry: Object.freeze({ mode: "turn-end", actor: "target", remaining: 1 }),
         manualRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "stinking-cloud-lost-action", label: "Azione persa" }),
+        ]),
       },
     ),
   ], { track: false }),
@@ -562,7 +576,14 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Zona di Verità: non può mentire",
       "zone-of-truth-no-lies",
       "Non può pronunciare deliberatamente una menzogna mentre rimane nella zona.",
-      { expiry: rounds(100), manualRemoval: true, endsParentOnRemoval: true },
+      {
+        expiry: rounds(100),
+        manualRemoval: true,
+        endsParentOnRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "zone-of-truth-no-lies", label: "No menzogne" }),
+        ]),
+      },
     ),
   ]),
   "xanathar-fulgore-nauseante": failedAutomation([
@@ -574,7 +595,12 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Fulgore: invisibilità inefficace",
       "sickening-radiance-no-invisibility",
       "Emette luce verdastra e non può beneficiare dell'invisibilità.",
-      { expiry: concentration },
+      {
+        expiry: concentration,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "sickening-radiance-no-invisibility", label: "No invis." }),
+        ]),
+      },
     ),
   ]),
   "xanathar-investitura-del-ghiaccio": failedAutomation([
@@ -582,7 +608,13 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       "Velocità dimezzata",
       "ice-investiture-slow",
       "Velocità dimezzata fino all'inizio del turno successivo del caster.",
-      { expiry: nextTurn("turn-start", "source"), independent: true },
+      {
+        expiry: nextTurn("turn-start", "source"),
+        independent: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ice-investiture-slow", label: "Vel ½" }),
+        ]),
+      },
     ),
   ], { track: false }),
   "xanathar-investitura-della-fiamma": noPersistentEffect,
@@ -602,6 +634,9 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
         expiry: nextTurn("turn-end", "target"),
         independent: true,
         manualRemoval: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "vitriolic-sphere-delayed-acid", label: "5d4 acido/fine turno" }),
+        ]),
         deferredEffect: Object.freeze({
           id: "vitriolic-sphere-delayed-acid",
           timing: "turn-end",
@@ -629,6 +664,11 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       expiry: manual,
       manualRemoval: true,
       endsParentOnRemoval: true,
+      effectId: "snare-trapped",
+      effectDetail: "La creatura trattenuta può usare un'azione per effettuare una prova di Intelligenza (Arcano) contro la CD della spell e liberarsi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "snare-escape-action", label: "Azione: prova Arcano" }),
+      ]),
       saveReminder: Object.freeze({
         ability: "dex",
         timing: "turn-end",
@@ -637,6 +677,8 @@ export const AREA_SAVE_AUTOMATION_RULES = Object.freeze({
       }),
     }),
   ]),
+  "prismatic-spray": noPersistentEffect,
+  "prismatic-wall": noPersistentEffect,
   "phb2014-cordone-di-frecce": noPersistentEffect,
 });
 
@@ -664,7 +706,14 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           "Simpatia: attratto dalla destinazione",
           "sympathy-attraction",
           "Deve usare il movimento per raggiungere la destinazione e non può allontanarsene volontariamente.",
-          { expiry: rounds(144000), manualRemoval: true, endsParentOnRemoval: true },
+          {
+            expiry: rounds(144000),
+            manualRemoval: true,
+            endsParentOnRemoval: true,
+            summaryParts: Object.freeze([
+              Object.freeze({ id: "sympathy-attraction", label: "Verso destinazione" }),
+            ]),
+          },
         ),
       ]),
     }),
@@ -697,7 +746,14 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           "Calma: indifferente agli ostili",
           "calm-emotions-indifference",
           "Diventa indifferente alle creature ostili scelte dal caster.",
-          { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+          {
+            expiry: concentration,
+            manualRemoval: true,
+            endsParentOnRemoval: true,
+            summaryParts: Object.freeze([
+              Object.freeze({ id: "calm-emotions-indifference", label: "Indifferente ostili" }),
+            ]),
+          },
         ),
       ]),
     }),
@@ -711,7 +767,14 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           "Intrappolato nel vortice",
           "control-water-whirlpool",
           "Rimane intrappolato nel vortice; può usare un'azione per tentare di liberarsi.",
-          { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+          {
+            expiry: concentration,
+            manualRemoval: true,
+            endsParentOnRemoval: true,
+            summaryParts: Object.freeze([
+              Object.freeze({ id: "control-water-whirlpool-escape-action", label: "Azione: liberati" }),
+            ]),
+          },
         ),
       ]),
     }),
@@ -749,79 +812,17 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
           "Mutaforma: bloccato nella forma originale",
           "moonbeam-shapechanger-reversion",
           "Ritorna alla forma originale e non può assumerne un'altra finché non lascia la luce lunare.",
-          { expiry: concentration, manualRemoval: true, endsParentOnRemoval: true },
+          {
+            expiry: concentration,
+            manualRemoval: true,
+            endsParentOnRemoval: true,
+            summaryParts: Object.freeze([
+              Object.freeze({ id: "moonbeam-shapechanger-form", label: "Forma originale" }),
+              Object.freeze({ id: "moonbeam-shapechanger-no-change", label: "No nuova forma" }),
+            ]),
+          },
         ),
       ]),
-      replaceBase: true,
-    }),
-  ]),
-  "prismatic-spray": Object.freeze([
-    Object.freeze({
-      id: "damage",
-      label: "Raggio 1-5: solo danno",
-      automation: noPersistentEffect,
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "indigo",
-      label: "Raggio indaco: Trattenuto",
-      automation: failedAutomation([
-        conditionRule("Trattenuto", {
-          expiry: manual,
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "violet",
-      label: "Raggio viola: Accecato",
-      automation: failedAutomation([
-        conditionRule("Accecato", {
-          expiry: nextTurn("turn-start", "source"),
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-      replaceBase: true,
-    }),
-  ]),
-  "prismatic-wall": Object.freeze([
-    Object.freeze({
-      id: "proximity",
-      label: "Vista ravvicinata: Accecato 1 min",
-      automation: failedAutomation([
-        conditionRule("Accecato", {
-          expiry: rounds(10),
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "indigo",
-      label: "Strato indaco: Trattenuto",
-      automation: failedAutomation([
-        conditionRule("Trattenuto", {
-          expiry: manual,
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "violet",
-      label: "Strato viola: Accecato",
-      automation: failedAutomation([
-        conditionRule("Accecato", {
-          expiry: nextTurn("turn-start", "source"),
-          independent: true,
-          manualRemoval: true,
-        }),
-      ], { track: false }),
       replaceBase: true,
     }),
   ]),

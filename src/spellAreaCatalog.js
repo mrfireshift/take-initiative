@@ -10,9 +10,11 @@ const EXPLICIT_RULE_SPELL_IDS = new Set([
   "cone-of-cold",
   "call-lightning",
   "entangle",
+  "delayed-blast-fireball",
   "fireball",
   "lightning-bolt",
   "moonbeam",
+  "prismatic-wall",
   "spirit-guardians",
   "web",
   "xanathar-investitura-della-fiamma",
@@ -353,6 +355,16 @@ const AREA_OVERRIDES = Object.freeze({
       },
     ],
   },
+  "wind-wall": {
+    shape: "line",
+    sizeMeters: 15,
+    widthMeters: 0.3,
+    origin: "point",
+    rangeMeters: 36,
+    placementOptional: false,
+    initialSave: { ability: "str" },
+    note: "Linea retta fino a 15 m; forme continue diverse ammesse dal RAW restano manuali.",
+  },
   "xanathar-muro-di-luce": {
     shape: "line",
     sizeMeters: 18,
@@ -532,6 +544,9 @@ function catalogSpec(spell) {
       : {}),
     ...(typeof override.placementOptional === "boolean"
       ? { placementOptional: override.placementOptional }
+      : {}),
+    ...(override.initialSave && typeof override.initialSave === "object"
+      ? { initialSave: { ...override.initialSave } }
       : {}),
     ...(override.followCaster === true ? { followCaster: true } : {}),
     ...(override.note ? { note: override.note } : {}),

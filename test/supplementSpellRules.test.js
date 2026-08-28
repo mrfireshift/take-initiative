@@ -19,6 +19,30 @@ test("tutti i supplementi sono nel catalogo e le spell istantanee pure restano e
   assert.equal(getSpellDefinition("Morsa del Gelo").trackable, true);
 });
 
+test("Gabbia dell'Anima resta tracking-only con durata e riferimento RAW completi", () => {
+  const spell = getSpellDefinition("xanathar-gabbia-dellanima");
+  assert.ok(spell);
+  assert.equal(spell.trackable, true);
+  assert.equal(spell.duration, "8 ore");
+  assert.equal(spell.defaultTurns, 4800);
+  assert.equal(spell.concentration, false);
+  assert.equal(getTrackableSpellOptions().some((option) => option.id === spell.id), true);
+  assert.deepEqual(spell.activeActions, []);
+  assert.deepEqual(spell.effects, []);
+
+  const description = spell.italianReference.description;
+  for (const phrase of [
+    "anima intrappolata",
+    "sei volte",
+    "Rubare Vita",
+    "Interrogare Anima",
+    "Esperienza in Prestito",
+    "Occhi dei Morti",
+  ]) {
+    assert.match(description, new RegExp(phrase, "iu"));
+  }
+});
+
 test("le collisioni di nome Tasha sono selezionabili senza sostituire le spell SRD", () => {
   assert.equal(getSpellDefinition("Evoca Celestiale").id, "conjure-celestial");
   assert.equal(getSpellDefinition("Evoca Celestiale (Tasha)").id, "tasha-evoca-celestiale");

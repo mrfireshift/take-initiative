@@ -467,6 +467,43 @@ function runtimeFor(targetIds = ["target-a"]) {
   };
 }
 
+test("Aura di Vita non duplica l’effetto personale quando la membership include il caster", async () => {
+  const command = areaCommandFor("phb2014-aura-di-vita", {
+    slotLevel: 4,
+    targetIds: [],
+    outcomes: {},
+    placement: null,
+  });
+  const caster = {
+    id: "caster-1",
+    name: "Caster",
+    position: { x: 0, y: 0 },
+    metadata: {},
+  };
+  const plan = await buildSpellAreaResolutionExecutionPlan(command, {
+    ...runtimeFor([]),
+    readItems: async (ids) => ids
+      .map((id) => id === caster.id ? caster : null)
+      .filter(Boolean),
+    readAllItems: async () => [caster],
+    readSceneMetadata: async () => ({}),
+    getInitiativeActorId: async () => null,
+    createSpellInstanceId: async () => "life-instance",
+    validateSpatial: async () => ({ valid: true, errors: [] }),
+  });
+
+  assert.equal(plan.valid, true, plan.errors?.map((entry) => entry.message).join(", "));
+  assert.deepEqual(
+    plan.effectOperations
+      .filter((operation) => (
+        operation.type === "condition:add"
+        && operation.options?.effectId === "aura-of-life"
+      ))
+      .map((operation) => operation.targetIds),
+    [],
+  );
+});
+
 test("V1: Hold Person genera matchedVisualContext valido per target fallito", async () => {
   const command = areaCommandFor("hold-person", {
     slotLevel: 2,

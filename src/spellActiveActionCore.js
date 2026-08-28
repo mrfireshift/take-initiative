@@ -2,7 +2,11 @@ import {
   spellEffectConditionName,
   spellEffectConditionOptions,
 } from "./spellEffectCore.js";
-import { isPreparedSpellCast } from "./spellCastPhaseCore.js";
+import {
+  isPreparedSpellCast,
+  spellPreparedResolutionAvailable,
+} from "./spellCastPhaseCore.js";
+import { buildSpellActiveResolutionResourceOperations } from "./spellActiveResolutionCore.js";
 import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
@@ -121,7 +125,7 @@ export function getSpellOverviewActions({
     castContext,
     casterId,
     targetIds,
-  })) {
+  }) && spellPreparedResolutionAvailable(spell)) {
     actions.push({
       id: "resolve-prepared",
       type: "resolve",
@@ -370,6 +374,41 @@ export function buildSpellActiveActionPlan({
     }
   }
 
+  let resourceOperations = [];
+  if (action?.resource && !errors.length) {
+    const resourceResult = buildSpellActiveResolutionResourceOperations({
+      action,
+      payload: {
+        instanceId: parentInstanceId,
+        casterId,
+        spellId: spell?.id || group?.spellId,
+        spellName: spell?.displayName || spell?.name || group?.name,
+      },
+      spellEntry: {
+        instanceId: parentInstanceId,
+        casterId,
+        casterName: group?.casterName || casterName,
+        spellId: spell?.id || group?.spellId,
+        name: group?.name || spell?.displayName || spell?.name,
+        turns: Math.max(
+          1,
+          ...(Array.isArray(group?.turns)
+            ? group.turns.map((value) => Math.floor(Number(value) || 0)).filter((value) => value > 0)
+            : []),
+          Math.floor(Number(spell?.defaultTurns) || 1),
+        ),
+        conc: spell?.concentration === true,
+        appliedAt: group?.appliedAt,
+        castContext: group?.castContext || {},
+      },
+    });
+    if (!resourceResult.valid) {
+      errors.push(...(resourceResult.errors || ["active-resolution-resource-missing"]));
+    } else {
+      resourceOperations = [...resourceResult.operations];
+    }
+  }
+
   if (errors.length) {
     return {
       valid: false,
@@ -380,7 +419,7 @@ export function buildSpellActiveActionPlan({
     };
   }
 
-  const operations = [];
+  const operations = [...resourceOperations];
   if (action.replaceSpellTargets === true) {
     const previousTargetIds = groupTargetIds(group)
       .filter((targetId) => !subjectIds.includes(targetId));
@@ -477,7 +516,15 @@ export function buildSpellActiveActionPlan({
   const entityAction = action.entityAction && typeof action.entityAction === "object"
     ? { ...clone(action.entityAction), actionId: String(action.id || "").trim() }
     : null;
-  const delegatedResolution = ["save-area", "single-attack", "single-save", "child-zone"]
+  const delegatedResolution = [
+    "save-area",
+    "single-attack",
+    "single-save",
+    "single-heal",
+    "child-zone",
+    "prismatic-wall-traversal",
+    "prismatic-wall-layers",
+  ]
     .includes(String(action?.resolutionKind || "").trim());
   const hasAction = operations.length > 0
     || !!zoneRuleChoice

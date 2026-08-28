@@ -16,6 +16,7 @@ import {
   SUPPLEMENT_EFFECTS,
   SUPPLEMENT_EXPIRY,
   SUPPLEMENT_SAVE_AUTOMATION,
+  SUPPLEMENT_SUMMARY_DEFINITIONS,
   SUPPLEMENT_TRACKING,
 } from "./supplementSpellRules.js";
 import {
@@ -41,6 +42,11 @@ import {
 } from "./spellActiveResolutionRules.js";
 import { FLESH_TO_STONE_SAVE_AUTOMATION } from "./fleshToStoneRules.js";
 import { CONTAGION_EFFECT_CHOICES } from "./contagionRules.js";
+import {
+  DELAYED_BLAST_FIREBALL_ID,
+  delayedBlastFireballSummaryParts,
+} from "./delayedBlastFireballRules.js";
+import { prismaticWallSummaryParts } from "./prismaticWallRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -53,6 +59,11 @@ function dominateAutomation(spellLabel) {
     conditionOptions: {
       Affascinato: {
         effectId: DOMINATE_CONDITION_EFFECT_ID,
+        effectDetail: "Può impartire comandi telepatici senza azione; con un'azione può assumere il controllo totale fino alla fine del proprio turno successivo. Può imporre una reazione solo usando anche la propria.",
+        summaryParts: [
+          { id: "dominate-telepathic-commands", label: "Comandi telepatici" },
+          { id: "dominate-total-control", label: "Azione: controllo totale" },
+        ],
         manualRemoval: true,
         endsParentOnRemoval: true,
         parentRemoval: "target",
@@ -139,7 +150,20 @@ const AUTOMATION = Object.freeze({
   "dominate-beast": dominateAutomation("Dominare Bestie"),
   "dominate-monster": dominateAutomation("Dominare Mostri"),
   "dominate-person": dominateAutomation("Dominare Persone"),
-  "entangle": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
+  "entangle": {
+    mode: "confirm",
+    conditions: ["Trattenuto"],
+    targetMode: "area",
+    conditionOptions: {
+      Trattenuto: {
+        effectId: "entangle-restrained",
+        effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        summaryParts: [
+          { id: "entangle-escape-action", label: "Azione: prova For" },
+        ],
+      },
+    },
+  },
   "fear": {
     mode: "confirm",
     conditions: ["Spaventato"],
@@ -310,7 +334,20 @@ const AUTOMATION = Object.freeze({
     },
   },
   "sleep": { mode: "confirm", conditions: ["Privo di sensi"], targetMode: "area" },
-  "web": { mode: "confirm", conditions: ["Trattenuto"], targetMode: "area" },
+  "web": {
+    mode: "confirm",
+    conditions: ["Trattenuto"],
+    targetMode: "area",
+    conditionOptions: {
+      Trattenuto: {
+        effectId: "web-restrained",
+        effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        summaryParts: [
+          { id: "web-escape-action", label: "Azione: prova For" },
+        ],
+      },
+    },
+  },
   ...SUPPLEMENT_AUTOMATION,
   ...PHB2014_AUTOMATION,
 });
@@ -379,8 +416,10 @@ const TARGET_MODE_OVERRIDES = Object.freeze({
   "arcane-hand": "self",
   "tasha-lama-del-disastro": "self",
   "xanathar-arma-sacra": "self",
+  "xanathar-lama-dombra": "self",
   "phb2014-aura-di-purezza": "self",
   "phb2014-aura-di-vita": "self",
+  "phb2014-aura-di-vitalita": "self",
 });
 
 const TARGETING_OVERRIDES = Object.freeze({
@@ -470,6 +509,11 @@ const SAVE_AUTOMATION = Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
+      effectId: "entangle-restrained",
+      effectDetail: "I vegetali trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "entangle-escape-action", label: "Azione: prova For" }),
+      ]),
       expiry: CONCENTRATION_EXPIRY,
       manualRemoval: true,
       endsParentOnRemoval: true,
@@ -514,6 +558,11 @@ const SAVE_AUTOMATION = Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
+      effectId: "web-restrained",
+      effectDetail: "Le ragnatele trattengono il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "web-escape-action", label: "Azione: prova For" }),
+      ]),
       expiry: CONCENTRATION_EXPIRY,
       manualRemoval: true,
       endsParentOnRemoval: true,
@@ -644,6 +693,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Velocità di volare: 18 m",
       detail: "Concede una velocità di volare di 18 metri.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "fly-speed", label: "Volo 18 m" }),
+      ]),
       mechanics: Object.freeze({
         movement: Object.freeze({
           modes: Object.freeze({
@@ -694,6 +746,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Scalare = velocità base",
       detail: "Concede una velocità di scalare pari alla velocità base sul terreno.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "spider-climb-speed-mode", label: "Scalare = Vel base" }),
+      ]),
       mechanics: Object.freeze({
         movement: Object.freeze({
           modes: Object.freeze({
@@ -710,6 +765,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Forma del vento · solo volo 90 m",
       detail: "In forma gassosa, volare 90 metri è l'unico metodo di movimento. Rimuovere questa pill quando si torna alla forma normale.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "wind-walk-exclusive-flight", label: "Solo volo 90 m" }),
+      ]),
       manualRemoval: true,
       mechanics: Object.freeze({
         movement: Object.freeze({
@@ -762,6 +820,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Attacchi contro: svant.",
       detail: "Gli attacchi contro il bersaglio subiscono svantaggio quando dipendono dalla vista.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "blur-incoming-attack-disadvantage", label: "Att. contro svant. (vista)" }),
+      ]),
     }),
   ]),
   "chill-touch": Object.freeze([
@@ -770,6 +831,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Niente recupero PF",
       detail: "Il bersaglio non può recuperare punti ferita.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "chill-touch-healing-blocked", label: "No recupero PF" }),
+      ]),
     }),
   ]),
   "divine-favor": Object.freeze([
@@ -778,37 +842,12 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 danni radiosi",
       detail: "Gli attacchi con arma infliggono 1d4 danni radiosi extra.",
-      mechanics: Object.freeze({
-        deriveLabel: true,
-        damageBonus: Object.freeze({ dice: "1d4", type: "danni radiosi" }),
-      }),
-    }),
-  ]),
-  "flame-blade": Object.freeze([
-    Object.freeze({
-      id: "flame-blade-damage",
-      kind: "buff",
-      label: "3d6 danni da fuoco",
-      detail: "L'attacco in mischia con la lama infuocata infligge questi danni da fuoco se colpisce.",
       summaryParts: Object.freeze([
-        Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 danni da fuoco" }),
+        Object.freeze({ id: "divine-favor-radiant-damage", label: "+1d4 radiosi" }),
       ]),
       mechanics: Object.freeze({
         deriveLabel: true,
-        damageBonus: Object.freeze({
-          total: true,
-          dice: Object.freeze({
-            count: Object.freeze({
-              base: 3,
-              baseSlot: 2,
-              perSlotAbove: 1,
-              step: 2,
-              max: 6,
-            }),
-            sides: 6,
-          }),
-          type: "danni da fuoco",
-        }),
+        damageBonus: Object.freeze({ dice: "1d4", type: "danni radiosi" }),
       }),
     }),
   ]),
@@ -830,6 +869,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 prova",
       detail: "Aggiunge 1d4 a una prova di caratteristica; rimuovere la pill dopo l'uso.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "guidance-ability-check-bonus", label: "Prova +1d4" }),
+      ]),
       manualRemoval: true,
       mechanics: Object.freeze({
         deriveLabel: true,
@@ -843,6 +885,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Prossimo attacco: vant.",
       detail: "Il prossimo attacco contro il bersaglio dispone di vantaggio; rimuovere la pill dopo l'attacco.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "guiding-bolt-next-attack-advantage", label: "Pross. attacco: vant." }),
+      ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
     }),
@@ -853,6 +898,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "+1d6 danni dal caster",
       detail: "Il caster infligge 1d6 danni extra al bersaglio quando lo colpisce con un attacco con arma.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "hunters-mark-weapon-damage", label: "+1d6 danni dal caster" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         damageBonus: Object.freeze({ dice: "1d6", type: "danni", sourceOnly: true }),
@@ -904,6 +952,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+10 Furtività",
       detail: "Aggiunge 10 alle prove di Destrezza (Furtività).",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "pass-without-trace-stealth", label: "Furtività +10" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         abilityCheck: Object.freeze({ bonus: 10, skill: "Furtività" }),
@@ -916,6 +967,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+1d4 TS",
       detail: "Aggiunge 1d4 a un tiro salvezza; rimuovere la pill dopo l'uso.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "resistance-saving-throw-bonus", label: "TS +1d4" }),
+      ]),
       manualRemoval: true,
       mechanics: Object.freeze({
         deriveLabel: true,
@@ -946,6 +1000,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "buff",
       label: "+2 CA",
       detail: "Aggiunge 2 alla Classe Armatura.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "shield-of-faith-armor-class", label: "CA +2" }),
+      ]),
       mechanics: Object.freeze({
         deriveLabel: true,
         armorClass: Object.freeze({ bonus: 2 }),
@@ -958,6 +1015,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Primo attacco: vant.",
       detail: "Il primo attacco del caster contro il bersaglio dispone di vantaggio; rimuovere la pill dopo l'attacco.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "true-strike-first-attack-advantage", label: "Primo attacco: vant." }),
+      ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
     }),
@@ -968,6 +1028,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "Movimento: danni tuono",
       detail: "Se il bersaglio si muove di almeno 1,5 metri, subisce i danni da tuono; rimuovere la pill dopo l'attivazione.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "booming-blade-movement-trigger", label: "Movimento: danni tuono" }),
+      ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
       expiry: Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -979,6 +1042,9 @@ const SPELL_EFFECTS = Object.freeze({
       kind: "debuff",
       label: "-1d4 prossimo TS",
       detail: "Sottrae 1d4 al prossimo tiro salvezza; rimuovere la pill dopo il tiro.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "mind-shard-next-saving-throw-penalty", label: "Pross. TS −1d4" }),
+      ]),
       manualRemoval: true,
       endsParentOnRemoval: true,
       expiry: Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -999,6 +1065,55 @@ const SPELL_EFFECTS = Object.freeze({
   ]),
   ...SUPPLEMENT_EFFECTS,
   ...PHB2014_EFFECTS,
+});
+
+const SPELL_SUMMARY_DEFINITIONS = Object.freeze({
+  "antilife-shell": Object.freeze({
+    id: "antilife-shell",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "antilife-shell-no-crossing", label: "Non attraversabile" }),
+    ]),
+  }),
+  "wind-wall": Object.freeze({
+    id: "wind-wall",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "wind-wall-length", label: "15 m" }),
+      Object.freeze({ id: "wind-wall-ordinary-projectiles", label: "Proiettili ordinari: miss" }),
+      Object.freeze({ id: "wind-wall-no-gas", label: "No gas" }),
+      Object.freeze({ id: "wind-wall-small-flying", label: "Piccoli volanti: no pass" }),
+    ]),
+  }),
+  "phb2014-aura-di-vitalita": Object.freeze({
+    id: "aura-of-vitality",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "aura-of-vitality-radius", label: "9 m" }),
+      Object.freeze({ id: "aura-of-vitality-bonus-heal", label: "Bonus · Cura 2d6" }),
+    ]),
+  }),
+  "flame-blade": Object.freeze({
+    id: "flame-blade-damage",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 fuoco" }),
+    ]),
+    mechanics: Object.freeze({
+      deriveLabel: true,
+      damageBonus: Object.freeze({
+        total: true,
+        dice: Object.freeze({
+          count: Object.freeze({
+            base: 3,
+            baseSlot: 2,
+            perSlotAbove: 1,
+            step: 2,
+            max: 6,
+          }),
+          sides: 6,
+        }),
+        type: "fuoco",
+      }),
+    }),
+  }),
+  ...SUPPLEMENT_SUMMARY_DEFINITIONS,
 });
 
 const SPELL_EFFECT_CHOICES = Object.freeze({
@@ -1052,6 +1167,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Aspetto alterato",
         detail: "L'aspetto fisico è alterato senza modificare le statistiche.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "alter-self-appearance-changed", label: "Aspetto alterato" }),
+        ]),
       })]),
     }),
   ]),
@@ -1065,6 +1183,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
           kind: "buff",
           label: `Res. ${type}`,
           detail: `Resistenza ai danni da ${type} fino all'inizio del prossimo turno del caster.`,
+          summaryParts: Object.freeze([
+            Object.freeze({ id: `absorb-elements-resistance-${type}`, label: `Res. ${type}` }),
+          ]),
           expiry: Object.freeze({ mode: "turn-start", actor: "source", remaining: 1, anchor: "next-turn" }),
         }),
         Object.freeze({
@@ -1072,6 +1193,22 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
           kind: "buff",
           label: `+1d6 ${type} in mischia`,
           detail: `Il prossimo colpo in mischia nel turno successivo infligge 1d6 danni da ${type}; rimuovere la pill dopo il colpo.`,
+          summaryParts: Object.freeze([
+            Object.freeze({
+              id: `absorb-elements-melee-damage-${type}`,
+              label: `+1d6 ${type} in mischia`,
+            }),
+          ]),
+          mechanics: Object.freeze({
+            deriveLabel: true,
+            damageBonus: Object.freeze({
+              dice: Object.freeze({
+                count: Object.freeze({ base: 1, baseSlot: 1, perSlotAbove: 1 }),
+                sides: 6,
+              }),
+              type,
+            }),
+          }),
           manualRemoval: true,
           endsParentOnRemoval: true,
           expiry: Object.freeze({ mode: "turn-end", actor: "source", remaining: 1, anchor: "next-turn" }),
@@ -1172,6 +1309,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Svant. attacchi vs caster",
         detail: "Svantaggio ai tiri per colpire contro il caster.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-attacks-against-caster-penalty", label: "Svant. attacchi vs caster" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1182,6 +1322,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "TS Sag o perde azione",
         detail: "All'inizio del turno effettua un TS Saggezza; se fallisce, spreca l'azione.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-wasted-action-consequence", label: "Azione persa se fallisce" }),
+        ]),
         saveReminder: Object.freeze({
           ability: "wis",
           timing: "turn-start",
@@ -1200,6 +1343,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "+1d8 necrotici dal caster",
         detail: "Gli attacchi e gli incantesimi del caster infliggono 1d8 danni necrotici extra.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "curse-extra-necrotic-damage-bonus", label: "+1d8 necrotici dal caster" }),
+        ]),
       })]),
     }),
   ]),
@@ -1212,6 +1358,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove Int",
         detail: "Vantaggio alle prove di Intelligenza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-intelligence-checks", label: "Vant. prove Int" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1264,6 +1413,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove Sag",
         detail: "Vantaggio alle prove di Saggezza.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-wisdom-checks", label: "Vant. prove Sag" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -1274,6 +1426,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Vant. prove Car",
         detail: "Vantaggio alle prove di Carisma.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "enhance-charisma-checks", label: "Vant. prove Car" }),
+        ]),
       })]),
     }),
   ]),
@@ -1318,6 +1473,9 @@ const SPELL_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: `Res. ${type}`,
         detail: `Resistenza ai danni da ${type}.`,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: `protection-from-energy-resistance-${type}`, label: `Res. ${type}` }),
+        ]),
       })]),
     })),
   ]),
@@ -1573,7 +1731,9 @@ function scopedParentRemovalRule(rule, spell) {
 
 function areaSaveAutomationForSpell(spell, choiceValue = "") {
   if (!spell) return null;
-  const areaChoices = AREA_SAVE_RULE_CHOICES[spell.id] || [];
+  const areaChoices = Array.isArray(AREA_SAVE_RULE_CHOICES[spell.id])
+    ? AREA_SAVE_RULE_CHOICES[spell.id]
+    : [];
   const selectedAreaChoice = areaChoices.find((choice) => choice.id === choiceValue)
     || areaChoices[0]
     || null;
@@ -1772,7 +1932,9 @@ export function getAreaSaveAutomation(value, choiceValue = "") {
 
 export function getAreaSaveRuleChoices(value) {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
-  const choices = AREA_SAVE_RULE_CHOICES[spell?.id] || [];
+  const choices = Array.isArray(AREA_SAVE_RULE_CHOICES[spell?.id])
+    ? AREA_SAVE_RULE_CHOICES[spell?.id]
+    : [];
   return choices.map((choice) => ({ value: choice.id, label: choice.label }));
 }
 
@@ -1817,6 +1979,19 @@ export function getSpellEffects(value, choiceValue = "", castContext = {}) {
   const selected = choices.find((choice) => choice.id === choiceValue) || choices[0] || null;
   return [...fixed, ...(selected?.effects || [])]
     .map((effect) => resolveSpellEffect(effect, castContext));
+}
+
+export function getSpellSummaryParts(value, choiceValue = "", castContext = {}) {
+  const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  if (spell?.id === DELAYED_BLAST_FIREBALL_ID) {
+    return delayedBlastFireballSummaryParts(castContext);
+  }
+  if (spell?.id === "prismatic-wall") {
+    return prismaticWallSummaryParts(castContext);
+  }
+  const definition = SPELL_SUMMARY_DEFINITIONS[spell?.id];
+  if (!definition) return [];
+  return resolveSpellEffect(definition, castContext).summaryParts || [];
 }
 
 export function getSpellAttackResolution(value, choiceValue = "", castContext = {}) {

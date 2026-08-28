@@ -254,17 +254,22 @@ function compactConditionIcon(row) {
 
 function compactRowsForTarget(rows, { measureText, config }) {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  // A canonical condition and its summary parts are different visual rows.
-  // Only the condition itself may collapse to its emoji/icon in compact mode;
-  // otherwise a progress pill (for example S/F on Trattenuto) inherits the
-  // condition icon and becomes indistinguishable from the condition.
+  // In compact mode the canonical condition keeps its icon, while every
+  // summaryParts cluster collapses into the aggregate marker on the right.
+  // This keeps the compact projection consistent for declarative details and
+  // dynamic progress alike; the full rows remain available in expanded view.
   const conditionRows = sourceRows.filter((row) =>
     row.kind === "condition" && row.summaryPart !== true
   );
   const conditionSummaryRows = sourceRows.filter((row) =>
     row.kind === "condition" && row.summaryPart === true
   );
-  const spellRows = sourceRows.filter((row) => row.kind === "spell");
+  const spellRows = sourceRows.filter((row) =>
+    row.kind === "spell" && row.summaryPart !== true
+  );
+  const spellSummaryRows = sourceRows.filter((row) =>
+    row.kind === "spell" && row.summaryPart === true
+  );
   const spellEffectRows = sourceRows.filter((row) => row.kind === "spell-effect");
   const configuredLimit = Number(config.compactConditionIconLimit);
   const limit = Math.max(
@@ -292,25 +297,16 @@ function compactRowsForTarget(rows, { measureText, config }) {
     };
   });
 
-  for (const [index, row] of conditionSummaryRows.entries()) {
-    compactRows.push({
-      ...row,
-      identity: `condition|${targetId}|compact:summary:${row.key}`,
-      key: `compact:summary:${row.key}`,
-      compactMode: "summary-part",
-      sortKey: `1|${String(conditionRows.length + index).padStart(3, "0")}|summary`,
-      offsetY: 0,
-    });
-  }
-
   const summaryParts = [];
   const hiddenConditionCount = Math.max(0, conditionRows.length - limit);
   if (hiddenConditionCount > 0) summaryParts.push(`+${hiddenConditionCount}`);
   if (spellRows.length > 0) summaryParts.push(`✨${spellRows.length}`);
-  const spellEffectCount = new Set(
-    spellEffectRows.map((row) => row.summaryParentKey || row.key),
-  ).size;
-  if (spellEffectCount > 0) summaryParts.push(`✦${spellEffectCount}`);
+  const effectKeys = new Set([
+    ...spellEffectRows.map((row) => row.summaryParentKey || row.key),
+    ...spellSummaryRows.map((row) => row.summaryParentKey || row.key),
+    ...conditionSummaryRows.map((row) => row.summaryParentKey || row.key),
+  ]);
+  if (effectKeys.size > 0) summaryParts.push(`✦${effectKeys.size}`);
 
   if (summaryParts.length > 0) {
     const text = summaryParts.join(" · ");
@@ -342,15 +338,6 @@ function compactRowsForTarget(rows, { measureText, config }) {
   }
 
   return compactRows;
-}
-
-function fitCompactRowToBox(row, box) {
-  if (row.width <= box.width) return row;
-
-  return {
-    ...row,
-    width: Math.min(row.width, box.width),
-  };
 }
 
 function findSpellEntry(target, assignment) {
@@ -416,6 +403,7 @@ export function planEffectsLayout({
   compact = false,
   expandedTargetIds = [],
   expansionMode = "selected",
+  showEffectSummaryParts = true,
 } = {}) {
   const expandedIds = new Set(
     (expandedTargetIds instanceof Set
@@ -492,6 +480,47 @@ export function planEffectsLayout({
       sortKey: `${sortPrefix}|0`,
       offsetY: config.stackOffsetY,
     });
+    if (showEffectSummaryParts !== false && Array.isArray(spellEntry?.summaryParts)) {
+      const summaryParts = spellEntry.summaryParts
+        .map((part, index) => ({
+          id: String(part?.id || part?.key || `part-${index + 1}`).trim(),
+          label: String(part?.label || part?.text || "").trim(),
+          ...(part?.stack === true ? { stack: true } : {}),
+        }))
+        .filter((part) => part.id && part.label)
+        .slice(0, 12);
+      for (const [partIndex, part] of summaryParts.entries()) {
+        const summaryKey = `${key}:summary:${part.id}`;
+        appendRow(targetId, {
+          identity: `spell|${targetId}|${caster.id}|${summaryKey}`,
+          kind: "spell",
+          targetId,
+          casterId: caster.id,
+          key: summaryKey,
+          text: part.label,
+          width: summaryPartWidth(part.label, measureText, config),
+          height: config.summaryPartLabelHeight,
+          backgroundColor: context.backgroundColor,
+          backgroundOpacity: context.backgroundOpacity,
+          pointerDirection: "LEFT",
+          fontFamily: config.fontFamily,
+          fontSize: config.summaryPartFontSize,
+          fontWeight: config.fontWeight,
+          lineHeight: config.lineHeight,
+          textFill: config.textFill,
+          textStroke: config.textStroke,
+          textStrokeWidth: config.textStrokeWidth,
+          maxViewScale: config.maxViewScale,
+          zIndex: config.spellZIndex,
+          summaryPart: true,
+          summaryParentKey: key,
+          summaryPartId: part.id,
+          ...(part.stack === true ? { stack: true } : {}),
+          sortKey: `${sortPrefix}|0|summary|${String(partIndex).padStart(3, "0")}`,
+          offsetY: 0,
+        });
+      }
+    }
     return context;
   };
 
@@ -601,7 +630,7 @@ export function planEffectsLayout({
           : `${spellEffect ? "-1" : "1"}|${key}`,
         offsetY: 0,
       };
-      const summaryParts = Array.isArray(condition?.summaryParts)
+      const declaredSummaryParts = Array.isArray(condition?.summaryParts)
         ? condition.summaryParts
           .map((part, index) => ({
             id: String(part?.id || `part-${index + 1}`).trim(),
@@ -610,12 +639,16 @@ export function planEffectsLayout({
           }))
           .filter((part) => part.id && part.label)
         : [];
+      const summaryParts = showEffectSummaryParts === false
+        ? []
+        : declaredSummaryParts;
 
       // Solo una riga spell-effect collegata ha già la pill parent sopra.
-      // Una condition canonica parent-linked, come Trattenuto, resta invece
-      // visibile insieme alle proprie mini pill.
-      const hideBaseRow = spellEffect && linkedToSpell;
-      if (!summaryParts.length || !hideBaseRow) appendRow(token.id, baseRow);
+      // Nel layout esteso una condition canonica parent-linked, come
+      // Trattenuto, resta visibile insieme alle proprie mini pill; la
+      // proiezione compatta le sostituisce più avanti con il marker aggregato.
+      const hideBaseRow = spellEffect && linkedToSpell && declaredSummaryParts.length > 0;
+      if (!hideBaseRow) appendRow(token.id, baseRow);
       for (const [partIndex, part] of summaryParts.entries()) {
         const summaryKey = `${key}:summary:${part.id}`;
         appendRow(token.id, {
@@ -652,9 +685,7 @@ export function planEffectsLayout({
     const stackSpineX = Math.round(box.left + box.width * config.labelOffsetX);
     let centerY = baseY;
     let previousStackHeight = 0;
-    const layoutRows = compactTarget
-      ? rows.map((row) => fitCompactRowToBox(row, box))
-      : rows;
+    const layoutRows = [...rows];
     layoutRows.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
     const rowGroups = layoutRowGroups(layoutRows, config);
     // La dorsale è identica in entrambe le modalità: le pill si sviluppano

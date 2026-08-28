@@ -28,6 +28,19 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       }),
     }),
   }),
+  "wind-wall": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({
+        formula: "3d8",
+        type: "contundenti",
+      }),
+      failed: Object.freeze({
+        formula: "3d8",
+        type: "contundenti",
+      }),
+    }),
+  }),
   "chain-lightning": Object.freeze({
     initialHP: true,
     resolution: "chain-lightning",
@@ -77,6 +90,20 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "xanathar-sfera-della-tempesta": Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({
+        formula: "2d6",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
+        type: "contundenti",
+      }),
+      failed: Object.freeze({
+        formula: "2d6",
+        baseSlot: 4,
+        additionalPerSlotAbove: 1,
+        type: "contundenti",
+      }),
+    }),
   }),
   "xanathar-coltello-di-ghiaccio": Object.freeze({
     initialHP: true,
@@ -118,7 +145,6 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
   "dream": { initialHP: false, deferredHP: "variant" },
   "faithful-hound": { initialHP: false, deferredHP: "hound-attack" },
   "fire-shield": { initialHP: false, deferredHP: "reaction" },
-  "flame-blade": { initialHP: false, deferredHP: "active-attack" },
   "guiding-bolt": { initialHP: true, resolution: "single-attack" },
   "heat-metal": {
     initialHP: true,

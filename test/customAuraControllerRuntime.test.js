@@ -268,6 +268,12 @@ function token(id, x, meta = {}) {
   };
 }
 
+function metadataLessToken(id, x) {
+  const item = token(id, x);
+  delete item.metadata[META_KEY];
+  return item;
+}
+
 function auraConditions(item) {
   const value = item?.metadata?.[META_KEY]?.conditions;
   return Array.isArray(value) ? value : value?.instances || [];
@@ -280,15 +286,16 @@ function auraEffectIds(item) {
     .sort();
 }
 
-test("Custom Aura controller runtime: CHARACTER fuori iniziativa entra, resta, esce e pulisce", async () => {
+test("Custom Aura controller runtime: CHARACTER fuori iniziativa senza META entra, resta, esce e pulisce", async () => {
   deliveries.length = 0;
   scene.metadata = {
     [STATE_KEY]: { order: ["source"], current: 0, round: 1 },
   };
   scene.items = [
     token("source", 0, { customAuras: [aura()], inInitiative: true, attitude: "ally" }),
-    token("target", 50, { attitude: "enemy", inInitiative: false, hp: 20, hpMax: 20 }),
+    metadataLessToken("target", 50),
   ];
+  assert.equal(scene.items.find((item) => item.id === "target").metadata?.[META_KEY], undefined);
   const [activeAura] = collectActiveCustomAuras(scene.items, { metaKey: META_KEY });
   assert.deepEqual(customAuraTargetIds({
     aura: activeAura,
@@ -339,6 +346,15 @@ test("Custom Aura controller runtime: CHARACTER fuori iniziativa entra, resta, e
       "aura-1:pill-3",
     ]);
     assert.equal(scene.items.filter((item) => item.metadata?.[CUSTOM_AURA_META_KEY]).length, 1);
+
+    await sdk.scene.items.updateItems(["target"], (drafts) => {
+      const meta = { ...(drafts[0].metadata?.[META_KEY] || {}) };
+      drafts[0].metadata = {
+        ...(drafts[0].metadata || {}),
+        [META_KEY]: { ...meta, attitude: "enemy", inInitiative: false, hp: 20, hpMax: 20 },
+      };
+    });
+    await wait(100);
 
     const noTurnNoticeYet = deliveries.flatMap((entry) => entry.payload?.notices || []);
     assert.equal(noTurnNoticeYet.length, 0, "turn-start stays silent for a target outside initiative");

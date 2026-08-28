@@ -84,6 +84,10 @@ function contextConditionMatches(context, condition) {
   return false;
 }
 
+export function spellTargetContextConditionMatches(context, condition) {
+  return contextConditionMatches(context, condition);
+}
+
 function normalizeTargetContextFieldValue(field, value) {
   if (field?.type === "number") {
     if (value === "" || value === null || value === undefined) return "";

@@ -4,12 +4,20 @@ const freeze = (value) => {
   return Object.freeze(value);
 };
 
-const damage = ({ formula, type, onSave = "none", baseSlot = 0, additionalPerSlotAbove = 0 }) => ({
+const damage = ({
+  formula,
+  type,
+  onSave = "none",
+  baseSlot = 0,
+  additionalPerSlotAbove = 0,
+  maxDice = 0,
+}) => ({
   formula,
   type,
   onSave,
   ...(baseSlot > 0 ? { baseSlot } : {}),
   ...(additionalPerSlotAbove > 0 ? { additionalPerSlotAbove } : {}),
+  ...(maxDice > 0 ? { maxDice } : {}),
 });
 
 const HEAT_METAL_PENALTY_ACTION = freeze({
@@ -568,6 +576,64 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       concentrationAction: "dismiss",
     },
   ],
+  "phb2014-raffica-di-spine": [
+    {
+      id: "hail-of-thorns-area",
+      label: "Raffica di Spine · area perforante",
+      buttonLabel: "Risolvi area",
+      detail: "Centra l'area sul bersaglio dell'attacco già effettuato. Il bersaglio e le creature vicine effettuano un TS Destrezza: danno pieno se falliscono, metà se superano.",
+      economy: "bonus-action",
+      resolutionKind: "save-area",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      placementRuleId: "phb2014-raffica-di-spine:cast",
+      rangeOrigin: "caster",
+      areaAnchor: "primary-target",
+      anchorTargetFromSelection: true,
+      excludeAnchorTarget: false,
+      save: { ability: "dex", onSuccess: "half" },
+      damage: damage({
+        formula: "1d10",
+        type: "perforanti",
+        onSave: "half",
+        baseSlot: 1,
+        additionalPerSlotAbove: 1,
+        maxDice: 6,
+      }),
+      concentrationAction: "dismiss",
+    },
+  ],
+  "phb2014-aura-di-vitalita": [
+    {
+      id: "aura-of-vitality-heal",
+      label: "Cura entro l'aura",
+      buttonLabel: "Cura 2d6",
+      detail: "Scegli una creatura attualmente nell'aura, incluso il caster, e inserisci il totale curato.",
+      economy: "bonus-action",
+      showInOverview: true,
+      resolutionKind: "single-heal",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      maxTargets: 1,
+      healing: {
+        formula: "2d6",
+        baseSlot: 0,
+        additionalPerSlotAbove: 0,
+      },
+      membership: {
+        ruleId: "phb2014-aura-di-vitalita:cast",
+        targeting: {
+          filter: "all",
+          includeCaster: true,
+        },
+      },
+    },
+  ],
   "call-lightning": [
     {
       id: "call-lightning-strike",
@@ -812,10 +878,47 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
           id: "maximilian-earth-grasp-restrained",
           label: "Trattenuto",
           detail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+          summaryParts: [
+            { id: "maximilian-escape-action", label: "Azione: prova For" },
+          ],
           expiry: { mode: "concentration" },
           manualRemoval: true,
         },
       ],
+    },
+  ],
+  "prismatic-wall": [
+    {
+      id: "prismatic-wall-traversal",
+      label: "Risolvi attraversamento",
+      buttonLabel: "Risolvi attraversamento",
+      detail: "Comando GM: scegli una creatura e risolvi, in ordine, i soli strati ancora presenti. Il movimento e l'attraversamento restano dichiarati manualmente al tavolo.",
+      economy: "gm",
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "prismatic-wall-traversal",
+      prismaticWallCommand: "traversal",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
+    },
+    {
+      id: "prismatic-wall-layers",
+      label: "Gestisci strati",
+      buttonLabel: "Gestisci strati",
+      detail: "Comando GM: conferma al tavolo la distruzione del solo strato esposto secondo il requisito RAW.",
+      economy: "gm",
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "prismatic-wall-layers",
+      prismaticWallCommand: "layer-management",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: true,
+      rangeOrigin: "root",
     },
   ],
 });

@@ -14,6 +14,7 @@ import {
   SPELL_UNIFIED_TARGETING_MODES,
   SPELL_PANEL_UNDO_STATES,
 } from "../src/spellUnifiedPanelCore.js";
+import { SPELL_AREA_RULES } from "../src/spellAreaRules.js";
 
 function has(values, value) {
   assert.equal(values.includes(value), true, `missing ${value}`);
@@ -40,6 +41,94 @@ test("Palla di fuoco espone placement geometrico e transazione HP", () => {
   assert.equal(model.execution.hasZones, false);
   assert.equal(model.execution.hasTokens, false);
   assert.equal(model.execution.requiresCompositeUndo, true);
+});
+
+test("un'area di danno piazzata senza bersagli non richiede il danno", () => {
+  const contract = buildSpellUnifiedPanelContract({ spellId: "fireball" });
+  const placement = {
+    status: "confirmed",
+    confirmed: true,
+    targetLocked: true,
+    spellId: "fireball",
+    ruleId: "fireball:cast",
+    casterId: "caster-a",
+    preview: {
+      type: "circle",
+      start: { x: 0, y: 0 },
+      end: { x: 150, y: 0 },
+      dpi: 150,
+      gridOrigin: { x: 0, y: 0 },
+      targetIds: [],
+    },
+    targetIds: [],
+  };
+  const model = buildSpellPanelViewModel(contract, {
+    casterId: "caster-a",
+    slotLevel: 3,
+    placement,
+  });
+
+  assert.equal(model.validation.valid, true);
+  assert.equal(model.summary.lines.includes("0 bersagli"), true);
+  assert.equal(model.controls.includes("damage"), false);
+  assert.equal(model.primaryAction.disabled, false);
+});
+
+test("un'area ancorata a un bersaglio primario continua a richiederlo", () => {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "xanathar-coltello-di-ghiaccio",
+  });
+  const model = buildSpellPanelViewModel(contract, {
+    casterId: "caster-a",
+    slotLevel: 1,
+    damageValue: 8,
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      spellId: "xanathar-coltello-di-ghiaccio",
+      ruleId: "xanathar-coltello-di-ghiaccio:cast",
+      casterId: "caster-a",
+      preview: { type: "circle", targetIds: [] },
+      targetIds: [],
+    },
+  });
+
+  assert.equal(model.validation.valid, false);
+  assert.equal(model.validation.errors.includes("targets-required"), true);
+  assert.equal(model.validation.errors.includes("primary-target-required"), true);
+});
+
+test("le zone geometriche libere possono essere piazzate senza bersagli", () => {
+  const spellIds = [...new Set(SPELL_AREA_RULES
+    .filter((rule) => rule.trigger?.type === "cast" && rule.kind === "zone")
+    .map((rule) => rule.spellId))];
+  const checked = [];
+
+  for (const spellId of spellIds) {
+    const contract = buildSpellUnifiedPanelContract({ spellId });
+    const targeting = contract.presentation.targeting;
+    if (targeting.mode !== SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
+      || !["area", "area-subset"].includes(targeting.selectionMode)
+      || targeting.primaryTarget?.required === true) continue;
+
+    const model = buildSpellPanelViewModel(contract, {
+      casterId: "caster-a",
+      slotLevel: contract.presentation.slot.default,
+      targetIds: [],
+    });
+    assert.equal(
+      model.validation.errors.includes("targets-required"),
+      false,
+      `${spellId} must allow an empty placed zone`,
+    );
+    checked.push(spellId);
+  }
+
+  assert.equal(checked.includes("cloudkill"), true);
+  assert.equal(checked.includes("fog-cloud"), true);
+  assert.equal(checked.includes("wall-of-fire"), true);
+  assert.equal(checked.length > 1, true);
 });
 
 test("Muro di Fuoco espone la scelta obbligatoria della forma e del lato caldo", () => {
@@ -480,7 +569,7 @@ test("Raffica di Spine separa preparazione e risoluzione", () => {
   assert.equal(prepare.presentation.inputs.damage.required, false);
   assert.equal(prepare.presentation.capabilities.manualSpellEffect.available, true);
   assert.equal(prepare.execution.lane, SPELL_UNIFIED_PANEL_LANES.SPELL_LIFECYCLE);
-  assert.deepEqual(prepare.presentation.controls, ["phase", "caster", "slot-level"]);
+  assert.deepEqual(prepare.presentation.controls, ["phase", "caster", "slot-level", "active-action"]);
 
   const resolve = buildSpellUnifiedPanelContract({
     spellId: "phb2014-raffica-di-spine",

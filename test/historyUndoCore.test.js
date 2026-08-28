@@ -1047,6 +1047,89 @@ test("granular spells: semantic change to the owned spell still conflicts", () =
   assert.equal(result.conflicts[0].field, "spells");
 });
 
+test("granular terminal spell: accumulo e pending expiry non bloccano Undo del cast", () => {
+  const terminalResolution = {
+    kind: "delayed-blast-fireball",
+    accumulation: {
+      mode: "turn-end",
+      actor: "caster",
+      max: 10,
+      path: ["delayedBlastFireball", "accumulatedDice"],
+    },
+  };
+  const castContext = {
+    slotLevel: 7,
+    delayedBlastFireball: {
+      baseDice: 12,
+      accumulatedDice: 0,
+      position: { x: 10, y: 20 },
+    },
+    terminalResolution,
+  };
+  const castSpell = {
+    id: "dbf-entry",
+    name: "Palla di fuoco ritardata",
+    spellId: "delayed-blast-fireball",
+    turns: 10,
+    casterId: "caster",
+    conc: true,
+    instanceId: "dbf-instance",
+    castContext,
+    expiry: { mode: "concentration" },
+    summaryParts: [{ id: "dbf-damage", label: "12d6 fuoco" }],
+  };
+  const liveSpell = {
+    ...clone(castSpell),
+    turns: 12,
+    castContext: {
+      ...castContext,
+      delayedBlastFireball: { ...castContext.delayedBlastFireball, accumulatedDice: 10 },
+    },
+    summaryParts: [{ id: "dbf-damage", label: "22d6 fuoco" }],
+  };
+  const liveConcentration = {
+    name: castSpell.name,
+    spellId: castSpell.spellId,
+    instanceId: castSpell.instanceId,
+    targets: ["caster"],
+    castContext: liveSpell.castContext,
+    pendingTermination: {
+      instanceId: castSpell.instanceId,
+      reason: "expiry",
+      requestId: "temporal:dbf:expiry",
+      terminalResolution,
+    },
+  };
+  const entry = {
+    id: "hist-dbf-cast",
+    effectsMutation: {
+      changes: [{
+        id: "caster",
+        fields: { spells: true, concentrations: true },
+        before: { spells: [], concentrations: {} },
+        after: {
+          spells: [castSpell],
+          concentrations: { "delayed-blast-fireball": {
+            name: castSpell.name,
+            spellId: castSpell.spellId,
+            instanceId: castSpell.instanceId,
+            targets: ["caster"],
+            castContext,
+          } },
+        },
+      }],
+    },
+  };
+  const result = plan([item("caster", {
+    [SPELLS]: [liveSpell],
+    [CONCENTRATION]: { "delayed-blast-fireball": liveConcentration },
+  })], [entry]);
+  assert.equal(result.status, undefined);
+  const restored = metadataOf(result, "caster");
+  assert.deepEqual(restored?.[SPELLS] || [], []);
+  assert.deepEqual(restored?.[CONCENTRATION] || {}, {});
+});
+
 test("token:teleport: Undo durante la stessa animazione pending accetta beforePosition solo con operationId corrispondente", () => {
   const token = { id: "tele-pending", name: "Mago", position: { x: 0, y: 0 }, visible: true, metadata: { [META]: {} } };
   const entry = {

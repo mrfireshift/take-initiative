@@ -245,6 +245,43 @@ test("returns correlation and touched-field history context", async () => {
   });
 });
 
+test("sopprime History solo quando il boundary segnala un accumulo terminale reale", async () => {
+  let historyWrites = 0;
+  const coordinator = createEffectsMutationCoordinator({
+    prepare: async (operations) => ({
+      changedIds: ["token-1"],
+      changes: [{
+        id: "token-1",
+        fields: { conditions: false, spells: true, concentrations: true },
+        before: {},
+        after: {},
+      }],
+      ...(operations[0]?.terminalAccumulationApplied
+        ? { terminalAccumulationApplied: true }
+        : {}),
+    }),
+    commit: async () => ({ committed: true, changedIds: ["token-1"] }),
+    recordHistory: async () => {
+      historyWrites += 1;
+      return { id: `history-${historyWrites}` };
+    },
+  });
+
+  const ordinary = await coordinator.enqueue({
+    operations: [{ type: "effects:tick-boundaries", terminalAccumulationApplied: false }],
+    suppressHistoryOnTerminalAccumulation: true,
+  });
+  assert.equal(ordinary.historyEntry?.id, "history-1");
+
+  const accumulated = await coordinator.enqueue({
+    operations: [{ type: "effects:tick-boundaries", terminalAccumulationApplied: true }],
+    suppressHistoryOnTerminalAccumulation: true,
+  });
+  assert.equal(accumulated.historyEntry, null);
+  assert.equal(accumulated.historyPending, false);
+  assert.equal(historyWrites, 1);
+});
+
 test("undo applies the inverse when all touched fields still match", async () => {
   const { coordinator, store } = makeCoordinator();
   await coordinator.enqueue({

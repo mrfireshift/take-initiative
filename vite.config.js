@@ -65,6 +65,7 @@ export default defineConfig(() => {
         compactRoundTab: path.resolve(process.cwd(), "compact-round-tab.html"),
         preparedSpellResolution: path.resolve(process.cwd(), "prepared-spell-resolution.html"),
         spellActiveResolution: path.resolve(process.cwd(), "spell-active-resolution.html"),
+        delayedBlastFireballResolution: path.resolve(process.cwd(), "delayed-blast-fireball-resolution.html"),
         spellTurnActionChoice: path.resolve(process.cwd(), "spell-turn-action-choice.html"),
         customAuraModal: path.resolve(process.cwd(), "custom-aura-modal.html"),
         optionsModal: path.resolve(process.cwd(), "options-modal.html"),

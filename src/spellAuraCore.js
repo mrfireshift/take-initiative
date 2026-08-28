@@ -8,6 +8,12 @@ import { ID } from "./constants.js";
 
 export const SPELL_AURA_META_KEY = `${ID}/spellAura`;
 
+// Il descriptor personale resta nel catalogo per il pannello/fallback, ma
+// Aura di Vita ora proietta la stessa pill tramite la membership condivisa.
+const MOBILE_AURA_LEGACY_CASTER_EFFECT_IDS = Object.freeze({
+  "phb2014-aura-di-vita": Object.freeze(["aura-of-life"]),
+});
+
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
     .map((value) => String(value || "").trim())
@@ -78,6 +84,43 @@ export function mobileAuraMembershipPlan({
     sourceName,
     defaultExpiry: { mode: "concentration" },
   });
+}
+
+export function mobileAuraLegacyCasterEffectRemovals({
+  aura = null,
+  items = [],
+  metaKey = "",
+} = {}) {
+  const effectIds = MOBILE_AURA_LEGACY_CASTER_EFFECT_IDS[aura?.spellId] || [];
+  const targeting = aura?.rule?.zonePolicy?.membershipTargeting
+    || aura?.rule?.targeting
+    || {};
+  const casterId = String(aura?.casterId || "").trim();
+  const parentEffectId = String(aura?.instanceId || "").trim();
+  if (
+    !effectIds.length
+    || aura?.rule?.effectPolicy?.mode !== "while-inside"
+    || targeting.includeCaster !== true
+    || !casterId
+    || !parentEffectId
+  ) return [];
+  const effectIdSet = new Set(effectIds);
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => String(item?.id || "").trim() === casterId)
+    .flatMap((item) => {
+      const instances = item?.metadata?.[metaKey]?.conditions?.instances;
+      return (Array.isArray(instances) ? instances : [])
+        .filter((instance) => (
+          instance?.active !== false
+          && String(instance?.parentEffectId || "").trim() === parentEffectId
+          && effectIdSet.has(String(instance?.effectId || "").trim())
+          && String(instance?.id || "").trim()
+        ))
+        .map((instance) => ({
+          itemId: casterId,
+          instanceId: String(instance.id).trim(),
+        }));
+    });
 }
 
 export function staleMobileAuraEffectRemovals(items = [], {

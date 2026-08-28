@@ -1,3 +1,5 @@
+import { PRISMATIC_SPRAY_TARGET_CONTEXT } from "./prismaticSprayRules.js";
+
 const freezeValue = (value) => {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) freezeValue(child);
@@ -309,6 +311,14 @@ const workflowRule = ({
 });
 
 export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
+  "prismatic-spray": workflowRule({
+    spellId: "prismatic-spray",
+    ability: "dex",
+    baseSlot: 7,
+    unlimitedTargets: true,
+    context: PRISMATIC_SPRAY_TARGET_CONTEXT,
+    outcomeOptions: ["passed", "failed"],
+  }),
   "flesh-to-stone": workflowRule({
     spellId: "flesh-to-stone",
     ability: "con",

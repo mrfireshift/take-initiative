@@ -50,6 +50,24 @@ test("la stessa API espone risoluzioni preparate e attivazioni manuali", () => {
   }), []);
 });
 
+test("Raffica di Spine espone l'area active senza richiedere un esito dell'attacco", () => {
+  const spell = getSpellDefinition("Raffica di Spine");
+  const actions = getSpellOverviewActions({
+    spell,
+    castContext: { phase: "prepare", slotLevel: 3 },
+    casterId: "caster",
+    targetIds: ["caster"],
+  });
+  const action = actions.find((candidate) => candidate.id === "hail-of-thorns-area");
+
+  assert.ok(action);
+  assert.equal(action.type, "manual");
+  assert.equal(action.resolutionKind, "save-area");
+  assert.equal(action.subjectMode, "none");
+  assert.equal(action.requiresTargets, false);
+  assert.equal(action.areaAnchor, "primary-target");
+});
+
 test("le attivazioni offensive usano il popup dedicato e Sfera richiede la radice", () => {
   const callLightning = getSpellDefinition("Invocare il fulmine");
   const callLightningActions = getSpellOverviewActions({

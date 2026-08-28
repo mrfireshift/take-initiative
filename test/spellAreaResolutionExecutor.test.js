@@ -11,6 +11,8 @@ import {
   buildSpellAreaResolutionCommand,
 } from "../src/spellAreaResolutionCommandCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
+import { saveSpellResolutionOperations } from "../src/saveSpellOperationsCore.js";
+import { getSpellDefinition, getSpellSummaryParts } from "../src/spells-srd.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const executorSource = fs.readFileSync(
@@ -105,6 +107,33 @@ test("l'executor ha un confine runtime e un risultato serializzabile", () => {
   assert.doesNotMatch(executorSource, /history\[history\.length - 1\]\?\.id === recordedEntry\.id/);
   assert.match(executorSource, /buildCallLightningCloudPlacement: async \(_casterId, preview\)/);
   assert.match(executorSource, /buildCallLightningCloudPreview\(preview\)/);
+  assert.match(executorSource, /command\?\.targeting\?\.allowEmptyTargets === true/);
+  assert.match(executorSource, /!plan\.matchedVisualContext/);
+});
+
+test("il cast area inoltra le summaryParts presentation-only nel lifecycle persistito", () => {
+  const spell = getSpellDefinition("Aura di Vitalità");
+  const resolution = {
+    valid: true,
+    spellId: spell.id,
+    spellName: spell.displayName,
+    casterId: "caster-1",
+    spellTargetIds: ["caster-1"],
+    concentration: true,
+    conditionApplications: [],
+  };
+  const operations = saveSpellResolutionOperations({
+    resolution,
+    instanceId: "vitality-instance",
+    summaryParts: getSpellSummaryParts(spell),
+  });
+  const upsert = operations.find((operation) => operation.type === "spell:upsert");
+
+  assert.deepEqual(upsert.summaryParts, [
+    { id: "aura-of-vitality-radius", label: "9 m" },
+    { id: "aura-of-vitality-bonus-heal", label: "Bonus · Cura 2d6" },
+  ]);
+  assert.match(executorSource, /summaryParts: getSpellSummaryParts\(/);
 });
 
 test("Palla di fuoco produce il comando area-transaction con placement required", () => {

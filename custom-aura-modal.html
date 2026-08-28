@@ -13,7 +13,7 @@
     <div class="glass-shell" data-glass-popover="1" data-popover-id="com.thebigpicture.initiative/custom-aura-modal">
       <header data-drag-handle draggable="true">
         <div>
-          <h1>Aure personalizzate</h1>
+          <h1 id="modal-title">Aure personalizzate</h1>
           <div id="token-name" class="subtitle">Caricamento token…</div>
         </div>
         <button id="close" class="close" type="button" aria-label="Chiudi">×</button>
@@ -22,10 +22,10 @@
       <footer>
         <span id="status"></span>
         <button id="presets-btn" class="button" type="button">Libreria Preset</button>
-        <button id="add" class="button" type="button">+ Nuova aura</button>
-        <button id="save" class="button primary" type="button" hidden>Salva modifiche</button>
+        <button id="add" class="button primary" type="button">+ Nuova aura</button>
+        <button id="cancel-btn" class="button" type="button" hidden>Annulla</button>
+        <button id="save" class="button primary" type="button" hidden>Salva</button>
       </footer>
-
     </div>
     <script type="module" src="/src/popoverDrag.js"></script>
     <script type="module" src="/src/custom-aura-modal.js"></script>

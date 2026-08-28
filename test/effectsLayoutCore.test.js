@@ -466,7 +466,7 @@ test("Carne in pietra mantiene Trattenuto separato dalla mini pill del progresso
   assert.equal(rows.find((entry) => entry.text === "S 0/3 · F 1/3").summaryPart, true);
 });
 
-test("la vista compatta non trasforma la mini pill S/F nell'icona di Trattenuto", () => {
+test("la vista compatta collassa la mini pill S/F nel marker dell'effetto", () => {
   const rows = planEffectsLayout({
     measureText,
     compact: true,
@@ -482,10 +482,10 @@ test("la vista compatta non trasforma la mini pill S/F nell'icona di Trattenuto"
   }).filter((entry) => entry.targetId === "target" && entry.kind !== "dot")
     .sort((left, right) => left.y - right.y || left.sortKey.localeCompare(right.sortKey));
 
-  assert.deepEqual(rows.map((entry) => entry.text), ["⛓️", "S 0/3 · F 1/3"]);
+  assert.deepEqual(rows.map((entry) => entry.text), ["⛓️", "✦1"]);
   assert.equal(rows[0].compactMode, "condition-icon");
-  assert.equal(rows[1].compactMode, "summary-part");
-  assert.equal(rows[1].summaryPart, true);
+  assert.equal(rows[1].compactMode, "effect-count");
+  assert.equal(rows[1].summaryPart, undefined);
 });
 
 test("Contagio terminale separa nome e debuff su due righe", () => {

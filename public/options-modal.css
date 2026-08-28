@@ -67,7 +67,10 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .compact-card { margin-top: 0; }
 .compact-card .option-card-heading { margin-bottom: 5px; }
 .compact-card .option-card-heading p { margin-top: 2px; }
-.turn-options-grid .option-card { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.option-grid.turn-options-grid { grid-template-columns: 1fr; }
+.turn-options-grid .option-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 230px); align-items: center; column-gap: 14px; }
+.turn-options-grid .option-card-heading { min-width: 0; margin-bottom: 0; }
+.turn-options-grid .option-field, .turn-options-grid .option-toggle { grid-column: 2; }
 .scene-choice { margin-top: 7px; }
 .player-preview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .preview-card { min-height: 76px; padding: 8px; border: 1px solid rgba(52,211,153,.18); border-radius: 9px; background: rgba(6,78,59,.09); }
@@ -84,5 +87,5 @@ input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
 .message { margin-bottom: 8px; padding: 7px 8px; border-radius: 9px; font-size: var(--obrt-type-secondary); line-height: 1.25; }
 .message.error { border: 1px solid rgba(248,113,113,.4); background: rgba(127,29,29,.28); color: #fecaca; }
 [hidden] { display: none !important; }
-@media (max-width: 680px) { .turn-options-grid { grid-template-columns: 1fr; } }
-@media (max-width: 620px) { .option-grid.two, .option-grid.three, .option-grid.four, .player-preview { grid-template-columns: 1fr; } .option-card-actions.inline { grid-template-columns: 1fr; } .hp-matrix { grid-template-columns: 92px repeat(4, minmax(70px, 1fr)); overflow-x: auto; } .options-toolbar { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 680px) { .turn-options-grid .option-card { grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); } }
+@media (max-width: 620px) { .option-grid.two, .option-grid.three, .option-grid.four, .player-preview { grid-template-columns: 1fr; } .turn-options-grid .option-card { grid-template-columns: 1fr; } .turn-options-grid .option-field, .turn-options-grid .option-toggle { grid-column: 1; } .option-card-actions.inline { grid-template-columns: 1fr; } .hp-matrix { grid-template-columns: 92px repeat(4, minmax(70px, 1fr)); overflow-x: auto; } .options-toolbar { align-items: flex-start; flex-direction: column; } }

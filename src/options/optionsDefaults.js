@@ -23,6 +23,7 @@ export const SCENE_OVERRIDE_PATHS = Object.freeze([
   "map.effectLabels",
   "map.activeTurnLabel",
   "map.elevationLabels",
+  "uiSync.showEffectSummaryParts",
 ]);
 
 function deepFreeze(value) {
@@ -119,6 +120,7 @@ export const DEFAULT_ROOM_OPTIONS = deepFreeze({
   uiSync: {
     trackerOpen: true,
     effectsDisplayMode: "selected",
+    showEffectSummaryParts: true,
   },
 });
 

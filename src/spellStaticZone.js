@@ -462,6 +462,7 @@ export function buildStaticSpellZoneItems({
   style = null,
   ruleChoice = "",
   targetIds = [],
+  exemptCreatureIds = [],
   followCaster = false,
   casterOrigin = null,
 } = {}) {
@@ -565,6 +566,7 @@ export function buildStaticSpellZoneItems({
     casterId,
     ruleChoice,
     targetIds,
+    exemptCreatureIds,
     followCaster,
     casterOrigin,
     ...(followCaster === true ? { zoneOrigin: { x: 0, y: 0 } } : {}),
@@ -645,6 +647,7 @@ export function buildStaticSpellZoneItems({
         parentId: root.id,
         ruleChoice,
         targetIds,
+        exemptCreatureIds,
       }),
     },
     locked: true,
@@ -1279,7 +1282,7 @@ async function reconcileStaticSpellZones(
       : [];
     const usePerTriggerMembership = triggers.some((trigger) =>
       trigger?.requiresCrossing === true
-      || ["hot-band", "body-or-hot-band"].includes(trigger?.targetArea)
+      || ["hot-band", "body-or-hot-band", "proximity"].includes(trigger?.targetArea)
     );
     const hotBand = triggerAreas.hotBand;
     const unionArea = (areas) => {
@@ -1311,6 +1314,9 @@ async function reconcileStaticSpellZones(
           area: triggerArea,
           candidates,
           metaKey: META_KEY,
+          ...(trigger.targetArea === "proximity"
+            ? { membershipPaddingSquares: trigger.proximityPaddingSquares }
+            : {}),
         }),
       });
       if (trigger.requiresCrossing === true) {

@@ -1,12 +1,7 @@
 import {
-  DEFAULT_CUSTOM_AURA_STYLE,
   createCustomAuraChildId,
-  normalizeCustomAuraPill,
-  normalizeCustomAuraReminder,
+  normalizeCustomAuraDefinition,
 } from "./customAuraCore.js";
-import { normalizeAoEStyle } from "./aoeStyle.js";
-
-const TARGET_FILTERS = new Set(["all", "friendly", "hostile"]);
 
 const normalizedText = (value, fallback = "", maxLength = 160) =>
   (String(value || "").trim() || fallback).slice(0, maxLength);
@@ -24,77 +19,7 @@ export function createPresetId() {
 }
 
 export function normalizeCustomAuraPresetDefinition(value = {}) {
-  const name = normalizedText(value?.name, "Aura personalizzata", 100);
-  const radiusMeters = Math.max(
-    0.5,
-    Math.min(300, Number(value?.radiusMeters) || 3),
-  );
-  const style = normalizeAoEStyle({
-    ...DEFAULT_CUSTOM_AURA_STYLE,
-    ...(value?.style && typeof value.style === "object" ? value.style : {}),
-  });
-  const filter = TARGET_FILTERS.has(String(value?.targeting?.filter || ""))
-    ? String(value.targeting.filter)
-    : "all";
-
-  let pills = [];
-  if (Array.isArray(value?.pills)) {
-    pills = value.pills.map((p, idx) =>
-      normalizeCustomAuraPill(p, name, `pill-${idx + 1}`)
-    );
-  } else if (value?.pill && typeof value.pill === "object") {
-    pills = [normalizeCustomAuraPill(value.pill, name, "pill")];
-  }
-
-  let reminders = [];
-  if (Array.isArray(value?.reminders)) {
-    reminders = value.reminders.map((r, idx) =>
-      normalizeCustomAuraReminder(r, name, `reminder-${idx + 1}`)
-    );
-  } else {
-    if (value?.warnings?.start) {
-      reminders.push(
-        normalizeCustomAuraReminder(
-          {
-            id: "warning-start",
-            enabled: value.warnings.start.enabled === true,
-            event: "turn-start",
-            label: value.warnings.start.label || `Inizia il turno nell'aura ${name}.`,
-            resolution: "informational",
-          },
-          name,
-          "warning-start",
-        ),
-      );
-    }
-    if (value?.warnings?.end) {
-      reminders.push(
-        normalizeCustomAuraReminder(
-          {
-            id: "warning-end",
-            enabled: value.warnings.end.enabled === true,
-            event: "turn-end",
-            label: value.warnings.end.label || `Termina il turno nell'aura ${name}.`,
-            resolution: "informational",
-          },
-          name,
-          "warning-end",
-        ),
-      );
-    }
-  }
-
-  return {
-    name,
-    radiusMeters,
-    style,
-    targeting: {
-      filter,
-      includeSource: value?.targeting?.includeSource === true,
-    },
-    pills,
-    reminders,
-  };
+  return normalizeCustomAuraDefinition(value);
 }
 
 export function normalizeCustomAuraPreset(value = {}) {

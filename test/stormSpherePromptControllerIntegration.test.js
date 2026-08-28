@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import { ID } from "../src/constants.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 import {
+  AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID,
   HEAT_METAL_TURN_PROMPT_ACTION_ID,
   STORM_SPHERE_TURN_PROMPT_ACTION_ID,
 } from "../src/callLightningTurnPromptCore.js";
@@ -179,6 +180,43 @@ function createZoneRoot(instanceId, casterId) {
         instanceId,
         casterId,
         spellId: "xanathar-sfera-della-tempesta",
+      },
+    },
+  };
+}
+
+function createAuraOfVitalityCasterToken(id, instanceId, turnKey) {
+  return {
+    id,
+    name: "Mago",
+    position: { x: 100, y: 100 },
+    layer: "CHARACTER",
+    metadata: {
+      [META_KEY]: {
+        hp: 30,
+        hpMax: 30,
+        attitude: "pc",
+        conditions: { version: 2, instances: [] },
+        [SPELLS_KEY]: [{
+          name: "Aura di Vitalità",
+          spellId: "phb2014-aura-di-vitalita",
+          instanceId,
+          casterId: id,
+          appliedAt: { round: 1, actorId: id, turnKey },
+          conc: true,
+          castContext: {
+            mobileAura: true,
+            slotLevel: 3,
+          },
+        }],
+        [CONC_META_KEY]: {
+          [instanceId]: {
+            instanceId,
+            spellId: "phb2014-aura-di-vitalita",
+            name: "Aura di Vitalità",
+            appliedAt: { round: 1, actorId: id, turnKey },
+          },
+        },
       },
     },
   };
@@ -381,6 +419,42 @@ test("CONTROLLER INTEGRATION — Heat Metal apre il popup mobile solo dal turno 
   assert.equal(payload.action.effectOn, undefined);
   assert.equal(payload.linkedTargetId, "heat-target");
   assert.doesNotMatch(call.url, /prepared-spell-resolution\.html/);
+
+  await unmountCallLightningTurnPromptController();
+});
+
+test("CONTROLLER INTEGRATION — Aura di Vitalità apre il popup sul cast turn", async () => {
+  const casterId = "vitality-caster";
+  const instanceId = "vitality-instance-1";
+  const castTurn = "1:0:vitality-caster";
+  sceneItemsMock = [createAuraOfVitalityCasterToken(casterId, instanceId, castTurn)];
+  openPopoverCalls = [];
+  closePopoverCalls = [];
+
+  await mountCallLightningTurnPromptController();
+  assert.ok(typeof turnNoticeHandler === "function", "Turn notice listener must be registered");
+
+  await turnNoticeHandler({
+    data: {
+      type: "show-turn-notice",
+      currentId: casterId,
+      turnKey: castTurn,
+      sceneEpoch: 3,
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  assert.equal(openPopoverCalls.length, 1, "Aura of Vitality must open on the cast turn");
+  const call = openPopoverCalls[0];
+  assert.ok(call.url.includes("spell-active-resolution.html"));
+  const urlObj = new URL(call.url, "http://localhost");
+  const payload = JSON.parse(decodeURIComponent(urlObj.searchParams.get("payload")));
+  assert.equal(payload.spellId, "phb2014-aura-di-vitalita");
+  assert.equal(payload.actionId, AURA_OF_VITALITY_TURN_PROMPT_ACTION_ID);
+  assert.equal(payload.action.resolutionKind, "single-heal");
+  assert.equal(payload.action.economy, "bonus-action");
+  assert.equal(payload.action.healing.formula, "2d6");
+  assert.equal(payload.action.membership.ruleId, "phb2014-aura-di-vitalita:cast");
 
   await unmountCallLightningTurnPromptController();
 });

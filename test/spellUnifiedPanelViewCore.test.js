@@ -431,15 +431,15 @@ test("primary, feedback, HP e undo restano proiezioni del workflow", () => {
     casterOptions: CASTERS,
     targetCandidates: TARGETS,
   });
-  assert.equal(initialView.workflow.primaryAction.id, "complete");
+  assert.equal(initialView.workflow.primaryAction.id, "place");
   assert.equal(initialView.workflow.feedback.state, "error");
   assert.equal(initialView.workflow.undo.capable, true);
   assert.equal(initialView.workflow.undo.available, false);
   assert.equal(initialView.execution.hasHP, true);
   assert.equal(initialView.execution.hasZones, true);
   assert.equal(initialView.manual.visible, false);
-  assert.equal(initialView.effects.visible, true);
-  assert.deepEqual(initialView.effects.fields.map((field) => field.id), ["damage"]);
+  assert.equal(initialView.effects.visible, false);
+  assert.deepEqual(initialView.effects.fields, []);
 
   const committed = updateSpellPanelSession(initial, {
     placement: { state: "confirmed", confirmed: true },
@@ -459,6 +459,8 @@ test("primary, feedback, HP e undo restano proiezioni del workflow", () => {
   assert.equal(committedView.workflow.undo.available, true);
   assert.equal(committedView.workflow.undo.disabled, false);
   assert.equal(committedView.workflow.feedback.state, "success");
+  assert.equal(committedView.effects.visible, true);
+  assert.deepEqual(committedView.effects.fields.map((field) => field.id), ["damage"]);
 });
 
 test("il ViewModel collega concentrazione corrente e overview attivi read-only", () => {
@@ -632,11 +634,19 @@ test("il contesto di targeting resta indicizzato per bersaglio", () => {
   });
 
   assert.equal(view.targets.context.visible, true);
-  assert.deepEqual(view.targets.context.targets, [{
+  assert.deepEqual(view.targets.context.targets.map(({ key, label, values }) => ({
+    key,
+    label,
+    values,
+  })), [{
     key: "target-a",
     label: "Target A",
     values: { planeOrigin: "other-plane" },
   }]);
+  assert.deepEqual(
+    view.targets.context.targets[0].fields.map((field) => field.id),
+    ["planeOrigin"],
+  );
 });
 
 test("i renderer non dipendono da spell ID, heuristics area o API di dominio", async () => {

@@ -7,13 +7,18 @@ import {
   buildSpellActiveResolutionPostDamageOperations,
   getSpellResolutionAction,
   resolveSpellActiveResolutionDamage,
+  resolveSpellActiveResolutionHealing,
+  spellActiveResolutionHealingFormula,
   spellActiveResolutionSelectedTargetId,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
   validateSpellActiveResolutionAction,
   validateSpellActiveResolutionPayload,
 } from "../src/spellActiveResolutionCore.js";
-import { getSpellDefinition } from "../src/spells-srd.js";
-import { getSpellOverviewActions } from "../src/spellActiveActionCore.js";
+import { getSpellDefinition, getSpellSummaryParts } from "../src/spells-srd.js";
+import {
+  buildSpellActiveActionPlan,
+  getSpellOverviewActions,
+} from "../src/spellActiveActionCore.js";
 
 function group(overrides = {}) {
   return {
@@ -162,6 +167,130 @@ test("il danno applica metà ai TS superati, zero alle immunità e scala lo slot
     slotLevel: 5,
     outcome: "immune",
     roll: 31,
+  }).amount, 0);
+});
+
+test("Aura di Vitalità espone la cura bonus condivisa senza dadi virtuali", () => {
+  const spell = getSpellDefinition("Aura di Vitalità");
+  const action = getSpellResolutionAction(spell.id, "aura-of-vitality-heal");
+
+  assert.equal(validateSpellActiveResolutionAction(action).valid, true);
+  assert.equal(action.economy, "bonus-action");
+  assert.equal(action.resolutionKind, "single-heal");
+  assert.equal(action.requiresParentInstance, true);
+  assert.equal(action.requiresZoneRoot, false);
+  assert.equal(action.resource, undefined);
+  assert.equal(action.concentrationAction, undefined);
+  assert.deepEqual(action.healing, {
+    formula: "2d6",
+    baseSlot: 0,
+    additionalPerSlotAbove: 0,
+  });
+  assert.deepEqual(action.membership, {
+    ruleId: "phb2014-aura-di-vitalita:cast",
+    targeting: { filter: "all", includeCaster: true },
+  });
+  assert.deepEqual(getSpellSummaryParts(spell), [
+    { id: "aura-of-vitality-radius", label: "9 m" },
+    { id: "aura-of-vitality-bonus-heal", label: "Bonus · Cura 2d6" },
+  ]);
+  assert.deepEqual(spellActiveResolutionHealingFormula({
+    action,
+    slotLevel: 4,
+  }), {
+    formula: "2d6",
+    scaledFormula: "2d6",
+  });
+  assert.deepEqual(resolveSpellActiveResolutionHealing({
+    action,
+    slotLevel: 4,
+    roll: 9,
+  }), {
+    valid: true,
+    roll: 9,
+    amount: 9,
+    formula: "2d6",
+    scaledFormula: "2d6",
+  });
+  assert.equal(resolveSpellActiveResolutionHealing({
+    action,
+    roll: -1,
+  }).valid, false);
+
+  const overview = getSpellOverviewActions({
+    spell,
+    casterId: "caster-1",
+  });
+  assert.deepEqual(overview.map((entry) => entry.id), ["aura-of-vitality-heal"]);
+  assert.equal(overview[0].type, "manual");
+  assert.equal(overview[0].subjectMode, "none");
+  assert.equal(overview[0].requiresTargets, false);
+
+  const plan = buildSpellActiveActionPlan({
+    spell,
+    actionId: action.id,
+    group: group({
+      name: spell.displayName,
+      instanceId: "vitality-instance",
+      casterId: "caster-1",
+    }),
+    casterName: "Omar",
+  });
+  assert.equal(plan.valid, true);
+  assert.equal(plan.delegatedResolution, true);
+  assert.equal(plan.resolutionKind, "single-heal");
+  assert.deepEqual(plan.operations, []);
+  assert.match(plan.historyLabel, /Attivazione: Aura di Vitalità · Cura 2d6/);
+});
+
+test("Raffica di Spine usa l'area ancorata e scala fino al cap RAW di 6d10", () => {
+  const spell = getSpellDefinition("Raffica di Spine");
+  const action = getSpellResolutionAction(spell.id, "hail-of-thorns-area");
+
+  assert.equal(validateSpellActiveResolutionAction(action).valid, true);
+  assert.equal(action.areaAnchor, "primary-target");
+  assert.equal(action.anchorTargetFromSelection, true);
+  assert.equal(action.excludeAnchorTarget, false);
+  assert.equal(action.placementRuleId, "phb2014-raffica-di-spine:cast");
+  assert.equal(action.save.ability, "dex");
+  assert.equal(action.damage.onSave, "half");
+
+  for (const [slotLevel, expectedFormula] of [
+    [1, "1d10"],
+    [2, "2d10"],
+    [5, "5d10"],
+    [6, "6d10"],
+    [9, "6d10"],
+  ]) {
+    assert.equal(
+      resolveSpellActiveResolutionDamage({
+        action,
+        slotLevel,
+        outcome: "failed",
+        roll: 20,
+      }).scaledFormula,
+      expectedFormula,
+      `${slotLevel}° slot`,
+    );
+  }
+
+  assert.equal(resolveSpellActiveResolutionDamage({
+    action,
+    slotLevel: 3,
+    outcome: "failed",
+    roll: 20,
+  }).amount, 20);
+  assert.equal(resolveSpellActiveResolutionDamage({
+    action,
+    slotLevel: 3,
+    outcome: "passed",
+    roll: 20,
+  }).amount, 10);
+  assert.equal(resolveSpellActiveResolutionDamage({
+    action,
+    slotLevel: 3,
+    outcome: "immune",
+    roll: 20,
   }).amount, 0);
 });
 

@@ -285,17 +285,23 @@ async function renderEyebiteDirect() {
 }
 
 function renderLegacyChoice() {
+  const compact = Array.isArray(request?.actions) && request.actions.length === 1;
+  if (compact) app.dataset.mode = "compact";
   hint.textContent = request?.choiceHint
     || "Scegli un'azione. Le stesse azioni restano disponibili nel modulo Incantesimi.";
   for (const payload of Array.isArray(request?.actions) ? request.actions : []) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "action";
+    button.dataset.actionId = String(payload.actionId || "").trim();
+    button.className = compact ? "action action--compact" : "action";
     const strong = document.createElement("strong");
     strong.textContent = payload.action?.buttonLabel || payload.action?.label || payload.actionId;
-    const detail = document.createElement("span");
-    detail.textContent = actionCopy(payload);
-    button.append(strong, detail);
+    button.append(strong);
+    if (!compact) {
+      const detail = document.createElement("span");
+      detail.textContent = actionCopy(payload);
+      button.append(detail);
+    }
     button.addEventListener("click", async () => {
       button.disabled = true;
       await sdkReady;
@@ -343,9 +349,24 @@ void sdkReady.then(() => {
       }
       return;
     }
+    if (data.type === "active-action-complete") {
+      const actionId = String(data.actionId || "").trim();
+      for (const button of actions.querySelectorAll("button")) {
+        if (String(button.dataset.actionId || "").trim() === actionId) {
+          button.disabled = false;
+        }
+      }
+      return;
+    }
     if (data.type !== "choice-action-error") return;
     setStatus(data.message || "Impossibile applicare l'effetto.", true);
     setDirectBusy(false);
+    const actionId = String(data.actionId || "").trim();
+    for (const button of actions.querySelectorAll("button")) {
+      if (!actionId || String(button.dataset.actionId || "").trim() === actionId) {
+        button.disabled = false;
+      }
+    }
   });
 });
 

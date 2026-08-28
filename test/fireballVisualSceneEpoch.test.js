@@ -19,12 +19,17 @@ const localCalls = {
   updateItems: [],
 };
 
+let deleteFailuresRemaining = 0;
+let addItemsGate = null;
+
 function resetLocal() {
   localState.items = [];
   localCalls.getItems = [];
   localCalls.addItems = [];
   localCalls.deleteItems = [];
   localCalls.updateItems = [];
+  deleteFailuresRemaining = 0;
+  addItemsGate = null;
 }
 
 const broadcastListeners = new Map();
@@ -57,10 +62,15 @@ const sdkStub = {
       },
       addItems: async (items) => {
         localCalls.addItems.push(items.map((it) => it?.id));
+        if (addItemsGate) await addItemsGate.promise;
         localState.items.push(...items.map(clone));
       },
       deleteItems: async (ids) => {
         localCalls.deleteItems.push(clone(ids));
+        if (deleteFailuresRemaining > 0) {
+          deleteFailuresRemaining -= 1;
+          throw new Error("Simulated SDK deleteItems failure during fireball cleanup");
+        }
         const toDelete = new Set(Array.isArray(ids) ? ids : []);
         localState.items = localState.items.filter((it) => !toDelete.has(it.id));
       },
@@ -153,6 +163,14 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function deferred() {
+  let resolve;
+  const promise = new Promise((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 test("TEST 7 — Fireball delayed scene switch: delayed explosion and updates are aborted on Scene B", async () => {
   resetLocal();
   await unmountFireballVisualRenderer();
@@ -215,6 +233,10 @@ test("TEST 8 — Fireball normal flow: all layers render and clean up within sam
   // Wait past duration (4040ms)
   await sleep(4100);
   assert.equal(localCalls.deleteItems.length, 1, "WebM explosion item deleted on completion");
+  assert.equal(localState.items.length, 0, "WebM explosion is no longer present after cleanup");
+  await sleep(1100);
+  assert.equal(localCalls.addItems.length, 1, "Cleanup must not allow the video to start a second visual cycle");
+  assert.equal(localCalls.deleteItems.length, 1, "Cleanup must not issue repeated deletes after success");
   await unmountFireballVisualRenderer();
 });
 
@@ -308,4 +330,72 @@ test("TEST 19 — Fireball Normal Unmount Fallback Cleanup: tracked IDs are dele
   } finally {
     sdkStub.scene.local.getItems = originalGetItems;
   }
+});
+
+test("TEST 20 — Fireball cleanup retry: a failed WebM delete is retried and eventually removes the item", async () => {
+  resetLocal();
+  await unmountFireballVisualRenderer();
+  mountFireballVisualRenderer();
+
+  await emitFireballVisual({
+    preview: {
+      start: { x: 500, y: 500 },
+      radius: 600,
+      dpi: 150,
+    },
+    eventId: "fireball-cleanup-retry-test",
+  });
+
+  await sleep(150);
+  assert.equal(localCalls.addItems.length, 1);
+  const createdItemId = localCalls.addItems[0][0];
+  deleteFailuresRemaining = 1;
+
+  await unmountFireballVisualRenderer();
+  assert.ok(
+    localState.items.some((item) => item.id === createdItemId),
+    "The WebM remains available for retry after the first delete failure",
+  );
+
+  // The retry record is checked by a 1s sweeper; allow for its phase relative
+  // to the first failed unmount cleanup.
+  await sleep(2200);
+  assert.equal(
+    localState.items.some((item) => item.id === createdItemId),
+    false,
+    "The cleanup sweeper removes the transient WebM after the failure",
+  );
+  assert.ok(localCalls.deleteItems.length >= 2, "deleteItems is retried");
+});
+
+test("TEST 21 — Fireball in-flight add: an item added after unmount is cleaned immediately", async () => {
+  resetLocal();
+  await unmountFireballVisualRenderer();
+  mountFireballVisualRenderer();
+
+  const gate = deferred();
+  addItemsGate = gate;
+  await emitFireballVisual({
+    preview: {
+      start: { x: 500, y: 500 },
+      radius: 600,
+      dpi: 150,
+    },
+    eventId: "fireball-in-flight-add-test",
+  });
+
+  await sleep(180);
+  assert.equal(localCalls.addItems.length, 1, "The WebM add is in flight");
+  const createdItemId = localCalls.addItems[0][0];
+
+  await unmountFireballVisualRenderer();
+  gate.resolve();
+  addItemsGate = null;
+  await sleep(50);
+
+  assert.equal(localState.items.length, 0, "The late item is deleted after unmount");
+  assert.ok(
+    localCalls.deleteItems.some((ids) => ids.includes(createdItemId)),
+    "The late item ID is passed to deleteItems",
+  );
 });

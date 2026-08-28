@@ -23,6 +23,8 @@ import {
   buildSpellActiveResolutionResourceOperations,
   normalizeActiveResolutionTargetIds,
   resolveSpellActiveResolutionDamage,
+  resolveSpellActiveResolutionHealing,
+  isPrismaticWallActiveResolutionKind,
   validateSpellActiveResolutionPayload,
 } from "./spellActiveResolutionCore.js";
 import { validateSpellActiveResolutionCommit } from "./spellActiveResolutionValidation.js";
@@ -53,6 +55,14 @@ import {
 } from "./spellStaticZone.js";
 import { SPELL_STATIC_ZONE_META_KEY, translatedZoneArea } from "./spellStaticZoneCore.js";
 import { planWallOfLightShortening } from "./wallOfLightActiveCore.js";
+import {
+  PRISMATIC_WALL_SPELL_ID,
+  prismaticWallLayerManagementPlan,
+  prismaticWallStateFromCastContext,
+  prismaticWallSpellUpsertOperation,
+  prismaticWallTraversalMarker,
+  prismaticWallTraversalPlan,
+} from "./prismaticWallRules.js";
 import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
@@ -573,6 +583,31 @@ function activeResolutionAction(payload) {
     : null;
 }
 
+function cloneValue(value) {
+  if (value === undefined) return undefined;
+  if (typeof globalThis.structuredClone === "function") return globalThis.structuredClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function prismaticWallSpellEntry(item, payload) {
+  const spells = item?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+  return (Array.isArray(spells) ? spells : []).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(entry?.spellId || "").trim() === PRISMATIC_WALL_SPELL_ID
+    && String(entry?.casterId || payload?.casterId || "").trim() === String(payload?.casterId || "").trim()
+  )) || null;
+}
+
+function hasActiveEffect(item, effectId) {
+  const wanted = String(effectId || "").trim();
+  if (!wanted) return false;
+  return getConditionInstances(item?.metadata?.[`${ID}/meta`]?.conditions)
+    .some((instance) => (
+      instance?.active !== false
+      && String(instance?.effectId || "").trim() === wanted
+    ));
+}
+
 function activeResolutionOutcome(payload, targetId, attackOutcome) {
   return payload?.action?.resolutionKind === "single-attack"
     ? String(attackOutcome || "").trim()
@@ -589,6 +624,10 @@ export async function executeSpellActiveResolution({
   placement = null,
   targetIds = [],
   outcomes = {},
+  layerOutcomes = {},
+  layerDamage = {},
+  layerId = "",
+  traversalId = "",
   damageRoll = 0,
   attackOutcome = "",
   attacks = [],
@@ -621,9 +660,11 @@ export async function executeSpellActiveResolution({
     ...targetIds,
     ...attackEntries.map((entry) => entry.targetId),
   ]);
+  const prismaticWallResolution = isPrismaticWallActiveResolutionKind(payload?.action);
   if (!ids.length
     && payload?.action?.resolutionKind !== "child-zone"
-    && payload?.action?.allowEmptyTargets !== true) {
+    && payload?.action?.allowEmptyTargets !== true
+    && payload?.action?.resolutionKind !== "prismatic-wall-layers") {
     throw new Error("active-resolution-targets-required");
   }
   const commitInput = {
@@ -631,6 +672,10 @@ export async function executeSpellActiveResolution({
     placement,
     targetIds: ids,
     outcomes,
+    layerOutcomes,
+    layerDamage,
+    layerId,
+    traversalId,
     damageRoll,
     attackOutcome,
     attacks: attackEntries,
@@ -644,7 +689,10 @@ export async function executeSpellActiveResolution({
     throw new Error("Invalid active spell resolution: " + preflight.errors.join(", "));
   }
 
-  const items = await OBR.scene.items.getItems(ids);
+  const itemIds = prismaticWallResolution
+    ? normalizeActiveResolutionTargetIds([payload.casterId, ...ids])
+    : ids;
+  const items = await OBR.scene.items.getItems(itemIds);
   if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
     throw new Error("scene-epoch-stale-before-active-resolution");
   }
@@ -654,9 +702,10 @@ export async function executeSpellActiveResolution({
   const unconsciousIds = [];
   const unconsciousRemovals = [];
   const resolutionDamageByTarget = new Map();
+  const resolutionHealingByTarget = new Map();
   const action = activeResolutionAction(payload);
   let staticZoneShortening = null;
-  if (action?.shortenStaticZone && payload?.zoneItemId) {
+  if (!prismaticWallResolution && action?.shortenStaticZone && payload?.zoneItemId) {
     const [[zoneItem], scale] = await Promise.all([
       OBR.scene.items.getItems([payload.zoneItemId]),
       OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
@@ -709,7 +758,7 @@ export async function executeSpellActiveResolution({
       );
     }
   }
-  if (action?.resource) {
+  if (!prismaticWallResolution && action?.resource) {
     const [casterItem] = await OBR.scene.items.getItems([payload.casterId]);
     if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
       throw new Error("scene-epoch-stale-before-active-resolution");
@@ -730,7 +779,7 @@ export async function executeSpellActiveResolution({
     operations.push(...resourcePlan.operations);
     if (casterItem) byId.set(payload.casterId, casterItem);
   }
-  if (action?.concentrationAction === "dismiss") {
+  if (!prismaticWallResolution && action?.concentrationAction === "dismiss") {
     operations.push(
       {
         type: "concentration:break",
@@ -744,7 +793,7 @@ export async function executeSpellActiveResolution({
       },
     );
   }
-  if (action?.replaceLinkedEffectId) {
+  if (!prismaticWallResolution && action?.replaceLinkedEffectId) {
     const linkedItems = await OBR.scene.items.getItems();
     if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
       throw new Error("scene-epoch-stale-before-active-resolution");
@@ -781,7 +830,7 @@ export async function executeSpellActiveResolution({
       preview: staticZoneShortening.preview,
     });
   }
-  if (action?.moveRootToTarget === true && ids.length === 1 && payload?.zoneItemId) {
+  if (!prismaticWallResolution && action?.moveRootToTarget === true && ids.length === 1 && payload?.zoneItemId) {
     const target = byId.get(ids[0]);
     const targetPosition = target?.position;
     if (targetPosition && Number.isFinite(Number(targetPosition.x)) && Number.isFinite(Number(targetPosition.y))) {
@@ -801,7 +850,178 @@ export async function executeSpellActiveResolution({
       requireMatch: true,
     });
   }
-  if (action?.resolutionKind === "child-zone") {
+  let prismaticWallHistory = null;
+  if (prismaticWallResolution) {
+    const casterItem = byId.get(payload.casterId);
+    const parent = prismaticWallSpellEntry(casterItem, payload);
+    if (!parent) throw new Error("prismatic-wall-parent-missing");
+    const liveState = prismaticWallStateFromCastContext(parent.castContext);
+    const snapshotState = prismaticWallStateFromCastContext(payload.castContext);
+    if (
+      liveState.shape !== snapshotState.shape
+      || JSON.stringify(liveState.remainingLayers) !== JSON.stringify(snapshotState.remainingLayers)
+      || JSON.stringify(liveState.exemptCreatureIds) !== JSON.stringify(snapshotState.exemptCreatureIds)
+    ) {
+      throw new Error("prismatic-wall-state-stale");
+    }
+    const sourceName = String(parent.casterName || payload.casterName || "").trim();
+    const isLayerManagement = action?.resolutionKind === "prismatic-wall-layers";
+    let traversalExempt = false;
+    let nextCastContext = null;
+    if (isLayerManagement) {
+      const plan = prismaticWallLayerManagementPlan({
+        remainingLayers: liveState.remainingLayers,
+        layerId,
+      });
+      if (!plan.valid) {
+        throw new Error(`prismatic-wall-layer-invalid: ${(plan.errors || []).join(", ")}`);
+      }
+      nextCastContext = {
+        ...(parent.castContext && typeof parent.castContext === "object"
+          ? cloneValue(parent.castContext)
+          : {}),
+        prismaticWall: {
+          ...liveState,
+          remainingLayers: plan.remainingLayers,
+        },
+      };
+      prismaticWallHistory = {
+        command: "layer-management",
+        layerId: String(layerId || "").trim(),
+        layerLabel: plan.layer?.label || String(layerId || "").trim(),
+        remainingLayersBefore: liveState.remainingLayers,
+        remainingLayersAfter: plan.remainingLayers,
+      };
+    } else {
+      const targetId = ids[0];
+      const exempt = liveState.exemptCreatureIds.includes(targetId);
+      traversalExempt = exempt;
+      const plan = prismaticWallTraversalPlan({
+        targetId,
+        remainingLayers: liveState.remainingLayers,
+        outcomes: layerOutcomes,
+        damageTotals: layerDamage,
+        parentEffectId: payload.instanceId,
+        sourceId: payload.casterId,
+        sourceName,
+        exempt,
+      });
+      if (!plan.valid) {
+        throw new Error(`prismatic-wall-traversal-invalid: ${(plan.errors || []).map((error) => error.code || error).join(", ")}`);
+      }
+      const target = byId.get(targetId);
+      const targetPlan = plan.targetPlans?.[0] || null;
+      const currentHpById = new Map();
+      for (const contribution of targetPlan?.damageContributions || []) {
+        const item = byId.get(contribution.targetId);
+        const meta = item?.metadata?.[`${ID}/meta`] || {};
+        const amount = Math.max(0, Math.floor(Number(contribution.amount) || 0));
+        if (amount <= 0) continue;
+        if (
+          !item
+          || !Object.prototype.hasOwnProperty.call(meta, "hp")
+          || !Object.prototype.hasOwnProperty.call(meta, "hpMax")
+        ) {
+          throw new Error("active-resolution-hp-required");
+        }
+        const currentHp = currentHpById.has(contribution.targetId)
+          ? currentHpById.get(contribution.targetId)
+          : meta.hp;
+        const hpChange = calculateQuickHPChange({
+          mode: QUICK_HP_MODES.DAMAGE,
+          value: amount,
+          factor: QUICK_HP_FACTORS.FULL,
+          hp: currentHp,
+          hpMax: meta.hpMax,
+        });
+        currentHpById.set(contribution.targetId, hpChange.afterHP);
+        const existingPatch = metadataPatches.find((patch) => patch.id === contribution.targetId);
+        if (hpChange.changed) {
+          if (existingPatch) {
+            existingPatch.fields.hp.value = hpChange.afterHP;
+            existingPatch.fields.hpMax.value = hpChange.hpMax;
+          } else {
+            metadataPatches.push({
+              id: contribution.targetId,
+              fields: {
+                hp: {
+                  expected: metadataSnapshot(meta, "hp"),
+                  value: hpChange.afterHP,
+                },
+                hpMax: {
+                  expected: metadataSnapshot(meta, "hpMax"),
+                  value: hpChange.hpMax,
+                },
+              },
+            });
+          }
+        }
+      }
+      if (targetPlan) {
+        const totalDamage = (targetPlan.damageContributions || [])
+          .reduce((sum, contribution) => sum + Math.max(0, Number(contribution.amount) || 0), 0);
+        resolutionDamageByTarget.set(targetId, {
+          outcome: targetPlan.layers.map((entry) => `${entry.layerId}:${entry.outcome}`).join(","),
+          damage: { amount: totalDamage, factor: 1 },
+          prismaticContributions: cloneValue(targetPlan.damageContributions || []),
+        });
+      }
+      const conditionOperations = [];
+      for (const application of targetPlan?.conditionApplications || []) {
+        const effectId = application.options?.effectId;
+        if (hasActiveEffect(target, effectId)) continue;
+        conditionOperations.push({
+          type: "condition:add",
+          targetIds: application.targetIds,
+          conditionName: application.conditionName,
+          options: cloneValue(application.options),
+        });
+      }
+      if (conditionOperations.length) {
+        operations.push(...conditionOperations);
+        operations.push({
+          type: "condition:automate",
+          subjectIds: [targetId],
+        });
+      }
+      for (const patch of metadataPatches) {
+        const item = byId.get(patch.id);
+        const meta = item?.metadata?.[`${ID}/meta`] || {};
+        const zeroAction = resolveZeroHPUnconsciousAction(
+          { ...meta, hp: patch.fields.hp.value, hpMax: patch.fields.hpMax.value },
+          getConditionInstances(meta.conditions || {}),
+        );
+        if (zeroAction.add) unconsciousIds.push(patch.id);
+        unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((removedInstanceId) => ({
+          itemId: patch.id,
+          instanceId: removedInstanceId,
+        })));
+        if (patch.fields.hp.value < patch.fields.hp.expected.value) {
+          for (const removedInstanceId of resolveDamageEndsConditionRemovals(
+            getConditionInstances(meta.conditions || {}),
+          )) {
+            unconsciousRemovals.push({ itemId: patch.id, instanceId: removedInstanceId });
+          }
+        }
+      }
+      nextCastContext = prismaticWallTraversalMarker(parent.castContext, traversalId);
+      prismaticWallHistory = {
+        command: "traversal",
+        traversalId: String(traversalId || "").trim(),
+        targetId,
+        exempt,
+        layers: cloneValue(targetPlan?.layers || []),
+        damageContributions: cloneValue(targetPlan?.damageContributions || []),
+      };
+    }
+    if (isLayerManagement || !traversalExempt) {
+      operations.push(prismaticWallSpellUpsertOperation({
+        parent,
+        payload,
+        castContext: nextCastContext,
+      }));
+    }
+  } else if (action?.resolutionKind === "child-zone") {
     const childZone = action.childZone || {};
     const [parentZone] = payload.zoneItemId
       ? await OBR.scene.items.getItems([payload.zoneItemId])
@@ -863,52 +1083,30 @@ export async function executeSpellActiveResolution({
       operations.push({ type: "condition:automate", subjectIds: failedIds });
     }
   } else {
-    const resolutionEntries = attackEntries.length
-      ? attackEntries
-      : ids.map((targetId) => ({ targetId, attackOutcome, damageRoll }));
-    const currentHpById = new Map();
-    for (const entry of resolutionEntries) {
-      const targetId = entry.targetId;
+    if (action?.resolutionKind === "single-heal") {
+      const targetId = ids[0];
       const item = byId.get(targetId);
       const meta = item?.metadata?.[`${ID}/meta`] || {};
-      const outcome = action?.resolutionKind === "single-attack"
-        ? entry.attackOutcome
-        : activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
-      if (!action?.damage) {
-        resolutionDamageByTarget.set(targetId, { damage: null, outcome });
-        continue;
-      }
-      const damage = resolveSpellActiveResolutionDamage({
+      const healing = resolveSpellActiveResolutionHealing({
         action,
         slotLevel: payload.slotLevel,
-        outcome,
-        roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
+        roll: damageRoll,
       });
-      if (!damage.valid) throw new Error("active-resolution-damage-invalid");
-      resolutionDamageByTarget.set(targetId, { damage, outcome });
-      if (damage.amount <= 0) continue;
+      if (!healing.valid) throw new Error("active-resolution-healing-invalid");
       if (!item
         || !Object.prototype.hasOwnProperty.call(meta, "hp")
         || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
         throw new Error("active-resolution-hp-required");
       }
-      const currentHp = currentHpById.has(targetId)
-        ? currentHpById.get(targetId)
-        : meta.hp;
       const hpChange = calculateQuickHPChange({
-        mode: QUICK_HP_MODES.DAMAGE,
-        value: damage.amount,
+        mode: QUICK_HP_MODES.HEAL,
+        value: healing.amount,
         factor: QUICK_HP_FACTORS.FULL,
-        hp: currentHp,
+        hp: meta.hp,
         hpMax: meta.hpMax,
       });
-      currentHpById.set(targetId, hpChange.afterHP);
-      if (!hpChange.changed) continue;
-      const existingPatch = metadataPatches.find((patch) => patch.id === targetId);
-      if (existingPatch) {
-        existingPatch.fields.hp.value = hpChange.afterHP;
-        existingPatch.fields.hpMax.value = hpChange.hpMax;
-      } else {
+      resolutionHealingByTarget.set(targetId, { healing, hpChange });
+      if (hpChange.changed) {
         metadataPatches.push({
           id: targetId,
           fields: {
@@ -922,6 +1120,76 @@ export async function executeSpellActiveResolution({
             },
           },
         });
+      }
+      const zeroAction = resolveZeroHPUnconsciousAction(
+        { ...meta, hp: hpChange.afterHP, hpMax: hpChange.hpMax },
+        getConditionInstances(meta.conditions || {}),
+      );
+      unconsciousRemovals.push(...zeroAction.removeInstanceIds.map((instanceId) => ({
+        itemId: targetId,
+        instanceId,
+      })));
+    } else {
+      const resolutionEntries = attackEntries.length
+        ? attackEntries
+        : ids.map((targetId) => ({ targetId, attackOutcome, damageRoll }));
+      const currentHpById = new Map();
+      for (const entry of resolutionEntries) {
+        const targetId = entry.targetId;
+        const item = byId.get(targetId);
+        const meta = item?.metadata?.[`${ID}/meta`] || {};
+        const outcome = action?.resolutionKind === "single-attack"
+          ? entry.attackOutcome
+          : activeResolutionOutcome(normalizedPayload, targetId, attackOutcome);
+        if (!action?.damage) {
+          resolutionDamageByTarget.set(targetId, { damage: null, outcome });
+          continue;
+        }
+        const damage = resolveSpellActiveResolutionDamage({
+          action,
+          slotLevel: payload.slotLevel,
+          outcome,
+          roll: action?.resolutionKind === "single-attack" ? entry.damageRoll : damageRoll,
+        });
+        if (!damage.valid) throw new Error("active-resolution-damage-invalid");
+        resolutionDamageByTarget.set(targetId, { damage, outcome });
+        if (damage.amount <= 0) continue;
+        if (!item
+          || !Object.prototype.hasOwnProperty.call(meta, "hp")
+          || !Object.prototype.hasOwnProperty.call(meta, "hpMax")) {
+          throw new Error("active-resolution-hp-required");
+        }
+        const currentHp = currentHpById.has(targetId)
+          ? currentHpById.get(targetId)
+          : meta.hp;
+        const hpChange = calculateQuickHPChange({
+          mode: QUICK_HP_MODES.DAMAGE,
+          value: damage.amount,
+          factor: QUICK_HP_FACTORS.FULL,
+          hp: currentHp,
+          hpMax: meta.hpMax,
+        });
+        currentHpById.set(targetId, hpChange.afterHP);
+        if (!hpChange.changed) continue;
+        const existingPatch = metadataPatches.find((patch) => patch.id === targetId);
+        if (existingPatch) {
+          existingPatch.fields.hp.value = hpChange.afterHP;
+          existingPatch.fields.hpMax.value = hpChange.hpMax;
+        } else {
+          metadataPatches.push({
+            id: targetId,
+            fields: {
+              hp: {
+                expected: metadataSnapshot(meta, "hp"),
+                value: hpChange.afterHP,
+              },
+              hpMax: {
+                expected: metadataSnapshot(meta, "hpMax"),
+                value: hpChange.hpMax,
+              },
+            },
+          });
+        }
       }
     }
     const casterHealingRatio = Number(action?.casterHealingFromAppliedDamage) || 0;
@@ -1048,6 +1316,7 @@ export async function executeSpellActiveResolution({
     const item = byId.get(targetId);
     const resolution = resolutionDamageByTarget.get(targetId);
     const damage = resolution?.damage;
+    const healing = resolutionHealingByTarget.get(targetId)?.healing;
     const patch = metadataPatches.find((entry) => entry.id === targetId);
     const meta = item?.metadata?.[`${ID}/meta`] || {};
     const beforeHP = Number(meta.hp);
@@ -1060,12 +1329,25 @@ export async function executeSpellActiveResolution({
       ...(item?.name ? { name: item.name } : {}),
       ...(resolution?.outcome ? { outcome: resolution.outcome } : {}),
       ...(damage ? { requestedDamage: damage.amount, damageFactor: damage.factor } : {}),
+      ...(resolution?.prismaticContributions
+        ? { prismaticContributions: cloneValue(resolution.prismaticContributions) }
+        : {}),
+      ...(healing ? { requestedHealing: healing.amount } : {}),
       ...(appliedHpDelta !== undefined ? { appliedHpDelta } : {}),
     };
   });
   const causalAction = {
     ...(action || {}),
-    ...(action?.resolutionKind === "single-attack" && attackEntries.length === 1
+    ...(prismaticWallResolution
+      ? {
+        layerOutcomes: cloneValue(layerOutcomes),
+        layerDamage: cloneValue(layerDamage),
+        layerId: String(layerId || "").trim(),
+        traversalId: String(traversalId || "").trim(),
+      }
+      : action?.resolutionKind === "single-heal"
+      ? { healingRoll: damageRoll }
+      : action?.resolutionKind === "single-attack" && attackEntries.length === 1
       ? { damageRoll: attackEntries[0].damageRoll, attackOutcome: attackEntries[0].attackOutcome }
       : { damageRoll }),
   };
@@ -1090,8 +1372,11 @@ export async function executeSpellActiveResolution({
         targetIds: ids,
         outcomes,
         attackOutcome: String(attackOutcome || ""),
-        damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)),
+        ...(action?.resolutionKind === "single-heal"
+          ? { healingRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }
+          : { damageRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }),
         attacks: attackEntries,
+        ...(prismaticWallHistory ? { prismaticWall: prismaticWallHistory } : {}),
         ...(action?.shortenStaticZone ? { shorteningFrom: String(shorteningFrom || action.shortenStaticZone.from || "end") } : {}),
         naturalStormBonus: naturalStormBonus === true,
         causality: buildSpellCausality({

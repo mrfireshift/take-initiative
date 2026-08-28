@@ -717,6 +717,9 @@ export function buildZoneTriggerReminderResolution({
     ...(activation?.effectType || resolutionData.effectType
       ? { effectType: text(activation?.effectType || resolutionData.effectType, "", 80) }
       : {}),
+    ...(Object.keys(resolutionData).length
+      ? { resolutionData: clone(resolutionData) }
+      : {}),
   };
   if (activation?.resolution === "manual-heal") {
     if (!normalizedTargetId || !scaled.healing) return null;
@@ -1296,11 +1299,29 @@ export function buildReminderResolutionPlan({
   }
   const hpBefore = Number(meta.hp);
   const hpMax = Number(meta.hpMax);
+  const resolutionData = resolution.activation?.resolutionData
+    && typeof resolution.activation.resolutionData === "object"
+    ? resolution.activation.resolutionData
+    : {};
   const creatureType = String(
     meta.creatureType || meta.creatureTypeName || meta.creatureTypeLabel || "",
   ).trim().toLocaleLowerCase("it");
   if (manualHeal && normalizedOutcome === "apply" && /costrutt|non.?morto/u.test(creatureType)) {
     return { status: "unsupported", message: "Costrutti e Non Morti non possono recuperare PF." };
+  }
+  if (manualHeal && normalizedOutcome === "apply"
+    && resolutionData.requiresHpZero === true
+    && Number.isFinite(hpBefore)
+    && Math.floor(hpBefore) !== 0) {
+    return { status: "unsupported", message: "Il bersaglio deve avere 0 PF all'inizio del turno." };
+  }
+  const targetAttitude = String(meta.attitude || "neutral")
+    .trim()
+    .toLocaleLowerCase("it");
+  if (manualHeal && normalizedOutcome === "apply"
+    && resolutionData.requiresNonHostile === true
+    && targetAttitude === "enemy") {
+    return { status: "unsupported", message: "Aura di Vita non cura una creatura ostile." };
   }
   const healing = manualHeal && normalizedOutcome === "apply"
     ? {

@@ -176,7 +176,9 @@ test("payload single-attack conserva istanza, caster, slot, epoch, revisione e r
 test("save-area, child-zone e single-attack delegano allo stesso popup attivo", async () => {
   const cases = [
     ["call-lightning", "call-lightning-strike", "save-area", ""],
+    ["phb2014-raffica-di-spine", "hail-of-thorns-area", "save-area", ""],
     ["xanathar-sfera-della-tempesta", "storm-sphere-lightning", "single-attack", "root-1"],
+    ["phb2014-aura-di-vitalita", "aura-of-vitality-heal", "single-heal", ""],
     ["control-water", "control-water-whirlpool", "child-zone", "root-1"],
   ];
   for (const [spellId, actionId, resolutionKind, zoneItemId] of cases) {
@@ -196,6 +198,38 @@ test("save-area, child-zone e single-attack delegano allo stesso popup attivo", 
     assert.equal(payload.action.resolutionKind, resolutionKind, spellId);
     assert.equal(payload.instanceId, "instance-1", spellId);
   }
+});
+
+test("Aura di Vitalità delega il bersaglio corrente al popup single-heal", async () => {
+  const action = actionFor("phb2014-aura-di-vitalita", "aura-of-vitality-heal");
+  const overview = overviewFor("phb2014-aura-di-vitalita", action, {
+    instanceId: "vitality-1",
+  });
+  let payload = null;
+  const result = await executeSpellUnifiedActiveAction({
+    overview,
+    action,
+    actionId: action.id,
+    sceneEpoch: 7,
+    runtime: {
+      openActiveResolution: (nextPayload) => { payload = nextPayload; },
+    },
+  });
+
+  assert.equal(result.status, SPELL_UNIFIED_ACTIVE_STATUS.POPUP_OPENED);
+  assert.equal(payload.action.resolutionKind, "single-heal");
+  assert.equal(payload.action.economy, "bonus-action");
+  assert.deepEqual(payload.action.healing, {
+    formula: "2d6",
+    baseSlot: 0,
+    additionalPerSlotAbove: 0,
+  });
+  assert.deepEqual(payload.action.membership, {
+    ruleId: "phb2014-aura-di-vitalita:cast",
+    targeting: { filter: "all", includeCaster: true },
+  });
+  assert.equal(payload.action.requiresParentInstance, true);
+  assert.equal(payload.action.resource, undefined);
 });
 
 test("root mancante, azione non disponibile e stato obsoleto sono rifiutati prima della delega", () => {

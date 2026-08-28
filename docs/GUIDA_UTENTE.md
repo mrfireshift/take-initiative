@@ -206,6 +206,12 @@ Interrompere la concentrazione termina l'istanza collegata e rimuove le zone,
 le aure, le pill e le condizioni figlie che dipendono da essa. La stessa
 pulizia avviene quando termina la durata naturale.
 
+Per **Palla di Fuoco Ritardata**, l'interruzione volontaria, un TS di
+concentrazione fallito, la sostituzione con un'altra spell concentrata e la
+scadenza naturale aprono prima la detonazione terminale: il GM risolve il
+raggio corrente di 6 m, i TS Destrezza e un unico totale di danno da fuoco,
+poi la concentrazione e la perla vengono rimosse nella stessa transazione.
+
 Le pill conservano il colore assegnato e vengono renderizzate sulla mappa
 insieme alle condizioni, senza diventare oggetti trascinabili accidentalmente.
 

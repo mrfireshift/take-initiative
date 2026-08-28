@@ -36,6 +36,11 @@ import {
   buildZoneTriggerReminderResolution,
   reminderResolutionDamage,
 } from "../src/reminderResolutionCore.js";
+import {
+  spellActiveResolutionDamageFormula,
+  getSpellResolutionAction,
+} from "../src/spellActiveResolutionCore.js";
+import { spellSaveDamageFormula } from "../src/spellCastResolutionRules.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -160,6 +165,46 @@ test("PIPELINE A4 — End-turn: TS superato infligge 0 danni", () => {
   const damage = reminderResolutionDamage(resolution, "passed", 8);
   assert.equal(damage.factor, "zero");
   assert.equal(damage.amount, 0);
+});
+
+test("PIPELINE A5 — Sfera della Tempesta scala cast, fine turno e fulmine bonus", () => {
+  const endTurnTrigger = getSpellAreaRuleById("xanathar-sfera-della-tempesta:cast")
+    .zonePolicy.triggers
+    .find((trigger) => trigger.id === "storm-sphere-save-on-turn-end");
+  const activeAction = getSpellResolutionAction(
+    "xanathar-sfera-della-tempesta",
+    STORM_SPHERE_TURN_PROMPT_ACTION_ID,
+  );
+  const expected = new Map([
+    [4, ["2d6", "4d6"]],
+    [5, ["3d6", "5d6"]],
+    [9, ["7d6", "9d6"]],
+  ]);
+
+  for (const [slotLevel, [areaFormula, lightningFormula]] of expected) {
+    assert.equal(
+      spellSaveDamageFormula("xanathar-sfera-della-tempesta", "failed", slotLevel),
+      areaFormula,
+    );
+    assert.equal(
+      spellSaveDamageFormula("xanathar-sfera-della-tempesta", "passed", slotLevel),
+      areaFormula,
+    );
+
+    const endTurnResolution = buildZoneTriggerReminderResolution({
+      activation: endTurnTrigger,
+      targetId: "target-1",
+      sourceId: "caster-1",
+      slotLevel,
+    });
+    assert.equal(endTurnResolution.damage.dice, areaFormula);
+
+    const lightningDamage = spellActiveResolutionDamageFormula({
+      action: activeAction,
+      slotLevel,
+    });
+    assert.equal(lightningDamage.scaledFormula, lightningFormula);
+  }
 });
 
 // ---------------------------------------------------------------------

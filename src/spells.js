@@ -220,7 +220,8 @@ export function buildSpellChips(spells, options = {}) {
     chip.dataset.referenceType = "spells";
     chip.dataset.referenceEntry = displayName;
     const label = document.createElement("span");
-    label.textContent = formatSpellChip(displayName, spell);
+    const spellChipLabel = formatSpellChip(displayName, spell);
+    label.textContent = spellChipLabel;
     chip.appendChild(label);
     const boardTokenHP = options.boardTokenHP && typeof options.boardTokenHP === "object"
       ? options.boardTokenHP
@@ -248,7 +249,8 @@ export function buildSpellChips(spells, options = {}) {
       });
       chip.appendChild(hp);
     }
-    chip.title = displayName + " — " + spellExpiryDescription(spell);
+    const spellChipTitle = displayName + " — " + spellExpiryDescription(spell);
+    chip.title = spellChipTitle;
     const color = spellColorFor(spell?.spellId || displayName);
     Object.assign(chip.style, {
       display: "inline-flex",
@@ -308,6 +310,8 @@ export function buildSpellChips(spells, options = {}) {
       });
       chip.appendChild(terminate);
     }
+    // Le card mostrano solo la pill canonica della spell. I summaryParts
+    // restano presentation-only per le superfici di dettaglio dedicate.
     frag.appendChild(chip);
   }
   return frag;

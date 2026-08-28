@@ -4,15 +4,12 @@ import {
   CUSTOM_AURAS_FIELD,
   DEFAULT_CUSTOM_AURA_STYLE,
   createCustomAuraChildId,
-  normalizeCustomAuraPill,
-  normalizeCustomAuraReminder,
   normalizeCustomAuras,
 } from "./customAuraCore.js";
 import {
   applyPresetToCustomAura,
   appendPresetToCustomAuraList,
   createPresetFromAura,
-  createPresetId,
   detachCustomAuraPreset,
   duplicatePreset,
   updatePresetDefinition,
@@ -31,8 +28,12 @@ const tokenIds = [...new Set(
 const list = document.querySelector("#list");
 const status = document.querySelector("#status");
 const tokenName = document.querySelector("#token-name");
+const modalTitle = document.querySelector("#modal-title");
 const saveButton = document.querySelector("#save");
 const presetsButton = document.querySelector("#presets-btn");
+const addButton = document.querySelector("#add");
+const cancelBtn = document.querySelector("#cancel-btn");
+const closeBtn = document.querySelector("#close");
 const sceneLifecycle = createSceneLifecycleAdapter({ obr: OBR });
 const presetStore = getCustomAuraPresetStore();
 
@@ -40,12 +41,38 @@ let tokens = [];
 let auras = [];
 let saving = false;
 let closeTimer = null;
+let statusTimer = null;
 let presetDialogTargetIndex = null; // null = standalone library, number = applying to aura index
+let presetViewActive = false;
+let renamingPresetId = null;
 let editingPresetIndex = null;
 let editingAuraIndex = null;
 let editingAuraIsNew = false;
 let quickApplyPresetId = null;
+let initialDraftSnapshot = null;
+const expandedPills = new Set();
+const expandedReminders = new Set();
 const quickApplyMode = new URLSearchParams(window.location.search).get("mode") === "apply-preset";
+
+function setStatus(message, { isError = false, timeout = 2500 } = {}) {
+  if (statusTimer) {
+    window.clearTimeout(statusTimer);
+    statusTimer = null;
+  }
+  if (!status) return;
+  if (isError) status.classList.add("error");
+  else status.classList.remove("error");
+  status.textContent = message || "";
+  if (timeout > 0 && message) {
+    statusTimer = window.setTimeout(() => {
+      statusTimer = null;
+      if (status && status.textContent === message) {
+        status.textContent = "";
+        status.classList.remove("error");
+      }
+    }, timeout);
+  }
+}
 
 function defaultAura() {
   const id = createCustomAuraChildId("aura");
@@ -56,42 +83,8 @@ function defaultAura() {
     radiusMeters: 3,
     style: { ...DEFAULT_CUSTOM_AURA_STYLE },
     targeting: { filter: "all", includeSource: false },
-    pills: [
-      {
-        id: createCustomAuraChildId("pill"),
-        enabled: true,
-        label: "Nell'aura",
-        detail: "",
-        kind: "buff",
-      },
-    ],
-    reminders: [
-      {
-        id: createCustomAuraChildId("reminder"),
-        enabled: false,
-        event: "turn-start",
-        label: "Inizia il turno nell'aura.",
-        resolution: "informational",
-      },
-      {
-        id: createCustomAuraChildId("reminder"),
-        enabled: false,
-        event: "turn-end",
-        label: "Termina il turno nell'aura.",
-        resolution: "informational",
-      },
-    ],
-    // Backward compatibility mirrors
-    pill: {
-      enabled: true,
-      label: "Nell'aura",
-      detail: "",
-      kind: "buff",
-    },
-    warnings: {
-      start: { enabled: false, label: "Inizia il turno nell'aura." },
-      end: { enabled: false, label: "Termina il turno nell'aura." },
-    },
+    pills: [],
+    reminders: [],
   };
 }
 
@@ -115,32 +108,86 @@ function option(value, current, label) {
   return `<option value="${value}"${current === value ? " selected" : ""}>${label}</option>`;
 }
 
-function pillTemplate(pill, pillIndex, auraIndex, readOnly = false) {
+function formatAuraSummary(aura) {
+  const parts = [`${aura.radiusMeters} m`];
+  const pillsCount = aura.pills?.length || 0;
+  const remsCount = aura.reminders?.length || 0;
+  if (pillsCount > 0) parts.push(`${pillsCount} pill`);
+  if (remsCount > 0) parts.push(`${remsCount} reminder`);
+  if (aura.presetRef?.presetId) {
+    const preset = presetStore.getPreset(aura.presetRef.presetId);
+    const name = preset?.name || "Preset collegato";
+    parts.push(`Preset: ${name}`);
+  }
+  return parts.join(" · ");
+}
+
+function pillTemplate(pill, pillIndex, readOnly = false) {
+  const isExpanded = expandedPills.has(pillIndex);
+  const title = pill.label || "Nuova pill";
+  const kindLabel = pill.kind === "debuff" ? "Penalità" : "Beneficio";
+  const kindClass = pill.kind === "debuff" ? "badge-debuff" : "badge-buff";
+
   return `
-    <div class="sub-card" data-pill-index="${pillIndex}">
-      <div class="sub-card-head">
-        <label class="toggle"><input type="checkbox" data-field="pills.${pillIndex}.enabled"${checked(pill.enabled)}${disabled(readOnly)}> Attiva</label>
-        <button class="button-sm danger" type="button" data-action="delete-pill" style="margin-left:auto"${disabled(readOnly)}>Rimuovi</button>
-      </div>
-      <div class="grid">
-        <label class="field">Testo pill
-          <input type="text" maxlength="100" data-field="pills.${pillIndex}.label" value="${escapeAttribute(pill.label)}"${disabled(readOnly)}>
+    <div class="sub-card${isExpanded ? " is-open" : ""}" data-pill-index="${pillIndex}">
+      <div class="sub-card-head" data-toggle-pill="${pillIndex}">
+        <label class="toggle toggle-sm" title="Attiva/disattiva pill" onclick="event.stopPropagation()">
+          <input type="checkbox" data-field="pills.${pillIndex}.enabled"${checked(pill.enabled)}${disabled(readOnly)}>
+          Attiva
         </label>
-        <label class="field">Tipo
-          <select data-field="pills.${pillIndex}.kind"${disabled(readOnly)}>
-            ${option("buff", pill.kind, "Beneficio (Buff)")}
-            ${option("debuff", pill.kind, "Penalità (Debuff)")}
-          </select>
-        </label>
+        <div class="sub-card-summary">
+          <span class="sub-card-title">${escapeAttribute(title)}</span>
+          <span class="badge ${kindClass}">${kindLabel}</span>
+        </div>
+        <span class="chevron ${isExpanded ? "open" : ""}">▾</span>
+        <button class="button-sm danger" type="button" data-action="delete-pill" style="margin-left:4px;"${disabled(readOnly)}>Rimuovi</button>
       </div>
-      <label class="field">Descrizione dettaglio
-        <textarea maxlength="320" data-field="pills.${pillIndex}.detail"${disabled(readOnly)}>${escapeAttribute(pill.detail)}</textarea>
-      </label>
+      ${isExpanded ? `
+        <div class="sub-card-body">
+          <div class="grid">
+            <label class="field">Etichetta
+              <input type="text" maxlength="100" data-field="pills.${pillIndex}.label" value="${escapeAttribute(pill.label)}"${disabled(readOnly)}>
+            </label>
+            <label class="field">Tipo
+              <select data-field="pills.${pillIndex}.kind"${disabled(readOnly)}>
+                ${option("buff", pill.kind, "Beneficio (Buff)")}
+                ${option("debuff", pill.kind, "Penalità (Debuff)")}
+              </select>
+            </label>
+          </div>
+          <label class="field">Descrizione
+            <textarea maxlength="320" data-field="pills.${pillIndex}.detail"${disabled(readOnly)}>${escapeAttribute(pill.detail)}</textarea>
+          </label>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
-function reminderTemplate(rem, remIndex, auraIndex, readOnly = false) {
+function formatReminderSummary(rem) {
+  const eventLabels = {
+    "turn-start": "Inizio turno",
+    "turn-end": "Fine turno",
+    "enter": "Entrata nell'aura",
+    "leave": "Uscita dall'aura",
+  };
+  const eventText = eventLabels[rem.event] || "Inizio turno";
+  let resText = "Avviso";
+  if (rem.resolution === "manual-save") {
+    const abilities = { dex: "Des", con: "Cos", wis: "Sag", str: "For", int: "Int", cha: "Car" };
+    const ab = abilities[rem.ability] || "Des";
+    const dcText = rem.dcMode === "fixed" ? `CD ${rem.dc ?? 15}` : "CD token";
+    const dmg = rem.damage?.dice ? ` · ${rem.damage.dice}${rem.damage?.type ? " " + rem.damage.type : ""}` : "";
+    resText = `TS ${ab} ${dcText}${dmg}`;
+  } else if (rem.resolution === "manual-damage") {
+    const dmg = [rem.damage?.dice, rem.damage?.type].filter(Boolean).join(" ");
+    resText = `Danno ${dmg || "diretto"}`;
+  }
+  return `${eventText} · ${resText}`;
+}
+
+function reminderTemplate(rem, remIndex, readOnly = false) {
+  const isExpanded = expandedReminders.has(remIndex);
   const isManualSave = rem.resolution === "manual-save";
   const isManualDamage = rem.resolution === "manual-damage";
   const isFixedDC = rem.dcMode === "fixed";
@@ -148,83 +195,95 @@ function reminderTemplate(rem, remIndex, auraIndex, readOnly = false) {
   const damageType = rem.damage?.type || "";
   const damageOnSave = rem.damage?.onSave || "half";
   const failCondition = rem.failureCondition?.condition || "";
+  const summaryTitle = formatReminderSummary(rem);
 
   return `
-    <div class="sub-card" data-rem-index="${remIndex}">
-      <div class="sub-card-head">
-        <label class="toggle"><input type="checkbox" data-field="reminders.${remIndex}.enabled"${checked(rem.enabled)}${disabled(readOnly)}> Attivo</label>
-        <button class="button-sm danger" type="button" data-action="delete-reminder" style="margin-left:auto"${disabled(readOnly)}>Rimuovi</button>
-      </div>
-      <div class="grid">
-        <label class="field">Evento
-          <select data-field="reminders.${remIndex}.event"${disabled(readOnly)}>
-            ${option("turn-start", rem.event, "Inizio Turno")}
-            ${option("turn-end", rem.event, "Fine Turno")}
-            ${option("enter", rem.event, "Entrata nell'Aura")}
-            ${option("leave", rem.event, "Uscita dall'Aura")}
-          </select>
+    <div class="sub-card${isExpanded ? " is-open" : ""}" data-rem-index="${remIndex}">
+      <div class="sub-card-head" data-toggle-rem="${remIndex}">
+        <label class="toggle toggle-sm" title="Attiva/disattiva reminder" onclick="event.stopPropagation()">
+          <input type="checkbox" data-field="reminders.${remIndex}.enabled"${checked(rem.enabled)}${disabled(readOnly)}>
+          Attivo
         </label>
-        <label class="field">Tipo Notifica
-          <select data-field="reminders.${remIndex}.resolution" data-rerender="true"${disabled(readOnly)}>
-            ${option("informational", rem.resolution, "Avviso Informativo")}
-            ${option("manual-save", rem.resolution, "Tiro Salvezza (TS)")}
-            ${option("manual-damage", rem.resolution, "Danno Diretto (Senza TS)")}
-          </select>
-        </label>
+        <div class="sub-card-summary">
+          <span class="sub-card-title">${escapeAttribute(summaryTitle)}</span>
+        </div>
+        <span class="chevron ${isExpanded ? "open" : ""}">▾</span>
+        <button class="button-sm danger" type="button" data-action="delete-reminder" style="margin-left:4px;"${disabled(readOnly)}>Rimuovi</button>
       </div>
-      <label class="field">Testo Notifica
-        <input type="text" maxlength="240" data-field="reminders.${remIndex}.label" value="${escapeAttribute(rem.label)}"${disabled(readOnly)}>
-      </label>
-      ${isManualSave ? `
-        <div class="grid three" style="margin-top:4px;">
-          <label class="field">Caratteristica TS
-            <select data-field="reminders.${remIndex}.ability"${disabled(readOnly)}>
-              ${option("dex", rem.ability, "Destrezza")}
-              ${option("con", rem.ability, "Costituzione")}
-              ${option("wis", rem.ability, "Saggezza")}
-              ${option("str", rem.ability, "Forza")}
-              ${option("int", rem.ability, "Intelligenza")}
-              ${option("cha", rem.ability, "Carisma")}
-            </select>
-          </label>
-          <label class="field">Modalità CD
-            <select data-field="reminders.${remIndex}.dcMode" data-rerender="true"${disabled(readOnly)}>
-              ${option("caster", rem.dcMode, "CD Incantesimo Caster")}
-              ${option("fixed", rem.dcMode, "CD Fissa")}
-            </select>
-          </label>
-          ${isFixedDC ? `
-            <label class="field">Valore CD
-              <input type="number" min="1" max="99" data-field="reminders.${remIndex}.dc" value="${escapeAttribute(rem.dc ?? 15)}"${disabled(readOnly)}>
+      ${isExpanded ? `
+        <div class="sub-card-body">
+          <div class="grid">
+            <label class="field">Evento
+              <select data-field="reminders.${remIndex}.event"${disabled(readOnly)}>
+                ${option("turn-start", rem.event, "Inizio turno")}
+                ${option("turn-end", rem.event, "Fine turno")}
+                ${option("enter", rem.event, "Entrata nell'aura")}
+                ${option("leave", rem.event, "Uscita dall'aura")}
+              </select>
             </label>
-          ` : `<div></div>`}
-        </div>
-        <div class="grid three" style="margin-top:4px;">
-          <label class="field">Formula Danno (es. 2d6)
-            <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.dice" value="${escapeAttribute(damageDice)}" placeholder="opzionale"${disabled(readOnly)}>
+            <label class="field">Tipo
+              <select data-field="reminders.${remIndex}.resolution" data-rerender="true"${disabled(readOnly)}>
+                ${option("informational", rem.resolution, "Avviso informativo")}
+                ${option("manual-save", rem.resolution, "Tiro salvezza (TS)")}
+                ${option("manual-damage", rem.resolution, "Danno diretto (senza TS)")}
+              </select>
+            </label>
+          </div>
+          <label class="field">Messaggio
+            <input type="text" maxlength="240" data-field="reminders.${remIndex}.label" value="${escapeAttribute(rem.label)}"${disabled(readOnly)}>
           </label>
-          <label class="field">Tipo Danno
-            <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.type" value="${escapeAttribute(damageType)}" placeholder="es. fuoco"${disabled(readOnly)}>
-          </label>
-          <label class="field">Danno su TS Superato
-            <select data-field="reminders.${remIndex}.damage.onSave"${disabled(readOnly)}>
-              ${option("half", damageOnSave, "Metà danno")}
-              ${option("zero", damageOnSave, "Nessun danno")}
-            </select>
-          </label>
-        </div>
-        <label class="field" style="margin-top:4px;">Condizione su Fallimento TS (opzionale)
-          <input type="text" maxlength="100" data-field="reminders.${remIndex}.failureCondition.condition" value="${escapeAttribute(failCondition)}" placeholder="es. Prono"${disabled(readOnly)}>
-        </label>
-      ` : ""}
-      ${isManualDamage ? `
-        <div class="grid" style="margin-top:4px;">
-          <label class="field">Formula Danno (es. 2d8)
-            <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.dice" value="${escapeAttribute(damageDice)}"${disabled(readOnly)}>
-          </label>
-          <label class="field">Tipo Danno
-            <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.type" value="${escapeAttribute(damageType)}" placeholder="es. radioso"${disabled(readOnly)}>
-          </label>
+          ${isManualSave ? `
+            <div class="grid three">
+              <label class="field">Caratteristica TS
+                <select data-field="reminders.${remIndex}.ability"${disabled(readOnly)}>
+                  ${option("dex", rem.ability, "Destrezza")}
+                  ${option("con", rem.ability, "Costituzione")}
+                  ${option("wis", rem.ability, "Saggezza")}
+                  ${option("str", rem.ability, "Forza")}
+                  ${option("int", rem.ability, "Intelligenza")}
+                  ${option("cha", rem.ability, "Carisma")}
+                </select>
+              </label>
+              <label class="field">Modalità CD
+                <select data-field="reminders.${remIndex}.dcMode" data-rerender="true"${disabled(readOnly)}>
+                  ${option("caster", rem.dcMode, "CD incantesimi del token")}
+                  ${option("fixed", rem.dcMode, "CD fissa")}
+                </select>
+              </label>
+              ${isFixedDC ? `
+                <label class="field">Valore CD
+                  <input type="number" min="1" max="99" data-field="reminders.${remIndex}.dc" value="${escapeAttribute(rem.dc ?? 15)}"${disabled(readOnly)}>
+                </label>
+              ` : `<div></div>`}
+            </div>
+            <div class="grid three">
+              <label class="field">Formula danno (es. 2d6)
+                <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.dice" value="${escapeAttribute(damageDice)}" placeholder="opzionale"${disabled(readOnly)}>
+              </label>
+              <label class="field">Tipo danno
+                <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.type" value="${escapeAttribute(damageType)}" placeholder="es. fuoco"${disabled(readOnly)}>
+              </label>
+              <label class="field">Danno su TS superato
+                <select data-field="reminders.${remIndex}.damage.onSave"${disabled(readOnly)}>
+                  ${option("half", damageOnSave, "Metà danno")}
+                  ${option("zero", damageOnSave, "Nessun danno")}
+                </select>
+              </label>
+            </div>
+            <label class="field">Condizione su fallimento TS (opzionale)
+              <input type="text" maxlength="100" data-field="reminders.${remIndex}.failureCondition.condition" value="${escapeAttribute(failCondition)}" placeholder="es. Prono"${disabled(readOnly)}>
+            </label>
+          ` : ""}
+          ${isManualDamage ? `
+            <div class="grid">
+              <label class="field">Formula danno (es. 2d8)
+                <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.dice" value="${escapeAttribute(damageDice)}"${disabled(readOnly)}>
+              </label>
+              <label class="field">Tipo danno
+                <input type="text" maxlength="40" data-field="reminders.${remIndex}.damage.type" value="${escapeAttribute(damageType)}" placeholder="es. radioso"${disabled(readOnly)}>
+              </label>
+            </div>
+          ` : ""}
         </div>
       ` : ""}
     </div>
@@ -233,39 +292,28 @@ function reminderTemplate(rem, remIndex, auraIndex, readOnly = false) {
 
 function auraSummaryTemplate(aura, index) {
   const isDraft = editingAuraIsNew && editingAuraIndex === index;
-  const isLinked = !!aura.presetRef?.presetId;
-  const linkedPreset = isLinked ? presetStore.getPreset(aura.presetRef.presetId) : null;
-  const presetLabel = linkedPreset?.name || (isLinked ? `Preset #${aura.presetRef.presetId.slice(-6)}` : "");
   const detailOpen = Number.isInteger(editingAuraIndex);
   const quickDisabled = isDraft || detailOpen;
+  const summaryMeta = formatAuraSummary(aura);
+
   return `
-    <article class="aura-summary-card${isDraft ? " draft" : ""}" data-index="${index}" data-existing-summary>
+    <article class="aura-summary-card${!aura.enabled ? " is-disabled" : ""}${isDraft ? " draft" : ""}" data-index="${index}" data-existing-summary>
       <div class="aura-summary-main">
         <div class="aura-summary-title-row">
-          <span class="aura-summary-status${aura.enabled ? " active" : " inactive"}">${aura.enabled ? "Attiva" : "Disattivata"}</span>
-          <input
-            class="aura-summary-name"
-            type="text"
-            maxlength="100"
-            value="${escapeAttribute(aura.name)}"
-            aria-label="Nome aura ${escapeAttribute(aura.name)}"
-            data-existing-rename
-            ${disabled(quickDisabled || isLinked)}
-          >
+          <span class="aura-summary-name">${escapeAttribute(aura.name)}</span>
+          <input type="hidden" data-existing-rename value="${escapeAttribute(aura.name)}">
         </div>
         <div class="aura-summary-meta">
-          ${aura.radiusMeters}m · ${aura.pills?.length || 0} pill · ${aura.reminders?.length || 0} reminder
-          ${isLinked ? ` · 🔗 ${escapeAttribute(presetLabel)}` : ""}
-          ${isDraft ? " · bozza non salvata" : ""}
+          ${escapeAttribute(summaryMeta)}
         </div>
       </div>
       <div class="aura-summary-actions">
-        <label class="toggle" title="Persisti subito lo stato dell'aura">
+        <label class="toggle" title="Attiva/disattiva questa aura">
           <input type="checkbox" data-existing-toggle${checked(aura.enabled)}${disabled(quickDisabled)}>
           Attiva
         </label>
-        <button type="button" class="button-sm" data-action="edit-details"${disabled(quickDisabled)}>Modifica dettagli</button>
-        <button type="button" class="button-sm danger" data-action="delete-existing"${disabled(quickDisabled)}>Elimina</button>
+        <button type="button" class="button-sm primary" data-action="edit-details" data-index="${index}"${disabled(quickDisabled)}>Modifica</button>
+        <button type="button" class="button-sm danger" data-action="delete-existing" data-index="${index}"${disabled(quickDisabled)}>Elimina</button>
       </div>
     </article>
   `;
@@ -279,167 +327,193 @@ function auraTemplate(aura, index, { isNew = false } = {}) {
   const readOnly = isLinked && !isEditingPreset;
   const canEditName = isNew || isEditingPreset;
   const linkedPreset = isLinked ? presetStore.getPreset(aura.presetRef.presetId) : null;
-  const presetName = linkedPreset?.name || (isLinked ? `Preset #${aura.presetRef.presetId.slice(-6)}` : "");
+  const presetName = linkedPreset?.name || (isLinked ? "Preset collegato" : "");
 
   return `
     <section class="aura-card aura-detail-card" data-index="${index}">
-      <div class="card-head">
-        <div class="aura-detail-heading">
-          <div class="section-title">${isNew ? "Nuova aura" : "Modifica dettagli"}</div>
-          ${canEditName
-            ? `<input class="name" type="text" maxlength="100" data-field="name" value="${escapeAttribute(aura.name)}" aria-label="Nome aura"${disabled(readOnly)}>`
-            : `<strong class="aura-detail-name">${escapeAttribute(aura.name)}</strong>`}
-        </div>
-        ${isNew
-          ? `<label class="toggle"><input type="checkbox" data-field="enabled"${checked(aura.enabled)}> Attiva</label>`
-          : `<span class="aura-detail-note">Stato e nome si gestiscono dall’elenco sopra.</span>`}
-        <button class="button-sm" type="button" data-action="${isNew ? "cancel-new" : "close-details"}">${isNew ? "Annulla" : "Fine"}</button>
+      <div class="aura-editor-head">
+        <label class="field">Nome aura
+          <input class="name" type="text" maxlength="100" data-field="name" value="${escapeAttribute(aura.name)}" aria-label="Nome aura"${disabled(readOnly)}>
+        </label>
+        <label class="toggle toggle-editor">
+          <input type="checkbox" data-field="enabled"${checked(aura.enabled)}>
+          Attiva
+        </label>
       </div>
 
-      <div class="preset-row">
-        ${isLinked ? `
-          <span class="preset-badge">🔗 Collegato: ${escapeAttribute(presetName)} (rev ${aura.presetRef.revision || 1})</span>
-          ${isEditingPreset
-            ? '<button type="button" class="button-sm" data-action="cancel-preset-edit">Annulla modifica preset</button>'
-            : '<button type="button" class="button-sm" data-action="update-preset">Modifica preset</button>'}
-          <button type="button" class="button-sm" data-action="detach-preset">Scollega (Modifica solo questa)</button>
-        ` : `
-          <button type="button" class="button-sm" data-action="save-as-preset">Salva come preset…</button>
-          <button type="button" class="button-sm" data-action="apply-preset">Carica da preset…</button>
-        `}
-      </div>
+      ${isLinked ? `
+        <div class="preset-banner">
+          <div class="preset-banner-info">
+            <span class="preset-badge">Preset: ${escapeAttribute(presetName)}</span>
+            ${isEditingPreset ? '<span class="preset-editing-tag">Modifica preset globale</span>' : ""}
+          </div>
+          <div class="preset-banner-actions">
+            ${isEditingPreset
+              ? '<button type="button" class="button-sm" data-action="cancel-preset-edit">Annulla modifica preset</button>'
+              : '<button type="button" class="button-sm" data-action="update-preset">Modifica preset</button>'}
+            <button type="button" class="button-sm" data-action="detach-preset">Scollega</button>
+          </div>
+        </div>
+      ` : `
+        <div class="preset-action-row">
+          <button type="button" class="preset-link-action" data-action="save-as-preset">Salva come preset…</button>
+        </div>
+      `}
 
       <div class="section">
         <div class="section-title">Dimensione e bersagli</div>
-        <div class="grid">
+        <div class="grid-radius-targeting">
           <label class="field">Raggio in metri
-            <input type="number" min="0.5" max="300" step="0.5" data-field="radiusMeters" value="${escapeAttribute(aura.radiusMeters)}"${disabled(readOnly)}>
+            <input type="number" min="0" max="300" step="1.5" data-field="radiusMeters" value="${escapeAttribute(aura.radiusMeters)}"${disabled(readOnly)}>
           </label>
-          <label class="field">Token interessati
-            <select data-field="targeting.filter"${disabled(readOnly)}>
-              ${option("all", aura.targeting?.filter, "Tutti")}
-              ${option("friendly", aura.targeting?.filter, "Alleati")}
-              ${option("hostile", aura.targeting?.filter, "Ostili")}
-            </select>
-          </label>
+          <div class="targeting-group">
+            <label class="field">Token interessati
+              <select data-field="targeting.filter"${disabled(readOnly)}>
+                ${option("all", aura.targeting?.filter, "Tutti")}
+                ${option("friendly", aura.targeting?.filter, "Alleati")}
+                ${option("hostile", aura.targeting?.filter, "Ostili")}
+              </select>
+            </label>
+            <label class="inline targeting-include-source"><input type="checkbox" data-field="targeting.includeSource"${checked(aura.targeting?.includeSource)}${disabled(readOnly)}> Includi anche il token sorgente</label>
+          </div>
         </div>
-        <label class="inline"><input type="checkbox" data-field="targeting.includeSource"${checked(aura.targeting?.includeSource)}${disabled(readOnly)}> Includi anche il token sorgente</label>
       </div>
 
       <div class="section">
         <div class="section-title">Aspetto sulla mappa</div>
-        <div class="grid">
-          <label class="field">Riempimento
-            <div class="color-row"><input type="color" data-field="style.fillColor" value="${escapeAttribute(aura.style?.fillColor)}"${disabled(readOnly)}><span>${escapeAttribute(aura.style?.fillColor)}</span></div>
-          </label>
-          <label class="field">Bordo
-            <div class="color-row"><input type="color" data-field="style.strokeColor" value="${escapeAttribute(aura.style?.strokeColor)}"${disabled(readOnly)}><span>${escapeAttribute(aura.style?.strokeColor)}</span></div>
-          </label>
-          <label class="field">Opacità riempimento
-            <input type="range" min="0.05" max="0.45" step="0.01" data-field="style.fillOpacity" value="${escapeAttribute(aura.style?.fillOpacity)}"${disabled(readOnly)}>
-          </label>
-          <label class="field">Spessore bordo
-            <input type="range" min="0.4" max="3" step="0.1" data-field="style.strokeWidth" value="${escapeAttribute(aura.style?.strokeWidth)}"${disabled(readOnly)}>
-          </label>
+        <div class="style-compact-grid">
+          <div class="style-composite-row">
+            <label class="field style-color-field">Riempimento
+              <input type="color" data-field="style.fillColor" value="${escapeAttribute(aura.style?.fillColor)}"${disabled(readOnly)}>
+            </label>
+            <label class="field style-slider-field">Opacità
+              <input type="range" min="0.05" max="0.45" step="0.01" data-field="style.fillOpacity" value="${escapeAttribute(aura.style?.fillOpacity)}"${disabled(readOnly)}>
+            </label>
+          </div>
+          <div class="style-composite-row">
+            <label class="field style-color-field">Bordo
+              <input type="color" data-field="style.strokeColor" value="${escapeAttribute(aura.style?.strokeColor)}"${disabled(readOnly)}>
+            </label>
+            <label class="field style-slider-field">Spessore
+              <input type="range" min="0.4" max="3" step="0.1" data-field="style.strokeWidth" value="${escapeAttribute(aura.style?.strokeWidth)}"${disabled(readOnly)}>
+            </label>
+          </div>
         </div>
       </div>
 
       <div class="section">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div class="section-title">Pill Condizione (${pills.length})</div>
+        <div class="section-header">
+          <div class="section-title">Pill (${pills.length})</div>
           <button type="button" class="button-sm" data-action="add-pill"${disabled(readOnly)}>+ Aggiungi pill</button>
         </div>
-        <div class="sub-list">
-          ${pills.map((pill, pIdx) => pillTemplate(pill, pIdx, index, readOnly)).join("")}
-        </div>
+        ${!pills.length
+          ? '<div class="sub-empty">Nessuna pill configurata.</div>'
+          : `<div class="sub-list">${pills.map((pill, pIdx) => pillTemplate(pill, pIdx, readOnly)).join("")}</div>`}
       </div>
 
       <div class="section">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div class="section-title">Reminder e Trigger (${reminders.length})</div>
+        <div class="section-header">
+          <div class="section-title">Reminder (${reminders.length})</div>
           <button type="button" class="button-sm" data-action="add-reminder"${disabled(readOnly)}>+ Aggiungi reminder</button>
         </div>
-        <div class="sub-list">
-          ${reminders.map((rem, rIdx) => reminderTemplate(rem, rIdx, index, readOnly)).join("")}
-        </div>
-      </div>
-
-      <!-- Hidden backward-compatibility elements to mirror primary pill/warnings for existing test selectors -->
-      <div style="display:none;" aria-hidden="true">
-        <input type="checkbox" data-field="pill.enabled"${checked(aura.pills?.[0]?.enabled !== false)}>
-        <input type="text" data-field="pill.label" value="${escapeAttribute(aura.pills?.[0]?.label || "")}">
-        <input type="checkbox" data-field="warnings.start.enabled"${checked(aura.reminders?.some((r) => r.event === "turn-start" && r.enabled))}>
-        <input type="checkbox" data-field="warnings.end.enabled"${checked(aura.reminders?.some((r) => r.event === "turn-end" && r.enabled))}>
+        ${!reminders.length
+          ? '<div class="sub-empty">Nessun reminder configurato.</div>'
+          : `<div class="sub-list">${reminders.map((rem, rIdx) => reminderTemplate(rem, rIdx, readOnly)).join("")}</div>`}
       </div>
     </section>
   `;
 }
 
-function renderPresetDialog() {
-  const existingBackdrop = document.querySelector("#preset-dialog-backdrop");
-  if (existingBackdrop) existingBackdrop.remove();
-  if (presetDialogTargetIndex === undefined || presetDialogTargetIndex === false) return;
+function formatPresetSummary(preset) {
+  const def = preset.definition || {};
+  const parts = [`${def.radiusMeters || 3} m`];
+  const pillsCount = def.pills?.length || 0;
+  const remsCount = def.reminders?.length || 0;
+  if (pillsCount > 0) parts.push(`${pillsCount} pill`);
+  if (remsCount > 0) parts.push(`${remsCount} reminder`);
+  return parts.join(" · ");
+}
 
+function renderPresetDialog() {
+  presetViewActive = true;
   const presets = presetStore.getActivePresets();
-  const backdrop = document.createElement("div");
-  backdrop.id = "preset-dialog-backdrop";
-  backdrop.className = "preset-dialog-backdrop";
-  backdrop.innerHTML = `
+  list.innerHTML = `
     <div class="preset-dialog">
-      <div class="preset-dialog-header">
-        <h2 style="margin:0;font-size:15px;">Libreria Preset Aura</h2>
-        <button type="button" class="close" data-preset-action="close-dialog">×</button>
-      </div>
-      <div class="preset-dialog-body">
-        ${!presets.length ? '<div class="empty">Nessun preset salvato. Usa “Salva come preset” su un’aura per crearne uno.</div>' : ""}
-        ${presets.map((preset) => `
-          <div class="preset-item" data-preset-id="${preset.id}">
-            <div class="preset-item-info">
-              <div class="preset-item-name">${escapeAttribute(preset.name)}</div>
-              <div class="preset-item-meta">Raggio: ${preset.definition?.radiusMeters || 3}m · ${preset.definition?.pills?.length || 0} pill · ${preset.definition?.reminders?.length || 0} reminder · rev ${preset.revision}</div>
-            </div>
-            <div class="preset-item-actions">
-              <button type="button" class="button-sm primary" data-preset-action="apply">${presetDialogTargetIndex !== null ? "Applica" : "Usa come nuova"}</button>
-              <button type="button" class="button-sm" data-preset-action="duplicate">Duplica</button>
-              <button type="button" class="button-sm danger" data-preset-action="delete">Elimina</button>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-      <div class="preset-dialog-footer">
-        <button type="button" class="button" data-preset-action="close-dialog">Chiudi</button>
-      </div>
+      ${!presets.length
+        ? `<div class="empty-state">
+            <p class="empty-text">Nessun preset salvato.</p>
+            <p class="empty-hint">Salva un’aura come preset dall’editor per riutilizzarla rapidamente su qualsiasi token.</p>
+          </div>`
+        : presets.map((preset) => {
+            if (renamingPresetId === preset.id) {
+              return `
+                <div class="preset-item" data-preset-id="${escapeAttribute(preset.id)}">
+                  <div class="preset-rename-box">
+                    <input type="text" class="name preset-rename-input" data-preset-rename-id="${escapeAttribute(preset.id)}" value="${escapeAttribute(preset.name)}" maxlength="100" autofocus>
+                    <button type="button" class="button-sm primary" data-preset-action="save-rename" data-preset-id="${escapeAttribute(preset.id)}">Salva</button>
+                    <button type="button" class="button-sm" data-preset-action="cancel-rename">Annulla</button>
+                  </div>
+                </div>
+              `;
+            }
+            return `
+              <div class="preset-item" data-preset-id="${escapeAttribute(preset.id)}">
+                <div class="preset-item-info">
+                  <div class="preset-item-name">${escapeAttribute(preset.name)}</div>
+                  <div class="preset-item-meta">${escapeAttribute(formatPresetSummary(preset))}</div>
+                </div>
+                <div class="preset-item-actions">
+                  <button type="button" class="button-sm primary" data-preset-action="apply" data-preset-id="${escapeAttribute(preset.id)}">${quickApplyMode ? "Applica" : "Usa"}</button>
+                  <button type="button" class="button-sm" data-preset-action="start-rename" data-preset-id="${escapeAttribute(preset.id)}">Rinomina</button>
+                  <button type="button" class="button-sm" data-preset-action="duplicate" data-preset-id="${escapeAttribute(preset.id)}">Duplica</button>
+                  <button type="button" class="button-sm danger" data-preset-action="delete" data-preset-id="${escapeAttribute(preset.id)}">Elimina</button>
+                </div>
+              </div>
+            `;
+          }).join("")}
     </div>
   `;
-  document.body.appendChild(backdrop);
+  updateSaveState();
 }
 
 function closePresetDialog() {
   presetDialogTargetIndex = undefined;
-  const existingBackdrop = document.querySelector("#preset-dialog-backdrop");
-  if (existingBackdrop) existingBackdrop.remove();
+  presetViewActive = false;
+  renamingPresetId = null;
+  render();
 }
 
 function render() {
-  const editing = Number.isInteger(editingAuraIndex) && auras[editingAuraIndex]
-    ? editingAuraIndex
-    : null;
-  const existingMarkup = auras.length
-    ? `<div class="sub-list">${auras.map((aura, index) => auraSummaryTemplate(aura, index)).join("")}</div>`
-    : '<div class="empty">Nessuna aura configurata per questo token.<br>Usa “Nuova aura” o “Libreria Preset” per crearne una.</div>';
-  list.innerHTML = `
-    <section class="section aura-management-section">
-      <div class="section-title">Aure configurate</div>
-      <div class="aura-management-hint">Attiva, rinomina o elimina un’aura dall’elenco: queste tre operazioni vengono salvate subito.</div>
-      ${existingMarkup}
-    </section>
-    ${editing === null
-      ? `<section class="section aura-create-hint">
-          <div class="section-title">Configurazione</div>
-          <div class="aura-management-hint">Usa “Nuova aura” per aprire l’editor di raggio, stile, pill e reminder. Le modifiche dettagliate richiedono Salva.</div>
-        </section>`
-      : `<section class="section aura-editor-section">${auraTemplate(auras[editing], editing, { isNew: editingAuraIsNew })}</section>`}
-  `;
+  if (presetViewActive || quickApplyMode) {
+    renderPresetDialog();
+    return;
+  }
+
+  const isEditing = Number.isInteger(editingAuraIndex) && auras[editingAuraIndex];
+  if (isEditing) {
+    list.innerHTML = auraTemplate(auras[editingAuraIndex], editingAuraIndex, { isNew: editingAuraIsNew });
+    updateSaveState();
+    return;
+  }
+
+  if (!auras.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <p class="empty-text">Nessuna aura configurata per questo token.</p>
+        <div class="empty-actions">
+          <button type="button" class="button primary" data-action="create-aura">+ Nuova aura</button>
+          <button type="button" class="button" data-action="open-presets">Libreria preset</button>
+        </div>
+      </div>
+    `;
+  } else {
+    list.innerHTML = `
+      <div class="aura-list">
+        ${auras.map((aura, index) => auraSummaryTemplate(aura, index)).join("")}
+      </div>
+    `;
+  }
+  updateSaveState();
 }
 
 function updateTokenSummary() {
@@ -451,17 +525,58 @@ function updateTokenSummary() {
   }
   tokenName.textContent = tokens.length === 1
     ? primaryToken.name || "Token"
-    : `${tokens.length} token selezionati · modifica collettiva (modello: ${primaryToken.name || "Token"})`;
+    : `${tokens.length} token selezionati`;
 }
 
 function updateSaveState() {
   const hasDetailDraft = Number.isInteger(editingAuraIndex);
-  saveButton.hidden = !hasDetailDraft;
-  saveButton.disabled = saving || !tokens.length || !sceneLifecycle.isReady() || !hasDetailDraft;
+  const isPresetView = presetViewActive || quickApplyMode;
+
+  if (modalTitle) {
+    if (isPresetView) {
+      modalTitle.textContent = quickApplyMode ? "Applica preset aura" : "Libreria preset";
+    } else if (hasDetailDraft) {
+      modalTitle.textContent = editingAuraIsNew ? "Nuova aura" : "Modifica aura";
+    } else {
+      modalTitle.textContent = "Aure personalizzate";
+    }
+  }
+
+  if (tokenName) {
+    if (isPresetView && !quickApplyMode) {
+      tokenName.textContent = "Preset globali";
+    } else if (hasDetailDraft) {
+      tokenName.textContent = auras[editingAuraIndex]?.name || "Aura personalizzata";
+    } else {
+      const primaryToken = tokens[0];
+      tokenName.textContent = !primaryToken
+        ? "Nessun token selezionato"
+        : tokens.length === 1
+          ? primaryToken.name || "Token"
+          : `${tokens.length} token selezionati`;
+    }
+  }
+
+  if (saveButton) {
+    saveButton.hidden = !hasDetailDraft;
+    saveButton.disabled = saving || !tokens.length || !sceneLifecycle.isReady() || !hasDetailDraft;
+  }
+  if (cancelBtn) {
+    cancelBtn.hidden = !hasDetailDraft;
+    cancelBtn.disabled = saving;
+  }
+  if (presetsButton) {
+    presetsButton.hidden = hasDetailDraft || isPresetView;
+    presetsButton.disabled = saving;
+  }
+  if (addButton) {
+    addButton.hidden = hasDetailDraft || isPresetView;
+    addButton.disabled = saving;
+  }
 }
 
 async function persistExistingAuraChange(index, mutate, successMessage) {
-  if (saving || Number.isInteger(editingAuraIndex)) return;
+  if (saving || Number.isInteger(editingAuraIndex) || tokens.length !== 1) return;
   const auraId = String(auras[index]?.id || "").trim();
   if (!auraId || !tokens.length || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({
@@ -471,10 +586,9 @@ async function persistExistingAuraChange(index, mutate, successMessage) {
 
   saving = true;
   updateSaveState();
-  status.classList.remove("error");
-  status.textContent = "Aggiornamento aura…";
+  setStatus("Salvataggio…", { timeout: 0 });
   try {
-    await OBR.scene.items.updateItems(tokens.map((item) => item.id), (drafts) => {
+    await OBR.scene.items.updateItems([tokens[0].id], (drafts) => {
       for (const draft of drafts) {
         if (!draft) continue;
         const meta = { ...(draft.metadata?.[META_KEY] || {}) };
@@ -494,15 +608,13 @@ async function persistExistingAuraChange(index, mutate, successMessage) {
     if (!sceneLifecycle.isCurrent(operation)) return;
     refreshAurasFromPrimaryToken();
     render();
-    status.textContent = successMessage;
+    if (successMessage) setStatus(successMessage, { timeout: 2200 });
   } catch (error) {
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.classList.add("error");
-      status.textContent = "Scena cambiata: riapri l’editor delle aure.";
+      setStatus("Scena cambiata: riapri l’editor delle aure.", { isError: true, timeout: 3500 });
       return;
     }
-    status.classList.add("error");
-    status.textContent = `Errore: ${String(error?.message || error)}`;
+    setStatus(`Errore: ${String(error?.message || error)}`, { isError: true, timeout: 4000 });
   } finally {
     saving = false;
     updateSaveState();
@@ -529,8 +641,7 @@ function handleExistingAuraRename(input) {
   if (index < 0) return;
   const name = String(input.value || "").trim();
   if (!name) {
-    status.classList.add("error");
-    status.textContent = "Il nome dell’aura non può essere vuoto.";
+    setStatus("Il nome dell’aura non può essere vuoto.", { isError: true, timeout: 3000 });
     render();
     return;
   }
@@ -574,16 +685,35 @@ function updateFromInput(input) {
     && input.dataset.field !== "enabled"
   ) return;
   setAtPath(auras[index], input.dataset.field, inputValue(input));
-  if (input.type === "color") {
-    const label = input.parentElement?.querySelector("span");
-    if (label) label.textContent = input.value;
-  }
   if (input.dataset.rerender === "true") {
     render();
   }
 }
 
-async function closeModal() {
+function isDraftDirty() {
+  if (!Number.isInteger(editingAuraIndex) || !auras[editingAuraIndex]) return false;
+  if (!initialDraftSnapshot) return false;
+  return JSON.stringify(auras[editingAuraIndex]) !== initialDraftSnapshot;
+}
+
+function detailDraftActive() {
+  return Number.isInteger(editingAuraIndex);
+}
+
+function blockSecondWorkflow() {
+  if (!detailDraftActive()) return false;
+  setStatus("Salva o annulla la bozza corrente prima di aprire un altro flusso.", { isError: true, timeout: 3000 });
+  return true;
+}
+
+async function closeModal({ discard = false } = {}) {
+  if (!discard && isDraftDirty() && !saving && !window.confirm("La bozza non salvata verrà scartata. Continuare?")) {
+    return;
+  }
+  if (presetViewActive && !quickApplyMode) {
+    closePresetDialog();
+    return;
+  }
   await OBR.popover.close(MODAL_ID).catch(() => {});
 }
 
@@ -604,15 +734,61 @@ function refreshAurasFromPrimaryToken() {
   );
 }
 
-async function closeDetailEditor() {
+async function cancelDetailEditor() {
+  if (isDraftDirty() && !window.confirm("Le modifiche non salvate verranno scartate. Continuare?")) {
+    return;
+  }
+  if (editingAuraIsNew && Number.isInteger(editingAuraIndex)) {
+    auras.splice(editingAuraIndex, 1);
+  }
   editingAuraIndex = null;
   editingAuraIsNew = false;
   editingPresetIndex = null;
+  initialDraftSnapshot = null;
+  expandedPills.clear();
+  expandedReminders.clear();
   await loadTokensFromScene();
   refreshAurasFromPrimaryToken();
   render();
+  setStatus("Modifiche annullate.", { timeout: 2000 });
+}
+
+async function closeDetailEditor() {
+  await cancelDetailEditor();
+}
+
+async function quickApplyPresetToTokens(preset) {
+  if (saving || !sceneLifecycle.isReady() || !tokens.length) return;
+  const operation = sceneLifecycle.capture({ operationId: `custom-aura-quick-apply:${Date.now().toString(36)}` });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+
+  saving = true;
   updateSaveState();
-  status.textContent = "Gestione rapida pronta.";
+  setStatus("Applicazione preset…", { timeout: 0 });
+  try {
+    await OBR.scene.items.updateItems(tokens.map((item) => item.id), (drafts) => {
+      for (const draft of drafts) {
+        if (!draft) continue;
+        const meta = { ...(draft.metadata?.[META_KEY] || {}) };
+        const current = normalizeCustomAuras(meta[CUSTOM_AURAS_FIELD]);
+        meta[CUSTOM_AURAS_FIELD] = appendPresetToCustomAuraList(current, preset);
+        draft.metadata = { ...(draft.metadata || {}), [META_KEY]: meta };
+      }
+    });
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    setStatus(`Preset "${preset.name}" applicato.`, { timeout: 2000 });
+    if (closeTimer) window.clearTimeout(closeTimer);
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null;
+      if (sceneLifecycle.isCurrent(operation)) void closeModal({ discard: true });
+    }, 220);
+  } catch (error) {
+    if (!sceneLifecycle.isCurrent(operation)) return;
+    setStatus(`Errore: ${String(error?.message || error)}`, { isError: true, timeout: 3500 });
+  } finally {
+    saving = false;
+    updateSaveState();
+  }
 }
 
 async function save() {
@@ -623,18 +799,20 @@ async function save() {
     await loadTokensFromScene();
     if (!sceneLifecycle.isCurrent(operation)) return;
   } catch (error) {
-    status.classList.add("error");
-    status.textContent = `Errore: ${String(error?.message || error)}`;
+    setStatus(`Errore: ${String(error?.message || error)}`, { isError: true, timeout: 3500 });
     return;
   }
   if (!tokens.length) {
-    status.textContent = "Token non disponibili sulla battlemap";
+    setStatus("Token non disponibili sulla battlemap", { isError: true, timeout: 3000 });
+    return;
+  }
+  if (!quickApplyMode && tokens.length !== 1) {
+    setStatus("L’editor dettagliato richiede un solo token.", { isError: true, timeout: 3000 });
     return;
   }
   saving = true;
   updateSaveState();
-  status.classList.remove("error");
-  status.textContent = "Salvataggio…";
+  setStatus("Salvataggio in corso…", { timeout: 0 });
   try {
     let normalized = normalizeCustomAuras(auras);
     if (!sceneLifecycle.isCurrent(operation)) {
@@ -645,8 +823,7 @@ async function save() {
     if (quickApplyPresetId) {
       const preset = presetStore.getPreset(quickApplyPresetId);
       if (!preset || preset.deleted) {
-        status.classList.add("error");
-        status.textContent = "Preset non disponibile: nessuna istanza è stata modificata.";
+        setStatus("Preset non disponibile: nessuna istanza è stata modificata.", { isError: true, timeout: 3500 });
         saving = false;
         updateSaveState();
         return;
@@ -670,8 +847,7 @@ async function save() {
         const editedAura = normalized[editingPresetIndex];
         const existingPreset = presetStore.getPreset(editedAura?.presetRef?.presetId);
         if (!existingPreset || existingPreset.deleted) {
-          status.classList.add("error");
-          status.textContent = "Preset collegato non trovato: l’istanza resta invariata.";
+          setStatus("Preset collegato non trovato: l’istanza resta invariata.", { isError: true, timeout: 3500 });
           saving = false;
           updateSaveState();
           return;
@@ -686,7 +862,7 @@ async function save() {
         });
         editingPresetIndex = null;
       }
-      await OBR.scene.items.updateItems(tokens.map((item) => item.id), (drafts) => {
+      await OBR.scene.items.updateItems([tokens[0].id], (drafts) => {
         for (const draft of drafts) {
           if (!draft) continue;
           const meta = { ...(draft.metadata?.[META_KEY] || {}) };
@@ -697,8 +873,7 @@ async function save() {
       });
     }
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.classList.add("error");
-      status.textContent = "Scena cambiata: riapri l’editor delle aure.";
+      setStatus("Scena cambiata: riapri l’editor delle aure.", { isError: true, timeout: 3500 });
       saving = false;
       updateSaveState();
       return;
@@ -707,24 +882,21 @@ async function save() {
     editingAuraIndex = null;
     editingAuraIsNew = false;
     editingPresetIndex = null;
-    status.textContent = quickApplyMode
-      ? "Preset applicato come nuova aura su ogni token"
-      : "Aure aggiornate";
-    if (closeTimer) window.clearTimeout(closeTimer);
-    closeTimer = window.setTimeout(() => {
-      closeTimer = null;
-      if (sceneLifecycle.isCurrent(operation)) void closeModal();
-    }, 220);
+    initialDraftSnapshot = null;
+    expandedPills.clear();
+    expandedReminders.clear();
+    saving = false;
+    render();
+    updateSaveState();
+    setStatus(quickApplyMode ? "Preset applicato" : "Aura salvata.", { timeout: 2000 });
   } catch (error) {
     if (!sceneLifecycle.isCurrent(operation)) {
-      status.classList.add("error");
-      status.textContent = "Scena cambiata: riapri l’editor delle aure.";
+      setStatus("Scena cambiata: riapri l’editor delle aure.", { isError: true, timeout: 3500 });
       saving = false;
       updateSaveState();
       return;
     }
-    status.classList.add("error");
-    status.textContent = `Errore: ${String(error?.message || error)}`;
+    setStatus(`Errore: ${String(error?.message || error)}`, { isError: true, timeout: 3500 });
     saving = false;
     updateSaveState();
   }
@@ -744,12 +916,78 @@ list.addEventListener("change", (event) => {
   updateFromInput(target);
 });
 list.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" || !event.target.matches("[data-existing-rename]")) return;
-  event.preventDefault();
-  event.target.blur();
+  if (event.key === "Enter" && event.target.matches("[data-preset-rename-id]")) {
+    event.preventDefault();
+    const presetId = event.target.dataset.presetRenameId;
+    const preset = presetStore.getPreset(presetId);
+    const newName = String(event.target.value || "").trim();
+    if (preset && newName) {
+      const updated = updatePresetDefinition(preset, { name: newName });
+      presetStore.savePreset(updated);
+      renamingPresetId = null;
+      renderPresetDialog();
+      setStatus(`Preset rinominato in "${newName}".`, { timeout: 2000 });
+    }
+    return;
+  }
+  if (event.key === "Escape" && renamingPresetId) {
+    renamingPresetId = null;
+    renderPresetDialog();
+    return;
+  }
+  if (event.key === "Enter" && event.target.matches("[data-existing-rename]")) {
+    event.preventDefault();
+    event.target.blur();
+  }
 });
 list.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-action]");
+  const togglePillEl = button ? null : event.target.closest("[data-toggle-pill]");
+  if (togglePillEl) {
+    const pIdx = Number(togglePillEl.dataset.togglePill);
+    if (Number.isInteger(pIdx)) {
+      if (expandedPills.has(pIdx)) expandedPills.delete(pIdx);
+      else expandedPills.add(pIdx);
+      render();
+      return;
+    }
+  }
+
+  const toggleRemEl = button ? null : event.target.closest("[data-toggle-rem]");
+  if (toggleRemEl) {
+    const rIdx = Number(toggleRemEl.dataset.toggleRem);
+    if (Number.isInteger(rIdx)) {
+      if (expandedReminders.has(rIdx)) expandedReminders.delete(rIdx);
+      else expandedReminders.add(rIdx);
+      render();
+      return;
+    }
+  }
+
+  const emptyActionBtn = event.target.closest("[data-action]");
+  if (emptyActionBtn) {
+    const emptyAction = emptyActionBtn.dataset.action;
+    if (emptyAction === "create-aura") {
+      if (blockSecondWorkflow()) return;
+      const aura = defaultAura();
+      auras.push(aura);
+      editingAuraIndex = auras.length - 1;
+      editingAuraIsNew = true;
+      editingPresetIndex = null;
+      initialDraftSnapshot = JSON.stringify(aura);
+      expandedPills.clear();
+      expandedReminders.clear();
+      render();
+      return;
+    }
+    if (emptyAction === "open-presets") {
+      if (blockSecondWorkflow()) return;
+      presetDialogTargetIndex = null;
+      renderPresetDialog();
+      return;
+    }
+  }
+
   if (!button) return;
   const card = button.closest("[data-index]");
   const index = Number(card?.dataset.index);
@@ -760,13 +998,14 @@ list.addEventListener("click", (event) => {
     editingAuraIndex = index;
     editingAuraIsNew = false;
     editingPresetIndex = auras[index].presetRef?.presetId ? index : null;
+    initialDraftSnapshot = JSON.stringify(auras[index]);
+    expandedPills.clear();
+    expandedReminders.clear();
     render();
-    updateSaveState();
-    status.textContent = `Modifica dettagli: “${auras[index].name}”.`;
     return;
   }
   if (action === "close-details") {
-    void closeDetailEditor();
+    void cancelDetailEditor();
     return;
   }
   if (action === "delete-existing") {
@@ -779,13 +1018,7 @@ list.addEventListener("click", (event) => {
     return;
   }
   if (action === "cancel-new") {
-    auras.splice(index, 1);
-    editingAuraIndex = null;
-    editingAuraIsNew = false;
-    editingPresetIndex = null;
-    render();
-    updateSaveState();
-    status.textContent = "Nuova aura annullata.";
+    void cancelDetailEditor();
     return;
   }
   if (action === "delete") {
@@ -797,6 +1030,7 @@ list.addEventListener("click", (event) => {
   if (action === "add-pill") {
     if (auras[index].presetRef?.presetId && editingPresetIndex !== index) return;
     auras[index].pills ||= [];
+    const newIdx = auras[index].pills.length;
     auras[index].pills.push({
       id: createCustomAuraChildId("pill"),
       enabled: true,
@@ -804,6 +1038,7 @@ list.addEventListener("click", (event) => {
       detail: "",
       kind: "buff",
     });
+    expandedPills.add(newIdx);
     render();
     return;
   }
@@ -813,6 +1048,7 @@ list.addEventListener("click", (event) => {
     const pillIndex = Number(pillCard?.dataset.pillIndex);
     if (Number.isInteger(pillIndex) && Array.isArray(auras[index].pills)) {
       auras[index].pills.splice(pillIndex, 1);
+      expandedPills.delete(pillIndex);
       render();
     }
     return;
@@ -820,6 +1056,7 @@ list.addEventListener("click", (event) => {
   if (action === "add-reminder") {
     if (auras[index].presetRef?.presetId && editingPresetIndex !== index) return;
     auras[index].reminders ||= [];
+    const newIdx = auras[index].reminders.length;
     auras[index].reminders.push({
       id: createCustomAuraChildId("reminder"),
       enabled: true,
@@ -827,6 +1064,7 @@ list.addEventListener("click", (event) => {
       label: `Inizia il turno nell'aura ${auras[index].name}.`,
       resolution: "informational",
     });
+    expandedReminders.add(newIdx);
     render();
     return;
   }
@@ -836,6 +1074,7 @@ list.addEventListener("click", (event) => {
     const remIndex = Number(remCard?.dataset.remIndex);
     if (Number.isInteger(remIndex) && Array.isArray(auras[index].reminders)) {
       auras[index].reminders.splice(remIndex, 1);
+      expandedReminders.delete(remIndex);
       render();
     }
     return;
@@ -847,33 +1086,33 @@ list.addEventListener("click", (event) => {
     presetStore.savePreset(preset);
     auras[index] = applyPresetToCustomAura(preset, { existingAura: auras[index] });
     render();
-    status.textContent = `Preset "${name}" creato e collegato.`;
+    setStatus(`Preset "${name}" creato e collegato.`, { timeout: 2500 });
     return;
   }
   if (action === "update-preset") {
     const presetId = auras[index].presetRef?.presetId;
     const existing = presetStore.getPreset(presetId);
     if (!existing) {
-      status.classList.add("error");
-      status.textContent = "Preset collegato non trovato nella libreria.";
+      setStatus("Preset collegato non trovato nella libreria.", { isError: true, timeout: 3000 });
       return;
     }
     editingPresetIndex = index;
     editingAuraIndex = index;
     editingAuraIsNew = false;
     render();
-    status.textContent = `Modifica il preset "${existing.name}" e salva per incrementare la revisione.`;
+    setStatus(`Modifica in corso del preset "${existing.name}".`, { timeout: 2500 });
     return;
   }
   if (action === "cancel-preset-edit") {
-    void closeDetailEditor();
+    editingPresetIndex = null;
+    render();
     return;
   }
   if (action === "detach-preset") {
     if (editingPresetIndex === index) editingPresetIndex = null;
     auras[index] = detachCustomAuraPreset(auras[index]);
     render();
-    status.textContent = "Aura scollegata dal preset (modifica locale).";
+    setStatus("Aura scollegata dal preset (modifica locale).", { timeout: 2500 });
     return;
   }
   if (action === "apply-preset") {
@@ -894,73 +1133,123 @@ document.body.addEventListener("click", (event) => {
   const itemEl = presetBtn.closest("[data-preset-id]");
   const presetId = itemEl?.dataset.presetId;
   const preset = presetId ? presetStore.getPreset(presetId) : null;
-  if (!preset) return;
+  if (!preset && action !== "cancel-rename") return;
 
   if (action === "apply") {
     if (quickApplyMode) {
-      quickApplyPresetId = preset.id;
-      auras.push(applyPresetToCustomAura(preset));
-      editingAuraIndex = auras.length - 1;
-      editingAuraIsNew = true;
-      editingPresetIndex = null;
-      status.textContent = `Preset "${preset.name}" pronto: verrà aggiunto separatamente a ogni token.`;
-    } else if (presetDialogTargetIndex !== null && Number.isInteger(presetDialogTargetIndex) && auras[presetDialogTargetIndex]) {
+      void quickApplyPresetToTokens(preset);
+      return;
+    }
+    if (presetDialogTargetIndex !== null && Number.isInteger(presetDialogTargetIndex) && auras[presetDialogTargetIndex]) {
       auras[presetDialogTargetIndex] = applyPresetToCustomAura(preset, {
         existingAura: auras[presetDialogTargetIndex],
       });
-      status.textContent = `Applicato preset "${preset.name}" all'aura esistente.`;
+      setStatus(`Preset "${preset.name}" applicato all’aura esistente.`, { timeout: 2500 });
     } else {
       const newAura = applyPresetToCustomAura(preset);
       auras.push(newAura);
       editingAuraIndex = auras.length - 1;
       editingAuraIsNew = true;
       editingPresetIndex = null;
-      status.textContent = `Aggiunta nuova aura da preset "${preset.name}".`;
+      initialDraftSnapshot = JSON.stringify(newAura);
+      expandedPills.clear();
+      expandedReminders.clear();
+      setStatus(`Aura creata dal preset "${preset.name}".`, { timeout: 2500 });
     }
     closePresetDialog();
     render();
+    return;
+  }
+  if (action === "start-rename") {
+    renamingPresetId = preset.id;
+    renderPresetDialog();
+    return;
+  }
+  if (action === "save-rename") {
+    const input = itemEl?.querySelector(`input[data-preset-rename-id="${escapeAttribute(preset.id)}"]`);
+    const newName = String(input?.value || "").trim();
+    if (newName) {
+      const updated = updatePresetDefinition(preset, { name: newName });
+      presetStore.savePreset(updated);
+      renamingPresetId = null;
+      renderPresetDialog();
+      setStatus(`Preset rinominato in "${newName}".`, { timeout: 2000 });
+    }
+    return;
+  }
+  if (action === "cancel-rename") {
+    renamingPresetId = null;
+    renderPresetDialog();
     return;
   }
   if (action === "duplicate") {
     const copy = duplicatePreset(preset);
     presetStore.savePreset(copy);
     renderPresetDialog();
+    setStatus(`Preset duplicato in "${copy.name}".`, { timeout: 2000 });
     return;
   }
   if (action === "delete") {
     if (window.confirm(`Eliminare il preset "${preset.name}"?`)) {
       presetStore.deletePreset(preset.id);
       renderPresetDialog();
+      setStatus("Preset eliminato.", { timeout: 2000 });
     }
     return;
   }
 });
 
-document.querySelector("#add").addEventListener("click", () => {
-  auras.push(defaultAura());
-  editingAuraIndex = auras.length - 1;
-  editingAuraIsNew = true;
-  editingPresetIndex = null;
-  updateSaveState();
-  render();
-  document.querySelector(".aura-editor-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-});
+if (addButton) {
+  addButton.addEventListener("click", () => {
+    if (blockSecondWorkflow()) return;
+    const aura = defaultAura();
+    auras.push(aura);
+    editingAuraIndex = auras.length - 1;
+    editingAuraIsNew = true;
+    editingPresetIndex = null;
+    initialDraftSnapshot = JSON.stringify(aura);
+    expandedPills.clear();
+    expandedReminders.clear();
+    updateSaveState();
+    render();
+  });
+}
+
 if (presetsButton) {
   presetsButton.addEventListener("click", () => {
+    if (blockSecondWorkflow()) return;
     presetDialogTargetIndex = null;
     renderPresetDialog();
   });
 }
-document.querySelector("#save").addEventListener("click", () => void save());
-document.querySelector("#close").addEventListener("click", () => void closeModal());
+
+if (cancelBtn) {
+  cancelBtn.addEventListener("click", () => void cancelDetailEditor());
+}
+
+if (saveButton) {
+  saveButton.addEventListener("click", () => void save());
+}
+
+if (closeBtn) {
+  closeBtn.addEventListener("click", () => void closeModal());
+}
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    if (document.querySelector("#preset-dialog-backdrop")) closePresetDialog();
-    else void closeModal();
+    if (presetViewActive && !quickApplyMode) {
+      closePresetDialog();
+    } else if (Number.isInteger(editingAuraIndex)) {
+      void cancelDetailEditor();
+    } else {
+      void closeModal();
+    }
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
     event.preventDefault();
-    void save();
+    if (Number.isInteger(editingAuraIndex)) {
+      void save();
+    }
   }
 });
 
@@ -972,14 +1261,13 @@ OBR.onReady(async () => {
       editingAuraIndex = null;
       editingAuraIsNew = false;
       editingPresetIndex = null;
+      initialDraftSnapshot = null;
       list.replaceChildren();
-      status.classList.add("error");
-      status.textContent = "Scena non disponibile: riapri l’editor delle aure.";
+      setStatus("Scena non disponibile: riapri l’editor delle aure.", { isError: true, timeout: 0 });
       updateTokenSummary();
       updateSaveState();
     } else if (event.phase === "ready" && event.reason !== "scene-bootstrap-ready") {
-      status.classList.remove("error");
-      status.textContent = "Scena pronta: riapri l’editor delle aure se necessario.";
+      setStatus("Scena pronta.", { timeout: 2000 });
       updateSaveState();
       void loadTokensFromScene();
     }
@@ -987,6 +1275,8 @@ OBR.onReady(async () => {
   sceneLifecycle.registerSceneCleanup(() => {
     if (closeTimer) window.clearTimeout(closeTimer);
     closeTimer = null;
+    if (statusTimer) window.clearTimeout(statusTimer);
+    statusTimer = null;
   });
   await sceneLifecycle.mount();
   try {
@@ -1002,32 +1292,41 @@ OBR.onReady(async () => {
       .map((id) => items.find((item) => item.id === id))
       .filter(Boolean);
     if (!tokens.length) throw new Error("Token non trovato nella scena.");
+    if (!quickApplyMode && tokens.length !== 1) {
+      await OBR.notification.show(
+        "Gestisci aure personalizzate richiede un solo token. Per più token usa Applica preset aura…",
+        "INFO",
+      ).catch(() => {});
+      await closeModal({ discard: true });
+      return;
+    }
     const primaryToken = tokens[0];
     editingAuraIndex = null;
     editingAuraIsNew = false;
     editingPresetIndex = null;
+    initialDraftSnapshot = null;
     updateTokenSummary();
     auras = normalizeCustomAuras(
-      primaryToken.metadata?.[META_KEY]?.[CUSTOM_AURAS_FIELD],
+      primaryToken?.metadata?.[META_KEY]?.[CUSTOM_AURAS_FIELD],
     );
     if (quickApplyMode) {
-      // Quick apply è sempre append-only: l'eventuale aura primaria serve
-      // soltanto come anteprima, il commit rilegge la lista di ogni token.
       presetDialogTargetIndex = null;
       renderPresetDialog();
+    } else {
+      render();
     }
-    render();
     updateSaveState();
   } catch (error) {
-    status.classList.add("error");
-    status.textContent = String(error?.message || error);
-    saveButton.disabled = true;
-    list.innerHTML = '<div class="empty">Editor non disponibile.</div>';
+    setStatus(String(error?.message || error), { isError: true, timeout: 0 });
+    if (saveButton) saveButton.disabled = true;
+    list.innerHTML = '<div class="empty-state"><p class="empty-text">Editor non disponibile.</p></div>';
   }
 });
 
 window.addEventListener("pagehide", () => {
   if (closeTimer) window.clearTimeout(closeTimer);
   closeTimer = null;
+  if (statusTimer) window.clearTimeout(statusTimer);
+  statusTimer = null;
   sceneLifecycle.dispose();
 });

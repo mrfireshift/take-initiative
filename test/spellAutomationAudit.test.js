@@ -20,7 +20,7 @@ test("l'audit copre l'intero catalogo e conserva le evidenze disponibili", () =>
 test("ogni row possiede assi validi di automazione, copertura, target ed esposizione", () => {
   const audit = buildSpellAutomationAudit();
   const validAutomation = ["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL"];
-  const validCoverage = ["ACCEPTED", "GAP", "UNREVIEWED"];
+  const validCoverage = ["ACCEPTED", "CLOSED", "GAP", "UNREVIEWED"];
   const validTarget = ["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL", "UNREVIEWED"];
   const validUi = ["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE"];
   const validTargetUi = ["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE", "UNREVIEWED"];
@@ -68,6 +68,105 @@ test("Haste include la meccanica di movimento ed e ACCEPTED tramite review curat
   assert.equal(haste.targetAutomationLevel, "FULL");
 });
 
+test("Gabbia dell'Anima è accettata come tracking-only", () => {
+  const audit = buildSpellAutomationAudit();
+  const soulCage = audit.rows.find((row) => row.id === "xanathar-gabbia-dellanima");
+  assert.ok(soulCage);
+  assert.equal(soulCage.currentAutomationLevel, "TRACK_ONLY");
+  assert.equal(soulCage.coverageStatus, "ACCEPTED");
+  assert.equal(soulCage.targetAutomationLevel, "TRACK_ONLY");
+  assert.deepEqual(soulCage.gaps, []);
+  assert.deepEqual(soulCage.runtime.activeActionIds, []);
+  assert.deepEqual(soulCage.runtime.smokeCategories, ["PERSISTENCE"]);
+  assert.match(soulCage.curatedNote || "", /^PASS:/u);
+});
+
+test("Lama Infuocata e Lama d'Ombra sono CLOSED come tracking-only", () => {
+  const audit = buildSpellAutomationAudit();
+  for (const id of ["flame-blade", "xanathar-lama-dombra"]) {
+    const spell = audit.rows.find((row) => row.id === id);
+    assert.ok(spell, id);
+    assert.equal(spell.currentAutomationLevel, "TRACK_ONLY", id);
+    assert.equal(spell.coverageStatus, "CLOSED", id);
+    assert.equal(spell.targetAutomationLevel, "TRACK_ONLY", id);
+    assert.equal(spell.priority, "—", id);
+    assert.deepEqual(spell.gaps, [], id);
+    assert.equal(spell.gaps.some((entry) => entry.code === "REPEATED_ACTION"), false, id);
+    assert.match(spell.curatedNote || "", /TRACK_ONLY\/CLOSED/iu, id);
+  }
+});
+
+test("Aura di Vitalità e Aura di Vita sono CLOSED dopo la verifica del workflow", () => {
+  const audit = buildSpellAutomationAudit();
+  const vitality = audit.rows.find((row) => row.id === "phb2014-aura-di-vitalita");
+  const life = audit.rows.find((row) => row.id === "phb2014-aura-di-vita");
+
+  assert.equal(vitality?.coverageStatus, "CLOSED");
+  assert.equal(vitality?.currentAutomationLevel, "FULL");
+  assert.equal(vitality?.targetAutomationLevel, "FULL");
+  assert.deepEqual(vitality?.gaps, []);
+  assert.match(vitality?.curatedNote || "", /FULL\/CLOSED/u);
+
+  assert.equal(life?.coverageStatus, "CLOSED");
+  assert.equal(life?.currentAutomationLevel, "PARTIAL");
+  assert.equal(life?.targetAutomationLevel, "PARTIAL");
+  assert.deepEqual(life?.gaps, []);
+  assert.match(life?.curatedNote || "", /PARTIAL\/CLOSED/u);
+});
+
+test("Guscio Anti-vita è PASS/PARTIAL-CLOSED con crossing e boundary manuali accettati", () => {
+  const audit = buildSpellAutomationAudit();
+  const shell = audit.rows.find((row) => row.id === "antilife-shell");
+  assert.ok(shell);
+  assert.equal(shell.currentAutomationLevel, "PARTIAL");
+  assert.equal(shell.targetAutomationLevel, "PARTIAL");
+  assert.equal(shell.coverageStatus, "CLOSED");
+  assert.equal(shell.priority, "—");
+  assert.deepEqual(shell.gaps, []);
+  assert.deepEqual(shell.runtime.activeActionIds, []);
+  assert.deepEqual(shell.runtime.triggerIds, []);
+  assert.deepEqual(shell.runtime.areaKinds, ["aura"]);
+  assert.match(shell.curatedNote || "", /PASS: Guscio Anti-vita è PARTIAL\/CLOSED/u);
+  assert.match(shell.curatedNote || "", /attraversamento\/crossing/u);
+});
+
+test("Palla di Fuoco Ritardata è PASS/PARTIAL-CLOSED con interazioni manuali accettate", () => {
+  const audit = buildSpellAutomationAudit();
+  const spell = audit.rows.find((row) => row.id === "delayed-blast-fireball");
+  assert.ok(spell);
+  assert.equal(spell.currentAutomationLevel, "PARTIAL");
+  assert.equal(spell.coverageStatus, "CLOSED");
+  assert.equal(spell.targetAutomationLevel, "PARTIAL");
+  assert.equal(spell.priority, "—");
+  assert.deepEqual(spell.gaps, []);
+  assert.deepEqual(spell.runtime.areaKinds, ["zone"]);
+  assert.equal(spell.runtime.movementMechanics, true);
+  assert.match(spell.curatedNote || "", /^PASS: Palla di Fuoco Ritardata è PARTIAL\/CLOSED/u);
+  assert.match(spell.curatedNote || "", /contatto automatico/u);
+  assert.match(spell.curatedNote || "", /fuoco sugli oggetti/u);
+});
+
+test("Muro di Vento è PASS/PARTIAL-ACCEPTED con vincoli passivi manuali", () => {
+  const audit = buildSpellAutomationAudit();
+  const wall = audit.rows.find((row) => row.id === "wind-wall");
+  assert.ok(wall);
+  assert.equal(wall.currentAutomationLevel, "PARTIAL");
+  assert.equal(wall.targetAutomationLevel, "PARTIAL");
+  assert.equal(wall.coverageStatus, "ACCEPTED");
+  assert.equal(wall.priority, "—");
+  assert.deepEqual(wall.gaps, []);
+  assert.deepEqual(wall.runtime.areaKinds, ["zone"]);
+  assert.deepEqual(wall.runtime.triggerIds, []);
+  assert.deepEqual(wall.runtime.activeActionIds, []);
+  assert.equal(wall.runtime.saveAutomation, true);
+  assert.equal(wall.integration.status, "reachable");
+  assert.equal(wall.integration.contract.lane, "area-transaction");
+  assert.equal(wall.integration.contract.placementPolicy, "required");
+  assert.match(wall.curatedNote || "", /^PASS: Muro di Vento è PARTIAL\/ACCEPTED/u);
+  assert.match(wall.curatedNote || "", /proiettili/u);
+  assert.match(wall.curatedNote || "", /crossing/u);
+});
+
 test("le spell lavorate nella tranche RAW sono PASS", () => {
   const audit = buildSpellAutomationAudit();
   for (const id of ["slow", "confusion", "fear", "contagion", "flesh-to-stone"]) {
@@ -102,6 +201,17 @@ test("Muro di Fuoco è completo dopo l'audit del workflow persistente", () => {
   assert.equal(wall.targetAutomationLevel, "FULL");
   assert.equal(wall.priority, "—");
   assert.deepEqual(wall.gaps, []);
+});
+
+test("Investitura del Vento e Investitura della Pietra sono accettate", () => {
+  const audit = buildSpellAutomationAudit();
+  for (const id of ["xanathar-investitura-del-vento", "xanathar-investitura-della-pietra"]) {
+    const spell = audit.rows.find((row) => row.id === id);
+    assert.ok(spell, id);
+    assert.equal(spell.coverageStatus, "ACCEPTED", id);
+    assert.deepEqual(spell.gaps, [], id);
+    assert.match(spell.curatedNote || "", /^PASS:/u, id);
+  }
 });
 
 test("una spell intenzionalmente manuale ha target MANUAL e non forza targetUiExposure UNIFIED", () => {
@@ -231,6 +341,22 @@ test("il report espone metodo, priorità e matrice completa", () => {
   assert.match(markdown, /## Matrice completa/);
   assert.match(markdown, /## Integrazione con la console unificata/);
   assert.match(markdown, /Invocare il fulmine/);
+  assert.match(markdown, /\| Lama d'Ombra \| `xanathar-lama-dombra` \| Xanathar \/ 2 \| TRACK_ONLY \| CLOSED \| TRACK_ONLY \|/);
+  assert.match(markdown, /\| Lama infuocata \| `flame-blade` \| SRD 5\.1 \/ 2 \| TRACK_ONLY \| CLOSED \| TRACK_ONLY \|/);
+  assert.match(markdown, /`CLOSED` indica una decisione di prodotto chiusa/);
+});
+
+test("Spruzzo Prismatico è FULL/ACCEPTED senza gap random o di multi-save", () => {
+  const audit = buildSpellAutomationAudit();
+  const spell = audit.rows.find((row) => row.id === "prismatic-spray");
+  assert.ok(spell);
+  assert.equal(spell.currentAutomationLevel, "FULL");
+  assert.equal(spell.coverageStatus, "ACCEPTED");
+  assert.equal(spell.priority, "—");
+  assert.deepEqual(spell.gaps, []);
+  assert.equal(spell.integration.cast.valid, true);
+  assert.match(spell.curatedNote || "", /tiro fisico del d8/i);
+  assert.match(spell.curatedNote || "", /trasferimento materiale fra piani/i);
 });
 
 test("l'audit separa conformita RAW e raggiungibilita nella console unificata", () => {
@@ -294,11 +420,15 @@ test("Modellare Acqua e Modellare Terra non hanno falsi RAW gaps e restano MANUA
   assert.equal(moldEarth.integration.issues.some((issue) => issue.code === "CAST_NO_MUTATIONS" && issue.severity === "P0"), false);
 });
 
-test("Immolazione e Investitura della Fiamma sono ACCEPTED mentre Sfera della Tempesta conserva il fallback gap", () => {
+test("le spell già lavorate nella tranche corrente sono ACCEPTED", () => {
   const audit = buildSpellAutomationAudit();
   const immolation = audit.rows.find((row) => row.id === "xanathar-immolazione");
   const flame = audit.rows.find((row) => row.id === "xanathar-investitura-della-fiamma");
   const storm = audit.rows.find((row) => row.id === "xanathar-sfera-della-tempesta");
+  const hail = audit.rows.find((row) => row.id === "phb2014-raffica-di-spine");
+  const fireArrows = audit.rows.find((row) => row.id === "xanathar-frecce-infuocate");
+  const crown = audit.rows.find((row) => row.id === "xanathar-corona-di-stelle");
+  const wall = audit.rows.find((row) => row.id === "xanathar-muro-di-luce");
 
   assert.equal(immolation?.coverageStatus, "ACCEPTED");
   assert.deepEqual(immolation?.gaps, []);
@@ -309,8 +439,15 @@ test("Immolazione e Investitura della Fiamma sono ACCEPTED mentre Sfera della Te
   assert.deepEqual(flame?.gaps, []);
   assert.deepEqual(flame?.integration.issues, []);
 
-  assert.equal(storm?.coverageStatus, "GAP");
-  assert.ok(storm?.integration.issues.some((issue) => issue.code === "ACTIVE_ACTION_REMINDER_ONLY"));
+  for (const row of [storm, hail, fireArrows, crown, wall]) {
+    assert.equal(row?.coverageStatus, "ACCEPTED", row?.id);
+    assert.equal(row?.currentAutomationLevel, "FULL", row?.id);
+    assert.equal(row?.targetAutomationLevel, "FULL", row?.id);
+    assert.deepEqual(row?.gaps, [], row?.id);
+    assert.match(row?.curatedNote || "", /^PASS:/u, row?.id);
+  }
+  assert.equal(storm?.integration.actions.mode, "turn-prompt");
+  assert.deepEqual(storm?.integration.issues, []);
 });
 
 test("runtimeSmokeRequired resta coerente con smokeCategories e l'audit e deterministico", () => {

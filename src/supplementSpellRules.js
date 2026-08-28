@@ -12,6 +12,7 @@ const concentration = Object.freeze({ mode: "concentration" });
 export const SUPPLEMENT_TRACKING = Object.freeze({
   "xanathar-cerimonia": Object.freeze({ trackable: true, defaultTurns: 14400 }),
   "xanathar-fortezza-possente": Object.freeze({ trackable: true, defaultTurns: 100800 }),
+  "xanathar-gabbia-dellanima": Object.freeze({ trackable: true, defaultTurns: 4800 }),
   "xanathar-morsa-del-gelo": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "xanathar-parola-del-potere-dolore": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "xanathar-pirotecnica": Object.freeze({ trackable: true, defaultTurns: 1 }),
@@ -84,6 +85,11 @@ export const SUPPLEMENT_AUTOMATION = Object.freeze({
     targetMode: "area",
     conditionOptions: Object.freeze({
       Trattenuto: Object.freeze({
+        effectId: "watery-sphere-restrained",
+        effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
+        ]),
         saveReminder: Object.freeze({
           ability: "str",
           timing: "turn-end",
@@ -159,6 +165,11 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
     trackOutcomes: Object.freeze(["failed"]),
     failed: Object.freeze([Object.freeze({
       condition: "Trattenuto",
+      effectId: "watery-sphere-restrained",
+      effectDetail: "La sfera trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "watery-sphere-escape-action", label: "Azione: prova For" }),
+      ]),
       expiry: concentration,
       saveReminder: Object.freeze({
         ability: "str",
@@ -198,6 +209,9 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       condition: "Trattenuto",
       effectId: "maximilian-earth-grasp-restrained",
       effectDetail: "La mano di terra trattiene il bersaglio. Può usare un'azione per effettuare una prova di Forza contro la CD della spell e liberarsi.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "maximilian-escape-action", label: "Azione: prova For" }),
+      ]),
       expiry: concentration,
       manualRemoval: true,
     })]),
@@ -212,6 +226,9 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
       effectId: "immolation-burning",
       effectKind: "debuff",
       effectDetail: "A fine turno ripete il TS Destrezza: 4d6 fuoco se fallisce, fine della spell se supera.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "immolation-fire-damage", label: "4d6 fuoco/fine turno" }),
+      ]),
       expiry: concentration,
       saveReminder: Object.freeze({
         ability: "dex",
@@ -232,6 +249,22 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
 });
 
 export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
+  "xanathar-frecce-infuocate": Object.freeze([Object.freeze({
+    id: "flame-arrows-consume",
+    label: "Consuma munizione",
+    buttonLabel: "Consuma munizione",
+    detail: "Dopo aver effettuato l'attacco, consuma una munizione infuocata. Il tiro per colpire e il danno restano risolti manualmente al tavolo.",
+    subjectMode: "none",
+    availableAfterCast: true,
+    repeatableThisTurn: true,
+    showInOverview: true,
+    resource: Object.freeze({
+      key: "ammunition",
+      consume: 1,
+      endSpellAtZero: true,
+      endConcentrationAtZero: true,
+    }),
+  })]),
   "xanathar-collera-della-natura": Object.freeze([
     Object.freeze({
       id: "wrath-of-nature-vines-failed",
@@ -248,6 +281,9 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
         kind: "debuff",
         label: "Trattenuto",
         detail: "Può usare un'azione per effettuare una prova di Forza (Atletica) contro la CD della spell e liberarsi.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "wrath-of-nature-escape-action", label: "Azione: prova For" }),
+        ]),
         manualRemoval: true,
         endsParentOnRemoval: true,
         parentRemoval: "target",
@@ -338,6 +374,9 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
       kind: "buff",
       label: "Velocità base +9 m",
       detail: "La velocità base sul terreno aumenta di 9 metri fino alla fine del turno.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "zephyr-strike-speed", label: "Vel +9 m" }),
+      ]),
       expiry: Object.freeze({ mode: "turn-end", actor: "source", remaining: 1 }),
       mechanics: Object.freeze({
         movement: Object.freeze({
@@ -362,6 +401,9 @@ export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
       kind: "debuff",
       label: "Velocità dimezzata",
       detail: "Velocità dimezzata fino all'inizio del turno successivo del caster.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "ice-investiture-slow", label: "Vel ½" }),
+      ]),
       expiry: nextTurn("turn-start", "source"),
       mechanics: Object.freeze({
         movement: Object.freeze({
@@ -428,12 +470,19 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
       kind: "buff",
       label: "Movimento: no AdO",
       detail: "Il movimento del caster non provoca attacchi di opportunità.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "zephyr-no-opportunity-attacks", label: "Movimento: no AdO" }),
+      ]),
     }),
     Object.freeze({
       id: "zephyr-strike",
       kind: "buff",
       label: "1 attacco: vant. · +1d8 forza",
       detail: "Una volta dispone di vantaggio a un attacco con arma e infligge 1d8 danni da forza extra se colpisce.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "zephyr-strike-attack-advantage", label: "1 attacco: vant." }),
+        Object.freeze({ id: "zephyr-strike-force-damage", label: "+1d8 forza" }),
+      ]),
       manualRemoval: true,
     }),
   ]),
@@ -538,12 +587,18 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Bestia: vant. attacchi vicino al caster",
     detail: "La bestia dispone di vantaggio contro creature entro 1,5 metri dal caster.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "beast-attack-advantage-near-caster", label: "Bestia: vant. att. entro 1,5 m" }),
+    ]),
   })]),
   "xanathar-morsa-del-gelo": Object.freeze([Object.freeze({
     id: "next-weapon-attack-disadvantage",
     kind: "debuff",
     label: "Prossimo attacco con arma: svant.",
     detail: "Svantaggio al prossimo attacco con arma prima della fine del turno successivo del bersaglio.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "frost-morsel-next-weapon-attack", label: "Pross. attacco arma: svant." }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: nextTurn("turn-end", "target"),
@@ -629,6 +684,9 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Azione: soffio del drago",
     detail: "Il bersaglio può usare un'azione per esalare il tipo di energia scelto.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "dragon-breath-available-action", label: "Azione: soffio" }),
+    ]),
   })]),
   "xanathar-trasformazione-di-tenser": Object.freeze([Object.freeze({
     id: "tensers-transformation",
@@ -647,6 +705,9 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Velocità di volare: 0",
     detail: "La velocità di volare del bersaglio è ridotta a 0.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "earthbind-flying-speed-zero", label: "Vel volo 0" }),
+    ]),
     mechanics: Object.freeze({
       movement: Object.freeze({
         modes: Object.freeze({
@@ -671,8 +732,41 @@ export const SUPPLEMENT_EFFECTS = Object.freeze({
     kind: "debuff",
     label: "Acido: 2d4 a inizio turno",
     detail: "Subisce danni da acido all'inizio del turno; il bersaglio o una creatura adiacente può usare un'azione per rimuoverlo.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "caustic-acid-remove-action", label: "Azione: rimuovi" }),
+    ]),
     manualRemoval: true,
   })]),
+});
+
+export const SUPPLEMENT_SUMMARY_DEFINITIONS = Object.freeze({
+  "xanathar-lama-dombra": Object.freeze({
+    id: "xanathar-lama-dombra-damage",
+    summaryParts: Object.freeze([
+      Object.freeze({
+        id: "xanathar-lama-dombra-psychic-damage",
+        label: "2d8 psichici",
+      }),
+    ]),
+    mechanics: Object.freeze({
+      deriveLabel: true,
+      damageBonus: Object.freeze({
+        total: true,
+        dice: Object.freeze({
+          count: Object.freeze({
+            base: 2,
+            baseSlot: 2,
+            firstIncrementAt: 3,
+            perSlotAbove: 1,
+            step: 2,
+            max: 5,
+          }),
+          sides: 8,
+        }),
+        type: "psichici",
+      }),
+    }),
+  }),
 });
 
 export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
@@ -685,6 +779,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: `Maestria: ${label}`,
         detail: `Raddoppia il bonus di competenza nelle prove di ${label}.`,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: `chosen-skill-expertise-summary-${id}`, label: `Maestria: ${label}` }),
+        ]),
       })]),
     })),
   ),
@@ -714,6 +811,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+1d4 TS",
         detail: "Aggiunge 1d4 ai tiri salvezza per 24 ore.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ceremony-saving-throw-bonus", label: "TS +1d4" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -725,6 +825,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+1d4 prove",
         detail: "Aggiunge 1d4 alle prove di caratteristica per 24 ore.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ceremony-ability-check-bonus", label: "Prove +1d4" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -736,6 +839,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "+2 CA entro 9m dal coniuge",
         detail: "Bonus di 2 alla CA mentre si trova entro 9 metri dall'altro bersaglio.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ceremony-wedding-armor-class", label: "+2 CA entro 9 m" }),
+        ]),
       })]),
     }),
     Object.freeze({
@@ -747,6 +853,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: "Non può diventare non morto",
         detail: "Il cadavere non può diventare non morto per 7 giorni, salvo Desiderio.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "ceremony-no-undead-transformation", label: "No trasform. non morto" }),
+        ]),
       })]),
     }),
   ]),
@@ -815,6 +924,9 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "debuff",
         label: "Fumo: area oscurata",
         detail: "L'area è pesantemente oscurata per 1 minuto o finché un vento forte non disperde il fumo.",
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "pyrotechnics-heavy-smoke", label: "Area oscurata" }),
+        ]),
         manualRemoval: true,
         endsParentOnRemoval: true,
       })]),
@@ -883,6 +995,22 @@ export const SUPPLEMENT_EFFECT_CHOICES = Object.freeze({
         kind: "buff",
         label: `+1d8 ${type} entro 3m`,
         detail: `Gli attacchi infliggono 1d8 danni ${type} extra contro creature entro 3 metri.`,
+        summaryParts: Object.freeze([
+          Object.freeze({
+            id: `spirit-shroud-${type}-damage`,
+            label: `+1d8 ${type} entro 3m`,
+          }),
+        ]),
+        mechanics: Object.freeze({
+          deriveLabel: true,
+          damageBonus: Object.freeze({
+            dice: Object.freeze({
+              count: Object.freeze({ base: 1, baseSlot: 3, perSlotAbove: 1, step: 2 }),
+              sides: 8,
+            }),
+            type,
+          }),
+        }),
       })]),
     }))
   ),

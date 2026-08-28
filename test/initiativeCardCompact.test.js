@@ -306,6 +306,45 @@ test("Arma spirituale usa la pill spell normale e non una micro-card", () => {
   assert.match(effect.title, /10 round rimanenti/);
 });
 
+test("Palla di fuoco ritardata legge il danno corrente dal contesto canonico", () => {
+  const [effect] = __compactEffectItems([], [{
+    name: "Palla di fuoco ritardata",
+    spellId: "delayed-blast-fireball",
+    instanceId: "dbf-pill-1",
+    turns: 8,
+    castContext: {
+      slotLevel: 7,
+      delayedBlastFireball: {
+        baseDice: 12,
+        accumulatedDice: 3,
+      },
+    },
+  }], false);
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "delayed-blast-fireball-damage", label: "15d6 fuoco" },
+  ]);
+});
+
+test("Guscio Anti-vita aggiorna in presentation anche summaryParts legacy", () => {
+  const [effect] = __compactEffectItems([], [{
+    name: "Guscio Anti-vita",
+    spellId: "antilife-shell",
+    instanceId: "antilife-shell-legacy",
+    turns: 600,
+    summaryParts: [
+      { id: "antilife-shell-radius", label: "3 m" },
+      { id: "antilife-shell-exempt-types", label: "No costrutti/non morti" },
+      { id: "antilife-shell-no-crossing", label: "Non attraversabile" },
+      { id: "antilife-shell-forced-crossing", label: "Caster forza passaggio → fine" },
+    ],
+  }], false);
+
+  assert.deepEqual(effect.summaryParts, [
+    { id: "antilife-shell-no-crossing", label: "Non attraversabile" },
+  ]);
+});
+
 test("una card compatta non mostra pill buff o debuff collegate alla spell", () => {
   const instance = {
     condition: "Lentezza: -2 CA/TS Des · no reazioni",
@@ -471,6 +510,28 @@ test("Lentezza usa una sola parent pill e mini-pill condivise senza ellissi", ()
     && part.style.flex === "0 0 auto"
     && !part.textContent.includes("…")
   )));
+});
+
+test("la preview della card nasconde sempre i summaryParts", () => {
+  const documentRef = createTestDocument();
+  const { status, previewPill } = buildCompactCardStatus([{
+    kind: "spell",
+    key: "xanathar-lama-dombra",
+    label: "Lama d'Ombra (10)",
+    title: "Lama d'Ombra · 10 round rimanenti",
+    summaryParts: [{
+      id: "xanathar-lama-dombra-psychic-damage",
+      label: "2d8 psichici",
+    }],
+  }], {
+    hasExpandableEffects: false,
+    documentRef,
+  });
+
+  assert.equal(previewPill.textContent, "Lama d'Ombra (10)");
+  assert.equal(previewPill.children.length, 0);
+  assert.equal(status.style.height, "14px");
+  assert.equal(status.style.flex, "0 0 14px");
 });
 
 test("la pill compatta della Feature usa il tema e permette la terminazione", async () => {

@@ -2,6 +2,8 @@ import { ID } from "./constants.js";
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { fleshToStoneReminderForInstance } from "./fleshToStoneRules.js";
 import { contagionReminderForInstance } from "./contagionRules.js";
+import { prismaticSprayIndigoReminderForInstance } from "./prismaticSprayRules.js";
+import { prismaticWallIndigoReminderForInstance } from "./prismaticWallRules.js";
 import {
   buildEffectSaveReminderResolution,
   buildMovementEscapeReminderResolution,
@@ -528,12 +530,20 @@ function noticesForTiming(
           conditions: conditionInstances(item),
           reminder: normalizedReminder,
         });
-        const reminder = contagionReminderForInstance({
+        const contagionReminder = contagionReminderForInstance({
           instance,
           reminder: fleshReminder,
         });
-        if (!reminder || reminder.timing !== timing) continue;
-        const wantedActorId = reminder.actor === "source"
+        const reminder = prismaticSprayIndigoReminderForInstance({
+          instance,
+          reminder: contagionReminder,
+        });
+        const wallReminder = prismaticWallIndigoReminderForInstance({
+          instance,
+          reminder,
+        });
+        if (!wallReminder || wallReminder.timing !== timing) continue;
+        const wantedActorId = wallReminder.actor === "source"
           ? actorId(instance.sourceId)
           : String(item.id || "").trim();
         if (!wantedActorId || wantedActorId !== boundaryActorId) continue;
@@ -553,7 +563,7 @@ function noticesForTiming(
         const notice = reminderNotice({
           item,
           instance,
-          reminder,
+          reminder: wallReminder,
           activationId,
           turnKey: noticeTurnKey,
           itemsById,

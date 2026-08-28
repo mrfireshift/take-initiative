@@ -41,6 +41,11 @@ evento di fine quando la relativa istanza termina. Le sorgenti da consultare
 sono le costanti e `getMatchedSpellVisualDefinition()` nel codice, non una
 lista duplicata in documentazione.
 
+Per `antilife-shell` il confine meccanico persistente è responsabilità dell’aura
+mobile shared. Il clip Embers resta invece visibile dopo l’avvio come un solo
+VideoItem ancorato al caster: il loop è intenzionale a livello del WebM e viene
+rimosso quando termina il lifecycle, senza creare loop o eventi JS duplicati.
+
 ## Flussi runtime
 
 ### Spell e capacità matched

@@ -240,6 +240,44 @@ test("Searing usa lo scaling dello slot solo sul danno iniziale e accetta critic
   );
 });
 
+test("Punizione Marchiante trasferisce il marker persistente e il danno scalato", () => {
+  const spell = getSpellDefinition("Punizione Marchiante");
+  const castContext = { slotLevel: 4, phase: "resolve" };
+  const intent = buildSpellApplicationIntent({
+    spell,
+    enteredName: spell.displayName,
+    turns: 9,
+    casterId: "caster",
+    targetIds: ["enemy"],
+    castContext,
+    phasePlan: getSpellCastPhasePlan(spell, "resolve", castContext),
+    activeConcentration: {
+      instanceId: "branding-instance",
+      targets: ["caster"],
+    },
+    attackOutcome: "hit",
+    damageValue: 12,
+    manualAttackOutcomeRequired: true,
+    requestedConcentration: true,
+  });
+  const plan = planFor(intent, { instanceId: "branding-instance" });
+  const upsert = plan.operations.find((operation) => operation.type === "spell:upsert");
+  const condition = plan.operations.find((operation) => operation.type === "condition:add");
+
+  assert.equal(intent.concentrationAction, "extend");
+  assert.deepEqual(plan.initialDamage, { dice: "4d6", type: "radiosi" });
+  assert.equal(plan.damageRequired, true);
+  assert.deepEqual(upsert.targetIds, ["enemy"]);
+  assert.equal(condition.conditionName, "Bagliore astrale / no invisibilità");
+  assert.deepEqual(condition.options.expiry, { mode: "concentration" });
+  assert.deepEqual(condition.options.mechanics, {
+    visibility: "visible",
+    invisibilityBlocked: true,
+    dimLightRadiusMeters: 1.5,
+  });
+  assert.equal(plan.historyLabel, "Risoluzione: Punizione Marchiante");
+});
+
 test("Parola del potere stordire persiste il TS ricorrente senza TS iniziale", () => {
   const intent = intentFor("Parola del potere stordire", {
     turns: 1,

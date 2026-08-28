@@ -88,6 +88,36 @@ test("il client inoltra soltanto l'avanzamento del placement batch correlato", a
   assert.equal((await pending).status, "confirmed");
 });
 
+test("il client inoltra il preview live dell'area ancorata", async () => {
+  const broadcast = fakeBroadcast();
+  let progress = null;
+  const pending = requestSpellAreaPlacement({
+    requestId: "request-anchored",
+    ruleId: "phb2014-freccia-folgorante:cast",
+    casterId: "caster",
+    context: { autoConfirmAnchor: true, anchorTargetId: "target-a" },
+  }, {
+    broadcast,
+    windowRef: null,
+    onProgress: (value) => { progress = value; },
+  });
+
+  await Promise.resolve();
+  broadcast.emit({
+    type: "progress",
+    requestId: "request-anchored",
+    status: "placing",
+    preview: {
+      anchorTargetId: "target-a",
+      targetIds: ["target-a", "target-b"],
+    },
+  });
+  assert.equal(progress.preview.anchorTargetId, "target-a");
+  assert.deepEqual(progress.preview.targetIds, ["target-a", "target-b"]);
+  broadcast.emit({ type: "result", requestId: "request-anchored", status: "cancelled" });
+  assert.equal((await pending).status, "cancelled");
+});
+
 test("il client ritenta il primo handoff finché il tool non conferma la presa in carico", async () => {
   const broadcast = fakeBroadcast();
   const pending = requestSpellAreaPlacement({

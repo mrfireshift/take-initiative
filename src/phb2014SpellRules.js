@@ -171,6 +171,9 @@ export const PHB2014_SAVE_AUTOMATION = Object.freeze({
       {
         expiry: nextTurn("turn-end", "target"),
         independent: true,
+        summaryParts: Object.freeze([
+          Object.freeze({ id: "arms-of-hadar-no-reactions", label: "No reaz." }),
+        ]),
       },
     ),
   ], { trackOutcomes: [] }),
@@ -354,6 +357,9 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Vant. prove Carisma vs bersaglio",
     detail: "Vantaggio a tutte le prove di Carisma rivolte alla creatura non ostile scelta.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "friendship-charisma-check-advantage", label: "Vant. prove Car vs bersaglio" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
@@ -428,11 +434,45 @@ export const PHB2014_EFFECTS = Object.freeze({
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
+  "branding-smite": Object.freeze([Object.freeze({
+    id: "branding-smite-radiance",
+    kind: "debuff",
+    label: "Bagliore astrale / no invisibilità",
+    detail: "Il bersaglio diventa visibile, proietta luce fioca entro 1,5 metri e non può diventare invisibile finché dura la spell.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "branding-smite-visible", label: "Visibile" }),
+      Object.freeze({ id: "branding-smite-no-invisibility", label: "No invis." }),
+      Object.freeze({ id: "branding-smite-dim-light", label: "Luce fioca 1,5 m" }),
+    ]),
+    mechanics: Object.freeze({
+      visibility: "visible",
+      invisibilityBlocked: true,
+      dimLightRadiusMeters: 1.5,
+    }),
+    expiry: concentration,
+    manualRemoval: true,
+    endsParentOnRemoval: true,
+  })]),
   "phb2014-raffica-di-spine": Object.freeze([Object.freeze({
     id: "hail-of-thorns-trigger",
     kind: "buff",
     label: "Prossimo attacco a distanza / area 1d10 perforanti",
     detail: "Al prossimo attacco a distanza che colpisce, bersaglio e creature entro 1,5 metri effettuano un TS Destrezza; il danno aumenta con lo slot.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "hail-of-thorns-trigger-attack", label: "Pross. att. distanza" }),
+      Object.freeze({ id: "hail-of-thorns-trigger-area", label: "Area 1,5 m" }),
+      Object.freeze({ id: "hail-of-thorns-trigger-damage", label: "1d10 perforanti" }),
+    ]),
+    mechanics: Object.freeze({
+      deriveLabel: true,
+      areaDamage: Object.freeze({
+        dice: Object.freeze({
+          count: Object.freeze({ base: 1, baseSlot: 1, perSlotAbove: 1, max: 6 }),
+          sides: 10,
+        }),
+        type: "perforanti",
+      }),
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
@@ -441,6 +481,9 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Sensi della bestia",
     detail: "Percepisce tramite i sensi della bestia e beneficia dei suoi sensi speciali.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "beast-senses-benefit", label: "Sensi bestia" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
@@ -449,6 +492,28 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Prossimo attacco a distanza / 4d8 + area 2d8 fulmine",
     detail: "Il prossimo attacco a distanza infligge danni da fulmine e le creature entro 3 metri effettuano un TS Destrezza; i danni aumentano con lo slot.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "lightning-arrow-trigger-attack", label: "Pross. att. distanza" }),
+      Object.freeze({ id: "lightning-arrow-trigger-primary-damage", label: "4d8 fulmine" }),
+      Object.freeze({ id: "lightning-arrow-trigger-area-damage", label: "Area 3 m: 2d8 fulmine" }),
+    ]),
+    mechanics: Object.freeze({
+      deriveLabel: true,
+      damageReplacement: Object.freeze({
+        dice: Object.freeze({
+          count: Object.freeze({ base: 4, baseSlot: 3, perSlotAbove: 1, max: 10 }),
+          sides: 8,
+        }),
+        type: "fulmine",
+      }),
+      areaDamage: Object.freeze({
+        dice: Object.freeze({
+          count: Object.freeze({ base: 2, baseSlot: 3, perSlotAbove: 1, max: 8 }),
+          sides: 8,
+        }),
+        type: "fulmine",
+      }),
+    }),
     manualRemoval: true,
     endsParentOnRemoval: true,
   })]),
@@ -553,6 +618,9 @@ export const PHB2014_EFFECTS = Object.freeze({
     kind: "buff",
     label: "Legame telepatico",
     detail: "Caster e bersaglio condividono parole, immagini, suoni e altri messaggi sensoriali sullo stesso piano.",
+    summaryParts: Object.freeze([
+      Object.freeze({ id: "telepathy-link", label: "Legame telepatico" }),
+    ]),
     manualRemoval: true,
     endsParentOnRemoval: true,
     expiry: rounds(14400),

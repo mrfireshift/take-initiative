@@ -175,6 +175,8 @@ import {
 } from "./spellUnifiedPanelRoutingCore.js";
 import { executeDirectQuickAction } from "./quickActionExecution.js";
 import { executeSpellBoardTokenStateUpdate } from "./spellApplicationExecutor.js";
+import { DELAYED_BLAST_FIREBALL_ID } from "./delayedBlastFireballRules.js";
+import { spellActiveResolutionPopoverId } from "./spellActiveResolutionCore.js";
 import { buildTrackerQuickActionLauncher } from "./trackerQuickActions.js";
 import {
   CLASS_FEATURE_BY_ID,
@@ -238,6 +240,7 @@ import {
 } from "./options/optionsRuntime.js";
 import {
   selectActiveTurnLabelEnabled,
+  selectEffectSummaryPartsEnabled,
   selectEffectsDisplayMode,
   selectFollowActiveTurn,
   selectKnownFactionAssignmentEnabled,
@@ -340,6 +343,11 @@ let __temporalTransitionSequence = 0;
 let __temporalSceneIdentity = "";
 let __temporalSceneIdentityPromise = null;
 let __temporalLaneGeneration = 0;
+// A round and its boundary descriptor may be queued together.  The boundary
+// must be skipped only when the preceding round mutation really advanced a
+// terminal accumulator; otherwise a failed/no-op round must not swallow the
+// caster turn-end event.
+const __roundTerminalAccumulationTransitions = new Set();
 let __sceneBaselineEpoch = null;
 let __sceneEpochLifecycleMounted = false;
 let __sceneEpochUnsubscribe = null;
@@ -566,6 +574,11 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
   const commandId = mutationType === "effects:tick-round"
     ? descriptor.roundCommandId
     : descriptor.boundaryCommandId;
+  const transitionKey = String(descriptor?.transitionSeq ?? "").trim();
+  const skipBoundaryAccumulation = mutationType === "effects:tick-boundaries"
+    && descriptor.skipTerminalAccumulation === true
+    && transitionKey
+    && __roundTerminalAccumulationTransitions.has(transitionKey);
   const options = {
     kind: mutationType,
     label: mutationType === "effects:tick-round"
@@ -573,6 +586,12 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
       : "Scadenza effetti di turno",
     targetIds: descriptor.targetIds,
     ...(mutationType === "effects:tick-round" ? { history: false } : {}),
+    // Boundary ticks remain undoable for ordinary effects.  The coordinator
+    // disables History only when this command's canonical plan reports that a
+    // terminal-resolution accumulator (currently DBF) actually advanced.
+    ...(mutationType === "effects:tick-boundaries"
+      ? { suppressHistoryOnTerminalAccumulation: true }
+      : {}),
     commandId,
     sceneEpoch: descriptor.sceneEpoch,
     ...(descriptor.sceneIdentity ? { sceneIdentity: descriptor.sceneIdentity } : {}),
@@ -590,6 +609,7 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
       type: mutationType,
       targetIds: descriptor.targetIds,
       delta: descriptor.roundDelta,
+      boundaries: descriptor.conditionBoundaries,
       operationId: `${commandId}:operation`,
       createdAt: descriptor.createdAt,
     }
@@ -597,11 +617,23 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
       type: mutationType,
       targetIds: descriptor.targetIds,
       boundaries: descriptor.conditionBoundaries,
+      ...(skipBoundaryAccumulation
+        ? { skipTerminalAccumulation: true }
+        : {}),
       operationId: `${commandId}:operation`,
       createdAt: descriptor.createdAt,
     };
   const mutation = await runEffectsMutation([operation], options);
   requireAppliedEffectsMutation(mutation);
+  if (mutationType === "effects:tick-round" && transitionKey) {
+    const accumulated = mutation?.plan?.terminalAccumulationApplied === true
+      || mutation?.terminalAccumulationApplied === true;
+    if (accumulated) __roundTerminalAccumulationTransitions.add(transitionKey);
+    else __roundTerminalAccumulationTransitions.delete(transitionKey);
+  }
+  if (mutationType === "effects:tick-boundaries" && transitionKey) {
+    __roundTerminalAccumulationTransitions.delete(transitionKey);
+  }
   return mutation;
 }
 
@@ -687,6 +719,7 @@ function __resetInitiativeSceneRuntime(sceneEpoch, reason) {
   __lastConditionTurnState = null;
   __lastConditionTurnStateConfirmed = null;
   __conditionNavigationHint = null;
+  __roundTerminalAccumulationTransitions.clear();
   __selectedSceneItemIds = new Set();
   __trackerSelectionAnchorId = null;
   __lastRenderedActiveId = null;
@@ -1026,6 +1059,7 @@ const EPIC_TAG_CFG = {
   let __optionsProjectionUnsubscribe = null;
   let __optionsPresentationUnsubscribe = null;
   let __trackerLayout = getTrackerLayout();
+  let __showEffectSummaryParts = true;
 
   function isCompactTrackerLayout() {
     return __trackerLayout === TRACKER_LAYOUT_COMPACT;
@@ -7576,6 +7610,39 @@ async function __clearCardSpells(ids, sceneEpoch = currentSceneEpoch()) {
   await refreshConditionLabels(scopeIds);
 }
 
+function __spellForPendingTermination(item, pendingEvent) {
+  const event = pendingEvent?.pendingTermination && typeof pendingEvent.pendingTermination === "object"
+    ? pendingEvent
+    : { pendingTermination: pendingEvent };
+  const instanceId = String(event?.instanceId || event?.pendingTermination?.instanceId || "").trim();
+  const meta = item?.metadata?.[META_KEY] || {};
+  const spells = Array.isArray(meta[SPELLS_META_KEY]) ? meta[SPELLS_META_KEY] : [];
+  const concentrations = meta[CONC_META_KEY] && typeof meta[CONC_META_KEY] === "object"
+    ? meta[CONC_META_KEY]
+    : {};
+  const concentration = concentrations[event?.concentrationKey]
+    || Object.values(concentrations).find((entry) => (
+      String(entry?.instanceId || "").trim() === instanceId
+    ))
+    || null;
+  const spell = spells.find((entry) => (
+    instanceId && String(entry?.instanceId || "").trim() === instanceId
+  )) || null;
+  if (!spell && !concentration) return null;
+  return {
+    ...(spell || {}),
+    spellId: String(spell?.spellId || concentration?.spellId || "").trim(),
+    name: String(spell?.name || concentration?.name || event?.concentrationKey || "").trim(),
+    instanceId: String(spell?.instanceId || concentration?.instanceId || instanceId).trim(),
+    casterId: String(spell?.casterId || event?.casterId || item?.id || "").trim(),
+    castContext: spell?.castContext && typeof spell.castContext === "object"
+      ? spell.castContext
+      : concentration?.castContext && typeof concentration.castContext === "object"
+        ? concentration.castContext
+        : {},
+  };
+}
+
 async function __clearCardConcentrations(ids, sourceEntry = null, sceneEpoch = currentSceneEpoch()) {
   const scopeIds = Array.from(new Set([
     ...(ids || []),
@@ -7584,6 +7651,22 @@ async function __clearCardConcentrations(ids, sourceEntry = null, sceneEpoch = c
   if (!scopeIds.length || !__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
   await __selectContextScope(scopeIds, sceneEpoch);
   if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
+  // A single-card context action can reuse the same instance-scoped
+  // termination path as the spell-pill control.  This preserves the exact
+  // parent instance/reference needed by the terminal gateway instead of
+  // asking the broad selection operation to infer it from a rendered label.
+  const sourceId = splitParagonId(sourceEntry?.id).baseId;
+  const contextSpell = scopeIds.length === 1 && sourceId === scopeIds[0]
+    ? (Array.isArray(sourceEntry?.spells) ? sourceEntry.spells : [])
+      .find((spell) => (
+        spell?.conc === true
+        && String(spell?.spellId || "").trim() === DELAYED_BLAST_FIREBALL_ID
+      ))
+    : null;
+  if (contextSpell) {
+    await __terminateSpellOnTrackerCard(sourceId, contextSpell, sceneEpoch);
+    return;
+  }
   const label = scopeIds.length > 1 ? "Terminate concentrazioni multiple" : "Terminata concentrazione";
   const mutation = await runEffectsMutation([{
     type: "concentration:break",
@@ -7600,6 +7683,43 @@ async function __clearCardConcentrations(ids, sourceEntry = null, sceneEpoch = c
   });
   if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
   requireAppliedEffectsMutation(mutation);
+  const pendingEvents = Array.isArray(mutation?.pendingTerminations)
+    ? mutation.pendingTerminations
+    : Array.isArray(mutation?.plan?.pendingTerminations)
+      ? mutation.plan.pendingTerminations
+      : mutation?.pendingTermination
+        ? [mutation.pendingTermination]
+        : mutation?.plan?.pendingTermination
+          ? [mutation.plan.pendingTermination]
+          : [];
+  if (pendingEvents.length) {
+    const casterIds = Array.from(new Set(pendingEvents
+      .map((event) => String(event?.casterId || "").trim())
+      .filter(Boolean)));
+    let liveItems = [];
+    try {
+      liveItems = casterIds.length
+        ? await OBR.scene.items.getItems(casterIds)
+        : [];
+    } catch {
+      liveItems = [];
+    }
+    for (const pendingEvent of pendingEvents) {
+      if (!__isCurrentSceneOperation(sceneEpoch, "clear-card-concentrations")) return;
+      const casterId = String(pendingEvent?.casterId || "").trim();
+      const item = liveItems.find((candidate) => String(candidate?.id || "").trim() === casterId)
+        || (String(sourceEntry?.id || "").trim() === casterId ? sourceEntry : null);
+      const spell = __spellForPendingTermination(item, pendingEvent);
+      if (!spell || spell.spellId !== DELAYED_BLAST_FIREBALL_ID) continue;
+      await __openDelayedBlastFireballTerminalPopover({
+        spell,
+        pending: pendingEvent,
+        instanceId: pendingEvent?.instanceId || spell.instanceId,
+        casterId: casterId || spell.casterId,
+      });
+      break;
+    }
+  }
   if (!mutation.changedIds.length) return;
   const historyIds = mutation.changedIds;
   await refreshConditionLabels(historyIds);
@@ -7631,6 +7751,63 @@ async function __removeConditionOnTrackerCard(itemId, group) {
   });
   requireAppliedEffectsMutation(mutation);
   await refreshConditionLabels([itemId]);
+}
+
+function __pendingTerminationRecord(value) {
+  return value?.pendingTermination && typeof value.pendingTermination === "object"
+    ? value.pendingTermination
+    : value && typeof value === "object"
+      ? value
+      : null;
+}
+
+async function __openDelayedBlastFireballTerminalPopover({
+  spell = null,
+  pending = null,
+  instanceId = "",
+  casterId = "",
+} = {}) {
+  const normalizedInstanceId = String(instanceId || spell?.instanceId || "").trim();
+  const normalizedCasterId = String(casterId || spell?.casterId || "").trim();
+  const terminal = __pendingTerminationRecord(pending);
+  if (
+    String(spell?.spellId || "").trim() !== DELAYED_BLAST_FIREBALL_ID
+    || !normalizedInstanceId
+    || !normalizedCasterId
+    || !terminal?.requestId
+  ) return false;
+  const actionId = `${DELAYED_BLAST_FIREBALL_ID}:detonate`;
+  const popoverId = spellActiveResolutionPopoverId(normalizedInstanceId, actionId);
+  const payload = {
+    type: `${ID}/delayed-blast-fireball-terminal-resolution`,
+    version: 1,
+    spellId: DELAYED_BLAST_FIREBALL_ID,
+    spellName: String(spell?.name || "Palla di fuoco ritardata").trim(),
+    instanceId: normalizedInstanceId,
+    casterId: normalizedCasterId,
+    casterName: String(spell?.casterName || "").trim(),
+    castContext: spell?.castContext && typeof spell.castContext === "object"
+      ? spell.castContext
+      : {},
+    pendingTermination: terminal,
+    sceneEpoch: currentSceneEpoch(),
+    actionId,
+    popoverId,
+  };
+  await openTrackedPopover({
+    id: popoverId,
+    url: `/delayed-blast-fireball-resolution.html?payload=${encodeURIComponent(JSON.stringify(payload))}`,
+    width: 360,
+    height: 240,
+    anchorReference: "POSITION",
+    anchorPosition: await getTrackerPopoverAnchor(),
+    anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    disableClickAway: true,
+    marginThreshold: 8,
+    hidePaper: true,
+  });
+  return true;
 }
 
 async function __terminateSpellOnTrackerCard(
@@ -7682,6 +7859,18 @@ async function __terminateSpellOnTrackerCard(
   });
   if (!__isCurrentSceneOperation(sceneEpoch, "terminate-tracker-spell")) return;
   requireAppliedEffectsMutation(mutation);
+  const pendingEvent = mutation?.pendingTerminations?.[0]
+    || mutation?.pendingTermination
+    || null;
+  const pending = __pendingTerminationRecord(pendingEvent);
+  if (pending && String(spell?.spellId || "").trim() === DELAYED_BLAST_FIREBALL_ID) {
+    await __openDelayedBlastFireballTerminalPopover({
+      spell,
+      pending,
+      instanceId,
+      casterId: casterId || itemId,
+    });
+  }
   await refreshConditionLabels([itemId]);
 }
 
@@ -8981,6 +9170,7 @@ function renderCompactTrack(
     animateActive = false,
     itemIds = null,
     boardTokenCompanionMap = null,
+    showEffectSummaryParts = true,
   } = {},
 ) {
   const order = Array.isArray(state?.order) ? state.order : [];
@@ -9028,6 +9218,7 @@ function renderCompactTrack(
       formatConditionInstance,
       spellKey: __spellKey,
       concentrationSpellKey: entry.concSpellKey,
+      showEffectSummaryParts,
     });
     const hasExpandableEffects = compactEffects.length > 1;
 
@@ -9231,6 +9422,7 @@ function renderCompactTrack(
 function buildClassicTrackerCardForRender(entry, state, nextId) {
   return buildClassicTrackerCard(entry, {
     state,
+    showEffectSummaryParts: __showEffectSummaryParts,
     nextId,
     boardTokenItems: __spellBoardTokenItems,
     isGM: IS_GM,
@@ -9299,6 +9491,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
     const animateActive = !!opts.animateActive;
     const compactLayout = isCompactTrackerLayout();
     const projectionPolicy = runtimeOptionsService.get(selectTrackerProjectionPolicy);
+    const showEffectSummaryParts = runtimeOptionsService.get(selectEffectSummaryPartsEnabled);
     const projectedEntries = projectTrackerEntries(entries, {
       role: IS_GM ? "GM" : "PLAYER",
       surface: compactLayout ? "trackerCompact" : "trackerClassic",
@@ -9312,6 +9505,7 @@ function buildClassicTrackerCardForRender(entry, state, nextId) {
         animateActive,
         itemIds: opts.itemIds,
         boardTokenCompanionMap,
+        showEffectSummaryParts,
       });
     }
     entries = projectedEntries;
@@ -10015,6 +10209,7 @@ try {
       });
       await Promise.all([hpBarsBinding.ready, activeTurnLabelBinding.ready]);
       __trackerLayout = runtimeOptionsService.get(selectTrackerLayout);
+      __showEffectSummaryParts = runtimeOptionsService.get(selectEffectSummaryPartsEnabled);
       updateEffectsDisplayModeControl(runtimeOptionsService.get(selectEffectsDisplayMode));
       updateLayoutToggleButton();
       applyTrackerLayout();
@@ -10034,14 +10229,18 @@ try {
           layout: selectTrackerLayout(options),
           followActiveTurn: selectFollowActiveTurn(options),
           effectsDisplayMode: selectEffectsDisplayMode(options),
+          showEffectSummaryParts: selectEffectSummaryPartsEnabled(options),
         }),
         (presentation) => {
           const layoutChanged = __trackerLayout !== presentation.layout;
+          const summaryPartsChanged = __showEffectSummaryParts !== presentation.showEffectSummaryParts;
           __trackerLayout = presentation.layout;
+          __showEffectSummaryParts = presentation.showEffectSummaryParts;
           updateEffectsDisplayModeControl(presentation.effectsDisplayMode);
           zoomChk.checked = isAutoFocusEnabled(__latestInitiativeState);
           setCompactToggleVisual(zoomToggleWrap, zoomChk.checked);
-          if (layoutChanged) {
+          if (layoutChanged || summaryPartsChanged) {
+            if (summaryPartsChanged) void __closeCompactEffectsPopover();
             updateLayoutToggleButton();
             applyTrackerLayout();
             __syncTrackerPopoverSizeForLayout();
@@ -10295,7 +10494,9 @@ async function __processInitiativeMetadata(
           roundDelta,
           previousState: conditionTransition?.previousTurnState || null,
           nextState: conditionTransition?.nextTurnState || null,
-          conditionBoundaries: Object.freeze([]),
+          conditionBoundaries: Object.freeze(
+            conditionTransition?.boundaries?.map((boundary) => Object.freeze({ ...boundary })) || [],
+          ),
           targetIds: Object.freeze(unique),
         };
         temporalDescriptors.push(Object.freeze({
@@ -10333,6 +10534,10 @@ async function __processInitiativeMetadata(
       roundDelta: 0,
       conditionBoundaries: Object.freeze(boundaries.map((boundary) => Object.freeze({ ...boundary }))),
       targetIds: Object.freeze(boundaryTokenIds),
+      ...(temporalDescriptors.some((candidate) => (
+        candidate?.transitionSeq === transitionSeq
+        && candidate?.mutationType === "effects:tick-round"
+      )) ? { skipTerminalAccumulation: true } : {}),
     };
     temporalDescriptors.push(Object.freeze({
       ...baseDescriptor,

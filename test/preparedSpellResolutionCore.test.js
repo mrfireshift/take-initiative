@@ -143,6 +143,24 @@ test("il popover preparato resta solo per Colpo dello Zefiro", () => {
   );
 });
 
+test("Raffica di Spine usa l'azione active nel popup prepared", () => {
+  const spell = getSpellDefinition("Raffica di Spine");
+  const action = preparedSpellResolutionAction({
+    instanceId: "prepared:hail:1",
+    spellId: spell.id,
+    casterId: "caster",
+    name: spell.displayName,
+    storedName: spell.displayName,
+    castContext: { phase: "prepare", slotLevel: 2 },
+    targets: new Map([["caster", "Caster"]]),
+    effectInstances: [],
+  });
+
+  assert.equal(action.id, "hail-of-thorns-area");
+  assert.equal(action.type, "manual");
+  assert.equal(action.resolutionKind, "save-area");
+});
+
 test("rifiuta preparazioni stale o risoluzioni senza bersagli", () => {
   const group = preparedSpellResolutionGroups(preparedItems())[0];
   assert.throws(

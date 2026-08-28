@@ -274,6 +274,56 @@ function spellIdentityKey(spell) {
   return `spell:${spellId}:${casterId}:${name}`;
 }
 
+function terminalResolutionDescriptor(value) {
+  if (!value || typeof value !== "object") return null;
+  if (value.terminalResolution && typeof value.terminalResolution === "object") {
+    return value.terminalResolution;
+  }
+  if (value.castContext?.terminalResolution && typeof value.castContext.terminalResolution === "object") {
+    return value.castContext.terminalResolution;
+  }
+  return null;
+}
+
+function terminalAccumulationPath(value) {
+  const path = terminalResolutionDescriptor(value)?.accumulation?.path;
+  if (!Array.isArray(path)) return [];
+  return path.map((part) => String(part || "").trim()).filter(Boolean);
+}
+
+function deleteNestedPath(root, path) {
+  if (!root || typeof root !== "object" || !path.length) return;
+  let cursor = root;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    if (!cursor || typeof cursor !== "object") return;
+    cursor = cursor[path[index]];
+  }
+  if (cursor && typeof cursor === "object") delete cursor[path[path.length - 1]];
+}
+
+function terminalRuntimeComparableSnapshot(value) {
+  const next = clone(value || {});
+  const descriptor = terminalResolutionDescriptor(next);
+  if (!descriptor) return next;
+
+  // Runtime bookkeeping belongs to the terminal workflow. A cast or
+  // concentration entry must remain undoable while it accumulates, expires,
+  // or waits for its terminal resolver.
+  delete next.pendingTermination;
+  delete next.summaryParts;
+  const path = terminalAccumulationPath(next);
+  if (path.length) {
+    const castContextHasPath = next.castContext
+      && typeof next.castContext === "object"
+      && Object.prototype.hasOwnProperty.call(next.castContext, path[0]);
+    const root = castContextHasPath
+      ? next.castContext
+      : next;
+    deleteNestedPath(root, path);
+  }
+  return next;
+}
+
 function spellRuntimeComparableSnapshot(spell) {
   const next = clone(spell || {});
   delete next.turns;
@@ -282,7 +332,7 @@ function spellRuntimeComparableSnapshot(spell) {
     delete expiry.remaining;
     next.expiry = expiry;
   }
-  return next;
+  return terminalRuntimeComparableSnapshot(next);
 }
 
 function runtimeCounterProgressCompatible(currentValue, expectedValue) {
@@ -304,6 +354,7 @@ function spellSnapshotCompatibleWithRuntimeProgress(current, expected) {
     spellRuntimeComparableSnapshot(current),
     spellRuntimeComparableSnapshot(expected),
   )) return false;
+  if (terminalResolutionDescriptor(current) || terminalResolutionDescriptor(expected)) return true;
   if (!runtimeCounterProgressCompatible(current.turns, expected.turns)) return false;
   const currentRemaining = current?.expiry?.remaining;
   const expectedRemaining = expected?.expiry?.remaining;
@@ -367,6 +418,127 @@ export function granularReconcileSpells(current = [], before = [], after = []) {
       if (!next.some((spell) => spellIdentityKey(spell) === key)) next.push(clone(beforeSpell));
     } else if (beforeSpell && afterSpell) {
       next = next.map((spell) => spellIdentityKey(spell) === key ? clone(beforeSpell) : spell);
+    }
+  }
+
+  return { conflict: false, reconciled: next };
+}
+
+function concentrationIdentityKey(entry, key = "") {
+  if (entry && typeof entry === "object") {
+    const instanceId = String(entry.instanceId || "").trim();
+    if (instanceId) return `instance:${instanceId}`;
+    const spellId = String(entry.spellId || "").trim();
+    const name = String(entry.name || "").trim();
+    if (spellId || name) return `spell:${spellId}:${name}`;
+  }
+  return `key:${String(key || "").trim().toLocaleLowerCase("it")}`;
+}
+
+function concentrationEntries(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.entries(value).map(([key, entry]) => ({
+    key,
+    identity: concentrationIdentityKey(entry, key),
+    value: entry,
+  }));
+}
+
+function concentrationSnapshotCompatibleWithRuntimeProgress(
+  current,
+  expected,
+  currentKey = "",
+  expectedKey = "",
+) {
+  if (!current || !expected) return !current && !expected;
+  if (concentrationIdentityKey(current, currentKey) !== concentrationIdentityKey(expected, expectedKey)) return false;
+  return historyUndoSame(
+    terminalRuntimeComparableSnapshot(current),
+    terminalRuntimeComparableSnapshot(expected),
+  );
+}
+
+export function granularReconcileConcentrations(current = {}, before = {}, after = {}) {
+  const currentValue = current && typeof current === "object" && !Array.isArray(current) ? current : {};
+  const beforeValue = before && typeof before === "object" && !Array.isArray(before) ? before : {};
+  const afterValue = after && typeof after === "object" && !Array.isArray(after) ? after : {};
+  const currentMap = new Map(concentrationEntries(currentValue).map((entry) => [entry.identity, entry]));
+  const beforeMap = new Map(concentrationEntries(beforeValue).map((entry) => [entry.identity, entry]));
+  const afterMap = new Map(concentrationEntries(afterValue).map((entry) => [entry.identity, entry]));
+
+  const allTouchedKeys = new Set([
+    ...[...beforeMap.keys()].filter((key) => !historyUndoSame(beforeMap.get(key)?.value, afterMap.get(key)?.value)),
+    ...[...afterMap.keys()].filter((key) => !historyUndoSame(beforeMap.get(key)?.value, afterMap.get(key)?.value)),
+  ]);
+
+  for (const key of allTouchedKeys) {
+    const beforeEntry = beforeMap.get(key);
+    const afterEntry = afterMap.get(key);
+    const currentEntry = currentMap.get(key);
+
+    if (afterEntry && !beforeEntry) {
+      if (!currentEntry || !concentrationSnapshotCompatibleWithRuntimeProgress(
+        currentEntry.value,
+        afterEntry.value,
+        currentEntry.key,
+        afterEntry.key,
+      )) {
+        return {
+          conflict: true,
+          expected: clone(afterEntry.value),
+          actual: currentEntry ? clone(currentEntry.value) : null,
+        };
+      }
+    } else if (beforeEntry && !afterEntry) {
+      if (currentEntry) {
+        return {
+          conflict: true,
+          expected: null,
+          actual: clone(currentEntry.value),
+        };
+      }
+    } else if (beforeEntry && afterEntry) {
+      const matches = currentEntry && (
+        terminalResolutionDescriptor(currentEntry.value)
+          || terminalResolutionDescriptor(afterEntry.value)
+          ? concentrationSnapshotCompatibleWithRuntimeProgress(
+            currentEntry.value,
+            afterEntry.value,
+            currentEntry.key,
+            afterEntry.key,
+          )
+          : historyUndoSame(currentEntry.value, afterEntry.value)
+      );
+      if (!matches) {
+        return {
+          conflict: true,
+          expected: clone(afterEntry.value),
+          actual: currentEntry ? clone(currentEntry.value) : null,
+        };
+      }
+    }
+  }
+
+  let next = clone(currentValue);
+  for (const key of allTouchedKeys) {
+    const beforeEntry = beforeMap.get(key);
+    const afterEntry = afterMap.get(key);
+    const currentEntry = currentMap.get(key);
+    if (afterEntry && !beforeEntry) {
+      for (const [candidateKey, candidate] of Object.entries(next)) {
+        if (concentrationIdentityKey(candidate, candidateKey) === key) delete next[candidateKey];
+      }
+    } else if (beforeEntry && !afterEntry) {
+      if (!Object.entries(next).some(([candidateKey, candidate]) => (
+        concentrationIdentityKey(candidate, candidateKey) === key
+      ))) {
+        next[beforeEntry.key] = clone(beforeEntry.value);
+      }
+    } else if (beforeEntry && afterEntry) {
+      for (const [candidateKey, candidate] of Object.entries(next)) {
+        if (concentrationIdentityKey(candidate, candidateKey) === key) delete next[candidateKey];
+      }
+      next[currentEntry?.key || beforeEntry.key] = clone(beforeEntry.value);
     }
   }
 
@@ -1054,6 +1226,17 @@ function processChange({
       setEffectValue(item, field, res.reconciled, keys);
     } else if (field === "spells") {
       const res = granularReconcileSpells(actual, before, after);
+      if (res.conflict) {
+        conflict(conflicts, entry, id, "current-value-mismatch", field, {
+          expected: res.expected,
+          actual: res.actual,
+        });
+        continue;
+      }
+      touch.effects.add(field);
+      setEffectValue(item, field, res.reconciled, keys);
+    } else if (field === "concentrations") {
+      const res = granularReconcileConcentrations(actual, before, after);
       if (res.conflict) {
         conflict(conflicts, entry, id, "current-value-mismatch", field, {
           expected: res.expected,

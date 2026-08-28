@@ -18,6 +18,7 @@ export function saveSpellResolutionOperations({
   spellExpiry = null,
   appliedAt = null,
   castContext = null,
+  summaryParts = null,
   concentrationAction = "replace",
   concentrationReference = null,
 } = {}) {
@@ -94,6 +95,7 @@ export function saveSpellResolutionOperations({
     spellExpiry,
     appliedAt,
     castContext: Object.keys(resolvedCastContext).length ? resolvedCastContext : null,
+    summaryParts,
     replaceNames: [resolution.spellName],
     conditionApplications,
     concentrationAction,

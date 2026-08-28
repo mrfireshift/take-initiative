@@ -72,6 +72,7 @@ export function spellOverviewGroups(items = []) {
           turns: [],
           counters: [],
           effectInstances: [],
+          pendingTermination: null,
         };
         groups.set(key, group);
       }
@@ -118,6 +119,7 @@ export function spellOverviewGroups(items = []) {
           turns: [],
           counters: [],
           effectInstances: [],
+          pendingTermination: null,
         };
         groups.set(groupKey, group);
       }
@@ -125,6 +127,12 @@ export function spellOverviewGroups(items = []) {
       group.casterId = caster.id;
       group.casterName = caster.name || caster.id;
       group.concentrationRef = instanceId || key;
+      if (info?.pendingTermination && typeof info.pendingTermination === "object") {
+        group.pendingTermination = { ...info.pendingTermination };
+      }
+      if (!group.castContext && info?.castContext && typeof info.castContext === "object") {
+        group.castContext = { ...info.castContext };
+      }
       if (!group.spellId && info?.spellId) group.spellId = String(info.spellId);
       for (const targetId of Array.from(new Set(
         (Array.isArray(info?.targets) ? info.targets : [])

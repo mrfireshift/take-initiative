@@ -98,10 +98,9 @@ function circleCommands(radius) {
 function trackedCreature(item, orderedIds) {
   const meta = item?.metadata?.[META_KEY];
   return !!item?.id
-    && !!meta
     && (
       item.layer === "CHARACTER"
-      || meta.inInitiative === true
+      || meta?.inInitiative === true
       || orderedIds.has(item.id)
     );
 }

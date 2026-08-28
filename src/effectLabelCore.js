@@ -62,6 +62,114 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "confusion-no-reactions", label: "No reaz." }),
     Object.freeze({ id: "confusion-random-table", label: "Tira d10 inizio turno" }),
   ]),
+  "next-melee-hit-acido": Object.freeze([
+    Object.freeze({ id: "absorb-elements-melee-damage-acido", label: "+1d6 acido in mischia" }),
+  ]),
+  "next-melee-hit-freddo": Object.freeze([
+    Object.freeze({ id: "absorb-elements-melee-damage-freddo", label: "+1d6 freddo in mischia" }),
+  ]),
+  "next-melee-hit-fulmine": Object.freeze([
+    Object.freeze({ id: "absorb-elements-melee-damage-fulmine", label: "+1d6 fulmine in mischia" }),
+  ]),
+  "next-melee-hit-fuoco": Object.freeze([
+    Object.freeze({ id: "absorb-elements-melee-damage-fuoco", label: "+1d6 fuoco in mischia" }),
+  ]),
+  "next-melee-hit-tuono": Object.freeze([
+    Object.freeze({ id: "absorb-elements-melee-damage-tuono", label: "+1d6 tuono in mischia" }),
+  ]),
+  "spirit-shroud-radiosi": Object.freeze([
+    Object.freeze({ id: "spirit-shroud-radiosi-damage", label: "+1d8 radiosi entro 3m" }),
+  ]),
+  "spirit-shroud-necrotici": Object.freeze([
+    Object.freeze({ id: "spirit-shroud-necrotici-damage", label: "+1d8 necrotici entro 3m" }),
+  ]),
+  "spirit-shroud-freddo": Object.freeze([
+    Object.freeze({ id: "spirit-shroud-freddo-damage", label: "+1d8 freddo entro 3m" }),
+  ]),
+  "hail-of-thorns-trigger": Object.freeze([
+    Object.freeze({ id: "hail-of-thorns-trigger-attack", label: "Pross. att. distanza" }),
+    Object.freeze({ id: "hail-of-thorns-trigger-area", label: "Area 1,5 m" }),
+    Object.freeze({ id: "hail-of-thorns-trigger-damage", label: "1d10 perforanti" }),
+  ]),
+  "lightning-arrow-trigger": Object.freeze([
+    Object.freeze({ id: "lightning-arrow-trigger-attack", label: "Pross. att. distanza" }),
+    Object.freeze({ id: "lightning-arrow-trigger-primary-damage", label: "4d8 fulmine" }),
+    Object.freeze({ id: "lightning-arrow-trigger-area-damage", label: "Area 3 m: 2d8 fulmine" }),
+  ]),
+  "branding-smite-ready": Object.freeze([
+    Object.freeze({ id: "branding-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "branding-smite-trigger-damage", label: "+2d6 radiosi" }),
+  ]),
+  "ensnaring-strike-ready": Object.freeze([
+    Object.freeze({ id: "ensnaring-strike-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "ensnaring-strike-recurring-damage", label: "1d6 perforanti/turno" }),
+  ]),
+  "wrathful-smite-ready": Object.freeze([
+    Object.freeze({ id: "wrathful-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "wrathful-smite-damage", label: "+1d6 psichici" }),
+  ]),
+  "searing-smite-ready": Object.freeze([
+    Object.freeze({ id: "searing-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "searing-smite-trigger-damage", label: "+1d6 fuoco" }),
+    Object.freeze({ id: "searing-smite-trigger-recurring-damage", label: "1d6 fuoco/inizio turno" }),
+  ]),
+  "thunderous-smite-ready": Object.freeze([
+    Object.freeze({ id: "thunderous-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "thunderous-smite-damage", label: "+2d6 tuono" }),
+    Object.freeze({ id: "thunderous-smite-push", label: "Spinta 3 m" }),
+  ]),
+  "hail-of-thorns-resolution": Object.freeze([
+    Object.freeze({ id: "hail-of-thorns-resolution-area", label: "Area 1,5 m" }),
+    Object.freeze({ id: "hail-of-thorns-resolution-damage", label: "1d10 perforanti" }),
+  ]),
+  "lightning-arrow-resolution": Object.freeze([
+    Object.freeze({ id: "lightning-arrow-resolution-primary-damage", label: "4d8 fulmine" }),
+    Object.freeze({ id: "lightning-arrow-resolution-area-damage", label: "Area 3 m: 2d8 fulmine" }),
+  ]),
+  "blinding-smite-ready": Object.freeze([
+    Object.freeze({ id: "blinding-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "blinding-smite-damage", label: "+3d8 radiosi" }),
+  ]),
+  "staggering-smite-ready": Object.freeze([
+    Object.freeze({ id: "staggering-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "staggering-smite-damage", label: "+4d6 psichici" }),
+  ]),
+  "banishing-smite-ready": Object.freeze([
+    Object.freeze({ id: "banishing-smite-trigger", label: "Pross. colpo" }),
+    Object.freeze({ id: "banishing-smite-damage", label: "+5d10 forza" }),
+    Object.freeze({ id: "banishing-smite-threshold", label: "Esilio ≤50 PF" }),
+  ]),
+  "arms-of-hadar-no-reactions": Object.freeze([
+    Object.freeze({ id: "arms-of-hadar-no-reactions", label: "No reaz." }),
+  ]),
+  "compulsion-forced-movement": Object.freeze([
+    Object.freeze({ id: "compulsion-forced-movement", label: "Movimento imposto" }),
+  ]),
+  "reverse-gravity-suspended": Object.freeze([
+    Object.freeze({ id: "reverse-gravity-suspended", label: "Sospeso" }),
+  ]),
+  "stinking-cloud-lost-action": Object.freeze([
+    Object.freeze({ id: "stinking-cloud-lost-action", label: "Azione persa" }),
+  ]),
+  "zone-of-truth-no-lies": Object.freeze([
+    Object.freeze({ id: "zone-of-truth-no-lies", label: "No menzogne" }),
+  ]),
+  "ice-investiture-slow": Object.freeze([
+    Object.freeze({ id: "ice-investiture-slow", label: "Vel ½" }),
+  ]),
+  "sympathy-attraction": Object.freeze([
+    Object.freeze({ id: "sympathy-attraction", label: "Verso destinazione" }),
+  ]),
+  "calm-emotions-indifference": Object.freeze([
+    Object.freeze({ id: "calm-emotions-indifference", label: "Indifferente ostili" }),
+  ]),
+  "moonbeam-shapechanger-reversion": Object.freeze([
+    Object.freeze({ id: "moonbeam-shapechanger-form", label: "Forma originale" }),
+    Object.freeze({ id: "moonbeam-shapechanger-no-change", label: "No nuova forma" }),
+  ]),
+  "zephyr-strike-speed": Object.freeze([
+    Object.freeze({ id: "zephyr-strike-speed", label: "Vel +9 m" }),
+  ]),
   "gaseous-form-movement": Object.freeze([
     Object.freeze({ id: "gaseous-form-fly-only", label: "Solo volo 3 m" }),
   ]),
@@ -137,7 +245,10 @@ const EFFECT_SUMMARY_PARTS = Object.freeze({
     Object.freeze({ id: "magic-weapon-attack-damage-bonus", label: "+1 Att/danni" }),
   ]),
   "flame-blade-damage": Object.freeze([
-    Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 danni da fuoco" }),
+    Object.freeze({ id: "flame-blade-fire-damage", label: "3d6 fuoco" }),
+  ]),
+  "xanathar-lama-dombra-damage": Object.freeze([
+    Object.freeze({ id: "xanathar-lama-dombra-psychic-damage", label: "2d8 psichici" }),
   ]),
   "elemental-weapon-acido": Object.freeze([
     Object.freeze({ id: "elemental-weapon-acido-magical", label: "Arma magica" }),
@@ -331,7 +442,7 @@ function normalizedSummaryParts(value) {
 function isSaveReminderSummaryPart(part, effect) {
   if (!effect?.saveReminder) return false;
   const id = String(part?.id || "").trim().toLocaleLowerCase("it");
-  return /(?:^|-)save$/u.test(id);
+  return /(?:^|-)save(?::.*)?$/u.test(id);
 }
 
 function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
@@ -343,6 +454,10 @@ function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
   const attackBonus = Number(mechanics.attackRoll?.bonus);
   const damageDice = String(mechanics.damageBonus?.dice || "").trim();
   const bonusDamageType = String(mechanics.damageBonus?.type || "").trim();
+  const areaDamageDice = String(mechanics.areaDamage?.dice || "").trim();
+  const areaDamageType = String(mechanics.areaDamage?.type || "").trim();
+  const replacementDamageDice = String(mechanics.damageReplacement?.dice || "").trim();
+  const replacementDamageType = String(mechanics.damageReplacement?.type || "").trim();
   return parts.map((part) => {
     if (effectId === "agathys-armor"
       && part.id === "agathys-temporary-hit-points"
@@ -362,7 +477,43 @@ function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
     if (effectId === "flame-blade-damage"
       && part.id === "flame-blade-fire-damage"
       && damageDice) {
-      return { ...part, label: `${damageDice} ${bonusDamageType || "danni da fuoco"}` };
+      return { ...part, label: `${damageDice} ${bonusDamageType || "fuoco"}` };
+    }
+    if (effectId === "xanathar-lama-dombra-damage"
+      && part.id === "xanathar-lama-dombra-psychic-damage"
+      && damageDice) {
+      return { ...part, label: `${damageDice} ${bonusDamageType || "psichici"}` };
+    }
+    if (effectId === "next-melee-hit-acido"
+      || effectId === "next-melee-hit-freddo"
+      || effectId === "next-melee-hit-fulmine"
+      || effectId === "next-melee-hit-fuoco"
+      || effectId === "next-melee-hit-tuono") {
+      if (part.id.startsWith("absorb-elements-melee-damage-") && damageDice) {
+        const type = bonusDamageType || effectId.slice("next-melee-hit-".length);
+        return { ...part, label: `+${damageDice} ${type} in mischia` };
+      }
+    }
+    if (effectId.startsWith("spirit-shroud-")
+      && part.id.endsWith("-damage")
+      && damageDice) {
+      const type = bonusDamageType || effectId.slice("spirit-shroud-".length);
+      return { ...part, label: `+${damageDice} ${type} entro 3m` };
+    }
+    if (effectId === "hail-of-thorns-trigger"
+      && part.id === "hail-of-thorns-trigger-damage"
+      && areaDamageDice) {
+      return { ...part, label: `${areaDamageDice} ${areaDamageType || "perforanti"}` };
+    }
+    if (effectId === "lightning-arrow-trigger"
+      && part.id === "lightning-arrow-trigger-primary-damage"
+      && replacementDamageDice) {
+      return { ...part, label: `${replacementDamageDice} ${replacementDamageType || "fulmine"}` };
+    }
+    if (effectId === "lightning-arrow-trigger"
+      && part.id === "lightning-arrow-trigger-area-damage"
+      && areaDamageDice) {
+      return { ...part, label: `Area 3 m: ${areaDamageDice} ${areaDamageType || "fulmine"}` };
     }
     if (effectId.startsWith("elemental-weapon-")
       && part.id.endsWith("-attack-bonus")

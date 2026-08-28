@@ -8,36 +8,41 @@
 
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
-- Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **1**.
+- Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **0**.
 - Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **132** (137 regole).
 - Workflow che richiedono smoke test runtime: **389**.
-- Lacune RAW confermate P1: **35**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `6c8b172f67dc89c9`.
+- Lacune RAW confermate P1: **19**; discrepanze ad alta confidenza P2: **1**.
+- Impronta deterministica: `2ec5e6437b42a732`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 47 |
+| FULL | 63 |
 | MANUAL | 88 |
-| PARTIAL | 197 |
-| TRACK_ONLY | 145 |
+| PARTIAL | 182 |
+| TRACK_ONLY | 144 |
 
 ### Stato di copertura (coverageStatus)
 
+`CLOSED` indica una decisione di prodotto chiusa: la copertura è accettata e non sono richieste ulteriori azioni di automazione.
+
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 50 |
-| GAP | 37 |
-| UNREVIEWED | 390 |
+| ACCEPTED | 68 |
+| CLOSED | 6 |
+| GAP | 20 |
+| UNREVIEWED | 383 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 47 |
+| FULL | 63 |
 | MANUAL | 3 |
-| UNREVIEWED | 427 |
+| PARTIAL | 5 |
+| TRACK_ONLY | 3 |
+| UNREVIEWED | 403 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -57,28 +62,26 @@
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 33 |
+| ACTIVE_ACTION | 37 |
 | AREA_GEOMETRY | 132 |
-| CAST | 224 |
-| CLEANUP | 105 |
+| CAST | 221 |
+| CLEANUP | 106 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 85 |
+| TURN_TRIGGER | 87 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| fragile | 1 |
-| partial | 36 |
-| reachable | 355 |
+| partial | 20 |
+| reachable | 372 |
 | unexposed | 85 |
 
 ### Problemi di integrazione
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION_REMINDER_ONLY | 1 |
 | CAST_NO_MUTATIONS | 3 |
 | UNIFIED_CATALOG_MISSING | 85 |
 
@@ -167,7 +170,6 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Scolpire pietra | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Scopri trappole | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Scrigno segreto | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
-| Sfera della Tempesta | esposto | area-transaction | reminder-only: storm-sphere-lightning | fragile | azioni raggiungibili soltanto tramite reminder, senza fallback nella scheda attiva |
 | Spostamento planare | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Spruzzo velenoso | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
 | Stretta folgorante | assente | spell-lifecycle | nessuna | unexposed | incantesimo non esposto nella console unificata |
@@ -182,35 +184,19 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 
 | Incantesimo | Fonte | Lacune | Evidenza/valutazione |
 | --- | --- | --- | --- |
-| Aura di Vita | PHB 2014 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente | Servono resistenza necrotica, protezione del massimo PF e recupero di 1 PF a inizio turno per creature non ostili a 0 PF. |
-| Aura di Vitalità | PHB 2014 | azione di cura entro l'aura assente | L'aura deve delimitare i bersagli validi dell'azione bonus di cura da 2d6. |
 | Aura sacra | SRD 5.1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato | Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell. |
 | Compulsione | SRD 5.1 | azione ripetibile della spell assente; meccanica di movimento assente | Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento. |
-| Corona di Stelle | Xanathar | contatore o risorsa interna della spell assente; azione ripetibile della spell assente | La spell parte con sette scintille, ne consuma una per azione bonus e termina alla settima; anche la luce dipende dal residuo. |
 | Debilitazione | Xanathar | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell. |
 | Dominare bestie | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Dominare mostri | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Dominare persona | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Forme animali | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati. |
-| Frecce Infuocate | Xanathar | contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente | Servono il contatore condiviso delle dodici munizioni e il consumo dell'effetto al primo colpo o mancato di ogni freccia estratta. |
 | Fuorviare | SRD 5.1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente | Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi. |
-| Gabbia dell'Anima | Xanathar | contatore o risorsa interna della spell assente; azione ripetibile della spell assente | L'anima dispone di sei usi condivisi tra più azioni con durate e conseguenze differenti; il registro non espone il contatore né le opzioni. |
-| Guscio anti-vita | SRD 5.1 | barriera e interruzione al contatto non risolte; attraversamento continuo non rilevato | L'aura segue il caster, ma il confine deve respingere categorie selettive e terminare se il caster forza un attraversamento. |
 | Interdizione Primordiale | Xanathar | trigger condizionale durante la durata assente; conseguenza alla fine della spell assente | Una reazione al danno trasforma tutte le resistenze nell'immunità al tipo scelto fino alla fine del turno successivo. |
 | Intermittenza | SRD 5.1 | stato casuale ricorrente di turno assente; conseguenza alla fine della spell assente | Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione. |
 | Inversione della gravità | SRD 5.1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti | La geometria non basta: servono salita, collisione, sospensione e caduta coordinata quando termina la spell. |
-| Investitura del Vento | Xanathar | azione ripetibile della spell assente; conseguenza alla fine della spell assente | La velocità di volo è modellabile, ma mancano il cubo offensivo ripetibile e la caduta se la spell termina mentre il caster è in volo. |
-| Investitura della Pietra | Xanathar | azione ripetibile della spell assente; eccezioni e immunità ai costi di movimento assenti; conseguenza alla fine della spell assente | Servono terremoto ripetibile, immunità al costo del terreno difficile, attraversamento della pietra ed espulsione con Stordito se il movimento termina al suo interno. |
-| Lama d'Ombra | Xanathar | azione ripetibile della spell assente | La spell non espone l'arma creata né l'azione bonus che la fa ricomparire nella mano dopo che è stata lasciata cadere o lanciata. |
-| Lama infuocata | SRD 5.1 | azione ripetibile della spell assente | La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata. |
 | Muro d'Acqua | Xanathar | meccanica di movimento assente; trigger condizionale durante la durata assente | La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo. |
-| Muro di Luce | Xanathar | contatore o risorsa interna della spell assente; azione ripetibile della spell assente; effetto ricorrente di turno assente | Ogni raggio usa un'azione e accorcia il muro di 3 m; restano inoltre danno a fine turno e TS ricorrente contro Accecato. |
-| Muro di vento | SRD 5.1 | vincoli a proiettili e attraversamento assenti; attraversamento continuo non rilevato | La sagoma esiste; mancano blocco selettivo di creature/oggetti, proiettili e forme gassose. |
-| Muro prismatico | SRD 5.1 | strati distruttibili e stato per strato assenti; attraversamento continuo non rilevato; sequenza di più TS e uscita dalla condizione incompleta | La sagoma base esiste, ma i sette strati, le distruzioni progressive, gli effetti per strato e le sequenze di TS non hanno uno stato dedicato. |
-| Palla di fuoco ritardata | SRD 5.1 | detonazione e accumulo alla terminazione assenti; contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente | La sfera accumula 1d6 a fine turno, esplode alla terminazione o al contatto e può essere lanciata altrove dopo un TS riuscito. |
 | Parlare con i vegetali | SRD 5.1 | meccanica di movimento assente; varianti rilevanti non modellate | L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker. |
-| Punizione marchiante | SRD 5.1 | trigger condizionale durante la durata assente; regole passive e limitazioni della spell incomplete | Manca la risoluzione sul prossimo colpo: danni radiosi, rivelazione di un bersaglio invisibile e blocco di nuova invisibilità fino alla fine della spell. |
-| Spruzzo prismatico | SRD 5.1 | esito casuale e relativo stato non rappresentati; sequenza di più TS e uscita dalla condizione incompleta; condizione o stato RAW non rappresentato | La sagoma e il primo TS esistono, ma non il d8 per ciascun bersaglio, il doppio raggio con 8, i TS successivi e gli stati Accecato, Trattenuto e Pietrificato. |
 | Sudario Spirituale | Tasha | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente | Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo. |
 | Telecinesi | SRD 5.1 | azione ripetibile della spell assente; condizione o stato RAW non rappresentato | Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo. |
 | Tempesta di vendetta | SRD 5.1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente | L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento. |
@@ -260,8 +246,8 @@ Nessuna voce.
 | Artificio druidico | `druidcraft` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Assorbire Elementi | `xanathar-assorbire-elementi` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Aura di Purezza | `phb2014-aura-di-purezza` | PHB 2014 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Aura di Vita | `phb2014-aura-di-vita` | PHB 2014 / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | effetti passivi dell'aura incompleti; effetto ricorrente di turno assente |
-| Aura di Vitalità | `phb2014-aura-di-vitalita` | PHB 2014 / 3 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione di cura entro l'aura assente |
+| Aura di Vita | `phb2014-aura-di-vita` | PHB 2014 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
+| Aura di Vitalità | `phb2014-aura-di-vitalita` | PHB 2014 / 3 | FULL | CLOSED | FULL | UNIFIED | reachable | — | — |
 | Aura magica dell'arcanista | `arcanists-magic-aura` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Aura sacra | `holy-aura` | SRD 5.1 / 8 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato |
 | Bacche benefiche | `goodberry` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
@@ -323,7 +309,7 @@ Nessuna voce.
 | Controllare Venti | `xanathar-controllare-venti` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Cordone di Frecce | `phb2014-cordone-di-frecce` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Corona di Follia | `phb2014-corona-di-follia` | PHB 2014 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Corona di Stelle | `xanathar-corona-di-stelle` | Xanathar / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente |
+| Corona di Stelle | `xanathar-corona-di-stelle` | Xanathar / 7 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Costrizione | `geas` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Creare cibo e acqua | `create-food-and-water` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Creare Falò | `xanathar-creare-falo` | Xanathar / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -406,14 +392,14 @@ Nessuna voce.
 | Fortezza della Mente | `tasha-fortezza-della-mente` | Tasha / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fortezza Possente | `xanathar-fortezza-possente` | Xanathar / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Frantumare | `shatter` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Frecce Infuocate | `xanathar-frecce-infuocate` | Xanathar / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente |
+| Frecce Infuocate | `xanathar-frecce-infuocate` | Xanathar / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Freccia acida | `acid-arrow` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Freccia Folgorante | `phb2014-freccia-folgorante` | PHB 2014 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Frusta di Spine | `phb2014-frusta-di-spine` | PHB 2014 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Fulgore Nauseante | `xanathar-fulgore-nauseante` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Fulmine | `lightning-bolt` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Fuorviare | `mislead` | SRD 5.1 / 5 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente |
-| Gabbia dell'Anima | `xanathar-gabbia-dellanima` | Xanathar / 6 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente |
+| Gabbia dell'Anima | `xanathar-gabbia-dellanima` | Xanathar / 6 | TRACK_ONLY | ACCEPTED | TRACK_ONLY | UNIFIED | reachable | — | — |
 | Gabbia di forza | `forcecage` | SRD 5.1 / 7 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Giara magica | `magic-jar` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Glifo di interdizione | `glyph-of-warding` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -425,7 +411,7 @@ Nessuna voce.
 | Guarigione | `heal` | SRD 5.1 / 6 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Guarigione di massa | `mass-heal` | SRD 5.1 / 9 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Guida | `guidance` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Guscio anti-vita | `antilife-shell` | SRD 5.1 / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | barriera e interruzione al contatto non risolte; attraversamento continuo non rilevato |
+| Guscio anti-vita | `antilife-shell` | SRD 5.1 / 5 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Identificare | `identify` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Illusione minore | `minor-illusion` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Illusione programmata | `programmed-illusion` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -453,18 +439,18 @@ Nessuna voce.
 | Intralciare | `entangle` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Inversione della gravità | `reverse-gravity` | SRD 5.1 / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti |
 | Investitura del Ghiaccio | `xanathar-investitura-del-ghiaccio` | Xanathar / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Investitura del Vento | `xanathar-investitura-del-vento` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; conseguenza alla fine della spell assente |
+| Investitura del Vento | `xanathar-investitura-del-vento` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Investitura della Fiamma | `xanathar-investitura-della-fiamma` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Investitura della Pietra | `xanathar-investitura-della-pietra` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; eccezioni e immunità ai costi di movimento assenti; conseguenza alla fine della spell assente |
+| Investitura della Pietra | `xanathar-investitura-della-pietra` | Xanathar / 6 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Inviare | `sending` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invisibilità | `invisibility` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invisibilità superiore | `greater-invisibility` | SRD 5.1 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Invocare il fulmine | `call-lightning` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Invulnerabilità | `xanathar-invulnerabilita` | Xanathar / 9 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Labirinto | `maze` | SRD 5.1 / 8 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Lama d'Ombra | `xanathar-lama-dombra` | Xanathar / 2 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente |
+| Lama d'Ombra | `xanathar-lama-dombra` | Xanathar / 2 | TRACK_ONLY | CLOSED | TRACK_ONLY | UNIFIED | reachable | — | — |
 | Lama del Disastro | `tasha-lama-del-disastro` | Tasha / 9 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
-| Lama infuocata | `flame-blade` | SRD 5.1 / 2 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente |
+| Lama infuocata | `flame-blade` | SRD 5.1 / 2 | TRACK_ONLY | CLOSED | TRACK_ONLY | UNIFIED | reachable | — | — |
 | Lama Roboante | `tasha-lama-roboante` | Tasha / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Lama Verdefiamma | `tasha-lama-verdefiamma` | Tasha / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Legame con le Bestie | `xanathar-legame-con-le-bestie` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -507,12 +493,12 @@ Nessuna voce.
 | Muro di forza | `wall-of-force` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di fuoco | `wall-of-fire` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di ghiaccio | `wall-of-ice` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Muro di Luce | `xanathar-muro-di-luce` | Xanathar / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | contatore o risorsa interna della spell assente; azione ripetibile della spell assente; effetto ricorrente di turno assente |
+| Muro di Luce | `xanathar-muro-di-luce` | Xanathar / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Muro di pietra | `wall-of-stone` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di Sabbia | `xanathar-muro-di-sabbia` | Xanathar / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Muro di spine | `wall-of-thorns` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Muro di vento | `wind-wall` | SRD 5.1 / 3 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | vincoli a proiettili e attraversamento assenti; attraversamento continuo non rilevato |
-| Muro prismatico | `prismatic-wall` | SRD 5.1 / 9 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | strati distruttibili e stato per strato assenti; attraversamento continuo non rilevato; sequenza di più TS e uscita dalla condizione incompleta |
+| Muro di vento | `wind-wall` | SRD 5.1 / 3 | PARTIAL | ACCEPTED | PARTIAL | UNIFIED | reachable | — | — |
+| Muro prismatico | `prismatic-wall` | SRD 5.1 / 9 | PARTIAL | ACCEPTED | PARTIAL | UNIFIED | reachable | — | — |
 | Nemici in Abbondanza | `xanathar-nemici-in-abbondanza` | Xanathar / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Nube di nebbia | `fog-cloud` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Nube di Pugnali | `phb2014-nube-di-pugnali` | PHB 2014 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -529,7 +515,7 @@ Nessuna voce.
 | Oscurità della Follia | `xanathar-oscurita-della-follia` | Xanathar / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Ossa della Terra | `xanathar-ossa-della-terra` | Xanathar / 6 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Palla di fuoco | `fireball` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Palla di fuoco ritardata | `delayed-blast-fireball` | SRD 5.1 / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | detonazione e accumulo alla terminazione assenti; contatore o risorsa interna della spell assente; trigger condizionale durante la durata assente |
+| Palla di fuoco ritardata | `delayed-blast-fireball` | SRD 5.1 / 7 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Parlare con gli animali | `speak-with-animals` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parlare con i morti | `speak-with-dead` | SRD 5.1 / 3 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Parlare con i vegetali | `speak-with-plants` | SRD 5.1 / 3 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | meccanica di movimento assente; varianti rilevanti non modellate |
@@ -569,15 +555,15 @@ Nessuna voce.
 | Protezione dai veleni | `protection-from-poison` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Protezione dal bene e dal male | `protection-from-evil-and-good` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Protezione dall'energia | `protection-from-energy` | SRD 5.1 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione Accecante | `phb2014-punizione-accecante` | PHB 2014 / 3 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione Collerica | `phb2014-punizione-collerica` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione Demoralizzante | `phb2014-punizione-demoralizzante` | PHB 2014 / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione Esiliante | `phb2014-punizione-esiliante` | PHB 2014 / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione Incandescente | `phb2014-punizione-incandescente` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Punizione marchiante | `branding-smite` | SRD 5.1 / 2 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; regole passive e limitazioni della spell incomplete |
-| Punizione Tonante | `phb2014-punizione-tonante` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Punizione Accecante | `phb2014-punizione-accecante` | PHB 2014 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Collerica | `phb2014-punizione-collerica` | PHB 2014 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Demoralizzante | `phb2014-punizione-demoralizzante` | PHB 2014 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Esiliante | `phb2014-punizione-esiliante` | PHB 2014 / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Incandescente | `phb2014-punizione-incandescente` | PHB 2014 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Marchiante | `branding-smite` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
+| Punizione Tonante | `phb2014-punizione-tonante` | PHB 2014 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Purificare cibo e bevande | `purify-food-and-drink` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Raffica di Spine | `phb2014-raffica-di-spine` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Raffica di Spine | `phb2014-raffica-di-spine` | PHB 2014 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Raggio di affaticamento | `ray-of-enfeeblement` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Raggio di gelo | `ray-of-frost` | SRD 5.1 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Raggio di Infermità | `phb2014-raggio-di-infermita` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -640,7 +626,7 @@ Nessuna voce.
 | Sfera Acquea | `xanathar-sfera-acquea` | Xanathar / 4 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sfera al Vetriolo | `xanathar-sfera-al-vetriolo` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfera congelante | `freezing-sphere` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Sfera della Tempesta | `xanathar-sfera-della-tempesta` | Xanathar / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | fragile | — | — |
+| Sfera della Tempesta | `xanathar-sfera-della-tempesta` | Xanathar / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfera elastica | `resilient-sphere` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sfera infuocata | `flaming-sphere` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Sfocatura | `blur` | SRD 5.1 / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -658,7 +644,7 @@ Nessuna voce.
 | Spirito Guaritore | `xanathar-spirito-guaritore` | Xanathar / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Spostamento planare | `plane-shift` | SRD 5.1 / 7 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Spruzzo colorato | `color-spray` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Spruzzo prismatico | `prismatic-spray` | SRD 5.1 / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | esito casuale e relativo stato non rappresentati; sequenza di più TS e uscita dalla condizione incompleta; condizione o stato RAW non rappresentato |
+| Spruzzo prismatico | `prismatic-spray` | SRD 5.1 / 7 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Spruzzo velenoso | `poison-spray` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Stretta della Terra di Maximilian | `xanathar-stretta-della-terra-di-maximilian` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Stretta folgorante | `shocking-grasp` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |

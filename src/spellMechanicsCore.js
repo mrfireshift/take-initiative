@@ -15,7 +15,15 @@ function scaledNumber(value, castContext = {}) {
   const slotLevel = Math.max(baseSlot, Number(castContext?.slotLevel) || baseSlot);
   const perSlot = Number(value.perSlotAbove) || 0;
   const step = Math.max(1, Math.floor(Number(value.step) || 1));
-  const increments = Math.floor(Math.max(0, slotLevel - baseSlot) / step);
+  const firstIncrementAtValue = Number(value.firstIncrementAt);
+  const firstIncrementAt = Number.isFinite(firstIncrementAtValue)
+    ? Math.max(baseSlot, firstIncrementAtValue)
+    : null;
+  const increments = firstIncrementAt === null
+    ? Math.floor(Math.max(0, slotLevel - baseSlot) / step)
+    : slotLevel < firstIncrementAt
+      ? 0
+      : 1 + Math.floor((slotLevel - firstIncrementAt) / step);
   const resolved = base + increments * perSlot;
   const maximum = Number(value.max);
   return Number.isFinite(maximum) ? Math.min(maximum, resolved) : resolved;
@@ -46,9 +54,10 @@ export function resolveSpellMechanics(value, castContext = {}) {
     const resolved = scaledNumber(mechanics[group][field], castContext);
     if (resolved != null) mechanics[group][field] = resolved;
   }
-  if (mechanics.damageBonus?.dice !== undefined) {
-    const dice = scaledDice(mechanics.damageBonus.dice, castContext);
-    if (dice) mechanics.damageBonus.dice = dice;
+  for (const group of ["damageBonus", "areaDamage", "damageReplacement", "ongoingDamage"]) {
+    if (mechanics[group]?.dice === undefined) continue;
+    const dice = scaledDice(mechanics[group].dice, castContext);
+    if (dice) mechanics[group].dice = dice;
   }
   return mechanics;
 }
@@ -59,7 +68,7 @@ function signedDice(value) {
   return /^[+-]/u.test(dice) ? dice : `+${dice}`;
 }
 
-export function spellMechanicsLabel(mechanics, fallback = "") {
+export function spellMechanicsLabel(mechanics, fallback = "", effectId = "") {
   if (!mechanics || mechanics.deriveLabel !== true) return String(fallback || "").trim();
   const parts = [];
   const attackDice = signedDice(mechanics.attackRoll?.modifierDice);
@@ -90,7 +99,22 @@ export function spellMechanicsLabel(mechanics, fallback = "") {
     const type = String(mechanics.damageBonus.type || "danni").trim();
     const source = mechanics.damageBonus.sourceOnly === true ? " dal caster" : "";
     const prefix = mechanics.damageBonus.total === true ? "" : "+";
-    parts.push(`${prefix}${mechanics.damageBonus.dice} ${type}${source}`);
+    const context = effectId.startsWith("next-melee-hit-")
+      ? " in mischia"
+      : effectId.startsWith("spirit-shroud-")
+        ? " entro 3m"
+        : "";
+    parts.push(`${prefix}${mechanics.damageBonus.dice} ${type}${source}${context}`);
+  }
+  const areaDamageDice = String(mechanics.areaDamage?.dice || "").trim();
+  const areaDamageType = String(mechanics.areaDamage?.type || "perforanti").trim();
+  const replacementDamageDice = String(mechanics.damageReplacement?.dice || "").trim();
+  const replacementDamageType = String(mechanics.damageReplacement?.type || "fulmine").trim();
+  if (effectId === "hail-of-thorns-trigger" && areaDamageDice) {
+    parts.push(`Prossimo attacco a distanza / area ${areaDamageDice} ${areaDamageType}`);
+  }
+  if (effectId === "lightning-arrow-trigger" && replacementDamageDice && areaDamageDice) {
+    parts.push(`Prossimo attacco a distanza / ${replacementDamageDice} / area ${areaDamageDice} ${replacementDamageType}`);
   }
   if (Number.isFinite(Number(mechanics.tempHp?.amount))) {
     parts.push(`${Number(mechanics.tempHp.amount)} PF temp.`);
@@ -110,6 +134,6 @@ export function resolveSpellEffect(effect, castContext = {}) {
     ...(Array.isArray(effect?.summaryParts)
       ? { summaryParts: effectSummaryPartsFor({ ...effect, mechanics }) }
       : {}),
-    label: spellMechanicsLabel(mechanics, effect?.label),
+    label: spellMechanicsLabel(mechanics, effect?.label, effect?.id),
   };
 }

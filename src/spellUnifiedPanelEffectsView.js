@@ -99,12 +99,13 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
     });
 
     if (overview.terminable) {
+      const terminal = overview?.context?.terminalResolution;
       const terminate = createButton(documentRef, {
-        label: "Termina",
+        label: terminal ? "Detona" : "Termina",
         className: "unified-terminate-button",
         disabled: overview.terminating === true,
         attributes: {
-          title: `Termina ${overview.name}`,
+          title: terminal ? `Detona ${overview.name}` : `Termina ${overview.name}`,
           "data-terminate-instance": overview.instanceId,
         },
       });
@@ -118,6 +119,9 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
     const details = [
       overview.casterName ? `Caster: ${overview.casterName}` : "",
       targetLabel ? `${overview.prepared ? "Preparato su" : "Bersagli"}: ${targetLabel}` : (overview.prepared ? "Preparato" : ""),
+      ...(Array.isArray(overview?.summaryParts)
+        ? overview.summaryParts.map((part) => String(part?.label || "").trim()).filter(Boolean)
+        : []),
       overview.durationLabel ? `Durata: ${overview.durationLabel}` : "",
       overview.tokenLabel || "",
     ].filter(Boolean);

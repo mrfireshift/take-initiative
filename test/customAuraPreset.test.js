@@ -58,6 +58,53 @@ test("crea preset normalizzato da un'aura esistente", () => {
   assert.equal(preset.definition.presetRef, undefined);
 });
 
+test("la definizione legacy del preset viene letta ma non riscritta nei mirror", () => {
+  const preset = normalizeCustomAuraPreset({
+    id: "preset-legacy",
+    definition: {
+      name: "Aura legacy",
+      pill: { enabled: true, label: "Legacy" },
+      warnings: { start: { enabled: true, label: "Turno" } },
+    },
+  });
+  assert.equal(preset.definition.pills[0].label, "Legacy");
+  assert.equal(preset.definition.reminders[0].event, "turn-start");
+  assert.equal(preset.definition.pill, undefined);
+  assert.equal(preset.definition.warnings, undefined);
+});
+
+test("preset e aura legacy condividono la quantizzazione canonica del raggio", () => {
+  const normalizedPreset = normalizeCustomAuraPreset({
+    id: "radius-preset",
+    definition: {
+      name: "Radius",
+      radiusMeters: 8,
+      pills: [],
+      reminders: [],
+    },
+  });
+  const normalizedPreset84 = normalizeCustomAuraPreset({
+    id: "radius-preset-84",
+    definition: {
+      name: "Radius",
+      radiusMeters: 8.4,
+      pills: [],
+      reminders: [],
+    },
+  });
+
+  assert.equal(normalizedPreset.definition.radiusMeters, 7.5);
+  assert.equal(normalizedPreset84.definition.radiusMeters, 9);
+  assert.equal(
+    normalizeCustomAura({
+      radiusMeters: 8,
+      pill: { enabled: true, label: "Legacy" },
+      warnings: { start: { enabled: true } },
+    }).radiusMeters,
+    7.5,
+  );
+});
+
 test("applicare un preset genera un'aura linked con snapshot completo e presetRef", () => {
   const preset = {
     id: "preset-123",
@@ -356,6 +403,9 @@ test("store gestisce persistenza, sottoscrizioni e cancellazione con tombstone",
   assert.equal(heroRecord.deleted, true);
   assert.equal(heroRecord.revision, 3);
   assert.equal(emitted, 4);
+  assert.equal("importPresets" in store, false);
+  assert.equal("exportPresets" in store, false);
+  assert.equal("clearAll" in store, false);
 });
 
 test("preset store propaga l'invalidazione cross-runtime via broadcast senza polling", () => {

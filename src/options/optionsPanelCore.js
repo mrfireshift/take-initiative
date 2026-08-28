@@ -14,6 +14,7 @@ export const OPTIONS_PANEL_SCENE_FAMILIES = Object.freeze({
   directResolution: "turn.directReminderResolution",
   movementReminder: "turn.movementReminder",
   activeTurnLabel: "map.activeTurnLabel",
+  summaryParts: "uiSync.showEffectSummaryParts",
 });
 
 function clone(value) {
@@ -53,7 +54,10 @@ export function normalizeOptionsPanelDraft(value = {}) {
       embersAnimations: roomInput.embersAnimations
         ?? roomInput.integrations?.embersAnimations,
     },
-    uiSync: { trackerOpen: roomInput.trackerOpen },
+    uiSync: {
+      trackerOpen: roomInput.trackerOpen,
+      showEffectSummaryParts: roomInput.summaryParts,
+    },
   });
   const rawOverrides = {};
   for (const [family, path] of Object.entries(OPTIONS_PANEL_SCENE_FAMILIES)) {
@@ -80,6 +84,7 @@ export function normalizeOptionsPanelDraft(value = {}) {
       directResolution: room.turn.directReminderResolution,
       movementReminder: room.turn.movementReminder,
       activeTurnLabel: room.map.activeTurnLabel,
+      summaryParts: room.uiSync.showEffectSummaryParts,
     },
     scene: Object.fromEntries(Object.entries(OPTIONS_PANEL_SCENE_FAMILIES).map(
       ([family, path]) => {
@@ -100,7 +105,8 @@ function roomValueForFamily(room, family) {
   if (family === "popup") return room.turn.popup;
   if (family === "directResolution") return room.turn.directReminderResolution;
   if (family === "movementReminder") return room.turn.movementReminder;
-  return room.map.activeTurnLabel;
+  if (family === "activeTurnLabel") return room.map.activeTurnLabel;
+  return room.uiSync.showEffectSummaryParts;
 }
 
 export function buildOptionsPanelPatches(draft) {
@@ -133,7 +139,10 @@ export function buildOptionsPanelPatches(draft) {
       integrations: {
         embersAnimations: normalized.room.embersAnimations,
       },
-      uiSync: { trackerOpen: normalized.room.trackerOpen },
+      uiSync: {
+        trackerOpen: normalized.room.trackerOpen,
+        showEffectSummaryParts: normalized.room.summaryParts,
+      },
     },
     scene: {
       overrides: Object.fromEntries(Object.entries(OPTIONS_PANEL_SCENE_FAMILIES).map(

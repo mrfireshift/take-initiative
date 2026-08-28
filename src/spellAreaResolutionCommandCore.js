@@ -18,6 +18,7 @@ import {
 import {
   getSpellAreaRuleForPlacement,
   getSpellAreaRuleById,
+  spellPlacedDamageCastAllowsEmptyTargets,
 } from "./spellAreaRules.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import {
@@ -52,6 +53,7 @@ export const SPELL_AREA_RESOLUTION_SOURCE_KINDS = Object.freeze([
   "prepared-resolution",
   "active-action",
   "zone-trigger",
+  "terminal-resolution",
 ]);
 
 export const SPELL_AREA_RESOLUTION_ERROR_CODES = Object.freeze({
@@ -497,6 +499,7 @@ function placementValidation({
   casterId,
   choiceValue,
   activeAction,
+  sourceKind,
   phase,
   trigger,
   sceneEpoch,
@@ -630,10 +633,19 @@ function placementValidation({
   }
 
   const targetIds = confirmed ? payload.targetIds : [];
+  const emptyDamageCastAllowed = spellPlacedDamageCastAllowsEmptyTargets({
+    sourceKind,
+    phase,
+    activeActionId: activeAction?.id,
+    damageRequired: contract?.presentation?.inputs?.damage?.required === true,
+    targeting: contract?.presentation?.targeting,
+    rule,
+  });
   const requiresConfirmedTargets = targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     && contract?.presentation?.targeting?.confirmTargets === true
     && !["zone", "aura"].includes(rule?.kind)
-    && !isTeleportSpell(spellId);
+    && !isTeleportSpell(spellId)
+    && !emptyDamageCastAllowed;
   if (
     confirmed
     && requiresConfirmedTargets
@@ -804,6 +816,7 @@ function normalizeHp(
   spell = null,
   primaryTargetId = "",
   legacyPreparedArea = false,
+  omitDamageInput = false,
 ) {
   const rawHp = input.hp && typeof input.hp === "object" ? input.hp : {
     ...(input.hp === null || input.hp === undefined ? {} : { amount: input.hp }),
@@ -825,7 +838,8 @@ function normalizeHp(
     )
     && !boardTokenInitial
     && !automaticAuraInitial
-    && !emptyInitialZone;
+    && !emptyInitialZone
+    && !omitDamageInput;
   const mode = text(
     rawHp.mode
       || input.hpMode
@@ -881,11 +895,14 @@ function normalizeHp(
   if (primaryDamageProvided && (primaryAmount === null || primaryAmount < 0)) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.PRIMARY_DAMAGE_INVALID);
   }
-  if (required && !amountProvided) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_REQUIRED);
-  if (amountProvided && (amount === null || amount < 0 || !Number.isFinite(amount))) {
+  const effectiveAmountProvided = omitDamageInput ? false : amountProvided;
+  const effectiveAmount = omitDamageInput ? null : amount;
+  if (required && !effectiveAmountProvided) addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_REQUIRED);
+  if (effectiveAmountProvided
+    && (effectiveAmount === null || effectiveAmount < 0 || !Number.isFinite(effectiveAmount))) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_INVALID);
   }
-  if (!required && validMode === "none" && amount !== null) {
+  if (!required && validMode === "none" && effectiveAmount !== null) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.HP_UNEXPECTED);
   }
   const outcomeFactors = {};
@@ -905,8 +922,8 @@ function normalizeHp(
   }
   return {
     required,
-    mode: required || amount !== null ? validMode : "none",
-    amount: amount === null ? null : Math.floor(amount),
+    mode: omitDamageInput ? "none" : required || effectiveAmount !== null ? validMode : "none",
+    amount: effectiveAmount === null ? null : Math.floor(effectiveAmount),
     primaryAmount: primaryAmount === null ? null : Math.floor(primaryAmount),
     primaryRequired: primaryDamageRequired,
     ...(primaryDamageMode ? { primaryDamageMode } : {}),
@@ -1305,6 +1322,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     casterId,
     choiceValue,
     activeAction,
+    sourceKind,
     phase,
     trigger,
     sceneEpoch,
@@ -1434,10 +1452,19 @@ export function buildSpellAreaResolutionCommand(input = {}) {
   }
   addErrors(errors, targetCapacity.errors);
   const ruleKind = placement.rule?.kind;
+  const emptyDamageCastAllowed = spellPlacedDamageCastAllowsEmptyTargets({
+    sourceKind,
+    phase,
+    activeActionId: actionId,
+    damageRequired: contract?.presentation?.inputs?.damage?.required === true,
+    targeting: targetingContract,
+    rule: placement.rule,
+  });
   const nonConfirmedZoneAllowsEmptyTargets = ruleKind === "zone"
     && targetMode === SPELL_UNIFIED_TARGETING_MODES.GEOMETRIC
     && targetingContract.confirmTargets !== true;
-  const allowEmptyTargets = (targetMode === SPELL_UNIFIED_TARGETING_MODES.NONE
+  const allowEmptyTargets = emptyDamageCastAllowed
+    || (targetMode === SPELL_UNIFIED_TARGETING_MODES.NONE
     || phase === "prepare"
     || ruleKind === "zone"
     || ruleKind === "aura"
@@ -1512,6 +1539,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     spell,
     primaryTargetId,
     legacyPreparedArea,
+    emptyDamageCastAllowed && targetIds.length === 0,
   );
 
   let resolutionResult = null;
@@ -1661,12 +1689,16 @@ export function buildSpellAreaResolutionCommand(input = {}) {
       spatialValidation,
       ignoreTargetLimit,
       capacity: targetCapacity,
+      allowEmptyTargets,
     },
     placement: placement.commandPlacement,
     outcomes: {
       required: saveOutcomesRequired || attackRequired,
       byTarget: outcomes.byTarget,
       ...(attackOutcome ? { attack: attackOutcome } : {}),
+      ...(placement.rule?.zonePolicy?.initialSave
+        ? { save: serializable(placement.rule.zonePolicy.initialSave) }
+        : {}),
     },
     hp,
     execution: executionOutput,

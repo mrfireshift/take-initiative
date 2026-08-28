@@ -370,6 +370,71 @@ test("il danno automatico di zona richiede Conferma e applica il tiro pieno", ()
   assert.deepEqual(plan.hpChange, { before: 20, after: 13, hpMax: 20 });
 });
 
+test("Aura di Vita limita il reminder manuale a viventi non ostili a 0 PF", () => {
+  const activation = {
+    id: "life-start",
+    resolution: "manual-heal",
+    zoneItemId: "zone",
+    instanceId: "life-instance",
+    spellId: "phb2014-aura-di-vita",
+    targetIds: ["target"],
+    turnKey: "turn-life",
+    resolutionData: {
+      requiresLiving: true,
+      requiresHpZero: true,
+      requiresNonHostile: true,
+      healing: { dice: "1", baseSlot: 0, additionalPerSlotAbove: 0 },
+    },
+  };
+  const resolution = buildZoneTriggerReminderResolution({
+    activation,
+    targetId: "target",
+    sourceId: "caster",
+    sourceName: "Caster",
+    metadataKey: SPELL_STATIC_ZONE_META_KEY,
+  });
+  assert.deepEqual(resolution.activation.resolutionData, activation.resolutionData);
+
+  const healthy = buildReminderResolutionPlan({
+    notice: {
+      activationId: activation.id,
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 4, hpMax: 10, attitude: "pc", creatureType: "umanoide" }, activation.id),
+    outcome: "apply",
+    damageRoll: 1,
+  });
+  assert.equal(healthy.status, "unsupported");
+  assert.match(healthy.message, /0 PF/u);
+
+  const hostile = buildReminderResolutionPlan({
+    notice: {
+      activationId: activation.id,
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 0, hpMax: 10, attitude: "enemy", creatureType: "umanoide" }, activation.id),
+    outcome: "apply",
+    damageRoll: 1,
+  });
+  assert.equal(hostile.status, "unsupported");
+  assert.match(hostile.message, /ostile/u);
+
+  const valid = buildReminderResolutionPlan({
+    notice: {
+      activationId: activation.id,
+      targets: [{ id: "target" }],
+      resolution,
+    },
+    items: sceneItems({ hp: 0, hpMax: 10, attitude: "pc", creatureType: "umanoide" }, activation.id),
+    outcome: "apply",
+    damageRoll: 1,
+  });
+  assert.equal(valid.status, "ready");
+  assert.deepEqual(valid.hpChange, { before: 0, after: 1, hpMax: 10 });
+});
+
 test("l'immunita non applica danni né condizioni", () => {
   const plan = planForZone({
     outcome: REMINDER_OUTCOMES.IMMUNE,

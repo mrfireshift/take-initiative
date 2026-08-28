@@ -31,6 +31,10 @@ export function selectEffectsDisplayMode(options) {
   return resolved(options).shared.uiSync.effectsDisplayMode;
 }
 
+export function selectEffectSummaryPartsEnabled(options) {
+  return resolved(options).shared.uiSync.showEffectSummaryParts;
+}
+
 export function selectClocksCompact(options) {
   return resolved(options).local.windows.clocksCompact;
 }
@@ -174,6 +178,7 @@ export function selectOptionsPanelModel(options) {
       directResolution: room.turn.directReminderResolution,
       movementReminder: room.turn.movementReminder,
       activeTurnLabel: room.map.activeTurnLabel,
+      summaryParts: room.uiSync.showEffectSummaryParts,
     },
     scene: {
       hp: panelSceneEntry(value, "playerView.hp", room.playerView.hp),
@@ -194,6 +199,11 @@ export function selectOptionsPanelModel(options) {
         value,
         "map.activeTurnLabel",
         room.map.activeTurnLabel,
+      ),
+      summaryParts: panelSceneEntry(
+        value,
+        "uiSync.showEffectSummaryParts",
+        room.uiSync.showEffectSummaryParts,
       ),
     },
   });

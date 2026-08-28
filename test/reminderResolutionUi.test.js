@@ -10,6 +10,10 @@ const turnNoticeHtml = readFileSync(
   new URL("../turn-notice.html", import.meta.url),
   "utf8",
 );
+const legacyZoneNotice = readFileSync(
+  new URL("../src/zone-trigger-notice.ts", import.meta.url),
+  "utf8",
+);
 const historySource = readFileSync(
   new URL("../src/history.js", import.meta.url),
   "utf8",
@@ -69,10 +73,18 @@ test("i reminder con risposta GM restano aperti senza timer automatico", () => {
   assert.match(turnNotice, /if \(!reminderRowRequiresResponse\(row\)\) return;/);
   assert.match(turnNotice, /const requiresResponse = presentation\.rows\.some\(reminderRowRequiresResponse\)/);
   assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
-  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
+  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder && !hasPersistentPrismaticWallSave\) \{[\s\S]*?panel\.appendChild\(timer\)[\s\S]*?zoneHideTimer = window\.setTimeout/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
   assert.match(turnNotice, /shouldClearZoneNoticeAtTurn\(currentZoneTurnKey, notice\.turnKey\)/);
   assert.match(turnNotice, /clearZoneNotice\(\);/);
+});
+
+test("il TS di Muro Prismatico resta visibile anche nel notice legacy", () => {
+  assert.match(turnNotice, /function reminderRowRequiresPersistentDisplay\(row: any\)/);
+  assert.match(turnNotice, /row\?\.spellId === "prismatic-wall"/);
+  assert.match(reminderRender, /hasPersistentPrismaticWallSave/);
+  assert.match(legacyZoneNotice, /notice\.spellId === "prismatic-wall"/);
+  assert.match(legacyZoneNotice, /notice\.resolution === "manual-save"/);
 });
 
 test("il turn notice non ridimensiona il popover durante il bootstrap", () => {
@@ -97,7 +109,7 @@ test("un reminder consumabile resta visibile senza barra o timer automatico", ()
     reminderRender,
     /const hasPersistentReminder = presentation\.rows\.some\(\(row: any\) =>\s*row\.resolution\?\.mode === "consume"\s*\);/,
   );
-  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder\) \{/);
+  assert.match(reminderRender, /if \(!requiresResponse && !hasPersistentReminder && !hasPersistentPrismaticWallSave\) \{/);
   assert.doesNotMatch(turnNotice, /textContent = "Chiudi"/);
 });
 

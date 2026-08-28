@@ -20,6 +20,7 @@ import { openReferencePopover } from "./referencePopover.js";
 export function buildClassicTrackerCard(e, context) {
   const {
     state,
+    showEffectSummaryParts = true,
     nextId,
     boardTokenItems = [],
     isGM: IS_GM,
@@ -732,7 +733,10 @@ if (!e.__groupCollapsed && Array.isArray(e.spells) && e.spells.length) {
         hpMax: boardToken.state.hpMax,
       };
     }
-    const fragSp = buildSpellChips([spell], spellChipOptions);
+    const fragSp = buildSpellChips([spell], {
+      ...spellChipOptions,
+      showEffectSummaryParts,
+    });
     if (boardToken && typeof __bindSpellBoardTokenHPEditor === "function") {
       const hpPill = fragSp.querySelector?.('[data-spell-board-token-hp="1"]');
       if (hpPill) __bindSpellBoardTokenHPEditor(hpPill, boardToken, spell);

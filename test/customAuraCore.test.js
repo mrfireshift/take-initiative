@@ -9,6 +9,7 @@ import {
   customAuraRule,
   customAuraTargetIds,
   normalizeCustomAura,
+  normalizeCustomAuraDefinition,
   staleCustomAuraEffectRemovals,
 } from "../src/customAuraCore.js";
 
@@ -52,11 +53,59 @@ test("normalizza dimensione, stile e testi dell'aura personalizzata", () => {
     pill: { enabled: true, kind: "debuff" },
   });
   assert.equal(aura.id, "ward");
-  assert.equal(aura.radiusMeters, 3);
+  assert.equal(aura.radiusMeters, 0);
   assert.equal(aura.style.fillColor, "#abcdef");
   assert.equal(aura.style.strokeWidth, 3);
-  assert.equal(aura.pill.enabled, true);
-  assert.equal(aura.pill.kind, "debuff");
+  assert.equal(aura.pills.length, 1);
+  assert.equal(aura.pills[0].enabled, true);
+  assert.equal(aura.pills[0].kind, "debuff");
+  assert.equal(aura.pill, undefined);
+  assert.equal(aura.warnings, undefined);
+});
+
+test("quantizza il raggio Custom Aura al multiplo canonico di 1.5", () => {
+  const cases = [
+    [0, 0],
+    [0.4, 0],
+    [0.8, 1.5],
+    [1.5, 1.5],
+    [3, 3],
+    [4.5, 4.5],
+    [8, 7.5],
+    [8.4, 9],
+  ];
+
+  for (const [input, expected] of cases) {
+    assert.equal(
+      normalizeCustomAura({ radiusMeters: input }).radiusMeters,
+      expected,
+    );
+  }
+
+  assert.equal(normalizeCustomAura({ radiusMeters: "not-a-number" }).radiusMeters, 3);
+  assert.equal(normalizeCustomAura({ radiusMeters: Number.NaN }).radiusMeters, 3);
+  assert.equal(normalizeCustomAura({ radiusMeters: Number.POSITIVE_INFINITY }).radiusMeters, 3);
+  assert.equal(normalizeCustomAura({ radiusMeters: 300 }).radiusMeters, 300);
+});
+
+test("la normalizzazione della definizione espone solo il contratto canonico", () => {
+  const definition = normalizeCustomAuraDefinition({
+    id: "ignored-id",
+    enabled: false,
+    name: "Aura canonica",
+    pill: { label: "Legacy" },
+    warnings: { start: { enabled: true } },
+  });
+  assert.deepEqual(Object.keys(definition).sort(), [
+    "name",
+    "pills",
+    "radiusMeters",
+    "reminders",
+    "style",
+    "targeting",
+  ]);
+  assert.equal(definition.pills[0].label, "Legacy");
+  assert.equal(definition.reminders[0].event, "turn-start");
 });
 
 test("raccoglie solo aure abilitate e assegna un'identita per sorgente", () => {
@@ -207,11 +256,8 @@ test("migra formato legacy a pills[], reminders[] e genera ID persistenti", () =
   assert.equal(normalized.reminders[1].id, "warning-end");
   assert.equal(normalized.reminders[1].enabled, false);
 
-  // Backward compatibility mirrors
-  assert.equal(normalized.pill.enabled, true);
-  assert.equal(normalized.pill.label, "Benedetto");
-  assert.equal(normalized.warnings.start.enabled, true);
-  assert.equal(normalized.warnings.start.label, "Inizia nel sacro");
+  assert.equal(normalized.pill, undefined);
+  assert.equal(normalized.warnings, undefined);
 });
 
 test("proietta piu pills indipendenti nella membership", () => {
@@ -268,5 +314,3 @@ test("compila reminder manual-save con TS Des, CD fissa, danno dimezzato e condi
   assert.equal(trigger.damage.onFailed, "full");
   assert.equal(trigger.failureCondition.condition, "Prono");
 });
-
-

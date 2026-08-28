@@ -851,25 +851,85 @@ select:disabled {
 }
 
 .unified-target-context {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 7px;
-  padding: 7px;
+  padding: 8px;
   border: 1px solid var(--unified-line);
   border-radius: 9px;
   background: var(--unified-surface-soft);
 }
 
 .unified-target-context__target {
-  display: grid;
-  grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
-  padding: 4px 0;
+  padding: 6px 0;
   border-bottom: 1px solid rgba(148, 163, 184, .14);
 }
 
-.unified-target-context__target:last-child { border-bottom: 0; }
+.unified-target-context__target:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.unified-target-context__target-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+}
+
+.unified-target-context__target-name {
+  font-size: var(--obrt-type-caption);
+  font-weight: var(--obrt-weight-semibold);
+  color: var(--unified-text);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-target-context__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  align-items: start;
+}
+
+.unified-target-context__grid > .unified-field {
+  min-width: 0;
+}
+
+.unified-target-context__grid > [data-context-field="ray"] {
+  grid-column: 1;
+}
+
+.unified-target-context__target.is-special-8 .unified-target-context__grid > [data-context-field="ray"],
+.unified-target-context__target:has([data-context-field="rayA"]) .unified-target-context__grid > [data-context-field="ray"] {
+  grid-column: 1 / -1;
+}
+
+.unified-target-context__grid > [data-context-field="damage"] {
+  grid-column: 2;
+}
+
+.unified-target-context__grid > [data-context-field="rayA"] {
+  grid-column: 1;
+}
+
+.unified-target-context__grid > [data-context-field="rayB"] {
+  grid-column: 2;
+}
+
+.unified-target-context__grid > [data-context-field="damageA"] {
+  grid-column: 1;
+}
+
+.unified-target-context__grid > [data-context-field="damageB"] {
+  grid-column: 2;
+}
 
 .unified-effects,
 .unified-manual {
@@ -1305,8 +1365,39 @@ select:disabled {
     min-width: 0;
   }
 
-  .unified-target-context__target {
+  .unified-target-context__grid {
     grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .unified-target-context__grid > [data-context-field="ray"] {
+    order: 1;
+    grid-column: 1 / -1;
+  }
+
+  .unified-target-context__grid > [data-context-field="damage"] {
+    order: 2;
+    grid-column: 1 / -1;
+  }
+
+  .unified-target-context__grid > [data-context-field="rayA"] {
+    order: 3;
+    grid-column: 1 / -1;
+  }
+
+  .unified-target-context__grid > [data-context-field="damageA"] {
+    order: 4;
+    grid-column: 1 / -1;
+  }
+
+  .unified-target-context__grid > [data-context-field="rayB"] {
+    order: 5;
+    grid-column: 1 / -1;
+  }
+
+  .unified-target-context__grid > [data-context-field="damageB"] {
+    order: 6;
+    grid-column: 1 / -1;
   }
 
   .unified-placement-controls {

@@ -13,6 +13,7 @@ export const PREPARED_SPELL_RESOLUTION_CHANNEL =
 const BOARD_POPOVER_ACTIVE_ACTION_IDS = Object.freeze({
   "xanathar-colpo-dello-zefiro": "zephyr-strike-attack",
   "phb2014-freccia-folgorante": "lightning-arrow-area",
+  "phb2014-raffica-di-spine": "hail-of-thorns-area",
 });
 
 const uniqueIds = (values = []) => Array.from(new Set(
@@ -91,13 +92,14 @@ export function buildPreparedSpellResolutionRequest({
   primaryDamageValue = undefined,
   primaryTargetId = "",
 } = {}) {
-  if (preparedSpellResolutionAction(group)?.type !== "resolve") {
+  const spell = preparedSpellDefinition(group);
+  const stillPrepared = String(group?.castContext?.phase || "").trim() === "prepare";
+  if (preparedSpellResolutionAction(group)?.type !== "resolve" && !stillPrepared) {
     throw new Error("prepared-spell-stale");
   }
   const targets = uniqueIds(targetIds);
   if (!targets.length) throw new Error("prepared-spell-targets-required");
 
-  const spell = preparedSpellDefinition(group);
   const castContext = {
     ...(group.castContext && typeof group.castContext === "object"
       ? group.castContext

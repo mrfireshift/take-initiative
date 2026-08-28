@@ -10,11 +10,15 @@ export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "save-area",
   "single-attack",
   "single-save",
+  "single-heal",
   "child-zone",
+  "prismatic-wall-traversal",
+  "prismatic-wall-layers",
 ]);
 export const SPELL_ACTIVE_RESOLUTION_ECONOMIES = Object.freeze([
   "action",
   "bonus-action",
+  "gm",
 ]);
 export const SPELL_ACTIVE_RESOLUTION_RANGE_ORIGINS = Object.freeze([
   "caster",
@@ -31,6 +35,15 @@ export const SPELL_ACTIVE_RESOLUTION_ATTACK_OUTCOMES = Object.freeze([
   "critical",
 ]);
 const SPELL_SAVE_ABILITIES = new Set(["str", "dex", "con", "int", "wis", "cha"]);
+const PRISMATIC_WALL_RESOLUTION_KINDS = new Set([
+  "prismatic-wall-traversal",
+  "prismatic-wall-layers",
+]);
+
+export function isPrismaticWallActiveResolutionKind(value) {
+  const kind = typeof value === "string" ? value : value?.resolutionKind;
+  return PRISMATIC_WALL_RESOLUTION_KINDS.has(String(kind || "").trim());
+}
 
 
 function baseActorId(value) {
@@ -101,6 +114,10 @@ function actionDamage(action) {
   return action?.damage && typeof action.damage === "object" ? action.damage : null;
 }
 
+function actionHealing(action) {
+  return action?.healing && typeof action.healing === "object" ? action.healing : null;
+}
+
 export function spellActiveResolutionAttackDamageRequired(action = null, outcome = "") {
   if (action?.resolutionKind !== "single-attack" || !actionDamage(action)) return false;
   if (action?.attack?.damageRequiredOnHitOnly === true) {
@@ -155,6 +172,13 @@ export function validateSpellActiveResolutionAction(action) {
   if (action?.requiresParentInstance !== true) {
     errors.push("action-parent-instance-required");
   }
+  if (isPrismaticWallActiveResolutionKind(kind)) {
+    if (action?.requiresZoneRoot !== true) errors.push("action-zone-root-required");
+    if (! ["traversal", "layer-management"].includes(String(action?.prismaticWallCommand || "").trim())) {
+      errors.push("action-prismatic-wall-command-invalid");
+    }
+    return { valid: errors.length === 0, errors: Object.freeze(errors) };
+  }
   if (
     ["single-attack", "single-save", "child-zone"].includes(kind)
     && action?.requiresZoneRoot !== true
@@ -178,7 +202,7 @@ export function validateSpellActiveResolutionAction(action) {
       || (Array.isArray(action?.postDamageEffects) && action.postDamageEffects.length > 0)
     );
   const damageOptional = (kind === "single-save" && !damageRule) || saveHasDeclarativeEffects;
-  if (kind !== "child-zone" && !damageOptional
+  if (kind !== "child-zone" && kind !== "single-heal" && !damageOptional
     && (!String(damageRule?.formula || "").trim() || !String(damageRule?.type || "").trim())) {
     errors.push("action-damage-required");
   }
@@ -258,6 +282,21 @@ export function validateSpellActiveResolutionAction(action) {
     if (action?.replaceLinkedEffectId !== undefined
       && !String(action.replaceLinkedEffectId || "").trim()) {
       errors.push("action-replace-linked-effect-invalid");
+    }
+  }
+  if (kind === "single-heal") {
+    if (integer(action?.maxTargets, 0) !== 1) errors.push("action-single-target-invalid");
+    const healing = actionHealing(action);
+    if (!healing || !String(healing.formula || "").trim()) {
+      errors.push("action-healing-required");
+    }
+    const healingBaseSlot = integer(healing?.baseSlot, 0);
+    const healingPerSlot = integer(healing?.additionalPerSlotAbove, 0);
+    if (healingBaseSlot < 0 || healingPerSlot < 0) {
+      errors.push("action-healing-scaling-invalid");
+    }
+    if (!String(action?.membership?.ruleId || "").trim()) {
+      errors.push("action-healing-membership-required");
     }
   }
   if (kind === "child-zone") {
@@ -512,8 +551,18 @@ export function spellActiveResolutionDamageFormula({
     perSlot * Math.floor(Math.max(0, level - baseSlot) / everySlotLevels),
   );
   const formula = String(rule?.formula || "").trim();
-  let scaledFormula = scaledDice > 0
-    ? formula.replace(/^(\d+)d/iu, (_, count) => `${Number(count) + scaledDice}d`)
+  const diceMatch = formula.match(/^(\d+)d/iu);
+  const requestedDice = diceMatch
+    ? Number(diceMatch[1]) + scaledDice
+    : null;
+  const maximumDice = Math.max(0, integer(rule?.maxDice, 0));
+  const resolvedDice = requestedDice === null
+    ? null
+    : maximumDice > 0
+      ? Math.min(maximumDice, requestedDice)
+      : requestedDice;
+  let scaledFormula = resolvedDice !== null && resolvedDice !== Number(diceMatch[1])
+    ? formula.replace(/^(\d+)d/iu, () => `${resolvedDice}d`)
     : formula;
   if (String(outcome || "").trim() === "critical"
     && String(action?.critical?.additionalDice || "").trim()) {
@@ -580,6 +629,65 @@ export function resolveSpellActiveResolutionDamage({
   };
 }
 
+export function spellActiveResolutionHealingFormula({
+  action = null,
+  slotLevel = 0,
+} = {}) {
+  const rule = actionHealing(action);
+  const baseSlot = Math.max(0, integer(rule?.baseSlot, 0));
+  const perSlot = Math.max(0, integer(rule?.additionalPerSlotAbove, 0));
+  const level = Math.max(baseSlot, integer(slotLevel, baseSlot));
+  const everySlotLevels = Math.max(
+    1,
+    integer(action?.healingScaling?.everySlotLevels, 1),
+  );
+  const scaledDice = Math.max(
+    0,
+    perSlot * Math.floor(Math.max(0, level - baseSlot) / everySlotLevels),
+  );
+  const formula = String(rule?.formula || "").trim();
+  const diceMatch = formula.match(/^(\d+)d/iu);
+  const requestedDice = diceMatch
+    ? Number(diceMatch[1]) + scaledDice
+    : null;
+  const maximumDice = Math.max(0, integer(rule?.maxDice, 0));
+  const resolvedDice = requestedDice === null
+    ? null
+    : maximumDice > 0
+      ? Math.min(maximumDice, requestedDice)
+      : requestedDice;
+  const scaledFormula = resolvedDice !== null && resolvedDice !== Number(diceMatch?.[1])
+    ? formula.replace(/^(\d+)d/iu, () => `${resolvedDice}d`)
+    : formula;
+  return { formula, scaledFormula };
+}
+
+export function resolveSpellActiveResolutionHealing({
+  action = null,
+  slotLevel = 0,
+  roll = 0,
+} = {}) {
+  const rule = actionHealing(action);
+  const numericRoll = Number(roll);
+  const { formula, scaledFormula } = spellActiveResolutionHealingFormula({
+    action,
+    slotLevel,
+  });
+  const valid = action?.resolutionKind === "single-heal"
+    && !!rule
+    && String(formula || "").trim() !== ""
+    && Number.isFinite(numericRoll)
+    && numericRoll >= 0;
+  if (!valid) return { valid: false, errors: Object.freeze(["resolution-healing-input-invalid"]) };
+  return {
+    valid: true,
+    roll: Math.floor(numericRoll),
+    amount: Math.floor(numericRoll),
+    formula,
+    scaledFormula,
+  };
+}
+
 export function buildSpellActiveResolutionLinkedEffectRemovals({
   action = null,
   payload = null,
@@ -630,6 +738,18 @@ export function buildSpellActiveResolutionResourceOperations({
 
   const nextRemaining = Math.max(0, remaining - consume);
   if (nextRemaining === 0 && resource.endSpellAtZero === true) {
+    const casterId = String(payload?.casterId || spellEntry?.casterId || "").trim();
+    if (resource.endConcentrationAtZero === true && spellEntry.conc === true && casterId) {
+      return {
+        valid: true,
+        remaining: nextRemaining,
+        operations: Object.freeze([{
+          type: "concentration:break",
+          casterIds: [casterId],
+          reference: instanceId,
+        }]),
+      };
+    }
     return {
       valid: true,
       remaining: nextRemaining,

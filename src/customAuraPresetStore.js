@@ -125,34 +125,6 @@ export function createCustomAuraPresetStore({
     return true;
   }
 
-  function importPresets(presetsJson) {
-    try {
-      const parsed = typeof presetsJson === "string" ? JSON.parse(presetsJson) : presetsJson;
-      if (!Array.isArray(parsed)) throw new Error("Import payload must be an array");
-      const incoming = normalizeCustomAuraPresets(parsed);
-      const byId = new Map(readPresets().map((p) => [p.id, p]));
-      for (const p of incoming) {
-        const existing = byId.get(p.id);
-        if (!existing || (p.revision > (existing.revision || 0))) {
-          byId.set(p.id, p);
-        }
-      }
-      commit([...byId.values()], "import");
-      return true;
-    } catch (error) {
-      console.error("[custom-aura-presets] import failed:", error);
-      return false;
-    }
-  }
-
-  function exportPresets() {
-    return JSON.stringify(getActivePresets(), null, 2);
-  }
-
-  function clearAll() {
-    commit([], "clear");
-  }
-
   function subscribe(listener, { emitCurrent = false } = {}) {
     if (typeof listener !== "function") return () => {};
     listeners.add(listener);
@@ -199,9 +171,6 @@ export function createCustomAuraPresetStore({
     getPreset,
     savePreset,
     deletePreset,
-    importPresets,
-    exportPresets,
-    clearAll,
     subscribe,
     dispose() {
       removeStorageListener?.();

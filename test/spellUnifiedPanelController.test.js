@@ -418,7 +418,7 @@ test("il controller completa cast area, placement, undo e reset senza duplicare 
   await settle();
 
   assert.equal(root.querySelector(".unified-effect-inputs"), null);
-  assert.ok(root.querySelector("#spell-unified-sticky-damage"));
+  assert.equal(root.querySelector("#spell-unified-sticky-damage"), null);
   assert.equal(root.querySelector('[data-undo-capable="true"]'), null);
   assert.equal(root.querySelector(".unified-quiet-button"), null);
   assert.equal(
@@ -434,6 +434,7 @@ test("il controller completa cast area, placement, undo e reset senza duplicare 
   const target = targetInput(root, "target-a");
   target.checked = true;
   await target.emit("change");
+  assert.ok(root.querySelector("#spell-unified-sticky-damage"));
   const outcome = requiredNode(targetRow(root, "target-a"), '[data-outcome="failed"]');
   root.scrollTop = 123;
   root.scrollLeft = 7;

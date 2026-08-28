@@ -42,6 +42,29 @@ test("il contratto visuale mantiene il renderer Fireball dedicato", () => {
   }), null);
 });
 
+test("Guscio Anti-vita mantiene il VFX Embers dopo l'avvio senza duplicare eventi", () => {
+  const definition = getMatchedSpellVisualDefinition("antilife-shell");
+  assert.equal(definition.visuals.length, 1);
+  assert.equal(definition.visuals[0].effectId, "antilifeShell");
+  assert.equal(definition.visuals[0].attachedTo, "caster");
+  assert.equal(definition.visuals[0].persistent, true);
+
+  const event = buildMatchedVisualEvent({
+    spellId: "antilife-shell",
+    eventId: "antilife-shell-cast",
+    lifecycleId: "antilife-shell-instance",
+    casterId: "caster-1",
+    caster: { x: 100, y: 100, diameter: 150 },
+    targetIds: ["caster-1"],
+    sceneDpi: 150,
+    gridScale: { multiplier: 1.5, unit: "m" },
+  });
+  assert.equal(event.layers.length, 1);
+  assert.equal(event.layers[0].persistent, true);
+  assert.deepEqual(event.layers[0].center, { x: 100, y: 100 });
+  assert.equal(matchedVisualLayerPlan(event.layers[0], event.dpi).duration, 4000);
+});
+
 test("tutte le entry non-Fireball producono almeno un layer WebM con geometria valida", () => {
   for (const spellId of EMBERS_MATCHED_SPELL_IDS.filter((id) => id !== "fireball")) {
     const event = buildMatchedVisualEvent({

@@ -6,6 +6,7 @@ import { enableInlineNameEditor } from "./initiativeEditors.js";
 import { CLASS_FEATURE_MAX_VISIBLE_DURATION_ROUNDS } from "./classFeatureCore.js";
 import { effectSummaryPartsFor } from "./effectLabelCore.js";
 import { buildEffectSummaryContainer } from "./effectSummaryViewCore.js";
+import { getSpellSummaryParts } from "./spells-srd.js";
 
 export const COMPACT_CARD_WIDTH = 92;
 export const COMPACT_CARD_HEIGHT = 120;
@@ -16,6 +17,19 @@ function compactSpellKey(name) {
 
 function compactConditionName(name) {
   return name;
+}
+
+function spellSummaryParts(spell) {
+  const spellId = String(spell?.spellId || "").trim();
+  // summaryParts are presentation-only, so refresh the static Antilife Shell
+  // summary at read time as well as at cast time. This keeps already persisted
+  // instances from rendering the retired, verbose set of micropills without
+  // mutating their canonical metadata.
+  if (spellId === "antilife-shell") return getSpellSummaryParts(spellId);
+  if (spellId === "delayed-blast-fireball") {
+    return getSpellSummaryParts(spellId, "", spell?.castContext || {});
+  }
+  return spell?.summaryParts;
 }
 
 function themeColor(value, fallback) {
@@ -62,13 +76,16 @@ export function __compactEffectItems(
   const formatConditionInstance = typeof formatting.formatConditionInstance === "function"
     ? formatting.formatConditionInstance
     : (instance) => __compactConditionPillLabel(instance, formatting);
+  const showEffectSummaryParts = formatting.showEffectSummaryParts !== false;
   const spellKey = typeof formatting.spellKey === "function"
     ? formatting.spellKey
     : compactSpellKey;
   const effects = conditionInstances.filter((instance) =>
     instance?.effectKind !== "buff" && instance?.effectKind !== "debuff"
   ).map((instance) => {
-    const summaryParts = effectSummaryPartsFor(instance, { suppressSaveReminderParts: true });
+    const summaryParts = showEffectSummaryParts
+      ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
+      : [];
     return {
       kind: instance?.type === "class-feature" ? "class-feature" : "condition",
       label: __compactConditionPillLabel(instance, formatting),
@@ -88,16 +105,24 @@ export function __compactEffectItems(
     const counter = spellPillCounter(spell);
     const spellName = String(spell?.name || "Incantesimo");
     const spellInstanceId = String(spell?.instanceId || "").trim();
+    const ownSummaryParts = showEffectSummaryParts
+      ? effectSummaryPartsFor({ summaryParts: spellSummaryParts(spell) })
+      : [];
     const linkedEffectSummaryParts = spellInstanceId
       ? conditionInstances.flatMap((instance) => (
         (instance?.effectKind === "buff" || instance?.effectKind === "debuff")
         && String(instance?.parentEffectId || "").trim() === spellInstanceId
-          ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
+          ? showEffectSummaryParts
+            ? effectSummaryPartsFor(instance, { suppressSaveReminderParts: true })
+            : []
           : []
       ))
       : [];
     const summaryParts = Array.from(
-      new Map(linkedEffectSummaryParts.map((part) => [part.id, part])).values(),
+      new Map([
+        ...ownSummaryParts,
+        ...linkedEffectSummaryParts,
+      ].map((part) => [part.id, part])).values(),
     );
     const linkedEffectDetails = spellInstanceId
       ? Array.from(new Set(
@@ -804,18 +829,24 @@ export function buildCompactCardStatus(
 ) {
   const document = compactDocument(documentRef);
   const status = document.createElement("div");
-  const firstEffectHasSummary = Array.isArray(compactEffects[0]?.summaryParts)
-    && compactEffects[0].summaryParts.length > 0;
+  // La card mostra sempre e soltanto la pill canonica. I summaryParts restano
+  // disponibili per il popover dettagliato, ma non devono entrare nella
+  // preview: altrimenti il wrapper 100% della summary allarga la pill oltre
+  // lo spazio della card.
+  const firstEffect = compactEffects[0] || null;
+  const previewEffect = firstEffect && Array.isArray(firstEffect.summaryParts)
+    ? { ...firstEffect, summaryParts: [] }
+    : firstEffect;
   status.dataset.cardSelectionIgnore = "1";
   Object.assign(status.style, {
     width: "100%",
     minHeight: "14px",
-    height: firstEffectHasSummary ? "auto" : "14px",
-    flex: firstEffectHasSummary ? "0 0 auto" : "0 0 14px",
+    height: "14px",
+    flex: "0 0 14px",
     marginTop: "0",
     padding: "0",
     display: "flex",
-    alignItems: firstEffectHasSummary ? "flex-start" : "center",
+    alignItems: "center",
     justifyContent: "center",
     gap: "2px",
     overflow: "visible",
@@ -832,13 +863,13 @@ export function buildCompactCardStatus(
       position: "relative",
       minWidth: "0",
       flex: "1 1 auto",
-      height: firstEffectHasSummary ? "auto" : "14px",
+      height: "14px",
       display: "flex",
-      alignItems: firstEffectHasSummary ? "flex-start" : "center",
+      alignItems: "center",
       justifyContent: "center",
       overflow: "visible",
     });
-    previewPill = __buildCompactEffectPill(compactEffects[0], true, {
+    previewPill = __buildCompactEffectPill(previewEffect, true, {
       spellColor,
       onTerminateClassFeature,
       documentRef,

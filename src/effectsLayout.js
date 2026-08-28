@@ -46,6 +46,7 @@ let effectsProjection = {
   policy: { conditions: "all", spells: "all", concentration: "all" },
   expandedTargetIds: new Set(),
   expansionMode: "selected",
+  showEffectSummaryParts: true,
 };
 
 function normalizeExpansionMode(value) {
@@ -57,6 +58,7 @@ export function configureEffectsLayoutProjection({
   policy,
   expandedTargetIds,
   expansionMode,
+  showEffectSummaryParts,
 } = {}) {
   const nextExpandedTargetIds = expandedTargetIds === undefined
     ? effectsProjection.expandedTargetIds
@@ -80,6 +82,9 @@ export function configureEffectsLayoutProjection({
     expansionMode: expansionMode === undefined
       ? effectsProjection.expansionMode
       : normalizeExpansionMode(expansionMode),
+    showEffectSummaryParts: showEffectSummaryParts === undefined
+      ? effectsProjection.showEffectSummaryParts
+      : showEffectSummaryParts !== false,
   };
 }
 
@@ -88,6 +93,7 @@ export function resetEffectsLayoutProjection() {
     ...effectsProjection,
     expandedTargetIds: new Set(),
     expansionMode: "selected",
+    showEffectSummaryParts: true,
   };
 }
 
@@ -587,6 +593,7 @@ export async function reconcileEffectsLayout(batch = {}, context = {}) {
         compact: true,
         expandedTargetIds: effectsProjection.expandedTargetIds,
         expansionMode: effectsProjection.expansionMode,
+        showEffectSummaryParts: effectsProjection.showEffectSummaryParts,
       }),
       targetScope,
     );

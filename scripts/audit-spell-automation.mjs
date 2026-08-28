@@ -57,7 +57,7 @@ const INTEGRATION_ISSUE_LABELS = Object.freeze({
 });
 
 const AUTOMATION_LEVELS = Object.freeze(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL"]);
-const COVERAGE_STATUSES = Object.freeze(["ACCEPTED", "GAP", "UNREVIEWED"]);
+const COVERAGE_STATUSES = Object.freeze(["ACCEPTED", "CLOSED", "GAP", "UNREVIEWED"]);
 const TARGET_AUTOMATION_LEVELS = Object.freeze(["FULL", "PARTIAL", "TRACK_ONLY", "MANUAL", "UNREVIEWED"]);
 const UI_EXPOSURES = Object.freeze(["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE"]);
 const TARGET_UI_EXPOSURES = Object.freeze(["UNIFIED", "TRACKER_ONLY", "REFERENCE_ONLY", "NONE", "UNREVIEWED"]);
@@ -178,21 +178,9 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
     note: "Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati.",
   },
-  "xanathar-frecce-infuocate": {
-    gaps: ["RESOURCE_STATE", "CONDITIONAL_TRIGGER"],
-    note: "Servono il contatore condiviso delle dodici munizioni e il consumo dell'effetto al primo colpo o mancato di ogni freccia estratta.",
-  },
   "mislead": {
     gaps: ["STATUS_MISSING", "REPEATED_ACTION"],
     note: "Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi.",
-  },
-  "xanathar-lama-dombra": {
-    gaps: ["REPEATED_ACTION"],
-    note: "La spell non espone l'arma creata né l'azione bonus che la fa ricomparire nella mano dopo che è stata lasciata cadere o lanciata.",
-  },
-  "flame-blade": {
-    gaps: ["REPEATED_ACTION"],
-    note: "La durata è tracciata, ma non esiste l'azione ripetibile per effettuare gli attacchi in mischia con la lama creata.",
   },
   "xanathar-modellare-acqua": {
     gaps: [],
@@ -210,14 +198,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["MOVEMENT_MECHANICS_MISSING", "CHOICE_WORKFLOW_MISSING"],
     note: "L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker.",
   },
-  "branding-smite": {
-    gaps: ["CONDITIONAL_TRIGGER", "PASSIVE_RULES_MISSING"],
-    note: "Manca la risoluzione sul prossimo colpo: danni radiosi, rivelazione di un bersaglio invisibile e blocco di nuova invisibilità fino alla fine della spell.",
-  },
-  "prismatic-spray": {
-    gaps: ["RANDOM_RESULT_STATE", "MULTI_SAVE_SEQUENCE", "STATUS_MISSING"],
-    note: "La sagoma e il primo TS esistono, ma non il d8 per ciascun bersaglio, il doppio raggio con 8, i TS successivi e gli stati Accecato, Trattenuto e Pietrificato.",
-  },
   "shapechange": {
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
     note: "Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW.",
@@ -226,17 +206,9 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["CONDITIONAL_TRIGGER", "STATUS_MISSING"],
     note: "Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell.",
   },
-  "xanathar-corona-di-stelle": {
-    gaps: ["RESOURCE_STATE", "REPEATED_ACTION"],
-    note: "La spell parte con sette scintille, ne consuma una per azione bonus e termina alla settima; anche la luce dipende dal residuo.",
-  },
   "xanathar-debilitazione": {
     gaps: ["REPEATED_ACTION", "CONDITIONAL_TRIGGER"],
     note: "Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell.",
-  },
-  "xanathar-gabbia-dellanima": {
-    gaps: ["RESOURCE_STATE", "REPEATED_ACTION"],
-    note: "L'anima dispone di sei usi condivisi tra più azioni con durate e conseguenze differenti; il registro non espone il contatore né le opzioni.",
   },
   "xanathar-interdizione-primordiale": {
     gaps: ["CONDITIONAL_TRIGGER", "POST_EXPIRY_EFFECT"],
@@ -245,22 +217,6 @@ const CURATED_REVIEW = Object.freeze({
   blink: {
     gaps: ["RANDOM_TURN_STATE", "POST_EXPIRY_EFFECT"],
     note: "Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione.",
-  },
-  "xanathar-investitura-del-vento": {
-    gaps: ["REPEATED_ACTION", "POST_EXPIRY_EFFECT"],
-    note: "La velocità di volo è modellabile, ma mancano il cubo offensivo ripetibile e la caduta se la spell termina mentre il caster è in volo.",
-  },
-  "xanathar-investitura-della-pietra": {
-    gaps: ["REPEATED_ACTION", "MOVEMENT_IMMUNITY", "POST_EXPIRY_EFFECT"],
-    note: "Servono terremoto ripetibile, immunità al costo del terreno difficile, attraversamento della pietra ed espulsione con Stordito se il movimento termina al suo interno.",
-  },
-  "xanathar-muro-di-luce": {
-    gaps: ["RESOURCE_STATE", "REPEATED_ACTION", "TURN_EFFECT_MISSING"],
-    note: "Ogni raggio usa un'azione e accorcia il muro di 3 m; restano inoltre danno a fine turno e TS ricorrente contro Accecato.",
-  },
-  "delayed-blast-fireball": {
-    gaps: ["ENDING_DETONATION", "RESOURCE_STATE", "CONDITIONAL_TRIGGER"],
-    note: "La sfera accumula 1d6 a fine turno, esplode alla terminazione o al contatto e può essere lanciata altrove dopo un TS riuscito.",
   },
   "tasha-sudario-spirituale": {
     gaps: ["CONDITIONAL_TRIGGER", "MOVEMENT_MECHANICS_MISSING", "TURN_EFFECT_MISSING"],
@@ -279,8 +235,8 @@ const CURATED_REVIEW = Object.freeze({
     note: "Zona madre, terreno difficile e reminder principali esistono; crepe e strutture non sono entità spaziali indipendenti con risoluzione atomica.",
   },
   "prismatic-wall": {
-    gaps: ["LAYER_STATE_MACHINE", "CROSSING_DETECTION", "MULTI_SAVE_SEQUENCE"],
-    note: "La sagoma base esiste, ma i sette strati, le distruzioni progressive, gli effetti per strato e le sequenze di TS non hanno uno stato dedicato.",
+    gaps: [],
+    note: "Decisione curata sul RAW locale: la copertura è chiusa; le interazioni dichiaratamente manuali sono elencate nella voce PASS.",
   },
   "reverse-gravity": {
     gaps: ["ENTRY_EXIT_FALL", "ZONE_TRIGGER_MISSING"],
@@ -290,10 +246,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["ROUND_STATE_MACHINE", "STATUS_MISSING", "MOVEMENT_MECHANICS_MISSING"],
     note: "L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento.",
   },
-  "wind-wall": {
-    gaps: ["PROJECTILE_BOUNDARY", "CROSSING_DETECTION"],
-    note: "La sagoma esiste; mancano blocco selettivo di creature/oggetti, proiettili e forme gassose.",
-  },
   "xanathar-turbine": {
     gaps: ["MOVABLE_ZONE_RUNTIME", "MULTI_SAVE_SEQUENCE", "ENTRY_EXIT_FALL"],
     note: "Servono zona mobile, doppio TS, trascinamento verticale, movimento con la zona, prova di fuga e caduta finale.",
@@ -302,22 +254,43 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["VARIANT_ZONE_RUNTIME", "MOVEMENT_MECHANICS_MISSING", "ZONE_TRIGGER_MISSING"],
     note: "Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia.",
   },
-  "antilife-shell": {
-    gaps: ["BOUNDARY_REJECTION", "CROSSING_DETECTION"],
-    note: "L'aura segue il caster, ma il confine deve respingere categorie selettive e terminare se il caster forza un attraversamento.",
-  },
-  "phb2014-aura-di-vita": {
-    gaps: ["AURA_PASSIVE_RUNTIME", "TURN_EFFECT_MISSING"],
-    note: "Servono resistenza necrotica, protezione del massimo PF e recupero di 1 PF a inizio turno per creature non ostili a 0 PF.",
-  },
-  "phb2014-aura-di-vitalita": {
-    gaps: ["AURA_HEAL_ACTION"],
-    note: "L'aura deve delimitare i bersagli validi dell'azione bonus di cura da 2d6.",
-  },
+});
+
+const CURATED_COVERAGE_STATUS = Object.freeze({
+  "antilife-shell": "CLOSED",
+  "delayed-blast-fireball": "CLOSED",
+  "prismatic-spray": "ACCEPTED",
+  "prismatic-wall": "ACCEPTED",
+  "wind-wall": "ACCEPTED",
+  "xanathar-lama-dombra": "CLOSED",
+  "flame-blade": "CLOSED",
+  "phb2014-aura-di-vita": "CLOSED",
+  "phb2014-aura-di-vitalita": "CLOSED",
+});
+
+const CURATED_AUTOMATION_LEVEL = Object.freeze({
+  "antilife-shell": "PARTIAL",
+  "delayed-blast-fireball": "PARTIAL",
+  "prismatic-spray": "FULL",
+  "prismatic-wall": "PARTIAL",
+  "wind-wall": "PARTIAL",
+  "phb2014-aura-di-vita": "PARTIAL",
 });
 
 const CURATED_COMPLETE = Object.freeze({
+  "antilife-shell": "PASS: Guscio Anti-vita è PARTIAL/CLOSED per decisione di prodotto: automatici spell instance persistente sul caster, concentrazione, durata 1 ora, aura mobile di 3 m centrata e seguita dal caster, confine visuale e cleanup condiviso. Manuali accettati: esclusione di costrutti/non morti, attraversamento/crossing, protrusion, validazione reach/proiettili e terminazione quando il caster forza il passaggio; nessuna Condition artificiale, reminder o active action.",
+  "delayed-blast-fireball": "PASS: Palla di Fuoco Ritardata è PARTIAL/CLOSED per decisione di prodotto. Il punto entro 45 m crea la perla come istanza persistente in concentrazione fino a 1 minuto; il contesto canonico conserva posizione corrente, slot, CD e accumulo 0..10d6. Ogni fine turno del caster incrementa l'istanza prima della scadenza sullo stesso boundary; terminazione volontaria, fallimento del TS di concentrazione, sostituzione della concentrazione e expiry passano dal terminal-resolution gateway, che sospende il cleanup fino alla detonazione. La detonazione ricalcola al momento il raggio di 6 m e i bersagli correnti, raccoglie un solo totale manuale dei dadi, applica TS Destrezza full/half e fuoco nella normale area transaction con History/Undo e idempotenza per instanceId/requestId. Restano manuali e accettati il contatto automatico, il lancio/collisione della perla e il fuoco sugli oggetti; lo spostamento usa gli strumenti scena esistenti e non una nuova action economy. La copertura della spell è quindi chiusa senza introdurre una nuova automazione per queste interazioni da tavolo.",
+  "prismatic-wall": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, comando GM di attraversamento con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», crossing fisico, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, movimento/blocco/proiettili e trasferimento planare effettivo. Non vengono introdotti crossing detector, layer-state-machine generica o planar engine.",
+  "prismatic-spray": "PASS: Spruzzo Prismatico è FULL/ACCEPTED. Il cono shared da 18 m, i TS Destrezza indipendenti, il risultato fisico d8 per bersaglio, il doppio raggio 8, i totali manuali 10d6, i cinque tipi di danno, Trattenuto/Accecato/Pietrificato canonici, il progresso Indaco 3 successi/3 fallimenti e il TS Viola al prossimo turno del caster confluiscono nella singola risoluzione area e nei reminder/History shared. Restano intenzionalmente manuali soltanto il tiro fisico del d8 e il trasferimento materiale fra piani; non servono primitive random o movimento planare.",
+  "wind-wall": "PASS: Muro di Vento è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: placement lineare supportato, targeting iniziale sulla sagoma, TS Forza indipendente, danno iniziale 3d8 contundenti con metà al successo, zona statica persistente, concentrazione fino a 1 minuto, durata, History/Undo e cleanup shared. Manuali accettati: forme continue non lineari, deviazione dei proiettili, attraversamento di creature o oggetti volanti Piccoli o inferiori, forma gassosa, dispersione di gas/fumo/nebbia, materiali leggeri e ogni interazione di crossing; nessuna Condition artificiale, trigger successivo, projectile/collision/crossing engine, active action o reminder.",
+  "xanathar-lama-dombra": "PASS: Lama d'Ombra è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 1 minuto, la durata, lo slot/cast context e il danno sintetico scalato; arma da mischia semplice, competenza, dissipazione dopo drop/lancio e ricomparsa con azione bonus restano manuali al tavolo, senza active action, prompt, popup o reminder.",
+  "flame-blade": "PASS: Lama Infuocata è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 10 minuti, la durata, lo slot/cast context e il danno sintetico scalato; attacco, azione, drop/rievocazione e luce restano manuali al tavolo, senza active action, prompt, popup o reminder.",
+  "phb2014-aura-di-vitalita": "PASS: Aura di Vitalità è FULL/CLOSED. Riusa l'aura mobile, il calcolo shared dei membri, il controllo di istanza padre e la validazione della membership al commit. Il popup principale del turno del caster, disponibile anche nel turno del cast, espone l'azione bonus con un solo bersaglio corrente incluso il caster; il pannello Incantesimi resta fallback. Il totale manuale di 2d6 passa dalla mutazione HP/history condivisa; non consuma spell, slot o concentrazione e non usa dadi virtuali.",
+  "phb2014-aura-di-vita": "PASS: Aura di Vita è PARTIAL/CLOSED per decisione di prodotto. Riusa aura mobile, membership non ostile, trigger di inizio turno e cleanup shared. Il recupero di 1 PF è un reminder manuale con la resolution di cura esistente, che conserva i controlli vivente/0 PF e le mutazioni canoniche; resistenza necrotica e protezione del massimo PF restano micropill/detail di tracking perché nel runtime non esiste un motore shared per applicarle. Queste proprietà manuali sono accettate e non richiedono ulteriori azioni di automazione.",
+  "xanathar-investitura-del-vento": "PASS: Investitura del Vento è accettata. Il self-buff persistente, il volo, il cubo di vento come active action ripetibile, la geometria, il TS, il danno, la spinta e il prompt di turno sono esposti attraverso i contratti runtime esistenti; i limiti e le conseguenze gestite manualmente restano nel riferimento RAW.",
+  "xanathar-investitura-della-pietra": "PASS: Investitura della Pietra è accettata. Il self-buff persistente e Scossa tellurica come active action ripetibile usano il lifecycle e il prompt condivisi; il raggio fisso sul caster, il TS, Prono e il riferimento alle interazioni con terreno e roccia restano coerenti con il contratto runtime e con la gestione manuale al tavolo.",
   "xanathar-anatema-elementale": "PASS: il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi. Il danno aggiuntivo e la rimozione della resistenza restano manuali per scelta di perimetro: il plugin non dispone degli strumenti per automatizzarli.",
+  "xanathar-gabbia-dellanima": "PASS: Gabbia dell'Anima è intenzionalmente TRACK_ONLY/ACCEPTED. Il registro conserva l'anima intrappolata per 8 ore senza concentrazione e il riferimento RAW ricorda il limite complessivo di sei utilizzi e le quattro modalità (Rubare Vita, Interrogare Anima, Esperienza in Prestito e Occhi dei Morti); consumo e conseguenze restano manuali, senza workflow di reazione, risorsa, cura, vantaggio, interrogazione, sensore o concentrazione figlia.",
   "wall-of-fire": "PASS: il placement obbligatorio espone muro lineare o circolare ad anello e conserva il lato caldo scelto; il corpo, la fascia adiacente di 3 m e l'attraversamento continuo alimentano trigger distinti con deduplicazione una-volta-per-turno. Il danno iniziale e persistente usa input manuale con scaling 5d8 +1d8 per slot sopra il 4°; il plugin non automatizza il tiro o l'applicazione dei danni.",
   "incendiary-cloud": "PASS: il placement obbligatorio crea la zona statica della nube e il workflow condiviso copre TS iniziale, 10d8 fuoco con metà al successo, ingresso, fine turno, scaling dello slot, fan-out indipendente per bersaglio, reminder resolution, membership, mutation e cleanup di concentrazione. Il movimento della nube resta manuale RAW: non esistono prompt di turn-start, drift automatico o swept-area trigger; il movimento della creatura dentro la nube continua a usare il trigger di ingresso.",
   "xanathar-arma-sacra": "PASS: il cast persistente e il congedo dell'arma sono esposti nel popup condiviso al turno del caster e restano disponibili nel pannello Incantesimi come fallback; l'esplosione mantiene il placement previsto dalla situazione dell'arma, risolve TS Costituzione e 4d8 radiosi con metà al successo. Il fallimento applica Accecato come Condition nativa con durata di 1 minuto e TS Costituzione a fine turno, indipendente dalla concentrazione; fan-out, reminder resolution e cleanup restano sul workflow shared.",
@@ -347,13 +320,24 @@ const CURATED_COMPLETE = Object.freeze({
   "command": "Il workflow batch del TS Saggezza scala da un bersaglio al 1° livello (+1 per slot superiore), conserva una sola scelta di comando per il cast, applica gli effetti ai soli fallimenti e attiva Prono di Supplica all'inizio del turno successivo, lasciandolo persistente; la pill tecnica scade alla fine di quel turno.",
   "call-lightning": "Il lancio crea una nube temporalesca persistente di raggio 18 m collegata alla concentrazione del caster e conserva la scarica iniziale da 1,5 m; il prompt per richiamare i fulmini appare all'inizio di ogni turno del caster, fuori dal pannello Spells, si chiude al cambio di turno e risolve TS Destrezza, danni e scaling dello slot in una transazione.",
   "xanathar-investitura-della-fiamma": "L'aura mobile di 1,5 m include tutte le creature nell'area tranne il caster, compresi gli alleati, e produce reminder manuali da 1d10 fuoco all'ingresso e a fine turno con input danno e Conferma; il caster riceve la pill informativa di immunità al fuoco e resistenza al freddo. Dal turno successivo al lancio, la Linea di fuoco opzionale usa il popup dedicato con TS Destrezza e 4d8 fuoco.",
-  "xanathar-sfera-della-tempesta": "Il trigger di TS e danni a fine turno resta invariato; l'azione bonus Fulmine usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera.",
+  "xanathar-sfera-della-tempesta": "PASS: il trigger di TS e danni a fine turno resta invariato; il prompt dell'azione bonus Fulmine è disponibile anche nel turno del lancio, usa il centro della zona come origine, rivalida 18 m e indica il vantaggio dentro la sfera.",
+  "xanathar-corona-di-stelle": "PASS: il cast crea sette stelle, con +2 per ogni slot sopra il 7°, e conserva il residuo nella pill informativa. Il prompt dell'azione bonus è disponibile anche nel turno del lancio; ogni stella viene consumata sia su colpo sia su mancato, il popup usa il tiro per colpire e il danno manuali al tavolo e l'ultima stella termina l'istanza.",
+  "xanathar-muro-di-luce": "PASS: la zona persistente conserva la geometria del muro, il TS iniziale e i trigger ricorrenti di ingresso/fine turno, con Accecato e danno manuale scalato. Il prompt dell'azione del raggio usa il popup condiviso, accorcia il muro di 3 m anche su mancato, consuma l'estremità scelta e chiude la concentrazione quando la lunghezza arriva a zero; History e Undo restano compositi.",
   "heat-metal": "PASS: il cast applica sempre il danno pieno e crea subito il reminder condiviso per la decisione di lasciare cadere l'oggetto; solo l'esito \"Non può / non lascia\" apre il TS Costituzione e soltanto il fallimento applica Svant. attacchi e prove fino all'inizio del prossimo turno del caster. Il repeat usa una sola active action `heat-metal-repeat`, azione bonus, dal turno successivo al lancio, con target collegato, box del danno, scaling 2d8 +1d8 per slot sopra il 2° e workflow Undo condiviso.",
   "gust-of-wind": "La zona persistente e il TS a inizio turno restano invariati; il contratto dello Speed Tracker raddoppia soltanto la porzione di ogni segmento realmente percorsa verso il caster, usa la posizione corrente della sorgente, conserva il costo nel percorso per Undo e deduplica la stessa istanza. Geometria, membership, cambio direzione e lifecycle sono coperti dai test logici dedicati.",
   "banishment": "Il workflow batch del TS Carisma, il limite con slot superiori, il contesto dell'origine del piano, Incapacitato per i nativi del piano e la distinzione fra interruzione anticipata e scadenza naturale sono operativi; il ritorno o la permanenza fuori piano restano una gestione fisica manuale intenzionale.",
   "acid-arrow": "La risoluzione assistita Colpito/Mancato mostra il danno iniziale manuale, applica la metà sul mancato e crea sul colpito un solo reminder differito indipendente, con scaling 4d4/2d4 dal 2° livello e +1d4 per slot superiore; non viene creata una spell persistente né viene applicato danno automaticamente.",
+  "phb2014-punizione-collerica": "PASS: la preparazione sul caster, il prossimo colpo con arma, il danno extra manuale, il TS Saggezza e Spaventato sul fallimento usano il contract prepared condiviso; un mancato non consuma l'istanza e un colpo riuscito trasferisce la concentrazione al bersaglio.",
+  "phb2014-punizione-incandescente": "PASS: la preparazione sul caster e il prossimo colpo con arma usano il contract prepared condiviso; il danno iniziale scala con lo slot, il danno ricorrente e il TS Costituzione sono registrati come effetto persistente e il mancato mantiene l'istanza preparata.",
+  "phb2014-punizione-tonante": "PASS: il prossimo colpo con arma applica il danno extra manuale, il TS Forza e Prono sul fallimento; la concentrazione viene dismissata sul colpo risolto e il mancato lascia disponibile l'istanza preparata.",
+  "phb2014-punizione-accecante": "PASS: il prossimo colpo in mischia applica il danno radiante manuale, il TS Costituzione e Accecato sul fallimento, con concentrazione trasferita al bersaglio per la durata prevista.",
+  "phb2014-punizione-demoralizzante": "PASS: il prossimo colpo in mischia applica il danno psichico manuale, il TS Saggezza e le penalità/assenza di reazioni sul fallimento; il consumo e il dismiss sono scoped all'istanza preparata.",
+  "phb2014-punizione-esiliante": "PASS: il prossimo colpo con arma applica il danno forza manuale, lo scaling di slot e l'esilio condizionato ai PF residui secondo la variante del bersaglio; la risoluzione riusa il lifecycle prepared e il dismiss/trasferimento esistente.",
   "phb2014-freccia-folgorante": "PASS: il cast prepara sul caster un’istanza concentrata; la risoluzione del prossimo attacco a distanza non richiede Hit/Miss/Critical e riceve dal GM il danno primario finale già applicato. Il click sul bersaglio primario ancora automaticamente il cerchio di 3 m, calcola la membership e raccoglie i TS Destrezza con danno secondario e scaling indipendente; primary, secondary, consumo della preparazione, concentrazione, History composita e Undo restano nella stessa transazione. Tiro per colpire e dadi restano manuali al tavolo.",
   "xanathar-coltello-di-ghiaccio": "PASS: il workflow area condiviso conserva il bersaglio primario dell’attacco, il danno perforante iniziale manuale solo su colpo e l’esplosione indipendente dal colpo, con TS Destrezza, danno freddo e scaling secondo il descriptor della spell. Tiro per colpire, dadi e modificatori restano manuali al tavolo; membership, mutazioni HP, History e cleanup seguono il percorso condiviso.",
+  "phb2014-raffica-di-spine": "PASS: la preparazione sul caster e la risoluzione del prossimo attacco a distanza usano il contract prepared condiviso; il click sul bersaglio ancora automaticamente l'area di 1,5 m, include il bersaglio primario nella membership e raccoglie i TS Destrezza indipendenti. Il danno perforante dell'area scala con lo slot, il successo dimezza, il fallimento applica il danno pieno e consumo/concentrazione seguono la stessa risoluzione.",
+  "xanathar-frecce-infuocate": "PASS: il cast prepara sul caster un contatore persistente di munizioni infuocate, con pill informativa del danno extra scalato con lo slot. Il popup d'azione sulla mappa consuma una munizione dopo ogni attacco già risolto manualmente e resta riutilizzabile nello stesso turno finché ci sono munizioni; il contatore e la concentrazione sono scoped alla specifica istanza.",
+  "branding-smite": "PASS: la preparazione sul caster usa il contract prepared condiviso; il prossimo colpo con arma applica il danno radiante manuale scalato con lo slot e trasferisce al bersaglio il marker persistente di bagliore astrale, visibilità, luce fioca e blocco della nuova invisibilità. Il mancato non consuma l'istanza; il tiro per colpire e i dadi restano manuali al tavolo.",
   "xanathar-sfera-al-vetriolo": "Il TS fallito crea soltanto il reminder indipendente 5d4 danni da acido alla fine del prossimo turno; il notice precede la scadenza della condizione, il consumo è persistito per token e non viene applicato danno automaticamente.",
   "haste": "Alla terminazione ogni bersaglio riceve una conseguenza indipendente fino alla fine del proprio turno successivo, con pill semantica, velocità effettiva 0 m e testo che vieta movimento e azioni; la conseguenza non è figlia della spell rimossa.",
   "xanathar-trasformazione-di-tenser": "Alla terminazione il caster riceve un reminder immediato per TS Costituzione CD 15; il fallimento usa la riconciliazione canonica di Indebolimento e il reminder viene consumato in una transazione separata dalla terminazione.",
@@ -709,7 +693,7 @@ function syntheticSession(contract) {
   const targetContext = Object.fromEntries(targetIds.map((targetId) => [
     targetId,
     Object.fromEntries(contextFields
-      .filter((field) => field.required === true)
+      .filter((field) => field.required === true || field.requiredWhen)
       .map((field) => [field.id, validSyntheticContextValue(field)])),
   ]));
   const attack = contract?.presentation?.outcomes?.mode === "attack";
@@ -924,7 +908,11 @@ function activeActionReachability(spell, areaRules) {
   const unreachableActionIds = declarations
     .map((action) => action.id)
     .filter((actionId) => !reachable.has(actionId));
-  const reminderOnly = panelActionIds.size === 0
+  // Un prompt di turno è un canale operativo esplicito, non un fallback
+  // fragile: alcune azioni (per esempio Sfera della Tempesta) sono
+  // intenzionalmente escluse dalla scheda attiva e vengono aperte dal
+  // prompt contestuale del turno.
+  const turnPromptOnly = panelActionIds.size === 0
     && reminderActionIds.length > 0
     && declarations.every((action) => reminderActionIds.includes(action.id));
   return {
@@ -934,8 +922,8 @@ function activeActionReachability(spell, areaRules) {
     unreachableActionIds,
     mode: unreachableActionIds.length
       ? "unreachable"
-      : reminderOnly
-        ? "reminder-only"
+      : turnPromptOnly
+        ? "turn-prompt"
         : reminderActionIds.length
           ? "panel-and-reminder"
           : "panel",
@@ -1254,6 +1242,8 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
 
   const curated = CURATED_REVIEW[spell.id] || null;
   const curatedComplete = CURATED_COMPLETE[spell.id] || "";
+  const curatedCoverageStatus = CURATED_COVERAGE_STATUS[spell.id] || "ACCEPTED";
+  const curatedAutomationLevel = CURATED_AUTOMATION_LEVEL[spell.id] || "";
   const gaps = [];
   if (!text) gaps.push(gap("TEXT_MISSING"));
   if (!curated && !curatedComplete && text && !excluded) {
@@ -1394,7 +1384,7 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
     || phaseImplemented;
 
   const currentAutomationLevelCandidate = hasMechanicalAutomationCandidate
-    ? (gaps.length === 0 && !!curatedComplete ? "FULL" : "PARTIAL")
+    ? (curatedAutomationLevel || (gaps.length === 0 && !!curatedComplete ? "FULL" : "PARTIAL"))
     : (trackingImplemented || persistentArea || spell.concentration === true ? "TRACK_ONLY" : "MANUAL");
 
   const integration = buildIntegrationAudit({
@@ -1413,7 +1403,9 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
     || integration.cast?.adapter === "area-transaction";
 
   let currentAutomationLevel = "MANUAL";
-  if (hasMechanicalAutomation) {
+  if (curatedAutomationLevel) {
+    currentAutomationLevel = curatedAutomationLevel;
+  } else if (hasMechanicalAutomation) {
     const hasIssues = gaps.length > 0
       || integration.status === "disconnected"
       || integration.status === "fragile"
@@ -1435,9 +1427,9 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
   } else if (intentionallyManual) {
     coverageStatus = "ACCEPTED";
   } else if (curatedComplete && gaps.length === 0 && integration.status === "reachable") {
-    coverageStatus = "ACCEPTED";
+    coverageStatus = curatedCoverageStatus;
   } else if (curatedComplete && currentAutomationLevel === "TRACK_ONLY" && gaps.length === 0) {
-    coverageStatus = "ACCEPTED";
+    coverageStatus = curatedCoverageStatus;
   } else {
     coverageStatus = "UNREVIEWED";
   }
@@ -1445,7 +1437,7 @@ function deriveSpellAudit(spell, reference, trackableIds, unifiedCatalogById) {
   let targetAutomationLevel = "UNREVIEWED";
   if (intentionallyManual) {
     targetAutomationLevel = "MANUAL";
-  } else if (coverageStatus === "ACCEPTED") {
+  } else if (["ACCEPTED", "CLOSED"].includes(coverageStatus)) {
     targetAutomationLevel = currentAutomationLevel;
   } else {
     targetAutomationLevel = "UNREVIEWED";
@@ -1720,6 +1712,8 @@ export function renderSpellAutomationMarkdown(audit) {
     renderCountTable(audit.summary.currentAutomationLevel),
     "",
     "### Stato di copertura (coverageStatus)",
+    "",
+    "`CLOSED` indica una decisione di prodotto chiusa: la copertura è accettata e non sono richieste ulteriori azioni di automazione.",
     "",
     renderCountTable(audit.summary.coverageStatus),
     "",

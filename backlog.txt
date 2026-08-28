@@ -1,4 +1,4 @@
-- Controllo puntuale animazioni: Bagliore lunare, Invocare il fulmine, Muro di vento, Porta dimensionale, Muro di fuoco, Guscio anti-vita, Mano arcana, Muro di forza, Aculeo Mentale, Rintocco dei Morti, Braccia di Hadar, Sortilegio, Coltello di Ghiaccio, Passo del Tuono, Turbine
+- Controllo puntuale animazioni: Bagliore lunare, Invocare il fulmine, Muro di vento, Porta dimensionale, Muro di fuoco, Mano arcana, Muro di forza, Aculeo Mentale, Rintocco dei Morti, Braccia di Hadar, Sortilegio, Coltello di Ghiaccio, Passo del Tuono, Turbine
 
 - Fare in modo che gli incantesimi siano applicabili anche se non includono target.
 

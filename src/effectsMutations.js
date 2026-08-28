@@ -134,6 +134,7 @@ const UNDO_TRANSPORT_CONCENTRATION_FIELDS = Object.freeze([
   "instanceId",
   "spellId",
   "targets",
+  "pendingTermination",
 ]);
 
 const UNDO_TRANSPORT_FEATURE_FIELDS = Object.freeze([

@@ -13,6 +13,8 @@ type NoticeTarget = {
 
 type ZoneTriggerNotice = {
   activationId: string;
+  spellId: string;
+  resolution: string;
   spellName: string;
   label: string;
   targets: NoticeTarget[];
@@ -58,6 +60,8 @@ function noticeFromActivation(
   if (!activationId || !targets.length) return null;
   return {
     activationId,
+    spellId: String(activation?.spellId || "").trim(),
+    resolution: String(activation?.resolution || "").trim(),
     spellName: String(activation?.spellName || root?.name || "Incantesimo")
       .replace(/^Zona:\s*/i, "")
       .trim()
@@ -131,7 +135,11 @@ function renderNotice(notice: ZoneTriggerNotice) {
   timer.className = "timer";
   panel.append(portrait, copy, detail, timer);
   app.replaceChildren(panel);
-  window.setTimeout(() => panel.remove(), AUTO_CLOSE_MS);
+  const isPersistentPrismaticWallSave = notice.spellId === "prismatic-wall"
+    && notice.resolution === "manual-save";
+  if (!isPersistentPrismaticWallSave) {
+    window.setTimeout(() => panel.remove(), AUTO_CLOSE_MS);
+  }
 }
 
 async function syncPendingNotices() {
