@@ -4,7 +4,10 @@ import {
 } from "./spellUnifiedPanelCore.js";
 import { isTeleportSpell } from "./spellTeleportCore.js";
 import { spellTargetMatchesFilters } from "./spellsPanelTargetPicker.js";
-import { spellTargetContextConditionMatches } from "./spellSaveTargetingCore.js";
+import {
+  spellTargetContextConditionMatches,
+  spellTargetContextFieldRequired,
+} from "./spellSaveTargetingCore.js";
 import {
   calculateQuickHPChange,
   QUICK_HP_FACTORS,
@@ -269,6 +272,7 @@ function normalizeTargetCandidates(
         || asText(candidate?.faction),
       hp: numberOrNull(candidate?.hp),
       hpMax: numberOrNull(candidate?.hpMax),
+      turbineSize: asText(candidate?.turbineSize) || null,
       eligible: candidate?.eligible !== false && !outsideSubset,
       selected: isSelected,
       disabled: outsideSubset || targetLocked || (!isSelected
@@ -428,20 +432,46 @@ function targetContextFields(presentation, session, selectedTargets = []) {
     : Array.isArray(presentation?.targeting?.context?.fields)
       ? presentation.targeting.context.fields
       : [];
+  const visibleFields = fields.filter((field) => (
+    field?.automatic !== true && !field?.dependentOutcome
+  ));
+  const dependentOutcomeFields = fields.filter((field) => field?.dependentOutcome);
   return {
-    visible: presentation?.inputs?.targetContext?.visible === true && fields.length > 0,
+    visible: presentation?.inputs?.targetContext?.visible === true && visibleFields.length > 0,
     label: "Contesto bersaglio",
-    fields: clone(fields),
+    fields: clone(visibleFields),
     values: clone(session?.targetContext || {}),
     targets: (Array.isArray(selectedTargets) ? selectedTargets : []).map((target) => {
-      const values = clone(session?.targetContext?.[target?.key] || {});
+      const automaticValues = Object.fromEntries(
+        fields
+          .filter((field) => field?.automatic === true && field?.candidateValue)
+          .map((field) => [field.id, target?.[field.candidateValue]])
+          .filter(([, value]) => value !== undefined && value !== null && value !== ""),
+      );
+      const values = {
+        ...automaticValues,
+        ...clone(session?.targetContext?.[target?.key] || {}),
+      };
+      const dependentOutcomes = dependentOutcomeFields
+        .filter((field) => spellTargetContextFieldRequired(
+          field,
+          values,
+          target?.outcome?.value,
+        ))
+        .map((field) => ({
+          id: field.id,
+          label: field.label || field.id,
+          options: clone(field.options || []),
+          value: values[field.id] ?? "",
+        }));
       return {
         key: asText(target?.key),
         label: asText(target?.label) || asText(target?.key),
         values,
-        fields: clone(fields.filter((field) => (
+        dependentOutcomes,
+        fields: clone(visibleFields.filter((field) => (
           !field?.requiredWhen
-          || spellTargetContextConditionMatches(values, field.requiredWhen)
+            || spellTargetContextConditionMatches(values, field.requiredWhen)
         ))),
       };
     }).filter((target) => target.key),
@@ -588,6 +618,7 @@ function normalizeActiveOverview(groups = [], session = {}) {
         : Array.isArray(context?.summaryParts) ? context.summaryParts : [])
         .map((part) => ({ id: asText(part?.id), label: asText(part?.label) }))
         .filter((part) => part.id && part.label),
+      semanticDetail: asText(group?.semanticDetail) || asText(context?.semanticDetail),
       context,
       targetIds,
       actions: (Array.isArray(group?.actions) ? group.actions : [])
@@ -641,7 +672,7 @@ export function buildUnifiedPanelViewModel({
   const activeActionDelegatesResolution = !!selectedActiveAction
     && (
       selectedActiveAction.type === "resolve"
-      || ["save-area", "single-attack", "single-save", "single-heal", "child-zone", "zone-movement"]
+      || ["save-area", "single-attack", "single-save", "single-heal", "child-zone", "zone-movement", "telekinesis-contest"]
         .includes(selectedActiveAction.resolutionKind)
     );
   const activeActionHasExplicitCapacity = activeActionNeedsPanelTargets
@@ -682,6 +713,9 @@ export function buildUnifiedPanelViewModel({
     : [];
   const isAreaSubset = targeting.selectionMode === "area-subset";
   const isPostPlacement = targeting.selectionMode === "post-placement";
+  const selectionPolarity = targeting.selectionPolarity === "exclude"
+    ? "exclude"
+    : "include";
   const placementCandidateIds = isAreaSubset && workflow.placement.confirmed === true
     ? new Set(Array.isArray(session?.placement?.targetIds)
       ? session.placement.targetIds
@@ -734,32 +768,6 @@ export function buildUnifiedPanelViewModel({
     && workflow.placement.kind === "aura"
     && workflow.placement.policy === "automatic"
     && !workflow.activeAction;
-  const prismaticWallCast = contract?.spell?.id === "prismatic-wall"
-    && presentation.phase?.selected === "cast"
-    && !activeActionDelegatesResolution;
-  const prismaticWallState = session?.castContext?.prismaticWall
-    && typeof session.castContext.prismaticWall === "object"
-    ? session.castContext.prismaticWall
-    : session?.castContext || {};
-  const prismaticWallExemptIds = new Set(
-    (Array.isArray(prismaticWallState?.exemptCreatureIds)
-      ? prismaticWallState.exemptCreatureIds
-      : [])
-      .map(asText)
-      .filter(Boolean),
-  );
-  const prismaticWallExemptions = {
-    visible: prismaticWallCast,
-    label: "Creature designate come esenti",
-    hint: "Le creature selezionate ignorano prossimità, attraversamento e strati del muro.",
-    selectedIds: [...prismaticWallExemptIds],
-    options: (Array.isArray(targetCandidates) ? targetCandidates : [])
-      .map((candidate) => ({
-        key: asText(candidate?.key || candidate?.value || candidate?.id),
-        label: asText(candidate?.label || candidate?.name || candidate?.key || candidate?.id),
-      }))
-      .filter((candidate) => candidate.key && candidate.label),
-  };
 
   const targetVisible = isPostPlacement
     ? workflow.placement.confirmed === true
@@ -942,7 +950,6 @@ export function buildUnifiedPanelViewModel({
         counts: clone(compositionCounts),
         options: Array.isArray(composition.options) ? clone(composition.options) : [],
       },
-      exemptions: prismaticWallExemptions,
     },
     targets: {
       visible: activeActionDelegatesResolution ? false : targetVisible,
@@ -951,12 +958,15 @@ export function buildUnifiedPanelViewModel({
       subjectMode: activeActionNeedsPanelTargets
         ? asText(selectedActiveAction.subjectMode)
         : asText(targeting.subjectMode),
+      selectionPolarity,
       candidates,
       filters: normalizedTargetFilters,
       selectedIds: [...selectedTargetIds],
-      countLabel: `${selectedTargetIds.length}${targetCapacity.maximum === null
-        ? ""
-        : `/${targetCapacity.maximum}`} bersagli`,
+      countLabel: selectionPolarity === "exclude"
+        ? `${selectedTargetIds.length} escluse`
+        : `${selectedTargetIds.length}${targetCapacity.maximum === null
+          ? ""
+          : `/${targetCapacity.maximum}`} bersagli`,
       limit: {
         maximum: targetCapacity.maximum,
         effectiveMaximum: targetCapacity.effectiveMaximum,
@@ -969,7 +979,9 @@ export function buildUnifiedPanelViewModel({
       limitWarning: targetCapacity.exceeded && !ignoreTargetLimit
         ? "Riduci manualmente i bersagli per rientrare nel limite."
         : "",
-       ruleLabel: targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
+      ruleLabel: selectionPolarity === "exclude"
+        ? "Creature escluse dall'effetto"
+        : targeting.filter ? `Filtro: ${targeting.filter}` : "Bersagli compatibili",
       spatialRules: clone(targeting.spatialRules),
       spatialLabel: spatialRuleLabel(targeting.spatialRules),
       selection: primarySecondarySelection
@@ -982,9 +994,11 @@ export function buildUnifiedPanelViewModel({
           resetVisible: selectionStage === "secondary",
         }
         : null,
-      emptyLabel: (activeActionNeedsPanelTargets ? "discrete" : targetingMode) === "geometric"
-        ? "Conferma una posizione per popolare i bersagli geometrici."
-        : "Nessun bersaglio disponibile.",
+      emptyLabel: selectionPolarity === "exclude"
+        ? "Nessuna creatura esclusa."
+        : (activeActionNeedsPanelTargets ? "discrete" : targetingMode) === "geometric"
+          ? "Conferma una posizione per popolare i bersagli geometrici."
+          : "Nessun bersaglio disponibile.",
       primary: {
         visible: primaryVisible,
         required: targeting.primaryTarget?.required === true,

@@ -727,6 +727,10 @@ select:disabled {
   background: var(--unified-surface);
 }
 
+.unified-target-row.has-dependent-outcomes {
+  grid-template-columns: minmax(0, 1fr) auto minmax(96px, max-content) 38%;
+}
+
 .unified-target-row[data-selected="true"] {
   border-color: rgba(96, 165, 250, .66);
   background: rgba(30, 64, 175, .24);
@@ -801,6 +805,52 @@ select:disabled {
   grid-column: 3;
   grid-row: 1;
   width: 100%;
+}
+
+.unified-target-row__outcomes {
+  display: grid;
+  grid-column: 3;
+  grid-row: 1;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+}
+
+.unified-target-row.has-dependent-outcomes .unified-target-row__outcomes {
+  grid-column: 3 / 5;
+  grid-template-columns: minmax(96px, max-content) minmax(180px, 1fr);
+  column-gap: 7px;
+}
+
+.unified-target-row.has-dependent-outcomes .unified-target-row__outcome-line {
+  display: contents;
+}
+
+.unified-target-row.has-dependent-outcomes .unified-target-row__outcome-line > .unified-outcome-group {
+  width: 100%;
+}
+
+.unified-target-row.has-dependent-outcomes .unified-target-row__outcome-label {
+  align-self: center;
+}
+
+.unified-target-row__outcomes > .unified-outcome-group {
+  width: 100%;
+}
+
+.unified-target-row__outcome-line {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.unified-target-row__outcome-label {
+  color: var(--unified-muted);
+  font-size: var(--obrt-type-caption);
+  font-weight: var(--obrt-weight-semibold);
+  white-space: nowrap;
 }
 
 .unified-outcome-button {
@@ -1340,6 +1390,10 @@ select:disabled {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .unified-target-row.has-dependent-outcomes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .unified-targets.is-simple .unified-target-row {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1352,6 +1406,16 @@ select:disabled {
 
   .unified-outcome-group {
     grid-column: 1;
+  }
+
+  .unified-target-row__outcomes {
+    grid-column: 1;
+  }
+
+  .unified-target-row.has-dependent-outcomes .unified-target-row__outcomes {
+    grid-column: 1;
+    grid-template-columns: max-content minmax(0, 1fr);
+    width: 100%;
   }
 
   .unified-target-bulk {

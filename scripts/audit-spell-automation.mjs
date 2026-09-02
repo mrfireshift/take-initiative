@@ -39,6 +39,7 @@ import {
   getSpellUnifiedActiveActionDeclarations,
 } from "../src/spellUnifiedPanelCore.js";
 import { buildSpellUnifiedCatalogEntries } from "../src/spellUnifiedPanelCatalogCore.js";
+import { blinkCastContextForState } from "../src/blinkRules.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const JSON_OUTPUT = path.join(ROOT, "data", "spell-automation-audit.json");
@@ -162,18 +163,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["REPEATED_ACTION", "MOVEMENT_MECHANICS_MISSING"],
     note: "Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento.",
   },
-  "dominate-beast": {
-    gaps: ["REPEATED_ACTION", "CONDITIONAL_TRIGGER"],
-    note: "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni.",
-  },
-  "dominate-monster": {
-    gaps: ["REPEATED_ACTION", "CONDITIONAL_TRIGGER"],
-    note: "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni.",
-  },
-  "dominate-person": {
-    gaps: ["REPEATED_ACTION", "CONDITIONAL_TRIGGER"],
-    note: "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni.",
-  },
   "animal-shapes": {
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
     note: "Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati.",
@@ -215,16 +204,12 @@ const CURATED_REVIEW = Object.freeze({
     note: "Una reazione al danno trasforma tutte le resistenze nell'immunità al tipo scelto fino alla fine del turno successivo.",
   },
   blink: {
-    gaps: ["RANDOM_TURN_STATE", "POST_EXPIRY_EFFECT"],
-    note: "Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione.",
+    gaps: [],
+    note: "Il d20 resta fisico al tavolo; il runtime conserva l'istanza parent, lo stato Materiale/Etereo e il punto di scomparsa, propone il turno-end e compone il ritorno assistito al turno-start o prima del cleanup terminale. Il ritorno usa un picker puntuale diretto sulla mappa, senza creare aree, normalizza il punto al centro della footprint del token e applica subito token:teleport. Distanza RAW, LOS, occupazione, scelta casuale fra spazi equidistanti e interazioni planari restano manuali accettati. Il dismissal RAW è un'Azione; History/Undo resta condivisa anche dopo il tick di round. Non vengono introdotti RNG, condition o engine planari.",
   },
   "tasha-sudario-spirituale": {
     gaps: ["CONDITIONAL_TRIGGER", "MOVEMENT_MECHANICS_MISSING", "TURN_EFFECT_MISSING"],
     note: "Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo.",
-  },
-  telekinesis: {
-    gaps: ["REPEATED_ACTION", "STATUS_MISSING"],
-    note: "Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo.",
   },
   "control-water": {
     gaps: [],
@@ -246,10 +231,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["ROUND_STATE_MACHINE", "STATUS_MISSING", "MOVEMENT_MECHANICS_MISSING"],
     note: "L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento.",
   },
-  "xanathar-turbine": {
-    gaps: ["MOVABLE_ZONE_RUNTIME", "MULTI_SAVE_SEQUENCE", "ENTRY_EXIT_FALL"],
-    note: "Servono zona mobile, doppio TS, trascinamento verticale, movimento con la zona, prova di fuga e caduta finale.",
-  },
   "xanathar-trasmutare-roccia": {
     gaps: ["VARIANT_ZONE_RUNTIME", "MOVEMENT_MECHANICS_MISSING", "ZONE_TRIGGER_MISSING"],
     note: "Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia.",
@@ -259,6 +240,10 @@ const CURATED_REVIEW = Object.freeze({
 const CURATED_COVERAGE_STATUS = Object.freeze({
   "antilife-shell": "CLOSED",
   "delayed-blast-fireball": "CLOSED",
+  "dominate-beast": "CLOSED",
+  "dominate-monster": "CLOSED",
+  "dominate-person": "CLOSED",
+  telekinesis: "ACCEPTED",
   "prismatic-spray": "ACCEPTED",
   "prismatic-wall": "ACCEPTED",
   "wind-wall": "ACCEPTED",
@@ -271,22 +256,34 @@ const CURATED_COVERAGE_STATUS = Object.freeze({
 const CURATED_AUTOMATION_LEVEL = Object.freeze({
   "antilife-shell": "PARTIAL",
   "delayed-blast-fireball": "PARTIAL",
+  "dominate-beast": "PARTIAL",
+  "dominate-monster": "PARTIAL",
+  "dominate-person": "PARTIAL",
+  telekinesis: "FULL",
   "prismatic-spray": "FULL",
   "prismatic-wall": "PARTIAL",
   "wind-wall": "PARTIAL",
   "phb2014-aura-di-vita": "PARTIAL",
+  "xanathar-turbine": "FULL",
+  "blink": "FULL",
 });
 
 const CURATED_COMPLETE = Object.freeze({
   "antilife-shell": "PASS: Guscio Anti-vita è PARTIAL/CLOSED per decisione di prodotto: automatici spell instance persistente sul caster, concentrazione, durata 1 ora, aura mobile di 3 m centrata e seguita dal caster, confine visuale e cleanup condiviso. Manuali accettati: esclusione di costrutti/non morti, attraversamento/crossing, protrusion, validazione reach/proiettili e terminazione quando il caster forza il passaggio; nessuna Condition artificiale, reminder o active action.",
   "delayed-blast-fireball": "PASS: Palla di Fuoco Ritardata è PARTIAL/CLOSED per decisione di prodotto. Il punto entro 45 m crea la perla come istanza persistente in concentrazione fino a 1 minuto; il contesto canonico conserva posizione corrente, slot, CD e accumulo 0..10d6. Ogni fine turno del caster incrementa l'istanza prima della scadenza sullo stesso boundary; terminazione volontaria, fallimento del TS di concentrazione, sostituzione della concentrazione e expiry passano dal terminal-resolution gateway, che sospende il cleanup fino alla detonazione. La detonazione ricalcola al momento il raggio di 6 m e i bersagli correnti, raccoglie un solo totale manuale dei dadi, applica TS Destrezza full/half e fuoco nella normale area transaction con History/Undo e idempotenza per instanceId/requestId. Restano manuali e accettati il contatto automatico, il lancio/collisione della perla e il fuoco sugli oggetti; lo spostamento usa gli strumenti scena esistenti e non una nuova action economy. La copertura della spell è quindi chiusa senza introdurre una nuova automazione per queste interazioni da tavolo.",
-  "prismatic-wall": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, comando GM di attraversamento con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», crossing fisico, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, movimento/blocco/proiettili e trasferimento planare effettivo. Non vengono introdotti crossing detector, layer-state-machine generica o planar engine.",
+  "dominate-beast": "PASS: Dominare Bestie è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
+  "dominate-monster": "PASS: Dominare Mostri è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
+  "dominate-person": "PASS: Dominare Persone è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
+  telekinesis: "PASS: Telecinesi è FULL/ACCEPTED nel perimetro OBR creature-only. Il cast dal pannello unificato crea una sola parent spell instance persistente con concentrazione fino a 10 minuti, target creatura entro 18 m, stato della contesa, bersaglio corrente e identity di attivazione. Dal turno successivo del caster, `telekinesis-maintain` e `telekinesis-retarget` sono esposti come azioni, una volta per turno, con popup di contesa; l'esito manuale aggiorna la stessa istanza, applica la Condition canonica Trattenuto sulla vittoria e ne gestisce la scadenza, mentre cleanup, reconcile e History/Undo restano instance-scoped. Movimento e sospensione/sollevamento restano manuali; la modalità oggetto è fuori perimetro perché il workflow OBR non dispone di token oggetto. Non vengono introdotti motori di movimento o fisica, Condition artificiali o store paralleli.",
+  "prismatic-wall": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, hot zone visibile e membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, apertura automatica del popup quando il movimento attraversa la parete, comando GM di risoluzione con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», dichiarazione e conseguenze del crossing nel popup, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, blocco/rollback del movimento, proiettili e trasferimento planare effettivo. Non vengono introdotti un boundary-crossing engine generico, una layer-state-machine generica o un planar engine.",
   "prismatic-spray": "PASS: Spruzzo Prismatico è FULL/ACCEPTED. Il cono shared da 18 m, i TS Destrezza indipendenti, il risultato fisico d8 per bersaglio, il doppio raggio 8, i totali manuali 10d6, i cinque tipi di danno, Trattenuto/Accecato/Pietrificato canonici, il progresso Indaco 3 successi/3 fallimenti e il TS Viola al prossimo turno del caster confluiscono nella singola risoluzione area e nei reminder/History shared. Restano intenzionalmente manuali soltanto il tiro fisico del d8 e il trasferimento materiale fra piani; non servono primitive random o movimento planare.",
   "wind-wall": "PASS: Muro di Vento è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: placement lineare supportato, targeting iniziale sulla sagoma, TS Forza indipendente, danno iniziale 3d8 contundenti con metà al successo, zona statica persistente, concentrazione fino a 1 minuto, durata, History/Undo e cleanup shared. Manuali accettati: forme continue non lineari, deviazione dei proiettili, attraversamento di creature o oggetti volanti Piccoli o inferiori, forma gassosa, dispersione di gas/fumo/nebbia, materiali leggeri e ogni interazione di crossing; nessuna Condition artificiale, trigger successivo, projectile/collision/crossing engine, active action o reminder.",
   "xanathar-lama-dombra": "PASS: Lama d'Ombra è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 1 minuto, la durata, lo slot/cast context e il danno sintetico scalato; arma da mischia semplice, competenza, dissipazione dopo drop/lancio e ricomparsa con azione bonus restano manuali al tavolo, senza active action, prompt, popup o reminder.",
   "flame-blade": "PASS: Lama Infuocata è intenzionalmente TRACK_ONLY/CLOSED. Il tracker conserva la spell instance persistente, la concentrazione fino a 10 minuti, la durata, lo slot/cast context e il danno sintetico scalato; attacco, azione, drop/rievocazione e luce restano manuali al tavolo, senza active action, prompt, popup o reminder.",
   "phb2014-aura-di-vitalita": "PASS: Aura di Vitalità è FULL/CLOSED. Riusa l'aura mobile, il calcolo shared dei membri, il controllo di istanza padre e la validazione della membership al commit. Il popup principale del turno del caster, disponibile anche nel turno del cast, espone l'azione bonus con un solo bersaglio corrente incluso il caster; il pannello Incantesimi resta fallback. Il totale manuale di 2d6 passa dalla mutazione HP/history condivisa; non consuma spell, slot o concentrazione e non usa dadi virtuali.",
   "phb2014-aura-di-vita": "PASS: Aura di Vita è PARTIAL/CLOSED per decisione di prodotto. Riusa aura mobile, membership non ostile, trigger di inizio turno e cleanup shared. Il recupero di 1 PF è un reminder manuale con la resolution di cura esistente, che conserva i controlli vivente/0 PF e le mutazioni canoniche; resistenza necrotica e protezione del massimo PF restano micropill/detail di tracking perché nel runtime non esiste un motore shared per applicarle. Queste proprietà manuali sono accettate e non richiedono ulteriori azioni di automazione.",
+  "xanathar-turbine": "PASS: Turbine è FULL/ACCEPTED. Cast, placement e zona cilindrica persistente usano i contratti shared con gittata 90 m e concentrazione fino a 1 minuto; il root viene spostato manualmente dal GM sul tabellone, senza azione o comandi di conferma/annullamento dedicati. Il runtime rileva ingresso e attraversamento swept una volta per turno e deduplica per istanza; i CHARACTER Trattenuti restano top-level e seguono il root con lo stesso delta XY. La catena TS Destrezza → gate Grande o inferiore → TS Forza applica 10d6, Trattenuto scoped alla specifica istanza, quota canonica +1,5 m con cap 9 m, azione di fuga e cleanup parent-scoped con History/Undo. Restano manuali e accettati oggetti non assicurati, tiro/direzione/lancio casuale e adjudication della caduta/fall damage.",
+  "blink": "PASS: Intermittenza è FULL/ACCEPTED. Il cast conserva Self, 1 minuto, nessuna concentrazione e lo stato iniziale Materiale nella parent spell instance. Alla fine di ogni turno del caster il framework shared consegna un prompt con le scelte RAW 1–10 / 11+ senza tirare dadi; il fallimento salva departurePosition e porta semanticamente l'istanza sul Piano Etereo senza spostare il token. All'inizio del turno successivo il GM sceglie direttamente la destinazione sulla mappa tramite il picker puntuale condiviso, senza creare aree; il punto viene normalizzato al centro della footprint e token:teleport è applicato subito. Distanza RAW, LOS, occupazione, scelta casuale fra spazi equidistanti e interazioni planari restano manuali accettati. La generalizzazione minima del terminal gateway consente il ritorno prima del cleanup per expiry, rimozione e dismissal; il dismissal RAW è un'Azione. Reload/reconcile, stale checks, exact instanceId e Undo restano persistiti e condivisi, incluso dopo il tick di round. Non vengono introdotti RNG, condition o engine planari.",
   "xanathar-investitura-del-vento": "PASS: Investitura del Vento è accettata. Il self-buff persistente, il volo, il cubo di vento come active action ripetibile, la geometria, il TS, il danno, la spinta e il prompt di turno sono esposti attraverso i contratti runtime esistenti; i limiti e le conseguenze gestite manualmente restano nel riferimento RAW.",
   "xanathar-investitura-della-pietra": "PASS: Investitura della Pietra è accettata. Il self-buff persistente e Scossa tellurica come active action ripetibile usano il lifecycle e il prompt condivisi; il raggio fisso sul caster, il TS, Prono e il riferimento alle interazioni con terreno e roccia restano coerenti con il contratto runtime e con la gestione manuale al tavolo.",
   "xanathar-anatema-elementale": "PASS: il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi. Il danno aggiuntivo e la rimozione della resistenza restano manuali per scelta di perimetro: il plugin non dispone degli strumenti per automatizzarli.",
@@ -886,9 +883,15 @@ function activeActionReachability(spell, areaRules) {
     };
   }
   const effectIds = unique(declarations.flatMap((action) => action.consumesEffectIds || []));
+  const syntheticCastContext = spell.id === "blink"
+    ? blinkCastContextForState(
+      { slotLevel: Math.max(1, Number(spell.level) || 1) },
+      { plane: "ethereal", departurePosition: { x: 0, y: 0 } },
+    )
+    : { slotLevel: Math.max(1, Number(spell.level) || 1) };
   const panelActionIds = new Set(getSpellOverviewActions({
     spell,
-    castContext: { slotLevel: Math.max(1, Number(spell.level) || 1) },
+    castContext: syntheticCastContext,
     casterId: "caster",
     targetIds: ["target"],
     effectInstances: effectIds.map((effectId, index) => ({
@@ -1706,6 +1709,10 @@ export function renderSpellAutomationMarkdown(audit) {
     `- Workflow che richiedono smoke test runtime: **${audit.summary.runtimeSmokeRequired}**.`,
     `- Lacune RAW confermate P1: **${audit.summary.curatedP1}**; discrepanze ad alta confidenza P2: **${audit.summary.highConfidence}**.`,
     `- Impronta deterministica: \`${audit.fingerprint}\`.`,
+    "",
+    "## Decisioni di prodotto chiuse",
+    "",
+    "- Dominare Bestie / Persone / Mostri: `damage-triggered save reminder only; precise control remains manual`.",
     "",
     "### Livello di automazione attuale (currentAutomationLevel)",
     "",

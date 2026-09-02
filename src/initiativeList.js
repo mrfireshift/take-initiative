@@ -610,6 +610,11 @@ async function __applyInitiativeTemporalDescriptor(descriptor) {
       targetIds: descriptor.targetIds,
       delta: descriptor.roundDelta,
       boundaries: descriptor.conditionBoundaries,
+      previousState: descriptor.previousState,
+      nextState: descriptor.nextState,
+      ...(descriptor.skipTerminalAccumulation === true
+        ? { skipTerminalAccumulation: true }
+        : {}),
       operationId: `${commandId}:operation`,
       createdAt: descriptor.createdAt,
     }
@@ -10466,6 +10471,15 @@ async function __processInitiativeMetadata(
     __conditionNavigationHint = null;
   }
 
+  const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
+  const boundaryTokenIds = Array.from(new Set(
+    [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
+      .map(__conditionActorId)
+      .filter(Boolean),
+  ));
+  const hasBoundaryTick = boundaries.length > 0
+    && IS_GM
+    && boundaryTokenIds.length > 0;
   const temporalDescriptors = [];
   if (st && Array.isArray(st.order) && st.order.length > 0) {
     const roundNow = Math.max(1, Number(st.round || 1));
@@ -10498,6 +10512,7 @@ async function __processInitiativeMetadata(
             conditionTransition?.boundaries?.map((boundary) => Object.freeze({ ...boundary })) || [],
           ),
           targetIds: Object.freeze(unique),
+          ...(hasBoundaryTick ? { skipTerminalAccumulation: true } : {}),
         };
         temporalDescriptors.push(Object.freeze({
           ...baseDescriptor,
@@ -10512,13 +10527,7 @@ async function __processInitiativeMetadata(
     __lastRoundSeenConfirmed = null;
   }
 
-  const { previousTurnState, nextTurnState, boundaries = [] } = conditionTransition || {};
-  const boundaryTokenIds = Array.from(new Set(
-    [...(previousTurnState?.order || []), ...(nextTurnState?.order || [])]
-      .map(__conditionActorId)
-      .filter(Boolean),
-  ));
-  if (boundaries.length && IS_GM && boundaryTokenIds.length) {
+  if (hasBoundaryTick) {
     const baseDescriptor = {
       sceneEpoch,
       sceneIdentity,
@@ -10534,12 +10543,8 @@ async function __processInitiativeMetadata(
       roundDelta: 0,
       conditionBoundaries: Object.freeze(boundaries.map((boundary) => Object.freeze({ ...boundary }))),
       targetIds: Object.freeze(boundaryTokenIds),
-      ...(temporalDescriptors.some((candidate) => (
-        candidate?.transitionSeq === transitionSeq
-        && candidate?.mutationType === "effects:tick-round"
-      )) ? { skipTerminalAccumulation: true } : {}),
     };
-    temporalDescriptors.push(Object.freeze({
+    temporalDescriptors.unshift(Object.freeze({
       ...baseDescriptor,
       boundaryCommandId: __temporalCommandId(baseDescriptor, "effects:tick-boundaries"),
     }));

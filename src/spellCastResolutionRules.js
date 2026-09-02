@@ -41,6 +41,13 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
       }),
     }),
   }),
+  "xanathar-turbine": Object.freeze({
+    initialHP: true,
+    damageByOutcome: Object.freeze({
+      passed: Object.freeze({ formula: "10d6", type: "contundenti" }),
+      failed: Object.freeze({ formula: "10d6", type: "contundenti" }),
+    }),
+  }),
   "chain-lightning": Object.freeze({
     initialHP: true,
     resolution: "chain-lightning",

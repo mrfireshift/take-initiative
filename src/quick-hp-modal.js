@@ -16,6 +16,7 @@ import {
   QUICK_HP_MODES,
   calculateQuickHPChange,
   createQuickHPVisualTransaction,
+  isQuickHPDamageChange,
   quickHPVisualUpdates,
   quickHPZeroReconcileTargetIds,
   shouldHandleQuickHPUndoShortcut,
@@ -670,7 +671,7 @@ async function showConcentrationWarnings(
   { causeHistoryEntryId = "", sceneEpoch, warningRuntimeScope = "" } = {},
 ) {
   const damage = entries
-    .filter((entry) => entry.change.requested > 0)
+    .filter((entry) => isQuickHPDamageChange(entry.change))
     .map((entry) => ({ itemId: entry.item.id, damage: entry.change.requested }));
   if (damage.length) {
     await broadcastConcentrationSaveWarnings(damage, {
@@ -683,7 +684,7 @@ async function showConcentrationWarnings(
 
 async function showEffectSaveDamageWarnings(entries) {
   const damageById = new Map(entries
-    .filter((entry) => entry.change.requested > 0)
+    .filter((entry) => isQuickHPDamageChange(entry.change))
     .map((entry) => [entry.item.id, entry.change.requested]));
   if (!damageById.size) return;
   const notices = effectSaveReminderNoticesForDamage({

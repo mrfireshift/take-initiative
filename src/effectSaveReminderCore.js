@@ -503,6 +503,167 @@ function deferredEffectNotice({
   };
 }
 
+function pathValue(root, path) {
+  return String(path || "").split(".").filter(Boolean).reduce(
+    (value, key) => value && typeof value === "object" ? value[key] : undefined,
+    root,
+  );
+}
+
+function spellTurnBoundaryNoticesForTiming({
+  items,
+  itemsById,
+  timing,
+  boundaryActorId,
+  eventKey,
+  noticeTurnKey,
+  onlyInstanceId = "",
+  onlyDescriptorId = "",
+} = {}) {
+  const notices = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    for (const spell of spellInstances(item)) {
+      if (onlyInstanceId
+        && String(spell?.instanceId || "").trim() !== String(onlyInstanceId).trim()) continue;
+      const pendingBoundary = spell?.castContext?.pendingTurnBoundary
+        && typeof spell.castContext.pendingTurnBoundary === "object"
+        ? spell.castContext.pendingTurnBoundary
+        : null;
+      if (pendingBoundary) {
+        if (String(pendingBoundary.timing || "").trim() !== timing
+          || String(pendingBoundary.turnKey || "").trim() !== eventKey) continue;
+      } else if (Number.isFinite(Number(spell?.turns)) && Number(spell.turns) <= 0) {
+        continue;
+      }
+      const descriptors = Array.isArray(spell?.castContext?.turnBoundaryNotices)
+        ? spell.castContext.turnBoundaryNotices
+        : [];
+      for (const descriptor of descriptors) {
+        if (pendingBoundary
+          && String(descriptor?.id || "").trim() !== String(pendingBoundary.descriptorId || "").trim()) continue;
+        if (onlyDescriptorId
+          && String(descriptor?.id || "").trim() !== String(onlyDescriptorId).trim()) continue;
+        if (spell?.pendingTermination && typeof spell.pendingTermination === "object") continue;
+        if (String(descriptor?.timing || "").trim() !== timing) continue;
+        const casterId = actorId(spell?.casterId || item?.id);
+        const expectedActorId = descriptor?.actor === "target"
+          ? String(item?.id || "").trim()
+          : casterId;
+        if (!expectedActorId || expectedActorId !== boundaryActorId) continue;
+        const requiredState = String(descriptor?.requiresPlane || "").trim();
+        if (requiredState) {
+          const actualState = String(
+            pathValue(spell?.castContext, descriptor?.statePath)
+              || "",
+          ).trim();
+          if (actualState !== requiredState) continue;
+        }
+        if (timing === "turn-start"
+          && String(spell?.appliedAt?.turnKey || "").trim() === eventKey) continue;
+        const instanceId = String(spell?.instanceId || "").trim();
+        const descriptorId = String(descriptor?.id || "").trim();
+        if (!instanceId || !descriptorId) continue;
+        const activationId = String(pendingBoundary?.activationId || "").trim()
+          || `${instanceId}:${descriptorId}:${eventKey}`;
+        const resolvedBoundary = spell?.castContext?.resolvedTurnBoundary;
+        if (
+          resolvedBoundary
+          && typeof resolvedBoundary === "object"
+          && String(resolvedBoundary.activationId || "").trim() === activationId
+        ) continue;
+        const effectiveNoticeTurnKey = pendingBoundary?.noticeTurnKey || noticeTurnKey;
+        const resolutions = item?.metadata?.[META_KEY]?.[REMINDER_RESOLUTIONS_FIELD];
+        if (
+          resolutions
+          && typeof resolutions === "object"
+          && Object.prototype.hasOwnProperty.call(resolutions, activationId)
+        ) continue;
+        const resolution = normalizeReminderResolution({
+          mode: "choice",
+          target: {
+            id: item.id,
+            name: String(item.name || "Token").trim().slice(0, 100) || "Token",
+          },
+          source: {
+            id: casterId,
+            name: String(itemsById.get(casterId)?.name || "").trim().slice(0, 100),
+          },
+          choiceLabels: descriptor.choiceLabels,
+          outcomes: {
+            passed: { mode: "none" },
+            failed: { mode: "none" },
+          },
+          activation: {
+            kind: "spell-turn-boundary",
+            activationId,
+            instanceId,
+            spellId: String(spell?.spellId || "").trim(),
+            casterId,
+            turnKey: eventKey,
+            noticeTurnKey: effectiveNoticeTurnKey,
+            descriptorId,
+            resolutionData: descriptor.resolutionData && typeof descriptor.resolutionData === "object"
+              ? descriptor.resolutionData
+              : {},
+          },
+        });
+        if (!resolution) continue;
+        notices.push({
+          activationId,
+          turnKey: effectiveNoticeTurnKey,
+          effectName: String(descriptor?.title || spell?.name || "Incantesimo")
+            .trim().slice(0, 120) || "Incantesimo",
+          spellName: String(spell?.name || "Incantesimo").trim().slice(0, 120),
+          spellId: String(spell?.spellId || "").trim().slice(0, 120),
+          saveLabel: String(descriptor?.label || "Promemoria turno")
+            .trim().slice(0, 160) || "Promemoria turno",
+          instruction: String(descriptor?.instruction || descriptor?.label || "Risolvi il turno.")
+            .trim().slice(0, 320) || "Risolvi il turno.",
+          timing,
+          kind: "effect-reminder",
+          eyebrow: String(descriptor?.title || "Incantesimo").trim().slice(0, 120),
+          resolution,
+          target: {
+            id: item.id,
+            name: String(item.name || "Token").trim().slice(0, 100) || "Token",
+            portrait: itemPortrait(item),
+          },
+          casterId,
+          casterName: String(itemsById.get(casterId)?.name || "").trim().slice(0, 100),
+          sourceId: casterId,
+          sourceName: String(itemsById.get(casterId)?.name || "").trim().slice(0, 100),
+        });
+      }
+    }
+  }
+  return notices;
+}
+
+function pendingSpellTurnBoundaryNotices({ items, itemsById } = {}) {
+  const notices = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    for (const spell of spellInstances(item)) {
+      const pending = spell?.castContext?.pendingTurnBoundary;
+      if (!pending || typeof pending !== "object") continue;
+      const timing = String(pending.timing || "").trim();
+      const eventKey = String(pending.turnKey || "").trim();
+      const boundaryActorId = actorId(pending.actorId || spell?.casterId || item?.id);
+      if (!timing || !eventKey || !boundaryActorId) continue;
+      notices.push(...spellTurnBoundaryNoticesForTiming({
+        items: [item],
+        itemsById,
+        timing,
+        boundaryActorId,
+        eventKey,
+        noticeTurnKey: String(pending.noticeTurnKey || eventKey).trim() || eventKey,
+        onlyInstanceId: spell?.instanceId,
+        onlyDescriptorId: pending.descriptorId,
+      }));
+    }
+  }
+  return notices;
+}
+
 function noticesForTiming(
   items,
   itemsById,
@@ -512,6 +673,14 @@ function noticesForTiming(
   noticeTurnKey = eventKey,
 ) {
   const notices = [];
+  notices.push(...spellTurnBoundaryNoticesForTiming({
+    items,
+    itemsById,
+    timing,
+    boundaryActorId,
+    eventKey,
+    noticeTurnKey,
+  }));
   for (const item of Array.isArray(items) ? items : []) {
     notices.push(...freedomEscapeNoticesForTiming({
       item,
@@ -657,8 +826,8 @@ export function planEffectSaveReminderNotices({
     previousInitiativeState,
     initiativeState,
   );
+  const currentStart = currentTurnStartBoundary(initiativeState);
   if (includeCurrentTurnStart) {
-    const currentStart = currentTurnStartBoundary(initiativeState);
     if (currentStart) boundaries.push(currentStart);
   }
   const uniqueBoundaries = new Map(boundaries.map((boundary) => [
@@ -691,6 +860,17 @@ export function planEffectSaveReminderNotices({
       boundary.noticeTurnKey,
     ),
     ]),
+    ...(!includeCurrentTurnStart && currentStart
+      ? spellTurnBoundaryNoticesForTiming({
+        items: list,
+        itemsById,
+        timing: currentStart.timing,
+        boundaryActorId: currentStart.actorId,
+        eventKey: currentStart.turnKey,
+        noticeTurnKey: currentStart.noticeTurnKey,
+      })
+      : []),
+    ...pendingSpellTurnBoundaryNotices({ items: list, itemsById }),
   ];
   return [...new Map(notices.map((notice) => [
     notice.activationId,

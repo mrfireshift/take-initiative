@@ -5,6 +5,7 @@ import {
   buildSpellUnifiedPanelContract,
   getSpellUnifiedActiveActionDeclarations,
 } from "../src/spellUnifiedPanelCore.js";
+import { SPELL_AREA_RULES } from "../src/spellAreaRules.js";
 import {
   buildSpellUnifiedActivePopoverRequest,
   buildSpellUnifiedPreparedPopoverRequest,
@@ -306,25 +307,25 @@ test("azione manuale, movimento zona e popup annullato non duplicano la risoluzi
   assert.equal(activeCalls, 1);
 
   const declarations = getSpellUnifiedActiveActionDeclarations("moonbeam");
-  const movement = declarations.find((entry) => entry.resolutionKind === "zone-movement");
-  assert.ok(movement);
-  const movementOverview = overviewFor("moonbeam", movement, { zoneItemId: "moon-root" });
-  let movementInput = null;
-  const movementResult = await executeSpellUnifiedActiveAction({
-    overview: movementOverview,
-    action: movement,
-    actionId: movement.id,
-    sceneEpoch: 7,
-    runtime: {
-      zoneMovementExecutor: async (input) => {
-        movementInput = input;
-        return ["moon-root"];
-      },
-    },
-  });
-  assert.equal(movementResult.status, SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED);
-  assert.equal(movementInput.action.ruleId, "moonbeam:cast");
-  assert.equal(movementInput.action.zoneItemId, "moon-root");
+  assert.equal(
+    declarations.some((entry) => entry.resolutionKind === "zone-movement"),
+    false,
+  );
+  const declarativeMovementSpellIds = [...new Set(
+    SPELL_AREA_RULES
+      .filter((rule) => rule?.kind === "zone"
+        && ["action", "bonus-action"].includes(rule?.zonePolicy?.movement?.mode))
+      .map((rule) => rule.spellId)
+      .filter(Boolean),
+  )];
+  for (const spellId of declarativeMovementSpellIds) {
+    assert.equal(
+      getSpellUnifiedActiveActionDeclarations(spellId)
+        .some((entry) => entry.resolutionKind === "zone-movement"),
+      false,
+      spellId,
+    );
+  }
 
   const direction = actionFor("gust-of-wind", "gust-of-wind-direction");
   const directionOverview = overviewFor("gust-of-wind", direction, {

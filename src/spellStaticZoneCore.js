@@ -215,6 +215,9 @@ export function staticSpellZoneOwnerOperation({
   return {
     type: "spell:upsert",
     targetIds: [normalizedCasterId],
+    ...(rule?.zonePolicy?.ownerLabelTargets === "none"
+      ? { targets: [] }
+      : {}),
     name,
     turns: hasFiniteDuration ? defaultTurns : 1,
     conc: concentration,
@@ -325,10 +328,14 @@ export function activeSpellInstanceIds(items = [], {
 
 export function staleStaticSpellZoneItemIds(items = [], options = {}) {
   const active = activeSpellInstanceIds(items, options);
+  const protectedInstanceIds = new Set(normalizedIds(options.protectedInstanceIds));
   return staticSpellZoneItems(items)
-    .filter((item) => !active.has(normalizedId(
-      item.metadata[SPELL_STATIC_ZONE_META_KEY].instanceId
-    )))
+    .filter((item) => {
+      const instanceId = normalizedId(
+        item.metadata[SPELL_STATIC_ZONE_META_KEY].instanceId,
+      );
+      return !active.has(instanceId) && !protectedInstanceIds.has(instanceId);
+    })
     .map((item) => item.id)
     .filter(Boolean);
 }

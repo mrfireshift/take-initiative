@@ -242,7 +242,23 @@ export function zoneTriggerNoticesFromActivation(
       .filter((targetId) => targetId && source.has(targetId)),
   ));
   if (targetIds.length <= 1) {
-    const notice = zoneTriggerNoticeFromActivation(activation, source);
+    const targetId = targetIds[0] || "";
+    const sourceActivationId = normalizedText(
+      activation?.sourceActivationId,
+      "",
+      300,
+    );
+    const notice = zoneTriggerNoticeFromActivation(
+      sourceActivationId && targetId
+        ? {
+          ...activation,
+          id: targetScopedActivationId(sourceActivationId, targetId),
+          sourceActivationId,
+          targetIds: [targetId],
+        }
+        : activation,
+      source,
+    );
     return notice ? [notice] : [];
   }
   const rootActivationId = normalizedText(activation?.id, "", 300);

@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "2ec5e6437b42a732",
+  "fingerprint": "f7744ba662ff77cd",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -17,23 +17,23 @@
       "gestione manuale intenzionale": 3
     },
     "currentAutomationLevel": {
-      "FULL": 63,
+      "FULL": 66,
       "MANUAL": 88,
-      "PARTIAL": 182,
-      "TRACK_ONLY": 144
+      "PARTIAL": 180,
+      "TRACK_ONLY": 143
     },
     "coverageStatus": {
-      "ACCEPTED": 68,
-      "CLOSED": 6,
-      "GAP": 20,
+      "ACCEPTED": 71,
+      "CLOSED": 9,
+      "GAP": 14,
       "UNREVIEWED": 383
     },
     "targetAutomationLevel": {
-      "FULL": 63,
+      "FULL": 66,
       "MANUAL": 3,
-      "PARTIAL": 5,
+      "PARTIAL": 8,
       "TRACK_ONLY": 3,
-      "UNREVIEWED": 403
+      "UNREVIEWED": 397
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -45,29 +45,29 @@
     },
     "trackableOptions": 358,
     "trackable": 355,
-    "withAreaRules": 132,
-    "areaRuleEntries": 137,
-    "openRows": 20,
-    "confirmed": 19,
+    "withAreaRules": 133,
+    "areaRuleEntries": 138,
+    "openRows": 14,
+    "confirmed": 13,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 19,
+    "curatedP1": 13,
     "manuallyReviewed": 93,
     "knownIntegrationGaps": 0,
-    "knownRawGaps": 20,
+    "knownRawGaps": 14,
     "byPriority": {
-      "—": 457,
-      "P1": 19,
+      "—": 463,
+      "P1": 13,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 276,
+      "coperto": 282,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
       "istantaneo: gestione manuale": 57,
       "manuale intenzionale": 3,
-      "parziale: revisione curata": 19,
+      "parziale: revisione curata": 13,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 21
     },
@@ -79,24 +79,21 @@
     },
     "byGap": {
       "CHOICE_WORKFLOW_MISSING": 3,
-      "CONDITIONAL_TRIGGER": 8,
-      "ENTRY_EXIT_FALL": 2,
-      "MOVABLE_ZONE_RUNTIME": 1,
+      "CONDITIONAL_TRIGGER": 5,
+      "ENTRY_EXIT_FALL": 1,
       "MOVEMENT_MECHANICS_MISSING": 6,
-      "MULTI_SAVE_SEQUENCE": 1,
-      "POST_EXPIRY_EFFECT": 2,
-      "RANDOM_TURN_STATE": 1,
-      "REPEATED_ACTION": 9,
+      "POST_EXPIRY_EFFECT": 1,
+      "REPEATED_ACTION": 5,
       "ROUND_STATE_MACHINE": 1,
-      "STATUS_MISSING": 4,
+      "STATUS_MISSING": 3,
       "TEXT_MISSING": 1,
       "TURN_EFFECT_MISSING": 1,
       "VARIANT_ZONE_RUNTIME": 1,
       "ZONE_TRIGGER_MISSING": 2
     },
     "byIntegrationStatus": {
-      "partial": 20,
-      "reachable": 372,
+      "partial": 14,
+      "reachable": 378,
       "unexposed": 85
     },
     "byIntegrationPriority": {
@@ -107,13 +104,13 @@
       "UNIFIED_CATALOG_MISSING": 85
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 37,
-      "AREA_GEOMETRY": 132,
-      "CAST": 221,
+      "ACTIVE_ACTION": 39,
+      "AREA_GEOMETRY": 133,
+      "CAST": 222,
       "CLEANUP": 106,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
-      "TURN_TRIGGER": 87
+      "TURN_TRIGGER": 88
     },
     "unifiedCatalogExposed": 392,
     "integrationDisconnected": 0,
@@ -4265,15 +4262,11 @@
           ]
         },
         "actions": {
-          "declaredActionIds": [
-            "moonbeam:cast:move"
-          ],
-          "panelActionIds": [
-            "moonbeam:cast:move"
-          ],
+          "declaredActionIds": [],
+          "panelActionIds": [],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "none"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -14854,8 +14847,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -14878,28 +14871,9 @@
         "TS",
         "status:Affascinato"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui e non fa nulla che l'incantatore non le consenta di fare."
-          ]
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui e non fa nulla che l'incantatore non le consenta di fare."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": [
@@ -14924,7 +14898,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -14994,7 +14968,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni."
+      "curatedNote": "PASS: Dominare Bestie è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual."
     },
     {
       "id": "dominate-monster",
@@ -15008,8 +14982,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -15032,28 +15006,9 @@
         "TS",
         "status:Affascinato"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui e non fa nulla che l'incantatore non le consenta di fare."
-          ]
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui e non fa nulla che l'incantatore non le consenta di fare."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": [
@@ -15078,7 +15033,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -15148,7 +15103,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni."
+      "curatedNote": "PASS: Dominare Mostri è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual."
     },
     {
       "id": "dominate-person",
@@ -15162,8 +15117,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -15187,28 +15142,9 @@
         "TS",
         "status:Affascinato"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui enon fa nulla che l'incantatore non le consenta di fare."
-          ]
-        },
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "L'incantatore può specificare una linea d'azione semplice e generale, come \"attacca quella creatura\", \"corri fin laggiù\" o \"portami quell'oggetto”.",
-            "L'incantatore può usare la sua azione per assumere il controllo totale e preciso del bersaglio.",
-            "Fino al termine del turno successivo dell'incantatore, la creatura compie solamente le azioni decise da lui enon fa nulla che l'incantatore non le consenta di fare."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Affascinato"
@@ -15235,7 +15171,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -15305,7 +15241,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni."
+      "curatedNote": "PASS: Dominare Persone è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual."
     },
     {
       "id": "xanathar-drago-illusorio",
@@ -26044,12 +25980,14 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "TRACK_ONLY",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
+        "AREA_GEOMETRY",
         "PERSISTENCE"
       ],
       "verificationEvidence": [
@@ -26061,47 +25999,44 @@
         "turni"
       ],
       "coverage": [
-        "tracking"
+        "tracking",
+        "aree:instant",
+        "fasi/azioni",
+        "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "RANDOM_TURN_STATE",
-          "label": "stato casuale ricorrente di turno assente",
-          "evidence": [
-            "All'inizio del suo turno successivo, e quando l'incantesimo termina nel caso l'incantatore si trovi già sul Piano Etereo, l'incantatore ritorna in uno spazio libero a sua scelta, che è in grado di vedere e situato entro 3 metri dal punto in cui è svanito."
-          ]
-        },
-        {
-          "code": "POST_EXPIRY_EFFECT",
-          "label": "conseguenza alla fine della spell assente",
-          "evidence": [
-            "All'inizio del suo turno successivo, e quando l'incantesimo termina nel caso l'incantatore si trovi già sul Piano Etereo, l'incantatore ritorna in uno spazio libero a sua scelta, che è in grado di vedere e situato entro 3 metri dal punto in cui è svanito."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
+        "areaRuleIds": [
+          "blink:return"
+        ],
+        "areaKinds": [
+          "instant"
+        ],
         "triggerIds": [],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "blink-return",
+          "blink-terminate"
+        ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -26129,19 +26064,27 @@
           "errors": []
         },
         "persistence": {
-          "required": false,
+          "required": true,
           "declared": true,
           "ruleIds": []
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "blink-return",
+            "blink-terminate"
+          ],
+          "panelActionIds": [
+            "blink-return",
+            "blink-terminate"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
           "PERSISTENCE"
         ]
       },
@@ -26156,7 +26099,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione."
+      "curatedNote": "PASS: Intermittenza è FULL/ACCEPTED. Il cast conserva Self, 1 minuto, nessuna concentrazione e lo stato iniziale Materiale nella parent spell instance. Alla fine di ogni turno del caster il framework shared consegna un prompt con le scelte RAW 1–10 / 11+ senza tirare dadi; il fallimento salva departurePosition e porta semanticamente l'istanza sul Piano Etereo senza spostare il token. All'inizio del turno successivo il GM sceglie direttamente la destinazione sulla mappa tramite il picker puntuale condiviso, senza creare aree; il punto viene normalizzato al centro della footprint e token:teleport è applicato subito. Distanza RAW, LOS, occupazione, scelta casuale fra spazi equidistanti e interazioni planari restano manuali accettati. La generalizzazione minima del terminal gateway consente il ritorno prima del cleanup per expiry, rimozione e dismissal; il dismissal RAW è un'Azione. Reload/reconcile, stale checks, exact instanceId e Undo restano persistiti e condivisi, incluso dopo il tick di round. Non vengono introdotti RNG, condition o engine planari."
     },
     {
       "id": "hellish-rebuke",
@@ -34206,7 +34149,7 @@
           "Finché questo strato rimane al suo posto, gli attacchi magici a distanza non possono attraversare il muro."
         ]
       },
-      "curatedNote": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, comando GM di attraversamento con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», crossing fisico, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, movimento/blocco/proiettili e trasferimento planare effettivo. Non vengono introdotti crossing detector, layer-state-machine generica o planar engine."
+      "curatedNote": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, hot zone visibile e membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, apertura automatica del popup quando il movimento attraversa la parete, comando GM di risoluzione con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», dichiarazione e conseguenze del crossing nel popup, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, blocco/rollback del movimento, proiettili e trasferimento planare effettivo. Non vengono introdotti un boundary-crossing engine generico, una layer-state-machine generica o un planar engine."
     },
     {
       "id": "xanathar-nemici-in-abbondanza",
@@ -52498,13 +52441,14 @@
       "saveScope": "—",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
         "ACTIVE_ACTION",
+        "CAST",
         "CONCENTRATION",
         "PERSISTENCE"
       ],
@@ -52519,28 +52463,13 @@
       ],
       "coverage": [
         "tracking",
-        "fasi/azioni"
+        "TS",
+        "fasi/azioni",
+        "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Fino al termine del suo turno successivo, la creatura è trattenuta dalla morsa telecinetica e una creatura sollevata verticalmente rimane sospesa a mezz'aria.",
-            "Nei round successivi, l'incantatore può usare la sua azione per provare a mantenere la sua morsa telecinetica sulla creatura ripetendo la contesa."
-          ]
-        },
-        {
-          "code": "STATUS_MISSING",
-          "label": "condizione o stato RAW non rappresentato",
-          "evidence": [
-            "Fino al termine del suo turno successivo, la creatura è trattenuta dalla morsa telecinetica e una creatura sollevata verticalmente rimane sospesa a mezz'aria.",
-            "Nei round successivi, l'incantatore può usare la sua azione per provare a mantenere la sua morsa telecinetica sulla creatura ripetendo la contesa."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -52550,22 +52479,24 @@
         "areaRuleIds": [],
         "areaKinds": [],
         "triggerIds": [],
-        "saveAutomation": false,
+        "saveAutomation": true,
         "batchSaveWorkflowRequired": false,
         "effectCount": 0,
         "activeActionIds": [
+          "telekinesis-maintain",
           "telekinesis-retarget"
         ],
         "phaseOptions": [],
         "movementMechanics": false,
         "smokeCategories": [
           "ACTIVE_ACTION",
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -52581,7 +52512,8 @@
           "visibleInputs": [
             "caster",
             "slot",
-            "targets"
+            "targets",
+            "outcomes"
           ]
         },
         "cast": {
@@ -52602,18 +52534,24 @@
         },
         "actions": {
           "declaredActionIds": [
+            "telekinesis-maintain",
             "telekinesis-retarget"
           ],
           "panelActionIds": [
+            "telekinesis-maintain",
             "telekinesis-retarget"
           ],
-          "reminderActionIds": [],
+          "reminderActionIds": [
+            "telekinesis-maintain",
+            "telekinesis-retarget"
+          ],
           "unreachableActionIds": [],
-          "mode": "panel"
+          "mode": "panel-and-reminder"
         },
         "smokeRequired": true,
         "smokeCategories": [
           "ACTIVE_ACTION",
+          "CAST",
           "CONCENTRATION",
           "PERSISTENCE"
         ]
@@ -52631,7 +52569,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo."
+      "curatedNote": "PASS: Telecinesi è FULL/ACCEPTED nel perimetro OBR creature-only. Il cast dal pannello unificato crea una sola parent spell instance persistente con concentrazione fino a 10 minuti, target creatura entro 18 m, stato della contesa, bersaglio corrente e identity di attivazione. Dal turno successivo del caster, `telekinesis-maintain` e `telekinesis-retarget` sono esposti come azioni, una volta per turno, con popup di contesa; l'esito manuale aggiorna la stessa istanza, applica la Condition canonica Trattenuto sulla vittoria e ne gestisce la scadenza, mentre cleanup, reconcile e History/Undo restano instance-scoped. Movimento e sospensione/sollevamento restano manuali; la modalità oggetto è fuori perimetro perché il workflow OBR non dispone di token oggetto. Non vengono introdotti motori di movimento o fisica, Condition artificiali o store paralleli."
     },
     {
       "id": "phb2014-telepatia",
@@ -55866,17 +55804,19 @@
       "saveScope": "area",
       "inAuditScope": true,
       "exclusionReason": "",
-      "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "currentAutomationLevel": "FULL",
+      "coverageStatus": "ACCEPTED",
+      "targetAutomationLevel": "FULL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
         "AREA_GEOMETRY",
         "CAST",
         "CLEANUP",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -55895,36 +55835,11 @@
         "lifecycle",
         "TS",
         "movimento",
-        "varianti"
+        "fasi/azioni"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "MOVABLE_ZONE_RUNTIME",
-          "label": "movimento manuale della zona non risolto",
-          "evidence": [
-            "Il turbine è un cilindro del raggio di 3 metri e alto 9 metri centrato su quel punto.",
-            "Finché l'incantesimo non termina, l'incantatore può usare la sua azione per muovere il turbine di un massimo di 9 metri in qualsiasi direzione lungo il terreno."
-          ]
-        },
-        {
-          "code": "MULTI_SAVE_SEQUENCE",
-          "label": "sequenza di più TS e uscita dalla condizione incompleta",
-          "evidence": [
-            "Il turbine è un cilindro del raggio di 3 metri e alto 9 metri centrato su quel punto.",
-            "Finché l'incantesimo non termina, l'incantatore può usare la sua azione per muovere il turbine di un massimo di 9 metri in qualsiasi direzione lungo il terreno."
-          ]
-        },
-        {
-          "code": "ENTRY_EXIT_FALL",
-          "label": "ingresso, sospensione e caduta finale non risolti",
-          "evidence": [
-            "Il turbine è un cilindro del raggio di 3 metri e alto 9 metri centrato su quel punto.",
-            "Finché l'incantesimo non termina, l'incantatore può usare la sua azione per muovere il turbine di un massimo di 9 metri in qualsiasi direzione lungo il terreno."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -55937,23 +55852,30 @@
         "areaKinds": [
           "zone"
         ],
-        "triggerIds": [],
+        "triggerIds": [
+          "xanathar-turbine-entry-save",
+          "xanathar-turbine-area-move-save"
+        ],
         "saveAutomation": true,
         "batchSaveWorkflowRequired": true,
         "effectCount": 0,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "xanathar-turbine-escape"
+        ],
         "phaseOptions": [],
         "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -55966,17 +55888,16 @@
         "contract": {
           "lane": "area-transaction",
           "targetingMode": "geometric",
-          "placementPolicy": "optional",
+          "placementPolicy": "required",
           "visibleInputs": [
             "caster",
             "slot",
-            "variant",
             "targets",
+            "targetContext",
             "placement",
             "outcomes",
             "hp",
-            "damage",
-            "automation"
+            "damage"
           ]
         },
         "cast": {
@@ -55994,19 +55915,25 @@
           ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "xanathar-turbine-escape"
+          ],
+          "panelActionIds": [
+            "xanathar-turbine-escape"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
           "AREA_GEOMETRY",
           "CAST",
           "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -56027,7 +55954,7 @@
           "Una creatura deve effettuare un tiro salvezza su Destrezza la prima volta in un turno in cui entra nel turbine o la prima volta in cui il turbine entra nel suo spazio, incluso il momento in cui il turbine compare per la prima volta."
         ]
       },
-      "curatedNote": "Servono zona mobile, doppio TS, trascinamento verticale, movimento con la zona, prova di fuga e caduta finale."
+      "curatedNote": "PASS: Turbine è FULL/ACCEPTED. Cast, placement e zona cilindrica persistente usano i contratti shared con gittata 90 m e concentrazione fino a 1 minuto; il root viene spostato manualmente dal GM sul tabellone, senza azione o comandi di conferma/annullamento dedicati. Il runtime rileva ingresso e attraversamento swept una volta per turno e deduplica per istanza; i CHARACTER Trattenuti restano top-level e seguono il root con lo stesso delta XY. La catena TS Destrezza → gate Grande o inferiore → TS Forza applica 10d6, Trattenuto scoped alla specifica istanza, quota canonica +1,5 m con cap 9 m, azione di fuga e cleanup parent-scoped con History/Undo. Restano manuali e accettati oggetti non assicurati, tiro/direzione/lancio casuale e adjudication della caduta/fall damage."
     },
     {
       "id": "tasha-turbine-di-spade",

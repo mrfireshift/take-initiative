@@ -37,9 +37,25 @@ export function getSpellsFromItem(item) {
 }
 
 export function getVisibleSpellsFromItem(item) {
-  return getSpellsFromItem(item).filter(
-    (spell) => spell?.castContext?.staticZoneOwner !== true
-  );
+  const itemId = String(item?.id || "").trim();
+  return getSpellsFromItem(item).filter((spell) => {
+    const spellId = String(spell?.spellId || "").trim();
+    const casterId = String(spell?.casterId || "").trim();
+    const isTurbine = spellId === "xanathar-turbine"
+      || keyOf(spell?.name) === "turbine";
+    const isTurbineOwner = isTurbine && (
+      spell?.castContext?.staticZoneOwner === true
+      || (!!itemId && casterId === itemId)
+    );
+    // The owner record is required for concentration/lifecycle bookkeeping,
+    // but Turbine is represented on the affected targets, not on its caster.
+    if (isTurbineOwner) return false;
+    return spell?.castContext?.staticZoneOwner !== true
+      || (
+        !!itemId
+        && String(spell?.casterId || "").trim() === itemId
+      );
+  });
 }
 
 export function getSpellFromItemByName(item, spellName) {

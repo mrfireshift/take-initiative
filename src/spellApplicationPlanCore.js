@@ -17,6 +17,13 @@ import {
 } from "./spellCastPhaseCore.js";
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import { spellEffectThemeFor } from "./spellColorCore.js";
+import { blinkInitialCastContext } from "./blinkRules.js";
+import {
+  TELEKINESIS_OUTCOMES,
+  telekinesisCastContext,
+  telekinesisRestrainedConditionOptions,
+  telekinesisStateFromCastContext,
+} from "./telekinesisRules.js";
 
 const uniqueIds = (values) => Array.from(new Set((values || []).filter(Boolean)));
 
@@ -110,40 +117,20 @@ export function buildSpellApplicationIntent({
   const name = spell?.displayName || enteredName;
   const resolvedPhasePlan = phasePlan || getSpellCastPhasePlan(spell, "", castContext);
   const wantsConcentration = resolveSpellConcentration(spell, requestedConcentration);
-  const persistedCastContext = initialSpellUses(spell, {
+  const baseCastContext = initialSpellUses(spell, {
     ...(castContext && typeof castContext === "object" ? castContext : {}),
     phase: resolvedPhasePlan.phase,
     choice: String(selectedChoice || ""),
     applyAutomatedConditions: applyAutomatedConditions !== false,
   });
-  const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
-  const summaryParts = getSpellSummaryParts(spell, selectedChoice, persistedCastContext);
+  let persistedCastContext = spell?.id === "blink"
+    ? blinkInitialCastContext(baseCastContext)
+    : baseCastContext;
   const attackResolution = getSpellAttackResolution(
     spell,
     selectedChoice,
     persistedCastContext,
   );
-  const phaseEffects = resolvedPhasePlan.effects === null
-    ? catalogEffects
-    : resolvedPhasePlan.effects;
-  let castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
-    ? buildSpellCastAutomationPlan({
-      proposedConditions: getProposedConditions(spell, selectedChoice),
-      proposedEffects: phaseEffects,
-      saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
-      applyAutomatedConditions,
-      hasEffectChoices: getSpellEffectChoices(spell).length > 0,
-    })
-    : {
-      conditions: [],
-      effects: phaseEffects,
-      usedSaveAutomation: false,
-    };
-  const choiceTiming = getSpellChoiceTiming(spell, selectedChoice, persistedCastContext);
-  const concentrationAction = castAutomationPlan.concentrationAction
-    || choiceTiming?.concentrationAction
-    || resolvedPhasePlan.concentrationAction
-    || "replace";
   const normalizedAttackOutcome = normalizeAttackOutcome(attackOutcome);
   const attackContract = resolvedPhasePlan.attack && typeof resolvedPhasePlan.attack === "object"
     ? resolvedPhasePlan.attack
@@ -165,6 +152,42 @@ export function buildSpellApplicationIntent({
     subjects,
     saveOutcome,
   );
+  if (spell?.id === "telekinesis") {
+    if (subjects.length !== 1) throw new Error("telekinesis-single-creature-required");
+    const outcome = normalizedSaveOutcomeMap[subjects[0]];
+    if (!TELEKINESIS_OUTCOMES.includes(String(outcome || "").trim())) {
+      throw new Error("telekinesis-contest-outcome-required");
+    }
+    persistedCastContext = telekinesisCastContext({
+      castContext: persistedCastContext,
+      casterId,
+      targetId: subjects[0],
+      outcome,
+    });
+  }
+  const catalogEffects = getSpellEffects(spell, selectedChoice, persistedCastContext);
+  const phaseEffects = resolvedPhasePlan.effects === null
+    ? catalogEffects
+    : resolvedPhasePlan.effects;
+  let castAutomationPlan = resolvedPhasePlan.useCatalogAutomation
+    ? buildSpellCastAutomationPlan({
+      proposedConditions: getProposedConditions(spell, selectedChoice),
+      proposedEffects: phaseEffects,
+      saveAutomation: getAreaSaveAutomation(spell, selectedChoice),
+      applyAutomatedConditions,
+      hasEffectChoices: getSpellEffectChoices(spell).length > 0,
+    })
+    : {
+      conditions: [],
+      effects: phaseEffects,
+      usedSaveAutomation: false,
+    };
+  const choiceTiming = getSpellChoiceTiming(spell, selectedChoice, persistedCastContext);
+  const concentrationAction = castAutomationPlan.concentrationAction
+    || choiceTiming?.concentrationAction
+    || resolvedPhasePlan.concentrationAction
+    || "replace";
+  const summaryParts = getSpellSummaryParts(spell, selectedChoice, persistedCastContext);
   const saveRequired = resolvedPhasePlan.phase === "resolve"
     && !!resolvedPhasePlan.resolution?.mechanics?.savingThrow;
   if (
@@ -271,6 +294,20 @@ export function buildSpellApplicationPlan({
     turns,
     wantsConcentration,
   } = intent;
+  const telekinesisConditionApplications = spell?.id === "telekinesis"
+    && persistedCastContext?.applyAutomatedConditions !== false
+    && telekinesisStateFromCastContext(persistedCastContext).contest === "passed"
+    ? [{
+      targetIds: subjects,
+      conditionName: "Trattenuto",
+      options: telekinesisRestrainedConditionOptions({
+        casterId,
+        casterName,
+        instanceId,
+        appliedAt,
+      }),
+    }]
+    : [];
   const spellExpiry = choiceTiming && Object.prototype.hasOwnProperty.call(
     choiceTiming,
     "spellExpiry",
@@ -284,7 +321,8 @@ export function buildSpellApplicationPlan({
   const initialDamage = phasePlan?.resolution?.mechanics?.damageBonus || null;
   const hasPersistentResolutionEffect = castAutomationPlan.conditions.length > 0
     || castAutomationPlan.effects.length > 0
-    || (saveResolution?.conditionApplications?.length || 0) > 0;
+    || (saveResolution?.conditionApplications?.length || 0) > 0
+    || telekinesisConditionApplications.length > 0;
   const resolvedConcentrationAction = phasePlan.phase === "resolve"
     && concentrationAction === "extend"
     && saveResolution
@@ -310,7 +348,10 @@ export function buildSpellApplicationPlan({
       ...castAutomationPlan.effects,
       ...(attackResolution?.effect ? [attackResolution.effect] : []),
     ],
-    conditionApplications: saveResolution?.conditionApplications || [],
+    conditionApplications: [
+      ...(saveResolution?.conditionApplications || []),
+      ...telekinesisConditionApplications,
+    ],
     conditionOptions: {
       sourceId: casterId || "",
       sourceName: casterName,

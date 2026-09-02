@@ -71,4 +71,4 @@ export function initializePopoverDrag(popoverRoot = document.querySelector("[dat
   });
 }
 
-initializePopoverDrag();
+if (typeof document !== "undefined") initializePopoverDrag();

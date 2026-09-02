@@ -705,6 +705,57 @@ test("il controller collega popup, completamento, chiusura e terminazione ai con
   );
 });
 
+test("i comandi del Muro Prismatico aprono il popup al primo clic", async () => {
+  const spell = getSpellDefinition("prismatic-wall");
+  for (const actionId of ["prismatic-wall-traversal", "prismatic-wall-layers"]) {
+    const action = spell.activeActions.find((entry) => entry.id === actionId);
+    const overview = [{
+      instanceId: `wall-${actionId}`,
+      name: spell.displayName,
+      casterName: "Caster A",
+      context: {
+        spellId: spell.id,
+        instanceId: `wall-${actionId}`,
+        casterId: "caster-a",
+        casterName: "Caster A",
+        zoneItemId: "wall-root",
+        sceneEpoch: 1,
+        revision: 1,
+        castContext: {
+          staticZoneOwner: true,
+          slotLevel: 9,
+          prismaticWall: { remainingLayers: ["red"] },
+        },
+      },
+      actions: [{ ...action, type: "manual", available: true, disabled: false }],
+    }];
+    const opened = [];
+    const provider = createProvider({ overview });
+    const { root, panel } = boot({
+      provider,
+      broadcast: new FakeBroadcast(),
+      route: {
+        status: "ready",
+        spellId: spell.id,
+        session: { casterId: "caster-a" },
+      },
+      sceneEpoch: 1,
+      currentSceneEpoch: 1,
+      currentRevision: 1,
+      openActiveResolution: async (payload) => opened.push(payload),
+    });
+    await settle(8);
+
+    const actionButton = requiredNode(root, `[data-value="${actionId}"]`);
+    await actionButton.click();
+    await settle(10);
+    assert.equal(opened.length, 1, actionId);
+    assert.equal(opened[0].actionId, actionId);
+    assert.equal(panel.state.session.activeActionState.state, "opened");
+    await panel.destroy();
+  }
+});
+
 test("la terminazione non lascia il pannello bloccato se il refresh delle label resta in attesa", async () => {
   const provider = createProvider({
     overview: [{

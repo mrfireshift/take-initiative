@@ -2,6 +2,7 @@ import OBR, { buildPath, Command } from "@owlbear-rodeo/sdk";
 import { sendProjectedReminderPayload } from "./options/reminderProjectionBroadcast.js";
 import {
   areaIntersectsSegment,
+  areaIntersectsSweptSegment,
   buildArea,
   buildCellBoundaryLoops,
   areaHitsBounds,
@@ -66,6 +67,22 @@ import {
   createSceneMetadataKeyWatcher,
   sceneMetadataKeyDigest,
 } from "./sceneMetadataDigest.js";
+import { prismaticWallCrossingTargetIds } from "./prismaticWallTraversalCore.js";
+import {
+  buildSpellActiveResolutionPayload,
+  getSpellResolutionAction,
+  spellActiveResolutionPopoverId,
+} from "./spellActiveResolutionCore.js";
+import { buildSpellUnifiedActivePopoverRequest } from "./spellUnifiedActiveAdapter.js";
+import { openTrackedPopover } from "./popoverDragHost.js";
+import { getSpellDefinition } from "./spells-srd.js";
+import { spellOverviewGroups } from "./spellsPanelViewCore.js";
+import {
+  XANATHAR_TURBINE_MAX_ELEVATION_METERS,
+  XANATHAR_TURBINE_RESTRAINED_EFFECT_ID,
+  XANATHAR_TURBINE_SPELL_ID,
+  XANATHAR_TURBINE_TURN_RAISE_METERS,
+} from "./xanatharTurbineCore.js";
 
 const RECONCILE_DELAY_MS = 80;
 const RECONCILE_WATCHDOG_MS = 5000;
@@ -76,6 +93,14 @@ const STATE_KEY = `${ID}/state`;
 const CONCENTRATION_KEY = `${ID}/concentration`;
 const HISTORY_CONTROL_CHANNEL = `${ID}/history-control`;
 const MAX_HISTORY_UNDO_MOVEMENT_SUPPRESSIONS = 8;
+const TURBINE_ATTACHMENT_DISABLED_BEHAVIORS = Object.freeze([
+  "ROTATION",
+  "SCALE",
+  "VISIBLE",
+  "DELETE",
+  "LOCKED",
+  "COPY",
+]);
 
 function spellZoneLifecycleEffectIds() {
   return [...new Set(SPELL_AREA_RULES
@@ -111,7 +136,9 @@ let queuedReconcileForce = false;
 const queuedRearmActivationIds = new Set();
 const queuedHistoryUndoMovementSuppressions = [];
 const queuedMovementRecords = new Map();
+let turbineAttachmentCleanupPromise = Promise.resolve();
 const pendingHistoryUndoMovementSuppressions = new Map();
+const pendingStaticSpellZoneInstanceIds = new Set();
 let historyUndoRuntimeIdentity = null;
 let activeSceneItemsOverride = null;
 let activeSceneGeneration = 0;
@@ -124,6 +151,20 @@ const sceneItemBounds = createSceneItemBoundsCache(
   (itemId) => OBR.scene.items.getItemBounds([itemId]),
   { timeoutMs: ITEM_BOUNDS_TIMEOUT_MS },
 );
+
+export function protectStaticSpellZoneInstances(instanceIds = []) {
+  for (const instanceId of Array.isArray(instanceIds) ? instanceIds : []) {
+    const normalized = String(instanceId || "").trim();
+    if (normalized) pendingStaticSpellZoneInstanceIds.add(normalized);
+  }
+}
+
+export function releaseStaticSpellZoneInstances(instanceIds = []) {
+  for (const instanceId of Array.isArray(instanceIds) ? instanceIds : []) {
+    const normalized = String(instanceId || "").trim();
+    if (normalized) pendingStaticSpellZoneInstanceIds.delete(normalized);
+  }
+}
 
 function scheduleStaticSpellZoneWatchdog(needsWatchdog) {
   if (watchdogTimer) clearTimeout(watchdogTimer);
@@ -205,6 +246,297 @@ function queueMovementRecords(event) {
       item: afterItem || previous?.item || null,
     });
   }
+}
+
+function staticZoneRootSweptTargetIds({
+  zoneItem = null,
+  movementRecords = [],
+  candidates = [],
+} = {}) {
+  const rootId = String(zoneItem?.id || "").trim();
+  const record = (Array.isArray(movementRecords) ? movementRecords : [])
+    .find((entry) => String(entry?.id || "").trim() === rootId);
+  const beforePosition = point(record?.beforePosition);
+  const afterPosition = point(record?.afterPosition);
+  if (!rootId || !beforePosition || !afterPosition || samePoint(beforePosition, afterPosition)) {
+    return [];
+  }
+  const initialArea = translatedZoneArea(zoneItem, beforePosition);
+  const finalArea = translatedZoneArea(zoneItem, afterPosition);
+  const start = point(initialArea?.origin);
+  const end = point(finalArea?.origin);
+  if (!initialArea || !finalArea || !start || !end || samePoint(start, end)) return [];
+  const initiallyInside = new Set(
+    (Array.isArray(candidates) ? candidates : [])
+      .filter((candidate) => areaHitsBounds(initialArea, candidate?.bounds))
+      .map((candidate) => String(candidate?.item?.id || "").trim())
+      .filter(Boolean),
+  );
+  return [...new Set(
+    (Array.isArray(candidates) ? candidates : [])
+      .filter((candidate) => (
+        candidate?.item?.id
+        && areaIntersectsSweptSegment(
+          initialArea,
+          start,
+          end,
+          candidate?.bounds,
+        )
+      ))
+      .map((candidate) => String(candidate.item.id).trim())
+      .filter((targetId) => targetId && !initiallyInside.has(targetId)),
+  )];
+}
+
+function turbineRootContext(item) {
+  const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  const rootId = String(item?.id || "").trim();
+  const instanceId = String(metadata?.instanceId || "").trim();
+  return item?.layer === "DRAWING"
+    && metadata?.role === "root"
+    && metadata?.spellId === XANATHAR_TURBINE_SPELL_ID
+    && rootId
+    && instanceId
+    ? { rootId, instanceId }
+    : null;
+}
+
+function turbineRestrainedCondition(item, instanceId) {
+  const wantedInstanceId = String(instanceId || "").trim();
+  if (!wantedInstanceId) return null;
+  return conditionInstances(item).find((condition) => (
+    condition?.active !== false
+    && String(condition?.parentEffectId || "").trim() === wantedInstanceId
+    && String(condition?.effectId || "").trim() === XANATHAR_TURBINE_RESTRAINED_EFFECT_ID
+  )) || null;
+}
+
+function sameAttachmentBehaviors(value, expected) {
+  return Array.isArray(value)
+    && value.length === expected.length
+    && value.every((entry, index) => entry === expected[index]);
+}
+
+function turbineCapturedTargetIds(items, rootContext) {
+  const rootId = String(rootContext?.rootId || "").trim();
+  const instanceId = String(rootContext?.instanceId || "").trim();
+  return [...new Set(
+    (Array.isArray(items) ? items : [])
+      .filter((item) => (
+        item?.layer === "CHARACTER"
+        && String(item?.id || "").trim()
+        && String(item.id).trim() !== rootId
+        && !!turbineRestrainedCondition(item, instanceId)
+      ))
+      .map((item) => String(item.id).trim()),
+  )];
+}
+
+async function detachTurbineNativeAttachments(
+  detachPlans = [],
+  sourceItems = null,
+  sceneEpoch = null,
+) {
+  if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+  const liveItems = Array.isArray(sourceItems)
+    ? sourceItems
+    : await OBR.scene.items.getItems();
+  if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+  const liveById = new Map(
+    liveItems.map((item) => [String(item?.id || "").trim(), item]),
+  );
+  const plans = [];
+  for (const plan of Array.isArray(detachPlans) ? detachPlans : []) {
+    const targetId = String(plan?.targetId || "").trim();
+    const rootId = String(plan?.rootId || "").trim();
+    const live = liveById.get(targetId);
+    if (
+      !targetId
+      || !rootId
+      || !live
+      || live.layer !== "CHARACTER"
+      || String(live.attachedTo || "").trim() !== rootId
+    ) continue;
+    const currentPosition = point(live.position);
+    let bounds = null;
+    if (!currentPosition) {
+      try {
+        bounds = await OBR.scene.items.getItemBounds([targetId]);
+      } catch {
+        bounds = null;
+      }
+    }
+    const worldPosition = currentPosition || boundsCenter(bounds);
+    if (!worldPosition) {
+      console.warn(
+        "[spell-static-zone] Turbine detach skipped: missing world position",
+        targetId,
+      );
+      continue;
+    }
+    plans.push({ targetId, rootId, worldPosition });
+  }
+  if (!plans.length) return;
+  if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+  const byId = new Map(plans.map((plan) => [plan.targetId, plan]));
+  await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
+    for (const draft of drafts) {
+      const plan = byId.get(String(draft?.id || "").trim());
+      if (
+        !plan
+        || draft.layer !== "CHARACTER"
+        || String(draft.attachedTo || "").trim() !== plan.rootId
+      ) continue;
+      delete draft.attachedTo;
+      draft.position = { ...plan.worldPosition };
+      if (sameAttachmentBehaviors(
+        draft.disableAttachmentBehavior,
+        TURBINE_ATTACHMENT_DISABLED_BEHAVIORS,
+      )) delete draft.disableAttachmentBehavior;
+    }
+  });
+}
+
+async function releaseTurbineNativeAttachments(
+  rootItems = [],
+  sourceItems = null,
+  sceneEpoch = null,
+) {
+  const rootIds = new Set(
+    (Array.isArray(rootItems) ? rootItems : [])
+      .map((item) => String(item?.id || "").trim())
+      .filter(Boolean),
+  );
+  if (!rootIds.size) return;
+  const liveItems = Array.isArray(sourceItems)
+    ? sourceItems
+    : await OBR.scene.items.getItems();
+  const detachPlans = liveItems
+    .filter((item) => (
+      item?.layer === "CHARACTER"
+      && rootIds.has(String(item?.attachedTo || "").trim())
+    ))
+    .map((item) => ({
+      targetId: String(item.id).trim(),
+      rootId: String(item.attachedTo).trim(),
+    }));
+  await detachTurbineNativeAttachments(detachPlans, liveItems, sceneEpoch);
+}
+
+function queueTurbineNativeAttachmentCleanup(event) {
+  const removedRoots = (Array.isArray(event?.removedItems) ? event.removedItems : [])
+    .filter((item) => !!turbineRootContext(item));
+  if (!removedRoots.length) return;
+  const sceneEpoch = event?.sceneEpoch ?? currentSceneEpoch();
+  const sourceItems = Array.isArray(event?.allItems) ? event.allItems : null;
+  turbineAttachmentCleanupPromise = turbineAttachmentCleanupPromise
+    .then(() => releaseTurbineNativeAttachments(
+      removedRoots,
+      sourceItems,
+      sceneEpoch,
+    ))
+    .catch((error) => {
+      console.warn(
+        "[spell-static-zone] Turbine detach:",
+        error?.message || error,
+      );
+    });
+}
+
+async function reconcileTurbineNativeAttachments({
+  zoneRoots = [],
+  items = null,
+  sceneEpoch = null,
+} = {}) {
+  if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+  const liveItems = Array.isArray(items)
+    ? items
+    : await OBR.scene.items.getItems();
+  if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+  const liveById = new Map(
+    liveItems.map((item) => [String(item?.id || "").trim(), item]),
+  );
+  const roots = (Array.isArray(zoneRoots) ? zoneRoots : [])
+    .map((root) => liveById.get(String(root?.id || "").trim()))
+    .map(turbineRootContext)
+    .filter(Boolean);
+  if (!roots.length) return;
+
+  const allTurbineRoots = new Map();
+  for (const item of liveItems) {
+    const context = turbineRootContext(item);
+    if (context) allTurbineRoots.set(context.rootId, context);
+  }
+  const desiredByTarget = new Map();
+  for (const root of roots) {
+    for (const targetId of turbineCapturedTargetIds(liveItems, root)) {
+      const previous = desiredByTarget.get(targetId);
+      if (previous && previous.rootId !== root.rootId) {
+        console.warn(
+          "[spell-static-zone] Turbine target conflicts between roots:",
+          targetId,
+        );
+        continue;
+      }
+      desiredByTarget.set(targetId, root);
+    }
+  }
+
+  const attachPlans = [];
+  for (const [targetId, root] of desiredByTarget) {
+    const target = liveById.get(targetId);
+    if (!target || target.layer !== "CHARACTER") continue;
+    const currentParent = String(target.attachedTo || "").trim();
+    if (currentParent && currentParent !== root.rootId) {
+      console.warn("[spell-static-zone] Turbine attachment conflict:", targetId);
+      continue;
+    }
+    const needsParent = !currentParent;
+    const needsBehaviors = !sameAttachmentBehaviors(
+      target.disableAttachmentBehavior,
+      TURBINE_ATTACHMENT_DISABLED_BEHAVIORS,
+    );
+    if (needsParent || needsBehaviors) {
+      attachPlans.push({
+        targetId,
+        rootId: root.rootId,
+        instanceId: root.instanceId,
+      });
+    }
+  }
+
+  if (attachPlans.length) {
+    if (!mounted || (sceneEpoch != null && !isCurrentSceneEpoch(sceneEpoch))) return;
+    const byId = new Map(attachPlans.map((plan) => [plan.targetId, plan]));
+    await OBR.scene.items.updateItems([...byId.keys()], (drafts) => {
+      for (const draft of drafts) {
+        const plan = byId.get(String(draft?.id || "").trim());
+        if (!plan || draft.layer !== "CHARACTER") continue;
+        if (!turbineRestrainedCondition(draft, plan.instanceId)) continue;
+        const currentParent = String(draft.attachedTo || "").trim();
+        if (currentParent && currentParent !== plan.rootId) continue;
+        if (!currentParent) draft.attachedTo = plan.rootId;
+        if (String(draft.attachedTo || "").trim() !== plan.rootId) continue;
+        draft.disableAttachmentBehavior = [
+          ...TURBINE_ATTACHMENT_DISABLED_BEHAVIORS,
+        ];
+      }
+    });
+  }
+
+  const detachPlans = liveItems
+    .filter((item) => {
+      const parentId = String(item?.attachedTo || "").trim();
+      return item?.layer === "CHARACTER"
+        && parentId
+        && allTurbineRoots.has(parentId)
+        && !desiredByTarget.has(String(item?.id || "").trim());
+    })
+    .map((item) => ({
+      targetId: String(item.id).trim(),
+      rootId: String(item.attachedTo).trim(),
+    }));
+  await detachTurbineNativeAttachments(detachPlans, liveItems, sceneEpoch);
 }
 
 function installHistoryUndoMovementSuppressions(data) {
@@ -321,6 +653,78 @@ function boundsCenter(bounds) {
     : null;
 }
 
+function prismaticWallAutomaticPopoverId(instanceId, targetId) {
+  const scopedTargetId = String(targetId || "").trim().replace(/[^a-zA-Z0-9_.-]/g, "_");
+  return `${spellActiveResolutionPopoverId(instanceId, "prismatic-wall-traversal")}/auto/${scopedTargetId}`;
+}
+
+async function prismaticWallPopoverAnchor(bounds) {
+  const center = point(bounds?.center);
+  const min = point(bounds?.min);
+  const world = center && min
+    ? { x: center.x, y: min.y }
+    : center;
+  const transformed = world && typeof OBR.viewport?.transformPoint === "function"
+    ? await OBR.viewport.transformPoint(world).catch(() => null)
+    : null;
+  const screen = point(transformed);
+  return screen
+    ? { left: screen.x, top: screen.y }
+    : { left: 120, top: 120 };
+}
+
+async function openPrismaticWallTraversalPopover({
+  currentItems,
+  zoneItem,
+  zoneMetadata,
+  targetId,
+  casterBounds,
+  sceneEpoch,
+}) {
+  const instanceId = String(zoneMetadata?.instanceId || "").trim();
+  const casterId = String(zoneMetadata?.casterId || "").trim();
+  const normalizedTargetId = String(targetId || "").trim();
+  if (!instanceId || !casterId || !normalizedTargetId || !zoneItem?.id) return false;
+  const group = spellOverviewGroups(currentItems).find((candidate) => (
+    String(candidate?.instanceId || "").trim() === instanceId
+      && String(candidate?.spellId || "").trim() === "prismatic-wall"
+      && String(candidate?.casterId || "").trim() === casterId
+  ));
+  const spell = getSpellDefinition("prismatic-wall");
+  const action = getSpellResolutionAction("prismatic-wall", "prismatic-wall-traversal");
+  if (!group || !spell || !action) return false;
+  const basePayload = buildSpellActiveResolutionPayload({
+    spell,
+    action,
+    group,
+    sceneEpoch,
+    zoneItemId: zoneItem.id,
+  });
+  const payload = {
+    ...basePayload,
+    initialTargetId: normalizedTargetId,
+    popoverId: prismaticWallAutomaticPopoverId(instanceId, normalizedTargetId),
+  };
+  const request = buildSpellUnifiedActivePopoverRequest(payload, {
+    width: 360,
+    height: 600,
+  });
+  await openTrackedPopover({
+    id: request.id,
+    url: request.url,
+    width: request.width,
+    height: request.height,
+    anchorReference: "POSITION",
+    anchorPosition: await prismaticWallPopoverAnchor(casterBounds),
+    anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    disableClickAway: true,
+    marginThreshold: 8,
+    hidePaper: true,
+  });
+  return true;
+}
+
 function trackedCreature(item, orderedIds) {
   const meta = item?.metadata?.[META_KEY];
   return !!item?.id
@@ -332,6 +736,16 @@ function conditionInstances(item) {
   const conditions = item?.metadata?.[META_KEY]?.conditions;
   if (Array.isArray(conditions)) return conditions;
   return Array.isArray(conditions?.instances) ? conditions.instances : [];
+}
+
+function currentInitiativeActorId(state) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  if (!order.length) return "";
+  const index = Math.max(
+    0,
+    Math.min(order.length - 1, Math.floor(Number(state?.current) || 0)),
+  );
+  return String(order[index] || "").split("::p")[0].trim();
 }
 
 function itemIsConcentrating(item) {
@@ -619,6 +1033,9 @@ export function buildStaticSpellZoneItems({
       [AOE_AREA_META_KEY]: rootAreaMetadata,
       [SPELL_STATIC_ZONE_META_KEY]: rootZoneMetadata,
     },
+    // Spell areas are moved directly by the GM on the board.  Movement
+    // policies remain available to the spell/rule audit, but they must not
+    // turn the OBR root into an action-controlled item.
     locked: false,
     disableHit: false,
   });
@@ -1046,6 +1463,8 @@ async function reconcileStaticSpellZones(
 ) {
   const sceneEpoch = currentSceneEpoch();
   if (!await OBR.scene.isReady().catch(() => false)) return;
+  await turbineAttachmentCleanupPromise;
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   const suppliedItems = Array.isArray(activeSceneItemsOverride)
     ? activeSceneItemsOverride
     : null;
@@ -1076,7 +1495,9 @@ async function reconcileStaticSpellZones(
   });
   if (!activeReconcileForce && completedGenerationKey === generationKey) return;
   const activeInstances = activeSpellInstanceIds(items);
-  const staleZoneIds = staleStaticSpellZoneItemIds(items);
+  const staleZoneIds = staleStaticSpellZoneItemIds(items, {
+    protectedInstanceIds: [...pendingStaticSpellZoneInstanceIds],
+  });
   const orphanBoardTokenIds = spellBoardTokenItems(items)
     .filter((item) => !activeInstances.has(String(
       item?.metadata?.[SPELL_BOARD_TOKEN_META_KEY]?.instanceId || "",
@@ -1087,6 +1508,14 @@ async function reconcileStaticSpellZones(
     ...staleZoneIds,
     ...orphanBoardTokenIds,
   ])];
+  const staleTurbineRoots = items.filter((item) => (
+    initialDerivedCleanupIds.includes(item?.id)
+    && !!turbineRootContext(item)
+  ));
+  if (staleTurbineRoots.length) {
+    await releaseTurbineNativeAttachments(staleTurbineRoots, items, sceneEpoch);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  }
   if (initialDerivedCleanupIds.length) {
     await OBR.scene.items.deleteItems(initialDerivedCleanupIds);
     if (!isCurrentSceneEpoch(sceneEpoch)) return;
@@ -1114,6 +1543,27 @@ async function reconcileStaticSpellZones(
     .filter((item) =>
       item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
     );
+  const lockedRootIds = zoneRoots
+    .filter((item) => item?.locked === true)
+    .map((item) => item.id)
+    .filter(Boolean);
+  if (lockedRootIds.length) {
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    const lockedIds = new Set(lockedRootIds);
+    await OBR.scene.items.updateItems(lockedRootIds, (drafts) => {
+      for (const draft of drafts) {
+        if (lockedIds.has(draft.id)) draft.locked = false;
+      }
+    });
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    currentItems = currentItems.map((item) => (
+      lockedIds.has(item.id) ? { ...item, locked: false } : item
+    ));
+    zoneRoots = staticSpellZoneItems(currentItems)
+      .filter((item) =>
+        item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.role === "root"
+      );
+  }
   const rootsById = new Map(zoneRoots.map((item) => [item.id, item]));
   const childBelongsToRoot = (item) => {
     const metadata = item?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
@@ -1235,11 +1685,15 @@ async function reconcileStaticSpellZones(
   const newTriggerActivations = [];
   const newTriggerNotices = [];
   const rearmedTriggerNotices = [];
+  const prismaticWallTraversalRequests = [];
+  const turbineElevationAdjustments = new Map();
   const canonicalPendingActivationIds = new Set();
   const initiativeState = sceneMetadata?.[STATE_KEY] || {};
+  const activeInitiativeActorId = currentInitiativeActorId(initiativeState);
 
   for (const item of [...zoneRoots, ...childZones]) {
     const zoneMetadata = item.metadata[SPELL_STATIC_ZONE_META_KEY];
+    const previousRuntime = normalizeSpellZoneTriggerRuntime(zoneMetadata?.triggerRuntime);
     const baseRule = getSpellAreaRuleById(zoneMetadata.ruleId);
     const rule = getSpellAreaRuleForPlacement(
       baseRule?.id || zoneMetadata.ruleId,
@@ -1248,6 +1702,30 @@ async function reconcileStaticSpellZones(
     const triggerAreas = translatedZoneTriggerAreas(item);
     const area = triggerAreas.body;
     if (!rule || !area) continue;
+    if (
+      zoneMetadata.role === "root"
+      && zoneMetadata.spellId === "prismatic-wall"
+    ) {
+      const crossingTargetIds = prismaticWallCrossingTargetIds({
+        area,
+        candidates,
+        movementRecords,
+        exemptCreatureIds: [
+          zoneMetadata.casterId,
+          ...(Array.isArray(zoneMetadata.exemptCreatureIds)
+            ? zoneMetadata.exemptCreatureIds
+            : []),
+        ],
+      });
+      for (const targetId of crossingTargetIds) {
+        prismaticWallTraversalRequests.push({
+          zoneItem: item,
+          zoneMetadata,
+          targetId,
+          casterBounds: boundsById.get(zoneMetadata.casterId),
+        });
+      }
+    }
     const desiredTargetIds = scopedStaticSpellZoneTargetIds({
       rule,
       zoneMetadata,
@@ -1259,6 +1737,25 @@ async function reconcileStaticSpellZones(
         metaKey: META_KEY,
       }),
     });
+    if (
+      zoneMetadata.role === "root"
+      && zoneMetadata.spellId === "xanathar-turbine"
+      && previousRuntime.initialized
+      && previousRuntime.evaluatedTurnKey
+      && currentTurnKey
+      && previousRuntime.evaluatedTurnKey !== currentTurnKey
+      && activeInitiativeActorId
+    ) {
+      const activeActor = byId.get(activeInitiativeActorId);
+      const restrained = conditionInstances(activeActor).some((condition) => (
+        condition?.active !== false
+        && String(condition?.parentEffectId || "").trim() === String(zoneMetadata.instanceId || "").trim()
+        && String(condition?.effectId || "").trim() === XANATHAR_TURBINE_RESTRAINED_EFFECT_ID
+      ));
+      if (restrained) turbineElevationAdjustments.set(activeInitiativeActorId, {
+        instanceId: String(zoneMetadata.instanceId || "").trim(),
+      });
+    }
     const directTargetIds = rule.zonePolicy?.triggers?.some(
       (trigger) => trigger?.targetMode === "direct-members"
     )
@@ -1279,6 +1776,13 @@ async function reconcileStaticSpellZones(
     const crossingTargetIdsByTrigger = {};
     const triggers = Array.isArray(rule.zonePolicy?.triggers)
       ? rule.zonePolicy.triggers
+      : [];
+    const rootSweptTargetIds = zoneMetadata.role === "root"
+      ? staticZoneRootSweptTargetIds({
+        zoneItem: item,
+        movementRecords,
+        candidates,
+      })
       : [];
     const usePerTriggerMembership = triggers.some((trigger) =>
       trigger?.requiresCrossing === true
@@ -1350,6 +1854,9 @@ async function reconcileStaticSpellZones(
           if (areaIntersectsSegment(area, beforeCenter, candidate.center, candidate.bounds)) {
             crossing.push(record.id);
           }
+        }
+        if (trigger.triggerOnAreaMove === true && rootSweptTargetIds.length) {
+          crossing.push(...rootSweptTargetIds);
         }
         crossingTargetIdsByTrigger[trigger.id] = [...new Set(crossing)];
       }
@@ -1444,6 +1951,68 @@ async function reconcileStaticSpellZones(
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (operations.length) await queueSpellAreaEffectsMutation(operations);
   if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  const turbineRoots = zoneRoots.filter((item) => !!turbineRootContext(item));
+  if (turbineRoots.length) {
+    const liveAttachmentItems = await OBR.scene.items.getItems();
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    await reconcileTurbineNativeAttachments({
+      zoneRoots: turbineRoots,
+      items: liveAttachmentItems,
+      sceneEpoch,
+    });
+  }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
+  if (turbineElevationAdjustments.size) {
+    const {
+      requireAppliedEffectsMutation,
+      runEffectsMutation,
+    } = await import("./effectsMutations.js");
+    // Re-read the target state after the area/effect reconcile. The first
+    // pass only detects the turn boundary; the live condition check prevents
+    // a queued release from turning this into a late ascent.
+    const candidateTargetIds = [...turbineElevationAdjustments.keys()];
+    const liveTargets = await OBR.scene.items.getItems(candidateTargetIds);
+    if (!isCurrentSceneEpoch(sceneEpoch)) return;
+    const liveById = new Map(liveTargets.map((item) => [item?.id, item]));
+    const liveAdjustments = new Map(
+      [...turbineElevationAdjustments.entries()].filter(([targetId, value]) => (
+        !!turbineRestrainedCondition(liveById.get(targetId), value.instanceId)
+      )),
+    );
+    if (liveAdjustments.size) {
+      const targetIds = [...liveAdjustments.keys()];
+      const commandId = `turbine-height:${currentTurnKey}:${targetIds.join(",")}`;
+      const mutation = await runEffectsMutation([], {
+        kind: "spell-turbine-height",
+        label: "Turbine · salita a inizio turno",
+        targetIds,
+        commandId,
+        sideEffects: targetIds.map((targetId) => ({
+          type: "elevation:adjust",
+          targetId,
+          delta: { value: XANATHAR_TURBINE_TURN_RAISE_METERS, unit: "m" },
+          max: { value: XANATHAR_TURBINE_MAX_ELEVATION_METERS, unit: "m" },
+        })),
+        history: {
+          kind: "spell-turbine-height",
+          label: "Turbine · salita a inizio turno",
+          payload: {
+            targetIds,
+            delta: { value: XANATHAR_TURBINE_TURN_RAISE_METERS, unit: "m" },
+            max: { value: XANATHAR_TURBINE_MAX_ELEVATION_METERS, unit: "m" },
+            instances: Object.fromEntries(
+              [...liveAdjustments.entries()].map(([targetId, value]) => [
+                targetId,
+                value.instanceId,
+              ]),
+            ),
+          },
+        },
+      });
+      requireAppliedEffectsMutation(mutation);
+    }
+  }
+  if (!isCurrentSceneEpoch(sceneEpoch)) return;
   if (triggerRuntimeUpdates.size) {
     await OBR.scene.items.updateItems(
       [...triggerRuntimeUpdates.keys()],
@@ -1491,6 +2060,20 @@ async function reconcileStaticSpellZones(
         error?.message || error,
       );
     });
+  }
+  if (prismaticWallTraversalRequests.length) {
+    const openedRequests = new Set();
+    for (const request of prismaticWallTraversalRequests) {
+      if (!isCurrentSceneEpoch(sceneEpoch)) return;
+      const requestKey = `${String(request.zoneMetadata?.instanceId || "").trim()}::${String(request.targetId || "").trim()}`;
+      if (!requestKey || openedRequests.has(requestKey)) continue;
+      openedRequests.add(requestKey);
+      await openPrismaticWallTraversalPopover({
+        ...request,
+        currentItems,
+        sceneEpoch,
+      });
+    }
   }
   if (isCurrentSceneEpoch(sceneEpoch)) completedGenerationKey = generationKey;
 }
@@ -1609,6 +2192,7 @@ export async function mountStaticSpellZoneController() {
   );
   unsubscribeItems = subscribeSceneItemChanges(
     (event) => {
+      queueTurbineNativeAttachmentCleanup(event);
       queueMovementRecords(event);
       queuedSceneItems = Array.isArray(event?.allItems) ? event.allItems : null;
       queuedSceneGeneration = Number(event?.generation) || 0;
@@ -1626,7 +2210,10 @@ export async function mountStaticSpellZoneController() {
       }
     },
     {
-      domains: ["zone"],
+      // A captured Turbine target changes through the effects/conditions
+      // pipeline. Observe that domain as well so native OBR attachment is
+      // reconciled immediately after the Restrained effect is committed.
+      domains: ["zone", "effects"],
       filter: (event) => (
         !event?.derived?.output
         || restoredStaticSpellZoneActivationIds(event).length > 0
@@ -1641,6 +2228,7 @@ export async function mountStaticSpellZoneController() {
       queuedRearmActivationIds.clear();
       queuedHistoryUndoMovementSuppressions.length = 0;
       queuedMovementRecords.clear();
+      turbineAttachmentCleanupPromise = Promise.resolve();
       pendingHistoryUndoMovementSuppressions.clear();
       historyUndoRuntimeIdentity = null;
       undoRestoredActivationIds.clear();
@@ -1721,6 +2309,7 @@ export function unmountStaticSpellZoneController() {
   queuedRearmActivationIds.clear();
   queuedHistoryUndoMovementSuppressions.length = 0;
   queuedMovementRecords.clear();
+  turbineAttachmentCleanupPromise = Promise.resolve();
   pendingHistoryUndoMovementSuppressions.clear();
   historyUndoRuntimeIdentity = null;
   undoRestoredActivationIds.clear();

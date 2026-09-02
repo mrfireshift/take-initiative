@@ -79,6 +79,8 @@ const ACTIVE_POPUP_RESOLUTION_KINDS = new Set([
   "single-save",
   "single-heal",
   "child-zone",
+  "telekinesis-contest",
+  "blink-return",
   "prismatic-wall-traversal",
   "prismatic-wall-layers",
 ]);
@@ -565,7 +567,8 @@ export function buildSpellUnifiedActivePopoverRequest(payload, {
         : resolutionKind.startsWith("prismatic-wall-")
           ? 600
           : 520);
-  const popoverId = spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);
+  const popoverId = text(payload?.popoverId)
+    || spellActiveResolutionPopoverId(payload?.instanceId, payload?.actionId);
   return {
     id: popoverId,
     url: `${urlBase}?payload=${encodeURIComponent(JSON.stringify(payload))}`,
@@ -730,6 +733,24 @@ export async function executeSpellUnifiedActiveAction({
           changedIds: [],
         };
       }
+      const actionDefinition = validation.action?.definition
+        && typeof validation.action.definition === "object"
+        ? validation.action.definition
+        : {};
+      const carriedEffectIds = uniqueIds([
+        ...(Array.isArray(validation.action?.carriedEffectIds)
+          ? validation.action.carriedEffectIds
+          : []),
+        ...(Array.isArray(validation.action?.movement?.carriedEffectIds)
+          ? validation.action.movement.carriedEffectIds
+          : []),
+        ...(Array.isArray(actionDefinition.carriedEffectIds)
+          ? actionDefinition.carriedEffectIds
+          : []),
+        ...(Array.isArray(actionDefinition.movement?.carriedEffectIds)
+          ? actionDefinition.movement.carriedEffectIds
+          : []),
+      ]);
       const result = await movementExecutor({
         group,
         action: {
@@ -740,6 +761,12 @@ export async function executeSpellUnifiedActiveAction({
         },
         casterName: context.casterName,
         movementChoice: choiceValue,
+        carriedItemIds: uniqueIds(
+          (Array.isArray(group.effectInstances) ? group.effectInstances : [])
+            .filter((effect) => effect?.active !== false
+              && carriedEffectIds.includes(String(effect?.effectId || "").trim()))
+            .map((effect) => effect?.itemId),
+        ),
         sceneEpoch: runtime.sceneEpoch ?? validation.sceneEpoch,
         sceneIdentity: sceneContext?.sceneIdentity || runtime.sceneIdentity || null,
         commandId: sceneContext?.commandId || runtime.commandId || "",

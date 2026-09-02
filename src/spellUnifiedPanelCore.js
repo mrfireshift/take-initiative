@@ -33,7 +33,9 @@ import {
   applyTargetingLimitState,
   resolveTargetingCapacity,
 } from "./spellTargetingCapacityCore.js";
-import { spellTargetContextConditionMatches } from "./spellSaveTargetingCore.js";
+import {
+  spellTargetContextFieldRequired,
+} from "./spellSaveTargetingCore.js";
 import {
   getSpellBoardTokenPlacementRule,
   getSpellBoardTokenRule,
@@ -347,28 +349,6 @@ function mergeActionDeclarations(spell, boardTokenRule, castRules = []) {
   for (const action of Array.isArray(boardTokenRule?.actions) ? boardTokenRule.actions : []) {
     add(action, "board-token");
   }
-  for (const rule of Array.isArray(castRules) ? castRules : []) {
-    const movement = rule?.zonePolicy?.movement;
-    if (!movement || typeof movement !== "object" || movement.mode !== "action") continue;
-    const ruleId = text(rule.id);
-    if (!ruleId) continue;
-    add({
-      id: `${ruleId}:move`,
-      label: movement.label || "Sposta zona",
-      buttonLabel: movement.buttonLabel || movement.label || "Sposta zona",
-      detail: `Riposiziona la zona fino a ${movement.maximumMeters} m.`,
-      economy: text(movement.economy),
-      resolutionKind: "zone-movement",
-      subjectMode: "none",
-      requiresTargets: false,
-      requiresParentInstance: true,
-      requiresZoneRoot: true,
-      rangeOrigin: "root",
-      ruleId,
-      movement: cloneValue(movement),
-    }, "area-rule");
-  }
-
   return [...declarations.entries()].map(([id, action]) => ({
     id,
     action,
@@ -576,11 +556,13 @@ function placementFor({
 
 function ruleTargeting(rule) {
   const targeting = rule?.targeting || {};
+  const selectionPolarity = text(targeting.selectionPolarity);
   return {
     filter: text(targeting.filter) || null,
     includeCaster: targeting.includeCaster === true,
     confirmTargets: targeting.confirmTargets === true,
     selectionMode: text(targeting.selectionMode) || "area",
+    ...(selectionPolarity ? { selectionPolarity } : {}),
     maximum: integerOrNull(
       targeting.maximum !== undefined ? targeting.maximum : targeting.maxTargets,
     ),
@@ -891,6 +873,7 @@ function hasAreaTransaction({
   selectedActionRule,
 }) {
   const areaCatalogEnabled = phasePlan.phase !== "prepare";
+  const telekinesis = text(spell?.id) === "telekinesis";
   const castResolution = getSpellCastResolutionRule(spell);
   return castRules.length > 0
     || castResolution?.resolution === "manual-damage"
@@ -902,7 +885,7 @@ function hasAreaTransaction({
     || (areaCatalogEnabled && AREA_POPOVER_SAVE_SPELL_ID_SET.has(text(spell?.id)))
     || (areaCatalogEnabled && AREA_SAVE_SPELL_ID_SET.has(text(spell?.id)))
     || (areaCatalogEnabled && AREA_HEALING_SPELL_ID_SET.has(text(spell?.id)))
-    || (areaCatalogEnabled && !!getSpellSaveWorkflowRule(spell?.id))
+    || (!telekinesis && areaCatalogEnabled && !!getSpellSaveWorkflowRule(spell?.id))
     || !!selectedActionRule
     || ["save-area", "child-zone"].includes(selectedAction?.resolutionKind);
 }
@@ -1219,13 +1202,16 @@ function outcomeOptions({
     failed: "Fallito",
     immune: "Immune",
   };
+  const customLabels = workflowRule?.outcomeLabels && typeof workflowRule.outcomeLabels === "object"
+    ? workflowRule.outcomeLabels
+    : {};
   const declaredSaveOutcomes = Array.isArray(workflowRule?.outcomeOptions)
     ? workflowRule.outcomeOptions
     : ["passed", "failed", "immune"];
   return declaredSaveOutcomes
     .map((value) => text(value).toLocaleLowerCase("it"))
     .filter(Boolean)
-    .map((value) => ({ value, label: labels[value] || value }));
+    .map((value) => ({ value, label: customLabels[value] || labels[value] || value }));
 }
 
 function saveOutcomeOptions({ saveOutcomes, workflowRule }) {
@@ -1235,13 +1221,16 @@ function saveOutcomeOptions({ saveOutcomes, workflowRule }) {
     failed: "Fallito",
     immune: "Immune",
   };
+  const customLabels = workflowRule?.outcomeLabels && typeof workflowRule.outcomeLabels === "object"
+    ? workflowRule.outcomeLabels
+    : {};
   const declaredSaveOutcomes = Array.isArray(workflowRule?.outcomeOptions)
     ? workflowRule.outcomeOptions
     : ["passed", "failed", "immune"];
   return declaredSaveOutcomes
     .map((value) => text(value).toLocaleLowerCase("it"))
     .filter(Boolean)
-    .map((value) => ({ value, label: labels[value] || value }));
+    .map((value) => ({ value, label: customLabels[value] || labels[value] || value }));
 }
 
 const SAVE_ABILITY_LABELS = Object.freeze({
@@ -2115,19 +2104,18 @@ function outcomeFor(outcomes, targetId) {
     : null;
 }
 
-function targetContextComplete(contextContract, targetIds, targetContext) {
+function targetContextComplete(contextContract, targetIds, targetContext, outcomes = {}) {
   const fields = Array.isArray(contextContract?.fields)
     ? contextContract.fields
     : [];
   if (!fields.length) return true;
   return targetIds.every((targetId) => {
     const values = targetContext?.[targetId];
-    return fields.every((field) => {
-      const required = field?.required === true
-        || (field?.requiredWhen
-          && spellTargetContextConditionMatches(values || {}, field.requiredWhen));
-      return !required || hasSessionValue(values?.[field.id], field);
-    });
+    return fields.every((field) => !spellTargetContextFieldRequired(
+      field,
+      values || {},
+      outcomes?.[targetId],
+    ) || hasSessionValue(values?.[field.id], field));
   });
 }
 
@@ -2266,6 +2254,7 @@ function validationFor(contract, session, placement) {
     contract.presentation.targeting?.workflow?.context,
     session.targetIds,
     session.targetContext,
+    session.outcomes,
   )) add("target-context", "target-context-required");
   if (!postPlacementTargeting && inputs.placement?.required && !placement.confirmed) {
     add("placement", "placement-required");

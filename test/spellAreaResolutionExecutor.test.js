@@ -111,6 +111,19 @@ test("l'executor ha un confine runtime e un risultato serializzabile", () => {
   assert.match(executorSource, /!plan\.matchedVisualContext/);
 });
 
+test("una nuova zona persiste l'owner prima di aggiungere il root osservabile", () => {
+  const execution = executorSource.slice(
+    executorSource.indexOf("await runtime.withItemMetaHistory"),
+  );
+  const effectCommit = execution.indexOf("await commitCoordinatedEffects()");
+  const zoneAdd = execution.indexOf("await runtime.addItems(plan.nextStaticZoneItems)");
+
+  assert.match(execution, /const commitCoordinatedEffects = async \(\) =>/);
+  assert.ok(effectCommit >= 0, "manca il commit coordinato prima della zona");
+  assert.ok(zoneAdd >= 0, "manca l'aggiunta della zona");
+  assert.ok(effectCommit < zoneAdd, "il root non deve essere osservabile prima dell'owner");
+});
+
 test("il cast area inoltra le summaryParts presentation-only nel lifecycle persistito", () => {
   const spell = getSpellDefinition("Aura di Vitalità");
   const resolution = {

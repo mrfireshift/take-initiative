@@ -112,7 +112,6 @@ const MOVABLE_ZONE_SPELL_IDS = new Set([
   "xanathar-diavoletto-di-polvere",
   "xanathar-sfera-acquea",
   "xanathar-spirito-guaritore",
-  "xanathar-turbine",
 ]);
 
 const DRIFTING_ZONE_SPELL_IDS = new Set([
@@ -121,13 +120,6 @@ const DRIFTING_ZONE_SPELL_IDS = new Set([
 ]);
 
 const DECLARATIVE_ZONE_MOVEMENTS = Object.freeze({
-  moonbeam: Object.freeze({
-    mode: "action",
-    economy: "action",
-    maximumMeters: 18,
-    triggerOnAreaMove: false,
-    stopOnFirstContact: false,
-  }),
   "flaming-sphere": Object.freeze({
     mode: "bonus-action",
     economy: "bonus-action",
@@ -280,6 +272,17 @@ const AREA_OVERRIDES = Object.freeze({
   },
   "xanathar-sfera-della-tempesta": {
     placementOptional: false,
+  },
+  "xanathar-turbine": {
+    shape: "circle",
+    sizeMeters: 3,
+    origin: "point",
+    rangeMeters: 90,
+    heightMeters: 9,
+    initialSave: { ability: "dex" },
+    placementOptional: false,
+    carriedEffectIds: ["xanathar-turbine-restrained"],
+    ownerLabelTargets: "none",
   },
   "xanathar-investitura-della-fiamma": {
     shape: "line",
@@ -518,6 +521,9 @@ function catalogSpec(spell) {
     spellId: spell.id,
     shape,
     sizeMeters,
+    ...(Number.isFinite(Number(override.heightMeters))
+      ? { heightMeters: Number(override.heightMeters) }
+      : {}),
     ...(["line", "rectangle"].includes(shape)
       ? { widthMeters: override.widthMeters || 1.5 }
       : {}),
@@ -547,6 +553,18 @@ function catalogSpec(spell) {
       : {}),
     ...(override.initialSave && typeof override.initialSave === "object"
       ? { initialSave: { ...override.initialSave } }
+      : {}),
+    ...(Array.isArray(override.carriedEffectIds)
+      ? {
+        carriedEffectIds: Array.from(new Set(
+          override.carriedEffectIds
+            .map((effectId) => String(effectId || "").trim())
+            .filter(Boolean),
+        )),
+      }
+      : {}),
+    ...(override.ownerLabelTargets
+      ? { ownerLabelTargets: String(override.ownerLabelTargets).trim() }
       : {}),
     ...(override.followCaster === true ? { followCaster: true } : {}),
     ...(override.note ? { note: override.note } : {}),

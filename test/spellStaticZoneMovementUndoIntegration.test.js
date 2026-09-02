@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 
 import { AOE_AREA_META_KEY } from "../src/aoeStyle.js";
+import { elevationInputToCanonical, normalizeElevation } from "../src/distance3dCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 import { normalizeSpellZoneTriggerRuntime } from "../src/spellZoneTriggerCore.js";
 
@@ -25,6 +26,7 @@ const metadataListeners = new Set();
 const itemListeners = new Set();
 const broadcastListeners = new Map();
 const projectedPayloads = [];
+const popoverCalls = [];
 
 function currentItems(selector) {
   if (typeof selector === "function") return sceneState.items.filter(selector).map(clone);
@@ -56,6 +58,13 @@ const sdkStub = {
   },
   player: { getRole: async () => "GM" },
   room: { id: "static-zone-movement-undo-room", getMetadata: async () => ({}) },
+  popover: {
+    open: async (options) => { popoverCalls.push(clone(options)); },
+    close: async () => {},
+  },
+  viewport: {
+    transformPoint: async (position) => position,
+  },
   scene: {
     isReady: async () => sceneState.ready,
     onReadyChange(listener) {
@@ -71,6 +80,10 @@ const sdkStub = {
       sceneState.metadata = { ...sceneState.metadata, ...clone(update) };
       for (const listener of [...metadataListeners]) await listener(clone(sceneState.metadata));
     },
+    grid: {
+      getDpi: async () => 150,
+      getScale: async () => ({ parsed: { multiplier: 1.5, unit: "m" } }),
+    },
     items: {
       onChange(listener) {
         itemListeners.add(listener);
@@ -79,11 +92,30 @@ const sdkStub = {
       getItems: async (selector) => currentItems(selector),
       getItemBounds: async (ids) => itemBounds(currentItems(ids)[0]),
       updateItems: async (ids, updater) => {
+        const beforeItems = currentItems();
         const wanted = new Set(ids || []);
         const drafts = currentItems().filter((item) => wanted.has(item.id));
         await updater(drafts);
         const byId = new Map(drafts.map((item) => [item.id, item]));
-        sceneState.items = sceneState.items.map((item) => byId.get(item.id) || item);
+        const nextItems = sceneState.items.map((item) => byId.get(item.id) || item);
+        const beforeById = new Map(beforeItems.map((item) => [item.id, item]));
+        const nextById = new Map(nextItems.map((item) => [item.id, item]));
+        for (const item of nextItems) {
+          const parentId = String(item?.attachedTo || "").trim();
+          if (!parentId || item?.disableAttachmentBehavior?.includes("POSITION")) continue;
+          const beforeChild = beforeById.get(item.id);
+          const beforeParent = beforeById.get(parentId);
+          const afterParent = nextById.get(parentId);
+          if (!beforeChild || !beforeParent || !afterParent) continue;
+          const dx = Number(afterParent.position?.x) - Number(beforeParent.position?.x);
+          const dy = Number(afterParent.position?.y) - Number(beforeParent.position?.y);
+          if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) continue;
+          item.position = {
+            x: Number(beforeChild.position?.x) + dx,
+            y: Number(beforeChild.position?.y) + dy,
+          };
+        }
+        sceneState.items = nextItems;
         await emitItems();
       },
       addItems: async (items) => {
@@ -220,6 +252,158 @@ function zoneItem() {
   };
 }
 
+function prismaticCasterItem() {
+  return {
+    id: "caster",
+    name: "Caster",
+    layer: "CHARACTER",
+    position: { x: -300, y: 0 },
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        [`${ID}/spells`]: [{
+          spellId: "prismatic-wall",
+          instanceId: "prismatic-instance",
+          casterId: "caster",
+          casterName: "Caster",
+          name: "Muro Prismatico",
+          turns: 10,
+          conc: false,
+          castContext: {
+            staticZoneOwner: true,
+            slotLevel: 9,
+            prismaticWall: {
+              shape: "wall",
+              remainingLayers: ["red", "orange", "yellow", "green", "blue", "indigo", "violet"],
+              exemptCreatureIds: ["caster", "friend"],
+            },
+          },
+        }],
+      },
+    },
+  };
+}
+
+function prismaticZoneItem() {
+  return {
+    id: "prismatic-zone",
+    name: "Zona: Muro Prismatico",
+    layer: "DRAWING",
+    position: { x: 0, y: 0 },
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        version: 1,
+        instanceId: "prismatic-instance",
+        ruleId: "prismatic-wall:cast",
+        spellId: "prismatic-wall",
+        casterId: "caster",
+        role: "root",
+        targetIds: [],
+        exemptCreatureIds: ["caster", "friend"],
+      },
+      [AOE_AREA_META_KEY]: {
+        type: "line",
+        start: { x: 0, y: 0 },
+        end: { x: 1000, y: 0 },
+        dpi: 100,
+        gridOrigin: { x: 0, y: 0 },
+        basePosition: { x: 0, y: 0 },
+        widthSquares: 1,
+        hotBand: { side: "both", widthSquares: 4 },
+      },
+    },
+  };
+}
+
+function turbineCasterItem() {
+  return {
+    id: "caster",
+    name: "Caster",
+    layer: "CHARACTER",
+    position: { x: -300, y: 0 },
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        [`${ID}/spells`]: [{
+          spellId: "xanathar-turbine",
+          instanceId: "turbine-instance",
+          casterId: "caster",
+          casterName: "Caster",
+          name: "Turbine",
+          conc: true,
+          turns: 10,
+          castContext: { staticZoneOwner: true },
+        }],
+      },
+    },
+  };
+}
+
+function turbineTargetItem({ restrained = true } = {}) {
+  return {
+    id: "target",
+    name: "target",
+    layer: "CHARACTER",
+    position: { x: 50, y: 0 },
+    rotation: 17,
+    scale: { x: 1.25, y: 0.75 },
+    visible: false,
+    locked: true,
+    metadata: {
+      [META_KEY]: {
+        hp: 10,
+        hpMax: 10,
+        marker: "preserve",
+        ...(restrained
+          ? {
+            conditions: {
+              instances: [{
+                id: "turbine-restrained",
+                condition: "Trattenuto",
+                active: true,
+                parentEffectId: "turbine-instance",
+                effectId: "xanathar-turbine-restrained",
+              }],
+            },
+          }
+          : {}),
+      },
+      unrelated: { keep: true },
+    },
+  };
+}
+
+function turbineZoneItem() {
+  return {
+    id: "turbine-zone",
+    name: "Zona: Turbine",
+    layer: "DRAWING",
+    position: { x: 0, y: 0 },
+    locked: true,
+    metadata: {
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        version: 1,
+        instanceId: "turbine-instance",
+        ruleId: "xanathar-turbine:cast",
+        spellId: "xanathar-turbine",
+        casterId: "caster",
+        role: "root",
+        targetIds: ["target"],
+      },
+      [AOE_AREA_META_KEY]: {
+        type: "circle",
+        start: { x: 0, y: 0 },
+        end: { x: 100, y: 0 },
+        dpi: 50,
+        gridOrigin: { x: 0, y: 0 },
+        basePosition: { x: 0, y: 0 },
+      },
+    },
+  };
+}
+
 function resetScene({ extraTarget = false } = {}) {
   sceneState.ready = true;
   sceneState.metadata = {
@@ -236,6 +420,22 @@ function resetScene({ extraTarget = false } = {}) {
     zoneItem(),
   ];
   projectedPayloads.length = 0;
+  popoverCalls.length = 0;
+}
+
+function resetPrismaticScene() {
+  sceneState.ready = true;
+  sceneState.metadata = {
+    [STATE_KEY]: { order: ["caster", "target", "friend"], current: 1, round: 1 },
+  };
+  sceneState.items = [
+    prismaticCasterItem(),
+    targetItem("target", { x: 500, y: -150 }),
+    targetItem("friend", { x: 500, y: -150 }),
+    prismaticZoneItem(),
+  ];
+  projectedPayloads.length = 0;
+  popoverCalls.length = 0;
 }
 
 async function moveItem(id, position) {
@@ -292,6 +492,35 @@ async function prepareOutsideScene({ extraTarget = false } = {}) {
       ? { ...item, position: { x: 200, y: 0 } }
       : item
   ));
+  await sceneReadyForTest();
+  await mountStaticSpellZoneController();
+  await wait(220);
+}
+
+async function preparePrismaticScene() {
+  unmountStaticSpellZoneController();
+  await wait(300);
+  await sceneUnloadForTest();
+  resetPrismaticScene();
+  await sceneReadyForTest();
+  await mountStaticSpellZoneController();
+  await wait(220);
+}
+
+async function prepareTurbineScene({ targetRestrained = true } = {}) {
+  unmountStaticSpellZoneController();
+  await wait(300);
+  await sceneUnloadForTest();
+  sceneState.metadata = {
+    [STATE_KEY]: { order: ["caster", "target"], current: 1, round: 1 },
+  };
+  sceneState.items = [
+    turbineCasterItem(),
+    turbineTargetItem({ restrained: targetRestrained }),
+    turbineZoneItem(),
+  ];
+  projectedPayloads.length = 0;
+  popoverCalls.length = 0;
   await sceneReadyForTest();
   await mountStaticSpellZoneController();
   await wait(220);
@@ -415,4 +644,167 @@ test("un movimento reale immediato dopo il restore non riusa la suppression", as
   await moveItem("target", { x: 50, y: 0 });
   assert.equal(rootRuntime().pending.length, 1);
   assert.match(rootRuntime().pending[0].id, /grease-save-on-entry/);
+});
+
+mock.module("../src/effectsMutations.js", {
+  exports: {
+    requireAppliedEffectsMutation: (result) => result,
+    runEffectsMutation: async (_operations, options = {}) => {
+      for (const sideEffect of Array.isArray(options.sideEffects)
+        ? options.sideEffects
+        : []) {
+        if (sideEffect?.type !== "elevation:adjust") continue;
+        const targetId = String(sideEffect.targetId || "").trim();
+        const target = sceneState.items.find((item) => item.id === targetId);
+        if (!target) return { status: "conflict" };
+        const scale = await sdkStub.scene.grid.getScale();
+        const before = normalizeElevation(target.metadata?.[META_KEY]?.elevation);
+        const delta = elevationInputToCanonical(sideEffect.delta, scale);
+        const max = sideEffect.max === undefined || sideEffect.max === null
+          ? null
+          : elevationInputToCanonical(sideEffect.max, scale);
+        const proposed = normalizeElevation(before + delta);
+        const after = Number.isFinite(max)
+          ? normalizeElevation(Math.min(proposed, max))
+          : proposed;
+        if (after === before) continue;
+        await sdkStub.scene.items.updateItems([targetId], (drafts) => {
+          const draft = drafts.find((item) => item.id === targetId);
+          if (!draft) return;
+          draft.metadata = {
+            ...(draft.metadata || {}),
+            [META_KEY]: {
+              ...(draft.metadata?.[META_KEY] || {}),
+              elevation: after,
+            },
+          };
+        });
+      }
+      return { status: "applied" };
+    },
+  },
+});
+
+test("Turbine segue il trascinamento manuale del root con i CHARACTER trattenuti", async () => {
+  await prepareTurbineScene();
+
+  const before = sceneState.items.find((item) => item.id === "target");
+  assert.equal(sceneState.items.find((item) => item.id === "turbine-zone").locked, false);
+  await moveItem("turbine-zone", { x: 100, y: 40 });
+
+  const target = sceneState.items.find((item) => item.id === "target");
+  assert.deepEqual(target.position, { x: 150, y: 40 });
+  assert.equal(target.attachedTo, "turbine-zone");
+  assert.deepEqual(target.disableAttachmentBehavior, [
+    "ROTATION",
+    "SCALE",
+    "VISIBLE",
+    "DELETE",
+    "LOCKED",
+    "COPY",
+  ]);
+  assert.equal(target.rotation, before.rotation);
+  assert.deepEqual(target.scale, before.scale);
+  assert.equal(target.visible, before.visible);
+  assert.equal(target.locked, before.locked);
+  assert.deepEqual(target.metadata, before.metadata);
+  assert.deepEqual(
+    sceneState.items.find((item) => item.id === "turbine-zone").position,
+    { x: 100, y: 40 },
+  );
+});
+
+test("Turbine applica l'attachment nativo quando Trattenuto arriva dopo il mount", async () => {
+  await prepareTurbineScene({ targetRestrained: false });
+
+  const before = sceneState.items.find((item) => item.id === "target");
+  assert.equal(before.attachedTo, undefined);
+
+  await sdkStub.scene.items.updateItems(["target"], (drafts) => {
+    drafts[0].metadata[META_KEY].conditions = {
+      instances: [{
+        id: "turbine-restrained",
+        condition: "Trattenuto",
+        active: true,
+        parentEffectId: "turbine-instance",
+        effectId: "xanathar-turbine-restrained",
+      }],
+    };
+  });
+  await wait(220);
+
+  const target = sceneState.items.find((item) => item.id === "target");
+  assert.equal(target.attachedTo, "turbine-zone");
+  assert.deepEqual(target.disableAttachmentBehavior, [
+    "ROTATION",
+    "SCALE",
+    "VISIBLE",
+    "DELETE",
+    "LOCKED",
+    "COPY",
+  ]);
+});
+
+test("Turbine aumenta l'elevation soltanto all'inizio del turno del bersaglio e si ferma a 9 m", async () => {
+  await prepareTurbineScene();
+
+  const readTargetElevation = () => normalizeElevation(
+    sceneState.items.find((item) => item.id === "target")
+      ?.metadata?.[META_KEY]?.elevation,
+  );
+  const targetIsRestrained = () => sceneState.items.find((item) => item.id === "target")
+    ?.metadata?.[META_KEY]?.conditions?.instances?.some((condition) => (
+      condition?.active !== false
+      && condition?.parentEffectId === "turbine-instance"
+      && condition?.effectId === "xanathar-turbine-restrained"
+    )) === true;
+  const setTurn = async (current, round) => {
+    await sdkStub.scene.setMetadata({
+      [STATE_KEY]: { order: ["caster", "target"], current, round },
+    });
+    await wait(220);
+  };
+
+  assert.equal(readTargetElevation(), 0);
+  await setTurn(0, 2);
+  assert.equal(readTargetElevation(), 0);
+  await setTurn(1, 2);
+  assert.equal(readTargetElevation(), 1.5);
+  assert.equal(targetIsRestrained(), true);
+  await setTurn(1, 2);
+  assert.equal(readTargetElevation(), 1.5);
+  await setTurn(0, 3);
+  assert.equal(readTargetElevation(), 1.5);
+  await setTurn(1, 3);
+  assert.equal(readTargetElevation(), 3);
+  assert.equal(targetIsRestrained(), true);
+
+  await sdkStub.scene.items.updateItems(["target"], (drafts) => {
+    drafts[0].metadata[META_KEY].elevation = 9;
+  });
+  await wait(220);
+  await setTurn(0, 4);
+  await setTurn(1, 4);
+  assert.equal(readTargetElevation(), 9);
+});
+
+test("Muro Prismatico apre il popup di attraversamento con il token attraversante preselezionato", async () => {
+  await preparePrismaticScene();
+  await moveItem("target", { x: 500, y: 150 });
+
+  const opened = popoverCalls.filter((call) => (
+    String(call?.url || "").includes("/spell-active-resolution.html")
+  ));
+  assert.equal(opened.length, 1);
+  const payload = JSON.parse(
+    new URL(`https://local.test${opened[0].url}`).searchParams.get("payload"),
+  );
+  assert.equal(payload.spellId, "prismatic-wall");
+  assert.equal(payload.actionId, "prismatic-wall-traversal");
+  assert.equal(payload.initialTargetId, "target");
+  assert.equal(payload.popoverId, opened[0].id);
+
+  const countBeforeExemptMove = popoverCalls.length;
+  await moveItem("friend", { x: 500, y: 150 });
+  assert.equal(popoverCalls.length, countBeforeExemptMove);
 });

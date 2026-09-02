@@ -294,6 +294,22 @@ test("una spell oltre dieci round non mostra il contatore nella card compatta", 
   assert.match(effects[0].title, /durata estesa/);
 });
 
+test("Muro Prismatico mostra la pill del caster e il riepilogo degli strati", () => {
+  const [effect] = __compactEffectItems([], [{
+    name: "Muro Prismatico",
+    spellId: "prismatic-wall",
+    instanceId: "prismatic-wall-1",
+    casterId: "caster",
+    turns: 10,
+    castContext: { staticZoneOwner: true },
+    summaryParts: [{ id: "prismatic-wall-layers", label: "7/7 strati" }],
+  }], false);
+
+  assert.equal(effect.kind, "spell");
+  assert.equal(effect.label, "Muro Prismatico (10)");
+  assert.deepEqual(effect.summaryParts, [{ id: "prismatic-wall-layers", label: "7/7 strati" }]);
+});
+
 test("Arma spirituale usa la pill spell normale e non una micro-card", () => {
   const [effect] = __compactEffectItems([], [{
     name: "Arma spirituale",

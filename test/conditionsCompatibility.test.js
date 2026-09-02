@@ -74,3 +74,21 @@ test("una condition canonica puo proiettare il contatore dalla stessa instance",
     { id: "flesh-to-stone-progress", label: "S 1/3 · F 2/3" },
   ]);
 });
+
+test("Trattenuto di Telecinesi resta una condition canonica anche nei metadata legacy", () => {
+  const [part] = getConditionWidgetLayoutParts({
+    instances: [{
+      id: "telekinesis-restrained-instance",
+      condition: "Trattenuto",
+      active: true,
+      spellId: "telekinesis",
+      effectId: "telekinesis-restrained",
+      effectKind: "debuff",
+      parentEffectId: "telekinesis-1",
+    }],
+  });
+
+  assert.equal(part.kind, "condition");
+  assert.equal(part.tone, "");
+  assert.equal(part.key, "flag:Trattenuto");
+});

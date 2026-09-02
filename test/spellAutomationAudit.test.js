@@ -167,6 +167,27 @@ test("Muro di Vento è PASS/PARTIAL-ACCEPTED con vincoli passivi manuali", () =>
   assert.match(wall.curatedNote || "", /crossing/u);
 });
 
+test("Muro Prismatico è PASS/PARTIAL-ACCEPTED con popup di crossing e layer manuali", () => {
+  const audit = buildSpellAutomationAudit();
+  const wall = audit.rows.find((row) => row.id === "prismatic-wall");
+  assert.ok(wall);
+  assert.equal(wall.currentAutomationLevel, "PARTIAL");
+  assert.equal(wall.coverageStatus, "ACCEPTED");
+  assert.equal(wall.targetAutomationLevel, "PARTIAL");
+  assert.equal(wall.priority, "—");
+  assert.deepEqual(wall.gaps, []);
+  assert.deepEqual(wall.runtime.areaKinds, ["zone"]);
+  assert.deepEqual(wall.runtime.activeActionIds, [
+    "prismatic-wall-traversal",
+    "prismatic-wall-layers",
+  ]);
+  assert.equal(wall.runtime.saveAutomation, true);
+  assert.equal(wall.integration.status, "reachable");
+  assert.match(wall.curatedNote || "", /^PASS: Muro Prismatico è PARTIAL\/ACCEPTED/u);
+  assert.match(wall.curatedNote || "", /apertura automatica del popup/u);
+  assert.match(wall.curatedNote || "", /boundary-crossing engine generico/u);
+});
+
 test("le spell lavorate nella tranche RAW sono PASS", () => {
   const audit = buildSpellAutomationAudit();
   for (const id of ["slow", "confusion", "fear", "contagion", "flesh-to-stone"]) {
@@ -179,6 +200,26 @@ test("le spell lavorate nella tranche RAW sono PASS", () => {
     assert.deepEqual(spell.gaps, [], id);
     assert.match(spell.curatedNote || "", /^PASS:/u, id);
   }
+});
+
+test("Telecinesi è FULL/ACCEPTED nel perimetro creature-only", () => {
+  const audit = buildSpellAutomationAudit();
+  const telekinesis = audit.rows.find((row) => row.id === "telekinesis");
+  assert.ok(telekinesis);
+  assert.equal(telekinesis.currentAutomationLevel, "FULL");
+  assert.equal(telekinesis.coverageStatus, "ACCEPTED");
+  assert.equal(telekinesis.targetAutomationLevel, "FULL");
+  assert.equal(telekinesis.currentUiExposure, "UNIFIED");
+  assert.equal(telekinesis.integration.status, "reachable");
+  assert.equal(telekinesis.priority, "—");
+  assert.deepEqual(telekinesis.gaps, []);
+  assert.deepEqual(telekinesis.runtime.activeActionIds, [
+    "telekinesis-maintain",
+    "telekinesis-retarget",
+  ]);
+  assert.match(telekinesis.curatedNote || "", /^PASS: Telecinesi è FULL\/ACCEPTED/u);
+  assert.match(telekinesis.curatedNote || "", /creature-only/u);
+  assert.match(telekinesis.curatedNote || "", /token oggetto/u);
 });
 
 test("Longstrider include la meccanica di movimento ma resta UNREVIEWED senza review curata", () => {
@@ -457,4 +498,54 @@ test("runtimeSmokeRequired resta coerente con smokeCategories e l'audit e determ
   assert.ok(audit1.rows.every((row) => row.integration.smokeRequired === (row.smokeCategories.length > 0)));
   assert.equal(audit1.fingerprint, audit2.fingerprint);
   assert.deepEqual(audit1, audit2);
+});
+
+test("Turbine è FULL/ACCEPTED, raggiungibile e senza gap residui", () => {
+  const audit = buildSpellAutomationAudit();
+  const turbine = audit.rows.find((row) => row.id === "xanathar-turbine");
+
+  assert.ok(turbine);
+  assert.equal(turbine.currentAutomationLevel, "FULL");
+  assert.equal(turbine.coverageStatus, "ACCEPTED");
+  assert.equal(turbine.targetAutomationLevel, "FULL");
+  assert.deepEqual(turbine.gaps, []);
+  assert.equal(turbine.integration.status, "reachable");
+  assert.deepEqual(turbine.runtime.triggerIds, [
+    "xanathar-turbine-entry-save",
+    "xanathar-turbine-area-move-save",
+  ]);
+  assert.deepEqual(turbine.runtime.activeActionIds, ["xanathar-turbine-escape"]);
+  assert.deepEqual(turbine.integration.actions.panelActionIds, ["xanathar-turbine-escape"]);
+  assert.match(turbine.curatedNote || "", /FULL\/ACCEPTED/u);
+  assert.match(turbine.curatedNote || "", /spostato manualmente dal GM/u);
+  assert.doesNotMatch(turbine.curatedNote || "", /movimento ACTION/u);
+});
+
+test("il batch Dominare è chiuso con reminder di danno e controllo preciso manuale", () => {
+  const audit = buildSpellAutomationAudit();
+  const markdown = renderSpellAutomationMarkdown(audit);
+  const ids = ["dominate-beast", "dominate-person", "dominate-monster"];
+
+  for (const id of ids) {
+    const spell = audit.rows.find((row) => row.id === id);
+    assert.ok(spell, id);
+    assert.equal(spell.currentAutomationLevel, "PARTIAL", id);
+    assert.equal(spell.coverageStatus, "CLOSED", id);
+    assert.equal(spell.targetAutomationLevel, "PARTIAL", id);
+    assert.equal(spell.priority, "—", id);
+    assert.deepEqual(spell.gaps, [], id);
+    assert.equal(spell.runtime.saveAutomation, true, id);
+    assert.deepEqual(spell.runtime.activeActionIds, [], id);
+    assert.equal(spell.integration.status, "reachable", id);
+    assert.match(
+      spell.curatedNote || "",
+      /damage-triggered save reminder only; precise control remains manual/u,
+      id,
+    );
+  }
+
+  assert.match(
+    markdown,
+    /Dominare Bestie \/ Persone \/ Mostri: `damage-triggered save reminder only; precise control remains manual`/u,
+  );
 });

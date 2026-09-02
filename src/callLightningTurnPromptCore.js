@@ -8,6 +8,11 @@ import { getSpellActiveAction } from "./spellActiveActionCore.js";
 import { spellOverviewGroups } from "./spellsPanelViewCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 import { SPELL_BOARD_TOKEN_META_KEY } from "./spellBoardTokenCore.js";
+import {
+  TELEKINESIS_MAINTAIN_ACTION_ID,
+  TELEKINESIS_RETARGET_ACTION_ID,
+  telekinesisActivationAlreadyUsed,
+} from "./telekinesisRules.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
@@ -35,6 +40,8 @@ export const CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID = "control-winds-gusts";
 export const CONTROL_WINDS_DOWNDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-downdraft";
 export const CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-updraft";
 export const CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID = "control-winds-pause";
+export const TELEKINESIS_MAINTAIN_TURN_PROMPT_ACTION_ID = TELEKINESIS_MAINTAIN_ACTION_ID;
+export const TELEKINESIS_RETARGET_TURN_PROMPT_ACTION_ID = TELEKINESIS_RETARGET_ACTION_ID;
 
 const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
@@ -145,6 +152,17 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     ownerContext: "caster",
     availableAfterCast: true,
     choice: true,
+  }),
+  Object.freeze({
+    spellId: "telekinesis",
+    actionIds: Object.freeze([
+      TELEKINESIS_MAINTAIN_TURN_PROMPT_ACTION_ID,
+      TELEKINESIS_RETARGET_TURN_PROMPT_ACTION_ID,
+    ]),
+    ownerContext: "caster",
+    availableAfterCast: true,
+    choice: true,
+    choiceHint: "Scegli se ripetere la contesa sulla creatura attuale o cambiare bersaglio. Trattenuto viene applicato su vittoria; movimento e sospensione restano manuali al tavolo.",
   }),
 ]);
 
@@ -353,6 +371,10 @@ export function spellTurnPromptRequests({
         group?.casterId,
         prompt,
       );
+      if (prompt.spellId === "telekinesis"
+        && telekinesisActivationAlreadyUsed(group?.castContext, normalizedTurnKey)) {
+        continue;
+      }
       const payloads = activeActionPrompt
         ? actions.map((action) => buildSpellTurnActiveActionPayload({
           spell,

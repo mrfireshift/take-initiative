@@ -1783,6 +1783,12 @@ function historyUndoDebugItemIds(entries = []) {
       : []) {
       const id = String(sideEffect?.id || sideEffect?.itemId || sideEffect?.targetId || "").trim();
       if (id) ids.add(id);
+      if (sideEffect?.type === "static-zone-move") {
+        for (const carried of Array.isArray(sideEffect.carriedItems) ? sideEffect.carriedItems : []) {
+          const carriedId = String(carried?.id || "").trim();
+          if (carriedId) ids.add(carriedId);
+        }
+      }
     }
   }
   return [...ids];

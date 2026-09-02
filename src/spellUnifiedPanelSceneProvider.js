@@ -38,6 +38,8 @@ import { SPELL_STATIC_ZONE_META_KEY } from "./spellStaticZoneCore.js";
 import { getSpellAreaRuleForPlacement, getSpellAreaRules } from "./spellAreaRules.js";
 import { getMobileAuraRule, SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
+import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
+import { blinkSemanticDetail } from "./blinkRules.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -201,7 +203,7 @@ export async function getActiveConcentration(obr, casterId, spell) {
   return findActiveSpellConcentration(concentrations, spell);
 }
 
-function targetCandidate(item) {
+function targetCandidate(item, dpi = 150) {
   const meta = item?.metadata?.[META_KEY] || {};
   const boardToken = spellBoardTokenView(item);
   const faction = factionKey(meta.attitude);
@@ -224,6 +226,7 @@ function targetCandidate(item) {
     factionLabel: FACTION_LABELS[faction],
     hp: Number.isFinite(hp) ? hp : null,
     hpMax: Number.isFinite(hpMax) ? hpMax : null,
+    turbineSize: turbineSizeFromToken({ item, dpi }) || null,
   };
 }
 
@@ -239,6 +242,17 @@ export async function getAllSpellTargetItems(obr) {
     if (item?.id) byId.set(item.id, item);
   }
   return [...byId.values()];
+}
+
+async function getAllSpellTargetCandidates(obr, spellId = "") {
+  const [items, dpi] = await Promise.all([
+    getAllSpellTargetItems(obr),
+    obr?.scene?.grid?.getDpi?.().catch?.(() => 150) || Promise.resolve(150),
+  ]);
+  const candidates = String(spellId || "").trim() === "telekinesis"
+    ? items.filter((item) => item?.layer === "CHARACTER")
+    : items;
+  return candidates.map((item) => targetCandidate(item, dpi));
 }
 
 function gridMetersPerCell(scale = {}) {
@@ -492,6 +506,26 @@ export async function validateSpellUnifiedTargetSelection(
     const invalidDistanceTargetIds = Array.isArray(spatial?.invalidTargetIds)
       ? spatial.invalidTargetIds
       : [];
+    return {
+      valid: invalidDistanceTargetIds.length === 0,
+      errors: invalidDistanceTargetIds.length ? ["target-out-of-range"] : [],
+      invalidDistanceTargetIds,
+    };
+  }
+  if (text(spatialRules?.mode) === "caster-range") {
+    const normalizedTargetIds = uniqueSceneIds(targetIds);
+    const spatial = await getSpellAreaSpatialValidation(obr, {
+      contract,
+      session: {
+        ...session,
+        targetIds: normalizedTargetIds,
+      },
+    });
+    const maximum = Number(spatialRules?.maxMeters);
+    const invalidDistanceTargetIds = normalizedTargetIds.filter((targetId) => {
+      const distance = Number(spatial?.casterDistancesMeters?.[targetId]);
+      return !(maximum > 0) || !Number.isFinite(distance) || distance > maximum + 1e-6;
+    });
     return {
       valid: invalidDistanceTargetIds.length === 0,
       errors: invalidDistanceTargetIds.length ? ["target-out-of-range"] : [],
@@ -778,7 +812,7 @@ function persistentProjection(group, spell) {
   };
 }
 
-function overviewProjection(group, currentTurnKey = "") {
+function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
   const spell = getSpellDefinition(group?.spellId || group?.storedName);
   const targetIds = group?.targets instanceof Map
     ? [...group.targets.keys()]
@@ -792,6 +826,8 @@ function overviewProjection(group, currentTurnKey = "") {
     zoneItemId: group?.zoneItemId,
     appliedAt: group?.appliedAt,
     currentTurnKey,
+    currentActorId,
+    pendingTermination: group?.pendingTermination,
   });
   const declarations = getSpellUnifiedActiveActionDeclarations(spell);
   const declarationsById = new Map(declarations.map((action) => [action.id, action]));
@@ -833,6 +869,7 @@ function overviewProjection(group, currentTurnKey = "") {
       "",
       cloneValue(group?.castContext || {}),
     ),
+    semanticDetail: blinkSemanticDetail(group?.castContext || {}),
     terminalResolution: cloneValue(group?.castContext?.terminalResolution || null),
     pendingTermination: cloneValue(group?.pendingTermination || null),
     appliedAt: cloneValue(group?.appliedAt),
@@ -866,6 +903,7 @@ function overviewProjection(group, currentTurnKey = "") {
     actions,
     context,
     summaryParts: context.summaryParts,
+    semanticDetail: context.semanticDetail,
     actionLabels: actions
       .filter((action) => action.type === "manual" || action.type === "resolve")
       .map((action) => action.buttonLabel || action.label)
@@ -982,7 +1020,11 @@ export async function getSpellOverviewSnapshot(obr, sourceId = "") {
     ) || null;
     group.zoneItemId = group.zoneRoot?.id || group.boardToken?.itemId || "";
     group.auraItem = auraByInstance.get(group.instanceId) || null;
-    return overviewProjection(group, appliedAt?.turnKey || "");
+    return overviewProjection(
+      group,
+      appliedAt?.turnKey || "",
+      appliedAt?.actorId || "",
+    );
   });
 }
 
@@ -1040,7 +1082,7 @@ export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = nul
   return {
     getCatalogEntries: () => buildSpellCatalogEntries(),
     getCasters: (sourceId = "") => getAllInitiativeCharacters(obr, sourceId),
-    getTargetCandidates: () => getAllSpellTargetItems(obr),
+    getTargetCandidates: (spellId = "") => getAllSpellTargetCandidates(obr, spellId),
     getContextOrSelectionIds: () => getContextOrSelectionIds(obr),
     getCardTargetIds: (sourceId, casters) => getCardTargetIds(obr, sourceId, casters),
     getAppliedAt: () => getAppliedAt(obr),

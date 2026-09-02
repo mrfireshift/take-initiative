@@ -111,6 +111,9 @@ const {
 const {
   executeSpellActiveResolution,
 } = await import("../src/spellApplicationExecutor.js?active-resolution-runtime");
+const {
+  telekinesisCastContext,
+} = await import("../src/telekinesisRules.js");
 
 function token(id, name, meta) {
   return {
@@ -166,6 +169,87 @@ function payload() {
       castContext: { mobileAura: true, slotLevel: 4 },
     },
     sceneEpoch: 7,
+  });
+}
+
+function resetTelekinesisScene({ remaining = 87, outcome = "failed" } = {}) {
+  mutationCalls.length = 0;
+  items.clear();
+  boundsById.clear();
+  const appliedAt = { round: 1, actorId: "caster", turnKey: "1:0:caster" };
+  const castContext = telekinesisCastContext({
+    castContext: { slotLevel: 5, applyAutomatedConditions: true },
+    casterId: "caster",
+    targetId: "target",
+    outcome,
+  });
+  items.set("caster", token("caster", "Caster", {
+    [SPELLS_KEY]: [],
+    [CONCENTRATION_KEY]: {
+      telecinesi: {
+        name: "Telecinesi",
+        instanceId: "telekinesis-1",
+        spellId: "telekinesis",
+        targets: ["target"],
+        appliedAt,
+        castContext,
+      },
+    },
+  }));
+  items.set("target", {
+    ...token("target", "Target", {
+      [SPELLS_KEY]: [{
+        id: "telekinesis-entry",
+        name: "Telecinesi",
+        turns: remaining,
+        conc: true,
+        casterId: "caster",
+        casterName: "Caster",
+        instanceId: "telekinesis-1",
+        spellId: "telekinesis",
+        appliedAt,
+        castContext,
+      }],
+    }),
+    layer: "CHARACTER",
+  });
+  boundsById.set("caster", {
+    min: { x: 0, y: 0 },
+    max: { x: 100, y: 100 },
+    center: { x: 50, y: 50 },
+  });
+  boundsById.set("target", {
+    min: { x: 100, y: 0 },
+    max: { x: 200, y: 100 },
+    center: { x: 150, y: 50 },
+  });
+}
+
+function telekinesisPayload(turnKey = "1:0:caster") {
+  const spell = getSpellDefinition("telekinesis");
+  const action = spell.activeActions.find((entry) => entry.id === "telekinesis-maintain");
+  const castContext = telekinesisCastContext({
+    castContext: { slotLevel: 5, applyAutomatedConditions: true },
+    casterId: "caster",
+    targetId: "target",
+    outcome: "failed",
+  });
+  return buildSpellActiveResolutionPayload({
+    spell,
+    action,
+    group: {
+      instanceId: "telekinesis-1",
+      casterId: "caster",
+      casterName: "Caster",
+      name: "Telecinesi",
+      castContext,
+      appliedAt: { round: 1, actorId: "caster", turnKey: "1:0:caster" },
+      targets: new Map([["target", "Target"]]),
+      turns: [87],
+      effectInstances: [],
+    },
+    sceneEpoch: 7,
+    turnKey,
   });
 }
 
@@ -241,4 +325,47 @@ test("single-heal consente il caster come bersaglio valido", async () => {
   assert.equal(mutationCalls.length, 1);
   assert.equal(mutationCalls[0].options.metadataPatches[0].id, "caster");
   assert.equal(mutationCalls[0].options.metadataPatches[0].fields.hp.value, 49);
+});
+
+test("Telecinesi conserva la durata residua e applica Trattenuto solo su contesa vinta", async () => {
+  resetTelekinesisScene();
+  await executeSpellActiveResolution({
+    payload: telekinesisPayload(),
+    targetIds: ["target"],
+    outcomes: { target: "passed" },
+    sceneEpoch: 7,
+    isCurrent: () => true,
+  });
+
+  assert.equal(mutationCalls.length, 1);
+  const { operations } = mutationCalls[0];
+  const upsert = operations.find((operation) => operation.type === "spell:upsert");
+  const restrained = operations.find((operation) => operation.type === "condition:add");
+  const automate = operations.find((operation) => operation.type === "condition:automate");
+  assert.equal(upsert.turns, 87);
+  assert.equal(upsert.instanceId, "telekinesis-1");
+  assert.equal(restrained.conditionName, "Trattenuto");
+  assert.equal(restrained.options.parentEffectId, "telekinesis-1");
+  assert.deepEqual(restrained.options.expiry, {
+    mode: "turn-end",
+    actor: "source",
+    actorId: "caster",
+    remaining: 1,
+    anchor: "next-turn",
+  });
+  assert.deepEqual(automate.subjectIds, ["target"]);
+
+  resetTelekinesisScene();
+  await executeSpellActiveResolution({
+    payload: telekinesisPayload(),
+    targetIds: ["target"],
+    outcomes: { target: "failed" },
+    sceneEpoch: 7,
+    isCurrent: () => true,
+  });
+  assert.equal(mutationCalls.length, 1);
+  assert.equal(
+    mutationCalls[0].operations.some((operation) => operation.type === "condition:add"),
+    false,
+  );
 });

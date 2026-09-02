@@ -1,3 +1,5 @@
+import { TELEKINESIS_RANGE_METERS } from "./telekinesisRules.js";
+
 const freeze = (value) => {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) freeze(child);
@@ -107,6 +109,50 @@ export const HEAT_METAL_DROP_CHOICE_EFFECT = freeze({
 // dalla Console HP: il pannello usa soltanto questa dichiarazione per
 // esporre il comando e delega la risoluzione al popup dedicato.
 export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
+  "telekinesis": [
+    {
+      id: "telekinesis-maintain",
+      label: "Mantieni presa",
+      buttonLabel: "Mantieni presa",
+      detail: "Azione: ripeti la contesa sulla creatura collegata. Se la vinci, il plugin applica Trattenuto; spostamento e sospensione restano manuali al tavolo.",
+      economy: "action",
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "telekinesis-contest",
+      telekinesisOperation: "maintain",
+      manualContestAtTable: true,
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      range: { value: TELEKINESIS_RANGE_METERS, unit: "m" },
+      maxTargets: 1,
+      rememberTargets: true,
+    },
+    {
+      id: "telekinesis-retarget",
+      label: "Cambia bersaglio",
+      buttonLabel: "Cambia bersaglio",
+      detail: "Azione: scegli una nuova creatura entro gittata e risolvi una nuova contesa. Se la vinci, il plugin applica Trattenuto; spostamento e sospensione restano manuali al tavolo.",
+      economy: "action",
+      turnStartPrompt: true,
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "telekinesis-contest",
+      telekinesisOperation: "retarget",
+      manualContestAtTable: true,
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      range: { value: TELEKINESIS_RANGE_METERS, unit: "m" },
+      maxTargets: 1,
+      rememberTargets: true,
+    },
+  ],
   "eyebite": [
     {
       id: "eyebite-saved",
@@ -887,6 +933,36 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       ],
     },
   ],
+  "xanathar-turbine": [
+    {
+      id: "xanathar-turbine-escape",
+      label: "Prova di fuga",
+      buttonLabel: "Prova di fuga",
+      detail: "Azione: scegli Forza o Destrezza e risolvi una prova contro la CD del tiro salvezza del Turbine.",
+      economy: "action",
+      showInOverview: true,
+      availableAfterCast: true,
+      resolutionKind: "single-save",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      maxTargets: 1,
+      save: {
+        ability: "str",
+        abilityOptions: [
+          { value: "str", label: "Forza" },
+          { value: "dex", label: "Destrezza" },
+        ],
+        onSuccess: "none",
+      },
+      requiredTargetEffectId: "xanathar-turbine-restrained",
+      replaceLinkedEffectId: "xanathar-turbine-restrained",
+      replaceLinkedEffectOnSuccess: true,
+      successNotice: "Scagliato · 3d6 × 3 m · direzione casuale",
+    },
+  ],
   "prismatic-wall": [
     {
       id: "prismatic-wall-traversal",
@@ -919,6 +995,26 @@ export const SPELL_ACTIVE_RESOLUTION_ACTIONS = freeze({
       requiresParentInstance: true,
       requiresZoneRoot: true,
       rangeOrigin: "root",
+    },
+  ],
+  "blink": [
+    {
+      id: "blink-return",
+      label: "Ritorno da Intermittenza",
+      buttonLabel: "Ritorna sul Piano Materiale",
+      detail: "Scegli la destinazione del ritorno sulla mappa; il GM valuta lo spazio valido.",
+      economy: "gm",
+      showInOverview: true,
+      availableAfterCast: false,
+      resolutionKind: "blink-return",
+      subjectMode: "none",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      rangeOrigin: "caster",
+      blinkReturn: true,
+      maxMeters: 3,
+      viewMeters: 18,
     },
   ],
 });

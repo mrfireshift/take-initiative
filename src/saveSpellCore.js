@@ -271,6 +271,7 @@ export function resolveSaveSpellResolution({
       casterDistancesMeters,
       validateSpatial,
       targetContexts,
+      outcomes,
       ignoreTargetLimit,
     })
     : null;

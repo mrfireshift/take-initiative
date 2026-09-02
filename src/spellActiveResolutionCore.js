@@ -4,6 +4,10 @@ import {
   spellEffectConditionOptions,
 } from "./spellEffectCore.js";
 import { getSpellActiveResolutionActions } from "./spellActiveResolutionRules.js";
+import {
+  TELEKINESIS_CONTEST_RESOLUTION_KIND,
+  telekinesisActivationId,
+} from "./telekinesisRules.js";
 
 export const SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE = `${ID}/spell-active-resolution`;
 export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
@@ -12,6 +16,8 @@ export const SPELL_ACTIVE_RESOLUTION_KINDS = Object.freeze([
   "single-save",
   "single-heal",
   "child-zone",
+  TELEKINESIS_CONTEST_RESOLUTION_KIND,
+  "blink-return",
   "prismatic-wall-traversal",
   "prismatic-wall-layers",
 ]);
@@ -179,6 +185,33 @@ export function validateSpellActiveResolutionAction(action) {
     }
     return { valid: errors.length === 0, errors: Object.freeze(errors) };
   }
+  if (kind === "blink-return") {
+    if (action?.blinkReturn !== true) errors.push("action-blink-return-required");
+    if (action?.requiresZoneRoot !== false) errors.push("action-zone-root-forbidden");
+    return { valid: errors.length === 0, errors: Object.freeze(errors) };
+  }
+  if (kind === TELEKINESIS_CONTEST_RESOLUTION_KIND) {
+    if (!["maintain", "retarget"].includes(String(action?.telekinesisOperation || "").trim())) {
+      errors.push("action-telekinesis-operation-invalid");
+    }
+    if (action?.manualContestAtTable !== true) {
+      errors.push("action-telekinesis-contest-required");
+    }
+    if (action?.rangeOrigin !== "caster") {
+      errors.push("action-telekinesis-range-origin-invalid");
+    }
+    if (
+      !action?.range
+      || action.range.unit !== "m"
+      || !Number.isFinite(Number(action.range.value))
+      || Number(action.range.value) <= 0
+    ) {
+      errors.push("action-telekinesis-range-required");
+    }
+    if (action?.rememberTargets !== true) errors.push("action-telekinesis-target-link-required");
+    if (integer(action?.maxTargets, 0) !== 1) errors.push("action-telekinesis-single-target-invalid");
+    return { valid: errors.length === 0, errors: Object.freeze(errors) };
+  }
   if (
     ["single-attack", "single-save", "child-zone"].includes(kind)
     && action?.requiresZoneRoot !== true
@@ -217,6 +250,21 @@ export function validateSpellActiveResolutionAction(action) {
   if (["save-area", "single-save"].includes(kind)) {
     const ability = String(action?.save?.ability || "").trim().toLowerCase();
     if (!SPELL_SAVE_ABILITIES.has(ability)) errors.push("action-save-ability-invalid");
+    if (action?.save?.abilityOptions !== undefined) {
+      if (!Array.isArray(action.save.abilityOptions)
+        || !action.save.abilityOptions.length
+        || action.save.abilityOptions.some((option) => {
+          const optionValue = String(option?.value || "").trim().toLowerCase();
+          return !SPELL_SAVE_ABILITIES.has(optionValue)
+            || !String(option?.label || "").trim();
+        })) {
+        errors.push("action-save-ability-options-invalid");
+      } else if (!action.save.abilityOptions.some((option) => (
+        String(option?.value || "").trim().toLowerCase() === ability
+      ))) {
+        errors.push("action-save-ability-default-not-allowed");
+      }
+    }
   }
   if (action?.failureEffects !== undefined) {
     if (!Array.isArray(action.failureEffects)) {
@@ -392,6 +440,15 @@ export function buildSpellActiveResolutionPayload({
     sceneEpoch: epoch,
     actionId: String(action.id).trim(),
     action: clone(action),
+    ...(action?.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND
+      ? {
+        activationId: telekinesisActivationId(
+          instanceId,
+          String(action.id).trim(),
+          String(turnKey || "").trim(),
+        ),
+      }
+      : {}),
     ...(linkedTargetIds.length === 1 ? { linkedTargetId: linkedTargetIds[0] } : {}),
     ...(String(zoneItemId || "").trim() ? { zoneItemId: String(zoneItemId).trim() } : {}),
     ...(String(turnKey || "").trim() ? { turnKey: String(turnKey).trim() } : {}),
@@ -418,6 +475,10 @@ export function validateSpellActiveResolutionPayload(payload) {
   }
   const declaredAction = getSpellResolutionAction(payload?.spellId, payload?.actionId);
   if (!declaredAction) errors.push("payload-action-not-declared");
+  if (payload?.action?.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND) {
+    if (!String(payload?.turnKey || "").trim()) errors.push("payload-turn-key-required");
+    if (!String(payload?.activationId || "").trim()) errors.push("payload-activation-id-required");
+  }
   return { valid: errors.length === 0, errors: Object.freeze(errors) };
 }
 
@@ -692,12 +753,15 @@ export function buildSpellActiveResolutionLinkedEffectRemovals({
   action = null,
   payload = null,
   items = [],
+  targetIds = [],
 } = {}) {
   const parentEffectId = String(payload?.instanceId || "").trim();
   const effectId = String(action?.replaceLinkedEffectId || "").trim();
   if (!parentEffectId || !effectId) return [];
+  const selectedTargetIds = new Set(normalizeActiveResolutionTargetIds(targetIds));
   const removals = [];
   for (const item of Array.isArray(items) ? items : []) {
+    if (selectedTargetIds.size && !selectedTargetIds.has(String(item?.id || "").trim())) continue;
     const meta = item?.metadata?.[`${ID}/meta`] || {};
     const conditions = Array.isArray(meta.conditions)
       ? meta.conditions

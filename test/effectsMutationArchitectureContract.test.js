@@ -117,7 +117,7 @@ test("i side effect persistenti iniziano soltanto dopo il commit canonico", () =
   );
 });
 
-test("gli esiti reminder rinviano solo History fuori dalla lane critica", () => {
+test("gli esiti reminder rinviano History, salvo la catena Turbine che deve essere subito undoabile", () => {
   const resolution = section(
     reminderResolution,
     "async function executeReminderResolution({",
@@ -125,7 +125,11 @@ test("gli esiti reminder rinviano solo History fuori dalla lane critica", () => 
   );
   assert.match(resolution, /kind: "reminder-resolution"/);
   assert.match(reminderResolution, /REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED = true/);
-  assert.match(resolution, /deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED/);
+  assert.match(
+    resolution,
+    /const deferHistory = plan\.turbineChain[\s\S]{0,100}false[\s\S]{0,100}REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED/,
+  );
+  assert.match(resolution, /deferHistory,/);
   const mount = section(
     effects,
     "export async function mountEffectsMutationCoordinatorService()",

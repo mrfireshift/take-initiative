@@ -289,6 +289,24 @@ test("propaga l'ID della Effects History entry deferred al warning di concentraz
   );
 });
 
+test("la risoluzione Turbine non differisce la propria History", async () => {
+  plannedResolution.turbineChain = {
+    size: "large-or-smaller",
+    strengthOutcome: "failed",
+    capture: true,
+  };
+
+  const result = await resolveReminder({
+    notice: notice("turbine-resolution"),
+    outcome: "failed",
+    damageRoll: 8,
+  });
+
+  assert.equal(result.status, "applied");
+  assert.equal(mutationCalls.length, 1);
+  assert.equal(mutationCalls[0].options.deferHistory, false);
+});
+
 test("il retry della History mantiene l'ID causale dell'entry immutabile", async () => {
   const activationId = "reminder-concentration-retry";
   const immutableHistoryEntry = clone(mutationResult.historyEntry);

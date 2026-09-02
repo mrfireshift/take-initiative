@@ -29,6 +29,7 @@ import {
 } from "./spellUnifiedPersistentAdapter.js";
 import {
   buildSpellUnifiedActivePopoverRequest,
+  buildSpellUnifiedActiveResolutionPayload,
   buildSpellUnifiedPreparedPopoverRequest,
   executeSpellUnifiedActiveAction,
   SPELL_UNIFIED_PREPARED_AREA_SPELL_IDS,
@@ -150,6 +151,75 @@ function slotOptions(contract) {
 function targetIdsForCandidates(ids, candidates) {
   const valid = new Set(candidates.map((candidate) => candidate.key));
   return uniqueIds(ids).filter((id) => valid.has(id));
+}
+
+function automaticTargetContextFor(
+  contract,
+  targetIds,
+  candidates = [],
+  targetContext = {},
+) {
+  const fields = contract?.presentation?.targeting?.workflow?.context?.fields;
+  const automaticFields = (Array.isArray(fields) ? fields : [])
+    .filter((field) => field?.automatic === true && field?.candidateValue);
+  if (!automaticFields.length) return targetContext;
+  const current = targetContext && typeof targetContext === "object"
+    ? targetContext
+    : {};
+  const byId = new Map(
+    (Array.isArray(candidates) ? candidates : [])
+      .map((candidate) => [String(candidate?.key || candidate?.id || "").trim(), candidate])
+      .filter(([id]) => id),
+  );
+  const next = { ...current };
+  for (const targetId of uniqueIds(targetIds)) {
+    const candidate = byId.get(targetId);
+    const automaticValues = Object.fromEntries(
+      automaticFields
+        .map((field) => [field.id, candidate?.[field.candidateValue]])
+        .filter(([, value]) => value !== undefined && value !== null && value !== ""),
+    );
+    if (Object.keys(automaticValues).length) {
+      next[targetId] = {
+        ...(current[targetId] && typeof current[targetId] === "object"
+          ? current[targetId]
+          : {}),
+        ...automaticValues,
+      };
+    }
+  }
+  return next;
+}
+
+function pruneInactiveTargetContext(contract, targetContext = {}, outcomes = {}) {
+  const fields = contract?.presentation?.targeting?.workflow?.context?.fields;
+  const dependentFields = (Array.isArray(fields) ? fields : [])
+    .filter((field) => field?.dependentOutcome?.primaryOutcome);
+  if (!dependentFields.length || !targetContext || typeof targetContext !== "object") {
+    return targetContext;
+  }
+  const next = { ...targetContext };
+  for (const [targetId, rawContext] of Object.entries(targetContext)) {
+    if (!rawContext || typeof rawContext !== "object") continue;
+    const outcomeValue = outcomes?.[targetId] && typeof outcomes[targetId] === "object"
+      ? outcomes[targetId].value
+      : outcomes?.[targetId];
+    const normalizedOutcome = String(outcomeValue ?? "").trim().toLocaleLowerCase("it");
+    const context = { ...rawContext };
+    let changed = false;
+    for (const field of dependentFields) {
+      const requiredOutcome = String(field.dependentOutcome.primaryOutcome || "")
+        .trim()
+        .toLocaleLowerCase("it");
+      if (requiredOutcome && normalizedOutcome !== requiredOutcome
+        && Object.prototype.hasOwnProperty.call(context, field.id)) {
+        delete context[field.id];
+        changed = true;
+      }
+    }
+    if (changed) next[targetId] = context;
+  }
+  return next;
 }
 
 function messageForResult(result) {
@@ -524,8 +594,17 @@ export function bootSpellUnifiedPanel(
   };
 
   const patchSession = (patch, { clearFeedback = true } = {}) => {
+    const normalizedPatch = automaticTargetContextFor(
+      state.contract,
+      patch?.targetIds === undefined ? state.session.targetIds : patch.targetIds,
+      state.targetCandidates,
+      patch?.targetContext === undefined
+        ? state.session.targetContext
+        : patch.targetContext,
+    );
     state.session = updateSpellPanelSession(state.session, {
       ...patch,
+      targetContext: normalizedPatch,
       ...(clearFeedback ? {
         feedback: { state: "idle" },
         commitState: { state: "idle" },
@@ -687,7 +766,7 @@ export function bootSpellUnifiedPanel(
     if (!sceneLifecycle.isCurrent(operation)) return false;
     const [casters, targetItems, overview] = await Promise.all([
       provider.getCasters?.(sourceId) || [],
-      provider.getTargetCandidates?.() || null,
+      provider.getTargetCandidates?.(state.contract?.spell?.id || "") || null,
       provider.getOverview?.(sourceId) || [],
     ]);
     if (!sceneLifecycle.isCurrent(operation)) return false;
@@ -696,6 +775,14 @@ export function bootSpellUnifiedPanel(
     state.targetCandidates = candidateItems
       .map((item) => item?.key ? item : provider.targetCandidate?.(item))
       .filter(Boolean);
+    state.session = updateSpellPanelSession(state.session, {
+      targetContext: automaticTargetContextFor(
+        state.contract,
+        state.session.targetIds,
+        state.targetCandidates,
+        state.session.targetContext,
+      ),
+    });
     if (initial) {
       const contextIds = sourceId
         ? await provider.getCardTargetIds?.(sourceId, state.casters)
@@ -715,6 +802,12 @@ export function bootSpellUnifiedPanel(
       state.session = updateSpellPanelSession(state.session, {
         casterId: firstValidCaster(state.casters, preferredCaster),
         targetIds: selectedIds,
+        targetContext: automaticTargetContextFor(
+          state.contract,
+          selectedIds,
+          state.targetCandidates,
+          state.session.targetContext,
+        ),
       });
     } else if (!validCasterIds().includes(state.session.casterId)) {
       state.session = updateSpellPanelSession(state.session, {
@@ -905,9 +998,14 @@ export function bootSpellUnifiedPanel(
         Object.entries(state.session.outcomes || {})
           .filter(([id]) => targetSet.has(id)),
       ),
-      targetContext: Object.fromEntries(
-        Object.entries(state.session.targetContext || {})
-          .filter(([id]) => targetSet.has(id)),
+      targetContext: automaticTargetContextFor(
+        state.contract,
+        nextIds,
+        state.targetCandidates,
+        Object.fromEntries(
+          Object.entries(state.session.targetContext || {})
+            .filter(([id]) => targetSet.has(id)),
+        ),
       ),
     });
     return nextIds;
@@ -1109,6 +1207,7 @@ export function bootSpellUnifiedPanel(
     const eligibility = getSpellUnifiedAreaEligibility(state.contract, state.session);
     const descriptor = placementDescriptor();
     const manualTargetSelection = state.contract?.presentation?.targeting?.selectionMode === "manual";
+    const negativeTargetSelection = state.contract?.presentation?.targeting?.selectionPolarity === "exclude";
     const preparedHitArea = state.session?.phase === "resolve"
       && state.contract?.presentation?.targeting?.areaAnchor === "primary-target";
     const primaryTargetId = String(state.session?.primaryTargetId || "").trim();
@@ -1129,7 +1228,7 @@ export function bootSpellUnifiedPanel(
     if (!eligibility.eligible || !descriptor.ruleId || state.committing) return;
     if (descriptor.policy === "automatic") return;
     if (state.session.placement?.state === "pending") return;
-    if (manualTargetSelection && !retainedTargetIds.length) {
+    if (manualTargetSelection && !negativeTargetSelection && !retainedTargetIds.length) {
       patchSession({
         feedback: {
           state: "info",
@@ -1559,6 +1658,15 @@ export function bootSpellUnifiedPanel(
     const operation = captureSceneOperation("spell-panel-spell-terminate");
     if (!sceneLifecycle.isCurrent(operation)) return;
     const context = overview.context || {};
+    if (String(context.spellId || "").trim() === "blink") {
+      patchSession({
+        feedback: {
+          state: "info",
+          message: "Usa «Termina Intermittenza» per consumare l'azione e gestire il ritorno etereo.",
+        },
+      }, { clearFeedback: false });
+      return;
+    }
     const instanceId = String(overview.instanceId || context.instanceId || "").trim();
     const casterId = String(context.casterId || "").trim();
     const targetIds = uniqueIds(overview.targetIds?.length
@@ -1925,6 +2033,12 @@ export function bootSpellUnifiedPanel(
 
     if (result.status === SPELL_UNIFIED_ACTIVE_STATUS.EXECUTED) {
       const hasUndo = result.undoAvailable === true && !!result.historyEntryId;
+      const pendingEvent = result?.pendingTerminations?.[0]
+        || result?.pendingTermination
+        || null;
+      const pendingTermination = pendingEvent?.pendingTermination || pendingEvent;
+      const blinkTerminalPending = String(context.spellId || "").trim() === "blink"
+        && !!pendingTermination;
       state.session = updateSpellPanelSession(state.session, {
         activeActionState: {
           state: "executed",
@@ -1943,7 +2057,9 @@ export function bootSpellUnifiedPanel(
         },
         feedback: {
           state: "success",
-          message: result.changedIds?.length
+          message: blinkTerminalPending
+            ? "Intermittenza: scegli ora lo spazio di ritorno."
+            : result.changedIds?.length
             ? `Azione completata su ${result.changedIds.length} elementi.`
             : "Azione completata.",
         },
@@ -1951,6 +2067,66 @@ export function bootSpellUnifiedPanel(
       state.revision += 1;
       render();
       await refreshScene();
+      if (blinkTerminalPending && sceneLifecycle.isCurrent(operation)) {
+        const liveOverview = state.activeOverview.find((entry) => (
+          String(entry?.instanceId || "").trim() === String(overview.instanceId || "").trim()
+        ));
+        const returnAction = liveOverview?.actions?.find((entry) => (
+          String(entry?.id || "").trim() === "blink-return"
+        ));
+        if (liveOverview && returnAction) {
+          const currentEpoch = currentSceneEpoch();
+          const built = buildSpellUnifiedActiveResolutionPayload({
+            overview: liveOverview,
+            action: returnAction,
+            actionId: returnAction.id,
+            sceneEpoch: currentEpoch,
+            currentSceneEpoch: currentEpoch,
+            currentRevision: runtimeOverrides.currentRevision,
+            turnKey: liveOverview.context?.turnKey || "",
+            revision: liveOverview.context?.revision,
+          });
+          if (built.payload) {
+            try {
+              await openActiveResolution(built.payload);
+              activePopupOperation = operation;
+              state.session = updateSpellPanelSession(state.session, {
+                activeInstanceId: liveOverview.instanceId,
+                activeActionId: returnAction.id,
+                activeActionState: {
+                  state: "opened",
+                  instanceId: liveOverview.instanceId,
+                  actionId: returnAction.id,
+                },
+                commitState: { state: "idle" },
+                feedback: {
+                  state: "info",
+                  message: "Scegli lo spazio di ritorno sulla mappa.",
+                },
+              });
+              state.revision += 1;
+              render();
+            } catch (error) {
+              state.session = updateSpellPanelSession(state.session, {
+                activeInstanceId: liveOverview.instanceId,
+                activeActionId: returnAction.id,
+                activeActionState: {
+                  state: "selected",
+                  instanceId: liveOverview.instanceId,
+                  actionId: returnAction.id,
+                  error: error?.message || "Popup ritorno non disponibile.",
+                },
+                feedback: {
+                  state: "error",
+                  message: error?.message || "Popup ritorno non disponibile.",
+                },
+              });
+              state.revision += 1;
+              render();
+            }
+          }
+        }
+      }
       return;
     }
 
@@ -1986,7 +2162,7 @@ export function bootSpellUnifiedPanel(
       ? "failed"
       : "selected";
     const message = status === SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED
-      ? "Risoluzione completata."
+      ? data?.message || "Risoluzione completata."
       : status === SPELL_UNIFIED_PANEL_POPUP_STATUSES.FAILED
         ? data?.message || "Risoluzione non riuscita."
         : "Risoluzione chiusa; nessuna modifica aggiuntiva eseguita.";
@@ -2380,34 +2556,6 @@ export function bootSpellUnifiedPanel(
         },
       });
     },
-    onExemptionToggle: (creatureId, checked) => {
-      if (state.contract?.spell?.id !== "prismatic-wall") return;
-      const currentCastContext = state.session.castContext
-        && typeof state.session.castContext === "object"
-        ? state.session.castContext
-        : {};
-      const currentWallState = currentCastContext.prismaticWall
-        && typeof currentCastContext.prismaticWall === "object"
-        ? currentCastContext.prismaticWall
-        : {};
-      const next = new Set(uniqueSceneIds([
-        ...uniqueSceneIds(currentCastContext.exemptCreatureIds),
-        ...uniqueSceneIds(currentWallState.exemptCreatureIds),
-      ]));
-      const normalizedId = String(creatureId || "").trim();
-      if (checked && normalizedId) next.add(normalizedId);
-      else next.delete(normalizedId);
-      const nextExemptions = [...next].filter(Boolean);
-      patchSession({
-        castContext: {
-          exemptCreatureIds: nextExemptions,
-          prismaticWall: {
-            ...currentWallState,
-            exemptCreatureIds: nextExemptions,
-          },
-        },
-      });
-    },
     onAutomationChange: (enabled) => patchSession({ applyAutomatedConditions: enabled }),
     onPhaseChange: async (phase) => {
       const nextContract = buildContract(state.contract.spell.id, { phase });
@@ -2469,6 +2617,40 @@ export function bootSpellUnifiedPanel(
       if (checked) targetIds.add(key);
       else targetIds.delete(key);
       let nextIds = uniqueIds([...targetIds]);
+      if (state.contract?.presentation?.targeting?.spatialRules?.mode === "caster-range") {
+        const operation = captureSceneOperation("spell-panel-target-selection");
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        const validation = await validateTargetSelection({
+          contract: state.contract,
+          session: { ...state.session, targetIds: nextIds },
+          targetIds: nextIds,
+        });
+        if (!sceneLifecycle.isCurrent(operation)) return;
+        const invalidIds = new Set(validation?.invalidDistanceTargetIds || []);
+        nextIds = nextIds.filter((id) => !invalidIds.has(id));
+        const nextTargetSet = new Set(nextIds);
+        const nextOutcomes = Object.fromEntries(
+          Object.entries(state.session.outcomes || {})
+            .filter(([id]) => nextTargetSet.has(id)),
+        );
+        const nextTargetContext = Object.fromEntries(
+          Object.entries(state.session.targetContext || {})
+            .filter(([id]) => nextTargetSet.has(id)),
+        );
+        patchSession({
+          targetIds: nextIds,
+          primaryTargetId: nextTargetSet.has(state.session.primaryTargetId)
+            ? state.session.primaryTargetId
+            : "",
+          outcomes: nextOutcomes,
+          targetContext: nextTargetContext,
+          ...(invalidIds.size
+            ? { feedback: { state: "error", message: targetingSelectionFeedback(validation.errors) } }
+            : {}),
+        }, { clearFeedback: !invalidIds.size });
+        await writeSelection(nextIds);
+        return;
+      }
       if (isPostPlacement) {
         const validation = await validateTargetSelection({
           contract: state.contract,
@@ -2550,9 +2732,15 @@ export function bootSpellUnifiedPanel(
         if (!wasSelected) await writeSelection(targetIds);
         return;
       }
+      const nextOutcomes = { ...state.session.outcomes, [key]: value };
       patchSession({
         targetIds,
-        outcomes: { ...state.session.outcomes, [key]: value },
+        outcomes: nextOutcomes,
+        targetContext: pruneInactiveTargetContext(
+          state.contract,
+          state.session.targetContext,
+          nextOutcomes,
+        ),
       });
       if (!wasSelected) await writeSelection(targetIds);
     },
@@ -2567,8 +2755,14 @@ export function bootSpellUnifiedPanel(
         patchSession({ attackOutcome: value });
         return;
       }
+      const nextOutcomes = Object.fromEntries(selectedIds.map((key) => [key, value]));
       patchSession({
-        outcomes: Object.fromEntries(selectedIds.map((key) => [key, value])),
+        outcomes: nextOutcomes,
+        targetContext: pruneInactiveTargetContext(
+          state.contract,
+          state.session.targetContext,
+          nextOutcomes,
+        ),
       });
     },
     onAttackOutcomeBulkChange: (value) => {
@@ -2661,6 +2855,13 @@ export function bootSpellUnifiedPanel(
         updateEligibility();
         state.revision += 1;
         render();
+        if (
+          spellId === "prismatic-wall"
+          && ["prismatic-wall-traversal", "prismatic-wall-layers"]
+            .includes(String(action.resolutionKind || "").trim())
+        ) {
+          await executeActiveAction();
+        }
         return;
       }
       const actionId = String(selection || "").trim();

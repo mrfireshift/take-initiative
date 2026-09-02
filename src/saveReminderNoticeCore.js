@@ -87,6 +87,13 @@ function normalizeEntry(value) {
 function entryGroupKey(entry) {
   const turnKey = normalizedText(entry?.turnKey, "", 300);
   if (turnKey) return `turn:${turnKey}`;
+  const sourceActivationId = normalizedText(
+    entry?.resolution?.activation?.sourceActivationId
+      || entry?.resolution?.activation?.rootActivationId,
+    "",
+    300,
+  );
+  if (sourceActivationId) return `activation:${sourceActivationId}`;
   const targetIds = uniqueTargets(entry?.targets)
     .map((target) => target.id)
     .sort();
@@ -178,6 +185,7 @@ export function pruneEffectSaveReminderNoticeBatch(
 export function mergeSaveReminderNoticeBatch(
   currentBatch = null,
   incomingValues = [],
+  { preserveCurrentEntries = false } = {},
 ) {
   let batch = currentBatch?.entries?.length
     ? batchFromEntries(
@@ -193,7 +201,12 @@ export function mergeSaveReminderNoticeBatch(
     if (!groupKey) continue;
     batch = batch?.groupKey === groupKey
       ? batchFromEntries([...batch.entries, entry], groupKey)
-      : batchFromEntries([entry], groupKey);
+      : preserveCurrentEntries && batch
+        // Un batch con risposte aperte è uno stato operativo, non una semplice
+        // notifica sostituibile: un reminder arrivato da un altro owner non
+        // deve cancellare le righe ancora da risolvere.
+        ? batchFromEntries([...batch.entries, entry], batch.groupKey)
+        : batchFromEntries([entry], groupKey);
   }
   return batch;
 }

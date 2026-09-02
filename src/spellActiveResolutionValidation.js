@@ -36,10 +36,25 @@ import {
   prismaticWallStateFromCastContext,
   prismaticWallTraversalPlan,
 } from "./prismaticWallRules.js";
+import {
+  BLINK_ID,
+  blinkStateFromCastContext,
+  validateBlinkReturnPlacement,
+} from "./blinkRules.js";
+import {
+  TELEKINESIS_CONTEST_RESOLUTION_KIND,
+  TELEKINESIS_OUTCOMES,
+  TELEKINESIS_RANGE_METERS,
+  telekinesisActivationAlreadyUsed,
+  telekinesisActivationId,
+  telekinesisStateFromCastContext,
+} from "./telekinesisRules.js";
+import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_KEY = `${ID}/spells`;
 const CONCENTRATION_KEY = `${ID}/concentration`;
+const STATE_KEY = `${ID}/state`;
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -136,6 +151,193 @@ function activeParentInstance(items, payload) {
       String(entry?.instanceId || "") === wanted
       && (!entry?.spellId || String(entry.spellId) === spellId)
     ));
+}
+
+function baseActorId(value) {
+  return String(value || "").trim().replace(/::p\d+$/u, "");
+}
+
+export function telekinesisParentFromItems(allItems, payload) {
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[SPELLS_KEY];
+  const spellParent = (Array.isArray(spells) ? spells : []).find((spell) => (
+    String(spell?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(spell?.spellId || "").trim() === "telekinesis"
+    && String(spell?.casterId || payload?.casterId || "").trim()
+      === String(payload?.casterId || "").trim()
+  ));
+  if (spellParent) return spellParent;
+  const concentrations = caster?.metadata?.[META_KEY]?.[CONCENTRATION_KEY];
+  const concentration = Object.values(
+    concentrations && typeof concentrations === "object" ? concentrations : {},
+  ).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(entry?.spellId || "").trim() === "telekinesis"
+  ));
+  return concentration
+    ? {
+      ...concentration,
+      spellId: "telekinesis",
+      casterId: String(payload?.casterId || "").trim(),
+    }
+    : null;
+}
+
+function telekinesisOutcomeValidation(targetIds, outcomes) {
+  const ids = uniqueIds(targetIds);
+  const keys = outcomeKeys(outcomes);
+  const errors = [];
+  if (keys.some((id) => !ids.includes(id))) errors.push("outcome-target-mismatch");
+  if (ids.length !== 1 || keys.length !== 1 || !TELEKINESIS_OUTCOMES.includes(
+    String(outcomes?.[ids[0]] || "").trim(),
+  )) {
+    errors.push("telekinesis-contest-outcome-invalid");
+  }
+  return errors;
+}
+
+async function telekinesisRangeValidation({ caster, target } = {}) {
+  const errors = [];
+  const [casterBounds, targetBounds, dpi, scale] = await Promise.all([
+    caster
+      ? OBR.scene.items.getItemBounds([caster.id]).catch(() => null)
+      : null,
+    target
+      ? OBR.scene.items.getItemBounds([target.id]).catch(() => null)
+      : null,
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+  ]);
+  const casterOrigin = itemCenter(casterBounds, caster);
+  const targetOrigin = itemCenter(targetBounds, target);
+  if (!casterBounds || !targetBounds || !casterOrigin || !targetOrigin) {
+    errors.push("telekinesis-geometry-missing");
+  } else if (!spellAreaOriginWithinRange({
+    origin: targetOrigin,
+    casterOrigin,
+    range: { value: TELEKINESIS_RANGE_METERS, unit: "m" },
+    dpi,
+    scale: scale?.parsed || scale,
+  })) {
+    errors.push("target-out-of-range");
+  }
+  return [...new Set(errors)];
+}
+
+export async function validateTelekinesisCast({
+  casterId = "",
+  targetIds = [],
+  outcomes = {},
+  allItems = [],
+} = {}) {
+  const errors = [];
+  const caster = allItems.find((item) => item?.id === casterId);
+  const ids = uniqueIds(targetIds);
+  if (!caster) errors.push("caster-missing");
+  if (ids.length !== 1 || ids.length !== targetIds.length) {
+    errors.push(ids.length !== targetIds.length ? "duplicate-targets" : "single-target-required");
+  }
+  if (ids.includes(String(casterId || "").trim())) errors.push("caster-target-forbidden");
+  const target = allItems.find((item) => item?.id === ids[0]);
+  if (!target) errors.push("target-missing");
+  if (target && target.layer !== "CHARACTER") errors.push("telekinesis-creature-target-required");
+  errors.push(...telekinesisOutcomeValidation(ids, outcomes));
+  if (caster && target && target.layer === "CHARACTER") {
+    errors.push(...await telekinesisRangeValidation({ caster, target }));
+  }
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    caster,
+    target,
+  };
+}
+
+async function validateTelekinesisContest({
+  payload,
+  targetIds,
+  outcomes,
+  allItems,
+} = {}) {
+  const errors = [];
+  const parent = telekinesisParentFromItems(allItems, payload);
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  if (!parent) errors.push("telekinesis-parent-missing");
+  if (!caster) errors.push("caster-missing");
+
+  const liveState = telekinesisStateFromCastContext(parent?.castContext);
+  const snapshotState = telekinesisStateFromCastContext(payload?.castContext);
+  if (parent && JSON.stringify(liveState) !== JSON.stringify(snapshotState)) {
+    errors.push("telekinesis-state-stale");
+  }
+  if (parent?.castContext?.telekinesis?.mode
+    && parent.castContext.telekinesis.mode !== "creature") {
+    errors.push("telekinesis-creature-mode-required");
+  }
+
+  const ids = uniqueIds(targetIds);
+  if (ids.length !== targetIds.length) errors.push("duplicate-targets");
+  if (ids.length !== 1) errors.push("telekinesis-single-target-required");
+  if (ids.includes(String(payload?.casterId || "").trim())) {
+    errors.push("caster-target-forbidden");
+  }
+  const target = allItems.find((item) => item?.id === ids[0]);
+  if (!target) errors.push("target-missing");
+  if (target && target.layer !== "CHARACTER") errors.push("telekinesis-creature-target-required");
+  errors.push(...telekinesisOutcomeValidation(ids, outcomes));
+
+  const operation = String(payload?.action?.telekinesisOperation || "").trim();
+  if (!liveState.targetId) errors.push("telekinesis-current-target-missing");
+  if (operation === "maintain" && ids[0] !== liveState.targetId) {
+    errors.push("telekinesis-maintain-target-mismatch");
+  }
+  if (operation === "retarget" && ids[0] === liveState.targetId) {
+    errors.push("telekinesis-retarget-target-unchanged");
+  }
+
+  const turnKey = String(payload?.turnKey || "").trim();
+  const expectedActivationId = telekinesisActivationId(
+    payload?.instanceId,
+    payload?.actionId,
+    turnKey,
+  );
+  if (!turnKey || String(payload?.activationId || "").trim() !== expectedActivationId) {
+    errors.push("telekinesis-activation-invalid");
+  }
+  if (telekinesisActivationAlreadyUsed(parent?.castContext, turnKey)) {
+    errors.push("telekinesis-activation-already-used");
+  }
+
+  let initiativeState = null;
+  try {
+    const sceneMetadata = await OBR.scene.getMetadata();
+    initiativeState = sceneMetadata?.[STATE_KEY] || {};
+  } catch {
+    initiativeState = null;
+  }
+  const currentTurnKey = currentInitiativeTurnKey(initiativeState);
+  if (!currentTurnKey) {
+    errors.push("telekinesis-turn-state-missing");
+  } else if (currentTurnKey !== turnKey) {
+    errors.push("telekinesis-turn-stale");
+  }
+  const currentActorId = Array.isArray(initiativeState?.order)
+    ? initiativeState.order[Math.max(0, Math.floor(Number(initiativeState?.current) || 0))]
+    : "";
+  if (currentActorId && baseActorId(currentActorId) !== baseActorId(payload?.casterId)) {
+    errors.push("telekinesis-caster-turn-required");
+  }
+
+  if (caster && target && target.layer === "CHARACTER") {
+    errors.push(...await telekinesisRangeValidation({ caster, target }));
+  }
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    parent,
+    state: liveState,
+    target,
+  };
 }
 
 function placementArea(placement, { parentArea = null, childKind = "" } = {}) {
@@ -392,7 +594,14 @@ function itemHasLinkedEffect(item, { parentEffectId = "", effectId = "" } = {}) 
   ));
 }
 
-async function validateSingleSave({ payload, targetIds, outcomes, damageRoll, allItems }) {
+async function validateSingleSave({
+  payload,
+  targetIds,
+  outcomes,
+  damageRoll,
+  saveAbility = "",
+  allItems,
+}) {
   const errors = [];
   const ids = uniqueIds(targetIds);
   if (ids.length !== 1) errors.push("single-target-required");
@@ -402,6 +611,19 @@ async function validateSingleSave({ payload, targetIds, outcomes, damageRoll, al
     outcomes,
     allowed: SPELL_ACTIVE_RESOLUTION_SAVE_OUTCOMES,
   }));
+  const declaredAbility = String(payload?.action?.save?.ability || "").trim().toLowerCase();
+  const selectedAbility = String(saveAbility || declaredAbility).trim().toLowerCase();
+  const abilityOptions = Array.isArray(payload?.action?.save?.abilityOptions)
+    ? payload.action.save.abilityOptions
+      .map((option) => String(option?.value || "").trim().toLowerCase())
+      .filter(Boolean)
+    : [];
+  if (!selectedAbility
+    || (abilityOptions.length
+      ? !abilityOptions.includes(selectedAbility)
+      : selectedAbility !== declaredAbility)) {
+    errors.push("save-ability-invalid");
+  }
   if (payload?.action?.damage && numericRoll(damageRoll) === null) errors.push("damage-required");
   const target = allItems.find((item) => item?.id === ids[0]);
   const caster = allItems.find((item) => item?.id === payload.casterId);
@@ -776,6 +998,64 @@ async function validatePrismaticWall({
   };
 }
 
+function blinkParent(allItems, payload) {
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  const spells = caster?.metadata?.[META_KEY]?.[SPELLS_KEY];
+  return (Array.isArray(spells) ? spells : []).find((spell) => (
+    String(spell?.instanceId || "").trim() === String(payload?.instanceId || "").trim()
+    && String(spell?.spellId || "").trim() === BLINK_ID
+    && String(spell?.casterId || payload?.casterId || "").trim()
+      === String(payload?.casterId || "").trim()
+  )) || null;
+}
+
+async function validateBlinkReturn({
+  payload,
+  placement,
+  targetIds,
+  allItems,
+} = {}) {
+  const errors = [];
+  const parent = blinkParent(allItems, payload);
+  const caster = allItems.find((item) => item?.id === payload?.casterId);
+  if (!parent) errors.push("blink-parent-missing");
+  if (!caster) errors.push("caster-missing");
+  const state = blinkStateFromCastContext(parent?.castContext);
+  if (state.plane !== "ethereal") errors.push("blink-return-not-ethereal");
+  const ids = uniqueIds(targetIds);
+  if (ids.some((id) => id !== String(payload?.casterId || "").trim())) {
+    errors.push("blink-return-target-invalid");
+  }
+  const chosenPosition = point(
+    placement?.position || placement?.returnPosition || placement,
+  );
+  const [casterBounds, dpi, scale] = await Promise.all([
+    caster
+      ? OBR.scene.items.getItemBounds([caster.id]).catch(() => null)
+      : null,
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+  ]);
+  const placementValidation = validateBlinkReturnPlacement({
+    departurePosition: state.departurePosition,
+    chosenPosition,
+    dpi,
+    scale: scale?.parsed || scale,
+    fallback: placement?.fallback === true,
+    enforceDistance: false,
+    maxMeters: payload?.action?.maxMeters || 3,
+  });
+  errors.push(...placementValidation.errors);
+  return {
+    valid: errors.length === 0,
+    errors: [...new Set(errors)],
+    parent,
+    state,
+    chosenPosition,
+    placementValidation,
+  };
+}
+
 export async function validateSpellActiveResolutionCommit({
   payload = null,
   placement = null,
@@ -783,6 +1063,7 @@ export async function validateSpellActiveResolutionCommit({
   outcomes = {},
   damageRoll = 0,
   attackOutcome = "",
+  saveAbility = "",
   attacks = [],
   layerOutcomes = {},
   layerDamage = {},
@@ -804,7 +1085,16 @@ export async function validateSpellActiveResolutionCommit({
   const ids = uniqueIds(targetIds);
   const attackEntries = normalizedAttackEntries(attacks);
   const maxAttacks = Math.max(1, Math.floor(Number(payload.action.maxAttacks) || 1));
-  const result = ["prismatic-wall-traversal", "prismatic-wall-layers"]
+  const result = payload.action.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND
+    ? await validateTelekinesisContest({
+      payload,
+      targetIds: ids,
+      outcomes,
+      allItems,
+    })
+    : payload.action.resolutionKind === "blink-return"
+    ? await validateBlinkReturn({ payload, placement, targetIds: ids, allItems })
+    : ["prismatic-wall-traversal", "prismatic-wall-layers"]
     .includes(String(payload.action.resolutionKind || "").trim())
     ? await validatePrismaticWall({
       payload,
@@ -826,7 +1116,14 @@ export async function validateSpellActiveResolutionCommit({
     : payload.action.resolutionKind === "single-heal"
       ? await validateSingleHeal({ payload, targetIds: ids, damageRoll, allItems })
     : payload.action.resolutionKind === "single-save"
-      ? await validateSingleSave({ payload, targetIds: ids, outcomes, damageRoll, allItems })
+      ? await validateSingleSave({
+        payload,
+        targetIds: ids,
+        outcomes,
+        damageRoll,
+        saveAbility,
+        allItems,
+      })
     : payload.action.resolutionKind === "child-zone"
       ? await validateChildZone({ payload, placement, targetIds: ids, outcomes, allItems })
       : await validateSaveArea({ payload, placement, targetIds: ids, outcomes, damageRoll });

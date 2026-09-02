@@ -105,6 +105,32 @@ export function nearestGridCellCenter(rawPosition, cornerAnchor, dpi = 1) {
   };
 }
 
+export function nearestGridFootprintCenter(
+  rawPosition,
+  cornerAnchor,
+  dpi = 1,
+  footprint = {},
+) {
+  const raw = finitePoint(rawPosition);
+  const anchor = finitePoint(cornerAnchor);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  const widthCells = Math.max(1, Math.round(Number(footprint?.widthCells) || 1));
+  const heightCells = Math.max(1, Math.round(Number(footprint?.heightCells) || widthCells));
+  const offsetX = widthCells % 2 === 1 ? 0.5 : 0;
+  const offsetY = heightCells % 2 === 1 ? 0.5 : 0;
+  const col = Math.round((raw.x - anchor.x) / safeDpi - offsetX);
+  const row = Math.round((raw.y - anchor.y) / safeDpi - offsetY);
+  return {
+    position: {
+      x: anchor.x + (col + offsetX) * safeDpi,
+      y: anchor.y + (row + offsetY) * safeDpi,
+    },
+    gridOrigin: anchor,
+    widthCells,
+    heightCells,
+  };
+}
+
 export function nearestGridCellSideCenter(
   rawPosition,
   cornerAnchor,

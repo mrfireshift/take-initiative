@@ -131,10 +131,19 @@ const {
   staticSpellZoneMetadata,
 } = await import("../src/spellStaticZoneCore.js");
 const { buildArea } = await import("../src/aoeGeometryCore.js");
+const {
+  prismaticWallCrossingTargetIds,
+} = await import("../src/prismaticWallTraversalCore.js");
 const { planStaticSpellZoneReminder } = await import("../src/spellStaticZoneReminderCore.js");
 const {
   buildSpellUnifiedPanelContract,
 } = await import("../src/spellUnifiedPanelCore.js");
+const {
+  buildSpellAreaResolutionCommand,
+} = await import("../src/spellAreaResolutionCommandCore.js");
+const {
+  buildSpellAreaResolutionExecutionPlan,
+} = await import("../src/spellAreaResolutionExecutor.js?prismatic-wall-area-executor");
 const {
   buildUnifiedPanelViewModel,
 } = await import("../src/spellUnifiedPanelViewCore.js");
@@ -306,6 +315,10 @@ test("catalogo e placement espongono il sottoinsieme geometrico RAW supportato",
   assert.equal(proximityTrigger.resolutionData.failureCondition.options.saveReminder, undefined);
   assert.match(proximityTrigger.failureEffect, /1 minuto/u);
   assert.doesNotMatch(proximityTrigger.failureEffect, /TS/u);
+  assert.equal(
+    rule.zonePolicy.triggers.find((trigger) => trigger.event === "enter").triggerOnAreaMove,
+    false,
+  );
 });
 
 test("parent/state: una sola instance conserva forma, esenzioni, layer e summary derivata", () => {
@@ -453,8 +466,59 @@ test("hot zone: il muro usa entrambi i lati e la sfera una fascia esterna visibi
   assert.ok(sphereBand.cells.length > 0);
 });
 
-test("exemption instance-scoped: membership e UI non la trasformano in una condition", () => {
+test("attraversamento: riusa la geometria del muro e ignora le creature esenti", () => {
+  const area = buildArea(
+    "line",
+    { x: 0, y: 0 },
+    { x: 1000, y: 0 },
+    100,
+    { x: 0, y: 0 },
+    { widthSquares: 1 },
+  );
+  const candidates = [
+    {
+      item: { id: "target" },
+      center: { x: 500, y: 150 },
+      bounds: {
+        min: { x: 490, y: 140 },
+        max: { x: 510, y: 160 },
+      },
+    },
+    {
+      item: { id: "friend" },
+      center: { x: 500, y: 150 },
+      bounds: {
+        min: { x: 490, y: 140 },
+        max: { x: 510, y: 160 },
+      },
+    },
+  ];
+  assert.deepEqual(
+    prismaticWallCrossingTargetIds({
+      area,
+      candidates,
+      movementRecords: [
+        {
+          id: "target",
+          beforePosition: { x: 500, y: -150 },
+          afterPosition: { x: 500, y: 150 },
+        },
+        {
+          id: "friend",
+          beforePosition: { x: 500, y: -150 },
+          afterPosition: { x: 500, y: 150 },
+        },
+      ],
+      exemptCreatureIds: ["friend"],
+    }),
+    ["target"],
+  );
+});
+
+test("exemption instance-scoped: la matrice target usa la polarità negativa senza condition", () => {
   const rule = getSpellAreaRuleById("prismatic-wall:cast");
+  assert.equal(rule.targeting.selectionMode, "manual");
+  assert.equal(rule.targeting.selectionPolarity, "exclude");
   const metadata = staticSpellZoneMetadata({
     instanceId: "wall-instance",
     ruleId: rule.id,
@@ -472,6 +536,8 @@ test("exemption instance-scoped: membership e UI non la trasformano in una condi
     phase: "cast",
     castContext: { slotLevel: 9, exemptCreatureIds: ["friend"] },
   });
+  assert.equal(contract.presentation.targeting.selectionMode, "manual");
+  assert.equal(contract.presentation.targeting.selectionPolarity, "exclude");
   const model = buildUnifiedPanelViewModel({
     contract,
     session: {
@@ -480,16 +546,97 @@ test("exemption instance-scoped: membership e UI non la trasformano in una condi
       casterId: "caster",
       slotLevel: 9,
       castContext: { exemptCreatureIds: ["friend"] },
-      targetIds: [],
+      targetIds: ["friend"],
     },
     targetCandidates: [
       { key: "friend", label: "Alleato" },
       { key: "foe", label: "Nemico" },
     ],
   });
-  assert.equal(model.context.exemptions.visible, true);
-  assert.deepEqual(model.context.exemptions.selectedIds, ["friend"]);
-  assert.equal(model.context.exemptions.options.length, 2);
+  assert.equal(model.context.exemptions, undefined);
+  assert.equal(model.targets.selectionPolarity, "exclude");
+  assert.deepEqual(model.targets.selectedIds, ["friend"]);
+  assert.equal(model.targets.countLabel, "1 escluse");
+  assert.equal(model.targets.ruleLabel, "Creature escluse dall'effetto");
+});
+
+test("exemption cast: gli ID selezionati nella matrice diventano esenzioni della static-zone", async () => {
+  const contract = buildSpellUnifiedPanelContract({
+    spellId: "prismatic-wall",
+    phase: "cast",
+  });
+  const command = buildSpellAreaResolutionCommand({
+    contract,
+    spellId: "prismatic-wall",
+    phase: "cast",
+    casterId: "caster",
+    slotLevel: 9,
+    castContext: {
+      exemptCreatureIds: ["legacy-friend"],
+      prismaticWall: { exemptCreatureIds: ["legacy-friend"] },
+    },
+    targetIds: ["friend"],
+    placement: {
+      status: "confirmed",
+      confirmed: true,
+      targetLocked: true,
+      ruleId: "prismatic-wall:cast",
+      spellId: "prismatic-wall",
+      casterId: "caster",
+      ruleChoice: "wall",
+      targetIds: ["friend"],
+      preview: {
+        type: "line",
+        start: { x: 0, y: 0 },
+        end: { x: 2700, y: 0 },
+        targetIds: [],
+      },
+    },
+    validateSpatial: false,
+  });
+  assert.equal(command.valid, true, command.errors?.join(", "));
+
+  const items = [
+    {
+      id: "caster",
+      name: "Mago",
+      layer: "CHARACTER",
+      position: { x: 0, y: 0 },
+      metadata: { [META_KEY]: { hp: 40, hpMax: 40, [SPELLS_KEY]: [] } },
+    },
+    {
+      id: "friend",
+      name: "Alleato",
+      layer: "CHARACTER",
+      position: { x: 100, y: 0 },
+      metadata: { [META_KEY]: { hp: 40, hpMax: 40, [SPELLS_KEY]: [] } },
+    },
+  ];
+  let zoneOptions = null;
+  const plan = await buildSpellAreaResolutionExecutionPlan(command, {
+    sceneEpoch: 1,
+    isCurrent: () => true,
+    readItems: async (ids) => items.filter((item) => ids.includes(item.id)).map(clone),
+    readAllItems: async () => items.map(clone),
+    readSceneMetadata: async () => ({
+      [STATE_KEY]: { order: ["caster", "friend"], current: 0, round: 1 },
+    }),
+    getInitiativeActorId: async () => "caster",
+    validateSpatial: async () => ({ valid: true, errors: [] }),
+    getStaticZoneItems: async () => [],
+    getBoardTokenItems: async () => [],
+    buildStaticZoneItems: (options) => {
+      zoneOptions = options;
+      return [{ id: "wall-root", metadata: {} }];
+    },
+    createSpellInstanceId: async () => "wall-instance",
+    getZeroHPConditionHistoryIds: async () => [],
+    targetItems: [],
+  });
+  assert.equal(plan.valid, true, plan.errors?.map((error) => error.message).join(", "));
+  assert.deepEqual(zoneOptions.exemptCreatureIds, ["caster", "friend"]);
+  const owner = plan.effectOperations.find((operation) => operation.type === "spell:upsert");
+  assert.deepEqual(owner.castContext.prismaticWall.exemptCreatureIds, ["caster", "friend"]);
 });
 
 test("layer planner: ordine RAW, danni separati, full/half e immunità", () => {

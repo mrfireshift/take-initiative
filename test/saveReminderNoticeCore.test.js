@@ -14,6 +14,7 @@ function notice({
   instruction = "TS Destrezza CD 19 (Lavera)",
   kind = "zone",
   timing = "turn-start",
+  resolution = null,
 } = {}) {
   return {
     activationId,
@@ -23,6 +24,7 @@ function notice({
     instruction,
     kind,
     timing,
+    ...(resolution ? { resolution } : {}),
     targets: [{
       id: targetId,
       name: targetName,
@@ -30,6 +32,31 @@ function notice({
     }],
   };
 }
+
+test("un batch multi-target senza turnKey conserva le righe dopo una risoluzione parziale", () => {
+  const sourceActivationId = "turbine-activation";
+  const entries = ["a", "b", "c"].map((targetId) => notice({
+    activationId: `${sourceActivationId}:target:${targetId}`,
+    turnKey: "",
+    targetId,
+    targetName: `Bersaglio ${targetId.toUpperCase()}`,
+    spellName: "Turbine",
+    instruction: "TS Destrezza CD 16",
+    resolution: {
+      mode: "choice",
+      activation: { sourceActivationId },
+    },
+  }));
+
+  const initial = mergeSaveReminderNoticeBatch(null, entries);
+  assert.deepEqual(initial.activationIds, entries.map((entry) => entry.activationId));
+
+  const remaining = mergeSaveReminderNoticeBatch(null, initial.entries.slice(1));
+  assert.deepEqual(remaining.activationIds, [
+    `${sourceActivationId}:target:b`,
+    `${sourceActivationId}:target:c`,
+  ]);
+});
 
 test("aggrega reminder concorrenti dello stesso turno conservando l'ordine", () => {
   const batch = mergeSaveReminderNoticeBatch(null, [
@@ -61,6 +88,66 @@ test("un arrivo asincrono dello stesso turno amplia il batch visibile", () => {
   ]);
 
   assert.deepEqual(merged.activationIds, ["web", "radiance"]);
+});
+
+test("un batch con risposte aperte non viene sostituito da un altro gruppo", () => {
+  const sourceActivationId = "turbine-activation";
+  const entries = ["a", "b", "c"].map((targetId) => notice({
+    activationId: `${sourceActivationId}:target:${targetId}`,
+    turnKey: "1:1:target-a",
+    targetId,
+    targetName: `Bersaglio ${targetId.toUpperCase()}`,
+    spellName: "Turbine",
+    instruction: "TS Destrezza CD 16",
+    resolution: {
+      mode: "choice",
+      activation: { sourceActivationId },
+    },
+  }));
+  const initial = mergeSaveReminderNoticeBatch(null, entries);
+  const unrelated = notice({
+    activationId: "concentration-warning",
+    turnKey: "",
+    targetId: "caster",
+    targetName: "Caster",
+    spellName: "Concentrazione",
+    kind: "effect-reminder",
+    instruction: "Mantieni la concentrazione.",
+  });
+
+  const preserved = mergeSaveReminderNoticeBatch(initial, [unrelated], {
+    preserveCurrentEntries: true,
+  });
+
+  assert.deepEqual(preserved.activationIds, [
+    ...entries.map((entry) => entry.activationId),
+    unrelated.activationId,
+  ]);
+  assert.deepEqual(
+    preserved.entries.slice(0, 3).map((entry) => entry.activationId),
+    entries.map((entry) => entry.activationId),
+  );
+
+  const afterFirst = mergeSaveReminderNoticeBatch(
+    null,
+    preserved.entries.filter((entry) => entry.activationId !== entries[0].activationId),
+    { preserveCurrentEntries: true },
+  );
+  assert.deepEqual(afterFirst.activationIds, [
+    entries[1].activationId,
+    entries[2].activationId,
+    unrelated.activationId,
+  ]);
+
+  const afterSecond = mergeSaveReminderNoticeBatch(
+    null,
+    afterFirst.entries.filter((entry) => entry.activationId !== entries[1].activationId),
+    { preserveCurrentEntries: true },
+  );
+  assert.deepEqual(afterSecond.activationIds, [
+    entries[2].activationId,
+    unrelated.activationId,
+  ]);
 });
 
 test("deduplica lo stesso activationId anche tra broadcast separati", () => {

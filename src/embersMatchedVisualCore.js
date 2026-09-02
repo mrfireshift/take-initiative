@@ -634,7 +634,10 @@ const VISUALS = freeze({
   "xanathar-coltello-di-ghiaccio": [target("daggerThrow"), circle("iceBurst", "target", { delay: 1500 })],
   "phb2014-nube-di-pugnali": [circle("cloudOfDaggers", "area", persistent())],
   "xanathar-passo-del-tuono": [circle("mistyStepOut", "caster"), circle("thunderExplosion", "area", { delay: 900 }), circle("mistyStepIn", "area", { delay: 1000 })],
-  "xanathar-turbine": [circle("whirlwind", "area", persistent())],
+  "xanathar-turbine": [circle("whirlwind", "area", persistent({
+    attachedTo: "zone",
+    layer: "DRAWING",
+  }))],
   "magic-missile": [target("magicMissile")],
   "bardo-ispirazione-bardica": [
     circle("bardicInspiration", "target"),

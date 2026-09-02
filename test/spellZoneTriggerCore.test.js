@@ -2190,3 +2190,47 @@ test("Muro di Fuoco rileva il passaggio continuo fuori-dentro-fuori", () => {
   assert.deepEqual(crossing.newActivations[0].targetIds, ["runner"]);
   assert.equal(crossing.runtime.pending.length, 1);
 });
+
+test("areaMoveTargetIds unisce swept e membership finale senza duplicare il target", () => {
+  const rule = {
+    id: "swept-zone-test",
+    zonePolicy: {
+      triggers: [{
+        id: "swept-zone-enter",
+        event: "enter",
+        frequency: "once-per-turn",
+        resolution: "informational",
+        requiresAreaMove: true,
+        triggerOnAreaMove: true,
+        requiresCrossing: true,
+      }],
+    },
+  };
+  const metadata = zoneMetadata({ ruleId: rule.id, spellId: "swept-zone-test" });
+  const initialized = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    currentTargetIds: [],
+    initiativeState: state(0),
+    areaPosition: { x: 0, y: 0 },
+    now: 100,
+  });
+  const moved = planSpellZoneTriggers({
+    rule,
+    zoneMetadata: metadata,
+    runtime: {
+      ...initialized.runtime,
+      areaMoveTargetIds: {
+        "swept-zone-enter": ["swept-only", "final", "swept-only", "final"],
+      },
+    },
+    currentTargetIds: ["final"],
+    initiativeState: state(0),
+    areaPosition: { x: 300, y: 0 },
+    now: 200,
+  });
+
+  assert.equal(moved.newActivations.length, 1);
+  assert.deepEqual(moved.newActivations[0].targetIds, ["final", "swept-only"]);
+  assert.equal(new Set(moved.newActivations[0].targetIds).size, 2);
+});

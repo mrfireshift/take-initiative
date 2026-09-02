@@ -1,4 +1,7 @@
-import { areaHitsBounds } from "./aoeGeometryCore.js";
+import {
+  areaHitsBounds,
+  areaIntersectsSweptSegment,
+} from "./aoeGeometryCore.js";
 import {
   normalizeSpellZoneMovement,
   normalizeSpellZoneMovementChoiceValue,
@@ -38,6 +41,12 @@ function samePoint(left, right) {
     && Math.abs(left.x - right.x) <= EPSILON
     && Math.abs(left.y - right.y) <= EPSILON;
 }
+
+const uniqueIds = (values = []) => Array.from(new Set(
+  (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean),
+));
 
 function scaleParts(scale = {}) {
   const source = scale?.parsed && typeof scale.parsed === "object"
@@ -87,11 +96,59 @@ function zoneMetadataMatches(zoneItem, {
 function contactAtPosition(zoneItem, position, candidates = []) {
   const area = translatedZoneArea(zoneItem, position);
   if (!area) return [];
-  return (Array.isArray(candidates) ? candidates : [])
+  return uniqueIds((Array.isArray(candidates) ? candidates : [])
     .filter((candidate) => candidate?.id && candidate?.bounds)
     .filter((candidate) => areaHitsBounds(area, candidate.bounds))
     .map((candidate) => String(candidate.id).trim())
-    .filter(Boolean);
+    .filter(Boolean));
+}
+
+function movementCandidates(rule, casterId, candidates = []) {
+  const targeting = rule?.zonePolicy?.membershipTargeting
+    || rule?.targeting
+    || {};
+  return (Array.isArray(candidates) ? candidates : [])
+    .filter((candidate) => candidate?.id && candidate?.bounds)
+    .filter((candidate) => targeting.includeCaster !== false
+      || String(candidate?.id || "").trim() !== String(casterId || "").trim());
+}
+
+function sweptTargetIdsOnSegment({
+  zoneItem,
+  initialPosition,
+  finalPosition,
+  candidates,
+} = {}) {
+  if (samePoint(initialPosition, finalPosition)) {
+    return { sweptTargetIds: [], crossingTargetIds: [] };
+  }
+  const initialArea = translatedZoneArea(zoneItem, initialPosition);
+  const finalArea = translatedZoneArea(zoneItem, finalPosition);
+  const start = point(initialArea?.origin);
+  const end = point(finalArea?.origin);
+  if (!initialArea || !finalArea || !start || !end || samePoint(start, end)) {
+    return { sweptTargetIds: [], crossingTargetIds: [] };
+  }
+  const initialTargetIds = new Set(
+    (Array.isArray(candidates) ? candidates : [])
+      .filter((candidate) => areaHitsBounds(initialArea, candidate.bounds))
+      .map((candidate) => String(candidate.id).trim())
+      .filter(Boolean),
+  );
+  const sweptTargetIds = uniqueIds(
+    (Array.isArray(candidates) ? candidates : [])
+      .filter((candidate) => areaIntersectsSweptSegment(
+        initialArea,
+        start,
+        end,
+        candidate?.bounds,
+      ))
+      .map((candidate) => candidate?.id),
+  );
+  return {
+    sweptTargetIds,
+    crossingTargetIds: sweptTargetIds.filter((targetId) => !initialTargetIds.has(targetId)),
+  };
 }
 
 function firstContactOnSegment({
@@ -211,14 +268,9 @@ export function planSpellZoneMovement({
     errors.push("movement-geometry-invalid");
   }
 
+  const candidates = movementCandidates(rule, casterId, contactCandidates);
   let contact = null;
   if (!errors.length && movement.stopOnFirstContact === true) {
-    const targeting = rule?.zonePolicy?.membershipTargeting
-      || rule?.targeting
-      || {};
-    const candidates = (Array.isArray(contactCandidates) ? contactCandidates : [])
-      .filter((candidate) => targeting.includeCaster !== false
-        || String(candidate?.id || "").trim() !== String(casterId || "").trim());
     contact = firstContactOnSegment({
       zoneItem,
       initialPosition: initial,
@@ -231,6 +283,14 @@ export function planSpellZoneMovement({
   }
 
   const finalPosition = contact?.position || proposed;
+  const swept = !errors.length && movement?.sweptArea === true
+    ? sweptTargetIdsOnSegment({
+      zoneItem,
+      initialPosition: initial,
+      finalPosition,
+      candidates,
+    })
+    : null;
   return {
     valid: errors.length === 0,
     errors: Object.freeze([...errors]),
@@ -251,6 +311,10 @@ export function planSpellZoneMovement({
         ratio: contact.ratio,
       }
       : null,
+    ...(swept ? {
+      sweptTargetIds: [...swept.sweptTargetIds],
+      crossingTargetIds: [...swept.crossingTargetIds],
+    } : {}),
     sideEffectRequest: errors.length
       ? null
       : {
@@ -264,6 +328,10 @@ export function planSpellZoneMovement({
         finalPosition: { ...finalPosition },
         ...(contact?.targetId ? { contactTargetId: contact.targetId } : {}),
         ...(contact?.targetIds?.length ? { contactTargetIds: [...contact.targetIds] } : {}),
+        ...(swept ? {
+          sweptTargetIds: [...swept.sweptTargetIds],
+          crossingTargetIds: [...swept.crossingTargetIds],
+        } : {}),
         ...(normalizedMovementChoice
           ? { movementChoice: normalizedMovementChoice }
           : {}),

@@ -43,8 +43,9 @@ attiva.
 
 Il catalogo dichiara inoltre:
 
-- 137 regole geometriche per 132 incantesimi distinti: 54 effetti istantanei,
   67 zone persistenti, 12 aure mobili e 4 emissioni;
+- 138 regole geometriche per 133 incantesimi distinti: 54 effetti istantanei,
+  68 zone persistenti, 12 aure mobili e 4 emissioni;
 - 81 definizioni con `saveAutomation` nel catalogo runtime;
 - 26 definizioni con azioni attive esposte dal contratto del pannello unificato.
 
@@ -115,6 +116,49 @@ Contatto automatico, lancio della perla, collisione con creatura/oggetto e
 incendio degli oggetti restano decisioni manuali al tavolo. Il GM può spostare
 la perla con gli strumenti scena esistenti; la spell non aggiunge un'azione o un
 motore di proiettile/collisione.
+
+### Intermittenza — `blink`
+
+Intermittenza è `FULL / ACCEPTED`. Il cast usa Self, durata di 1 minuto e
+nessuna concentrazione; l'istanza parent resta l'unica fonte persistente e
+conserva in `castContext.blink` il piano semantico (`material` o
+`ethereal`) e l'eventuale `departurePosition`. Il cast parte sempre da
+Materiale e rifiuta una nuova istanza se una vecchia Intermittenza live dello
+stesso caster è già Eterea.
+
+Alla fine di ogni turno del caster ancora live compare un solo notice con le
+scelte RAW **1–10 · Rimane** e **11+ · Piano Etereo**. Il tiro è fisico e non
+esiste alcun roller o RNG nel plugin; il primo notice può comparire già alla
+fine del turno in cui la spell è stata lanciata. Un esito 1–10 lascia lo stato
+invariato. Un esito 11+ salva la posizione corrente del caster in
+`departurePosition` e porta l'istanza sul Piano Etereo senza spostare il
+token, la scena, la visibilità o l'attachment.
+
+Mentre lo stato è Etereo, la card mostra la pill principale
+`Intermittenza` e la micropill `Etereo`; il dettaglio può ricordare
+`Piano Etereo · vista 18 m · interazioni solo eteree`. Non viene applicata
+la condizione Invisibile e non viene eseguito alcun trasferimento di scena o
+motore di interazioni planari.
+
+All'inizio del turno successivo del caster il GM preme **Ritorna sul Piano
+Materiale**, sceglie direttamente la destinazione sulla mappa e il token viene
+teletrasportato immediatamente dopo il click. Il picker puntuale condiviso non
+crea aree né anteprime persistenti e normalizza il punto al centro della
+footprint del token. La distanza RAW di 3 m dal punto di scomparsa resta
+un'istruzione/adjudication del GM: il resolver conserva la distanza come dato
+diagnostico ma non rifiuta il punto scelto; LOS, spazio libero, occupazione e
+scelta casuale fra spazi equidistanti restano manuali.
+
+Se Intermittenza termina mentre il caster è Etereo, il terminal gateway apre
+prima la stessa risoluzione di ritorno e soltanto dopo completa il cleanup
+della spell. Questo vale per expiry, rimozione generica, tracker removal,
+`spell:remove-instance`, `spell:clear-non-concentration` e dismissal.
+**Termina Intermittenza** è un'azione: da Materiale chiude normalmente; da
+Etereo richiede prima la destinazione sulla mappa e poi termina l'istanza.
+Reload/reconcile ricostruisce il workflow dall'istanza parent, senza stato
+volatile. Le transizioni, il token teleport e il ritorno terminale usano la
+History condivisa; il tick di round non rende più stale gli Undo di cast,
+esito d20 e ritorno.
 
 ## Incantesimi preparati e risoluzione differita
 
@@ -229,7 +273,7 @@ muoversi verso il caster dentro Folata di Vento, sono ancora in backlog.
 
 ### Zone mobili controllate
 
-Le zone mobili operative espongono l'azione comune `Sposta zona`, con la stessa
+Le zone mobili operative elencate nella tabella espongono l'azione comune `Sposta zona`, con la stessa
 economia dichiarata dall'incantesimo e una rivalidazione al momento della
 conferma. L'azione riusa il placement esistente, non apre una selezione di
 bersagli e aggiorna lo stesso root della zona; figli, metadata e sottozone sono
@@ -248,6 +292,50 @@ oltre il limite e scena cambiata tra preview e conferma. Per Sfera Infuocata
 un contatto ambiguo richiede una scelta esplicita del GM. I dadi, la spinta
 fisica del Diavoletto, il movimento delle creature e le interazioni con oggetti
 restano manuali.
+
+### Turbine — `xanathar-turbine`
+
+Turbine è `FULL / ACCEPTED`: il workflow corrente copre l'intera risoluzione
+operativa della spell e non ha lacune note nella suite verificata. Il cast usa
+gittata 90 m, concentrazione fino a 1 minuto e placement obbligatorio di una
+zona cilindrica con raggio 3 m e altezza semantica 9 m. La comparsa iniziale
+attiva il primo controllo.
+
+Il root dell'area viene trascinato manualmente dal GM sul tabellone. Turbine
+non espone `Sposta zona` né comandi generici di conferma/annullamento. Il
+runtime rileva sia l'ingresso del bersaglio sia l'ingresso o attraversamento
+del bersaglio da parte dell'area, con una sola activation per turno e per
+istanza; il bersaglio che resta dentro senza una nuova transizione non viene
+riattivato.
+
+La risoluzione è condizionale e indipendente per creatura: TS Destrezza fisico,
+10d6 contundenti con metà al successo; solo dopo un fallimento si valuta la
+taglia e si propone il TS Forza. Le creature Grande o inferiori possono essere
+Trattenute se falliscono anche il TS Forza. Le creature Enormi o Gargantua
+subiscono comunque il TS Destrezza e il relativo danno, ma non effettuano il TS
+Forza e non vengono catturate.
+
+Una creatura catturata riceve la condizione Trattenuto legata alla parent
+instance esatta e viene collegata al root con l'attachment nativo OBR. Rimane
+un CHARACTER top-level, non ruota, non si scala, non sparisce e segue il
+movimento XY dell'area; il rilascio conserva la posizione corrente. All'inizio
+di ogni suo turno, finché è ancora Trattenuta da quella stessa istanza,
+`meta.elevation` aumenta di 1,5 m fino a 9 m tramite la mutation canonica della
+quota.
+
+Il target dispone dell'azione **Prova di fuga**: sceglie Forza o Destrezza e il
+GM dichiara l'esito del tiro fisico contro la CD dello spell. Il successo
+rimuove soltanto quel Trattenuto, disancora il token e mostra il promemoria
+`Scagliato · 3d6 × 3 m · direzione casuale`; il lancio, la direzione e lo
+spostamento effettivo restano manuali. Una rimozione manuale della condizione o
+la fine della concentrazione esegue lo stesso rilascio senza modificare
+arbitrariamente posizione o quota. La caduta dalla quota corrente e gli
+oggetti non assicurati restano adjudication del GM.
+
+Le risoluzioni, i consumi parziali multi-target, il capture/release e le
+modifiche di quota passano dal percorso Effects/History condiviso. L'Undo di
+risoluzioni consecutive ripristina gli stati intermedi senza riaprire o
+chiudere altre creature catturate e senza resuscitare ownership stale.
 
 ### Pedine magiche persistenti
 
@@ -282,12 +370,12 @@ turno autonomo.
 
 | Momento | Incantesimi principali già modellati |
 | --- | --- |
-| Ingresso o inizio turno | Ragnatela, Bagliore Lunare, Guardiani Spirituali, Tentacoli Neri, Barriera di Lame, Nube Mortale, Tempesta di Nevischio, Creare Falò, Fulgore Nauseante |
+| Ingresso o inizio turno | Ragnatela, Bagliore Lunare, Guardiani Spirituali, Tentacoli Neri, Barriera di Lame, Nube Mortale, Tempesta di Nevischio, Creare Falò, Fulgore Nauseante, Muro Prismatico |
 | Ingresso o fine turno | Unto, Nube Incendiaria, Piaga degli Insetti, Muro di Spine |
 | Inizio turno | Nube Maleodorante, Maelstrom, Spirito Guaritore, Nube di Pugnali, Fame di Hadar |
 | Fine turno | Alba, Sfera della Tempesta, Sfera Infuocata, Cordone di Frecce, Fame di Hadar |
-| Ingresso o movimento | Guardiano della Fede, Muro di Ghiaccio, Sfera Acquea |
-| Movimento o attraversamento | Crescita di Spine; Muro di Fuoco è supportato parzialmente |
+| Ingresso o movimento | Guardiano della Fede, Muro di Ghiaccio, Sfera Acquea, Turbine |
+| Movimento o attraversamento | Crescita di Spine, Muro Prismatico; Muro di Fuoco è supportato parzialmente |
 | Varianti e fasi speciali | Controllare Acqua, Terremoto, Collera della Natura, Controllare Venti, Folata di Vento |
 
 La tabella riassume i trigger principali, non ogni clausola della descrizione.
@@ -305,6 +393,12 @@ dai test.
   restano Proni nell'area. Le fenditure non sono ancora sottozone autonome.
 - **Sfera Acquea:** alla fine dell'incantesimo, le creature ancora Trattenute
   dalla sfera vengono rese Prone.
+- **Turbine:** il GM gestisce manualmente tiro/direzione dello scagliamento,
+  spostamento effettivo, caduta dalla quota e oggetti non assicurati; il popup
+  risolve soltanto i TS, la condizione e l'azione di fuga.
+- **Intermittenza:** il GM tira il d20, valuta visibilità/occupazione della
+  destinazione e le interazioni Materiale–Etereo; il plugin conserva soltanto
+  lo stato, il punto di scomparsa e il ritorno scelto sulla mappa.
 - **Fame di Hadar:** inizio e fine turno sono due eventi distinti; la condizione
   Accecato non deve essere duplicata.
 
@@ -326,6 +420,8 @@ attive per 26 definizioni.
 | Sfera Infuocata | Sposta zona |
 | Spirito Guaritore | Sposta zona |
 | Diavoletto di Polvere | Sposta zona |
+| Turbine | Prova di fuga sul target Trattenuto |
+| Intermittenza | Ritorno sulla mappa; Termina Intermittenza (Azione) |
 | Arma spirituale | Riferimento attacco sulla pedina |
 | Spada arcana | Riferimento attacco sulla pedina |
 | Lama del Disastro | Riferimento dei due attacchi sulla pedina |
@@ -341,6 +437,25 @@ cleanup. La deviazione dei proiettili, il passaggio delle creature o degli
 oggetti volanti, la forma gassosa, la dispersione di gas/fumo/nebbia, i
 materiali leggeri e ogni crossing restano regole manuali accettate; non vengono
 applicate Condition artificiali, reminder o active action.
+
+Muro Prismatico è PASS/PARTIAL-ACCEPTED: una sola parent instance conserva
+durata di 10 minuti senza concentrazione, forma muro o sfera nel subset
+geometrico supportato, sette layer, esenzioni per-instance e summaryParts. Il
+caster mantiene la pill dell'istanza attiva con il conteggio dei layer, senza
+duplicare il record owner sui bersagli. La hot zone è visibile sulla mappa e usa la membership entro 6 m per proporre il TS
+Costituzione contro Accecato a ingresso o inizio turno; la verifica della
+visuale resta del GM. Il movimento che attraversa la parete apre il popup
+esistente di risoluzione, ma la dichiarazione degli esiti, i sette TS
+Destrezza, i danni separati, Indaco, Viola e le condizioni passano dalla
+conferma del GM. Gestisci strati consente soltanto la distruzione ordinata e
+aggiorna lo stato persistente con cleanup, stale checks, idempotenza e
+History/Undo.
+
+Restano deliberatamente manuali il riconoscimento dei requisiti di distruzione,
+le proprietà passive e le interazioni con proiettili o altri effetti attraverso
+il muro, il blocco o rollback del movimento, il trasferimento planare e il
+requisito RAW che la creatura possa vedere il muro. Il popup automatico non
+costituisce un boundary-crossing engine generico.
 
 ## Esclusioni e copertura residua
 
@@ -358,9 +473,29 @@ implica che siano assenti dal catalogo:
 - revisione completa di Controllare Acqua;
 - sottozone figlie, a partire dalle fenditure di Terremoto;
 - lato caldo, fascia e attraversamento di Muro di Fuoco;
-- Muro Prismatico, Invertire la Gravità, Tempesta di Vendetta, Turbine,
-  Tramutare Roccia e le aure di Vita/Vitalità;
+- Invertire la Gravità, Tempesta di Vendetta, Tramutare Roccia e le
+  aure di Vita/Vitalità;
 - costo direzionale di Folata di Vento nello Speed Tracker.
+
+### Prossimo batch raccomandato
+
+**Telecinesi** (`telekinesis`) è completata come `FULL / ACCEPTED` nel
+perimetro OBR creature-only: parent instance, contesa iniziale e ricorrente,
+mantenimento/retarget, Condition canonica Trattenuto, boundary di turno,
+cleanup, reconcile e History/Undo sono coperti. Manipolazione di oggetti,
+movimento e sospensione restano manuali perché il workflow OBR non usa token
+di oggetti.
+
+Il prossimo batch è quindi **Debilitazione** (`xanathar-debilitazione`), già
+raggiungibile dal pannello unificato tramite `enervation-repeat`. Il lavoro può
+comporre il contratto esistente di active action, turn notice, parent instance,
+effect linkage, cleanup e History senza introdurre un nuovo motore.
+
+Il pass deve chiudere soltanto le regole specifiche ancora indicate dall'audit
+corrente: ripetizione per turno, danno/cura derivati, condizioni di
+terminazione e risoluzione manuale del danno. **Compulsione** e **Dominare**
+restano il batch successivo più rischioso perché richiedono movimento/controllo
+forzato, non una semplice action declaration.
 
 Lo stato operativo e i test ancora da eseguire sono elencati nel
 [Backlog](../BACKLOG.md).

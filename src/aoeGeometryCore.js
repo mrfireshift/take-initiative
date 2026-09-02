@@ -800,3 +800,102 @@ export function areaIntersectsSegment(area, start, end, bounds) {
     },
   ));
 }
+
+function squaredDistancePointToSegment(point, start, end) {
+  const deltaX = end.x - start.x;
+  const deltaY = end.y - start.y;
+  const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+  if (lengthSquared <= EPSILON) {
+    const offsetX = point.x - start.x;
+    const offsetY = point.y - start.y;
+    return offsetX * offsetX + offsetY * offsetY;
+  }
+  const ratio = Math.max(0, Math.min(1, (
+    (point.x - start.x) * deltaX + (point.y - start.y) * deltaY
+  ) / lengthSquared));
+  const closestX = start.x + ratio * deltaX;
+  const closestY = start.y + ratio * deltaY;
+  const offsetX = point.x - closestX;
+  const offsetY = point.y - closestY;
+  return offsetX * offsetX + offsetY * offsetY;
+}
+
+function orientation(a, b, c) {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+function pointOnSegment(point, start, end) {
+  return point.x >= Math.min(start.x, end.x) - EPSILON
+    && point.x <= Math.max(start.x, end.x) + EPSILON
+    && point.y >= Math.min(start.y, end.y) - EPSILON
+    && point.y <= Math.max(start.y, end.y) + EPSILON;
+}
+
+function segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd) {
+  const first = orientation(firstStart, firstEnd, secondStart);
+  const second = orientation(firstStart, firstEnd, secondEnd);
+  const third = orientation(secondStart, secondEnd, firstStart);
+  const fourth = orientation(secondStart, secondEnd, firstEnd);
+  const oppositeFirst = (first > EPSILON && second < -EPSILON)
+    || (first < -EPSILON && second > EPSILON);
+  const oppositeSecond = (third > EPSILON && fourth < -EPSILON)
+    || (third < -EPSILON && fourth > EPSILON);
+  if (oppositeFirst && oppositeSecond) return true;
+  return (Math.abs(first) <= EPSILON && pointOnSegment(secondStart, firstStart, firstEnd))
+    || (Math.abs(second) <= EPSILON && pointOnSegment(secondEnd, firstStart, firstEnd))
+    || (Math.abs(third) <= EPSILON && pointOnSegment(firstStart, secondStart, secondEnd))
+    || (Math.abs(fourth) <= EPSILON && pointOnSegment(firstEnd, secondStart, secondEnd));
+}
+
+function squaredDistanceSegmentToSegment(firstStart, firstEnd, secondStart, secondEnd) {
+  if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) return 0;
+  return Math.min(
+    squaredDistancePointToSegment(firstStart, secondStart, secondEnd),
+    squaredDistancePointToSegment(firstEnd, secondStart, secondEnd),
+    squaredDistancePointToSegment(secondStart, firstStart, firstEnd),
+    squaredDistancePointToSegment(secondEnd, firstStart, firstEnd),
+  );
+}
+
+function squaredDistanceSegmentToRect(start, end, rect) {
+  if (pointInsideRect(start, rect) || pointInsideRect(end, rect)) return 0;
+  const topLeft = { x: rect.x, y: rect.y };
+  const topRight = { x: rect.x + rect.width, y: rect.y };
+  const bottomRight = { x: rect.x + rect.width, y: rect.y + rect.height };
+  const bottomLeft = { x: rect.x, y: rect.y + rect.height };
+  return Math.min(
+    squaredDistanceSegmentToSegment(start, end, topLeft, topRight),
+    squaredDistanceSegmentToSegment(start, end, topRight, bottomRight),
+    squaredDistanceSegmentToSegment(start, end, bottomRight, bottomLeft),
+    squaredDistanceSegmentToSegment(start, end, bottomLeft, topLeft),
+  );
+}
+
+/**
+ * Tests the swept occupancy of a solid circle translated along a segment.
+ * The target remains the same scene-item bounds used by area membership.
+ * Rings and non-circle areas deliberately stay unsupported here.
+ */
+export function areaIntersectsSweptSegment(area, start, end, bounds) {
+  if (area?.type !== "circle" || area.ring === true) return false;
+  const circleRadius = Number(area.radius);
+  const segmentStart = {
+    x: Number(start?.x),
+    y: Number(start?.y),
+  };
+  const segmentEnd = {
+    x: Number(end?.x),
+    y: Number(end?.y),
+  };
+  const rect = boundsToRect(bounds);
+  if (
+    !Number.isFinite(circleRadius)
+    || circleRadius <= 0
+    || ![segmentStart.x, segmentStart.y, segmentEnd.x, segmentEnd.y]
+      .every(Number.isFinite)
+    || !rect
+  ) return false;
+  const radiusSquared = circleRadius * circleRadius;
+  const distanceSquared = squaredDistanceSegmentToRect(segmentStart, segmentEnd, rect);
+  return distanceSquared < radiusSquared - EPSILON * Math.max(1, radiusSquared);
+}

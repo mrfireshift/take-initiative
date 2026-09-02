@@ -115,6 +115,15 @@ test("una zona diventa obsoleta soltanto quando istanza e concentrazione scompai
   }), ["stale-root"]);
 });
 
+test("una zona in commit resta protetta dal reconcile finché il suo owner non è scritto", () => {
+  const items = [zone("pending-root", "pending-instance")];
+
+  assert.deepEqual(staleStaticSpellZoneItemIds(items, {
+    protectedInstanceIds: ["pending-instance"],
+  }), []);
+  assert.deepEqual(staleStaticSpellZoneItemIds(items), ["pending-root"]);
+});
+
 test("una zona non concentrata registra sul caster un marker di lifecycle", () => {
   const rule = {
     ...getSpellAreaRuleById("entangle:cast"),
@@ -191,6 +200,19 @@ test("una zona concentrata senza altri effetti conserva la durata sul caster", (
   assert.deepEqual(operation.expiry, { mode: "concentration" });
   assert.equal(operation.castContext.staticZoneOwner, true);
   assert.equal(operation.castContext.staticZoneRuleId, rule.id);
+});
+
+test("Turbine conserva il lifecycle sul caster senza assegnargli la pill", () => {
+  const operation = staticSpellZoneOwnerOperation({
+    rule: getSpellAreaRuleById("xanathar-turbine:cast"),
+    spell: getSpellDefinition("xanathar-turbine"),
+    instanceId: "turbine-instance",
+    casterId: "caster",
+    trackConcentration: true,
+  });
+
+  assert.deepEqual(operation.targetIds, ["caster"]);
+  assert.deepEqual(operation.targets, []);
 });
 
 test("il piano di terminazione distingue una zona conclusa da una ancora attiva", () => {

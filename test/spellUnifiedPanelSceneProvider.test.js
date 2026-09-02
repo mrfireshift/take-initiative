@@ -131,6 +131,23 @@ test("il candidato bersaglio conserva un testo visibile quando il nome item è v
   }).label, "token-1");
 });
 
+test("il candidato Turbine mantiene PG, alleati e neutrali sotto il gate 3x3 con immagini ad alta risoluzione", () => {
+  const provider = createSpellUnifiedPanelSceneProvider({});
+  for (const attitude of ["pc", "ally", "neutral"]) {
+    const candidate = provider.targetCandidate({
+      id: `turbine-${attitude}`,
+      name: attitude,
+      layer: "CHARACTER",
+      image: { width: 512, height: 512 },
+      grid: { dpi: 512 },
+      scale: { x: 1, y: 1 },
+      metadata: { [META_KEY]: { attitude } },
+    });
+    assert.equal(candidate.faction, attitude);
+    assert.equal(candidate.turbineSize, "large-or-smaller");
+  }
+});
+
 test("il provider risolve la concentrazione attiva usando le dichiarazioni esistenti", async () => {
   const obr = fakeObr([
     character("caster", "Caster", {

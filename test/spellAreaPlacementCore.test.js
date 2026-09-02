@@ -9,6 +9,7 @@ import {
   nearestGridCellCenter,
   nearestGridCellSideCenter,
   nearestGridCorner,
+  nearestGridFootprintCenter,
   reviewSpellAreaPlacement,
   spellAreaPlacementParentUnavailable,
   spellAreaGridCells,
@@ -173,6 +174,27 @@ test("l'origine di un'area quadrata scatta soltanto agli angoli della griglia", 
     position: { x: 150, y: 300 },
     gridOrigin: { x: 150, y: 150 },
   });
+});
+
+test("il punto di ritorno usa il centro del footprint dispari e il centro geometrico pari", () => {
+  const raw = { x: 220, y: 220 };
+  const anchor = { x: 0, y: 0 };
+  assert.deepEqual(nearestGridFootprintCenter(raw, anchor, 150, {
+    widthCells: 1,
+    heightCells: 1,
+  }).position, { x: 225, y: 225 });
+  assert.deepEqual(nearestGridFootprintCenter(raw, anchor, 150, {
+    widthCells: 3,
+    heightCells: 3,
+  }).position, { x: 225, y: 225 });
+  assert.deepEqual(nearestGridFootprintCenter(raw, anchor, 150, {
+    widthCells: 2,
+    heightCells: 2,
+  }).position, { x: 150, y: 150 });
+  assert.deepEqual(nearestGridFootprintCenter(raw, anchor, 150, {
+    widthCells: 4,
+    heightCells: 4,
+  }).position, { x: 150, y: 150 });
 });
 
 test("accetta soltanto la corona di caselle immediatamente attorno al caster", () => {

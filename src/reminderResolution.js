@@ -437,7 +437,7 @@ async function completeReminderResolution({
     const causeHistoryEntryId = String(mutation?.historyEntry?.id || "").trim();
     derivedTasks.push(broadcastConcentrationSaveWarnings([{
       itemId: plan.targetId,
-      damage: plan.damage.amount,
+      damage: plan.damage?.amount ?? 0,
     }], {
       eventId: `reminder-resolution:${plan.activationId}`,
       causeHistoryEntryId,
@@ -477,6 +477,8 @@ async function completeReminderResolution({
     status: "applied",
     message: plan.resolutionMode === "consume"
       ? "Reminder chiuso."
+      : plan.turbineChain?.capture === true
+        ? "Risolto: Fallito · Trattenuto."
       : `Risolto: ${outcomeLabel}.`,
     mutation,
     plan,
@@ -487,6 +489,8 @@ async function executeReminderResolution({
   notice = null,
   outcome = "",
   damageRoll = 0,
+  turbineSize = "",
+  turbineStrengthOutcome = "",
   sceneEpoch = currentSceneEpoch(),
   historyReplay = null,
 } = {}) {
@@ -502,9 +506,13 @@ async function executeReminderResolution({
       message: "La scena non è disponibile: nessuna conseguenza è stata applicata.",
     };
   }
-  const [items, sceneMetadata] = await Promise.all([
+  const [items, sceneMetadata, gridDpi, gridScale] = await Promise.all([
     OBR.scene.items.getItems(),
     OBR.scene.getMetadata().catch(() => ({})),
+    OBR.scene?.grid?.getDpi?.().catch?.(() => 150) || Promise.resolve(150),
+    OBR.scene?.grid?.getScale?.().catch?.(() => ({
+      parsed: { multiplier: 1.5, unit: "m" },
+    })) || Promise.resolve({ parsed: { multiplier: 1.5, unit: "m" } }),
   ]);
   if (!resolutionIsCurrent(sceneEpoch, generation)) return staleResolutionResult();
   const plan = buildReminderResolutionPlan({
@@ -512,6 +520,10 @@ async function executeReminderResolution({
     items,
     outcome,
     damageRoll,
+    turbineSize,
+    turbineStrengthOutcome,
+    gridDpi,
+    gridScale,
     sceneMetadata,
   });
   if (plan.status !== "ready") {
@@ -545,6 +557,9 @@ async function executeReminderResolution({
 
   // Build the complete command once. Every recovery attempt reuses this
   // descriptor, including the immutable History payload and scene identity.
+  const deferHistory = plan.turbineChain
+    ? false
+    : REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED;
   const descriptor = {
     activationId: plan.activationId,
     targetId: plan.targetId,
@@ -565,7 +580,7 @@ async function executeReminderResolution({
       sideEffects: plan.sideEffects,
       sceneMetadataPreconditions: plan.sceneMetadataPreconditions,
       requireChanges: true,
-      deferHistory: REMINDER_RESOLUTION_DEFER_HISTORY_ENABLED,
+      deferHistory,
       history: {
         kind: "reminder-resolution",
         label: resolutionLabel,
@@ -573,8 +588,9 @@ async function executeReminderResolution({
           activationId: plan.activationId,
           targetId: plan.targetId,
           outcome: plan.outcome,
-          damage: plan.damage.amount,
-          damageFactor: plan.damage.factor,
+          damage: plan.damage?.amount ?? 0,
+          damageFactor: plan.damage?.factor || "zero",
+          ...(plan.turbineChain ? { turbine: cloneValue(plan.turbineChain) } : {}),
           ...(plan.hpChange && typeof plan.hpChange === "object"
             ? { hpChange: cloneValue(plan.hpChange) }
             : {}),

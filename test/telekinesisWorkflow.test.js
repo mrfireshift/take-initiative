@@ -4,159 +4,175 @@ import assert from "node:assert/strict";
 import { getSpellDefinition } from "../src/spells-srd.js";
 import {
   buildSpellActiveActionPlan,
+  getSpellActiveAction,
   getSpellOverviewActions,
 } from "../src/spellActiveActionCore.js";
-import { buildEffectsMutationPlan } from "../src/effectsMutationCore.js";
+import { buildSpellActiveResolutionPayload } from "../src/spellActiveResolutionCore.js";
+import {
+  TELEKINESIS_MAINTAIN_ACTION_ID,
+  TELEKINESIS_RETARGET_ACTION_ID,
+  telekinesisActivationId,
+  telekinesisCastContext,
+  telekinesisRestrainedConditionOptions,
+  telekinesisStateFromCastContext,
+  telekinesisSummaryParts,
+} from "../src/telekinesisRules.js";
 
-function token(id, overrides = {}) {
+function group(castContext = {}) {
   return {
-    id,
-    name: id,
-    spells: [],
-    concentrations: {},
-    conditions: [],
-    ...overrides,
+    instanceId: "telekinesis-1",
+    spellId: "telekinesis",
+    casterId: "caster",
+    casterName: "Mago",
+    name: "Telecinesi",
+    storedName: "Telecinesi",
+    castContext,
+    appliedAt: { round: 3, actorId: "caster", turnKey: "3:0:caster" },
+    targets: new Map([["old-target", "Vecchio"]]),
+    turns: [87],
+    effectInstances: [],
   };
 }
 
-function state(plan, id) {
-  return plan.states.find((entry) => entry.id === id);
-}
-
-test("Telecinesi espone un retarget manuale sempre disponibile dal pannello", () => {
+test("Telecinesi espone mantenimento e retarget manuali dal pannello", () => {
   const spell = getSpellDefinition("telekinesis");
+  const castContext = telekinesisCastContext({
+    castContext: { slotLevel: 5 },
+    casterId: "caster",
+    targetId: "old-target",
+    outcome: "failed",
+  });
   const actions = getSpellOverviewActions({
     spell,
+    castContext,
     casterId: "caster",
     targetIds: ["old-target"],
     appliedAt: { turnKey: "1:0:caster" },
     currentTurnKey: "1:1:other",
+    currentActorId: "caster",
   });
 
-  assert.equal(actions.length, 1);
-  assert.equal(actions[0].id, "telekinesis-retarget");
-  assert.equal(actions[0].buttonLabel, "Cambia bersaglio");
-  assert.equal(actions[0].subjectMode, "selected");
-  assert.equal(actions[0].maxTargets, 1);
-  assert.deepEqual(actions[0].range, { value: 18, unit: "m" });
-  assert.equal(actions[0].rangeOrigin, "caster");
-  assert.deepEqual(actions[0].unavailableTargetIds, ["old-target"]);
-  assert.equal(actions[0].turnStartPrompt, undefined);
+  assert.deepEqual(actions.map((action) => action.id), [
+    TELEKINESIS_MAINTAIN_ACTION_ID,
+    TELEKINESIS_RETARGET_ACTION_ID,
+  ]);
+  for (const action of actions) {
+    assert.equal(action.resolutionKind, "telekinesis-contest");
+    assert.equal(action.economy, "action");
+    assert.equal(action.subjectMode, "none");
+    assert.equal(action.requiresTargets, false);
+    assert.equal(action.turnStartPrompt, true);
+    assert.equal(action.availableAfterCast, true);
+    assert.deepEqual(action.range, { value: 18, unit: "m" });
+    assert.equal(action.rangeOrigin, "caster");
+    assert.equal(action.maxTargets, 1);
+    assert.equal(action.rememberTargets, true);
+  }
 });
 
-test("Telecinesi prepara un retarget atomico della stessa istanza", () => {
+test("Telecinesi mantiene una parent instance e compone il payload con identity esatta", () => {
   const spell = getSpellDefinition("telekinesis");
+  const castContext = telekinesisCastContext({
+    castContext: { slotLevel: 5 },
+    casterId: "caster",
+    targetId: "old-target",
+    outcome: "failed",
+  });
+  const action = getSpellActiveAction(spell, TELEKINESIS_RETARGET_ACTION_ID);
+  const payload = buildSpellActiveResolutionPayload({
+    spell,
+    action,
+    group: group(castContext),
+    sceneEpoch: 4,
+    turnKey: "4:0:caster",
+  });
+
+  assert.equal(payload.instanceId, "telekinesis-1");
+  assert.equal(payload.casterId, "caster");
+  assert.equal(payload.actionId, TELEKINESIS_RETARGET_ACTION_ID);
+  assert.equal(payload.action.resolutionKind, "telekinesis-contest");
+  assert.equal(payload.action.telekinesisOperation, "retarget");
+  assert.equal(payload.linkedTargetId, "old-target");
+  assert.equal(payload.turnKey, "4:0:caster");
+  assert.equal(
+    payload.activationId,
+    telekinesisActivationId(
+      "telekinesis-1",
+      TELEKINESIS_RETARGET_ACTION_ID,
+      "4:0:caster",
+    ),
+  );
+  assert.deepEqual(payload.castContext, castContext);
+});
+
+test("Telecinesi delega la contesa al popup e persiste il risultato nella stessa istanza", () => {
+  const spell = getSpellDefinition("telekinesis");
+  const castContext = telekinesisCastContext({
+    castContext: { slotLevel: 5 },
+    casterId: "caster",
+    targetId: "old-target",
+    outcome: "failed",
+  });
   const plan = buildSpellActiveActionPlan({
     spell,
-    actionId: "telekinesis-retarget",
-    group: {
-      instanceId: "telekinesis-1",
-      spellId: "telekinesis",
-      casterId: "caster",
-      casterName: "Mago",
-      name: "Telecinesi",
-      storedName: "Telecinesi",
-      castContext: { slotLevel: 5 },
-      appliedAt: { round: 3, actorId: "caster", turnKey: "3:0:caster" },
-      targets: new Map([["old-target", "Vecchio"]]),
-      turns: [87],
-      effectInstances: [],
-    },
-    selectedTargetIds: ["new-target"],
+    actionId: TELEKINESIS_RETARGET_ACTION_ID,
+    group: group(castContext),
+    selectedTargetIds: [],
     casterName: "Mago",
   });
 
   assert.equal(plan.valid, true);
-  assert.deepEqual(plan.subjectIds, ["new-target"]);
-  assert.deepEqual(plan.operations.map((operation) => operation.type), [
-    "spell:upsert",
-    "concentration:register",
-    "concentration:break-targets",
-  ]);
+  assert.equal(plan.delegatedResolution, true);
+  assert.equal(plan.resolutionKind, "telekinesis-contest");
+  assert.deepEqual(plan.operations, []);
+  assert.deepEqual(plan.subjectIds, ["caster"]);
 
-  const upsert = plan.operations[0];
-  assert.deepEqual(upsert.targetIds, ["new-target"]);
-  assert.equal(upsert.name, "Telecinesi");
-  assert.equal(upsert.turns, 87);
-  assert.equal(upsert.conc, true);
-  assert.equal(upsert.source, "caster");
-  assert.equal(upsert.instanceId, "telekinesis-1");
-  assert.equal(upsert.spellId, "telekinesis");
-  assert.deepEqual(upsert.castContext, { slotLevel: 5 });
-  assert.deepEqual(upsert.appliedAt, { round: 3, actorId: "caster", turnKey: "3:0:caster" });
-
-  assert.deepEqual(plan.operations[1], {
-    type: "concentration:register",
+  const nextCastContext = telekinesisCastContext({
+    castContext,
     casterId: "caster",
-    targetIds: ["new-target"],
-    name: "Telecinesi",
-    instanceId: "telekinesis-1",
-    spellId: "telekinesis",
-    appliedAt: { round: 3, actorId: "caster", turnKey: "3:0:caster" },
-    castContext: { slotLevel: 5 },
+    targetId: "new-target",
+    outcome: "passed",
+    turnKey: "4:0:caster",
+    activationId: telekinesisActivationId(
+      "telekinesis-1",
+      TELEKINESIS_RETARGET_ACTION_ID,
+      "4:0:caster",
+    ),
+    actionId: TELEKINESIS_RETARGET_ACTION_ID,
   });
-  assert.deepEqual(plan.operations[2], {
-    type: "concentration:break-targets",
-    casterId: "caster",
-    targetIds: ["old-target"],
-    reference: "telekinesis-1",
+  assert.deepEqual(telekinesisStateFromCastContext(nextCastContext), {
+    version: 1,
+    mode: "creature",
+    targetId: "new-target",
+    contest: "passed",
+    status: "controlled",
+    restrainedUntil: {
+      actorId: "caster",
+      phase: "turn-end",
+      anchor: "next-turn",
+      remaining: 1,
+      turnKey: "4:0:caster",
+    },
+    lastActivation: {
+      turnKey: "4:0:caster",
+      activationId: telekinesisActivationId(
+        "telekinesis-1",
+        TELEKINESIS_RETARGET_ACTION_ID,
+        "4:0:caster",
+      ),
+      actionId: TELEKINESIS_RETARGET_ACTION_ID,
+    },
   });
 });
 
-test("il retarget Telecinesi sposta spell e concentrazione senza terminarle", () => {
-  const spell = getSpellDefinition("telekinesis");
-  const actionPlan = buildSpellActiveActionPlan({
-    spell,
-    actionId: "telekinesis-retarget",
-    group: {
-      instanceId: "telekinesis-1",
-      spellId: "telekinesis",
-      casterId: "caster",
-      casterName: "Mago",
-      name: "Telecinesi",
-      storedName: "Telecinesi",
-      castContext: { slotLevel: 5 },
-      appliedAt: { round: 3, actorId: "caster", turnKey: "3:0:caster" },
-      targets: new Map([["old-target", "Vecchio"]]),
-      turns: [87],
-      effectInstances: [],
-    },
-    selectedTargetIds: ["new-target"],
+test("Telecinesi usa la condizione canonica e non espone minipill", () => {
+  const options = telekinesisRestrainedConditionOptions({
+    casterId: "caster",
     casterName: "Mago",
+    instanceId: "telekinesis-1",
   });
 
-  const mutation = buildEffectsMutationPlan([
-    token("caster", {
-      concentrations: {
-        telecinesi: {
-          name: "Telecinesi",
-          instanceId: "telekinesis-1",
-          spellId: "telekinesis",
-          targets: ["old-target"],
-        },
-      },
-    }),
-    token("old-target", {
-      spells: [{
-        id: "tele-old",
-        name: "Telecinesi",
-        turns: 87,
-        conc: true,
-        casterId: "caster",
-        casterName: "Mago",
-        instanceId: "telekinesis-1",
-        spellId: "telekinesis",
-        castContext: { slotLevel: 5 },
-      }],
-    }),
-    token("new-target"),
-  ], actionPlan.operations);
-
-  assert.deepEqual(new Set(mutation.changedIds), new Set(["caster", "old-target", "new-target"]));
-  assert.deepEqual(state(mutation, "old-target").spells, []);
-  assert.equal(state(mutation, "new-target").spells.length, 1);
-  assert.equal(state(mutation, "new-target").spells[0].instanceId, "telekinesis-1");
-  assert.equal(state(mutation, "new-target").spells[0].turns, 87);
-  assert.deepEqual(state(mutation, "caster").concentrations.telecinesi.targets, ["new-target"]);
-  assert.equal(state(mutation, "caster").concentrations.telecinesi.instanceId, "telekinesis-1");
+  assert.equal(options.effectKind, undefined);
+  assert.equal(options.effectId, "telekinesis-restrained");
+  assert.deepEqual(telekinesisSummaryParts({}), []);
 });

@@ -4,6 +4,8 @@ import {
   gridFootprintSize,
   gridGeometryFromBounds,
   gridPlanarDistance,
+  elevationInputToCanonical,
+  gridScaleParts,
   normalizeElevation,
   planarDistance,
   spatialDistance,
@@ -36,6 +38,17 @@ test("normalizza l'ingombro visivo a caselle intere", () => {
   }, 150), {
     width: 300,
     height: 300,
+  });
+});
+
+test("converte le immagini ad alta risoluzione usando il DPI dell'immagine OBR", () => {
+  assert.deepEqual(gridFootprintSize({
+    image: { width: 512, height: 512 },
+    grid: { dpi: 512 },
+    scale: { x: 1, y: 1 },
+  }, 150), {
+    width: 150,
+    height: 150,
   });
 });
 
@@ -73,4 +86,23 @@ test("calcola l'ipotenusa tra distanza planare e dislivello", () => {
 test("normalizza quote non valide e limita la precisione", () => {
   assert.equal(normalizeElevation("3.456"), 3.46);
   assert.equal(normalizeElevation("non valida"), 0);
+});
+
+test("converte l'aggiustamento quota in unità native della scala corrente", () => {
+  const scale = { parsed: { multiplier: 2.5, unit: "m" } };
+
+  assert.deepEqual(gridScaleParts(scale), {
+    multiplier: 2.5,
+    unit: "m",
+    unitMeters: 1,
+  });
+  assert.equal(elevationInputToCanonical({ value: 2, unit: "grid" }, scale), 5);
+  assert.equal(elevationInputToCanonical({ value: 1.5, unit: "m" }, scale), 1.5);
+});
+
+test("converte unità fisiche senza sostituire il moltiplicatore della griglia", () => {
+  const scale = { parsed: { multiplier: 5, unit: "ft" } };
+
+  assert.equal(elevationInputToCanonical({ value: 1.5, unit: "m" }, scale), 4.92);
+  assert.equal(elevationInputToCanonical({ value: 1, unit: "grid" }, scale), 5);
 });

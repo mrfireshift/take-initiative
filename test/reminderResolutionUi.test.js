@@ -37,11 +37,60 @@ test("la UI integra i controlli solo nel reminder GM", () => {
   assert.doesNotMatch(turnNotice, /noticeRole === "PLAYER"[\s\S]{0,120}createElement\("button"\)/);
 });
 
+test("il TS Forza del Turbine resta nascosto finché il TS Destrezza non fallisce", () => {
+  assert.match(
+    turnNoticeHtml,
+    /\.zone-resolution-outcomes\[hidden\] \{\s*display: none !important;/,
+  );
+  assert.match(
+    turnNotice,
+    /const failedDex = draft\.outcome === REMINDER_OUTCOMES\.FAILED;[\s\S]{0,180}turbineStrengthGroup\.hidden = !failedDex \|\| draft\.turbineSize !== "large-or-smaller";/,
+  );
+});
+
 test("il rerender conserva bozza di esito e risultato dadi", () => {
   assert.match(turnNotice, /const resolutionDrafts = new Map/);
   assert.match(turnNotice, /draft\.damageRoll = damageInput\?\.value \|\| ""/);
   assert.match(turnNotice, /draft\.outcome = outcome/);
   assert.match(turnNotice, /renderSaveReminderBatch\(currentSaveReminderBatch\)/);
+});
+
+test("il reconcile non pota le altre righe di zona durante una risoluzione", () => {
+  assert.match(turnNotice, /function openZoneResponseIds\(entries: any\[\], itemsById/);
+  assert.match(turnNotice, /function zoneResponseIdentityKey\(entry: any, itemsById/);
+  assert.match(turnNotice, /const inFlightGroupKeys = new Set/);
+  assert.match(turnNotice, /resolvingActivations\.has\(String\(entry\?\.activationId/);
+  assert.match(turnNotice, /metadata\.instanceId/);
+  assert.match(turnNotice, /inFlightGroupKeys\.has\(zoneResponseIdentityKey\(entry, itemsById\)\)/);
+  assert.doesNotMatch(turnNotice, /REMINDER_RESOLUTIONS_FIELD/);
+  assert.match(turnNotice, /\.concat\(openResponseIds\)/);
+  assert.match(
+    turnNotice,
+    /resolvingActivations\.delete\(activationId\);[\s\S]{0,180}window\.setTimeout\(requestPendingZoneNoticeSync, 0\)/,
+  );
+  assert.match(turnNotice, /const visibleActivationIds = new Set/);
+  assert.match(turnNotice, /const queuedActivationIds = new Set/);
+  assert.match(
+    turnNotice,
+    /const rearmActivationIds = notices[\s\S]{0,260}!visibleActivationIds\.has\(activationId\)[\s\S]{0,180}!resolvingActivations\.has\(activationId\)/,
+  );
+  assert.match(turnNotice, /showZoneNotices\(\{ notices, rearmActivationIds \}, \{ baseline \}\)/);
+});
+
+test("la protezione in-flight invalida root rimossi o recastati", () => {
+  assert.match(turnNotice, /const rootId = String\(activation\?\.zoneItemId \|\| ""\)\.trim\(\)/);
+  assert.match(turnNotice, /const instanceId = String\(activation\?\.instanceId \|\| ""\)\.trim\(\)/);
+  assert.match(turnNotice, /const metadataKey = String\(activation\?\.metadataKey \|\| ""\)\.trim\(\)/);
+  assert.match(
+    turnNotice,
+    /!root[\s\S]{0,160}!instanceId[\s\S]{0,160}String\(metadata\.instanceId \|\| ""\)\.trim\(\) !== instanceId/,
+  );
+});
+
+test("un reminder concorrente non sostituisce un batch Turbine ancora aperto", () => {
+  assert.match(turnNotice, /preserveCurrentEntries: Array\.isArray\(baseBatch\?\.entries\)/);
+  assert.match(turnNotice, /baseBatch\.entries\.some\(reminderRowRequiresResponse\)/);
+  assert.match(turnNotice, /!hasOpenZoneResponse/);
 });
 
 test("un esito a danno zero può essere risolto senza compilare il campo dadi", () => {
@@ -63,9 +112,13 @@ test("una risoluzione riuscita rimuove subito il reminder risolto", () => {
   assert.match(turnNotice, /function dismissResolvedReminder\(activationId: string, \{ zone = false \} = \{\}\)/);
   assert.match(
     turnNotice,
+    /const currentBatch = entries\.length[\s\S]{0,220}preserveCurrentEntries: entries\.some\(reminderRowRequiresResponse\)/,
+  );
+  assert.match(
+    turnNotice,
     /result\.status === "applied" \|\| result\.status === "already-resolved"[\s\S]{0,520}dismissResolvedReminder\(activationId,/,
   );
-  assert.match(turnNotice, /if \(!entries\.length\) \{\s*clearZoneNotice\(\);/);
+  assert.match(turnNotice, /if \(!nextBatch\) \{\s*clearZoneNotice\(\);/);
 });
 
 test("i reminder con risposta GM restano aperti senza timer automatico", () => {
@@ -141,10 +194,21 @@ test("la baseline delle zone non consuma il payload live che apre il popover", (
 });
 test("Undo di una risoluzione zona può riannunciare lo stesso activationId", () => {
   assert.match(turnNotice, /dismissResolvedReminder\(activationId: string, \{ zone = false \} = \{\}\)/);
-  assert.match(turnNotice, /if \(zone\) announcedZoneActivationIds\.delete\(activationId\);/);
+  assert.match(turnNotice, /const queued = drainPendingSaveReminderNotices\(\)\.filter/);
+  assert.doesNotMatch(
+    turnNotice.slice(
+      turnNotice.indexOf("function dismissResolvedReminder"),
+      turnNotice.indexOf("function buildResolutionControls"),
+    ),
+    /announcedZoneActivationIds\.delete/,
+  );
   assert.match(turnNotice, /zone: row\?\.resolution\?\.activation\?\.kind === "zone"/);
   assert.match(turnNotice, /const items = await OBR\.scene\.items\.getItems\(\);/);
-  assert.match(turnNotice, /for \(const activationId of \[\.\.\.announcedZoneActivationIds\]\) \{[\s\S]{0,160}!pendingIds\.has\(activationId\)[\s\S]{0,120}announcedZoneActivationIds\.delete\(activationId\)/);
+  assert.doesNotMatch(
+    turnNotice,
+    /for \(const activationId of \[\.\.\.announcedZoneActivationIds\]\) \{[\s\S]{0,160}!pendingIds\.has\(activationId\)[\s\S]{0,120}announcedZoneActivationIds\.delete\(activationId\)/,
+  );
+  assert.match(turnNotice, /const rearmActivationIds = notices/);
   assert.match(turnNotice, /unsubscribeZoneItemChanges = subscribeSceneItemChanges\(\(\) => \{[\s\S]{0,100}requestPendingZoneNoticeSync\(\);/);
 });
 

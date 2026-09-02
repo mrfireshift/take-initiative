@@ -26,6 +26,20 @@ function spellDisplayName(value) {
   return getSpellDefinition(raw)?.displayName || raw || "Incantesimo";
 }
 
+function isTurbineSpellRecord(spell) {
+  return String(spell?.spellId || "").trim() === "xanathar-turbine"
+    || String(spell?.name || "").trim().toLocaleLowerCase("it") === "turbine";
+}
+
+function isTechnicalOwnerRecord(spell, itemId) {
+  const normalizedItemId = String(itemId || "").trim();
+  const casterId = String(spell?.casterId || "").trim();
+  return spell?.castContext?.staticZoneOwner === true
+    || (isTurbineSpellRecord(spell)
+      && !!normalizedItemId
+      && casterId === normalizedItemId);
+}
+
 export function factionKey(item) {
   const attitude = String(item?.metadata?.[META_KEY]?.attitude || "neutral").toLowerCase();
   return ["pc", "ally", "neutral", "enemy"].includes(attitude) ? attitude : "neutral";
@@ -72,7 +86,10 @@ export function spellOverviewGroups(items = []) {
           turns: [],
           counters: [],
           effectInstances: [],
-          pendingTermination: null,
+          pendingTermination: spell?.pendingTermination
+            && typeof spell.pendingTermination === "object"
+            ? { ...spell.pendingTermination }
+            : null,
         };
         groups.set(key, group);
       }
@@ -84,7 +101,10 @@ export function spellOverviewGroups(items = []) {
       if (!group.appliedAt && spell?.appliedAt && typeof spell.appliedAt === "object") {
         group.appliedAt = { ...spell.appliedAt };
       }
-      if (spell?.castContext?.staticZoneOwner !== true) {
+      if (spell?.pendingTermination && typeof spell.pendingTermination === "object") {
+        group.pendingTermination = { ...spell.pendingTermination };
+      }
+      if (!isTechnicalOwnerRecord(spell, target.id)) {
         group.targets.set(target.id, target.name || target.id);
       }
       group.turns.push(Math.max(0, Math.floor(Number(spell?.turns) || 0)));
@@ -134,10 +154,15 @@ export function spellOverviewGroups(items = []) {
         group.castContext = { ...info.castContext };
       }
       if (!group.spellId && info?.spellId) group.spellId = String(info.spellId);
+      const isTurbine = isTurbineSpellRecord({
+        spellId: info?.spellId,
+        name: storedName,
+      });
       for (const targetId of Array.from(new Set(
         (Array.isArray(info?.targets) ? info.targets : [])
           .map((value) => String(value || "").trim())
           .filter(Boolean)
+          .filter((targetId) => !(isTurbine && targetId === String(caster.id || "").trim()))
       ))) {
         group.targets.set(targetId, byId.get(targetId)?.name || targetId);
       }

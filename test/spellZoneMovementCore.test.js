@@ -38,8 +38,26 @@ function zone(ruleId, overrides = {}) {
   };
 }
 
+function eighteenMeterMovementRule() {
+  const base = getSpellAreaRuleById("flaming-sphere:cast");
+  return {
+    ...base,
+    id: "moonbeam:cast",
+    spellId: "moonbeam",
+    zonePolicy: {
+      ...base.zonePolicy,
+      movement: {
+        ...base.zonePolicy.movement,
+        maximumMeters: 18,
+      },
+    },
+  };
+}
+
 function movement(ruleId, proposedPosition, overrides = {}) {
-  const rule = getSpellAreaRuleById(ruleId);
+  const rule = ruleId === "moonbeam:cast"
+    ? eighteenMeterMovementRule()
+    : getSpellAreaRuleById(ruleId);
   const item = zone(ruleId, overrides.zoneItem);
   return planSpellZoneMovement({
     rule,
@@ -55,6 +73,44 @@ function movement(ruleId, proposedPosition, overrides = {}) {
     contactCandidates: overrides.contactCandidates || [],
     contactTargetId: overrides.contactTargetId,
     movementChoice: overrides.movementChoice,
+  });
+}
+
+function sweptCircleRule() {
+  const base = getSpellAreaRuleById("flaming-sphere:cast");
+  return {
+    ...base,
+    id: "test:swept-circle:cast",
+    zonePolicy: {
+      ...base.zonePolicy,
+      movement: {
+        ...base.zonePolicy.movement,
+        triggerOnAreaMove: true,
+        stopOnFirstContact: false,
+        sweptArea: true,
+      },
+    },
+  };
+}
+
+function sweptMovement(proposedPosition, overrides = {}) {
+  const rule = sweptCircleRule();
+  const item = zone("moonbeam:cast", overrides.zoneItem);
+  item.metadata[SPELL_STATIC_ZONE_META_KEY] = {
+    ...item.metadata[SPELL_STATIC_ZONE_META_KEY],
+    ruleId: rule.id,
+    spellId: rule.spellId,
+  };
+  return planSpellZoneMovement({
+    rule,
+    zoneItem: item,
+    initialPosition: overrides.initialPosition || item.position,
+    proposedPosition,
+    dpi: 50,
+    scale,
+    instanceId: overrides.instanceId || "instance-1",
+    casterId: overrides.casterId || "caster-1",
+    contactCandidates: overrides.contactCandidates || [],
   });
 }
 
@@ -185,4 +241,102 @@ test("la scelta facoltativa del Diavoletto è validata nel piano", () => {
   });
   assert.equal(unknown.valid, false);
   assert.ok(unknown.errors.includes("movement-choice-invalid"));
+});
+
+test("lo swept circle separa fuori-path, swept-only, final e tangente", () => {
+  const result = sweptMovement({ x: 300, y: 0 }, {
+    contactCandidates: [
+      {
+        id: "outside",
+        bounds: { min: { x: 140, y: 100 }, max: { x: 170, y: 130 } },
+      },
+      {
+        id: "swept-only",
+        bounds: { min: { x: 140, y: 40 }, max: { x: 170, y: 80 } },
+      },
+      {
+        id: "final",
+        bounds: { min: { x: 280, y: 0 }, max: { x: 320, y: 20 } },
+      },
+      {
+        id: "swept-and-final",
+        bounds: { min: { x: 260, y: 0 }, max: { x: 300, y: 20 } },
+      },
+      {
+        id: "tangent",
+        bounds: { min: { x: 140, y: 50 }, max: { x: 170, y: 70 } },
+      },
+      {
+        id: "swept-only",
+        bounds: { min: { x: 150, y: 40 }, max: { x: 180, y: 80 } },
+      },
+    ],
+  });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.sweptTargetIds, [
+    "swept-only",
+    "final",
+    "swept-and-final",
+  ]);
+  assert.deepEqual(result.crossingTargetIds, result.sweptTargetIds);
+  assert.deepEqual(result.sideEffectRequest.sweptTargetIds, result.sweptTargetIds);
+  assert.deepEqual(result.sideEffectRequest.crossingTargetIds, result.crossingTargetIds);
+});
+
+test("un target già dentro all'inizio e alla fine non diventa un nuovo crossing", () => {
+  const result = sweptMovement({ x: 40, y: 0 }, {
+    contactCandidates: [{
+      id: "initial-and-final",
+      bounds: { min: { x: -20, y: -20 }, max: { x: 30, y: 20 } },
+    }],
+  });
+
+  assert.deepEqual(result.sweptTargetIds, ["initial-and-final"]);
+  assert.deepEqual(result.crossingTargetIds, []);
+});
+
+test("zero movement non produce uno swept activation", () => {
+  const result = sweptMovement({ x: 0, y: 0 }, {
+    contactCandidates: [{
+      id: "target",
+      bounds: { min: { x: -20, y: -20 }, max: { x: 20, y: 20 } },
+    }],
+  });
+
+  assert.deepEqual(result.sweptTargetIds, []);
+  assert.deepEqual(result.crossingTargetIds, []);
+});
+
+test("la capability sweptArea è OFF di default per le zone esistenti", () => {
+  const result = movement("moonbeam:cast", { x: 300, y: 0 }, {
+    contactCandidates: [{
+      id: "swept-only",
+      bounds: { min: { x: 140, y: 40 }, max: { x: 170, y: 80 } },
+    }],
+  });
+
+  assert.equal(result.movement.sweptArea, undefined);
+  assert.equal(result.sweptTargetIds, undefined);
+  assert.equal(result.sideEffectRequest.sweptTargetIds, undefined);
+});
+
+test("swept circle: performance smoke su 5000 occupancy bounds", () => {
+  const contactCandidates = Array.from({ length: 5000 }, (_, index) => ({
+    id: `target-${index}`,
+    bounds: {
+      min: { x: index * 60, y: 1000 },
+      max: { x: index * 60 + 30, y: 1030 },
+    },
+  }));
+  contactCandidates[2500] = {
+    id: "path-target",
+    bounds: { min: { x: 140, y: 40 }, max: { x: 170, y: 80 } },
+  };
+  const started = performance.now();
+  const result = sweptMovement({ x: 300, y: 0 }, { contactCandidates });
+  const elapsed = performance.now() - started;
+
+  assert.deepEqual(result.sweptTargetIds, ["path-target"]);
+  assert.ok(elapsed < 1000, `swept occupancy took ${elapsed.toFixed(1)} ms`);
 });

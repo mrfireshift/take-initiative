@@ -938,6 +938,141 @@ test("static-zone-move: movimento zona con successivo avanzamento del triggerRun
   assert.equal(revertedZone.metadata[STATIC_ZONE_KEY].triggerRuntime.sequence, 10, "triggerRuntime must be preserved");
 });
 
+test("static-zone-move: Undo ripristina root e tutti i CHARACTER carried nello stesso piano", () => {
+  const STATIC_ZONE_KEY = "com.thebigpicture.initiative/spellStaticZone";
+  const rootBefore = { x: 100, y: 200 };
+  const rootAfter = { x: 400, y: 350 };
+  const carriedBefore = [
+    { id: "carried-a", position: { x: 120, y: 220 } },
+    { id: "carried-b", position: { x: 180, y: 250 } },
+  ];
+  const carriedAfter = carriedBefore.map((entry) => ({
+    ...entry,
+    position: {
+      x: entry.position.x + rootAfter.x - rootBefore.x,
+      y: entry.position.y + rootAfter.y - rootBefore.y,
+    },
+  }));
+  const zoneMetadata = {
+    instanceId: "turbine-instance",
+    ruleId: "xanathar-turbine:move",
+    triggerRuntime: { sequence: 8 },
+  };
+  const zone = {
+    ...item("turbine-root", {}, rootAfter),
+    metadata: {
+      [META]: {},
+      [STATIC_ZONE_KEY]: clone(zoneMetadata),
+    },
+  };
+  const actors = carriedAfter.map((entry) => ({
+    ...item(entry.id, { hp: 20, marker: entry.id }, entry.position),
+    type: "IMAGE",
+    layer: "CHARACTER",
+  }));
+  const entry = {
+    id: "history-turbine-carried-move",
+    effectsMutation: {
+      sideEffects: [{
+        id: "turbine-root",
+        type: "static-zone-move",
+        metadataKey: STATIC_ZONE_KEY,
+        instanceId: zoneMetadata.instanceId,
+        ruleId: zoneMetadata.ruleId,
+        beforePosition: rootBefore,
+        afterPosition: rootAfter,
+        carriedItems: carriedBefore.map((carried, index) => ({
+          id: carried.id,
+          beforePosition: carried.position,
+          afterPosition: carriedAfter[index].position,
+          type: "IMAGE",
+          layer: "CHARACTER",
+          topLevel: true,
+        })),
+      }],
+    },
+  };
+
+  const result = plan([zone, ...actors], [entry]);
+
+  assert.equal(result.status, undefined);
+  assert.deepEqual(result.changedIds, ["turbine-root", "carried-a", "carried-b"]);
+  assert.deepEqual(result.finalItems.find((candidate) => candidate.id === "turbine-root")?.item.position, rootBefore);
+  for (const actor of actors) {
+    const restored = result.finalItems.find((candidate) => candidate.id === actor.id)?.item;
+    const expected = carriedBefore.find((candidate) => candidate.id === actor.id);
+    assert.deepEqual(restored.position, expected.position);
+    assert.deepEqual(restored.metadata, actor.metadata);
+    assert.equal(restored.layer, "CHARACTER");
+  }
+  assert.equal(
+    historyEntryMatchesUndoBefore({
+      sceneItems: [
+        { ...zone, position: rootBefore },
+        ...actors.map((actor) => ({
+          ...actor,
+          position: carriedBefore.find((candidate) => candidate.id === actor.id).position,
+        })),
+      ],
+      entry,
+      metadataKey: META,
+    }),
+    true,
+  );
+
+  const stale = plan([
+    zone,
+    ...actors.map((actor) => actor.id === "carried-b"
+      ? { ...actor, position: { x: 999, y: 999 } }
+      : actor),
+  ], [entry]);
+  assert.equal(stale.status, "conflict");
+  assert.equal(stale.conflicts.some((conflict) => conflict.itemId === "carried-b"), true);
+});
+
+test("elevation:adjust: Undo ripristina il campo canonico assente e protegge lo stale", () => {
+  const targetBefore = item("elevation-target", { hp: 20, marker: "keep" });
+  const targetAfter = clone(targetBefore);
+  targetAfter.metadata[META].elevation = 5.5;
+  const entry = {
+    id: "history-elevation-adjust",
+    effectsMutation: {
+      sideEffects: [{
+        id: "elevation-target",
+        type: "elevation:adjust",
+        metadataKey: META,
+        metadataField: "elevation",
+        beforeElevation: 0,
+        afterElevation: 5.5,
+        beforePresent: false,
+      }],
+    },
+  };
+
+  const result = plan([targetAfter], [entry]);
+
+  assert.equal(result.status, undefined);
+  assert.deepEqual(result.changedIds, ["elevation-target"]);
+  const restoredMeta = metadataOf(result, "elevation-target");
+  assert.equal(Object.prototype.hasOwnProperty.call(restoredMeta, "elevation"), false);
+  assert.equal(restoredMeta.hp, 20);
+  assert.equal(restoredMeta.marker, "keep");
+  assert.equal(
+    historyEntryMatchesUndoBefore({
+      sceneItems: [targetBefore],
+      entry,
+      metadataKey: META,
+    }),
+    true,
+  );
+
+  const staleTarget = clone(targetAfter);
+  staleTarget.metadata[META].elevation = 5.51;
+  const stale = plan([staleTarget], [entry]);
+  assert.equal(stale.status, "conflict");
+  assert.equal(stale.conflicts[0].field, "elevation");
+});
+
 test("token:teleport: side-effect in mutazione composita -> Undo PASS", () => {
   const tokenToTeleport = item("wizard", { hp: 15 }, { x: 500, y: 500 });
   const compositeEntry = {

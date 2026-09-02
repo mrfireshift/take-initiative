@@ -104,6 +104,17 @@
     casterId = "",
   } = {}) {
     const normalizedCasterId = String(casterId || "").trim();
+    const normalizedSpellId = String(spellId || "").trim();
+    const definitionId = String(getSpellDefinition(spellName)?.id || "").trim();
+    const isTurbine = normalizedSpellId === "xanathar-turbine"
+      || definitionId === "xanathar-turbine"
+      || spellKey(spellName) === "turbine";
+    if (isTurbine) {
+      // La concentrazione resta registrata sul caster per il lifecycle, ma la
+      // pill della spell appartiene solo ai bersagli effettivamente colpiti.
+      return (Array.isArray(targets) ? targets : [])
+        .filter((targetId) => String(targetId || "").trim() !== normalizedCasterId);
+    }
     if (isSelfOnlyConcentrationLabelSpell({ spellId, spellName })) {
       return (Array.isArray(targets) ? targets : [])
         .filter((targetId) => String(targetId || "").trim() === normalizedCasterId);
@@ -413,6 +424,7 @@ function __spellPlanFromExisting(tid, existingWidgetsForTid = [], assigns, caste
 
   function summaryPartsForSpell(value) {
     const spellId = String(value?.spellId || value?.id || "").trim();
+    if (spellId === "telekinesis") return [];
     if (spellId === "delayed-blast-fireball") {
       return getSpellSummaryParts(spellId, "", value?.castContext || {});
     }

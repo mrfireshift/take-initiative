@@ -27,7 +27,11 @@ import {
   isPrismaticWallActiveResolutionKind,
   validateSpellActiveResolutionPayload,
 } from "./spellActiveResolutionCore.js";
-import { validateSpellActiveResolutionCommit } from "./spellActiveResolutionValidation.js";
+import {
+  telekinesisParentFromItems,
+  validateSpellActiveResolutionCommit,
+  validateTelekinesisCast,
+} from "./spellActiveResolutionValidation.js";
 import {
   calculateQuickHPChange,
   QUICK_HP_FACTORS,
@@ -64,11 +68,31 @@ import {
   prismaticWallTraversalPlan,
 } from "./prismaticWallRules.js";
 import {
+  BLINK_ID,
+  buildBlinkReturnOperations,
+  blinkStateFromCastContext,
+} from "./blinkRules.js";
+import {
+  TELEKINESIS_CONTEST_RESOLUTION_KIND,
+  TELEKINESIS_SPELL_ID,
+  telekinesisActivationId,
+  telekinesisCastContext,
+  telekinesisRestrainedConditionOptions,
+  telekinesisStateFromCastContext,
+  telekinesisSummaryParts,
+} from "./telekinesisRules.js";
+import {
   attachSpellExecutionHistory,
 } from "./spellExecutionHistoryCore.js";
 import { buildSpellCausality } from "./combatLogCausalityCore.js";
 
 const STATE_KEY = `${ID}/state`;
+
+const uniqueIds = (values = []) => Array.from(new Set(
+  (Array.isArray(values) ? values : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean),
+));
 
 export async function executeSpellZoneMovement({
   group = null,
@@ -79,6 +103,7 @@ export async function executeSpellZoneMovement({
   sceneIdentity = null,
   commandId = "",
   isCurrent = null,
+  carriedItemIds = [],
 } = {}) {
   const ruleId = String(action?.ruleId || "").trim();
   const instanceId = String(group?.instanceId || action?.instanceId || "").trim();
@@ -110,6 +135,10 @@ export async function executeSpellZoneMovement({
     throw new Error("scene-epoch-stale-before-zone-mutation");
   }
   const preview = result.preview;
+  const carriedIds = uniqueIds([
+    ...(Array.isArray(carriedItemIds) ? carriedItemIds : []),
+    ...(Array.isArray(action?.carriedItemIds) ? action.carriedItemIds : []),
+  ]);
   const movement = await runEffectsMutation([], {
     kind: "spell-zone-move",
     label: `Sposta zona: ${String(group?.name || "Incantesimo").trim()}`,
@@ -128,6 +157,7 @@ export async function executeSpellZoneMovement({
       ...(preview.movementChoice
         ? { movementChoice: String(preview.movementChoice).trim() }
         : {}),
+      ...(carriedIds.length ? { carriedItemIds: carriedIds } : {}),
     }],
     history: {
       kind: "spell-zone-move",
@@ -619,6 +649,283 @@ function childPlacementEntries(placement) {
   return placement?.start && placement?.end ? [placement] : [];
 }
 
+async function executeBlinkReturnResolution({
+  payload = null,
+  placement = null,
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
+} = {}) {
+  const [casterItem, dpi, scale] = await Promise.all([
+    OBR.scene.items.getItems([payload.casterId]).then((items) => items[0] || null),
+    OBR.scene.grid.getDpi().catch(() => 150),
+    OBR.scene.grid.getScale().catch(() => ({ parsed: { multiplier: 1.5, unit: "m" } })),
+  ]);
+  const casterSpells = casterItem?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+  const parent = (Array.isArray(casterSpells) ? casterSpells : []).find((entry) => (
+    String(entry?.instanceId || "").trim() === String(payload.instanceId || "").trim()
+    && String(entry?.spellId || "").trim() === BLINK_ID
+  ));
+  if (!parent || !casterItem) throw new Error("blink-parent-missing");
+  const chosenPosition = placement?.position || placement?.returnPosition || placement;
+  const returnPlan = buildBlinkReturnOperations({
+    targetId: payload.casterId,
+    spellEntry: parent,
+    chosenPosition,
+    fallback: placement?.fallback === true,
+    dpi,
+    scale: scale?.parsed || scale,
+  });
+  if (!returnPlan.valid) {
+    throw new Error(`blink-return-invalid: ${(returnPlan.errors || []).join(", ")}`);
+  }
+  const mutation = await runEffectsMutation(returnPlan.operations, {
+    kind: "spell",
+    label: "Ritorno da Intermittenza",
+    targetIds: [payload.casterId],
+    sideEffects: returnPlan.sideEffects,
+    history: {
+      kind: "spell",
+      label: "Ritorno da Intermittenza",
+      payload: {
+        causality: buildSpellCausality({
+          eventType: "active-resolution",
+          spellId: BLINK_ID,
+          spellName: payload.spellName,
+          instanceId: payload.instanceId,
+          casterId: payload.casterId,
+          casterName: payload.casterName,
+          action: payload.action,
+          targets: [casterItem],
+          targetIds: [payload.casterId],
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
+  });
+  requireAppliedEffectsMutation(mutation);
+  const changedIds = mutation.changedIds || [];
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, {
+      ...mutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
+  return attachSpellExecutionHistory(changedIds, mutation);
+}
+
+async function executeTelekinesisContestResolution({
+  payload = null,
+  targetIds = [],
+  outcomes = {},
+  commitInput = null,
+  sceneEpoch = null,
+  sceneIdentity = null,
+  commandId = "",
+  isCurrent = null,
+} = {}) {
+  const ids = normalizeActiveResolutionTargetIds(targetIds);
+  const targetId = ids[0];
+  const instanceId = String(payload?.instanceId || "").trim();
+  const casterId = String(payload?.casterId || "").trim();
+  if (!instanceId || !casterId || !targetId) {
+    throw new Error("telekinesis-context-required");
+  }
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-telekinesis-resolution");
+  }
+  const snapshotState = telekinesisStateFromCastContext(payload?.castContext);
+  const itemIds = uniqueIds([
+    casterId,
+    targetId,
+    payload?.linkedTargetId,
+    snapshotState.targetId,
+  ]);
+  const items = await OBR.scene.items.getItems(itemIds);
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    throw new Error("scene-epoch-stale-before-telekinesis-resolution");
+  }
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const parent = telekinesisParentFromItems(items, payload);
+  const target = byId.get(targetId);
+  const liveState = telekinesisStateFromCastContext(parent?.castContext);
+  if (!parent || !target) throw new Error("telekinesis-parent-or-target-missing");
+  const outcome = String(outcomes?.[targetId] || "").trim();
+  const action = activeResolutionAction(payload);
+  const nextCastContext = telekinesisCastContext({
+    castContext: parent.castContext,
+    casterId,
+    targetId,
+    outcome,
+    turnKey: payload.turnKey,
+    activationId: payload.activationId || telekinesisActivationId(
+      instanceId,
+      payload.actionId,
+      payload.turnKey,
+    ),
+    actionId: payload.actionId,
+  });
+  const name = String(parent.name || payload.spellName || "Telecinesi").trim();
+  const casterName = String(parent.casterName || payload.casterName || "").trim();
+  const appliedAt = parent.appliedAt && typeof parent.appliedAt === "object"
+    ? cloneValue(parent.appliedAt)
+    : null;
+  const previousTarget = byId.get(liveState.targetId || snapshotState.targetId);
+  const currentTargetSpell = (Array.isArray(
+    previousTarget?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`],
+  ) ? previousTarget.metadata[`${ID}/meta`][`${ID}/spells`] : []).find((spell) => (
+    String(spell?.instanceId || "").trim() === instanceId
+    && String(spell?.spellId || "").trim() === TELEKINESIS_SPELL_ID
+  ));
+  if (!currentTargetSpell) {
+    throw new Error("telekinesis-current-target-instance-missing");
+  }
+  const turns = Math.max(
+    1,
+    Math.floor(Number(currentTargetSpell.turns) || Number(parent.turns) || 1),
+  );
+  const conditionAppliedAt = {
+    ...(appliedAt || {}),
+    actorId: casterId,
+    phase: "turn",
+    turnKey: String(payload?.turnKey || "").trim(),
+  };
+  const upsert = {
+    type: "spell:upsert",
+    targetIds: [targetId],
+    name,
+    turns,
+    conc: true,
+    source: casterId,
+    ...(casterName ? { casterName } : {}),
+    instanceId,
+    spellId: TELEKINESIS_SPELL_ID,
+    ...(appliedAt ? { appliedAt } : {}),
+    castContext: nextCastContext,
+    summaryParts: telekinesisSummaryParts(nextCastContext),
+  };
+  if (currentTargetSpell && liveState.targetId === targetId) {
+    upsert.expectedInstanceId = instanceId;
+    upsert.expectedCastContext = cloneValue(currentTargetSpell.castContext || {});
+  }
+  const operations = [
+    upsert,
+    {
+      type: "concentration:register",
+      casterId,
+      targetIds: [targetId],
+      name,
+      instanceId,
+      spellId: TELEKINESIS_SPELL_ID,
+      ...(appliedAt ? { appliedAt } : {}),
+      castContext: nextCastContext,
+    },
+  ];
+  if (outcome === "passed") {
+    operations.push({
+      type: "condition:add",
+      targetIds: [targetId],
+      conditionName: "Trattenuto",
+      options: telekinesisRestrainedConditionOptions({
+        casterId,
+        casterName,
+        instanceId,
+        appliedAt: conditionAppliedAt,
+      }),
+    });
+    operations.push({
+      type: "condition:automate",
+      subjectIds: [targetId],
+    });
+  }
+  if (liveState.targetId && liveState.targetId !== targetId) {
+    operations.push({
+      type: "concentration:break-targets",
+      casterIds: [casterId],
+      reference: instanceId,
+      targetIds: [liveState.targetId],
+    });
+  }
+  const label = `Attivazione: ${name} · ${String(
+    action?.buttonLabel || action?.label || "Contesa",
+  ).trim()}`;
+  const validationSideEffect = commitInput && typeof commitInput === "object"
+    ? { ...commitInput, payload: { ...payload, outcomes } }
+    : {
+      payload: { ...payload, outcomes },
+      targetIds: ids,
+      outcomes,
+    };
+  const telekinesisMutation = await runEffectsMutation(operations, {
+    kind: "spell-active-resolution",
+    label,
+    targetIds: uniqueIds([casterId, liveState.targetId, targetId]),
+    sideEffects: [{
+      type: "spell-active-resolution:validate",
+      ...validationSideEffect,
+    }],
+    history: {
+      kind: "spell-active-resolution",
+      label,
+      payload: {
+        type: payload.type,
+        spellId: payload.spellId,
+        instanceId,
+        casterId,
+        actionId: payload.actionId,
+        turnKey: payload.turnKey,
+        activationId: payload.activationId,
+        targetIds: [targetId],
+        outcomes: { [targetId]: outcome },
+        telekinesis: {
+          operation: action?.telekinesisOperation,
+          previousTargetId: liveState.targetId,
+          targetId,
+          outcome,
+          mode: "creature",
+        },
+        causality: buildSpellCausality({
+          eventType: "resolution",
+          spellId: payload.spellId,
+          spellName: name,
+          instanceId,
+          slotLevel: payload.slotLevel,
+          phase: nextCastContext?.phase || payload.castContext?.phase,
+          casterId,
+          casterName,
+          targets: [target],
+          targetIds: [targetId],
+          outcomes: { [targetId]: outcome },
+          actionId: payload.actionId,
+          action: {
+            ...action,
+            telekinesisOutcome: outcome,
+            activationId: payload.activationId,
+            turnKey: payload.turnKey,
+          },
+          concentrationAction: "extend",
+          concentrationInstanceId: instanceId,
+        }),
+      },
+    },
+    ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(commandId ? { commandId } : {}),
+  });
+  requireAppliedEffectsMutation(telekinesisMutation);
+  const changedIds = telekinesisMutation.changedIds || [];
+  if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+    return attachSpellExecutionHistory(changedIds, {
+      ...telekinesisMutation,
+      stale: true,
+      postCommitPending: true,
+    });
+  }
+  return attachSpellExecutionHistory(changedIds, telekinesisMutation);
+}
+
 export async function executeSpellActiveResolution({
   payload = null,
   placement = null,
@@ -630,6 +937,7 @@ export async function executeSpellActiveResolution({
   traversalId = "",
   damageRoll = 0,
   attackOutcome = "",
+  saveAbility = "",
   attacks = [],
   shorteningFrom = "",
   naturalStormBonus = false,
@@ -661,10 +969,12 @@ export async function executeSpellActiveResolution({
     ...attackEntries.map((entry) => entry.targetId),
   ]);
   const prismaticWallResolution = isPrismaticWallActiveResolutionKind(payload?.action);
+  const blinkReturnResolution = payload?.action?.resolutionKind === "blink-return";
   if (!ids.length
     && payload?.action?.resolutionKind !== "child-zone"
     && payload?.action?.allowEmptyTargets !== true
-    && payload?.action?.resolutionKind !== "prismatic-wall-layers") {
+    && payload?.action?.resolutionKind !== "prismatic-wall-layers"
+    && !blinkReturnResolution) {
     throw new Error("active-resolution-targets-required");
   }
   const commitInput = {
@@ -678,6 +988,7 @@ export async function executeSpellActiveResolution({
     traversalId,
     damageRoll,
     attackOutcome,
+    saveAbility,
     attacks: attackEntries,
     shorteningFrom,
   };
@@ -687,6 +998,30 @@ export async function executeSpellActiveResolution({
   }
   if (!preflight.valid) {
     throw new Error("Invalid active spell resolution: " + preflight.errors.join(", "));
+  }
+
+  if (payload?.action?.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND) {
+    return executeTelekinesisContestResolution({
+      payload: normalizedPayload,
+      targetIds: ids,
+      outcomes,
+      commitInput,
+      sceneEpoch,
+      sceneIdentity,
+      commandId,
+      isCurrent,
+    });
+  }
+
+  if (blinkReturnResolution) {
+    return executeBlinkReturnResolution({
+      payload,
+      placement,
+      sceneEpoch,
+      sceneIdentity,
+      commandId,
+      isCurrent,
+    });
   }
 
   const itemIds = prismaticWallResolution
@@ -793,7 +1128,15 @@ export async function executeSpellActiveResolution({
       },
     );
   }
-  if (!prismaticWallResolution && action?.replaceLinkedEffectId) {
+  const linkedEffectOutcome = activeResolutionOutcome(
+    normalizedPayload,
+    ids[0],
+    attackOutcome,
+  );
+  const replaceLinkedEffect = !prismaticWallResolution
+    && action?.replaceLinkedEffectId
+    && (action.replaceLinkedEffectOnSuccess !== true || linkedEffectOutcome === "passed");
+  if (replaceLinkedEffect) {
     const linkedItems = await OBR.scene.items.getItems();
     if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
       throw new Error("scene-epoch-stale-before-active-resolution");
@@ -802,6 +1145,7 @@ export async function executeSpellActiveResolution({
       action,
       payload,
       items: linkedItems,
+      targetIds: ids,
     });
     if (removals.length) {
       operations.push({ type: "condition:remove-instances", removals });
@@ -1371,6 +1715,9 @@ export async function executeSpellActiveResolution({
         slotLevel: payload.slotLevel,
         targetIds: ids,
         outcomes,
+        ...(action?.resolutionKind === "single-save" && saveAbility
+          ? { saveAbility: String(saveAbility).trim().toLowerCase() }
+          : {}),
         attackOutcome: String(attackOutcome || ""),
         ...(action?.resolutionKind === "single-heal"
           ? { healingRoll: Math.max(0, Math.floor(Number(damageRoll) || 0)) }
@@ -1423,7 +1770,10 @@ export async function executeSpellActiveResolution({
       postCommitPending: true,
     });
   }
-  return attachSpellExecutionHistory(mutation, mutation);
+  const execution = attachSpellExecutionHistory(mutation, mutation);
+  return action?.successNotice && linkedEffectOutcome === "passed"
+    ? { ...execution, manualNotice: String(action.successNotice).trim() }
+    : execution;
 }
 
 export async function executeSpellBoardTokenStateUpdate({
@@ -1641,6 +1991,38 @@ export async function executeSpellApplication({
     && intent.phasePlan.attack?.consumeOnMiss !== true
   ) {
     return spellApplicationNoop("miss", "prepared-attack-miss", { pending: true });
+  }
+
+  if (spell?.id === BLINK_ID) {
+    const [liveCaster] = await OBR.scene.items.getItems([casterId]).catch(() => []);
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-spell-application");
+    }
+    const liveSpells = liveCaster?.metadata?.[`${ID}/meta`]?.[`${ID}/spells`];
+    const alreadyEthereal = (Array.isArray(liveSpells) ? liveSpells : []).some((entry) => (
+      String(entry?.spellId || "").trim() === BLINK_ID
+      && blinkStateFromCastContext(entry?.castContext).plane === "ethereal"
+    ));
+    if (alreadyEthereal) throw new Error("blink-already-ethereal");
+  }
+
+  if (spell?.id === TELEKINESIS_SPELL_ID) {
+    const liveItems = await OBR.scene.items.getItems(uniqueIds([
+      casterId,
+      ...intent.subjects,
+    ]));
+    if (typeof isCurrent === "function" && sceneEpoch != null && !isCurrent(sceneEpoch)) {
+      throw new Error("scene-epoch-stale-before-spell-application");
+    }
+    const validation = await validateTelekinesisCast({
+      casterId,
+      targetIds: intent.subjects,
+      outcomes: intent.saveOutcomes,
+      allItems: liveItems,
+    });
+    if (!validation.valid) {
+      throw new Error(`telekinesis-cast-invalid: ${validation.errors.join(", ")}`);
+    }
   }
 
   const instanceId = String(activeConcentration?.instanceId || "").trim()

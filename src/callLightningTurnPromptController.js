@@ -29,6 +29,7 @@ const STORM_SPHERE_POPOVER_HEIGHT = 300;
 const ENERVATION_POPOVER_HEIGHT = 245;
 const CHOICE_POPOVER_WIDTH = 360;
 const CHOICE_POPOVER_HEIGHT = 210;
+const TELEKINESIS_CHOICE_POPOVER_HEIGHT = 160;
 const SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 150;
 const EYEBITE_CHOICE_POPOVER_HEIGHT = 330;
 
@@ -92,6 +93,7 @@ function popoverId(request) {
 function popoverHeight(request) {
   if (request?.kind === "choice") {
     if (request?.spellId === "eyebite") return EYEBITE_CHOICE_POPOVER_HEIGHT;
+    if (request?.spellId === "telekinesis") return TELEKINESIS_CHOICE_POPOVER_HEIGHT;
     const actionCount = Array.isArray(request?.actions) ? request.actions.length : 0;
     if (actionCount === 1) return SINGLE_ACTION_CHOICE_POPOVER_HEIGHT;
     return Math.max(CHOICE_POPOVER_HEIGHT, 80 + actionCount * 65);

@@ -9,19 +9,23 @@
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **132** (137 regole).
+- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **133** (138 regole).
 - Workflow che richiedono smoke test runtime: **389**.
-- Lacune RAW confermate P1: **19**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `2ec5e6437b42a732`.
+- Lacune RAW confermate P1: **13**; discrepanze ad alta confidenza P2: **1**.
+- Impronta deterministica: `f7744ba662ff77cd`.
+
+## Decisioni di prodotto chiuse
+
+- Dominare Bestie / Persone / Mostri: `damage-triggered save reminder only; precise control remains manual`.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 63 |
+| FULL | 66 |
 | MANUAL | 88 |
-| PARTIAL | 182 |
-| TRACK_ONLY | 144 |
+| PARTIAL | 180 |
+| TRACK_ONLY | 143 |
 
 ### Stato di copertura (coverageStatus)
 
@@ -29,20 +33,20 @@
 
 | Stato | Totale |
 | --- | ---: |
-| ACCEPTED | 68 |
-| CLOSED | 6 |
-| GAP | 20 |
+| ACCEPTED | 71 |
+| CLOSED | 9 |
+| GAP | 14 |
 | UNREVIEWED | 383 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
 | Stato | Totale |
 | --- | ---: |
-| FULL | 63 |
+| FULL | 66 |
 | MANUAL | 3 |
-| PARTIAL | 5 |
+| PARTIAL | 8 |
 | TRACK_ONLY | 3 |
-| UNREVIEWED | 403 |
+| UNREVIEWED | 397 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -62,20 +66,20 @@
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 37 |
-| AREA_GEOMETRY | 132 |
-| CAST | 221 |
+| ACTIVE_ACTION | 39 |
+| AREA_GEOMETRY | 133 |
+| CAST | 222 |
 | CLEANUP | 106 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 87 |
+| TURN_TRIGGER | 88 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 20 |
-| reachable | 372 |
+| partial | 14 |
+| reachable | 378 |
 | unexposed | 85 |
 
 ### Problemi di integrazione
@@ -187,22 +191,16 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Aura sacra | SRD 5.1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato | Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell. |
 | Compulsione | SRD 5.1 | azione ripetibile della spell assente; meccanica di movimento assente | Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento. |
 | Debilitazione | Xanathar | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell. |
-| Dominare bestie | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
-| Dominare mostri | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
-| Dominare persona | SRD 5.1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Affascinato e TS iniziale sono coperti; mancano il controllo preciso tramite azione e il nuovo TS Saggezza ogni volta che il bersaglio subisce danni. |
 | Forme animali | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati. |
 | Fuorviare | SRD 5.1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente | Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi. |
 | Interdizione Primordiale | Xanathar | trigger condizionale durante la durata assente; conseguenza alla fine della spell assente | Una reazione al danno trasforma tutte le resistenze nell'immunità al tipo scelto fino alla fine del turno successivo. |
-| Intermittenza | SRD 5.1 | stato casuale ricorrente di turno assente; conseguenza alla fine della spell assente | Richiede d20 a ogni fine turno, stato sul Piano Etereo e rientro all'inizio del turno successivo o alla terminazione. |
 | Inversione della gravità | SRD 5.1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti | La geometria non basta: servono salita, collisione, sospensione e caduta coordinata quando termina la spell. |
 | Muro d'Acqua | Xanathar | meccanica di movimento assente; trigger condizionale durante la durata assente | La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo. |
 | Parlare con i vegetali | SRD 5.1 | meccanica di movimento assente; varianti rilevanti non modellate | L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker. |
 | Sudario Spirituale | Tasha | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente | Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo. |
-| Telecinesi | SRD 5.1 | azione ripetibile della spell assente; condizione o stato RAW non rappresentato | Ogni round può cambiare bersaglio o ripetere la contesa; una creatura sollevata resta Trattenuta fino al termine del turno successivo. |
 | Tempesta di vendetta | SRD 5.1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente | L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento. |
 | Trasformazione | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW. |
 | Trasmutare Roccia | Xanathar | varianti della zona e relativi trigger incomplete; meccanica di movimento assente; trigger spaziali o di turno assenti | Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia. |
-| Turbine | Xanathar | movimento manuale della zona non risolto; sequenza di più TS e uscita dalla condizione incompleta; ingresso, sospensione e caduta finale non risolti | Servono zona mobile, doppio TS, trascinamento verticale, movimento con la zona, prova di fuga e caduta finale. |
 
 ## P2 — discrepanze ad alta confidenza
 
@@ -340,9 +338,9 @@ Nessuna voce.
 | Dissolvi magie | `dispel-magic` | SRD 5.1 / 3 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Dito della morte | `finger-of-death` | SRD 5.1 / 7 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Divinazione | `divination` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Dominare bestie | `dominate-beast` | SRD 5.1 / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente |
-| Dominare mostri | `dominate-monster` | SRD 5.1 / 8 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente |
-| Dominare persona | `dominate-person` | SRD 5.1 / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; trigger condizionale durante la durata assente |
+| Dominare bestie | `dominate-beast` | SRD 5.1 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
+| Dominare mostri | `dominate-monster` | SRD 5.1 / 8 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
+| Dominare persona | `dominate-person` | SRD 5.1 / 5 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Drago Illusorio | `xanathar-drago-illusorio` | Xanathar / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Duello Obbligato | `phb2014-duello-obbligato` | PHB 2014 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Eroismo | `heroism` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -434,7 +432,7 @@ Nessuna voce.
 | Interdizione alla morte | `death-ward` | SRD 5.1 / 4 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Interdizione alle Lame | `phb2014-interdizione-alle-lame` | PHB 2014 / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Interdizione Primordiale | `xanathar-interdizione-primordiale` | Xanathar / 6 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; conseguenza alla fine della spell assente |
-| Intermittenza | `blink` | SRD 5.1 / 3 | TRACK_ONLY | GAP | UNREVIEWED | UNIFIED | partial | P1 | stato casuale ricorrente di turno assente; conseguenza alla fine della spell assente |
+| Intermittenza | `blink` | SRD 5.1 / 3 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Intimorire infernale | `hellish-rebuke` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Intralciare | `entangle` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Inversione della gravità | `reverse-gravity` | SRD 5.1 / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti |
@@ -653,7 +651,7 @@ Nessuna voce.
 | Suggestione di massa | `mass-suggestion` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sussurri Dissonanti | `phb2014-sussurri-dissonanti` | PHB 2014 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Taumaturgia | `thaumaturgy` | SRD 5.1 / 0 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Telecinesi | `telekinesis` | SRD 5.1 / 5 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; condizione o stato RAW non rappresentato |
+| Telecinesi | `telekinesis` | SRD 5.1 / 5 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Telepatia | `phb2014-telepatia` | PHB 2014 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Teletrasporto | `teleport` | SRD 5.1 / 7 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Tempesta di fuoco | `fire-storm` | SRD 5.1 / 7 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -679,7 +677,7 @@ Nessuna voce.
 | Trova famiglio | `find-familiar` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Trucco della corda | `rope-trick` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Tsunami | `phb2014-tsunami` | PHB 2014 / 8 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Turbine | `xanathar-turbine` | Xanathar / 7 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | movimento manuale della zona non risolto; sequenza di più TS e uscita dalla condizione incompleta; ingresso, sospensione e caduta finale non risolti |
+| Turbine | `xanathar-turbine` | Xanathar / 7 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Turbine di Spade | `tasha-turbine-di-spade` | Tasha / 0 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Unto | `grease` | SRD 5.1 / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Urlo Psichico | `xanathar-urlo-psichico` | Xanathar / 9 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |

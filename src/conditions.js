@@ -113,6 +113,14 @@ function __conditionName(value) {
   return String(value || "").trim();
 }
 
+function __isTelekinesisRestraint(value) {
+  const condition = __conditionName(value).toLocaleLowerCase("it");
+  const spellId = String(value?.spellId || "").trim();
+  const effectId = String(value?.effectId || "").trim();
+  return condition === "trattenuto"
+    && (spellId === "telekinesis" || effectId === "telekinesis-restrained");
+}
+
 function __normalizeSummaryParts(value) {
   return (Array.isArray(value) ? value : [])
     .map((part, index) => {
@@ -201,7 +209,8 @@ function __normalizeConditionInstance(value, fallbackId) {
   if (value.parentInstanceId) instance.parentInstanceId = String(value.parentInstanceId);
   if (value.type) instance.type = String(value.type);
   if (value.effectId) instance.effectId = String(value.effectId);
-  if (value.effectKind === "buff" || value.effectKind === "debuff") {
+  if (!__isTelekinesisRestraint(value)
+    && (value.effectKind === "buff" || value.effectKind === "debuff")) {
     instance.effectKind = value.effectKind;
   }
   const summaryParts = __normalizeSummaryParts(value.summaryParts);

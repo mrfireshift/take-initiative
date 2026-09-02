@@ -545,7 +545,10 @@ test("i quattro controller aura/zone usano soltanto invalidazioni dell'hub", () 
   for (const [path, domain] of contracts) {
     const source = readFileSync(new URL(path, import.meta.url), "utf8");
     assert.match(source, /subscribeSceneItemChanges/);
-    assert.match(source, new RegExp(`domains:\\s*\\["${domain}"\\]`));
+    const expectedDomains = domain === "zone"
+      ? /domains:\s*\["zone",\s*"effects"\]/
+      : new RegExp(`domains:\\s*\\["${domain}"\\]`);
+    assert.match(source, expectedDomains);
     assert.doesNotMatch(source, /OBR\.scene\.items\.onChange/);
   }
 });

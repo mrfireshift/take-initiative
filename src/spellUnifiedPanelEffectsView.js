@@ -98,7 +98,8 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
       ],
     });
 
-    if (overview.terminable) {
+    const blink = overview?.context?.spellId === "blink";
+    if (overview.terminable && !blink) {
       const terminal = overview?.context?.terminalResolution;
       const terminate = createButton(documentRef, {
         label: terminal ? "Detona" : "Termina",
@@ -122,6 +123,7 @@ export function renderActiveSpellSection(documentRef, model, callbacks = {}) {
       ...(Array.isArray(overview?.summaryParts)
         ? overview.summaryParts.map((part) => String(part?.label || "").trim()).filter(Boolean)
         : []),
+      overview.semanticDetail || "",
       overview.durationLabel ? `Durata: ${overview.durationLabel}` : "",
       overview.tokenLabel || "",
     ].filter(Boolean);

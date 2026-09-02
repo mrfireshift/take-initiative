@@ -8,6 +8,11 @@ import {
 } from "./spellCastPhaseCore.js";
 import { buildSpellActiveResolutionResourceOperations } from "./spellActiveResolutionCore.js";
 import { resolveTargetingCapacity } from "./spellTargetingCapacityCore.js";
+import { blinkStateFromCastContext } from "./blinkRules.js";
+import {
+  TELEKINESIS_CONTEST_RESOLUTION_KIND,
+  telekinesisActivationAlreadyUsed,
+} from "./telekinesisRules.js";
 
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : [])
@@ -117,6 +122,8 @@ export function getSpellOverviewActions({
   zoneItemId = "",
   appliedAt = null,
   currentTurnKey = "",
+  currentActorId = "",
+  pendingTermination = null,
 } = {}) {
   if (!spell) return [];
   const actions = [];
@@ -141,6 +148,15 @@ export function getSpellOverviewActions({
       .map((action) => [String(action?.id || "").trim(), action]),
   );
   for (const candidate of manualActions(spell)) {
+    if (candidate.resolutionKind === "blink-return") {
+      const blinkState = blinkStateFromCastContext(castContext);
+      if (blinkState.plane !== "ethereal") continue;
+      const castTurnKey = String(appliedAt?.turnKey || "").trim();
+      const terminalPending = pendingTermination
+        && typeof pendingTermination === "object";
+      if (!terminalPending && castTurnKey
+        && String(currentTurnKey || "").trim() === castTurnKey) continue;
+    }
     const action = candidate?.requiresZoneRoot === true && !String(zoneItemId || "").trim()
       ? boardTokenReferences.get(String(candidate?.id || "").trim()) || candidate
       : candidate;
@@ -155,11 +171,27 @@ export function getSpellOverviewActions({
       continue;
     }
     const castTurnKey = String(appliedAt?.turnKey || "").trim();
-    const unavailableReason = action.availableAfterCast === true
+    let unavailableReason = action.availableAfterCast === true
       && castTurnKey
       && String(currentTurnKey || "").trim() === castTurnKey
       ? "Disponibile dal turno successivo al lancio."
       : "";
+    if (
+      !unavailableReason
+      && action.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND
+      && String(currentActorId || "").trim()
+      && String(currentActorId || "").trim().replace(/::p\d+$/u, "")
+        !== String(casterId || "").trim().replace(/::p\d+$/u, "")
+    ) {
+      unavailableReason = "Disponibile solo nel turno del caster.";
+    }
+    if (
+      !unavailableReason
+      && action.resolutionKind === TELEKINESIS_CONTEST_RESOLUTION_KIND
+      && telekinesisActivationAlreadyUsed(castContext, currentTurnKey)
+    ) {
+      unavailableReason = "Hai già usato l'azione di Telecinesi in questo turno.";
+    }
     const unavailableTargetIds = [];
     if (action.rejectRememberedTargets === true) {
       unavailableTargetIds.push(
@@ -419,6 +451,23 @@ export function buildSpellActiveActionPlan({
     };
   }
 
+  if (action?.termination === true) {
+    const spellName = String(spell?.displayName || spell?.name || group?.name || "Incantesimo");
+    return {
+      valid: true,
+      errors: [],
+      action,
+      subjectIds,
+      operations: [{
+        type: "spell:remove-instance",
+        targetIds: [casterId],
+        instanceId: parentInstanceId,
+        reason: "voluntary-dismiss",
+      }],
+      historyLabel: `Azione: ${spellName} · ${String(action.buttonLabel || action.label).trim()}`,
+    };
+  }
+
   const operations = [...resourceOperations];
   if (action.replaceSpellTargets === true) {
     const previousTargetIds = groupTargetIds(group)
@@ -522,6 +571,7 @@ export function buildSpellActiveActionPlan({
     "single-save",
     "single-heal",
     "child-zone",
+    TELEKINESIS_CONTEST_RESOLUTION_KIND,
     "prismatic-wall-traversal",
     "prismatic-wall-layers",
   ]

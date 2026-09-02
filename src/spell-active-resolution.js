@@ -15,6 +15,10 @@ import {
   prismaticWallStateFromCastContext,
 } from "./prismaticWallRules.js";
 import {
+  TELEKINESIS_OUTCOMES,
+  telekinesisStateFromCastContext,
+} from "./telekinesisRules.js";
+import {
   cancelSpellAreaPlacementRequest,
   confirmSpellAreaPlacementRequest,
   createSpellAreaPlacementRequestId,
@@ -66,7 +70,11 @@ let selectedAttackTarget = "";
 let selectedSaveTarget = "";
 let selectedHealTarget = "";
 let selectedPrismaticTarget = "";
+let initialPrismaticTarget = "";
+let selectedTelekinesisTarget = "";
+let telekinesisOutcome = "";
 let saveOutcome = "";
+let saveAbility = "";
 let attackOutcome = "";
 let selectedChoice = "";
 let attackEntries = [];
@@ -140,6 +148,24 @@ function isPrismaticWallAction() {
 function isPrismaticWallTraversal() {
   return isPrismaticWallAction()
     && payload?.action?.resolutionKind === "prismatic-wall-traversal";
+}
+
+function isBlinkReturn() {
+  return payload?.spellId === "blink"
+    && payload?.action?.resolutionKind === "blink-return";
+}
+
+function isTelekinesisContest() {
+  return payload?.spellId === "telekinesis"
+    && payload?.action?.resolutionKind === "telekinesis-contest";
+}
+
+function telekinesisCurrentTargetId() {
+  return String(
+    telekinesisStateFromCastContext(payload?.castContext).targetId
+      || payload?.linkedTargetId
+      || "",
+  ).trim();
 }
 
 function prismaticWallParentFromScene() {
@@ -426,6 +452,11 @@ function saveAbilityLabel(value) {
   return ({ str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" })[String(value || "").trim().toLowerCase()] || "";
 }
 
+function isTurbineEscape() {
+  return payload?.spellId === "xanathar-turbine"
+    && payload?.actionId === "xanathar-turbine-escape";
+}
+
 function maxAttackCount() {
   return Math.max(1, Math.floor(Number(payload?.action?.maxAttacks) || 1));
 }
@@ -462,6 +493,48 @@ function createChildActivationId() {
 }
 
 function renderContext() {
+  if (isTelekinesisContest()) {
+    $("eyebrow").textContent = "Telecinesi · contesa manuale";
+    $("saveTitle").hidden = true;
+    $("placementToolbar").hidden = true;
+    $("childCountField").hidden = true;
+    $("childDepths").hidden = true;
+    $("bulkOutcomes").hidden = true;
+    $("attackRows").hidden = true;
+    $("attackTarget").hidden = true;
+    $("attackOutcomes").hidden = true;
+    $("attackAdvantage").hidden = true;
+    $("saveTargetHint").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("damageField").hidden = true;
+    $("singleSaveDamageField").hidden = true;
+    $("prismaticWallSection").hidden = true;
+    $("blinkReturnSection").hidden = true;
+    return;
+  }
+  if (isBlinkReturn()) {
+    $("eyebrow").textContent = "Comando GM";
+    $("blinkReturnHint").textContent = "Scegli la destinazione del ritorno sulla mappa.";
+    $("saveTitle").hidden = true;
+    $("placementToolbar").hidden = true;
+    $("childCountField").hidden = true;
+    $("childDepths").hidden = true;
+    $("bulkOutcomes").hidden = true;
+    $("attackRows").hidden = true;
+    $("attackTarget").hidden = true;
+    $("attackOutcomes").hidden = true;
+    $("attackAdvantage").hidden = true;
+    $("saveTargetHint").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("damageField").hidden = true;
+    $("singleSaveDamageField").hidden = true;
+    $("prismaticWallSection").hidden = true;
+    return;
+  }
   if (isPrismaticWallAction()) {
     $("eyebrow").textContent = "Comando GM";
     $("saveTitle").hidden = true;
@@ -613,7 +686,9 @@ function renderContext() {
   }
   if (singleSave) {
     const manualSave = manualSaveAtTable();
-    const ability = manualSave ? "" : saveAbilityLabel(payload?.action?.save?.ability);
+    const ability = manualSave ? ""
+      : isTurbineEscape() ? "Prova di fuga"
+        : saveAbilityLabel(payload?.action?.save?.ability);
     const hasDamage = !!payload?.action?.damage;
     $("singleSaveOutcomes").hidden = manualSave;
     $("singleSaveDamageField").hidden = !hasDamage;
@@ -1134,6 +1209,34 @@ async function renderSingleSave() {
   // direttamente il bersaglio già collegato alla stessa istanza della spell.
   select.hidden = automaticRequiredTarget;
   const manualSave = manualSaveAtTable();
+  const abilityOptions = Array.isArray(payload?.action?.save?.abilityOptions)
+    ? payload.action.save.abilityOptions
+      .map((option) => ({
+        value: String(option?.value || "").trim().toLowerCase(),
+        label: String(option?.label || "").trim(),
+      }))
+      .filter((option) => option.value && option.label)
+    : [];
+  const abilityField = $("singleSaveAbilityField");
+  const abilitySelect = $("saveAbility");
+  if (abilityOptions.length) {
+    abilityField.hidden = false;
+    abilitySelect.replaceChildren(...abilityOptions.map((option) =>
+      new Option(option.label, option.value)));
+    const defaultAbility = String(
+      payload?.action?.save?.ability || abilityOptions[0].value,
+    ).trim().toLowerCase();
+    saveAbility = abilityOptions.some((option) => option.value === saveAbility)
+      ? saveAbility
+      : defaultAbility;
+    if (!abilityOptions.some((option) => option.value === saveAbility)) {
+      saveAbility = abilityOptions[0].value;
+    }
+    abilitySelect.value = saveAbility;
+  } else {
+    abilityField.hidden = true;
+    saveAbility = String(payload?.action?.save?.ability || "").trim().toLowerCase();
+  }
   if (manualSave) saveOutcome = String(payload?.action?.assumedOutcome || "failed").trim() || "failed";
   const linkedTargetHint = String(payload?.action?.linkedTargetHint || "").trim();
   const maximilianLinkedTarget = requiredEffectId === "maximilian-earth-grasp-restrained";
@@ -1161,6 +1264,7 @@ async function renderSingleSave() {
   const damageRequired = !!payload?.action?.damage;
   const damageReady = !damageRequired || String($("saveDamage")?.value || "").trim() !== "";
   const canResolve = sceneLifecycle.isReady() && !busy && !!selectedSaveTarget
+    && !!saveAbility
     && (manualSave || !!saveOutcome) && damageReady;
   for (const button of document.querySelectorAll("[data-save-outcome]")) {
     button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
@@ -1486,12 +1590,20 @@ function renderPrismaticWall() {
   const detail = $("prismaticWallLayerDetail");
   const candidates = characters().filter((item) => item?.id !== payload?.casterId);
   if (traversal) {
-    const previous = selectedPrismaticTarget;
-    selectedPrismaticTarget = spellActiveResolutionSelectedTargetId(
-      candidates,
-      currentPlayerSelection,
-      previous,
-    );
+    const initialTarget = String(initialPrismaticTarget || "").trim();
+    if (!selectedPrismaticTarget
+      && initialTarget
+      && candidates.some((item) => item?.id === initialTarget)) {
+      selectedPrismaticTarget = initialTarget;
+      initialPrismaticTarget = "";
+    } else {
+      const previous = selectedPrismaticTarget;
+      selectedPrismaticTarget = spellActiveResolutionSelectedTargetId(
+        candidates,
+        currentPlayerSelection,
+        previous,
+      );
+    }
     targetSelect.hidden = false;
     targetSelect.replaceChildren(new Option("Seleziona la creatura", ""));
     for (const item of candidates) {
@@ -1605,17 +1717,80 @@ function renderPrismaticWall() {
   updatePrismaticWallApplyState(state);
 }
 
+function telekinesisTargetCandidates() {
+  const currentTargetId = telekinesisCurrentTargetId();
+  const operation = String(payload?.action?.telekinesisOperation || "").trim();
+  return characters().filter((item) => {
+    const id = String(item?.id || "").trim();
+    if (!id || id === String(payload?.casterId || "").trim()) return false;
+    return operation === "maintain" ? id === currentTargetId : id !== currentTargetId;
+  });
+}
+
+function renderTelekinesis() {
+  const currentTargetId = telekinesisCurrentTargetId();
+  const operation = String(payload?.action?.telekinesisOperation || "").trim();
+  const entries = telekinesisTargetCandidates();
+  const select = $("telekinesisTarget");
+  select.replaceChildren(new Option(
+    operation === "maintain" ? "Bersaglio collegato" : "Seleziona una nuova creatura",
+    "",
+  ));
+  for (const item of entries) {
+    select.appendChild(new Option(displayName(item), item.id));
+  }
+  const resolved = operation === "maintain"
+    ? entries.some((item) => item.id === currentTargetId) ? currentTargetId : ""
+    : spellActiveResolutionSelectedTargetId(
+      entries,
+      currentPlayerSelection,
+      selectedTelekinesisTarget,
+    );
+  selectedTelekinesisTarget = resolved;
+  select.value = selectedTelekinesisTarget;
+  select.disabled = busy || !sceneLifecycle.isReady();
+  $("telekinesisTitle").textContent = operation === "maintain"
+    ? "Ripeti la contesa sulla creatura collegata"
+    : "Scegli una nuova creatura";
+  $("telekinesisHint").textContent = operation === "maintain"
+    ? currentTargetId && entries.length
+      ? "Il bersaglio corrente resta collegato a questa istanza."
+      : "Il bersaglio corrente non è più disponibile nella scena."
+    : currentTargetId
+      ? "Il nuovo bersaglio deve essere una creatura diversa da quella corrente e restare entro 18 m dal caster."
+      : "Scegli una creatura entro 18 m dal caster.";
+  for (const button of document.querySelectorAll("[data-telekinesis-outcome]")) {
+    button.classList.toggle("active", button.dataset.telekinesisOutcome === telekinesisOutcome);
+    button.disabled = busy || !selectedTelekinesisTarget || !sceneLifecycle.isReady();
+  }
+  $("apply").disabled = busy
+    || !sceneLifecycle.isReady()
+    || !selectedTelekinesisTarget
+    || !TELEKINESIS_OUTCOMES.includes(telekinesisOutcome);
+  $("apply").textContent = operation === "maintain"
+    ? "Conferma contesa"
+    : "Conferma nuovo bersaglio";
+  $("app").dataset.mode = "telekinesis";
+  $("summary").hidden = true;
+  $("summary").textContent = "";
+}
+
 function render() {
   if (!payload) return;
+  if ($("apply")) $("apply").hidden = false;
   renderContext();
   const prepared = isPreparedResolution();
   const child = childZone();
+  const blinkReturn = isBlinkReturn();
+  const telekinesis = isTelekinesisContest();
   const save = payload.action.resolutionKind === "save-area" || !!child;
   const singleSave = isSingleSave();
   const singleHeal = isSingleHeal();
   const prismaticWall = isPrismaticWallAction();
   $("title").textContent = prepared
     ? payload.spellName || payload.spellId
+    : telekinesis
+    ? payload.action?.buttonLabel || payload.action?.label || "Telecinesi"
     : singleSave
     ? payload.action?.buttonLabel || payload.action?.label || payload.spellName || payload.spellId
     : singleHeal
@@ -1630,9 +1805,28 @@ function render() {
   $("singleSaveSection").hidden = prepared || !singleSave;
   $("singleHealSection").hidden = prepared || !singleHeal;
   $("attackSection").hidden = prepared ? false : save || singleSave || singleHeal;
+  $("telekinesisSection").hidden = !telekinesis;
   $("prismaticWallSection").hidden = !prismaticWall;
+  $("blinkReturnSection").hidden = !blinkReturn;
   $("footer").hidden = !save;
-  if (prepared || singleSave || singleHeal || multiAttack) $("footer").hidden = false;
+  if (prepared || singleSave || singleHeal || multiAttack || blinkReturn || telekinesis) {
+    $("footer").hidden = false;
+  }
+  if (telekinesis) {
+    $("saveSection").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("prismaticWallSection").hidden = true;
+    $("blinkReturnSection").hidden = true;
+    $("footer").hidden = false;
+    $("apply").hidden = false;
+    $("economy").textContent = "Azione";
+    renderTelekinesis();
+    if (statusMessage) $("status").textContent = statusMessage;
+    requestCompactPopoverResize();
+    return;
+  }
   if (prismaticWall) {
     $("saveSection").hidden = true;
     $("singleSaveSection").hidden = true;
@@ -1645,6 +1839,26 @@ function render() {
       ? "Risolvi attraversamento"
       : "Segna strato distrutto";
     renderPrismaticWall();
+    if (statusMessage) $("status").textContent = statusMessage;
+    requestCompactPopoverResize();
+    return;
+  }
+  if (blinkReturn) {
+    $("saveSection").hidden = true;
+    $("singleSaveSection").hidden = true;
+    $("singleHealSection").hidden = true;
+    $("attackSection").hidden = true;
+    $("prismaticWallSection").hidden = true;
+    $("footer").hidden = false;
+    $("title").textContent = payload.spellName || "Intermittenza";
+    $("economy").textContent = "Comando GM";
+    $("apply").hidden = true;
+    $("apply").textContent = "Ritorna";
+    $("summary").textContent = "";
+    $("blinkPlace").disabled = !sceneReady || busy;
+    $("blinkPlace").textContent = "Scegli destinazione";
+    $("blinkPlacementStatus").textContent = "";
+    $("apply").disabled = true;
     if (statusMessage) $("status").textContent = statusMessage;
     requestCompactPopoverResize();
     return;
@@ -1720,7 +1934,71 @@ function render() {
   requestCompactPopoverResize();
 }
 
+async function placeBlinkReturn() {
+  if (busy || !sceneLifecycle.isReady()) return;
+  const operation = sceneLifecycle.capture({ operationId: sceneOperationId("blink-placement") });
+  if (!sceneLifecycle.isCurrent(operation)) return;
+  const requestId = createSpellAreaPlacementRequestId();
+  pendingPlacementRequestId = requestId;
+  busy = true;
+  placement = null;
+  render();
+  try {
+    const request = requestSpellAreaPlacement({
+      ruleId: "blink:return",
+      casterId: payload.casterId,
+      context: {
+        pointSelection: true,
+        autoConfirmPoint: true,
+        directPointSelection: true,
+        snapToItemCenter: true,
+      },
+      requestId,
+    }, {
+      broadcast: OBR.broadcast,
+      windowRef: window,
+    });
+    pendingPlacementPromise = request;
+    const result = await request;
+    if (!sceneLifecycle.isCurrent(operation)
+      || pendingPlacementRequestId !== requestId) return;
+    if (result?.status !== "confirmed" || !result.preview) {
+      setStatus(result?.status === "cancelled"
+        ? "Scelta dello spazio annullata."
+        : "Spazio di ritorno non confermato.");
+      return;
+    }
+    const position = point(result.preview.position || result.preview.start);
+    if (!position) throw new Error("blink-return-position-required");
+    placement = {
+      ...result.preview,
+      position,
+      targetIds: [],
+    };
+    pendingPlacementRequestId = "";
+    pendingPlacementPromise = null;
+    busy = false;
+    render();
+    await apply();
+  } catch (error) {
+    if (pendingPlacementRequestId === requestId) {
+      setStatus(`Scelta dello spazio non riuscita: ${error?.message || error}`);
+    }
+  } finally {
+    if (pendingPlacementRequestId === requestId) {
+      pendingPlacementRequestId = "";
+      pendingPlacementPromise = null;
+      if (committingPlacementRequestId !== requestId) busy = false;
+      render();
+    }
+  }
+}
+
 async function placeArea(anchorTargetOverride = "") {
+  if (isBlinkReturn()) {
+    await placeBlinkReturn();
+    return;
+  }
   if (fixedCasterRadiusConfig()) return;
   if (busy || !sceneLifecycle.isReady()) return;
   const operation = sceneLifecycle.capture({ operationId: sceneOperationId("placement") });
@@ -2038,7 +2316,11 @@ async function apply() {
     const executionResult = await executeSpellActiveResolution({
       payload,
       placement,
-      targetIds: isPrismaticWallAction()
+      targetIds: isTelekinesisContest()
+        ? [selectedTelekinesisTarget]
+        : isBlinkReturn()
+        ? [payload.casterId]
+        : isPrismaticWallAction()
         ? isPrismaticWallTraversal()
           ? [selectedPrismaticTarget]
           : []
@@ -2053,6 +2335,8 @@ async function apply() {
           : currentTargetItems().map((item) => item.id),
       outcomes: isPrismaticWallAction()
         ? {}
+        : isTelekinesisContest()
+        ? { [selectedTelekinesisTarget]: telekinesisOutcome }
         : payload.action.resolutionKind === "single-save"
         ? { [selectedSaveTarget]: saveOutcome }
         : payload.action.resolutionKind === "single-heal"
@@ -2068,7 +2352,11 @@ async function apply() {
         ? prismaticWallLayerId
         : "",
       traversalId: isPrismaticWallTraversal() ? prismaticTraversalId : "",
-      damageRoll: isPrismaticWallAction()
+      damageRoll: isBlinkReturn()
+        ? 0
+        : isTelekinesisContest()
+        ? 0
+        : isPrismaticWallAction()
         ? 0
         : payload.action.resolutionKind === "child-zone"
         ? 0
@@ -2080,6 +2368,7 @@ async function apply() {
           ? payload.action.damage ? $("saveDamage").value : 0
           : $("damage").value,
       attackOutcome,
+      saveAbility,
       shorteningFrom: zoneShorteningFrom,
       attacks: isMultiAttack()
         ? attackEntries.filter((entry) => entry.targetId).map((entry) => ({
@@ -2099,7 +2388,7 @@ async function apply() {
     }
     await notifyParent(
       SPELL_UNIFIED_PANEL_POPUP_STATUSES.COMPLETED,
-      "",
+      executionResult?.manualNotice || "",
       executionResult,
     );
     clearFixedCasterRadiusPreview();
@@ -2145,6 +2434,7 @@ if (!payload) {
   setStatus("Payload di attivazione non valido.", true);
 } else {
   selectedChoice = String(payload.selectedChoice || "").trim();
+  initialPrismaticTarget = String(payload.initialTargetId || "").trim();
   $("app").dataset.popoverId = popoverIdFromPayload(payload);
   void import("./popoverDrag.js").then(({ initializePopoverDrag }) => {
     initializePopoverDrag($("app"));
@@ -2164,6 +2454,7 @@ if (!payload) {
   $("place").addEventListener("click", () => void placeArea());
   $("confirmPlacement")?.addEventListener("click", () => void confirmPlacement());
   $("cancelPlacement")?.addEventListener("click", () => void cancelPlacement());
+  $("blinkPlace")?.addEventListener("click", () => void placeArea());
   $("apply").addEventListener("click", () => void apply());
   $("damage").addEventListener("input", (event) => {
     event.target.dataset.value = event.target.value;
@@ -2207,12 +2498,21 @@ if (!payload) {
     saveOutcome = manualSaveAtTable()
       ? String(payload?.action?.assumedOutcome || "failed").trim() || "failed"
       : "";
+    saveAbility = String(payload?.action?.save?.ability || "").trim().toLowerCase();
+    render();
+  });
+  $("saveAbility").addEventListener("change", (event) => {
+    saveAbility = String(event.target.value || "").trim().toLowerCase();
     render();
   });
   $("prismaticWallTarget").addEventListener("change", (event) => {
     selectedPrismaticTarget = String(event.target.value || "").trim();
     prismaticLayerOutcomes = new Map();
     prismaticLayerDamage = new Map();
+    render();
+  });
+  $("telekinesisTarget").addEventListener("change", (event) => {
+    selectedTelekinesisTarget = String(event.target.value || "").trim();
     render();
   });
   $("attackTarget").addEventListener("change", (event) => {
@@ -2232,6 +2532,14 @@ if (!payload) {
       event.stopPropagation();
       if (busy || !selectedSaveTarget) return;
       saveOutcome = button.dataset.saveOutcome;
+      render();
+    });
+  }
+  for (const button of document.querySelectorAll("[data-telekinesis-outcome]")) {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (busy || !selectedTelekinesisTarget) return;
+      telekinesisOutcome = button.dataset.telekinesisOutcome;
       render();
     });
   }
@@ -2256,6 +2564,7 @@ if (!payload) {
         || isSingleHeal()
         || isPrimaryTargetAnchoredArea()
         || isPrismaticWallTraversal()
+        || isTelekinesisContest()
         || (payload?.action?.resolutionKind === "single-attack" && !isMultiAttack())) {
         render();
       }
@@ -2284,6 +2593,8 @@ if (!payload) {
         selectedSaveTarget = "";
         selectedHealTarget = "";
         saveOutcome = "";
+        selectedTelekinesisTarget = "";
+        telekinesisOutcome = "";
         busy = false;
         setStatus("Scena cambiata: riapri la risoluzione dal pannello Spells.", true);
         render();
@@ -2296,6 +2607,8 @@ if (!payload) {
         selectedSaveTarget = "";
         selectedHealTarget = "";
         saveOutcome = "";
+        selectedTelekinesisTarget = "";
+        telekinesisOutcome = "";
         setStatus(fixedCasterRadiusConfig()
           ? "Nuova scena pronta: ricalcolo i bersagli della scossa."
           : "Nuova scena pronta: posiziona di nuovo la risoluzione.");

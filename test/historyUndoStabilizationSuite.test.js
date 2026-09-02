@@ -18,6 +18,7 @@ const sceneState = {
   ready: true,
   metadata: {},
   items: [],
+  gridScale: { parsed: { multiplier: 1.5, unit: "m" } },
 };
 const readyListeners = new Set();
 const broadcastListeners = new Map();
@@ -51,6 +52,9 @@ const sdkStub = {
     getMetadata: async () => clone(sceneState.metadata),
     setMetadata: async (update) => {
       sceneState.metadata = { ...sceneState.metadata, ...clone(update) };
+    },
+    grid: {
+      getScale: async () => clone(sceneState.gridScale),
     },
     items: {
       getItems: async (ids) => currentItems(ids),
@@ -324,6 +328,112 @@ test("SCENARIO 2 — 3-step sequence: HP damage -> Reminder activation -> HP dam
   assert.equal(hero.metadata[META_KEY].hp, 30);
 });
 
+test("SCENARIO 2b — due risoluzioni Turbine sulla stessa activation -> 2x Undo consecutivi PASS", async () => {
+  const activation = {
+    id: "turbine-entry",
+    turnKey: "1:1:target-a",
+    targetIds: ["target-a", "target-b"],
+    createdAt: 0,
+  };
+  const zone = {
+    id: "turbine-zone",
+    name: "Turbine",
+    layer: "DRAWING",
+    position: { x: 0, y: 0 },
+    metadata: {
+      [STATIC_ZONE_KEY]: {
+        instanceId: "turbine-instance",
+        ruleId: "xanathar-turbine:cast",
+        triggerRuntime: { pending: [clone(activation)] },
+      },
+    },
+  };
+  const targets = ["target-a", "target-b"].map((id) => ({
+    id,
+    name: id,
+    position: { x: 50, y: 0 },
+    metadata: { [META_KEY]: { hp: 10, hpMax: 10 } },
+  }));
+  resetScene([zone, ...targets]);
+
+  const resolveTarget = async (targetId) => {
+    const scopedActivationId = `${activation.id}:target:${targetId}`;
+    const result = await effects.runEffectsMutation([
+      {
+        type: "condition:add",
+        targetIds: [targetId],
+        conditionName: "Trattenuto",
+        options: {
+          type: "spell",
+          effectId: "xanathar-turbine-restrained",
+          parentEffectId: "turbine-instance",
+        },
+      },
+    ], {
+      kind: "reminder-resolution",
+      label: `Turbine · ${targetId}`,
+      targetIds: [targetId, zone.id],
+      sceneEpoch: currentSceneEpoch(),
+      deferHistory: false,
+      history: {
+        kind: "reminder-resolution",
+        label: `Turbine · ${targetId}`,
+        payload: { activationId: scopedActivationId, targetId },
+      },
+      metadataPatches: [{
+        id: targetId,
+        fields: {
+          reminderResolutions: {
+            expected: { present: false },
+            value: {
+              [scopedActivationId]: { version: 1, outcome: "failed" },
+            },
+          },
+        },
+      }],
+      sideEffects: [{
+        type: "reminder:consume-zone-activation",
+        itemId: zone.id,
+        id: zone.id,
+        metadataKey: STATIC_ZONE_KEY,
+        activationId: activation.id,
+        targetId,
+        activation,
+      }],
+    });
+    assert.equal(result.status, "applied");
+    assert.equal(result.historyPending, false);
+  };
+
+  await resolveTarget("target-a");
+  await resolveTarget("target-b");
+  assert.equal((await history.getHistoryEntries()).length, 2);
+
+  let result = await history.undoLastHistoryEntry();
+  assert.ok(result?.id, `first undo: ${JSON.stringify(result)}`);
+  assert.deepEqual(
+    (await sdkStub.scene.items.getItems([zone.id]))[0]
+      .metadata[STATIC_ZONE_KEY].triggerRuntime.pending,
+    [{
+      ...activation,
+      sourceActivationId: activation.id,
+      targetIds: ["target-b"],
+    }],
+  );
+  result = await history.undoLastHistoryEntry();
+  assert.ok(result?.id, `second undo: ${JSON.stringify(result)}`);
+
+  const restoredZone = (await sdkStub.scene.items.getItems([zone.id]))[0];
+  assert.deepEqual(
+    restoredZone.metadata[STATIC_ZONE_KEY].triggerRuntime.pending,
+    [activation],
+  );
+  for (const targetId of ["target-a", "target-b"]) {
+    const target = (await sdkStub.scene.items.getItems([targetId]))[0];
+    assert.equal(target.metadata[META_KEY].conditions, undefined);
+  }
+});
+
 test("SCENARIO 3 & 4 — static-zone-reorient pure and composite + HP -> Undo PASS atomically", async () => {
   const zone = {
     id: "cone-zone",
@@ -482,6 +592,156 @@ test("SCENARIO 7 — static-zone-move with subsequent triggerRuntime update -> U
   const liveZone = (await sdkStub.scene.items.getItems(["moonbeam-zone"]))[0];
   assert.deepEqual(liveZone.position, { x: 50, y: 50 }, "Zone position must revert to initial");
   assert.equal(liveZone.metadata[STATIC_ZONE_KEY].triggerRuntime.sequence, 8, "triggerRuntime must be preserved");
+});
+
+test("SCENARIO 7B — static-zone-move Undo ripristina root e carried CHARACTER in un'unica operazione", async () => {
+  const rootBefore = { x: 50, y: 50 };
+  const rootAfter = { x: 250, y: 150 };
+  const zoneMeta = {
+    instanceId: "turbine-1",
+    ruleId: "turbine:move",
+    triggerRuntime: { sequence: 3 },
+  };
+  const carriedBefore = [
+    { id: "carried-a", position: { x: 80, y: 90 } },
+    { id: "carried-b", position: { x: 140, y: 120 } },
+  ];
+  const carriedAfter = carriedBefore.map((entry) => ({
+    ...entry,
+    position: {
+      x: entry.position.x + rootAfter.x - rootBefore.x,
+      y: entry.position.y + rootAfter.y - rootBefore.y,
+    },
+  }));
+  const zone = {
+    id: "turbine-root",
+    name: "Turbine",
+    layer: "DRAWING",
+    position: clone(rootBefore),
+    metadata: { [STATIC_ZONE_KEY]: clone(zoneMeta) },
+  };
+  const actors = carriedBefore.map((entry, index) => ({
+    id: entry.id,
+    name: entry.id,
+    type: "IMAGE",
+    layer: "CHARACTER",
+    position: clone(entry.position),
+    rotation: 10 + index,
+    scale: { x: 1.2, y: 0.8 },
+    metadata: { [META_KEY]: { hp: 20, marker: entry.id } },
+  }));
+  resetScene([zone, ...actors]);
+
+  const sideEffect = {
+    type: "static-zone-move",
+    id: "turbine-root",
+    metadataKey: STATIC_ZONE_KEY,
+    instanceId: zoneMeta.instanceId,
+    ruleId: zoneMeta.ruleId,
+    beforePosition: rootBefore,
+    afterPosition: rootAfter,
+    carriedItems: carriedBefore.map((entry, index) => ({
+      id: entry.id,
+      beforePosition: entry.position,
+      afterPosition: carriedAfter[index].position,
+      type: "IMAGE",
+      layer: "CHARACTER",
+      topLevel: true,
+    })),
+  };
+  await history.withItemMetaHistory({
+    kind: "turbine-carried-move",
+    label: "Movimento manuale del Turbine",
+    sideEffects: [sideEffect],
+  }, async () => {
+    await sdkStub.scene.items.updateItems(
+      ["turbine-root", "carried-a", "carried-b"],
+      (drafts) => {
+        for (const draft of drafts) {
+          if (draft.id === "turbine-root") draft.position = clone(rootAfter);
+          const carried = carriedAfter.find((entry) => entry.id === draft.id);
+          if (carried) draft.position = clone(carried.position);
+        }
+      },
+    );
+  });
+  await settle(30);
+
+  const undoRes = await history.undoLastHistoryEntry();
+
+  assert.ok(undoRes?.id);
+  assert.deepEqual((await sdkStub.scene.items.getItems(["turbine-root"]))[0].position, rootBefore);
+  for (const actor of actors) {
+    const live = (await sdkStub.scene.items.getItems([actor.id]))[0];
+    assert.deepEqual(live.position, actor.position);
+    assert.deepEqual(live.metadata, actor.metadata);
+    assert.equal(live.rotation, actor.rotation);
+    assert.deepEqual(live.scale, actor.scale);
+  }
+});
+
+test("SCENARIO 7C — elevation:adjust passa da effects a History e Undo senza perdere metadata", async () => {
+  const hero = {
+    id: "elevation-hero",
+    name: "Elevation Hero",
+    type: "IMAGE",
+    layer: "CHARACTER",
+    position: { x: 90, y: 120 },
+    rotation: 17,
+    scale: { x: 1.1, y: 0.95 },
+    visible: false,
+    locked: true,
+    metadata: {
+      [META_KEY]: { hp: 20, elevation: 2, marker: "keep" },
+      unrelated: { keep: true },
+    },
+  };
+  resetScene([hero]);
+
+  const result = await effects.runEffectsMutation([], {
+    kind: "elevation-adjust",
+    label: "Aggiusta quota",
+    targetIds: [hero.id],
+    sideEffects: [{
+      type: "elevation:adjust",
+      targetId: hero.id,
+      delta: { value: 10, unit: "grid" },
+      max: { value: 6, unit: "m" },
+    }],
+    history: true,
+  });
+
+  assert.equal(result.status, "applied");
+  assert.equal(result.commitResult.sideEffectChanges.length, 1);
+  assert.equal(result.commitResult.sideEffectChanges[0].beforeElevation, 2);
+  assert.equal(result.commitResult.sideEffectChanges[0].afterElevation, 6);
+  await settle(30);
+
+  const liveAfter = (await sdkStub.scene.items.getItems([hero.id]))[0];
+  assert.equal(liveAfter.metadata[META_KEY].elevation, 6);
+  assert.equal(liveAfter.metadata[META_KEY].hp, 20);
+  assert.equal(liveAfter.metadata[META_KEY].marker, "keep");
+  assert.deepEqual(liveAfter.metadata.unrelated, { keep: true });
+  assert.equal(liveAfter.rotation, hero.rotation);
+  assert.deepEqual(liveAfter.scale, hero.scale);
+  assert.equal(liveAfter.visible, hero.visible);
+  assert.equal(liveAfter.locked, hero.locked);
+
+  const entries = await history.getHistoryEntries();
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].effectsMutation.sideEffects[0].type, "elevation:adjust");
+
+  const undoRes = await history.undoLastHistoryEntry();
+  assert.ok(undoRes?.id);
+  const liveBefore = (await sdkStub.scene.items.getItems([hero.id]))[0];
+  assert.equal(liveBefore.metadata[META_KEY].elevation, 2);
+  assert.equal(liveBefore.metadata[META_KEY].hp, 20);
+  assert.equal(liveBefore.metadata[META_KEY].marker, "keep");
+  assert.deepEqual(liveBefore.metadata.unrelated, { keep: true });
+  assert.equal(liveBefore.rotation, hero.rotation);
+  assert.deepEqual(liveBefore.scale, hero.scale);
+  assert.equal(liveBefore.visible, hero.visible);
+  assert.equal(liveBefore.locked, hero.locked);
 });
 
 test("SCENARIO 8 — Action modifies Condition A; reconciler history:false adds Condition B -> Undo reverts A and preserves B", async () => {

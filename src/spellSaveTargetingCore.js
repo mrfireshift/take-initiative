@@ -88,6 +88,25 @@ export function spellTargetContextConditionMatches(context, condition) {
   return contextConditionMatches(context, condition);
 }
 
+function normalizedOutcomeValue(value) {
+  return String(value && typeof value === "object" ? value.value : value ?? "")
+    .trim()
+    .toLocaleLowerCase("it");
+}
+
+export function spellTargetContextFieldActive(field, outcome = "") {
+  const requiredOutcome = String(field?.dependentOutcome?.primaryOutcome || "")
+    .trim()
+    .toLocaleLowerCase("it");
+  return !requiredOutcome || normalizedOutcomeValue(outcome) === requiredOutcome;
+}
+
+export function spellTargetContextFieldRequired(field, context = {}, outcome = "") {
+  if (!spellTargetContextFieldActive(field, outcome)) return false;
+  return field?.required === true
+    || !!(field?.requiredWhen && contextConditionMatches(context, field.requiredWhen));
+}
+
 function normalizeTargetContextFieldValue(field, value) {
   if (field?.type === "number") {
     if (value === "" || value === null || value === undefined) return "";
@@ -101,6 +120,7 @@ function resolveTargetContext(
   rule,
   targetIds,
   targetContexts = {},
+  outcomes = {},
 ) {
   const contract = targetContextContract(rule);
   const contexts = normalizedTargetContexts(targetContexts);
@@ -136,27 +156,27 @@ function resolveTargetContext(
   const fieldDefinitions = Array.isArray(contract.fields) ? contract.fields : [];
   for (const targetId of targetIds) {
     const rawContext = contexts.get(targetId) || {};
+    const targetOutcome = outcomes instanceof Map
+      ? outcomes.get(targetId)
+      : outcomes?.[targetId];
     const normalizedContext = {};
     for (const field of fieldDefinitions) {
       const fieldId = String(field?.id || "").trim();
       if (!fieldId) continue;
       const value = normalizeTargetContextFieldValue(field, contextFieldValue(rawContext, fieldId));
       normalizedContext[fieldId] = value;
-      const required = field.required === true
-        || (
-          field.requiredWhen
-          && contextConditionMatches(normalizedContext, field.requiredWhen)
-        );
+      const active = spellTargetContextFieldActive(field, targetOutcome);
+      const required = spellTargetContextFieldRequired(field, normalizedContext, targetOutcome);
       const missing = value === "" || value === null || value === undefined;
       if (required && missing) {
         errors.push("target-context-required");
         details.push({ targetId, fieldId, error: "required" });
       }
-      if (!missing && field.type === "number" && !Number.isFinite(Number(value))) {
+      if (active && !missing && field.type === "number" && !Number.isFinite(Number(value))) {
         errors.push("target-context-invalid");
         details.push({ targetId, fieldId, error: "invalid" });
       }
-      if (!missing && field.type === "select" && Array.isArray(field.options)) {
+      if (active && !missing && field.type === "select" && Array.isArray(field.options)) {
         const known = field.options.some((option) => option?.value === String(value));
         if (!known) {
           errors.push("target-context-invalid");
@@ -364,6 +384,7 @@ export function resolveSpellSaveTargeting({
   casterDistancesMeters = {},
   validateSpatial = true,
   targetContexts = {},
+  outcomes = {},
   ignoreTargetLimit = false,
 } = {}) {
   const normalizedSpellId = String(spellId || "").trim();
@@ -415,6 +436,7 @@ export function resolveSpellSaveTargeting({
     workflowRule,
     uniqueTargetIds,
     targetContexts,
+    outcomes,
   );
   const spatial = resolveSpatialTargeting(workflowRule, uniqueTargetIds, {
     pairwiseDistancesMeters,
@@ -467,9 +489,10 @@ export function validateSpellSaveWorkflowTargetContexts(
   ruleOrSpellId,
   targetIds = [],
   targetContexts = {},
+  outcomes = {},
 ) {
   const rule = typeof ruleOrSpellId === "string"
     ? getSpellSaveWorkflowRule(ruleOrSpellId)
     : ruleOrSpellId;
-  return resolveTargetContext(rule, normalizedIds(targetIds), targetContexts);
+  return resolveTargetContext(rule, normalizedIds(targetIds), targetContexts, outcomes);
 }

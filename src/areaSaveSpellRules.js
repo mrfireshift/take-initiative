@@ -1010,24 +1010,4 @@ export const AREA_SAVE_RULE_CHOICES = Object.freeze({
       replaceBase: true,
     }),
   ]),
-  "xanathar-turbine": Object.freeze([
-    Object.freeze({
-      id: "damage",
-      label: "Ingresso: TS Des, solo danno",
-      automation: noPersistentEffect,
-      replaceBase: true,
-    }),
-    Object.freeze({
-      id: "capture",
-      label: "Presa: TS For, Trattenuto",
-      automation: failedAutomation([
-        conditionRule("Trattenuto", {
-          expiry: concentration,
-          manualRemoval: true,
-          endsParentOnRemoval: true,
-        }),
-      ]),
-      replaceBase: true,
-    }),
-  ]),
 });

@@ -19,6 +19,7 @@ const sceneState = {
   ready: true,
   items: [],
   metadata: {},
+  gridScale: { parsed: { multiplier: 1.5, unit: "m" } },
 };
 
 const calls = {
@@ -63,7 +64,7 @@ const sdkStub = {
     },
     grid: {
       getDpi: async () => 150,
-      getScale: async () => ({ parsed: { multiplier: 1.5, unit: "m" } }),
+      getScale: async () => clone(sceneState.gridScale),
     },
     items: {
       getItems: async (ids) => {
@@ -78,6 +79,18 @@ const sdkStub = {
         return sceneState.items
           .filter((item) => !wanted || wanted.has(item.id))
           .map(clone);
+      },
+      getItemBounds: async (ids) => {
+        const id = Array.isArray(ids) ? ids[0] : ids;
+        const item = sceneState.items.find((candidate) => candidate?.id === id);
+        if (!item) throw new Error("item-missing");
+        const x = Number(item.position?.x) || 0;
+        const y = Number(item.position?.y) || 0;
+        return {
+          center: { x, y },
+          min: { x: x - 10, y: y - 10 },
+          max: { x: x + 10, y: y + 10 },
+        };
       },
       updateItems: async (ids, updater) => {
         calls.updateItems.push(clone(ids));
@@ -182,6 +195,7 @@ test.beforeEach(async () => {
   broadcastListeners.clear();
   sceneState.items = [];
   sceneState.metadata = {};
+  sceneState.gridScale = { parsed: { multiplier: 1.5, unit: "m" } };
   sceneState.ready = true;
   markSceneEpochReady("test-setup");
   await mountEffectsMutationCoordinatorService();
@@ -269,6 +283,126 @@ function makeChildZoneItems() {
     },
   };
   return { caster, rootZone, oldChild, newChild };
+}
+
+function makeMovingZoneScene(actorIds = [], { ruleId = "flaming-sphere:cast" } = {}) {
+  const caster = {
+    id: "caster-move",
+    type: "IMAGE",
+    layer: "CHARACTER",
+    name: "Caster",
+    position: { x: -300, y: 0 },
+    metadata: { [META_KEY]: { hp: 20, hpMax: 20 } },
+  };
+  const root = {
+    id: "moving-root",
+    type: "SHAPE",
+    layer: "DRAWING",
+    name: "Moonbeam",
+    position: { x: 0, y: 0 },
+    rotation: 17,
+    scale: { x: 2, y: 3 },
+    visible: false,
+    locked: true,
+    metadata: {
+      [AOE_AREA_META_KEY]: {
+        type: "circle",
+        start: { x: 0, y: 0 },
+        end: { x: 150, y: 0 },
+        dpi: 150,
+        gridOrigin: { x: 0, y: 0 },
+        basePosition: { x: 0, y: 0 },
+      },
+      [SPELL_STATIC_ZONE_META_KEY]: {
+        role: "root",
+        instanceId: "moving-instance",
+        casterId: "caster-move",
+        spellId: ruleId.split(":")[0],
+        ruleId,
+        triggerRuntime: { sequence: 4 },
+      },
+      unrelated: { keep: true },
+    },
+  };
+  const actors = actorIds.map((id, index) => ({
+    id,
+    type: "IMAGE",
+    layer: "CHARACTER",
+    name: id,
+    position: { x: 600 + index * 100, y: 40 + index * 20 },
+    rotation: 11 + index,
+    scale: { x: 1.25, y: 0.75 },
+    visible: false,
+    locked: true,
+    metadata: {
+      [META_KEY]: { hp: 12, hpMax: 12 },
+      unrelated: { actor: id },
+    },
+  }));
+  sceneState.items = [clone(caster), clone(root), ...actors.map(clone)];
+  return { caster, root, actors };
+}
+
+async function runMovingZone(
+  carriedItemIds = [],
+  { ruleId = "flaming-sphere:cast" } = {},
+) {
+  return runEffectsMutation([], {
+    transport: "background",
+    history: false,
+    sideEffects: [{
+      type: "static-zone:move",
+      zoneItemId: "moving-root",
+      instanceId: "moving-instance",
+      ruleId,
+      casterId: "caster-move",
+      initialPosition: { x: 0, y: 0 },
+      proposedPosition: { x: 300, y: 0 },
+      carriedItemIds,
+    }],
+  });
+}
+
+function makeElevationItem({ id = "elevation-target", elevation, includeElevation = true } = {}) {
+  const canonicalMeta = {
+    hp: 18,
+    hpMax: 18,
+    marker: "preserve",
+    ...(includeElevation ? { elevation } : {}),
+  };
+  const item = {
+    id,
+    type: "IMAGE",
+    layer: "CHARACTER",
+    name: "Elevation target",
+    position: { x: 40, y: 80 },
+    rotation: 13,
+    scale: { x: 1.2, y: 0.9 },
+    visible: false,
+    locked: true,
+    metadata: { [META_KEY]: canonicalMeta, unrelated: { keep: true } },
+  };
+  sceneState.items = [clone(item)];
+  return item;
+}
+
+async function runElevationAdjustment({
+  targetId = "elevation-target",
+  delta,
+  max,
+  expectedElevation,
+} = {}) {
+  return runEffectsMutation([], {
+    transport: "background",
+    history: false,
+    sideEffects: [{
+      type: "elevation:adjust",
+      targetId,
+      delta,
+      ...(max !== undefined ? { max } : {}),
+      ...(expectedElevation !== undefined ? { expectedElevation } : {}),
+    }],
+  });
 }
 
 test("TEST 1 — child-zone delete → scene switch stops before addItems", async () => {
@@ -581,4 +715,182 @@ test("TEST 6 — single-write post guard on remove-ended halts cleanly on scene 
 
   assert.ok(calls.deleteItems.some((ids) => ids.includes("zone-to-remove")));
   assert.ok(!sceneState.items.some((i) => i.id === "zone-to-remove"));
+});
+
+test("static-zone:move root-only conserva il comportamento e aggiorna un solo item", async () => {
+  const { root } = makeMovingZoneScene([]);
+
+  const result = await runMovingZone();
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(sceneState.items.find((item) => item.id === root.id)?.position, { x: 300, y: 0 });
+  assert.deepEqual(calls.updateItems, [["moving-root"]]);
+  assert.equal(result.commitResult.sideEffectChanges[0].carriedItems, undefined);
+  const movedRoot = sceneState.items.find((item) => item.id === root.id);
+  assert.equal(movedRoot.rotation, root.rotation);
+  assert.deepEqual(movedRoot.scale, root.scale);
+  assert.equal(movedRoot.visible, root.visible);
+  assert.equal(movedRoot.locked, root.locked);
+  assert.deepEqual(movedRoot.metadata.unrelated, root.metadata.unrelated);
+});
+
+test("static-zone:move trasla root e N CHARACTER con lo stesso delta, senza doppio movimento", async () => {
+  const { actors } = makeMovingZoneScene(["actor-1", "actor-2", "actor-3"]);
+  const before = new Map(actors.map((actor) => [actor.id, clone(actor)]));
+
+  const result = await runMovingZone(["actor-1", "actor-2", "actor-1", "moving-root", "actor-3"]);
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls.updateItems, [["moving-root", "actor-1", "actor-2", "actor-3"]]);
+  for (const actor of actors) {
+    const moved = sceneState.items.find((item) => item.id === actor.id);
+    assert.deepEqual(moved.position, {
+      x: before.get(actor.id).position.x + 300,
+      y: before.get(actor.id).position.y,
+    });
+    assert.equal(moved.attachedTo, undefined);
+    assert.equal(moved.rotation, actor.rotation);
+    assert.deepEqual(moved.scale, actor.scale);
+    assert.equal(moved.visible, actor.visible);
+    assert.equal(moved.locked, actor.locked);
+    assert.deepEqual(moved.metadata, actor.metadata);
+  }
+  assert.deepEqual(
+    result.commitResult.sideEffectChanges[0].carriedItems.map((item) => item.id),
+    ["actor-1", "actor-2", "actor-3"],
+  );
+});
+
+test("static-zone:move su CHARACTER stale non sovrascrive root o actor", async () => {
+  makeMovingZoneScene(["actor-stale"]);
+  let carriedReads = 0;
+  hooks.onGetItems = async (ids) => {
+    if (!Array.isArray(ids) || !ids.includes("actor-stale")) return;
+    carriedReads += 1;
+    if (carriedReads !== 2) return;
+    sceneState.items = sceneState.items.map((item) => item.id === "actor-stale"
+      ? { ...item, position: { x: 999, y: 999 } }
+      : item);
+  };
+
+  const result = await runMovingZone(["actor-stale"]);
+
+  assert.equal(result.status, "applied");
+  assert.equal(result.commitResult.sideEffectChanges.length, 0);
+  assert.match(result.commitResult.postCommitErrors[0].message, /static-zone-carried-item-position-stale/);
+  assert.deepEqual(sceneState.items.find((item) => item.id === "moving-root")?.position, { x: 0, y: 0 });
+  assert.deepEqual(sceneState.items.find((item) => item.id === "actor-stale")?.position, { x: 999, y: 999 });
+  assert.equal(calls.updateItems.length, 0);
+});
+
+test("static-zone:move su CHARACTER eliminato durante il commit fallisce in sicurezza", async () => {
+  makeMovingZoneScene(["actor-deleted"]);
+  let carriedReads = 0;
+  hooks.onGetItems = async (ids) => {
+    if (!Array.isArray(ids) || !ids.includes("actor-deleted")) return;
+    carriedReads += 1;
+    if (carriedReads === 2) {
+      sceneState.items = sceneState.items.filter((item) => item.id !== "actor-deleted");
+    }
+  };
+
+  const result = await runMovingZone(["actor-deleted"]);
+
+  assert.equal(result.status, "applied");
+  assert.equal(result.commitResult.sideEffectChanges.length, 0);
+  assert.match(result.commitResult.postCommitErrors[0].message, /static-zone-carried-item-missing/);
+  assert.deepEqual(sceneState.items.find((item) => item.id === "moving-root")?.position, { x: 0, y: 0 });
+  assert.equal(calls.updateItems.length, 0);
+});
+
+test("elevation:adjust usa la scala grid live e preserva metadata/campi estranei", async () => {
+  sceneState.gridScale = { parsed: { multiplier: 2.5, unit: "m" } };
+  const target = makeElevationItem({ elevation: 1.237 });
+
+  const result = await runElevationAdjustment({
+    delta: { value: 2, unit: "grid" },
+  });
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls.updateItems, [[target.id]]);
+  const updated = sceneState.items[0];
+  assert.equal(updated.metadata[META_KEY].elevation, 6.24);
+  assert.equal(updated.metadata[META_KEY].hp, target.metadata[META_KEY].hp);
+  assert.equal(updated.metadata[META_KEY].marker, target.metadata[META_KEY].marker);
+  assert.deepEqual(updated.metadata.unrelated, target.metadata.unrelated);
+  assert.equal(updated.rotation, target.rotation);
+  assert.deepEqual(updated.scale, target.scale);
+  assert.equal(updated.visible, target.visible);
+  assert.equal(updated.locked, target.locked);
+  assert.deepEqual(result.commitResult.sideEffectChanges[0], {
+    id: target.id,
+    type: "elevation:adjust",
+    metadataKey: META_KEY,
+    metadataField: "elevation",
+    beforeElevation: 1.24,
+    afterElevation: 6.24,
+    beforePresent: true,
+  });
+});
+
+test("elevation:adjust applica max clamp in unità fisiche senza hardcode della griglia", async () => {
+  sceneState.gridScale = { parsed: { multiplier: 5, unit: "ft" } };
+  const target = makeElevationItem({ elevation: 20 });
+
+  const result = await runElevationAdjustment({
+    delta: { value: 30, unit: "ft" },
+    max: { value: 9, unit: "m" },
+  });
+
+  assert.equal(result.status, "applied");
+  assert.equal(sceneState.items[0].metadata[META_KEY].elevation, 29.53);
+  assert.equal(result.commitResult.sideEffectChanges[0].afterElevation, 29.53);
+  assert.equal(calls.updateItems.length, 1);
+  assert.equal(target.metadata[META_KEY].elevation, 20);
+});
+
+test("elevation:adjust protegge il valore atteso e non sovrascrive uno stale", async () => {
+  const target = makeElevationItem({ elevation: 3 });
+  const expectedConflict = await runElevationAdjustment({
+    expectedElevation: 2,
+    delta: 1,
+  });
+
+  assert.equal(expectedConflict.status, "conflict");
+  assert.equal(calls.updateItems.length, 0);
+  assert.equal(sceneState.items[0].metadata[META_KEY].elevation, target.metadata[META_KEY].elevation);
+
+  makeElevationItem({ id: "elevation-stale", elevation: 3 });
+  let targetedReads = 0;
+  hooks.onGetItems = async (ids) => {
+    if (!Array.isArray(ids) || !ids.includes("elevation-stale")) return;
+    targetedReads += 1;
+    if (targetedReads !== 2) return;
+    sceneState.items = sceneState.items.map((item) => item.id === "elevation-stale"
+      ? { ...item, metadata: { ...item.metadata, [META_KEY]: { ...item.metadata[META_KEY], elevation: 8 } } }
+      : item);
+  };
+
+  const stale = await runElevationAdjustment({ targetId: "elevation-stale", delta: 1 });
+
+  assert.equal(stale.status, "applied");
+  assert.equal(stale.commitResult.sideEffectChanges.length, 0);
+  assert.match(stale.commitResult.postCommitErrors[0].message, /elevation-adjust-stale/);
+  assert.equal(calls.updateItems.length, 0);
+  assert.equal(sceneState.items[0].metadata[META_KEY].elevation, 8);
+});
+
+test("elevation:adjust mantiene assente elevation quando il delta è nullo", async () => {
+  const target = makeElevationItem({ includeElevation: false });
+
+  const result = await runElevationAdjustment({ delta: 0 });
+
+  assert.equal(result.status, "applied");
+  assert.equal(result.commitResult.sideEffectChanges.length, 0);
+  assert.equal(calls.updateItems.length, 0);
+  assert.equal(Object.prototype.hasOwnProperty.call(
+    sceneState.items[0].metadata[META_KEY],
+    "elevation",
+  ), false);
+  assert.deepEqual(sceneState.items[0].metadata, target.metadata);
 });

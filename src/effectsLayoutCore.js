@@ -544,7 +544,7 @@ export function planEffectsLayout({
           title,
         });
       }
-      const targets = Array.isArray(assignment.targets) && assignment.targets.length
+      const targets = Array.isArray(assignment.targets)
         ? assignment.targets
         : [caster.id];
       for (const targetId of new Set(targets.filter(Boolean))) {

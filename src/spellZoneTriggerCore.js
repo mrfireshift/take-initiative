@@ -157,8 +157,15 @@ function activationTargets({
           : [...currentDirectMembers])
         : [];
     }
+    const movementCrossing = trigger.requiresCrossing === true
+      && zoneMoved
+      && trigger.triggerOnAreaMove === true
+      ? (Array.isArray(areaMoveTargetIds?.[trigger.id])
+        ? areaMoveTargetIds[trigger.id]
+        : [])
+      : [];
     const candidates = trigger.requiresCrossing === true
-      ? uniqueIds([...entering, ...crossing])
+      ? uniqueIds([...entering, ...crossing, ...movementCrossing])
       : entering;
     return trigger.requiresOwnTurn === true
       ? candidates.filter((targetId) => targetId === activeActorId)
@@ -577,7 +584,13 @@ export function consumeSpellZoneTrigger(runtime, activationId, targetId = "") {
       if (entry.id !== wanted) return [entry];
       const remainingTargetIds = entry.targetIds.filter((id) => id !== target);
       return remainingTargetIds.length
-        ? [{ ...entry, targetIds: remainingTargetIds }]
+        ? [{
+          ...entry,
+          ...(entry.sourceActivationId
+            ? {}
+            : { sourceActivationId: entry.id }),
+          targetIds: remainingTargetIds,
+        }]
         : [];
     }),
   };

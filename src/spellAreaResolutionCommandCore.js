@@ -30,6 +30,9 @@ import {
 } from "./chainLightningTargetingCore.js";
 import { validateAnimatedObjectComposition } from "./animatedObjectsCore.js";
 import {
+  spellTargetContextFieldRequired,
+} from "./spellSaveTargetingCore.js";
+import {
   resolveSaveSpellResolution,
   SAVE_SPELL_OUTCOMES,
 } from "./saveSpellCore.js";
@@ -696,16 +699,27 @@ function expectedContextFields(contract, workflowRule) {
     || [];
 }
 
-function validateTargetContexts(contract, workflowRule, targetIds, targetContexts, errors) {
+function validateTargetContexts(
+  contract,
+  workflowRule,
+  targetIds,
+  targetContexts,
+  outcomes,
+  errors,
+) {
   if (contract?.presentation?.inputs?.targetContext?.required !== true) return;
-  const fields = expectedContextFields(contract, workflowRule)
-    .filter((field) => field?.required === true);
+  const fields = expectedContextFields(contract, workflowRule);
   for (const targetId of targetIds) {
     const context = targetContexts[targetId];
-    if (!context || fields.some((field) => {
+    const requiredFields = fields.filter((field) => spellTargetContextFieldRequired(
+      field,
+      context || {},
+      outcomes?.[targetId],
+    ));
+    if (requiredFields.length > 0 && (!context || requiredFields.some((field) => {
       const value = context[field.id];
       return value === null || value === undefined || text(value) === "";
-    })) {
+    }))) {
       addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TARGET_CONTEXT_REQUIRED);
       return;
     }
@@ -1479,7 +1493,7 @@ export function buildSpellAreaResolutionCommand(input = {}) {
     && !allowEmptyTargets) {
     addError(errors, SPELL_AREA_RESOLUTION_ERROR_CODES.TARGETS_REQUIRED);
   }
-  validateTargetContexts(contract, workflowRule, targetIds, targetContexts, errors);
+  validateTargetContexts(contract, workflowRule, targetIds, targetContexts, outcomes.byTarget, errors);
 
   const attackChoice = text(choiceValue).toLocaleLowerCase("it");
   let attackOutcome = primaryDamageMode === "final-applied"

@@ -16,6 +16,7 @@ import {
   terminalResolutionDescriptor,
   terminationRequestId,
 } from "./spellTerminationGatewayCore.js";
+import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 
 const CONDITION_SCHEMA_VERSION = 2;
 const EXHAUSTION_CONDITION = "Indebolimento";
@@ -655,6 +656,18 @@ function terminationEvent(caster, key, entry, pending, reused = false) {
   };
 }
 
+function spellTerminationEvent(state, spell, pending, reused = false) {
+  const instanceId = String(pending?.instanceId || spell?.instanceId || "").trim();
+  return {
+    casterId: String(spell?.casterId || state?.id || "").trim(),
+    targetId: String(state?.id || "").trim(),
+    reference: instanceId || String(spell?.name || "").trim(),
+    instanceId,
+    pendingTermination: clone(pending),
+    ...(reused ? { reused: true } : {}),
+  };
+}
+
 function beginPendingTermination(states, caster, key, operation = {}, context = {}) {
   const entry = caster?.concentrations?.[key];
   if (!entry || typeof entry !== "object") return null;
@@ -684,17 +697,57 @@ function beginPendingTermination(states, caster, key, operation = {}, context = 
   return terminationEvent(caster, key, caster.concentrations[key], pending);
 }
 
-function pendingEventForSpell(states, spell, operation = {}, context = {}) {
-  if (!spell?.conc) return null;
-  const match = concentrationEntryForSpell(states, spell);
-  if (!match) return null;
-  return beginPendingTermination(states, match.caster, match.key, operation, context);
+function beginPendingSpellTermination(state, spell, operation = {}, context = {}) {
+  if (!state || !spell || spell?.conc === true) return null;
+  const instanceId = String(spell?.instanceId || "").trim();
+  if (!instanceId || String(context?.bypassInstanceId || "").trim() === instanceId) return null;
+  const existing = pendingTerminationForEntry(spell);
+  if (existing) return spellTerminationEvent(state, spell, existing, true);
+  const terminalResolution = applicableTerminalResolution(spell);
+  if (!terminalResolution) return null;
+  const pending = createPendingTermination({
+    instanceId,
+    reason: operation?.reason || context?.reason || "termination",
+    requestId: operation?.requestId || operation?.operationId
+      || terminationRequestId({
+        casterId: spell?.casterId || state.id,
+        instanceId,
+      }),
+    terminalResolution,
+    continuation: operation?.continuation,
+    createdAt: operation?.createdAt,
+  });
+  if (!pending) return null;
+  const index = state.spells.findIndex((candidate) => (
+    String(candidate?.instanceId || "").trim() === instanceId
+  ));
+  if (index < 0) return null;
+  state.spells[index] = { ...state.spells[index], pendingTermination: pending };
+  return spellTerminationEvent(state, state.spells[index], pending);
 }
 
-function spellHasPendingTermination(states, spell) {
-  if (!spell?.conc) return false;
+function pendingEventForSpell(states, spell, operation = {}, context = {}, ownerState = null) {
+  if (spell?.conc === true) {
+    const match = concentrationEntryForSpell(states, spell);
+    if (!match) return null;
+    return beginPendingTermination(states, match.caster, match.key, operation, context);
+  }
+  if (!applicableTerminalResolution(spell)) return null;
+  return beginPendingSpellTermination(ownerState, spell, operation, context);
+}
+
+function spellHasPendingTermination(states, spell, ownerState = null) {
+  if (pendingTerminationForEntry(spell)) return true;
+  if (!spell?.conc) {
+    return !!pendingTerminationForEntry(
+      ownerState?.spells?.find((candidate) => (
+        String(candidate?.instanceId || "") === String(spell?.instanceId || "")
+      )),
+    );
+  }
   const match = concentrationEntryForSpell(states, spell);
-  return !!pendingTerminationForEntry(match?.entry);
+  if (!match) return false;
+  return !!pendingTerminationForEntry(match.entry);
 }
 
 function attachTerminationContinuation(states, event, continuation) {
@@ -702,13 +755,26 @@ function attachTerminationContinuation(states, event, continuation) {
   if (!normalized) return event;
   const caster = states.get(String(event?.casterId || "").trim());
   const key = String(event?.concentrationKey || "").trim();
-  const entry = caster?.concentrations?.[key];
+  const concentrationEntry = caster?.concentrations?.[key];
+  const directOwner = key
+    ? null
+    : states.get(String(event?.targetId || "").trim());
+  const directIndex = directOwner && event?.instanceId
+    ? directOwner.spells.findIndex((spell) => (
+      String(spell?.instanceId || "") === String(event.instanceId)
+    ))
+    : -1;
+  const entry = concentrationEntry || (directIndex >= 0 ? directOwner.spells[directIndex] : null);
   const pending = pendingTerminationForEntry(entry);
   const hasContinuation = pending?.continuation
     && (pending.continuation.operations?.length || pending.continuation.options);
   if (!entry || !pending || hasContinuation) return event;
   const nextPending = { ...pending, continuation: normalized };
-  caster.concentrations[key] = { ...entry, pendingTermination: nextPending };
+  if (concentrationEntry) {
+    caster.concentrations[key] = { ...entry, pendingTermination: nextPending };
+  } else if (directOwner && directIndex >= 0) {
+    directOwner.spells[directIndex] = { ...entry, pendingTermination: nextPending };
+  }
   return {
     ...event,
     pendingTermination: clone(nextPending),
@@ -810,6 +876,30 @@ function breakConcentrationOnTargets(
 }
 
 function applySpellUpsert(state, operation) {
+  const expectedInstanceId = String(operation?.expectedInstanceId || "").trim();
+  if (expectedInstanceId) {
+    const expectedIndex = state.spells.findIndex((spell) => (
+      String(spell?.instanceId || "").trim() === expectedInstanceId
+    ));
+    if (expectedIndex < 0) {
+      return {
+        reason: "spell-instance-stale",
+        itemId: state.id,
+        instanceId: expectedInstanceId,
+      };
+    }
+    if (Object.prototype.hasOwnProperty.call(operation, "expectedCastContext")
+      && !sameValue(
+        state.spells[expectedIndex]?.castContext || {},
+        operation.expectedCastContext || {},
+      )) {
+      return {
+        reason: "spell-cast-context-stale",
+        itemId: state.id,
+        instanceId: expectedInstanceId,
+      };
+    }
+  }
   const sourceId = String(operation?.source || "").trim();
   for (const previousName of uniqueIds(operation?.replaceNames)) {
     removeSpellByNameAndSource(state, previousName, sourceId);
@@ -849,7 +939,10 @@ function applySpellUpsert(state, operation) {
     }
     extra.expiry = expiry;
   }
-  const turns = Math.max(1, Math.floor(Number(operation?.turns) || 1));
+  const rawTurns = Number(operation?.turns);
+  const turns = operation?.allowZeroTurns === true
+    ? Math.max(0, Math.floor(Number.isFinite(rawTurns) ? rawTurns : 0))
+    : Math.max(1, Math.floor(Number.isFinite(rawTurns) ? rawTurns : 1));
 
   if (index >= 0) {
     state.spells[index] = { ...state.spells[index], turns, ...extra };
@@ -877,6 +970,12 @@ function applySpellAdjustment(states, operation, context = {}) {
     const next = [];
     const removed = [];
     for (const rawSpell of state.spells) {
+      if (operation?.boundaries
+        && rawSpell?.castContext?.pendingTurnBoundary
+        && typeof rawSpell.castContext.pendingTurnBoundary === "object") {
+        next.push(rawSpell);
+        continue;
+      }
       const spell = operation?.boundaries
         && operation?.skipTerminalAccumulation !== true
         && !spellHasPendingTermination(states, rawSpell)
@@ -894,14 +993,34 @@ function applySpellAdjustment(states, operation, context = {}) {
       const turns = Math.max(0, current + Number(operation?.delta || 0));
       if (turns > 0) next.push({ ...spell, turns });
       else {
+        const deferred = current > 0
+          && Number(operation?.delta || 0) < 0
+          && operation?.boundaries
+          ? deferSpellRoundExpiry(spell, state, boundaries, operation)
+          : null;
+        if (deferred) {
+          next.push(deferred);
+          continue;
+        }
         const pending = pendingEventForSpell(
           states,
           spell,
           { ...operation, reason: operation?.reason || "expiry" },
           context,
+          state,
         );
         if (pending) {
-          next.push(spell);
+          // La gateway diretta annota il parent in-place prima di restituire
+          // l'evento.  Ricava quindi la copia aggiornata dall'owner state,
+          // altrimenti la ricostruzione dell'array perderebbe pendingTermination
+          // proprio sulle expiry non-concentration.
+          const pendingSpell = state.spells.find((candidate) => (
+            String(candidate?.instanceId || "").trim()
+              === String(spell?.instanceId || "").trim()
+          ));
+          next.push(pendingSpell?.pendingTermination
+            ? { ...spell, pendingTermination: clone(pendingSpell.pendingTermination) }
+            : spell);
           pendingTerminations.push(pending);
         } else {
           removed.push(spell);
@@ -949,6 +1068,102 @@ function normalizedBoundaries(boundaries = []) {
     actorId: String(boundary?.actorId || "").trim(),
     turnKey: String(boundary?.turnKey || "").trim(),
   })).filter((boundary) => boundary.mode && boundary.actorId);
+}
+
+function castContextPathValue(root, path) {
+  return String(path || "").split(".").filter(Boolean).reduce(
+    (value, key) => value && typeof value === "object" ? value[key] : undefined,
+    root,
+  );
+}
+
+function applicableTerminalResolution(spell) {
+  const descriptor = terminalResolutionDescriptor(spell);
+  if (!descriptor) return null;
+  const requiredState = String(
+    descriptor.requiresState || descriptor.requiresPlane || "",
+  ).trim();
+  const statePath = String(descriptor.statePath || "").trim();
+  if (
+    requiredState
+    && statePath
+    && String(castContextPathValue(spell?.castContext, statePath) || "").trim()
+      !== requiredState
+  ) {
+    return null;
+  }
+  return descriptor;
+}
+
+function deferredTurnBoundaryForSpell(spell, state, boundaries = [], operation = {}) {
+  const existing = spell?.castContext?.pendingTurnBoundary;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return clone(existing);
+  }
+  const instanceId = String(spell?.instanceId || "").trim();
+  if (!instanceId) return null;
+  const descriptors = Array.isArray(spell?.castContext?.turnBoundaryNotices)
+    ? spell.castContext.turnBoundaryNotices
+    : [];
+  const candidates = [...boundaries];
+  const previousState = operation?.previousState;
+  const nextState = operation?.nextState;
+  const order = Array.isArray(previousState?.order) ? previousState.order : [];
+  const previousRound = Math.max(1, Math.floor(Number(previousState?.round) || 1));
+  const nextRound = Math.max(1, Math.floor(Number(nextState?.round) || 1));
+  const expectedCaster = temporalActorId(spell?.casterId || state?.id || "");
+  const casterIndex = order.findIndex((id) => temporalActorId(id) === expectedCaster);
+  if (order.length && casterIndex >= 0 && nextRound > previousRound) {
+    const completedRound = Math.max(previousRound, nextRound - 1);
+    candidates.push({
+      mode: "turn-end",
+      actorId: expectedCaster,
+      turnKey: initiativeTurnKeyAtOrdinal(
+        order,
+        ((completedRound - 1) * order.length) + casterIndex,
+      ),
+    });
+  }
+  for (const boundary of candidates) {
+    for (const descriptor of descriptors) {
+      if (descriptor?.deferRoundExpiry !== true
+        || String(descriptor?.timing || "").trim() !== boundary.mode) continue;
+      const expectedActor = descriptor.actor === "target"
+        ? String(state?.id || "").trim()
+        : String(spell?.casterId || state?.id || "").trim();
+      if (!expectedActor
+        || temporalActorId(expectedActor) !== temporalActorId(boundary.actorId)) continue;
+      const requiredState = String(descriptor?.requiresPlane || "").trim();
+      if (requiredState
+        && String(castContextPathValue(spell?.castContext, descriptor?.statePath) || "").trim()
+          !== requiredState) continue;
+      const descriptorId = String(descriptor?.id || "").trim();
+      const turnKey = String(boundary?.turnKey || "").trim();
+      if (!descriptorId || !turnKey) continue;
+      const activationId = `${instanceId}:${descriptorId}:${turnKey}`;
+      const resolved = spell?.castContext?.resolvedTurnBoundary;
+      if (resolved && typeof resolved === "object"
+        && String(resolved.activationId || "").trim() === activationId) continue;
+      return {
+        activationId,
+        descriptorId,
+        timing: boundary.mode,
+        actorId: expectedActor,
+        turnKey,
+      };
+    }
+  }
+  return null;
+}
+
+function deferSpellRoundExpiry(spell, state, boundaries = [], operation = {}) {
+  const pending = deferredTurnBoundaryForSpell(spell, state, boundaries, operation);
+  if (!pending) return null;
+  const castContext = spell?.castContext && typeof spell.castContext === "object"
+    ? clone(spell.castContext)
+    : {};
+  castContext.pendingTurnBoundary = pending;
+  return { ...spell, turns: 0, castContext };
 }
 
 function finishExpiredConcentrations(states, spells = [], context = {}, operation = {}) {
@@ -1007,9 +1222,16 @@ function applySpellBoundaryAdjustment(states, operation, context = {}) {
           spell,
           { ...operation, reason: operation?.reason || "expiry" },
           context,
+          state,
         );
         if (pending) {
-          next.push(spell);
+          const pendingSpell = state.spells.find((candidate) => (
+            String(candidate?.instanceId || "").trim()
+              === String(spell?.instanceId || "").trim()
+          ));
+          next.push(pendingSpell?.pendingTermination
+            ? { ...spell, pendingTermination: clone(pendingSpell.pendingTermination) }
+            : spell);
           pendingTerminations.push(pending);
         } else {
           removed.push(spell);
@@ -1136,7 +1358,7 @@ function applyConditionAutomation(states, subjectIds, context = {}, operation = 
 
 function pendingEventForSpellRemoval(states, state, predicate, operation, context) {
   const spell = state?.spells?.find((candidate) => predicate(candidate));
-  return spell ? pendingEventForSpell(states, spell, operation, context) : null;
+  return spell ? pendingEventForSpell(states, spell, operation, context, state) : null;
 }
 
 function concentrationKeyForPending(caster, operation = {}) {
@@ -1151,12 +1373,79 @@ function concentrationKeyForPending(caster, operation = {}) {
   }) || "";
 }
 
+function directPendingSpellForOperation(states, operation = {}) {
+  const requestedInstance = String(operation?.instanceId || "").trim();
+  const reference = String(operation?.reference || "").trim();
+  const casterId = String(operation?.casterId || operation?.casterIds?.[0] || "").trim();
+  for (const state of states.values()) {
+    for (const spell of Array.isArray(state?.spells) ? state.spells : []) {
+      const pending = pendingTerminationForEntry(spell);
+      if (!pending) continue;
+      const instanceId = String(spell?.instanceId || pending?.instanceId || "").trim();
+      if (requestedInstance && instanceId !== requestedInstance) continue;
+      if (!requestedInstance && reference
+        && spellKey(spell?.name) !== spellKey(reference)
+        && instanceId !== reference) continue;
+      if (casterId
+        && String(spell?.casterId || state.id || "").trim() !== casterId
+        && String(state.id || "").trim() !== casterId) continue;
+      return { state, spell, pending, instanceId };
+    }
+  }
+  return null;
+}
+
+function replayTerminationContinuation(states, pending, context = {}) {
+  const continuation = normalizeTerminationContinuation(pending?.continuation);
+  if (!continuation?.operations?.length) return null;
+  for (const [index, continuationOperation] of continuation.operations.entries()) {
+    const replayOperation = {
+      ...continuationOperation,
+      operationId: continuationOperation?.operationId
+        || `${pending.requestId}:continuation:${index + 1}`,
+      createdAt: continuationOperation?.createdAt || Date.now(),
+    };
+    const outcome = applyOperation(
+      states,
+      replayOperation,
+      context?.options || {},
+      context,
+    );
+    if (outcome?.terminationConflict) return outcome;
+    if (outcome?.pendingTermination) {
+      const remaining = continuation.operations.slice(index + 1);
+      const nested = attachTerminationContinuation(
+        states,
+        outcome.pendingTermination,
+        remaining.length ? { operations: remaining } : null,
+      );
+      return { ...outcome, pendingTermination: nested.pendingTermination };
+    }
+  }
+  return null;
+}
+
 function resumeTermination(states, operation, context = {}) {
   const casterId = String(operation?.casterId || operation?.casterIds?.[0] || "").trim();
   const caster = states.get(casterId);
   if (!caster) return {
     terminationConflict: { reason: "terminal-resolution-caster-missing", casterId },
   };
+  const direct = directPendingSpellForOperation(states, operation);
+  if (direct) {
+    const requestId = String(operation?.requestId || "").trim();
+    if (!requestId || requestId !== String(direct.pending.requestId || "")) return {
+      terminationConflict: {
+        reason: "terminal-resolution-stale-request",
+        casterId,
+        instanceId: direct.instanceId || null,
+        requestId: requestId || null,
+      },
+    };
+    const removedSpells = removeSpellByInstance(direct.state, direct.instanceId);
+    cleanupRemovedSpellLinksFromAllStates(states, removedSpells);
+    return replayTerminationContinuation(states, direct.pending, context);
+  }
   const key = concentrationKeyForPending(caster, operation);
   if (!key) return {
     terminationConflict: {
@@ -1193,34 +1482,7 @@ function resumeTermination(states, operation, context = {}) {
     { ...operation, reason: "terminal-resolution-resume" },
   );
   if (resumed) return resumed;
-
-  const continuation = normalizeTerminationContinuation(pending.continuation);
-  if (!continuation?.operations?.length) return null;
-  for (const [index, continuationOperation] of continuation.operations.entries()) {
-    const replayOperation = {
-      ...continuationOperation,
-      operationId: continuationOperation?.operationId
-        || `${pending.requestId}:continuation:${index + 1}`,
-      createdAt: continuationOperation?.createdAt || Date.now(),
-    };
-    const outcome = applyOperation(
-      states,
-      replayOperation,
-      context?.options || {},
-      context,
-    );
-    if (outcome?.terminationConflict) return outcome;
-    if (outcome?.pendingTermination) {
-      const remaining = continuation.operations.slice(index + 1);
-      const nested = attachTerminationContinuation(
-        states,
-        outcome.pendingTermination,
-        remaining.length ? { operations: remaining } : null,
-      );
-      return { ...outcome, pendingTermination: nested.pendingTermination };
-    }
-  }
-  return null;
+  return replayTerminationContinuation(states, pending, context);
 }
 
 function applyOperation(states, operation, options = {}, context = {}) {
@@ -1229,7 +1491,24 @@ function applyOperation(states, operation, options = {}, context = {}) {
     case "spell:set":
       for (const targetId of targetIds) {
         const state = states.get(targetId);
-        if (state) state.spells = Array.isArray(operation.spells) ? clone(operation.spells) : [];
+        if (!state) continue;
+        const nextSpells = Array.isArray(operation.spells) ? clone(operation.spells) : [];
+        const nextInstanceIds = new Set(nextSpells
+          .map((spell) => String(spell?.instanceId || "").trim())
+          .filter(Boolean));
+        for (const spell of state.spells) {
+          const instanceId = String(spell?.instanceId || "").trim();
+          if (!instanceId || nextInstanceIds.has(instanceId)) continue;
+          const pending = pendingEventForSpell(
+            states,
+            spell,
+            operation,
+            context,
+            state,
+          );
+          if (pending) return { pendingTermination: pending, deferOperation: true };
+        }
+        state.spells = nextSpells;
       }
       break;
     case "spell:upsert":
@@ -1251,7 +1530,8 @@ function applyOperation(states, operation, options = {}, context = {}) {
           );
           if (pending) return { pendingTermination: pending, deferOperation: true };
         }
-        applySpellUpsert(state, operation);
+        const conflict = applySpellUpsert(state, operation);
+        if (conflict) return { operationConflict: conflict };
       }
       break;
     case "spell:remove-instance":
@@ -1294,7 +1574,19 @@ function applyOperation(states, operation, options = {}, context = {}) {
     case "spell:clear-non-concentration":
       for (const targetId of targetIds) {
         const state = states.get(targetId);
-        if (state) removeSpells(state, (spell) => !spell?.conc);
+        if (!state) continue;
+        for (const spell of state.spells) {
+          if (spell?.conc) continue;
+          const pending = pendingEventForSpell(
+            states,
+            spell,
+            operation,
+            context,
+            state,
+          );
+          if (pending) return { pendingTermination: pending, deferOperation: true };
+        }
+        removeSpells(state, (spell) => !spell?.conc);
       }
       break;
     case "spell:adjust":
@@ -1373,6 +1665,20 @@ function applyOperation(states, operation, options = {}, context = {}) {
       }
       break;
     case "termination:request":
+      for (const state of states.values()) {
+        const requested = String(operation?.instanceId || operation?.reference || "").trim();
+        const spell = state.spells.find((candidate) => (
+          candidate?.conc !== true
+          && (!requested
+            || String(candidate?.instanceId || "") === requested
+            || spellKey(candidate?.name) === spellKey(requested))
+          && (!operation?.casterId
+            || String(candidate?.casterId || state.id || "") === String(operation.casterId))
+        ));
+        if (!spell) continue;
+        const pending = pendingEventForSpell(states, spell, operation, context, state);
+        if (pending) return { pendingTermination: pending, deferOperation: true };
+      }
       for (const casterId of uniqueIds(operation.casterIds || [operation.casterId])) {
         const pending = breakConcentration(
           states,
@@ -1532,6 +1838,7 @@ function applyOperation(states, operation, options = {}, context = {}) {
             concentrationSpell,
             operation,
             context,
+            state,
           );
           if (pending) return { pendingTermination: pending, deferOperation: true };
         }
@@ -1651,6 +1958,7 @@ export function buildEffectsMutationPlan(items = [], operations = [], options = 
 
   const terminationEvents = [];
   const terminationConflicts = [];
+  const operationConflicts = [];
   const orderedOperations = Array.isArray(operations) ? operations : [];
   const context = {
     options,
@@ -1660,6 +1968,10 @@ export function buildEffectsMutationPlan(items = [], operations = [], options = 
   for (let index = 0; index < orderedOperations.length; index += 1) {
     const operation = orderedOperations[index];
     const outcome = applyOperation(states, operation, options, context);
+    if (outcome?.operationConflict) {
+      operationConflicts.push(clone(outcome.operationConflict));
+      break;
+    }
     if (outcome?.terminationConflict) {
       terminationConflicts.push(clone(outcome.terminationConflict));
       break;
@@ -1714,12 +2026,14 @@ export function buildEffectsMutationPlan(items = [], operations = [], options = 
     });
   }
 
-  if (terminationConflicts.length) {
+  if (terminationConflicts.length || operationConflicts.length) {
+    const firstConflict = terminationConflicts[0] || operationConflicts[0] || {};
     return {
       status: "conflict",
-      reason: terminationConflicts[0]?.reason || "terminal-resolution-conflict",
-      conflicts: terminationConflicts,
+      reason: firstConflict.reason || "operation-conflict",
+      conflicts: [...terminationConflicts, ...operationConflicts],
       terminationConflicts,
+      operationConflicts,
       terminationEvents,
       ...(terminationEvents.length ? { pendingTerminations: terminationEvents } : {}),
       operations: clone(operations),

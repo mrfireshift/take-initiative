@@ -46,6 +46,44 @@ function renderOutcomeButtons(documentRef, target, callbacks) {
   return group;
 }
 
+function renderDependentOutcomeButtons(documentRef, target, dependentOutcome, callbacks) {
+  const options = Array.isArray(dependentOutcome?.options) && dependentOutcome.options.length
+    ? dependentOutcome.options
+    : DEFAULT_OUTCOME_OPTIONS.filter((option) => option.value !== "immune");
+  const group = createNode(documentRef, "div", {
+    className: `unified-outcome-group is-count-${Math.max(1, options.length)}`,
+    attributes: {
+      role: "group",
+      "aria-label": `${dependentOutcome.label} per ${target.label}`,
+    },
+  });
+  for (const option of options) {
+    const button = createButton(documentRef, {
+      label: option.label,
+      className: `unified-outcome-button is-${option.value}`,
+      value: option.value,
+      pressed: dependentOutcome.value === option.value,
+      disabled: target.eligible === false || (target.disabled === true && target.selected !== true),
+      attributes: { "data-dependent-outcome": dependentOutcome.id },
+    });
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      callbacks.onTargetContextChange?.(target.key, dependentOutcome.id, option.value);
+    });
+    group.append(button);
+  }
+  return createNode(documentRef, "div", {
+    className: "unified-target-row__outcome-line",
+    children: [
+      createNode(documentRef, "span", {
+        className: "unified-target-row__outcome-label",
+        text: dependentOutcome.label,
+      }),
+      group,
+    ],
+  });
+}
+
 function renderAttackOutcomeButtons(documentRef, attack, callbacks) {
   const options = Array.isArray(attack?.options) && attack.options.length
     ? attack.options
@@ -89,11 +127,13 @@ function renderAttackOutcomeButtons(documentRef, attack, callbacks) {
 export function renderTargetMatrix(documentRef, model, callbacks = {}) {
   const targets = model.targets;
   if (!targets.visible) return null;
+  const negativeSelection = targets.selectionPolarity === "exclude";
   const section = createNode(documentRef, "section", {
     className: `unified-section unified-targets ${targets.outcomes.visible ? "has-outcomes" : "is-simple"}`,
     attributes: {
       "aria-labelledby": "unified-targets-heading",
       "data-target-mode": targets.mode,
+      "data-target-polarity": negativeSelection ? "exclude" : "include",
     },
   });
   const heading = createNode(documentRef, "div", {
@@ -101,7 +141,7 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
     children: [
       createNode(documentRef, "h2", {
         id: "unified-targets-heading",
-        text: "Bersagli",
+        text: negativeSelection ? "Creature esenti" : "Bersagli",
       }),
       createNode(documentRef, "span", {
         className: "unified-section__eyebrow unified-target-count",
@@ -148,7 +188,10 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
   const filters = targets.filters || {};
   const filterBar = createNode(documentRef, "div", {
     className: "unified-target-filters",
-    attributes: { role: "search", "aria-label": "Filtri bersagli" },
+    attributes: {
+      role: "search",
+      "aria-label": negativeSelection ? "Filtri creature esenti" : "Filtri bersagli",
+    },
   });
   const nameFilter = createNode(documentRef, "input", {
     id: "spell-unified-target-name-filter",
@@ -156,7 +199,9 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       type: "search",
       value: filters.name || "",
       placeholder: "Filtra per nome",
-      "aria-label": "Filtra bersagli per nome",
+      "aria-label": negativeSelection
+        ? "Filtra creature esenti per nome"
+        : "Filtra bersagli per nome",
     },
   });
   nameFilter.addEventListener("input", (event) => callbacks.onTargetNameFilter?.(
@@ -218,11 +263,18 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
 
   const list = createNode(documentRef, "div", {
     className: "unified-target-list",
-    attributes: { role: "group", "aria-label": "Selezione bersagli" },
+    attributes: {
+      role: "group",
+      "aria-label": negativeSelection ? "Selezione creature esenti" : "Selezione bersagli",
+    },
   });
   for (const target of targets.candidates) {
+    const contextTarget = (targets.context?.targets || [])
+      .find((entry) => entry.key === target.key);
+    const dependentOutcomes = contextTarget?.dependentOutcomes || [];
+    const hasDependentOutcomes = targets.outcomes.visible && dependentOutcomes.length > 0;
     const row = createNode(documentRef, "div", {
-      className: "unified-target-row",
+      className: `unified-target-row${hasDependentOutcomes ? " has-dependent-outcomes" : ""}`,
       attributes: {
         "data-target-key": target.key,
         ...(target.selected ? { "data-selected": "true" } : {}),
@@ -235,7 +287,9 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
       attributes: {
         type: "checkbox",
         value: target.key,
-        "aria-label": `Seleziona ${target.label}`,
+        "aria-label": negativeSelection
+          ? `Escludi ${target.label}`
+          : `Seleziona ${target.label}`,
       },
     });
     checkbox.checked = target.selected === true;
@@ -269,7 +323,38 @@ export function renderTargetMatrix(documentRef, model, callbacks = {}) {
         },
       }));
     }
-    if (targets.outcomes.visible) row.append(renderOutcomeButtons(documentRef, target, callbacks));
+    if (targets.outcomes.visible) {
+      const primaryOutcome = renderOutcomeButtons(documentRef, target, callbacks);
+      if (dependentOutcomes.length) {
+        const outcomeStack = createNode(documentRef, "div", {
+          className: "unified-target-row__outcomes",
+        });
+        const primaryLabel = targets.outcomes.save?.label
+          ? `TS ${targets.outcomes.save.label}`
+          : "TS";
+        outcomeStack.append(createNode(documentRef, "div", {
+          className: "unified-target-row__outcome-line",
+          children: [
+            createNode(documentRef, "span", {
+              className: "unified-target-row__outcome-label",
+              text: primaryLabel,
+            }),
+            primaryOutcome,
+          ],
+        }));
+        for (const dependentOutcome of dependentOutcomes) {
+          outcomeStack.append(renderDependentOutcomeButtons(
+            documentRef,
+            target,
+            dependentOutcome,
+            callbacks,
+          ));
+        }
+        row.append(outcomeStack);
+      } else {
+        row.append(primaryOutcome);
+      }
+    }
     row.addEventListener("click", (event) => {
       if (event.target.closest("button, input, select, label")) return;
       if (target.disabled || target.eligible === false) return;

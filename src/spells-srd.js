@@ -47,6 +47,8 @@ import {
   delayedBlastFireballSummaryParts,
 } from "./delayedBlastFireballRules.js";
 import { prismaticWallSummaryParts } from "./prismaticWallRules.js";
+import { blinkSummaryParts } from "./blinkRules.js";
+import { telekinesisSummaryParts } from "./telekinesisRules.js";
 
 export const SPELL_CATALOG_VERSION = 1;
 
@@ -353,23 +355,22 @@ const AUTOMATION = Object.freeze({
 });
 
 const SRD_ACTIVE_ACTIONS = Object.freeze({
-  "telekinesis": Object.freeze([Object.freeze({
-    id: "telekinesis-retarget",
-    label: "Cambia bersaglio",
-    buttonLabel: "Cambia bersaglio",
-    detail: "Sposta la presa di Telecinesi sul token selezionato. Contesa e movimento restano manuali.",
-    emptySelectionTitle: "Seleziona il nuovo bersaglio di Telecinesi.",
-    tooManySelectionTitle: "Telecinesi può insistere su un solo bersaglio alla volta.",
-    unavailableSelectionTitle: "Seleziona un bersaglio diverso da quello attuale.",
-    subjectMode: "selected",
-    maxTargets: 1,
-    rangeOrigin: "caster",
-    range: Object.freeze({ value: 18, unit: "m" }),
-    requiresParentInstance: true,
-    rejectRememberedTargets: true,
-    replaceSpellTargets: true,
-    effects: Object.freeze([]),
-  })]),
+  "blink": Object.freeze([
+    Object.freeze({
+      id: "blink-terminate",
+      label: "Termina Intermittenza",
+      buttonLabel: "Termina Intermittenza",
+      detail: "Azione: termina Intermittenza. Se sei sul Piano Etereo, torna prima in uno spazio valido.",
+      economy: "action",
+      showInOverview: true,
+      availableAfterCast: false,
+      subjectMode: "caster",
+      requiresTargets: false,
+      requiresParentInstance: true,
+      requiresZoneRoot: false,
+      termination: true,
+    }),
+  ]),
   "control-water": Object.freeze([
     Object.freeze({
       id: "control-water-flood",
@@ -1670,6 +1671,7 @@ export function getSpellDurationTurns(value, castContext = {}) {
 
 const RAW_SPELLS = Array.isArray(catalogData?.spells) ? catalogData.spells : [];
 const SPELL_TRACKING_OVERRIDES = Object.freeze({
+  "blink": Object.freeze({ trackable: true, defaultTurns: 10 }),
   "acid-arrow": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "power-word-stun": Object.freeze({ trackable: true, defaultTurns: 1 }),
   "ray-of-frost": Object.freeze({ trackable: true, defaultTurns: 1 }),
@@ -1983,6 +1985,12 @@ export function getSpellEffects(value, choiceValue = "", castContext = {}) {
 
 export function getSpellSummaryParts(value, choiceValue = "", castContext = {}) {
   const spell = value && typeof value === "object" ? value : getSpellDefinition(value);
+  if (spell?.id === "blink") {
+    return blinkSummaryParts(castContext);
+  }
+  if (spell?.id === "telekinesis") {
+    return telekinesisSummaryParts(castContext);
+  }
   if (spell?.id === DELAYED_BLAST_FIREBALL_ID) {
     return delayedBlastFireballSummaryParts(castContext);
   }

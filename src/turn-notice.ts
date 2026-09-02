@@ -23,7 +23,15 @@ import {
   reminderResolutionNeedsDamage,
   reminderResolutionOutcomeNeedsDamage,
 } from "./reminderResolutionCore.js";
+import {
+  resolveTurbineSaveChain,
+  turbineSizeFromToken,
+} from "./xanatharTurbineCore.js";
 import { resolveReminder } from "./reminderResolution.js";
+import {
+  createSpellAreaPlacementRequestId,
+  requestSpellAreaPlacement,
+} from "./spellAreaPlacementClient.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 import { isTurnNoticeForScene } from "./turnNotice.js";
@@ -129,7 +137,12 @@ let reminderProjectionPolicy = {
 let unsubscribeOptions: (() => void) | null = null;
 let lastNoticeLayoutKey = "";
 let noticeLayoutRevision = 0;
-const resolutionDrafts = new Map<string, { outcome: string; damageRoll: string }>();
+const resolutionDrafts = new Map<string, {
+  outcome: string;
+  damageRoll: string;
+  turbineSize: string;
+  turbineStrengthOutcome: string;
+}>();
 const resolutionStatus = new Map<string, string>();
 const resolvingActivations = new Set<string>();
 
@@ -310,6 +323,12 @@ function clearPendingSaveReminderNotices() {
   pendingSaveReminderNotices = [];
 }
 
+function drainPendingSaveReminderNotices() {
+  const values = pendingSaveReminderNotices;
+  clearPendingSaveReminderNotices();
+  return values;
+}
+
 function showNotice(raw: any) {
   const app = document.getElementById("app");
   const notice = normalizeNotice(raw);
@@ -322,8 +341,11 @@ function showNotice(raw: any) {
     || !notice.turnKey
     || pending.turnKey === notice.turnKey,
   );
+  const hasOpenZoneResponse = Array.isArray(currentSaveReminderBatch?.entries)
+    && currentSaveReminderBatch.entries.some(reminderRowRequiresResponse);
   if (
     currentZonePanel
+    && !hasOpenZoneResponse
     && shouldClearZoneNoticeAtTurn(currentZoneTurnKey, notice.turnKey)
   ) {
     clearZoneNotice();
@@ -347,7 +369,12 @@ function showNotice(raw: any) {
 function resolutionDraftFor(activationId: string) {
   const current = resolutionDrafts.get(activationId);
   if (current) return current;
-  const draft = { outcome: "", damageRoll: "" };
+  const draft = {
+    outcome: "",
+    damageRoll: "",
+    turbineSize: "",
+    turbineStrengthOutcome: "",
+  };
   resolutionDrafts.set(activationId, draft);
   return draft;
 }
@@ -378,6 +405,12 @@ function resolutionStatusNode(line: HTMLElement, message: string) {
 }
 
 function dismissResolvedReminder(activationId: string, { zone = false } = {}) {
+  // Il sender può avere già accodato un payload precedente alla mutation. Lo
+  // dreniamo nella stessa transizione del pannello: lasciarlo al timer
+  // produrrebbe un render intermedio con la riga appena risolta duplicata.
+  const queued = drainPendingSaveReminderNotices().filter((notice) => (
+    String(notice?.activationId || "").trim() !== activationId
+  ));
   const entries = Array.isArray(currentSaveReminderBatch?.entries)
     ? currentSaveReminderBatch.entries.filter((entry: any) => (
       String(entry?.activationId || "").trim() !== activationId
@@ -385,20 +418,29 @@ function dismissResolvedReminder(activationId: string, { zone = false } = {}) {
     : [];
   resolutionDrafts.delete(activationId);
   resolutionStatus.delete(activationId);
-  // Una zone activation risolta può essere ripristinata da Undo con lo stesso ID.
-  // Liberiamo subito il guard di annuncio: la mutation è già committata, quindi
-  // finché l'activation resta consumata il sync live non la riproporrà.
-  if (zone) announcedZoneActivationIds.delete(activationId);
-  if (!entries.length) {
-    clearZoneNotice();
-    return;
-  }
-  const nextBatch = mergeSaveReminderNoticeBatch(null, entries);
-  if (!nextBatch || !renderSaveReminderBatch(nextBatch)) {
+  // Manteniamo l'ID annunciato anche dopo il consume: un broadcast già in volo
+  // può ancora arrivare dal transport host. Il sync canonico/il payload di Undo
+  // usa rearmActivationIds per riaprire esplicitamente lo stesso ID.
+  if (!zone) void zone;
+  const currentBatch = entries.length
+    ? mergeSaveReminderNoticeBatch(null, entries, {
+      preserveCurrentEntries: entries.some(reminderRowRequiresResponse),
+    })
+    : null;
+  const nextBatch = mergeSaveReminderNoticeBatch(currentBatch, queued, {
+    preserveCurrentEntries: Array.isArray(currentBatch?.entries)
+      && currentBatch.entries.some(reminderRowRequiresResponse),
+  });
+  if (!nextBatch) {
     clearZoneNotice();
     return;
   }
   currentSaveReminderBatch = nextBatch;
+  if (!nextBatch || !renderSaveReminderBatch(nextBatch)) {
+    currentSaveReminderBatch = null;
+    clearZoneNotice();
+    return;
+  }
 }
 
 function historyReplayForReminder(row: any) {
@@ -519,6 +561,145 @@ function currentEffectSaveReminderActivationIds(batch: any, items: any[]) {
   return current;
 }
 
+function isBlinkReturnNotice(row: any) {
+  return row?.resolution?.activation?.kind === "spell-turn-boundary"
+    && row?.resolution?.activation?.resolutionData?.kind === "blink-return";
+}
+
+function buildBlinkReturnResolutionControls(line: HTMLElement, row: any, activationId: string) {
+  const controls = document.createElement("div");
+  controls.dataset.resolutionControls = "1";
+  controls.className = "zone-resolution";
+
+  let requestId = "";
+  let requestPromise: Promise<any> | null = null;
+  let chosenPosition: { x: number; y: number } | null = null;
+
+  const placeButton = document.createElement("button");
+  placeButton.type = "button";
+  placeButton.textContent = "Scegli destinazione";
+  const status = document.createElement("div");
+  status.className = "hint";
+  status.hidden = true;
+
+  const setPlacementStatus = (message: string) => {
+    status.textContent = message;
+    status.hidden = !message;
+  };
+
+  const setBusy = (value: boolean) => {
+    placeButton.disabled = value;
+  };
+
+  const beginPlacement = async () => {
+    if (resolvingActivations.has(activationId) || requestPromise) return;
+    chosenPosition = null;
+    requestId = createSpellAreaPlacementRequestId();
+    setBusy(true);
+    setPlacementStatus("");
+    try {
+      requestPromise = requestSpellAreaPlacement({
+        ruleId: "blink:return",
+        casterId: row.casterId || row.resolution?.activation?.casterId,
+        context: {
+          pointSelection: true,
+          autoConfirmPoint: true,
+          directPointSelection: true,
+          snapToItemCenter: true,
+        },
+        requestId,
+      }, {
+        broadcast: OBR.broadcast,
+        windowRef: window,
+      });
+      const result = await requestPromise;
+      if (result?.status !== "confirmed" || !result.preview) {
+        setPlacementStatus(result?.status === "cancelled"
+          ? "Scelta dello spazio annullata."
+          : "Spazio di ritorno non confermato.");
+        return;
+      }
+      const candidate = result.preview.position || result.preview.start;
+      const x = Number(candidate?.x);
+      const y = Number(candidate?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        setPlacementStatus("Il punto scelto non è valido.");
+        return;
+      }
+      chosenPosition = { x, y };
+      await resolve();
+    } catch (error) {
+      setPlacementStatus(String(error?.message || "Scelta dello spazio non riuscita."));
+    } finally {
+      requestPromise = null;
+      requestId = "";
+      setBusy(false);
+    }
+  };
+
+  const resolve = async () => {
+    if (!chosenPosition || resolvingActivations.has(activationId)) return;
+    resolvingActivations.add(activationId);
+    for (const button of Array.from(controls.querySelectorAll("button"))) {
+      (button as HTMLButtonElement).disabled = true;
+    }
+    resolutionStatusNode(line, "Risoluzione in corso…");
+    const resolution = {
+      ...row.resolution,
+      activation: {
+        ...(row.resolution?.activation || {}),
+        resolutionData: {
+          ...(row.resolution?.activation?.resolutionData || {}),
+          kind: "blink-return",
+          returnPosition: chosenPosition,
+        },
+      },
+    };
+    try {
+      const result = await resolveReminder({
+        notice: {
+          activationId,
+          spellName: row.spellName,
+          ...(row.spellId ? { spellId: row.spellId } : {}),
+          ...((row.casterId || row.resolution?.activation?.casterId)
+            ? { casterId: row.casterId || row.resolution.activation.casterId }
+            : {}),
+          casterName: row.casterName || row.resolution?.activation?.casterName,
+          ...(row.sourceId ? { sourceId: row.sourceId } : {}),
+          ...(row.sourceName ? { sourceName: row.sourceName } : {}),
+          kind: row.kind,
+          targets: row.targets || [],
+          resolution,
+        },
+        outcome: REMINDER_OUTCOMES.PASSED,
+        sceneEpoch: currentSceneEpoch(),
+        historyReplay: historyReplayForReminder(row),
+      });
+      if (result.status === "applied" || result.status === "already-resolved") {
+        setResolutionStatus(line, activationId, result.message || "Ritorno completato.");
+        dismissResolvedReminder(activationId);
+      } else {
+        resolutionStatusNode(line, result.message || "Ritorno non più corrente.");
+        for (const button of Array.from(controls.querySelectorAll("button"))) {
+          (button as HTMLButtonElement).disabled = false;
+        }
+      }
+    } catch (error) {
+      resolutionStatusNode(line, String(error?.message || "Ritorno non riuscito."));
+      for (const button of Array.from(controls.querySelectorAll("button"))) {
+        (button as HTMLButtonElement).disabled = false;
+      }
+    } finally {
+      resolvingActivations.delete(activationId);
+      if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) window.setTimeout(requestPendingZoneNoticeSync, 0);
+    }
+  };
+
+  placeButton.addEventListener("click", () => void beginPlacement());
+  controls.append(placeButton, status);
+  line.appendChild(controls);
+}
+
 function buildResolutionControls(line: HTMLElement, row: any) {
   if (!reminderRowRequiresResponse(row)) return;
   const activationId = String(row.activationId || "").trim();
@@ -527,9 +708,14 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     setResolutionStatus(line, activationId, completed);
     return;
   }
+  if (isBlinkReturnNotice(row)) {
+    buildBlinkReturnResolutionControls(line, row, activationId);
+    return;
+  }
   const draft = resolutionDraftFor(activationId);
   const manualHeal = row.resolution?.mode === "manual-heal";
   const manualDamage = row.resolution?.mode === "manual-damage";
+  const turbine = row.resolution?.activation?.resolutionData?.turbine === true;
   const controls = document.createElement("div");
   controls.dataset.resolutionControls = "1";
   controls.className = "zone-resolution";
@@ -565,10 +751,82 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     }
   };
 
+  const turbineChain = () => resolveTurbineSaveChain({
+    dexOutcome: draft.outcome,
+    size: draft.turbineSize,
+    strengthOutcome: draft.turbineStrengthOutcome,
+  });
+
+  const targetId = String(row?.targets?.[0]?.id || "").trim();
+  const turbineSizePromise = turbine
+    ? Promise.all([
+      targetId ? OBR.scene.items.getItems([targetId]) : Promise.resolve([]),
+      OBR.scene?.grid?.getDpi?.().catch?.(() => 150) || Promise.resolve(150),
+    ]).then(([items, dpi]) => turbineSizeFromToken({
+      item: items?.[0],
+      dpi,
+    })).catch(() => "")
+    : Promise.resolve("");
+
+  const turbineStrengthGroup = document.createElement("div");
+  turbineStrengthGroup.className = "zone-resolution-outcomes";
+  const turbineStrengthLabel = document.createElement("span");
+  turbineStrengthLabel.className = "zone-resolution-damage";
+  turbineStrengthLabel.textContent = "TS Forza";
+  turbineStrengthGroup.appendChild(turbineStrengthLabel);
+  for (const option of [
+    { value: "passed", label: "Superato" },
+    { value: "failed", label: "Fallito" },
+  ]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.turbineStrength = option.value;
+    button.textContent = option.label;
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      draft.turbineStrengthOutcome = option.value;
+      updateTurbineControls();
+      if (draft.outcome) void resolve(draft.outcome);
+    });
+    turbineStrengthGroup.appendChild(button);
+  }
+
+  const updateTurbineControls = () => {
+    if (!turbine) {
+      turbineStrengthGroup.hidden = true;
+      return;
+    }
+    const failedDex = draft.outcome === REMINDER_OUTCOMES.FAILED;
+    turbineStrengthGroup.hidden = !failedDex || draft.turbineSize !== "large-or-smaller";
+    for (const button of Array.from(turbineStrengthGroup.querySelectorAll("button"))) {
+      button.classList.toggle("is-selected", button.dataset.turbineStrength === draft.turbineStrengthOutcome);
+    }
+  };
+
+  if (turbine) {
+    void turbineSizePromise.then((size) => {
+      if (size) draft.turbineSize = size;
+      updateTurbineControls();
+    });
+  }
+
   const resolve = async (outcome: string) => {
     if (resolvingActivations.has(activationId)) return;
     draft.outcome = outcome;
     refreshSelection();
+    if (turbine && !draft.turbineSize) {
+      draft.turbineSize = await turbineSizePromise;
+    }
+    if (turbine && !turbineChain().valid) {
+      updateTurbineControls();
+      resolutionStatusNode(
+        line,
+        turbineChain().status === "needs-strength-save"
+          ? "Scegli il risultato del TS Forza."
+          : "La footprint del bersaglio non è disponibile.",
+      );
+      return;
+    }
     if (
       damageInput
       && outcome !== "ignore"
@@ -603,6 +861,10 @@ function buildResolutionControls(line: HTMLElement, row: any) {
         },
         outcome: draft.outcome,
         damageRoll: draft.damageRoll,
+        ...(turbine ? {
+          turbineSize: draft.turbineSize,
+          turbineStrengthOutcome: draft.turbineStrengthOutcome,
+        } : {}),
         sceneEpoch: currentSceneEpoch(),
         historyReplay: historyReplayForReminder(row),
       });
@@ -630,6 +892,9 @@ function buildResolutionControls(line: HTMLElement, row: any) {
       refreshSelection();
     } finally {
       resolvingActivations.delete(activationId);
+      if (SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED) {
+        window.setTimeout(requestPendingZoneNoticeSync, 0);
+      }
     }
   };
 
@@ -655,6 +920,8 @@ function buildResolutionControls(line: HTMLElement, row: any) {
     outcomes.appendChild(button);
   }
   controls.append(outcomes);
+  if (turbine) controls.append(turbineStrengthGroup);
+  updateTurbineControls();
   line.appendChild(controls);
 }
 
@@ -665,6 +932,50 @@ function reminderRowRequiresResponse(row: any) {
     && Array.isArray(row.targets)
     && row.targets.length === 1
     && !!String(row.activationId || "").trim();
+}
+
+function zoneResponseIdentityKey(entry: any, itemsById: Map<string, any> | null = null) {
+  if (!(itemsById instanceof Map)) return "";
+  const activation = entry?.resolution?.activation;
+  const rootId = String(activation?.zoneItemId || "").trim();
+  const instanceId = String(activation?.instanceId || "").trim();
+  const metadataKey = String(activation?.metadataKey || "").trim();
+  const root = rootId ? itemsById.get(rootId) : null;
+  const metadata = metadataKey ? root?.metadata?.[metadataKey] : null;
+  if (
+    !root
+    || !metadata
+    || !instanceId
+    || String(metadata.instanceId || "").trim() !== instanceId
+  ) return "";
+  const activationGroupId = String(
+    activation?.sourceActivationId
+      || activation?.rootActivationId
+      || activation?.activationId
+      || entry?.activationId
+      || "",
+  ).trim();
+  if (!activationGroupId) return "";
+  return `${rootId}\u0000${instanceId}\u0000${activationGroupId}`;
+}
+
+function openZoneResponseIds(entries: any[], itemsById: Map<string, any> | null = null) {
+  const responseEntries = (Array.isArray(entries) ? entries : [])
+    .filter((entry: any) => (
+      (entry?.kind === "zone" || entry?.kind === "zone-effect")
+      && reminderRowRequiresResponse(entry)
+    ));
+  if (!(itemsById instanceof Map)) return [];
+  const inFlightGroupKeys = new Set(
+    responseEntries
+      .filter((entry: any) => resolvingActivations.has(String(entry?.activationId || "").trim()))
+      .map((entry: any) => zoneResponseIdentityKey(entry, itemsById))
+      .filter(Boolean),
+  );
+  return responseEntries
+    .filter((entry: any) => inFlightGroupKeys.has(zoneResponseIdentityKey(entry, itemsById)))
+    .map((entry: any) => String(entry?.activationId || "").trim())
+    .filter(Boolean);
 }
 
 function reminderRowRequiresPersistentDisplay(row: any) {
@@ -762,11 +1073,23 @@ function renderSaveReminderBatch(batch: any) {
 
 function flushSaveReminderNotices() {
   saveReminderAggregationTimer = 0;
-  const values = pendingSaveReminderNotices;
+  const currentActivationIds = new Set(
+    Array.isArray(currentSaveReminderBatch?.entries)
+      ? currentSaveReminderBatch.entries
+        .map((entry: any) => String(entry?.activationId || "").trim())
+        .filter(Boolean)
+      : [],
+  );
+  const values = pendingSaveReminderNotices.filter((notice) =>
+    !currentActivationIds.has(String(notice?.activationId || "").trim())
+  );
   pendingSaveReminderNotices = [];
   if (!values.length) return;
   const baseBatch = currentZonePanel ? currentSaveReminderBatch : null;
-  const batch = mergeSaveReminderNoticeBatch(baseBatch, values);
+  const batch = mergeSaveReminderNoticeBatch(baseBatch, values, {
+    preserveCurrentEntries: Array.isArray(baseBatch?.entries)
+      && baseBatch.entries.some(reminderRowRequiresResponse),
+  });
   if (!batch || !renderSaveReminderBatch(batch)) {
     announceNoticeLayout({ force: true });
     return;
@@ -775,7 +1098,24 @@ function flushSaveReminderNotices() {
 }
 
 function queueSaveReminderNotices(values: ZoneTriggerNotice[]) {
-  const notices = Array.isArray(values) ? values.filter(Boolean) : [];
+  const knownActivationIds = new Set([
+    ...(Array.isArray(currentSaveReminderBatch?.entries)
+      ? currentSaveReminderBatch.entries
+        .map((entry: any) => String(entry?.activationId || "").trim())
+        .filter(Boolean)
+      : []),
+    ...pendingSaveReminderNotices
+      .map((entry) => String(entry?.activationId || "").trim())
+      .filter(Boolean),
+  ]);
+  const notices = (Array.isArray(values) ? values : [])
+    .filter(Boolean)
+    .filter((notice) => {
+      const activationId = String(notice?.activationId || "").trim();
+      if (!activationId || knownActivationIds.has(activationId)) return false;
+      knownActivationIds.add(activationId);
+      return true;
+    });
   if (!notices.length) return false;
   pendingSaveReminderNotices.push(...notices.map((notice) => ({
     ...notice,
@@ -932,6 +1272,7 @@ async function syncPendingZoneNotices() {
     const currentEntries = Array.isArray(currentSaveReminderBatch.entries)
       ? currentSaveReminderBatch.entries
       : [];
+    const openResponseIds = openZoneResponseIds(currentEntries, itemsById);
     const zonePrunedBatch = pruneZoneReminderNoticeBatch(
       currentSaveReminderBatch,
       pendingIds,
@@ -944,27 +1285,39 @@ async function syncPendingZoneNotices() {
             entry?.kind === "zone-effect"
             && !entry?.resolution
           ))
-          .map((entry: any) => entry.activationId),
+          .map((entry: any) => entry.activationId)
+          .concat(openResponseIds),
       },
     );
     const nextCurrentBatch = pruneEffectSaveReminderNoticeBatch(
       zonePrunedBatch,
       currentEffectSaveReminderActivationIds(currentSaveReminderBatch, items),
     );
+    const currentIds = new Set(
+      currentEntries.map((entry: any) => String(entry?.activationId || "").trim())
+        .filter(Boolean),
+    );
     const nextCurrentIds = new Set(
       Array.isArray(nextCurrentBatch?.entries)
         ? nextCurrentBatch.entries.map((entry: any) => String(entry?.activationId || "").trim())
         : [],
     );
-    if (nextCurrentIds.size !== currentEntries.length) {
+    const currentIdsChanged = nextCurrentIds.size !== currentIds.size
+      || [...currentIds].some((activationId) => !nextCurrentIds.has(activationId));
+    if (currentIdsChanged) {
       for (const entry of currentEntries) {
         const activationId = String(entry?.activationId || "").trim();
         if (!activationId || nextCurrentIds.has(activationId)) continue;
-        resolutionDrafts.delete(activationId);
-        resolutionStatus.delete(activationId);
-        resolvingActivations.delete(activationId);
+        const isResolving = resolvingActivations.has(activationId);
+        if (!isResolving) {
+          resolutionDrafts.delete(activationId);
+          resolutionStatus.delete(activationId);
+          resolvingActivations.delete(activationId);
+        }
         if (entry?.kind === "zone" || entry?.kind === "zone-effect") {
-          announcedZoneActivationIds.delete(activationId);
+          // Non rimuovere il guard qui: il sender host può consegnare dopo il
+          // reconcile un payload prodotto prima del consume. Un Undo riapre
+          // esplicitamente l'ID tramite rearmActivationIds.
         } else {
           announcedEffectActivationIds.delete(activationId);
         }
@@ -985,14 +1338,40 @@ async function syncPendingZoneNotices() {
     }
   }
 
-  // Un ID annunciato resta soppresso solo finché l'activation è realmente pending.
-  // Se viene consumata (o la sua causa viene annullata), una futura ricomparsa dello
-  // stesso activationId — incluso un Undo della risoluzione — deve poter riaprire il reminder.
-  for (const activationId of [...announcedZoneActivationIds]) {
-    if (!pendingIds.has(activationId)) announcedZoneActivationIds.delete(activationId);
-  }
+  // A scene-item event can be observed between the canonical commit and the
+  // follow-up render of a multi-target reminder.  In that short window the
+  // current panel may contain fewer rows than the still-pending activation
+  // set, while announcedZoneActivationIds would otherwise suppress the
+  // missing rows forever.  Re-arm only canonical notices that are neither
+  // visible, queued, nor actively resolving; the normal delivery planner
+  // keeps the operation idempotent.
+  const visibleActivationIds = new Set(
+    Array.isArray(currentSaveReminderBatch?.entries)
+      ? currentSaveReminderBatch.entries
+        .map((entry: any) => String(entry?.activationId || "").trim())
+        .filter(Boolean)
+      : [],
+  );
+  const queuedActivationIds = new Set(
+    pendingSaveReminderNotices
+      .map((entry) => String(entry?.activationId || "").trim())
+      .filter(Boolean),
+  );
+  const rearmActivationIds = notices
+    .map((notice) => String(notice.activationId || "").trim())
+    .filter((activationId) => (
+      activationId
+      && !visibleActivationIds.has(activationId)
+      && !queuedActivationIds.has(activationId)
+      && !resolvingActivations.has(activationId)
+    ));
+
+  // Un activation consumata resta soppressa anche quando il sender consegna in
+  // ritardo un payload già prodotto prima del commit. Il riarmo esplicito di
+  // Undo passa da rearmActivationIds; il limite della cache evita crescita
+  // illimitata tra trigger distinti.
   const baseline = !zonePendingBaselineReady;
-  showZoneNotices({ notices }, { baseline });
+  showZoneNotices({ notices, rearmActivationIds }, { baseline });
   zonePendingBaselineReady = true;
 }
 

@@ -23,6 +23,7 @@ import {
   nearestGridCellCenter,
   nearestGridCellSideCenter,
   nearestGridCorner,
+  nearestGridFootprintCenter,
   reviewSpellAreaPlacement,
   spellAreaPlacementParentUnavailable,
   spellAreaGridCells,
@@ -91,10 +92,30 @@ function isBoardTokenPlacement(value = spellPlacementSession?.rule) {
   return value?.kind === "board-token";
 }
 
+function isPointPlacement(value = spellPlacementSession?.rule) {
+  return value?.placement?.mode === "point";
+}
+
+function isDirectPointSelection(state) {
+  return isPointPlacement(state?.rule)
+    && state?.context?.directPointSelection === true;
+}
+
 function point(value) {
   const x = Number(value?.x);
   const y = Number(value?.y);
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function gridFootprintCells(bounds, dpi) {
+  const min = point(bounds?.min);
+  const max = point(bounds?.max);
+  const safeDpi = Math.max(1, Number(dpi) || 1);
+  if (!min || !max) return { widthCells: 1, heightCells: 1 };
+  return {
+    widthCells: Math.max(1, Math.round(Math.abs(max.x - min.x) / safeDpi)),
+    heightCells: Math.max(1, Math.round(Math.abs(max.y - min.y) / safeDpi)),
+  };
 }
 
 async function setSpellPlacementToolState(active) {
@@ -344,7 +365,8 @@ async function beginSpellPlacement(data) {
     return;
   }
   const needsCaster = ["caster", "caster-adjacent"].includes(rule.placement.origin)
-    || !!rule.placement.range;
+    || !!rule.placement.range
+    || placementContext?.snapToItemCenter === true;
   const caster = needsCaster ? await casterGeometry(casterId) : null;
   if (needsCaster && !caster) {
     await sendSpellPlacementResult({
@@ -472,8 +494,10 @@ async function beginSpellZoneMovement(data) {
   const rule = getSpellAreaRuleById(ruleId);
   const [zoneItem] = await OBR.scene.items.getItems([zoneItemId]).catch(() => []);
   const metadata = zoneItem?.metadata?.[SPELL_STATIC_ZONE_META_KEY];
+  const movementMode = rule?.zonePolicy?.movement?.mode;
   if (
     !rule
+    || !["action", "bonus-action"].includes(movementMode)
     || !zoneItem
     || metadata?.role !== "root"
     || String(metadata.instanceId || "") !== instanceId
@@ -960,11 +984,19 @@ async function prepareDrag(state) {
         unit: state.unit,
       })
       : 0;
+    const pointPlacement = isPointPlacement(state.rule);
     const snapToVertex = state.rule?.placement?.snapOrigin === "vertex"
       || state.rule?.placement?.snap === "vertex"
       || (state.spellPlacementRequestId && state.type === "square")
       || (state.spellPlacementRequestId && state.type === "line" && ruleWidthCells > 1);
-    const snapped = state.rule?.placement?.origin === "caster-adjacent"
+    const snapped = pointPlacement
+      ? nearestGridFootprintCenter(
+        state.rawStart,
+        corner,
+        state.dpi,
+        gridFootprintCells(state.casterBounds, state.dpi),
+      )
+      : state.rule?.placement?.origin === "caster-adjacent"
       ? nearestGridCellCenter(state.rawStart, corner, state.dpi)
       : boardTokenPlacement
         ? {
@@ -977,7 +1009,7 @@ async function prepareDrag(state) {
           ? nearestGridSnap(state.rawStart, corner, state.dpi)
           : nearestGridSnap(state.rawStart, corner, state.dpi);
     state.originCellCenter = snapped?.position || corner;
-    state.originSnapKind = snapped?.kind || (snapToVertex ? "corner" : "center");
+    state.originSnapKind = snapped?.kind || (pointPlacement ? "center" : snapToVertex ? "corner" : "center");
     state.start = state.originCellCenter;
     state.gridOrigin = snapped?.gridOrigin || corner;
     if (state.spellPlacementRequestId) {
@@ -1030,6 +1062,11 @@ async function prepareDrag(state) {
         await OBR.notification.show("Il punto scelto supera la portata dell'incantesimo.", "WARNING");
         return;
       }
+    }
+    if (isDirectPointSelection(state)) {
+      state.ready = true;
+      if (state.ended) await finishDrag(state);
+      return;
     }
     state.style = state.spellPlacementRequestId
       ? spellAreaStyle(state.rule?.spellId, currentStyle)
@@ -1382,12 +1419,52 @@ async function finishDrag(state) {
     );
     return;
   }
+  if (
+    isDirectPointSelection(state)
+    && state.spellPlacementRequestId
+    && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
+  ) {
+    spellPlacementSession.session = reviewSpellAreaPlacement(
+      spellPlacementSession.session,
+      {
+        type: state.type,
+        start: state.start,
+        end: state.start,
+        position: state.start,
+        dpi: state.dpi,
+        gridOrigin: state.gridOrigin,
+        targetIds: [],
+      },
+    );
+    if (state.context?.autoConfirmPoint === true) {
+      await closeSpellPlacement("confirmed");
+    }
+    return;
+  }
   const area = renderDrag(state);
   if (
     area
     && state.spellPlacementRequestId
     && spellPlacementSession?.session?.requestId === state.spellPlacementRequestId
   ) {
+    if (isPointPlacement(state.rule)) {
+      spellPlacementSession.session = reviewSpellAreaPlacement(
+        spellPlacementSession.session,
+        {
+          type: state.type,
+          start: state.start,
+          end: state.end,
+          position: state.start,
+          dpi: state.dpi,
+          gridOrigin: state.gridOrigin,
+          targetIds: [],
+        },
+      );
+      if (state.context?.autoConfirmPoint === true) {
+        await closeSpellPlacement("confirmed");
+      }
+      return;
+    }
     if (state.context?.autoConfirmAnchor === true) {
       const targetIds = await findHitTargetIds(area, spellPlacementSession.rule);
       if (activeDrag !== state || spellPlacementSession?.session?.requestId !== state.spellPlacementRequestId) {
@@ -1637,6 +1714,19 @@ async function confirmSpellPlacement() {
     return;
   }
   const area = renderDrag(state);
+  if (isPointPlacement(runtime.rule)) {
+    runtime.session = reviewSpellAreaPlacement(runtime.session, {
+      type: state.type,
+      start: state.start,
+      end: state.end,
+      position: state.start,
+      dpi: state.dpi,
+      gridOrigin: state.gridOrigin,
+      targetIds: [],
+    });
+    await closeSpellPlacement("confirmed");
+    return;
+  }
   if (runtime.context?.childKind && !validateChildZoneContainment({
     parentArea: runtime.parentArea,
     childArea: area,
@@ -1738,6 +1828,7 @@ OBR.onReady(async () => {
     defaultMode: MODE_IDS.circle,
     defaultMetadata: {
       [SPELL_PLACEMENT_META_KEY]: false,
+      [SPELL_MOVEMENT_META_KEY]: false,
     },
   });
   await OBR.tool.createMode(modeDefinition("circle", "Cerchio", "/aoe-circle.svg"));
@@ -1782,40 +1873,6 @@ OBR.onReady(async () => {
       },
     }],
     onClick: () => void closeSpellPlacement("cancelled", { reason: "action" }),
-  });
-  await OBR.tool.createAction({
-    id: SPELL_MOVEMENT_CONFIRM_ACTION_ID,
-    icons: [{
-      icon: "/aoe-confirm.svg",
-      label: "Conferma movimento zona",
-      filter: {
-        activeTools: [TOOL_ID],
-        roles: ["GM"],
-        metadata: [{
-          key: SPELL_MOVEMENT_META_KEY,
-          operator: "==",
-          value: true,
-        }],
-      },
-    }],
-    onClick: () => void confirmSpellZoneMovement(),
-  });
-  await OBR.tool.createAction({
-    id: SPELL_MOVEMENT_CANCEL_ACTION_ID,
-    icons: [{
-      icon: "/aoe-cancel.svg",
-      label: "Annulla movimento zona",
-      filter: {
-        activeTools: [TOOL_ID],
-        roles: ["GM"],
-        metadata: [{
-          key: SPELL_MOVEMENT_META_KEY,
-          operator: "==",
-          value: true,
-        }],
-      },
-    }],
-    onClick: () => void closeSpellZoneMovement("cancelled", { reason: "action" }),
   });
   OBR.tool.onToolChange((toolId) => {
     if (spellPlacementSession && toolId !== TOOL_ID) {

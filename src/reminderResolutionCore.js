@@ -9,6 +9,18 @@ import {
 } from "./exhaustionCore.js";
 import { normalizeSaveSpellAutomation } from "./saveSpellCore.js";
 import { getAreaSaveAutomation } from "./spells-srd.js";
+import {
+  resolveTurbineSaveChain,
+  turbineSizeFromToken,
+  turbineRestrainedOperations,
+} from "./xanatharTurbineCore.js";
+import {
+  BLINK_ID,
+  buildBlinkReturnOperations,
+  buildBlinkRollStateOperation,
+  blinkStateUpsertOperation,
+  blinkStateFromCastContext,
+} from "./blinkRules.js";
 
 export const REMINDER_RESOLUTION_VERSION = 1;
 export const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
@@ -959,6 +971,205 @@ function reminderMarkerHistoryDelta(markerMap, nextMarkers, { beforePresent = fa
   };
 }
 
+function blinkReminderPlan({
+  notice,
+  target,
+  meta,
+  resolution,
+  resolutionData,
+  normalizedOutcome,
+  activationId,
+  itemsById,
+  gridDpi,
+  gridScale,
+  sceneMetadata,
+  now,
+} = {}) {
+  const instanceId = text(resolution?.activation?.instanceId, "", 200);
+  const parent = spellByInstance(target, instanceId);
+  if (
+    !parent
+    || String(parent?.spellId || "").trim() !== BLINK_ID
+  ) {
+    return { status: "stale", message: "L'istanza di Intermittenza non è più attiva." };
+  }
+  const state = blinkStateFromCastContext(parent.castContext);
+  const sourceId = text(
+    resolution?.activation?.casterId
+      || resolution?.source?.id
+      || parent?.casterId
+      || target?.id,
+    "",
+    200,
+  );
+  if (sourceId && text(parent?.casterId || sourceId, "", 200) !== sourceId) {
+    return { status: "stale", message: "Il caster di Intermittenza è cambiato." };
+  }
+
+  const kind = text(resolutionData?.kind, "", 60);
+  const pendingBoundary = state.pendingTurnBoundary;
+  const pendingBoundaryMatches = pendingBoundary
+    && String(pendingBoundary.activationId || "").trim() === activationId;
+  if (pendingBoundary && !pendingBoundaryMatches) {
+    return { status: "stale", message: "Questo esito di Intermittenza appartiene a un altro turno." };
+  }
+  let operations = [];
+  let sideEffects = [];
+  if (kind === "blink-roll") {
+    if (state.plane !== "material") {
+      return { status: "stale", message: "Questo esito di Intermittenza è già stato superato." };
+    }
+    if (!pendingBoundaryMatches
+      && Number.isFinite(Number(parent?.turns))
+      && Number(parent.turns) <= 0) {
+      return { status: "stale", message: "La durata di Intermittenza è già terminata." };
+    }
+    const resolvedTurnBoundary = pendingBoundaryMatches
+      || (Number.isFinite(Number(parent?.turns)) && Number(parent.turns) <= 1)
+      ? (pendingBoundaryMatches
+        ? pendingBoundary
+        : {
+          activationId,
+          descriptorId: String(resolution?.activation?.descriptorId || "blink-turn-end").trim(),
+          timing: "turn-end",
+          actorId: sourceId,
+          turnKey: text(resolution?.activation?.turnKey || notice?.turnKey, "", 300),
+        })
+      : null;
+    const operation = buildBlinkRollStateOperation({
+      targetId: target.id,
+      spellEntry: parent,
+      outcome: normalizedOutcome,
+      currentPosition: target.position,
+      departureTurnKey: resolution?.activation?.turnKey,
+      // L'idempotenza del ritorno è governata dalla state machine persistita:
+      // il runtime emette il notice solo all'inizio del turno del caster.
+      // Il notice di fine turno conosce soltanto il boundary successivo, che
+      // può appartenere a un altro attore e non è un returnTurnKey Blink.
+      returnTurnKey: null,
+      resolvedTurnBoundary,
+    });
+    const finalPassedOperation = normalizedOutcome === "passed"
+      && resolvedTurnBoundary
+      ? blinkStateUpsertOperation({
+        targetId: target.id,
+        spellEntry: parent,
+        nextState: {
+          ...state,
+          pendingTurnBoundary: pendingBoundaryMatches ? null : state.pendingTurnBoundary,
+          resolvedTurnBoundary,
+        },
+      })
+      : null;
+    if (normalizedOutcome === "failed" && !operation) {
+      return { status: "invalid", message: "La posizione corrente del caster non è disponibile." };
+    }
+    const stateOperation = operation || finalPassedOperation;
+    if (stateOperation) operations.push(stateOperation);
+    if (pendingBoundaryMatches && stateOperation) {
+      operations.push({
+        type: "spell:remove-instance",
+        targetIds: [target.id],
+        instanceId: parent.instanceId,
+        reason: "expiry",
+      });
+    }
+  } else if (kind === "blink-return") {
+    if (state.plane !== "ethereal") {
+      return { status: "stale", message: "Il ritorno di Intermittenza è già stato risolto." };
+    }
+    const expectedReturnTurnKey = text(state.returnTurnKey, "", 300);
+    const actualTurnKey = text(
+      resolution?.activation?.turnKey || notice?.turnKey,
+      "",
+      300,
+    );
+    if (expectedReturnTurnKey && actualTurnKey && expectedReturnTurnKey !== actualTurnKey) {
+      return { status: "stale", message: "Il ritorno appartiene a un turno diverso." };
+    }
+    const returnPlan = buildBlinkReturnOperations({
+      targetId: target.id,
+      spellEntry: parent,
+      chosenPosition: resolutionData.returnPosition,
+      fallback: resolutionData.fallback === true,
+      dpi: gridDpi,
+      scale: gridScale,
+    });
+    if (!returnPlan.valid) {
+      return {
+        status: "invalid",
+        message: returnPlan.errors.includes("blink-return-out-of-range")
+          ? "Lo spazio scelto supera la distanza massima di 3 m."
+          : "Scegli uno spazio valido per il ritorno di Intermittenza.",
+        errors: returnPlan.errors,
+      };
+    }
+    operations = returnPlan.operations;
+    sideEffects = returnPlan.sideEffects;
+  } else {
+    return { status: "unsupported", message: "Risoluzione Blink non riconosciuta." };
+  }
+
+  const markerMap = normalizedMarkerMap(meta[REMINDER_RESOLUTIONS_FIELD]);
+  const markerBase = reminderMarkerBaseMap(markerMap, {
+    activationKind: "spell-turn-boundary",
+    effectInstanceId: "",
+  });
+  const nextMarkers = {
+    ...markerBase,
+    [activationId]: {
+      version: REMINDER_RESOLUTION_VERSION,
+      outcome: normalizedOutcome,
+      ...(kind === "blink-return" && resolutionData.fallback === true
+        ? { fallback: true }
+        : {}),
+      resolvedAt: Math.max(0, Math.floor(Number(now) || Date.now())),
+    },
+  };
+  const markerSnapshot = metadataSnapshot(meta, REMINDER_RESOLUTIONS_FIELD);
+  const markerHistoryDelta = reminderMarkerHistoryDelta(
+    markerMap,
+    nextMarkers,
+    { beforePresent: markerSnapshot.present },
+  );
+  const metadataFields = {
+    [REMINDER_RESOLUTIONS_FIELD]: {
+      expected: markerSnapshot,
+      value: Object.fromEntries(Object.entries(nextMarkers).slice(-128)),
+      historyBefore: markerHistoryDelta.before,
+      historyAfter: markerHistoryDelta.after,
+    },
+  };
+  const targetName = text(target?.name, "Token", 100) || "Token";
+  const sourceItem = itemsById.get(sourceId);
+  return {
+    status: "ready",
+    outcome: normalizedOutcome,
+    targetId: target.id,
+    sourceId,
+    activationId,
+    // Blink non applica danno, ma il contratto condiviso della risoluzione
+    // espone comunque un risultato danno normalizzato ai consumer History /
+    // causality. Manteniamo qui il valore neutro invece di lasciare il campo
+    // assente e farlo leggere come `plan.damage.amount`.
+    damage: { roll: 0, factor: "zero", amount: 0 },
+    operations,
+    metadataPatches: [{ id: target.id, fields: metadataFields }],
+    sideEffects,
+    targetIds: uniqueIds([target.id, sourceId]),
+    sceneMetadataPreconditions: sceneMetadata
+      && Object.prototype.hasOwnProperty.call(sceneMetadata, `${ID}/state`)
+      ? [{ key: `${ID}/state`, value: clone(sceneMetadata[`${ID}/state`]) }]
+      : [],
+    message: kind === "blink-return"
+      ? `Intermittenza: ritorno di ${targetName} sul Piano Materiale.`
+      : normalizedOutcome === "failed"
+        ? `Intermittenza: ${targetName} è passato sul Piano Etereo.`
+        : `Intermittenza: ${targetName} resta sul piano corrente.`,
+    ...(sourceItem ? { sourceName: text(sourceItem.name, "", 100) } : {}),
+  };
+}
+
 function outcomeActions(resolution, outcome) {
   const value = resolution?.outcomes?.[outcome];
   return Array.isArray(value?.actions) ? value.actions : [];
@@ -1177,20 +1388,39 @@ export function buildReminderResolutionPlan({
   items = [],
   outcome = "",
   damageRoll = 0,
+  turbineSize = "",
+  turbineStrengthOutcome = "",
+  gridDpi = 150,
+  gridScale = { parsed: { multiplier: 1.5, unit: "m" } },
   sceneMetadata = null,
   now = Date.now(),
 } = {}) {
   const resolution = normalizeReminderResolution(notice?.resolution);
   const normalizedOutcome = String(outcome || "").trim().toLowerCase();
+  const resolutionData = resolution?.activation?.resolutionData
+    && typeof resolution.activation.resolutionData === "object"
+    ? resolution.activation.resolutionData
+    : {};
+  const blinkResolution = ["blink-roll", "blink-return"].includes(
+    String(resolutionData?.kind || "").trim(),
+  );
+  const turbine = resolutionData.turbine === true;
   const consumeOnly = resolution?.mode === "consume";
   const manualHeal = resolution?.mode === "manual-heal";
   const manualDamage = resolution?.mode === "manual-damage";
-  const validOutcome = manualHeal
+  const validOutcome = blinkResolution
+    ? [REMINDER_OUTCOMES.PASSED, REMINDER_OUTCOMES.FAILED].includes(normalizedOutcome)
+    : turbine
+    ? ["passed", "failed"].includes(normalizedOutcome)
+    : manualHeal
     ? ["apply", "ignore"].includes(normalizedOutcome)
     : manualDamage
       ? normalizedOutcome === "confirmed"
       : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
   if (!resolution || !validOutcome) {
+    if (blinkResolution) {
+      return { status: "invalid", message: "Esito di Intermittenza non valido." };
+    }
     return { status: "informational", message: "Questo reminder è solo informativo." };
   }
   const noticeTargetIds = uniqueIds((notice?.targets || []).map((target) => target?.id));
@@ -1240,6 +1470,23 @@ export function buildReminderResolutionPlan({
     return { status: "stale", message: "La sorgente dell'effetto non esiste più." };
   }
 
+  if (["blink-roll", "blink-return"].includes(String(resolutionData?.kind || "").trim())) {
+    return blinkReminderPlan({
+      notice,
+      target,
+      meta,
+      resolution,
+      resolutionData,
+      normalizedOutcome,
+      activationId,
+      itemsById,
+      gridDpi,
+      gridScale,
+      sceneMetadata,
+      now,
+    });
+  }
+
   let zoneSideEffect = null;
   if (activationKind === "zone") {
     const zoneItemId = text(resolution.activation?.zoneItemId, "", 200);
@@ -1280,6 +1527,22 @@ export function buildReminderResolutionPlan({
   ) {
     return { status: "invalid", message: "Inserisci un risultato dei dadi valido." };
   }
+  const turbineChain = turbine
+    ? resolveTurbineSaveChain({
+      dexOutcome: normalizedOutcome,
+      size: turbineSizeFromToken({ item: target, dpi: gridDpi }) || turbineSize,
+      strengthOutcome: turbineStrengthOutcome,
+    })
+    : null;
+  if (turbineChain && !turbineChain.valid) {
+    return {
+      status: "invalid",
+      message: turbineChain.status === "needs-strength-save"
+        ? "Indica il risultato del TS Forza."
+        : "La footprint del bersaglio non è disponibile.",
+      turbineChain,
+    };
+  }
   const damage = reminderResolutionDamage(
     resolution,
     normalizedOutcome,
@@ -1299,10 +1562,6 @@ export function buildReminderResolutionPlan({
   }
   const hpBefore = Number(meta.hp);
   const hpMax = Number(meta.hpMax);
-  const resolutionData = resolution.activation?.resolutionData
-    && typeof resolution.activation.resolutionData === "object"
-    ? resolution.activation.resolutionData
-    : {};
   const creatureType = String(
     meta.creatureType || meta.creatureTypeName || meta.creatureTypeLabel || "",
   ).trim().toLocaleLowerCase("it");
@@ -1363,12 +1622,27 @@ export function buildReminderResolutionPlan({
   const operations = [];
   const actionSideEffects = [];
   const actionMetadataPatches = [];
-  for (const action of outcomeActions(resolution, normalizedOutcome)) {
+  for (const action of turbine ? [] : outcomeActions(resolution, normalizedOutcome)) {
     const result = actionOperations({ action, targetId, itemsById, sceneMetadata });
     if (result.error) return { status: "stale", message: result.error };
     operations.push(...result.operations);
     actionSideEffects.push(...(result.sideEffects || []));
     actionMetadataPatches.push(...(result.metadataPatches || []));
+  }
+
+  if (turbine && turbineChain?.capture) {
+    const parentEffectId = text(resolution.activation?.instanceId, "", 200);
+    if (!parentEffectId) {
+      return { status: "stale", message: "L'istanza del Turbine non è più disponibile." };
+    }
+    operations.push(...turbineRestrainedOperations({
+      targetIds: [targetId],
+      parentEffectId,
+      sourceId,
+      sourceName: notice?.sourceName || resolution.source?.name || "",
+      spellName: notice?.spellName || resolution.activation?.spellName || "Turbine",
+      spellId: notice?.spellId || resolution.activation?.spellId || "xanathar-turbine",
+    }));
   }
 
   if (
@@ -1437,6 +1711,13 @@ export function buildReminderResolutionPlan({
       outcome: normalizedOutcome,
       ...(damage.amount ? { damage: damage.amount } : {}),
       ...(healing.amount ? { healing: healing.amount } : {}),
+      ...(turbine ? {
+        turbine: {
+          size: turbineChain?.size || "",
+          strengthOutcome: turbineChain?.strengthOutcome || "",
+          capture: turbineChain?.capture === true,
+        },
+      } : {}),
       resolvedAt: Math.max(0, Math.floor(Number(now) || Date.now())),
     },
   };
@@ -1486,6 +1767,7 @@ export function buildReminderResolutionPlan({
     damage,
     healing,
     hpChange,
+    ...(turbine ? { turbineChain } : {}),
     operations,
     metadataPatches: [
       { id: targetId, fields: metadataFields },

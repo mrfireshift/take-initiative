@@ -340,8 +340,12 @@ function markNonTokenDomainChanges(flags, before, after, lifecycleChange) {
   const geometryChanged = lifecycleChange
     || before?.geometrySignature !== after?.geometrySignature;
   const derivedKind = after?.derivedKind || before?.derivedKind;
+  const movementChanged = !lifecycleChange
+    && before?.positionSignature !== after?.positionSignature
+    && ["aura-visual", "zone-visual"].includes(derivedKind);
   const metadataChanged = lifecycleChange
     || before?.externalMetadataSignature !== after?.externalMetadataSignature;
+  flags.movement ||= movementChanged;
   if ((geometryChanged || metadataChanged)
       && (derivedKind === "aura-visual" || derivedKind === "zone-visual")) {
     flags.aura ||= derivedKind === "aura-visual";

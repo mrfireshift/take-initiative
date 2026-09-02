@@ -7,7 +7,7 @@ per polishing, nuove implementazioni e scelta dei batch futuri.
 | Campo | Valore |
 | --- | --- |
 | Stato | Riferimento operativo corrente |
-| Ultima verifica | 2026-08-21 |
+| Ultima verifica | 2026-09-01 |
 | Fonte primaria | Codice runtime in `src/` |
 | Perimetro | Cast, targeting, aree, zone, aure, trigger, reminder, TS, danni, cure, condizioni, azioni successive, cleanup e mutation |
 | Baseline verificata | Gli spell elencati in [F. Canonical spell reference map](#f-canonical-spell-reference-map) sono trattati come già auditati e verificati |
@@ -477,6 +477,68 @@ Spell
 └─ mutation: zone/active executors → runEffectsMutation
 ```
 
+### Intermittenza — `blink`
+
+```text
+Spell
+├─ raw: src/spell-reference-it.json → Self, 1 minuto, nessuna concentrazione, Piano Materiale/Etereo
+├─ cast: spell-unified-panel.js → parent spell instance persistente
+├─ targeting: Self; nessuna area persistente e nessun trasferimento di scena
+├─ persistent state: blinkRules.js → castContext.blink
+│  ├─ plane: material | ethereal
+│  ├─ departurePosition: { x, y } | null
+│  ├─ departure/return turn keys
+│  └─ castContext.pendingTurnBoundary / resolvedTurnBoundary → idempotenza
+├─ turn notices: blinkTurnBoundaryNotices → notice shared di fine turno e ritorno a inizio turno
+├─ d20 resolution: reminderResolutionCore.js → blinkReminderPlan → buildBlinkRollStateOperation
+│  ├─ esito fisico 1–10: nessuna mutation semantica
+│  └─ esito fisico 11+: salva la posizione corrente e porta lo stato a ethereal
+├─ presentation: blinkSummaryParts / blinkSemanticDetail → Intermittenza + Etereo
+├─ return action: spellActiveResolutionRules.js → blink-return
+├─ return placement: spell-active-resolution.js / turn-notice.ts → picker puntuale diretto sulla mappa
+│  └─ aoeTargetTool.js → nearestGridFootprintCenter; click → token:teleport immediato
+├─ terminal: spellTerminationGatewayCore.js → ritorno prima del cleanup quando plane = ethereal
+├─ dismissal: spells-srd.js → blink-terminate, economia ACTION
+├─ mutation: spell:upsert + token:teleport → runEffectsMutation / History condivisa
+└─ stale/reload/undo: exact instanceId, scene epoch e shared History; nessun volatile store
+```
+
+Intermittenza è `FULL / ACCEPTED`. Il runtime automatizza lifecycle, prompt
+di confine, stato semantico, posizione di scomparsa, picker diretto e ritorno
+prima del cleanup; il d20, LOS, occupazione, scelta casuale fra spazi
+equidistanti e interazioni planari restano deliberatamente GM-assisted. Il
+picker non costruisce aree e la distanza RAW di 3 m viene mostrata come
+vincolo di tavolo, non usata per rifiutare automaticamente la destinazione.
+La regressione Undo dopo il tick di round è coperta dal contratto shared:
+il semplice avanzamento dei contatori runtime non blocca gli Undo di cast,
+esito d20 e ritorno, mentre le modifiche semantiche stale restano protette.
+
+### Turbine — `xanathar-turbine`
+
+```text
+Spell
+├─ cast: buildSpellUnifiedAreaCommand → executeSpellUnifiedArea → executeSpellAreaResolution
+├─ targeting: point placement entro 90 m; target IDs dalla membership e dal crossing swept
+├─ area/zone/aura: spellAreaRules.js → static cylinder, radius 3 m, height 9 m, initial appearance
+├─ save: spellAreaRules.js → Dexterity on entry/crossing, once-per-turn; Strength only after failed Dex and Large-or-smaller
+├─ damage/healing: 10d6 bludgeoning, full on failed Dex and half on success
+├─ persistent state: static-zone parent instance + Turbine-owned Restrained child effect
+├─ reminders: planStaticSpellZoneReminder → zoneTriggerNoticesFromActivation → turn-notice.ts
+├─ turn prompts: target turn-start elevation adjustment through canonical meta.elevation
+├─ active actions: spellActiveResolutionRules.js → xanathar-turbine-escape; executeSpellActiveAction
+├─ movement: manual GM drag of the root; spellStaticZone.js → reconcileTurbineNativeAttachments; OBR attachment follows XY only
+├─ cleanup: concentration/expiry/manual end detaches current targets and preserves current position/elevation
+└─ mutation: reminder/condition/elevation paths → runEffectsMutation; History/Undo is target- and instance-scoped
+```
+
+La creatura Enorme o Gargantua partecipa comunque al TS Destrezza e al danno,
+ma non entra nel ramo TS Forza/Trattenuto. Il root non offre un'azione `Sposta
+zona`: l'area viene spostata manualmente dal GM. Il rilascio mostra il
+promemoria RAW dello scagliamento, mentre tiro, direzione, caduta e oggetti
+restano manuali. Le risoluzioni multi-target fanno fan-out per riga e il
+consumo parziale conserva l'ID scoped, così un popup con più bersagli non
+duplica le righe e due Undo consecutivi ricostruiscono gli stati intermedi.
+
 ### Investitura della Pietra — `xanathar-investitura-della-pietra`
 
 ```text
@@ -523,10 +585,16 @@ Spell
 ├─ persistent state: parent spell + linked target effect
 ├─ reminders: active action/turn prompt where declared
 ├─ turn prompts: action availability
-├─ active actions: spells-srd.js → telekinesis-retarget; executeSpellActiveAction
+├─ active actions: spellActiveResolutionRules.js → telekinesis-maintain, telekinesis-retarget; executeSpellActiveAction
 ├─ cleanup: linked effect and parent removal
 └─ mutation: spell/condition operations → runEffectsMutation
 ```
+
+Stato audit: `FULL / ACCEPTED` nel perimetro OBR creature-only. La contesa,
+il cambio o mantenimento del bersaglio, Trattenuto canonico, i boundary di
+turno, il cleanup e History/Undo sono coperti; movimento, sospensione e
+manipolazione di oggetti restano manuali perché il workflow OBR non usa token
+di oggetti.
 
 ### Carne in Pietra — `flesh-to-stone`
 
@@ -927,12 +995,26 @@ cleanup target-scoped/concentrazione o non-concentration sono coperti dai
 contratti shared. Non sono più candidati P1; anche il batch multi-target
 (`Anatema`, `Benedizione`, `Lentezza`, `Confusione`, `Parola Radiosa`) e le
 zone statiche `Nube di Pugnali`/`Nube Maleodorante` sono auditati e approvati.
-Per `Parola Radiosa` resta solo il follow-up visuale del tema colore dell'area;
-i risultati sono registrati nell'audit di automazione.
+`Turbine` è ora la baseline completa per una zona statica mobile con crossing
+swept, fan-out multi-target, attachment nativo dei CHARACTER catturati, quota
+canonica, azione di fuga e Undo sequenziale. Per `Parola Radiosa` resta solo il
+follow-up visuale del tema colore dell'area; i risultati sono registrati
+nell'audit di automazione. Anche `Intermittenza` (`blink`) è ora chiusa come
+`FULL / ACCEPTED`: usa una parent instance con stato Materiale/Etereo,
+notice di fine turno per l'esito d20 fisico, ritorno scelto direttamente sulla
+mappa, dismissal come azione e terminal gateway prima del cleanup. Il picker
+riusa il punto condiviso e il centro della footprint; il piano, la visuale,
+l'occupazione e la distanza RAW restano adjudication del GM.
+Anche `Telecinesi` (`telekinesis`) è ora chiusa come `FULL / ACCEPTED` nel
+perimetro OBR creature-only: parent instance, contesa iniziale e ricorrente,
+retarget, Condition canonica Trattenuto, boundary di turno, cleanup,
+reconcile e History/Undo sono coperti. La manipolazione di oggetti e il
+movimento o la sospensione della creatura restano manuali per scelta di
+perimetro e per l'assenza di token oggetto nel workflow OBR.
 
 | Priorità | Batch candidato | Spell candidate da verificare nel catalogo | Primitive riusabili | Perché è il prossimo passo naturale | Rischio principale |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Azioni ricorrenti e counters | altre spell con azione successiva non approvata | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, resource/counter, turn notice | `Invocare il fulmine`, `Spada Arcana`, `Lama del Disastro`, `Sguardo Penetrante`, `Arma Sacra`, `Controllare Venti` e `Riscaldare il metallo` sono golden references già approvate; restano da verificare i casi non chiusi | parent instance stale, consumo anche su miss, fine spell a counter zero |
+| 1 | Azione ricorrente e danno derivato | `Debilitazione` (`xanathar-debilitazione`) | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, parent instance, turn notice, effect linkage e History | È il solo GAP P1 residuo della capability active-action: ha già `enervation-repeat` raggiungibile e richiede composizione della ripetizione, del danno/cura e delle terminazioni RAW | target/parent stale, consumo o risoluzione non valida, terminazione per evento RAW |
 | 2 | Save persistenti e cleanup condizionale | `Dominare Persone/Mostri`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata, Paura, Contagio e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
 | 3 | Prepared/next-hit e danno persistente | `Punizione Incandescente`, `Punizione Tonante`, `Raffica di Spine`, `Marchio del Cacciatore` | `spellCastPhaseCore.js`, lifecycle adapter, `spellApplicationOperations`, reminders | Colpo Intrappolante dimostra il modello prepared → extend → effect persistente | transizione prepared/resolve e collegamento con l'attacco che innesca |
 | 4 | Aree istantanee con placement e scaling | `Fulmine`, `Cono di Freddo`, `Tempesta di Ghiaccio`, altre area-save non approvate | area rule, placement grid, target filtering, slot geometry/scaling, area executor | È il batch a minor costo architetturale se il workflow è realmente istantaneo | differenza tra area geometrica e target discreti/area-subset |
@@ -984,12 +1066,12 @@ Prima di modificare una spell:
 
 ### Snapshot di verifica usato come baseline
 
-La fase precedente ha verificato le modifiche di reuse del percorso Guardiani con
-suite mirate area/aura/zone/quick action e con la build. Il build è risultato
-completato con il solo warning Vite sui chunk grandi. La suite completa contiene
-failure/stall già riconducibili al perimetro History/Undo, che resta il confine
-esplicito di questo documento e non deve essere interpretato come prova che il
-workflow spell corrente sia privo di rischi.
+La verifica corrente include le suite mirate area/aura/zone/quick action,
+Blink, Turbine e History/Undo, oltre alla suite completa e alla build. La suite
+completa corrente è verde (2790/2790); la build Vite è riuscita con il solo
+warning sui chunk grandi. Blink e Turbine sono quindi documentati come
+`FULL / ACCEPTED`, con i soli confini manuali già esplicitati nella mappa di
+riferimento.
 
 ---
 

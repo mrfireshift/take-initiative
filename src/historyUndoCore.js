@@ -1,3 +1,5 @@
+import { normalizeElevation } from "./distance3dCore.js";
+
 const clone = (value) => {
   if (value === undefined) return undefined;
   if (typeof globalThis.structuredClone === "function") {
@@ -13,6 +15,8 @@ const clone = (value) => {
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value || {}, key);
 const REMINDER_RESOLUTIONS_FIELD = "reminderResolutions";
+const CANONICAL_META_KEY = "com.thebigpicture.initiative/meta";
+const CANONICAL_ELEVATION_FIELD = "elevation";
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -396,9 +400,17 @@ export function granularReconcileSpells(current = [], before = [], after = []) {
         return { conflict: true, expected: null, actual: clone(currentSpell) };
       }
     } else if (beforeSpell && afterSpell) {
-      // For a genuine modification, keep strict ownership semantics. Runtime
-      // drift must not mask a later edit to the same spell instance.
-      if (!currentSpell || !historyUndoSame(currentSpell, afterSpell)) {
+      // A genuine semantic modification remains strict, but terminal spells
+      // may have advanced only their shared runtime counters/bookkeeping
+      // since this entry was recorded. Do not let that history:false drift
+      // mask a later semantic edit to the same spell instance.
+      const matches = currentSpell && (
+        terminalResolutionDescriptor(currentSpell)
+          || terminalResolutionDescriptor(afterSpell)
+          ? spellSnapshotCompatibleWithRuntimeProgress(currentSpell, afterSpell)
+          : historyUndoSame(currentSpell, afterSpell)
+      );
+      if (!matches) {
         return {
           conflict: true,
           expected: clone(afterSpell),
@@ -851,13 +863,16 @@ function writeZoneTriggerActivation(item, patch, present) {
   };
 }
 
-function zoneTriggerActivationMatches(item, patch, present) {
+function zoneTriggerActivationMatches(item, patch, present, expectedActivation) {
   const metadataKey = String(patch?.metadataKey || "").trim();
   const activationId = String(patch?.activationId || "").trim();
   if (!metadataKey || !activationId) return false;
   const current = zoneTriggerActivation(item?.metadata?.[metadataKey], activationId);
   if (!present) return !current;
-  return !!current && historyUndoSame(current, patch.activation);
+  const expected = expectedActivation === undefined
+    ? patch.activation
+    : expectedActivation;
+  return !!current && !!expected && historyUndoSame(current, expected);
 }
 
 export function historyUndoItemMatches(item, change, {
@@ -917,7 +932,15 @@ export function historyUndoItemMatches(item, change, {
     const expectedPresent = phase === "before"
       ? patch.beforePresent === true
       : patch.afterPresent === true;
-    if (!zoneTriggerActivationMatches(item, patch, expectedPresent)) return false;
+    const expectedActivation = phase === "before"
+      ? (hasOwn(patch, "beforeActivation") ? patch.beforeActivation : undefined)
+      : (hasOwn(patch, "afterActivation") ? patch.afterActivation : patch.activation);
+    if (!zoneTriggerActivationMatches(
+      item,
+      patch,
+      expectedPresent,
+      expectedActivation,
+    )) return false;
   }
   return true;
 }
@@ -945,6 +968,9 @@ function historyUndoSideEffectMatchesBefore(item, sideEffect) {
   if (type === "static-zone-move") {
     return historyUndoSame(item.position, sideEffect?.beforePosition);
   }
+  if (type === "elevation:adjust") {
+    return historyUndoElevationSideEffectMatches(item, sideEffect, "before");
+  }
   if (type === "static-zone-reorient") {
     if (!historyUndoSame(item.position, sideEffect?.beforePosition)) return false;
     if (!historyUndoSame(item.commands, sideEffect?.beforeCommands)) return false;
@@ -968,6 +994,46 @@ function historyUndoSideEffectMatchesBefore(item, sideEffect) {
     return !!beforePosition && historyUndoSame(item.position, beforePosition);
   }
   return false;
+}
+
+function historyUndoStaticZoneCarriedItemMatches(item, carried, positionKey) {
+  if (!item || !carried || !historyUndoSame(item.position, carried[positionKey])) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(carried, "type")
+    && String(item.type || "") !== String(carried.type || "")
+  ) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(carried, "layer")
+    && String(item.layer || "") !== String(carried.layer || "")
+  ) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(carried, "topLevel")
+    && (!item.attachedTo) !== (carried.topLevel === true)
+  ) return false;
+  return true;
+}
+
+function historyUndoElevationValue(item, sideEffect) {
+  const metadataKey = String(sideEffect?.metadataKey || CANONICAL_META_KEY).trim();
+  const metadataField = String(sideEffect?.metadataField || CANONICAL_ELEVATION_FIELD).trim();
+  return normalizeElevation(item?.metadata?.[metadataKey]?.[metadataField]);
+}
+
+function historyUndoElevationSideEffectMatches(item, sideEffect, phase = "before") {
+  if (!item) return false;
+  const metadataKey = String(sideEffect?.metadataKey || CANONICAL_META_KEY).trim();
+  const metadataField = String(sideEffect?.metadataField || CANONICAL_ELEVATION_FIELD).trim();
+  if (metadataKey !== CANONICAL_META_KEY || metadataField !== CANONICAL_ELEVATION_FIELD) return false;
+  const expectedValue = phase === "before"
+    ? sideEffect?.beforeElevation
+    : sideEffect?.afterElevation;
+  if (!Number.isFinite(Number(expectedValue))) return false;
+  const expectedPresent = phase === "before"
+    ? sideEffect?.beforePresent === true
+    : true;
+  const actualMetadata = item.metadata?.[CANONICAL_META_KEY] || {};
+  if (hasOwn(actualMetadata, CANONICAL_ELEVATION_FIELD) !== expectedPresent) return false;
+  return historyUndoSame(historyUndoElevationValue(item, sideEffect), normalizeElevation(expectedValue));
 }
 
 /**
@@ -1033,6 +1099,19 @@ export function historyEntryMatchesUndoBefore({
     const id = String(sideEffect?.id || sideEffect?.itemId || sideEffect?.targetId || "").trim();
     const item = itemsById.get(id) || null;
     if (!historyUndoSideEffectMatchesBefore(item, sideEffect)) return false;
+    if (sideEffect?.type === "static-zone-move") {
+      const seenCarriedIds = new Set([id]);
+      for (const carried of Array.isArray(sideEffect.carriedItems) ? sideEffect.carriedItems : []) {
+        const carriedId = String(carried?.id || "").trim();
+        if (!carriedId || seenCarriedIds.has(carriedId)) continue;
+        seenCarriedIds.add(carriedId);
+        if (!historyUndoStaticZoneCarriedItemMatches(
+          itemsById.get(carriedId) || null,
+          carried,
+          "beforePosition",
+        )) return false;
+      }
+    }
   }
   return changes.length > 0 || (entry?.effectsMutation?.sideEffects?.length || 0) > 0;
 }
@@ -1349,6 +1428,33 @@ function processExternalMetadata({
     conflict(conflicts, entry, id, "missing-item", metadataKey);
     return;
   }
+  if (sideEffect.type === "elevation:adjust") {
+    const metadataField = String(sideEffect.metadataField || "").trim();
+    if (metadataKey !== keys.meta || metadataField !== CANONICAL_ELEVATION_FIELD) {
+      conflict(conflicts, entry, id, "invalid-elevation-side-effect", metadataField || metadataKey);
+      return;
+    }
+    if (!historyUndoElevationSideEffectMatches(item, sideEffect, "after")) {
+      conflict(conflicts, entry, id, "current-value-mismatch", metadataField, {
+        expected: normalizeElevation(sideEffect.afterElevation),
+        actual: historyUndoElevationValue(item, sideEffect),
+      });
+      return;
+    }
+    const touch = ensureTouch(touches, id);
+    if (entry?.id) touch.entryIds.add(entry.id);
+    touch.metadata.add(metadataField);
+    const next = { ...(item.metadata || {}) };
+    const canonical = { ...(next[metadataKey] || {}) };
+    if (sideEffect.beforePresent === true) {
+      canonical[metadataField] = normalizeElevation(sideEffect.beforeElevation);
+    } else {
+      delete canonical[metadataField];
+    }
+    next[metadataKey] = canonical;
+    item.metadata = next;
+    return;
+  }
   if (sideEffect.type === "static-zone-move") {
     if (!historyUndoSame(item.position, sideEffect.afterPosition)) {
       conflict(conflicts, entry, id, "current-value-mismatch", "position", {
@@ -1363,10 +1469,36 @@ function processExternalMetadata({
       conflict(conflicts, entry, id, "current-value-mismatch", metadataKey);
       return;
     }
+    const carriedItems = [];
+    const seenCarriedIds = new Set([id]);
+    let carriedConflict = false;
+    for (const carried of Array.isArray(sideEffect.carriedItems) ? sideEffect.carriedItems : []) {
+      const carriedId = String(carried?.id || "").trim();
+      if (!carriedId || seenCarriedIds.has(carriedId)) continue;
+      seenCarriedIds.add(carriedId);
+      const carriedItem = simulated.get(carriedId) || null;
+      if (!historyUndoStaticZoneCarriedItemMatches(carriedItem, carried, "afterPosition")) {
+        conflict(conflicts, entry, carriedId, carriedItem ? "current-value-mismatch" : "missing-item", "position", {
+          expected: clone(carried?.afterPosition),
+          actual: clone(carriedItem?.position),
+        });
+        carriedConflict = true;
+        continue;
+      }
+      carriedItems.push({ carriedId, carriedItem, carried });
+    }
+    if (carriedConflict) return;
     const touch = ensureTouch(touches, id);
     if (entry?.id) touch.entryIds.add(entry.id);
     touch.position = true;
     item.position = clone(sideEffect.beforePosition);
+    for (const { carriedId, carriedItem, carried } of carriedItems) {
+      if (!initial.has(carriedId)) initial.set(carriedId, clone(carriedItem));
+      const carriedTouch = ensureTouch(touches, carriedId);
+      if (entry?.id) carriedTouch.entryIds.add(entry.id);
+      carriedTouch.position = true;
+      carriedItem.position = clone(carried.beforePosition);
+    }
     return;
   }
 
@@ -1404,7 +1536,16 @@ function processZoneTriggerActivation({
   const activation = sideEffect?.activation && typeof sideEffect.activation === "object"
     ? clone(sideEffect.activation)
     : null;
-  if (!id || !metadataKey || !activationId || !activation) {
+  const hasRestoreActivation = hasOwn(sideEffect, "beforeActivation");
+  const restoreActivation = hasRestoreActivation
+    ? (sideEffect.beforeActivation && typeof sideEffect.beforeActivation === "object"
+      ? clone(sideEffect.beforeActivation)
+      : null)
+    : activation;
+  if (!id || !metadataKey || !activationId || !activation
+    || (hasRestoreActivation && sideEffect.beforeActivation !== null
+      && (typeof sideEffect.beforeActivation !== "object"
+        || !restoreActivation))) {
     conflict(conflicts, entry, id || null, "invalid-zone-trigger-activation-side-effect", metadataKey || null);
     return;
   }
@@ -1414,14 +1555,29 @@ function processZoneTriggerActivation({
     conflict(conflicts, entry, id, "missing-item", metadataKey);
     return;
   }
+  const currentActivation = zoneTriggerActivation(
+    item?.metadata?.[metadataKey],
+    activationId,
+  );
+  const hasExpectedActivation = hasOwn(sideEffect, "expectedActivation");
+  const expectedActivation = hasExpectedActivation
+    ? sideEffect.expectedActivation
+    : null;
   // La risoluzione ha consumato una sola activation. Al momento dell'Undo
-  // quella activation deve essere assente; gli altri campi del triggerRuntime
-  // possono invece essere avanzati dal controller dell'aura senza bloccare Undo.
-  if (zoneTriggerActivation(item?.metadata?.[metadataKey], activationId)) {
+  // la stessa activation puo invece contenere i target ancora non risolti:
+  // ogni entry History registra quel preciso stato intermedio come precondizione.
+  // Gli altri campi del triggerRuntime possono essere avanzati dal controller
+  // dell'aura senza bloccare Undo.
+  const activationMatchesExpected = hasExpectedActivation
+    ? expectedActivation === null
+      ? !currentActivation
+      : !!currentActivation && historyUndoSame(currentActivation, expectedActivation)
+    : !currentActivation;
+  if (!activationMatchesExpected) {
     conflict(conflicts, entry, id, "current-value-mismatch", `${metadataKey}.triggerRuntime.pending`, {
       activationId,
-      expected: null,
-      actual: clone(zoneTriggerActivation(item?.metadata?.[metadataKey], activationId)),
+      expected: clone(expectedActivation),
+      actual: clone(currentActivation),
     });
     return;
   }
@@ -1430,11 +1586,17 @@ function processZoneTriggerActivation({
   touch.zoneTriggerActivations.set(`${metadataKey}:${activationId}`, {
     metadataKey,
     activationId,
-    activation,
-    beforePresent: false,
-    afterPresent: true,
+    activation: clone(restoreActivation),
+    beforePresent: !!currentActivation,
+    beforeActivation: clone(currentActivation),
+    afterPresent: !!restoreActivation,
+    afterActivation: clone(restoreActivation),
   });
-  writeZoneTriggerActivation(item, { metadataKey, activationId, activation }, true);
+  writeZoneTriggerActivation(item, {
+    metadataKey,
+    activation: restoreActivation,
+    activationId,
+  }, !!restoreActivation);
 }
 
 function processStaticZoneReorient({
@@ -1612,7 +1774,11 @@ function addSideEffectChange({
     });
     return true;
   }
-  if (sideEffect?.type === "metadata" || sideEffect?.type === "static-zone-move") {
+  if (
+    sideEffect?.type === "metadata"
+    || sideEffect?.type === "static-zone-move"
+    || sideEffect?.type === "elevation:adjust"
+  ) {
     processExternalMetadata({
       entry,
       sideEffect,

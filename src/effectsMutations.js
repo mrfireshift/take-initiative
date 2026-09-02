@@ -72,6 +72,14 @@ import { emitMatchedVisualEndsFromMutation } from "./embersMatchedVisualRenderer
 import { initiativeTurnKeyAtOrdinal } from "./turnBoundaryCore.js";
 import { suppressMovementHistory } from "./history.js";
 import { compactBackgroundReminderTransportResult } from "./effectsReminderTransportCore.js";
+import {
+  elevationInputToCanonical,
+  normalizeElevation,
+} from "./distance3dCore.js";
+import {
+  ELEVATION_FIELD,
+  readElevation,
+} from "./distance3d.js";
 
 const META_KEY = `${ID}/meta`;
 const SPELLS_META_KEY = `${ID}/spells`;
@@ -513,6 +521,57 @@ export async function getEffectsMutationSceneContext({
 const uniqueIds = (values = []) => Array.from(new Set(
   (Array.isArray(values) ? values : []).map((value) => String(value || "").trim()).filter(Boolean)
 ));
+
+function staticZoneCarriedItemIdentity(item) {
+  return {
+    type: String(item?.type || ""),
+    layer: String(item?.layer || ""),
+    topLevel: !item?.attachedTo,
+  };
+}
+
+function staticZoneCarriedItemMatches(item, expected = {}) {
+  if (!item) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(expected, "type")
+    && String(item.type || "") !== String(expected.type || "")
+  ) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(expected, "layer")
+    && String(item.layer || "") !== String(expected.layer || "")
+  ) return false;
+  if (
+    Object.prototype.hasOwnProperty.call(expected, "topLevel")
+    && (!item.attachedTo) !== (expected.topLevel === true)
+  ) return false;
+  return true;
+}
+
+export function staticZoneCarriedItemIds(items = [], {
+  instanceId = "",
+  effectIds = [],
+} = {}) {
+  const parentEffectId = String(instanceId || "").trim();
+  const carriedEffectIds = new Set(uniqueIds(effectIds));
+  if (!parentEffectId || !carriedEffectIds.size) return [];
+
+  return uniqueIds(
+    (Array.isArray(items) ? items : [])
+      .filter((item) => (
+        item?.layer === "CHARACTER"
+        && !item?.attachedTo
+        && !!item?.metadata?.[META_KEY]
+      ))
+      .filter((item) => getConditionInstances(
+        item.metadata[META_KEY]?.conditions || {},
+      ).some((condition) => (
+        condition?.active !== false
+        && String(condition?.parentEffectId || "").trim() === parentEffectId
+        && carriedEffectIds.has(String(condition?.effectId || "").trim())
+      )))
+      .map((item) => item?.id),
+  );
+}
 
 function createId(prefix) {
   try {
@@ -1226,7 +1285,14 @@ function applyHistoryChangeToDraft(item, change, targetPhase) {
     const pending = (Array.isArray(runtime.pending) ? runtime.pending : [])
       .filter((entry) => String(entry?.id || "").trim() !== activationId)
       .map(clone);
-    if (shouldBePresent && patch?.activation) pending.push(clone(patch.activation));
+    const activationToWrite = targetPhase === "final"
+      ? (Object.prototype.hasOwnProperty.call(patch, "afterActivation")
+        ? patch.afterActivation
+        : patch.activation)
+      : (Object.prototype.hasOwnProperty.call(patch, "beforeActivation")
+        ? patch.beforeActivation
+        : patch.activation);
+    if (shouldBePresent && activationToWrite) pending.push(clone(activationToWrite));
     runtime.pending = pending;
     metadataValue.triggerRuntime = runtime;
     item.metadata = {
@@ -2217,13 +2283,19 @@ async function prepareEffectsSideEffects(plan, command) {
       const contactTargets = movementPlan.firstContact?.targetId
         ? [movementPlan.firstContact.targetId]
         : [];
+      const movementTargetIds = uniqueIds([
+        ...contactTargets,
+        ...(movementPlan.movement?.sweptArea === true
+          ? movementPlan.crossingTargetIds
+          : []),
+      ]);
       const areaMoveTargetIds = Object.fromEntries(
         (rule?.zonePolicy?.triggers || [])
           .filter((trigger) => (
             trigger?.requiresAreaMove === true
             && trigger?.triggerOnAreaMove === true
           ))
-          .map((trigger) => [trigger.id, contactTargets]),
+          .map((trigger) => [trigger.id, movementTargetIds]),
       );
       const afterMetadata = {
         ...metadata,
@@ -2241,6 +2313,63 @@ async function prepareEffectsSideEffects(plan, command) {
           status: EFFECTS_MUTATION_STATUS.CONFLICT,
           conflicts: [{ reason: "missing-static-zone", itemId: zoneItemId || null }],
         };
+      }
+      const carriedItemIds = uniqueIds([
+        ...(Array.isArray(descriptor.carriedItemIds) ? descriptor.carriedItemIds : []),
+        ...staticZoneCarriedItemIds(allItems, {
+          instanceId,
+          effectIds: movementPlan.movement?.carriedEffectIds
+            || rule?.zonePolicy?.carriedEffectIds,
+        }),
+      ])
+        .filter((itemId) => itemId !== zoneItemId);
+      const carriedItems = [];
+      if (carriedItemIds.length) {
+        const carriedSceneItems = await OBR.scene.items.getItems(carriedItemIds);
+        const carriedById = new Map(carriedSceneItems.map((item) => [item?.id, item]));
+        const missingIds = carriedItemIds.filter((itemId) => !carriedById.has(itemId));
+        if (missingIds.length) {
+          return {
+            status: EFFECTS_MUTATION_STATUS.CONFLICT,
+            conflicts: missingIds.map((itemId) => ({
+              reason: "static-zone-carried-item-missing",
+              itemId,
+            })),
+          };
+        }
+        const delta = {
+          x: Number(movementPlan.finalPosition.x) - Number(root.position.x),
+          y: Number(movementPlan.finalPosition.y) - Number(root.position.y),
+        };
+        for (const itemId of carriedItemIds) {
+          const item = carriedById.get(itemId);
+          if (item?.layer !== "CHARACTER" || item?.attachedTo) {
+            return {
+              status: EFFECTS_MUTATION_STATUS.CONFLICT,
+              conflicts: [{
+                reason: "static-zone-carried-item-not-top-level-character",
+                itemId,
+              }],
+            };
+          }
+          const x = Number(item?.position?.x);
+          const y = Number(item?.position?.y);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            return {
+              status: EFFECTS_MUTATION_STATUS.CONFLICT,
+              conflicts: [{
+                reason: "static-zone-carried-item-position-invalid",
+                itemId,
+              }],
+            };
+          }
+          carriedItems.push({
+            id: itemId,
+            beforePosition: { x, y },
+            afterPosition: { x: x + delta.x, y: y + delta.y },
+            ...staticZoneCarriedItemIdentity(item),
+          });
+        }
       }
       let subzone = null;
       if (
@@ -2299,6 +2428,7 @@ async function prepareEffectsSideEffects(plan, command) {
         beforeMetadata: sceneItemMetadataSnapshot(root, SPELL_STATIC_ZONE_META_KEY),
         afterMetadata: { present: true, value: clone(afterMetadata) },
         movementPlan,
+        ...(carriedItems.length ? { carriedItems: clone(carriedItems) } : {}),
         ...(subzone ? { subzone } : {}),
       });
     } else if (descriptor?.type === "static-zone:reorient") {
@@ -2440,6 +2570,73 @@ async function prepareEffectsSideEffects(plan, command) {
         after: { id: targetId, name: targetItem.name, position: afterPosition },
         skipAnimation: descriptor.skipAnimation === true,
       });
+    } else if (descriptor?.type === "elevation:adjust") {
+      const targetId = String(descriptor.targetId || "").trim();
+      const hasMax = Object.prototype.hasOwnProperty.call(descriptor, "max")
+        && descriptor.max !== undefined
+        && descriptor.max !== null;
+      const [targetItem] = targetId
+        ? await OBR.scene.items.getItems([targetId])
+        : [];
+      const scale = typeof OBR.scene?.grid?.getScale === "function"
+        ? await OBR.scene.grid.getScale().catch(() => null)
+        : null;
+      const delta = elevationInputToCanonical(descriptor.delta, scale);
+      const maxElevation = hasMax
+        ? elevationInputToCanonical(descriptor.max, scale)
+        : null;
+      const expectedElevation = descriptor.expectedElevation === undefined
+        ? null
+        : elevationInputToCanonical(descriptor.expectedElevation, scale);
+      if (!targetId || !targetItem) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{
+            reason: "elevation-adjust-target-missing",
+            itemId: targetId || null,
+          }],
+        };
+      }
+      if (!Number.isFinite(delta) || (hasMax && !Number.isFinite(maxElevation))) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{
+            reason: "elevation-adjust-value-invalid",
+            itemId: targetId,
+          }],
+        };
+      }
+      const beforeElevation = readElevation(targetItem);
+      if (expectedElevation !== null
+        && (!Number.isFinite(expectedElevation) || expectedElevation !== beforeElevation)) {
+        return {
+          status: EFFECTS_MUTATION_STATUS.CONFLICT,
+          conflicts: [{
+            reason: "elevation-adjust-expected-value-mismatch",
+            itemId: targetId,
+            field: ELEVATION_FIELD,
+            expected: expectedElevation,
+            actual: beforeElevation,
+          }],
+        };
+      }
+      const proposedElevation = normalizeElevation(beforeElevation + delta);
+      const afterElevation = hasMax
+        ? normalizeElevation(Math.min(proposedElevation, maxElevation))
+        : proposedElevation;
+      prepared.push({
+        type: descriptor.type,
+        id: targetId,
+        metadataKey: META_KEY,
+        metadataField: ELEVATION_FIELD,
+        beforeElevation,
+        afterElevation,
+        expectedElevation: beforeElevation,
+        beforePresent: Object.prototype.hasOwnProperty.call(
+          targetItem.metadata?.[META_KEY] || {},
+          ELEVATION_FIELD,
+        ),
+      });
     }
   }
   plan.preparedSideEffects = prepared;
@@ -2522,6 +2719,53 @@ function staticZoneRuleChoiceAfterSnapshot(item, ruleChoice) {
 async function applyPreparedSideEffect(sideEffect, isCurrent) {
   if (!isCurrent()) throw new Error("stale-before-side-effect");
   if (sideEffect.type === "spell-active-resolution:validate") return [];
+  if (sideEffect.type === "elevation:adjust") {
+    const targetId = String(sideEffect.id || sideEffect.targetId || "").trim();
+    const metadataKey = String(sideEffect.metadataKey || "").trim();
+    const metadataField = String(sideEffect.metadataField || "").trim();
+    const expectedElevation = Number(sideEffect.expectedElevation ?? sideEffect.beforeElevation);
+    const afterElevation = Number(sideEffect.afterElevation);
+    if (
+      !targetId
+      || metadataKey !== META_KEY
+      || metadataField !== ELEVATION_FIELD
+      || !Number.isFinite(expectedElevation)
+      || !Number.isFinite(afterElevation)
+    ) {
+      throw new Error("elevation-adjust-invalid");
+    }
+    const [current] = await OBR.scene.items.getItems([targetId]);
+    if (!current) throw new Error("elevation-adjust-target-missing");
+    if (readElevation(current) !== expectedElevation) {
+      throw new Error("elevation-adjust-stale");
+    }
+    if (!isCurrent()) throw new Error("stale-before-elevation-adjust");
+    if (expectedElevation === afterElevation) return [];
+    await OBR.scene.items.updateItems([targetId], (drafts) => {
+      const draft = drafts.find((item) => item?.id === targetId);
+      if (!draft) throw new Error("elevation-adjust-target-missing");
+      if (readElevation(draft) !== expectedElevation) {
+        throw new Error("elevation-adjust-stale");
+      }
+      if (!isCurrent()) throw new Error("stale-before-elevation-adjust-update");
+      const tokenMeta = { ...(draft.metadata?.[META_KEY] || {}) };
+      tokenMeta[ELEVATION_FIELD] = normalizeElevation(afterElevation);
+      draft.metadata = {
+        ...(draft.metadata || {}),
+        [META_KEY]: tokenMeta,
+      };
+    });
+    if (!isCurrent()) throw new Error("stale-after-elevation-adjust");
+    return [{
+      id: targetId,
+      type: "elevation:adjust",
+      metadataKey: META_KEY,
+      metadataField: ELEVATION_FIELD,
+      beforeElevation: expectedElevation,
+      afterElevation: normalizeElevation(afterElevation),
+      beforePresent: sideEffect.beforePresent === true,
+    }];
+  }
   if (sideEffect.type === "token:teleport") {
     const targetId = String(sideEffect.id || after?.id || "").trim();
     const afterPosition = sideEffect.afterPosition || after?.position || null;
@@ -2845,7 +3089,24 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     ];
   }
   if (sideEffect.type === "static-zone:move") {
-    const [current] = await OBR.scene.items.getItems([sideEffect.id]);
+    const carriedItems = [];
+    const seenCarriedIds = new Set([sideEffect.id]);
+    for (const carried of Array.isArray(sideEffect.carriedItems) ? sideEffect.carriedItems : []) {
+      const carriedId = String(carried?.id || "").trim();
+      if (!carriedId || seenCarriedIds.has(carriedId)) continue;
+      seenCarriedIds.add(carriedId);
+      carriedItems.push(carried);
+    }
+    const itemIds = [sideEffect.id, ...carriedItems.map((item) => item.id)];
+    const currentItems = await OBR.scene.items.getItems(itemIds);
+    const currentById = new Map(currentItems.map((item) => [item?.id, item]));
+    if (currentItems.length !== itemIds.length || itemIds.some((itemId) => !currentById.has(itemId))) {
+      const missingId = itemIds.find((itemId) => !currentById.has(itemId));
+      throw new Error(missingId && missingId !== sideEffect.id
+        ? "static-zone-carried-item-missing"
+        : "static-zone-move-item-missing");
+    }
+    const current = currentById.get(sideEffect.id);
     if (!current) throw new Error("static-zone-move-item-missing");
     if (!sameValue(current.position, sideEffect.beforePosition)) {
       throw new Error("static-zone-move-position-stale");
@@ -2853,6 +3114,15 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     const actual = sceneItemMetadataSnapshot(current, sideEffect.metadataKey);
     if (!metadataSnapshotMatches(actual, sideEffect.beforeMetadata)) {
       throw new Error("static-zone-move-metadata-stale");
+    }
+    for (const carried of carriedItems) {
+      const carriedCurrent = currentById.get(carried.id);
+      if (!sameValue(carriedCurrent.position, carried.beforePosition)) {
+        throw new Error("static-zone-carried-item-position-stale");
+      }
+      if (!staticZoneCarriedItemMatches(carriedCurrent, carried)) {
+        throw new Error("static-zone-carried-item-identity-stale");
+      }
     }
     if (!isCurrent()) throw new Error("stale-before-static-zone-move");
     const subzone = sideEffect.subzone;
@@ -2874,14 +3144,43 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       throw new Error("static-zone-subzone-stale");
     }
     if (!isCurrent()) throw new Error("stale-before-static-zone-move-update");
-    await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
+    await OBR.scene.items.updateItems(itemIds, (drafts) => {
+      const draftsById = new Map(drafts.map((draft) => [draft?.id, draft]));
+      if (itemIds.some((itemId) => !draftsById.has(itemId))) {
+        const missingId = itemIds.find((itemId) => !draftsById.has(itemId));
+        throw new Error(missingId && missingId !== sideEffect.id
+          ? "static-zone-carried-item-missing"
+          : "static-zone-move-item-missing");
+      }
+      const rootDraft = draftsById.get(sideEffect.id);
+      if (!sameValue(rootDraft.position, sideEffect.beforePosition)) {
+        throw new Error("static-zone-move-position-stale");
+      }
+      const rootMetadata = sceneItemMetadataSnapshot(rootDraft, sideEffect.metadataKey);
+      if (!metadataSnapshotMatches(rootMetadata, sideEffect.beforeMetadata)) {
+        throw new Error("static-zone-move-metadata-stale");
+      }
+      for (const carried of carriedItems) {
+        const carriedDraft = draftsById.get(carried.id);
+        if (!sameValue(carriedDraft.position, carried.beforePosition)) {
+          throw new Error("static-zone-carried-item-position-stale");
+        }
+        if (!staticZoneCarriedItemMatches(carriedDraft, carried)) {
+          throw new Error("static-zone-carried-item-identity-stale");
+        }
+      }
+      if (!isCurrent()) throw new Error("stale-before-static-zone-move-update");
       for (const draft of drafts) {
-        if (draft.id !== sideEffect.id) continue;
-        draft.position = clone(sideEffect.afterPosition);
-        draft.metadata = {
-          ...(draft.metadata || {}),
-          [sideEffect.metadataKey]: clone(sideEffect.afterMetadata.value),
-        };
+        if (draft.id === sideEffect.id) {
+          draft.position = clone(sideEffect.afterPosition);
+          draft.metadata = {
+            ...(draft.metadata || {}),
+            [sideEffect.metadataKey]: clone(sideEffect.afterMetadata.value),
+          };
+          continue;
+        }
+        const carried = carriedItems.find((item) => item.id === draft.id);
+        if (carried) draft.position = clone(carried.afterPosition);
       }
     });
     if (!isCurrent()) throw new Error("stale-after-static-zone-move");
@@ -2895,6 +3194,7 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       afterMetadata: clone(sideEffect.afterMetadata),
       instanceId: sideEffect.instanceId,
       ruleId: sideEffect.ruleId,
+      ...(carriedItems.length ? { carriedItems: clone(carriedItems) } : {}),
     }];
     if (beforeSubzoneIds.length) {
       if (!isCurrent()) throw new Error("stale-before-static-zone-subzone-delete");
@@ -2937,12 +3237,26 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
         };
       }
     });
+    const afterRuntime = normalizeSpellZoneTriggerRuntime(
+      sideEffect.after?.value?.triggerRuntime,
+    );
+    const beforeRuntime = normalizeSpellZoneTriggerRuntime(
+      sideEffect.before?.value?.triggerRuntime,
+    );
+    const beforeActivation = beforeRuntime.pending.find((entry) => (
+      String(entry?.id || "").trim() === String(sideEffect.activationId || "").trim()
+    )) || null;
+    const expectedActivation = afterRuntime.pending.find((entry) => (
+      String(entry?.id || "").trim() === String(sideEffect.activationId || "").trim()
+    )) || null;
     return [{
       id: sideEffect.id,
       type: "reminder-zone-activation",
       metadataKey: sideEffect.metadataKey,
       activationId: sideEffect.activationId,
       activation: clone(sideEffect.activation),
+      beforeActivation: clone(beforeActivation),
+      expectedActivation: clone(expectedActivation),
     }];
   }
   return [];
@@ -3124,11 +3438,12 @@ function createBackgroundEffectsMutationCoordinator() {
       && sceneIdentity === backgroundSceneIdentity
       && isCurrentSceneEpoch(command.sceneEpoch);
   },
-  // I reminder/TS popup usano deferHistory=true: costruisci subito una
-  // History entry immutabile prima di entrare nella lane di retry. In questo
-  // modo un timeout ambiguo dell'owner non puo rigenerare lo stesso entryId
-  // con un nuovo timestamp `at`, trasformando tutti i retry successivi in
-  // `entry-id-payload-mismatch`.
+  // I reminder che usano deferHistory=true costruiscono subito una History
+  // entry immutabile prima di entrare nella lane di retry. In questo modo un
+  // timeout ambiguo dell'owner non puo rigenerare lo stesso entryId con un
+  // nuovo timestamp `at`, trasformando tutti i retry successivi in
+  // `entry-id-payload-mismatch`. Le risoluzioni che richiedono un ACK gia
+  // undoabile (per esempio la catena Turbine) usano invece l'append sincrono.
   buildHistoryEntry: async ({ command, plan, commitResult, sceneEpoch }) => {
     const { buildEffectsMutationHistoryEntry } = await import("./history.js");
     return buildEffectsMutationHistoryEntry({ command, plan, commitResult, sceneEpoch });

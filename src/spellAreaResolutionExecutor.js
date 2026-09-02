@@ -36,6 +36,10 @@ import {
   getSpellSaveWorkflowRule,
 } from "./spellSaveWorkflowRules.js";
 import { getSpellCastResolutionRule } from "./spellCastResolutionRules.js";
+import {
+  resolveTurbineTargetChains,
+  turbineRestrainedOperations,
+} from "./xanatharTurbineCore.js";
 import { spellCasterHealingChange } from "./spellDamageHealingCore.js";
 import { createSpellInstanceId } from "./spells.js";
 import {
@@ -55,6 +59,8 @@ import {
 import {
   buildStaticSpellZoneItems,
   getStaticSpellZoneItems,
+  protectStaticSpellZoneInstances,
+  releaseStaticSpellZoneInstances,
 } from "./spellStaticZone.js";
 import {
   SPELL_STATIC_ZONE_META_KEY,
@@ -392,14 +398,35 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
       || requested?.prismaticWall?.shape
       || "wall",
     ).trim();
+    const hasTargetSelection = Array.isArray(command?.targeting?.targetIds);
+    const selectedExemptions = hasTargetSelection
+      ? uniqueIds(command.targeting.targetIds)
+      : uniqueIds([
+        ...(Array.isArray(requested?.prismaticWall?.exemptCreatureIds)
+          ? requested.prismaticWall.exemptCreatureIds
+          : []),
+        ...(Array.isArray(requested?.exemptCreatureIds)
+          ? requested.exemptCreatureIds
+          : []),
+      ]);
+    const effectiveCastContext = hasTargetSelection
+      ? {
+        ...requested,
+        exemptCreatureIds: selectedExemptions,
+        prismaticWall: {
+          ...(requested?.prismaticWall && typeof requested.prismaticWall === "object"
+            ? requested.prismaticWall
+            : {}),
+          exemptCreatureIds: selectedExemptions,
+        },
+      }
+      : requested;
     return prismaticWallCastContext({
-      castContext: requested,
+      castContext: effectiveCastContext,
       shape,
       ruleChoice: shape,
       casterId: command?.spell?.casterId || caster?.id,
-      exemptCreatureIds: requested?.prismaticWall?.exemptCreatureIds
-        || requested?.exemptCreatureIds
-        || [],
+      exemptCreatureIds: selectedExemptions,
     });
   }
   if (isDelayedBlastFireball(spell) && command?.source?.kind === "cast") {
@@ -845,6 +872,25 @@ async function buildPlan(command, runtime) {
     return { valid: false, errors: errorList(resolution.errors, "spell-resolution-invalid") };
   }
 
+  const turbineChains = spell.id === "xanathar-turbine" && !zoneTriggerResolution
+    ? resolveTurbineTargetChains({
+      targetIds,
+      outcomes,
+      targetContexts,
+      targetItems: liveItems,
+      gridDpi: placement?.preview?.dpi,
+    })
+    : null;
+  if (turbineChains && !turbineChains.valid) {
+    return {
+      valid: false,
+      errors: turbineChains.errors.map((error) => ({
+        code: error.code,
+        message: `${error.targetId}: ${error.message}`,
+      })),
+    };
+  }
+
   const stateMetadata = await runtime.readSceneMetadata();
   const appliedAt = appliedAtForState(
     stateMetadata?.[`${ID}/state`] || {},
@@ -1038,6 +1084,18 @@ async function buildPlan(command, runtime) {
         });
       }
     }
+  }
+
+  if (turbineChains?.captureTargetIds?.length) {
+    effectOperations.push(...turbineRestrainedOperations({
+      targetIds: turbineChains.captureTargetIds,
+      parentEffectId: spellInstanceId,
+      sourceId: casterId,
+      sourceName: itemName(caster),
+      spellName: spell.displayName || spell.name,
+      spellId: spell.id,
+      appliedAt,
+    }));
   }
 
   if (terminalResolutionRequest) {
@@ -1456,6 +1514,7 @@ async function buildPlan(command, runtime) {
     fireballVisualContext,
     matchedVisualContext,
     prismaticSprayPlan: resolution.prismaticSpray || null,
+    ...(turbineChains ? { turbineChains } : {}),
     appliedAt,
     hpMode: command?.hp?.mode,
     operationSceneEpoch: runtime.sceneEpoch,
@@ -1785,6 +1844,12 @@ export async function executeSpellAreaResolution(
       warnings.push(normalizedError(error, "fireball-visual"));
     });
   }
+  const pendingZoneInstanceIds = uniqueIds(plan.nextStaticZoneItems.map((item) => (
+    item?.metadata?.[SPELL_STATIC_ZONE_META_KEY]?.instanceId
+  )));
+  if (pendingZoneInstanceIds.length) {
+    protectStaticSpellZoneInstances(pendingZoneInstanceIds);
+  }
   try {
     const isTeleport = isTeleportSpell(plan.spell.id);
     await runtime.withItemMetaHistory({
@@ -1821,12 +1886,6 @@ export async function executeSpellAreaResolution(
           canonicalCommitted = true;
           if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-delete");
         }
-        if (plan.nextStaticZoneItems.length) {
-          await runtime.addItems(plan.nextStaticZoneItems);
-          addedNextZone = true;
-          canonicalCommitted = true;
-          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-add");
-        }
         await updateHP(runtime, entries);
         if (entries.length) {
           canonicalCommitted = true;
@@ -1850,7 +1909,8 @@ export async function executeSpellAreaResolution(
           ...spellBoardTokenSideEffects,
           ...zoneTriggerSideEffects,
         ];
-        if (operations.length || coordinatedSideEffects.length) {
+        const commitCoordinatedEffects = async () => {
+          if (!operations.length && !coordinatedSideEffects.length) return true;
           coordinatedMutation = await runtime.runEffectsMutation(operations, {
             history: false,
             kind: isTeleport ? "spell" : "save-resolution",
@@ -1864,9 +1924,23 @@ export async function executeSpellAreaResolution(
           });
           if (coordinatedMutation?.committed === true
             || coordinatedMutation?.commitResult?.committed === true) canonicalCommitted = true;
-          if (!runtime.isCurrent(sceneEpoch)) return;
+          if (!runtime.isCurrent(sceneEpoch)) return false;
           runtime.requireAppliedEffectsMutation(coordinatedMutation);
           warnings.push(...warningsFromMutation(coordinatedMutation));
+          return true;
+        };
+        // La nuova zona deve nascere dopo la persistenza dell'owner spell.
+        // Il controller static-zone è un servizio separato e può osservare il
+        // root nel breve intervallo precedente: senza questo ordine il primo
+        // cast può essere classificato come zona orfana e rimosso.
+        if (plan.nextStaticZoneItems.length) {
+          if (!await commitCoordinatedEffects()) return;
+          await runtime.addItems(plan.nextStaticZoneItems);
+          addedNextZone = true;
+          canonicalCommitted = true;
+          if (!runtime.isCurrent(sceneEpoch)) throw new Error("scene-epoch-stale-after-zone-add");
+        } else {
+          await commitCoordinatedEffects();
         }
       } catch (error) {
         if (runtime.isCurrent(sceneEpoch)) {
@@ -1907,6 +1981,10 @@ export async function executeSpellAreaResolution(
       errors: [normalizedError(error)],
       visualEvents,
     });
+  } finally {
+    if (pendingZoneInstanceIds.length) {
+      releaseStaticSpellZoneInstances(pendingZoneInstanceIds);
+    }
   }
 
   if (!runtime.isCurrent(sceneEpoch)) {

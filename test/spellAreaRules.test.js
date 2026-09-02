@@ -421,13 +421,7 @@ test("Ragnatela e Raggio Lunare dichiarano i trigger periodici pilota", () => {
     (trigger) => trigger.failureEffect === "Trattenuto dalla Ragnatela."
   ));
   assert.equal(moonbeam.geometry.size.value, 1.5);
-  assert.deepEqual(moonbeam.zonePolicy.movement, {
-    mode: "action",
-    economy: "action",
-    maximumMeters: 18,
-    triggerOnAreaMove: false,
-    stopOnFirstContact: false,
-  });
+  assert.equal(moonbeam.zonePolicy.movement, "manual");
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.dice, "2d10");
   assert.equal(moonbeam.zonePolicy.triggers[0].damage.onSave, "half");
   assert.equal(

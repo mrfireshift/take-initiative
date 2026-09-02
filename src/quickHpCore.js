@@ -65,6 +65,10 @@ export function calculateQuickHPChange({
   };
 }
 
+export function isQuickHPDamageChange(change = {}) {
+  return Number(change?.delta) < 0;
+}
+
 export function failedQuickHPTargetIds(items = [], outcomes = new Map()) {
   const readOutcome = typeof outcomes?.get === "function"
     ? (id) => outcomes.get(id)

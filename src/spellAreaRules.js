@@ -34,6 +34,7 @@ const SPELL_AREA_ANCHORS = Object.freeze(["world", "caster"]);
 const SPELL_AREA_PERSISTENCE = Object.freeze(["preview", "spell"]);
 const SPELL_AREA_TARGET_FILTERS = Object.freeze(["all", "hostile", "friendly", "non-hostile"]);
 export const SPELL_AREA_SELECTION_MODES = Object.freeze(["area", "manual", "area-subset"]);
+const SPELL_AREA_SELECTION_POLARITIES = Object.freeze(["include", "exclude"]);
 const SPELL_AREA_EFFECT_MODES = Object.freeze([
   "on-confirm",
   "while-inside",
@@ -55,12 +56,16 @@ export function spellPlacedDamageCastAllowsEmptyTargets({
   const kind = String(rule?.kind || "").trim();
   const targetingMode = String(targeting?.mode || "").trim();
   const selectionMode = String(targeting?.selectionMode || "").trim();
+  const selectionPolarity = String(targeting?.selectionPolarity || "").trim();
   const areaAnchor = String(targeting?.areaAnchor || "").trim();
   return String(sourceKind || "").trim() === "cast"
     && String(phase || "").trim() === "cast"
     && !String(activeActionId || "").trim()
     && targetingMode === "geometric"
-    && ["area", "area-subset"].includes(selectionMode)
+    && (
+      ["area", "area-subset"].includes(selectionMode)
+      || selectionPolarity === "exclude"
+    )
     && areaAnchor !== "primary-target"
     && targeting?.primaryTarget?.required !== true
     && (kind === "zone" || (kind === "instant" && damageRequired === true));
@@ -130,19 +135,30 @@ export function normalizeSpellZoneMovement(value) {
     || maximumMeters <= 0
     || typeof value.triggerOnAreaMove !== "boolean"
     || typeof value.stopOnFirstContact !== "boolean"
+    || (value.sweptArea !== undefined && typeof value.sweptArea !== "boolean")
+    || (value.carriedEffectIds !== undefined
+      && (!Array.isArray(value.carriedEffectIds)
+        || value.carriedEffectIds.some((effectId) => !String(effectId || "").trim())))
   ) return null;
   const choice = normalizeSpellZoneMovementChoice(value.choice);
   if (value.choice !== undefined && !choice) return null;
   const label = String(value.label || "").trim();
   const buttonLabel = String(value.buttonLabel || "").trim();
+  const carriedEffectIds = Array.from(new Set(
+    (Array.isArray(value.carriedEffectIds) ? value.carriedEffectIds : [])
+      .map((effectId) => String(effectId || "").trim())
+      .filter(Boolean),
+  ));
   return {
     mode,
     economy,
     maximumMeters,
     triggerOnAreaMove: value.triggerOnAreaMove,
     stopOnFirstContact: value.stopOnFirstContact,
+    ...(value.sweptArea === true ? { sweptArea: true } : {}),
     ...(label ? { label } : {}),
     ...(buttonLabel ? { buttonLabel } : {}),
+    ...(carriedEffectIds.length ? { carriedEffectIds } : {}),
     ...(choice ? { choice } : {}),
   };
 }
@@ -403,6 +419,15 @@ function validateZonePolicy(policy, errors) {
     errors.push("zone-movement-invalid");
   }
   if (
+    policy.carriedEffectIds !== undefined
+    && (
+      !Array.isArray(policy.carriedEffectIds)
+      || policy.carriedEffectIds.some((effectId) => !String(effectId || "").trim())
+    )
+  ) {
+    errors.push("zone-carried-effect-ids-invalid");
+  }
+  if (
     policy.followCaster !== undefined
     && typeof policy.followCaster !== "boolean"
   ) {
@@ -512,6 +537,12 @@ export function validateSpellAreaRule(rule) {
     errors.push("size-invalid");
   }
   if (
+    rule?.geometry?.height !== undefined
+    && !validMeasure(rule.geometry.height, "height")
+  ) {
+    errors.push("height-invalid");
+  }
+  if (
     rule?.geometry?.width !== undefined
     && !validMeasure(rule.geometry.width, "width")
   ) {
@@ -534,12 +565,14 @@ export function validateSpellAreaRule(rule) {
   }
   if (
     rule?.placement?.range !== undefined
+    && rule.placement.range !== null
     && !validMeasure(rule.placement.range, "range")
   ) {
     errors.push("range-invalid");
   }
   if (
     rule?.placement?.origin === "point"
+    && rule?.placement?.range !== null
     && !validMeasure(rule?.placement?.range, "range")
   ) {
     errors.push("point-range-required");
@@ -582,6 +615,12 @@ export function validateSpellAreaRule(rule) {
     && !allowed(SPELL_AREA_SELECTION_MODES, rule.targeting.selectionMode)
   ) {
     errors.push("target-selection-mode-invalid");
+  }
+  if (
+    rule?.targeting?.selectionPolarity !== undefined
+    && !allowed(SPELL_AREA_SELECTION_POLARITIES, rule.targeting.selectionPolarity)
+  ) {
+    errors.push("target-selection-polarity-invalid");
   }
   if (!allowed(SPELL_AREA_EFFECT_MODES, rule?.effectPolicy?.mode)) {
     errors.push("effect-mode-invalid");
@@ -777,6 +816,51 @@ const ZONE_INITIAL_SAVE_SPELL_IDS = new Set([
   "phb2014-tsunami",
 ]);
 const CATALOG_ZONE_TRIGGERS = Object.freeze({
+  "xanathar-turbine": [
+    {
+      id: "xanathar-turbine-entry-save",
+      group: "xanathar-turbine-entry",
+      label: "Entrando o attraversando il Turbine: TS Destrezza",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "dex",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: false,
+      requiresCrossing: true,
+      persistsAfterExit: true,
+      skipLinkedConditions: ["Trattenuto"],
+      failureEffect: "TS Des fallito: 10d6 contundenti; se Grande o inferiore, TS Forza e Trattenuto nel Turbine se fallisce.",
+      damage: {
+        dice: "10d6",
+        type: "contundenti",
+        onSave: "half",
+      },
+      resolutionData: { turbine: true },
+    },
+    {
+      id: "xanathar-turbine-area-move-save",
+      group: "xanathar-turbine-entry",
+      label: "Il Turbine entra o attraversa lo spazio: TS Destrezza",
+      event: "enter",
+      frequency: "once-per-turn",
+      resolution: "manual-save",
+      ability: "dex",
+      requiresOwnTurn: false,
+      triggerOnAreaMove: true,
+      requiresAreaMove: true,
+      requiresCrossing: true,
+      persistsAfterExit: true,
+      skipLinkedConditions: ["Trattenuto"],
+      failureEffect: "TS Des fallito: 10d6 contundenti; se Grande o inferiore, TS Forza e Trattenuto nel Turbine se fallisce.",
+      damage: {
+        dice: "10d6",
+        type: "contundenti",
+        onSave: "half",
+      },
+      resolutionData: { turbine: true },
+    },
+  ],
   "phb2014-aura-di-vita": [
     {
       id: "aura-of-life-heal-on-turn-start",
@@ -2237,6 +2321,9 @@ function catalogAreaRule(spec) {
         spec.sizeMeters,
         MEASURE_BY_SHAPE[spec.shape],
       ),
+      ...(Number.isFinite(Number(spec.heightMeters))
+        ? { height: meters(spec.heightMeters, "height") }
+        : {}),
       ...(["line", "rectangle"].includes(spec.shape)
         ? {
           width: meters(spec.widthMeters, "width"),
@@ -2284,6 +2371,12 @@ function catalogAreaRule(spec) {
             : true,
           owner: "caster",
           movement: spec.movement,
+          ...(Array.isArray(spec.carriedEffectIds) && spec.carriedEffectIds.length
+            ? { carriedEffectIds: [...spec.carriedEffectIds] }
+            : {}),
+          ...(spec.ownerLabelTargets
+            ? { ownerLabelTargets: spec.ownerLabelTargets }
+            : {}),
           ...(spec.followCaster === true ? { followCaster: true } : {}),
           ...(Number.isInteger(spec.membershipPaddingSquares)
             ? { membershipPaddingSquares: spec.membershipPaddingSquares }
@@ -2366,6 +2459,33 @@ function childZoneRule({
 }
 
 export const SPELL_AREA_RULES = Object.freeze([
+  defineRule({
+    id: "blink:return",
+    spellId: "blink",
+    trigger: { type: "active-action", actionId: "blink-return" },
+    kind: "instant",
+    geometry: {
+      shape: "square",
+      size: meters(1.5, "side"),
+    },
+    placement: {
+      origin: "point",
+      direction: "none",
+      anchor: "world",
+      // Il rule riusa il picker puntuale condiviso; la scelta dello spazio e
+      // ogni valutazione RAW restano GM-assisted.
+      range: null,
+      mode: "point",
+    },
+    lifecycle: PREVIEW_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: true,
+      confirmTargets: false,
+      selectionMode: "manual",
+    },
+    effectPolicy: ON_CONFIRM,
+  }),
   defineRule({
     id: "phb2014-allucinazione-di-forza:cast",
     spellId: "phb2014-allucinazione-di-forza",
@@ -2655,6 +2775,8 @@ export const SPELL_AREA_RULES = Object.freeze([
       filter: "all",
       includeCaster: true,
       confirmTargets: false,
+      selectionMode: "manual",
+      selectionPolarity: "exclude",
     },
     effectPolicy: { mode: "manual-trigger" },
     zonePolicy: {
@@ -2826,13 +2948,7 @@ export const SPELL_AREA_RULES = Object.freeze([
     zonePolicy: {
       placementOptional: true,
       owner: "caster",
-      movement: {
-        mode: "action",
-        economy: "action",
-        maximumMeters: 18,
-        triggerOnAreaMove: false,
-        stopOnFirstContact: false,
-      },
+      movement: "manual",
       initialResolution: "none",
       membershipTargeting: {
         filter: "all",

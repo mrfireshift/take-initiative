@@ -32,6 +32,22 @@ test("classifies movement without scheduling tracker or HP work", () => {
   assert.equal(event.flags.hpMemoryAutofill, false);
 });
 
+test("classifica il movimento nativo di una zona nel dominio movement", () => {
+  const before = {
+    id: "zone-root",
+    type: "PATH",
+    layer: "DRAWING",
+    position: { x: 0, y: 0 },
+    metadata: { [`${ID}/spellStaticZone`]: { role: "root" } },
+  };
+  const after = { ...before, position: { x: 100, y: 40 } };
+  const event = classifySceneItemChanges([before], [after]);
+
+  assert.equal(event.flags.movement, true);
+  assert.ok(event.domains.includes("movement"));
+  assert.ok(event.domains.includes("zone"));
+});
+
 test("classifies persisted speed state without scheduling a tracker render", () => {
   const before = token();
   const after = token({

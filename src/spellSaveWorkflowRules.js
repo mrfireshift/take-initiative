@@ -29,8 +29,11 @@ const targetContextField = ({
   type = "select",
   required = false,
   requiredWhen = null,
+  dependentOutcome = null,
   options = [],
   placeholder = "",
+  automatic = false,
+  candidateValue = "",
 }) => freezeValue({
   id: String(id || "").trim(),
   label: String(label || id || "").trim(),
@@ -39,8 +42,13 @@ const targetContextField = ({
   ...(requiredWhen && typeof requiredWhen === "object"
     ? { requiredWhen: freezeValue(requiredWhen) }
     : {}),
+  ...(dependentOutcome && typeof dependentOutcome === "object"
+    ? { dependentOutcome: freezeValue(dependentOutcome) }
+    : {}),
   ...(Array.isArray(options) ? { options: options.map(choiceOption) } : {}),
   ...(placeholder ? { placeholder: String(placeholder) } : {}),
+  ...(automatic === true ? { automatic: true } : {}),
+  ...(candidateValue ? { candidateValue: String(candidateValue).trim() } : {}),
 });
 
 const targetContext = ({
@@ -274,6 +282,7 @@ const workflowRule = ({
   manualSaveAtTable = false,
   assumedOutcome = "failed",
   outcomeOptions = null,
+  outcomeLabels = null,
   preserveTargetsOnChoiceChange = false,
   unlimitedTargets = false,
 }) => Object.freeze({
@@ -307,10 +316,43 @@ const workflowRule = ({
   ...(Array.isArray(outcomeOptions) && outcomeOptions.length
     ? { outcomeOptions: Object.freeze(outcomeOptions.map((value) => String(value || "").trim()).filter(Boolean)) }
     : {}),
+  ...(outcomeLabels && typeof outcomeLabels === "object"
+    ? { outcomeLabels: freezeValue(outcomeLabels) }
+    : {}),
   ...(preserveTargetsOnChoiceChange === true ? { preserveTargetsOnChoiceChange: true } : {}),
 });
 
 export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
+  "xanathar-turbine": workflowRule({
+    spellId: "xanathar-turbine",
+    ability: "dex",
+    unlimitedTargets: true,
+    context: targetContext({
+      fields: [
+        targetContextField({
+          id: "turbineSize",
+          label: "Taglia",
+          automatic: true,
+          candidateValue: "turbineSize",
+          options: [
+            { value: "large-or-smaller", label: "Grande o inferiore" },
+            { value: "huge-or-gargantuan", label: "Enorme/Gargantua" },
+          ],
+        }),
+        targetContextField({
+          id: "turbineStrengthOutcome",
+          label: "TS Forza",
+          requiredWhen: { field: "turbineSize", equals: "large-or-smaller" },
+          dependentOutcome: { primaryOutcome: "failed" },
+          options: [
+            { value: "passed", label: "Superato" },
+            { value: "failed", label: "Fallito" },
+          ],
+        }),
+      ],
+    }),
+    outcomeOptions: ["passed", "failed"],
+  }),
   "prismatic-spray": workflowRule({
     spellId: "prismatic-spray",
     ability: "dex",
@@ -457,6 +499,22 @@ export const SPELL_SAVE_WORKFLOW_RULES = Object.freeze({
     assumedOutcome: "failed",
     outcomeOptions: ["passed", "failed"],
     preserveTargetsOnChoiceChange: true,
+  }),
+  "telekinesis": workflowRule({
+    spellId: "telekinesis",
+    ability: "str",
+    maximum: 1,
+    spatial: {
+      mode: "caster-range",
+      maxMeters: 18,
+    },
+    manualSaveAtTable: true,
+    assumedOutcome: "failed",
+    outcomeOptions: ["passed", "failed"],
+    outcomeLabels: {
+      passed: "Contesa vinta",
+      failed: "Contesa persa",
+    },
   }),
   "command": workflowRule({
     spellId: "command",

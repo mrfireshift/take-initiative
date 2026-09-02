@@ -537,6 +537,32 @@ test("Bagliore Lunare aggancia il loop al root della zona mobile", () => {
   assert.equal(loop.anchor, "area");
 });
 
+test("Turbine mette l'Embers sotto i token e lo aggancia al root della zona", () => {
+  const event = buildMatchedVisualEvent({
+    spellId: "xanathar-turbine",
+    eventId: "xanathar-turbine-zone",
+    lifecycleId: "xanathar-turbine-instance",
+    casterId: "caster-1",
+    zoneId: "zone-root-1",
+    caster: { x: 100, y: 100, diameter: 100 },
+    preview: {
+      type: "circle",
+      start: { x: 700, y: 100 },
+      end: { x: 1000, y: 100 },
+      radius: 300,
+      dpi: 100,
+    },
+    sceneDpi: 100,
+  });
+
+  const whirlwind = event.layers.find((layer) => layer.effectId === "whirlwind");
+  assert.ok(whirlwind);
+  assert.equal(whirlwind.persistent, true);
+  assert.equal(whirlwind.attachedTo, "zone");
+  assert.equal(whirlwind.layer, "DRAWING");
+  assert.equal(whirlwind.anchor, "area");
+});
+
 test("Invocare il fulmine usa il WebM opaco e il raggio della nube persistente", () => {
   const event = buildMatchedVisualEvent({
     spellId: "call-lightning",

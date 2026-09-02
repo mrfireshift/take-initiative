@@ -25,6 +25,7 @@ function spellSummaryParts(spell) {
   // summary at read time as well as at cast time. This keeps already persisted
   // instances from rendering the retired, verbose set of micropills without
   // mutating their canonical metadata.
+  if (spellId === "telekinesis") return getSpellSummaryParts(spellId);
   if (spellId === "antilife-shell") return getSpellSummaryParts(spellId);
   if (spellId === "delayed-blast-fireball") {
     return getSpellSummaryParts(spellId, "", spell?.castContext || {});

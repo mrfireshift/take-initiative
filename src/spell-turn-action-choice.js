@@ -286,6 +286,7 @@ async function renderEyebiteDirect() {
 
 function renderLegacyChoice() {
   const compact = Array.isArray(request?.actions) && request.actions.length === 1;
+  app.dataset.spell = String(request?.spellId || "").trim();
   if (compact) app.dataset.mode = "compact";
   hint.textContent = request?.choiceHint
     || "Scegli un'azione. Le stesse azioni restano disponibili nel modulo Incantesimi.";
@@ -294,13 +295,16 @@ function renderLegacyChoice() {
     button.type = "button";
     button.dataset.actionId = String(payload.actionId || "").trim();
     button.className = compact ? "action action--compact" : "action";
+    if (request?.spellId === "telekinesis") button.classList.add("action--telekinesis");
     const strong = document.createElement("strong");
     strong.textContent = payload.action?.buttonLabel || payload.action?.label || payload.actionId;
     button.append(strong);
     if (!compact) {
-      const detail = document.createElement("span");
-      detail.textContent = actionCopy(payload);
-      button.append(detail);
+      if (request?.spellId !== "telekinesis") {
+        const detail = document.createElement("span");
+        detail.textContent = actionCopy(payload);
+        button.append(detail);
+      }
     }
     button.addEventListener("click", async () => {
       button.disabled = true;

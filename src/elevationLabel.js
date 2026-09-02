@@ -7,6 +7,8 @@ import { subscribeSceneItemChanges } from "./sceneItemEvents.js";
 const LABEL_OWNER_META = `${ID}/elevationLabelOf`;
 const LABEL_LAYOUT_META = `${ID}/elevationLabelLayout`;
 const HP_BAR_META = `${ID}/hpbar`;
+const TOKEN_META_KEY = `${ID}/meta`;
+const ELEVATION_FIELD = "elevation";
 const LABEL_LAYOUT_VERSION = 5;
 const LABEL_HEIGHT = 21;
 const LABEL_BAR_GAP = 3;
@@ -75,6 +77,20 @@ function differs(label, spec, tokenId) {
     label.metadata?.[LABEL_LAYOUT_META] !== LABEL_LAYOUT_VERSION;
 }
 
+export function elevationLabelTokens(items = []) {
+  return items.filter((item) => {
+    if (item?.layer !== "CHARACTER") return false;
+    if (!item?.attachedTo) return true;
+    // A carried CHARACTER may still own the canonical elevation field. Keep
+    // this exception scoped to that field instead of promoting arbitrary
+    // attached scene items into actor labels.
+    return Object.prototype.hasOwnProperty.call(
+      item?.metadata?.[TOKEN_META_KEY] || {},
+      ELEVATION_FIELD,
+    );
+  });
+}
+
 async function reconcileElevationLabels() {
   if (!mounted) return;
   if (running) {
@@ -88,7 +104,7 @@ async function reconcileElevationLabels() {
       OBR.scene.grid.getScale().catch(() => ({ parsed: { unit: "" } })),
     ]);
     const unit = String(scale?.parsed?.unit || "").trim();
-    const tokens = items.filter((item) => item.layer === "CHARACTER" && !item.attachedTo);
+    const tokens = elevationLabelTokens(items);
     const tokensById = new Map(tokens.map((item) => [item.id, item]));
     const labels = items.filter((item) => item.type === "LABEL" && item.metadata?.[LABEL_OWNER_META]);
     const labelsByOwner = new Map(labels.map((item) => [item.metadata[LABEL_OWNER_META], item]));

@@ -6,6 +6,7 @@ import {
   calculateQuickHPChange,
   createQuickHPVisualTransaction,
   failedQuickHPTargetIds,
+  isQuickHPDamageChange,
   quickHPVisualUpdates,
   quickHPZeroReconcileTargetIds,
   scaledQuickHPAmount,
@@ -40,6 +41,27 @@ test("temporary HP replace only a smaller existing surplus", () => {
 
 test("temporary HP add effective health without restoring missing normal HP", () => {
   assert.equal(calculateQuickHPChange({ mode: QUICK_HP_MODES.TEMP, value: 10, hp: 30, hpMax: 50 }).afterHP, 40);
+});
+
+test("classifica come danno solo una diminuzione effettiva degli HP", () => {
+  assert.equal(isQuickHPDamageChange(calculateQuickHPChange({
+    mode: QUICK_HP_MODES.DAMAGE,
+    value: 8,
+    hp: 20,
+    hpMax: 20,
+  })), true);
+  assert.equal(isQuickHPDamageChange(calculateQuickHPChange({
+    mode: QUICK_HP_MODES.HEAL,
+    value: 8,
+    hp: 12,
+    hpMax: 20,
+  })), false);
+  assert.equal(isQuickHPDamageChange(calculateQuickHPChange({
+    mode: QUICK_HP_MODES.TEMP,
+    value: 8,
+    hp: 12,
+    hpMax: 20,
+  })), false);
 });
 
 test("seleziona soltanto i bersagli falliti dagli esiti TS", () => {

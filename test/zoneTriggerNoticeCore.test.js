@@ -8,6 +8,7 @@ import {
   zoneTriggerNoticeFromActivation,
   zoneTriggerNoticesFromActivation,
 } from "../src/zoneTriggerNoticeCore.js";
+import { consumeSpellZoneTrigger } from "../src/spellZoneTriggerCore.js";
 import { ID } from "../src/constants.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
 
@@ -231,6 +232,47 @@ test("espande una activation multi-target in notice risolvibili indipendentement
     assert.equal(notice.resolution.activation.sourceActivationId, "multi-activation");
     assert.equal(notice.resolution.activation.activationId, notice.activationId);
   }
+});
+
+test("il consumo parziale mantiene l'ID scoped della riga rimasta", () => {
+  const itemsById = new Map([
+    ["target-a", { id: "target-a", name: "Bersaglio A" }],
+    ["target-b", { id: "target-b", name: "Bersaglio B" }],
+  ]);
+  const activation = {
+    id: "multi-activation",
+    targetIds: ["target-a", "target-b"],
+    resolution: "manual-save",
+    ability: "dex",
+    damage: { dice: "10d6", type: "contundenti", onSave: "half" },
+  };
+
+  const initialNotices = zoneTriggerNoticesFromActivation(
+    activation,
+    itemsById,
+  );
+  const partialRuntime = consumeSpellZoneTrigger(
+    { pending: [activation] },
+    activation.id,
+    "target-a",
+  );
+  const remainingNotices = zoneTriggerNoticesFromActivation(
+    partialRuntime.pending[0],
+    itemsById,
+  );
+
+  assert.deepEqual(
+    initialNotices.map((notice) => notice.activationId),
+    ["multi-activation:target:target-a", "multi-activation:target:target-b"],
+  );
+  assert.deepEqual(
+    remainingNotices.map((notice) => notice.activationId),
+    ["multi-activation:target:target-b"],
+  );
+  assert.equal(
+    remainingNotices[0].resolution.activation.sourceActivationId,
+    "multi-activation",
+  );
 });
 
 test("compone TS, CD e nome del caster su una sola riga", () => {
