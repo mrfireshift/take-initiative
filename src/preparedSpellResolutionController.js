@@ -186,8 +186,11 @@ async function openOrMoveGroup(group, stackIndex = 0, worldAnchor = null) {
   }
 
   const next = popoverOptions(group, anchorPosition, stackIndex);
-  if (next.mobile) await openTrackedPopover(next.options);
-  else await OBR.popover.open(next.options);
+  if (next.mobile) {
+    if (!current) await openTrackedPopover(next.options);
+  } else {
+    await OBR.popover.open(next.options);
+  }
   opened.set(instanceId, {
     instanceId,
     casterId,

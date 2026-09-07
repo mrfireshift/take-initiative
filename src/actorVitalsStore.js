@@ -6,10 +6,12 @@ import {
 } from "./actorIdentityCore.js";
 import {
   actorVitalsRecordFor,
+  isAbsentActorVitalsRecord,
   isValidActorVitalsRecord,
   mergeActorVitalsRegistries,
   normalizeActorVitalsRegistry,
   retainActorVitalsRegistryWithinByteBudget,
+  upsertActorVitalsAbsentRecord,
   upsertActorVitalsRecord,
 } from "./actorVitalsCore.js";
 import {
@@ -88,6 +90,12 @@ function validCanonicalHP(item) {
   return { hp, hpMax };
 }
 
+function canonicalHPPropertiesAbsent(item) {
+  const meta = item?.metadata?.[`${ID}/meta`] || {};
+  return !Object.prototype.hasOwnProperty.call(meta, "hp")
+    && !Object.prototype.hasOwnProperty.call(meta, "hpMax");
+}
+
 function itemId(item) {
   return String(item?.id || "").trim();
 }
@@ -123,9 +131,68 @@ function metadataWithCanonicalHP(item, hp, hpMax) {
   };
 }
 
-function sameCanonicalHP(left, right) {
-  if (!left || !right) return !left && !right;
-  return left.hp === right.hp && left.hpMax === right.hpMax;
+function metadataWithoutCanonicalHP(item) {
+  const metaKey = `${ID}/meta`;
+  const previous = item?.metadata?.[metaKey] && typeof item.metadata[metaKey] === "object"
+    ? item.metadata[metaKey]
+    : {};
+  const next = { ...previous };
+  delete next.hp;
+  delete next.hpMax;
+  return {
+    ...(item?.metadata || {}),
+    [metaKey]: next,
+  };
+}
+
+function canonicalHPFieldsSnapshot(item) {
+  const meta = item?.metadata?.[`${ID}/meta`] || {};
+  return Object.fromEntries(["hp", "hpMax"].map((field) => [field,
+    Object.prototype.hasOwnProperty.call(meta, field)
+      ? { present: true, value: meta[field] }
+      : { present: false },
+  ]));
+}
+
+function sameCanonicalHPFields(item, snapshot) {
+  const current = canonicalHPFieldsSnapshot(item);
+  return ["hp", "hpMax"].every((field) => (
+    current[field].present === snapshot?.[field]?.present
+    && (!current[field].present || Object.is(current[field].value, snapshot[field].value))
+  ));
+}
+
+function changedRecordItem(snapshot) {
+  return snapshot?.item || snapshot || null;
+}
+
+function actorIdsAffectedByEvent(event, candidates) {
+  const ids = new Set();
+  for (const item of candidates) {
+    const actorProfileId = actorProfileIdFromItem(item);
+    if (actorProfileId) ids.add(actorProfileId);
+  }
+  for (const record of Array.isArray(event?.changedRecords) ? event.changedRecords : []) {
+    for (const snapshot of [record?.before, record?.after]) {
+      const actorProfileId = actorProfileIdFromItem(changedRecordItem(snapshot));
+      if (actorProfileId) ids.add(actorProfileId);
+    }
+  }
+  return [...ids].sort((left, right) => left.localeCompare(right));
+}
+
+function primaryExplicitlyBecameAbsent(event, actorProfileId, primary) {
+  const primaryId = itemId(primary);
+  if (!primaryId || !canonicalHPPropertiesAbsent(primary)) return false;
+  return (Array.isArray(event?.changedRecords) ? event.changedRecords : []).some((record) => {
+    const before = changedRecordItem(record?.before);
+    const after = changedRecordItem(record?.after);
+    return itemId(after) === primaryId
+      && actorProfileIdFromItem(before) === actorProfileId
+      && actorProfileIdFromItem(after) === actorProfileId
+      && !!validCanonicalHP(before)
+      && canonicalHPPropertiesAbsent(after);
+  });
 }
 
 export function createActorVitalsStore({
@@ -278,6 +345,34 @@ export function createActorVitalsStore({
     }, { sceneEpoch, reason: "canonical-hp" });
   }
 
+  async function invalidateCanonicalHP(actorProfileId, {
+    sceneEpoch = getSceneEpoch(),
+    sourceRevision = null,
+    force = false,
+  } = {}) {
+    const id = normalizeActorProfileId(actorProfileId);
+    if (!canWrite() || !id || stopped || !isSceneEpochCurrent(sceneEpoch)) {
+      return latestRegistry;
+    }
+
+    const revisionNumber = sourceRevision === null || sourceRevision === undefined
+      ? NaN
+      : Number(sourceRevision);
+    const previousSourceRevision = lastAcceptedSourceRevision.get(id);
+    if (!force && Number.isFinite(revisionNumber)
+      && previousSourceRevision !== undefined
+      && revisionNumber < previousSourceRevision) {
+      return latestRegistry;
+    }
+    if (Number.isFinite(revisionNumber)) lastAcceptedSourceRevision.set(id, revisionNumber);
+
+    return writeRegistry((previous) => {
+      const current = actorVitalsRecordFor(previous, id);
+      if (!force && isAbsentActorVitalsRecord(current)) return previous;
+      return upsertActorVitalsAbsentRecord(previous, id, { now });
+    }, { sceneEpoch, reason: "canonical-hp-absent" });
+  }
+
   async function reconcileSceneItems(
     items = [],
     sceneEpoch = getSceneEpoch(),
@@ -308,7 +403,7 @@ export function createActorVitalsStore({
       for (const [actorProfileId, primary] of primaryByActor) {
         if (!actorsToHydrate.has(actorProfileId)) continue;
         const stored = actorVitalsRecordFor(registry, actorProfileId);
-        if (!isValidActorVitalsRecord(stored)) {
+        if (!isAbsentActorVitalsRecord(stored) && !isValidActorVitalsRecord(stored)) {
           const hp = validCanonicalHP(primary);
           if (hp) initializations.push({ actorProfileId, ...hp });
         }
@@ -345,6 +440,20 @@ export function createActorVitalsStore({
         if (!actorsToHydrate.has(actorProfileId)) continue;
         const stored = actorVitalsRecordFor(nextRegistry, actorProfileId);
         if (!stored) continue;
+        if (isAbsentActorVitalsRecord(stored)) {
+          for (const item of sceneItems) {
+            if (!requestedItemIds.has(itemId(item))) continue;
+            if (actorProfileIdFromItem(item) !== actorProfileId) continue;
+            if (!canonicalHPPropertiesAbsent(item)) {
+              restoreById.set(item.id, {
+                actorProfileId,
+                absent: true,
+                expectedFields: canonicalHPFieldsSnapshot(item),
+              });
+            }
+          }
+          continue;
+        }
         const hp = normalizeHP(stored.hp);
         const hpMax = normalizeHPMax(stored.hpMax);
         if (hp === null || hpMax === null) continue;
@@ -357,7 +466,7 @@ export function createActorVitalsStore({
               actorProfileId,
               hp,
               hpMax,
-              expected: current,
+              expectedFields: canonicalHPFieldsSnapshot(item),
             });
           }
         }
@@ -389,7 +498,7 @@ export function createActorVitalsStore({
       for (const [id, update] of restoreById) {
         const liveItem = liveItems.find((item) => itemId(item) === id);
         const liveHP = validCanonicalHP(liveItem);
-        if (liveItem && sameCanonicalHP(liveHP, update.expected)) {
+        if (liveItem && sameCanonicalHPFields(liveItem, update.expectedFields)) {
           safeRestoreById.set(id, update);
           continue;
         }
@@ -407,14 +516,16 @@ export function createActorVitalsStore({
             const update = safeRestoreById.get(item.id);
             if (!update) continue;
             const current = validCanonicalHP(item);
-            if (!sameCanonicalHP(current, update.expected)) {
+            if (!sameCanonicalHPFields(item, update.expectedFields)) {
               if (itemId(livePrimaryByActor.get(update.actorProfileId)) === itemId(item)
                 && current) {
                 changedCanonicalByActor.set(update.actorProfileId, current);
               }
               continue;
             }
-            item.metadata = metadataWithCanonicalHP(item, update.hp, update.hpMax);
+            item.metadata = update.absent
+              ? metadataWithoutCanonicalHP(item)
+              : metadataWithCanonicalHP(item, update.hp, update.hpMax);
           }
         });
       }
@@ -493,20 +604,22 @@ export function createActorVitalsStore({
         .map((id) => actorProfileIdFromItem(currentItems.find((item) => itemId(item) === id)))
         .filter(Boolean),
     );
-    const seen = new Set();
-    for (const item of candidates) {
-      const actorProfileId = actorProfileIdFromItem(item);
-      if (!actorProfileId || seen.has(actorProfileId)) continue;
-      seen.add(actorProfileId);
+    for (const actorProfileId of actorIdsAffectedByEvent(event, candidates)) {
       if (hydratedActors.has(actorProfileId)) continue;
       const primary = primaryByActor.get(actorProfileId);
-      if (primary && itemId(primary) !== itemId(item)) continue;
-      const hp = validCanonicalHP(item);
-      if (!hp) continue;
-      await saveCanonicalHP(actorProfileId, hp.hp, hp.hpMax, {
-        sceneEpoch,
-        sourceRevision: event?.revision,
-      });
+      if (!primary) continue;
+      const hp = validCanonicalHP(primary);
+      if (hp) {
+        await saveCanonicalHP(actorProfileId, hp.hp, hp.hpMax, {
+          sceneEpoch,
+          sourceRevision: event?.revision,
+        });
+      } else if (primaryExplicitlyBecameAbsent(event, actorProfileId, primary)) {
+        await invalidateCanonicalHP(actorProfileId, {
+          sceneEpoch,
+          sourceRevision: event?.revision,
+        });
+      }
     }
   }
 
@@ -592,6 +705,7 @@ export function createActorVitalsStore({
     refresh,
     write: writeRegistry,
     saveCanonicalHP,
+    invalidateCanonicalHP,
     reconcileSceneItems,
     reconcileCurrentScene,
     getSnapshot: () => clone(latestRegistry) || normalizeActorVitalsRegistry({}),

@@ -865,6 +865,44 @@ test("granular conditions: dynamic area membership recreated with new instance i
   assert.equal(finalMeta?.conditions, undefined, "Undo cast must remove the current recreated membership instance");
 });
 
+test("Sudario Spirituale: il child slow resta undoable tramite History shared", () => {
+  const slow = {
+    id: "spirit-slow-child",
+    condition: "Velocità -3 m",
+    active: true,
+    targetId: "hero",
+    sourceId: "caster",
+    parentEffectId: "spirit-instance",
+    type: "spell",
+    effectId: "spirit-shroud-slow",
+    effectKind: "debuff",
+    mechanics: { movement: { addMeters: -3 } },
+    summaryParts: [{ id: "spirit-shroud-slow", label: "-3 m velocità" }],
+    expiry: {
+      mode: "turn-start",
+      actor: "source",
+      actorId: "caster",
+      remaining: 1,
+      anchor: "next-turn",
+    },
+    appliedAt: {
+      round: 1,
+      actorId: "hero",
+      phase: "turn",
+      turnKey: "1:1:hero",
+    },
+  };
+  const result = plan([
+    item("hero", { conditions: { version: 2, instances: [slow] } }),
+  ], [conditionMutationEntry("hero", [], [slow], "hist-spirit-slow")]);
+
+  assert.equal(result.status, undefined);
+  assert.equal(
+    result.finalItems.find((entry) => entry.id === "hero")?.item?.metadata?.[META]?.conditions,
+    undefined,
+  );
+});
+
 test("granular conditions: dynamic area membership with changed owned mechanics still conflicts", () => {
   const castMembership = {
     id: "cloudkill-old",

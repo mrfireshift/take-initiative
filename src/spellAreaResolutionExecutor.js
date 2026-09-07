@@ -182,6 +182,7 @@ function resultBase(command, status, extra = {}) {
     warnings: Array.isArray(extra.warnings) ? extra.warnings : [],
     errors: Array.isArray(extra.errors) ? extra.errors : [],
     ...(extra.committed === true ? { committed: true } : {}),
+    ...(extra.partial === true ? { partial: true } : {}),
     ...(extra.postCommitPending === true ? { postCommitPending: true } : {}),
     ...(extra.stale === true ? { stale: true } : {}),
   };
@@ -388,6 +389,16 @@ function hpEntries({ command, items, spell, prismaticSprayPlan = null }) {
 function castContextFor({ spell, resolution, command, mobileAura, boardToken, placement, caster }) {
   const hasActiveResolution = Array.isArray(spell?.activeActions)
     && spell.activeActions.some((action) => action?.resolutionKind);
+  const spiritShroudContext = mobileAura && spell?.id === "tasha-sudario-spirituale"
+    ? {
+      ...(Number.isFinite(Number(command?.spell?.slotLevel))
+        ? { slotLevel: Math.max(0, Math.floor(Number(command.spell.slotLevel))) }
+        : {}),
+      ...(text(command?.spell?.choiceValue)
+        ? { choice: text(command.spell.choiceValue) }
+        : {}),
+    }
+    : {};
   if (spell?.id === "prismatic-wall" && command?.source?.kind === "cast") {
     const requested = command?.spell?.castContext && typeof command.spell.castContext === "object"
       ? command.spell.castContext
@@ -451,6 +462,7 @@ function castContextFor({ spell, resolution, command, mobileAura, boardToken, pl
       : {}),
     ...(hasActiveResolution ? { slotLevel: command.spell.slotLevel } : {}),
     ...(mobileAura ? { mobileAura: true } : {}),
+    ...spiritShroudContext,
     ...(boardToken ? { boardToken: true } : {}),
     ...(resolution?.targeting?.slotLevel !== undefined
       ? { slotLevel: resolution.targeting.slotLevel }
@@ -1852,7 +1864,7 @@ export async function executeSpellAreaResolution(
   }
   try {
     const isTeleport = isTeleportSpell(plan.spell.id);
-    await runtime.withItemMetaHistory({
+    const historyResult = await runtime.withItemMetaHistory({
       kind: isTeleport ? "spell" : "save-resolution",
       label: isTeleport
         ? `Lancio incantesimo · ${plan.spell.displayName || plan.spell.name || "Passo Velato"}`
@@ -1951,6 +1963,22 @@ export async function executeSpellAreaResolution(
         throw error;
       }
     });
+    if (historyResult?.partial) {
+      if (hpVisualTransaction) {
+        await hpVisualTransaction.recover((ids) => runtime.readAuthoritativeHPVisualUpdates(
+          ids, sceneEpoch, () => runtime.isCurrent(sceneEpoch),
+        )).catch((error) => warnings.push(normalizedError(error, "hp-visual-recovery")));
+      }
+      return resultBase(command, RESULT_STATUSES.APPLIED, {
+        instanceId: plan.spellInstanceId,
+        committed: true, partial: true,
+        changedIds: (historyResult.changes || []).map((change) => change.id),
+        historyEntryId: historyResult.historyEntryId,
+        undoAvailable: !historyResult.historyPending && !!historyResult.historyEntryId,
+        warnings: [...warnings, normalizedError(historyResult.error, "partial-commit")],
+        visualEvents,
+      });
+    }
   } catch (error) {
     if (!runtime.isCurrent(sceneEpoch)) {
       return resultBase(command, canonicalCommitted ? RESULT_STATUSES.APPLIED : RESULT_STATUSES.REJECTED, {

@@ -29,8 +29,8 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.doesNotMatch(popupController, /`Risolvi: \${payload\.spellName/);
   assert.match(popupHtml, /id="close"/);
   assert.match(popupHtml, /id="apply"[^>]*>Cura</);
-  assert.match(popupHtml, /class="topline"><div id="eyebrow"/);
-  assert.match(popupHtml, /class="topline">[\s\S]*<button id="close"/);
+  assert.match(popupHtml, /class="heading-title-group">[\s\S]*<div id="eyebrow"/);
+  assert.match(popupHtml, /class="heading-actions">[\s\S]*<button id="close"/);
   assert.match(popupHtml, /id="footer" class="footer"><button id="apply"/);
   assert.match(popupController, /requestSpellAreaPlacement/);
   assert.match(popupController, /autoConfirmPoint: true/);
@@ -84,11 +84,11 @@ test("le attivazioni usano un popup dedicato e non la Console HP", () => {
   assert.match(popupController, /Applica attacchi/);
   assert.match(popupController, /dalla mano/);
   assert.match(popupController, /select\.hidden = automaticRequiredTarget/);
-  assert.match(popupController, /Bersaglio: \${displayName\(entries\[0\]\)}/);
+  assert.match(popupController, /formatCompactTarget\(displayName\(entries\[0\]\)\)/);
   assert.match(popupController, /manualSaveAtTable/);
   assert.match(popupController, /singleSaveOutcomes/);
   assert.match(popupController, /:\s*"Bersaglio: —"/);
-  assert.match(popupController, /Bersaglio: \$\{displayName\(entries\[0\]\)\}/);
+  assert.match(popupController, /formatCompactTarget\(displayName\(entries\[0\]\)\)/);
   assert.doesNotMatch(popupController, /\$\("healTarget"\)/);
   assert.match(popupController, /\$\("eyebrow"\)\.textContent[\s\S]*?"Aura Attiva"/);
   assert.match(popupController, /`Cura · \$\{healingFormula\}`/);
@@ -158,4 +158,14 @@ test("una conferma di attivazione passa da una sola mutazione coordinata", () =>
   assert.match(apply, /history: \{/);
   assert.doesNotMatch(apply, /createSpellInstanceId|spell:upsert/);
   assert.match(apply, /concentration:break/);
+});
+
+test("la strip del popup usa il valore canonico del raggio fisso", () => {
+  const micropills = section(
+    popupController,
+    "function renderActiveMicropills()",
+    "function render()",
+  );
+  assert.match(micropills, /fixedRadius\?\.value/);
+  assert.doesNotMatch(micropills, /fixedRadius\?\.radiusMeters/);
 });

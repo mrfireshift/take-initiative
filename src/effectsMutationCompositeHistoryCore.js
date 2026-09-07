@@ -5,12 +5,43 @@ export function decorateCompositeEffectsHistoryEntry({
   mutation = null,
   effectMetadataFields = [],
 } = {}) {
+  if (Array.isArray(mutation)) {
+    const combined = new Map();
+    for (const result of mutation.filter(Boolean)) {
+      for (const change of result.changes || []) {
+        const previous = combined.get(change.id);
+        if (!previous) { combined.set(change.id, clone(change)); continue; }
+        for (const [field, touched] of Object.entries(change.fields || {})) {
+          if (!touched) continue;
+          if (!previous.fields[field]) previous.before[field] = clone(change.before[field]);
+          previous.fields[field] = true;
+          previous.after[field] = clone(change.after[field]);
+        }
+        for (const field of Object.keys(change.metadataFields || {})) {
+          previous.metadataFields ||= {};
+          previous.beforeMetadata ||= {};
+          previous.afterMetadata ||= {};
+          if (!previous.metadataFields[field]) previous.beforeMetadata[field] = clone(change.beforeMetadata[field]);
+          previous.metadataFields[field] = true;
+          previous.afterMetadata[field] = clone(change.afterMetadata[field]);
+        }
+      }
+    }
+    mutation = { ...mutation.find(Boolean), changes: [...combined.values()], commitResult: {
+      sideEffectChanges: mutation.flatMap((result) => result?.commitResult?.sideEffectChanges || []),
+    } };
+  }
   const byId = new Map((mutation?.changes || []).map((change) => {
     const fields = Object.fromEntries(
       Object.entries(change?.fields || {}).filter(([, touched]) => touched)
     );
     return [change.id, {
       id: change.id,
+      ...(change.metadataFields ? {
+        metadataFields: clone(change.metadataFields),
+        beforeMetadata: clone(change.beforeMetadata || {}),
+        afterMetadata: clone(change.afterMetadata || {}),
+      } : {}),
       ...(String(change?.name || "").trim() ? { name: String(change.name).trim() } : {}),
       fields,
       before: Object.fromEntries(Object.keys(fields).map((field) => [
@@ -41,6 +72,7 @@ export function decorateCompositeEffectsHistoryEntry({
     ) {
       continue;
     }
+    const coordinated = byId.has(change.id);
     const normalized = byId.get(change.id) || {
       id: change.id,
       ...(String(change?.name || "").trim() ? { name: String(change.name).trim() } : {}),
@@ -53,7 +85,10 @@ export function decorateCompositeEffectsHistoryEntry({
     normalized.beforeMetadata ||= {};
     normalized.afterMetadata ||= {};
     for (const field of Object.keys(change?.before || {})) {
-      if (effectMetadataFields.includes(field)) continue;
+      if (coordinated && effectMetadataFields.includes(field)) continue;
+      // A coordinated HP patch owns its actual commit baseline. The outer
+      // wrapper's earlier snapshot must not absorb a concurrent HP change.
+      if (normalized.metadataFields[field]) continue;
       normalized.metadataFields[field] = true;
       normalized.beforeMetadata[field] = clone(change.before[field]);
       normalized.afterMetadata[field] = clone(change.after?.[field]);

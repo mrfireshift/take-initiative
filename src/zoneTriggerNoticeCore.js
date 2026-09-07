@@ -78,6 +78,7 @@ export function normalizeZoneTriggerNotice(value) {
   const kind = value?.kind === "zone-effect"
     || value?.resolution === "informational"
     || value?.resolution?.mode === "manual-damage"
+    || value?.resolution?.mode === "manual-condition"
     ? "zone-effect"
     : "";
   return {
@@ -180,6 +181,13 @@ export function zoneTriggerNoticeFromActivation(
     targets,
   };
   if (
+    activation?.resolution === "manual-condition"
+    && activation?.event === "turn-start"
+    && targets.length === 1
+  ) {
+    rawNotice.instruction = `${targets[0].name} inizia il turno entro 3 m.`;
+  }
+  if (
     activation?.resolution === "manual-heal"
     && targets.length === 1
     && !String(
@@ -219,7 +227,9 @@ export function zoneTriggerNoticeFromActivation(
   return normalizeZoneTriggerNotice({
     ...rawNotice,
     label: scaledDamageLabel,
-    ...(resolution?.mode === "manual-damage" ? { kind: "zone-effect" } : {}),
+    ...(["manual-damage", "manual-condition"].includes(resolution?.mode)
+      ? { kind: "zone-effect" }
+      : {}),
     ...(resolution ? { resolution } : {}),
   });
 }

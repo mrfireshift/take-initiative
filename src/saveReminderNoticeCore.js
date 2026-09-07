@@ -260,8 +260,14 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
     return {
       kind: entry.kind,
       eyebrow: phase ? `${baseEyebrow} · ${phase}` : baseEyebrow,
+      eventType: baseEyebrow,
+      timing: phase,
       title: `${affectedTargets} (${entry.spellName})`,
+      targetName: affectedTargets,
+      spellName: entry.spellName,
+      casterName: entry.casterName || entry.sourceName || "",
       primaryTarget: targets[0],
+      targets,
       ariaLabel: `${entry.spellName}: ${ariaAction} per ${affectedTargets}`,
       rows: [presentationRow(entry, "", entry.instruction || entry.label)],
     };
@@ -280,13 +286,20 @@ export function saveReminderNoticeBatchPresentation(batch = null) {
       : kinds.has("zone-effect") || kinds.has("effect-reminder")
         ? "Reminder"
         : "Tiri salvezza";
+  const countLabel = `${targets.length} bersagli`;
+  const aggregateTitle = sharedTarget ? targets[0].name : countLabel;
   return {
     kind: "aggregate",
     eyebrow: sharedPhase
       ? `${aggregateLabel} · ${sharedPhase}`
       : aggregateLabel,
-    title: sharedTarget ? targets[0].name : "Più bersagli",
+    eventType: aggregateLabel,
+    timing: sharedPhase,
+    title: aggregateTitle,
+    targetName: aggregateTitle,
+    spellName: "",
     primaryTarget: targets[0],
+    targets,
     ariaLabel: `${aggregateLabel} per ${targetSummary(targets)}`,
     rows: entries.map((entry) => {
       const entryPhase = timingLabel(entry.timing);

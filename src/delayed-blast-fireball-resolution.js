@@ -56,13 +56,17 @@ function requestCompactPopoverResize() {
   resizeFrame = requestAnimationFrame(() => {
     const app = $("app");
     if (!app) return;
-    // Misura il contenuto effettivo: con pochi bersagli il popover si riduce,
-    // mentre una lista lunga mantiene lo scroll interno della sezione.
-    const naturalHeight = Math.ceil(app.scrollHeight + 8);
-    const targetHeight = Math.max(150, Math.min(620, naturalHeight));
+    const rectHeight = app.getBoundingClientRect?.().height || 0;
+    const naturalHeight = Math.ceil(
+      Math.max(rectHeight, app.offsetHeight || 0, app.scrollHeight || 0) + 8,
+    );
+    const targetHeight = Math.max(90, Math.min(620, naturalHeight));
     if (targetHeight === lastPopoverHeight) return;
-    lastPopoverHeight = targetHeight;
-    void OBR.popover.setHeight(payload.popoverId, targetHeight).catch(() => {});
+    OBR.popover.setHeight(payload.popoverId, targetHeight)
+      .then(() => {
+        lastPopoverHeight = targetHeight;
+      })
+      .catch(() => {});
   });
 }
 

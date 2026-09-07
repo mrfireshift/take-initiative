@@ -262,6 +262,7 @@ function resolveMode({
   const isMagicalReduction = (rule, value, property) => {
     if (rule?.magical !== true && rule?.sourceType !== "spell") return false;
     if (property === "multiplier") return Number(value) < 1;
+    if (property === "addMeters") return Number(value) < 0;
     return (property === "maximum" || property === "setMeters")
       && Number(value) < sourceMeters;
   };
@@ -298,7 +299,10 @@ function resolveMode({
     let touched = false;
     if (ruleAppliesToMode(rule, mode)) {
       const addition = Number(rule.addMeters);
-      if (Number.isFinite(addition)) {
+      if (Number.isFinite(addition) && !(
+        ignoreMagicalSpeedReductions
+        && isMagicalReduction(rule, addition, "addMeters")
+      )) {
         addMeters += addition;
         touched = true;
       }
@@ -336,7 +340,10 @@ function resolveMode({
     }
     if (definition && typeof definition === "object") {
       const addition = Number(definition.addMeters);
-      if (Number.isFinite(addition)) {
+      if (Number.isFinite(addition) && !(
+        ignoreMagicalSpeedReductions
+        && isMagicalReduction({ ...rule, ...definition }, addition, "addMeters")
+      )) {
         addMeters += addition;
         touched = true;
       }

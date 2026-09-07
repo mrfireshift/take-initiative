@@ -31,7 +31,8 @@ const CHOICE_POPOVER_WIDTH = 360;
 const CHOICE_POPOVER_HEIGHT = 210;
 const TELEKINESIS_CHOICE_POPOVER_HEIGHT = 160;
 const SINGLE_ACTION_CHOICE_POPOVER_HEIGHT = 150;
-const EYEBITE_CHOICE_POPOVER_HEIGHT = 330;
+const TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 165;
+const EYEBITE_CHOICE_POPOVER_HEIGHT = 215;
 
 let mounted = false;
 let work = Promise.resolve();
@@ -93,10 +94,12 @@ function popoverId(request) {
 function popoverHeight(request) {
   if (request?.kind === "choice") {
     if (request?.spellId === "eyebite") return EYEBITE_CHOICE_POPOVER_HEIGHT;
+    if (request?.targetSelection === true) return TARGET_SELECTION_CHOICE_POPOVER_HEIGHT;
     if (request?.spellId === "telekinesis") return TELEKINESIS_CHOICE_POPOVER_HEIGHT;
     const actionCount = Array.isArray(request?.actions) ? request.actions.length : 0;
     if (actionCount === 1) return SINGLE_ACTION_CHOICE_POPOVER_HEIGHT;
-    return Math.max(CHOICE_POPOVER_HEIGHT, 80 + actionCount * 65);
+    const rows = Math.ceil(actionCount / 2);
+    return Math.max(CHOICE_POPOVER_HEIGHT, 80 + rows * 65);
   }
   const payload = request?.payload || request;
   return payload?.spellId === "xanathar-debilitazione"
@@ -306,7 +309,9 @@ export async function mountCallLightningTurnPromptController() {
     if (!Array.isArray(player?.selection)) return;
     currentSelection = [...player.selection];
     for (const runtime of opened.values()) {
-      if (runtime?.kind === "choice" && runtime?.request?.spellId === "eyebite") {
+      if (runtime?.kind === "choice"
+        && (runtime?.request?.spellId === "eyebite"
+          || runtime?.request?.targetSelection === true)) {
         void broadcastChoiceSelection(runtime, currentSelection);
       }
     }
@@ -399,6 +404,9 @@ export async function mountCallLightningTurnPromptController() {
           try {
             const actionSceneEpoch = currentSceneEpoch();
             const actionTurnKey = runtimeTurnKey || currentTurnKey;
+            const selectedTargetId = data.type === "apply-choice-action"
+              ? String(data.targetId || "").trim()
+              : "";
             const items = await OBR.scene.items.getItems();
             const group = spellOverviewGroups(items).find((candidate) => (
               String(candidate?.instanceId || "").trim() === String(payload.instanceId || "").trim()
@@ -412,6 +420,7 @@ export async function mountCallLightningTurnPromptController() {
               spell,
               actionId: payload.actionId,
               group,
+              selectedTargetIds: selectedTargetId ? [selectedTargetId] : [],
               appliedAt: group.appliedAt,
               casterName: group.casterName,
               sceneEpoch: actionSceneEpoch,

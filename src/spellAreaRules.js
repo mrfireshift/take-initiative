@@ -89,6 +89,7 @@ const SPELL_ZONE_RESOLUTIONS = Object.freeze([
   "manual-save",
   "manual-effect",
   "manual-heal",
+  "manual-condition",
 ]);
 const SPELL_ZONE_TARGET_MODES = Object.freeze([
   "actor",
@@ -692,6 +693,9 @@ const CASTER_INCLUDED_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   includeCaster: true,
 });
+const PLACEMENT_ONLY_TARGETING_BY_SPELL = Object.freeze({
+  "holy-aura": CASTER_INCLUDED_TARGETING,
+});
 const SELF_CAST_AURA_TARGETING = Object.freeze({
   ...COMMON_TARGETING,
   confirmTargets: false,
@@ -750,21 +754,23 @@ const CASTER_EXCLUDED_AREA_SUBSET_TARGETING = Object.freeze({
   ...AREA_SUBSET_TARGETING,
   includeCaster: false,
 });
-const areaSaveTargeting = (spellId) =>
-  isTeleportSpell(spellId)
-    ? NO_CONFIRM_TARGETING
-    : SELF_CAST_AURA_SPELL_IDS.has(spellId)
-    ? SELF_CAST_AURA_TARGETING_BY_SPELL[spellId] || SELF_CAST_AURA_TARGETING
-    : NO_CONFIRM_AREA_SAVE_SPELL_IDS.has(spellId)
-    ? NO_CONFIRM_AREA_SAVE_TARGETING
-    : AREA_SUBSET_SAVE_SPELL_IDS.has(spellId)
-    ? CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
+const areaSaveTargeting = (spellId) => {
+  if (isTeleportSpell(spellId)) return NO_CONFIRM_TARGETING;
+  if (SELF_CAST_AURA_SPELL_IDS.has(spellId)) {
+    return SELF_CAST_AURA_TARGETING_BY_SPELL[spellId] || SELF_CAST_AURA_TARGETING;
+  }
+  if (NO_CONFIRM_AREA_SAVE_SPELL_IDS.has(spellId)) return NO_CONFIRM_AREA_SAVE_TARGETING;
+  if (AREA_SUBSET_SAVE_SPELL_IDS.has(spellId)) {
+    return CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
       ? CASTER_EXCLUDED_AREA_SUBSET_TARGETING
-      : AREA_SUBSET_TARGETING
-    : AREA_SAVE_SPELL_ID_SET.has(spellId)
-    && !CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
-    ? CASTER_INCLUDED_TARGETING
-    : COMMON_TARGETING;
+      : AREA_SUBSET_TARGETING;
+  }
+  return PLACEMENT_ONLY_TARGETING_BY_SPELL[spellId]
+    || (AREA_SAVE_SPELL_ID_SET.has(spellId)
+      && !CASTER_EXCLUDED_AREA_SAVE_SPELL_IDS.has(spellId)
+      ? CASTER_INCLUDED_TARGETING
+      : COMMON_TARGETING);
+};
 const PREVIEW_LIFECYCLE = Object.freeze({
   persistence: "preview",
   endsWithSpell: false,
@@ -3056,6 +3062,95 @@ export const SPELL_AREA_RULES = Object.freeze([
             dice: "3d8",
             type: "radiosi o necrotici",
             onSave: "half",
+          },
+        },
+      ],
+    },
+  }),
+  defineRule({
+    id: "tasha-sudario-spirituale:aura",
+    spellId: "tasha-sudario-spirituale",
+    trigger: CAST_TRIGGER,
+    kind: "aura",
+    geometry: {
+      shape: "circle",
+      size: meters(3, "radius"),
+    },
+    placement: {
+      origin: "caster",
+      direction: "none",
+      anchor: "caster",
+    },
+    lifecycle: SPELL_LIFECYCLE,
+    targeting: {
+      filter: "all",
+      includeCaster: false,
+      confirmTargets: false,
+    },
+    effectPolicy: {
+      mode: "while-inside",
+      effect: {
+        id: "spirit-shroud-aura-damage",
+        kind: "debuff",
+        label: "Subisce 1d8 danni extra",
+        detail: "Quando il caster colpisce una creatura entro 3 metri, l'attacco infligge +1d8 danni del tipo scelto; bonus e applicazione restano manuali al tavolo.",
+        targeting: {
+          filter: "hostile",
+          includeCaster: false,
+        },
+        summaryParts: [
+          { id: "spirit-shroud-aura-damage", label: "Subisce 1d8 danni extra" },
+        ],
+        mechanics: {
+          deriveLabel: true,
+          damageBonus: {
+            dice: {
+              count: { base: 1, baseSlot: 3, perSlotAbove: 1, step: 2 },
+              sides: 8,
+            },
+            type: "danni",
+          },
+        },
+      },
+    },
+    triggerPolicy: {
+      triggers: [
+        {
+          id: "spirit-shroud-slow-on-turn-start",
+          group: "spirit-shroud-slow",
+          label: "Sudario Spirituale",
+          event: "turn-start",
+          frequency: "once-per-turn",
+          resolution: "manual-condition",
+          targetMode: "actor",
+          persistsAfterExit: true,
+          requiresConcentration: true,
+          resolutionData: {
+            choiceLabels: {
+              passed: "Applica -3 m",
+              failed: "Ignora",
+            },
+            condition: {
+              id: "spirit-shroud-slow",
+              kind: "debuff",
+              label: "Velocità -3 m",
+              detail: "La velocità è ridotta di 3 m fino all'inizio del prossimo turno del caster.",
+              summaryParts: [
+                { id: "spirit-shroud-slow", label: "-3 m velocità" },
+              ],
+              mechanics: {
+                movement: {
+                  addMeters: -3,
+                  label: "Sudario Spirituale: -3 m velocità",
+                },
+              },
+              expiry: {
+                mode: "turn-start",
+                actor: "source",
+                remaining: 1,
+                anchor: "next-turn",
+              },
+            },
           },
         },
       ],

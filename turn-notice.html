@@ -208,9 +208,9 @@
         --accent-deep: rgba(104, 39, 20, .95);
         position: relative;
         width: calc(100% - 8px);
-        min-height: 66px;
+        min-height: 56px;
         margin: 4px;
-        padding: 7px 11px 7px 58px;
+        padding: 6px 10px 6px 48px;
         border: 1px solid #080b10;
         border-radius: 7px;
         background:
@@ -233,10 +233,10 @@
       }
       .zone-portrait {
         position: absolute;
-        top: 50%;
+        top: 9px;
         left: 8px;
-        width: 42px;
-        height: 42px;
+        width: 33px;
+        height: 33px;
         overflow: hidden;
         border: 2px solid #080b10;
         border-radius: 50%;
@@ -245,7 +245,6 @@
           0 0 0 2px var(--accent),
           0 0 10px 2px var(--accent-soft),
           inset 0 0 0 1px rgba(255,255,255,.18);
-        transform: translateY(-50%);
       }
       .zone-portrait img {
         width: 100%;
@@ -261,70 +260,164 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 18px;
+        font-size: 15px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
       }
+      .zone-portrait-fallback.is-aggregate {
+        font-size: 13px;
+        letter-spacing: -1px;
+      }
       .zone-copy { position: relative; min-width: 0; z-index: 1; }
       .zone-eyebrow {
+        margin-bottom: 2px;
         color: var(--accent);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: system-ui, -apple-system, sans-serif;
         font-size: 8px;
         font-weight: 800;
         letter-spacing: .6px;
+        line-height: 1.15;
         text-transform: uppercase;
       }
+      .zone-eyebrow-timing {
+        color: rgba(255, 255, 255, .68);
+        font-weight: 700;
+      }
+      .zone-eyebrow-count {
+        color: rgba(255, 255, 255, .60);
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+      }
       .zone-title {
-        margin-top: 1px;
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(13px, 2.5vw, 15px);
+        font-size: clamp(13px, 2.5vw, 14.5px);
         font-weight: 800;
-        line-height: 1.05;
+        line-height: 1.15;
         text-overflow: ellipsis;
-        text-shadow: 0 2px 3px rgba(0,0,0,.9);
+        text-shadow: 0 1px 3px rgba(0,0,0,.9);
         white-space: nowrap;
+      }
+      .zone-target-index {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5px 4px;
+        border-radius: 3px;
+        border: 1px solid rgba(255, 255, 255, .18);
+        background: rgba(255, 255, 255, .08);
+        color: rgba(255, 255, 255, .70);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+      .zone-subtitle {
+        margin-top: 1px;
+        overflow: hidden;
+        font-size: 9.5px;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .zone-spell-name {
+        color: rgba(255, 255, 255, .82);
+        font-weight: 700;
+      }
+      .zone-source {
+        color: rgba(255, 255, 255, .46);
+        font-weight: 500;
+        font-size: 8.5px;
       }
       .zone-detail {
         position: relative;
         display: grid;
-        gap: 2px;
-        margin-top: 5px;
-        padding-top: 4px;
-        border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+        gap: 4px;
+        margin-top: 4px;
         z-index: 1;
       }
-      .zone-detail[data-multiple="true"] { gap: 5px; }
+      .zone-detail[data-multiple="true"] { gap: 4px; }
       .zone-detail-row {
-        display: grid;
-        min-width: 0;
-        gap: 1px;
-      }
-      .zone-detail strong {
-        overflow: hidden;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 10px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .zone-detail span {
-        color: rgba(255,255,255,.72);
-        font-size: 9px;
-        line-height: 1.25;
-      }
-      .zone-resolution {
-        position: relative;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 4px;
-        margin-top: 5px;
+        gap: 4px 8px;
+        min-width: 0;
+      }
+      .zone-detail strong {
+        flex: 1 1 100%;
+        overflow: hidden;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #fff;
+      }
+      .zone-micropills {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+        margin: 0;
+      }
+      .zone-micropill {
+        display: inline-flex;
+        align-items: center;
+        color: rgba(255, 255, 255, .82);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 700;
+        line-height: 1.2;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .zone-micropill--save {
+        color: #fff;
+        font-weight: 800;
+        letter-spacing: .2px;
+      }
+      .zone-micropill--dc {
+        color: rgba(255, 255, 255, .88);
+        font-weight: 800;
+      }
+      .zone-micropill--damage {
+        color: rgba(255, 255, 255, .78);
+        font-weight: 600;
+      }
+      .zone-micropill--condition {
+        color: rgba(255, 255, 255, .78);
+        font-weight: 600;
+      }
+      .zone-instruction {
+        flex: 1 1 100%;
+        margin-top: 2px;
+        color: rgba(255, 255, 255, .50);
+        font-size: 8px;
+        line-height: 1.25;
+        letter-spacing: .05px;
+        max-width: 440px;
+      }
+      .zone-resolution {
+        position: relative;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+        margin: 0;
         pointer-events: auto;
         z-index: 2;
       }
       .zone-resolution-outcomes {
-        display: flex;
+        display: inline-flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 3px;
       }
       .zone-resolution-outcomes[hidden] {
@@ -332,16 +425,16 @@
       }
       .zone-resolution button,
       .zone-resolution input {
-        min-height: 20px;
+        min-height: 19px;
         border: 1px solid rgba(255,255,255,.26);
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
-        font: 700 9px/1 system-ui, sans-serif;
+        font: 700 8.5px/1 system-ui, sans-serif;
         pointer-events: auto;
       }
       .zone-resolution button {
-        padding: 3px 5px;
+        padding: 2px 6px;
         cursor: pointer;
       }
       .zone-resolution button:hover,
@@ -357,20 +450,21 @@
       .zone-resolution-damage {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         color: rgba(255,255,255,.76);
-        font-size: 9px;
+        font-size: 8.5px;
+        font-weight: 700;
       }
       .zone-resolution-damage input {
-        width: 48px;
-        padding: 3px 4px;
+        width: 42px;
+        padding: 2px 4px;
         text-align: center;
       }
       [data-resolution-status] {
         display: block;
         flex-basis: 100%;
         color: var(--accent);
-        font-size: 9px;
+        font-size: 8.5px;
         font-weight: 800;
       }
       .zone-close {

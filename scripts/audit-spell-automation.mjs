@@ -159,10 +159,6 @@ const GAP_LABELS = Object.freeze({
 });
 
 const CURATED_REVIEW = Object.freeze({
-  "compulsion": {
-    gaps: ["REPEATED_ACTION", "MOVEMENT_MECHANICS_MISSING"],
-    note: "Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento.",
-  },
   "animal-shapes": {
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
     note: "Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati.",
@@ -191,10 +187,6 @@ const CURATED_REVIEW = Object.freeze({
     gaps: ["REPEATED_ACTION", "CHOICE_WORKFLOW_MISSING"],
     note: "Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW.",
   },
-  "holy-aura": {
-    gaps: ["CONDITIONAL_TRIGGER", "STATUS_MISSING"],
-    note: "Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell.",
-  },
   "xanathar-debilitazione": {
     gaps: ["REPEATED_ACTION", "CONDITIONAL_TRIGGER"],
     note: "Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell.",
@@ -208,8 +200,8 @@ const CURATED_REVIEW = Object.freeze({
     note: "Il d20 resta fisico al tavolo; il runtime conserva l'istanza parent, lo stato Materiale/Etereo e il punto di scomparsa, propone il turno-end e compone il ritorno assistito al turno-start o prima del cleanup terminale. Il ritorno usa un picker puntuale diretto sulla mappa, senza creare aree, normalizza il punto al centro della footprint del token e applica subito token:teleport. Distanza RAW, LOS, occupazione, scelta casuale fra spazi equidistanti e interazioni planari restano manuali accettati. Il dismissal RAW è un'Azione; History/Undo resta condivisa anche dopo il tick di round. Non vengono introdotti RNG, condition o engine planari.",
   },
   "tasha-sudario-spirituale": {
-    gaps: ["CONDITIONAL_TRIGGER", "MOVEMENT_MECHANICS_MISSING", "TURN_EFFECT_MISSING"],
-    note: "Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo.",
+    gaps: [],
+    note: "Decisione curata sul RAW locale: il bonus damage/hit e il rider anti-guarigione restano manuali; il tracker automatizza/assiste un'unica aura mobile di 3 m condivisa da bonus damage e slow, pill dinamiche sui nemici con +Xd8 scalato, candidato a inizio turno, scelta di un solo bersaglio, slow -3 m, expiry e marker anti-guarigione senza gate globale. Il marker è disponibile anche dal popup del turno del caster con selezione del bersaglio già colpito.",
   },
   "control-water": {
     gaps: [],
@@ -240,6 +232,7 @@ const CURATED_REVIEW = Object.freeze({
 const CURATED_COVERAGE_STATUS = Object.freeze({
   "antilife-shell": "CLOSED",
   "delayed-blast-fireball": "CLOSED",
+  "compulsion": "CLOSED",
   "dominate-beast": "CLOSED",
   "dominate-monster": "CLOSED",
   "dominate-person": "CLOSED",
@@ -251,11 +244,15 @@ const CURATED_COVERAGE_STATUS = Object.freeze({
   "flame-blade": "CLOSED",
   "phb2014-aura-di-vita": "CLOSED",
   "phb2014-aura-di-vitalita": "CLOSED",
+  "holy-aura": "CLOSED",
+  "tasha-sudario-spirituale": "CLOSED",
+  "xanathar-scossa-tellurica": "CLOSED",
 });
 
 const CURATED_AUTOMATION_LEVEL = Object.freeze({
   "antilife-shell": "PARTIAL",
   "delayed-blast-fireball": "PARTIAL",
+  "compulsion": "PARTIAL",
   "dominate-beast": "PARTIAL",
   "dominate-monster": "PARTIAL",
   "dominate-person": "PARTIAL",
@@ -266,6 +263,9 @@ const CURATED_AUTOMATION_LEVEL = Object.freeze({
   "phb2014-aura-di-vita": "PARTIAL",
   "xanathar-turbine": "FULL",
   "blink": "FULL",
+  "holy-aura": "PARTIAL",
+  "tasha-sudario-spirituale": "PARTIAL",
+  "xanathar-scossa-tellurica": "PARTIAL",
 });
 
 const CURATED_COMPLETE = Object.freeze({
@@ -274,6 +274,9 @@ const CURATED_COMPLETE = Object.freeze({
   "dominate-beast": "PASS: Dominare Bestie è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
   "dominate-monster": "PASS: Dominare Mostri è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
   "dominate-person": "PASS: Dominare Persone è PARTIAL/CLOSED per decisione di prodotto. Il cast conserva bersaglio, concentrazione, durata/scaling RAW, Affascinato e l'identità esatta della parent spell instance; il TS iniziale resta manuale al tavolo. Quando il bersaglio subisce danno, il runtime emette una sola volta per evento il reminder del nuovo TS Saggezza: successo rimuove il dominio, la child condition e la concentrazione del solo parent target-scoped; fallimento lascia invariato lo stato. Ordini, comportamento del bersaglio, controllo preciso, uso dell'azione del caster e altre conseguenze narrative/tattiche restano manuali. Confine: damage-triggered save reminder only; precise control remains manual.",
+  "compulsion": "PASS: Compulsione è PARTIAL/CLOSED per decisione di prodotto. Il workflow unificato espone il TS Saggezza per più creature entro 9 m, conserva soltanto i fallimenti come istanze di condizione target-scoped e concentrazione, mostra il movimento imposto e genera sul movimento del bersaglio nel proprio turno un reminder del nuovo TS Saggezza con rimozione al successo. Restano manuali e accettati: visibilità e capacità di sentire, immunità al fascino, direzione scelta dal caster con azione bonus, movimento fisico, terreno ovviamente pericoloso e attacchi di opportunità. Il reminder non valida direzione o quantità del movimento; non viene introdotta una nuova primitive di movimento o action economy.",
+  "tasha-sudario-spirituale": "PASS: Sudario Spirituale è PARTIAL/CLOSED per decisione di prodotto. Automatici/assisted: cast con scelta del tipo e scaling del bonus damage già tracciati, un'unica aura mobile di 3 m condivisa da bonus damage e slow, centrata e seguita dal caster, caster escluso dai candidati, pill dinamiche sui nemici entro l'aura con quantità `+Xd8` scalata, trigger a inizio turno una-volta-per-turno, reminder per una sola creatura candidata e scelta GM [Applica -3 m]/[Ignora], child slow con `parentEffectId` esatto, modifica di movimento -3 m, expiry all'inizio del prossimo turno del caster senza cleanup all'uscita, reload/reconcile, stale checks, concentrazione, cleanup e History/Undo shared. L'affordance GM `Segna bersaglio colpito` applica il child marker `No recupero PF` fino al prossimo turno del caster ed è raggiungibile anche dal popup automatico del turno del caster con selezione del bersaglio; il marker rende il divieto RAW evidente in summary/detail, ma non implementa un healing gate globale. Manuali e accettati: hit/attack interception, applicazione del bonus damage, verifica dei 3 m dell'attacco, scelta/verifica della visibilità del target dello slow e enforcement anti-guarigione. Non vengono introdotti attack-interception framework, LOS engine o global healing gate.",
+  "holy-aura": "PASS: Aura Sacra è PARTIAL/CLOSED per decisione di prodotto. Il placement al lancio usa il raggio di 9 m e include il caster tra le creature selezionabili; la lista dei protetti resta fissa al lancio e riceve una sola condizione con vantaggio ai TS e svantaggio agli attacchi contro il bersaglio, collegata a concentrazione, cleanup e History/Undo. Restano manuali e accettati la luce bright/dim, l'enforcement dei modificatori ai tiri, la classificazione immondo/non morto, il requisito di attacco in mischia e il trigger TS Costituzione → Accecato, perché il tracker non è authority di ogni attack roll. Non serve membership dinamica per modificare i protetti: il RAW fissa la scelta al lancio.",
   telekinesis: "PASS: Telecinesi è FULL/ACCEPTED nel perimetro OBR creature-only. Il cast dal pannello unificato crea una sola parent spell instance persistente con concentrazione fino a 10 minuti, target creatura entro 18 m, stato della contesa, bersaglio corrente e identity di attivazione. Dal turno successivo del caster, `telekinesis-maintain` e `telekinesis-retarget` sono esposti come azioni, una volta per turno, con popup di contesa; l'esito manuale aggiorna la stessa istanza, applica la Condition canonica Trattenuto sulla vittoria e ne gestisce la scadenza, mentre cleanup, reconcile e History/Undo restano instance-scoped. Movimento e sospensione/sollevamento restano manuali; la modalità oggetto è fuori perimetro perché il workflow OBR non dispone di token oggetto. Non vengono introdotti motori di movimento o fisica, Condition artificiali o store paralleli.",
   "prismatic-wall": "PASS: Muro Prismatico è PARTIAL/ACCEPTED per decisione di prodotto. Automatici: cast, placement persistente per una sola parent instance, forme muro/sfera nel subset line/circle del geometry runtime, durata 10 minuti senza concentrazione, esenzioni per-instance, hot zone visibile e membership di prossimità entro 6 m con TS Costituzione e Accecato per 1 minuto, apertura automatica del popup quando il movimento attraversa la parete, comando GM di risoluzione con i sette TS Destrezza, danni 10d6 separati con full/half e tipi RAW, Indaco con 3 successi/3 fallimenti, Viola con TS differito al turno del caster, gestione ordinata degli strati con conferma manuale del requisito, summaryParts, cleanup, stale checks, idempotenza e History/Undo. Manuali accettati: requisito «può vedere il muro», dichiarazione e conseguenze del crossing nel popup, riconoscimento dei danni/venti/spell che distruggono gli strati, enforcement dei passivi, blocco/rollback del movimento, proiettili e trasferimento planare effettivo. Non vengono introdotti un boundary-crossing engine generico, una layer-state-machine generica o un planar engine.",
   "prismatic-spray": "PASS: Spruzzo Prismatico è FULL/ACCEPTED. Il cono shared da 18 m, i TS Destrezza indipendenti, il risultato fisico d8 per bersaglio, il doppio raggio 8, i totali manuali 10d6, i cinque tipi di danno, Trattenuto/Accecato/Pietrificato canonici, il progresso Indaco 3 successi/3 fallimenti e il TS Viola al prossimo turno del caster confluiscono nella singola risoluzione area e nei reminder/History shared. Restano intenzionalmente manuali soltanto il tiro fisico del d8 e il trasferimento materiale fra piani; non servono primitive random o movimento planare.",
@@ -286,6 +289,7 @@ const CURATED_COMPLETE = Object.freeze({
   "blink": "PASS: Intermittenza è FULL/ACCEPTED. Il cast conserva Self, 1 minuto, nessuna concentrazione e lo stato iniziale Materiale nella parent spell instance. Alla fine di ogni turno del caster il framework shared consegna un prompt con le scelte RAW 1–10 / 11+ senza tirare dadi; il fallimento salva departurePosition e porta semanticamente l'istanza sul Piano Etereo senza spostare il token. All'inizio del turno successivo il GM sceglie direttamente la destinazione sulla mappa tramite il picker puntuale condiviso, senza creare aree; il punto viene normalizzato al centro della footprint e token:teleport è applicato subito. Distanza RAW, LOS, occupazione, scelta casuale fra spazi equidistanti e interazioni planari restano manuali accettati. La generalizzazione minima del terminal gateway consente il ritorno prima del cleanup per expiry, rimozione e dismissal; il dismissal RAW è un'Azione. Reload/reconcile, stale checks, exact instanceId e Undo restano persistiti e condivisi, incluso dopo il tick di round. Non vengono introdotti RNG, condition o engine planari.",
   "xanathar-investitura-del-vento": "PASS: Investitura del Vento è accettata. Il self-buff persistente, il volo, il cubo di vento come active action ripetibile, la geometria, il TS, il danno, la spinta e il prompt di turno sono esposti attraverso i contratti runtime esistenti; i limiti e le conseguenze gestite manualmente restano nel riferimento RAW.",
   "xanathar-investitura-della-pietra": "PASS: Investitura della Pietra è accettata. Il self-buff persistente e Scossa tellurica come active action ripetibile usano il lifecycle e il prompt condivisi; il raggio fisso sul caster, il TS, Prono e il riferimento alle interazioni con terreno e roccia restano coerenti con il contratto runtime e con la gestione manuale al tavolo.",
+  "xanathar-scossa-tellurica": "PASS: Scossa Tellurica è PARTIAL/CLOSED. Il workflow area-save espone il danno contundente 1d6 sui fallimenti, zero sui successi e scaling di +1d6 per slot sopra il 1°. Prono resta collegato ai fallimenti. Il terreno difficile su pietra o terra smossa e lo sgombero restano un reminder/manuale ambientale: la spell è istantanea e non crea una zona persistente o un attachment di scena.",
   "xanathar-anatema-elementale": "PASS: il workflow batch del TS Costituzione, la scelta condivisa del tipo, il limite con slot superiori e la validazione pairwise entro 9 m sono operativi. Il danno aggiuntivo e la rimozione della resistenza restano manuali per scelta di perimetro: il plugin non dispone degli strumenti per automatizzarli.",
   "xanathar-gabbia-dellanima": "PASS: Gabbia dell'Anima è intenzionalmente TRACK_ONLY/ACCEPTED. Il registro conserva l'anima intrappolata per 8 ore senza concentrazione e il riferimento RAW ricorda il limite complessivo di sei utilizzi e le quattro modalità (Rubare Vita, Interrogare Anima, Esperienza in Prestito e Occhi dei Morti); consumo e conseguenze restano manuali, senza workflow di reazione, risorsa, cura, vantaggio, interrogazione, sensore o concentrazione figlia.",
   "wall-of-fire": "PASS: il placement obbligatorio espone muro lineare o circolare ad anello e conserva il lato caldo scelto; il corpo, la fascia adiacente di 3 m e l'attraversamento continuo alimentano trigger distinti con deduplicazione una-volta-per-turno. Il danno iniziale e persistente usa input manuale con scaling 5d8 +1d8 per slot sopra il 4°; il plugin non automatizza il tiro o l'applicazione dei danni.",
@@ -1713,6 +1717,8 @@ export function renderSpellAutomationMarkdown(audit) {
     "## Decisioni di prodotto chiuse",
     "",
     "- Dominare Bestie / Persone / Mostri: `damage-triggered save reminder only; precise control remains manual`.",
+    "- Compulsione (`compulsion`): `PARTIAL/CLOSED`; tracking dei fallimenti, condizione, concentrazione e reminder del nuovo TS dopo il movimento. Direzione, movimento fisico, terreno e attacchi di opportunità restano manuali.",
+    "- Aura sacra (`holy-aura`): `PARTIAL/CLOSED`; placement al lancio con caster selezionabile, protetti fissi, condizione di vantaggio/svantaggio, concentrazione e cleanup. Modificatori ai tiri, luce e trigger immondo/non morto → TS Costituzione → Accecato restano manuali.",
     "",
     "### Livello di automazione attuale (currentAutomationLevel)",
     "",

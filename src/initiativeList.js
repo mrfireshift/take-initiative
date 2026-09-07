@@ -49,6 +49,7 @@ import {
 } from "./effectsMutations.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
 import { withItemMetaHistory, mountMovementHistoryWatcher, subscribeMovementSegments, undoHistoryThrough } from "./history.js";
+import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { recordCombatTurn } from "./combatLog.js";
 import { shouldHandleHistoryUndoShortcut } from "./historyUndoUiCore.js";
 import { adjustSpeedCheckBonus, adjustSpeedCheckDash, enableSpeedCheckProcessor, mountSpeedCheckEnabledSync, mountSpeedCheckStateBroadcast, mountSpeedWarningBroadcast, prewarmSpeedCheckTurn, queueSpeedCheckMovements, resetSpeedCheckMovement, setSpeedCheckEnabled, setSpeedCheckMovementLimit, setSpeedCheckMovementMode, subscribeSpeedCheckEnabled, subscribeSpeedCheckState, syncSpeedCheckTurn } from "./speedCheck.js";
@@ -75,9 +76,7 @@ import {
 } from "./effectSaveReminderCore.js";
 import {
   getZeroHPConditionHistoryIds,
-  reconcileZeroHPConditionsForItems,
 } from "./hpConditionAutomation.js";
-import { resolveDamageEndsConditionRemovals } from "./hpConditionRulesCore.js";
 import {
   TRACKER_LAYOUT_CHANNEL,
   TRACKER_LAYOUT_CLASSIC,
@@ -5094,7 +5093,7 @@ async function trySeedGroupInitiative(itemId, value, options = {}, sceneEpoch = 
 }
 
 // Propagazione HP/HPMax al gruppo con backfill per nuovi membri
-async function trySeedGroupHP(itemId, hp, hpMax) {
+async function trySeedGroupHP(itemId, hp, hpMax, onMutation = () => {}) {
   const st = await getSceneState();
   const { key, members } = await _getGroupForItemId(itemId);
   if (!key || members.length <= 1) return;
@@ -5118,13 +5117,12 @@ async function trySeedGroupHP(itemId, hp, hpMax) {
   const nMax = Math.max(0, Math.floor(Number(hpMax) || 0));
   const nHPclamped = nMax > 0 ? Math.min(nHP, nMax) : nHP;
 
-  await OBR.scene.items.updateItems(targetIds, (list) => {
-    for (const it of list) {
-      const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-      it.metadata = { ...(it.metadata || {}), [META_KEY]: { ...prevMeta, hp: nHPclamped, hpMax: nMax } };
-    }
-  });
-  await reconcileZeroHPConditionsForItems(targetIds);
+  const mutation = await runEffectsMutation([{
+    type: "hp:set", damageEnds: false,
+    updates: targetIds.map((itemId) => ({ itemId, hp: nHPclamped, hpMax: nMax })),
+  }], { history: false, kind: "hp-seed", targetIds });
+  requireAppliedEffectsMutation(mutation);
+  onMutation(mutation);
 
   // Modifica
   // aggiorna subito barre + testo (best-effort)
@@ -5294,34 +5292,10 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   void syncHPTextNow(itemId, n, nm);
   syncTrackerHPNow(itemId, n, nm);
 
-  await OBR.scene.items.updateItems([itemId], (items) => {
-    for (const it of items) {
-      const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-      const prevHP = Number(prevMeta.hp);
-      let conditions = prevMeta.conditions;
-      if (Number.isFinite(prevHP) && n < prevHP && conditions) {
-        const instances = Array.isArray(conditions?.instances) ? conditions.instances : [];
-        const toRemove = new Set(resolveDamageEndsConditionRemovals(instances));
-        if (toRemove.size > 0) {
-          const nextInstances = instances.filter((inst) => !toRemove.has(inst.id));
-          conditions = nextInstances.length ? { ...conditions, instances: nextInstances } : undefined;
-        }
-      }
-      it.metadata = {
-        ...(it.metadata || {}),
-        [META_KEY]: {
-          ...prevMeta,
-          hp: n,
-          hpMax: nm,
-          ...(conditions !== undefined ? { conditions } : (conditions === undefined && prevMeta.conditions ? { conditions: undefined } : {})),
-        },
-      };
-      if (conditions === undefined && prevMeta.conditions) {
-        delete it.metadata[META_KEY].conditions;
-      }
-    }
-  });
-  await reconcileZeroHPConditionsForItems([itemId]);
+  const mutation = await runEffectsMutation([{
+    type: "hp:set", updates: [{ itemId, hp: n, hpMax: nm }],
+  }], { history: false, kind: "hp", targetIds: [itemId] });
+  requireAppliedEffectsMutation(mutation);
 
 
   // NEW: salva nella memoria stanza (cross‑scene) se è un PG
@@ -5330,6 +5304,7 @@ async function updateHP(itemId, nextHP, nextHPMax) {
   } catch (err) {
     console.warn("[hpMemory] save error:", err?.message || err);
   }
+  return mutation;
 }
 
 function parseRelativeHPDelta(value) {
@@ -5493,7 +5468,9 @@ async function openConcentrationWarningModal(
   ).trim();
   if (concentrationWarningUsesCrossRealmScope() && !warningRuntimeScope) return false;
 
-  const height = Math.min(288, 122 + Math.max(0, warnings.length - 1) * 25);
+  const height = warnings.length <= 1
+    ? 86
+    : Math.min(288, 116 + (warnings.length - 1) * 28);
   if (__concentrationWarningPopoverOpen) {
     const popoverId = __concentrationWarningPopoverId;
     const session = __concentrationWarningPopoverSession;
@@ -5969,18 +5946,10 @@ async function updateMultipleHP(updates = []) {
     syncTrackerHPNow(update.itemId, update.hp, update.hpMax);
   }
 
-  await OBR.scene.items.updateItems([...byId.keys()], (items) => {
-    for (const it of items) {
-      const update = byId.get(it.id);
-      if (!update) continue;
-      const prevMeta = (it.metadata && it.metadata[META_KEY]) || {};
-      it.metadata = {
-        ...(it.metadata || {}),
-        [META_KEY]: { ...prevMeta, hp: update.hp, hpMax: update.hpMax },
-      };
-    }
-  });
-  await reconcileZeroHPConditionsForItems([...byId.keys()]);
+  const mutation = await runEffectsMutation([{
+    type: "hp:set", damageEnds: false, updates: [...byId.values()],
+  }], { history: false, kind: "hp", targetIds: [...byId.keys()] });
+  requireAppliedEffectsMutation(mutation);
 
   for (const update of byId.values()) {
     try {
@@ -5989,6 +5958,7 @@ async function updateMultipleHP(updates = []) {
       console.warn("[hpMemory] multi save error:", err?.message || err);
     }
   }
+  return mutation;
 }
 
 async function applyGroupHPMaxDelta(itemId, delta) {
@@ -6017,12 +5987,18 @@ async function applyGroupHPMaxDelta(itemId, delta) {
   const historyIds = await getZeroHPConditionHistoryIds(
     updates.map((update) => update.itemId)
   );
-  await withItemMetaHistory({
+  let hpMutation = null;
+  const historyResult = await withItemMetaHistory({
     kind: "hp",
     label: `Ricalibrazione HP/Max gruppo: ${groupName} (×${updates.length})`,
+    decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({ entry, mutation: hpMutation, effectMetadataFields: ["conditions", SPELLS_META_KEY, CONC_META_KEY] }),
     itemIds: historyIds,
     fields: ["hp", "hpMax", "conditions", SPELLS_META_KEY, CONC_META_KEY],
-  }, () => updateMultipleHP(updates));
+  }, async () => { hpMutation = await updateMultipleHP(updates); });
+  if (historyResult?.partial) {
+    try { await OBR.notification.show("HP applicati parzialmente; usa History/Undo prima di ripetere.", "WARNING"); }
+    catch (error) { console.warn("[hp] partial commit notification:", error); }
+  }
 
   return updates.length;
 }
@@ -6449,9 +6425,11 @@ function bindHPEditorForEntry(
 
       lastHPHistoryEntryId = "";
       concentrationCauseHistoryEntryId = "";
-      await withItemMetaHistory({
+      const hpMutations = [];
+      const historyResult = await withItemMetaHistory({
         kind: "hp",
         label: recalibratesMax ? "Ricalibrazione HP/Max" : "Modifica HP",
+        decorateEntry: (entry) => decorateCompositeEffectsHistoryEntry({ entry, mutation: hpMutations, effectMetadataFields: ["conditions", SPELLS_META_KEY, CONC_META_KEY] }),
         itemIds: historyIds,
         onHistoryStatus: ({ entry: historyEntry }) => {
           const entryId = String(historyEntry?.id || "").trim();
@@ -6470,13 +6448,13 @@ function bindHPEditorForEntry(
         sceneEpoch: operationSceneEpoch,
         isCurrent: (candidateEpoch) => isCurrentSceneEpoch(candidateEpoch),
       }, async () => {
-        await updateHP(entry.id, nextHP, nextHPMax);
-        try {
-          await trySeedGroupHP(entry.id, nextHP, nextHPMax);
-        } catch (error) {
-          console.warn("[hp] group seed error:", error?.message || error);
-        }
+        hpMutations.push(await updateHP(entry.id, nextHP, nextHPMax));
+        await trySeedGroupHP(entry.id, nextHP, nextHPMax, (mutation) => hpMutations.push(mutation));
       });
+      if (historyResult?.partial) {
+        try { await OBR.notification.show("HP applicati parzialmente; usa History/Undo prima di ripetere.", "WARNING"); }
+        catch (error) { console.warn("[hp] partial commit notification:", error); }
+      }
     }),
     afterCommit: customAfterCommit || (async ({
       recalibratesMax,

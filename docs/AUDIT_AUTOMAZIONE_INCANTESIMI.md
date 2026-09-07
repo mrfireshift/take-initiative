@@ -9,14 +9,16 @@
 - Catalogo totale: **477** definizioni su 477 record.
 - Testi disponibili: **476** / 477.
 - Esposti nella console unificata: **392**; disconnessi: **0**; fragili: **0**.
-- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **133** (138 regole).
+- Opzioni trackable del runtime: **358**; definizioni con tracking persistente verificate dall'audit: **355**; definizioni con regole d'area: **134** (139 regole).
 - Workflow che richiedono smoke test runtime: **389**.
-- Lacune RAW confermate P1: **13**; discrepanze ad alta confidenza P2: **1**.
-- Impronta deterministica: `f7744ba662ff77cd`.
+- Lacune RAW confermate P1: **10**; discrepanze ad alta confidenza P2: **1**.
+- Impronta deterministica: `807a0a5583d7742f`.
 
 ## Decisioni di prodotto chiuse
 
 - Dominare Bestie / Persone / Mostri: `damage-triggered save reminder only; precise control remains manual`.
+- Compulsione (`compulsion`): `PARTIAL/CLOSED`; tracking dei fallimenti, condizione, concentrazione e reminder del nuovo TS dopo il movimento. Direzione, movimento fisico, terreno e attacchi di opportunità restano manuali.
+- Aura sacra (`holy-aura`): `PARTIAL/CLOSED`; placement al lancio con caster selezionabile, protetti fissi, condizione di vantaggio/svantaggio, concentrazione e cleanup. Modificatori ai tiri, luce e trigger immondo/non morto → TS Costituzione → Accecato restano manuali.
 
 ### Livello di automazione attuale (currentAutomationLevel)
 
@@ -34,9 +36,9 @@
 | Stato | Totale |
 | --- | ---: |
 | ACCEPTED | 71 |
-| CLOSED | 9 |
-| GAP | 14 |
-| UNREVIEWED | 383 |
+| CLOSED | 13 |
+| GAP | 11 |
+| UNREVIEWED | 382 |
 
 ### Livello di automazione target (targetAutomationLevel)
 
@@ -44,9 +46,9 @@
 | --- | ---: |
 | FULL | 66 |
 | MANUAL | 3 |
-| PARTIAL | 8 |
+| PARTIAL | 12 |
 | TRACK_ONLY | 3 |
-| UNREVIEWED | 397 |
+| UNREVIEWED | 393 |
 
 ### Esposizione UI attuale (currentUiExposure)
 
@@ -66,20 +68,20 @@
 
 | Stato | Totale |
 | --- | ---: |
-| ACTIVE_ACTION | 39 |
-| AREA_GEOMETRY | 133 |
+| ACTIVE_ACTION | 40 |
+| AREA_GEOMETRY | 134 |
 | CAST | 222 |
-| CLEANUP | 106 |
+| CLEANUP | 107 |
 | CONCENTRATION | 218 |
 | PERSISTENCE | 355 |
-| TURN_TRIGGER | 88 |
+| TURN_TRIGGER | 89 |
 
 ### Stato di integrazione console unificata
 
 | Stato | Totale |
 | --- | ---: |
-| partial | 14 |
-| reachable | 378 |
+| partial | 11 |
+| reachable | 381 |
 | unexposed | 85 |
 
 ### Problemi di integrazione
@@ -188,8 +190,6 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 
 | Incantesimo | Fonte | Lacune | Evidenza/valutazione |
 | --- | --- | --- | --- |
-| Aura sacra | SRD 5.1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato | Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell. |
-| Compulsione | SRD 5.1 | azione ripetibile della spell assente; meccanica di movimento assente | Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento. |
 | Debilitazione | Xanathar | azione ripetibile della spell assente; trigger condizionale durante la durata assente | Dopo il fallimento iniziale, ogni azione del caster ripete automaticamente i danni e cura la metà; altre azioni, gittata o copertura terminano la spell. |
 | Forme animali | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Manca l'azione dei turni successivi che cambia nuovamente, anche in modo diverso per ciascun bersaglio, le forme e i blocchi statistiche associati. |
 | Fuorviare | SRD 5.1 | condizione o stato RAW non rappresentato; azione ripetibile della spell assente | Mancano Invisibile sul caster, l'entità illusoria mobile e le azioni successive per muoverla e alternare l'uso dei sensi. |
@@ -197,7 +197,6 @@ Questa sezione segnala workflow con gap di integrazione, azioni non raggiungibil
 | Inversione della gravità | SRD 5.1 | ingresso, sospensione e caduta finale non risolti; trigger spaziali o di turno assenti | La geometria non basta: servono salita, collisione, sospensione e caduta coordinata quando termina la spell. |
 | Muro d'Acqua | Xanathar | meccanica di movimento assente; trigger condizionale durante la durata assente | La parete non applica terreno difficile né le interazioni contestuali con attacchi a distanza, danni da fuoco e congelamento locale da freddo. |
 | Parlare con i vegetali | SRD 5.1 | meccanica di movimento assente; varianti rilevanti non modellate | L'aura è presente, ma manca la scelta di rendere normale o difficile il terreno vegetale e il relativo collegamento allo Speed Tracker. |
-| Sudario Spirituale | Tasha | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente | Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo. |
 | Tempesta di vendetta | SRD 5.1 | progressione degli effetti per round assente; condizione o stato RAW non rappresentato; meccanica di movimento assente | L'area esiste, ma i round 1-10 cambiano danni, TS, Assordato, terreno difficile e oscuramento. |
 | Trasformazione | SRD 5.1 | azione ripetibile della spell assente; varianti rilevanti non modellate | Mancano la forma e i PF correnti come stato dell'istanza e l'azione che sostituisce la forma nei turni successivi rispettando i limiti RAW. |
 | Trasmutare Roccia | Xanathar | varianti della zona e relativi trigger incomplete; meccanica di movimento assente; trigger spaziali o di turno assenti | Le due trasformazioni richiedono varianti distinte, costo 4x nel fango, TS al lancio/ingresso/fine turno e uscita o distruzione della roccia. |
@@ -247,7 +246,7 @@ Nessuna voce.
 | Aura di Vita | `phb2014-aura-di-vita` | PHB 2014 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Aura di Vitalità | `phb2014-aura-di-vitalita` | PHB 2014 / 3 | FULL | CLOSED | FULL | UNIFIED | reachable | — | — |
 | Aura magica dell'arcanista | `arcanists-magic-aura` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Aura sacra | `holy-aura` | SRD 5.1 / 8 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; condizione o stato RAW non rappresentato |
+| Aura sacra | `holy-aura` | SRD 5.1 / 8 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Bacche benefiche | `goodberry` | SRD 5.1 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Bagliore lunare | `moonbeam` | SRD 5.1 / 2 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Bagliore solare | `sunbeam` | SRD 5.1 / 6 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -291,7 +290,7 @@ Nessuna voce.
 | Coltello di Ghiaccio | `xanathar-coltello-di-ghiaccio` | Xanathar / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Comando | `command` | SRD 5.1 / 1 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
 | Comprensione dei linguaggi | `comprehend-languages` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Compulsione | `compulsion` | SRD 5.1 / 4 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | azione ripetibile della spell assente; meccanica di movimento assente |
+| Compulsione | `compulsion` | SRD 5.1 / 4 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Comunione | `commune` | SRD 5.1 / 5 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Comunione con la natura | `commune-with-nature` | SRD 5.1 / 5 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Confusione | `confusion` | SRD 5.1 / 4 | FULL | ACCEPTED | FULL | UNIFIED | reachable | — | — |
@@ -605,7 +604,7 @@ Nessuna voce.
 | Scopri il percorso | `find-the-path` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scopri trappole | `find-traps` | SRD 5.1 / 2 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Scossa Sinaptica | `xanathar-scossa-sinaptica` | Xanathar / 5 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
-| Scossa Tellurica | `xanathar-scossa-tellurica` | Xanathar / 1 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
+| Scossa Tellurica | `xanathar-scossa-tellurica` | Xanathar / 1 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Scrigno segreto | `secret-chest` | SRD 5.1 / 4 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Scritta Celeste | `xanathar-scritta-celeste` | Xanathar / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Scritto illusorio | `illusory-script` | SRD 5.1 / 1 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
@@ -646,7 +645,7 @@ Nessuna voce.
 | Spruzzo velenoso | `poison-spray` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
 | Stretta della Terra di Maximilian | `xanathar-stretta-della-terra-di-maximilian` | Xanathar / 2 | PARTIAL | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Stretta folgorante | `shocking-grasp` | SRD 5.1 / 0 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |
-| Sudario Spirituale | `tasha-sudario-spirituale` | Tasha / 3 | PARTIAL | GAP | UNREVIEWED | UNIFIED | partial | P1 | trigger condizionale durante la durata assente; meccanica di movimento assente; effetto ricorrente di turno assente |
+| Sudario Spirituale | `tasha-sudario-spirituale` | Tasha / 3 | PARTIAL | CLOSED | PARTIAL | UNIFIED | reachable | — | — |
 | Suggestione | `suggestion` | SRD 5.1 / 2 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Suggestione di massa | `mass-suggestion` | SRD 5.1 / 6 | TRACK_ONLY | UNREVIEWED | UNREVIEWED | UNIFIED | reachable | — | — |
 | Sussurri Dissonanti | `phb2014-sussurri-dissonanti` | PHB 2014 / 1 | MANUAL | UNREVIEWED | UNREVIEWED | REFERENCE_ONLY | unexposed | — | — |

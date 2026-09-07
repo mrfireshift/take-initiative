@@ -137,16 +137,22 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
   const portrait = document.createElement("div");
   portrait.className = "portrait";
   const fallback = document.createElement("div");
-  fallback.className = "portrait-fallback";
-  fallback.textContent = primary.name.slice(0, 1).toUpperCase() || "?";
-  portrait.appendChild(fallback);
-  if (primary.portrait) {
-    const image = document.createElement("img");
-    image.alt = "";
-    image.src = primary.portrait;
-    image.addEventListener("load", () => fallback.remove());
-    image.addEventListener("error", () => image.remove());
-    portrait.appendChild(image);
+  fallback.className = warnings.length === 1 ? "portrait-fallback" : "portrait-fallback is-aggregate";
+  if (warnings.length === 1) {
+    fallback.textContent = primary.name.slice(0, 1).toUpperCase() || "?";
+    portrait.appendChild(fallback);
+    if (primary.portrait) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = primary.portrait;
+      image.addEventListener("load", () => fallback.remove());
+      image.addEventListener("error", () => image.remove());
+      portrait.appendChild(image);
+    }
+  } else {
+    // Multi-target: indicatore numerico aggregato invece di portrait arbitrario
+    fallback.textContent = String(warnings.length);
+    portrait.appendChild(fallback);
   }
 
   const copy = document.createElement("div");
@@ -156,8 +162,12 @@ function render(role: string, warnings: Warning[] = warningsFromURL()) {
   eyebrow.textContent = "Concentrazione";
   const title = document.createElement("div");
   title.className = "title";
-  title.textContent = warnings.length === 1 ? primary.name : "Tiri salvezza richiesti";
-  copy.append(eyebrow, title);
+  title.textContent = warnings.length === 1 ? primary.name : "";
+  title.hidden = warnings.length > 1;
+  copy.append(eyebrow);
+  if (warnings.length === 1) {
+    copy.append(title);
+  }
 
   const saveBadge = document.createElement("div");
   saveBadge.className = "save-badge";

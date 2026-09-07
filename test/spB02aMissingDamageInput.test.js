@@ -5,6 +5,7 @@ import {
   spellHasExplicitInitialHP,
   spellHasExplicitInitialHPPolicy,
   spellSaveDamageFactor,
+  spellSaveDamageFormula,
 } from "../src/spellCastResolutionRules.js";
 import {
   buildSpellUnifiedPanelContract,
@@ -108,16 +109,35 @@ test("SP-B02A: Rombo di Tuono possiede initialHP: true e successfulSaveDamage: '
   assert.equal(spellSaveDamageFactor(spellId, "passed"), "zero");
 });
 
+test("SP-B02A: Scossa Tellurica espone danno fallito scalabile e zero sul successo", () => {
+  const spellId = "xanathar-scossa-tellurica";
+  const rule = getSpellCastResolutionRule(spellId);
+  assert.equal(rule?.initialHP, true);
+  assert.equal(rule?.successfulSaveDamage, "none");
+  assert.equal(rule?.damageByOutcome?.failed?.type, "contundenti");
+  assert.equal(spellHasExplicitInitialHPPolicy(spellId), true);
+  assert.equal(spellHasExplicitInitialHP(spellId), true);
+  assert.equal(spellSaveDamageFactor(spellId, "passed"), "zero");
+  assert.equal(spellSaveDamageFormula(spellId, "failed", 1), "1d6");
+  assert.equal(spellSaveDamageFormula(spellId, "failed", 2), "2d6");
+  assert.equal(spellSaveDamageFormula(spellId, "failed", 3), "3d6");
+  assert.match(
+    getSpellAreaRuleById(`${spellId}:cast`).placementNote,
+    /terreno diventa difficile/i,
+  );
+});
+
 // ============================================================================
 // SP-B02A CONTRACT TESTS: UNIFIED PANEL VIEW (DAMAGE INPUT VISIBILITY)
 // ============================================================================
 
-test("SP-B02A: Le quattro spell richiedono il danno solo quando hanno bersagli", () => {
+test("SP-B02A: Le cinque spell richiedono il danno solo quando hanno bersagli", () => {
   const spells = [
     "xanathar-sciame-di-palle-di-neve-di-snilloc",
     "xanathar-vampa-di-aganazzar",
     "xanathar-parola-radiosa",
     "xanathar-rombo-di-tuono",
+    "xanathar-scossa-tellurica",
   ];
 
   for (const spellId of spells) {
@@ -138,7 +158,7 @@ test("SP-B02A: Le quattro spell richiedono il danno solo quando hanno bersagli",
     const damageField = targetedView.effects.fields.find((f) => f.id === "damage");
     assert.ok(damageField, `${spellId} must have damage field in effects.fields`);
     assert.equal(damageField.type, "number");
-    assert.equal(damageField.label, "Danno");
+    assert.match(damageField.label, /^Danno/);
   }
 });
 
@@ -188,6 +208,7 @@ test("SP-B02A: HP Preview per Parola Radiosa e Rombo di Tuono applica full su fa
   const zeroSpells = [
     "xanathar-parola-radiosa",
     "xanathar-rombo-di-tuono",
+    "xanathar-scossa-tellurica",
   ];
 
   for (const spellId of zeroSpells) {
@@ -226,7 +247,7 @@ test("SP-B02A: HP Preview per Parola Radiosa e Rombo di Tuono applica full su fa
 // SP-B02A CONTRACT TESTS: COMMAND CORE VALIDATION & OUTCOME FACTORS
 // ============================================================================
 
-test("SP-B02A: Resolution command richiede hpAmount e calcola outcomeFactors corretti per tutte e quattro le spell", () => {
+test("SP-B02A: Resolution command richiede hpAmount e calcola outcomeFactors corretti per tutte e cinque le spell", () => {
   const cases = [
     {
       spellId: "xanathar-sciame-di-palle-di-neve-di-snilloc",
@@ -242,6 +263,10 @@ test("SP-B02A: Resolution command richiede hpAmount e calcola outcomeFactors cor
     },
     {
       spellId: "xanathar-rombo-di-tuono",
+      expectedPassedFactor: "zero",
+    },
+    {
+      spellId: "xanathar-scossa-tellurica",
       expectedPassedFactor: "zero",
     },
   ];

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "language": "it",
   "ruleset": "D&D 5e (2014)",
-  "generatedAt": "2026-07-26",
+  "generatedAt": "2026-09-02",
   "intendedUse": "private",
   "sources": [
     {
@@ -5008,7 +5008,7 @@
       "concentration": true,
       "durationKind": "concentration",
       "defaultTurns": 10,
-      "description": "L'incantatore invoca alcuni spiriti dei defunti che fluttuano attorno a lui per la durata dell'incantesimo. Gli spiriti sono intangibili e invulnerabili.\n\nFinché l'incantesimo non termina, ogni attacco effettuato dall'incantatore infligge 1d8 danni extra quando colpisce una creatura nel raggio di 3 metri da lui. I danni inflitti possono essere radiosi, necrotici o da freddo, a seconda del tipo scelto dall'incantatore al momento del lancio dell'incantesimo. Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.\n\nIn più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore.",
+      "description": "L'incantatore invoca alcuni spiriti dei defunti che fluttuano attorno a lui per la durata dell'incantesimo. Gli spiriti sono intangibili e invulnerabili.\n\nFinché l'incantesimo non termina, ogni attacco effettuato dall'incantatore infligge 1d8 danni extra quando colpisce una creatura nel raggio di 3 metri da lui. I danni inflitti possono essere radiosi, necrotici o da freddo, a seconda del tipo scelto dall'incantatore al momento del lancio dell'incantesimo. Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.\n\nIn più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 3 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore.",
       "higherLevels": "Quando l'incantatore lancia questo incantesimo usando uno slot incantesimo di 4° livello o superiore, i danni aumentano di 1d8 per ogni due slot di livello superiore al 3°.",
       "source": "tasha",
       "sourceTitle": "Calderone Omnicomprensivo di Tasha",
@@ -5034,7 +5034,7 @@
         "choiceCandidate": true,
         "exactTurnPhrases": [
           "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
+          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 3 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
         ],
         "flags": [
           "exact-turn-boundary",

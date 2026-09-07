@@ -249,6 +249,32 @@ export const SUPPLEMENT_SAVE_AUTOMATION = Object.freeze({
 });
 
 export const SUPPLEMENT_ACTIVE_ACTIONS = Object.freeze({
+  "tasha-sudario-spirituale": Object.freeze([Object.freeze({
+    id: "spirit-shroud-mark-hit",
+    label: "Segna bersaglio colpito",
+    buttonLabel: "Segna bersaglio colpito",
+    detail: "Comando GM: dopo un attacco che ha beneficiato del bonus damage di Sudario Spirituale, registra il divieto RAW di recuperare PF fino all'inizio del prossimo turno del caster. Il bonus damage e l'enforcement della guarigione restano manuali al tavolo.",
+    subjectMode: "selected",
+    maxTargets: 1,
+    rejectActiveEffectIds: Object.freeze(["spirit-shroud-anti-healing"]),
+    showInOverview: true,
+    economy: "Comando GM",
+    effects: Object.freeze([Object.freeze({
+      id: "spirit-shroud-anti-healing",
+      kind: "debuff",
+      label: "No recupero PF",
+      detail: "Il bersaglio non può recuperare punti ferita fino all'inizio del prossimo turno del caster; il marker ricorda il divieto RAW, ma il gate globale della guarigione resta manuale.",
+      summaryParts: Object.freeze([
+        Object.freeze({ id: "spirit-shroud-anti-healing", label: "No recupero PF" }),
+      ]),
+      expiry: Object.freeze({
+        mode: "turn-start",
+        actor: "source",
+        remaining: 1,
+        anchor: "next-turn",
+      }),
+    })]),
+  })]),
   "xanathar-frecce-infuocate": Object.freeze([Object.freeze({
     id: "flame-arrows-consume",
     label: "Consuma munizione",

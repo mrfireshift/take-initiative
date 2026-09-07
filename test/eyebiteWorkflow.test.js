@@ -461,6 +461,8 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.match(TURN_CHOICE_SOURCE, /id === "eyebite-saved"/);
   assert.match(TURN_CHOICE_SOURCE, /initializePopoverDrag/);
   assert.match(TURN_CHOICE_SOURCE, /candidateTargets/);
+  assert.match(TURN_CHOICE_SOURCE, /targetSelectionMode === "free"/);
+  assert.match(TURN_CHOICE_SOURCE, /button\.dataset\.actionId/);
   assert.match(TURN_CHOICE_SOURCE, /OBR\.player\.onChange/);
   assert.match(TURN_CHOICE_SOURCE, /OBR\.player\.getSelection/);
   assert.match(TURN_CHOICE_SOURCE, /OBR\.onReady/);
@@ -472,6 +474,7 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.match(TURN_CONTROLLER_SOURCE, /OBR\.player\.onChange/);
   assert.match(TURN_CONTROLLER_SOURCE, /OBR\.player\.getSelection/);
   assert.match(TURN_CONTROLLER_SOURCE, /spellTurnPromptSelectedCandidateId/);
+  assert.match(TURN_CONTROLLER_SOURCE, /request\?\.targetSelection === true/);
   assert.match(TURN_CONTROLLER_SOURCE, /type: "sync-choice-target"/);
   assert.match(TURN_CONTROLLER_SOURCE, /localStorage\.setItem\(requestStorageKey/);
   assert.match(TURN_CONTROLLER_SOURCE, /requestKey: requestStorageKey/);
@@ -484,10 +487,14 @@ test("SP-B06A.4 — il chooser diretto ha quattro azioni visibili, chiusura sepa
   assert.match(TURN_CONTROLLER_SOURCE, /data\.type === "dismiss-choice"/);
   assert.match(TURN_CONTROLLER_SOURCE, /opened\.get\(explicitPopoverId\)/);
   assert.match(TURN_CHOICE_SOURCE, /type: "apply-choice-action"/);
-  assert.match(TURN_CONTROLLER_SOURCE, /EYEBITE_CHOICE_POPOVER_HEIGHT = 330/);
+  assert.match(TURN_CONTROLLER_SOURCE, /EYEBITE_CHOICE_POPOVER_HEIGHT = 215/);
+  assert.match(TURN_CONTROLLER_SOURCE, /TARGET_SELECTION_CHOICE_POPOVER_HEIGHT = 165/);
+  assert.match(TURN_CHOICE_SOURCE, /requestCompactPopoverResize/);
+  assert.match(TURN_CHOICE_SOURCE, /freeTargetSelection\s*\?\s*"action action--compact"/);
   assert.match(TURN_CONTROLLER_SOURCE, /const runtimeTurnKey = String\(request\?\.turnKey \|\| currentTurnKey/);
   assert.match(TURN_CONTROLLER_SOURCE, /dismissedChoiceKey\(runtime\.instanceId, runtimeTurnKey\)/);
   assert.match(TURN_CONTROLLER_SOURCE, /apply-choice-action/);
+  assert.match(TURN_CONTROLLER_SOURCE, /selectedTargetIds/);
   assert.match(TURN_CONTROLLER_SOURCE, /executeSpellActiveResolution/);
   assert.match(TURN_CONTROLLER_SOURCE, /payload\.action\?\.assumedOutcome \|\| "failed"/);
   assert.doesNotMatch(TURN_CONTROLLER_SOURCE, /sceneEpoch:\s*Number\.isFinite\(Number\(data\.sceneEpoch\)\)/);

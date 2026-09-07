@@ -2,7 +2,7 @@
   "schemaVersion": 5,
   "ruleset": "D&D 5e 2014",
   "methodology": "Audit incrementale multi-asse: conformità al testo regolamentare, raggiungibilità nella console unificata, livello di automazione attuale vs target e categorizzazione smoke.",
-  "fingerprint": "f7744ba662ff77cd",
+  "fingerprint": "807a0a5583d7742f",
   "summary": {
     "catalogTotal": 477,
     "catalog": 477,
@@ -24,16 +24,16 @@
     },
     "coverageStatus": {
       "ACCEPTED": 71,
-      "CLOSED": 9,
-      "GAP": 14,
-      "UNREVIEWED": 383
+      "CLOSED": 13,
+      "GAP": 11,
+      "UNREVIEWED": 382
     },
     "targetAutomationLevel": {
       "FULL": 66,
       "MANUAL": 3,
-      "PARTIAL": 8,
+      "PARTIAL": 12,
       "TRACK_ONLY": 3,
-      "UNREVIEWED": 397
+      "UNREVIEWED": 393
     },
     "currentUiExposure": {
       "REFERENCE_ONLY": 85,
@@ -45,29 +45,29 @@
     },
     "trackableOptions": 358,
     "trackable": 355,
-    "withAreaRules": 133,
-    "areaRuleEntries": 138,
-    "openRows": 14,
-    "confirmed": 13,
+    "withAreaRules": 134,
+    "areaRuleEntries": 139,
+    "openRows": 11,
+    "confirmed": 10,
     "highConfidence": 1,
     "reviewCandidates": 0,
-    "curatedP1": 13,
-    "manuallyReviewed": 93,
+    "curatedP1": 10,
+    "manuallyReviewed": 94,
     "knownIntegrationGaps": 0,
-    "knownRawGaps": 14,
+    "knownRawGaps": 11,
     "byPriority": {
-      "—": 463,
-      "P1": 13,
+      "—": 466,
+      "P1": 10,
       "P2": 1
     },
     "byAssessment": {
-      "coperto": 282,
+      "coperto": 285,
       "escluso: casting time": 70,
       "escluso: decisione curata": 11,
       "escluso: evocazione": 19,
       "istantaneo: gestione manuale": 57,
       "manuale intenzionale": 3,
-      "parziale: revisione curata": 13,
+      "parziale: revisione curata": 10,
       "revisione: testo mancante": 1,
       "riferimento/utilità": 21
     },
@@ -79,21 +79,20 @@
     },
     "byGap": {
       "CHOICE_WORKFLOW_MISSING": 3,
-      "CONDITIONAL_TRIGGER": 5,
+      "CONDITIONAL_TRIGGER": 3,
       "ENTRY_EXIT_FALL": 1,
-      "MOVEMENT_MECHANICS_MISSING": 6,
+      "MOVEMENT_MECHANICS_MISSING": 4,
       "POST_EXPIRY_EFFECT": 1,
-      "REPEATED_ACTION": 5,
+      "REPEATED_ACTION": 4,
       "ROUND_STATE_MACHINE": 1,
-      "STATUS_MISSING": 3,
+      "STATUS_MISSING": 2,
       "TEXT_MISSING": 1,
-      "TURN_EFFECT_MISSING": 1,
       "VARIANT_ZONE_RUNTIME": 1,
       "ZONE_TRIGGER_MISSING": 2
     },
     "byIntegrationStatus": {
-      "partial": 14,
-      "reachable": 378,
+      "partial": 11,
+      "reachable": 381,
       "unexposed": 85
     },
     "byIntegrationPriority": {
@@ -104,13 +103,13 @@
       "UNIFIED_CATALOG_MISSING": 85
     },
     "smokeCategories": {
-      "ACTIVE_ACTION": 39,
-      "AREA_GEOMETRY": 133,
+      "ACTIVE_ACTION": 40,
+      "AREA_GEOMETRY": 134,
       "CAST": 222,
-      "CLEANUP": 106,
+      "CLEANUP": 107,
       "CONCENTRATION": 218,
       "PERSISTENCE": 355,
-      "TURN_TRIGGER": 88
+      "TURN_TRIGGER": 89
     },
     "unifiedCatalogExposed": 392,
     "integrationDisconnected": 0,
@@ -3905,8 +3904,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -3930,28 +3929,9 @@
         "aree:instant",
         "TS"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "Dall'incantatore si diffonde una luce divina che si materializza in un tenue bagliore in un raggio di 9 metri intorno a lui.",
-            "Le creature da lui scelte presenti in quell'area al momento del lancio proiettano luce fioca in un raggio di 1,5 metri e dispongono di vantaggio ai tiri salvezza; le altre creature subiscono svantaggio ai tiri per colpire contro di loro fino al termine dell…",
-            "Inoltre, quando una creatura influenzata dall'incantesimo viene colpita da un immondo o un non morto con unattacco in mischia, l'aura emette bagliore accecante e l'attaccante deve superare un tiro salvezza su Costituzione, altrimenti sarà accecato fino al t…"
-          ]
-        },
-        {
-          "code": "STATUS_MISSING",
-          "label": "condizione o stato RAW non rappresentato",
-          "evidence": [
-            "Dall'incantatore si diffonde una luce divina che si materializza in un tenue bagliore in un raggio di 9 metri intorno a lui.",
-            "Le creature da lui scelte presenti in quell'area al momento del lancio proiettano luce fioca in un raggio di 1,5 metri e dispongono di vantaggio ai tiri salvezza; le altre creature subiscono svantaggio ai tiri per colpire contro di loro fino al termine dell…",
-            "Inoltre, quando una creatura influenzata dall'incantesimo viene colpita da un immondo o un non morto con unattacco in mischia, l'aura emette bagliore accecante e l'attaccante deve superare un tiro salvezza su Costituzione, altrimenti sarà accecato fino al t…"
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [
           "Accecato"
@@ -3981,7 +3961,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -4044,7 +4024,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Ogni colpo in mischia di immondo o non morto contro un protetto innesca un TS Costituzione che può applicare Accecato fino al termine della spell."
+      "curatedNote": "PASS: Aura Sacra è PARTIAL/CLOSED per decisione di prodotto. Il placement al lancio usa il raggio di 9 m e include il caster tra le creature selezionabili; la lista dei protetti resta fissa al lancio e riceve una sola condizione con vantaggio ai TS e svantaggio agli attacchi contro il bersaglio, collegata a concentrazione, cleanup e History/Undo. Restano manuali e accettati la luce bright/dim, l'enforcement dei modificatori ai tiri, la classificazione immondo/non morto, il requisito di attacco in mischia e il trigger TS Costituzione → Accecato, perché il tracker non è authority di ogni attack roll. Non serve membership dinamica per modificare i protetti: il RAW fissa la scelta al lancio."
     },
     {
       "id": "goodberry",
@@ -9356,8 +9336,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -9379,26 +9359,9 @@
         "tracking",
         "TS"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "REPEATED_ACTION",
-          "label": "azione ripetibile della spell assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, l'incantatore può usare un'azione bonus in ogni suo turno per scegliere una direzione orizzontale rispetto a lui.",
-            "Ogni bersaglio influenzato deve usare la maggior parte possibile del suo movimento per muoversi in quella direzione nel suo turno successivo, potendo effettuare prima la sua azione."
-          ]
-        },
-        {
-          "code": "MOVEMENT_MECHANICS_MISSING",
-          "label": "meccanica di movimento assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, l'incantatore può usare un'azione bonus in ogni suo turno per scegliere una direzione orizzontale rispetto a lui.",
-            "Ogni bersaglio influenzato deve usare la maggior parte possibile del suo movimento per muoversi in quella direzione nel suo turno successivo, potendo effettuare prima la sua azione."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
@@ -9421,7 +9384,7 @@
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -9485,7 +9448,7 @@
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Il TS iniziale è coperto; manca la direzione scelta dal caster con azione bonus a ogni turno e il movimento obbligato dei bersagli prima del loro normale movimento."
+      "curatedNote": "PASS: Compulsione è PARTIAL/CLOSED per decisione di prodotto. Il workflow unificato espone il TS Saggezza per più creature entro 9 m, conserva soltanto i fallimenti come istanze di condizione target-scoped e concentrazione, mostra il movimento imposto e genera sul movimento del bersaglio nel proprio turno un reminder del nuovo TS Saggezza con rimozione al successo. Restano manuali e accettati: visibilità e capacità di sentire, immunità al fascino, direzione scelta dal caster con azione bonus, movimento fisico, terreno ovviamente pericoloso e attacchi di opportunità. Il reminder non valida direzione o quantità del movimento; non viene introdotta una nuova primitive di movimento o action economy."
     },
     {
       "id": "commune",
@@ -46839,8 +46802,8 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "UNREVIEWED",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
@@ -46850,7 +46813,7 @@
       "verificationEvidence": [
         "STRUCTURAL"
       ],
-      "reviewBasis": "screening testuale conservativo",
+      "reviewBasis": "curata sul testo RAW",
       "scope": "combattimento",
       "signals": [
         "TS:area",
@@ -46910,6 +46873,8 @@
             "targets",
             "placement",
             "outcomes",
+            "hp",
+            "damage",
             "automation"
           ]
         },
@@ -46953,7 +46918,8 @@
         "phase": [],
         "choice": [],
         "spatial": []
-      }
+      },
+      "curatedNote": "PASS: Scossa Tellurica è PARTIAL/CLOSED. Il workflow area-save espone il danno contundente 1d6 sui fallimenti, zero sui successi e scaling di +1d6 per slot sopra il 1°. Prono resta collegato ai fallimenti. Il terreno difficile su pietra o terra smossa e lo sgombero restano un reminder/manuale ambientale: la spell è istantanea e non crea una zona persistente o un attachment di scena."
     },
     {
       "id": "secret-chest",
@@ -49707,14 +49673,9 @@
             "eyebite-panicked",
             "eyebite-sickened"
           ],
-          "reminderActionIds": [
-            "eyebite-saved",
-            "eyebite-asleep",
-            "eyebite-panicked",
-            "eyebite-sickened"
-          ],
+          "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "panel-and-reminder"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
@@ -51860,13 +51821,17 @@
       "inAuditScope": true,
       "exclusionReason": "",
       "currentAutomationLevel": "PARTIAL",
-      "coverageStatus": "GAP",
-      "targetAutomationLevel": "UNREVIEWED",
+      "coverageStatus": "CLOSED",
+      "targetAutomationLevel": "PARTIAL",
       "currentUiExposure": "UNIFIED",
       "targetUiExposure": "UNIFIED",
       "smokeCategories": [
+        "ACTIVE_ACTION",
+        "AREA_GEOMETRY",
+        "CLEANUP",
         "CONCENTRATION",
-        "PERSISTENCE"
+        "PERSISTENCE",
+        "TURN_TRIGGER"
       ],
       "verificationEvidence": [
         "STRUCTURAL"
@@ -51879,61 +51844,50 @@
       ],
       "coverage": [
         "tracking",
+        "aree:aura",
+        "lifecycle",
+        "movimento",
+        "turni",
+        "fasi/azioni",
         "varianti"
       ],
-      "assessment": "parziale: revisione curata",
-      "priority": "P1",
-      "gaps": [
-        {
-          "code": "CONDITIONAL_TRIGGER",
-          "label": "trigger condizionale durante la durata assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, ogni attacco effettuato dall'incantatore infligge 1d8 danni extra quando colpisce una creatura nel raggio di 3 metri da lui.",
-            "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-            "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
-          ]
-        },
-        {
-          "code": "MOVEMENT_MECHANICS_MISSING",
-          "label": "meccanica di movimento assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, ogni attacco effettuato dall'incantatore infligge 1d8 danni extra quando colpisce una creatura nel raggio di 3 metri da lui.",
-            "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-            "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
-          ]
-        },
-        {
-          "code": "TURN_EFFECT_MISSING",
-          "label": "effetto ricorrente di turno assente",
-          "evidence": [
-            "Finché l'incantesimo non termina, ogni attacco effettuato dall'incantatore infligge 1d8 danni extra quando colpisce una creatura nel raggio di 3 metri da lui.",
-            "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-            "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
-          ]
-        }
-      ],
+      "assessment": "coperto",
+      "priority": "—",
+      "gaps": [],
       "conditions": {
         "raw": [],
         "implemented": []
       },
       "runtime": {
         "trackable": true,
-        "areaRuleIds": [],
-        "areaKinds": [],
-        "triggerIds": [],
+        "areaRuleIds": [
+          "tasha-sudario-spirituale:aura"
+        ],
+        "areaKinds": [
+          "aura"
+        ],
+        "triggerIds": [
+          "spirit-shroud-slow-on-turn-start"
+        ],
         "saveAutomation": false,
         "batchSaveWorkflowRequired": false,
         "effectCount": 3,
-        "activeActionIds": [],
+        "activeActionIds": [
+          "spirit-shroud-mark-hit"
+        ],
         "phaseOptions": [],
-        "movementMechanics": false,
+        "movementMechanics": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "integration": {
-        "status": "partial",
+        "status": "reachable",
         "priority": "—",
         "issues": [],
         "catalog": {
@@ -51943,45 +51897,50 @@
           ]
         },
         "contract": {
-          "lane": "spell-lifecycle",
-          "targetingMode": "none",
-          "placementPolicy": "unavailable",
+          "lane": "area-transaction",
+          "targetingMode": "geometric",
+          "placementPolicy": "automatic",
           "visibleInputs": [
             "caster",
             "slot",
             "variant",
+            "placement",
             "automation"
           ]
         },
         "cast": {
-          "adapter": "spell-lifecycle",
+          "adapter": "area-transaction",
           "valid": true,
-          "operationTypes": [
-            "concentration:break",
-            "spell:upsert",
-            "condition:add",
-            "concentration:register",
-            "condition:automate"
-          ],
-          "mutationMode": "mechanical",
+          "operationTypes": [],
+          "mutationMode": "executor-deferred",
           "errors": []
         },
         "persistence": {
           "required": true,
           "declared": true,
-          "ruleIds": []
+          "ruleIds": [
+            "tasha-sudario-spirituale:aura"
+          ]
         },
         "actions": {
-          "declaredActionIds": [],
-          "panelActionIds": [],
+          "declaredActionIds": [
+            "spirit-shroud-mark-hit"
+          ],
+          "panelActionIds": [
+            "spirit-shroud-mark-hit"
+          ],
           "reminderActionIds": [],
           "unreachableActionIds": [],
-          "mode": "none"
+          "mode": "panel"
         },
         "smokeRequired": true,
         "smokeCategories": [
+          "ACTIVE_ACTION",
+          "AREA_GEOMETRY",
+          "CLEANUP",
           "CONCENTRATION",
-          "PERSISTENCE"
+          "PERSISTENCE",
+          "TURN_TRIGGER"
         ]
       },
       "evidence": {
@@ -51990,17 +51949,17 @@
         ],
         "save": [],
         "movement": [
-          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
+          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 3 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
         ],
         "turn": [
           "Tutte le creature che subiscono questi danni non possono recuperare punti ferita fino all'inizio del turno successivo dell'incantatore.",
-          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 9 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
+          "In più, un'altra creatura a sua scelta che egli riesce a vedere che inizia il suo turno entro 3 metri da lui vede la sua velocità ridotta di 3 metri fino all'inizio del turno successivo dell'incantatore."
         ],
         "phase": [],
         "choice": [],
         "spatial": []
       },
-      "curatedNote": "Ogni bersaglio colpito riceve blocco cure e, se scelto vicino al caster, -3 m fino all'inizio del turno successivo; il trigger nasce dal colpo."
+      "curatedNote": "PASS: Sudario Spirituale è PARTIAL/CLOSED per decisione di prodotto. Automatici/assisted: cast con scelta del tipo e scaling del bonus damage già tracciati, un'unica aura mobile di 3 m condivisa da bonus damage e slow, centrata e seguita dal caster, caster escluso dai candidati, pill dinamiche sui nemici entro l'aura con quantità `+Xd8` scalata, trigger a inizio turno una-volta-per-turno, reminder per una sola creatura candidata e scelta GM [Applica -3 m]/[Ignora], child slow con `parentEffectId` esatto, modifica di movimento -3 m, expiry all'inizio del prossimo turno del caster senza cleanup all'uscita, reload/reconcile, stale checks, concentrazione, cleanup e History/Undo shared. L'affordance GM `Segna bersaglio colpito` applica il child marker `No recupero PF` fino al prossimo turno del caster ed è raggiungibile anche dal popup automatico del turno del caster con selezione del bersaglio; il marker rende il divieto RAW evidente in summary/detail, ma non implementa un healing gate globale. Manuali e accettati: hit/attack interception, applicazione del bonus damage, verifica dei 3 m dell'attacco, scelta/verifica della visibilità del target dello slow e enforcement anti-guarigione. Non vengono introdotti attack-interception framework, LOS engine o global healing gate."
     },
     {
       "id": "suggestion",

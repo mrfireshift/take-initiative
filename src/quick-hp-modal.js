@@ -18,14 +18,9 @@ import {
   createQuickHPVisualTransaction,
   isQuickHPDamageChange,
   quickHPVisualUpdates,
-  quickHPZeroReconcileTargetIds,
   shouldHandleQuickHPUndoShortcut,
 } from "./quickHpCore.js";
 import { APPLICABLE_CONDITION_LIST, getConditionInstances } from "./conditions.js";
-import {
-  resolveZeroHPUnconsciousAction,
-  resolveDamageEndsConditionRemovals,
-} from "./hpConditionRulesCore.js";
 import { currentSceneEpoch, isCurrentSceneEpoch } from "./sceneEpoch.js";
 import { createSceneLifecycleAdapter } from "./sceneLifecycle.js";
 import {
@@ -758,24 +753,6 @@ async function applyOperation() {
   let concentrationCauseHistoryEntryId = "";
   let coordinatedMutation = null;
   const ids = entries.map((entry) => entry.item.id);
-  const zeroHPReconcileIds = quickHPZeroReconcileTargetIds(entries, (entry) => {
-    const meta = entry.item.metadata?.[META_KEY] || {};
-    return resolveZeroHPUnconsciousAction({
-      ...meta,
-      hp: entry.change.afterHP,
-      hpMax: entry.change.hpMax,
-    }, getConditionInstances(meta.conditions || {}));
-  });
-  const damageEndsRemovals = [];
-  for (const entry of entries) {
-    if (entry?.change?.afterHP < entry?.change?.hp) {
-      const meta = entry.item.metadata?.[META_KEY] || {};
-      const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}));
-      for (const instanceId of removals) {
-        damageEndsRemovals.push({ itemId: entry.item.id, instanceId });
-      }
-    }
-  }
   const affectedIds = uniqueIds([...ids, ...failedIds]);
   const historyIds = uniqueIds([
     ...affectedIds,
@@ -799,14 +776,11 @@ async function applyOperation() {
   }
 
   const coordinatedOperations = [
-    ...(zeroHPReconcileIds.length ? [{
-      type: "condition:reconcile-zero-hp",
-      targetIds: zeroHPReconcileIds,
-    }] : []),
-    ...(damageEndsRemovals.length ? [{
-      type: "condition:remove-instances",
-      removals: damageEndsRemovals,
-    }] : []),
+    ...(entries.length ? [{ type: "hp:set", updates: entries.map(({ item, change }) => ({
+      itemId: item.id, hp: change.afterHP, hpMax: change.hpMax,
+      expectedHP: { present: true, value: item.metadata[META_KEY].hp },
+      expectedHPMax: { present: true, value: item.metadata[META_KEY].hpMax },
+    })) }] : []),
     ...effectOperations,
   ];
   let ownerSceneContext = null;
@@ -832,7 +806,7 @@ async function applyOperation() {
   let canonicalCommitted = false;
 
   try {
-    await withItemMetaHistory({
+    const historyResult = await withItemMetaHistory({
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
         ? `Effetto manuale: ${conditionName || currentValue()} · ${affectedIds.length} bersagli`
@@ -849,26 +823,6 @@ async function applyOperation() {
       isCurrent: () => sceneLifecycle.isCurrent(operation),
     }, async () => {
       if (!sceneLifecycle.isCurrent(operation)) return;
-      if (entries.length) {
-        const updates = new Map(entries.map((entry) => [entry.item.id, entry.change]));
-        await OBR.scene.items.updateItems(ids, (drafts) => {
-          for (const item of drafts) {
-            const update = updates.get(item.id);
-            if (!update) continue;
-            const previous = item.metadata?.[META_KEY] || {};
-            item.metadata = {
-              ...(item.metadata || {}),
-              [META_KEY]: {
-                ...previous,
-                hp: update.afterHP,
-                hpMax: update.hpMax,
-              },
-            };
-          }
-        });
-        canonicalCommitted = true;
-      }
-      if (!sceneLifecycle.isCurrent(operation)) return;
       if (coordinatedOperations.length) {
         coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
           history: false,
@@ -878,10 +832,18 @@ async function applyOperation() {
           commandId: ownerSceneContext?.commandId || operation.operationId,
           sceneIdentity: ownerSceneContext?.sceneIdentity || null,
         });
+        canonicalCommitted = coordinatedMutation.committed === true;
         if (!sceneLifecycle.isCurrent(operation)) return;
         requireAppliedEffectsMutation(coordinatedMutation);
       }
     });
+    if (historyResult?.partial) {
+      canonicalCommitted = true;
+      lastEntryId = historyResult.historyEntryId || "";
+      status.textContent = "Modifica applicata parzialmente e registrata in History. Usa Undo prima di ripetere l'azione.";
+      await loadTargets();
+      return;
+    }
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
         ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
@@ -942,7 +904,9 @@ async function applyOperation() {
         )
       )).catch(() => {});
     }
-    status.textContent = "Applicazione non riuscita.";
+    status.textContent = canonicalCommitted
+      ? "Modifica applicata; aggiornamento degli output incompleto. Non ripetere l'azione."
+      : "Applicazione non riuscita.";
   } finally {
     busy = false;
     renderTargets();

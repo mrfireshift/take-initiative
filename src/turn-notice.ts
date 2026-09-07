@@ -724,9 +724,7 @@ function buildResolutionControls(line: HTMLElement, row: any) {
   if (reminderResolutionNeedsDamage(row.resolution) || manualHeal) {
     const damageLabel = document.createElement("label");
     damageLabel.className = "zone-resolution-damage";
-    damageLabel.textContent = `${manualDamage ? "Danni" : "Risultato dadi"} (${manualHeal
-      ? row.resolution.healing?.dice
-      : row.resolution.damage.dice})`;
+    damageLabel.textContent = manualHeal ? "Cura" : "Danni";
     damageInput = document.createElement("input");
     damageInput.type = manualDamage ? "text" : "number";
     damageInput.min = "0";
@@ -983,11 +981,146 @@ function reminderRowRequiresPersistentDisplay(row: any) {
     && row.resolution?.mode === "manual-save";
 }
 
+function parseReminderRowContent(row: any, primaryTargetName: string = "") {
+  const pills: Array<{ text: string; type?: string }> = [];
+  let instruction = String(row?.detail || "").trim();
+
+  // 1. TS & CD
+  const resSave = row?.resolution?.save;
+  if (resSave?.ability) {
+    const abilityMap: Record<string, string> = {
+      str: "TS FOR",
+      dex: "TS DES",
+      con: "TS COS",
+      int: "TS INT",
+      wis: "TS SAG",
+      cha: "TS CAR",
+    };
+    const abKey = String(resSave.ability).toLowerCase();
+    const abilityLabel = abilityMap[abKey] || `TS ${abKey.toUpperCase().slice(0, 3)}`;
+    pills.push({ text: abilityLabel, type: "save" });
+    if (resSave.dc !== undefined && resSave.dc !== null) {
+      pills.push({ text: `CD ${resSave.dc}`, type: "dc" });
+    }
+  } else {
+    const tsMatch = instruction.match(/\bTS\s+([\p{L}\p{M}]+)/iu);
+    if (tsMatch) {
+      const fullAb = tsMatch[1].toLowerCase();
+      const abilityMap: Record<string, string> = {
+        forza: "TS FOR",
+        destrezza: "TS DES",
+        costituzione: "TS COS",
+        intelligenza: "TS INT",
+        saggezza: "TS SAG",
+        carisma: "TS CAR",
+        str: "TS FOR",
+        dex: "TS DES",
+        con: "TS COS",
+        int: "TS INT",
+        wis: "TS SAG",
+        cha: "TS CAR",
+      };
+      pills.push({ text: abilityMap[fullAb] || `TS ${tsMatch[1].slice(0, 3).toUpperCase()}`, type: "save" });
+    }
+    const cdMatch = instruction.match(/\bCD\s+(\d+)/i);
+    if (cdMatch) {
+      pills.push({ text: `CD ${cdMatch[1]}`, type: "dc" });
+    }
+  }
+
+  // 2. Danni / Cura
+  const resDamage = row?.resolution?.damage;
+  const resHealing = row?.resolution?.healing;
+  if (resDamage?.dice) {
+    const dType = resDamage.type ? ` ${resDamage.type}` : "";
+    pills.push({ text: `${resDamage.dice}${dType}`.trim(), type: "damage" });
+    if (resDamage.onSave === "half") {
+      pills.push({ text: "Metà se supera" });
+    } else if (resDamage.onSave === "none") {
+      pills.push({ text: "Nullo se supera" });
+    }
+  } else if (resHealing?.dice) {
+    pills.push({ text: `Cura ${resHealing.dice}`, type: "healing" });
+  } else {
+    const diceMatch = instruction.match(/(\d+d\d+)(?:\s+danni(?:\s+da)?\s+([\p{L}\p{M}\s]+?))?(?=\s*(?:automatici|se fallito|\.|$))/iu);
+    if (diceMatch) {
+      const typeStr = diceMatch[2] ? ` ${diceMatch[2].trim()}` : "";
+      pills.push({ text: `${diceMatch[1]}${typeStr}`.trim(), type: "damage" });
+    }
+    if (instruction.includes("automatici")) {
+      pills.push({ text: "Automatico" });
+    }
+  }
+
+  // 3. Condizione / Effetto
+  const effect = row?.resolution?.effect;
+  if (effect?.label) {
+    pills.push({ text: effect.label, type: "condition" });
+  } else {
+    const condMatch = instruction.match(/(?:—\s*Fallimento:\s*|se fallito:?\s*)([\p{L}\p{M}\s]+?)(?:\.|$)/iu);
+    if (condMatch) {
+      const cond = condMatch[1].trim();
+      const firstWord = cond.split(/\s+/)[0];
+      if (firstWord && firstWord.length > 2) {
+        pills.push({ text: firstWord, type: "condition" });
+      }
+    }
+  }
+
+  // 4. Pruning accurato dell'istruzione RAW
+  // Gestisce correttamente parentesi nidificate come ((1) Cultist) evitando leak di stringhe malformate come "Cultist)"
+  instruction = instruction.replace(/^TS\s+[\p{L}\p{M}'’-]+(?:\s+CD\s+\d+)?(?:\s*\((?:[^()]|\([^()]*\))*\))?\s*(?:—|;|:|\.)?\s*/iu, "");
+  if (row.casterName) {
+    const escapedCaster = String(row.casterName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    instruction = instruction.replace(new RegExp(`\\s*\\(?${escapedCaster}\\)?\\s*`, "gi"), "");
+  }
+  instruction = instruction.replace(/(?:—\s*)?Fallimento:\s*[^.]+\.?/iu, "");
+  instruction = instruction.replace(/;\s*\d+d\d+\s+danni(?:\s+da\s+[\p{L}\p{M}]+)?\s+se\s+fallito\.?/iu, "");
+  instruction = instruction.replace(/(?:—\s*)?\d+d\d+\s+danni(?:\s+da\s+[\p{L}\p{M}]+)?\s+se\s+fallito\.?/iu, "");
+  instruction = instruction.replace(/^\d+d\d+\s+danni(?:\s+(?:da\s+)?[\p{L}\p{M}]+)?\s+automatici\.?/iu, "");
+  const targetNames = [
+    primaryTargetName,
+    ...(Array.isArray(row?.targets) ? row.targets.map((t: any) => t?.name) : []),
+  ].filter(Boolean);
+  for (const tName of targetNames) {
+    if (tName) {
+      const escapedTarget = String(tName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      instruction = instruction.replace(new RegExp(`^${escapedTarget}\\s+`, "iu"), "");
+    }
+  }
+  instruction = instruction.replace(/(?:Dopo il TS Destrezza fallito\s+)?indica il risultato del TS Forza\.?/iu, "");
+  instruction = instruction.replace(/^[—;.:,\s]+/, "").trim();
+
+  // Se l'istruzione residua è un frammento isolato con parentesi chiusa o pura punteggiatura, azzerala
+  if (/^[—:;,.\s]*$/.test(instruction) || /^[a-zA-Z0-9\s-]+\)\s*$/.test(instruction)) {
+    instruction = "";
+  }
+
+  return { pills, instruction };
+}
+
+function formatTargetIdentity(rawName: string) {
+  const prefixMatch = String(rawName || "").match(/^\s*(?:\((\d+)\)|\[(\d+)\]|#(\d+))\s+(.+)$/);
+  if (prefixMatch) {
+    const num = prefixMatch[1] || prefixMatch[2] || prefixMatch[3];
+    const name = prefixMatch[4].trim();
+    return { name, index: num };
+  }
+  const suffixMatch = String(rawName || "").match(/^(.+?)\s*(?:\((\d+)\)|\[(\d+)\]|#(\d+))$/);
+  if (suffixMatch) {
+    const name = suffixMatch[1].trim();
+    const num = suffixMatch[2] || suffixMatch[3] || suffixMatch[4];
+    return { name, index: num };
+  }
+  return { name: String(rawName || "").trim(), index: null };
+}
+
 function renderSaveReminderBatch(batch: any) {
   const app = document.getElementById("zone-app");
   const presentation = saveReminderNoticeBatchPresentation(batch);
   if (!app || !presentation) return false;
   const primary = presentation.primaryTarget;
+  const isMultiTarget = Array.isArray(batch.targets) && batch.targets.length > 1;
   const panel = document.createElement("section");
   panel.className = "zone-notice";
   panel.dataset.kind = presentation.kind;
@@ -998,27 +1131,87 @@ function renderSaveReminderBatch(batch: any) {
   const portrait = document.createElement("div");
   portrait.className = "zone-portrait";
   const fallback = document.createElement("div");
-  fallback.className = "zone-portrait-fallback";
-  fallback.textContent = primary.name.slice(0, 1).toUpperCase() || "?";
-  portrait.appendChild(fallback);
-  if (primary.portrait) {
-    const image = document.createElement("img");
-    image.alt = "";
-    image.src = primary.portrait;
-    image.addEventListener("load", () => fallback.remove());
-    image.addEventListener("error", () => image.remove());
-    portrait.appendChild(image);
+  fallback.className = isMultiTarget ? "zone-portrait-fallback is-aggregate" : "zone-portrait-fallback";
+  if (!isMultiTarget) {
+    fallback.textContent = primary.name.slice(0, 1).toUpperCase() || "?";
+    portrait.appendChild(fallback);
+    if (primary.portrait) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.src = primary.portrait;
+      image.addEventListener("load", () => fallback.remove());
+      image.addEventListener("error", () => image.remove());
+      portrait.appendChild(image);
+    }
+  } else {
+    // Multi-target: nessun portrait individuale arbitrario; indicatore numerico aggregato
+    fallback.textContent = String(batch.targets.length);
+    portrait.appendChild(fallback);
   }
 
   const copy = document.createElement("div");
   copy.className = "zone-copy";
+
+  // Eyebrow testuale arancio senza box, con timing secondario
   const eyebrow = document.createElement("div");
   eyebrow.className = "zone-eyebrow";
-  eyebrow.textContent = presentation.eyebrow;
+  const eventText = presentation.eventType || presentation.eyebrow.split(" · ")[0] || "Effetto";
+  const timingText = presentation.timing || (presentation.eyebrow.includes(" · ") ? presentation.eyebrow.split(" · ")[1] : "");
+  eyebrow.textContent = eventText;
+  if (timingText) {
+    const timingSpan = document.createElement("span");
+    timingSpan.className = "zone-eyebrow-timing";
+    timingSpan.textContent = ` · ${timingText}`;
+    eyebrow.appendChild(timingSpan);
+  }
+  copy.appendChild(eyebrow);
+
+  // Target H1 (con indice o compatto ×N per multi-target)
   const title = document.createElement("div");
   title.className = "zone-title";
-  title.textContent = presentation.title;
-  copy.append(eyebrow, title);
+  const rawTargetName = presentation.targetName || (isMultiTarget ? `${batch.targets.length} bersagli` : primary.name);
+  if (isMultiTarget) {
+    const names = batch.targets.map((t: any) => formatTargetIdentity(t?.name || "").name);
+    const uniqueNames = Array.from(new Set(names));
+    const targetBase = uniqueNames.length === 1 ? uniqueNames[0] : null;
+    title.textContent = targetBase ? `${targetBase} ×${batch.targets.length}` : `${batch.targets.length} bersagli`;
+  } else {
+    const { name: cleanTargetName, index: targetIndex } = formatTargetIdentity(rawTargetName);
+    title.textContent = cleanTargetName;
+    if (targetIndex) {
+      const badge = document.createElement("span");
+      badge.className = "zone-target-index";
+      badge.textContent = `#${targetIndex}`;
+      title.appendChild(badge);
+    }
+  }
+  copy.appendChild(title);
+
+  // Spell e Caster / Source separati come sottotitolo con semantica "da [Caster]"
+  if (presentation.spellName) {
+    const subtitle = document.createElement("div");
+    subtitle.className = "zone-subtitle";
+    const spellSpan = document.createElement("span");
+    spellSpan.className = "zone-spell-name";
+    spellSpan.textContent = presentation.spellName;
+    subtitle.appendChild(spellSpan);
+
+    if (presentation.casterName) {
+      const sourceSpan = document.createElement("span");
+      sourceSpan.className = "zone-source";
+      sourceSpan.textContent = ` da ${presentation.casterName}`;
+      subtitle.appendChild(sourceSpan);
+    }
+    copy.appendChild(subtitle);
+  } else if (isMultiTarget && presentation.casterName) {
+    const subtitle = document.createElement("div");
+    subtitle.className = "zone-subtitle";
+    const sourceSpan = document.createElement("span");
+    sourceSpan.className = "zone-source";
+    sourceSpan.textContent = `da ${presentation.casterName}`;
+    subtitle.appendChild(sourceSpan);
+    copy.appendChild(subtitle);
+  }
 
   const detail = document.createElement("div");
   detail.className = "zone-detail";
@@ -1029,13 +1222,42 @@ function renderSaveReminderBatch(batch: any) {
     line.dataset.activationId = row.activationId;
     if (row.title) {
       const rowTitle = document.createElement("strong");
-      rowTitle.textContent = row.title;
+      rowTitle.className = "zone-detail-row-title";
+      const { name: cleanRowName, index: rowTargetIndex } = formatTargetIdentity(row.title);
+      rowTitle.textContent = cleanRowName;
+      if (rowTargetIndex) {
+        const badge = document.createElement("span");
+        badge.className = "zone-target-index";
+        badge.textContent = `#${rowTargetIndex}`;
+        rowTitle.appendChild(badge);
+      }
       line.append(rowTitle);
     }
-    const instruction = document.createElement("span");
-    instruction.textContent = row.detail;
-    line.append(instruction);
+    const { pills: rowPills, instruction: cleanText } = parseReminderRowContent(
+      row,
+      presentation.targetName || primary.name,
+    );
+    if (rowPills.length) {
+      const micropills = document.createElement("div");
+      micropills.className = "zone-micropills";
+      for (const p of rowPills) {
+        const span = document.createElement("span");
+        span.className = p.type ? `zone-micropill zone-micropill--${p.type}` : "zone-micropill";
+        span.textContent = p.text;
+        micropills.appendChild(span);
+      }
+      line.append(micropills);
+    }
+    // I controlli di risoluzione risiedono sulla stessa fascia (action shelf) dei micropill
     buildResolutionControls(line, row);
+
+    const instruction = document.createElement("span");
+    instruction.className = "zone-instruction";
+    instruction.textContent = cleanText || (!rowPills.length ? row.detail : "");
+    if (!instruction.textContent) {
+      instruction.hidden = true;
+    }
+    line.append(instruction);
     detail.append(line);
   }
 

@@ -16,6 +16,7 @@ import {
   HOLY_WEAPON_TURN_PROMPT_ACTION_ID,
   MAXIMILIAN_GRAB_TURN_PROMPT_ACTION_ID,
   MAXIMILIAN_CRUSH_TURN_PROMPT_ACTION_ID,
+  SPIRIT_SHROUD_TURN_PROMPT_ACTION_ID,
   spellTurnPromptRequests,
   STORM_SPHERE_TURN_PROMPT_ACTION_ID,
 } from "../src/callLightningTurnPromptCore.js";
@@ -122,6 +123,22 @@ function auraOfVitalityOwnerSpell(instanceId, casterId, turnKey) {
     castContext: {
       mobileAura: true,
       slotLevel: 3,
+    },
+  };
+}
+
+function spiritShroudOwnerSpell(instanceId, casterId, turnKey) {
+  return {
+    name: "Sudario Spirituale",
+    spellId: "tasha-sudario-spirituale",
+    instanceId,
+    casterId,
+    appliedAt: { round: 1, actorId: casterId, turnKey },
+    conc: true,
+    castContext: {
+      mobileAura: true,
+      slotLevel: 5,
+      choice: "radiosi",
     },
   };
 }
@@ -237,6 +254,70 @@ test("Aura di Vitalità apre il popup sul turno del caster, incluso il turno del
     sceneEpoch: 4,
     turnKey: "1:1:other",
   }), []);
+});
+
+test("Sudario Spirituale apre il popup del caster con selezione del bersaglio colpito", () => {
+  const castTurn = "1:0:caster-a";
+  const caster = item("caster-a", [spiritShroudOwnerSpell("shroud-a", "caster-a", castTurn)]);
+  const target = {
+    ...item("target", []),
+    layer: "CHARACTER",
+  };
+  const otherTarget = {
+    ...item("other-target", []),
+    layer: "CHARACTER",
+  };
+  const requests = spellTurnPromptRequests({
+    items: [caster, target, otherTarget],
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: castTurn,
+  });
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].kind, "choice");
+  assert.equal(requests[0].spellId, "tasha-sudario-spirituale");
+  assert.equal(requests[0].actions[0].actionId, SPIRIT_SHROUD_TURN_PROMPT_ACTION_ID);
+  assert.equal(requests[0].actions[0].executionKind, "active-action");
+  assert.equal(requests[0].actions[0].action.subjectMode, "selected");
+  assert.equal(requests[0].targetSelection, true);
+  assert.equal(requests[0].targetSelectionMode, "free");
+  assert.deepEqual(requests[0].candidateTargets, [
+    { id: "target", name: "target" },
+    { id: "other-target", name: "other-target" },
+  ]);
+  assert.match(requests[0].choiceHint, /bonus damage/iu);
+
+  const markedTarget = {
+    ...target,
+    metadata: {
+      [META_KEY]: {
+        conditions: [{
+          id: "marker-1",
+          active: true,
+          parentEffectId: "shroud-a",
+          effectId: "spirit-shroud-anti-healing",
+        }],
+      },
+    },
+  };
+  const remaining = spellTurnPromptRequests({
+    items: [caster, markedTarget, otherTarget],
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: castTurn,
+  });
+  assert.deepEqual(remaining[0].candidateTargets, [
+    { id: "other-target", name: "other-target" },
+  ]);
+
+  const noTargets = spellTurnPromptRequests({
+    items: [caster, markedTarget],
+    actorId: "caster-a",
+    sceneEpoch: 4,
+    turnKey: castTurn,
+  });
+  assert.deepEqual(noTargets, []);
 });
 
 test("il prompt della Sfera della Tempesta è disponibile anche nel turno del cast", () => {

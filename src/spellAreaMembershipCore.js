@@ -73,6 +73,37 @@ function attitudeGroup(item, metaKey) {
   return "neutral";
 }
 
+function effectMembershipTargetIds(
+  effect,
+  desiredTargetIds,
+  { sourceId = "", items = [], metaKey = "" } = {},
+) {
+  const targeting = effect?.targeting;
+  const desired = uniqueIds(desiredTargetIds);
+  if (!targeting || typeof targeting !== "object") return desired;
+
+  const normalizedSourceId = String(sourceId || "").trim();
+  const itemsById = new Map(
+    (Array.isArray(items) ? items : [])
+      .map((item) => [String(item?.id || "").trim(), item])
+      .filter(([id]) => id),
+  );
+  const sourceGroup = attitudeGroup(itemsById.get(normalizedSourceId), metaKey);
+  return desired.filter((targetId) => {
+    if (targeting.includeCaster !== true && targetId === normalizedSourceId) {
+      return false;
+    }
+    const target = itemsById.get(targetId);
+    if (!target) return true;
+    const targetGroup = attitudeGroup(target, metaKey);
+    const filter = targeting.filter || "all";
+    if (filter === "hostile" && targetGroup === sourceGroup) return false;
+    if (filter === "friendly" && targetGroup !== sourceGroup) return false;
+    if (filter === "non-hostile" && targetGroup === "enemy") return false;
+    return true;
+  });
+}
+
 export function areaWithCellPadding(area, paddingSquares) {
   const padding = Math.max(0, Math.floor(Number(paddingSquares) || 0));
   if (!padding || !Array.isArray(area?.cells) || !area.cells.length) {
@@ -231,6 +262,7 @@ export function areaMembershipPlan({
   }
 
   const desired = new Set(uniqueIds(desiredTargetIds));
+  const effectDesired = new Set();
   const currentMembers = new Set();
   const removals = [];
   const additions = [];
@@ -250,6 +282,12 @@ export function areaMembershipPlan({
     const expectedEffectKind = effect?.condition
       ? ""
       : String(effect?.kind || "").trim();
+    const desiredForEffect = new Set(effectMembershipTargetIds(effect, [...desired], {
+      sourceId,
+      items,
+      metaKey,
+    }));
+    for (const targetId of desiredForEffect) effectDesired.add(targetId);
     const currentForEffect = new Map();
     for (const item of Array.isArray(items) ? items : []) {
       for (const instance of conditionInstances(item, metaKey)) {
@@ -298,7 +336,7 @@ export function areaMembershipPlan({
     }
 
     for (const [targetId, conditionId] of currentForEffect) {
-      if (!desired.has(targetId)) {
+      if (!desiredForEffect.has(targetId)) {
         removals.push({
           itemId: targetId,
           instanceId: conditionId,
@@ -308,7 +346,7 @@ export function areaMembershipPlan({
         });
       }
     }
-    const enteringForEffect = [...desired].filter(
+    const enteringForEffect = [...desiredForEffect].filter(
       (targetId) => !currentForEffect.has(targetId)
     );
     if (enteringForEffect.length) {
@@ -411,9 +449,10 @@ export function areaMembershipPlan({
     });
   }
   operations.push(...additions);
+  const effectiveDesired = effects.length ? effectDesired : desired;
   return {
-    entering: [...desired].filter((targetId) => !currentMembers.has(targetId)),
-    leaving: [...currentMembers].filter((targetId) => !desired.has(targetId)),
+    entering: [...effectiveDesired].filter((targetId) => !currentMembers.has(targetId)),
+    leaving: [...currentMembers].filter((targetId) => !effectiveDesired.has(targetId)),
     operations,
   };
 }

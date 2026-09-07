@@ -29,8 +29,10 @@ test("Quick HP non conserva elementi DOM o controller spell/area orfani", () => 
 });
 
 test("le modifiche manuali usano merge del metadato HP canonico", () => {
-  assert.match(source, /const previous = item\.metadata\?\.[\[]META_KEY[\]] \|\| \{\}/);
-  assert.match(source, /hp:\s*update\.afterHP/);
-  assert.match(source, /hpMax:\s*update\.hpMax/);
+  assert.match(source, /type: "hp:set"/);
+  assert.match(source, /hp:\s*change\.afterHP/);
+  assert.match(source, /hpMax:\s*change\.hpMax/);
+  const writer = readFileSync(new URL("../src/effectsMutations.js", import.meta.url), "utf8");
+  assert.match(writer, /item\.metadata = \{ \.\.\.\(item\.metadata \|\| \{\}\), \[META_KEY\]: meta \}/);
   assert.match(source, /syncHPBatchToMemory/);
 });

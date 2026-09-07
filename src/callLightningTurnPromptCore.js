@@ -42,6 +42,7 @@ export const CONTROL_WINDS_UPDRAFT_TURN_PROMPT_ACTION_ID = "control-winds-updraf
 export const CONTROL_WINDS_PAUSE_TURN_PROMPT_ACTION_ID = "control-winds-pause";
 export const TELEKINESIS_MAINTAIN_TURN_PROMPT_ACTION_ID = TELEKINESIS_MAINTAIN_ACTION_ID;
 export const TELEKINESIS_RETARGET_TURN_PROMPT_ACTION_ID = TELEKINESIS_RETARGET_ACTION_ID;
+export const SPIRIT_SHROUD_TURN_PROMPT_ACTION_ID = "spirit-shroud-mark-hit";
 
 const TURN_PROMPT_SPELLS = Object.freeze([
   Object.freeze({
@@ -118,6 +119,17 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableOnCastTurn: true,
   }),
   Object.freeze({
+    spellId: "tasha-sudario-spirituale",
+    actionId: SPIRIT_SHROUD_TURN_PROMPT_ACTION_ID,
+    ownerContext: "caster",
+    availableOnCastTurn: true,
+    choice: true,
+    executionKind: "active-action",
+    targetSelection: true,
+    targetSelectionMode: "free",
+    choiceHint: "Dopo aver risolto manualmente un attacco che ha beneficiato del bonus damage, seleziona il bersaglio colpito per registrare il divieto di recuperare PF. Il colpo, il bonus damage e l'enforcement della guarigione restano manuali.",
+  }),
+  Object.freeze({
     spellId: "xanathar-controllare-venti",
     actionIds: Object.freeze([
       CONTROL_WINDS_GUSTS_TURN_PROMPT_ACTION_ID,
@@ -129,7 +141,7 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     availableAfterCast: true,
     choice: true,
     executionKind: "active-action",
-    choiceHint: "Scegli la modalità di Controllare Venti. Il cambio usa l'azione del caster e resta disponibile anche nel pannello Incantesimi.",
+    choiceHint: "Cambia la modalità attiva di Controllare Venti.",
   }),
   Object.freeze({
     spellId: "xanathar-stretta-della-terra-di-maximilian",
@@ -162,7 +174,7 @@ const TURN_PROMPT_SPELLS = Object.freeze([
     ownerContext: "caster",
     availableAfterCast: true,
     choice: true,
-    choiceHint: "Scegli se ripetere la contesa sulla creatura attuale o cambiare bersaglio. Trattenuto viene applicato su vittoria; movimento e sospensione restano manuali al tavolo.",
+    choiceHint: "Contesa For vs For. Trattenuto su vittoria; movimento e sospensione manuali al tavolo.",
   }),
 ]);
 
@@ -308,9 +320,14 @@ function buildSpellTurnActiveActionPayload({
 function choiceCandidateTargets(items, group, actions) {
   const excludedEffectIds = new Set(
     (Array.isArray(actions) ? actions : [])
-      .flatMap((action) => Array.isArray(action?.excludedTargetEffectIds)
-        ? action.excludedTargetEffectIds
-        : [])
+      .flatMap((action) => [
+        ...(Array.isArray(action?.excludedTargetEffectIds)
+          ? action.excludedTargetEffectIds
+          : []),
+        ...(Array.isArray(action?.rejectActiveEffectIds)
+          ? action.rejectActiveEffectIds
+          : []),
+      ])
       .map((value) => String(value || "").trim())
       .filter(Boolean),
   );
@@ -395,6 +412,12 @@ export function spellTurnPromptRequests({
       const useChoicePopup = prompt.choice === true
         && (payloads.length > 1 || activeActionPrompt);
       if (useChoicePopup) {
+        const targetSelection = prompt.targetSelection === true
+          || prompt.spellId === "eyebite";
+        const candidateTargets = targetSelection
+          ? choiceCandidateTargets(items, group, actions)
+          : [];
+        if (targetSelection && !candidateTargets.length) continue;
         requests.push({
           kind: "choice",
           spellId: prompt.spellId,
@@ -407,8 +430,12 @@ export function spellTurnPromptRequests({
           sceneEpoch,
           actions: payloads,
           ...(prompt.choiceHint ? { choiceHint: prompt.choiceHint } : {}),
-          ...(prompt.spellId === "eyebite"
-            ? { candidateTargets: choiceCandidateTargets(items, group, actions) }
+          ...(targetSelection
+            ? { candidateTargets }
+            : {}),
+          ...(targetSelection ? { targetSelection: true } : {}),
+          ...(prompt.targetSelectionMode
+            ? { targetSelectionMode: prompt.targetSelectionMode }
             : {}),
         });
       } else {

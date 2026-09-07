@@ -142,6 +142,18 @@ const SPELL_CAST_RESOLUTION_RULES = Object.freeze({
     initialHP: true,
     successfulSaveDamage: "none",
   }),
+  "xanathar-scossa-tellurica": Object.freeze({
+    initialHP: true,
+    successfulSaveDamage: "none",
+    damageByOutcome: Object.freeze({
+      failed: Object.freeze({
+        formula: "1d6",
+        baseSlot: 1,
+        additionalPerSlotAbove: 1,
+        type: "contundenti",
+      }),
+    }),
+  }),
   "xanathar-onda-di-marea": Object.freeze({
     initialHP: true,
   }),

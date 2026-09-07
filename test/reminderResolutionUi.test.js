@@ -156,6 +156,12 @@ test("il modal mantiene il click solo sui controlli e il layer zona sopra l'iniz
   assert.match(turnNoticeHtml, /\.zone-resolution button,[\s\S]{0,280}pointer-events: auto;/);
 });
 
+test("le micropill del notice non ereditano il layout del testo istruttivo", () => {
+  assert.match(turnNoticeHtml, /\.zone-instruction\s*\{/);
+  assert.doesNotMatch(turnNoticeHtml, /\.zone-instruction,\s*\.zone-detail span/);
+  assert.doesNotMatch(turnNoticeHtml, /\.zone-detail span\s*\{/);
+});
+
 test("un reminder consumabile resta visibile senza barra o timer automatico", () => {
   assert.match(turnNotice, /row\.resolution\?\.mode !== "consume"/);
   assert.match(

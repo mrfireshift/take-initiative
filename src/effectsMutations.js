@@ -22,6 +22,7 @@ import {
 import { catalogSpellApplicationOperations } from "./spellLifecycleOperationsCore.js";
 import {
   resolveZeroHPUnconsciousAction,
+  resolveDamageEndsConditionRemovals,
   ZERO_HP_UNCONSCIOUS_TYPE,
 } from "./hpConditionRulesCore.js";
 import {
@@ -692,6 +693,8 @@ function applyMetadataPatchesToPlan(plan, sceneItems, metadataPatches = []) {
         : { present: true, value: clone(descriptor?.value) };
       if (sameValue(actual, after)) continue;
       change.metadataFields[field] = true;
+      change.commitBeforeMetadata ||= {};
+      change.commitBeforeMetadata[field] = actual;
       // Alcuni metadata tecnici accumulativi (es. reminderResolutions) possono
       // fornire snapshot History per-key distinti dal valore live. Il commit
       // continua a validare `expected` contro `actual` e scrive sempre `after`.
@@ -925,9 +928,39 @@ export async function prepareEffectsMutation(operations = [], {
   const mutationId = createId("effects-mutation");
   const sceneItems = await OBR.scene.items.getItems();
   if (!canPrepare()) return { status: EFFECTS_MUTATION_STATUS.REJECTED, reason: "stale-after-read" };
+  // HP and its condition consequences are planned at the head of the same
+  // lane. Only the projection sees the new HP; History still sees sceneItems.
+  const hpPatches = [];
+  const hpOperations = [];
+  const hpProjectedItems = sceneItems.map((item) => ({ ...item, metadata: { ...item.metadata } }));
+  const hpItemsById = new Map(hpProjectedItems.map((item) => [item.id, item]));
+  for (const operation of operations) {
+    if (operation?.type !== "hp:set") {
+      hpOperations.push(operation);
+      continue;
+    }
+    for (const update of operation.updates || []) {
+      const item = hpItemsById.get(update.itemId);
+      if (!item || !Number.isFinite(update.hp) || !Number.isFinite(update.hpMax)) {
+        return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "invalid-hp-target", conflicts: [{ itemId: update.itemId }] };
+      }
+      const meta = item.metadata?.[META_KEY] || {};
+      hpPatches.push({ id: item.id, fields: {
+        hp: { value: update.hp, ...(update.expectedHP ? { expected: update.expectedHP } : {}) },
+        hpMax: { value: update.hpMax, ...(update.expectedHPMax ? { expected: update.expectedHPMax } : {}) },
+      } });
+      if (operation.damageEnds !== false && Number.isFinite(Number(meta.hp)) && update.hp < Number(meta.hp)) {
+        const removals = resolveDamageEndsConditionRemovals(getConditionInstances(meta.conditions || {}))
+          .map((instanceId) => ({ itemId: item.id, instanceId }));
+        if (removals.length) hpOperations.push({ type: "condition:remove-instances", removals });
+      }
+      item.metadata[META_KEY] = { ...meta, hp: update.hp, hpMax: update.hpMax };
+      hpOperations.push({ type: "condition:reconcile-zero-hp", targetIds: [item.id] });
+    }
+  }
   const preparedOperations = expandStateDependentOperations(
-    Array.isArray(operations) ? operations : [],
-    sceneItems,
+    hpOperations,
+    hpProjectedItems,
   ).map(prepareOperation).filter((operation) => operation.type);
   if (preparedOperations.some((op) => op.type === "operation:conflict")) {
     const conflictOp = preparedOperations.find((op) => op.type === "operation:conflict");
@@ -980,6 +1013,7 @@ export async function prepareEffectsMutation(operations = [], {
     plan,
     sceneItems,
     [
+      ...hpPatches,
       ...(Array.isArray(command.metadataPatches) ? command.metadataPatches : []),
       ...classFeatureStatePlan.patches,
     ],
@@ -1063,6 +1097,30 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
     mutationStats.requestedItems += ids.length;
     await OBR.scene.items.updateItems(ids, (drafts) => {
       if (!canCommit()) return;
+      const conflicts = [];
+      const draftsById = new Map(drafts.map((item) => [item.id, item]));
+      for (const change of changes) {
+        const item = draftsById.get(change.id);
+        if (!item) {
+          conflicts.push({ itemId: change.id, reason: "missing-item" });
+          continue;
+        }
+        const actual = normalizedSceneItem(item);
+        for (const field of Object.keys(change.fields || {}).filter((key) => change.fields[key])) {
+          if (!historyUndoSame(actual[field], change.before[field])) conflicts.push({ itemId: item.id, field });
+        }
+        for (const field of Object.keys(change.metadataFields || {})) {
+          const expected = change.commitBeforeMetadata?.[field] || change.beforeMetadata?.[field];
+          if (!metadataSnapshotMatches(metadataFieldSnapshot(item.metadata?.[META_KEY], field), expected)) {
+            conflicts.push({ itemId: item.id, field });
+          }
+        }
+      }
+      if (conflicts.length) {
+        const error = new Error("stale-effects-plan");
+        error.conflicts = conflicts;
+        throw error;
+      }
       writeAuthorized = true;
       for (const item of drafts) {
         const change = byId.get(item.id);
@@ -1109,6 +1167,49 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
     });
     return { changedIds: ids, committed: true };
   } catch (error) {
+    if (error?.message === "stale-effects-plan" && !writeAuthorized) {
+      return { status: EFFECTS_MUTATION_STATUS.CONFLICT, reason: "stale-effects-plan", committed: false, conflicts: error.conflicts };
+    }
+    if (writeAuthorized && canCommit()) {
+      // A rejected SDK response is not proof that the draft was not applied.
+      // Keep the lane occupied while recovering the actual committed values;
+      // never replay a possibly committed action or discard its History plan.
+      let actualItems;
+      while (canCommit()) {
+        try { actualItems = await OBR.scene.items.getItems(ids); break; }
+        catch { await new Promise((resolve) => setTimeout(resolve, 250)); }
+      }
+      if (canCommit() && actualItems) {
+        const actualById = new Map(actualItems.map((item) => [item.id, item]));
+        const recovered = [];
+        for (const change of changes) {
+          const item = actualById.get(change.id);
+          if (!item) continue;
+          const actual = normalizedSceneItem(item);
+          const next = { ...change, fields: {}, metadataFields: {}, after: { ...change.after }, afterMetadata: {} };
+          for (const field of Object.keys(change.fields || {}).filter((key) => change.fields[key])) {
+            if (historyUndoSame(actual[field], change.before[field])) continue;
+            next.fields[field] = true;
+            next.after[field] = clone(actual[field]);
+          }
+          for (const field of Object.keys(change.metadataFields || {})) {
+            const value = metadataFieldSnapshot(item.metadata?.[META_KEY], field);
+            if (metadataSnapshotMatches(value, change.commitBeforeMetadata?.[field] || change.beforeMetadata?.[field])) continue;
+            next.metadataFields[field] = true;
+            next.afterMetadata[field] = value;
+          }
+          if (Object.keys(next.fields).length || Object.keys(next.metadataFields).length) recovered.push(next);
+        }
+        if (recovered.length) {
+          plan.changes = recovered;
+          plan.changedIds = recovered.map((change) => change.id);
+          mutationStats.commits += 1;
+          return { committed: true, changedIds: plan.changedIds, postCommitErrors: [{
+            phase: "canonical-commit-response", message: String(error?.message || error),
+          }] };
+        }
+      }
+    }
     mutationStats.failed += 1;
     effectsDiagnostics.event("mutation:failed", {
       mutationId,
@@ -3386,6 +3487,7 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
     return commitHistoryUndoPlan(plan, { isCurrent });
   }
   const effectsCommit = await commitEffectsMutationPlan(plan, { isCurrent });
+  if (effectsCommit?.status === EFFECTS_MUTATION_STATUS.CONFLICT) return effectsCommit;
   if (effectsCommit?.status === EFFECTS_MUTATION_STATUS.REJECTED) return effectsCommit;
   const sideEffects = [
     ...(Array.isArray(plan?.undoSideEffects) ? plan.undoSideEffects : [])
@@ -3397,7 +3499,7 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
   return {
     changedIds: effectsCommit.changedIds,
     committed: effectsCommit.committed || sideEffectResult.changes.length > 0,
-    postCommitErrors: sideEffectResult.errors,
+    postCommitErrors: [...(effectsCommit.postCommitErrors || []), ...sideEffectResult.errors],
     sideEffectChanges: sideEffectResult.changes,
     sideEffectsPending: sideEffectResult.pending,
   };

@@ -622,12 +622,12 @@ export function buildSpellUnifiedPreparedPopoverRequest(overview, {
     || !!phasePlan?.resolution?.mechanics?.savingThrow
     || !!phasePlan?.resolution?.mechanics?.damageBonus);
   const resolvedHeight = height ?? (manualAction
-    ? 250
+    ? 140
     : hasManualResolutionInputs
-    ? 380
+    ? 175
     : choices.length > 1
-      ? 340
-      : 320);
+      ? 210
+      : 160);
   const popoverId = preparedSpellResolutionPopoverId(context.instanceId);
   const payload = {
     type: `${ID}/spell-prepared-resolution`,

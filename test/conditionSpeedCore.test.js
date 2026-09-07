@@ -243,6 +243,20 @@ test("Libertà di movimento ignora Lentezza ma conserva le condizioni di blocco"
   );
 });
 
+test("Libertà di movimento ignora anche una riduzione magica additiva", () => {
+  const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
+  const spiritSlow = condition("Velocità -3 m", {
+    type: "spell",
+    sourceId: "caster",
+    parentEffectId: "spirit-instance",
+    effectId: "spirit-shroud-slow",
+    mechanics: { movement: { addMeters: -3 } },
+  });
+
+  assert.equal(resolveConditionSpeed(9, [spiritSlow]).speedMeters, 6);
+  assert.equal(resolveConditionSpeed(9, [freedom, spiritSlow]).speedMeters, 9);
+});
+
 test("Libertà di movimento conserva le modalità di movimento già disponibili", () => {
   const freedom = effectCondition(getSpellEffects("Libertà di movimento")[0]);
   const modes = condition("Modalità esistenti", {

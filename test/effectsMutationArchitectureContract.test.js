@@ -147,7 +147,9 @@ test("la transazione composita Quick HP produce una sola entry effectsMutation",
   );
   assert.match(apply, /decorateEntry: \(entry\) => quickHpEffectsHistoryEntry/);
   assert.match(apply, /const coordinatedOperations = \[/);
-  assert.match(apply, /type: "condition:reconcile-zero-hp"/);
+  assert.match(apply, /type: "hp:set"/);
+  assert.doesNotMatch(apply, /OBR\.scene\.items\.updateItems/);
+  assert.match(effects, /hpOperations\.push\(\{ type: "condition:reconcile-zero-hp"/);
   assert.equal((apply.match(/runEffectsMutation\(coordinatedOperations/g) || []).length, 1);
   assert.match(apply, /history: false/);
 });

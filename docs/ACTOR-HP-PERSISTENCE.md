@@ -61,6 +61,22 @@ sia nei record:
 }
 ```
 
+Una transizione canonica esplicita da HP validi a entrambe le proprietà
+`hp`/`hpMax` assenti viene conservata nello stesso registry come invalidazione
+versionata:
+
+```json
+{
+  "hpState": "absent",
+  "updatedAt": 1234567891,
+  "revision": 5
+}
+```
+
+Non è una seconda memoria: partecipa allo stesso ordinamento di autorevolezza
+dei record HP. Una nuova assegnazione canonica la sostituisce con un normale
+record `hp`/`hpMax`.
+
 `updatedAt` è il primo ordinamento di autorevolezza; `revision` risolve i
 pareggi. Record corrotti o parziali vengono ignorati o normalizzati senza
 interrompere il tracker. La retention Room è deterministica: entro 10.000
@@ -136,6 +152,10 @@ il restore viene scartato e il valore canonico più recente aggiorna il registry
 
 Dopo la hydration il flusso live è soltanto token → registry. Un normale evento
 Room aggiorna la cache normalizzata, ma non avvia un restore sugli item di scena.
+L'assenza viene persistita soltanto quando il dispatcher osserva sul token
+primario la transizione completa `HP validi → proprietà assenti`; un token
+nuovo ancora da idratare, un record parziale o la rimozione dell'item dalla
+scena non cancellano la memoria inter-scena.
 
 ## Conflitti e duplicati
 
@@ -150,6 +170,11 @@ OBR lessicograficamente minore è il primario deterministico, i duplicati
 ricevono lo stesso snapshot e non diventano writer concorrenti. La UI non
 nasconde il duplicato; il collegamento manuale e la gestione di copie
 intenzionali sono estensioni future.
+
+Ogni batch live viene prima ridotto agli `actorProfileId` interessati e poi
+risolto contro il primario calcolato sull'intero `allItems`. Di conseguenza
+l'ordine dei token nel batch non modifica lo snapshot persistito; anche un
+evento contenente soltanto un duplicato legge lo stato del primario corrente.
 
 ## Fallback locale e compatibilità
 

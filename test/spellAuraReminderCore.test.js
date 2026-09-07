@@ -25,6 +25,14 @@ const aura = {
   rule: getSpellAreaRuleById("spirit-guardians:aura"),
 };
 
+const shroudAura = {
+  instanceId: "shroud-1",
+  spellId: "tasha-sudario-spirituale",
+  spellName: "Sudario Spirituale",
+  casterId: "caster",
+  rule: getSpellAreaRuleById("tasha-sudario-spirituale:aura"),
+};
+
 const itemsById = new Map([
   ["caster", {
     id: "caster",
@@ -41,6 +49,88 @@ const itemsById = new Map([
     metadata: { [META_KEY]: {} },
   }],
 ]);
+
+test("Sudario Spirituale propone una sola scelta RAW a inizio turno", () => {
+  const initialized = planMobileAuraReminder({
+    aura: shroudAura,
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(0),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 1,
+  });
+  const auraItem = {
+    id: "shroud-aura",
+    metadata: {
+      [SPELL_AURA_META_KEY]: {
+        instanceId: shroudAura.instanceId,
+        triggerRuntime: initialized.runtime,
+      },
+    },
+  };
+  const turnStart = planMobileAuraReminder({
+    aura: shroudAura,
+    auraItem,
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(1),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 2,
+  });
+
+  assert.equal(turnStart.newActivations.length, 1);
+  assert.equal(turnStart.newActivations[0].resolution, "manual-condition");
+  assert.equal(turnStart.newActivations[0].event, "turn-start");
+  assert.deepEqual(turnStart.newActivations[0].targetIds, ["target"]);
+  assert.equal(turnStart.newActivations[0].damage, undefined);
+  assert.equal(turnStart.notices[0].label, "Sudario Spirituale");
+  assert.equal(turnStart.notices[0].instruction, "Nothic inizia il turno entro 3 m.");
+  assert.equal(turnStart.notices[0].resolution.mode, "manual-condition");
+  assert.deepEqual(turnStart.notices[0].resolution.choiceLabels, {
+    passed: "Applica -3 m",
+    failed: "Ignora",
+  });
+  assert.equal(turnStart.notices[0].resolution.save, undefined);
+
+  const duplicate = planMobileAuraReminder({
+    aura: shroudAura,
+    auraItem: {
+      ...auraItem,
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: shroudAura.instanceId,
+          triggerRuntime: turnStart.runtime,
+        },
+      },
+    },
+    desiredTargetIds: ["target"],
+    initiativeState: initiativeState(1),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 3,
+  });
+  assert.deepEqual(duplicate.newActivations, []);
+
+  const outside = planMobileAuraReminder({
+    aura: shroudAura,
+    auraItem: {
+      ...auraItem,
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: shroudAura.instanceId,
+          triggerRuntime: turnStart.runtime,
+        },
+      },
+    },
+    desiredTargetIds: [],
+    initiativeState: initiativeState(1),
+    itemsById,
+    areaPosition: { x: 0, y: 0 },
+    now: 4,
+  });
+  assert.equal(outside.runtime.pending.length, 1);
+  assert.deepEqual(outside.runtime.pending[0].targetIds, ["target"]);
+});
 
 test("Guardiani Spirituali genera il TS a inizio turno nell'aura mobile", () => {
   const initialized = planMobileAuraReminder({

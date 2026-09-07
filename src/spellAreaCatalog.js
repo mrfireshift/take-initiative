@@ -411,6 +411,7 @@ const AREA_OVERRIDES = Object.freeze({
     shape: "circle",
     sizeMeters: 3,
     origin: "caster",
+    note: "Su pietra o terra smossa, il terreno diventa difficile finché non viene sgombrato; lo sgombero manuale richiede 1 minuto per ogni porzione di diametro 1,5 m.",
   },
   "xanathar-vampa-di-aganazzar": {
     shape: "line",

@@ -494,6 +494,11 @@ function summaryPartsWithResolvedMechanics(parts, effectId, mechanics) {
         return { ...part, label: `+${damageDice} ${type} in mischia` };
       }
     }
+    if (effectId === "spirit-shroud-aura-damage"
+      && part.id === "spirit-shroud-aura-damage"
+      && damageDice) {
+      return { ...part, label: `Subisce ${damageDice} danni extra` };
+    }
     if (effectId.startsWith("spirit-shroud-")
       && part.id.endsWith("-damage")
       && damageDice) {

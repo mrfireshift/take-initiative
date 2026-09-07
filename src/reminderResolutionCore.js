@@ -264,7 +264,13 @@ export function normalizeReminderResolution(value, context = {}) {
     : context.effect && typeof context.effect === "object"
       ? clone(context.effect)
       : null;
-  const mode = ["consume", "manual-heal", "manual-damage", "choice"].includes(value.mode)
+  const mode = [
+    "consume",
+    "manual-heal",
+    "manual-damage",
+    "manual-condition",
+    "choice",
+  ].includes(value.mode)
     ? value.mode
     : "";
   const choiceLabels = value.choiceLabels && typeof value.choiceLabels === "object"
@@ -686,7 +692,7 @@ export function buildZoneTriggerReminderResolution({
   metadataKey = "",
   slotLevel = null,
 } = {}) {
-  if (!["manual-save", "manual-heal", "manual-effect"].includes(activation?.resolution)) {
+  if (!["manual-save", "manual-heal", "manual-effect", "manual-condition"].includes(activation?.resolution)) {
     return null;
   }
   const normalizedTargetId = text(targetId, "", 200);
@@ -733,6 +739,67 @@ export function buildZoneTriggerReminderResolution({
       ? { resolutionData: clone(resolutionData) }
       : {}),
   };
+  if (activation?.resolution === "manual-condition") {
+    const condition = resolutionData.condition && typeof resolutionData.condition === "object"
+      ? resolutionData.condition
+      : null;
+    const conditionName = text(condition?.label || condition?.condition, "", 160);
+    const conditionId = text(condition?.id || activation?.triggerId, "", 200);
+    const conditionKind = ["buff", "debuff"].includes(condition?.kind)
+      ? condition.kind
+      : "";
+    const expiry = condition?.expiry && typeof condition.expiry === "object"
+      ? clone(condition.expiry)
+      : null;
+    if (!normalizedTargetId || !conditionName || !conditionId || !conditionKind || !expiry) {
+      return null;
+    }
+    const choiceLabels = resolutionData.choiceLabels
+      && typeof resolutionData.choiceLabels === "object"
+      ? resolutionData.choiceLabels
+      : {};
+    const options = {
+      type: "spell",
+      sourceId: normalizedSourceId,
+      ...(sourceName ? { sourceName } : {}),
+      ...(text(activation?.instanceId, "", 200)
+        ? { parentEffectId: text(activation.instanceId, "", 200) }
+        : {}),
+      effectId: conditionId,
+      effectKind: conditionKind,
+      effectDetail: text(condition.detail, "", 240),
+      ...(Array.isArray(condition.summaryParts)
+        ? { summaryParts: clone(condition.summaryParts) }
+        : {}),
+      ...(condition.mechanics && typeof condition.mechanics === "object"
+        ? { mechanics: clone(condition.mechanics) }
+        : {}),
+      magical: true,
+      expiry,
+    };
+    return normalizeReminderResolution({
+      mode: "manual-condition",
+      choiceLabels: {
+        passed: text(choiceLabels.passed, "Applica", 80),
+        failed: text(choiceLabels.failed, "Ignora", 80),
+      },
+      outcomes: {
+        passed: {
+          actions: [{
+            kind: "condition",
+            action: "apply",
+            targetId: normalizedTargetId,
+            name: conditionName,
+            options,
+          }],
+        },
+        failed: { mode: "none", actions: [] },
+      },
+      target: { id: normalizedTargetId },
+      source: { id: normalizedSourceId },
+      activation: activationContext,
+    });
+  }
   if (activation?.resolution === "manual-heal") {
     if (!normalizedTargetId || !scaled.healing) return null;
     return normalizeReminderResolution({
@@ -876,6 +943,8 @@ export function reminderResolutionControls({ role = "PLAYER", resolution = null 
   if (String(role || "").toUpperCase() !== "GM" || !resolution) return [];
   return resolution.mode === "manual-damage"
     ? ["confirmed"]
+    : resolution.mode === "manual-condition"
+      ? ["passed", "failed"]
     : OUTCOME_KEYS;
 }
 
@@ -1408,6 +1477,7 @@ export function buildReminderResolutionPlan({
   const consumeOnly = resolution?.mode === "consume";
   const manualHeal = resolution?.mode === "manual-heal";
   const manualDamage = resolution?.mode === "manual-damage";
+  const manualCondition = resolution?.mode === "manual-condition";
   const validOutcome = blinkResolution
     ? [REMINDER_OUTCOMES.PASSED, REMINDER_OUTCOMES.FAILED].includes(normalizedOutcome)
     : turbine
@@ -1416,6 +1486,8 @@ export function buildReminderResolutionPlan({
     ? ["apply", "ignore"].includes(normalizedOutcome)
     : manualDamage
       ? normalizedOutcome === "confirmed"
+      : manualCondition
+        ? [REMINDER_OUTCOMES.PASSED, REMINDER_OUTCOMES.FAILED].includes(normalizedOutcome)
       : consumeOnly || OUTCOME_KEYS.includes(normalizedOutcome);
   if (!resolution || !validOutcome) {
     if (blinkResolution) {
@@ -1761,6 +1833,7 @@ export function buildReminderResolutionPlan({
     ...(consumeOnly ? { resolutionMode: "consume" } : {}),
     ...(manualHeal ? { resolutionMode: "manual-heal" } : {}),
     ...(manualDamage ? { resolutionMode: "manual-damage" } : {}),
+    ...(manualCondition ? { resolutionMode: "manual-condition" } : {}),
     targetId,
     sourceId,
     activationId,

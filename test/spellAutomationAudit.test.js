@@ -114,6 +114,37 @@ test("Aura di Vitalità e Aura di Vita sono CLOSED dopo la verifica del workflow
   assert.match(life?.curatedNote || "", /PARTIAL\/CLOSED/u);
 });
 
+test("Compulsione, Aura Sacra e Sudario Spirituale sono PARTIAL/CLOSED con boundary manuale esplicita", () => {
+  const audit = buildSpellAutomationAudit();
+  const compulsion = audit.rows.find((row) => row.id === "compulsion");
+  const holyAura = audit.rows.find((row) => row.id === "holy-aura");
+  const spiritShroud = audit.rows.find((row) => row.id === "tasha-sudario-spirituale");
+
+  for (const spell of [compulsion, holyAura, spiritShroud]) {
+    assert.ok(spell);
+    assert.equal(spell.currentAutomationLevel, "PARTIAL");
+    assert.equal(spell.coverageStatus, "CLOSED");
+    assert.equal(spell.targetAutomationLevel, "PARTIAL");
+    assert.equal(spell.priority, "—");
+    assert.deepEqual(spell.gaps, []);
+    assert.equal(spell.integration.status, "reachable");
+    assert.match(spell.curatedNote || "", /^PASS: .*PARTIAL\/CLOSED/u);
+  }
+
+  assert.match(compulsion.curatedNote || "", /movimento fisico/u);
+  assert.match(holyAura.curatedNote || "", /caster tra le creature selezionabili/u);
+  assert.match(holyAura.curatedNote || "", /trigger TS Costituzione/u);
+  assert.deepEqual(spiritShroud.runtime.areaRuleIds, ["tasha-sudario-spirituale:aura"]);
+  assert.deepEqual(spiritShroud.runtime.triggerIds, ["spirit-shroud-slow-on-turn-start"]);
+  assert.deepEqual(spiritShroud.runtime.activeActionIds, ["spirit-shroud-mark-hit"]);
+  assert.equal(spiritShroud.runtime.movementMechanics, true);
+  assert.match(spiritShroud.curatedNote || "", /un'unica aura mobile di 3 m/u);
+  assert.match(spiritShroud.curatedNote || "", /pill dinamiche/u);
+  assert.match(spiritShroud.curatedNote || "", /anti-guarigione/u);
+  assert.match(spiritShroud.curatedNote || "", /attack-interception framework/u);
+  assert.match(spiritShroud.curatedNote || "", /global healing gate/u);
+});
+
 test("Guscio Anti-vita è PASS/PARTIAL-CLOSED con crossing e boundary manuali accettati", () => {
   const audit = buildSpellAutomationAudit();
   const shell = audit.rows.find((row) => row.id === "antilife-shell");

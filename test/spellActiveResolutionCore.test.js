@@ -10,6 +10,9 @@ import {
   resolveSpellActiveResolutionHealing,
   spellActiveResolutionHealingFormula,
   spellActiveResolutionSelectedTargetId,
+  spellActiveResolutionTokenDisplayName,
+  formatCompactTarget,
+  formatMultiTargetCount,
   SPELL_ACTIVE_RESOLUTION_PAYLOAD_TYPE,
   validateSpellActiveResolutionAction,
   validateSpellActiveResolutionPayload,
@@ -467,3 +470,31 @@ test("la selezione Owlbear aggancia il bersaglio valido del popup anche tra toke
   assert.equal(spellActiveResolutionSelectedTargetId(entries, ["ogre"], "goblin::p1"), "ogre");
   assert.equal(spellActiveResolutionSelectedTargetId(entries, ["outside"], "goblin::p1"), "goblin::p1");
 });
+
+test("la proiezione del target distingue un singolo token duplicato numerato da una vera aggregazione", () => {
+  // 1. Singolo token duplicato numerato: conserva l'identità reale del token, es. "(3) Cultist", MAI "Cultist ×3"
+  const duplicateToken = { id: "tok-3", name: "(3) Cultist" };
+  assert.equal(spellActiveResolutionTokenDisplayName(duplicateToken), "(3) Cultist");
+  assert.equal(formatCompactTarget(duplicateToken), "(3) Cultist");
+  assert.equal(formatCompactTarget("(3) Cultist"), "(3) Cultist");
+  assert.notEqual(formatCompactTarget("(3) Cultist"), "Cultist ×3");
+
+  // 1b. Singolo token duplicato con suffisso alternativo o numerazione progressiva
+  const duplicateSuffix = { id: "tok-4", name: "Cultist (4)" };
+  assert.equal(formatCompactTarget(duplicateSuffix), "Cultist (4)");
+  assert.notEqual(formatCompactTarget(duplicateSuffix), "Cultist ×4");
+
+  // 1c. Singolo token duplicato con stato (es. Stretta della terra)
+  assert.equal(formatCompactTarget(duplicateToken, "Trattenuto"), "(3) Cultist [TRATTENUTO]");
+
+  // 1d. Singolo token con nome unico (non duplicato)
+  const uniqueToken = { id: "tok-hero", name: "Anyanca" };
+  assert.equal(formatCompactTarget(uniqueToken), "Anyanca");
+
+  // 2. Vera aggregazione multi-target: rappresenta correttamente il conteggio aggregato (es. 3 cultisti coinvolti in una AOE)
+  assert.equal(formatMultiTargetCount("Cultist", 3), "Cultist ×3");
+  assert.equal(formatMultiTargetCount(3), "3 bersagli");
+  assert.equal(formatMultiTargetCount(1), "1 bersagli");
+  assert.equal(formatMultiTargetCount("Goblin", 1), "Goblin");
+});
+

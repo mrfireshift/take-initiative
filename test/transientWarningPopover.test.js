@@ -77,27 +77,32 @@ test("la concentrazione usa i controlli reminder senza timer per il GM", () => {
 });
 
 test("iniziativa, concentrazione e velocita conservano la card da 500 px con margine esterno", () => {
-  for (const markup of [concentrationHtml, speedHtml]) {
-    assert.match(markup, /\.warning \{[\s\S]{0,420}top: 4px;[\s\S]{0,160}left: 4px;/);
-    assert.match(markup, /width: calc\(100% - 8px\)/);
-    assert.match(markup, /min-height: 126px/);
-    assert.doesNotMatch(markup, /scale\(\.8\)/);
-  }
+  assert.match(concentrationHtml, /\.warning \{[\s\S]{0,420}top: 4px;[\s\S]{0,160}left: 4px;/);
+  assert.match(concentrationHtml, /width: calc\(100% - 8px\)/);
+  assert.match(concentrationHtml, /min-height: 56px/);
+  assert.doesNotMatch(concentrationHtml, /scale\(\.8\)/);
+
+  assert.match(speedHtml, /\.warning \{[\s\S]{0,420}top: 4px;[\s\S]{0,160}left: 4px;/);
+  assert.match(speedHtml, /width: calc\(100% - 8px\)/);
+  assert.match(speedHtml, /min-height: 126px/);
+  assert.doesNotMatch(speedHtml, /scale\(\.8\)/);
+
   assert.match(turnNoticeHtml, /\.notice \{[\s\S]{0,420}top: 4px;[\s\S]{0,160}left: 4px;/);
   assert.match(turnNoticeHtml, /width: calc\(100% - 8px\)/);
   assert.match(turnNoticeHost, /const TURN_NOTICE_CARD_WIDTH = 500;/);
   assert.match(turnNoticeHost, /const TURN_NOTICE_FRAME_GUTTER = 4;/);
   assert.match(turnNoticeHost, /return 122;/);
-  assert.match(initiative, /const width = cardWidth \+ 8;/);
-  assert.match(initiative, /const height = Math\.min\(288, 122/);
+  assert.match(initiative, /const height = warnings\.length <= 1\s*\?\s*86/);
+  assert.match(concentrationHtml, /\.warning-single \.list \{[\s\S]{0,120}overflow: visible;/);
   assert.match(speedCheck, /const width = cardWidth \+ 8;/);
   assert.match(speedCheck, /height: 122,/);
   assert.match(speedCheck, /export function prewarmSpeedCheckTurn\(state\)/);
   assert.match(speedCheck, /movementStatePrefetch\?\.turnKey === next\.turnKey/);
-  for (const markup of [turnNoticeHtml, concentrationHtml, speedHtml]) {
+  for (const markup of [turnNoticeHtml, speedHtml]) {
     assert.match(markup, /@media \(max-width: 520px\)/);
     assert.match(markup, /min-height: 114px/);
   }
+  assert.match(concentrationHtml, /@media \(max-width: 520px\)/);
 });
 
 test("la Console HP manuale non gestisce il posizionamento area", () => {

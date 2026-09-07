@@ -7,6 +7,8 @@ import {
   spellActiveResolutionHealingFormula,
   spellActiveResolutionAttackDamageRequired,
   spellActiveResolutionSelectedTargetId,
+  spellActiveResolutionTokenDisplayName,
+  formatCompactTarget,
 } from "./spellActiveResolutionCore.js";
 import {
   PRISMATIC_WALL_LAYER_IDS,
@@ -110,13 +112,19 @@ function requestCompactPopoverResize() {
   resizeFrame = requestAnimationFrame(() => {
     const app = $("app");
     if (!app) return;
-    // Il frame non deve imporre l'altezza ricevuta dal controller: misuriamo il
-    // contenuto reale e teniamo lo scroll interno solo per sezioni già limitate.
-    const naturalHeight = Math.ceil(app.scrollHeight + 8); // 4 px di margine sopra/sotto
-    const targetHeight = Math.max(150, Math.min(620, naturalHeight));
+    const rectHeight = app.getBoundingClientRect?.().height || 0;
+    const naturalHeight = Math.ceil(
+      Math.max(rectHeight, app.offsetHeight || 0, app.scrollHeight || 0) + 8,
+    );
+    const targetHeight = Math.max(90, Math.min(620, naturalHeight));
     if (targetHeight === lastPopoverHeight) return;
-    lastPopoverHeight = targetHeight;
-    void OBR.popover.setHeight(popoverIdFromPayload(payload), targetHeight).catch(() => {});
+    const id = popoverIdFromPayload(payload);
+    if (!id) return;
+    OBR.popover.setHeight(id, targetHeight)
+      .then(() => {
+        lastPopoverHeight = targetHeight;
+      })
+      .catch(() => {});
   });
 }
 
@@ -515,8 +523,10 @@ function renderContext() {
     return;
   }
   if (isBlinkReturn()) {
-    $("eyebrow").textContent = "Comando GM";
-    $("blinkReturnHint").textContent = "Scegli la destinazione del ritorno sulla mappa.";
+    $("eyebrow").textContent = "";
+    $("eyebrow").hidden = true;
+    $("blinkReturnHint").textContent = "";
+    $("blinkReturnHint").hidden = true;
     $("saveTitle").hidden = true;
     $("placementToolbar").hidden = true;
     $("childCountField").hidden = true;
@@ -601,9 +611,7 @@ function renderContext() {
     attackOutcome = "hit";
     $("attackTitle").textContent = "Bersaglio";
     const damageLabel = [damage?.dice, damage?.type].filter(Boolean).join(" ");
-    $("attackDamageLabel").textContent = damageLabel
-      ? `Danno extra · ${damageLabel}`
-      : "Danno extra";
+    $("attackDamageLabel").textContent = "Danno";
     $("attackDamage").placeholder = "Totale";
     return;
   }
@@ -616,22 +624,9 @@ function renderContext() {
   const singleHeal = isSingleHeal();
   const fixedRadius = fixedCasterRadiusConfig();
   const childLabel = childKindLabel(child?.childKind);
-  $("eyebrow").textContent = callLightning
-    ? "Invocare il fulmine"
-    : flameInvestiture
-      ? "Investitura della Fiamma"
-      : holyWeapon
-        ? "Arma Sacra"
-      : primaryTargetArea
-        ? payload.spellName || "Freccia Folgorante"
-      : child
-        ? payload.spellName || "Sottozona incantesimo"
-      : singleSave
-        ? payload.spellName || "Tiro salvezza"
-      : singleHeal
-        ? "Aura Attiva"
-    : "Attivazione incantesimo";
-  $("saveTitle").hidden = callLightning && !primaryTargetArea;
+  $("eyebrow").textContent = singleHeal ? "Aura Attiva" : "";
+  $("eyebrow").hidden = !$("eyebrow").textContent;
+  $("saveTitle").hidden = callLightning || true;
   $("saveTitle").textContent = callLightning
       ? "Richiama il fulmine"
       : flameInvestiture
@@ -707,7 +702,7 @@ function renderContext() {
     $("singleSaveTitle").textContent = manualSave
       ? String(payload?.action?.manualOutcomeLabel || "Esito al tavolo").trim()
       : ability ? `TS ${ability}` : "Tiro salvezza";
-    $("singleSaveDamageLabel").textContent = damageLabel ? `Danno ${damageLabel}${damageSuffix}` : "Danno";
+    $("singleSaveDamageLabel").textContent = "Danno";
   }
   if (singleHeal) {
     const healingFormula = spellActiveResolutionHealingFormula({
@@ -791,7 +786,7 @@ async function closePopup() {
 }
 
 function displayName(item) {
-  return String(item?.name || "").trim() || "Token";
+  return spellActiveResolutionTokenDisplayName(item);
 }
 
 function characters() {
@@ -1165,6 +1160,11 @@ async function renderSingleHeal() {
   );
   selectedHealTarget = resolvedTarget || (entries.length === 1 ? entries[0].id : "");
   const selectedEntry = entries.find((item) => item?.id === selectedHealTarget);
+  if (selectedEntry) {
+    renderTargetLine(formatCompactTarget(displayName(selectedEntry)));
+  } else {
+    renderTargetLine("", "Nessun bersaglio selezionato");
+  }
   $("singleHealTitle").textContent = selectedEntry
     ? `Bersaglio: ${displayName(selectedEntry)}`
     : "Bersaglio: —";
@@ -1185,6 +1185,7 @@ async function renderSingleHeal() {
   $("apply").disabled = !canResolve;
   $("apply").textContent = "Cura";
   $("summary").textContent = "";
+  requestCompactPopoverResize();
 }
 
 async function renderSingleSave() {
@@ -1240,27 +1241,32 @@ async function renderSingleSave() {
   if (manualSave) saveOutcome = String(payload?.action?.assumedOutcome || "failed").trim() || "failed";
   const linkedTargetHint = String(payload?.action?.linkedTargetHint || "").trim();
   const maximilianLinkedTarget = requiredEffectId === "maximilian-earth-grasp-restrained";
-  $("saveTargetHint").textContent = requiredEffect || automaticLinkedTarget
+  const singleSaveRootNotice = payload?.action?.rangeOrigin === "root" ? "dalla mano" : "";
+  const singleSaveHintText = requiredEffect || automaticLinkedTarget
     ? entries.length === 1
       ? linkedTargetHint
-        ? `Bersaglio: ${displayName(entries[0])} · ${linkedTargetHint}`
+        ? `${formatCompactTarget(displayName(entries[0]))} · ${linkedTargetHint}`
         : maximilianLinkedTarget
-          ? `Bersaglio: ${displayName(entries[0])} · attualmente trattenuto dalla mano.`
-          : `Bersaglio: ${displayName(entries[0])} · collegato a questa istanza.`
+          ? formatCompactTarget(displayName(entries[0]), "Trattenuto")
+          : `${formatCompactTarget(displayName(entries[0]))} · collegato a questa istanza`
       : entries.length
         ? maximilianLinkedTarget
-          ? "Più bersagli risultano collegati alla mano: seleziona quello da risolvere."
-          : "Più bersagli risultano collegati a questa istanza: seleziona quello da risolvere."
+          ? "Più bersagli collegati alla mano: seleziona quello da risolvere."
+          : "Più bersagli collegati a questa istanza: seleziona quello da risolvere."
         : maximilianLinkedTarget
-          ? "Nessun bersaglio è attualmente trattenuto da questa mano."
-          : "Nessun bersaglio è collegato a questa istanza."
-    : payload?.action?.adjacentRing === true
-      ? "Scegli una creatura in una delle 8 caselle attorno alla mano."
-      : payload?.action?.range
-        ? payload?.action?.rangeOrigin === "root"
-          ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dalla mano.`
-          : `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit}.`
-        : "";
+          ? "Nessun bersaglio attualmente trattenuto dalla mano."
+          : "Nessun bersaglio collegato a questa istanza."
+    : "";
+  if (selectedSaveTarget) {
+    const targetItem = entries.find((item) => item?.id === selectedSaveTarget);
+    const label = targetItem ? formatCompactTarget(displayName(targetItem)) : "";
+    const extra = maximilianLinkedTarget ? " [TRATTENUTO]" : "";
+    renderTargetLine(`${label}${extra}`);
+  } else {
+    renderTargetLine("", "Nessun bersaglio selezionato");
+  }
+  $("saveTargetHint").textContent = singleSaveHintText;
+  $("saveTargetHint").hidden = automaticRequiredTarget || !singleSaveHintText;
   const damageRequired = !!payload?.action?.damage;
   const damageReady = !damageRequired || String($("saveDamage")?.value || "").trim() !== "";
   const canResolve = sceneLifecycle.isReady() && !busy && !!selectedSaveTarget
@@ -1272,9 +1278,10 @@ async function renderSingleSave() {
   }
   $("apply").disabled = !canResolve;
   $("apply").textContent = manualSave ? (payload?.action?.buttonLabel || "Applica") : "Applica";
-  $("summary").textContent = selectedSaveTarget
-    ? manualSave ? "" : saveOutcome ? "" : "Seleziona l'esito del TS"
-    : "Nessun bersaglio";
+  const saveOutcomeRequiredNotice = "Seleziona l'esito del TS";
+  $("summary").textContent = "";
+  $("summary").hidden = true;
+  requestCompactPopoverResize();
 }
 
 async function renderStorm() {
@@ -1327,15 +1334,18 @@ async function renderStorm() {
     : spellActiveResolutionSelectedTargetId(entries, currentPlayerSelection, previous);
   select.value = selectedAttackTarget;
   const selected = entries.find(({ item }) => item.id === selectedAttackTarget);
-  $("attackAdvantage").textContent = selected?.inside
-    ? "Vantaggio al tiro per colpire: il bersaglio è nella sfera."
-    : selectedAttackTarget
-      ? "Tiro per colpire normale."
-      : payload?.action?.requiresZoneRoot === false && payload?.action?.range
-        ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dal caster.`
-        : payload?.action?.rangeFromZoneArea === true && payload?.action?.range
-          ? `Scegli una creatura entro ${payload.action.range.value} ${payload.action.range.unit} dal muro.`
-          : "Scegli una creatura entro 18 m dal centro della sfera.";
+  if (selected?.item) {
+    renderTargetLine(formatCompactTarget(displayName(selected.item)));
+  } else if (!multi) {
+    renderTargetLine("", "Nessun bersaglio selezionato");
+  } else {
+    renderTargetLine("");
+  }
+  const stormAdvantageText = selected?.inside
+    ? "Vantaggio al tiro per colpire: bersaglio nella sfera."
+    : "";
+  $("attackAdvantage").textContent = stormAdvantageText;
+  $("attackAdvantage").hidden = !stormAdvantageText;
   const requiresZoneRoot = payload?.action?.requiresZoneRoot !== false;
   const baseReady = sceneLifecycle.isReady() && !busy
     && !!selectedAttackTarget
@@ -1411,6 +1421,7 @@ async function renderStorm() {
     ? ""
     : "La zona dell'incantesimo non è più disponibile.";
   $("status").hidden = !!area || !requiresZoneRoot;
+  requestCompactPopoverResize();
 }
 
 function preparedChoiceOptions(group = preparedGroup()) {
@@ -1448,32 +1459,23 @@ function renderPreparedChoice(group) {
 function renderPreparedSave(group, targetItems, saveRequired) {
   const visible = saveRequired;
   const section = $("singleSaveSection");
-  section.hidden = !visible;
-  $("singleSaveDamageField").hidden = true;
+  if (section) section.hidden = true;
+  const singleSaveDamage = $("singleSaveDamageField");
+  if (singleSaveDamage) singleSaveDamage.hidden = true;
+  const preparedOutcomesNode = $("preparedSaveOutcomes");
+  if (preparedOutcomesNode) {
+    preparedOutcomesNode.hidden = !visible;
+  }
   if (!visible) {
     selectedSaveTarget = "";
     return;
   }
   const target = targetItems.find((item) => item?.id === selectedAttackTarget);
   selectedSaveTarget = String(target?.id || "").trim();
-  const select = $("saveTarget");
-  select.replaceChildren();
-  if (target) {
-    const option = document.createElement("option");
-    option.value = target.id;
-    option.textContent = displayName(target);
-    select.appendChild(option);
-    select.value = target.id;
-  }
-  select.disabled = busy || !target;
-  select.hidden = true;
   for (const button of document.querySelectorAll("[data-save-outcome]")) {
     button.classList.toggle("active", button.dataset.saveOutcome === saveOutcome);
     button.disabled = busy || !selectedSaveTarget;
   }
-  $("singleSaveTitle").textContent = `TS ${String(
-    group && preparedPhasePlan(group)?.resolution?.mechanics?.savingThrow?.ability || "",
-  ).trim() || "al tavolo"}`;
 }
 
 async function renderPrepared() {
@@ -1503,14 +1505,33 @@ async function renderPrepared() {
   const targets = preparedTargetItems();
   const targetSelect = $("attackTarget");
   targetSelect.replaceChildren();
-  targetSelect.hidden = true;
-  targetSelect.disabled = true;
   if (targets.length === 1) {
     selectedAttackTarget = targets[0].id;
-    $("attackTitle").textContent = `Bersaglio: ${displayName(targets[0])}`;
+    targetSelect.hidden = true;
+    targetSelect.disabled = true;
+    renderTargetLine(formatCompactTarget(displayName(targets[0])));
+  } else if (targets.length > 1) {
+    targetSelect.hidden = false;
+    targetSelect.disabled = busy;
+    targetSelect.replaceChildren(new Option("Seleziona bersaglio…", ""));
+    for (const t of targets) {
+      targetSelect.appendChild(new Option(displayName(t), t.id));
+    }
+    const matching = targets.find((t) => t.id === selectedAttackTarget);
+    if (matching) {
+      selectedAttackTarget = matching.id;
+      targetSelect.value = matching.id;
+      renderTargetLine(formatCompactTarget(displayName(matching)));
+    } else {
+      selectedAttackTarget = "";
+      targetSelect.value = "";
+      renderTargetLine("", "Seleziona un bersaglio");
+    }
   } else {
     selectedAttackTarget = "";
-    $("attackTitle").textContent = "Bersaglio";
+    targetSelect.hidden = true;
+    targetSelect.disabled = true;
+    renderTargetLine("", "Nessun bersaglio selezionato");
   }
   if (!selectedAttackTarget) {
     setStatus("Seleziona un bersaglio prima di continuare.");
@@ -1544,6 +1565,7 @@ async function renderPrepared() {
     || !saveReady;
   $("apply").textContent = "Risolvi";
   $("summary").textContent = "";
+  requestCompactPopoverResize();
 }
 
 function prismaticWallNumericDamageReady(value) {
@@ -1749,6 +1771,12 @@ function renderTelekinesis() {
   selectedTelekinesisTarget = resolved;
   select.value = selectedTelekinesisTarget;
   select.disabled = busy || !sceneLifecycle.isReady();
+  const selectedItem = entries.find((item) => item.id === selectedTelekinesisTarget);
+  if (selectedItem) {
+    renderTargetLine(formatCompactTarget(displayName(selectedItem)));
+  } else {
+    renderTargetLine("", "Nessuna creatura selezionata");
+  }
   $("telekinesisTitle").textContent = operation === "maintain"
     ? "Ripeti la contesa sulla creatura collegata"
     : "Scegli una nuova creatura";
@@ -1775,9 +1803,148 @@ function renderTelekinesis() {
   $("summary").textContent = "";
 }
 
+function renderActiveMicropills() {
+  const container = $("micropills");
+  if (!container) return;
+  container.replaceChildren();
+  const pills = [];
+
+  // 1. Economia
+  const prepared = isPreparedResolution();
+  const telekinesis = isTelekinesisContest();
+  const blinkReturn = isBlinkReturn();
+  const prismaticWall = isPrismaticWallAction();
+  const econ = prepared
+    ? ""
+    : telekinesis
+      ? "Azione"
+      : (blinkReturn || prismaticWall)
+        ? "Comando GM"
+        : economyLabel(payload?.action?.economy);
+  if (econ) pills.push(econ);
+
+  if (prepared) {
+    const plan = preparedPhasePlan();
+    const prepDamage = plan?.resolution?.mechanics?.damageBonus;
+    if (prepDamage) {
+      const dice = String(prepDamage.dice || "").trim();
+      const type = String(prepDamage.type || "").trim();
+      const pill = [dice, type].filter(Boolean).join(" ");
+      if (pill) pills.push(pill);
+    }
+    const prepSave = plan?.resolution?.mechanics?.savingThrow;
+    if (prepSave) {
+      const ability = String(prepSave.ability || "").trim();
+      pills.push(ability ? `TS ${saveAbilityLabel(ability) || ability}` : "TS");
+      const dc = payload?.spellSaveDC;
+      if (dc) pills.push(`CD ${dc}`);
+      if (prepSave.failureCondition) {
+        pills.push(String(prepSave.failureCondition).trim());
+      }
+    }
+  } else {
+    // 2. Attacco / TS
+    const saveArea = payload?.action?.resolutionKind === "save-area" || childZone()?.resolution === "save";
+    const singleSave = isSingleSave();
+    if (saveArea || singleSave) {
+      const ability = payload?.action?.save?.ability || saveAbility;
+      if (ability) pills.push(`TS ${saveAbilityLabel(ability) || ability}`);
+      else pills.push("TS");
+      const dc = payload?.action?.save?.dc || payload?.spellSaveDC;
+      if (dc) pills.push(`CD ${dc}`);
+    } else if (payload?.action?.attack || isMultiAttack()) {
+      pills.push("Attacco");
+    }
+
+    // 3. Range
+    if (payload?.action?.range) {
+      if (payload.action.rangeOrigin === "root") {
+        pills.push(`${payload.action.range.value} ${payload.action.range.unit} dalla mano`);
+      } else {
+        pills.push(`${payload.action.range.value} ${payload.action.range.unit}`);
+      }
+    } else {
+      const fixedRadius = fixedCasterRadiusConfig();
+      if (fixedRadius?.value) {
+        pills.push(`${String(fixedRadius.value).replace(".", ",")} m`);
+      }
+    }
+
+    // 4. Formula e tipo di danno atomico
+    const formula = spellActiveResolutionDamageFormula({
+      action: payload?.action,
+      slotLevel: payload?.slotLevel,
+      outcome: manualSaveAtTable() ? payload?.action?.assumedOutcome || "failed" : saveOutcome,
+    })?.scaledFormula || spellActiveResolutionHealingFormula({
+      action: payload?.action,
+      slotLevel: payload?.slotLevel,
+    })?.scaledFormula || "";
+    const dType = payload?.action?.damage?.type;
+    if (formula && dType && typeof dType === "string") {
+      pills.push(`${formula} ${dType}`);
+    } else {
+      if (formula) pills.push(formula);
+      if (dType && typeof dType === "string") pills.push(dType);
+    }
+
+    // 5. Conseguenza del save
+    if (payload?.action?.save?.halfOnSuccess || payload?.action?.damage?.onSave === "half") {
+      pills.push("½ successo");
+    } else if (payload?.action?.damage?.onSave === "none" || payload?.action?.save?.noDamageOnSuccess) {
+      pills.push("Nullo se supera");
+    }
+
+    // 6. Condizione
+    if (payload?.action?.condition) {
+      const cond = payload.action.condition;
+      const label = typeof cond === "object" ? cond?.label || cond?.name || "" : String(cond);
+      if (label) pills.push(label);
+    } else if (Array.isArray(payload?.action?.conditions)) {
+      for (const c of payload.action.conditions) {
+        const label = typeof c === "object" ? c?.label || c?.name || "" : String(c || "");
+        if (label) pills.push(label);
+      }
+    }
+
+    // 7. Boundary sintetici
+    if (manualSaveAtTable()) {
+      pills.push("Al tavolo");
+    }
+    if (telekinesis) {
+      pills.push("Contesa For vs For");
+    }
+  }
+
+  for (const pillText of pills) {
+    const span = document.createElement("span");
+    span.className = "micropill";
+    span.textContent = pillText;
+    container.appendChild(span);
+  }
+}
+
+function renderTargetLine(targetName = "", emptyText = "") {
+  const line = $("targetLine");
+  if (!line) return;
+  const cleanName = String(targetName || "").trim();
+  if (cleanName) {
+    line.textContent = `Bersaglio: ${cleanName}`;
+    line.dataset.empty = "false";
+    line.hidden = false;
+  } else if (emptyText) {
+    line.textContent = String(emptyText).trim();
+    line.dataset.empty = "true";
+    line.hidden = false;
+  } else {
+    line.textContent = "";
+    line.hidden = true;
+  }
+}
+
 function render() {
   if (!payload) return;
   if ($("apply")) $("apply").hidden = false;
+  renderTargetLine("");
   renderContext();
   const prepared = isPreparedResolution();
   const child = childZone();
@@ -1787,17 +1954,26 @@ function render() {
   const singleSave = isSingleSave();
   const singleHeal = isSingleHeal();
   const prismaticWall = isPrismaticWallAction();
-  $("title").textContent = prepared
-    ? payload.spellName || payload.spellId
-    : telekinesis
-    ? payload.action?.buttonLabel || payload.action?.label || "Telecinesi"
-    : singleSave
-    ? payload.action?.buttonLabel || payload.action?.label || payload.spellName || payload.spellId
-    : singleHeal
-    ? payload.spellName || payload.spellId || "Aura di Vitalità"
-    : payload.spellName || payload.spellId;
+  const spellTitle = String(payload.spellName || payload.spellId || "Incantesimo").trim();
+  $("title").textContent = spellTitle;
+  const activeActionTitle = singleSave
+    ? payload.action?.buttonLabel || payload.action?.label || spellTitle
+    : payload.action?.buttonLabel || payload.action?.label;
+  const rawActionLabel = String(activeActionTitle || "").trim();
+  const isDifferentAction = rawActionLabel && rawActionLabel.toLocaleLowerCase("it") !== spellTitle.toLocaleLowerCase("it");
+  const isRedundantSubtitle = prepared || rawActionLabel.toLocaleLowerCase("it") === "risolvi";
+  const shouldShowSubtitle = !isRedundantSubtitle && isDifferentAction;
+  const subtitleNode = $("subtitle");
+  if (subtitleNode) {
+    subtitleNode.textContent = shouldShowSubtitle ? rawActionLabel : "";
+    subtitleNode.hidden = !shouldShowSubtitle;
+  }
   $("economy").textContent = prepared ? "" : economyLabel(payload.action.economy);
-  $("caster").textContent = `Caster: ${payload.casterName || payload.casterId}`;
+  $("economy").hidden = true;
+  const casterName = String(payload.casterName || payload.casterId || "").trim();
+  $("caster").textContent = casterName;
+  $("caster").hidden = !casterName;
+  renderActiveMicropills();
   const requiresSave = payload.action.resolutionKind === "save-area" || child?.resolution === "save";
   const multiAttack = !save && !singleSave && !singleHeal && isMultiAttack();
   const sceneReady = sceneLifecycle.isReady();
@@ -1822,6 +1998,7 @@ function render() {
     $("footer").hidden = false;
     $("apply").hidden = false;
     $("economy").textContent = "Azione";
+    renderActiveMicropills();
     renderTelekinesis();
     if (statusMessage) $("status").textContent = statusMessage;
     requestCompactPopoverResize();
@@ -1835,6 +2012,7 @@ function render() {
     $("footer").hidden = false;
     $("title").textContent = payload.spellName || "Muro Prismatico";
     $("economy").textContent = "Comando GM";
+    renderActiveMicropills();
     $("apply").textContent = isPrismaticWallTraversal()
       ? "Risolvi attraversamento"
       : "Segna strato distrutto";
@@ -1852,6 +2030,7 @@ function render() {
     $("footer").hidden = false;
     $("title").textContent = payload.spellName || "Intermittenza";
     $("economy").textContent = "Comando GM";
+    renderActiveMicropills();
     $("apply").hidden = true;
     $("apply").textContent = "Ritorna";
     $("summary").textContent = "";
@@ -1924,9 +2103,11 @@ function render() {
       $("apply").disabled = !sceneReady || busy || !completeAttacks.length
         || completeAttacks.length < attackEntries.filter((entry) => entry.targetId).length;
       $("apply").textContent = "Applica attacchi";
-      $("summary").textContent = `${completeAttacks.length}/${maxAttackCount()} attacchi pronti`;
+      $("summary").textContent = "";
+      $("summary").hidden = true;
     } else {
-      $("summary").textContent = selectedAttackTarget ? "" : "Nessun bersaglio";
+      $("summary").textContent = "";
+      $("summary").hidden = true;
     }
     void renderStorm();
   }

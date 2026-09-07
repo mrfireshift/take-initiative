@@ -23,10 +23,11 @@
         top: 4px;
         left: 4px;
         width: calc(100% - 8px);
-        min-height: 126px;
+        min-height: 56px;
+        height: calc(100% - 8px);
         max-height: calc(100% - 8px);
         overflow: hidden;
-        padding: 14px 62px 14px 106px;
+        padding: 8px 12px 8px 56px;
         border: 2px solid #080b10;
         border-radius: 8px;
         background:
@@ -51,19 +52,18 @@
       }
       .portrait {
         position: absolute;
-        top: 50%;
-        left: 13px;
-        width: 83px;
-        height: 83px;
+        top: 10px;
+        left: 10px;
+        width: 36px;
+        height: 36px;
         overflow: hidden;
         border: 2px solid #080b10;
         border-radius: 50%;
         background: rgba(4, 7, 11, .96);
         box-shadow:
           0 0 0 2px var(--accent),
-          0 0 14px 3px var(--accent-soft),
+          0 0 10px 2px var(--accent-soft),
           inset 0 0 0 1px rgba(255,255,255,.18);
-        transform: translateY(-50%);
       }
       .portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
       .portrait-fallback {
@@ -74,98 +74,171 @@
         justify-content: center;
         background: radial-gradient(circle at 35% 30%, var(--accent-deep), #090d13 72%);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: 35px;
+        font-size: 16px;
         font-weight: 800;
         text-shadow: 0 2px 4px #000;
       }
+      .portrait-fallback.is-aggregate {
+        font-size: 14px;
+        letter-spacing: -1px;
+      }
       .copy { position: relative; min-width: 0; z-index: 1; }
       .eyebrow {
+        margin-bottom: 2px;
         color: var(--accent);
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: 10px;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8px;
         font-weight: 800;
-        letter-spacing: .8px;
+        letter-spacing: .6px;
+        line-height: 1.15;
         text-transform: uppercase;
       }
       .title {
-        margin-top: 3px;
+        margin: 0;
         overflow: hidden;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(18px, 3.5vw, 23px);
+        font-size: clamp(13px, 2.5vw, 15px);
         font-weight: 800;
-        line-height: 1.05;
+        line-height: 1.15;
         text-overflow: ellipsis;
-        text-shadow: 0 2px 3px rgba(0,0,0,.9);
+        text-shadow: 0 1px 3px rgba(0,0,0,.9);
         white-space: nowrap;
       }
       .save-badge {
         position: absolute;
-        top: 14px;
-        right: 15px;
-        width: 38px;
-        height: 38px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid #080b10;
-        border-radius: 50%;
-        background: rgba(5, 9, 14, .88);
-        box-shadow: 0 0 0 1px var(--accent), inset 0 0 12px var(--accent-soft);
+        top: 9px;
+        right: 12px;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 3px;
+        padding: 2px 6px;
+        border: 1px solid rgba(251, 146, 60, .40);
+        border-radius: 4px;
+        background: rgba(104, 39, 20, .40);
+        box-shadow: 0 0 8px rgba(251, 146, 60, .20);
         line-height: 1;
         z-index: 1;
       }
-      .save-badge span { color: var(--accent); font-size: 7px; font-weight: 900; letter-spacing: .4px; }
-      .save-badge strong { margin-top: 2px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; }
+      .save-badge span {
+        color: var(--accent);
+        font: 800 8px system-ui, sans-serif;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+      }
+      .save-badge strong {
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 12px;
+        font-weight: 800;
+      }
       .list {
         position: relative;
         display: grid;
-        gap: 5px;
-        max-height: calc(100% - 48px);
-        margin-top: 8px;
-        padding-top: 6px;
+        gap: 4px;
+        max-height: calc(100% - 36px);
+        margin-top: 4px;
+        padding-top: 0;
         overflow-y: auto;
-        border-top: 1px solid rgba(251,146,60,.42);
         z-index: 1;
       }
-      .row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto auto;
-        gap: 6px;
-        align-items: center;
-        padding: 4px 6px;
-        border: 1px solid rgba(255,255,255,.10);
-        border-radius: 4px;
-        background: rgba(0,0,0,.24);
+      .warning-single .list {
+        max-height: none;
+        overflow: visible;
       }
-      .warning-single .row { grid-template-columns: minmax(0, 1fr) auto auto; }
-      .identity { min-width: 0; }
-      .name { overflow: hidden; font-family: Georgia, "Times New Roman", serif; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-      .spell-name { margin-top: 1px; overflow: hidden; color: rgba(255,255,255,.62); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-      .damage { color: rgba(255,255,255,.68); font-size: 9px; }
-      .dc { color: var(--accent); font-size: 10px; font-weight: 900; }
-      .resolution {
+      .row {
         display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+        min-width: 0;
+      }
+      .warning-single .row {
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .warning-multiple .row {
+        padding: 3px 6px;
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 4px;
+        background: rgba(0,0,0,.20);
+      }
+      .identity {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        min-width: 0;
+      }
+      .name {
+        overflow: hidden;
+        color: #fff;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .warning-multiple .name {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .spell-name {
+        overflow: hidden;
+        color: rgba(255, 255, 255, .50);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .damage, .dc {
+        display: inline-flex;
+        align-items: center;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 8.5px;
+        line-height: 1.2;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .damage {
+        color: rgba(255, 255, 255, .75);
+        font-weight: 600;
+      }
+      .dc {
+        color: rgba(255, 255, 255, .88);
+        font-weight: 800;
+      }
+      .resolution {
+        position: relative;
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 3px;
         pointer-events: auto;
       }
       .resolution button {
-        min-height: 18px;
-        padding: 3px 5px;
+        min-height: 19px;
+        padding: 2px 6px;
         border: 1px solid rgba(255,255,255,.26);
         border-radius: 4px;
         background: rgba(4, 8, 13, .82);
         color: #fff;
         cursor: pointer;
-        font: 700 8px/1 system-ui, sans-serif;
+        font: 700 8.5px/1 system-ui, sans-serif;
         pointer-events: auto;
       }
-      .resolution button:hover { border-color: var(--accent); }
+      .resolution button:hover {
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 30%, rgba(4,8,13,.88));
+      }
       .resolution button:disabled { cursor: default; opacity: .52; }
       .resolution-status {
-        grid-column: 1 / -1;
+        flex-basis: 100%;
         color: var(--accent);
-        font-size: 8px;
+        font-size: 8.5px;
         font-weight: 800;
       }
       .timer {
@@ -190,10 +263,9 @@
       }
       @keyframes expire { to { transform: scaleX(0); } }
       @media (max-width: 520px) {
-        .warning { padding: 13px 54px 12px 88px; min-height: 114px; }
-        .portrait { left: 11px; width: 66px; height: 66px; }
-        .title { font-size: 18px; }
-        .save-badge { top: 12px; right: 12px; width: 36px; height: 36px; }
+        .warning { padding: 8px 12px 8px 52px; min-height: 56px; }
+        .portrait { left: 8px; width: 34px; height: 34px; }
+        .title { font-size: 14px; }
       }
     </style>
   </head>

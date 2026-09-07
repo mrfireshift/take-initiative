@@ -5,6 +5,7 @@ import {
 } from "./roomMetadataBudget.js";
 
 export const ACTOR_VITALS_SCHEMA_VERSION = 1;
+export const ACTOR_VITALS_HP_STATE_ABSENT = "absent";
 export const ACTOR_VITALS_DEFAULT_ROOM_MAX_BYTES =
   ROOM_METADATA_DOMAIN_MAX_BYTES["actor-vitals"];
 
@@ -45,16 +46,32 @@ export function isValidActorVitalsRecord(value) {
     && validHPMax(value.hpMax) !== null;
 }
 
+export function isAbsentActorVitalsRecord(value) {
+  return plainObject(value)
+    && value.hpState === ACTOR_VITALS_HP_STATE_ABSENT;
+}
+
+function isAuthoritativeActorVitalsRecord(value) {
+  return isValidActorVitalsRecord(value) || isAbsentActorVitalsRecord(value);
+}
+
 export function normalizeActorVitalsRecord(value) {
   const source = plainObject(value) ? value : {};
   const normalized = { ...source };
   const hp = validHP(source.hp);
   const hpMax = validHPMax(source.hpMax);
 
-  if (hp === null) delete normalized.hp;
-  else normalized.hp = hp;
-  if (hpMax === null) delete normalized.hpMax;
-  else normalized.hpMax = hpMax;
+  if (isAbsentActorVitalsRecord(source)) {
+    normalized.hpState = ACTOR_VITALS_HP_STATE_ABSENT;
+    delete normalized.hp;
+    delete normalized.hpMax;
+  } else {
+    if (hp === null) delete normalized.hp;
+    else normalized.hp = hp;
+    if (hpMax === null) delete normalized.hpMax;
+    else normalized.hpMax = hpMax;
+    if (isValidActorVitalsRecord(normalized)) delete normalized.hpState;
+  }
 
   if (Object.prototype.hasOwnProperty.call(source, "updatedAt")) {
     normalized.updatedAt = validTimestamp(source.updatedAt);
@@ -111,9 +128,9 @@ export function normalizeActorVitalsRegistry(value) {
 }
 
 export function compareActorVitalsRecords(left, right) {
-  const leftValid = isValidActorVitalsRecord(left);
-  const rightValid = isValidActorVitalsRecord(right);
-  if (leftValid !== rightValid) return leftValid ? 1 : -1;
+  const leftAuthoritative = isAuthoritativeActorVitalsRecord(left);
+  const rightAuthoritative = isAuthoritativeActorVitalsRecord(right);
+  if (leftAuthoritative !== rightAuthoritative) return leftAuthoritative ? 1 : -1;
 
   const leftUpdatedAt = validTimestamp(left?.updatedAt);
   const rightUpdatedAt = validTimestamp(right?.updatedAt);
@@ -176,13 +193,40 @@ export function upsertActorVitalsRecord(
   const previousRevision = validRevision(previous.revision);
   const previousTimestamp = validTimestamp(previous.updatedAt);
   const currentTime = validTimestamp(now());
-  normalized.actors[id] = {
+  const nextRecord = {
     ...previous,
     hp: nextHP,
     hpMax: nextHPMax,
     updatedAt: Math.max(currentTime, previousTimestamp + 1),
     revision: previousRevision + 1,
   };
+  delete nextRecord.hpState;
+  normalized.actors[id] = nextRecord;
+  return normalized;
+}
+
+export function upsertActorVitalsAbsentRecord(
+  registry,
+  actorProfileId,
+  { now = Date.now } = {},
+) {
+  const id = normalizeActorProfileId(actorProfileId);
+  if (!id) return normalizeActorVitalsRegistry(registry);
+
+  const normalized = normalizeActorVitalsRegistry(registry);
+  const previous = normalized.actors[id] || {};
+  const previousRevision = validRevision(previous.revision);
+  const previousTimestamp = validTimestamp(previous.updatedAt);
+  const currentTime = validTimestamp(now());
+  const nextRecord = {
+    ...previous,
+    hpState: ACTOR_VITALS_HP_STATE_ABSENT,
+    updatedAt: Math.max(currentTime, previousTimestamp + 1),
+    revision: previousRevision + 1,
+  };
+  delete nextRecord.hp;
+  delete nextRecord.hpMax;
+  normalized.actors[id] = nextRecord;
   return normalized;
 }
 
@@ -202,8 +246,8 @@ export function retainActorVitalsRegistryWithinByteBudget(
     actors: {},
   };
   const ordered = Object.entries(source.actors).sort(([leftId, left], [rightId, right]) => {
-    const validPriority = Number(isValidActorVitalsRecord(right))
-      - Number(isValidActorVitalsRecord(left));
+    const validPriority = Number(isAuthoritativeActorVitalsRecord(right))
+      - Number(isAuthoritativeActorVitalsRecord(left));
     if (validPriority) return validPriority;
     const updatedAt = validTimestamp(right.updatedAt) - validTimestamp(left.updatedAt);
     if (updatedAt) return updatedAt;

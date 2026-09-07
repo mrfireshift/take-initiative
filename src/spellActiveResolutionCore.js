@@ -851,3 +851,35 @@ export function buildSpellActiveResolutionResourceOperations({
 export function normalizeActiveResolutionTargetIds(targetIds) {
   return uniqueIds(targetIds);
 }
+
+// Restituisce il display name canonico di un token o combattente,
+// conservando la numerazione progressiva nativa (es. "(3) Cultist")
+// senza mai reinterpretarla come count aggregato.
+export function spellActiveResolutionTokenDisplayName(item) {
+  return String(item?.name || "").trim() || "Token";
+}
+
+// Formatta l'identità visuale di un target per la presentation projection.
+// Per un target singolo, conserva sempre l'identità reale del token.
+// Se è presente uno stato specifico (es. "Trattenuto"), lo accoda come tag.
+export function formatCompactTarget(itemOrName, state = "") {
+  const raw = typeof itemOrName === "object" && itemOrName !== null
+    ? spellActiveResolutionTokenDisplayName(itemOrName)
+    : String(itemOrName || "").trim();
+  const name = raw || "Token";
+  if (!state) return name;
+  return `${name} [${state.toUpperCase()}]`;
+}
+
+// Formatta un'aggregazione multi-target reale (distinta dal singolo token numerato).
+// Es. 3 Cultist distinti coinvolti in una AOE -> "Cultist ×3" oppure "3 bersagli".
+export function formatMultiTargetCount(baseNameOrCount, count = 0) {
+  if (typeof baseNameOrCount === "number") {
+    return `${baseNameOrCount} bersagli`;
+  }
+  const base = String(baseNameOrCount || "").trim();
+  const n = Number(count) || 0;
+  if (n <= 1) return base || "Token";
+  return base ? `${base} ×${n}` : `${n} bersagli`;
+}
+

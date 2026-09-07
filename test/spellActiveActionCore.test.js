@@ -50,6 +50,62 @@ test("la stessa API espone risoluzioni preparate e attivazioni manuali", () => {
   }), []);
 });
 
+test("Sudario Spirituale espone al GM il marker anti-guarigione senza action economy", () => {
+  const spell = getSpellDefinition("Sudario Spirituale");
+  const actions = getSpellOverviewActions({
+    spell,
+    casterId: "caster",
+    targetIds: [],
+  });
+  assert.deepEqual(actions.map((action) => action.id), ["spirit-shroud-mark-hit"]);
+  assert.equal(actions[0].economy, "Comando GM");
+  assert.equal(actions[0].resolutionKind, undefined);
+  assert.equal(actions[0].availableAfterCast, undefined);
+  assert.equal(actions[0].maxTargets, 1);
+  assert.deepEqual(actions[0].rejectActiveEffectIds, ["spirit-shroud-anti-healing"]);
+
+  const plan = buildSpellActiveActionPlan({
+    spell,
+    actionId: "spirit-shroud-mark-hit",
+    group: group({ name: spell.displayName }),
+    selectedTargetIds: ["target"],
+    appliedAt: { round: 2, actorId: "caster", turnKey: "2:1:target" },
+    casterName: "Caster",
+  });
+  assert.equal(plan.valid, true);
+  assert.equal(plan.operations.length, 2);
+  assert.equal(plan.operations[0].type, "condition:add");
+  assert.deepEqual(plan.operations[0].targetIds, ["target"]);
+  assert.equal(plan.operations[0].conditionName, "No recupero PF");
+  assert.equal(plan.operations[0].options.parentEffectId, "cast-1");
+  assert.equal(plan.operations[0].options.effectId, "spirit-shroud-anti-healing");
+  assert.equal(plan.operations[0].options.mechanics, undefined);
+  assert.deepEqual(plan.operations[0].options.expiry, {
+    mode: "turn-start",
+    actor: "source",
+    remaining: 1,
+    anchor: "next-turn",
+  });
+  assert.equal(plan.operations[1].type, "condition:automate");
+  assert.match(plan.historyLabel, /Segna bersaglio colpito/);
+
+  const duplicate = buildSpellActiveActionPlan({
+    spell,
+    actionId: "spirit-shroud-mark-hit",
+    group: group({
+      name: spell.displayName,
+      effectInstances: [{
+        itemId: "target",
+        instanceId: "marker-1",
+        effectId: "spirit-shroud-anti-healing",
+      }],
+    }),
+    selectedTargetIds: ["target"],
+  });
+  assert.equal(duplicate.valid, false);
+  assert.ok(duplicate.errors.includes("targets-active-effect:target"));
+});
+
 test("Raffica di Spine espone l'area active senza richiedere un esito dell'attacco", () => {
   const spell = getSpellDefinition("Raffica di Spine");
   const actions = getSpellOverviewActions({

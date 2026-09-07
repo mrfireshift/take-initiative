@@ -4,6 +4,7 @@ import {
   staleAreaMembershipEffectRemovals,
 } from "./spellAreaMembershipCore.js";
 import { getSpellAreaRules } from "./spellAreaRules.js";
+import { resolveSpellEffect } from "./spellMechanicsCore.js";
 import { ID } from "./constants.js";
 
 export const SPELL_AURA_META_KEY = `${ID}/spellAura`;
@@ -19,6 +20,59 @@ const uniqueIds = (values = []) => Array.from(new Set(
     .map((value) => String(value || "").trim())
     .filter(Boolean)
 ));
+
+const SPIRIT_SHROUD_ID = "tasha-sudario-spirituale";
+const SPIRIT_SHROUD_DAMAGE_TYPES = new Set(["radiosi", "necrotici", "freddo"]);
+
+function castContextForActiveSpell(spell) {
+  const context = spell?.castContext && typeof spell.castContext === "object"
+    ? { ...spell.castContext }
+    : {};
+  if (context.slotLevel === undefined && Number.isFinite(Number(spell?.slotLevel))) {
+    context.slotLevel = Math.floor(Number(spell.slotLevel));
+  }
+  if (!String(context.choice || "").trim()) {
+    const choice = String(
+      spell?.choiceValue || spell?.variant || spell?.choice?.value || "",
+    ).trim();
+    if (choice) context.choice = choice;
+  }
+  return context;
+}
+
+function resolvedMobileAuraRule(aura) {
+  const rule = aura?.rule;
+  if (aura?.spellId !== SPIRIT_SHROUD_ID || !rule) return rule;
+  const effect = rule.effectPolicy?.effect;
+  if (!effect) return rule;
+  const rawChoice = String(aura?.castContext?.choice || "")
+    .trim()
+    .toLocaleLowerCase("it");
+  const type = SPIRIT_SHROUD_DAMAGE_TYPES.has(rawChoice)
+    ? rawChoice
+    : String(effect.mechanics?.damageBonus?.type || "danni").trim();
+  const resolved = resolveSpellEffect({
+    ...effect,
+    mechanics: {
+      ...(effect.mechanics || {}),
+      damageBonus: {
+        ...(effect.mechanics?.damageBonus || {}),
+        type,
+      },
+    },
+  }, aura.castContext || {});
+  const damageDice = String(resolved.mechanics?.damageBonus?.dice || "1d8").trim();
+  return {
+    ...rule,
+    effectPolicy: {
+      ...rule.effectPolicy,
+      effect: {
+        ...resolved,
+        detail: `Quando il caster colpisce una creatura entro 3 metri, l'attacco infligge +${damageDice} danni ${type}; bonus e applicazione restano manuali al tavolo.`,
+      },
+    },
+  };
+}
 
 export function getMobileAuraRule(spellId) {
   return getSpellAreaRules(spellId, { triggerType: "cast" })
@@ -38,12 +92,18 @@ export function collectActiveMobileAuras(items = [], {
       const instanceId = String(spell?.instanceId || "").trim();
       const casterId = String(spell?.casterId || target?.id || "").trim();
       if (!rule || !instanceId || !casterId || auras.has(instanceId)) continue;
-      auras.set(instanceId, {
+      const castContext = castContextForActiveSpell(spell);
+      const aura = {
         instanceId,
         spellId: String(spell.spellId || "").trim(),
         spellName: String(spell.name || spell.spellName || "").trim(),
         casterId,
+        castContext,
         rule,
+      };
+      auras.set(instanceId, {
+        ...aura,
+        rule: resolvedMobileAuraRule(aura),
       });
     }
   }
@@ -77,7 +137,7 @@ export function mobileAuraMembershipPlan({
   return areaMembershipPlan({
     instanceId: aura.instanceId,
     sourceId: aura.casterId,
-    rule: aura.rule,
+    rule: resolvedMobileAuraRule(aura),
     desiredTargetIds,
     items,
     metaKey,

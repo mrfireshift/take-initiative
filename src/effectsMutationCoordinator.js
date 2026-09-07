@@ -127,7 +127,10 @@ export function createEffectsMutationCoordinator({
       }
       const operations = command.operations;
 
-      const plan = await prepare(
+      let plan;
+      let commitResult;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+      plan = await prepare(
         Array.isArray(operations) ? operations : [],
         { command, sceneEpoch: command.sceneEpoch, isCurrent: isCommandCurrent },
       );
@@ -143,11 +146,20 @@ export function createEffectsMutationCoordinator({
       }
       if (!isCommandCurrent()) return staleResult(command, "stale-after-prepare");
 
-      const commitResult = await commit(plan, {
+      commitResult = await commit(plan, {
         command,
         sceneEpoch: command.sceneEpoch,
         isCurrent: isCommandCurrent,
       });
+      if (commitResult?.status !== EFFECTS_MUTATION_STATUS.CONFLICT) break;
+      // A rejected draft wrote nothing. Rebuild the whole plan (including
+      // side effects and History) from live state, never patch the old after.
+      if (commitResult.reason !== "stale-effects-plan" || attempt === 2) {
+        return baseResult(command, EFFECTS_MUTATION_STATUS.CONFLICT, {
+          ...commitResult, changedIds: [], changes: [], committed: false,
+        });
+      }
+      }
       if (
         commitResult?.status === EFFECTS_MUTATION_STATUS.REJECTED
         && commitResult?.committed !== true

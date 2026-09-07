@@ -35,13 +35,13 @@ function popoverId(instanceId) {
 function actionCopy(action = {}) {
   const id = String(action.actionId || action.action?.id || "");
   if (id === "maximilian-earth-grasp-grab") {
-    return "Scegli un bersaglio adiacente e applica Trattenuto dopo il TS risolto al tavolo.";
+    return "TS For · Trattenuto (al tavolo)";
   }
   if (id === "maximilian-earth-grasp-crush") {
-    return "Sul bersaglio già trattenuto: 2d6 contundenti, metà se supera il TS.";
+    return "2d6 contundenti · metà su superato";
   }
   if (id === "eyebite-saved") {
-    return "Segna il bersaglio come immune a questo lancio.";
+    return "Immune a questo lancio";
   }
   if (id === "eyebite-asleep") {
     return "Privo di sensi";
@@ -50,9 +50,12 @@ function actionCopy(action = {}) {
     return "Spaventato";
   }
   if (id === "eyebite-sickened") {
-    return "Svantaggio ad attacchi e prove";
+    return "Svant. attacchi e prove";
   }
-  return String(action.action?.detail || "Risolvi l'azione dell'incantesimo.");
+  if (id === "spirit-shroud-mark-hit") {
+    return "No recupero PF";
+  }
+  return String(action.action?.detail || "");
 }
 
 function point(value) {
@@ -107,9 +110,14 @@ function syncEyebiteTargetFromSelection(selection, targets) {
 function itemHasExcludedEyebiteEffect(item, request) {
   const effectIds = new Set(
     (Array.isArray(request?.actions) ? request.actions : [])
-      .flatMap((payload) => Array.isArray(payload?.action?.excludedTargetEffectIds)
-        ? payload.action.excludedTargetEffectIds
-        : [])
+      .flatMap((payload) => [
+        ...(Array.isArray(payload?.action?.excludedTargetEffectIds)
+          ? payload.action.excludedTargetEffectIds
+          : []),
+        ...(Array.isArray(payload?.action?.rejectActiveEffectIds)
+          ? payload.action.rejectActiveEffectIds
+          : []),
+      ])
       .map((value) => String(value || "").trim())
       .filter(Boolean),
   );
@@ -138,8 +146,11 @@ async function eyebiteTargets(request) {
     && !itemHasExcludedEyebiteEffect(item, request)
     && (!declaredIds.size || declaredIds.has(String(item?.id || "").trim()))
   ));
+  const liveCandidateIds = new Set(liveCandidates.map((item) => String(item?.id || "").trim()));
   const candidates = declaredCandidates.length
-    ? declaredCandidates.map((entry) => byId.get(entry.id) || entry)
+    ? declaredCandidates
+      .filter((entry) => !byId.has(entry.id) || liveCandidateIds.has(entry.id))
+      .map((entry) => byId.get(entry.id) || entry)
     : liveCandidates;
   if (!candidates.length) return [];
 
@@ -155,10 +166,11 @@ async function eyebiteTargets(request) {
   const casterOrigin = itemCenter(casterBounds, caster);
   if (!casterOrigin) return candidates;
 
+  const unrestricted = request?.targetSelectionMode === "free";
   const declaredRange = (Array.isArray(request?.actions) ? request.actions : [])
     .map((payload) => payload?.action?.range)
     .find((range) => Number(range?.value) > 0 && range?.unit === "m");
-  const range = declaredRange || { value: 18, unit: "m" };
+  const range = unrestricted ? null : (declaredRange || { value: 18, unit: "m" });
   const filtered = [];
   for (const item of candidates) {
     const liveItem = byId.get(item.id) || item;
@@ -166,7 +178,7 @@ async function eyebiteTargets(request) {
       ? await OBR.scene.items.getItemBounds([item.id]).catch(() => null)
       : null;
     const origin = itemCenter(bounds, liveItem);
-    if (!origin || spellAreaOriginWithinRange({
+    if (unrestricted || !origin || spellAreaOriginWithinRange({
       origin,
       casterOrigin,
       range,
@@ -176,7 +188,7 @@ async function eyebiteTargets(request) {
   }
   // Se il frame del popover riceve geometria incoerente/temporaneamente
   // incompleta, non nascondiamo tutti i target: il commit resta il gate
-  // autoritativo per i 18 m.
+  // autoritativo per i 18 m quando il chooser dichiara una distanza RAW.
   return filtered.length ? filtered : candidates;
 }
 
@@ -198,10 +210,37 @@ let selectionPollBusy = false;
 app.dataset.popoverId = popoverId(request?.instanceId);
 initializePopoverDrag(app);
 
+let resizeFrame = 0;
+let lastPopoverHeight = 0;
+
+function requestCompactPopoverResize() {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(async () => {
+    await sdkReady;
+    const appElement = document.getElementById("app");
+    if (!appElement) return;
+    const rectHeight = appElement.getBoundingClientRect?.().height || 0;
+    const naturalHeight = Math.ceil(
+      Math.max(rectHeight, appElement.offsetHeight || 0, appElement.scrollHeight || 0) + 8,
+    );
+    const targetHeight = Math.max(80, Math.min(500, naturalHeight));
+    if (targetHeight === lastPopoverHeight) return;
+    const id = appElement.dataset.popoverId || popoverId(request?.instanceId);
+    if (id) {
+      OBR.popover.setHeight(id, targetHeight)
+        .then(() => {
+          lastPopoverHeight = targetHeight;
+        })
+        .catch(() => {});
+    }
+  });
+}
+
 function setStatus(message = "", error = false) {
   status.textContent = String(message || "");
   status.hidden = !message;
   status.dataset.error = error ? "true" : "false";
+  requestCompactPopoverResize();
 }
 
 function setDirectBusy(value) {
@@ -212,8 +251,10 @@ function setDirectBusy(value) {
 
 async function renderEyebiteDirect() {
   await sdkReady;
-  app.dataset.mode = "direct";
-  hint.textContent = "Scegli il bersaglio, poi registra il TS superato oppure applica direttamente l'effetto scelto dopo un fallimento.";
+  const freeTargetSelection = request?.targetSelectionMode === "free";
+  app.dataset.mode = freeTargetSelection ? "compact" : "direct";
+  hint.textContent = request?.choiceHint || "";
+  hint.hidden = !hint.textContent;
   targetField.hidden = false;
   const targets = await eyebiteTargets(request);
   targetSelect.replaceChildren(new Option("Seleziona il bersaglio", ""));
@@ -228,12 +269,21 @@ async function renderEyebiteDirect() {
   for (const payload of Array.isArray(request.actions) ? request.actions : []) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "action action--direct";
+    button.className = freeTargetSelection
+      ? "action action--compact"
+      : "action action--direct";
+    button.dataset.actionId = String(payload.actionId || "").trim();
     const strong = document.createElement("strong");
     strong.textContent = payload.action?.buttonLabel || payload.action?.label || payload.actionId;
-    const detail = document.createElement("span");
-    detail.textContent = actionCopy(payload);
-    button.append(strong, detail);
+    button.append(strong);
+    if (!freeTargetSelection) {
+      const detailText = actionCopy(payload);
+      if (detailText) {
+        const detail = document.createElement("span");
+        detail.textContent = detailText;
+        button.append(detail);
+      }
+    }
     button.addEventListener("click", async () => {
       const targetId = String(targetSelect.value || "").trim();
       if (!targetId || busy) return;
@@ -257,7 +307,14 @@ async function renderEyebiteDirect() {
   }
   targetSelect.addEventListener("change", () => setDirectBusy(false));
   setDirectBusy(false);
-  if (!targets.length) setStatus("Nessun bersaglio valido entro 18 m.", true);
+  if (!targets.length) {
+    setStatus(
+      request?.targetSelectionMode === "free"
+        ? "Nessun bersaglio disponibile."
+        : "Nessun bersaglio valido entro 18 m.",
+      true,
+    );
+  }
 
   // La selection OBR è un enhancement post-render: non deve mai bloccare la
   // costruzione del chooser. onChange è affiancato da un polling leggero, lo
@@ -282,14 +339,15 @@ async function renderEyebiteDirect() {
   if (selectionPollTimer) window.clearInterval(selectionPollTimer);
   selectionPollTimer = window.setInterval(() => { void refreshSelection(); }, 150);
   void refreshSelection();
+  requestCompactPopoverResize();
 }
 
 function renderLegacyChoice() {
   const compact = Array.isArray(request?.actions) && request.actions.length === 1;
   app.dataset.spell = String(request?.spellId || "").trim();
   if (compact) app.dataset.mode = "compact";
-  hint.textContent = request?.choiceHint
-    || "Scegli un'azione. Le stesse azioni restano disponibili nel modulo Incantesimi.";
+  hint.textContent = request?.choiceHint || "";
+  hint.hidden = !hint.textContent;
   for (const payload of Array.isArray(request?.actions) ? request.actions : []) {
     const button = document.createElement("button");
     button.type = "button";
@@ -301,9 +359,12 @@ function renderLegacyChoice() {
     button.append(strong);
     if (!compact) {
       if (request?.spellId !== "telekinesis") {
-        const detail = document.createElement("span");
-        detail.textContent = actionCopy(payload);
-        button.append(detail);
+        const detailText = actionCopy(payload);
+        if (detailText) {
+          const detail = document.createElement("span");
+          detail.textContent = detailText;
+          button.append(detail);
+        }
       }
     }
     button.addEventListener("click", async () => {
@@ -322,17 +383,21 @@ function renderLegacyChoice() {
     });
     actions.append(button);
   }
+  requestCompactPopoverResize();
 }
 
+window.addEventListener("resize", () => requestCompactPopoverResize());
+
 if (!request) {
-  title.textContent = "Azione incantesimo";
-  hint.textContent = "Contesto non disponibile. Chiudi e riapri l'azione dal modulo Incantesimi.";
+  title.textContent = "Azione";
+  hint.textContent = "Contesto non disponibile.";
+  hint.hidden = false;
   setStatus("Contesto azione non disponibile.", true);
 }
 
 if (request) {
-  title.textContent = request.spellName || request.spellId || "Azione incantesimo";
-  if (request.spellId === "eyebite") {
+  title.textContent = request.spellName || request.spellId || "Azione";
+  if (request.spellId === "eyebite" || request.targetSelection === true) {
     void renderEyebiteDirect();
   } else {
     renderLegacyChoice();

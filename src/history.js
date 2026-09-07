@@ -52,6 +52,7 @@ const __suppressedMovements = new Map();
 const __sceneHistorySnapshot = new Map();
 const __historyRestoreSuppressedIds = new Map();
 const __pendingHistoryAppends = new Map();
+const __pendingHistoryCaptures = new Set();
 const __pendingHistoryRemovals = new Map();
 const __undoCombatLogCommands = new Set();
 const __movementSegmentListeners = new Set();
@@ -180,6 +181,7 @@ export async function flushPendingHistoryAppends(sceneEpoch = currentSceneEpoch(
 }
 
 export function hasPendingHistoryAppends(sceneEpoch = currentSceneEpoch()) {
+  if ([...__pendingHistoryCaptures].some((capture) => capture.isCurrent())) return true;
   if (!__pendingHistoryAppends.size) return false;
   return [...__pendingHistoryAppends.values()].some((p) => (
     !sceneEpoch || isCurrentSceneEpoch(p.sceneEpoch)
@@ -862,17 +864,47 @@ export async function withItemMetaHistory(options, action) {
     } catch (err) {
       console.warn("[history] capture before:", err?.message || err);
       if (!isOperationCurrent()) return undefined;
-      return action();
+      err.phase = "history-before-capture";
+      err.committed = false;
+      throw err;
     }
 
     if (!isOperationCurrent()) return undefined;
-    const result = await action();
-    if (!isOperationCurrent()) return result;
+    let result;
+    let actionError = null;
     try {
-      const [after, sceneAfter] = await Promise.all([
-        captureMetadata ? captureItems(itemIds, fields) : [],
-        captureSceneItems(sceneItemIds),
-      ]);
+      result = await action();
+    } catch (error) {
+      actionError = error;
+    }
+    if (!isOperationCurrent()) return result;
+    let recordedEntry = null;
+    let historyPending = false;
+    let hasMeaningfulChanges = false;
+    try {
+      // Never replay the action after a read failure. Retain the before and
+      // hold this action's queue until its after is readable. Undo sees the
+      // capture barrier; append retry continues to use the existing owner.
+      const capture = { isCurrent: isOperationCurrent };
+      __pendingHistoryCaptures.add(capture);
+      let after, sceneAfter;
+      try {
+        while (isOperationCurrent()) {
+          try {
+            [after, sceneAfter] = await Promise.all([
+              captureMetadata ? captureItems(itemIds, fields) : [],
+              captureSceneItems(sceneItemIds),
+            ]);
+            break;
+          } catch (error) {
+            console.warn("[history] capture after pending (action will not be repeated):", error?.message || error);
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+        }
+      } finally {
+        __pendingHistoryCaptures.delete(capture);
+      }
+      if (!isOperationCurrent()) return result;
       const afterById = new Map(after.map((item) => [item.id, item]));
 
       const changes = before.map((item) => {
@@ -925,15 +957,28 @@ export async function withItemMetaHistory(options, action) {
         };
       }
       if (typeof options?.decorateEntry === "function") {
-        const decorated = await options.decorateEntry(entry);
-        if (decorated && typeof decorated === "object") entry = decorated;
+        try {
+          const decorated = await options.decorateEntry(entry);
+          if (decorated && typeof decorated === "object") entry = decorated;
+        } catch (error) {
+          // The raw before/after is still undoable. Decoration must never
+          // discard an already captured canonical transition.
+          actionError ||= error;
+        }
       }
-      const hasMeaningfulChanges = (Array.isArray(entry.changes) && entry.changes.length > 0)
+      hasMeaningfulChanges = (Array.isArray(entry.changes) && entry.changes.length > 0)
         || (Array.isArray(entry.effectsMutation?.changes) && entry.effectsMutation.changes.length > 0)
         || (Array.isArray(entry.effectsMutation?.sideEffects) && entry.effectsMutation.sideEffects.length > 0)
         || (entry.payload?.causality?.teleport === true);
 
       if (hasMeaningfulChanges && isOperationCurrent()) {
+        if (actionError) {
+          entry.payload = { ...entry.payload, partialCommit: {
+            message: String(actionError?.message || actionError),
+            phase: String(actionError?.phase || "action"),
+          } };
+        }
+        recordedEntry = entry;
         const historyCommandId = `history-command:${createEntryId()}`;
         try {
           const ownerResult = await appendEntry(entry, {
@@ -961,6 +1006,7 @@ export async function withItemMetaHistory(options, action) {
             catch (err) { console.warn("[history] onRecorded:", err?.message || err); }
           }
         } catch (err) {
+          historyPending = true;
           if (typeof options?.onHistoryStatus === "function") {
             try {
               await options.onHistoryStatus({
@@ -983,7 +1029,20 @@ export async function withItemMetaHistory(options, action) {
     } catch (err) {
       console.warn("[history] record:", err?.message || err);
     }
-
+    if (actionError) {
+      if (!hasMeaningfulChanges) {
+        actionError.committed = false;
+        actionError.phase ||= "canonical-action";
+        throw actionError;
+      }
+      return {
+        status: "partial", committed: true, partial: true,
+        historyEntryId: recordedEntry?.id || null, historyPending,
+        changes: cloneValue(recordedEntry?.changes || []),
+        error: { name: String(actionError?.name || "Error"), message: String(actionError?.message || actionError) },
+        result,
+      };
+    }
     return result;
   };
 

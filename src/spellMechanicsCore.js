@@ -96,6 +96,10 @@ export function spellMechanicsLabel(mechanics, fallback = "", effectId = "") {
     parts.push(`${label} · +${Number(mechanics.weaponBonus.bonus)}`);
   }
   if (mechanics.damageBonus?.dice) {
+    if (effectId === "spirit-shroud-aura-damage") {
+      parts.push(`Subisce ${mechanics.damageBonus.dice} danni extra`);
+      return parts.join(" / ");
+    }
     const type = String(mechanics.damageBonus.type || "danni").trim();
     const source = mechanics.damageBonus.sourceOnly === true ? " dal caster" : "";
     const prefix = mechanics.damageBonus.total === true ? "" : "+";

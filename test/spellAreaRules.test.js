@@ -217,6 +217,15 @@ test("le aree ostili includono il caster salvo immunità esplicite", () => {
   );
 });
 
+test("Aura Sacra include il caster tra le creature selezionabili al lancio", () => {
+  const rule = getSpellAreaRuleById("holy-aura:cast");
+
+  assert.equal(rule.kind, "instant");
+  assert.equal(rule.targeting.filter, "all");
+  assert.equal(rule.targeting.includeCaster, true);
+  assert.equal(rule.targeting.confirmTargets, true);
+});
+
 test("il validatore rifiuta lifecycle incoerenti senza correggerli implicitamente", () => {
   const invalidAura = {
     id: "invalid:aura",
@@ -769,6 +778,42 @@ test("Folata, Guardiano, Guardiani Spirituali e Controllare Venti seguono i trig
     trigger.damage.dice === "3d8"
     && trigger.damage.onSave === "half"
   ));
+
+  const shroud = getSpellAreaRuleById("tasha-sudario-spirituale:aura");
+  assert.equal(shroud.kind, "aura");
+  assert.equal(shroud.geometry.size.value, 3);
+  assert.equal(shroud.geometry.size.measure, "radius");
+  assert.equal(shroud.placement.origin, "caster");
+  assert.equal(shroud.placement.anchor, "caster");
+  assert.equal(shroud.targeting.includeCaster, false);
+  assert.equal(shroud.targeting.confirmTargets, false);
+  assert.equal(shroud.effectPolicy.mode, "while-inside");
+  assert.equal(shroud.effectPolicy.effect.id, "spirit-shroud-aura-damage");
+  assert.deepEqual(shroud.effectPolicy.effect.targeting, {
+    filter: "hostile",
+    includeCaster: false,
+  });
+  assert.deepEqual(shroud.effectPolicy.effect.summaryParts, [
+    { id: "spirit-shroud-aura-damage", label: "Subisce 1d8 danni extra" },
+  ]);
+  assert.deepEqual(shroud.effectPolicy.effect.mechanics.damageBonus.dice, {
+    count: { base: 1, baseSlot: 3, perSlotAbove: 1, step: 2 },
+    sides: 8,
+  });
+  assert.deepEqual(shroud.triggerPolicy.triggers.map((trigger) => [
+    trigger.event,
+    trigger.frequency,
+    trigger.resolution,
+    trigger.persistsAfterExit,
+  ]), [["turn-start", "once-per-turn", "manual-condition", true]]);
+  assert.deepEqual(
+    shroud.triggerPolicy.triggers[0].resolutionData.condition.summaryParts,
+    [{ id: "spirit-shroud-slow", label: "-3 m velocità" }],
+  );
+  assert.equal(
+    shroud.triggerPolicy.triggers[0].resolutionData.condition.mechanics.movement.addMeters,
+    -3,
+  );
 
   const winds = getSpellAreaRuleById("xanathar-controllare-venti:cast");
   assert.equal(winds.zonePolicy.placementOptional, false);

@@ -909,6 +909,134 @@ test("Scudo ignora il cambio round e scade solo all'inizio del turno del caster"
   assert.deepEqual(state(casterTurn, "target").conditions, []);
 });
 
+test("lo slow di Sudario Spirituale scade al turno del caster e il refresh non accumula", () => {
+  const appliedAt = {
+    round: 1,
+    actorId: "target",
+    phase: "turn",
+    turnKey: "1:1:target",
+  };
+  const slowOperation = (instanceId, nextAppliedAt = appliedAt) => ({
+    type: "condition:add",
+    operationId: `spirit-slow-${instanceId}`,
+    createdAt: 100,
+    targetIds: ["target"],
+    instanceIds: { target: instanceId },
+    conditionName: "Velocità -3 m",
+    options: {
+      sourceId: "caster",
+      type: "spell",
+      parentEffectId: "spirit-instance",
+      effectId: "spirit-shroud-slow",
+      effectKind: "debuff",
+      mechanics: {
+        movement: {
+          addMeters: -3,
+          label: "Sudario Spirituale: -3 m velocità",
+        },
+      },
+      appliedAt: nextAppliedAt,
+      expiry: {
+        mode: "turn-start",
+        actor: "source",
+        remaining: 1,
+        anchor: "next-turn",
+      },
+    },
+  });
+  const applied = buildEffectsMutationPlan([
+    token("caster"),
+    token("target"),
+  ], [slowOperation("slow-1")]);
+  assert.equal(state(applied, "target").conditions.length, 1);
+  assert.equal(state(applied, "target").conditions[0].parentEffectId, "spirit-instance");
+  assert.equal(state(applied, "target").conditions[0].mechanics.movement.addMeters, -3);
+
+  const refreshed = buildEffectsMutationPlan(applied.states, [
+    slowOperation("slow-2", {
+      round: 1,
+      actorId: "target",
+      phase: "turn",
+      turnKey: "1:1:target:refresh",
+    }),
+  ]);
+  assert.equal(state(refreshed, "target").conditions.length, 1);
+  assert.equal(state(refreshed, "target").conditions[0].id, "slow-1");
+
+  const otherTurn = buildEffectsMutationPlan(refreshed.states, [{
+    type: "effects:tick-boundaries",
+    targetIds: ["caster", "target"],
+    boundaries: [{ phase: "start", actorId: "target", turnKey: "1:1:target" }],
+  }]);
+  assert.equal(state(otherTurn, "target").conditions.length, 1);
+
+  const casterTurn = buildEffectsMutationPlan(otherTurn.states, [{
+    type: "effects:tick-boundaries",
+    targetIds: ["caster", "target"],
+    boundaries: [{ phase: "start", actorId: "caster", turnKey: "2:0:caster" }],
+  }]);
+  assert.equal(state(casterTurn, "target").conditions.length, 0);
+});
+
+test("la concentrazione di Sudario Spirituale rimuove slow child e stato parent", () => {
+  const cast = buildEffectsMutationPlan([
+    token("caster"),
+    token("target"),
+  ], [
+    {
+      type: "spell:upsert",
+      operationId: "spirit-cast",
+      targetIds: ["caster"],
+      entryIds: { caster: "spirit-entry" },
+      name: "Sudario Spirituale",
+      turns: 10,
+      conc: true,
+      source: "caster",
+      instanceId: "spirit-instance",
+      spellId: "tasha-sudario-spirituale",
+      expiry: { mode: "concentration" },
+    },
+    {
+      type: "concentration:register",
+      casterId: "caster",
+      targetIds: ["caster"],
+      name: "Sudario Spirituale",
+      instanceId: "spirit-instance",
+      spellId: "tasha-sudario-spirituale",
+    },
+    {
+      type: "condition:add",
+      operationId: "spirit-slow-child",
+      targetIds: ["target"],
+      instanceIds: { target: "spirit-slow-child" },
+      conditionName: "Velocità -3 m",
+      options: {
+        sourceId: "caster",
+        type: "spell",
+        parentEffectId: "spirit-instance",
+        effectId: "spirit-shroud-slow",
+        effectKind: "debuff",
+        mechanics: { movement: { addMeters: -3 } },
+        expiry: {
+          mode: "turn-start",
+          actor: "source",
+          remaining: 1,
+          anchor: "next-turn",
+        },
+      },
+    },
+  ]);
+  const ended = buildEffectsMutationPlan(cast.states, [{
+    type: "concentration:break",
+    casterIds: ["caster"],
+    reference: "spirit-instance",
+  }]);
+
+  assert.deepEqual(state(ended, "caster").spells, []);
+  assert.deepEqual(state(ended, "caster").concentrations, {});
+  assert.deepEqual(state(ended, "target").conditions, []);
+});
+
 test("una scadenza sul bersaglio usa la fine del suo turno", () => {
   const item = token("target", {
     spells: [{

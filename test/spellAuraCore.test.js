@@ -52,6 +52,53 @@ test("rileva soltanto le aure mobili abilitate nel contesto di lancio", () => {
   assert.equal(auras[0].rule.kind, "aura");
 });
 
+test("Sudario Spirituale usa un'unica aura di 3 m per slow e pill danni scalata", () => {
+  const caster = token("caster", {
+    attitude: "pc",
+    spells: [{
+      spellId: "tasha-sudario-spirituale",
+      instanceId: "spirit-instance",
+      casterId: "caster",
+      castContext: { mobileAura: true, slotLevel: 5, choice: "radiosi" },
+    }],
+  });
+  const enemy = token("enemy", { attitude: "enemy" });
+  const ally = token("ally", { attitude: "ally" });
+  const [aura] = collectActiveMobileAuras([caster], {
+    metaKey: META,
+    spellsKey: SPELLS,
+  });
+  assert.ok(aura);
+  assert.equal(aura.rule.geometry.size.value, 3);
+  assert.equal(aura.rule.targeting.includeCaster, false);
+  assert.equal(aura.rule.triggerPolicy.triggers[0].resolution, "manual-condition");
+  assert.deepEqual(aura.castContext, {
+    mobileAura: true,
+    slotLevel: 5,
+    choice: "radiosi",
+  });
+
+  const membership = mobileAuraMembershipPlan({
+    aura,
+    desiredTargetIds: ["enemy", "ally"],
+    items: [caster, enemy, ally],
+    metaKey: META,
+    sourceName: "Caster",
+  });
+  assert.deepEqual(membership.entering, ["enemy"]);
+  assert.equal(membership.operations.length, 1);
+  assert.equal(membership.operations[0].type, "condition:add");
+  assert.deepEqual(membership.operations[0].targetIds, ["enemy"]);
+  assert.equal(membership.operations[0].conditionName, "Subisce 2d8 danni extra");
+  assert.equal(membership.operations[0].options.parentEffectId, "spirit-instance");
+  assert.equal(membership.operations[0].options.effectId, "spirit-shroud-aura-damage");
+  assert.equal(membership.operations[0].options.mechanics.damageBonus.dice, "2d8");
+  assert.equal(membership.operations[0].options.mechanics.damageBonus.type, "radiosi");
+  assert.deepEqual(membership.operations[0].options.summaryParts, [
+    { id: "spirit-shroud-aura-damage", label: "Subisce 2d8 danni extra" },
+  ]);
+});
+
 test("calcola i bersagli nell'area escludendo il caster", () => {
   const caster = token("caster");
   const inside = token("inside");

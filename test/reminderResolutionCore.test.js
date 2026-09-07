@@ -12,6 +12,7 @@ import {
   reminderResolutionOutcomeNeedsDamage,
 } from "../src/reminderResolutionCore.js";
 import { SPELL_STATIC_ZONE_META_KEY } from "../src/spellStaticZoneCore.js";
+import { SPELL_AURA_META_KEY } from "../src/spellAuraCore.js";
 import { getSpellAreaRuleById } from "../src/spellAreaRules.js";
 import { zoneTriggerNoticesFromActivation } from "../src/zoneTriggerNoticeCore.js";
 
@@ -110,6 +111,108 @@ test("il danno automatico espone soltanto il controllo Conferma al GM", () => {
   assert.deepEqual(
     reminderResolutionControls({ role: "PLAYER", resolution }),
     [],
+  );
+});
+
+test("Sudario Spirituale risolve lo slow come child marker senza TS o healing gate", () => {
+  const trigger = getSpellAreaRuleById("tasha-sudario-spirituale:aura")
+    .triggerPolicy.triggers[0];
+  const activation = {
+    id: "shroud-slow-activation",
+    instanceId: "shroud-instance",
+    ruleId: "tasha-sudario-spirituale:aura",
+    spellId: "tasha-sudario-spirituale",
+    casterId: "caster",
+    triggerId: trigger.id,
+    event: trigger.event,
+    resolution: trigger.resolution,
+    zoneItemId: "shroud-aura",
+    targetIds: ["target"],
+    turnKey: "1:1:target",
+    noticeTurnKey: "1:1:target",
+    resolutionData: trigger.resolutionData,
+  };
+  const resolution = buildZoneTriggerReminderResolution({
+    activation,
+    targetId: "target",
+    sourceId: "caster",
+    sourceName: "Caster",
+    metadataKey: SPELL_AURA_META_KEY,
+  });
+  assert.equal(resolution.mode, "manual-condition");
+  assert.equal(resolution.save, undefined);
+  assert.equal(resolution.damage, undefined);
+  assert.equal(resolution.healing, undefined);
+  assert.deepEqual(
+    reminderResolutionControls({ role: "GM", resolution }),
+    ["passed", "failed"],
+  );
+
+  const items = [
+    token("target"),
+    token("caster"),
+    {
+      id: "shroud-aura",
+      name: "Aura mobile: Sudario Spirituale",
+      metadata: {
+        [SPELL_AURA_META_KEY]: {
+          instanceId: "shroud-instance",
+          triggerRuntime: {
+            pending: [{
+              id: activation.id,
+              targetIds: ["target"],
+            }],
+          },
+        },
+      },
+    },
+  ];
+  const notice = {
+    activationId: activation.id,
+    targets: [{ id: "target", name: "Target" }],
+    resolution,
+  };
+  const applied = buildReminderResolutionPlan({
+    notice,
+    items,
+    outcome: "passed",
+    sceneMetadata: { [STATE_KEY]: { order: ["caster", "target"], current: 1, round: 1 } },
+    now: 100,
+  });
+  assert.equal(applied.status, "ready");
+  const slowOperation = applied.operations.find((operation) => operation.type === "condition:add");
+  assert.ok(slowOperation);
+  assert.equal(slowOperation.conditionName, "Velocità -3 m");
+  assert.equal(slowOperation.options.parentEffectId, "shroud-instance");
+  assert.equal(slowOperation.options.effectId, "spirit-shroud-slow");
+  assert.deepEqual(slowOperation.options.mechanics.movement, {
+    addMeters: -3,
+    label: "Sudario Spirituale: -3 m velocità",
+  });
+  assert.deepEqual(slowOperation.options.expiry, {
+    mode: "turn-start",
+    actor: "source",
+    remaining: 1,
+    anchor: "next-turn",
+  });
+  assert.equal(applied.hpChange, null);
+  assert.equal(applied.operations.some((operation) => operation.type === "hp:set"), false);
+  assert.equal(
+    applied.metadataPatches[0].fields.reminderResolutions.value[activation.id].outcome,
+    "passed",
+  );
+
+  const ignored = buildReminderResolutionPlan({
+    notice,
+    items,
+    outcome: "failed",
+    now: 101,
+  });
+  assert.equal(ignored.status, "ready");
+  assert.equal(ignored.operations.some((operation) => operation.type === "condition:add"), false);
+  assert.equal(
+    ignored.metadataPatches[0].fields.reminderResolutions.value[activation.id].outcome,
+    "failed",
   );
 });
 
