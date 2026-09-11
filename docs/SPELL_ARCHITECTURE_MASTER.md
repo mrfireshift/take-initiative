@@ -7,11 +7,11 @@ per polishing, nuove implementazioni e scelta dei batch futuri.
 | Campo | Valore |
 | --- | --- |
 | Stato | Riferimento operativo corrente |
-| Ultima verifica | 2026-09-01 |
+| Ultima verifica | 2026-09-09 |
 | Fonte primaria | Codice runtime in `src/` |
 | Perimetro | Cast, targeting, aree, zone, aure, trigger, reminder, TS, danni, cure, condizioni, azioni successive, cleanup e mutation |
-| Baseline verificata | Gli spell elencati in [F. Canonical spell reference map](#f-canonical-spell-reference-map) sono trattati come già auditati e verificati |
-| Confine esplicito | `OUT OF SCOPE — DEFERRED HISTORY / CONCENTRATION UNDO` |
+| Baseline verificata | 2889/2889 test; stato semantico per ogni spell in [matrice](../data/spell-implementation-status.json) |
+| Confine esplicito | History/Undo condivisi verificati; recovery limitata al relativo envelope, multi-GM fuori contratto |
 
 > Questo documento descrive il runtime esistente. Non è una proposta di
 > refactoring e non autorizza la creazione di nuovi controller, helper o
@@ -152,46 +152,59 @@ Cleanup per expiry, save, removal, invalid source/target, counter o parent end
 
 ### Confine esplicito dell'audit
 
-La precedente analisi non entra nel dettaglio di Deferred History né del
-workflow Concentration/Undo. In questo documento sono citati soltanto come
-punti di integrazione e vincoli: `OUT OF SCOPE — DEFERRED HISTORY /
-CONCENTRATION UNDO`. Un nuovo spell non deve introdurre un proprio History o
-Concentration framework.
-
----
+Il contratto è un tracker assistito: dadi, mitigazione finale, LOS e decisioni
+narrative restano al tavolo. History e concentrazione/Undo appartengono agli
+owner condivisi correnti. Recovery durevole copre solo gli effetti dichiarati
+da `supportsEffectsRecovery`; non equivale a recupero universale della scena.
+Multi-GM è fuori contratto. Le reference storiche sotto sono esempi di riuso;
+lo stato COMPLETE/PARTIAL è autorevole esclusivamente nella [matrice semantica](../data/spell-implementation-status.json).
 
 ## C. Primitive catalog
 
-| Primitive | Tipo | File | Responsabilità | Consumer attuali | Esempio canonico | Estendibilità |
-| --- | --- | --- | --- | --- | --- | --- |
-| `getSpellDefinition` / `getSpellCatalog` | `STATE` / `UTILITY` | `src/spells-srd.js` | Risolvere la definizione normalizzata e le alias locali | pannello, active spell registry, quick actions | `spirit-guardians` | `CONFIGURABLE`: aggiungere dati al catalogo; non duplicare lookup |
-| `SPELL_AREA_RULES` / `getSpellAreaRules` | `RULE` | `src/spellAreaRules.js` | Dichiarare kind, shape, placement, targeting, effect e trigger di area | Guardiani, Fiamma, Unto, Muro, Sfera e catalogo area | `spirit-guardians:aura` | `CONFIGURABLE`: aggiungere una regola conforme allo schema |
-| `buildSpellUnifiedPanelContract` | `PLANNER` | `src/spellUnifiedPanelCore.js` | Derivare il contratto comune di input, targeting, placement, save e active actions | ogni workflow nel pannello unificato | Fireball/Guardiani come area; Eyebite come active | `EXTENDABLE` tramite dichiarazioni catalogo/rule; non inserire commit |
-| `createSpellPanelSession` / `buildSpellPanelViewModel` | `UI` / `STATE` | `src/spellUnifiedPanelCore.js` | Gestire stato locale, transizioni e controlli visibili | pannello e prepared resolution | Muro di Luce con placement + action | `CONFIGURABLE` per input già dichiarati |
-| `getSpellUnifiedAreaEligibility` | `PLANNER` | `src/spellUnifiedAreaAdapter.js` | Stabilire se contract/session appartengono alla transazione area | pannello, quick action | Guardiani automatico | `EXTENDABLE` solo per lane già supportate; non bypassare i gate |
-| `buildSpellUnifiedAreaCommand` | `PLANNER` | `src/spellUnifiedAreaAdapter.js` | Adattare sessione e trigger a un comando area serializzabile | pannello, quick action, trigger resolution | Guardiani e Muro di Luce cast | `CONFIGURABLE` per placement/targeting già dichiarati |
-| `buildSpellAreaResolutionCommand` | `PLANNER` | `src/spellAreaResolutionCommandCore.js` | Validare target, placement, slot, save outcomes, HP e trigger | unified area, test workflow, reminder resolution | Fireball, Guardiani trigger | `EXTENDABLE` con un nuovo campo contrattuale solo se riusabile |
-| `executeSpellUnifiedArea` | `EXECUTOR` | `src/spellUnifiedAreaAdapter.js` | Eseguire il percorso area comune e normalizzare il risultato | pannello e quick actions | Guardiani / Muro / Unto | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `executeSpellAreaResolution` | `EXECUTOR` | `src/spellAreaResolutionExecutor.js` | Coordinare cast area, HP, zone, trigger e result | unified area, console area | Muro di Luce e aree con HP | `INFRASTRUCTURE — DO NOT DUPLICATE`; estendere solo il command contract |
-| `areaMembershipTargetIds` / `areaMembershipPlan` | `PLANNER` | `src/spellAreaMembershipCore.js` | Calcolare inclusione/esclusione, entrata/uscita e operations di effect membership | zone statiche, aure mobili, class/custom aura | Fiamma e Guardiani | `CONFIGURABLE`: filter, includeCaster, padding, effect policy |
-| `collectActiveMobileAuras` / `mobileAuraMembershipPlan` | `STATE` / `PLANNER` | `src/spellAuraCore.js` | Scoprire aure attive e delegare membership al core comune | Guardiani, Fiamma, aure di classe/custom | Fiamma | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `reconcileSpellAuras` | `CONTROLLER` | `src/spellAuraController.js` | Seguire il caster, aggiornare visual, membership e trigger runtime | tutte le spell con `kind: "aura"` | Fiamma e Guardiani | `INFRASTRUCTURE — DO NOT DUPLICATE`; nuove spell = rule data |
-| `buildStaticSpellZoneItems` / `reconcileStaticSpellZones` | `CONTROLLER` | `src/spellStaticZone.js` | Creare, seguire, riconciliare e ripulire root/subzone/child zone | Unto, Muro, Sfera, Ragnatela e altre zone | Muro di Luce | `CONFIGURABLE` per placement, child zone e follow mode |
-| `planSpellZoneTriggers` | `PLANNER` | `src/spellZoneTriggerCore.js` | Calcolare enter/leave/move/turn-start/turn-end, dedup e pending activation | static zone, spell aura, class/custom aura | Guardiani multi-target | `CONFIGURABLE`: event, frequency, target mode, payload |
-| `consumeSpellZoneTrigger` | `STATE` / `MUTATION` | `src/spellZoneTriggerCore.js` | Consumare un'attivazione intera o un singolo target | `reminderResolution.js`, effects side effect | Guardiani con notice indipendenti | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `mergePlannedSpellZoneTriggerRuntime` | `STATE` | `src/spellZoneTriggerCore.js` | Fondere runtime calcolato con pending concorrenti | controller static/aura | re-arm e movimento | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `planMobileAuraReminder` | `PLANNER` | `src/spellAuraReminderCore.js` | Comporre trigger plan + notice per aura mobile | Guardiani, Fiamma | Guardiani | `CONFIGURABLE`; nessuna copia per spell |
-| `planStaticSpellZoneReminder` | `PLANNER` | `src/spellStaticZoneReminderCore.js` | Comporre trigger plan + notice per zona statica | Unto, Muro, Sfera | Sfera della Tempesta | `CONFIGURABLE`; specializzazione solo per lifecycle statico |
-| `zoneTriggerNoticesFromActivation` | `UI` / `PLANNER` | `src/zoneTriggerNoticeCore.js` | Fare fan-out di activation multi-target in notice scoped e deduplicabili | aura/zone reminder, Turn Notice | Guardiani | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `buildZoneTriggerReminderResolution` | `PLANNER` | `src/reminderResolutionCore.js` | Tradurre activation + target in TS, damage, heal e outcome actions | zone notice, `resolveReminder` | Guardiani, Unto, Muro | `CONFIGURABLE`: ability, damage/healing, outcome actions |
-| `buildReminderResolutionPlan` | `PLANNER` | `src/reminderResolutionCore.js` | Validare il target corrente e creare operations di resolution | `resolveReminder` | Hold Person/Monster, Eyebite | `EXTENDABLE` solo tramite action kind esistenti |
-| `resolveReminder` | `EXECUTOR` | `src/reminderResolution.js` | Eseguire una resolution GM e consumare il reminder | Turn Notice, warning/controller | Guardiani, Muro, effetti persistenti | `INFRASTRUCTURE — DO NOT DUPLICATE` |
-| `runEffectsMutation` | `MUTATION` | `src/effectsMutations.js` | Coordinare commit, serializzazione, side effects e risultato | tutti gli executor e controller effetti | ogni cast con HP/condition/spell | `INFRASTRUCTURE — DO NOT REIMPLEMENT` |
-| `conditionMutationOperations` / `spellApplicationOperations` | `MUTATION` | `src/effectsMutations.js` | Generare operations standard per condition e spell instance | executor, reminder, class features | Blocca Persona, Carne in Pietra | `CONFIGURABLE`: payload; non creare writer locale |
-| `executeSpellActiveAction` / `executeSpellActiveResolution` | `EXECUTOR` | `src/spellApplicationExecutor.js` | Applicare una action successiva e i suoi effetti/risorse | Fiamma, Muro, Corona, Telecinesi, Eyebite, Debilitazione | Corona di Stelle | `EXTENDABLE` via `spellActiveResolutionRules.js` |
-| `executeSpellUnifiedLifecycle` | `EXECUTOR` | `src/spellUnifiedLifecycleAdapter.js` | Gestire cast lifecycle non area e prepared flow | condition spell, prepared/instant cast | Cecità/Sordità, Colpo Intrappolante | `CONFIGURABLE` con catalogo/effect automation |
-| `buildQuickActionSpellLaunchPlan` / `executeDirectQuickAction` | `PLANNER` / `EXECUTOR` | `src/quickActionSpellExecutionCore.js`, `src/quickActionExecution.js` | Riutilizzare il workflow spell dalla card | azioni rapide card | Guardiani automatico | `EXTENDABLE` solo aggiungendo casi al contratto comune |
-| `turn-notice.ts` | `UI` / `CONTROLLER` | `src/turn-notice.ts` | Proiettare prompt, reminder, dedup, esiti e dismiss | tutte le notice | Guardiani per target, Enervation prompt | `CONFIGURABLE` tramite payload; non duplicare popup |
+Mappa verificata sul runtime della working tree, inclusi limiti e donor bespoke.
+Formato interrogabile: [spell-capability-map.json](../data/spell-capability-map.json).
+
+| Capability | Owner / API | Spell rappresentative | Test comportamentali | Limiti |
+| --- | --- | --- | --- | --- |
+| C-CATALOG — Catalog / rules / aliases | [src/spells-srd.js](../src/spells-srd.js) — `getSpellCatalog/getSpellDefinition; merged SRD + PHB extras + supplements + legacy` | hold-person, fireball | [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | Catalog presence and a valid route do not prove semantic completeness. |
+| C-DIRECT — Direct persistent effect / GM outcome | [src/spellApplicationPlanCore.js](../src/spellApplicationPlanCore.js) — `buildSpellApplicationIntent → buildSpellApplicationPlan; proposed effects/conditions, castContext` | bless, hold-person | [spellApplicationPlanCore.test.js](../test/spellApplicationPlanCore.test.js), [spellCastAutomationCore.test.js](../test/spellCastAutomationCore.test.js) | Initial save-or-suck at table; selected targets are failed outcomes. |
+| C-SAVE — Initial save, success/failure/immune, half/zero/full damage | [src/saveSpellCore.js](../src/saveSpellCore.js) — `resolveSaveSpellResolution; saveAutomation rulesByOutcome + getSpellSaveWorkflowRule` | phb2014-raggio-di-infermita, bane | [rayOfSicknessWorkflow.test.js](../test/rayOfSicknessWorkflow.test.js), [holdPersonSaveWorkflow.test.js](../test/holdPersonSaveWorkflow.test.js) | Area-transaction also supports discrete targeting; no need for fictional geometry. |
+| C-CASTHP — Instant damage/healing, final numeric GM input | [src/spellAreaResolutionCommandCore.js](../src/spellAreaResolutionCommandCore.js) — `buildSpellAreaResolutionCommand → executeSpellAreaResolution; hp.mode/amount/outcomeFactors` | fireball, mass-cure-wounds | [spellAreaResolutionCommandCore.test.js](../test/spellAreaResolutionCommandCore.test.js), [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | Lifecycle adapter alone rejects ordinary HP input. Register proper lane and explicit initialHP/healing policy. |
+| C-ATTACK — Hit/miss cast | [src/spellAttackResolutionCore.js](../src/spellAttackResolutionCore.js) — `getSpellAttackResolution; initialDamage + effect/deferredEffect` | acid-arrow, guiding-bolt | [spellUnifiedExecutionParity.test.js](../test/spellUnifiedExecutionParity.test.js) | BLOCKER: acid deferred effect leaks into guiding-bolt/chill-touch/ray-of-frost. Not a safe generic attack template. |
+| C-ACTIVEATTACK — Active attacks, critical, multiple attacks and repeated target | [src/spellApplicationExecutor.js](../src/spellApplicationExecutor.js) — `executeSpellActiveResolution; attacks[{targetId,attackOutcome,damageRoll}], maxAttacks` | tasha-lama-del-disastro, spiritual-weapon | [spellActiveResolutionExecution.test.js](../test/spellActiveResolutionExecution.test.js), [spellBoardTokenCore.test.js](../test/spellBoardTokenCore.test.js) | Existing multi-hit capability; cast dispatch/variable count still not generalized. |
+| C-COMPONENTS — Multiple damage contributions | [src/prismaticWallRules.js](../src/prismaticWallRules.js) — `prismaticWallTraversalPlan → damageContributions; executor aggregates per target` | prismatic-wall, prismatic-spray | [spellActiveResolutionCore.test.js](../test/spellActiveResolutionCore.test.js) | Bespoke contribution model; ordinary area HP input is one final total. No general per-type resistance engine. |
+| C-ROUNDING — Canonical HP rounding / clamp | [src/quickHpCore.js](../src/quickHpCore.js) — `calculateQuickHPChange; floor(nonNegativeInteger(value) * factor)` | fireball, heat-metal | [quickHpCore.test.js](../test/quickHpCore.test.js) | No local rounding policy; type mitigation and dice remain GM. |
+| C-DRAIN — Healing proportional to applied damage | [src/spellDamageHealingCore.js](../src/spellDamageHealingCore.js) — `spellCasterHealingChange/Amount; casterHealingFromAppliedDamage` | xanathar-debilitazione | [spellActiveResolutionExecution.test.js](../test/spellActiveResolutionExecution.test.js) | Target→caster ratio exists in cast and active executors. Reverse direction is not a generic relationship descriptor. |
+| C-EFFECT — Conditions, multiple effects and summary mechanics | [src/spellEffectCore.js](../src/spellEffectCore.js) — `spellEffectConditionOptions + catalogSpellApplicationOperations; condition:add/remove-instances` | hypnotic-pattern, bless | [spellLifecycleOperationsCore.test.js](../test/spellLifecycleOperationsCore.test.js), [spellCastAutomationCore.test.js](../test/spellCastAutomationCore.test.js) | Effects are authoritative; labels/summaryParts do not enforce every passive rule. |
+| C-DAMAGEEND — Damage cleanup / dependent effects | [src/hpConditionRulesCore.js](../src/hpConditionRulesCore.js) — `resolveDamageEndsConditionRemovals; mechanics.endsOnDamage / endsOnDamage` | eyebite | [hpConditionRulesCore.test.js](../test/hpConditionRulesCore.test.js), [spellActiveResolutionCore.test.js](../test/spellActiveResolutionCore.test.js) | Source-specific event conditions are not a general attack/event bus. |
+| C-REPEATSAVE — Repeat save, save ends, start/end-turn | [src/reminderResolutionCore.js](../src/reminderResolutionCore.js) — `buildEffectSaveReminderResolution → buildReminderResolutionPlan; saveReminder ability/timing/resolution` | hold-person, blindness-deafness | [holdPersonSaveWorkflow.test.js](../test/holdPersonSaveWorkflow.test.js), [blindnessDeafnessWorkflow.test.js](../test/blindnessDeafnessWorkflow.test.js) | Target/source scope and parentRemoval target must be explicit. Ability check is not automatically a save. |
+| C-DEFERRED — Deferred outcomes / dependent actions | [src/reminderResolutionCore.js](../src/reminderResolutionCore.js) — `buildDeferredEffectResolution; deferredEffects timing/actor/resolution.outcomes.actions` | acid-arrow, heat-metal | [deferredSpellWorkflow.test.js](../test/deferredSpellWorkflow.test.js), [reminderResolutionCore.test.js](../test/reminderResolutionCore.test.js) | Deferred effect resolves/removes; do not infer indefinite repeated healing from one-shot deferred healing. |
+| C-CONCENTRATION — Register, replace, terminate concentration and children | [src/spellLifecycleOperationsCore.js](../src/spellLifecycleOperationsCore.js) — `spellLifecycleOperations: concentration:break/register, spell:upsert, condition:automate` | hold-person, bless | [spellLifecycleOperationsCore.test.js](../test/spellLifecycleOperationsCore.test.js), [reminderResolutionConcentrationLifecycle.test.js](../test/reminderResolutionConcentrationLifecycle.test.js) | No per-spell concentration owner; caster required. |
+| C-CONCSAVE — Damage concentration warning | [src/concentrationSaveReminder.js](../src/concentrationSaveReminder.js) — `runtime warning owner; concentrationSaveReminderCore projects pending saves` | dominate-person, hold-person | [concentrationSaveReminderRuntime.test.js](../test/concentrationSaveReminderRuntime.test.js), [concentrationWarningUndoIntegration.test.js](../test/concentrationWarningUndoIntegration.test.js) | Damage at table/manual save warning; scene scope and Undo are shared. |
+| C-EXPIRY — Rounds and source/target turn expiry | [src/effectsMutationCore.js](../src/effectsMutationCore.js) — `condition/spell tick operations; expiry.mode/actor/remaining/anchor + spellExpiryCore` | shield, command | [conditionExpiryPersistence.test.js](../test/conditionExpiryPersistence.test.js), [spellRuleExpiry.test.js](../test/spellRuleExpiry.test.js) | Both initiative boundary and round paths must be respected; virtual IDs are not scene item IDs. |
+| C-END — Post-expiry consequence and terminal continuation | [src/spellTerminationGatewayCore.js](../src/spellTerminationGatewayCore.js) — `terminalResolutionDescriptor; buildTerminationRequestOperation / buildTerminationResumeOperation` | haste, delayed-blast-fireball, blink | [spellTerminationGateway.test.js](../test/spellTerminationGateway.test.js), [spellLifecycleContracts.test.js](../test/spellLifecycleContracts.test.js) | Termination pending is distinct from immediate removal. |
+| C-TARGET — Single/multi/self/caster+targets; cap and bypass | [src/spellTargetingCapacityCore.js](../src/spellTargetingCapacityCore.js) — `resolveTargetingCapacity/applyTargetingLimitState/validateTargetingCapacity; maximum/baseMaximum/baseSlot/additionalPerSlotAbove` | hold-person, chain-lightning | [spellTargetingCapacityCore.test.js](../test/spellTargetingCapacityCore.test.js) | ignoreTargetLimit never changes canonical max; self from spellCastContextCore; no physical line-of-sight engine. |
+| C-PLACEMENT — Area geometry and include/exclude subset | [src/spellAreaRules.js](../src/spellAreaRules.js) — `SPELL_AREA_RULES; validateSpellAreaRule; geometry/placement/targeting selectionMode selectionPolarity` | fireball, spirit-guardians | [spellAreaRules.test.js](../test/spellAreaRules.test.js), [spellAreaPlacementCore.test.js](../test/spellAreaPlacementCore.test.js) | One cast geometry vs child zones; multiple arbitrary instant centers still a gap. |
+| C-MEMBERSHIP — Enter/leave/current area membership | [src/spellAreaMembershipCore.js](../src/spellAreaMembershipCore.js) — `areaMembershipTargetIds / areaMembershipPlan; filter/includeCaster/targetScope` | spirit-guardians, phb2014-allucinazione-di-forza | [spellAreaMembershipCore.test.js](../test/spellAreaMembershipCore.test.js), [spellAuraCore.test.js](../test/spellAuraCore.test.js) | Canonical effects vs derived membership; not global collision or terrain solver. |
+| C-ZONE — Persistent zone / child cleanup | [src/spellStaticZone.js](../src/spellStaticZone.js) — `reconcileStaticSpellZones; spell instance root identity / buildStaticSpellZoneItems` | web, wall-of-fire | [spellStaticZoneCore.test.js](../test/spellStaticZoneCore.test.js), [staticSpellZoneRecovery.test.js](../test/staticSpellZoneRecovery.test.js) | Scene items have owned identities; never indiscriminate remove/recreate. |
+| C-AURA — Mobile aura | [src/spellAuraController.js](../src/spellAuraController.js) — `reconcileSpellAuras; collectActiveMobileAuras/mobileAuraMembershipPlan` | spirit-guardians, tasha-sudario-spirituale | [spellAuraCore.test.js](../test/spellAuraCore.test.js), [spellAuraReminderCore.test.js](../test/spellAuraReminderCore.test.js) | Aura holder normally caster; acting target distinct from concentration owner is not fully declarative. |
+| C-TRIGGERS — Cast/enter/leave/start/end/move; once and once-per-turn | [src/spellZoneTriggerCore.js](../src/spellZoneTriggerCore.js) — `planSpellZoneTriggers/consumeSpellZoneTrigger/mergePlannedSpellZoneTriggerRuntime; event/group/frequency` | grease, spirit-guardians | [spellZoneTriggerCore.test.js](../test/spellZoneTriggerCore.test.js), [zoneTriggerNoticeCore.test.js](../test/zoneTriggerNoticeCore.test.js) | Frequency is group/actor/turn scoped; not general daily limit or full action economy. |
+| C-NOTICE — Reminder fan-out and per-target consume | [src/zoneTriggerNoticeCore.js](../src/zoneTriggerNoticeCore.js) — `zoneTriggerNoticesFromActivation; planStaticSpellZoneReminder/planMobileAuraReminder` | spirit-guardians, xanathar-spirito-guaritore | [zoneTriggerNoticeCore.test.js](../test/zoneTriggerNoticeCore.test.js), [reminderResolutionBrokerReplay.test.js](../test/reminderResolutionBrokerReplay.test.js) | Notice delivery is a projection; consuming activation is an Effects side effect. |
+| C-MOVEZONE — Move/drift zone, direction, carried targets | [src/spellZoneMovementCore.js](../src/spellZoneMovementCore.js) — `movement descriptor + executeSpellZoneMovement; static-zone:move side effect` | flaming-sphere, xanathar-turbine | [spellZoneMovementCore.test.js](../test/spellZoneMovementCore.test.js), [spellStaticZoneMovementUndoIntegration.test.js](../test/spellStaticZoneMovementUndoIntegration.test.js) | Movement origin exists; generalized size capacity/expulsion is missing. |
+| C-SCALE — Slot scaling: dice, bonuses, duration, cap | [src/spellMechanicsCore.js](../src/spellMechanicsCore.js) — `resolveSpellMechanics/resolveSpellEffect; getSpellDurationTurns; damage additionalPerSlotAbove/baseSlot` | magic-weapon, hold-person | [spellMechanicsCore.test.js](../test/spellMechanicsCore.test.js), [spellTargetingCapacityCore.test.js](../test/spellTargetingCapacityCore.test.js) | No universal automatic dice roller. Character-level target beams exist, but immediate attack damage uses slot increments incorrectly for cantrips. |
+| C-INSTANCE — Persistent instance, caster/targets, cast context | [src/spellLifecycleOperationsCore.js](../src/spellLifecycleOperationsCore.js) — `spell:upsert with instanceId/spellId/source/castContext/appliedAt` | eyebite, call-lightning | [spellLifecycleOperationsCore.test.js](../test/spellLifecycleOperationsCore.test.js), [spellApplicationOperations.test.js](../test/spellApplicationOperations.test.js) | Persist source context; never derive identity from displayed name. |
+| C-ACTIVE — Actions after cast and manual actions | [src/spellActiveResolutionRules.js](../src/spellActiveResolutionRules.js) — `SPELL_ACTIVE_RESOLUTION_ACTIONS + SUPPLEMENT_ACTIVE_ACTIONS; availableAfterCast/showInOverview/turnStartPrompt` | call-lightning, heat-metal | [spellActiveResolutionCore.test.js](../test/spellActiveResolutionCore.test.js), [spellActiveActionCore.test.js](../test/spellActiveActionCore.test.js) | Some actions validate only supported resolution kinds; descriptor valid alone is not cast reachability. |
+| C-RESOURCE — Fixed resource count / consume / terminal zero | [src/spellActiveResolutionCore.js](../src/spellActiveResolutionCore.js) — `buildSpellActiveResolutionResourceOperations; castContext.uses + resource key/consume/endSpellAtZero` | xanathar-corona-di-stelle, xanathar-frecce-infuocate | [spellActiveActionCore.test.js](../test/spellActiveActionCore.test.js) | Initial use rules are spell-indexed config in application planner. Damage-budget/zone-trigger consume and variable costs are gaps. |
+| C-RETARGET — Replace linked targets | [src/spellActiveActionCore.js](../src/spellActiveActionCore.js) — `buildSpellActiveActionPlan; replaceSpellTargets → upsert/register/break-targets` | telekinesis | [telekinesisWorkflow.test.js](../test/telekinesisWorkflow.test.js) | Hidden generic planner branch verified by audit probe; source-event eligibility/death linkage remains distinct. Telekinesis itself uses bespoke contest branch. |
+| C-PREPARED — Prepared spell resolution | [src/spellCastPhaseCore.js](../src/spellCastPhaseCore.js) — `getSpellCastPhasePlan/withSpellPhaseTransitionOperations + preparedSpellResolutionController` | phb2014-colpo-intrappolante, phb2014-raffica-di-spine | [preparedSpellResolutionCore.test.js](../test/preparedSpellResolutionCore.test.js), [preparedSpellApplicationExecutor.test.js](../test/preparedSpellApplicationExecutor.test.js) | Prepare miss retains pending state; resolve transitions shared concentration. |
+| C-PRESENT — Active/prepared map popover and unified contract | [src/spellUnifiedPanelCore.js](../src/spellUnifiedPanelCore.js) — `buildSpellUnifiedPanelContract/createSpellPanelSession/buildSpellPanelViewModel` | eyebite, fireball | [spellUnifiedPanelCore.test.js](../test/spellUnifiedPanelCore.test.js), [spellUnifiedPanelController.test.js](../test/spellUnifiedPanelController.test.js) | No polishing required; declarative input visibility is runtime contract, not proof of mechanics. |
+| C-SUMMARY — Micropills, summaryParts, condition chips | [src/effectLabelCore.js](../src/effectLabelCore.js) — `effectSummaryPartsFor; getSpellSummaryParts; spellEffectConditionOptions` | bless, tasha-sudario-spirituale | [spellMechanicsCore.test.js](../test/spellMechanicsCore.test.js), [summaryPartsTranche1.test.js](../test/summaryPartsTranche1.test.js) | Spell name + canonical condition + concise additional info; no redundant description pill. |
+| C-VFX — One-shot / travel / persistent / area / aura | [src/embersMatchedVisualCore.js](../src/embersMatchedVisualCore.js) — `getMatchedSpellVisualDefinition/buildMatchedVisualEvent + emitMatchedSpellVisual` | fireball, hunters-mark | [embersMatchedVisualCore.test.js](../test/embersMatchedVisualCore.test.js), [embersMatchedVisualSceneEpoch.test.js](../test/embersMatchedVisualSceneEpoch.test.js) | Registration-specific mappings; a missing VFX does not mean missing mechanic. |
+| C-VFXEND — VFX terminal cleanup, replay/respawn and scene guards | [src/embersMatchedVisualRenderer.js](../src/embersMatchedVisualRenderer.js) — `visual execution identity and sceneEpoch; fireball controller separate` | fireball | [fireballVisualSceneEpoch.test.js](../test/fireballVisualSceneEpoch.test.js), [embersMatchedVisualSceneEpoch.test.js](../test/embersMatchedVisualSceneEpoch.test.js) | Cosmetic replay protection; never an Effects writer. |
+| C-EFFECTS — Canonical Effects authority, serialized/idempotent mutation | [src/effectsMutations.js](../src/effectsMutations.js) — `runEffectsMutation → createEffectsMutationCoordinator; commandId/correlationId/sceneEpoch` | hold-person, fireball | [effectsMutationArchitectureContract.test.js](../test/effectsMutationArchitectureContract.test.js), [effectsMutationCore.test.js](../test/effectsMutationCore.test.js) | Merge token metadata; preserve hp/hpMax and initiative state keys. |
+| C-HISTORY — Shared History and composite Undo | [src/historyOwner.js](../src/historyOwner.js) — `History owner + Effects undo lane; spellExecutionHistoryDetails normalizes executor result` | blink, wall-of-fire | [historyOwnerCore.test.js](../test/historyOwnerCore.test.js), [historyUndoFailureInjection.test.js](../test/historyUndoFailureInjection.test.js), [spellStaticZoneMovementUndoIntegration.test.js](../test/spellStaticZoneMovementUndoIntegration.test.js) | VFX projections are not independent history; new spells cannot invent history/recovery writers. |
+| C-RECOVERY — Durable recovery and receipts | [src/effectsRecovery.js](../src/effectsRecovery.js) — `createEffectsRecovery/supportsEffectsRecovery; PREPARED→CANONICAL_COMMITTED→SIDE_EFFECTS_PENDING→HISTORY_PENDING→COMPLETE` | blink | [arch05aPostCommitRecoveryDiagnostic.test.js](../test/arch05aPostCommitRecoveryDiagnostic.test.js), [historyOwnerEffectsPostCommit.test.js](../test/historyOwnerEffectsPostCommit.test.js) | Limited envelope: token:teleport, reminder:consume-zone-activation, spell-active-resolution:validate; history:false and undoSideEffects excluded. No universal crash recovery promise. |
+| C-SCENE — Scene invalidation / reconciler recovery | [src/sceneLifecycle.js](../src/sceneLifecycle.js) — `scene epoch boundary + coordinator isCurrent checks; owner reconciliation` | fireball, blink | [staticSpellZoneRecovery.test.js](../test/staticSpellZoneRecovery.test.js), [reconcilerRecoveryContract.test.js](../test/reconcilerRecoveryContract.test.js) | Old-scene completion cannot publish new-scene writes. Simulated tests do not certify live Owlbear network. |
 
 ### Mutation/storage contract
 
@@ -230,7 +243,7 @@ I dati canonici restano:
 | Cleanup identity-based | `staleMobileAuraEffectRemovals`, `staleAreaMembershipEffectRemovals`, zone reconciler | Rimuovere per `instanceId`/effect identity, mai per nome visualizzato soltanto. |
 | Scene epoch/stale guard | `isCurrent`/scene epoch nei command/executor/controller | Ogni executor deve rispettare il risultato stale senza applicare output successivi alla scena precedente. |
 | HP source of truth | `meta.hp`, `meta.hpMax` + `actorVitalsStore`/`hpMemory` per i fallback esistenti | Non introdurre campi HP alternativi o larghezze visuali persistenti. |
-| History/Undo | framework esistente di `Effects Mutation` | `OUT OF SCOPE — DEFERRED HISTORY / CONCENTRATION UNDO`; mai introdurre uno storico spell-local. |
+| History/Undo | framework esistente di `Effects Mutation` | History/Undo condivisi verificati; recovery limitata al relativo envelope, multi-GM fuori contratto; mai introdurre uno storico spell-local. |
 
 ### Regola pratica
 
@@ -899,44 +912,13 @@ reconciliation, la classificazione iniziale deve essere
 
 ## J. Missing reusable capabilities
 
-### Gap provati al confine dell'audit
+Il [report corrente, E e K](AUDIT_AUTOMAZIONE_INCANTESIMI.md#e-shared-blockers-ranked-by-leverage) e i 23 `sharedGaps` della [mappa](../data/spell-capability-map.json) sostituiscono la precedente lista teorica.
 
-```text
-Capability: Risoluzione automatica di resistenze/vulnerabilità/immunità e dadi
-  con risultato di danno completamente regolamentare.
-Needed by: Spell che vogliono trasformare un reminder di danno in un calcolo
-  automatico completo.
-Closest existing primitive: reminderResolutionDamage in
-  src/reminderResolutionCore.js.
-Why current primitive is insufficient: calcola full/half/zero dal risultato
-  dichiarato e dal dado inserito, ma non interpreta il profilo difensivo del
-  target né sostituisce il tiro al tavolo.
-Evidence: il contratto `manual-damage` e la UI di Turn Notice richiedono input
-  GM; il catalogo documenta il limite a reminder informativi/manuali.
-```
-
-```text
-Capability: Semantica completa di movimento direzionale/forzato con costo e
-  collisione derivati dalla traiettoria.
-Needed by: spell che impongono movimento verso/contro una direzione o un bordo.
-Closest existing primitive: areaMembershipPlan, planSpellZoneTriggers e
-  movement mechanics.
-Why current primitive is insufficient: le primitive osservano membership e
-  posizione finale e possono creare reminder, ma non risolvono ogni percorso,
-  costo direzionale o interazione fisica.
-Evidence: le regole di zona supportano eventi di movimento, mentre i casi di
-  costo dipendente dalla direzione/forced movement restano esplicitamente
-  limitati nella documentazione operativa.
-```
-
-Questi gap non giustificano automaticamente una nuova primitive: prima di
-progettare una soluzione va verificato se il comportamento può restare manuale
-come reminder, oppure essere composto con le primitive esistenti.
-
-Per Guardiani Spirituali non è stato dimostrato alcun missing capability
-bloccante.
-
----
+Priorità: CAP-ATTACK, CAP-LINK, CAP-HP-BRANCH, CAP-CLEANSE, CAP-RESOURCE.
+Esistono già multi-attack attivo, retarget nel planner e drain proporzionale: i
+gap riguardano i contratti di collegamento/eligibility, non reinventare i calcoli.
+BLOCKER-ATTACK: il cast helper applica il differito acido anche ad altri hit.
+Documentato senza bugfix in questa tranche.
 
 ## K. Reuse checklist for future spells
 
@@ -962,90 +944,13 @@ bloccante.
 
 ## L. Batch strategy e suggerimenti per il lavoro futuro
 
-### Criterio di selezione
+La [roadmap corrente, H e I](AUDIT_AUTOMAZIONE_INCANTESIMI.md#h-recommended-implementation-plan) contiene elenchi completi e dipendenze: 50 GREEN oggi, 80 dopo tre capability, 89 dopo cinque; 12 RED. Non sommare unlock sovrapposti.
 
-Un batch è pronto quando raggruppa spell che condividono la stessa capability
-runtime e differiscono soprattutto per dati. Non raggruppare solo per livello o
-manuale. Per ogni batch registrare:
-
-1. primitive già disponibili;
-2. spell canonica di confronto;
-3. variazioni di configurazione attese;
-4. regole realmente specifiche;
-5. test di lifecycle e cleanup;
-6. eventuale gap non ancora rappresentabile.
-
-### Batch consigliati dopo la baseline verificata
-
-Completati dopo l'ultimo audit: `Ragnatela` (`web`) è ora una baseline per zona
-statica con placement puntuale, membership persistente, trigger di ingresso e
-inizio turno, TS indipendenti, condizione collegata e cleanup; `Muro di Fuoco`
-(`wall-of-fire`) è il riferimento per una zona statica con forma alternativa,
-lato caldo, fascia adiacente, attraversamento su segmento e danno manuale
-scalabile; `Nube Incendiaria` (`incendiary-cloud`) completa lo stesso workflow
-con placement obbligatorio, TS iniziale/di ingresso/fine turno, fan-out per
-bersaglio, scaling e movimento della zona lasciato manuale. Anche `Arma Sacra`
-e `Controllare Venti` sono ora auditati e approvati: la prima chiude
-l'esplosione con Condition nativa, reminder TS indipendente dalla
-concentrazione e popup di turno; la seconda chiude il popup delle modalità, le
-pill sintetiche e il reconcile immediato senza swept-area trigger. Anche
-`Paura`, `Contagio` e `Carne in Pietra` sono ora auditati e approvati: i
-reminder, i contatori S/F, le condizioni canoniche, i branch terminali e il
-cleanup target-scoped/concentrazione o non-concentration sono coperti dai
-contratti shared. Non sono più candidati P1; anche il batch multi-target
-(`Anatema`, `Benedizione`, `Lentezza`, `Confusione`, `Parola Radiosa`) e le
-zone statiche `Nube di Pugnali`/`Nube Maleodorante` sono auditati e approvati.
-`Turbine` è ora la baseline completa per una zona statica mobile con crossing
-swept, fan-out multi-target, attachment nativo dei CHARACTER catturati, quota
-canonica, azione di fuga e Undo sequenziale. Per `Parola Radiosa` resta solo il
-follow-up visuale del tema colore dell'area; i risultati sono registrati
-nell'audit di automazione. Anche `Intermittenza` (`blink`) è ora chiusa come
-`FULL / ACCEPTED`: usa una parent instance con stato Materiale/Etereo,
-notice di fine turno per l'esito d20 fisico, ritorno scelto direttamente sulla
-mappa, dismissal come azione e terminal gateway prima del cleanup. Il picker
-riusa il punto condiviso e il centro della footprint; il piano, la visuale,
-l'occupazione e la distanza RAW restano adjudication del GM.
-Anche `Telecinesi` (`telekinesis`) è ora chiusa come `FULL / ACCEPTED` nel
-perimetro OBR creature-only: parent instance, contesa iniziale e ricorrente,
-retarget, Condition canonica Trattenuto, boundary di turno, cleanup,
-reconcile e History/Undo sono coperti. La manipolazione di oggetti e il
-movimento o la sospensione della creatura restano manuali per scelta di
-perimetro e per l'assenza di token oggetto nel workflow OBR.
-
-| Priorità | Batch candidato | Spell candidate da verificare nel catalogo | Primitive riusabili | Perché è il prossimo passo naturale | Rischio principale |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | Azione ricorrente e danno derivato | `Debilitazione` (`xanathar-debilitazione`) | `spellActiveResolutionRules.js`, `executeSpellActiveAction`, parent instance, turn notice, effect linkage e History | È il solo GAP P1 residuo della capability active-action: ha già `enervation-repeat` raggiungibile e richiede composizione della ripetizione, del danno/cura e delle terminazioni RAW | target/parent stale, consumo o risoluzione non valida, terminazione per evento RAW |
-| 2 | Save persistenti e cleanup condizionale | `Dominare Persone/Mostri`, altri condition effect con save repeat | effect-save reminders, condition options, `buildReminderResolutionPlan`, mutation cleanup | Riusa i contratti già verificati per Cecità/Sordità, Hold, Risata, Paura, Contagio e Carne in Pietra | parent/target cleanup, vantaggio/svantaggio, terminazione per evento esterno |
-| 3 | Prepared/next-hit e danno persistente | `Punizione Incandescente`, `Punizione Tonante`, `Raffica di Spine`, `Marchio del Cacciatore` | `spellCastPhaseCore.js`, lifecycle adapter, `spellApplicationOperations`, reminders | Colpo Intrappolante dimostra il modello prepared → extend → effect persistente | transizione prepared/resolve e collegamento con l'attacco che innesca |
-| 4 | Aree istantanee con placement e scaling | `Fulmine`, `Cono di Freddo`, `Tempesta di Ghiaccio`, altre area-save non approvate | area rule, placement grid, target filtering, slot geometry/scaling, area executor | È il batch a minor costo architetturale se il workflow è realmente istantaneo | differenza tra area geometrica e target discreti/area-subset |
-
-### Ordine raccomandato
-
-Per massimizzare il riuso e la copertura del rischio:
-
-```text
-active actions/counters
-        → persistent saves/cleanup
-        → prepared next-hit
-        → remaining instantaneous areas
-```
-
-La priorità può cambiare se il backlog operativo richiede una spell specifica,
-ma non va cambiata solo per evitare la ricerca del contratto più vicino.
-
-### Exit criteria per chiudere un batch
-
-- ogni spell è classificata come configuration, composition o specialized rule;
-- nessun nuovo mutation/reminder/zone/aura controller è stato introdotto senza
-  un gap documentato;
-- cast e resolution passano da command/executor condivisi;
-- i target multipli hanno esiti indipendenti e consumo scoped;
-- movement, turn-start/end, expiry e invalid source/target sono coperti;
-- il cleanup è identity-based e non lascia parent/child orfani;
-- test mirati e build sono verdi; eventuali failure fuori perimetro sono
-  dichiarate separatamente.
-
----
+Procedere con batch GREEN omogenei e shared blocker prioritari. Nessuna
+migrazione legacy preventiva: non è emerso un LEGACY RISKY indipendentemente
+dimostrato. Test shared + dati per spell + pochi E2E per famiglia, non controller
+per spell. 10 spell sono realistici; 20 solo per dati omogenei; 30+ richiedono
+coverage consolidata e sottobatch.
 
 ## M. Audit e change protocol
 

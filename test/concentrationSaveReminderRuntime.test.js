@@ -89,9 +89,9 @@ test("il reminder di concentrazione conserva e propaga la causalità History", (
 
   assert.match(runtime, /causeHistoryEntryId/);
   assert.match(runtime, /sceneEpoch/);
-  assert.match(quickHP, /onHistoryStatus: \(\{ entry \}\) => \{[\s\S]*concentrationCauseHistoryEntryId/);
+  assert.match(quickHP, /concentrationCauseHistoryEntryId = recordedEntry\?\.id/);
   assert.match(quickHP, /causeHistoryEntryId: concentrationCauseHistoryEntryId/);
-  assert.match(quickHP, /onRecorded: \(entry\) => \{ recordedEntry = entry; \}/);
+  assert.match(quickHP, /recordedEntry = coordinatedMutation\.historyEntry/);
   assert.match(initiative, /onRecorded: \(historyEntry\)[\s\S]*lastHPHistoryEntryId/);
   assert.match(initiative, /onHistoryStatus: \(\{ entry: historyEntry \}\) => \{[\s\S]*concentrationCauseHistoryEntryId/);
   assert.match(initiative, /causeHistoryEntryId: concentrationCauseHistoryEntryId/);

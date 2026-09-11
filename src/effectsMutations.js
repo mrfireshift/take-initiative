@@ -1,4 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
+import { current, isDraft } from "immer";
+import { createEffectsRecovery, supportsEffectsRecovery } from "./effectsRecovery.js";
 import {
   EFFECTS_MUTATION_COMMAND_CHANNEL,
   EFFECTS_MUTATION_RESULT_CHANNEL,
@@ -635,7 +637,10 @@ function prepareOperation(operation) {
 
 function metadataFieldSnapshot(meta, field) {
   const present = Object.prototype.hasOwnProperty.call(meta || {}, field);
-  return present ? { present: true, value: clone(meta[field]) } : { present: false };
+  if (!present) return { present: false };
+  const value = meta[field];
+  // This reader also validates live SDK draft metadata during reminder consume.
+  return { present: true, value: clone(isDraft(value) ? current(value) : value) };
 }
 
 function sceneItemMetadataSnapshot(item, field) {
@@ -1105,13 +1110,17 @@ async function commitEffectsMutationPlan(plan, { isCurrent = null } = {}) {
           conflicts.push({ itemId: change.id, reason: "missing-item" });
           continue;
         }
-        const actual = normalizedSceneItem(item);
+        // SDK updateItems supplies Immer drafts. Snapshot the current draft
+        // for validation: shallow condition normalization can retain nested
+        // proxies (e.g. saveReminder), which structuredClone cannot accept.
+        const snapshot = isDraft(item) ? current(item) : item;
+        const actual = normalizedSceneItem(snapshot);
         for (const field of Object.keys(change.fields || {}).filter((key) => change.fields[key])) {
           if (!historyUndoSame(actual[field], change.before[field])) conflicts.push({ itemId: item.id, field });
         }
         for (const field of Object.keys(change.metadataFields || {})) {
           const expected = change.commitBeforeMetadata?.[field] || change.beforeMetadata?.[field];
-          if (!metadataSnapshotMatches(metadataFieldSnapshot(item.metadata?.[META_KEY], field), expected)) {
+          if (!metadataSnapshotMatches(metadataFieldSnapshot(snapshot.metadata?.[META_KEY], field), expected)) {
             conflicts.push({ itemId: item.id, field });
           }
         }
@@ -2669,6 +2678,7 @@ async function prepareEffectsSideEffects(plan, command) {
         afterPosition,
         before: { id: targetId, name: targetItem.name, position: beforePosition },
         after: { id: targetId, name: targetItem.name, position: afterPosition },
+        restoreVisible: targetItem.visible !== false,
         skipAnimation: descriptor.skipAnimation === true,
       });
     } else if (descriptor?.type === "elevation:adjust") {
@@ -2868,10 +2878,17 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     }];
   }
   if (sideEffect.type === "token:teleport") {
-    const targetId = String(sideEffect.id || after?.id || "").trim();
-    const afterPosition = sideEffect.afterPosition || after?.position || null;
-    const beforePosition = sideEffect.beforePosition || before?.position || null;
-    if (!targetId || !afterPosition) return [];
+    const targetId = String(sideEffect.id || "").trim();
+    const afterPosition = sideEffect.afterPosition || null;
+    const beforePosition = sideEffect.beforePosition || null;
+    const hasPosition = (value) => (
+      !!value
+      && Number.isFinite(value.x)
+      && Number.isFinite(value.y)
+    );
+    if (!targetId || !hasPosition(beforePosition) || !hasPosition(afterPosition)) {
+      throw new Error("token-teleport-invalid");
+    }
     const [actual] = await OBR.scene.items.getItems([targetId]);
     if (!actual) throw new Error("token-teleport-target-missing");
     if (!isCurrent()) throw new Error("stale-before-token-teleport");
@@ -2923,6 +2940,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       await OBR.scene.items.updateItems([targetId], (drafts) => {
         for (const draft of drafts) {
           if (draft.id === targetId) {
+            if (sideEffect.recoveryExpectedPosition && !sameValue(draft.position, sideEffect.recoveryExpectedPosition)) {
+              throw new Error("recovery-teleport-conflict");
+            }
             draft.position = clone(afterPosition);
             draft.visible = true;
           }
@@ -2934,9 +2954,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
       type: "token:teleport",
       operationId,
       name: String(actual.name || sideEffect.name || "").trim(),
-      beforePosition: clone(beforePosition || actual.position),
+      beforePosition: clone(beforePosition),
       afterPosition: clone(afterPosition),
-      before: { id: targetId, name: actual.name, position: clone(beforePosition || actual.position) },
+      before: { id: targetId, name: actual.name, position: clone(beforePosition) },
       after: { id: targetId, name: actual.name, position: clone(afterPosition) },
     }];
   }
@@ -3332,6 +3352,9 @@ async function applyPreparedSideEffect(sideEffect, isCurrent) {
     await OBR.scene.items.updateItems([sideEffect.id], (drafts) => {
       for (const draft of drafts) {
         if (draft.id !== sideEffect.id) continue;
+        if (!metadataSnapshotMatches(sceneItemMetadataSnapshot(draft, sideEffect.metadataKey), sideEffect.before)) {
+          throw new Error("reminder-zone-activation-stale-before-consume");
+        }
         draft.metadata = {
           ...(draft.metadata || {}),
           [sideEffect.metadataKey]: clone(sideEffect.after.value),
@@ -3474,7 +3497,120 @@ async function runPostCommitSideEffects(sideEffects, isCurrent) {
   return { changes, pending: [], errors: [] };
 }
 
-async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
+function recoverySideEffectHistory(sideEffects) {
+  return sideEffects.flatMap((effect) => {
+    if (effect.type === "token:teleport") return [{
+      id: effect.id, type: "token:teleport", before: clone(effect.before), after: clone(effect.after),
+      beforePosition: clone(effect.beforePosition), afterPosition: clone(effect.afterPosition),
+    }];
+    if (effect.type === "reminder:consume-zone-activation") return [{
+      id: effect.id, type: "reminder-zone-activation", metadataKey: effect.metadataKey,
+      activationId: effect.activationId, activation: clone(effect.activation),
+      beforeActivation: clone(effect.before.value.triggerRuntime.pending.find((a) => a.id === effect.activationId) || null),
+      expectedActivation: clone(effect.after.value.triggerRuntime.pending.find((a) => a.id === effect.activationId) || null),
+    }];
+    return [];
+  });
+}
+
+async function inspectRecoveryCanonical(changes) {
+  if (!changes.length) return "after";
+  const items = await OBR.scene.items.getItems(changes.map((change) => change.id));
+  const byId = new Map(items.map((item) => [item.id, item]));
+  let before = true, after = true;
+  for (const change of changes) {
+    const item = byId.get(change.id);
+    if (!item) return "conflict";
+    const actual = normalizedSceneItem(item);
+    for (const field of Object.keys(change.fields || {}).filter((key) => change.fields[key])) {
+      before &&= historyUndoSame(actual[field], change.before[field]);
+      after &&= historyUndoSame(actual[field], change.after[field]);
+    }
+    for (const field of Object.keys(change.metadataFields || {})) {
+      const value = metadataFieldSnapshot(item.metadata?.[META_KEY], field);
+      before &&= metadataSnapshotMatches(value, change.commitBeforeMetadata?.[field] || change.beforeMetadata[field]);
+      after &&= metadataSnapshotMatches(value, change.afterMetadata[field]);
+    }
+  }
+  return after ? "after" : before ? "before" : "conflict";
+}
+
+async function applyRecoverySideEffect(effect, isCurrent, { recovering = true } = {}) {
+  if (!isCurrent()) throw new Error("recovery-scene-changed");
+  if (effect.type === "spell-active-resolution:validate") return;
+  const [item] = await OBR.scene.items.getItems([effect.id]);
+  if (!isCurrent()) throw new Error("recovery-scene-changed");
+  if (!item) throw new Error("recovery-side-effect-item-missing");
+  if (effect.type === "token:teleport") {
+    if (!sameValue(item.position, effect.afterPosition)) {
+      if (!sameValue(item.position, effect.beforePosition)) throw new Error("recovery-teleport-conflict");
+      // Recovery commits the physical result, never replays the animation.
+      await applyPreparedSideEffect({ ...effect, skipAnimation: recovering ? true : effect.skipAnimation, recoveryExpectedPosition: effect.beforePosition }, isCurrent);
+    }
+    if (recovering && effect.skipAnimation !== true && item.visible !== effect.restoreVisible) {
+      if (!isCurrent()) throw new Error("recovery-scene-changed");
+      await OBR.scene.items.updateItems([effect.id], (drafts) => {
+        if (!isCurrent()) throw new Error("recovery-scene-changed");
+        for (const draft of drafts) {
+          if (!sameValue(draft.position, effect.afterPosition)) throw new Error("recovery-teleport-conflict");
+          draft.visible = effect.restoreVisible;
+        }
+      });
+    }
+    return;
+  }
+  if (effect.type === "reminder:consume-zone-activation") {
+    const actual = sceneItemMetadataSnapshot(item, effect.metadataKey);
+    const runtime = normalizeSpellZoneTriggerRuntime(actual.value?.triggerRuntime);
+    const activation = runtime.pending.find((a) => a.id === effect.activationId) || null;
+    const expected = normalizeSpellZoneTriggerRuntime(effect.after.value.triggerRuntime).pending.find((a) => a.id === effect.activationId) || null;
+    const before = normalizeSpellZoneTriggerRuntime(effect.before.value.triggerRuntime).pending.find((a) => a.id === effect.activationId) || null;
+    if (sameValue(activation, expected)) return;
+    if (!sameValue(activation, before)) throw new Error("recovery-reminder-activation-conflict");
+    const pending = runtime.pending.flatMap((a) => a.id !== effect.activationId ? [a] : expected ? [expected] : []);
+    return applyPreparedSideEffect({ ...effect, before: actual, after: {
+      present: true, value: { ...actual.value, triggerRuntime: { ...runtime, pending } },
+    } }, isCurrent);
+  }
+  throw new Error("recovery-unsupported-side-effect");
+}
+
+async function mountEffectsRecovery() {
+  const identity = backgroundSceneIdentity;
+  const epoch = currentSceneEpoch();
+  const isCurrent = () => backgroundServiceMounted && backgroundSceneIdentity === identity && isCurrentSceneEpoch(epoch);
+  effectsRecovery = createEffectsRecovery({
+    obr: OBR,
+    buildHistory: async (command, plan, sideEffectChanges) => {
+      const { buildEffectsMutationHistoryEntry } = await import("./history.js");
+      return buildEffectsMutationHistoryEntry({ command, plan, commitResult: { sideEffectChanges } });
+    },
+    appendHistory: async (historyEntry, commandId) => {
+      const { recordEffectsMutationHistory } = await import("./history.js");
+      if (!isCurrent()) throw new Error("recovery-scene-changed");
+      return recordEffectsMutationHistory({ command: { commandId }, historyEntry, sceneEpoch: epoch });
+    },
+    inspectCanonical: inspectRecoveryCanonical,
+    applySideEffect: applyRecoverySideEffect,
+  });
+  await effectsRecovery.load(isCurrent);
+  await effectsRecovery.recover(isCurrent);
+  if (effectsRecovery.retryPending()) schedulePendingEffectsHistoryRetry();
+}
+
+async function recoverPendingEffects() {
+  const identity = backgroundSceneIdentity;
+  const epoch = currentSceneEpoch();
+  const isCurrent = () => backgroundServiceMounted && backgroundSceneIdentity === identity && isCurrentSceneEpoch(epoch);
+  if (identity) await effectsRecovery?.recover(isCurrent);
+  for (const [commandId, pending] of pendingHistoryRecords) {
+    if (pending.commitResult?.recoveryManaged && !effectsRecovery?.has(commandId)) {
+      pendingHistoryRecords.delete(commandId); pendingSideEffectRecords.delete(commandId);
+    }
+  }
+}
+
+async function commitCoordinatedEffectsPlan(plan, { isCurrent, command = {} }) {
   if (!isCurrent()) {
     return {
       status: EFFECTS_MUTATION_STATUS.REJECTED,
@@ -3486,9 +3622,20 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
   if (plan?.historyUndo === true) {
     return commitHistoryUndoPlan(plan, { isCurrent });
   }
+  const recovery = effectsRecovery;
+  const recoveryRecord = recovery && supportsEffectsRecovery(command, plan)
+    ? await recovery.prepare(command, plan, recoverySideEffectHistory(plan.preparedSideEffects || []), isCurrent)
+    : null;
   const effectsCommit = await commitEffectsMutationPlan(plan, { isCurrent });
-  if (effectsCommit?.status === EFFECTS_MUTATION_STATUS.CONFLICT) return effectsCommit;
-  if (effectsCommit?.status === EFFECTS_MUTATION_STATUS.REJECTED) return effectsCommit;
+  if ([EFFECTS_MUTATION_STATUS.CONFLICT, EFFECTS_MUTATION_STATUS.REJECTED].includes(effectsCommit?.status)) {
+    if (recoveryRecord && isCurrent()) await recovery.abandon(recoveryRecord, isCurrent);
+    return effectsCommit;
+  }
+  if (recoveryRecord) {
+    const recovered = await recovery.resume(recoveryRecord, isCurrent, { canonicalCommitted: !effectsCommit.postCommitErrors?.length });
+    if (isCurrent() && recovery.retryPending()) schedulePendingEffectsHistoryRetry();
+    return { ...recovered, postCommitErrors: [...(effectsCommit.postCommitErrors || []), ...(recovered?.postCommitErrors || [])] };
+  }
   const sideEffects = [
     ...(Array.isArray(plan?.undoSideEffects) ? plan.undoSideEffects : [])
       .map((value) => ({ kind: "undo", value })),
@@ -3506,9 +3653,11 @@ async function commitCoordinatedEffectsPlan(plan, { isCurrent }) {
 }
 
 let effectsMutationCoordinator = null;
+let effectsRecovery = null;
 
 function createBackgroundEffectsMutationCoordinator() {
   return createEffectsMutationCoordinator({
+  beforeCommand: (command, isCurrent) => effectsRecovery?.beforeCommand(command, isCurrent),
   prepare: async (operations, context) => {
     const preconditions = Array.isArray(context.command?.sceneMetadataPreconditions)
       ? context.command.sceneMetadataPreconditions
@@ -3529,7 +3678,7 @@ function createBackgroundEffectsMutationCoordinator() {
     if (!context.isCurrent()) return { status: EFFECTS_MUTATION_STATUS.REJECTED };
     return prepareEffectsSideEffects(plan, context.command);
   },
-  commit: (plan, { isCurrent }) => commitCoordinatedEffectsPlan(plan, { isCurrent }),
+  commit: (plan, { isCurrent, command }) => commitCoordinatedEffectsPlan(plan, { isCurrent, command }),
   prepareUndo: (entries, { sceneEpoch, isCurrent }) => prepareEffectsMutationUndo(entries, {
     sceneEpoch,
     isCurrent,
@@ -3562,6 +3711,7 @@ function createBackgroundEffectsMutationCoordinator() {
 
 async function retryPendingEffectsSideEffects() {
   for (const [commandId, pending] of [...pendingSideEffectRecords]) {
+    if (pending.commitResult?.recoveryManaged) continue;
     if (
       !backgroundSceneIdentity
       || pending.sceneIdentity !== backgroundSceneIdentity
@@ -3609,6 +3759,7 @@ async function retryPendingEffectsHistory() {
   if (!pendingHistoryRecords.size) return;
   const { recordEffectsMutationHistory } = await import("./history.js");
   for (const [commandId, pending] of [...pendingHistoryRecords]) {
+    if (pending.commitResult?.recoveryManaged) continue;
     if (!pendingEffectsHistoryRecordIsCurrent(pending)) {
       pendingHistoryRecords.delete(commandId);
       continue;
@@ -3651,6 +3802,7 @@ function enqueuePendingEffectsHistoryRetry() {
 
 function enqueuePendingEffectsPostCommitRetry() {
   return Promise.all([
+    effectsMutationCoordinator?.enqueueMaintenance(recoverPendingEffects),
     enqueuePendingEffectsSideEffectRetry(),
     enqueuePendingEffectsHistoryRetry(),
   ]);
@@ -3658,6 +3810,7 @@ function enqueuePendingEffectsPostCommitRetry() {
 
 export function hasPendingEffectsHistory(sceneEpoch = currentSceneEpoch()) {
   if (!Number.isInteger(sceneEpoch) || !isCurrentSceneEpoch(sceneEpoch)) return false;
+  if (backgroundSceneIdentity && effectsRecovery?.pending()) return true;
   for (const pending of pendingHistoryRecords.values()) {
     if (pending?.sceneEpoch !== sceneEpoch) continue;
     if (pendingEffectsHistoryRecordIsCurrent(pending)) return true;
@@ -3697,14 +3850,17 @@ export async function hasPendingEffectsHistoryAuthoritative(
 }
 
 function schedulePendingEffectsHistoryRetry() {
+  const hasRetry = () => effectsRecovery?.retryPending()
+    || [...pendingHistoryRecords.keys(), ...pendingSideEffectRecords.keys()]
+      .some((commandId) => !effectsRecovery?.has(commandId));
   if (
     pendingHistoryRetryTimer
-    || (!pendingHistoryRecords.size && !pendingSideEffectRecords.size)
+    || !hasRetry()
   ) return;
   pendingHistoryRetryTimer = setTimeout(() => {
     pendingHistoryRetryTimer = null;
     void enqueuePendingEffectsPostCommitRetry().finally(() => {
-      if (pendingHistoryRecords.size || pendingSideEffectRecords.size) {
+      if (hasRetry()) {
         schedulePendingEffectsHistoryRetry();
       }
     });
@@ -3800,6 +3956,7 @@ export async function mountEffectsMutationCoordinatorService() {
     },
   });
   backgroundCommandBroker.setSceneIdentity(backgroundSceneIdentity);
+  if (sceneReady) await effectsMutationCoordinator.enqueueMaintenance(mountEffectsRecovery);
 
   backgroundServiceUnsubscribe = OBR.broadcast.onMessage(
     EFFECTS_MUTATION_COMMAND_CHANNEL,
@@ -3908,6 +4065,9 @@ export async function mountEffectsMutationCoordinatorService() {
         recoveredPostCommitResults.clear();
         clearTimeout(pendingHistoryRetryTimer);
         pendingHistoryRetryTimer = null;
+        void effectsMutationCoordinator.enqueueMaintenance(mountEffectsRecovery).catch((error) => {
+          console.warn("[effects-recovery] scene bootstrap:", error?.message || error);
+        });
       } else if (!ready && sceneReady) {
         sceneReady = false;
         backgroundSceneIdentity = null;
@@ -3925,6 +4085,7 @@ export async function mountEffectsMutationCoordinatorService() {
 }
 
 export function unmountEffectsMutationCoordinatorService() {
+  effectsRecovery = null;
   backgroundServiceUnsubscribe?.();
   backgroundServiceUnsubscribe = null;
   backgroundSceneReadyUnsubscribe?.();

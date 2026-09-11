@@ -30,6 +30,18 @@ Le transizioni del turno continuano a essere pianificate da
 solo `paragonInits`; seed, Lair, UI e reset dichiarano i propri campi nei
 rispettivi percorsi esistenti.
 
+## Previous turn e Undo
+
+Previous/Next navigano il cursore dell'iniziativa e modificano soltanto i
+campi di navigation posseduti dal gateway. Non sono un rewind dello stato di
+gioco: una spell, condition, reminder, HP o side effect già modificato o
+scaduto resta nello stato canonico corrente quando si torna al turno
+precedente. Il ripristino canonico appartiene esclusivamente a History/Undo e
+alle sue precondition. Le scadenze automatiche di round possono essere
+intenzionalmente `history:false`; le boundary mutation ordinarie restano
+History-aware, salvo il caso esplicito di accumulo terminale già gestito dalla
+lane Effects.
+
 ## Paragon
 
 `paragonToggleCore.js` trasforma ogni comando in intenti espliciti
@@ -48,4 +60,6 @@ La coda è una garanzia per i writer dello stesso tracker realm. Due browser GM
 restano soggetti alla semantica SDK same-key last-commit-wins: il gateway non
 introduce lock distribuiti o CAS simulati. Il read-back verifica il risultato
 locale e rende visibili mismatch/errori post-commit, ma non può dimostrare una
-garanzia globale né prevenire ogni lost update fra client distinti.
+garanzia globale né prevenire ogni lost update fra client distinti. Take
+Initiative assume quindi un solo GM autorevole per room/sessione; writer GM
+concorrenti e indipendenti sono esplicitamente fuori contratto.

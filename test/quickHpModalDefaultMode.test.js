@@ -45,6 +45,7 @@ test("il workflow manuale conserva le quattro operazioni e la cronologia", () =>
   assert.match(source, /QUICK_HP_MODES\.HEAL/);
   assert.match(source, /QUICK_HP_MODES\.TEMP/);
   assert.match(source, /async function applyOperation/);
-  assert.match(source, /withItemMetaHistory/);
+  assert.match(source, /history: true/);
+  assert.doesNotMatch(source, /withItemMetaHistory/);
   assert.match(source, /undoHistoryThrough/);
 });

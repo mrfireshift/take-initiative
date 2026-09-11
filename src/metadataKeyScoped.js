@@ -39,6 +39,11 @@ export const METADATA_OWNERSHIP = Object.freeze({
     domain: "history",
     owners: Object.freeze(["historyOwner.js"]),
   }),
+  EFFECTS_RECOVERY: Object.freeze({
+    key: `${ID}/effects-recovery-v1`,
+    domain: "effects-recovery",
+    owners: Object.freeze(["effectsRecovery.js"]),
+  }),
   CLOCKS: Object.freeze({
     key: `${ID}/clocks`,
     domain: "clocks",

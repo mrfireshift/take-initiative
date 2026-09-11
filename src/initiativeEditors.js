@@ -219,12 +219,14 @@ export function bindClassicHPEditor({
   hpFill,
   getEditingItemId,
   isCurrentEditor,
+  isCurrentOperation = () => true,
   armClickIgnore,
   handoffEditor,
   beginEdit,
   readLiveValues,
   editorReady,
   cleanupEdit,
+  syncRecoveredValues = null,
   parseRelativeDelta,
   setDeltaButtonActive,
   shouldIgnoreDocumentClick,
@@ -285,6 +287,7 @@ export function bindClassicHPEditor({
     });
 
     await beginEdit();
+    if (!isCurrentOperation()) return;
     pill.dataset.hpEditing = "1";
 
     const card = pill.closest("[data-item-id]");
@@ -422,9 +425,53 @@ export function bindClassicHPEditor({
       }
     };
 
+    const applyProjection = (currentHP, currentHPMax) => {
+      pill.innerHTML = formatHP(currentHP, currentHPMax);
+      const percentage = currentHPMax > 0
+        ? Math.max(0, Math.min(1, currentHP / currentHPMax))
+        : 0;
+      if (hpFill?.style) {
+        hpFill.style.width = `${percentage * 100}%`;
+        hpFill.style.background = currentHPMax > 0 && currentHP <= 0
+          ? "#475569"
+          : hpColorByPct(percentage);
+      }
+    };
+
+    const recoverProjection = async () => {
+      if (!isCurrentOperation()) return;
+      let liveValues = null;
+      try {
+        liveValues = await readLiveValues();
+      } catch (error) {
+        console.warn("[hp] editor recovery read:", error?.message || error);
+      }
+      if (!isCurrentOperation()) return;
+      const recoveredHP = Number.isFinite(liveValues?.hp) ? liveValues.hp : hp;
+      const recoveredHPMax = Number.isFinite(liveValues?.hpMax)
+        ? liveValues.hpMax
+        : hpMax;
+      applyProjection(recoveredHP, recoveredHPMax);
+      if (typeof syncRecoveredValues === "function") {
+        try {
+          await syncRecoveredValues({
+            hp: recoveredHP,
+            hpMax: recoveredHPMax,
+          });
+        } catch (error) {
+          console.warn("[hp] editor recovery visuals:", error?.message || error);
+        }
+      }
+    };
+
     commit = async () => {
       if (committed) return;
       committed = true;
+
+      if (!isCurrentOperation()) {
+        cleanup();
+        return false;
+      }
 
       const hpText = hpInput.value.trim();
       const hpMaxText = hpMaxInput.value.trim();
@@ -439,16 +486,7 @@ export function bindClassicHPEditor({
         nextHPMax = nextHP;
       }
 
-      pill.innerHTML = formatHP(nextHP, nextHPMax);
-      const percentage = nextHPMax > 0
-        ? Math.max(0, Math.min(1, nextHP / nextHPMax))
-        : 0;
-      if (hpFill?.style) {
-        hpFill.style.width = `${percentage * 100}%`;
-        hpFill.style.background = nextHPMax > 0 && nextHP <= 0
-          ? "#475569"
-          : hpColorByPct(percentage);
-      }
+      applyProjection(nextHP, nextHPMax);
 
       const recalibratesMax = linkedHPMaxDelta && hpDelta !== null;
       const concentrationDamage = hpDelta !== null && hpDelta < 0
@@ -460,9 +498,19 @@ export function bindClassicHPEditor({
         recalibratesMax,
         concentrationDamage,
       };
-      await saveValues(result);
-      cleanup();
+      let saved = false;
+      try {
+        await saveValues(result);
+        saved = true;
+      } catch (error) {
+        console.warn("[hp] editor commit:", error?.message || error);
+        await recoverProjection();
+      } finally {
+        cleanup();
+      }
+      if (!saved || !isCurrentOperation()) return false;
       await afterCommit(result);
+      return true;
     };
 
     const cancel = () => {

@@ -80,6 +80,7 @@ function staleResult(command, reason = "stale-scene-epoch", extra = {}) {
 }
 
 export function createEffectsMutationCoordinator({
+  beforeCommand = null,
   prepare,
   commit,
   prepareUndo,
@@ -126,6 +127,10 @@ export function createEffectsMutationCoordinator({
         throw new TypeError("effects-command-operations-must-be-serializable");
       }
       const operations = command.operations;
+      if (beforeCommand) {
+        const recovered = await beforeCommand(command, isCommandCurrent);
+        if (recovered) return baseResult(command, recovered.status, recovered);
+      }
 
       let plan;
       let commitResult;
@@ -168,15 +173,15 @@ export function createEffectsMutationCoordinator({
       }
       committed = true;
 
-      let historyEntry = null;
-      let historyError = null;
+      let historyEntry = commitResult?.recoveryManaged ? commitResult.historyEntry : null;
+      let historyError = commitResult?.recoveryManaged ? commitResult.historyError : null;
       let historySkipped = false;
       const hasLogicalChanges = !!plan?.changedIds?.length;
       const hasSideEffectChanges = !!commitResult?.sideEffectChanges?.length;
       // Some temporal callers opt into silent History only when the prepared
       // plan actually changed a terminal-resolution accumulator.  Keeping the
       // decision here avoids making ordinary boundary ticks non-undoable.
-      const historyEnabled = command.history !== false
+      const historyEnabled = !commitResult?.recoveryManaged && command.history !== false
         && !(
           command.suppressHistoryOnTerminalAccumulation === true
           && plan?.terminalAccumulationApplied === true
@@ -228,7 +233,8 @@ export function createEffectsMutationCoordinator({
         commitResult,
         historyEntry,
         historyError,
-        historyPending: !!historyError && !historySkipped,
+        historyPending: commitResult?.recoveryManaged ? commitResult.historyPending : !!historyError && !historySkipped,
+        ...(commitResult?.recoveryManaged ? { recoveryPending: commitResult.recoveryPending } : {}),
         historySkipped,
         postCommitErrors: clone(commitResult?.postCommitErrors || []),
         sideEffectsPending: clone(commitResult?.sideEffectsPending || []),

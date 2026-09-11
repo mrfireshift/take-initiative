@@ -1957,7 +1957,18 @@ async function reannounceHistoryReminderEntries(entries = [], sceneEpoch = curre
       continue;
     }
     if (replay.type === "concentration-warning" && replay.warning) {
-      const replaySceneEpoch = Number(entry?.effectsMutation?.sceneEpoch);
+      const recoveryScope = entry?.effectsMutation?.recoveryScope;
+      let replaySceneEpoch = Number(entry?.effectsMutation?.sceneEpoch);
+      if (recoveryScope) {
+        const { EFFECTS_RECOVERY_KEY } = await import("./effectsRecovery.js");
+        const metadata = await OBR.scene.getMetadata();
+        if (!isCurrentSceneEpoch(sceneEpoch)
+          || recoveryScope.roomId !== String(OBR.room.id || "")
+          || recoveryScope.scopeId !== metadata[EFFECTS_RECOVERY_KEY]?.scopeId) continue;
+        // Durable entries are bound to a persistent scene scope. Runtime-local
+        // epochs are supplied only when replaying in the validated current scene.
+        replaySceneEpoch = sceneEpoch;
+      }
       if (!defaultWarningRuntimeScope) {
         defaultWarningRuntimeScope = await concentrationWarningRuntimeScopeForEntries([entry]);
       }

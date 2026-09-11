@@ -23,7 +23,7 @@ function createTestDocument() {
         .filter((candidate) => candidate !== listener);
     },
     createElement(tagName) {
-      return {
+      const element = {
         tagName: String(tagName).toUpperCase(),
         style: {},
         dataset: {},
@@ -105,6 +105,21 @@ function createTestDocument() {
           this.selected = true;
         },
       };
+      let innerHTML = "";
+      Object.defineProperty(element, "innerHTML", {
+        get() {
+          return innerHTML;
+        },
+        set(value) {
+          innerHTML = String(value);
+          for (const child of this.children) {
+            child.parentNode = null;
+            child.isConnected = false;
+          }
+          this.children = [];
+        },
+      });
+      return element;
     },
   };
   return documentRef;
@@ -283,6 +298,194 @@ test("il wiring HP conserva delta, anteprima e callback di persistenza", async (
     ["linked", false],
     ["after", expectedResult],
   ]);
+});
+
+function createHPEditorRecoveryHarness({
+  readLiveValues = async () => ({ hp: 10, hpMax: 20 }),
+  saveValues = async () => {},
+  isCurrentOperation = () => true,
+  syncRecoveredValues = null,
+  formatHP = (hp, hpMax) => `${hp}/${hpMax}`,
+} = {}) {
+  const documentRef = createTestDocument();
+  const card = documentRef.createElement("article");
+  card.dataset.itemId = "arch-06-token";
+  card.setAttribute("draggable", "true");
+  const pill = documentRef.createElement("div");
+  pill.textContent = "10/20";
+  pill.innerHTML = "10/20";
+  const hpFill = documentRef.createElement("div");
+  card.appendChild(pill);
+  card.appendChild(hpFill);
+
+  let editingItemId = null;
+  let cleanupCalls = 0;
+  const afterCommitCalls = [];
+  bindClassicHPEditor({
+    pill,
+    itemId: "arch-06-token",
+    snapshotHP: 10,
+    snapshotHPMax: 20,
+    hpFill,
+    getEditingItemId: () => editingItemId,
+    isCurrentEditor: () => editingItemId === "arch-06-token",
+    isCurrentOperation,
+    armClickIgnore: () => {},
+    handoffEditor: async () => {},
+    beginEdit: async () => { editingItemId = "arch-06-token"; },
+    readLiveValues,
+    editorReady: () => {},
+    cleanupEdit: () => {
+      editingItemId = null;
+      cleanupCalls += 1;
+    },
+    syncRecoveredValues,
+    parseRelativeDelta: () => null,
+    setDeltaButtonActive: () => {},
+    shouldIgnoreDocumentClick: () => false,
+    formatHP,
+    hpColorByPct: () => "#yellow",
+    saveValues,
+    afterCommit: async (result) => afterCommitCalls.push(result),
+    commitAndOpenNeighbor: async ({ commit }) => commit(),
+    documentRef,
+    requestAnimationFrameRef: (callback) => callback(),
+    setTimeoutRef: (callback) => callback(),
+  });
+
+  return {
+    documentRef,
+    card,
+    pill,
+    hpFill,
+    afterCommitCalls,
+    get cleanupCalls() { return cleanupCalls; },
+    get editingItemId() { return editingItemId; },
+    open: async () => {
+      await pill.dispatch("pointerdown", createTestEvent({ clientX: 5 }));
+      return { hpInput: pill.__iHP, wrap: pill.children[0] };
+    },
+  };
+}
+
+test("ARCH-06 T1: l'editor HP conserva il commit riuscito 10 → 3 e completa il cleanup", async () => {
+  const canonical = { hp: 10, hpMax: 20 };
+  const harness = createHPEditorRecoveryHarness({
+    readLiveValues: async () => ({ ...canonical }),
+    saveValues: async ({ nextHP, nextHPMax }) => {
+      canonical.hp = nextHP;
+      canonical.hpMax = nextHPMax;
+    },
+  });
+
+  const { hpInput } = await harness.open();
+  hpInput.value = "3";
+  await hpInput.dispatch("keydown", createTestEvent({ key: "Enter" }));
+
+  assert.deepEqual(canonical, { hp: 3, hpMax: 20 });
+  assert.equal(harness.pill.innerHTML, "3/20");
+  assert.equal(harness.hpFill.style.width, "15%");
+  assert.equal(harness.pill.dataset.hpEditing, undefined);
+  assert.equal(harness.pill.__commitFn, undefined);
+  assert.equal(harness.pill.__iHP, undefined);
+  assert.equal(harness.card.getAttribute("draggable"), "true");
+  assert.equal(harness.editingItemId, null);
+  assert.equal(harness.cleanupCalls, 1);
+  assert.equal(harness.afterCommitCalls.length, 1);
+});
+
+test("ARCH-06 T2: il focusout con writer canonico rifiutato recupera 10 e chiude l'editor", async () => {
+  const canonical = { hp: 10, hpMax: 20 };
+  let liveReads = 0;
+  const recoveredVisuals = [];
+  const harness = createHPEditorRecoveryHarness({
+    readLiveValues: async () => {
+      liveReads += 1;
+      return { ...canonical };
+    },
+    saveValues: async () => { throw new Error("injected-canonical-write-failure"); },
+    syncRecoveredValues: ({ hp, hpMax }) => recoveredVisuals.push({ hp, hpMax }),
+  });
+
+  const { hpInput, wrap } = await harness.open();
+  hpInput.value = "3";
+  liveReads = 0;
+  harness.documentRef.activeElement = null;
+  await wrap.dispatch("focusout", createTestEvent());
+  await flushAsyncEvents();
+
+  assert.deepEqual(canonical, { hp: 10, hpMax: 20 });
+  assert.equal(liveReads, 1, "la failure rilegge il canonico una sola volta");
+  assert.equal(harness.pill.innerHTML, "10/20");
+  assert.equal(harness.hpFill.style.width, "50%");
+  assert.deepEqual(recoveredVisuals, [{ hp: 10, hpMax: 20 }]);
+  assert.equal(harness.pill.dataset.hpEditing, undefined);
+  assert.equal(harness.pill.__commitFn, undefined);
+  assert.equal(harness.pill.__iHP, undefined);
+  assert.equal(harness.card.getAttribute("draggable"), "true");
+  assert.equal(harness.editingItemId, null);
+  assert.equal(harness.cleanupCalls, 1);
+  assert.equal(harness.afterCommitCalls.length, 0);
+});
+
+test("ARCH-06 T4: una scene change durante il commit pulisce A senza proiettare su B", async () => {
+  const canonical = { hp: 10, hpMax: 20 };
+  let operationCurrent = true;
+  let recoveryReads = 0;
+  const projections = [];
+  const recoveredVisuals = [];
+  const harness = createHPEditorRecoveryHarness({
+    isCurrentOperation: () => operationCurrent,
+    readLiveValues: async () => {
+      recoveryReads += 1;
+      return { ...canonical };
+    },
+    saveValues: async () => {
+      operationCurrent = false;
+      throw new Error("scene-changed-during-commit");
+    },
+    formatHP: (hp, hpMax) => {
+      projections.push(`${hp}/${hpMax}`);
+      return `${hp}/${hpMax}`;
+    },
+    syncRecoveredValues: (values) => recoveredVisuals.push(values),
+  });
+
+  const { hpInput } = await harness.open();
+  hpInput.value = "3";
+  recoveryReads = 0;
+  await hpInput.dispatch("keydown", createTestEvent({ key: "Enter" }));
+
+  assert.deepEqual(canonical, { hp: 10, hpMax: 20 });
+  assert.equal(recoveryReads, 0, "la recovery della scena A non legge/proietta la scena B");
+  assert.deepEqual(projections, ["3/20"]);
+  assert.deepEqual(recoveredVisuals, []);
+  assert.equal(harness.pill.dataset.hpEditing, undefined);
+  assert.equal(harness.pill.__commitFn, undefined);
+  assert.equal(harness.editingItemId, null);
+  assert.equal(harness.cleanupCalls, 1);
+  assert.equal(harness.afterCommitCalls.length, 0);
+});
+
+test("ARCH-06 T5: zero è un HP valido nel commit dell'editor", async () => {
+  const canonical = { hp: 10, hpMax: 20 };
+  const harness = createHPEditorRecoveryHarness({
+    readLiveValues: async () => ({ ...canonical }),
+    saveValues: async ({ nextHP, nextHPMax }) => {
+      canonical.hp = nextHP;
+      canonical.hpMax = nextHPMax;
+    },
+  });
+
+  const { hpInput } = await harness.open();
+  hpInput.value = "0";
+  await hpInput.dispatch("keydown", createTestEvent({ key: "Enter" }));
+
+  assert.deepEqual(canonical, { hp: 0, hpMax: 20 });
+  assert.equal(harness.pill.innerHTML, "0/20");
+  assert.equal(harness.hpFill.style.width, "0%");
+  assert.equal(harness.pill.dataset.hpEditing, undefined);
+  assert.equal(harness.cleanupCalls, 1);
 });
 
 test("l'editor delta HP di gruppo delega soltanto il valore normalizzato", async () => {

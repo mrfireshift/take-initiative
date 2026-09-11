@@ -35,12 +35,12 @@ test("la chiave History ha un solo writer produttivo e i writer applicativi pass
   const effects = readFileSync(join(srcRoot, "effectsMutations.js"), "utf8");
   assert.match(effects, /recordEffectsMutationHistory/u);
   for (const file of [
-    "quick-hp-modal.js",
     "spellAreaResolutionExecutor.js",
   ]) {
     assert.match(readFileSync(join(srcRoot, file), "utf8"), /withItemMetaHistory/u, file);
   }
   for (const file of [
+    "quick-hp-modal.js",
     "classFeatureRuntime.js",
     "classFeatureAuraController.js",
   ]) {

@@ -24,7 +24,8 @@ test("la pipeline manuale usa HP canonici, hpMemory, effetti e undo", async () =
   const script = await readFile(scriptPath, "utf8");
 
   assert.match(script, /syncHPBatchToMemory/);
-  assert.match(script, /withItemMetaHistory/);
+  assert.match(script, /history: true/);
+  assert.doesNotMatch(script, /withItemMetaHistory/);
   assert.match(script, /runEffectsMutation/);
   assert.match(script, /undoHistoryThrough/);
   assert.match(script, /META_KEY/);

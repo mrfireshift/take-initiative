@@ -40,6 +40,7 @@ import { getMobileAuraRule, SPELL_AURA_META_KEY } from "./spellAuraCore.js";
 import { pendingSpellZoneTriggerActivations } from "./spellZoneTriggerCore.js";
 import { turbineSizeFromToken } from "./xanatharTurbineCore.js";
 import { blinkSemanticDetail } from "./blinkRules.js";
+import { createSceneMetadataKeyWatcher } from "./sceneMetadataDigest.js";
 
 const META_KEY = `${ID}/meta`;
 const STATE_KEY = `${ID}/state`;
@@ -87,6 +88,25 @@ function cloneValue(value) {
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [key, cloneValue(entry)]),
   );
+}
+
+function initiativeTurnStateDigest(metadata, key) {
+  const state = metadata?.[key] || {};
+  const order = Array.isArray(state.order) ? state.order.map(text) : [];
+  return JSON.stringify({
+    order,
+    current: Math.max(0, Math.floor(Number(state.current) || 0)),
+    round: Math.max(1, Math.floor(Number(state.round) || 1)),
+  });
+}
+
+function currentInitiativeActorId(state) {
+  const order = Array.isArray(state?.order) ? state.order : [];
+  const current = Math.max(0, Math.min(
+    Math.max(0, order.length - 1),
+    Math.floor(Number(state?.current) || 0),
+  ));
+  return text(order[current]);
 }
 
 export function uniqueSceneIds(values = []) {
@@ -812,7 +832,7 @@ function persistentProjection(group, spell) {
   };
 }
 
-function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
+function overviewActionsProjection(group, currentTurnKey = "", currentActorId = "") {
   const spell = getSpellDefinition(group?.spellId || group?.storedName);
   const targetIds = group?.targets instanceof Map
     ? [...group.targets.keys()]
@@ -856,6 +876,18 @@ function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
       definition: cloneValue(declaration.definition || declaration),
     });
   }
+  return { spell, actions };
+}
+
+function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
+  const { spell, actions } = overviewActionsProjection(
+    group,
+    currentTurnKey,
+    currentActorId,
+  );
+  const targetIds = group?.targets instanceof Map
+    ? [...group.targets.keys()]
+    : [];
   const context = {
     spellId: text(group?.spellId || spell?.id),
     instanceId: text(group?.instanceId),
@@ -916,6 +948,48 @@ function overviewProjection(group, currentTurnKey = "", currentActorId = "") {
         : "",
     persistent,
   };
+}
+
+export function reprojectSpellOverviewForInitiativeState(
+  overview = [],
+  initiativeState = {},
+) {
+  const currentTurnKey = currentInitiativeTurnKey(initiativeState);
+  const currentActorId = currentInitiativeActorId(initiativeState);
+  return (Array.isArray(overview) ? overview : []).map((entry) => {
+    const context = entry?.context || {};
+    const targetIds = Array.isArray(context.targetIds) ? context.targetIds : [];
+    const targetNames = Array.isArray(context.targetNames) ? context.targetNames : [];
+    const targets = new Map(targetIds.map((targetId, index) => [
+      targetId,
+      targetNames[index] || targetId,
+    ]));
+    const { actions } = overviewActionsProjection({
+      spellId: context.spellId || entry?.spellId,
+      storedName: context.storedName || entry?.name,
+      casterId: context.casterId || entry?.casterId,
+      targetIds,
+      targets,
+      effectInstances: context.effectInstances || entry?.effectInstances,
+      zoneItemId: context.zoneItemId || entry?.zoneItemId,
+      appliedAt: context.appliedAt,
+      pendingTermination: context.pendingTermination,
+      castContext: context.castContext,
+    }, currentTurnKey, currentActorId);
+    return {
+      ...entry,
+      prepared: actions.some((action) => action.type === "resolve"),
+      actions,
+      context: {
+        ...context,
+        turnKey: currentTurnKey,
+      },
+      actionLabels: actions
+        .filter((action) => action.type === "manual" || action.type === "resolve")
+        .map((action) => action.buttonLabel || action.label)
+        .filter(Boolean),
+    };
+  });
 }
 
 export async function getSpellOverviewSnapshot(obr, sourceId = "") {
@@ -1090,6 +1164,9 @@ export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = nul
     getActiveConcentration: (casterId, spell) => getActiveConcentration(obr, casterId, spell),
     getOverview: (sourceId = "") => getSpellOverviewSnapshot(obr, sourceId),
     getPendingZoneTriggers: (filters = {}) => getPendingSpellZoneTriggers(obr, filters),
+    reprojectOverviewForInitiativeState: (overview, initiativeState) => (
+      reprojectSpellOverviewForInitiativeState(overview, initiativeState)
+    ),
     getAreaExecutionRuntime: () => ({
       sceneEpoch: sceneLifecycle?.currentEpoch?.() ?? currentSceneEpoch(),
       isCurrent: (epoch) => sceneLifecycle
@@ -1134,6 +1211,67 @@ export function createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle = nul
         active = false;
         unsubscribe?.();
         unsubscribe = null;
+      };
+    },
+    onInitiativeStateChange: (callback) => {
+      if (typeof callback !== "function") return () => {};
+      let active = true;
+      let unsubscribe = null;
+      let unsubscribeLifecycle = null;
+      let subscriptionGeneration = 0;
+      const watcher = createSceneMetadataKeyWatcher(
+        STATE_KEY,
+        initiativeTurnStateDigest,
+      );
+      const observe = (metadata, { seed = false, generation = subscriptionGeneration } = {}) => {
+        if (!active || generation !== subscriptionGeneration) return;
+        const operation = sceneLifecycle?.capture?.({
+          operationId: "spell-panel-initiative-state",
+        }) || null;
+        if (sceneLifecycle && !sceneLifecycle.isCurrent(operation)) return;
+        const observed = seed ? watcher.seed(metadata) : watcher.observe(metadata);
+        if (!observed.changed) return;
+        const state = observed.value && typeof observed.value === "object"
+          ? cloneValue(observed.value)
+          : {};
+        callback(state);
+      };
+      const detach = () => {
+        subscriptionGeneration += 1;
+        unsubscribe?.();
+        unsubscribe = null;
+        watcher.reset();
+      };
+      const attach = () => {
+        if (!active || unsubscribe || (sceneLifecycle && !sceneLifecycle.isReady?.())) return;
+        const generation = ++subscriptionGeneration;
+        try {
+          unsubscribe = obr?.scene?.onMetadataChange?.((metadata) => {
+            observe(metadata, { generation });
+          }) || null;
+        } catch {
+          unsubscribe = null;
+        }
+        void Promise.resolve(obr?.scene?.getMetadata?.()).then((metadata) => {
+          observe(metadata, { seed: true, generation });
+        }).catch(() => {});
+      };
+      if (sceneLifecycle?.subscribe) {
+        unsubscribeLifecycle = sceneLifecycle.subscribe((event) => {
+          if (!active) return;
+          if (event?.phase === "unavailable") {
+            detach();
+            return;
+          }
+          if (event?.phase === "ready") attach();
+        });
+      }
+      attach();
+      return () => {
+        active = false;
+        detach();
+        unsubscribeLifecycle?.();
+        unsubscribeLifecycle = null;
       };
     },
     targetCandidate: targetCandidate,

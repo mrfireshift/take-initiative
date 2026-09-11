@@ -898,3 +898,104 @@ test("SP-B04A — Termina rimuove il lifecycle owner-side di una zona non concen
     selectors: [{ instanceId: "grease-1" }],
   }]);
 });
+
+test("ARCH-07 T1/T2/T3/T5: il solo cambio turno aggiorna l'overview aperta", async () => {
+  const turn = { actorId: "caster-a", current: 0, round: 2 };
+  const turnListeners = new Set();
+  let overviewReads = 0;
+  let turnReprojections = 0;
+  const provider = createProvider();
+  const overviewForTurn = (state) => {
+    const available = state.actorId === "caster-a";
+    return [{
+      instanceId: "telekinesis-1",
+      name: "Telecinesi",
+      casterName: "Caster A",
+      context: {
+        spellId: "telekinesis",
+        instanceId: "telekinesis-1",
+        casterId: "caster-a",
+        turnKey: `${state.round}:${state.current}:${state.actorId}`,
+      },
+      actions: [{
+        id: "telekinesis-contest",
+        type: "manual",
+        buttonLabel: "Contesa",
+        available,
+        disabled: !available,
+        disabledReason: available ? "" : "Disponibile solo nel turno del caster.",
+      }],
+    }];
+  };
+  provider.getOverview = async () => {
+    overviewReads += 1;
+    return overviewForTurn(turn);
+  };
+  provider.reprojectOverviewForInitiativeState = (overview, state) => {
+    turnReprojections += 1;
+    return overviewForTurn({
+      actorId: state.order[state.current],
+      current: state.current,
+      round: state.round,
+    });
+  };
+  provider.onInitiativeStateChange = (callback) => {
+    turnListeners.add(callback);
+    return () => turnListeners.delete(callback);
+  };
+
+  const { panel } = boot({
+    provider,
+    route: { status: "ready", spellId: "telekinesis", session: { casterId: "caster-a" } },
+  });
+  await settle();
+
+  assert.equal(panel.state.activeOverview[0].context.turnKey, "2:0:caster-a");
+  assert.equal(panel.state.activeOverview[0].actions[0].available, true);
+  assert.equal(turnListeners.size, 1, "il pannello deve sottoscrivere initiative/state");
+
+  turn.actorId = "caster-b";
+  turn.current = 1;
+  for (const listener of turnListeners) listener({
+    order: ["caster-a", "caster-b"], current: 1, round: 2,
+  });
+  await settle();
+
+  assert.equal(overviewReads, 1, "il cambio turno non rilegge l'intera scena");
+  assert.equal(turnReprojections, 1, "il cambio turno riesegue una sola projection");
+  assert.equal(panel.state.activeOverview[0].actions[0].available, false);
+  assert.equal(panel.state.activeOverview[0].actions[0].disabledReason,
+    "Disponibile solo nel turno del caster.");
+
+  for (const listener of turnListeners) listener({
+    order: ["caster-a", "caster-b"], current: 1, round: 3,
+  });
+  await settle();
+
+  assert.equal(overviewReads, 1, "il cambio round non richiede una scan scena");
+  assert.equal(turnReprojections, 2);
+  assert.equal(panel.state.activeOverview[0].context.turnKey, "3:1:caster-b");
+  await panel.destroy();
+  assert.equal(turnListeners.size, 0, "destroy rimuove la subscription turn state");
+});
+
+test("ARCH-07 T6: riaprire il pannello non accumula subscription initiative/state", async () => {
+  const turnListeners = new Set();
+  const provider = createProvider();
+  provider.onInitiativeStateChange = (callback) => {
+    turnListeners.add(callback);
+    return () => turnListeners.delete(callback);
+  };
+  provider.reprojectOverviewForInitiativeState = (overview) => overview;
+
+  for (let index = 0; index < 3; index += 1) {
+    const { panel } = boot({
+      provider,
+      route: { status: "ready", spellId: "bless", session: { casterId: "caster-a" } },
+    });
+    await settle();
+    assert.equal(turnListeners.size, 1);
+    await panel.destroy();
+    assert.equal(turnListeners.size, 0);
+  }
+});

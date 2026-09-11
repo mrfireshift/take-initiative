@@ -51,8 +51,6 @@ export function fireballEmbersSizeFromPreview(preview) {
 export function buildFireballEmbersMessage({
   preview = null,
   source = null,
-  casterId = "",
-  spellName = "fireball",
 } = {}) {
   const center = finitePoint(preview?.start);
   const size = fireballEmbersSizeFromPreview(preview);
@@ -84,13 +82,9 @@ export function buildFireballEmbersMessage({
     },
   });
 
-  const normalizedCasterId = String(casterId || "").trim();
-  const message = { instructions };
-  if (normalizedCasterId) {
-    message.spellData = {
-      name: String(spellName || "fireball").trim() || "fireball",
-      caster: normalizedCasterId,
-    };
-  }
-  return message;
+  // Questo è un protocollo one-shot: gli ID espliciti sopra descrivono già
+  // interamente raggio ed esplosione. Non allegare `spellData`, che Embers può
+  // interpretare come una spell attiva e proiettare nel proprio loop
+  // persistente, fuori dal lifecycle posseduto da Take Initiative.
+  return { instructions };
 }

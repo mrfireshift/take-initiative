@@ -302,9 +302,9 @@ async function createCauseWarning(messages, sceneEpoch) {
   };
 }
 
-async function runReplayCombination(firstOutcome, secondOutcome) {
+async function runReplayCombination(firstOutcome, secondOutcome, restartBeforeUndo = false) {
   resetScene();
-  const sceneEpoch = currentSceneEpoch();
+  let sceneEpoch = currentSceneEpoch();
   const messages = [];
   const unsubscribe = sdkStub.broadcast.onMessage(CONCENTRATION_CHANNEL, (event) => {
     messages.push(event.data);
@@ -320,6 +320,15 @@ async function runReplayCombination(firstOutcome, secondOutcome) {
     assert.equal(first.status, "applied");
     const firstEntry = await materialize(first.mutation.historyEntry);
     const firstCommandId = first.mutation.commandId;
+    if (restartBeforeUndo) {
+      backgroundEffects.unmountEffectsMutationCoordinatorService();
+      historyOwner.unmountHistoryOwner();
+      globalThis.location = { pathname: "/background.html" };
+      await historyOwner.mountHistoryOwner();
+      await backgroundEffects.mountEffectsMutationCoordinatorService();
+      globalThis.location = { pathname: "/plugin.html" };
+      sceneEpoch = currentSceneEpoch();
+    }
 
     const undoStart = messages.length;
     const undone = await history.undoHistoryThrough(firstEntry.id, { sceneEpoch });
@@ -383,6 +392,10 @@ for (const [firstOutcome, secondOutcome] of [
     await runReplayCombination(firstOutcome, secondOutcome);
   });
 }
+
+test("recovery: concentration replay uses the current runtime after a background restart", async () => {
+  await runReplayCombination("passed", "passed", true);
+});
 
 test("un reminder generico risolto, annullato e rieseguito usa una nuova identity", async () => {
   resetScene();

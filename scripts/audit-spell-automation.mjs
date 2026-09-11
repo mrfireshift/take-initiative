@@ -1698,9 +1698,11 @@ function renderIntegrationSection(audit) {
 
 export function renderSpellAutomationMarkdown(audit) {
   const lines = [
-    "# Audit automazione incantesimi",
+    "# Snapshot strutturale dell'automazione incantesimi",
     "",
-    "> **Audit incrementale per feature freeze e source of truth.**",
+    "> **Output strutturale, non classificazione semantica di completezza.**",
+    "> Stato COMPLETE/PARTIAL/MISSING e readiness: [matrice autorevole](../data/spell-implementation-status.json).",
+    "> Capability e dipendenze: [capability map](../data/spell-capability-map.json). FULL/coperto non equivale a COMPLETE.",
     "> Mappa i 477 record del catalogo distinguendo stato attuale, stato desiderato,",
     "> esposizione UI, conformità regolamentare e requisiti di smoke test.",
     "",
@@ -1778,9 +1780,16 @@ export function renderSpellAutomationMarkdown(audit) {
 
 export async function writeSpellAutomationAudit() {
   const audit = buildSpellAutomationAudit();
+  // Preserve the separately reviewed semantic audit; registry regeneration
+  // must not silently discard human status, scope and dependency decisions.
+  const previous = await fs.readFile(MARKDOWN_OUTPUT, "utf8").catch((error) => {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  });
+  const semantic = previous.match(/<!-- SPELL-COMPOSITION-AUDIT:BEGIN -->[\s\S]*?<!-- SPELL-COMPOSITION-AUDIT:END -->/)?.[0];
   await fs.mkdir(path.dirname(JSON_OUTPUT), { recursive: true });
   await fs.writeFile(JSON_OUTPUT, `${JSON.stringify(audit, null, 2)}\n`, "utf8");
-  await fs.writeFile(MARKDOWN_OUTPUT, `${renderSpellAutomationMarkdown(audit)}\n`, "utf8");
+  await fs.writeFile(MARKDOWN_OUTPUT, `${semantic ? `${semantic}\n\n` : ""}${renderSpellAutomationMarkdown(audit)}\n`, "utf8");
   return audit;
 }
 

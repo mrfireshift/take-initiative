@@ -6350,6 +6350,9 @@ function bindHPEditorForEntry(
   let lastHPHistoryEntryId = "";
   let concentrationCauseHistoryEntryId = "";
   let concentrationWarningSceneEpoch = null;
+  let editorSceneEpoch = null;
+  const isCurrentHPEditorOperation = () =>
+    Number.isSafeInteger(editorSceneEpoch) && isCurrentSceneEpoch(editorSceneEpoch);
   bindClassicHPEditor({
     pill,
     itemId: entry.id,
@@ -6358,6 +6361,7 @@ function bindHPEditorForEntry(
     hpFill,
     getEditingItemId: () => __editingHPForId,
     isCurrentEditor: () => __editingHPForId === entry.id,
+    isCurrentOperation: isCurrentHPEditorOperation,
     armClickIgnore: armDocClickIgnore,
     handoffEditor: async () => {
       const sceneEpoch = currentSceneEpoch();
@@ -6380,14 +6384,23 @@ function bindHPEditorForEntry(
       });
     },
     beginEdit: async () => {
+      editorSceneEpoch = currentSceneEpoch();
       __suspendRenders = true;
       __editingHPForId = entry.id;
       await closeOpenEditors();
+      if (!isCurrentHPEditorOperation()) {
+        __editingHPForId = null;
+        __suspendRenders = false;
+        editorSceneEpoch = null;
+      }
     },
     readLiveValues: async () => {
       const values = {};
+      const operationSceneEpoch = editorSceneEpoch;
+      if (!isCurrentHPEditorOperation()) return values;
       try {
         const [live] = await OBR.scene.items.getItems([entry.id]);
+        if (!isCurrentSceneEpoch(operationSceneEpoch)) return values;
         const meta = live?.metadata?.[META_KEY] || {};
         if (Number.isFinite(meta.hp)) values.hp = meta.hp;
         if (Number.isFinite(meta.hpMax)) values.hpMax = meta.hpMax;
@@ -6398,8 +6411,19 @@ function bindHPEditorForEntry(
       __suspendRenders = false;
     },
     cleanupEdit: () => {
+      const operationSceneEpoch = editorSceneEpoch;
       __editingHPForId = null;
-      __scheduleEditorDirtyFlush();
+      editorSceneEpoch = null;
+      if (Number.isSafeInteger(operationSceneEpoch) &&
+          isCurrentSceneEpoch(operationSceneEpoch)) {
+        __scheduleEditorDirtyFlush();
+      }
+    },
+    syncRecoveredValues: ({ hp, hpMax }) => {
+      if (!isCurrentHPEditorOperation()) return;
+      syncHPBarNow(entry.id, hp, hpMax);
+      void syncHPTextNow(entry.id, hp, hpMax);
+      syncTrackerHPNow(entry.id, hp, hpMax);
     },
     parseRelativeDelta: parseRelativeHPDelta,
     setDeltaButtonActive: setHPDeltaButtonActive,

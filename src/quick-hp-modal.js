@@ -6,7 +6,7 @@ import {
 } from "./constants.js";
 import { syncHPBarNow, syncHPTextBatchNow } from "./hpbar-items.js";
 import { syncHPBatchToMemory } from "./hpMemory.js";
-import { getHistoryEntries, undoHistoryThrough, withItemMetaHistory } from "./history.js";
+import { getHistoryEntries, undoHistoryThrough } from "./history.js";
 import {
   HISTORY_UNDO_OUTCOME,
   normalizeHistoryUndoResult,
@@ -29,11 +29,9 @@ import {
   requireAppliedEffectsMutation,
   runEffectsMutation,
 } from "./effectsMutations.js";
-import { getZeroHPConditionHistoryIds } from "./hpConditionAutomation.js";
 import { currentInitiativeTurnKey } from "./turnBoundaryCore.js";
 import { effectSaveReminderNoticesForDamage } from "./effectSaveReminderCore.js";
 import { broadcastConcentrationSaveWarnings } from "./concentrationSaveReminder.js";
-import { decorateCompositeEffectsHistoryEntry } from "./effectsMutationCompositeHistoryCore.js";
 import { mountCombatLogEventSink } from "./combatLog.js";
 import "./popoverDrag.js";
 
@@ -99,14 +97,6 @@ function sceneOperationId(prefix = "quick-hp") {
 
 function sceneAvailable() {
   return sceneLifecycle.isReady();
-}
-
-function quickHpEffectsHistoryEntry(entry, mutation = null) {
-  return decorateCompositeEffectsHistoryEntry({
-    entry,
-    mutation,
-    effectMetadataFields: ["conditions"],
-  });
 }
 
 function text(value) {
@@ -754,10 +744,6 @@ async function applyOperation() {
   let coordinatedMutation = null;
   const ids = entries.map((entry) => entry.item.id);
   const affectedIds = uniqueIds([...ids, ...failedIds]);
-  const historyIds = uniqueIds([
-    ...affectedIds,
-    ...await getZeroHPConditionHistoryIds(ids),
-  ]);
   if (!sceneLifecycle.isCurrent(operation)) {
     status.textContent = "Scena cambiata: riapri la console HP.";
     busy = false;
@@ -806,44 +792,20 @@ async function applyOperation() {
   let canonicalCommitted = false;
 
   try {
-    const historyResult = await withItemMetaHistory({
+    coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
+      history: true,
       kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp",
       label: mode === QUICK_HP_MODES.SAVE
         ? `Effetto manuale: ${conditionName || currentValue()} · ${affectedIds.length} bersagli`
         : `${modeLabel().replace(/^./, (value) => value.toUpperCase())} rapido: ${currentValue()} · ${ids.length} bersagli`,
-      itemIds: historyIds,
-      onHistoryStatus: ({ entry }) => {
-        const entryId = String(entry?.id || "").trim();
-        if (entryId) concentrationCauseHistoryEntryId = entryId;
-      },
-      fields: ["hp", "hpMax", "conditions"],
-      onRecorded: (entry) => { recordedEntry = entry; },
-      decorateEntry: (entry) => quickHpEffectsHistoryEntry(entry, coordinatedMutation),
-      sceneEpoch: operationSceneEpoch,
-      isCurrent: () => sceneLifecycle.isCurrent(operation),
-    }, async () => {
-      if (!sceneLifecycle.isCurrent(operation)) return;
-      if (coordinatedOperations.length) {
-        coordinatedMutation = await runEffectsMutation(coordinatedOperations, {
-          history: false,
-          kind: mode === QUICK_HP_MODES.SAVE ? "save-resolution" : "hp-effects",
-          label: "Effetti collegati alla modifica HP",
-          targetIds: affectedIds,
-          commandId: ownerSceneContext?.commandId || operation.operationId,
-          sceneIdentity: ownerSceneContext?.sceneIdentity || null,
-        });
-        canonicalCommitted = coordinatedMutation.committed === true;
-        if (!sceneLifecycle.isCurrent(operation)) return;
-        requireAppliedEffectsMutation(coordinatedMutation);
-      }
+      targetIds: affectedIds,
+      commandId: ownerSceneContext?.commandId || operation.operationId,
+      sceneIdentity: ownerSceneContext?.sceneIdentity || null,
     });
-    if (historyResult?.partial) {
-      canonicalCommitted = true;
-      lastEntryId = historyResult.historyEntryId || "";
-      status.textContent = "Modifica applicata parzialmente e registrata in History. Usa Undo prima di ripetere l'azione.";
-      await loadTargets();
-      return;
-    }
+    canonicalCommitted = coordinatedMutation.committed === true;
+    requireAppliedEffectsMutation(coordinatedMutation);
+    recordedEntry = coordinatedMutation.historyEntry || null;
+    concentrationCauseHistoryEntryId = recordedEntry?.id || "";
     if (!sceneLifecycle.isCurrent(operation)) {
       status.textContent = canonicalCommitted
         ? "HP applicati nella scena precedente; riapri la console HP per i passaggi successivi."
@@ -884,6 +846,7 @@ async function applyOperation() {
     status.textContent = mode === QUICK_HP_MODES.SAVE
       ? `Risoluzione applicata a ${affectedIds.length} bersagli.`
       : `Applicato a ${entries.length} bersagli.`;
+    if (coordinatedMutation.historyPending) status.textContent += " Cronologia in recupero; non ripetere l'azione.";
     await loadTargets();
     await refreshConditionSourceOptions();
     if (!sceneLifecycle.isCurrent(operation)) return;

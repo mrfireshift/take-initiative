@@ -26,7 +26,7 @@ test("la Console HP avvia la preview batch prima del commit e recupera dallo sta
     "async function undoLastOperation() {",
   );
   const preview = apply.indexOf("createQuickHPVisualTransaction(optimisticUpdates");
-  const commit = apply.indexOf("await withItemMetaHistory({");
+  const commit = apply.indexOf("await runEffectsMutation(coordinatedOperations, {");
   assert.ok(preview >= 0 && commit > preview);
   assert.match(apply, /hpVisualTransaction\.recover\(\(itemIds\) =>/);
   assert.match(

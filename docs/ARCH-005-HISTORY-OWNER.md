@@ -31,7 +31,7 @@ La garanzia è per-client: due client GM hanno due owner distinti. Il caso raro
 di append simultanei tra client conserva ancora la semantica SDK
 same-key-last-commit-wins: ciascun owner può leggere la stessa baseline e una
 write remota può quindi prevalere sull’altra. Non viene introdotta un’elezione
-distribuita o un lock Room senza CAS. Il follow-up minimo è una primitiva CAS o
-un servizio Room/server-side con revisione, eventualmente preceduta da un
-read-back/merge limitato; fino ad allora il caso multi-GM resta esplicitamente
-non risolto da ARCH-005.
+distribuita o un lock Room senza CAS. Il contratto di prodotto assume un solo
+GM autorevole per room/sessione: writer GM indipendenti e contemporanei sono
+fuori dal runtime supportato. Questo limite è accettato, non un follow-up di
+ARCH-005, e non richiede CAS, leader election o coordinamento distribuito.

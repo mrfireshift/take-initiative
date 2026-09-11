@@ -38,7 +38,8 @@ test("la Console manuale non monta preset spell o trigger all'apertura e conserv
   assert.doesNotMatch(html, /areaSpellPanel|areaSpellTab|spellSearch|spellSelect/);
   assert.match(source, /async function applyOperation/);
   assert.match(source, /async function undoLastOperation/);
-  assert.match(source, /withItemMetaHistory/);
+  assert.match(source, /history: true/);
+  assert.doesNotMatch(source, /withItemMetaHistory/);
   assert.match(source, /undoHistoryThrough/);
   assert.doesNotMatch(source, /areaEffectTab|SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED/);
   assert.doesNotMatch(source, /import[\s\S]*SPELL_ZONE_TRIGGER_WORKFLOW_ENABLED/);

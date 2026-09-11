@@ -56,7 +56,7 @@ test("serializza beam ed esplosione in unità griglia Embers", () => {
     casterId: "caster-1",
   });
 
-  assert.deepEqual(message.spellData, { name: "fireball", caster: "caster-1" });
+  assert.equal(message.spellData, undefined, "un cast one-shot non dichiara una spell persistente a Embers");
   assert.equal(message.instructions[0].id, FIREBALL_BEAM_EFFECT_ID);
   assert.deepEqual(message.instructions[0].effectProperties, {
     copies: 1,

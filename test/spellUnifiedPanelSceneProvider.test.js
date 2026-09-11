@@ -13,6 +13,7 @@ import {
   getContextOrSelectionIds,
   getSpellAreaSpatialValidation,
   getSpellOverviewSnapshot,
+  reprojectSpellOverviewForInitiativeState,
   validateSpellUnifiedTargetSelection,
   validateSpellAreaSceneSpatial,
 } from "../src/spellUnifiedPanelSceneProvider.js";
@@ -337,6 +338,119 @@ test("il provider di scena espone una superficie runtime sostituibile nei test",
   assert.equal(typeof provider.getOverview, "function");
   assert.deepEqual(await provider.getSelection(), []);
   assert.deepEqual(await provider.getOverview(), []);
+});
+
+test("ARCH-07 T3/T4/T5: initiative/state riproietta il turno, ignora metadata estranei e si disiscrive", async () => {
+  let metadata = {
+    [STATE_KEY]: { order: ["caster", "other"], current: 0, round: 2 },
+    unrelated: { value: 1 },
+  };
+  const metadataListeners = new Set();
+  const obr = fakeObr([]);
+  obr.scene.getMetadata = async () => metadata;
+  obr.scene.onMetadataChange = (callback) => {
+    metadataListeners.add(callback);
+    return () => metadataListeners.delete(callback);
+  };
+  const received = [];
+  const provider = createSpellUnifiedPanelSceneProvider(obr);
+  const unsubscribe = provider.onInitiativeStateChange((state) => received.push(state));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  metadata = { ...metadata, unrelated: { value: 2 } };
+  for (const listener of metadataListeners) listener(metadata);
+  assert.deepEqual(received, []);
+
+  metadata = {
+    ...metadata,
+    [STATE_KEY]: { order: ["caster", "other"], current: 1, round: 2 },
+  };
+  for (const listener of metadataListeners) listener(metadata);
+  assert.deepEqual(received, [{ order: ["caster", "other"], current: 1, round: 2 }]);
+
+  const overview = [{
+    instanceId: "heat-1",
+    name: "Riscaldare il Metallo",
+    context: {
+      spellId: "heat-metal",
+      instanceId: "heat-1",
+      casterId: "caster",
+      targetIds: ["other"],
+      targetNames: ["Other"],
+      castContext: {},
+      effectInstances: [],
+      appliedAt: { turnKey: "2:0:caster" },
+    },
+  }];
+  const sameRound = reprojectSpellOverviewForInitiativeState(overview, {
+    order: ["caster", "other"], current: 0, round: 2,
+  });
+  const nextRound = reprojectSpellOverviewForInitiativeState(overview, {
+    order: ["caster", "other"], current: 0, round: 3,
+  });
+  assert.equal(sameRound[0].actions[0].available, false);
+  assert.equal(nextRound[0].actions[0].available, true);
+  assert.equal(nextRound[0].context.turnKey, "3:0:caster");
+
+  unsubscribe();
+  assert.equal(metadataListeners.size, 0);
+  metadata = {
+    ...metadata,
+    [STATE_KEY]: { order: ["caster", "other"], current: 0, round: 3 },
+  };
+  for (const listener of metadataListeners) listener(metadata);
+  assert.equal(received.length, 1);
+});
+
+test("ARCH-07 T7: un callback metadata tardivo della scena precedente non passa al pannello", async () => {
+  let ready = true;
+  let epoch = 1;
+  const lifecycleListeners = new Set();
+  const sceneLifecycle = {
+    isReady: () => ready,
+    capture: () => ({ epoch }),
+    isCurrent: (operation) => ready && operation?.epoch === epoch,
+    subscribe: (callback) => {
+      lifecycleListeners.add(callback);
+      return () => lifecycleListeners.delete(callback);
+    },
+  };
+  const metadataListeners = new Set();
+  const obr = fakeObr([]);
+  obr.scene.getMetadata = async () => ({
+    [STATE_KEY]: { order: ["caster-a", "caster-b"], current: 0, round: 2 },
+  });
+  obr.scene.onMetadataChange = (callback) => {
+    metadataListeners.add(callback);
+    return () => metadataListeners.delete(callback);
+  };
+  const received = [];
+  const provider = createSpellUnifiedPanelSceneProvider(obr, { sceneLifecycle });
+  const unsubscribe = provider.onInitiativeStateChange((state) => received.push(state));
+  await new Promise((resolve) => setImmediate(resolve));
+  const staleCallback = [...metadataListeners][0];
+
+  ready = false;
+  for (const listener of lifecycleListeners) listener({ phase: "unavailable" });
+  assert.equal(metadataListeners.size, 0);
+
+  ready = true;
+  epoch = 2;
+  for (const listener of lifecycleListeners) listener({ phase: "ready" });
+  await new Promise((resolve) => setImmediate(resolve));
+  staleCallback({
+    [STATE_KEY]: { order: ["caster-a", "caster-b"], current: 1, round: 2 },
+  });
+  assert.deepEqual(received, []);
+
+  for (const listener of metadataListeners) listener({
+    [STATE_KEY]: { order: ["caster-a", "caster-b"], current: 1, round: 3 },
+  });
+  assert.deepEqual(received, [{ order: ["caster-a", "caster-b"], current: 1, round: 3 }]);
+
+  unsubscribe();
+  assert.equal(metadataListeners.size, 0);
+  assert.equal(lifecycleListeners.size, 0);
 });
 
 test("il provider calcola snapshot spaziali per Catena di fulmini", async () => {

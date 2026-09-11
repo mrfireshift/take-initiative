@@ -1,0 +1,1590 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-09-09",
+  "capabilities": [
+    {
+      "id": "C-CATALOG",
+      "capability": "Catalog / rules / aliases",
+      "owner": "src/spells-srd.js",
+      "contract": "getSpellCatalog/getSpellDefinition; merged SRD + PHB extras + supplements + legacy",
+      "representativeSpells": [
+        "hold-person",
+        "fireball"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellUnifiedExecutionParity.test.js"
+      ],
+      "limits": "Catalog presence and a valid route do not prove semantic completeness."
+    },
+    {
+      "id": "C-DIRECT",
+      "capability": "Direct persistent effect / GM outcome",
+      "owner": "src/spellApplicationPlanCore.js",
+      "contract": "buildSpellApplicationIntent → buildSpellApplicationPlan; proposed effects/conditions, castContext",
+      "representativeSpells": [
+        "bless",
+        "hold-person"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellApplicationPlanCore.test.js",
+        "test/spellCastAutomationCore.test.js"
+      ],
+      "limits": "Initial save-or-suck at table; selected targets are failed outcomes."
+    },
+    {
+      "id": "C-SAVE",
+      "capability": "Initial save, success/failure/immune, half/zero/full damage",
+      "owner": "src/saveSpellCore.js",
+      "contract": "resolveSaveSpellResolution; saveAutomation rulesByOutcome + getSpellSaveWorkflowRule",
+      "representativeSpells": [
+        "phb2014-raggio-di-infermita",
+        "bane"
+      ],
+      "representativeBehavioralTests": [
+        "test/rayOfSicknessWorkflow.test.js",
+        "test/holdPersonSaveWorkflow.test.js"
+      ],
+      "limits": "Area-transaction also supports discrete targeting; no need for fictional geometry."
+    },
+    {
+      "id": "C-CASTHP",
+      "capability": "Instant damage/healing, final numeric GM input",
+      "owner": "src/spellAreaResolutionCommandCore.js",
+      "contract": "buildSpellAreaResolutionCommand → executeSpellAreaResolution; hp.mode/amount/outcomeFactors",
+      "representativeSpells": [
+        "fireball",
+        "mass-cure-wounds"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellAreaResolutionCommandCore.test.js",
+        "test/spellUnifiedExecutionParity.test.js"
+      ],
+      "limits": "Lifecycle adapter alone rejects ordinary HP input. Register proper lane and explicit initialHP/healing policy."
+    },
+    {
+      "id": "C-ATTACK",
+      "capability": "Hit/miss cast",
+      "owner": "src/spellAttackResolutionCore.js",
+      "contract": "getSpellAttackResolution; initialDamage + effect/deferredEffect",
+      "representativeSpells": [
+        "acid-arrow",
+        "guiding-bolt"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellUnifiedExecutionParity.test.js"
+      ],
+      "limits": "BLOCKER: acid deferred effect leaks into guiding-bolt/chill-touch/ray-of-frost. Not a safe generic attack template."
+    },
+    {
+      "id": "C-ACTIVEATTACK",
+      "capability": "Active attacks, critical, multiple attacks and repeated target",
+      "owner": "src/spellApplicationExecutor.js",
+      "contract": "executeSpellActiveResolution; attacks[{targetId,attackOutcome,damageRoll}], maxAttacks",
+      "representativeSpells": [
+        "tasha-lama-del-disastro",
+        "spiritual-weapon"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellActiveResolutionExecution.test.js",
+        "test/spellBoardTokenCore.test.js"
+      ],
+      "limits": "Existing multi-hit capability; cast dispatch/variable count still not generalized."
+    },
+    {
+      "id": "C-COMPONENTS",
+      "capability": "Multiple damage contributions",
+      "owner": "src/prismaticWallRules.js",
+      "contract": "prismaticWallTraversalPlan → damageContributions; executor aggregates per target",
+      "representativeSpells": [
+        "prismatic-wall",
+        "prismatic-spray"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellActiveResolutionCore.test.js"
+      ],
+      "limits": "Bespoke contribution model; ordinary area HP input is one final total. No general per-type resistance engine."
+    },
+    {
+      "id": "C-ROUNDING",
+      "capability": "Canonical HP rounding / clamp",
+      "owner": "src/quickHpCore.js",
+      "contract": "calculateQuickHPChange; floor(nonNegativeInteger(value) * factor)",
+      "representativeSpells": [
+        "fireball",
+        "heat-metal"
+      ],
+      "representativeBehavioralTests": [
+        "test/quickHpCore.test.js"
+      ],
+      "limits": "No local rounding policy; type mitigation and dice remain GM."
+    },
+    {
+      "id": "C-DRAIN",
+      "capability": "Healing proportional to applied damage",
+      "owner": "src/spellDamageHealingCore.js",
+      "contract": "spellCasterHealingChange/Amount; casterHealingFromAppliedDamage",
+      "representativeSpells": [
+        "xanathar-debilitazione"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellActiveResolutionExecution.test.js"
+      ],
+      "limits": "Target→caster ratio exists in cast and active executors. Reverse direction is not a generic relationship descriptor."
+    },
+    {
+      "id": "C-EFFECT",
+      "capability": "Conditions, multiple effects and summary mechanics",
+      "owner": "src/spellEffectCore.js",
+      "contract": "spellEffectConditionOptions + catalogSpellApplicationOperations; condition:add/remove-instances",
+      "representativeSpells": [
+        "hypnotic-pattern",
+        "bless"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellLifecycleOperationsCore.test.js",
+        "test/spellCastAutomationCore.test.js"
+      ],
+      "limits": "Effects are authoritative; labels/summaryParts do not enforce every passive rule."
+    },
+    {
+      "id": "C-DAMAGEEND",
+      "capability": "Damage cleanup / dependent effects",
+      "owner": "src/hpConditionRulesCore.js",
+      "contract": "resolveDamageEndsConditionRemovals; mechanics.endsOnDamage / endsOnDamage",
+      "representativeSpells": [
+        "eyebite"
+      ],
+      "representativeBehavioralTests": [
+        "test/hpConditionRulesCore.test.js",
+        "test/spellActiveResolutionCore.test.js"
+      ],
+      "limits": "Source-specific event conditions are not a general attack/event bus."
+    },
+    {
+      "id": "C-REPEATSAVE",
+      "capability": "Repeat save, save ends, start/end-turn",
+      "owner": "src/reminderResolutionCore.js",
+      "contract": "buildEffectSaveReminderResolution → buildReminderResolutionPlan; saveReminder ability/timing/resolution",
+      "representativeSpells": [
+        "hold-person",
+        "blindness-deafness"
+      ],
+      "representativeBehavioralTests": [
+        "test/holdPersonSaveWorkflow.test.js",
+        "test/blindnessDeafnessWorkflow.test.js"
+      ],
+      "limits": "Target/source scope and parentRemoval target must be explicit. Ability check is not automatically a save."
+    },
+    {
+      "id": "C-DEFERRED",
+      "capability": "Deferred outcomes / dependent actions",
+      "owner": "src/reminderResolutionCore.js",
+      "contract": "buildDeferredEffectResolution; deferredEffects timing/actor/resolution.outcomes.actions",
+      "representativeSpells": [
+        "acid-arrow",
+        "heat-metal"
+      ],
+      "representativeBehavioralTests": [
+        "test/deferredSpellWorkflow.test.js",
+        "test/reminderResolutionCore.test.js"
+      ],
+      "limits": "Deferred effect resolves/removes; do not infer indefinite repeated healing from one-shot deferred healing."
+    },
+    {
+      "id": "C-CONCENTRATION",
+      "capability": "Register, replace, terminate concentration and children",
+      "owner": "src/spellLifecycleOperationsCore.js",
+      "contract": "spellLifecycleOperations: concentration:break/register, spell:upsert, condition:automate",
+      "representativeSpells": [
+        "hold-person",
+        "bless"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellLifecycleOperationsCore.test.js",
+        "test/reminderResolutionConcentrationLifecycle.test.js"
+      ],
+      "limits": "No per-spell concentration owner; caster required."
+    },
+    {
+      "id": "C-CONCSAVE",
+      "capability": "Damage concentration warning",
+      "owner": "src/concentrationSaveReminder.js",
+      "contract": "runtime warning owner; concentrationSaveReminderCore projects pending saves",
+      "representativeSpells": [
+        "dominate-person",
+        "hold-person"
+      ],
+      "representativeBehavioralTests": [
+        "test/concentrationSaveReminderRuntime.test.js",
+        "test/concentrationWarningUndoIntegration.test.js"
+      ],
+      "limits": "Damage at table/manual save warning; scene scope and Undo are shared."
+    },
+    {
+      "id": "C-EXPIRY",
+      "capability": "Rounds and source/target turn expiry",
+      "owner": "src/effectsMutationCore.js",
+      "contract": "condition/spell tick operations; expiry.mode/actor/remaining/anchor + spellExpiryCore",
+      "representativeSpells": [
+        "shield",
+        "command"
+      ],
+      "representativeBehavioralTests": [
+        "test/conditionExpiryPersistence.test.js",
+        "test/spellRuleExpiry.test.js"
+      ],
+      "limits": "Both initiative boundary and round paths must be respected; virtual IDs are not scene item IDs."
+    },
+    {
+      "id": "C-END",
+      "capability": "Post-expiry consequence and terminal continuation",
+      "owner": "src/spellTerminationGatewayCore.js",
+      "contract": "terminalResolutionDescriptor; buildTerminationRequestOperation / buildTerminationResumeOperation",
+      "representativeSpells": [
+        "haste",
+        "delayed-blast-fireball",
+        "blink"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellTerminationGateway.test.js",
+        "test/spellLifecycleContracts.test.js"
+      ],
+      "limits": "Termination pending is distinct from immediate removal."
+    },
+    {
+      "id": "C-TARGET",
+      "capability": "Single/multi/self/caster+targets; cap and bypass",
+      "owner": "src/spellTargetingCapacityCore.js",
+      "contract": "resolveTargetingCapacity/applyTargetingLimitState/validateTargetingCapacity; maximum/baseMaximum/baseSlot/additionalPerSlotAbove",
+      "representativeSpells": [
+        "hold-person",
+        "chain-lightning"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellTargetingCapacityCore.test.js"
+      ],
+      "limits": "ignoreTargetLimit never changes canonical max; self from spellCastContextCore; no physical line-of-sight engine."
+    },
+    {
+      "id": "C-PLACEMENT",
+      "capability": "Area geometry and include/exclude subset",
+      "owner": "src/spellAreaRules.js",
+      "contract": "SPELL_AREA_RULES; validateSpellAreaRule; geometry/placement/targeting selectionMode selectionPolarity",
+      "representativeSpells": [
+        "fireball",
+        "spirit-guardians"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellAreaRules.test.js",
+        "test/spellAreaPlacementCore.test.js"
+      ],
+      "limits": "One cast geometry vs child zones; multiple arbitrary instant centers still a gap."
+    },
+    {
+      "id": "C-MEMBERSHIP",
+      "capability": "Enter/leave/current area membership",
+      "owner": "src/spellAreaMembershipCore.js",
+      "contract": "areaMembershipTargetIds / areaMembershipPlan; filter/includeCaster/targetScope",
+      "representativeSpells": [
+        "spirit-guardians",
+        "phb2014-allucinazione-di-forza"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellAreaMembershipCore.test.js",
+        "test/spellAuraCore.test.js"
+      ],
+      "limits": "Canonical effects vs derived membership; not global collision or terrain solver."
+    },
+    {
+      "id": "C-ZONE",
+      "capability": "Persistent zone / child cleanup",
+      "owner": "src/spellStaticZone.js",
+      "contract": "reconcileStaticSpellZones; spell instance root identity / buildStaticSpellZoneItems",
+      "representativeSpells": [
+        "web",
+        "wall-of-fire"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellStaticZoneCore.test.js",
+        "test/staticSpellZoneRecovery.test.js"
+      ],
+      "limits": "Scene items have owned identities; never indiscriminate remove/recreate."
+    },
+    {
+      "id": "C-AURA",
+      "capability": "Mobile aura",
+      "owner": "src/spellAuraController.js",
+      "contract": "reconcileSpellAuras; collectActiveMobileAuras/mobileAuraMembershipPlan",
+      "representativeSpells": [
+        "spirit-guardians",
+        "tasha-sudario-spirituale"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellAuraCore.test.js",
+        "test/spellAuraReminderCore.test.js"
+      ],
+      "limits": "Aura holder normally caster; acting target distinct from concentration owner is not fully declarative."
+    },
+    {
+      "id": "C-TRIGGERS",
+      "capability": "Cast/enter/leave/start/end/move; once and once-per-turn",
+      "owner": "src/spellZoneTriggerCore.js",
+      "contract": "planSpellZoneTriggers/consumeSpellZoneTrigger/mergePlannedSpellZoneTriggerRuntime; event/group/frequency",
+      "representativeSpells": [
+        "grease",
+        "spirit-guardians"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellZoneTriggerCore.test.js",
+        "test/zoneTriggerNoticeCore.test.js"
+      ],
+      "limits": "Frequency is group/actor/turn scoped; not general daily limit or full action economy."
+    },
+    {
+      "id": "C-NOTICE",
+      "capability": "Reminder fan-out and per-target consume",
+      "owner": "src/zoneTriggerNoticeCore.js",
+      "contract": "zoneTriggerNoticesFromActivation; planStaticSpellZoneReminder/planMobileAuraReminder",
+      "representativeSpells": [
+        "spirit-guardians",
+        "xanathar-spirito-guaritore"
+      ],
+      "representativeBehavioralTests": [
+        "test/zoneTriggerNoticeCore.test.js",
+        "test/reminderResolutionBrokerReplay.test.js"
+      ],
+      "limits": "Notice delivery is a projection; consuming activation is an Effects side effect."
+    },
+    {
+      "id": "C-MOVEZONE",
+      "capability": "Move/drift zone, direction, carried targets",
+      "owner": "src/spellZoneMovementCore.js",
+      "contract": "movement descriptor + executeSpellZoneMovement; static-zone:move side effect",
+      "representativeSpells": [
+        "flaming-sphere",
+        "xanathar-turbine"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellZoneMovementCore.test.js",
+        "test/spellStaticZoneMovementUndoIntegration.test.js"
+      ],
+      "limits": "Movement origin exists; generalized size capacity/expulsion is missing."
+    },
+    {
+      "id": "C-SCALE",
+      "capability": "Slot scaling: dice, bonuses, duration, cap",
+      "owner": "src/spellMechanicsCore.js",
+      "contract": "resolveSpellMechanics/resolveSpellEffect; getSpellDurationTurns; damage additionalPerSlotAbove/baseSlot",
+      "representativeSpells": [
+        "magic-weapon",
+        "hold-person"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellMechanicsCore.test.js",
+        "test/spellTargetingCapacityCore.test.js"
+      ],
+      "limits": "No universal automatic dice roller. Character-level target beams exist, but immediate attack damage uses slot increments incorrectly for cantrips."
+    },
+    {
+      "id": "C-INSTANCE",
+      "capability": "Persistent instance, caster/targets, cast context",
+      "owner": "src/spellLifecycleOperationsCore.js",
+      "contract": "spell:upsert with instanceId/spellId/source/castContext/appliedAt",
+      "representativeSpells": [
+        "eyebite",
+        "call-lightning"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellLifecycleOperationsCore.test.js",
+        "test/spellApplicationOperations.test.js"
+      ],
+      "limits": "Persist source context; never derive identity from displayed name."
+    },
+    {
+      "id": "C-ACTIVE",
+      "capability": "Actions after cast and manual actions",
+      "owner": "src/spellActiveResolutionRules.js",
+      "contract": "SPELL_ACTIVE_RESOLUTION_ACTIONS + SUPPLEMENT_ACTIVE_ACTIONS; availableAfterCast/showInOverview/turnStartPrompt",
+      "representativeSpells": [
+        "call-lightning",
+        "heat-metal"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellActiveResolutionCore.test.js",
+        "test/spellActiveActionCore.test.js"
+      ],
+      "limits": "Some actions validate only supported resolution kinds; descriptor valid alone is not cast reachability."
+    },
+    {
+      "id": "C-RESOURCE",
+      "capability": "Fixed resource count / consume / terminal zero",
+      "owner": "src/spellActiveResolutionCore.js",
+      "contract": "buildSpellActiveResolutionResourceOperations; castContext.uses + resource key/consume/endSpellAtZero",
+      "representativeSpells": [
+        "xanathar-corona-di-stelle",
+        "xanathar-frecce-infuocate"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellActiveActionCore.test.js"
+      ],
+      "limits": "Initial use rules are spell-indexed config in application planner. Damage-budget/zone-trigger consume and variable costs are gaps."
+    },
+    {
+      "id": "C-RETARGET",
+      "capability": "Replace linked targets",
+      "owner": "src/spellActiveActionCore.js",
+      "contract": "buildSpellActiveActionPlan; replaceSpellTargets → upsert/register/break-targets",
+      "representativeSpells": [
+        "telekinesis"
+      ],
+      "representativeBehavioralTests": [
+        "test/telekinesisWorkflow.test.js"
+      ],
+      "limits": "Hidden generic planner branch verified by audit probe; source-event eligibility/death linkage remains distinct. Telekinesis itself uses bespoke contest branch."
+    },
+    {
+      "id": "C-PREPARED",
+      "capability": "Prepared spell resolution",
+      "owner": "src/spellCastPhaseCore.js",
+      "contract": "getSpellCastPhasePlan/withSpellPhaseTransitionOperations + preparedSpellResolutionController",
+      "representativeSpells": [
+        "phb2014-colpo-intrappolante",
+        "phb2014-raffica-di-spine"
+      ],
+      "representativeBehavioralTests": [
+        "test/preparedSpellResolutionCore.test.js",
+        "test/preparedSpellApplicationExecutor.test.js"
+      ],
+      "limits": "Prepare miss retains pending state; resolve transitions shared concentration."
+    },
+    {
+      "id": "C-PRESENT",
+      "capability": "Active/prepared map popover and unified contract",
+      "owner": "src/spellUnifiedPanelCore.js",
+      "contract": "buildSpellUnifiedPanelContract/createSpellPanelSession/buildSpellPanelViewModel",
+      "representativeSpells": [
+        "eyebite",
+        "fireball"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellUnifiedPanelCore.test.js",
+        "test/spellUnifiedPanelController.test.js"
+      ],
+      "limits": "No polishing required; declarative input visibility is runtime contract, not proof of mechanics."
+    },
+    {
+      "id": "C-SUMMARY",
+      "capability": "Micropills, summaryParts, condition chips",
+      "owner": "src/effectLabelCore.js",
+      "contract": "effectSummaryPartsFor; getSpellSummaryParts; spellEffectConditionOptions",
+      "representativeSpells": [
+        "bless",
+        "tasha-sudario-spirituale"
+      ],
+      "representativeBehavioralTests": [
+        "test/spellMechanicsCore.test.js",
+        "test/summaryPartsTranche1.test.js"
+      ],
+      "limits": "Spell name + canonical condition + concise additional info; no redundant description pill."
+    },
+    {
+      "id": "C-VFX",
+      "capability": "One-shot / travel / persistent / area / aura",
+      "owner": "src/embersMatchedVisualCore.js",
+      "contract": "getMatchedSpellVisualDefinition/buildMatchedVisualEvent + emitMatchedSpellVisual",
+      "representativeSpells": [
+        "fireball",
+        "hunters-mark"
+      ],
+      "representativeBehavioralTests": [
+        "test/embersMatchedVisualCore.test.js",
+        "test/embersMatchedVisualSceneEpoch.test.js"
+      ],
+      "limits": "Registration-specific mappings; a missing VFX does not mean missing mechanic."
+    },
+    {
+      "id": "C-VFXEND",
+      "capability": "VFX terminal cleanup, replay/respawn and scene guards",
+      "owner": "src/embersMatchedVisualRenderer.js",
+      "contract": "visual execution identity and sceneEpoch; fireball controller separate",
+      "representativeSpells": [
+        "fireball"
+      ],
+      "representativeBehavioralTests": [
+        "test/fireballVisualSceneEpoch.test.js",
+        "test/embersMatchedVisualSceneEpoch.test.js"
+      ],
+      "limits": "Cosmetic replay protection; never an Effects writer."
+    },
+    {
+      "id": "C-EFFECTS",
+      "capability": "Canonical Effects authority, serialized/idempotent mutation",
+      "owner": "src/effectsMutations.js",
+      "contract": "runEffectsMutation → createEffectsMutationCoordinator; commandId/correlationId/sceneEpoch",
+      "representativeSpells": [
+        "hold-person",
+        "fireball"
+      ],
+      "representativeBehavioralTests": [
+        "test/effectsMutationArchitectureContract.test.js",
+        "test/effectsMutationCore.test.js"
+      ],
+      "limits": "Merge token metadata; preserve hp/hpMax and initiative state keys."
+    },
+    {
+      "id": "C-HISTORY",
+      "capability": "Shared History and composite Undo",
+      "owner": "src/historyOwner.js",
+      "contract": "History owner + Effects undo lane; spellExecutionHistoryDetails normalizes executor result",
+      "representativeSpells": [
+        "blink",
+        "wall-of-fire"
+      ],
+      "representativeBehavioralTests": [
+        "test/historyOwnerCore.test.js",
+        "test/historyUndoFailureInjection.test.js",
+        "test/spellStaticZoneMovementUndoIntegration.test.js"
+      ],
+      "limits": "VFX projections are not independent history; new spells cannot invent history/recovery writers."
+    },
+    {
+      "id": "C-RECOVERY",
+      "capability": "Durable recovery and receipts",
+      "owner": "src/effectsRecovery.js",
+      "contract": "createEffectsRecovery/supportsEffectsRecovery; PREPARED→CANONICAL_COMMITTED→SIDE_EFFECTS_PENDING→HISTORY_PENDING→COMPLETE",
+      "representativeSpells": [
+        "blink"
+      ],
+      "representativeBehavioralTests": [
+        "test/arch05aPostCommitRecoveryDiagnostic.test.js",
+        "test/historyOwnerEffectsPostCommit.test.js"
+      ],
+      "limits": "Limited envelope: token:teleport, reminder:consume-zone-activation, spell-active-resolution:validate; history:false and undoSideEffects excluded. No universal crash recovery promise."
+    },
+    {
+      "id": "C-SCENE",
+      "capability": "Scene invalidation / reconciler recovery",
+      "owner": "src/sceneLifecycle.js",
+      "contract": "scene epoch boundary + coordinator isCurrent checks; owner reconciliation",
+      "representativeSpells": [
+        "fireball",
+        "blink"
+      ],
+      "representativeBehavioralTests": [
+        "test/staticSpellZoneRecovery.test.js",
+        "test/reconcilerRecoveryContract.test.js"
+      ],
+      "limits": "Old-scene completion cannot publish new-scene writes. Simulated tests do not certify live Owlbear network."
+    }
+  ],
+  "sharedGaps": [
+    {
+      "id": "CAP-ATTACK",
+      "capability": "Cast attack bridge, no mandatory acid deferred rider; variable hit count / auto-hit / cantrip damage scaling",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-ATTACK",
+        "C-ACTIVEATTACK",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/spellAttackResolutionCore.js",
+        "src/spellActiveResolutionCore.js",
+        "src/spellApplicationExecutor.js",
+        "src/spellUnifiedPanelCore.js"
+      ],
+      "blockedSpells": [
+        "chill-touch",
+        "dispel-evil-and-good",
+        "eldritch-blast",
+        "fire-bolt",
+        "guiding-bolt",
+        "inflict-wounds",
+        "magic-missile",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-colpo-del-vento-dacciaio",
+        "xanathar-ferocia-primordiale",
+        "tasha-lama-roboante",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-globo-cromatico"
+      ],
+      "unlockedAlone": [
+        "chill-touch",
+        "eldritch-blast",
+        "fire-bolt",
+        "guiding-bolt",
+        "inflict-wounds",
+        "magic-missile",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-ferocia-primordiale",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-globo-cromatico"
+      ],
+      "unlockRatio": 5.33
+    },
+    {
+      "id": "CAP-LINK",
+      "capability": "Shared GM-assisted maintain/end event and linked-target eligibility",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-RETARGET",
+        "C-END",
+        "C-ACTIVE"
+      ],
+      "owners": [
+        "src/spellActiveActionCore.js",
+        "src/spellApplicationExecutor.js",
+        "src/spellLifecycleOperationsCore.js"
+      ],
+      "blockedSpells": [
+        "faithful-hound",
+        "hunters-mark",
+        "invisibility",
+        "xanathar-debilitazione",
+        "xanathar-prigione-mentale",
+        "tasha-lama-roboante",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-sortilegio",
+        "phb2014-corona-di-follia"
+      ],
+      "unlockedAlone": [
+        "hunters-mark",
+        "invisibility",
+        "xanathar-debilitazione",
+        "xanathar-prigione-mentale",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-sortilegio",
+        "phb2014-corona-di-follia"
+      ],
+      "unlockRatio": 2.67
+    },
+    {
+      "id": "CAP-HP-BRANCH",
+      "capability": "Declarative HP threshold / pre-post damage branch",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "HIGH",
+      "donors": [
+        "C-CASTHP",
+        "C-EFFECT"
+      ],
+      "owners": [
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/effectsMutationCore.js"
+      ],
+      "blockedSpells": [
+        "disintegrate",
+        "divine-word",
+        "feeblemind",
+        "finger-of-death",
+        "power-word-kill"
+      ],
+      "unlockedAlone": [
+        "disintegrate",
+        "divine-word",
+        "feeblemind",
+        "finger-of-death",
+        "power-word-kill"
+      ],
+      "unlockRatio": 2.5
+    },
+    {
+      "id": "CAP-CLEANSE",
+      "capability": "Select/terminate eligible effects and compose with healing cast",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-EFFECT",
+        "C-END",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/spellApplicationPlanCore.js",
+        "src/spellAreaResolutionExecutor.js",
+        "src/spellUnifiedPanelCore.js"
+      ],
+      "blockedSpells": [
+        "dispel-evil-and-good",
+        "dispel-magic",
+        "heal",
+        "lesser-restoration",
+        "mass-heal",
+        "phb2014-parola-del-potere-guarire"
+      ],
+      "unlockedAlone": [
+        "dispel-magic",
+        "heal",
+        "lesser-restoration",
+        "phb2014-parola-del-potere-guarire"
+      ],
+      "unlockRatio": 2
+    },
+    {
+      "id": "CAP-RESOURCE",
+      "capability": "General variable/budget resource consume from zone resolution",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-RESOURCE",
+        "C-TRIGGERS"
+      ],
+      "owners": [
+        "src/spellActiveResolutionCore.js",
+        "src/reminderResolutionCore.js",
+        "src/spellApplicationPlanCore.js"
+      ],
+      "blockedSpells": [
+        "goodberry",
+        "guardian-of-faith",
+        "mirror-image",
+        "xanathar-minuscole-meteore-di-melf",
+        "phb2014-cordone-di-frecce"
+      ],
+      "unlockedAlone": [
+        "goodberry",
+        "guardian-of-faith",
+        "mirror-image",
+        "phb2014-cordone-di-frecce"
+      ],
+      "unlockRatio": 2
+    },
+    {
+      "id": "CAP-REACTION",
+      "capability": "GM-assisted damage/attack response with consume/expiry",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "HIGH",
+      "donors": [
+        "C-DAMAGEEND",
+        "C-DEFERRED",
+        "C-END"
+      ],
+      "owners": [
+        "src/hpConditionRulesCore.js",
+        "src/reminderResolutionCore.js",
+        "src/effectsMutationCore.js"
+      ],
+      "blockedSpells": [
+        "death-ward",
+        "fire-shield",
+        "sanctuary",
+        "warding-bond",
+        "xanathar-interdizione-primordiale",
+        "xanathar-ombra-di-moil"
+      ],
+      "unlockedAlone": [
+        "death-ward",
+        "fire-shield",
+        "sanctuary",
+        "warding-bond",
+        "xanathar-interdizione-primordiale",
+        "xanathar-ombra-di-moil"
+      ],
+      "unlockRatio": 1.5
+    },
+    {
+      "id": "CAP-TERRAIN",
+      "capability": "Mode-specific terrain/membership profiles and selectable subareas",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-ZONE",
+        "C-MEMBERSHIP",
+        "C-MOVEZONE"
+      ],
+      "owners": [
+        "src/spellAreaRules.js",
+        "src/spellAreaCatalog.js",
+        "src/spellStaticZoneCore.js"
+      ],
+      "blockedSpells": [
+        "plant-growth",
+        "speak-with-plants",
+        "symbol",
+        "xanathar-boschetto-druidico",
+        "xanathar-muro-dacqua",
+        "xanathar-trasmutare-roccia"
+      ],
+      "unlockedAlone": [
+        "plant-growth",
+        "speak-with-plants",
+        "symbol",
+        "xanathar-boschetto-druidico",
+        "xanathar-muro-dacqua",
+        "xanathar-trasmutare-roccia"
+      ],
+      "unlockRatio": 1.5
+    },
+    {
+      "id": "CAP-TEMP",
+      "capability": "Temporary-HP pool and damage consumption policy",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "HIGH",
+      "donors": [
+        "C-EFFECTS",
+        "C-ROUNDING"
+      ],
+      "owners": [
+        "src/effectsMutationCore.js",
+        "src/effectsMutations.js",
+        "src/quickHpCore.js"
+      ],
+      "blockedSpells": [
+        "false-life",
+        "heroism",
+        "xanathar-flusso-di-energia-negativa",
+        "xanathar-trasformazione-di-tenser",
+        "phb2014-armatura-di-agathys"
+      ],
+      "unlockedAlone": [
+        "false-life",
+        "heroism",
+        "xanathar-flusso-di-energia-negativa",
+        "xanathar-trasformazione-di-tenser",
+        "phb2014-armatura-di-agathys"
+      ],
+      "unlockRatio": 1.25
+    },
+    {
+      "id": "CAP-DURATION",
+      "capability": "Slot-dependent concentration flag paired with duration",
+      "effort": "LOW",
+      "complexity": 1,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-SCALE",
+        "C-CONCENTRATION"
+      ],
+      "owners": [
+        "src/spellCastContextCore.js",
+        "src/spells-srd.js",
+        "src/spellUnifiedPanelCore.js"
+      ],
+      "blockedSpells": [
+        "bestow-curse"
+      ],
+      "unlockedAlone": [
+        "bestow-curse"
+      ],
+      "unlockRatio": 1
+    },
+    {
+      "id": "CAP-MODE",
+      "capability": "Exclusive active mode replacement with parent retained",
+      "effort": "LOW",
+      "complexity": 1,
+      "risk": "LOW",
+      "donors": [
+        "C-ACTIVE",
+        "C-EFFECT"
+      ],
+      "owners": [
+        "src/spellActiveActionCore.js",
+        "src/spellApplicationPlanCore.js"
+      ],
+      "blockedSpells": [
+        "alter-self"
+      ],
+      "unlockedAlone": [
+        "alter-self"
+      ],
+      "unlockRatio": 1
+    },
+    {
+      "id": "CAP-REPEAT-HEAL",
+      "capability": "Non-spatial repeated target healing reminder",
+      "effort": "LOW",
+      "complexity": 1,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-DEFERRED",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/reminderResolutionCore.js",
+        "src/spellLifecycleOperationsCore.js"
+      ],
+      "blockedSpells": [
+        "regenerate"
+      ],
+      "unlockedAlone": [
+        "regenerate"
+      ],
+      "unlockRatio": 1
+    },
+    {
+      "id": "CAP-ORIGIN",
+      "capability": "Active actor/root distinct from concentration caster",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-ACTIVE",
+        "C-INSTANCE",
+        "C-MOVEZONE"
+      ],
+      "owners": [
+        "src/spellActiveResolutionValidation.js",
+        "src/spellApplicationExecutor.js",
+        "src/spellUnifiedPanelCore.js"
+      ],
+      "blockedSpells": [
+        "faithful-hound",
+        "freezing-sphere",
+        "xanathar-soffio-del-drago",
+        "phb2014-rampicante-afferrante"
+      ],
+      "unlockedAlone": [
+        "freezing-sphere",
+        "xanathar-soffio-del-drago",
+        "phb2014-rampicante-afferrante"
+      ],
+      "unlockRatio": 1
+    },
+    {
+      "id": "CAP-MAXHP",
+      "capability": "Owned reversible max-HP modifier and clamp policy",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "HIGH",
+      "donors": [
+        "C-EFFECTS",
+        "C-ROUNDING"
+      ],
+      "owners": [
+        "src/effectsMutationCore.js",
+        "src/effectsMutations.js",
+        "src/hpMemory.js"
+      ],
+      "blockedSpells": [
+        "aid",
+        "greater-restoration",
+        "harm",
+        "heroes-feast"
+      ],
+      "unlockedAlone": [
+        "aid",
+        "greater-restoration",
+        "harm",
+        "heroes-feast"
+      ],
+      "unlockRatio": 1
+    },
+    {
+      "id": "CAP-STRUCTURE",
+      "capability": "Owned destructible segments and residual child zones",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "HIGH",
+      "donors": [
+        "C-ZONE",
+        "C-COMPONENTS"
+      ],
+      "owners": [
+        "src/prismaticWallRules.js",
+        "src/spellChildZoneCore.js",
+        "src/spellStaticZoneCore.js"
+      ],
+      "blockedSpells": [
+        "wall-of-ice",
+        "wall-of-stone",
+        "xanathar-ossa-della-terra"
+      ],
+      "unlockedAlone": [
+        "wall-of-ice",
+        "wall-of-stone",
+        "xanathar-ossa-della-terra"
+      ],
+      "unlockRatio": 0.75
+    },
+    {
+      "id": "CAP-TELEPORT",
+      "capability": "General active/terminal teleport and composite burst/portal linkage",
+      "effort": "MEDIUM-HIGH",
+      "complexity": 4,
+      "risk": "HIGH",
+      "donors": [
+        "C-END",
+        "C-INSTANCE"
+      ],
+      "owners": [
+        "src/spellTeleportCore.js",
+        "src/spellApplicationExecutor.js",
+        "src/spellTerminationGatewayCore.js"
+      ],
+      "blockedSpells": [
+        "xanathar-colpo-del-vento-dacciaio",
+        "xanathar-passo-del-tuono",
+        "xanathar-passo-remoto",
+        "phb2014-portale-arcano"
+      ],
+      "unlockedAlone": [
+        "xanathar-passo-del-tuono",
+        "xanathar-passo-remoto",
+        "phb2014-portale-arcano"
+      ],
+      "unlockRatio": 0.75
+    },
+    {
+      "id": "CAP-MULTIAREA",
+      "capability": "Multiple instant placements → union/dedup target resolution",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-PLACEMENT",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/spellAreaPlacementCore.js",
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellAreaResolutionExecutor.js"
+      ],
+      "blockedSpells": [
+        "fire-storm",
+        "meteor-swarm",
+        "xanathar-minuscole-meteore-di-melf"
+      ],
+      "unlockedAlone": [
+        "fire-storm",
+        "meteor-swarm"
+      ],
+      "unlockRatio": 0.67
+    },
+    {
+      "id": "CAP-SEQUENCE",
+      "capability": "Round-indexed trigger/damage/geometry schedule",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-TRIGGERS",
+        "C-EXPIRY"
+      ],
+      "owners": [
+        "src/spellZoneTriggerCore.js",
+        "src/spellAreaRules.js",
+        "src/spellStaticZoneCore.js"
+      ],
+      "blockedSpells": [
+        "storm-of-vengeance",
+        "phb2014-tsunami"
+      ],
+      "unlockedAlone": [
+        "storm-of-vengeance",
+        "phb2014-tsunami"
+      ],
+      "unlockRatio": 0.67
+    },
+    {
+      "id": "CAP-STABILIZE",
+      "capability": "GM-authorized stabilization/revival eligible state to HP/conditions",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "HIGH",
+      "donors": [
+        "C-EFFECTS",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/hpConditionRulesCore.js",
+        "src/effectsMutationCore.js",
+        "src/spellApplicationPlanCore.js"
+      ],
+      "blockedSpells": [
+        "raise-dead",
+        "reincarnate",
+        "resurrection",
+        "revivify",
+        "spare-the-dying",
+        "true-resurrection"
+      ],
+      "unlockedAlone": [
+        "revivify",
+        "spare-the-dying"
+      ],
+      "unlockRatio": 0.67
+    },
+    {
+      "id": "CAP-CARRIAGE",
+      "capability": "Carried-zone weighted capacity and selective expulsion",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-MOVEZONE",
+        "C-TARGET"
+      ],
+      "owners": [
+        "src/spellZoneMovementCore.js",
+        "src/spellApplicationExecutor.js"
+      ],
+      "blockedSpells": [
+        "xanathar-sfera-acquea"
+      ],
+      "unlockedAlone": [
+        "xanathar-sfera-acquea"
+      ],
+      "unlockRatio": 0.5
+    },
+    {
+      "id": "CAP-RELATION",
+      "capability": "Parametric HP relationship source→destination, ratio and mitigation order",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "HIGH",
+      "donors": [
+        "C-DRAIN",
+        "C-CASTHP"
+      ],
+      "owners": [
+        "src/spellDamageHealingCore.js",
+        "src/spellAreaResolutionExecutor.js"
+      ],
+      "blockedSpells": [
+        "xanathar-trasferimento-di-vita"
+      ],
+      "unlockedAlone": [
+        "xanathar-trasferimento-di-vita"
+      ],
+      "unlockRatio": 0.5
+    },
+    {
+      "id": "CAP-CALENDAR",
+      "capability": "Per-day/rest lifecycle counters distinct from combat turns",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-EXPIRY",
+        "C-RESOURCE"
+      ],
+      "owners": [
+        "src/spellExpiryCore.js",
+        "src/spellLifecycleOperationsCore.js"
+      ],
+      "blockedSpells": [
+        "geas",
+        "raise-dead",
+        "reincarnate",
+        "resurrection",
+        "true-resurrection"
+      ],
+      "unlockedAlone": [
+        "geas"
+      ],
+      "unlockRatio": 0.33
+    },
+    {
+      "id": "CAP-SUPPRESSION",
+      "capability": "Reversible suppression of named conditions preserving expiry",
+      "effort": "MEDIUM",
+      "complexity": 3,
+      "risk": "HIGH",
+      "donors": [
+        "C-EFFECT",
+        "C-EXPIRY"
+      ],
+      "owners": [
+        "src/conditionRulesCore.js",
+        "src/effectsMutationCore.js"
+      ],
+      "blockedSpells": [
+        "calm-emotions"
+      ],
+      "unlockedAlone": [
+        "calm-emotions"
+      ],
+      "unlockRatio": 0.33
+    },
+    {
+      "id": "CAP-ALLOCATION",
+      "capability": "Finite healing budget distributed among target IDs",
+      "effort": "MEDIUM",
+      "complexity": 2,
+      "risk": "MEDIUM",
+      "donors": [
+        "C-CASTHP",
+        "C-TARGET"
+      ],
+      "owners": [
+        "src/spellAreaResolutionCommandCore.js",
+        "src/spellUnifiedPanelCore.js"
+      ],
+      "blockedSpells": [
+        "mass-heal"
+      ],
+      "unlockedAlone": [],
+      "unlockRatio": 0
+    }
+  ],
+  "priorityScenario": [
+    {
+      "capabilities": 0,
+      "ids": [],
+      "green": 50,
+      "percent": 32.9,
+      "newlyUnlocked": [],
+      "remainingYellow": 90
+    },
+    {
+      "capabilities": 1,
+      "ids": [
+        "CAP-ATTACK"
+      ],
+      "green": 66,
+      "percent": 43.4,
+      "newlyUnlocked": [
+        "chill-touch",
+        "eldritch-blast",
+        "fire-bolt",
+        "guiding-bolt",
+        "inflict-wounds",
+        "magic-missile",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-ferocia-primordiale",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-globo-cromatico"
+      ],
+      "remainingYellow": 74
+    },
+    {
+      "capabilities": 2,
+      "ids": [
+        "CAP-ATTACK",
+        "CAP-LINK"
+      ],
+      "green": 75,
+      "percent": 49.3,
+      "newlyUnlocked": [
+        "chill-touch",
+        "eldritch-blast",
+        "fire-bolt",
+        "guiding-bolt",
+        "hunters-mark",
+        "inflict-wounds",
+        "invisibility",
+        "magic-missile",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-debilitazione",
+        "xanathar-ferocia-primordiale",
+        "xanathar-prigione-mentale",
+        "tasha-lama-roboante",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-globo-cromatico",
+        "phb2014-sortilegio",
+        "phb2014-corona-di-follia"
+      ],
+      "remainingYellow": 65
+    },
+    {
+      "capabilities": 3,
+      "ids": [
+        "CAP-ATTACK",
+        "CAP-LINK",
+        "CAP-HP-BRANCH"
+      ],
+      "green": 80,
+      "percent": 52.6,
+      "newlyUnlocked": [
+        "chill-touch",
+        "disintegrate",
+        "divine-word",
+        "eldritch-blast",
+        "feeblemind",
+        "finger-of-death",
+        "fire-bolt",
+        "guiding-bolt",
+        "hunters-mark",
+        "inflict-wounds",
+        "invisibility",
+        "magic-missile",
+        "power-word-kill",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-debilitazione",
+        "xanathar-ferocia-primordiale",
+        "xanathar-prigione-mentale",
+        "tasha-lama-roboante",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-globo-cromatico",
+        "phb2014-sortilegio",
+        "phb2014-corona-di-follia"
+      ],
+      "remainingYellow": 60
+    },
+    {
+      "capabilities": 4,
+      "ids": [
+        "CAP-ATTACK",
+        "CAP-LINK",
+        "CAP-HP-BRANCH",
+        "CAP-CLEANSE"
+      ],
+      "green": 85,
+      "percent": 55.9,
+      "newlyUnlocked": [
+        "chill-touch",
+        "disintegrate",
+        "dispel-evil-and-good",
+        "dispel-magic",
+        "divine-word",
+        "eldritch-blast",
+        "feeblemind",
+        "finger-of-death",
+        "fire-bolt",
+        "guiding-bolt",
+        "heal",
+        "hunters-mark",
+        "inflict-wounds",
+        "invisibility",
+        "lesser-restoration",
+        "magic-missile",
+        "power-word-kill",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-debilitazione",
+        "xanathar-ferocia-primordiale",
+        "xanathar-prigione-mentale",
+        "tasha-lama-roboante",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-globo-cromatico",
+        "phb2014-sortilegio",
+        "phb2014-corona-di-follia",
+        "phb2014-parola-del-potere-guarire"
+      ],
+      "remainingYellow": 55
+    },
+    {
+      "capabilities": 5,
+      "ids": [
+        "CAP-ATTACK",
+        "CAP-LINK",
+        "CAP-HP-BRANCH",
+        "CAP-CLEANSE",
+        "CAP-RESOURCE"
+      ],
+      "green": 89,
+      "percent": 58.6,
+      "newlyUnlocked": [
+        "chill-touch",
+        "disintegrate",
+        "dispel-evil-and-good",
+        "dispel-magic",
+        "divine-word",
+        "eldritch-blast",
+        "feeblemind",
+        "finger-of-death",
+        "fire-bolt",
+        "goodberry",
+        "guardian-of-faith",
+        "guiding-bolt",
+        "heal",
+        "hunters-mark",
+        "inflict-wounds",
+        "invisibility",
+        "lesser-restoration",
+        "magic-missile",
+        "mirror-image",
+        "power-word-kill",
+        "produce-flame",
+        "ray-of-frost",
+        "scorching-ray",
+        "shocking-grasp",
+        "vampiric-touch",
+        "xanathar-debilitazione",
+        "xanathar-ferocia-primordiale",
+        "xanathar-prigione-mentale",
+        "tasha-lama-roboante",
+        "tasha-lama-verdefiamma",
+        "tasha-lenza-elettrizzante",
+        "phb2014-frusta-di-spine",
+        "phb2014-dardo-stregato",
+        "phb2014-duello-obbligato",
+        "phb2014-globo-cromatico",
+        "phb2014-sortilegio",
+        "phb2014-cordone-di-frecce",
+        "phb2014-corona-di-follia",
+        "phb2014-parola-del-potere-guarire"
+      ],
+      "remainingYellow": 51
+    }
+  ],
+  "diagnostics": {
+    "readOnly": true,
+    "productionChanges": false,
+    "probes": [
+      {
+        "name": "Current Hold Person lifecycle composes canonical operations",
+        "result": {
+          "operations": [
+            "concentration:break",
+            "spell:upsert",
+            "condition:add",
+            "concentration:register",
+            "condition:automate"
+          ],
+          "condition": "Paralizzato"
+        }
+      },
+      {
+        "name": "BLOCKER attack resolver leaks acid delayed effect",
+        "result": [
+          {
+            "id": "acid-arrow",
+            "initial": {
+              "dice": "4d4",
+              "type": "acido",
+              "factor": "full"
+            },
+            "unexpectedDeferred": false,
+            "effectId": "acid-arrow-delayed-acid"
+          },
+          {
+            "id": "guiding-bolt",
+            "initial": {
+              "dice": "4d6",
+              "type": "radiante",
+              "factor": "full"
+            },
+            "unexpectedDeferred": true,
+            "effectId": "acid-arrow-delayed-acid"
+          },
+          {
+            "id": "chill-touch",
+            "initial": {
+              "dice": "1d8",
+              "type": "necrotico",
+              "factor": "full"
+            },
+            "unexpectedDeferred": true,
+            "effectId": "acid-arrow-delayed-acid"
+          },
+          {
+            "id": "ray-of-frost",
+            "initial": {
+              "dice": "1d8",
+              "type": "freddo",
+              "factor": "full"
+            },
+            "unexpectedDeferred": true,
+            "effectId": "acid-arrow-delayed-acid"
+          }
+        ]
+      },
+      {
+        "name": "Area transaction supports discrete targets without geometry",
+        "result": {
+          "discrete": "area-transaction",
+          "heal": {
+            "required": true,
+            "visible": true,
+            "mode": "healing"
+          }
+        }
+      },
+      {
+        "name": "Lifecycle HP gate cannot be bypassed by merely declaring initialHP",
+        "result": {
+          "code": "hp-input-not-supported",
+          "implication": "Use existing area-transaction for discrete saves/heals; attack cast bridge remains incomplete."
+        }
+      },
+      {
+        "name": "Vampiric active descriptor validates but does not solve initial cast",
+        "result": {
+          "descriptorValid": true,
+          "damage": 17,
+          "initialCastGap": "CAP-ATTACK"
+        }
+      },
+      {
+        "name": "Hidden retarget emits operations without a new controller",
+        "result": {
+          "operations": [
+            "spell:upsert",
+            "concentration:register",
+            "concentration:break-targets",
+            "condition:add",
+            "condition:automate"
+          ],
+          "remainingGap": "Death/damage/event eligibility and automatic cleanup not proven by this planner probe; keep YELLOW."
+        }
+      },
+      {
+        "name": "Target scaling and bypass preserve canonical maximum",
+        "result": {
+          "maximum": 3,
+          "bypassMaximum": 3
+        }
+      },
+      {
+        "name": "Canonical rounding is floor on final HP factor",
+        "result": {
+          "input": 7,
+          "afterHP": 17
+        }
+      },
+      {
+        "name": "Recovery supports only declared side effect envelope",
+        "result": {
+          "teleport": true,
+          "staticZoneMove": false
+        }
+      }
+    ]
+  },
+  "effortScale": "Relative design complexity, not elapsed time. 1=LOW, 2–3=MEDIUM, 4=MEDIUM-HIGH. Unlock counted only if every dependency satisfied.",
+  "noNewArchFindings": true
+}

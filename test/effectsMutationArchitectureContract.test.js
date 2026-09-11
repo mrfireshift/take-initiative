@@ -145,13 +145,13 @@ test("la transazione composita Quick HP produce una sola entry effectsMutation",
     "async function applyOperation()",
     "async function undoLastOperation()",
   );
-  assert.match(apply, /decorateEntry: \(entry\) => quickHpEffectsHistoryEntry/);
+  assert.doesNotMatch(apply, /withItemMetaHistory/);
   assert.match(apply, /const coordinatedOperations = \[/);
   assert.match(apply, /type: "hp:set"/);
   assert.doesNotMatch(apply, /OBR\.scene\.items\.updateItems/);
   assert.match(effects, /hpOperations\.push\(\{ type: "condition:reconcile-zero-hp"/);
   assert.equal((apply.match(/runEffectsMutation\(coordinatedOperations/g) || []).length, 1);
-  assert.match(apply, /history: false/);
+  assert.match(apply, /history: true/);
 });
 
 test("il transport Effects non confronta epoch numeriche tra realm", () => {

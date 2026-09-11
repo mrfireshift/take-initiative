@@ -373,6 +373,7 @@ export function bootSpellUnifiedPanel(
   let destroyed = false;
   let unsubscribeSelection = null;
   let unsubscribeItems = null;
+  let unsubscribeInitiativeState = null;
   let unsubscribePopup = null;
   let unsubscribeSceneLifecycle = null;
   let targetingSelectionSequence = 0;
@@ -2272,9 +2273,11 @@ export function bootSpellUnifiedPanel(
     pendingPlacementRequests.clear();
     unsubscribeSelection?.();
     unsubscribeItems?.();
+    unsubscribeInitiativeState?.();
     unsubscribePopup?.();
     unsubscribeSelection = null;
     unsubscribeItems = null;
+    unsubscribeInitiativeState = null;
     unsubscribePopup = null;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = null;
@@ -3042,6 +3045,24 @@ export function bootSpellUnifiedPanel(
     if (usesPrimarySecondarySelection()) void applyPrimarySecondarySelection(ids);
     else applySelection(ids);
   });
+  unsubscribeInitiativeState = provider.onInitiativeStateChange?.((initiativeState) => {
+    const operation = captureSceneOperation("spell-panel-initiative-state");
+    if (destroyed || !sceneLifecycle.isCurrent(operation)) return;
+    if (typeof provider.reprojectOverviewForInitiativeState === "function") {
+      const overview = provider.reprojectOverviewForInitiativeState(
+        state.activeOverview,
+        initiativeState,
+      );
+      if (!sceneLifecycle.isCurrent(operation)) return;
+      state.activeOverview = Array.isArray(overview) ? overview : state.activeOverview;
+      state.revision += 1;
+      render();
+      return;
+    }
+    void refreshScene().catch((error) => {
+      console.warn("[spell-unified-panel] initiative state refresh:", error?.message || error);
+    });
+  }) || null;
   unsubscribeItems = provider.onSceneItemsChange?.(() => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {

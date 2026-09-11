@@ -237,6 +237,37 @@ test("TEST 8 — Fireball normal flow: all layers render and clean up within sam
   await sleep(1100);
   assert.equal(localCalls.addItems.length, 1, "Cleanup must not allow the video to start a second visual cycle");
   assert.equal(localCalls.deleteItems.length, 1, "Cleanup must not issue repeated deletes after success");
+
+  // Un eventuale replay tardivo dello stesso cast non puo riaprire il one-shot
+  // appena concluso: l'identity del cast resta consumata per il renderer.
+  await sdkStub.broadcast.sendMessage("com.thebigpicture.initiative/fireball-visual", {
+    type: "fireball",
+    eventId: "fireball-standard-1",
+    center: { x: 500, y: 500 },
+    radius: 600,
+    dpi: 150,
+  });
+  await sleep(150);
+  assert.equal(localCalls.addItems.length, 1, "A completed cast must not respawn from a duplicate event");
+  await unmountFireballVisualRenderer();
+});
+
+test("Fireball — un secondo cast reale con una nuova identity produce un nuovo one-shot", async () => {
+  resetLocal();
+  await unmountFireballVisualRenderer();
+  mountFireballVisualRenderer();
+
+  const preview = {
+    start: { x: 500, y: 500 },
+    radius: 600,
+    dpi: 150,
+  };
+  await emitFireballVisual({ preview, eventId: "fireball-cast-1" });
+  await sleep(150);
+  await emitFireballVisual({ preview, eventId: "fireball-cast-2" });
+  await sleep(150);
+
+  assert.equal(localCalls.addItems.length, 2, "Different cast identities remain independently renderable");
   await unmountFireballVisualRenderer();
 });
 
