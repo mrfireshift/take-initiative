@@ -236,6 +236,32 @@ function mergeStoredCardProfile(base, value) {
   };
 }
 
+function sameInitiativeCardSemanticValue(left, right) {
+  if (Object.is(left, right)) return true;
+  if (!left || !right || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((entry, index) => sameInitiativeCardSemanticValue(entry, right[index]));
+  }
+  const leftKeys = Object.keys(left).filter((key) => key !== "updatedAt").sort();
+  const rightKeys = Object.keys(right).filter((key) => key !== "updatedAt").sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) => (
+      key === rightKeys[index]
+      && sameInitiativeCardSemanticValue(left[key], right[key])
+    ));
+}
+
+function sameInitiativeCardStoredProfile(left, right) {
+  return sameInitiativeCardSemanticValue(left, right);
+}
+
+function isAmbiguousInitiativeCardTransportError(error) {
+  return error?.name === "BackgroundTransportError";
+}
+
 function hasLegacyQuickActionStorage(value) {
   return Array.isArray(value?.quickActions)
     && value.quickActions.some((action) => (
@@ -328,7 +354,12 @@ async function writeTokenProfile(
   itemId,
   storedProfile,
   actorProfileId = "",
-  { isCurrent = () => true, commandId = "", sceneIdentity = null } = {},
+  {
+    isCurrent = () => true,
+    commandId = "",
+    sceneIdentity = null,
+    transportTimeoutMs = undefined,
+  } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-token-write");
   const normalizedActorProfileId = normalizeActorProfileId(
@@ -357,6 +388,7 @@ async function writeTokenProfile(
     }],
     ...(commandId ? { commandId } : {}),
     ...(sceneIdentity ? { sceneIdentity } : {}),
+    ...(transportTimeoutMs !== undefined ? { transportTimeoutMs } : {}),
   });
   if (!isCurrent()) throw new Error("scene-stale-after-card-token-write");
   requireAppliedEffectsMutation(mutation);
@@ -645,7 +677,12 @@ export async function saveInitiativeCard(
   itemId,
   name,
   value,
-  { isCurrent = () => true, commandId = "", sceneIdentity = null } = {},
+  {
+    isCurrent = () => true,
+    commandId = "",
+    sceneIdentity = null,
+    transportTimeoutMs = undefined,
+  } = {},
 ) {
   if (!isCurrent()) throw new Error("scene-stale-before-card-save");
   const [sourceItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
@@ -699,11 +736,26 @@ export async function saveInitiativeCard(
     return next;
   }, { isCurrent });
   if (!roomResult || !isCurrent()) throw new Error("scene-stale-after-card-room-write");
-  await writeTokenProfile(itemId, storedProfile, actorProfileId, {
-    isCurrent,
-    commandId,
-    sceneIdentity,
-  });
+  if (!sameInitiativeCardStoredProfile(sourceRawProfile, storedBaseProfile)) {
+    try {
+      await writeTokenProfile(itemId, storedProfile, actorProfileId, {
+        isCurrent,
+        commandId,
+        sceneIdentity,
+        transportTimeoutMs,
+      });
+    } catch (error) {
+      if (!isAmbiguousInitiativeCardTransportError(error)) throw error;
+      const [canonicalItem] = await OBR.scene.items.getItems([itemId]).catch(() => []);
+      if (!isCurrent()) throw new Error("scene-stale-after-card-ack-reread");
+      const canonicalProfile = canonicalItem?.metadata?.[META_KEY]?.[INITIATIVE_CARD_FIELD];
+      if (!sameInitiativeCardStoredProfile(canonicalProfile, storedBaseProfile)) throw error;
+      console.debug("[initiative-card] canonical save confirmed after lost coordinator ACK", {
+        itemId,
+        commandId,
+      });
+    }
+  }
   if (!isCurrent()) throw new Error("scene-stale-after-card-save");
   return profile;
 }

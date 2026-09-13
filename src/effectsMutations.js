@@ -308,6 +308,55 @@ function compactBackgroundUndoTransportResult(result) {
   return compact;
 }
 
+// An initiative-card caller only needs the committed outcome and whether the
+// exhaustion condition changed.  Returning the full metadata patch echoes the
+// whole character profile (including every Quick Action) back over broadcast,
+// which can exceed the transport payload budget after the canonical commit.
+function compactInitiativeCardChange(change) {
+  if (!change || typeof change !== "object") return null;
+  const fields = {};
+  for (const [field, changed] of Object.entries(change.fields || {})) {
+    if (changed === true) fields[field] = true;
+  }
+  return { id: String(change.id || ""), fields };
+}
+
+function compactBackgroundInitiativeCardTransportResult(result) {
+  if (!result || typeof result !== "object" || !result.plan || typeof result.plan !== "object") {
+    return result;
+  }
+  const plan = result.plan;
+  const changedIds = Array.isArray(result.changedIds)
+    ? result.changedIds
+    : plan.changedIds || [];
+  const compact = {
+    status: result.status,
+    commandId: result.commandId,
+    correlationId: result.correlationId,
+    sceneEpoch: result.sceneEpoch,
+    sceneIdentity: result.sceneIdentity,
+    kind: result.kind,
+    committed: result.committed === true,
+    changedIds: clone(changedIds),
+    changes: (Array.isArray(result.changes) ? result.changes : plan.changes || [])
+      .map(compactInitiativeCardChange)
+      .filter(Boolean),
+  };
+  for (const field of [
+    "reason",
+    "error",
+    "conflicts",
+    "postCommitErrors",
+    "historyError",
+    "historyPending",
+    "historyRecovered",
+    "historySkipped",
+  ]) {
+    if (hasOwnUndoTransportField(result, field)) compact[field] = clone(result[field]);
+  }
+  return compact;
+}
+
 function jsonUtf8Bytes(value) {
   let serialized = "";
   try {
@@ -4030,6 +4079,9 @@ export async function mountEffectsMutationCoordinatorService() {
           : data.kind === "apply"
             && handledCommand?.kind === "reminder-resolution"
             ? compactBackgroundReminderTransportResult(result)
+            : data.kind === "apply"
+              && handledCommand?.kind === "initiative-card"
+              ? compactBackgroundInitiativeCardTransportResult(result)
             : result;
         const responsePayload = { requestId: data.requestId, result: transportResult };
         console.debug("[effects-coordinator] response-size", backgroundResultDiagnostics({
